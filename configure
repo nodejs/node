@@ -139,28 +139,42 @@ def pkg_config(pkg):
   return (libs, cflags)
 
 
-def uname(switch):
-  f = os.popen('uname %s' % switch)
-  s = f.read().strip()
-  f.close()
-  return s
-
-
 def host_arch():
   """Host architecture. One of arm, ia32 or x64."""
-  arch   = uname('-m')
-  arches = {
-    'arm': 'arm',
-    'x86': 'ia32',
-    'i386': 'ia32',
-    'i686': 'ia32',
-    'x86_64': 'x64',
+
+  # TODO better/configurable way of getting the proper 'cc' command?
+  cc = [ 'cc' ]
+
+  cmd = cc + [ '-dM', '-E', '-' ]
+  p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  p.stdin.write('\n')
+  out = p.communicate()[0]
+
+  out = str(out).split('\n')
+
+  k = {}
+  for line in out:
+    import shlex
+    lst = shlex.split(line)
+    if len(lst) > 2:
+      key = lst[1]
+      val = lst[2]
+      k[key] = val
+
+  matchup = {
+    '__x86_64__'  : 'x64',
+    '__i386__'    : 'ia32',
+    '__arm__'     : 'arm',
   }
 
-  if arches.get(arch) == None:
-    arch = uname('-p')
+  rtn = 'ia32' # default
 
-  return arches.get(arch, 'ia32')
+  for i in matchup:
+    if i in k and k[i] != '0':
+      rtn = matchup[i]
+      break
+
+  return rtn
 
 
 def target_arch():
