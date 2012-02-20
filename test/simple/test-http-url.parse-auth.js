@@ -24,11 +24,12 @@ var assert = require('assert');
 var http = require('http');
 var url = require('url');
 
-var testURL = url.parse('http://asdf:qwer@localhost:' + common.PORT);
+// username = "user", password = "pass:"
+var testURL = url.parse('http://user:pass%3A@localhost:' + common.PORT);
 
 function check(request) {
   // the correct authorization header is be passed
-  assert.strictEqual(request.headers.authorization, 'Basic YXNkZjpxd2Vy');
+  assert.strictEqual(request.headers.authorization, 'Basic dXNlcjpwYXNzOg==');
 }
 
 var server = http.createServer(function(request, response) {
