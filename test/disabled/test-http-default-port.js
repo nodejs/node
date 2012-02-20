@@ -24,6 +24,7 @@
 
 // This must be run as root.
 
+var common = require('../common');
 var http = require('http'),
     https = require('https'),
     PORT = 80,

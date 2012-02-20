@@ -39,6 +39,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+var common = require('../common');
 var punycode = require('punycode');
 var assert = require('assert');
 

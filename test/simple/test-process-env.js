@@ -22,8 +22,9 @@
 // first things first, set the timezone; see tzset(3)
 process.env.TZ = 'Europe/Amsterdam';
 
-assert = require('assert');
-spawn = require('child_process').spawn;
+var common = require('../common');
+var assert = require('assert');
+var spawn = require('child_process').spawn;
 
 /* For the moment we are not going to support setting the timezone via the
  * environment variables. The problem is that various V8 platform backends
@@ -57,7 +58,7 @@ if (process.argv[2] == 'you-are-the-child') {
   delete process.env.NODE_PROCESS_ENV_DELETED;
   assert.equal(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
 
-  child = spawn(process.argv[0], [process.argv[1], 'you-are-the-child']);
+  var child = spawn(process.argv[0], [process.argv[1], 'you-are-the-child']);
   child.stdout.on('data', function(data) { console.log(data.toString()); });
   child.stderr.on('data', function(data) { console.log(data.toString()); });
   child.on('exit', function(statusCode) {

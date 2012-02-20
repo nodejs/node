@@ -22,6 +22,7 @@
 
 
 
+var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;
 var fs = require('fs');

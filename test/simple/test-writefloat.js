@@ -23,6 +23,7 @@
  * Tests to verify we're writing floats correctly
  */
 var SlowBuffer = process.binding('buffer').SlowBuffer;
+var common = require('../common');
 var ASSERT = require('assert');
 
 function test(clazz) {

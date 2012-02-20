@@ -25,6 +25,7 @@
  * verify Buffer can used in Typed Arrays
  */
 
+var common = require('../common');
 var assert = require('assert');
 var SlowBuffer = process.binding('buffer').SlowBuffer;
 var ArrayBuffer = process.binding('typed_array').ArrayBuffer;
