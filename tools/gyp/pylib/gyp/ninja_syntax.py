@@ -31,19 +31,23 @@ class Writer(object):
         if value is None:
             return
         if isinstance(value, list):
-            value = ' '.join(value)
+            value = ' '.join(filter(None, value))  # Filter out empty strings.
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None,
-             generator=False):
+             generator=False, restat=False, deplist=None):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
             self.variable('description', description, indent=1)
         if depfile:
             self.variable('depfile', depfile, indent=1)
+        if deplist:
+            self.variable('deplist', deplist, indent=1)
         if generator:
             self.variable('generator', '1', indent=1)
+        if restat:
+            self.variable('restat', '1', indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
@@ -80,48 +84,48 @@ class Writer(object):
     def default(self, paths):
         self._line('default %s' % ' '.join(self._as_list(paths)))
 
+    def _count_dollars_before_index(self, s, i):
+      """Returns the number of '$' characters right in front of s[i]."""
+      dollar_count = 0
+      dollar_index = i - 1
+      while dollar_index > 0 and s[dollar_index] == '$':
+        dollar_count += 1
+        dollar_index -= 1
+      return dollar_count
+
     def _line(self, text, indent=0):
         """Write 'text' word-wrapped at self.width characters."""
         leading_space = '  ' * indent
         while len(text) > self.width:
             # The text is too wide; wrap if possible.
 
-            self.output.write(leading_space)
-
+            # Find the rightmost space that would obey our width constraint and
+            # that's not an escaped space.
             available_space = self.width - len(leading_space) - len(' $')
+            space = available_space
+            while True:
+              space = text.rfind(' ', 0, space)
+              if space < 0 or \
+                 self._count_dollars_before_index(text, space) % 2 == 0:
+                break
 
-            # Write as much as we can into this line.
-            done = False
-            written_stuff = False
-            while available_space > 0:
-                space = re.search('((\$\$)+([^$]|^)|[^$]|^) ', text)
-                if space:
-                    space_idx = space.start() + 1
-                else:
-                    # No spaces left.
-                    done = True
+            if space < 0:
+                # No such space; just use the first unescaped space we can find.
+                space = available_space - 1
+                while True:
+                  space = text.find(' ', space + 1)
+                  if space < 0 or \
+                     self._count_dollars_before_index(text, space) % 2 == 0:
                     break
+            if space < 0:
+                # Give up on breaking.
+                break
 
-                if space_idx > available_space:
-                    # We're out of space.
-                    if written_stuff:
-                        # See if we can fit it on the next line.
-                        break
-                    # If we haven't written anything yet on this line, don't
-                    # try to wrap.
-                self.output.write(text[0:space_idx] + ' ')
-                written_stuff = True
-                text = text[space_idx+1:]
-                available_space -= space_idx+1
-
-            self.output.write('$\n')
+            self.output.write(leading_space + text[0:space] + ' $\n')
+            text = text[space+1:]
 
             # Subsequent lines are continuations, so indent them.
             leading_space = '  ' * (indent+2)
-
-            if done:
-                # No more spaces, so bail.
-                break
 
         self.output.write(leading_space + text + '\n')
 

@@ -58,6 +58,8 @@
         'var16': '<(not_int_5)',
         'var17': '<(negative_int)',
         'var18': '<(zero_int)',
+        'var19': ['<!@(python test.py)'],
+        'var20': '<!(python test.py)',
       },
       'actions': [
         {

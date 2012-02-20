@@ -13,7 +13,7 @@ and using the subdirectory's solution or project file as the entry point.
 import TestGyp
 import errno
 
-test = TestGyp.TestGyp(formats=['make'])
+test = TestGyp.TestGyp(formats=['ninja', 'make'])
 
 # We want our Makefile to be one dir up from main.gyp.
 test.run_gyp('main.gyp', '--toplevel-dir=..', chdir='src/sub1')

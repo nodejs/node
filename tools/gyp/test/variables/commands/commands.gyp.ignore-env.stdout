@@ -118,6 +118,12 @@ VARIABLES:input.py:658:ExpandVariables Executing command 'python -c "print '3.14
 VARIABLES:input.py:765:ExpandVariables Found output '3.14159265359 ABCD', recursing.
 VARIABLES:input.py:783:ExpandVariables Expanding '3.14159265359 ABCD' to '3.14159265359 ABCD'
 VARIABLES:input.py:783:ExpandVariables Expanding '<!(python -c "print \'<!(python -c "<(pi)") <(letters_list)\'")' to '3.14159265359 ABCD'
+VARIABLES:input.py:544:ExpandVariables Matches: {'content': 'python test.py', 'is_array': '', 'replace': '<!(python test.py)', 'type': '<!', 'command_string': None}
+VARIABLES:input.py:783:ExpandVariables Expanding 'python test.py' to 'python test.py'
+VARIABLES:input.py:658:ExpandVariables Executing command 'python test.py' in directory 'None'
+VARIABLES:input.py:765:ExpandVariables Found output 'sample\\path\\foo.cpp', recursing.
+VARIABLES:input.py:783:ExpandVariables Expanding 'sample\\path\\foo.cpp' to 'sample\\path\\foo.cpp'
+VARIABLES:input.py:783:ExpandVariables Expanding '<!(python test.py)' to 'sample\\path\\foo.cpp'
 VARIABLES:input.py:544:ExpandVariables Matches: {'content': 'check_str_int', 'is_array': '', 'replace': '<(check_str_int)', 'type': '<', 'command_string': None}
 VARIABLES:input.py:783:ExpandVariables Expanding 'check_str_int' to 'check_str_int'
 VARIABLES:input.py:765:ExpandVariables Found output '6', recursing.
@@ -175,6 +181,12 @@ VARIABLES:input.py:783:ExpandVariables Expanding 7 to 7
 VARIABLES:input.py:783:ExpandVariables Expanding 8 to 8
 VARIABLES:input.py:783:ExpandVariables Expanding 9 to 9
 VARIABLES:input.py:783:ExpandVariables Expanding '<@(check_list_int)' to [7, 8, 9]
+VARIABLES:input.py:544:ExpandVariables Matches: {'content': 'python test.py', 'is_array': '', 'replace': '<!@(python test.py)', 'type': '<!@', 'command_string': None}
+VARIABLES:input.py:783:ExpandVariables Expanding 'python test.py' to 'python test.py'
+VARIABLES:input.py:703:ExpandVariables Had cache value for command 'python test.py' in directory 'None'
+VARIABLES:input.py:765:ExpandVariables Found output ['samplepathfoo.cpp'], recursing.
+VARIABLES:input.py:783:ExpandVariables Expanding 'samplepathfoo.cpp' to 'samplepathfoo.cpp'
+VARIABLES:input.py:783:ExpandVariables Expanding '<!@(python test.py)' to ['samplepathfoo.cpp']
 VARIABLES:input.py:783:ExpandVariables Expanding 'foo' to 'foo'
 VARIABLES:input.py:783:ExpandVariables Expanding 'target' to 'target'
 VARIABLES:input.py:783:ExpandVariables Expanding 'none' to 'none'
@@ -234,6 +246,7 @@ VARIABLES:input.py:783:ExpandVariables Expanding 'list' to 'list'
 VARIABLES:input.py:783:ExpandVariables Expanding '3.14159265359' to '3.14159265359'
 VARIABLES:input.py:783:ExpandVariables Expanding 'ABCD' to 'ABCD'
 VARIABLES:input.py:783:ExpandVariables Expanding '3.14159265359 ABCD' to '3.14159265359 ABCD'
+VARIABLES:input.py:783:ExpandVariables Expanding 'sample\\path\\foo.cpp' to 'sample\\path\\foo.cpp'
 VARIABLES:input.py:783:ExpandVariables Expanding '5blah' to '5blah'
 VARIABLES:input.py:783:ExpandVariables Expanding '13.0' to '13.0'
 VARIABLES:input.py:783:ExpandVariables Expanding '012' to '012'
@@ -241,6 +254,7 @@ VARIABLES:input.py:783:ExpandVariables Expanding '+14' to '+14'
 VARIABLES:input.py:783:ExpandVariables Expanding '7 8 9' to '7 8 9'
 VARIABLES:input.py:783:ExpandVariables Expanding '11 ' to '11 '
 VARIABLES:input.py:783:ExpandVariables Expanding ' 10' to ' 10'
+VARIABLES:input.py:783:ExpandVariables Expanding 'samplepathfoo.cpp' to 'samplepathfoo.cpp'
 VARIABLES:input.py:783:ExpandVariables Expanding 'foo' to 'foo'
 VARIABLES:input.py:783:ExpandVariables Expanding 'target' to 'target'
 VARIABLES:input.py:783:ExpandVariables Expanding 'none' to 'none'

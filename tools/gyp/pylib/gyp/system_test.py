@@ -51,20 +51,6 @@ def TestArSupportsT(ar_command='ar', cc_command='cc'):
                       env={'ar': ar_command, 'cc': cc_command})
 
 
-def TestLinkerSupportsThreads(cc_command='cc'):
-  """Test whether the linker supports the --threads flag."""
-  return TestCommands(['%(cc)s -Wl,--threads test.c'],
-                      files={'test.c': 'int main(){}'},
-                      env={'cc': cc_command})
-
-
-def TestLinkerSupportsICF(cc_command='cc'):
-  """Test whether the linker supports identical code folding."""
-  return TestCommands(['%(cc)s -Wl,--icf=safe test.c'],
-                      files={'test.c': 'int main(){}'},
-                      env={'cc': cc_command})
-
-
 def main():
   # Run the various test functions and print the results.
   def RunTest(description, function, **kwargs):
@@ -75,7 +61,6 @@ def main():
       print 'fail'
   RunTest("ar 'T' flag", TestArSupportsT)
   RunTest("ar 'T' flag with ccache", TestArSupportsT, cc_command='ccache cc')
-  RunTest("ld --threads", TestLinkerSupportsThreads)
   return 0
 
 

@@ -20,15 +20,15 @@ for unused in ['RULE_INPUT_PATH', 'RULE_INPUT_ROOT', 'RULE_INPUT_NAME',
                'RULE_INPUT_DIRNAME', 'RULE_INPUT_EXT',
                'EXECUTABLE_PREFIX', 'EXECUTABLE_SUFFIX',
                'STATIC_LIB_PREFIX', 'STATIC_LIB_SUFFIX',
-               'SHARED_LIB_PREFIX', 'SHARED_LIB_SUFFIX',
-               'LINKER_SUPPORTS_ICF']:
+               'SHARED_LIB_PREFIX', 'SHARED_LIB_SUFFIX']:
   generator_default_variables[unused] = ''
 
 
 def CalculateVariables(default_variables, params):
   generator_flags = params.get('generator_flags', {})
-  default_variables['OS'] = generator_flags.get(
-      'os', gyp.common.GetFlavor(params))
+  for key, val in generator_flags.items():
+    default_variables.setdefault(key, val)
+  default_variables.setdefault('OS', gyp.common.GetFlavor(params))
 
 
 def CalculateGeneratorInputInfo(params):

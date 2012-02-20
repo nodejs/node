@@ -40,6 +40,7 @@
         },
       ],
     },
+    # Types 'static_library' and 'none' can't exist as bundles.
 
     {
       'target_name': 'nonbundle_executable',
@@ -82,6 +83,16 @@
         {
           'postbuild_name': 'envtest',
           'action': [ './test_nonbundle_static_library.sh', ],
+        },
+      ],
+    },
+    {
+      'target_name': 'nonbundle_none',
+      'type': 'none',
+      'postbuilds': [
+        {
+          'postbuild_name': 'envtest',
+          'action': [ './test_nonbundle_none.sh', ],
         },
       ],
     },

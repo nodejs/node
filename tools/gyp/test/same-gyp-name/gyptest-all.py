@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -12,7 +12,7 @@ import TestGyp
 
 # This causes a problem on XCode (duplicate ID).
 # See http://code.google.com/p/gyp/issues/detail?id=114
-test = TestGyp.TestGyp(formats=['msvs', 'scons', 'make'])
+test = TestGyp.TestGyp(formats=['msvs', 'scons', 'make', 'ninja'])
 
 test.run_gyp('all.gyp', chdir='src')
 

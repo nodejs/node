@@ -15,7 +15,7 @@
         'defines': ['PLATFORM_LINUX'],
         # Support 64-bit shared libs (also works fine for 32-bit).
         'cflags': ['-fPIC'],
-        'ldflags': ['-ldl'],
+        'libraries': ['-ldl'],
       }],
     ],
   },

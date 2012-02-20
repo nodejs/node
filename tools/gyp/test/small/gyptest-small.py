@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2011 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,6 +27,7 @@ files_to_test = [
     'pylib/gyp/MSVSSettings_test.py',
     'pylib/gyp/easy_xml_test.py',
     'pylib/gyp/generator/msvs_test.py',
+    'pylib/gyp/generator/ninja_test.py',
 ]
 
 # Collect all the suites from the above files.

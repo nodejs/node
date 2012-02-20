@@ -1,4 +1,4 @@
-# Copyright (c) 2011 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -222,7 +222,11 @@ class TestGypBase(TestCommon.TestCommon):
     Runs gyp against the specified gyp_file with the specified args.
     """
     # TODO:  --depth=. works around Chromium-specific tree climbing.
-    args = ('--depth=.', '--format='+self.format, gyp_file) + args
+    depth = '.'
+    if 'depth' in kw:
+      depth = kw['depth']
+      del kw['depth']
+    args = ('--depth='+depth, '--format='+self.format, gyp_file) + args
     return self.run(program=self.gyp, arguments=args, **kw)
 
   def run(self, *args, **kw):
@@ -415,24 +419,10 @@ class TestGypNinja(TestGypBase):
   ALL = 'all'
   DEFAULT = 'all'
 
-  # The default library prefix is computed from TestCommon.lib_prefix,
-  # but ninja uses no prefix for static libraries.
-  lib_ = ''
-
   def run_gyp(self, gyp_file, *args, **kw):
-    # We must pass the desired configuration as a parameter.
-    if self.configuration:
-      args = list(args) + ['-Gconfig=' + self.configuration]
-    # Stash the gyp configuration we used to run gyp, so we can
-    # know whether we need to rerun it later.
-    self.last_gyp_configuration = self.configuration
     TestGypBase.run_gyp(self, gyp_file, *args, **kw)
 
   def build(self, gyp_file, target=None, **kw):
-    if self.last_gyp_configuration != self.configuration:
-      # Rerun gyp if necessary.
-      self.run_gyp(gyp_file)
-
     arguments = kw.get('arguments', [])[:]
 
     # Add a -C output/path to the command line.
@@ -450,9 +440,9 @@ class TestGypNinja(TestGypBase):
     # Enclosing the name in a list avoids prepending the original dir.
     program = [self.built_file_path(name, type=self.EXECUTABLE, **kw)]
     if sys.platform == 'darwin':
-      libdir = os.path.join('out', 'Default', 'lib')
+      libdir = os.path.join('out', 'Default')
       if self.configuration:
-        libdir = os.path.join('out', self.configuration, 'lib')
+        libdir = os.path.join('out', self.configuration)
       os.environ['DYLD_LIBRARY_PATH'] = libdir
     return self.run(program=program, *args, **kw)
 
@@ -467,7 +457,8 @@ class TestGypNinja(TestGypBase):
       if sys.platform != 'darwin':
         result.append('obj')
     elif type == self.SHARED_LIB:
-      result.append('lib')
+      if sys.platform != 'darwin':
+        result.append('lib')
     subdir = kw.get('subdir')
     if subdir:
       result.append(subdir)

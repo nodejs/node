@@ -17,7 +17,7 @@ import sys
 import time
 
 if sys.platform == 'darwin':
-  test = TestGyp.TestGyp(formats=['make', 'xcode'])
+  test = TestGyp.TestGyp(formats=['ninja', 'make', 'xcode'])
 
   test.run_gyp('test.gyp', chdir='strip')
 

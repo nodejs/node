@@ -14,13 +14,15 @@ import sys
 
 if sys.platform == 'darwin':
   # set |match| to ignore build stderr output.
-  test = TestGyp.TestGyp(formats=['make', 'xcode'], match = lambda a, b: True)
+  test = TestGyp.TestGyp(formats=['ninja', 'make', 'xcode'],
+                         match = lambda a, b: True)
 
   test.run_gyp('test.gyp', chdir='postbuild-fail')
 
   build_error_code = {
     'xcode': 1,
     'make': 2,
+    'ninja': 1,
   }[test.format]
 
 

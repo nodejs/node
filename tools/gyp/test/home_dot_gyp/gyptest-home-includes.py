@@ -5,7 +5,7 @@
 # found in the LICENSE file.
 
 """
-Verifies inclusion of $HOME/.gyp/includes.gypi works.
+Verifies inclusion of $HOME/.gyp/include.gypi works.
 """
 
 import os
@@ -18,7 +18,7 @@ os.environ['HOME'] = os.path.abspath('home')
 test.run_gyp('all.gyp', chdir='src')
 
 # After relocating, we should still be able to build (build file shouldn't
-# contain relative reference to ~/.gyp/includes.gypi)
+# contain relative reference to ~/.gyp/include.gypi)
 test.relocate('src', 'relocate/src')
 
 test.build('all.gyp', test.ALL, chdir='relocate/src')

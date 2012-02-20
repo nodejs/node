@@ -28,11 +28,29 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>ProcessedKey1</key>
-        <string>${DEPENDENT_KEY1}</string>
-	<key>ProcessedKey2</key>
-        <string>${DEPENDENT_KEY2}</string>
-	<key>ProcessedKey3</key>
-        <string>${DEPENDENT_KEY3}</string>
+
+	<key>BraceProcessedKey1</key>
+	<string>${BRACE_DEPENDENT_KEY1}</string>
+	<key>BraceProcessedKey2</key>
+	<string>${BRACE_DEPENDENT_KEY2}</string>
+	<key>BraceProcessedKey3</key>
+	<string>${BRACE_DEPENDENT_KEY3}</string>
+
+	<key>ParenProcessedKey1</key>
+	<string>${PAREN_DEPENDENT_KEY1}</string>
+	<key>ParenProcessedKey2</key>
+	<string>${PAREN_DEPENDENT_KEY2}</string>
+	<key>ParenProcessedKey3</key>
+	<string>${PAREN_DEPENDENT_KEY3}</string>
+
+	<key>BareProcessedKey1</key>
+	<string>${BARE_DEPENDENT_KEY1}</string>
+	<key>BareProcessedKey2</key>
+	<string>${BARE_DEPENDENT_KEY2}</string>
+	<key>BareProcessedKey3</key>
+	<string>${BARE_DEPENDENT_KEY3}</string>
+
+	<key>MixedProcessedKey</key>
+	<string>${MIXED_DEPENDENT_KEY}</string>
 </dict>
 </plist>
