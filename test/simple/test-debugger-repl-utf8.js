@@ -25,9 +25,11 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 var debug = require('_debugger');
 
+var port = common.PORT + 1337;
+
 var script = common.fixturesDir + '/breakpoints_utf8.js';
 
-var child = spawn(process.execPath, ['debug', '--port=' + common.PORT, script]);
+var child = spawn(process.execPath, ['debug', '--port=' + port, script]);
 
 var buffer = '';
 child.stdout.setEncoding('utf-8');
