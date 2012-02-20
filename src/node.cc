@@ -1332,7 +1332,6 @@ static Handle<Value> Umask(const Arguments& args) {
 
 static Handle<Value> GetUid(const Arguments& args) {
   HandleScope scope;
-  assert(args.Length() == 0);
   int uid = getuid();
   return scope.Close(Integer::New(uid));
 }
@@ -1340,7 +1339,6 @@ static Handle<Value> GetUid(const Arguments& args) {
 
 static Handle<Value> GetGid(const Arguments& args) {
   HandleScope scope;
-  assert(args.Length() == 0);
   int gid = getgid();
   return scope.Close(Integer::New(gid));
 }
@@ -1463,7 +1461,6 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
 
 static Handle<Value> Uptime(const Arguments& args) {
   HandleScope scope;
-  assert(args.Length() == 0);
   double uptime;
 
   uv_err_t err = uv_uptime(&uptime);
@@ -1510,7 +1507,6 @@ v8::Handle<v8::Value> UVCounters(const v8::Arguments& args) {
 
 v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
-  assert(args.Length() == 0);
 
   size_t rss;
 
