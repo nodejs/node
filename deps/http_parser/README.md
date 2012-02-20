@@ -164,6 +164,13 @@ and apply following logic:
      ------------------------ ------------ --------------------------------------------
 
 
+Parsing URLs
+------------
+
+A simplistic zero-copy URL parser is provided as `http_parser_parse_url()`.
+Users of this library may wish to use it to parse URLs constructed from
+consecutive `on_url` callbacks.
+
 See examples of reading in headers:
 
 * [partial example](http://gist.github.com/155877) in C
