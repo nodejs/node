@@ -328,6 +328,10 @@
       // For supporting legacy API we put the FD here.
       stdin.fd = fd;
 
+      // stdin starts out life in a paused state, but node doesn't
+      // know yet.  Call pause() explicitly to unref() it.
+      stdin.pause();
+
       return stdin;
     });
 
