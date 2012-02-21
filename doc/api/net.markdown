@@ -156,12 +156,6 @@ This function is asynchronous.  When the server has been bound,
 the last parameter `listeningListener` will be added as an listener for the
 ['listening'](#event_listening_) event.
 
-#### server.pause(msecs)
-
-Stop accepting connections for the given number of milliseconds (default is
-one second).  This could be useful for throttling new connections against
-DoS attacks or other oversubscription.
-
 #### server.close([cb])
 
 Stops the server from accepting new connections. This function is
