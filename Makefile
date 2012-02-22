@@ -173,8 +173,19 @@ pkg: $(PKG)
 
 $(PKG):
 	-rm -rf $(PKGDIR)
+	# Need to remove deps between architecture changes.
+	rm -rf out/*/deps
 	$(WAF) configure --prefix=/usr/local --without-snapshot --dest-cpu=ia32
-	CFLAGS=-m32 DESTDIR=$(PKGDIR) $(WAF) install
+	CFLAGS=-m32 DESTDIR=$(PKGDIR)/32 $(WAF) install
+	rm -rf out/*/deps
+	$(WAF) configure --prefix=/usr/local --without-snapshot --dest-cpu=x64
+	CFLAGS=-m64 DESTDIR=$(PKGDIR) $(WAF) install
+	lipo $(PKGDIR)/32/usr/local/bin/node \
+		$(PKGDIR)/usr/local/bin/node \
+		-output $(PKGDIR)/usr/local/bin/node-universal \
+		-create
+	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
+	rm -rf $(PKGDIR)/32
 	$(packagemaker) \
 		--id "org.nodejs.NodeJS-$(VERSION)" \
 		--doc tools/osx-pkg.pmdoc \
