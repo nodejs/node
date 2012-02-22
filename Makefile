@@ -151,9 +151,19 @@ PKGDIR=out/dist-osx
 pkg: $(PKG)
 
 $(PKG):
-	-rm -rf $(PKGDIR)
-	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot
+	rm -rf $(PKGDIR)
+	rm -rf out/deps out/Release
+	./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
 	$(MAKE) install
+	rm -rf out/deps out/Release
+	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
+	$(MAKE) install
+	lipo $(PKGDIR)/32/usr/local/bin/node \
+		$(PKGDIR)/usr/local/bin/node \
+		-output $(PKGDIR)/usr/local/bin/node-universal \
+		-create
+	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
+	rm -rf $(PKGDIR)/32
 	$(packagemaker) \
 		--id "org.nodejs.NodeJS-$(VERSION)" \
 		--doc tools/osx-pkg.pmdoc \
