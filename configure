@@ -208,8 +208,11 @@ def configure_v8(o):
     o['libraries'] += ['-L%s' % options.shared_v8_libpath]
   if options.shared_v8_libname:
     o['libraries'] += ['-l%s' % options.shared_v8_libname]
+  elif options.shared_v8:
+    o['libraries'] += ['-lv8']
   if options.shared_v8_includes:
     o['include_dirs'] += [options.shared_v8_includes]
+    o['variables']['node_shared_v8_includes'] = options.shared_v8_includes
 
 
 def configure_cares(o):
