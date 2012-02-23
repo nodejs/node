@@ -12,7 +12,7 @@ if /i "%1"=="--?" goto help
 if /i "%1"=="/?" goto help
 
 @rem Process arguments.
-set config=Debug
+set config=Release
 set target=Build
 set target_arch=ia32
 set noprojgen=
