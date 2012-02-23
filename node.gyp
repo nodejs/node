@@ -54,6 +54,7 @@
 
       'dependencies': [
         'deps/http_parser/http_parser.gyp:http_parser',
+        'deps/v8/tools/gyp/v8.gyp:v8',
         'deps/uv/uv.gyp:uv',
         'deps/zlib/zlib.gyp:zlib',
         'node_js2c#host',
@@ -109,6 +110,8 @@
         'src/stream_wrap.h',
         'src/v8_typed_array.h',
         'deps/http_parser/http_parser.h',
+        'deps/v8/include/v8.h',
+        'deps/v8/include/v8-debug.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
@@ -142,21 +145,6 @@
             # SHARED_INTERMEDIATE_DIR?
             'src/node_provider.h',
           ],
-        }],
-
-        [ 'node_shared_v8=="true"', {
-          'sources': [
-            '<(node_shared_v8_includes)/v8.h',
-            '<(node_shared_v8_includes)/v8-debug.h',
-          ],
-        }],
-
-        [ 'node_shared_v8=="false"', {
-          'sources': [
-            'deps/v8/include/v8.h',
-            'deps/v8/include/v8-debug.h',
-          ],
-          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
         }],
 
         [ 'OS=="win"', {
