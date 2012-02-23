@@ -357,7 +357,6 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
   } else if (context_flag == userContext) {
     // Use the passed in context
-    Local<Object> contextArg = args[sandbox_index]->ToObject();
     WrappedContext *nContext = ObjectWrap::Unwrap<WrappedContext>(sandbox);
     context = nContext->GetV8Context();
   }

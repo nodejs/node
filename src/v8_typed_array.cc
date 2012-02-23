@@ -345,11 +345,6 @@ class TypedArray {
       v8::Handle<v8::Object> obj = v8::Handle<v8::Object>::Cast(args[0]);
 
       if (TypedArray<TBytes, TEAType>::HasInstance(obj)) {  // ArrayBufferView.
-        v8::Handle<v8::Object> src_buffer = v8::Handle<v8::Object>::Cast(
-            obj->Get(v8::String::New("buffer")));
-        v8::Handle<v8::Object> dst_buffer = v8::Handle<v8::Object>::Cast(
-            args.This()->Get(v8::String::New("buffer")));
-
         if (args[1]->Int32Value() < 0)
           return ThrowRangeError("Offset may not be negative.");
 

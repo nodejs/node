@@ -171,11 +171,10 @@ Handle<Value> Buffer::New(const Arguments &args) {
 
   HandleScope scope;
 
-  Buffer *buffer;
   if (args[0]->IsInt32()) {
     // var buffer = new Buffer(1024);
     size_t length = args[0]->Uint32Value();
-    buffer = new Buffer(args.This(), length);
+    new Buffer(args.This(), length);
   } else {
     return ThrowException(Exception::TypeError(String::New("Bad argument")));
   }
