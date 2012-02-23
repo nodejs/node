@@ -1,4 +1,40 @@
-2012.02.14, Version 0.7.4 (unstable)
+2012.02.23, Version 0.7.5 (unstable)
+
+* startup speed improvements (Maciej Małecki)
+
+* crypto: add function getDiffieHellman() (Tomasz Buchert)
+
+* buffer: support decoding of URL-safe base64 (Ben Noordhuis)
+
+* Make QueryString.parse() even faster (Brian White)
+
+* url: decode url entities in auth section (Ben Noordhuis)
+
+* http: support PURGE request method (Ben Noordhuis)
+
+* http: Generate Date headers on responses (Mark Nottingham)
+
+* Fix #2762: Add callback to close function. (Mikeal Rogers)
+
+* dgram: fix out-of-bound memory read (Ben Noordhuis)
+
+* repl: add automatic loading of built-in libs (Brandon Benvie)
+
+* repl: remove double calls where possible (Fedor Indutny)
+
+* Readline improvements. Related: #2737 #2756 (Colton Baker)
+
+* build: disable -fomit-frame-pointer on solaris (Dave Pacheco)
+
+* build: arch detection improvements (Nathan Rajlich)
+
+* build: Make a fat binary for the OS X `make pkg`. (Nathan Rajlich)
+
+* jslint src/ and lib/ on 'make test' (isaacs)
+
+
+
+2012.02.14, Version 0.7.4 (unstable), de21de920cf93ec40736ada3792a7f85f3eadeda
 
 * Upgrade V8 to 3.9.5
 
