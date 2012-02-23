@@ -286,6 +286,8 @@ Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
 
   size_t offset = args[1]->Uint32Value();
   size_t length = args[2]->Uint32Value();
+  assert(offset < Buffer::Length(buffer_obj));
+  assert(length <= Buffer::Length(buffer_obj) - offset);
 
   SendWrap* req_wrap = new SendWrap();
   req_wrap->object_->SetHiddenValue(buffer_sym, buffer_obj);
