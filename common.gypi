@@ -10,7 +10,7 @@
   },
 
   'target_defaults': {
-    'default_configuration': 'Debug',
+    'default_configuration': 'Release',
     'configurations': {
       'Debug': {
         'defines': [ 'DEBUG', '_DEBUG' ],
