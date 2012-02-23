@@ -70,18 +70,22 @@ Example: running `node example.js` from `/Users/mjr`
 ### module
 
 A reference to the current module. In particular
-`module.exports` is the same as the `exports` object. See `src/node.js`
-for more information.
+`module.exports` is the same as the `exports` object.
 `module` isn't actually a global but rather local to each module.
+
+See the [module system documentation](modules.html) for more
+information.
 
 
 ### exports
 
 An object which is shared between all instances of the current module and
 made accessible through `require()`.
-`exports` is the same as the `module.exports` object. See `src/node.js`
-for more information.
+`exports` is the same as the `module.exports` object.
 `exports` isn't actually a global but rather local to each module.
+
+See the [module system documentation](modules.html) for more
+information.
 
 ### setTimeout(cb, ms)
 ### clearTimeout(t)
