@@ -5,6 +5,7 @@
     # See http://codereview.chromium.org/8159015
     'werror': '',
     'node_use_dtrace': 'false',
+    'node_shared_v8%': 'false',
     'node_use_openssl%': 'true',
     'node_use_system_openssl%': 'false',
     'library_files': [
