@@ -436,6 +436,7 @@ Options:
   Defaults to `'localhost'`.
 - `hostname`: To support `url.parse()` `hostname` is preferred over `host`
 - `port`: Port of remote server. Defaults to 80.
+- `localAddress`: Local interface to bind for network connections.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
 - `path`: Request path. Defaults to `'/'`. Should include query string if any.

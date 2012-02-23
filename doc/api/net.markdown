@@ -64,6 +64,8 @@ For TCP sockets, `options` argument should be an object which specifies:
 
   - `host`: Host the client should connect to. Defaults to `'localhost'`.
 
+  - `localAddress`: Local interface to bind to for network connections.
+
 For UNIX domain sockets, `options` argument should be an object which specifies:
 
   - `path`: Path the client should connect to (Required).
