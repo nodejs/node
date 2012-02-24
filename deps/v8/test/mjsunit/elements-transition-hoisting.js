@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
 
 // Ensure that ElementsKind transitions in various situations are hoisted (or
 // not hoisted) correctly, don't change the semantics programs and don't trigger
@@ -38,6 +38,11 @@ if (support_smi_only_arrays) {
 } else {
   print("Tests do NOT include smi-only arrays.");
 }
+
+// Force existing ICs from previous stress runs to be flushed, otherwise the
+// assumptions in this test about when deoptimizations get triggered are not
+// valid.
+gc();
 
 if (support_smi_only_arrays) {
   // Make sure that a simple elements array transitions inside a loop before
@@ -165,4 +170,42 @@ if (support_smi_only_arrays) {
   testHoistingWithSideEffect(new Array(5));
   testHoistingWithSideEffect(new Array(5));
   assertTrue(2 != %GetOptimizationStatus(testHoistingWithSideEffect));
+
+  function testStraightLineDupeElinination(a,b,c,d,e,f) {
+    var count = 3;
+    do {
+      assertTrue(true);
+      a[0] = b;
+      a[1] = c;
+      a[2] = d;
+      assertTrue(true);
+      a[3] = e; // TransitionElementsKind should be eliminated despite call.
+      a[4] = f;
+    } while (--count > 3);
+  }
+
+  testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,0,0,0,.5);
+  testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,0,0,.5,0);
+  testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,0,.5,0,0);
+  testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),0,.5,0,0,0);
+  testStraightLineDupeElinination(new Array(0, 0, 0, 0, 0),.5,0,0,0,0);
+  testStraightLineDupeElinination(new Array(.1,.1,.1,.1,.1),0,0,0,0,.5);
+  testStraightLineDupeElinination(new Array(.1,.1,.1,.1,.1),0,0,0,.5,0);
+  testStraightLineDupeElinination(new Array(.1,.1,.1,.1,.1),0,0,.5,0,0);
+  testStraightLineDupeElinination(new Array(.1,.1,.1,.1,.1),0,.5,0,0,0);
+  testStraightLineDupeElinination(new Array(.1,.1,.1,.1,.1),.5,0,0,0,0);
+  testStraightLineDupeElinination(new Array(5),.5,0,0,0,0);
+  testStraightLineDupeElinination(new Array(5),0,.5,0,0,0);
+  testStraightLineDupeElinination(new Array(5),0,0,.5,0,0);
+  testStraightLineDupeElinination(new Array(5),0,0,0,.5,0);
+  testStraightLineDupeElinination(new Array(5),0,0,0,0,.5);
+  testStraightLineDupeElinination(new Array(5),.5,0,0,0,0);
+  testStraightLineDupeElinination(new Array(5),0,.5,0,0,0);
+  testStraightLineDupeElinination(new Array(5),0,0,.5,0,0);
+  testStraightLineDupeElinination(new Array(5),0,0,0,.5,0);
+  testStraightLineDupeElinination(new Array(5),0,0,0,0,.5);
+  %OptimizeFunctionOnNextCall(testStraightLineDupeElinination);
+  testStraightLineDupeElinination(new Array(5));
+  testStraightLineDupeElinination(new Array(5));
+  assertTrue(2 != %GetOptimizationStatus(testStraightLineDupeElinination));
 }

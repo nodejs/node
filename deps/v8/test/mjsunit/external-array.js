@@ -317,3 +317,37 @@ for (var t = 0; t < types.length; t++) {
   %DeoptimizeFunction(array_load_set_smi_check2);
   gc();  // Makes V8 forget about type information for array_load_set_smi_check.
 }
+
+// Check handling of undefined in 32- and 64-bit external float arrays.
+
+function store_float32_undefined(ext_array) {
+  ext_array[0] = undefined;
+}
+
+var float32_array = new Float32Array(1);
+// Make sure runtime does it right
+store_float32_undefined(float32_array);
+assertTrue(isNaN(float32_array[0]));
+// Make sure the ICs do it right
+store_float32_undefined(float32_array);
+assertTrue(isNaN(float32_array[0]));
+// Make sure that Cranskshft does it right.
+%OptimizeFunctionOnNextCall(store_float32_undefined);
+store_float32_undefined(float32_array);
+assertTrue(isNaN(float32_array[0]));
+
+function store_float64_undefined(ext_array) {
+  ext_array[0] = undefined;
+}
+
+var float64_array = new Float64Array(1);
+// Make sure runtime does it right
+store_float64_undefined(float64_array);
+assertTrue(isNaN(float64_array[0]));
+// Make sure the ICs do it right
+store_float64_undefined(float64_array);
+assertTrue(isNaN(float64_array[0]));
+// Make sure that Cranskshft does it right.
+%OptimizeFunctionOnNextCall(store_float64_undefined);
+store_float64_undefined(float64_array);
+assertTrue(isNaN(float64_array[0]));

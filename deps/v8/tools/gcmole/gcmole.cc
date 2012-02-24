@@ -69,6 +69,21 @@ static bool InV8Namespace(const clang::NamedDecl* decl) {
 }
 
 
+static std::string EXTERNAL("EXTERNAL");
+static std::string STATE_TAG("enum v8::internal::StateTag");
+
+static bool IsExternalVMState(const clang::ValueDecl* var) {
+  const clang::EnumConstantDecl* enum_constant =
+      dyn_cast<clang::EnumConstantDecl>(var);
+  if (enum_constant != NULL && enum_constant->getNameAsString() == EXTERNAL) {
+    clang::QualType type = enum_constant->getType();
+    return (type.getAsString() == STATE_TAG);
+  }
+
+  return false;
+}
+
+
 struct Resolver {
   explicit Resolver(clang::ASTContext& ctx)
       : ctx_(ctx), decl_ctx_(ctx.getTranslationUnitDecl()) {
@@ -118,6 +133,13 @@ class CalleesPrinter : public clang::RecursiveASTVisitor<CalleesPrinter> {
   virtual bool VisitCallExpr(clang::CallExpr* expr) {
     const clang::FunctionDecl* callee = expr->getDirectCallee();
     if (callee != NULL) AnalyzeFunction(callee);
+    return true;
+  }
+
+  virtual bool VisitDeclRefExpr(clang::DeclRefExpr* expr) {
+    // If function mentions EXTERNAL VMState add artificial garbage collection
+    // mark.
+    if (IsExternalVMState(expr->getDecl())) AddCallee("CollectGarbage");
     return true;
   }
 
@@ -276,6 +298,10 @@ class ExprEffect {
 
   Environment* env() {
     return reinterpret_cast<Environment*>(effect_ & ~kAllEffects);
+  }
+
+  static ExprEffect GC() {
+    return ExprEffect(kCausesGC, NULL);
   }
 
  private:
@@ -790,6 +816,9 @@ class FunctionAnalyzer {
   ExprEffect Use(const clang::Expr* parent,
                  const clang::ValueDecl* var,
                  const Environment& env) {
+    if (IsExternalVMState(var)) {
+      return ExprEffect::GC();
+    }
     return Use(parent, var->getType(), var->getNameAsString(), env);
   }
 

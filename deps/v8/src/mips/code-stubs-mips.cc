@@ -3580,6 +3580,11 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+void InterruptStub::Generate(MacroAssembler* masm) {
+  __ TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
 void MathPowStub::Generate(MacroAssembler* masm) {
   CpuFeatures::Scope fpu_scope(FPU);
   const Register base = a1;
@@ -3832,17 +3837,6 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
-void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  __ Throw(v0);
-}
-
-
-void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
-                                          UncatchableExceptionType type) {
-  __ ThrowUncatchable(type, v0);
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -4033,13 +4027,27 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                true);
 
   __ bind(&throw_out_of_memory_exception);
-  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+  // Set external caught exception to false.
+  Isolate* isolate = masm->isolate();
+  ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
+                                    isolate);
+  __ li(a0, Operand(false, RelocInfo::NONE));
+  __ li(a2, Operand(external_caught));
+  __ sw(a0, MemOperand(a2));
+
+  // Set pending exception and v0 to out of memory exception.
+  Failure* out_of_memory = Failure::OutOfMemoryException();
+  __ li(v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                      isolate)));
+  __ sw(v0, MemOperand(a2));
+  // Fall through to the next label.
 
   __ bind(&throw_termination_exception);
-  GenerateThrowUncatchable(masm, TERMINATION);
+  __ ThrowUncatchable(v0);
 
   __ bind(&throw_normal_exception);
-  GenerateThrowTOS(masm);
+  __ Throw(v0);
 }
 
 
@@ -5133,10 +5141,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label termination_exception;
   __ Branch(&termination_exception, eq, v0, Operand(a0));
 
-  __ Throw(v0);  // Expects thrown value in v0.
+  __ Throw(v0);
 
   __ bind(&termination_exception);
-  __ ThrowUncatchable(TERMINATION, v0);  // Expects thrown value in v0.
+  __ ThrowUncatchable(v0);
 
   __ bind(&failure);
   // For failure and exception return null.
@@ -6058,25 +6066,23 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Utilize delay slots. SmiUntag doesn't emit a jump, everything else is
   // safe in this case.
-  __ UntagAndJumpIfSmi(a2, a2, &runtime);
-  __ UntagAndJumpIfSmi(a3, a3, &runtime);
-
+  __ UntagAndJumpIfNotSmi(a2, a2, &runtime);
+  __ UntagAndJumpIfNotSmi(a3, a3, &runtime);
   // Both a2 and a3 are untagged integers.
 
   __ Branch(&runtime, lt, a3, Operand(zero_reg));  // From < 0.
 
-  __ subu(a2, t5, a3);
-  __ Branch(&runtime, gt, a3, Operand(t5));  // Fail if from > to.
+  __ Branch(&runtime, gt, a3, Operand(a2));  // Fail if from > to.
+  __ Subu(a2, a2, a3);
 
   // Make sure first argument is a string.
   __ lw(v0, MemOperand(sp, kStringOffset));
-  __ Branch(&runtime, eq, v0, Operand(kSmiTagMask));
-
+  __ JumpIfSmi(v0, &runtime);
   __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(a1, FieldMemOperand(a1, Map::kInstanceTypeOffset));
-  __ And(t4, v0, Operand(kIsNotStringMask));
+  __ And(t0, a1, Operand(kIsNotStringMask));
 
-  __ Branch(&runtime, ne, t4, Operand(zero_reg));
+  __ Branch(&runtime, ne, t0, Operand(zero_reg));
 
   // Short-cut for the case of trivial substring.
   Label return_v0;
@@ -7326,11 +7332,13 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { a2, a1, a3, EMIT_REMEMBERED_SET },
   { a3, a1, a2, EMIT_REMEMBERED_SET },
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { t0, a2, a3, EMIT_REMEMBERED_SET },
+  { a3, a2, t0, EMIT_REMEMBERED_SET },
+  { a2, a3, t0, EMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { a2, a3, t5, EMIT_REMEMBERED_SET },
+  { a2, a3, t5, OMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { t2, a2, a0, EMIT_REMEMBERED_SET },
   { a2, t2, t5, EMIT_REMEMBERED_SET },

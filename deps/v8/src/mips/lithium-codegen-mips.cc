@@ -2764,6 +2764,15 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
 }
 
 
+void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
+  __ LoadHeapObject(scratch0(), instr->hydrogen()->pairs());
+  __ li(scratch1(), Operand(Smi::FromInt(instr->hydrogen()->flags())));
+  // The context is the first argument.
+  __ Push(cp, scratch0(), scratch1());
+  CallRuntime(Runtime::kDeclareGlobals, 3, instr);
+}
+
+
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
@@ -4272,27 +4281,68 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
   ASSERT(!source.is(a2));
   ASSERT(!result.is(a2));
 
+  // Only elements backing stores for non-COW arrays need to be copied.
+  Handle<FixedArrayBase> elements(object->elements());
+  bool has_elements = elements->length() > 0 &&
+      elements->map() != isolate()->heap()->fixed_cow_array_map();
+
   // Increase the offset so that subsequent objects end up right after
-  // this one.
-  int current_offset = *offset;
-  int size = object->map()->instance_size();
-  *offset += size;
+  // this object and its backing store.
+  int object_offset = *offset;
+  int object_size = object->map()->instance_size();
+  int elements_offset = *offset + object_size;
+  int elements_size = has_elements ? elements->Size() : 0;
+  *offset += object_size + elements_size;
 
   // Copy object header.
   ASSERT(object->properties()->length() == 0);
-  ASSERT(object->elements()->length() == 0 ||
-         object->elements()->map() == isolate()->heap()->fixed_cow_array_map());
   int inobject_properties = object->map()->inobject_properties();
-  int header_size = size - inobject_properties * kPointerSize;
+  int header_size = object_size - inobject_properties * kPointerSize;
   for (int i = 0; i < header_size; i += kPointerSize) {
-    __ lw(a2, FieldMemOperand(source, i));
-    __ sw(a2, FieldMemOperand(result, current_offset + i));
+    if (has_elements && i == JSObject::kElementsOffset) {
+      __ Addu(a2, result, Operand(elements_offset));
+    } else {
+      __ lw(a2, FieldMemOperand(source, i));
+    }
+    __ sw(a2, FieldMemOperand(result, object_offset + i));
   }
 
   // Copy in-object properties.
   for (int i = 0; i < inobject_properties; i++) {
-    int total_offset = current_offset + object->GetInObjectPropertyOffset(i);
+    int total_offset = object_offset + object->GetInObjectPropertyOffset(i);
     Handle<Object> value = Handle<Object>(object->InObjectPropertyAt(i));
+    if (value->IsJSObject()) {
+      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+      __ Addu(a2, result, Operand(*offset));
+      __ sw(a2, FieldMemOperand(result, total_offset));
+      __ LoadHeapObject(source, value_object);
+      EmitDeepCopy(value_object, result, source, offset);
+    } else if (value->IsHeapObject()) {
+      __ LoadHeapObject(a2, Handle<HeapObject>::cast(value));
+      __ sw(a2, FieldMemOperand(result, total_offset));
+    } else {
+      __ li(a2, Operand(value));
+      __ sw(a2, FieldMemOperand(result, total_offset));
+    }
+  }
+
+
+  // Copy elements backing store header.
+  ASSERT(!has_elements || elements->IsFixedArray());
+  if (has_elements) {
+    __ LoadHeapObject(source, elements);
+    for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
+      __ lw(a2, FieldMemOperand(source, i));
+      __ sw(a2, FieldMemOperand(result, elements_offset + i));
+    }
+  }
+
+  // Copy elements backing store content.
+  ASSERT(!has_elements || elements->IsFixedArray());
+  int elements_length = has_elements ? elements->length() : 0;
+  for (int i = 0; i < elements_length; i++) {
+    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+    Handle<Object> value = JSObject::GetElement(object, i);
     if (value->IsJSObject()) {
       Handle<JSObject> value_object = Handle<JSObject>::cast(value);
       __ Addu(a2, result, Operand(*offset));
@@ -4310,7 +4360,7 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
 }
 
 
-void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
+void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   int size = instr->hydrogen()->total_size();
 
   // Allocate all objects that are part of the literal in one big
@@ -4332,14 +4382,14 @@ void LCodeGen::DoObjectLiteralFast(LObjectLiteralFast* instr) {
 }
 
 
-void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
+void LCodeGen::DoObjectLiteral(LObjectLiteral* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
-
+  Handle<FixedArray> literals(instr->environment()->closure()->literals());
   Handle<FixedArray> constant_properties =
       instr->hydrogen()->constant_properties();
 
-  __ lw(t0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ lw(t0, FieldMemOperand(t0, JSFunction::kLiteralsOffset));
+  // Set up the parameters to the stub/runtime call.
+  __ LoadHeapObject(t0, literals);
   __ li(a3, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
   __ li(a2, Operand(constant_properties));
   int flags = instr->hydrogen()->fast_elements()
@@ -4348,7 +4398,7 @@ void LCodeGen::DoObjectLiteralGeneric(LObjectLiteralGeneric* instr) {
   __ li(a1, Operand(Smi::FromInt(flags)));
   __ Push(t0, a3, a2, a1);
 
-  // Pick the right runtime function to call.
+  // Pick the right runtime function or stub to call.
   int properties_count = constant_properties->length() / 2;
   if (instr->hydrogen()->depth() > 1) {
     CallRuntime(Runtime::kCreateObjectLiteral, 4, instr);

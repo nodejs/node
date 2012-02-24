@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 // A lightweight X64 Assembler.
 
@@ -131,6 +131,8 @@ struct Register {
   }
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
+  // rax, rbx, rcx and rdx are byte registers, the rest are not.
+  bool is_byte_register() const { return code_ <= 3; }
   int code() const {
     ASSERT(is_valid());
     return code_;

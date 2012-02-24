@@ -1160,7 +1160,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 static void ArrayNativeCode(MacroAssembler* masm,
                             Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array,
-      has_non_smi_element;
+      has_non_smi_element, finish, cant_transition_map, not_double;
 
   // Check for array construction with zero arguments.
   __ testq(rax, rax);
@@ -1265,11 +1265,11 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ movq(rcx, rax);
   __ jmp(&entry);
   __ bind(&loop);
-  __ movq(kScratchRegister, Operand(r9, rcx, times_pointer_size, 0));
+  __ movq(r8, Operand(r9, rcx, times_pointer_size, 0));
   if (FLAG_smi_only_arrays) {
-    __ JumpIfNotSmi(kScratchRegister, &has_non_smi_element);
+    __ JumpIfNotSmi(r8, &has_non_smi_element);
   }
-  __ movq(Operand(rdx, 0), kScratchRegister);
+  __ movq(Operand(rdx, 0), r8);
   __ addq(rdx, Immediate(kPointerSize));
   __ bind(&entry);
   __ decq(rcx);
@@ -1280,6 +1280,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // rbx: JSArray
   // esp[0]: return address
   // esp[8]: last argument
+  __ bind(&finish);
   __ pop(rcx);
   __ lea(rsp, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
   __ push(rcx);
@@ -1287,8 +1288,38 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ ret(0);
 
   __ bind(&has_non_smi_element);
+  // Double values are handled by the runtime.
+  __ CheckMap(r8,
+              masm->isolate()->factory()->heap_number_map(),
+              &not_double,
+              DONT_DO_SMI_CHECK);
+  __ bind(&cant_transition_map);
   __ UndoAllocationInNewSpace(rbx);
   __ jmp(call_generic_code);
+
+  __ bind(&not_double);
+  // Transition FAST_SMI_ONLY_ELEMENTS to FAST_ELEMENTS.
+  // rbx: JSArray
+  __ movq(r11, FieldOperand(rbx, HeapObject::kMapOffset));
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         r11,
+                                         kScratchRegister,
+                                         &cant_transition_map);
+
+  __ movq(FieldOperand(rbx, HeapObject::kMapOffset), r11);
+  __ RecordWriteField(rbx, HeapObject::kMapOffset, r11, r8,
+                      kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+  // Finish the array initialization loop.
+  Label loop2;
+  __ bind(&loop2);
+  __ movq(r8, Operand(r9, rcx, times_pointer_size, 0));
+  __ movq(Operand(rdx, 0), r8);
+  __ addq(rdx, Immediate(kPointerSize));
+  __ decq(rcx);
+  __ j(greater_equal, &loop2);
+  __ jmp(&finish);
 }
 
 

@@ -453,11 +453,10 @@ class LEnvironment: public ZoneObject {
         parameter_count_(parameter_count),
         pc_offset_(-1),
         values_(value_count),
-        is_tagged_(value_count),
+        is_tagged_(value_count, closure->GetHeap()->isolate()->zone()),
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
-        outer_(outer) {
-  }
+        outer_(outer) { }
 
   Handle<JSFunction> closure() const { return closure_; }
   int arguments_stack_height() const { return arguments_stack_height_; }

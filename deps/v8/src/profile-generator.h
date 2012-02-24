@@ -964,6 +964,10 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                            HeapEntry* parent,
                            String* reference_name,
                            Object* child);
+  void SetNativeBindReference(HeapObject* parent_obj,
+                              HeapEntry* parent,
+                              const char* reference_name,
+                              Object* child);
   void SetElementReference(HeapObject* parent_obj,
                            HeapEntry* parent,
                            int index,
@@ -1097,7 +1101,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  private:
   bool ApproximateRetainedSizes();
   bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
-                          Vector<HeapEntry*>* dominators);
+                          Vector<int>* dominators);
   bool CountEntriesAndReferences();
   bool FillReferences();
   void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);

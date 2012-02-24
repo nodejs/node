@@ -130,5 +130,5 @@ for (var v = 0; v < varbinds.length; ++v) {
 
 // Test conflicting parameter/var bindings.
 for (var v = 0; v < varbinds.length; ++v) {
-  TestConflict('(function (x) { ' + varbinds[v] + '; })()');
+  TestNoConflict('(function (x) { ' + varbinds[v] + '; })()');
 }

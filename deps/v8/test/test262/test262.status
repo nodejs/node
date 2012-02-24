@@ -33,9 +33,6 @@ def FAIL_OK = FAIL, OKAY
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1196
-S8.7_A5_T2: FAIL
-
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
 S10.4.2.1_A1: FAIL
 
@@ -59,14 +56,6 @@ S10.4.2.1_A1: FAIL
 15.2.3.7-6-a-284: FAIL
 15.2.3.7-6-a-285: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1790
-15.4.4.22-9-9: FAIL
-
-# Invalid test cases (recent change adding var changes semantics)
-S8.3_A1_T1: FAIL
-S15.3_A3_T1: FAIL
-S15.3_A3_T3: FAIL
-
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # We deliberately treat arguments to parseInt() with a leading zero as
@@ -80,9 +69,6 @@ S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
 S15.8.2.13_A23: PASS || FAIL_OK
 
-# Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
-S15.10.6_A2: FAIL_OK
-
 # We are silent in some regexp cases where the spec wants us to give
 # errors, for compatibility.
 S15.10.2.11_A1_T2: FAIL
@@ -90,15 +76,9 @@ S15.10.2.11_A1_T3: FAIL
 
 # We are more lenient in which string character escapes we allow than
 # the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
-S7.8.4_A4.3_T3: FAIL_OK
-S7.8.4_A4.3_T4: FAIL_OK
-S7.8.4_A4.3_T5: FAIL_OK
-S7.8.4_A4.3_T6: FAIL_OK
 S7.8.4_A6.1_T4: FAIL_OK
 S7.8.4_A6.2_T1: FAIL_OK
 S7.8.4_A6.2_T2: FAIL_OK
-S7.8.4_A6.4_T1: FAIL_OK
-S7.8.4_A6.4_T2: FAIL_OK
 S7.8.4_A7.1_T4: FAIL_OK
 S7.8.4_A7.2_T1: FAIL_OK
 S7.8.4_A7.2_T2: FAIL_OK
@@ -106,101 +86,11 @@ S7.8.4_A7.2_T3: FAIL_OK
 S7.8.4_A7.2_T4: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
 S7.8.4_A7.2_T6: FAIL_OK
-S7.8.4_A7.4_T1: FAIL_OK
-S7.8.4_A7.4_T2: FAIL_OK
-
-# Sputnik expects unicode escape sequences in RegExp flags to be interpreted.
-# The specification requires them to be passed uninterpreted to the RegExp
-# constructor. We now implement that.
-S7.8.5_A3.1_T7: FAIL_OK
-S7.8.5_A3.1_T8: FAIL_OK
-S7.8.5_A3.1_T9: FAIL_OK
-
-# We allow some keywords to be used as identifiers.
-S7.5.3_A1.15: FAIL_OK
-S7.5.3_A1.18: FAIL_OK
-S7.5.3_A1.21: FAIL_OK
-S7.5.3_A1.22: FAIL_OK
-S7.5.3_A1.23: FAIL_OK
-S7.5.3_A1.24: FAIL_OK
-S7.5.3_A1.26: FAIL_OK
-
-# This checks for non-262 behavior
-S7.6_D1: PASS || FAIL_OK
-S7.6_D2: PASS || FAIL_OK
-S8.4_D1.1: PASS || FAIL_OK
-S8.4_D2.1: PASS || FAIL_OK
-S8.4_D2.2: PASS || FAIL_OK
-S8.4_D2.3: PASS || FAIL_OK
-S8.4_D2.4: PASS || FAIL_OK
-S8.4_D2.5: PASS || FAIL_OK
-S8.4_D2.6: PASS || FAIL_OK
-S8.4_D2.7: PASS || FAIL_OK
-S11.4.3_D1.2: PASS || FAIL_OK
-S12.6.4_A14_T1: PASS || FAIL_OK
-S12.6.4_D1: PASS || FAIL_OK
-S12.6.4_R1: PASS || FAIL_OK
-S12.6.4_R2: PASS || FAIL_OK
-S13.2_D1.2: PASS || FAIL_OK
-S13_D1_T1: PASS || FAIL_OK
-S14_D4_T3: PASS || FAIL_OK
-S14_D7: PASS || FAIL_OK
-S15.1.2.2_D1.2: PASS || FAIL_OK
-S15.5.2_D2: PASS || FAIL_OK
-S15.5.4.11_D1.1_T1: PASS || FAIL_OK
-S15.5.4.11_D1.1_T2: PASS || FAIL_OK
-S15.5.4.11_D1.1_T3: PASS || FAIL_OK
-S15.5.4.11_D1.1_T4: PASS || FAIL_OK
-
-# We allow function declarations within statements
-S12.6.2_A13_T1: FAIL_OK
-S12.6.2_A13_T2: FAIL_OK
-S12.6.4_A13_T1: FAIL_OK
-S12.6.4_A13_T2: FAIL_OK
-S15.3.4.2_A1_T1: FAIL_OK
 
 # Linux and Mac defaults to extended 80 bit floating point format in the FPU.
 # We follow the other major JS engines by keeping this default.
 S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
 S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
-
-############################# ES3 TESTS ################################
-# These tests check for ES3 semantics, and differ from ES5.
-# When we follow ES5 semantics, it's ok to fail the test.
-
-# Allow keywords as names of properties in object initialisers and
-# in dot-notation property access.
-S11.1.5_A4.1: FAIL_OK
-S11.1.5_A4.2: FAIL_OK
-
-# Calls builtins without an explicit receiver which means that
-# undefined is passed to the builtin. The tests expect the global
-# object to be passed which was true in ES3 but not in ES5.
-S11.1.1_A2: FAIL_OK
-S15.5.4.4_A1_T3: FAIL_OK
-S15.5.4.5_A1_T3: FAIL_OK
-S15.5.4.6_A1_T3: FAIL_OK
-S15.5.4.7_A1_T3: FAIL_OK
-S15.5.4.8_A1_T3: FAIL_OK
-S15.5.4.9_A1_T3: FAIL_OK
-S15.5.4.10_A1_T3: FAIL_OK
-S15.5.4.11_A1_T3: FAIL_OK
-S15.5.4.12_A1_T3: FAIL_OK
-S15.5.4.13_A1_T3: FAIL_OK
-S15.5.4.14_A1_T3: FAIL_OK
-S15.5.4.15_A1_T3: FAIL_OK
-
-# NaN, Infinity and undefined are read-only according to ES5.
-S15.1.1.1_A2_T1: FAIL_OK  # NaN
-S15.1.1.1_A2_T2: FAIL_OK  # NaN
-S15.1.1.2_A2_T1: FAIL_OK  # Infinity
-# S15.1.1.2_A2_T2 would fail if it weren't bogus in r97. sputnik bug #45.
-S15.1.1.3_A2_T1: FAIL_OK  # undefined
-S15.1.1.3_A2_T2: FAIL_OK  # undefined
-
-# Array.prototype.to[Locale]String is generic in ES5.
-S15.4.4.2_A2_T1: FAIL_OK
-S15.4.4.3_A2_T1: FAIL_OK
 
 ############################ SKIPPED TESTS #############################
 

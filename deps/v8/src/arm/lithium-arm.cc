@@ -1125,6 +1125,11 @@ LInstruction* LChunkBuilder::DoOuterContext(HOuterContext* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDeclareGlobals(HDeclareGlobals* instr) {
+  return MarkAsCall(new LDeclareGlobals, instr);
+}
+
+
 LInstruction* LChunkBuilder::DoGlobalObject(HGlobalObject* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new LGlobalObject(context));
@@ -2088,19 +2093,18 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
+  return MarkAsCall(DefineFixed(new LFastLiteral, r0), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
   return MarkAsCall(DefineFixed(new LArrayLiteral, r0), instr);
 }
 
 
-LInstruction* LChunkBuilder::DoObjectLiteralFast(HObjectLiteralFast* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteralFast, r0), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoObjectLiteralGeneric(
-    HObjectLiteralGeneric* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteralGeneric, r0), instr);
+LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
+  return MarkAsCall(DefineFixed(new LObjectLiteral, r0), instr);
 }
 
 
@@ -2261,6 +2265,34 @@ LInstruction* LChunkBuilder::DoIn(HIn* instr) {
   LOperand* object = UseRegisterAtStart(instr->object());
   LIn* result = new LIn(key, object);
   return MarkAsCall(DefineFixed(result, r0), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoForInPrepareMap(HForInPrepareMap* instr) {
+  LOperand* object = UseFixed(instr->enumerable(), r0);
+  LForInPrepareMap* result = new LForInPrepareMap(object);
+  return MarkAsCall(DefineFixed(result, r0), instr, CAN_DEOPTIMIZE_EAGERLY);
+}
+
+
+LInstruction* LChunkBuilder::DoForInCacheArray(HForInCacheArray* instr) {
+  LOperand* map = UseRegister(instr->map());
+  return AssignEnvironment(DefineAsRegister(
+      new LForInCacheArray(map)));
+}
+
+
+LInstruction* LChunkBuilder::DoCheckMapValue(HCheckMapValue* instr) {
+  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* map = UseRegisterAtStart(instr->map());
+  return AssignEnvironment(new LCheckMapValue(value, map));
+}
+
+
+LInstruction* LChunkBuilder::DoLoadFieldByIndex(HLoadFieldByIndex* instr) {
+  LOperand* object = UseRegister(instr->object());
+  LOperand* index = UseRegister(instr->index());
+  return DefineAsRegister(new LLoadFieldByIndex(object, index));
 }
 
 

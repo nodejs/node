@@ -496,10 +496,11 @@ class MacroAssembler: public Assembler {
   // Unlink the stack handler on top of the stack from the try handler chain.
   void PopTryHandler();
 
-  // Activate the top handler in the try hander chain.
+  // Throw to the top handler in the try hander chain.
   void Throw(Register value);
 
-  void ThrowUncatchable(UncatchableExceptionType type, Register value);
+  // Throw past all JS frames to the top JS entry frame.
+  void ThrowUncatchable(Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -827,6 +828,10 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  // Expects object in eax and returns map with validated enum cache
+  // in eax.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Label* call_runtime);
 
  private:
   bool generating_stub_;

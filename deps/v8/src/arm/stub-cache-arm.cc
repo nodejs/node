@@ -3076,7 +3076,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub =
-      KeyedStoreElementStub(is_js_array, elements_kind).GetCode();
+      KeyedStoreElementStub(is_js_array, elements_kind, grow_mode_).GetCode();
 
   __ DispatchMap(r2, r3, receiver_map, stub, DO_SMI_CHECK);
 
@@ -4121,7 +4121,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
 void KeyedStoreStubCompiler::GenerateStoreFastElement(
     MacroAssembler* masm,
     bool is_js_array,
-    ElementsKind elements_kind) {
+    ElementsKind elements_kind,
+    KeyedAccessGrowMode grow_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -4130,13 +4131,16 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   //  -- r3    : scratch
   //  -- r4    : scratch (elements)
   // -----------------------------------
-  Label miss_force_generic, transition_elements_kind;
+  Label miss_force_generic, transition_elements_kind, grow, slow;
+  Label finish_store, check_capacity;
 
   Register value_reg = r0;
   Register key_reg = r1;
   Register receiver_reg = r2;
-  Register scratch = r3;
-  Register elements_reg = r4;
+  Register scratch = r4;
+  Register elements_reg = r3;
+  Register length_reg = r5;
+  Register scratch2 = r6;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -4144,16 +4148,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // Check that the key is a smi.
   __ JumpIfNotSmi(key_reg, &miss_force_generic);
 
-  // Get the elements array and make sure it is a fast element array, not 'cow'.
-  __ ldr(elements_reg,
-         FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
-  __ CheckMap(elements_reg,
-              scratch,
-              Heap::kFixedArrayMapRootIndex,
-              &miss_force_generic,
-              DONT_DO_SMI_CHECK);
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+    __ JumpIfNotSmi(value_reg, &transition_elements_kind);
+  }
 
   // Check that the key is within bounds.
+  __ ldr(elements_reg,
+         FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
   if (is_js_array) {
     __ ldr(scratch, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
   } else {
@@ -4161,10 +4162,21 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   }
   // Compare smis.
   __ cmp(key_reg, scratch);
-  __ b(hs, &miss_force_generic);
+  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+    __ b(hs, &grow);
+  } else {
+    __ b(hs, &miss_force_generic);
+  }
 
+  // Make sure elements is a fast element array, not 'cow'.
+  __ CheckMap(elements_reg,
+              scratch,
+              Heap::kFixedArrayMapRootIndex,
+              &miss_force_generic,
+              DONT_DO_SMI_CHECK);
+
+  __ bind(&finish_store);
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-    __ JumpIfNotSmi(value_reg, &transition_elements_kind);
     __ add(scratch,
            elements_reg,
            Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4202,12 +4214,80 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   __ bind(&transition_elements_kind);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic_miss, RelocInfo::CODE_TARGET);
+
+  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+    // Grow the array by a single element if possible.
+    __ bind(&grow);
+
+    // Make sure the array is only growing by a single element, anything else
+    // must be handled by the runtime. Flags already set by previous compare.
+    __ b(ne, &miss_force_generic);
+
+    // Check for the empty array, and preallocate a small backing store if
+    // possible.
+    __ ldr(length_reg,
+           FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ ldr(elements_reg,
+           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
+    __ CompareRoot(elements_reg, Heap::kEmptyFixedArrayRootIndex);
+    __ b(ne, &check_capacity);
+
+    int size = FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
+    __ AllocateInNewSpace(size, elements_reg, scratch, scratch2, &slow,
+                          TAG_OBJECT);
+
+    __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
+    __ str(scratch, FieldMemOperand(elements_reg, JSObject::kMapOffset));
+    __ mov(scratch, Operand(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+    __ str(scratch, FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
+    __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; ++i) {
+      __ str(scratch, FieldMemOperand(elements_reg, FixedArray::SizeFor(i)));
+    }
+
+    // Store the element at index zero.
+    __ str(value_reg, FieldMemOperand(elements_reg, FixedArray::SizeFor(0)));
+
+    // Install the new backing store in the JSArray.
+    __ str(elements_reg,
+           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
+    __ RecordWriteField(receiver_reg, JSObject::kElementsOffset, elements_reg,
+                        scratch, kLRHasNotBeenSaved, kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // Increment the length of the array.
+    __ mov(length_reg, Operand(Smi::FromInt(1)));
+    __ str(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ Ret();
+
+    __ bind(&check_capacity);
+    // Check for cow elements, in general they are not handled by this stub
+    __ CheckMap(elements_reg,
+                scratch,
+                Heap::kFixedCOWArrayMapRootIndex,
+                &miss_force_generic,
+                DONT_DO_SMI_CHECK);
+
+    __ ldr(scratch, FieldMemOperand(elements_reg, FixedArray::kLengthOffset));
+    __ cmp(length_reg, scratch);
+    __ b(hs, &slow);
+
+    // Grow the array and finish the store.
+    __ add(length_reg, length_reg, Operand(Smi::FromInt(1)));
+    __ str(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ jmp(&finish_store);
+
+    __ bind(&slow);
+    Handle<Code> ic_slow = masm->isolate()->builtins()->KeyedStoreIC_Slow();
+    __ Jump(ic_slow, RelocInfo::CODE_TARGET);
+  }
 }
 
 
 void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     MacroAssembler* masm,
-    bool is_js_array) {
+    bool is_js_array,
+    KeyedAccessGrowMode grow_mode) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -4217,7 +4297,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- r4    : scratch
   //  -- r5    : scratch
   // -----------------------------------
-  Label miss_force_generic, transition_elements_kind;
+  Label miss_force_generic, transition_elements_kind, grow, slow;
+  Label finish_store, check_capacity;
 
   Register value_reg = r0;
   Register key_reg = r1;
@@ -4227,6 +4308,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Register scratch2 = r5;
   Register scratch3 = r6;
   Register scratch4 = r7;
+  Register length_reg = r7;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -4245,8 +4327,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // Compare smis, unsigned compare catches both negative and out-of-bound
   // indexes.
   __ cmp(key_reg, scratch1);
-  __ b(hs, &miss_force_generic);
+  if (grow_mode == ALLOW_JSARRAY_GROWTH) {
+    __ b(hs, &grow);
+  } else {
+    __ b(hs, &miss_force_generic);
+  }
 
+  __ bind(&finish_store);
   __ StoreNumberToDoubleElements(value_reg,
                                  key_reg,
                                  receiver_reg,
@@ -4267,6 +4354,73 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ bind(&transition_elements_kind);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic_miss, RelocInfo::CODE_TARGET);
+
+  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+    // Grow the array by a single element if possible.
+    __ bind(&grow);
+
+    // Make sure the array is only growing by a single element, anything else
+    // must be handled by the runtime. Flags already set by previous compare.
+    __ b(ne, &miss_force_generic);
+
+    // Transition on values that can't be stored in a FixedDoubleArray.
+    Label value_is_smi;
+    __ JumpIfSmi(value_reg, &value_is_smi);
+    __ ldr(scratch1, FieldMemOperand(value_reg, HeapObject::kMapOffset));
+    __ CompareRoot(scratch1, Heap::kHeapNumberMapRootIndex);
+    __ b(ne, &transition_elements_kind);
+    __ bind(&value_is_smi);
+
+    // Check for the empty array, and preallocate a small backing store if
+    // possible.
+    __ ldr(length_reg,
+           FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ ldr(elements_reg,
+           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
+    __ CompareRoot(elements_reg, Heap::kEmptyFixedArrayRootIndex);
+    __ b(ne, &check_capacity);
+
+    int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
+    __ AllocateInNewSpace(size, elements_reg, scratch1, scratch2, &slow,
+                          TAG_OBJECT);
+
+    // Initialize the new FixedDoubleArray. Leave elements unitialized for
+    // efficiency, they are guaranteed to be initialized before use.
+    __ LoadRoot(scratch1, Heap::kFixedDoubleArrayMapRootIndex);
+    __ str(scratch1, FieldMemOperand(elements_reg, JSObject::kMapOffset));
+    __ mov(scratch1,
+           Operand(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+    __ str(scratch1,
+           FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
+
+    // Install the new backing store in the JSArray.
+    __ str(elements_reg,
+           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
+    __ RecordWriteField(receiver_reg, JSObject::kElementsOffset, elements_reg,
+                        scratch1, kLRHasNotBeenSaved, kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // Increment the length of the array.
+    __ mov(length_reg, Operand(Smi::FromInt(1)));
+    __ str(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ jmp(&finish_store);
+
+    __ bind(&check_capacity);
+    // Make sure that the backing store can hold additional elements.
+    __ ldr(scratch1,
+           FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
+    __ cmp(length_reg, scratch1);
+    __ b(hs, &slow);
+
+    // Grow the array and finish the store.
+    __ add(length_reg, length_reg, Operand(Smi::FromInt(1)));
+    __ str(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
+    __ jmp(&finish_store);
+
+    __ bind(&slow);
+    Handle<Code> ic_slow = masm->isolate()->builtins()->KeyedStoreIC_Slow();
+    __ Jump(ic_slow, RelocInfo::CODE_TARGET);
+  }
 }
 
 

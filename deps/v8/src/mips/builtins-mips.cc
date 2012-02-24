@@ -321,7 +321,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                             Label* call_generic_code) {
   Counters* counters = masm->isolate()->counters();
   Label argc_one_or_more, argc_two_or_more, not_empty_array, empty_array,
-      has_non_smi_element;
+      has_non_smi_element, finish, cant_transition_map, not_double;
 
   // Check for array construction with zero arguments or one.
   __ Branch(&argc_one_or_more, ne, a0, Operand(zero_reg));
@@ -417,14 +417,16 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ mov(t3, sp);
   __ bind(&loop);
   __ lw(a2, MemOperand(t3));
-  __ Addu(t3, t3, kPointerSize);
   if (FLAG_smi_only_arrays) {
     __ JumpIfNotSmi(a2, &has_non_smi_element);
   }
+  __ Addu(t3, t3, kPointerSize);
   __ Addu(t1, t1, -kPointerSize);
   __ sw(a2, MemOperand(t1));
   __ bind(&entry);
   __ Branch(&loop, lt, t0, Operand(t1));
+
+  __ bind(&finish);
   __ mov(sp, t3);
 
   // Remove caller arguments and receiver from the stack, setup return value and
@@ -437,8 +439,39 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&has_non_smi_element);
+  // Double values are handled by the runtime.
+  __ CheckMap(
+      a2, t5, Heap::kHeapNumberMapRootIndex, &not_double, DONT_DO_SMI_CHECK);
+  __ bind(&cant_transition_map);
   __ UndoAllocationInNewSpace(a3, t0);
-  __ b(call_generic_code);
+  __ Branch(call_generic_code);
+
+  __ bind(&not_double);
+  // Transition FAST_SMI_ONLY_ELEMENTS to FAST_ELEMENTS.
+  // a3: JSArray
+  __ lw(a2, FieldMemOperand(a3, HeapObject::kMapOffset));
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         a2,
+                                         t5,
+                                         &cant_transition_map);
+  __ sw(a2, FieldMemOperand(a3, HeapObject::kMapOffset));
+  __ RecordWriteField(a3,
+                      HeapObject::kMapOffset,
+                      a2,
+                      t5,
+                      kRAHasNotBeenSaved,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  Label loop2;
+  __ bind(&loop2);
+  __ lw(a2, MemOperand(t3));
+  __ Addu(t3, t3, kPointerSize);
+  __ Subu(t1, t1, kPointerSize);
+  __ sw(a2, MemOperand(t1));
+  __ Branch(&loop2, lt, t0, Operand(t1));
+  __ Branch(&finish);
 }
 
 

@@ -399,6 +399,10 @@ class HEnvironment: public ZoneObject {
     return i >= parameter_count() && i < parameter_count() + specials_count();
   }
 
+  int first_expression_index() const {
+    return parameter_count() + specials_count() + local_count();
+  }
+
   void Bind(Variable* variable, HValue* value) {
     Bind(IndexFor(variable), value);
   }
@@ -705,8 +709,12 @@ class HGraphBuilder: public AstVisitor {
   // can have a separate lifetime.
   class BreakAndContinueInfo BASE_EMBEDDED {
    public:
-    explicit BreakAndContinueInfo(BreakableStatement* target)
-      : target_(target), break_block_(NULL), continue_block_(NULL) {
+    explicit BreakAndContinueInfo(BreakableStatement* target,
+                                  int drop_extra = 0)
+        : target_(target),
+          break_block_(NULL),
+          continue_block_(NULL),
+          drop_extra_(drop_extra) {
     }
 
     BreakableStatement* target() { return target_; }
@@ -714,11 +722,13 @@ class HGraphBuilder: public AstVisitor {
     void set_break_block(HBasicBlock* block) { break_block_ = block; }
     HBasicBlock* continue_block() { return continue_block_; }
     void set_continue_block(HBasicBlock* block) { continue_block_ = block; }
+    int drop_extra() { return drop_extra_; }
 
    private:
     BreakableStatement* target_;
     HBasicBlock* break_block_;
     HBasicBlock* continue_block_;
+    int drop_extra_;
   };
 
   // A helper class to maintain a stack of current BreakAndContinueInfo
@@ -737,7 +747,7 @@ class HGraphBuilder: public AstVisitor {
     BreakAndContinueScope* next() { return next_; }
 
     // Search the break stack for a break or continue target.
-    HBasicBlock* Get(BreakableStatement* stmt, BreakType type);
+    HBasicBlock* Get(BreakableStatement* stmt, BreakType type, int* drop_extra);
 
    private:
     BreakAndContinueInfo* info_;
@@ -779,6 +789,8 @@ class HGraphBuilder: public AstVisitor {
   TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
 
   FunctionState* function_state() const { return function_state_; }
+
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
 
  private:
   // Type of a member function that generates inline code for a native function.
@@ -841,7 +853,8 @@ class HGraphBuilder: public AstVisitor {
 
   void HandleVariableDeclaration(VariableProxy* proxy,
                                  VariableMode mode,
-                                 FunctionLiteral* function);
+                                 FunctionLiteral* function,
+                                 int* global_count);
 
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);

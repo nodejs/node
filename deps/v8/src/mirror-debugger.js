@@ -144,32 +144,32 @@ function inherits(ctor, superCtor) {
 
 
 // Type names of the different mirrors.
-const UNDEFINED_TYPE = 'undefined';
-const NULL_TYPE = 'null';
-const BOOLEAN_TYPE = 'boolean';
-const NUMBER_TYPE = 'number';
-const STRING_TYPE = 'string';
-const OBJECT_TYPE = 'object';
-const FUNCTION_TYPE = 'function';
-const REGEXP_TYPE = 'regexp';
-const ERROR_TYPE = 'error';
-const PROPERTY_TYPE = 'property';
-const FRAME_TYPE = 'frame';
-const SCRIPT_TYPE = 'script';
-const CONTEXT_TYPE = 'context';
-const SCOPE_TYPE = 'scope';
+var UNDEFINED_TYPE = 'undefined';
+var NULL_TYPE = 'null';
+var BOOLEAN_TYPE = 'boolean';
+var NUMBER_TYPE = 'number';
+var STRING_TYPE = 'string';
+var OBJECT_TYPE = 'object';
+var FUNCTION_TYPE = 'function';
+var REGEXP_TYPE = 'regexp';
+var ERROR_TYPE = 'error';
+var PROPERTY_TYPE = 'property';
+var FRAME_TYPE = 'frame';
+var SCRIPT_TYPE = 'script';
+var CONTEXT_TYPE = 'context';
+var SCOPE_TYPE = 'scope';
 
 // Maximum length when sending strings through the JSON protocol.
-const kMaxProtocolStringLength = 80;
+var kMaxProtocolStringLength = 80;
 
 // Different kind of properties.
-PropertyKind = {};
+var PropertyKind = {};
 PropertyKind.Named   = 1;
 PropertyKind.Indexed = 2;
 
 
 // A copy of the PropertyType enum from global.h
-PropertyType = {};
+var PropertyType = {};
 PropertyType.Normal                  = 0;
 PropertyType.Field                   = 1;
 PropertyType.ConstantFunction        = 2;
@@ -183,7 +183,7 @@ PropertyType.NullDescriptor          = 9;
 
 
 // Different attributes for a property.
-PropertyAttribute = {};
+var PropertyAttribute = {};
 PropertyAttribute.None       = NONE;
 PropertyAttribute.ReadOnly   = READ_ONLY;
 PropertyAttribute.DontEnum   = DONT_ENUM;
@@ -191,12 +191,12 @@ PropertyAttribute.DontDelete = DONT_DELETE;
 
 
 // A copy of the scope types from runtime.cc.
-ScopeType = { Global: 0,
-              Local: 1,
-              With: 2,
-              Closure: 3,
-              Catch: 4,
-              Block: 5 };
+var ScopeType = { Global: 0,
+                  Local: 1,
+                  With: 2,
+                  Closure: 3,
+                  Catch: 4,
+                  Block: 5 };
 
 
 // Mirror hierarchy:
@@ -1237,24 +1237,24 @@ PropertyMirror.prototype.isNative = function() {
 };
 
 
-const kFrameDetailsFrameIdIndex = 0;
-const kFrameDetailsReceiverIndex = 1;
-const kFrameDetailsFunctionIndex = 2;
-const kFrameDetailsArgumentCountIndex = 3;
-const kFrameDetailsLocalCountIndex = 4;
-const kFrameDetailsSourcePositionIndex = 5;
-const kFrameDetailsConstructCallIndex = 6;
-const kFrameDetailsAtReturnIndex = 7;
-const kFrameDetailsFlagsIndex = 8;
-const kFrameDetailsFirstDynamicIndex = 9;
+var kFrameDetailsFrameIdIndex = 0;
+var kFrameDetailsReceiverIndex = 1;
+var kFrameDetailsFunctionIndex = 2;
+var kFrameDetailsArgumentCountIndex = 3;
+var kFrameDetailsLocalCountIndex = 4;
+var kFrameDetailsSourcePositionIndex = 5;
+var kFrameDetailsConstructCallIndex = 6;
+var kFrameDetailsAtReturnIndex = 7;
+var kFrameDetailsFlagsIndex = 8;
+var kFrameDetailsFirstDynamicIndex = 9;
 
-const kFrameDetailsNameIndex = 0;
-const kFrameDetailsValueIndex = 1;
-const kFrameDetailsNameValueSize = 2;
+var kFrameDetailsNameIndex = 0;
+var kFrameDetailsValueIndex = 1;
+var kFrameDetailsNameValueSize = 2;
 
-const kFrameDetailsFlagDebuggerFrameMask = 1 << 0;
-const kFrameDetailsFlagOptimizedFrameMask = 1 << 1;
-const kFrameDetailsFlagInlinedFrameIndexMask = 7 << 2;
+var kFrameDetailsFlagDebuggerFrameMask = 1 << 0;
+var kFrameDetailsFlagOptimizedFrameMask = 1 << 1;
+var kFrameDetailsFlagInlinedFrameIndexMask = 7 << 2;
 
 /**
  * Wrapper for the frame details information retreived from the VM. The frame
@@ -1732,8 +1732,8 @@ FrameMirror.prototype.toText = function(opt_locals) {
 };
 
 
-const kScopeDetailsTypeIndex = 0;
-const kScopeDetailsObjectIndex = 1;
+var kScopeDetailsTypeIndex = 0;
+var kScopeDetailsObjectIndex = 1;
 
 function ScopeDetails(frame, index) {
   this.break_id_ = frame.break_id_;

@@ -1009,6 +1009,7 @@ INCREASE_NODE_COUNT(BreakStatement)
 INCREASE_NODE_COUNT(ReturnStatement)
 INCREASE_NODE_COUNT(Conditional)
 INCREASE_NODE_COUNT(Literal)
+INCREASE_NODE_COUNT(ObjectLiteral)
 INCREASE_NODE_COUNT(Assignment)
 INCREASE_NODE_COUNT(Throw)
 INCREASE_NODE_COUNT(Property)
@@ -1017,6 +1018,8 @@ INCREASE_NODE_COUNT(CountOperation)
 INCREASE_NODE_COUNT(BinaryOperation)
 INCREASE_NODE_COUNT(CompareOperation)
 INCREASE_NODE_COUNT(ThisFunction)
+INCREASE_NODE_COUNT(Call)
+INCREASE_NODE_COUNT(CallNew)
 
 #undef INCREASE_NODE_COUNT
 
@@ -1112,33 +1115,14 @@ void AstConstructionVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
 }
 
 
-void AstConstructionVisitor::VisitObjectLiteral(ObjectLiteral* node) {
-  increase_node_count();
-  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
-}
-
-
 void AstConstructionVisitor::VisitArrayLiteral(ArrayLiteral* node) {
   increase_node_count();
   add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
 }
 
 
-void AstConstructionVisitor::VisitCall(Call* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
-void AstConstructionVisitor::VisitCallNew(CallNew* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
-  add_flag(kDontSelfOptimize);
   if (node->is_jsruntime()) {
     // Don't try to inline JS runtime calls because we don't (currently) even
     // optimize them.

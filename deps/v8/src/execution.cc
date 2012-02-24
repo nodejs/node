@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -882,7 +882,9 @@ MaybeObject* Execution::HandleStackGuardInterrupt() {
   }
 
   isolate->counters()->stack_interrupts()->Increment();
-  if (stack_guard->IsRuntimeProfilerTick()) {
+  // If FLAG_count_based_interrupts, every interrupt is a profiler interrupt.
+  if (FLAG_count_based_interrupts ||
+      stack_guard->IsRuntimeProfilerTick()) {
     isolate->counters()->runtime_profiler_ticks()->Increment();
     stack_guard->Continue(RUNTIME_PROFILER_TICK);
     isolate->runtime_profiler()->OptimizeNow();
@@ -903,5 +905,6 @@ MaybeObject* Execution::HandleStackGuardInterrupt() {
   }
   return isolate->heap()->undefined_value();
 }
+
 
 } }  // namespace v8::internal

@@ -1176,11 +1176,15 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Heap* heap = map->GetHeap();
     Code* code = reinterpret_cast<Code*>(object);
     if (FLAG_cleanup_code_caches_at_gc) {
-      TypeFeedbackCells* type_feedback_cells = code->type_feedback_cells();
-      for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
-        ASSERT(type_feedback_cells->AstId(i)->IsSmi());
-        JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
-        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+      Object* raw_info = code->type_feedback_info();
+      if (raw_info->IsTypeFeedbackInfo()) {
+        TypeFeedbackCells* type_feedback_cells =
+            TypeFeedbackInfo::cast(raw_info)->type_feedback_cells();
+        for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
+          ASSERT(type_feedback_cells->AstId(i)->IsSmi());
+          JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+          cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+        }
       }
     }
     code->CodeIterateBody<StaticMarkingVisitor>(heap);

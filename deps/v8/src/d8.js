@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+"use strict";
+
 String.prototype.startsWith = function (str) {
   if (str.length > this.length) {
     return false;
@@ -76,7 +78,7 @@ function GetCompletions(global, last, full) {
 
 
 // Global object holding debugger related constants and state.
-const Debug = {};
+var Debug = {};
 
 
 // Debug events which can occour in the V8 JavaScript engine. These originate
@@ -111,7 +113,7 @@ Debug.ScopeType = { Global: 0,
 
 
 // Current debug state.
-const kNoFrame = -1;
+var kNoFrame = -1;
 Debug.State = {
   currentFrame: kNoFrame,
   displaySourceStartLine: -1,
@@ -123,8 +125,8 @@ var trace_debug_json = false; // Tracing all debug json packets?
 var last_cmd_line = '';
 //var lol_is_enabled;  // Set to true in d8.cc if LIVE_OBJECT_LIST is defined.
 var lol_next_dump_index = 0;
-const kDefaultLolLinesToPrintAtATime = 10;
-const kMaxLolLinesToPrintAtATime = 1000;
+var kDefaultLolLinesToPrintAtATime = 10;
+var kMaxLolLinesToPrintAtATime = 1000;
 var repeat_cmd_line = '';
 var is_running = true;
 
@@ -2629,7 +2631,7 @@ function NumberToJSON_(value) {
 
 // Mapping of some control characters to avoid the \uXXXX syntax for most
 // commonly used control cahracters.
-const ctrlCharMap_ = {
+var ctrlCharMap_ = {
   '\b': '\\b',
   '\t': '\\t',
   '\n': '\\n',
@@ -2641,12 +2643,12 @@ const ctrlCharMap_ = {
 
 
 // Regular expression testing for ", \ and control characters (0x00 - 0x1F).
-const ctrlCharTest_ = new RegExp('["\\\\\x00-\x1F]');
+var ctrlCharTest_ = new RegExp('["\\\\\x00-\x1F]');
 
 
 // Regular expression matching ", \ and control characters (0x00 - 0x1F)
 // globally.
-const ctrlCharMatch_ = new RegExp('["\\\\\x00-\x1F]', 'g');
+var ctrlCharMatch_ = new RegExp('["\\\\\x00-\x1F]', 'g');
 
 
 /**
@@ -2688,12 +2690,12 @@ function StringToJSON_(value) {
  * @return {string} JSON formatted Date value
  */
 function DateToISO8601_(value) {
-  function f(n) {
+  var f = function(n) {
     return n < 10 ? '0' + n : n;
-  }
-  function g(n) {
+  };
+  var g = function(n) {
     return n < 10 ? '00' + n : n < 100 ? '0' + n : n;
-  }
+  };
   return builtins.GetUTCFullYearFrom(value)         + '-' +
           f(builtins.GetUTCMonthFrom(value) + 1)    + '-' +
           f(builtins.GetUTCDateFrom(value))         + 'T' +

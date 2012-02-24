@@ -3054,7 +3054,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Throw(rax);
 
   __ bind(&termination_exception);
-  __ ThrowUncatchable(TERMINATION, rax);
+  __ ThrowUncatchable(rax);
 
   // External string.  Short external strings have already been ruled out.
   // rdi: subject string (expected to be external)
@@ -3579,6 +3579,11 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+void InterruptStub::Generate(MacroAssembler* masm) {
+  __ TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
 static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Cache the called function in a global property cell.  Cache states
   // are uninitialized, monomorphic (indicated by a JSFunction), and
@@ -3775,12 +3780,6 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
-void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // Throw exception in eax.
-  __ Throw(rax);
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -3921,12 +3920,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 }
 
 
-void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
-                                          UncatchableExceptionType type) {
-  __ ThrowUncatchable(type, rax);
-}
-
-
 void CEntryStub::Generate(MacroAssembler* masm) {
   // rax: number of arguments including receiver
   // rbx: pointer to C function  (C callee-saved)
@@ -3990,13 +3983,25 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                true);
 
   __ bind(&throw_out_of_memory_exception);
-  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+  // Set external caught exception to false.
+  Isolate* isolate = masm->isolate();
+  ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
+                                    isolate);
+  __ Set(rax, static_cast<int64_t>(false));
+  __ Store(external_caught, rax);
+
+  // Set pending exception and rax to out of memory exception.
+  ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
+                                      isolate);
+  __ movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
+  __ Store(pending_exception, rax);
+  // Fall through to the next label.
 
   __ bind(&throw_termination_exception);
-  GenerateThrowUncatchable(masm, TERMINATION);
+  __ ThrowUncatchable(rax);
 
   __ bind(&throw_normal_exception);
-  GenerateThrowTOS(masm);
+  __ Throw(rax);
 }
 
 
@@ -5966,11 +5971,13 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // KeyedStoreIC::GenerateGeneric.
   { rbx, rdx, rcx, EMIT_REMEMBERED_SET},
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { rdi, rdx, rcx, EMIT_REMEMBERED_SET},
+  { rdi, rbx, rcx, EMIT_REMEMBERED_SET},
+  { rdx, rdi, rbx, EMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { rdx, rbx, rdi, EMIT_REMEMBERED_SET},
+  { rdx, rbx, rdi, OMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateSmiOnlyToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { rdx, r11, r15, EMIT_REMEMBERED_SET},

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -670,8 +670,12 @@ class StoreStubCompiler: public StubCompiler {
 
 class KeyedStoreStubCompiler: public StubCompiler {
  public:
-  KeyedStoreStubCompiler(Isolate* isolate, StrictModeFlag strict_mode)
-    : StubCompiler(isolate), strict_mode_(strict_mode) { }
+  KeyedStoreStubCompiler(Isolate* isolate,
+                         StrictModeFlag strict_mode,
+                         KeyedAccessGrowMode grow_mode)
+    : StubCompiler(isolate),
+      strict_mode_(strict_mode),
+      grow_mode_(grow_mode) { }
 
   Handle<Code> CompileStoreField(Handle<JSObject> object,
                                  int index,
@@ -686,10 +690,12 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   static void GenerateStoreFastElement(MacroAssembler* masm,
                                        bool is_js_array,
-                                       ElementsKind element_kind);
+                                       ElementsKind element_kind,
+                                       KeyedAccessGrowMode grow_mode);
 
   static void GenerateStoreFastDoubleElement(MacroAssembler* masm,
-                                             bool is_js_array);
+                                             bool is_js_array,
+                                             KeyedAccessGrowMode grow_mode);
 
   static void GenerateStoreExternalArray(MacroAssembler* masm,
                                          ElementsKind elements_kind);
@@ -702,6 +708,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
                        InlineCacheState state = MONOMORPHIC);
 
   StrictModeFlag strict_mode_;
+  KeyedAccessGrowMode grow_mode_;
 };
 
 

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,5 +30,15 @@
 // Flags: --allow-natives-syntax --expose_natives_as=natives
 
 var a = Array();
-var ai = natives.InternalArray();
-assertFalse(%HaveSameMap(ai, a));
+
+for (var i = 0; i < 1000; i++) {
+  var ai = natives.InternalArray(10000);
+  assertFalse(%HaveSameMap(ai, a));
+  assertTrue(%HasFastElements(ai));
+}
+
+for (var i = 0; i < 1000; i++) {
+  var ai = new natives.InternalArray(10000);
+  assertFalse(%HaveSameMap(ai, a));
+  assertTrue(%HasFastElements(ai));
+}

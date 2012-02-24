@@ -28,17 +28,16 @@
 
 // This file relies on the fact that the following declarations have been made
 // in v8natives.js:
-// const $isFinite = GlobalIsFinite;
+// var $isFinite = GlobalIsFinite;
 
 // -------------------------------------------------------------------
 
 // This file contains date support implemented in JavaScript.
 
-
 // Keep reference to original values of some global properties.  This
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
-const $Date = global.Date;
+var $Date = global.Date;
 
 // Helper function to throw error.
 function ThrowDateTypeError() {

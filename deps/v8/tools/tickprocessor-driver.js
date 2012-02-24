@@ -52,6 +52,7 @@ if (params.snapshotLogFileName) {
 var tickProcessor = new TickProcessor(
   new (entriesProviders[params.platform])(params.nm),
   params.separateIc,
+  params.callGraphSize,
   params.ignoreUnknown,
   params.stateFilter,
   snapshotLogProcessor);

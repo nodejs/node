@@ -163,15 +163,6 @@ class ZoneObject {
 };
 
 
-class AssertNoZoneAllocation {
- public:
-  inline AssertNoZoneAllocation();
-  inline ~AssertNoZoneAllocation();
- private:
-  bool prev_;
-};
-
-
 // The ZoneListAllocationPolicy is used to specialize the GenericList
 // implementation to allocate ZoneLists and their elements in the
 // Zone.

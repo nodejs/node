@@ -1,3 +1,58 @@
+2012-02-23: Version 3.9.9
+
+        Supported fast case for-in in Crankshaft.
+
+        Sped up heap snapshot serialization and dominators construction.
+
+        Randomized allocation addresses on windows. (Chromium issue 115151)
+
+        Fixed compilation with MinGW-w64. (issue 1943)
+
+        Fixed incorrect value of assignments to non-extensible properties.
+
+        Fixed a crash bug in generated code on ia32.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-02-21: Version 3.9.8
+
+        Fixed memory leak and missing #include in StartupDataDecompressor
+        (issue 1960).
+
+        Renamed static methods to avoid shadowing virtual methods and fix Clang
+        C++11 compile error.
+
+        Fixed sequence of element access in array builtins (issue 1790).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-02-16: Version 3.9.7
+
+        Fixed V8 issues 1322, 1878, 1942, 1945 and Chromium issue 113924.
+
+        Fixed GCC-4.7 warnings.
+
+        Added Navier-Stokes benchmark.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-02-14: Version 3.9.6
+
+        Fix template-related linker error. (issue 1936)
+
+        Allow inlining of functions containing object literals.  (issue 1322)
+
+        Add --call-graph-size option to tickprocessor.  (issue 1937)
+
+        Heap Snapshot maximum size limit is too low for really big apps. At the
+        moment the limit is 256MB.  (Chromium issue 113015)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-09: Version 3.9.5
 
         Removed unused command line flags.

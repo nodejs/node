@@ -250,7 +250,7 @@ function Decode(uri, reserved) {
 
 // ECMA-262 - 15.1.3.1.
 function URIDecode(uri) {
-  function reservedPredicate(cc) {
+  var reservedPredicate = function(cc) {
     // #$
     if (35 <= cc && cc <= 36) return true;
     // &
@@ -267,7 +267,7 @@ function URIDecode(uri) {
     if (63 <= cc && cc <= 64) return true;
 
     return false;
-  }
+  };
   var string = ToString(uri);
   return Decode(string, reservedPredicate);
 }
@@ -275,7 +275,7 @@ function URIDecode(uri) {
 
 // ECMA-262 - 15.1.3.2.
 function URIDecodeComponent(component) {
-  function reservedPredicate(cc) { return false; }
+  var reservedPredicate = function(cc) { return false; };
   var string = ToString(component);
   return Decode(string, reservedPredicate);
 }
@@ -296,7 +296,7 @@ function isAlphaNumeric(cc) {
 
 // ECMA-262 - 15.1.3.3.
 function URIEncode(uri) {
-  function unescapePredicate(cc) {
+  var unescapePredicate = function(cc) {
     if (isAlphaNumeric(cc)) return true;
     // !
     if (cc == 33) return true;
@@ -316,7 +316,7 @@ function URIEncode(uri) {
     if (cc == 126) return true;
 
     return false;
-  }
+  };
 
   var string = ToString(uri);
   return Encode(string, unescapePredicate);
@@ -325,7 +325,7 @@ function URIEncode(uri) {
 
 // ECMA-262 - 15.1.3.4
 function URIEncodeComponent(component) {
-  function unescapePredicate(cc) {
+  var unescapePredicate = function(cc) {
     if (isAlphaNumeric(cc)) return true;
     // !
     if (cc == 33) return true;
@@ -339,7 +339,7 @@ function URIEncodeComponent(component) {
     if (cc == 126) return true;
 
     return false;
-  }
+  };
 
   var string = ToString(component);
   return Encode(string, unescapePredicate);

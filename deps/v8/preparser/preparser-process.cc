@@ -200,12 +200,14 @@ void fail(v8::PreParserData* data, const char* message, ...) {
   vfprintf(stderr, message, args);
   va_end(args);
   fflush(stderr);
-  // Print preparser data to stdout.
-  uint32_t size = data->size();
-  fprintf(stderr, "LOG: data size: %u\n", size);
-  if (!WriteBuffer(stdout, data->data(), size)) {
-    perror("ERROR: Writing data");
-    fflush(stderr);
+  if (data != NULL) {
+    // Print preparser data to stdout.
+    uint32_t size = data->size();
+    fprintf(stderr, "LOG: data size: %u\n", size);
+    if (!WriteBuffer(stdout, data->data(), size)) {
+      perror("ERROR: Writing data");
+      fflush(stderr);
+    }
   }
   exit(EXIT_FAILURE);
 }

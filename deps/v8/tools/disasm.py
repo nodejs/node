@@ -48,7 +48,8 @@ _DISASM_LINE_RE = re.compile(r"\s*([a-f0-9]+):\s*(\S.*)")
 _ARCH_MAP = {
   "ia32": "-m i386",
   "x64": "-m i386 -M x86-64",
-  "arm": "-m arm"  # Not supported by our objdump build.
+  "arm": "-m arm",  # Not supported by our objdump build.
+  "mips": "-m mips"  # Not supported by our objdump build.
 }
 
 

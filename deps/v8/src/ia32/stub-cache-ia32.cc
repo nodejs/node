@@ -2591,7 +2591,7 @@ Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub =
-      KeyedStoreElementStub(is_jsarray, elements_kind).GetCode();
+      KeyedStoreElementStub(is_jsarray, elements_kind, grow_mode_).GetCode();
 
   __ DispatchMap(edx, receiver_map, stub, DO_SMI_CHECK);
 
@@ -3718,14 +3718,16 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
 void KeyedStoreStubCompiler::GenerateStoreFastElement(
     MacroAssembler* masm,
     bool is_js_array,
-    ElementsKind elements_kind) {
+    ElementsKind elements_kind,
+    KeyedAccessGrowMode grow_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, transition_elements_kind;
+  Label miss_force_generic, grow, slow, transition_elements_kind;
+  Label check_capacity, prepare_slow, finish_store, commit_backing_store;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -3733,24 +3735,32 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // Check that the key is a smi.
   __ JumpIfNotSmi(ecx, &miss_force_generic);
 
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+    __ JumpIfNotSmi(eax, &transition_elements_kind);
+  }
+
   // Get the elements array and make sure it is a fast element array, not 'cow'.
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-  __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
-         Immediate(masm->isolate()->factory()->fixed_array_map()));
-  __ j(not_equal, &miss_force_generic);
-
   if (is_js_array) {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // smis.
-    __ j(above_equal, &miss_force_generic);
+    if (grow_mode == ALLOW_JSARRAY_GROWTH) {
+      __ j(above_equal, &grow);
+    } else {
+      __ j(above_equal, &miss_force_generic);
+    }
   } else {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // smis.
     __ j(above_equal, &miss_force_generic);
   }
 
+  __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+         Immediate(masm->isolate()->factory()->fixed_array_map()));
+  __ j(not_equal, &miss_force_generic);
+
+  __ bind(&finish_store);
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-    __ JumpIfNotSmi(eax, &transition_elements_kind);
     // ecx is a smi, use times_half_pointer_size instead of
     // times_pointer_size
     __ mov(FieldOperand(edi,
@@ -3768,8 +3778,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
                              FixedArray::kHeaderSize));
     __ mov(Operand(ecx, 0), eax);
     // Make sure to preserve the value in register eax.
-    __ mov(edx, eax);
-    __ RecordWrite(edi, ecx, edx, kDontSaveFPRegs);
+    __ mov(ebx, eax);
+    __ RecordWrite(edi, ecx, ebx, kDontSaveFPRegs);
   }
 
   // Done.
@@ -3785,19 +3795,94 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   __ bind(&transition_elements_kind);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
+
+  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+    // Handle transition requiring the array to grow.
+    __ bind(&grow);
+
+    // Make sure the array is only growing by a single element, anything else
+    // must be handled by the runtime. Flags are already set by previous
+    // compare.
+    __ j(not_equal, &miss_force_generic);
+
+    // Check for the empty array, and preallocate a small backing store if
+    // possible.
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+    __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
+    __ j(not_equal, &check_capacity);
+
+    int size = FixedArray::SizeFor(JSArray::kPreallocatedArrayElements);
+    __ AllocateInNewSpace(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
+    // Restore the key, which is known to be the array length.
+
+    // eax: value
+    // ecx: key
+    // edx: receiver
+    // edi: elements
+    // Make sure that the backing store can hold additional elements.
+    __ mov(FieldOperand(edi, JSObject::kMapOffset),
+           Immediate(masm->isolate()->factory()->fixed_array_map()));
+    __ mov(FieldOperand(edi, FixedArray::kLengthOffset),
+           Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+    __ mov(ebx, Immediate(masm->isolate()->factory()->the_hole_value()));
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; ++i) {
+      __ mov(FieldOperand(edi, FixedArray::SizeFor(i)), ebx);
+    }
+
+    // Store the element at index zero.
+    __ mov(FieldOperand(edi, FixedArray::SizeFor(0)), eax);
+
+    // Install the new backing store in the JSArray.
+    __ mov(FieldOperand(edx, JSObject::kElementsOffset), edi);
+    __ RecordWriteField(edx, JSObject::kElementsOffset, edi, ebx,
+                        kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // Increment the length of the array.
+    __ mov(FieldOperand(edx, JSArray::kLengthOffset),
+           Immediate(Smi::FromInt(1)));
+    __ ret(0);
+
+    __ bind(&check_capacity);
+    __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+           Immediate(masm->isolate()->factory()->fixed_cow_array_map()));
+    __ j(equal, &miss_force_generic);
+
+    // eax: value
+    // ecx: key
+    // edx: receiver
+    // edi: elements
+    // Make sure that the backing store can hold additional elements.
+    __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
+    __ j(above_equal, &slow);
+
+    // Grow the array and finish the store.
+    __ add(FieldOperand(edx, JSArray::kLengthOffset),
+           Immediate(Smi::FromInt(1)));
+    __ jmp(&finish_store);
+
+    __ bind(&prepare_slow);
+    // Restore the key, which is known to be the array length.
+    __ mov(ecx, Immediate(0));
+
+    __ bind(&slow);
+    Handle<Code> ic_slow = masm->isolate()->builtins()->KeyedStoreIC_Slow();
+    __ jmp(ic_slow, RelocInfo::CODE_TARGET);
+  }
 }
 
 
 void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     MacroAssembler* masm,
-    bool is_js_array) {
+    bool is_js_array,
+    KeyedAccessGrowMode grow_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, transition_elements_kind;
+  Label miss_force_generic, transition_elements_kind, grow, slow;
+  Label check_capacity, prepare_slow, finish_store, commit_backing_store;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -3812,19 +3897,20 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   if (is_js_array) {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // smis.
+    if (grow_mode == ALLOW_JSARRAY_GROWTH) {
+      __ j(above_equal, &grow);
+    } else {
+      __ j(above_equal, &miss_force_generic);
+    }
   } else {
     // Check that the key is within bounds.
     __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // smis.
+    __ j(above_equal, &miss_force_generic);
   }
-  __ j(above_equal, &miss_force_generic);
 
-  __ StoreNumberToDoubleElements(eax,
-                                 edi,
-                                 ecx,
-                                 edx,
-                                 xmm0,
-                                 &transition_elements_kind,
-                                 true);
+  __ bind(&finish_store);
+  __ StoreNumberToDoubleElements(eax, edi, ecx, edx, xmm0,
+                                 &transition_elements_kind, true);
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -3837,6 +3923,79 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ bind(&transition_elements_kind);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
+
+  if (is_js_array && grow_mode == ALLOW_JSARRAY_GROWTH) {
+    // Handle transition requiring the array to grow.
+    __ bind(&grow);
+
+    // Make sure the array is only growing by a single element, anything else
+    // must be handled by the runtime. Flags are already set by previous
+    // compare.
+    __ j(not_equal, &miss_force_generic);
+
+    // Transition on values that can't be stored in a FixedDoubleArray.
+    Label value_is_smi;
+    __ JumpIfSmi(eax, &value_is_smi);
+    __ cmp(FieldOperand(eax, HeapObject::kMapOffset),
+           Immediate(Handle<Map>(masm->isolate()->heap()->heap_number_map())));
+    __ j(not_equal, &transition_elements_kind);
+    __ bind(&value_is_smi);
+
+    // Check for the empty array, and preallocate a small backing store if
+    // possible.
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+    __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
+    __ j(not_equal, &check_capacity);
+
+    int size = FixedDoubleArray::SizeFor(JSArray::kPreallocatedArrayElements);
+    __ AllocateInNewSpace(size, edi, ebx, ecx, &prepare_slow, TAG_OBJECT);
+    // Restore the key, which is known to be the array length.
+    __ mov(ecx, Immediate(0));
+
+    // eax: value
+    // ecx: key
+    // edx: receiver
+    // edi: elements
+    // Initialize the new FixedDoubleArray. Leave elements unitialized for
+    // efficiency, they are guaranteed to be initialized before use.
+    __ mov(FieldOperand(edi, JSObject::kMapOffset),
+           Immediate(masm->isolate()->factory()->fixed_double_array_map()));
+    __ mov(FieldOperand(edi, FixedDoubleArray::kLengthOffset),
+           Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+
+    // Install the new backing store in the JSArray.
+    __ mov(FieldOperand(edx, JSObject::kElementsOffset), edi);
+    __ RecordWriteField(edx, JSObject::kElementsOffset, edi, ebx,
+                        kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // Increment the length of the array.
+    __ add(FieldOperand(edx, JSArray::kLengthOffset),
+           Immediate(Smi::FromInt(1)));
+    __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+    __ jmp(&finish_store);
+
+    __ bind(&check_capacity);
+    // eax: value
+    // ecx: key
+    // edx: receiver
+    // edi: elements
+    // Make sure that the backing store can hold additional elements.
+    __ cmp(ecx, FieldOperand(edi, FixedDoubleArray::kLengthOffset));
+    __ j(above_equal, &slow);
+
+    // Grow the array and finish the store.
+    __ add(FieldOperand(edx, JSArray::kLengthOffset),
+           Immediate(Smi::FromInt(1)));
+    __ jmp(&finish_store);
+
+    __ bind(&prepare_slow);
+    // Restore the key, which is known to be the array length.
+    __ mov(ecx, Immediate(0));
+
+    __ bind(&slow);
+    Handle<Code> ic_slow = masm->isolate()->builtins()->KeyedStoreIC_Slow();
+    __ jmp(ic_slow, RelocInfo::CODE_TARGET);
+  }
 }
 
 

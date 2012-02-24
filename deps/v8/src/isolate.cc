@@ -775,10 +775,12 @@ void Isolate::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   HandleScope scope;
   Handle<JSObject> receiver_handle(receiver);
   Handle<Object> data(AccessCheckInfo::cast(data_obj)->data());
-  thread_local_top()->failed_access_check_callback_(
-    v8::Utils::ToLocal(receiver_handle),
-    type,
-    v8::Utils::ToLocal(data));
+  { VMState state(this, EXTERNAL);
+    thread_local_top()->failed_access_check_callback_(
+      v8::Utils::ToLocal(receiver_handle),
+      type,
+      v8::Utils::ToLocal(data));
+  }
 }
 
 

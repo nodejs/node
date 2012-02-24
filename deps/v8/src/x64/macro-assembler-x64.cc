@@ -2552,8 +2552,7 @@ void MacroAssembler::Throw(Register value) {
 }
 
 
-void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
-                                      Register value) {
+void MacroAssembler::ThrowUncatchable(Register value) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
@@ -2563,22 +2562,9 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
   // The exception is expected in rax.
-  if (type == OUT_OF_MEMORY) {
-    // Set external caught exception to false.
-    ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
-                                      isolate());
-    Set(rax, static_cast<int64_t>(false));
-    Store(external_caught, rax);
-
-    // Set pending exception and rax to out of memory exception.
-    ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
-                                        isolate());
-    movq(rax, Failure::OutOfMemoryException(), RelocInfo::NONE);
-    Store(pending_exception, rax);
-  } else if (!value.is(rax)) {
+  if (!value.is(rax)) {
     movq(rax, value);
   }
-
   // Drop the stack pointer to the top of the top stack handler.
   ExternalReference handler_address(Isolate::kHandlerAddress, isolate());
   Load(rsp, handler_address);
@@ -2863,6 +2849,14 @@ void MacroAssembler::AbortIfNotSmi(Register object) {
 void MacroAssembler::AbortIfNotSmi(const Operand& object) {
   Condition is_smi = CheckSmi(object);
   Assert(is_smi, "Operand is not a smi");
+}
+
+
+void MacroAssembler::AbortIfNotZeroExtended(Register int32_register) {
+  ASSERT(!int32_register.is(kScratchRegister));
+  movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
+  cmpq(kScratchRegister, int32_register);
+  Assert(above_equal, "32 bit value in register is not zero-extended");
 }
 
 
@@ -4377,6 +4371,52 @@ void MacroAssembler::EnsureNotWhite(
 
   bind(&done);
 }
+
+
+void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
+  Label next;
+  Register empty_fixed_array_value = r8;
+  LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
+  Register empty_descriptor_array_value = r9;
+  LoadRoot(empty_descriptor_array_value,
+              Heap::kEmptyDescriptorArrayRootIndex);
+  movq(rcx, rax);
+  bind(&next);
+
+  // Check that there are no elements.  Register rcx contains the
+  // current JS object we've reached through the prototype chain.
+  cmpq(empty_fixed_array_value,
+       FieldOperand(rcx, JSObject::kElementsOffset));
+  j(not_equal, call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in rbx for the subsequent
+  // prototype load.
+  movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
+  movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOrBitField3Offset));
+  JumpIfSmi(rdx, call_runtime);
+
+  // Check that there is an enum cache in the non-empty instance
+  // descriptors (rdx).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumerationIndexOffset));
+  JumpIfSmi(rdx, call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  cmpq(rcx, rax);
+  j(equal, &check_prototype, Label::kNear);
+  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  cmpq(rdx, empty_fixed_array_value);
+  j(not_equal, call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  bind(&check_prototype);
+  movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
+  cmpq(rcx, null_value);
+  j(not_equal, &next);
+}
+
 
 } }  // namespace v8::internal
 

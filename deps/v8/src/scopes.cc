@@ -704,6 +704,7 @@ static const char* Header(ScopeType type) {
   switch (type) {
     case EVAL_SCOPE: return "eval";
     case FUNCTION_SCOPE: return "function";
+    case MODULE_SCOPE: return "module";
     case GLOBAL_SCOPE: return "global";
     case CATCH_SCOPE: return "catch";
     case BLOCK_SCOPE: return "block";

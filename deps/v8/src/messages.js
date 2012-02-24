@@ -25,17 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // -------------------------------------------------------------------
 //
 // If this object gets passed to an error constructor the error will
 // get an accessor for .message that constructs a descriptive error
 // message on access.
-const kAddMessageAccessorsMarker = { };
+var kAddMessageAccessorsMarker = { };
 
 // This will be lazily initialized when first needed (and forcibly
 // overwritten even though it's const).
-const kMessages = 0;
+var kMessages = 0;
 
 function FormatString(format, message) {
   var args = %MessageGetArguments(message);
@@ -603,7 +602,7 @@ function SourceLocation(script, position, line, column, start, end) {
   this.end = end;
 }
 
-const kLineLengthLimit = 78;
+var kLineLengthLimit = 78;
 
 /**
  * Restrict source location start and end positions to make the source slice
@@ -748,18 +747,18 @@ function DefineOneShotAccessor(obj, name, fun) {
   // can't rely on 'this' being the same as 'obj'.
   var hasBeenSet = false;
   var value;
-  function getter() {
+  var getter = function() {
     if (hasBeenSet) {
       return value;
     }
     hasBeenSet = true;
     value = fun(obj);
     return value;
-  }
-  function setter(v) {
+  };
+  var setter = function(v) {
     hasBeenSet = true;
     value = v;
-  }
+  };
   %DefineOrRedefineAccessorProperty(obj, name, GETTER, getter, DONT_ENUM);
   %DefineOrRedefineAccessorProperty(obj, name, SETTER, setter, DONT_ENUM);
 }
@@ -1090,7 +1089,7 @@ function captureStackTrace(obj, cons_opt) {
 function SetUpError() {
   // Define special error type constructors.
 
-  function DefineError(f) {
+  var DefineError = function(f) {
     // Store the error function in both the global object
     // and the runtime object. The function is fetched
     // from the runtime object when throwing errors from
@@ -1106,7 +1105,7 @@ function SetUpError() {
       // However, it can't be an instance of the Error object because
       // it hasn't been properly configured yet.  Instead we create a
       // special not-a-true-error-but-close-enough object.
-      function ErrorPrototype() {}
+      var ErrorPrototype = function() {};
       %FunctionSetPrototype(ErrorPrototype, $Object.prototype);
       %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
       %FunctionSetPrototype(f, new ErrorPrototype());
@@ -1148,7 +1147,7 @@ function SetUpError() {
       }
     });
     %SetNativeFlag(f);
-  }
+  };
 
   DefineError(function Error() { });
   DefineError(function TypeError() { });
@@ -1167,8 +1166,8 @@ $Error.captureStackTrace = captureStackTrace;
 
 // Global list of error objects visited during ErrorToString. This is
 // used to detect cycles in error toString formatting.
-const visited_errors = new InternalArray();
-const cyclic_error_marker = new $Object();
+var visited_errors = new InternalArray();
+var cyclic_error_marker = new $Object();
 
 function ErrorToStringDetectCycle(error) {
   if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
@@ -1213,4 +1212,4 @@ InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().
-const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);
+var kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);

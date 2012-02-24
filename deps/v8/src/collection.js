@@ -25,10 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+"use strict";
 
-const $Set = global.Set;
-const $Map = global.Map;
-const $WeakMap = global.WeakMap;
+var $Set = global.Set;
+var $Map = global.Map;
+var $WeakMap = global.WeakMap;
 
 //-------------------------------------------------------------------
 

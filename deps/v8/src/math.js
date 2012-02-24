@@ -29,15 +29,15 @@
 // Keep reference to original values of some global properties.  This
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
-const $floor = MathFloor;
-const $random = MathRandom;
-const $abs = MathAbs;
+var $floor = MathFloor;
+var $random = MathRandom;
+var $abs = MathAbs;
 
 // Instance class name can only be set on functions. That is the only
 // purpose for MathConstructor.
 function MathConstructor() {}
 %FunctionSetInstanceClassName(MathConstructor, 'Math');
-const $Math = new MathConstructor();
+var $Math = new MathConstructor();
 $Math.__proto__ = $Object.prototype;
 %SetProperty(global, "Math", $Math, DONT_ENUM);
 

@@ -3439,6 +3439,11 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 }
 
 
+void InterruptStub::Generate(MacroAssembler* masm) {
+  __ TailCallRuntime(Runtime::kInterrupt, 0, 1);
+}
+
+
 void MathPowStub::Generate(MacroAssembler* masm) {
   CpuFeatures::Scope vfp3_scope(VFP3);
   const Register base = r1;
@@ -3674,17 +3679,6 @@ void CEntryStub::GenerateAheadOfTime() {
 }
 
 
-void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  __ Throw(r0);
-}
-
-
-void CEntryStub::GenerateThrowUncatchable(MacroAssembler* masm,
-                                          UncatchableExceptionType type) {
-  __ ThrowUncatchable(type, r0);
-}
-
-
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_termination_exception,
@@ -3865,13 +3859,27 @@ void CEntryStub::Generate(MacroAssembler* masm) {
                true);
 
   __ bind(&throw_out_of_memory_exception);
-  GenerateThrowUncatchable(masm, OUT_OF_MEMORY);
+  // Set external caught exception to false.
+  Isolate* isolate = masm->isolate();
+  ExternalReference external_caught(Isolate::kExternalCaughtExceptionAddress,
+                                    isolate);
+  __ mov(r0, Operand(false, RelocInfo::NONE));
+  __ mov(r2, Operand(external_caught));
+  __ str(r0, MemOperand(r2));
+
+  // Set pending exception and r0 to out of memory exception.
+  Failure* out_of_memory = Failure::OutOfMemoryException();
+  __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ mov(r2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
+                                       isolate)));
+  __ str(r0, MemOperand(r2));
+  // Fall through to the next label.
 
   __ bind(&throw_termination_exception);
-  GenerateThrowUncatchable(masm, TERMINATION);
+  __ ThrowUncatchable(r0);
 
   __ bind(&throw_normal_exception);
-  GenerateThrowTOS(masm);
+  __ Throw(r0);
 }
 
 
@@ -4912,10 +4920,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   Label termination_exception;
   __ b(eq, &termination_exception);
 
-  __ Throw(r0);  // Expects thrown value in r0.
+  __ Throw(r0);
 
   __ bind(&termination_exception);
-  __ ThrowUncatchable(TERMINATION, r0);  // Expects thrown value in r0.
+  __ ThrowUncatchable(r0);
 
   __ bind(&failure);
   // For failure and exception return null.
@@ -7059,11 +7067,13 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { r2, r1, r3, EMIT_REMEMBERED_SET },
   { r3, r1, r2, EMIT_REMEMBERED_SET },
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { r4, r2, r3, EMIT_REMEMBERED_SET },
+  { r3, r2, r4, EMIT_REMEMBERED_SET },
+  { r2, r3, r4, EMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
   { r2, r3, r9, EMIT_REMEMBERED_SET },
+  { r2, r3, r9, OMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateDoubleToObject
   { r6, r2, r0, EMIT_REMEMBERED_SET },
   { r2, r6, r9, EMIT_REMEMBERED_SET },

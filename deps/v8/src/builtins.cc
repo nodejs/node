@@ -206,8 +206,7 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     }
   } else {
     // Allocate the JS Array
-    MaybeObject* maybe_obj =
-        heap->AllocateEmptyJSArray(FAST_SMI_ONLY_ELEMENTS);
+    MaybeObject* maybe_obj = heap->AllocateJSObject(constructor);
     if (!maybe_obj->To(&array)) return maybe_obj;
   }
 
@@ -218,12 +217,13 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
       if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
-        Object* obj;
+        Object* fixed_array;
         { MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(len);
-          if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+          if (!maybe_obj->ToObject(&fixed_array)) return maybe_obj;
         }
-        MaybeObject* maybe_obj = array->SetContent(FixedArray::cast(obj));
-        if (maybe_obj->IsFailure()) return maybe_obj;
+        // We do not use SetContent to skip the unnecessary elements type check.
+        array->set_elements(FixedArray::cast(fixed_array));
+        array->set_length(Smi::cast(obj));
         return array;
       }
     }

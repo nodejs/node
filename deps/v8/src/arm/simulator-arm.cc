@@ -1277,9 +1277,9 @@ void Simulator::WriteDW(int32_t addr, int32_t value1, int32_t value2) {
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 512 bytes to prevent overrunning the stack when
+  // Leave a safety margin of 1024 bytes to prevent overrunning the stack when
   // pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 512;
+  return reinterpret_cast<uintptr_t>(stack_) + 1024;
 }
 
 

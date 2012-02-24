@@ -36,9 +36,6 @@ namespace v8 {
 namespace internal {
 
 
-const int Deoptimizer::table_entry_size_ = 32;
-
-
 int Deoptimizer::patch_size() {
   const int kCallInstructionSizeInWords = 4;
   return kCallInstructionSizeInWords * Assembler::kInstrSize;
@@ -839,32 +836,55 @@ void Deoptimizer::EntryGenerator::Generate() {
 }
 
 
+// Maximum size of a table entry generated below.
+const int Deoptimizer::table_entry_size_ = 12 * Assembler::kInstrSize;
+
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm());
 
   // Create a sequence of deoptimization entries. Note that any
   // registers may be still live.
-
-  Label done;
+  Label table_start;
+  __ bind(&table_start);
   for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
-    USE(start);
+    Label start;
+    __ bind(&start);
     if (type() != EAGER) {
       // Emulate ia32 like call by pushing return address to stack.
-      __ push(ra);
+      __ addiu(sp, sp, -3 * kPointerSize);
+      __ sw(ra, MemOperand(sp, 2 * kPointerSize));
+    } else {
+      __ addiu(sp, sp, -2 * kPointerSize);
     }
-    __ li(at, Operand(i));
-    __ push(at);
-    __ Branch(&done);
+    // Using ori makes sure only one instruction is generated. This will work
+    // as long as the number of deopt entries is below 2^16.
+    __ ori(at, zero_reg, i);
+    __ sw(at, MemOperand(sp, kPointerSize));
+    __ sw(ra, MemOperand(sp, 0));
+    // This branch instruction only jumps over one instruction, and that is
+    // executed in the delay slot. The result is that execution is linear but
+    // the ra register is updated.
+    __ bal(1);
+    // Jump over the remaining deopt entries (including this one).
+    // Only include the remaining part of the current entry in the calculation.
+    const int remaining_entries = (count() - i) * table_entry_size_;
+    const int cur_size = masm()->SizeOfCodeGeneratedSince(&start);
+    // ra points to the instruction after the delay slot. Adjust by 4.
+    __ Addu(at, ra, remaining_entries - cur_size - Assembler::kInstrSize);
+    __ lw(ra, MemOperand(sp, 0));
+    __ jr(at);  // Expose delay slot.
+    __ addiu(sp, sp, kPointerSize);  // In delay slot.
 
     // Pad the rest of the code.
-    while (table_entry_size_ > (masm()->pc_offset() - start)) {
+    while (table_entry_size_ > (masm()->SizeOfCodeGeneratedSince(&start))) {
       __ nop();
     }
 
-    ASSERT_EQ(table_entry_size_, masm()->pc_offset() - start);
+    ASSERT_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
   }
-  __ bind(&done);
+
+  ASSERT_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
+      count() * table_entry_size_);
 }
 
 #undef __

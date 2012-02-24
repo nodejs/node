@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -190,6 +190,11 @@ typedef byte* Address;
 #define V8_INTPTR_C(x)  (x)
 #define V8_PTR_PREFIX ""
 #endif  // V8_HOST_ARCH_64_BIT
+
+#ifdef __MINGW64__
+#undef V8_PTR_PREFIX
+#define V8_PTR_PREFIX "I64"
+#endif  // __MINGW64__
 
 // The following macro works on both 32 and 64-bit platforms.
 // Usage: instead of writing 0x1234567890123456

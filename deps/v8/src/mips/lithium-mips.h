@@ -87,11 +87,13 @@ class LCodeGen;
   V(ConstantI)                                  \
   V(ConstantT)                                  \
   V(Context)                                    \
+  V(DeclareGlobals)                             \
   V(DeleteProperty)                             \
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
   V(ElementsKind)                               \
+  V(FastLiteral)                                \
   V(FixedArrayBaseLength)                       \
   V(FunctionLiteral)                            \
   V(GetCachedArrayIndex)                        \
@@ -134,8 +136,7 @@ class LCodeGen;
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberUntagD)                               \
-  V(ObjectLiteralFast)                          \
-  V(ObjectLiteralGeneric)                       \
+  V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
@@ -1346,6 +1347,13 @@ class LOuterContext: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LDeclareGlobals: public LTemplateInstruction<0, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(DeclareGlobals, "declare-globals")
+  DECLARE_HYDROGEN_ACCESSOR(DeclareGlobals)
+};
+
+
 class LGlobalObject: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LGlobalObject(LOperand* context) {
@@ -1909,6 +1917,13 @@ class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
 };
 
 
+class LFastLiteral: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(FastLiteral, "fast-literal")
+  DECLARE_HYDROGEN_ACCESSOR(FastLiteral)
+};
+
+
 class LArrayLiteral: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ArrayLiteral, "array-literal")
@@ -1916,17 +1931,10 @@ class LArrayLiteral: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LObjectLiteralFast: public LTemplateInstruction<1, 0, 0> {
+class LObjectLiteral: public LTemplateInstruction<1, 0, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast, "object-literal-fast")
-  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralFast)
-};
-
-
-class LObjectLiteralGeneric: public LTemplateInstruction<1, 0, 0> {
- public:
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric, "object-literal-generic")
-  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralGeneric)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object-literal")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteral)
 };
 
 

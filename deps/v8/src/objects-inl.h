@@ -1339,11 +1339,12 @@ void JSObject::set_map_and_elements(Map* new_map,
     }
   }
   ASSERT((map()->has_fast_elements() ||
-          map()->has_fast_smi_only_elements()) ==
+          map()->has_fast_smi_only_elements() ||
+          (value == GetHeap()->empty_fixed_array())) ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
-  ASSERT(map()->has_fast_double_elements() ==
-         value->IsFixedDoubleArray());
+  ASSERT((value == GetHeap()->empty_fixed_array()) ||
+         (map()->has_fast_double_elements() == value->IsFixedDoubleArray()));
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
 }
@@ -2049,16 +2050,6 @@ void DescriptorArray::Set(int descriptor_number,
   NoIncrementalWriteBarrierSet(content_array,
                                ToDetailsIndex(descriptor_number),
                                desc->GetDetails().AsSmi());
-}
-
-
-void DescriptorArray::CopyFrom(int index,
-                               DescriptorArray* src,
-                               int src_index,
-                               const WhitenessWitness& witness) {
-  Descriptor desc;
-  src->Get(src_index, &desc);
-  Set(index, &desc, witness);
 }
 
 
@@ -3715,8 +3706,9 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                kNameShouldPrintAsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, bound, kBoundFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_crankshaft,
-               kDontCrankshaft)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_optimize,
+               kDontOptimize)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
@@ -3946,13 +3938,17 @@ MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
     Map* new_double_map = NULL;
     if (!maybe_map->To<Map>(&new_double_map)) return maybe_map;
     new_double_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
-    initial_map->AddElementsTransition(FAST_DOUBLE_ELEMENTS, new_double_map);
+    maybe_map = initial_map->AddElementsTransition(FAST_DOUBLE_ELEMENTS,
+                                                   new_double_map);
+    if (maybe_map->IsFailure()) return maybe_map;
 
     maybe_map = new_double_map->CopyDropTransitions();
     Map* new_object_map = NULL;
     if (!maybe_map->To<Map>(&new_object_map)) return maybe_map;
     new_object_map->set_elements_kind(FAST_ELEMENTS);
-    new_double_map->AddElementsTransition(FAST_ELEMENTS, new_object_map);
+    maybe_map = new_double_map->AddElementsTransition(FAST_ELEMENTS,
+                                                      new_object_map);
+    if (maybe_map->IsFailure()) return maybe_map;
 
     global_context->set_smi_js_array_map(initial_map);
     global_context->set_double_js_array_map(new_double_map);
@@ -4127,8 +4123,7 @@ INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
 ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-ACCESSORS(Code, type_feedback_cells, TypeFeedbackCells,
-          kTypeFeedbackCellsOffset)
+ACCESSORS(Code, type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
 
 
@@ -4802,6 +4797,13 @@ Handle<Object> TypeFeedbackCells::MegamorphicSentinel(Isolate* isolate) {
 Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
   return heap->raw_unchecked_the_hole_value();
 }
+
+
+SMI_ACCESSORS(TypeFeedbackInfo, ic_total_count, kIcTotalCountOffset)
+SMI_ACCESSORS(TypeFeedbackInfo, ic_with_typeinfo_count,
+              kIcWithTypeinfoCountOffset)
+ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
+          kTypeFeedbackCellsOffset)
 
 
 Relocatable::Relocatable(Isolate* isolate) {

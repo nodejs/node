@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been modified
 // significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 #include "v8.h"
 
@@ -575,7 +575,7 @@ void Assembler::leave() {
 
 
 void Assembler::mov_b(Register dst, const Operand& src) {
-  ASSERT(dst.code() < 4);
+  CHECK(dst.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x8A);
   emit_operand(dst, src);
@@ -591,7 +591,7 @@ void Assembler::mov_b(const Operand& dst, int8_t imm8) {
 
 
 void Assembler::mov_b(const Operand& dst, Register src) {
-  ASSERT(src.code() < 4);
+  CHECK(src.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x88);
   emit_operand(src, dst);
@@ -829,7 +829,7 @@ void Assembler::cmpb(const Operand& op, int8_t imm8) {
 
 
 void Assembler::cmpb(const Operand& op, Register reg) {
-  ASSERT(reg.is_byte_register());
+  CHECK(reg.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x38);
   emit_operand(reg, op);
@@ -837,7 +837,7 @@ void Assembler::cmpb(const Operand& op, Register reg) {
 
 
 void Assembler::cmpb(Register reg, const Operand& op) {
-  ASSERT(reg.is_byte_register());
+  CHECK(reg.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x3A);
   emit_operand(reg, op);
@@ -901,6 +901,7 @@ void Assembler::cmpw_ax(const Operand& op) {
 
 
 void Assembler::dec_b(Register dst) {
+  CHECK(dst.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0xFE);
   EMIT(0xC8 | dst.code());
@@ -1174,7 +1175,9 @@ void Assembler::test(Register reg, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   // Only use test against byte for registers that have a byte
   // variant: eax, ebx, ecx, and edx.
-  if (imm.rmode_ == RelocInfo::NONE && is_uint8(imm.x_) && reg.code() < 4) {
+  if (imm.rmode_ == RelocInfo::NONE &&
+      is_uint8(imm.x_) &&
+      reg.is_byte_register()) {
     uint8_t imm8 = imm.x_;
     if (reg.is(eax)) {
       EMIT(0xA8);
@@ -1204,6 +1207,7 @@ void Assembler::test(Register reg, const Operand& op) {
 
 
 void Assembler::test_b(Register reg, const Operand& op) {
+  CHECK(reg.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x84);
   emit_operand(reg, op);
@@ -1219,7 +1223,7 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
 
 
 void Assembler::test_b(const Operand& op, uint8_t imm8) {
-  if (op.is_reg_only() && op.reg().code() >= 4) {
+  if (op.is_reg_only() && !op.reg().is_byte_register()) {
     test(op, Immediate(imm8));
     return;
   }

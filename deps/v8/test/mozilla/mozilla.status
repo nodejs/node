@@ -213,6 +213,10 @@ js1_5/Array/regress-101964: PASS || FAIL if $mode == debug
 # builtin to have undefined as the receiver.
 ecma/String/15.5.4.6-2: FAIL_OK
 
+# Fail because it expects String.prototype.split to distinguish whether
+# separator was undefined or not passed at all.
+ecma/String/15.5.4.8-2: FAIL_OK
+
 # Fail because of toLowerCase and toUpperCase conversion.
 ecma/String/15.5.4.11-2: FAIL_OK
 ecma/String/15.5.4.11-5: FAIL_OK

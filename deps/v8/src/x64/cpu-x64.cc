@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,7 +27,7 @@
 
 // CPU specific code for x64 independent of OS goes here.
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__MINGW64__)
 #include "third_party/valgrind/valgrind.h"
 #endif
 

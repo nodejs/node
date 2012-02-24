@@ -27,8 +27,7 @@
 
 // Flags: --expose-natives-as=builtins
 
-// Checks that all function properties of the builtin object are neither
-// writable nor configurable. Also, theose functions that are actually
+// Checks that all function properties of the builtin object that are actually
 // constructors (recognized by having properties on their .prototype object),
 // have only unconfigurable properties on the prototype, and the methods
 // are also non-writable.
@@ -75,8 +74,6 @@ for (var i = 0; i < names.length; i++) {
   assertTrue(desc.hasOwnProperty("value"));
   var value = desc.value;
   if (isFunction(value)) {
-    assertFalse(desc.writable, name);
-    assertFalse(desc.configurable, name);
     checkConstructor(value, name);
   }
 }

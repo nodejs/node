@@ -23,10 +23,10 @@ shell_g
 /build/gyp
 /obj/
 /out/
-/test/es5conform/data/
-/test/mozilla/data/
-/test/sputnik/sputniktests/
-/test/test262/data/
+/test/es5conform/data
+/test/mozilla/data
+/test/sputnik/sputniktests
+/test/test262/data
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/visual_studio/Debug

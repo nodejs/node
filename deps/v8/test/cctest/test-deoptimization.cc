@@ -97,6 +97,14 @@ class AllowNativesSyntaxNoInlining {
 };
 
 
+// Abort any ongoing incremental marking to make sure that all weak global
+// handle callbacks are processed.
+static void NonIncrementalGC() {
+  // TODO(1608): This should use kAbortIncrementalMarking.
+  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+}
+
+
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                         const char* property_name) {
   v8::Local<v8::Function> fun =
@@ -107,9 +115,7 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
 
 TEST(DeoptimizeSimple) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   // Test lazy deoptimization of a simple function.
   {
@@ -119,9 +125,9 @@ TEST(DeoptimizeSimple) {
         "function h() { %DeoptimizeFunction(f); }"
         "function g() { count++; h(); }"
         "function f() { g(); };"
-        "f();"
-        "gc(); gc()");
+        "f();");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK(!GetJSFunction(env->Global(), "f")->IsOptimized());
@@ -135,9 +141,9 @@ TEST(DeoptimizeSimple) {
         "var count = 0;"
         "function g() { count++; %DeoptimizeFunction(f); f(false); }"
         "function f(x) { if (x) { g(); } else { return } };"
-        "f(true);"
-        "gc(); gc()");
+        "f(true);");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK(!GetJSFunction(env->Global(), "f")->IsOptimized());
@@ -147,9 +153,7 @@ TEST(DeoptimizeSimple) {
 
 TEST(DeoptimizeSimpleWithArguments) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   // Test lazy deoptimization of a simple function with some arguments.
   {
@@ -159,9 +163,9 @@ TEST(DeoptimizeSimpleWithArguments) {
         "function h(x) { %DeoptimizeFunction(f); }"
         "function g(x, y) { count++; h(x); }"
         "function f(x, y, z) { g(1,x); y+z; };"
-        "f(1, \"2\", false);"
-        "gc(); gc()");
+        "f(1, \"2\", false);");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK(!GetJSFunction(env->Global(), "f")->IsOptimized());
@@ -176,9 +180,9 @@ TEST(DeoptimizeSimpleWithArguments) {
         "var count = 0;"
         "function g(x, y) { count++; %DeoptimizeFunction(f); f(false, 1, y); }"
         "function f(x, y, z) { if (x) { g(x, y); } else { return y + z; } };"
-        "f(true, 1, \"2\");"
-        "gc(); gc()");
+        "f(true, 1, \"2\");");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK(!GetJSFunction(env->Global(), "f")->IsOptimized());
@@ -188,9 +192,7 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 TEST(DeoptimizeSimpleNested) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   // Test lazy deoptimization of a simple function. Have a nested function call
   // do the deoptimization.
@@ -202,8 +204,8 @@ TEST(DeoptimizeSimpleNested) {
         "function h(x, y, z) { return x + y + z; }"
         "function g(z) { count++; %DeoptimizeFunction(f); return z;}"
         "function f(x,y,z) { return h(x, y, g(z)); };"
-        "result = f(1, 2, 3);"
-        "gc(); gc()");
+        "result = f(1, 2, 3);");
+    NonIncrementalGC();
 
     CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
     CHECK_EQ(6, env->Global()->Get(v8_str("result"))->Int32Value());
@@ -215,9 +217,7 @@ TEST(DeoptimizeSimpleNested) {
 
 TEST(DeoptimizeRecursive) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   {
     // Test lazy deoptimization of a simple function called recursively. Call
@@ -228,8 +228,9 @@ TEST(DeoptimizeRecursive) {
         "var calls = 0;"
         "function g() { count++; %DeoptimizeFunction(f); }"
         "function f(x) { calls++; if (x > 0) { f(x - 1); } else { g(); } };"
-        "f(10); gc(); gc()");
+        "f(10);");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(11, env->Global()->Get(v8_str("calls"))->Int32Value());
@@ -243,9 +244,7 @@ TEST(DeoptimizeRecursive) {
 
 TEST(DeoptimizeMultiple) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   {
     AlwaysOptimizeAllowNativesSyntaxNoInlining options;
@@ -261,9 +260,9 @@ TEST(DeoptimizeMultiple) {
         "function f3(x, y, z) { f4(); return x + y + z; };"
         "function f2(x, y) { return x + f3(y + 1, y + 1, y + 1) + y; };"
         "function f1(x) { return f2(x + 1, x + 1) + x; };"
-        "result = f1(1);"
-        "gc(); gc()");
+        "result = f1(1);");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(14, env->Global()->Get(v8_str("result"))->Int32Value());
@@ -273,9 +272,7 @@ TEST(DeoptimizeMultiple) {
 
 TEST(DeoptimizeConstructor) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   {
     AlwaysOptimizeAllowNativesSyntaxNoInlining options;
@@ -284,9 +281,9 @@ TEST(DeoptimizeConstructor) {
         "function g() { count++;"
         "               %DeoptimizeFunction(f); }"
         "function f() {  g(); };"
-        "result = new f() instanceof f;"
-        "gc(); gc()");
+        "result = new f() instanceof f;");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK(env->Global()->Get(v8_str("result"))->IsTrue());
@@ -301,9 +298,9 @@ TEST(DeoptimizeConstructor) {
         "               %DeoptimizeFunction(f); }"
         "function f(x, y) { this.x = x; g(); this.y = y; };"
         "result = new f(1, 2);"
-        "result = result.x + result.y;"
-        "gc(); gc()");
+        "result = result.x + result.y;");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(3, env->Global()->Get(v8_str("result"))->Int32Value());
@@ -313,9 +310,7 @@ TEST(DeoptimizeConstructor) {
 
 TEST(DeoptimizeConstructorMultiple) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   {
     AlwaysOptimizeAllowNativesSyntaxNoInlining options;
@@ -332,9 +327,9 @@ TEST(DeoptimizeConstructorMultiple) {
         "function f2(x, y) {"
         "    this.result = x + new f3(y + 1, y + 1, y + 1).result + y; };"
         "function f1(x) { this.result = new f2(x + 1, x + 1).result + x; };"
-        "result = new f1(1).result;"
-        "gc(); gc()");
+        "result = new f1(1).result;");
   }
+  NonIncrementalGC();
 
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
   CHECK_EQ(14, env->Global()->Get(v8_str("result"))->Int32Value());
@@ -344,9 +339,7 @@ TEST(DeoptimizeConstructorMultiple) {
 
 TEST(DeoptimizeBinaryOperationADDString) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   const char* f_source = "function f(x, y) { return x + y; };";
 
@@ -376,9 +369,9 @@ TEST(DeoptimizeBinaryOperationADDString) {
 
     // Call f and force deoptimization while processing the binary operation.
     CompileRun("deopt = true;"
-               "var result = f('a+', new X());"
-               "gc(); gc();");
+               "var result = f('a+', new X());");
   }
+  NonIncrementalGC();
 
   CHECK(!GetJSFunction(env->Global(), "f")->IsOptimized());
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
@@ -428,18 +421,15 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
   // Call f and force deoptimization while processing the binary operation.
   CompileRun("deopt = true;"
-             "var result = f(7, new X());"
-             "gc(); gc();");
-
+             "var result = f(7, new X());");
+  NonIncrementalGC();
   CHECK(!GetJSFunction((*env)->Global(), "f")->IsOptimized());
 }
 
 
 TEST(DeoptimizeBinaryOperationADD) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   TestDeoptimizeBinaryOpHelper(&env, "+");
 
@@ -451,9 +441,7 @@ TEST(DeoptimizeBinaryOperationADD) {
 
 TEST(DeoptimizeBinaryOperationSUB) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   TestDeoptimizeBinaryOpHelper(&env, "-");
 
@@ -465,9 +453,7 @@ TEST(DeoptimizeBinaryOperationSUB) {
 
 TEST(DeoptimizeBinaryOperationMUL) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   TestDeoptimizeBinaryOpHelper(&env, "*");
 
@@ -479,9 +465,7 @@ TEST(DeoptimizeBinaryOperationMUL) {
 
 TEST(DeoptimizeBinaryOperationDIV) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   TestDeoptimizeBinaryOpHelper(&env, "/");
 
@@ -493,9 +477,7 @@ TEST(DeoptimizeBinaryOperationDIV) {
 
 TEST(DeoptimizeBinaryOperationMOD) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   TestDeoptimizeBinaryOpHelper(&env, "%");
 
@@ -507,9 +489,7 @@ TEST(DeoptimizeBinaryOperationMOD) {
 
 TEST(DeoptimizeCompare) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   const char* f_source = "function f(x, y) { return x < y; };";
 
@@ -539,9 +519,9 @@ TEST(DeoptimizeCompare) {
 
     // Call f and force deoptimization while processing the comparison.
     CompileRun("deopt = true;"
-               "var result = f('a', new X());"
-               "gc(); gc();");
+               "var result = f('a', new X());");
   }
+  NonIncrementalGC();
 
   CHECK(!GetJSFunction(env->Global(), "f")->IsOptimized());
   CHECK_EQ(1, env->Global()->Get(v8_str("count"))->Int32Value());
@@ -552,9 +532,7 @@ TEST(DeoptimizeCompare) {
 
 TEST(DeoptimizeLoadICStoreIC) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   // Functions to generate load/store/keyed load/keyed store IC calls.
   const char* f1_source = "function f1(x) { return x.y; };";
@@ -618,9 +596,9 @@ TEST(DeoptimizeLoadICStoreIC) {
                "var result = f1(new X());"
                "g1(new X());"
                "f2(new X(), 'z');"
-               "g2(new X(), 'z');"
-               "gc(); gc();");
+               "g2(new X(), 'z');");
   }
+  NonIncrementalGC();
 
   CHECK(!GetJSFunction(env->Global(), "f1")->IsOptimized());
   CHECK(!GetJSFunction(env->Global(), "g1")->IsOptimized());
@@ -634,9 +612,7 @@ TEST(DeoptimizeLoadICStoreIC) {
 
 TEST(DeoptimizeLoadICStoreICNested) {
   v8::HandleScope scope;
-  const char* extension_list[] = { "v8/gc" };
-  v8::ExtensionConfiguration extensions(1, extension_list);
-  LocalContext env(&extensions);
+  LocalContext env;
 
   // Functions to generate load/store/keyed load/keyed store IC calls.
   const char* f1_source = "function f1(x) { return x.y; };";
@@ -701,9 +677,9 @@ TEST(DeoptimizeLoadICStoreICNested) {
 
     // Call functions and force deoptimization while processing the ics.
     CompileRun("deopt = true;"
-               "var result = f1(new X());"
-               "gc(); gc();");
+               "var result = f1(new X());");
   }
+  NonIncrementalGC();
 
   CHECK(!GetJSFunction(env->Global(), "f1")->IsOptimized());
   CHECK(!GetJSFunction(env->Global(), "g1")->IsOptimized());

@@ -125,6 +125,13 @@ S15.5.2_D2: PASS || FAIL_OK
 S15.5.4.11_D1.1_T1: PASS || FAIL_OK
 S15.5.4.11_D1.1_T3: PASS || FAIL_OK
 S12.6.4_D1: PASS || FAIL_OK
+S15.5.4.14_A1_T6: FAIL_OK
+S15.5.4.14_A1_T7: FAIL_OK
+S15.5.4.14_A1_T8: FAIL_OK
+S15.5.4.14_A1_T9: FAIL_OK
+S15.5.4.14_A2_T7: FAIL_OK
+S15.10.2.12_A1_T1: FAIL_OK
+S15.10.2.12_A2_T1: FAIL_OK
 
 # We allow function declarations within statements
 S12.6.2_A13_T1: FAIL_OK
@@ -188,7 +195,6 @@ S15.3.4.3_A6_T4: FAIL_OK
 # Array.prototype.to[Locale]String is generic in ES5.
 S15.4.4.2_A2_T1: FAIL_OK
 S15.4.4.3_A2_T1: FAIL_OK
-
 
 ##################### SKIPPED TESTS #####################
 

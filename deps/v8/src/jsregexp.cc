@@ -3597,22 +3597,20 @@ void RegExpEngine::DotPrint(const char* label,
 // -------------------------------------------------------------------
 // Tree to graph conversion
 
-static const int kSpaceRangeCount = 20;
-static const int kSpaceRangeAsciiCount = 4;
-static const uc16 kSpaceRanges[kSpaceRangeCount] = { 0x0009, 0x000D, 0x0020,
-    0x0020, 0x00A0, 0x00A0, 0x1680, 0x1680, 0x180E, 0x180E, 0x2000, 0x200A,
-    0x2028, 0x2029, 0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000 };
+static const uc16 kSpaceRanges[] = { 0x0009, 0x000D, 0x0020, 0x0020, 0x00A0,
+    0x00A0, 0x1680, 0x1680, 0x180E, 0x180E, 0x2000, 0x200A, 0x2028, 0x2029,
+    0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000, 0xFEFF, 0xFEFF };
+static const int kSpaceRangeCount = ARRAY_SIZE(kSpaceRanges);
 
-static const int kWordRangeCount = 8;
-static const uc16 kWordRanges[kWordRangeCount] = { '0', '9', 'A', 'Z', '_',
-    '_', 'a', 'z' };
+static const uc16 kWordRanges[] = { '0', '9', 'A', 'Z', '_', '_', 'a', 'z' };
+static const int kWordRangeCount = ARRAY_SIZE(kWordRanges);
 
-static const int kDigitRangeCount = 2;
-static const uc16 kDigitRanges[kDigitRangeCount] = { '0', '9' };
+static const uc16 kDigitRanges[] = { '0', '9' };
+static const int kDigitRangeCount = ARRAY_SIZE(kDigitRanges);
 
-static const int kLineTerminatorRangeCount = 6;
-static const uc16 kLineTerminatorRanges[kLineTerminatorRangeCount] = { 0x000A,
-    0x000A, 0x000D, 0x000D, 0x2028, 0x2029 };
+static const uc16 kLineTerminatorRanges[] = { 0x000A, 0x000A, 0x000D, 0x000D,
+    0x2028, 0x2029 };
+static const int kLineTerminatorRangeCount = ARRAY_SIZE(kLineTerminatorRanges);
 
 RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {

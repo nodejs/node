@@ -786,6 +786,33 @@ void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void HCheckMapValue::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+  stream->Add(" ");
+  map()->PrintNameTo(stream);
+}
+
+
+void HForInPrepareMap::PrintDataTo(StringStream* stream) {
+  enumerable()->PrintNameTo(stream);
+}
+
+
+void HForInCacheArray::PrintDataTo(StringStream* stream) {
+  enumerable()->PrintNameTo(stream);
+  stream->Add(" ");
+  map()->PrintNameTo(stream);
+  stream->Add("[%d]", idx_);
+}
+
+
+void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" ");
+  index()->PrintNameTo(stream);
+}
+
+
 HValue* HConstant::Canonicalize() {
   return HasNoUses() && !IsBlockEntry() ? NULL : this;
 }
@@ -1519,10 +1546,15 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
 
 
 bool HLoadKeyedFastElement::RequiresHoleCheck() {
+  if (hole_check_mode_ == OMIT_HOLE_CHECK) {
+    return false;
+  }
+
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (!use->IsChange()) return true;
   }
+
   return false;
 }
 
@@ -1540,6 +1572,39 @@ void HLoadKeyedGeneric::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
+}
+
+
+HValue* HLoadKeyedGeneric::Canonicalize() {
+  // Recognize generic keyed loads that use property name generated
+  // by for-in statement as a key and rewrite them into fast property load
+  // by index.
+  if (key()->IsLoadKeyedFastElement()) {
+    HLoadKeyedFastElement* key_load = HLoadKeyedFastElement::cast(key());
+    if (key_load->object()->IsForInCacheArray()) {
+      HForInCacheArray* names_cache =
+          HForInCacheArray::cast(key_load->object());
+
+      if (names_cache->enumerable() == object()) {
+        HForInCacheArray* index_cache =
+            names_cache->index_cache();
+        HCheckMapValue* map_check =
+            new(block()->zone()) HCheckMapValue(object(), names_cache->map());
+        HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
+            index_cache,
+            key_load->key(),
+            HLoadKeyedFastElement::OMIT_HOLE_CHECK);
+        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
+            object(), index);
+        map_check->InsertBefore(this);
+        index->InsertBefore(this);
+        load->InsertBefore(this);
+        return load;
+      }
+    }
+  }
+
+  return this;
 }
 
 
@@ -1841,17 +1906,18 @@ HType HStringCharFromCode::CalculateInferredType() {
 }
 
 
+HType HFastLiteral::CalculateInferredType() {
+  // TODO(mstarzinger): Be smarter, could also be JSArray here.
+  return HType::JSObject();
+}
+
+
 HType HArrayLiteral::CalculateInferredType() {
   return HType::JSArray();
 }
 
 
-HType HObjectLiteralFast::CalculateInferredType() {
-  return HType::JSObject();
-}
-
-
-HType HObjectLiteralGeneric::CalculateInferredType() {
+HType HObjectLiteral::CalculateInferredType() {
   return HType::JSObject();
 }
 

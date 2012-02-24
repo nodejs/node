@@ -4222,9 +4222,9 @@ TEST(InterceptorPropertyMirror) {
 
   // Get mirrors for the three objects with interceptor.
   CompileRun(
-      "named_mirror = debug.MakeMirror(intercepted_named);"
-      "indexed_mirror = debug.MakeMirror(intercepted_indexed);"
-      "both_mirror = debug.MakeMirror(intercepted_both)");
+      "var named_mirror = debug.MakeMirror(intercepted_named);"
+      "var indexed_mirror = debug.MakeMirror(intercepted_indexed);"
+      "var both_mirror = debug.MakeMirror(intercepted_both)");
   CHECK(CompileRun(
        "named_mirror instanceof debug.ObjectMirror")->BooleanValue());
   CHECK(CompileRun(
@@ -4265,7 +4265,7 @@ TEST(InterceptorPropertyMirror) {
   CHECK_EQ(5, CompileRun(source)->Int32Value());
 
   // Get the interceptor properties for the object with only named interceptor.
-  CompileRun("named_values = named_mirror.properties()");
+  CompileRun("var named_values = named_mirror.properties()");
 
   // Check that the properties are interceptor properties.
   for (int i = 0; i < 3; i++) {
@@ -4284,7 +4284,7 @@ TEST(InterceptorPropertyMirror) {
 
   // Get the interceptor properties for the object with only indexed
   // interceptor.
-  CompileRun("indexed_values = indexed_mirror.properties()");
+  CompileRun("var indexed_values = indexed_mirror.properties()");
 
   // Check that the properties are interceptor properties.
   for (int i = 0; i < 2; i++) {
@@ -4296,7 +4296,7 @@ TEST(InterceptorPropertyMirror) {
 
   // Get the interceptor properties for the object with both types of
   // interceptors.
-  CompileRun("both_values = both_mirror.properties()");
+  CompileRun("var both_values = both_mirror.properties()");
 
   // Check that the properties are interceptor properties.
   for (int i = 0; i < 5; i++) {
@@ -4352,10 +4352,10 @@ TEST(HiddenPrototypePropertyMirror) {
 
   // Get mirrors for the four objects.
   CompileRun(
-      "o0_mirror = debug.MakeMirror(o0);"
-      "o1_mirror = debug.MakeMirror(o1);"
-      "o2_mirror = debug.MakeMirror(o2);"
-      "o3_mirror = debug.MakeMirror(o3)");
+      "var o0_mirror = debug.MakeMirror(o0);"
+      "var o1_mirror = debug.MakeMirror(o1);"
+      "var o2_mirror = debug.MakeMirror(o2);"
+      "var o3_mirror = debug.MakeMirror(o3)");
   CHECK(CompileRun("o0_mirror instanceof debug.ObjectMirror")->BooleanValue());
   CHECK(CompileRun("o1_mirror instanceof debug.ObjectMirror")->BooleanValue());
   CHECK(CompileRun("o2_mirror instanceof debug.ObjectMirror")->BooleanValue());
@@ -4441,11 +4441,11 @@ TEST(NativeGetterPropertyMirror) {
   CHECK_EQ(10, CompileRun("instance.x")->Int32Value());
 
   // Get mirror for the object with property getter.
-  CompileRun("instance_mirror = debug.MakeMirror(instance);");
+  CompileRun("var instance_mirror = debug.MakeMirror(instance);");
   CHECK(CompileRun(
       "instance_mirror instanceof debug.ObjectMirror")->BooleanValue());
 
-  CompileRun("named_names = instance_mirror.propertyNames();");
+  CompileRun("var named_names = instance_mirror.propertyNames();");
   CHECK_EQ(1, CompileRun("named_names.length")->Int32Value());
   CHECK(CompileRun("named_names[0] == 'x'")->BooleanValue());
   CHECK(CompileRun(
@@ -4477,7 +4477,7 @@ TEST(NativeGetterThrowingErrorPropertyMirror) {
   env->Global()->Set(v8::String::New("instance"), named->NewInstance());
 
   // Get mirror for the object with property getter.
-  CompileRun("instance_mirror = debug.MakeMirror(instance);");
+  CompileRun("var instance_mirror = debug.MakeMirror(instance);");
   CHECK(CompileRun(
       "instance_mirror instanceof debug.ObjectMirror")->BooleanValue());
   CompileRun("named_names = instance_mirror.propertyNames();");

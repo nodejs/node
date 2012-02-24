@@ -154,7 +154,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 
 #define DECLARE_NODE_TYPE(type)                                         \
   virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
+  virtual AstNode::Type node_type() const { return AstNode::k##type; }
 
 
 enum AstPropertiesFlag {
@@ -223,8 +223,6 @@ class AstNode: public ZoneObject {
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
 
-  static void ResetIds() { Isolate::Current()->set_ast_node_id(0); }
-
  protected:
   static int GetNextId(Isolate* isolate) {
     return ReserveIdRange(isolate, 1);
@@ -243,11 +241,6 @@ class AstNode: public ZoneObject {
 
   friend class CaseClause;  // Generates AST IDs.
 };
-
-
-#define DECLARE_NODE_TYPE(type)                                         \
-  virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
 
 
 class Statement: public AstNode {
@@ -555,17 +548,17 @@ class ModuleVariable: public Module {
  public:
   DECLARE_NODE_TYPE(ModuleVariable)
 
-  Variable* var() const { return var_; }
+  VariableProxy* proxy() const { return proxy_; }
 
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleVariable(Variable* var)
-      : var_(var) {
+  explicit ModuleVariable(VariableProxy* proxy)
+      : proxy_(proxy) {
   }
 
  private:
-  Variable* var_;
+  VariableProxy* proxy_;
 };
 
 
@@ -793,10 +786,10 @@ class ForInStatement: public IterationStatement {
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
 
-  // Bailout support.
-  int AssignmentId() const { return assignment_id_; }
   virtual int ContinueId() const { return EntryId(); }
-  virtual int StackCheckId() const { return EntryId(); }
+  virtual int StackCheckId() const { return body_id_; }
+  int BodyId() const { return body_id_; }
+  int PrepareId() const { return prepare_id_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -805,13 +798,15 @@ class ForInStatement: public IterationStatement {
       : IterationStatement(isolate, labels),
         each_(NULL),
         enumerable_(NULL),
-        assignment_id_(GetNextId(isolate)) {
+        body_id_(GetNextId(isolate)),
+        prepare_id_(GetNextId(isolate)) {
   }
 
  private:
   Expression* each_;
   Expression* enumerable_;
-  int assignment_id_;
+  int body_id_;
+  int prepare_id_;
 };
 
 
@@ -1910,6 +1905,16 @@ class FunctionLiteral: public Expression {
     DECLARATION
   };
 
+  enum ParameterFlag {
+    kNoDuplicateParameters = 0,
+    kHasDuplicateParameters = 1
+  };
+
+  enum IsFunctionFlag {
+    kGlobalOrEval,
+    kIsFunction
+  };
+
   DECLARE_NODE_TYPE(FunctionLiteral)
 
   Handle<String> name() const { return name_; }
@@ -1919,6 +1924,7 @@ class FunctionLiteral: public Expression {
   int function_token_position() const { return function_token_position_; }
   int start_position() const;
   int end_position() const;
+  int SourceSize() const { return end_position() - start_position(); }
   bool is_expression() const { return IsExpression::decode(bitfield_); }
   bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
   bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
@@ -1954,6 +1960,8 @@ class FunctionLiteral: public Expression {
     return HasDuplicateParameters::decode(bitfield_);
   }
 
+  bool is_function() { return IsFunction::decode(bitfield_) == kIsFunction; }
+
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
@@ -1974,7 +1982,8 @@ class FunctionLiteral: public Expression {
                   Handle<FixedArray> this_property_assignments,
                   int parameter_count,
                   Type type,
-                  bool has_duplicate_parameters)
+                  ParameterFlag has_duplicate_parameters,
+                  IsFunctionFlag is_function)
       : Expression(isolate),
         name_(name),
         scope_(scope),
@@ -1992,7 +2001,8 @@ class FunctionLiteral: public Expression {
         IsExpression::encode(type != DECLARATION) |
         IsAnonymous::encode(type == ANONYMOUS_EXPRESSION) |
         Pretenure::encode(false) |
-        HasDuplicateParameters::encode(has_duplicate_parameters);
+        HasDuplicateParameters::encode(has_duplicate_parameters) |
+        IsFunction::encode(is_function);
   }
 
  private:
@@ -2014,7 +2024,8 @@ class FunctionLiteral: public Expression {
   class IsExpression: public BitField<bool, 1, 1> {};
   class IsAnonymous: public BitField<bool, 2, 1> {};
   class Pretenure: public BitField<bool, 3, 1> {};
-  class HasDuplicateParameters: public BitField<bool, 4, 1> {};
+  class HasDuplicateParameters: public BitField<ParameterFlag, 4, 1> {};
+  class IsFunction: public BitField<IsFunctionFlag, 5, 1> {};
 };
 
 
@@ -2049,6 +2060,8 @@ class ThisFunction: public Expression {
 
   explicit ThisFunction(Isolate* isolate): Expression(isolate) {}
 };
+
+#undef DECLARE_NODE_TYPE
 
 
 // ----------------------------------------------------------------------------
@@ -2525,19 +2538,19 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(ModuleLiteral, module)
   }
 
-  ModuleVariable* NewModuleVariable(Variable* var) {
-    ModuleVariable* module = new(zone_) ModuleVariable(var);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+  ModuleVariable* NewModuleVariable(VariableProxy* proxy) {
+    ModuleVariable* module = new(zone_) ModuleVariable(proxy);
+    VISIT_AND_RETURN(ModuleVariable, module)
   }
 
   ModulePath* NewModulePath(Module* origin, Handle<String> name) {
     ModulePath* module = new(zone_) ModulePath(origin, name);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+    VISIT_AND_RETURN(ModulePath, module)
   }
 
   ModuleUrl* NewModuleUrl(Handle<String> url) {
     ModuleUrl* module = new(zone_) ModuleUrl(url);
-    VISIT_AND_RETURN(ModuleLiteral, module)
+    VISIT_AND_RETURN(ModuleUrl, module)
   }
 
   Block* NewBlock(ZoneStringList* labels,
@@ -2781,15 +2794,16 @@ class AstNodeFactory BASE_EMBEDDED {
       bool has_only_simple_this_property_assignments,
       Handle<FixedArray> this_property_assignments,
       int parameter_count,
-      bool has_duplicate_parameters,
+      FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::Type type,
-      bool visit_with_visitor) {
+      FunctionLiteral::IsFunctionFlag is_function) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
         has_only_simple_this_property_assignments, this_property_assignments,
-        parameter_count, type, has_duplicate_parameters);
-    if (visit_with_visitor) {
+        parameter_count, type, has_duplicate_parameters, is_function);
+    // Top-level literal doesn't count for the AST's properties.
+    if (is_function == FunctionLiteral::kIsFunction) {
       visitor_.VisitFunctionLiteral(lit);
     }
     return lit;

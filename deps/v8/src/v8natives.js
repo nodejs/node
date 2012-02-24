@@ -28,18 +28,18 @@
 // This file relies on the fact that the following declarations have been made
 //
 // in runtime.js:
-// const $Object = global.Object;
-// const $Boolean = global.Boolean;
-// const $Number = global.Number;
-// const $Function = global.Function;
-// const $Array = global.Array;
-// const $NaN = 0/0;
+// var $Object = global.Object;
+// var $Boolean = global.Boolean;
+// var $Number = global.Number;
+// var $Function = global.Function;
+// var $Array = global.Array;
+// var $NaN = 0/0;
 //
 // in math.js:
-// const $floor = MathFloor
+// var $floor = MathFloor
 
-const $isNaN = GlobalIsNaN;
-const $isFinite = GlobalIsFinite;
+var $isNaN = GlobalIsNaN;
+var $isFinite = GlobalIsFinite;
 
 // ----------------------------------------------------------------------------
 

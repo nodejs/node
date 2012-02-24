@@ -263,6 +263,7 @@ class Scope: public ZoneObject {
   // Specific scope types.
   bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
+  bool is_module_scope() const { return type_ == MODULE_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
   bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
   bool is_block_scope() const { return type_ == BLOCK_SCOPE; }

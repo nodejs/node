@@ -76,6 +76,8 @@ class Factory {
   // Allocates a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
+  Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
+
   Handle<String> LookupSymbol(Vector<const char> str);
   Handle<String> LookupSymbol(Handle<String> str);
   Handle<String> LookupAsciiSymbol(Vector<const char> str);

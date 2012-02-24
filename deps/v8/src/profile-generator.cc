@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1083,7 +1083,7 @@ void HeapEntry::Print(
   for (int i = 0; i < ch.length(); ++i) {
     HeapGraphEdge& edge = ch[i];
     const char* edge_prefix = "";
-    ScopedVector<char> index(64);
+    EmbeddedVector<char, 64> index;
     const char* edge_name = index.start();
     switch (edge.type()) {
       case HeapGraphEdge::kContextVariable:
@@ -1164,6 +1164,7 @@ class RetainedSizeCalculator {
   int retained_size_;
 };
 
+
 void HeapEntry::CalculateExactRetainedSize() {
   // To calculate retained size, first we paint all reachable nodes in
   // one color, then we paint (or re-paint) all nodes reachable from
@@ -1208,11 +1209,13 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 36;
+  static const int kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 48;
+  static const int kMaxSerializableSnapshotRawSize = 768 * MB;
 };
 
 }  // namespace
@@ -1241,6 +1244,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
   }
 }
 
+
 HeapSnapshot::~HeapSnapshot() {
   DeleteArray(raw_entries_);
 }
@@ -1265,6 +1269,7 @@ void HeapSnapshot::AllocateEntries(int entries_count,
 static void HeapEntryClearPaint(HeapEntry** entry_ptr) {
   (*entry_ptr)->clear_paint();
 }
+
 
 void HeapSnapshot::ClearPaint() {
   entries_.Iterate(HeapEntryClearPaint);
@@ -1370,6 +1375,7 @@ static int SortByIds(const T* entry1_ptr,
   if ((*entry1_ptr)->id() == (*entry2_ptr)->id()) return 0;
   return (*entry1_ptr)->id() < (*entry2_ptr)->id() ? -1 : 1;
 }
+
 
 List<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
   if (!entries_sorted_) {
@@ -1775,9 +1781,11 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
+    const char* name = shared->bound() ? "native_bind" :
+        collection_->names()->GetName(String::cast(shared->name()));
     return AddEntry(object,
                     HeapEntry::kClosure,
-                    collection_->names()->GetName(String::cast(shared->name())),
+                    name,
                     children_count,
                     retainers_count);
   } else if (object->IsJSRegExp()) {
@@ -2011,19 +2019,22 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
               heap_->prototype_symbol(), js_fun->prototype());
         }
       }
+      SharedFunctionInfo* shared_info = js_fun->shared();
+      // JSFunction has either bindings or literals and never both.
+      bool bound = shared_info->bound();
+      TagObject(js_fun->literals_or_bindings(),
+                bound ? "(function bindings)" : "(function literals)");
       SetInternalReference(js_fun, entry,
-                           "shared", js_fun->shared(),
+                           bound ? "bindings" : "literals",
+                           js_fun->literals_or_bindings(),
+                           JSFunction::kLiteralsOffset);
+      SetInternalReference(js_fun, entry,
+                           "shared", shared_info,
                            JSFunction::kSharedFunctionInfoOffset);
       TagObject(js_fun->unchecked_context(), "(context)");
       SetInternalReference(js_fun, entry,
                            "context", js_fun->unchecked_context(),
                            JSFunction::kContextOffset);
-      TagObject(js_fun->literals_or_bindings(),
-                "(function literals_or_bindings)");
-      SetInternalReference(js_fun, entry,
-                           "literals_or_bindings",
-                           js_fun->literals_or_bindings(),
-                           JSFunction::kLiteralsOffset);
       for (int i = JSFunction::kNonWeakFieldsEndOffset;
            i < JSFunction::kSize;
            i += kPointerSize) {
@@ -2126,17 +2137,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     SetInternalReference(obj, entry,
                          "line_ends", script->line_ends(),
                          Script::kLineEndsOffset);
-  } else if (obj->IsDescriptorArray()) {
-    DescriptorArray* desc_array = DescriptorArray::cast(obj);
-    if (desc_array->length() > DescriptorArray::kContentArrayIndex) {
-      Object* content_array =
-          desc_array->get(DescriptorArray::kContentArrayIndex);
-      TagObject(content_array, "(map descriptor content)");
-      SetInternalReference(obj, entry,
-                           "content", content_array,
-                           FixedArray::OffsetOfElementAt(
-                               DescriptorArray::kContentArrayIndex));
-    }
   } else if (obj->IsCodeCache()) {
     CodeCache* code_cache = CodeCache::cast(obj);
     TagObject(code_cache->default_cache(), "(default code cache)");
@@ -2162,11 +2162,27 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
 
 void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj,
                                               HeapEntry* entry) {
-  if (js_obj->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(js_obj);
-    Context* context = func->context();
-    ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+  if (!js_obj->IsJSFunction()) return;
 
+  JSFunction* func = JSFunction::cast(js_obj);
+  Context* context = func->context();
+  ScopeInfo* scope_info = context->closure()->shared()->scope_info();
+
+  if (func->shared()->bound()) {
+    FixedArray* bindings = func->function_bindings();
+    SetNativeBindReference(js_obj, entry, "bound_this",
+                           bindings->get(JSFunction::kBoundThisIndex));
+    SetNativeBindReference(js_obj, entry, "bound_function",
+                           bindings->get(JSFunction::kBoundFunctionIndex));
+    for (int i = JSFunction::kBoundArgumentsStartIndex;
+         i < bindings->length(); i++) {
+      const char* reference_name = collection_->names()->GetFormatted(
+          "bound_argument_%d",
+          i - JSFunction::kBoundArgumentsStartIndex);
+      SetNativeBindReference(js_obj, entry, reference_name,
+                             bindings->get(i));
+    }
+  } else {
     // Add context allocated locals.
     int context_locals = scope_info->ContextLocalCount();
     for (int i = 0; i < context_locals; ++i) {
@@ -2444,6 +2460,22 @@ void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
 }
 
 
+void V8HeapExplorer::SetNativeBindReference(HeapObject* parent_obj,
+                                            HeapEntry* parent_entry,
+                                            const char* reference_name,
+                                            Object* child_obj) {
+  HeapEntry* child_entry = GetEntry(child_obj);
+  if (child_entry != NULL) {
+    filler_->SetNamedReference(HeapGraphEdge::kShortcut,
+                               parent_obj,
+                               parent_entry,
+                               reference_name,
+                               child_obj,
+                               child_entry);
+  }
+}
+
+
 void V8HeapExplorer::SetElementReference(HeapObject* parent_obj,
                                          HeapEntry* parent_entry,
                                          int index,
@@ -2617,7 +2649,6 @@ void V8HeapExplorer::TagObject(Object* obj, const char* tag) {
       !obj->IsOddball() &&
       obj != heap_->raw_unchecked_empty_byte_array() &&
       obj != heap_->raw_unchecked_empty_fixed_array() &&
-      obj != heap_->raw_unchecked_empty_fixed_double_array() &&
       obj != heap_->raw_unchecked_empty_descriptor_array()) {
     objects_tags_.SetTag(obj, tag);
   }
@@ -3240,57 +3271,77 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
 }
 
 
-static int Intersect(int i1, int i2, const Vector<HeapEntry*>& dominators) {
+static int Intersect(int i1, int i2, const Vector<int>& dominators) {
   int finger1 = i1, finger2 = i2;
   while (finger1 != finger2) {
-    while (finger1 < finger2) finger1 = dominators[finger1]->ordered_index();
-    while (finger2 < finger1) finger2 = dominators[finger2]->ordered_index();
+    while (finger1 < finger2) finger1 = dominators[finger1];
+    while (finger2 < finger1) finger2 = dominators[finger2];
   }
   return finger1;
 }
+
 
 // The algorithm is based on the article:
 // K. Cooper, T. Harvey and K. Kennedy "A Simple, Fast Dominance Algorithm"
 // Softw. Pract. Exper. 4 (2001), pp. 1-10.
 bool HeapSnapshotGenerator::BuildDominatorTree(
     const Vector<HeapEntry*>& entries,
-    Vector<HeapEntry*>* dominators) {
+    Vector<int>* dominators) {
   if (entries.length() == 0) return true;
   const int entries_length = entries.length(), root_index = entries_length - 1;
-  for (int i = 0; i < root_index; ++i) (*dominators)[i] = NULL;
-  (*dominators)[root_index] = entries[root_index];
+  static const int kNoDominator = -1;
+  for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
+  (*dominators)[root_index] = root_index;
+
+  // We use time_stamps array to stamp entries with the iteration number
+  // when the dominance for the entry has been updated.
+  ScopedVector<int> time_stamps(entries_length);
+  for (int i = 0; i < entries_length; ++i) time_stamps[i] = -1;
+  Vector<HeapGraphEdge> children = entries[root_index]->children();
+  for (int i = 0; i < children.length(); ++i) {
+    // Mark the root direct children as affected on iteration zero.
+    time_stamps[children[i].to()->ordered_index()] = 0;
+  }
+
   int changed = 1;
+  int iteration = 0;
   const int base_progress_counter = progress_counter_;
   while (changed != 0) {
+    ++iteration;
     changed = 0;
     for (int i = root_index - 1; i >= 0; --i) {
-      HeapEntry* new_idom = NULL;
+      // If dominator of the entry has already been set to root,
+      // then it can't propagate any further.
+      if ((*dominators)[i] == root_index) continue;
+      // If no retainers of the entry had been updated on current
+      // or previous iteration, then this entry is not affected.
+      if (time_stamps[i] < iteration - 1) continue;
+      int new_idom_index = kNoDominator;
       Vector<HeapGraphEdge*> rets = entries[i]->retainers();
-      int j = 0;
-      for (; j < rets.length(); ++j) {
+      for (int j = 0; j < rets.length(); ++j) {
         if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        HeapEntry* ret = rets[j]->From();
-        if (dominators->at(ret->ordered_index()) != NULL) {
-          new_idom = ret;
-          break;
+        int ret_index = rets[j]->From()->ordered_index();
+        if (dominators->at(ret_index) != kNoDominator) {
+          new_idom_index = new_idom_index == kNoDominator
+              ? ret_index
+              : Intersect(ret_index, new_idom_index, *dominators);
+          // If idom has already reached the root, it doesn't make sense
+          // to check other retainers.
+          if (new_idom_index == root_index) break;
         }
       }
-      for (++j; j < rets.length(); ++j) {
-        if (rets[j]->type() == HeapGraphEdge::kShortcut) continue;
-        HeapEntry* ret = rets[j]->From();
-        if (dominators->at(ret->ordered_index()) != NULL) {
-          new_idom = entries[Intersect(ret->ordered_index(),
-                                       new_idom->ordered_index(),
-                                       *dominators)];
-        }
-      }
-      if (new_idom != NULL && dominators->at(i) != new_idom) {
-        (*dominators)[i] = new_idom;
+      if (new_idom_index != kNoDominator
+          && dominators->at(i) != new_idom_index) {
+        (*dominators)[i] = new_idom_index;
         ++changed;
+        Vector<HeapGraphEdge> children = entries[i]->children();
+        for (int j = 0; j < children.length(); ++j) {
+          time_stamps[children[j].to()->ordered_index()] = iteration;
+        }
       }
     }
     int remaining = entries_length - changed;
-    if (remaining < 0) remaining = 0;
+    ASSERT(remaining >= 0);
     progress_counter_ = base_progress_counter + remaining;
     if (!ProgressReport(true)) return false;
   }
@@ -3302,11 +3353,11 @@ bool HeapSnapshotGenerator::SetEntriesDominators() {
   // This array is used for maintaining reverse postorder of nodes.
   ScopedVector<HeapEntry*> ordered_entries(snapshot_->entries()->length());
   FillReversePostorderIndexes(&ordered_entries);
-  ScopedVector<HeapEntry*> dominators(ordered_entries.length());
+  ScopedVector<int> dominators(ordered_entries.length());
   if (!BuildDominatorTree(ordered_entries, &dominators)) return false;
   for (int i = 0; i < ordered_entries.length(); ++i) {
-    ASSERT(dominators[i] != NULL);
-    ordered_entries[i]->set_dominator(dominators[i]);
+    ASSERT(dominators[i] >= 0);
+    ordered_entries[i]->set_dominator(ordered_entries[dominators[i]]);
   }
   return true;
 }
@@ -3334,6 +3385,17 @@ bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
   }
   return true;
 }
+
+
+template<int bytes> struct MaxDecimalDigitsIn;
+template<> struct MaxDecimalDigitsIn<4> {
+  static const int kSigned = 11;
+  static const int kUnsigned = 10;
+};
+template<> struct MaxDecimalDigitsIn<8> {
+  static const int kSigned = 20;
+  static const int kUnsigned = 20;
+};
 
 
 class OutputStreamWriter {
@@ -3385,23 +3447,34 @@ class OutputStreamWriter {
  private:
   template<typename T>
   void AddNumberImpl(T n, const char* format) {
-    ScopedVector<char> buffer(32);
-    int result = OS::SNPrintF(buffer, format, n);
-    USE(result);
-    ASSERT(result != -1);
-    AddString(buffer.start());
+    // Buffer for the longest value plus trailing \0
+    static const int kMaxNumberSize =
+        MaxDecimalDigitsIn<sizeof(T)>::kUnsigned + 1;
+    if (chunk_size_ - chunk_pos_ >= kMaxNumberSize) {
+      int result = OS::SNPrintF(
+          chunk_.SubVector(chunk_pos_, chunk_size_), format, n);
+      ASSERT(result != -1);
+      chunk_pos_ += result;
+      MaybeWriteChunk();
+    } else {
+      EmbeddedVector<char, kMaxNumberSize> buffer;
+      int result = OS::SNPrintF(buffer, format, n);
+      USE(result);
+      ASSERT(result != -1);
+      AddString(buffer.start());
+    }
   }
   void MaybeWriteChunk() {
     ASSERT(chunk_pos_ <= chunk_size_);
     if (chunk_pos_ == chunk_size_) {
       WriteChunk();
-      chunk_pos_ = 0;
     }
   }
   void WriteChunk() {
     if (aborted_) return;
     if (stream_->WriteAsciiChunk(chunk_.start(), chunk_pos_) ==
         v8::OutputStream::kAbort) aborted_ = true;
+    chunk_pos_ = 0;
   }
 
   v8::OutputStream* stream_;
@@ -3411,15 +3484,14 @@ class OutputStreamWriter {
   bool aborted_;
 };
 
-const int HeapSnapshotJSONSerializer::kMaxSerializableSnapshotRawSize =
-    256 * MB;
 
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
 
   HeapSnapshot* original_snapshot = NULL;
-  if (snapshot_->raw_entries_size() >= kMaxSerializableSnapshotRawSize) {
+  if (snapshot_->raw_entries_size() >=
+      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize) {
     // The snapshot is too big. Serialize a fake snapshot.
     original_snapshot = snapshot_;
     snapshot_ = CreateFakeSnapshot();
@@ -3446,8 +3518,14 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
                                           snapshot_->uid());
   result->AllocateEntries(2, 1, 0);
   HeapEntry* root = result->AddRootEntry(1);
+  const char* text = snapshot_->collection()->names()->GetFormatted(
+      "The snapshot is too big. "
+      "Maximum snapshot size is %d MB. "
+      "Actual snapshot size is %d MB.",
+      SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize / MB,
+      (snapshot_->raw_entries_size() + MB - 1) / MB);
   HeapEntry* message = result->AddEntry(
-      HeapEntry::kString, "The snapshot is too big", 0, 4, 0, 0);
+      HeapEntry::kString, text, 0, 4, 0, 0);
   root->SetUnidirElementReference(0, 1, message);
   result->SetDominatorsToSelf();
   return result;
@@ -3512,38 +3590,39 @@ int HeapSnapshotJSONSerializer::GetStringId(const char* s) {
 
 
 void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
-  writer_->AddCharacter(',');
-  writer_->AddNumber(edge->type());
-  writer_->AddCharacter(',');
-  if (edge->type() == HeapGraphEdge::kElement
+  // The buffer needs space for 3 ints, 3 commas and \0
+  static const int kBufferSize =
+      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 3 + 3 + 1;  // NOLINT
+  EmbeddedVector<char, kBufferSize> buffer;
+  int edge_name_or_index = edge->type() == HeapGraphEdge::kElement
       || edge->type() == HeapGraphEdge::kHidden
-      || edge->type() == HeapGraphEdge::kWeak) {
-    writer_->AddNumber(edge->index());
-  } else {
-    writer_->AddNumber(GetStringId(edge->name()));
-  }
-  writer_->AddCharacter(',');
-  writer_->AddNumber(GetNodeId(edge->to()));
+      || edge->type() == HeapGraphEdge::kWeak
+      ? edge->index() : GetStringId(edge->name());
+  int result = OS::SNPrintF(buffer, ",%d,%d,%d",
+      edge->type(), edge_name_or_index, GetNodeId(edge->to()));
+  USE(result);
+  ASSERT(result != -1);
+  writer_->AddString(buffer.start());
 }
 
 
 void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
-  writer_->AddCharacter('\n');
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->type());
-  writer_->AddCharacter(',');
-  writer_->AddNumber(GetStringId(entry->name()));
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->id());
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->self_size());
-  writer_->AddCharacter(',');
-  writer_->AddNumber(entry->RetainedSize(false));
-  writer_->AddCharacter(',');
-  writer_->AddNumber(GetNodeId(entry->dominator()));
+  // The buffer needs space for 7 ints, 7 commas, \n and \0
+  static const int kBufferSize =
+      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 7 + 7 + 1 + 1;  // NOLINT
+  EmbeddedVector<char, kBufferSize> buffer;
   Vector<HeapGraphEdge> children = entry->children();
-  writer_->AddCharacter(',');
-  writer_->AddNumber(children.length());
+  int result = OS::SNPrintF(buffer, "\n,%d,%d,%d,%d,%d,%d,%d",
+      entry->type(),
+      GetStringId(entry->name()),
+      entry->id(),
+      entry->self_size(),
+      entry->RetainedSize(false),
+      GetNodeId(entry->dominator()),
+      children.length());
+  USE(result);
+  ASSERT(result != -1);
+  writer_->AddString(buffer.start());
   for (int i = 0; i < children.length(); ++i) {
     SerializeEdge(&children[i]);
     if (writer_->aborted()) return;

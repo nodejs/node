@@ -39,16 +39,16 @@
    -----------------------------------
 */
 
-// The following const declarations are shared with other native JS files.
-// They are all declared at this one spot to avoid const redeclaration errors.
-const $Object = global.Object;
-const $Array = global.Array;
-const $String = global.String;
-const $Number = global.Number;
-const $Function = global.Function;
-const $Boolean = global.Boolean;
-const $NaN = 0/0;
-const builtins = this;
+// The following declarations are shared with other native JS files.
+// They are all declared at this one spot to avoid redeclaration errors.
+var $Object = global.Object;
+var $Array = global.Array;
+var $String = global.String;
+var $Number = global.Number;
+var $Function = global.Function;
+var $Boolean = global.Boolean;
+var $NaN = 0/0;
+var builtins = this;
 
 // ECMA-262 Section 11.9.3.
 function EQUALS(y) {

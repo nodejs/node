@@ -1639,6 +1639,9 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   __ pop(ebx);
   __ push(edx);
   __ push(ebx);  // return address
+  // Leaving the code managed by the register allocator and return to the
+  // convention of using esi as context register.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
 }
 
@@ -1662,6 +1665,9 @@ void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
   __ pop(ebx);
   __ push(edx);
   __ push(ebx);  // return address
+  // Leaving the code managed by the register allocator and return to the
+  // convention of using esi as context register.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
 }
 

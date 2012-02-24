@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -397,12 +397,16 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
     Handle<JSObject> receiver,
     KeyedIC::StubKind stub_kind,
     StrictModeFlag strict_mode) {
+  KeyedAccessGrowMode grow_mode =
+      KeyedIC::GetGrowModeFromStubKind(stub_kind);
+  Code::ExtraICState extra_state =
+      Code::ComputeExtraICState(grow_mode, strict_mode);
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(
           stub_kind == KeyedIC::LOAD ? Code::KEYED_LOAD_IC
                                      : Code::KEYED_STORE_IC,
           NORMAL,
-          strict_mode);
+          extra_state);
   Handle<String> name;
   switch (stub_kind) {
     case KeyedIC::LOAD:
@@ -410,6 +414,9 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
       break;
     case KeyedIC::STORE_NO_TRANSITION:
       name = isolate()->factory()->KeyedStoreElementMonomorphic_symbol();
+      break;
+    case KeyedIC::STORE_AND_GROW_NO_TRANSITION:
+      name = isolate()->factory()->KeyedStoreAndGrowElementMonomorphic_symbol();
       break;
     default:
       UNREACHABLE();
@@ -426,8 +433,15 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
       code = compiler.CompileLoadElement(receiver_map);
       break;
     }
+    case KeyedIC::STORE_AND_GROW_NO_TRANSITION: {
+      KeyedStoreStubCompiler compiler(isolate_, strict_mode,
+                                      ALLOW_JSARRAY_GROWTH);
+      code = compiler.CompileStoreElement(receiver_map);
+      break;
+    }
     case KeyedIC::STORE_NO_TRANSITION: {
-      KeyedStoreStubCompiler compiler(isolate_, strict_mode);
+      KeyedStoreStubCompiler compiler(isolate_, strict_mode,
+                                      DO_NOT_ALLOW_JSARRAY_GROWTH);
       code = compiler.CompileStoreElement(receiver_map);
       break;
     }
@@ -519,7 +533,8 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<String> name,
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  KeyedStoreStubCompiler compiler(isolate(), strict_mode);
+  KeyedStoreStubCompiler compiler(isolate(), strict_mode,
+                                  DO_NOT_ALLOW_JSARRAY_GROWTH);
   Handle<Code> code =
       compiler.CompileStoreField(receiver, field_index, transition, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, *name));
@@ -1349,8 +1364,10 @@ Handle<Code> StoreStubCompiler::GetCode(PropertyType type,
 Handle<Code> KeyedStoreStubCompiler::GetCode(PropertyType type,
                                              Handle<String> name,
                                              InlineCacheState state) {
+  Code::ExtraICState extra_state =
+      Code::ComputeExtraICState(grow_mode_, strict_mode_);
   Code::Flags flags =
-      Code::ComputeFlags(Code::KEYED_STORE_IC, state, strict_mode_, type);
+      Code::ComputeFlags(Code::KEYED_STORE_IC, state, extra_state, type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::KEYED_STORE_IC, *name, *code));

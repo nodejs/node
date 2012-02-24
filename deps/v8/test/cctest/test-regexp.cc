@@ -449,6 +449,7 @@ static bool IsWhiteSpace(uc16 c) {
     case 0xA0:
     case 0x2028:
     case 0x2029:
+    case 0xFEFF:
       return true;
     default:
       return unibrow::Space::Is(c);

@@ -365,16 +365,9 @@ class Thread::PlatformData : public Malloced {
 
 
 Thread::Thread(const Options& options)
-    : data_(new PlatformData),
-      stack_size_(options.stack_size) {
-  set_name(options.name);
-}
-
-
-Thread::Thread(const char* name)
-    : data_(new PlatformData),
-      stack_size_(0) {
-  set_name(name);
+    : data_(new PlatformData()),
+      stack_size_(options.stack_size()) {
+  set_name(options.name());
 }
 
 
@@ -617,8 +610,10 @@ class Sampler::PlatformData : public Malloced {
 
 class SamplerThread : public Thread {
  public:
+  static const int kSamplerThreadStackSize = 64 * KB;
+
   explicit SamplerThread(int interval)
-      : Thread("SamplerThread"),
+      : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
   static void AddActiveSampler(Sampler* sampler) {

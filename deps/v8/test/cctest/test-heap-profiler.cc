@@ -147,6 +147,43 @@ TEST(HeapSnapshotObjectSizes) {
 }
 
 
+TEST(BoundFunctionInSnapshot) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun(
+      "function myFunction(a, b) { this.a = a; this.b = b; }\n"
+      "function AAAAA() {}\n"
+      "boundFunction = myFunction.bind(new AAAAA(), 20, new Number(12)); \n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("sizes"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* f =
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "boundFunction");
+  CHECK(f);
+  CHECK_EQ(v8::String::New("native_bind"), f->GetName());
+  const v8::HeapGraphNode* bindings =
+      GetProperty(f, v8::HeapGraphEdge::kInternal, "bindings");
+  CHECK_NE(NULL, bindings);
+  CHECK_EQ(v8::HeapGraphNode::kArray, bindings->GetType());
+  CHECK_EQ(4, bindings->GetChildrenCount());
+
+  const v8::HeapGraphNode* bound_this = GetProperty(
+      f, v8::HeapGraphEdge::kShortcut, "bound_this");
+  CHECK(bound_this);
+  CHECK_EQ(v8::HeapGraphNode::kObject, bound_this->GetType());
+
+  const v8::HeapGraphNode* bound_function = GetProperty(
+      f, v8::HeapGraphEdge::kShortcut, "bound_function");
+  CHECK(bound_function);
+  CHECK_EQ(v8::HeapGraphNode::kClosure, bound_function->GetType());
+
+  const v8::HeapGraphNode* bound_argument = GetProperty(
+      f, v8::HeapGraphEdge::kShortcut, "bound_argument_1");
+  CHECK(bound_argument);
+  CHECK_EQ(v8::HeapGraphNode::kObject, bound_argument->GetType());
+}
+
+
 TEST(HeapSnapshotEntryChildren) {
   v8::HandleScope scope;
   LocalContext env;

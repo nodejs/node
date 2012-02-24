@@ -464,7 +464,8 @@ class Parser {
   };
 
   enum VariableDeclarationContext {
-    kSourceElement,
+    kModuleElement,
+    kBlockElement,
     kStatement,
     kForStatement
   };
@@ -575,7 +576,16 @@ class Parser {
   // for failure at the call sites.
   void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool* ok);
-  Statement* ParseSourceElement(ZoneStringList* labels, bool* ok);
+  Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
+  Block* ParseModuleDeclaration(bool* ok);
+  Module* ParseModule(bool* ok);
+  Module* ParseModuleLiteral(bool* ok);
+  Module* ParseModulePath(bool* ok);
+  Module* ParseModuleVariable(bool* ok);
+  Module* ParseModuleUrl(bool* ok);
+  Block* ParseImportDeclaration(bool* ok);
+  Block* ParseExportDeclaration(bool* ok);
+  Statement* ParseBlockElement(ZoneStringList* labels, bool* ok);
   Statement* ParseStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);

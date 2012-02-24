@@ -11050,14 +11050,18 @@ THREADED_TEST(TurnOnAccessCheck) {
 }
 
 
-v8::Handle<v8::String> a;
-v8::Handle<v8::String> h;
+static const char* kPropertyA = "a";
+static const char* kPropertyH = "h";
 
 static bool NamedGetAccessBlockAandH(Local<v8::Object> obj,
                                        Local<Value> name,
                                        v8::AccessType type,
                                        Local<Value> data) {
-  return !(name->Equals(a) || name->Equals(h));
+  if (!name->IsString()) return false;
+  i::Handle<i::String> name_handle =
+      v8::Utils::OpenHandle(String::Cast(*name));
+  return !name_handle->IsEqualTo(i::CStrVector(kPropertyA))
+      && !name_handle->IsEqualTo(i::CStrVector(kPropertyH));
 }
 
 
@@ -11066,9 +11070,7 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
 
   // Create an environment with access check to the global object disabled by
   // default. When the registered access checker will block access to properties
-  // a and h
-  a = v8_str("a");
-  h = v8_str("h");
+  // a and h.
   v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
   global_template->SetAccessCheckCallbacks(NamedGetAccessBlockAandH,
                                            IndexedGetAccessBlocker,
@@ -12902,8 +12904,15 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "}"
                       "ext_array[7];");
   CHECK_EQ(0, result->Int32Value());
-  CHECK_EQ(
-      0, static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
+  if (array_type == v8::kExternalDoubleArray ||
+      array_type == v8::kExternalFloatArray) {
+    CHECK_EQ(
+        static_cast<int>(0x80000000),
+        static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
+  } else {
+    CHECK_EQ(0, static_cast<int>(
+        jsobj->GetElement(7)->ToObjectChecked()->Number()));
+  }
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"
                       "  ext_array[6] = '2.3';"
@@ -13711,58 +13720,65 @@ TEST(SourceURLInStackTrace) {
 THREADED_TEST(IdleNotification) {
   v8::HandleScope scope;
   LocalContext env;
-  CompileRun("function binom(n, m) {"
-             "  var C = [[1]];"
-             "  for (var i = 1; i <= n; ++i) {"
-             "    C[i] = [1];"
-             "    for (var j = 1; j < i; ++j) {"
-             "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-             "    }"
-             "    C[i][i] = 1;"
-             "  }"
-             "  return C[n][m];"
-             "};"
-             "binom(1000, 500)");
-  bool rv = false;
-  for (int i = 0; i < 100; i++) {
-    rv = v8::V8::IdleNotification();
-    if (rv)
-      break;
+  {
+    // Create garbage in old-space to generate work for idle notification.
+    i::AlwaysAllocateScope always_allocate;
+    for (int i = 0; i < 100; i++) {
+      FACTORY->NewFixedArray(1000, i::TENURED);
+    }
   }
-  CHECK(rv == true);
+  bool finshed_idle_work = false;
+  for (int i = 0; i < 100 && !finshed_idle_work; i++) {
+    finshed_idle_work = v8::V8::IdleNotification();
+  }
+  CHECK(finshed_idle_work);
 }
 
 // Test that idle notification can be handled and eventually returns true.
 // This just checks the contract of the IdleNotification() function,
 // and does not verify that it does reasonable work.
-TEST(IdleNotificationWithHint) {
+TEST(IdleNotificationWithSmallHint) {
   v8::HandleScope scope;
   LocalContext env;
   {
+    // Create garbage in old-space to generate work for idle notification.
     i::AlwaysAllocateScope always_allocate;
-    CompileRun("function binom(n, m) {"
-               "  var C = [[1]];"
-               "  for (var i = 1; i <= n; ++i) {"
-               "    C[i] = [1];"
-               "    for (var j = 1; j < i; ++j) {"
-               "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-               "    }"
-               "    C[i][i] = 1;"
-               "  }"
-               "  return C[n][m];"
-               "};"
-               "binom(1000, 500)");
+    for (int i = 0; i < 100; i++) {
+      FACTORY->NewFixedArray(1000, i::TENURED);
+    }
   }
-  bool rv = false;
   intptr_t old_size = HEAP->SizeOfObjects();
+  bool finshed_idle_work = false;
   bool no_idle_work = v8::V8::IdleNotification(10);
-  for (int i = 0; i < 200; i++) {
-    rv = v8::V8::IdleNotification(10);
-    if (rv)
-      break;
+  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
+    finshed_idle_work = v8::V8::IdleNotification(10);
   }
-  CHECK(rv == true);
   intptr_t new_size = HEAP->SizeOfObjects();
+  CHECK(finshed_idle_work);
+  CHECK(no_idle_work || new_size < old_size);
+}
+
+
+// This just checks the contract of the IdleNotification() function,
+// and does not verify that it does reasonable work.
+TEST(IdleNotificationWithLargeHint) {
+  v8::HandleScope scope;
+  LocalContext env;
+  {
+    // Create garbage in old-space to generate work for idle notification.
+    i::AlwaysAllocateScope always_allocate;
+    for (int i = 0; i < 100; i++) {
+      FACTORY->NewFixedArray(1000, i::TENURED);
+    }
+  }
+  intptr_t old_size = HEAP->SizeOfObjects();
+  bool finshed_idle_work = false;
+  bool no_idle_work = v8::V8::IdleNotification(900);
+  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
+    finshed_idle_work = v8::V8::IdleNotification(900);
+  }
+  intptr_t new_size = HEAP->SizeOfObjects();
+  CHECK(finshed_idle_work);
   CHECK(no_idle_work || new_size < old_size);
 }
 

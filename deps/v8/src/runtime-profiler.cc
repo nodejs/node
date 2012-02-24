@@ -102,6 +102,25 @@ void RuntimeProfiler::GlobalSetup() {
 }
 
 
+static void GetICCounts(JSFunction* function,
+                        int* ic_with_typeinfo_count,
+                        int* ic_total_count,
+                        int* percentage) {
+  *ic_total_count = 0;
+  *ic_with_typeinfo_count = 0;
+  Object* raw_info =
+      function->shared()->code()->type_feedback_info();
+  if (raw_info->IsTypeFeedbackInfo()) {
+    TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
+    *ic_with_typeinfo_count = info->ic_with_typeinfo_count();
+    *ic_total_count = info->ic_total_count();
+  }
+  *percentage = *ic_total_count > 0
+      ? 100 * *ic_with_typeinfo_count / *ic_total_count
+      : 100;
+}
+
+
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   ASSERT(function->IsOptimizable());
   if (FLAG_trace_opt) {
@@ -109,6 +128,11 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     function->PrintName();
     PrintF(" 0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(function->address()));
     PrintF(" for recompilation, reason: %s", reason);
+    if (FLAG_type_info_threshold > 0) {
+      int typeinfo, total, percentage;
+      GetICCounts(function, &typeinfo, &total, &percentage);
+      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total, percentage);
+    }
     PrintF("]\n");
   }
 
@@ -147,9 +171,19 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
 
   // Get the stack check stub code object to match against.  We aren't
   // prepared to generate it, but we don't expect to have to.
-  StackCheckStub check_stub;
+  bool found_code = false;
   Code* stack_check_code = NULL;
-  if (check_stub.FindCodeInCache(&stack_check_code)) {
+#ifdef V8_TARGET_ARCH_IA32
+  if (FLAG_count_based_interrupts) {
+    InterruptStub interrupt_stub;
+    found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
+  } else  // NOLINT
+#endif
+  {  // NOLINT
+    StackCheckStub check_stub;
+    found_code = check_stub.FindCodeInCache(&stack_check_code);
+  }
+  if (found_code) {
     Code* replacement_code =
         isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
     Code* unoptimized_code = shared->code();
@@ -198,8 +232,10 @@ void RuntimeProfiler::OptimizeNow() {
   JSFunction* samples[kSamplerFrameCount];
   int sample_count = 0;
   int frame_count = 0;
+  int frame_count_limit = FLAG_watch_ic_patching ? FLAG_frame_count
+                                                 : kSamplerFrameCount;
   for (JavaScriptFrameIterator it(isolate_);
-       frame_count++ < kSamplerFrameCount && !it.done();
+       frame_count++ < frame_count_limit && !it.done();
        it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     JSFunction* function = JSFunction::cast(frame->function());
@@ -232,13 +268,34 @@ void RuntimeProfiler::OptimizeNow() {
     // Do not record non-optimizable functions.
     if (!function->IsOptimizable()) continue;
 
+    // Only record top-level code on top of the execution stack and
+    // avoid optimizing excessively large scripts since top-level code
+    // will be executed only once.
+    const int kMaxToplevelSourceSize = 10 * 1024;
+    if (function->shared()->is_toplevel()
+        && (frame_count > 1
+            || function->shared()->SourceSize() > kMaxToplevelSourceSize)) {
+      continue;
+    }
+
     if (FLAG_watch_ic_patching) {
       int ticks = function->shared()->profiler_ticks();
 
       if (ticks >= kProfilerTicksBeforeOptimization) {
-        // If this particular function hasn't had any ICs patched for enough
-        // ticks, optimize it now.
-        Optimize(function, "hot and stable");
+        int typeinfo, total, percentage;
+        GetICCounts(function, &typeinfo, &total, &percentage);
+        if (percentage >= FLAG_type_info_threshold) {
+          // If this particular function hasn't had any ICs patched for enough
+          // ticks, optimize it now.
+          Optimize(function, "hot and stable");
+        } else {
+          if (FLAG_trace_opt_verbose) {
+            PrintF("[not yet optimizing ");
+            function->PrintName();
+            PrintF(", not enough type info: %d/%d (%d%%)]\n",
+                   typeinfo, total, percentage);
+          }
+        }
       } else if (!any_ic_changed_ &&
           function->shared()->code()->instruction_size() < kMaxSizeEarlyOpt) {
         // If no IC was patched since the last tick and this function is very
@@ -255,7 +312,7 @@ void RuntimeProfiler::OptimizeNow() {
       } else {
         function->shared()->set_profiler_ticks(ticks + 1);
       }
-    } else {  // !FLAG_counting_profiler
+    } else {  // !FLAG_watch_ic_patching
       samples[sample_count++] = function;
 
       int function_size = function->shared()->SourceSize();
@@ -273,7 +330,7 @@ void RuntimeProfiler::OptimizeNow() {
   if (FLAG_watch_ic_patching) {
     any_ic_changed_ = false;
     code_generated_ = false;
-  } else {  // !FLAG_counting_profiler
+  } else {  // !FLAG_watch_ic_patching
     // Add the collected functions as samples. It's important not to do
     // this as part of collecting them because this will interfere with
     // the sample lookup in case of recursive functions.
@@ -285,6 +342,9 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
+#ifdef V8_TARGET_ARCH_IA32
+  if (FLAG_count_based_interrupts) return;
+#endif
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
 }
 
@@ -303,7 +363,7 @@ void RuntimeProfiler::SetUp() {
 void RuntimeProfiler::Reset() {
   if (FLAG_watch_ic_patching) {
     total_code_generated_ = 0;
-  } else {  // !FLAG_counting_profiler
+  } else {  // !FLAG_watch_ic_patching
     sampler_threshold_ = kSamplerThresholdInit;
     sampler_threshold_size_factor_ = kSamplerThresholdSizeFactorInit;
     sampler_ticks_until_threshold_adjustment_ =

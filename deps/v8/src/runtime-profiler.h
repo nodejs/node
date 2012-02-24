@@ -101,14 +101,14 @@ class RuntimeProfiler {
   void RemoveDeadSamples();
   void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
 
+  void AttemptOnStackReplacement(JSFunction* function);
+
  private:
   static const int kSamplerWindowSize = 16;
 
   static void HandleWakeUp(Isolate* isolate);
 
   void Optimize(JSFunction* function, const char* reason);
-
-  void AttemptOnStackReplacement(JSFunction* function);
 
   void ClearSampleBuffer();
 

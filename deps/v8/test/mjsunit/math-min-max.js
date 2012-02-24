@@ -146,6 +146,14 @@ function crankshaft_test_1(arg) {
   // Double representation.
   assertEquals(v0, Math.max(v0++, v9++));
   assertEquals(v9, Math.min(v0++, v9++));
+  // Mixed representation.
+  assertEquals(v1, Math.min(v1++, v9++));  // int32, double
+  assertEquals(v0, Math.max(v0++, v2++));  // double, int32
+  assertEquals(v1, Math.min(v1++, v6));    // int32, tagged
+  assertEquals(v2, Math.max(v5, v2++));    // tagged, int32
+  assertEquals(v6, Math.min(v6, v9++));    // tagged, double
+  assertEquals(v0, Math.max(v0++, v5));    // double, tagged
+
   // Minus zero.
   assertEquals(Infinity, 1/Math.max(v7, v8));
   assertEquals(-Infinity, 1/Math.min(v7, v8));

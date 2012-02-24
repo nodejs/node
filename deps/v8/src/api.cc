@@ -42,6 +42,9 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "messages.h"
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+#include "natives.h"
+#endif
 #include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
@@ -357,6 +360,7 @@ int StartupDataDecompressor::Decompress() {
     compressed_data[i].data = decompressed;
   }
   V8::SetDecompressedStartupData(compressed_data);
+  i::DeleteArray(compressed_data);
   return 0;
 }
 

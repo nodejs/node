@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -301,11 +301,17 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label loop, entry, convert_hole, gc_required;
+  Label loop, entry, convert_hole, gc_required, only_change_map;
+
+  // Check for empty arrays, which only require a map transition and no changes
+  // to the backing store.
+  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+  __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
+  __ j(equal, &only_change_map);
+
   __ push(eax);
   __ push(ebx);
 
-  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   __ mov(edi, FieldOperand(edi, FixedArray::kLengthOffset));
 
   // Allocate new FixedDoubleArray.
@@ -399,6 +405,11 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
 
   __ pop(ebx);
   __ pop(eax);
+
+  // Restore esi.
+  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+
+  __ bind(&only_change_map);
   // eax: value
   // ebx: target map
   // Set transitioned map.
@@ -408,10 +419,8 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
                       ebx,
                       edi,
                       kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
+                      OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  // Restore esi.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -424,12 +433,18 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  Label loop, entry, convert_hole, gc_required;
+  Label loop, entry, convert_hole, gc_required, only_change_map, success;
+
+  // Check for empty arrays, which only require a map transition and no changes
+  // to the backing store.
+  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+  __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
+  __ j(equal, &only_change_map);
+
   __ push(eax);
   __ push(edx);
   __ push(ebx);
 
-  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
   __ mov(ebx, FieldOperand(edi, FixedDoubleArray::kLengthOffset));
 
   // Allocate new FixedArray.
@@ -445,6 +460,20 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
 
   __ jmp(&entry);
+
+  // ebx: target map
+  // edx: receiver
+  // Set transitioned map.
+  __ bind(&only_change_map);
+  __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
+  __ RecordWriteField(edx,
+                      HeapObject::kMapOffset,
+                      ebx,
+                      edi,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ jmp(&success);
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
@@ -507,7 +536,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       ebx,
                       edi,
                       kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
+                      OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created and filled FixedArray.
   __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
@@ -522,6 +551,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Restore registers.
   __ pop(eax);
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+
+  __ bind(&success);
 }
 
 

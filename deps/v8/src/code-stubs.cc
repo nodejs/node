@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -296,12 +296,14 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     case FAST_SMI_ONLY_ELEMENTS: {
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
                                                        is_js_array_,
-                                                       elements_kind_);
+                                                       elements_kind_,
+                                                       grow_mode_);
     }
       break;
     case FAST_DOUBLE_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
-                                                             is_js_array_);
+                                                             is_js_array_,
+                                                             grow_mode_);
       break;
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -440,10 +442,13 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
       }
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
                                                        is_jsarray_,
-                                                       FAST_ELEMENTS);
+                                                       FAST_ELEMENTS,
+                                                       grow_mode_);
     } else if (from_ == FAST_SMI_ONLY_ELEMENTS && to_ == FAST_DOUBLE_ELEMENTS) {
       ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
-      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm, is_jsarray_);
+      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
+                                                             is_jsarray_,
+                                                             grow_mode_);
     } else {
       UNREACHABLE();
     }

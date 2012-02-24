@@ -147,6 +147,7 @@ assertKind(elements_kind.external_pixel,          new PixelArray(512));
 
 // Crankshaft support for smi-only array elements.
 function monomorphic(array) {
+  assertKind(elements_kind.fast_smi_only, array);
   for (var i = 0; i < 3; i++) {
     array[i] = i + 10;
   }
@@ -157,6 +158,7 @@ function monomorphic(array) {
   }
 }
 var smi_only = new Array(1, 2, 3);
+assertKind(elements_kind.fast_smi_only, smi_only);
 for (var i = 0; i < 3; i++) monomorphic(smi_only);
 %OptimizeFunctionOnNextCall(monomorphic);
 monomorphic(smi_only);

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -64,10 +64,10 @@
 #undef _WIN32_WINNT
 #define _WIN32_WINNT 0x501
 #endif  // __MINGW32__
-#ifndef __MINGW32__
+#if !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
 #include <dbghelp.h>  // For SymLoadModule64 and al.
 #include <errno.h>  // For STRUNCATE
-#endif  // __MINGW32__
+#endif  // !defined(__MINGW32__) || defined(__MINGW64_VERSION_MAJOR)
 #include <limits.h>  // For INT_MAX and al.
 #include <tlhelp32.h>  // For Module32First and al.
 

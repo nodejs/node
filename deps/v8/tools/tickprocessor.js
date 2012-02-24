@@ -146,7 +146,12 @@ SnapshotLogProcessor.prototype.getSerializedEntryName = function(pos) {
 
 
 function TickProcessor(
-    cppEntriesProvider, separateIc, ignoreUnknown, stateFilter, snapshotLogProcessor) {
+    cppEntriesProvider,
+    separateIc,
+    callGraphSize,
+    ignoreUnknown,
+    stateFilter,
+    snapshotLogProcessor) {
   LogReader.call(this, {
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
@@ -181,6 +186,7 @@ function TickProcessor(
       'end-code-region': null });
 
   this.cppEntriesProvider_ = cppEntriesProvider;
+  this.callGraphSize_ = callGraphSize;
   this.ignoreUnknown_ = ignoreUnknown;
   this.stateFilter_ = stateFilter;
   this.snapshotLogProcessor_ = snapshotLogProcessor;
@@ -240,6 +246,7 @@ TickProcessor.CodeTypes = {
 
 TickProcessor.CALL_PROFILE_CUTOFF_PCT = 2.0;
 
+TickProcessor.CALL_GRAPH_SIZE = 5;
 
 /**
  * @override
@@ -535,7 +542,7 @@ TickProcessor.prototype.printHeavyProfile = function(profile, opt_indent) {
           padLeft(rec.parentTotalPercent.toFixed(1), 5) + '%  ' +
           indentStr + rec.internalFuncName);
     // Limit backtrace depth.
-    if (indent < 10) {
+    if (indent < 2 * self.callGraphSize_) {
       self.printHeavyProfile(rec.children, indent + 2);
     }
     // Delimit top-level functions.
@@ -764,6 +771,8 @@ function ArgumentsProcessor(args) {
         'Show only ticks from OTHER VM state'],
     '-e': ['stateFilter', TickProcessor.VmStates.EXTERNAL,
         'Show only ticks from EXTERNAL VM state'],
+    '--call-graph-size': ['callGraphSize', TickProcessor.CALL_GRAPH_SIZE,
+        'Set the call graph size'],
     '--ignore-unknown': ['ignoreUnknown', true,
         'Exclude ticks of unknown code entries from processing'],
     '--separate-ic': ['separateIc', true,
@@ -792,6 +801,7 @@ ArgumentsProcessor.DEFAULTS = {
   snapshotLogFileName: null,
   platform: 'unix',
   stateFilter: null,
+  callGraphSize: 5,
   ignoreUnknown: false,
   separateIc: false,
   nm: 'nm'

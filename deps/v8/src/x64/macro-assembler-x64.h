@@ -949,6 +949,10 @@ class MacroAssembler: public Assembler {
   void AbortIfNotSmi(Register object);
   void AbortIfNotSmi(const Operand& object);
 
+  // Abort execution if a 64 bit register containing a 32 bit payload does not
+  // have zeros in the top 32 bits.
+  void AbortIfNotZeroExtended(Register reg);
+
   // Abort execution if argument is a string. Used in debug code.
   void AbortIfNotString(Register object);
 
@@ -971,7 +975,7 @@ class MacroAssembler: public Assembler {
   void Throw(Register value);
 
   // Propagate an uncatchable exception out of the current JS stack.
-  void ThrowUncatchable(UncatchableExceptionType type, Register value);
+  void ThrowUncatchable(Register value);
 
   // ---------------------------------------------------------------------------
   // Inline caching support
@@ -1294,6 +1298,11 @@ class MacroAssembler: public Assembler {
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void LeaveFrame(StackFrame::Type type);
+
+  // Expects object in rax and returns map with validated enum cache
+  // in rax.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Register null_value,
+                      Label* call_runtime);
 
  private:
   // Order general registers are pushed by Pushad.

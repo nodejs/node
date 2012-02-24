@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -182,12 +182,17 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   //  -- rsp[0] : return address
   // -----------------------------------
   // The fail label is not actually used since we do not allocate.
-  Label allocated, cow_array;
+  Label allocated, cow_array, only_change_map, done;
+
+  // Check for empty arrays, which only require a map transition and no changes
+  // to the backing store.
+  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
+  __ j(equal, &only_change_map);
 
   // Check backing store for COW-ness.  If the negative case, we do not have to
   // allocate a new array, since FixedArray and FixedDoubleArray do not differ
   // in size.
-  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
   __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
                  Heap::kFixedCOWArrayMapRootIndex);
@@ -241,6 +246,18 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ movq(FieldOperand(r14, FixedDoubleArray::kLengthOffset), r11);
   __ jmp(&allocated);
 
+  __ bind(&only_change_map);
+  // Set transitioned map.
+  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ RecordWriteField(rdx,
+                      HeapObject::kMapOffset,
+                      rbx,
+                      rdi,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ jmp(&done);
+
   // Conversion loop.
   __ bind(&loop);
   __ movq(rbx,
@@ -264,6 +281,8 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ bind(&entry);
   __ decq(r9);
   __ j(not_sign, &loop);
+
+  __ bind(&done);
 }
 
 
@@ -276,7 +295,14 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label loop, entry, convert_hole, gc_required;
+  Label loop, entry, convert_hole, gc_required, only_change_map;
+
+  // Check for empty arrays, which only require a map transition and no changes
+  // to the backing store.
+  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
+  __ j(equal, &only_change_map);
+
   __ push(rax);
 
   __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -345,15 +371,6 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ decq(r9);
   __ j(not_sign, &loop);
 
-  // Set transitioned map.
-  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
-  __ RecordWriteField(rdx,
-                      HeapObject::kMapOffset,
-                      rbx,
-                      rdi,
-                      kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created and filled FixedArray.
   __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r11);
   __ RecordWriteField(rdx,
@@ -365,6 +382,17 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       OMIT_SMI_CHECK);
   __ pop(rax);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+
+  __ bind(&only_change_map);
+  // Set transitioned map.
+  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ RecordWriteField(rdx,
+                      HeapObject::kMapOffset,
+                      rbx,
+                      rdi,
+                      kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
 }
 
 

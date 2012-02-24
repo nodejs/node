@@ -84,7 +84,7 @@ void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 
 
 void PrettyPrinter::VisitModuleVariable(ModuleVariable* node) {
-  PrintLiteral(node->var()->name(), false);
+  Visit(node->proxy());
 }
 
 
@@ -773,7 +773,7 @@ void AstPrinter::VisitModuleLiteral(ModuleLiteral* node) {
 
 
 void AstPrinter::VisitModuleVariable(ModuleVariable* node) {
-  PrintLiteralIndented("VARIABLE", node->var()->name(), false);
+  Visit(node->proxy());
 }
 
 
