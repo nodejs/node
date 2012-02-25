@@ -176,11 +176,6 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
-  - `socket`: Establish secure connection on a given socket rather than
-    creating a new socket. If this option is specified, `host` and `port`
-    are ignored.  This is intended FOR INTERNAL USE ONLY.  As with all
-    undocumented APIs in Node, they should not be used.
-
 The `secureConnectListener` parameter will be added as a listener for the
 ['secureConnect'](#event_secureConnect_) event.
 
