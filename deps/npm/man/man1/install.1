@@ -21,7 +21,9 @@ npm install <name>@<version range>
 .fi
 .
 .SH "DESCRIPTION"
-This command installs a package, and any packages that it depends on\.
+This command installs a package, and any packages that it depends on\. If the
+package has a shrinkwrap file, the installation of dependencies will be driven
+by that\. See npm help shrinkwrap\.
 .
 .P
 A \fBpackage\fR is:
@@ -369,6 +371,9 @@ npm help tag
 .
 .IP "\(bu" 4
 npm help rm
+.
+.IP "\(bu" 4
+npm help shrinkwrap
 .
 .IP "" 0
 

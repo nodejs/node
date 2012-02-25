@@ -35,7 +35,7 @@ function readJson (jsonFile, opts, cb) {
     , contributors = null
     , serverjs = null
 
-  if (opts.wscript != null) {
+  if (opts.wscript !== null && opts.wscript !== undefined) {
     wscript = opts.wscript
     next()
   } else fs.readFile( path.join(path.dirname(jsonFile), "wscript")
@@ -47,7 +47,7 @@ function readJson (jsonFile, opts, cb) {
     next()
   })
 
-  if (opts.contributors != null) {
+  if (opts.contributors !== null && opts.contributors !== undefined) {
     contributors = opts.contributors
     next()
   } else fs.readFile( path.join(path.dirname(jsonFile), "AUTHORS")
@@ -64,7 +64,7 @@ function readJson (jsonFile, opts, cb) {
     next()
   })
 
-  if (opts.serverjs != null) {
+  if (opts.serverjs !== null && opts.serverjs !== undefined) {
     serverjs = opts.serverjs
     next()
   } else fs.stat( path.join(path.dirname(jsonFile), "server.js")
@@ -82,14 +82,46 @@ function readJson (jsonFile, opts, cb) {
       return
     }
 
-    fs.readFile(jsonFile, processJson(opts, function (er, data) {
+    // XXX this api here is insane.  being internal is no excuse.
+    // please refactor.
+    var thenLoad = processJson(opts, function (er, data) {
       if (er) return cb(er)
       var doLoad = !(jsonFile.indexOf(npm.cache) === 0 &&
                      path.basename(path.dirname(jsonFile)) !== "package")
       if (!doLoad) return cb(er, data)
       loadPackageDefaults(data, path.dirname(jsonFile), cb)
-    }))
+    })
+
+    fs.readFile(jsonFile, function (er, data) {
+      if (er && er.code === "ENOENT") {
+        // single-file module, maybe?
+        // check index.js for a /**package { ... } **/ section.
+        var indexFile = path.resolve(path.dirname(jsonFile), "index.js")
+        return fs.readFile(indexFile, function (er2, data) {
+          // if this doesn't work, then die with the original error.
+          if (er2) return cb(er)
+          data = parseIndex(data)
+          if (!data) return cb(er)
+          thenLoad(null, data)
+        })
+      }
+      thenLoad(er, data)
+    })
   }
+}
+
+// sync. no io.
+// /**package { "name": "foo", "version": "1.2.3", ... } **/
+function parseIndex (data) {
+  data = data.toString()
+  data = data.split(/^\/\*\*package(?:\s|$)/m)
+  if (data.length < 2) return null
+  data = data[1]
+  data = data.split(/\*\*\/$/m)
+  if (data.length < 2) return null
+  data = data[0]
+  data = data.replace(/^\s*\*/mg, "")
+  return data
 }
 
 function processJson (opts, cb) {
@@ -113,8 +145,8 @@ function processJson (opts, cb) {
 }
 
 function processJsonString (opts, cb) { return function (er, jsonString) {
-  jsonString += ""
   if (er) return cb(er, jsonString)
+  jsonString += ""
   var json
   try {
     json = JSON.parse(jsonString)

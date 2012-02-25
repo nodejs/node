@@ -65,7 +65,12 @@ function rmBins (pkg, folder, parent, top, cb) {
 }
 
 function rmMans (pkg, folder, parent, top, cb) {
-  if (!pkg.man || !top || process.platform === "win32") return cb()
+  if (!pkg.man
+      || !top
+      || process.platform === "win32"
+      || !npm.config.get("global")) {
+    return cb()
+  }
   var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
   asyncMap(pkg.man, function (man, cb) {
     var parseMan = man.match(/(.*)\.([0-9]+)(\.gz)?$/)

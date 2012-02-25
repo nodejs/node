@@ -138,6 +138,7 @@ var commandCache = {}
               , "unpublish"
               , "owner"
               , "deprecate"
+              , "shrinkwrap"
 
               , "help"
               , "help-search"

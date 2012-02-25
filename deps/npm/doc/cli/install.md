@@ -14,7 +14,9 @@ npm-install(1) -- Install a package
 
 ## DESCRIPTION
 
-This command installs a package, and any packages that it depends on.
+This command installs a package, and any packages that it depends on. If the
+package has a shrinkwrap file, the installation of dependencies will be driven
+by that. See npm-shrinkwrap(1).
 
 A `package` is:
 
@@ -199,3 +201,4 @@ affects a real use-case, it will be investigated.
 * npm-folders(1)
 * npm-tag(1)
 * npm-rm(1)
+* npm-shrinkwrap(1)
