@@ -125,7 +125,8 @@ function readInstalled_ (folder, parent, name, reqver, depth, maxDepth, cb) {
   })
 
   readJson(path.resolve(folder, "package.json"), function (er, data) {
-    obj = data
+    obj = copy(data)
+
     if (!parent) {
       obj = obj || true
       er = null
@@ -267,6 +268,15 @@ function findUnmet (obj) {
     })
   log.verbose([obj._id], "returning")
   return obj
+}
+
+function copy (obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(copy)
+
+  var o = {}
+  for (var i in obj) o[i] = copy(obj[i])
+  return o
 }
 
 if (module === require.main) {

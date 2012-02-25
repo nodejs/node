@@ -1,29 +1,32 @@
 <!doctype html>
 <html>
-  <title>run-script</title>
+  <title>shrinkwrap</title>
   <meta http-equiv="content-type" value="text/html;utf-8">
   <link rel="stylesheet" type="text/css" href="./style.css">
 
   <body>
     <div id="wrapper">
-<h1><a href="../doc/run-script.html">run-script</a></h1> <p>Run arbitrary package scripts</p>
+<h1><a href="../api/shrinkwrap.html">shrinkwrap</a></h1> <p>programmatically generate package shrinkwrap file</p>
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm run-script &lt;script&gt; &lt;name&gt;</code></pre>
+<pre><code>npm.commands.shrinkwrap(args, [silent,] callback)</code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p>This runs an arbitrary command from a package's "scripts" object.</p>
+<p>This acts much the same ways as shrinkwrapping on the command-line.</p>
 
-<p>It is used by the test, start, restart, and stop commands, but can be
-called directly, as well.</p>
+<p>This command does not take any arguments, but 'args' must be defined.
+Beyond that, if any arguments are passed in, npm will politely warn that it
+does not take positional arguments.</p>
 
-<h2 id="SEE-ALSO">SEE ALSO</h2>
+<p>If the 'silent' parameter is set to true, nothing will be output to the screen,
+but the shrinkwrap file will still be written.</p>
 
-<ul><li><a href="../doc/scripts.html">scripts(1)</a></li><li><a href="../doc/test.html">test(1)</a></li><li><a href="../doc/start.html">start(1)</a></li><li><a href="../doc/restart.html">restart(1)</a></li><li><a href="../doc/stop.html">stop(1)</a></li></ul>
+<p>Finally, 'callback' is a function that will be called when the shrinkwrap has
+been saved.</p>
 </div>
-<p id="footer">run-script &mdash; npm@1.1.2</p>
+<p id="footer">shrinkwrap &mdash; npm@1.1.2</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

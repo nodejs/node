@@ -161,6 +161,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "init.author.name" : ""
     , "init.author.email" : ""
     , "init.author.url" : ""
+    , json: false
     , link: false
     , logfd : 2
     , loglevel : "http"
@@ -206,6 +207,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , userignorefile : path.resolve(home, ".npmignore")
     , umask: 022
     , version : false
+    , versions : false
     , viewer: process.platform === "win32" ? "browser" : "man"
     , yes: null
 
@@ -238,6 +240,7 @@ exports.types =
   , "init.author.name" : String
   , "init.author.email" : String
   , "init.author.url" : ["", url]
+  , json: Boolean
   , link: Boolean
   , logfd : [Number, Stream]
   , loglevel : ["silent","win","error","warn","http","info","verbose","silly"]
@@ -279,6 +282,7 @@ exports.types =
   , userignorefile : path
   , umask: Octal
   , version : Boolean
+  , versions : Boolean
   , viewer: String
   , yes: [false, null, Boolean]
   , _exit : Boolean

@@ -633,6 +633,24 @@ Type: String
 .P
 The value \fBnpm init\fR should use by default for the package author\'s homepage\.
 .
+.SS "json"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.
+.P
+This feature is currently experimental, and the output data structures
+for many commands is either not implemented in JSON yet, or subject to
+change\.  Only the output from \fBnpm ls \-\-json\fR is currently valid\.
+.
 .SS "link"
 .
 .IP "\(bu" 4
@@ -1177,6 +1195,23 @@ Type: boolean
 .
 .P
 If true, output the npm version and exit successfully\.
+.
+.P
+Only relevant when specified explicitly on the command line\.
+.
+.SS "versions"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: boolean
+.
+.IP "" 0
+.
+.P
+If true, output the npm version as well as node\'s \fBprocess\.versions\fR
+hash, and exit successfully\.
 .
 .P
 Only relevant when specified explicitly on the command line\.
