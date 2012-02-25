@@ -3,10 +3,6 @@
 
 using namespace v8;
 
-extern "C" {
-  void init(Handle<Object> target);
-}
-
 Handle<Value> Method(const Arguments& args) {
   HandleScope scope;
   return scope.Close(String::New("world"));
@@ -15,3 +11,5 @@ Handle<Value> Method(const Arguments& args) {
 void init(Handle<Object> target) {
   NODE_SET_METHOD(target, "hello", Method);
 }
+
+NODE_MODULE(binding, init);
