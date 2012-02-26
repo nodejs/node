@@ -98,6 +98,26 @@ parser.add_option("--shared-cares-libpath",
     dest="shared_cares_libpath",
     help="A directory to search for the shared C-Ares DLL")
 
+parser.add_option("--shared-zlib",
+    action="store_true",
+    dest="shared_zlib",
+    help="Link to a shared zlib DLL instead of static linking")
+
+parser.add_option("--shared-zlib-includes",
+    action="store",
+    dest="shared_zlib_includes",
+    help="Directory containing zlib header files")
+
+parser.add_option("--shared-zlib-libpath",
+    action="store",
+    dest="shared_zlib_libpath",
+    help="A directory to search for the shared zlib DLL")
+
+parser.add_option("--shared-zlib-libname",
+    action="store",
+    dest="shared_zlib_libname",
+    help="Alternative lib name to link to (default: 'z')")
+
 parser.add_option("--with-dtrace",
     action="store_true",
     dest="with_dtrace",
@@ -197,7 +217,17 @@ def configure_node(o):
 
 
 def configure_libz(o):
-  o['libraries'] += ['-lz']
+  o['variables']['node_shared_zlib'] = b(options.shared_zlib)
+
+  # assume shared_zlib if one of these is set?
+  if options.shared_zlib_libpath:
+    o['libraries'] += ['-L%s' % options.shared_zlib_libpath]
+  if options.shared_zlib_libname:
+    o['libraries'] += ['-l%s' % options.shared_zlib_libname]
+  elif options.shared_zlib:
+    o['libraries'] += ['-lz']
+  if options.shared_zlib_includes:
+    o['include_dirs'] += [options.shared_zlib_includes]
 
 
 def configure_v8(o):

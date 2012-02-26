@@ -6,6 +6,7 @@
     'werror': '',
     'node_use_dtrace': 'false',
     'node_shared_v8%': 'false',
+    'node_shared_zlib%': 'false',
     'node_use_openssl%': 'true',
     'node_use_system_openssl%': 'false',
     'library_files': [
@@ -56,7 +57,6 @@
       'dependencies': [
         'deps/http_parser/http_parser.gyp:http_parser',
         'deps/uv/uv.gyp:uv',
-        'deps/zlib/zlib.gyp:zlib',
         'node_js2c#host',
       ],
 
@@ -156,6 +156,10 @@
             'deps/v8/include/v8-debug.h',
           ],
           'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:v8' ],
+        }],
+
+        [ 'node_shared_zlib=="false"', {
+          'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
         }],
 
         [ 'OS=="win"', {
