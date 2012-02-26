@@ -58,14 +58,11 @@ If omitted, `args` defaults to an empty Array.
 The third argument is used to specify additional options, which defaults to:
 
     { cwd: undefined,
-      env: process.env,
-      setsid: false
+      env: process.env
     }
 
 `cwd` allows you to specify the working directory from which the process is spawned.
 Use `env` to specify environment variables that will be visible to the new process.
-
-`setsid`, if set true, will cause the subprocess to be run in a new session.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
