@@ -3,7 +3,11 @@ import os
 import sys
 
 script_dir = os.path.dirname(__file__)
-node_root  = os.path.normpath(os.path.join(script_dir, os.pardir))
+node_root  = os.path.abspath(os.path.join(script_dir, os.pardir))
+if sys.platform == 'win32':
+  output_dir = os.path.join(os.getcwd(), 'out')
+else:
+  output_dir = 'out'
 
 sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
 import gyp
@@ -21,6 +25,12 @@ if __name__ == '__main__':
   args.extend(['-Dvisibility=default'])
   args.extend(['-Dnode_root_dir=%s' % node_root])
   args.extend(['--depth=.']);
+
+  # Tell gyp to write the Makefile/Solution files into output_dir
+  args.extend(['--generator-output', output_dir])
+
+  # Tell make to write its output into the same dir
+  args.extend(['-Goutput_dir=.'])
 
   gyp_args = list(args)
   rc = gyp.main(gyp_args)
