@@ -814,6 +814,20 @@ static const char* get_uv_errno_message(int errorno) {
 }
 
 
+static bool get_uv_dlerror_message(uv_lib_t lib, char* error_msg, int size) {
+  int r;
+  const char *msg;
+  if ((msg = uv_dlerror(lib)) == NULL) {
+    r = snprintf(error_msg, size, "%s", "Unable to load shared library ");
+  } else {
+    r = snprintf(error_msg, size, "%s", msg);
+    uv_dlerror_free(lib, msg);
+  }
+  // return bool if the error message be written correctly
+  return (0 < r && r < size);
+}
+
+
 // hack alert! copy of ErrnoException, tuned for uv errors
 Local<Value> UVException(int errorno,
                          const char *syscall,
@@ -1581,9 +1595,19 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 
   err = uv_dlopen(*filename, &lib);
   if (err.code != UV_OK) {
+    // Retrieve uv_dlerror() message and throw exception with it
+    char dlerror_msg[1024];
+    if (!get_uv_dlerror_message(lib, dlerror_msg, sizeof dlerror_msg)) {
+      Local<Value> exception = Exception::Error(
+          String::New("Cannot retrieve an error message in process.dlopen"));
+      return ThrowException(exception);
+    }
+#ifdef __POSIX__
+    Local<Value> exception = Exception::Error(String::New(dlerror_msg));
+#else  // Windows needs to add the filename into the error message
     Local<Value> exception = Exception::Error(
-        String::Concat(String::New("Unable to load shared library "),
-        args[0]->ToString()));
+        String::Concat(String::New(dlerror_msg), args[0]->ToString()));
+#endif
     return ThrowException(exception);
   }
 
