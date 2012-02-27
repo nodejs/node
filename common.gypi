@@ -36,12 +36,14 @@
       'Release': {
         'conditions': [
           [ 'OS!="solaris"', {
-            'cflags': [ '-fomit-frame-pointer' ]
+              'cflags': [ '-O3','-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
           }],
-        ],
-        # 'defines': [ 'NDEBUG' ],
-        'cflags': [ '-O3', '-fdata-sections', '-ffunction-sections' ],
-        'conditions': [
+          [ 'OS=="solaris" and gcc_optimize_level =="-O3"', {
+              'cflags': [ '-O3', '-fdata-sections', '-ffunction-sections' ],	
+          }],
+          [ 'OS=="solaris" and gcc_optimize_level =="-O"', {
+              'cflags': [ '-O', '-fdata-sections', '-ffunction-sections' ], # For bug fix of #2830	
+          }],
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
           }],
