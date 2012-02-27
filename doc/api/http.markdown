@@ -765,8 +765,7 @@ server--in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
 
-The `chunk` argument should be an array of integers
-or a string.
+The `chunk` argument should be a [buffer](buffers.html) or a string.
 
 The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
