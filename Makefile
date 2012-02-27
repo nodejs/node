@@ -92,7 +92,8 @@ test-npm-publish: node
 	npm_package_config_publishtest=true ./node deps/npm/test/run.js
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
-apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html))
+apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
+          $(addprefix out/,$(apidoc_sources:.markdown=.json))
 
 apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets out/doc/about out/doc/community out/doc/logos out/doc/images
 
@@ -115,7 +116,7 @@ website_files = \
 	out/doc/logos/index.html \
 	$(doc_images)
 
-doc: node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
+doc: node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -126,8 +127,11 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 out/doc/%: doc/%
 	cp -r $< $@
 
-out/doc/api/%.html: doc/api/%.markdown node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
-	out/Release/node tools/doctool/doctool.js doc/template.html $< > $@
+out/doc/api/%.json: doc/api/%.markdown
+	out/Release/node tools/doc/generate.js --format=json $< > $@
+
+out/doc/api/%.html: doc/api/%.markdown
+	out/Release/node tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
