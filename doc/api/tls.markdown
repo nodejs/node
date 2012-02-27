@@ -1,4 +1,4 @@
-## TLS (SSL)
+# TLS (SSL)
 
 Use `require('tls')` to access this module.
 
@@ -26,7 +26,9 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 (TODO: docs on creating a CA, for now interested users should just look at
 `test/fixtures/keys/Makefile` in the Node source code)
 
-### Client-initiated renegotiation attack mitigation
+## Client-initiated renegotiation attack mitigation
+
+<!-- type=misc -->
 
 The TLS protocol lets the client renegotiate certain aspects of the TLS session.
 Unfortunately, session renegotiation requires a disproportional amount of
@@ -49,7 +51,9 @@ and tap `R<CR>` (that's the letter `R` followed by a carriage return) a few
 times.
 
 
-### NPN and SNI
+## NPN and SNI
+
+<!-- type=misc -->
 
 NPN (Next Protocol Negotiation) and SNI (Server Name Indication) are TLS
 handshake extensions allowing you:
@@ -223,6 +227,10 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
 `tls.createSecurePair()` returns a SecurePair object with
 [cleartext](#tls.CleartextStream) and `encrypted` stream properties.
 
+## Class: SecurePair
+
+Returned by tls.createSecurePair.
+
 ### Event: 'secure'
 
 The event is emitted from the SecurePair once the pair has successfully
@@ -232,7 +240,7 @@ Similarly to the checking for the server 'secureConnection' event,
 pair.cleartext.authorized should be checked to confirm whether the certificate
 used properly authorized.
 
-## tls.Server
+## Class: tls.Server
 
 This class is a subclass of `net.Server` and has the same methods on it.
 Instead of accepting just raw TCP connections, this accepts encrypted
@@ -306,7 +314,7 @@ gets high.
 The number of concurrent connections on the server.
 
 
-## tls.CleartextStream
+## Class: tls.CleartextStream
 
 This is a stream on top of the *Encrypted* stream that makes it possible to
 read/write an encrypted data as a cleartext data.
@@ -314,9 +322,9 @@ read/write an encrypted data as a cleartext data.
 This instance implements a duplex [Stream](streams.html#streams) interfaces.
 It has all the common stream methods and events.
 
-### Event: 'secureConnect'
+A ClearTextStream is the `clear` member of a SecurePair object.
 
-`function () {}`
+### Event: 'secureConnect'
 
 This event is emitted after a new connection has been successfully handshaked. 
 The listener will be called no matter if the server's certificate was
