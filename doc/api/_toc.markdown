@@ -1,5 +1,4 @@
-## Table of Contents
-
+* [About these Docs](documentation.html)
 * [Synopsis](synopsis.html)
 * [Globals](globals.html)
 * [STDIO](stdio.html)

@@ -1,3 +1,4 @@
+@include documentation
 @include synopsis
 @include globals
 @include stdio
