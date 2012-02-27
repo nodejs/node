@@ -1,4 +1,6 @@
-## Debugger
+# Debugger
+
+<!-- type=concept -->
 
 V8 comes with an extensive debugger which is accessible out-of-process via a
 simple [TCP protocol](http://code.google.com/p/v8/wiki/DebuggerProtocol).
@@ -74,7 +76,7 @@ The `repl` command allows you to evaluate code remotely. The `next` command
 steps over to the next line. There are a few other commands available and more
 to come. Type `help` to see others.
 
-### Watchers
+## Watchers
 
 You can watch expression and variable values while debugging your code.
 On every breakpoint each expression from the watchers list will be evaluated
@@ -85,9 +87,9 @@ To start watching an expression, type `watch("my_expression")`. `watchers`
 prints the active watchers. To remove a watcher, type
 `unwatch("my_expression")`.
 
-### Commands reference
+## Commands reference
 
-#### Stepping
+### Stepping
 
 * `cont`, `c` - Continue execution
 * `next`, `n` - Step next
@@ -95,7 +97,7 @@ prints the active watchers. To remove a watcher, type
 * `out`, `o` - Step out
 * `pause` - Pause running code (like pause button in Developer TOols)
 
-#### Breakpoints
+### Breakpoints
 
 * `setBreakpoint()`, `sb()` - Set breakpoint on current line
 * `setBreakpoint(line)`, `sb(line)` - Set breakpoint on specific line
@@ -105,7 +107,7 @@ functions body
 script.js
 * `clearBreakpoint`, `cb(...)` - Clear breakpoint
 
-#### Info
+### Info
 
 * `backtrace`, `bt` - Print backtrace of current execution frame
 * `list(5)` - List scripts source code with 5 line context (5 lines before and
@@ -116,21 +118,19 @@ after)
 breakpoint)
 * `repl` - Open debugger's repl for evaluation in debugging script's context
 
-#### Execution control
+### Execution control
 
 * `run` - Run script (automatically runs on debugger's start)
 * `restart` - Restart script
 * `kill` - Kill script
 
-#### Various
+### Various
 
 * `scripts` - List all loaded scripts
 * `version` - Display v8's version
 
-### Advanced Usage
+## Advanced Usage
 
 The V8 debugger can be enabled and accessed either by starting Node with
 the `--debug` command-line flag or by signaling an existing Node process
 with `SIGUSR1`.
-
-
