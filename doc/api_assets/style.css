@@ -12,7 +12,7 @@ body {
   border-top: 6px #8CC84B solid;
 }
 a {
-  color: #690;
+  color: #480;
   text-decoration: underline;
 }
   a:visited {
@@ -128,7 +128,7 @@ header h1 {
   font-size: 30px;
   font-weight: normal;
   line-height: 36px;
-  color: #690;
+  color: #480;
   margin: 15px 0 11px;
 }
 
@@ -282,11 +282,12 @@ hr {
 
   #toc ul, #api-section-index ul li, #api-section-index ul {
     font-family: Georgia, FreeSerif, Times, serif;
+    color:#666!important;
   }
 
   #toc ul a {
     text-decoration:none;
-    border-bottom:1px dotted #690;
+    border-bottom:1px dotted #480;
   }
   #toc ul a:hover, #toc ul a:focus {
     border-bottom:1px dotted #fff;
@@ -427,14 +428,14 @@ a.anchor {
 #footer a {
   text-decoration:none;
   border:none;
-  color: #690;
+  color: #480;
 }
 #footer a:hover {
   color:#000;
 }
 
 #footer p a {
-    border-bottom:1px dotted #690;
+    border-bottom:1px dotted #480;
     color: #878b78;
 }
 
