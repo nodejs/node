@@ -107,7 +107,7 @@ Creates and returns a cipher object, with the given algorithm and password.
 On recent releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.
 `password` is used to derive key and IV, which must be `'binary'` encoded
-string (See the [Buffers](buffers.html) for more information).
+string (See the [Buffer section](buffer.html) for more information).
 
 ## crypto.createCipheriv(algorithm, key, iv)
 
@@ -115,7 +115,7 @@ Creates and returns a cipher object, with the given algorithm, key and iv.
 
 `algorithm` is the same as the `createCipher()`. `key` is a raw key used in
 algorithm. `iv` is an Initialization vector. `key` and `iv` must be `'binary'`
-encoded string (See the [Buffers](buffers.html) for more information).
+encoded string (See the [Buffer section](buffer.html) for more information).
 
 ## Class: Cipher
 

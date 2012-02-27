@@ -38,7 +38,7 @@ Used to print to stdout and stderr. See the [stdio](stdio.html) section.
 
 * {Object}
 
-Used to handle binary data. See the [buffers](buffers.html) section.
+Used to handle binary data. See the [buffer section](buffer.html).
 
 ## require()
 

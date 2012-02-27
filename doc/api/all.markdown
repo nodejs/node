@@ -8,7 +8,7 @@
 @include process
 @include util
 @include events
-@include buffers
+@include buffer
 @include streams
 @include crypto
 @include tls

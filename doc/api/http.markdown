@@ -137,7 +137,7 @@ interface. This is an `EventEmitter` with the following events:
 
 Emitted when a piece of the message body is received. The chunk is a string if
 an encoding has been set with `request.setEncoding()`, otherwise it's a
-[Buffer](buffers.html).
+[Buffer](buffer.html).
 
 Note that the __data will be lost__ if there is no listener when a
 `ServerRequest` emits a `'data'` event.
@@ -673,8 +673,7 @@ server--in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
 
-The `chunk` argument should be an array of integers
-or a string.
+The `chunk` argument should be a [buffer](buffer.html) or a string.
 
 The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
