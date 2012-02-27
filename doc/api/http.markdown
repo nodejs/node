@@ -1,4 +1,4 @@
-## HTTP
+# HTTP
 
 To use the HTTP server and client one must `require('http')`.
 
@@ -23,7 +23,14 @@ parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
 
-## http.Server
+## http.createServer([requestListener])
+
+Returns a new web server object.
+
+The `requestListener` is a function which is automatically
+added to the `'request'` event.
+
+## Class: http.Server
 
 This is an `EventEmitter` with the following events:
 
@@ -88,13 +95,6 @@ sent to the server on that socket.
 
 If a client connection emits an 'error' event - it will forwarded here.
 
-### http.createServer([requestListener])
-
-Returns a new web server object.
-
-The `requestListener` is a function which is automatically
-added to the `'request'` event.
-
 ### server.listen(port, [hostname], [callback])
 
 Begin accepting connections on the specified port and hostname.  If the
@@ -123,7 +123,7 @@ Stops the server from accepting new connections.
 See [net.Server.close()](net.html#server.close).
 
 
-## http.ServerRequest
+## Class: http.ServerRequest
 
 This object is created internally by a HTTP server -- not by
 the user -- and passed as the first argument to a `'request'` listener.
@@ -243,7 +243,7 @@ authentication details.
 
 
 
-## http.ServerResponse
+## Class: http.ServerResponse
 
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event.
@@ -491,7 +491,7 @@ Example:
     });
 
 
-## http.Agent
+## Class: http.Agent
 
 In node 0.5.3+ there is a new implementation of the HTTP Agent which is used
 for pooling sockets used in HTTP client requests.
@@ -522,10 +522,6 @@ Alternatively, you could just opt out of pooling entirely using `agent:false`:
       // Do stuff
     })
 
-## http.globalAgent
-
-Global instance of Agent which is used as the default for all http client requests.
-
 ### agent.maxSockets
 
 By default set to 5. Determines how many concurrent sockets the agent can have 
@@ -541,8 +537,13 @@ modify.
 An object which contains queues of requests that have not yet been assigned to 
 sockets. Do not modify.
 
+## http.globalAgent
 
-## http.ClientRequest
+Global instance of Agent which is used as the default for all http client
+requests.
+
+
+## Class: http.ClientRequest
 
 This object is created internally and returned from `http.request()`.  It
 represents an _in-progress_ request whose header has already been queued.  The
