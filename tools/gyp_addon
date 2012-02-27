@@ -5,9 +5,9 @@ import sys
 script_dir = os.path.dirname(__file__)
 node_root  = os.path.abspath(os.path.join(script_dir, os.pardir))
 if sys.platform == 'win32':
-  output_dir = os.path.join(os.getcwd(), 'out')
+  output_dir = os.path.join(os.getcwd(), 'build')
 else:
-  output_dir = 'out'
+  output_dir = 'build'
 
 sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
 import gyp
