@@ -128,7 +128,7 @@ See [net.Server.close()](net.html#server.close).
 This object is created internally by a HTTP server -- not by
 the user -- and passed as the first argument to a `'request'` listener.
 
-The request implements the [Readable Stream](streams.html#readable_Stream)
+The request implements the [Readable Stream](stream.html#readable_stream)
 interface. This is an `EventEmitter` with the following events:
 
 ### Event: 'data'
@@ -248,7 +248,7 @@ authentication details.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event.
 
-The response implements the [Writable  Stream](streams.html#writable_Stream)
+The response implements the [Writable  Stream](stream.html#writable_stream)
 interface. This is an `EventEmitter` with the following events:
 
 ### Event: 'close'
@@ -583,7 +583,7 @@ event, the entire body will be caught.
 Note: Node does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
 
-The request implements the [Writable  Stream](streams.html#writable_Stream)
+The request implements the [Writable  Stream](stream.html#writable_stream)
 interface. This is an `EventEmitter` with the following events:
 
 ### Event 'response'
@@ -715,7 +715,7 @@ will be called.
 This object is created when making a request with `http.request()`. It is
 passed to the `'response'` event of the request object.
 
-The response implements the [Readable Stream](streams.html#readable_Stream)
+The response implements the [Readable Stream](stream.html#readable_stream)
 interface. This is an `EventEmitter` with the following events:
 
 

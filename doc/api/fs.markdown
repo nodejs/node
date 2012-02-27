@@ -515,7 +515,7 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
 ## Class: fs.ReadStream
 
-`ReadStream` is a [Readable Stream](streams.html#readable_Stream).
+`ReadStream` is a [Readable Stream](stream.html#readable_stream).
 
 ### Event: 'open'
 
@@ -541,7 +541,7 @@ default mode `w`.
 
 ## fs.WriteStream
 
-`WriteStream` is a [Writable Stream](streams.html#writable_Stream).
+`WriteStream` is a [Writable Stream](stream.html#writable_stream).
 
 ### Event: 'open'
 

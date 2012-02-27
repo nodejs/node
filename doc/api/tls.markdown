@@ -319,7 +319,7 @@ The number of concurrent connections on the server.
 This is a stream on top of the *Encrypted* stream that makes it possible to
 read/write an encrypted data as a cleartext data.
 
-This instance implements a duplex [Stream](streams.html#streams) interfaces.
+This instance implements a duplex [Stream](stream.html) interfaces.
 It has all the common stream methods and events.
 
 A ClearTextStream is the `clear` member of a SecurePair object.

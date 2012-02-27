@@ -9,7 +9,7 @@
 @include util
 @include events
 @include buffer
-@include streams
+@include stream
 @include crypto
 @include tls
 @include string_decoder
