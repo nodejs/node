@@ -5,9 +5,7 @@
 @include modules
 @include addons
 @include process
-@include constants
 @include util
-@include freelist
 @include events
 @include buffers
 @include streams
@@ -33,7 +31,4 @@
 @include os
 @include debugger
 @include cluster
-
-# Appendixes
 @include appendix_1
-@include appendix_2
