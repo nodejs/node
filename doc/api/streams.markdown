@@ -1,10 +1,12 @@
-## Streams
+# Streams
 
 A stream is an abstract interface implemented by various objects in Node.
 For example a request to an HTTP server is a stream, as is stdout. Streams
 are readable, writable, or both. All streams are instances of `EventEmitter`.
 
 ## Readable Stream
+
+<!--type=class-->
 
 A `Readable Stream` has the following methods, members, and events.
 
@@ -98,6 +100,8 @@ This keeps `process.stdout` open so that "Goodbye" can be written at the end.
 
 
 ## Writable Stream
+
+<!--type=class-->
 
 A `Writable Stream` has the following methods, members, and events.
 
