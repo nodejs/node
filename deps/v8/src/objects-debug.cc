@@ -333,6 +333,11 @@ void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
 }
 
 
+void AliasedArgumentsEntry::AliasedArgumentsEntryVerify() {
+  VerifySmiField(kAliasedContextSlot);
+}
+
+
 void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);

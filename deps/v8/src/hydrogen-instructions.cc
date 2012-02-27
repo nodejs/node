@@ -276,6 +276,15 @@ bool HValue::IsDefinedAfter(HBasicBlock* other) const {
 }
 
 
+HUseListNode* HUseListNode::tail() {
+  // Skip and remove dead items in the use list.
+  while (tail_ != NULL && tail_->value()->CheckFlag(HValue::kIsDead)) {
+    tail_ = tail_->tail_;
+  }
+  return tail_;
+}
+
+
 HUseIterator::HUseIterator(HUseListNode* head) : next_(head) {
   Advance();
 }
@@ -374,7 +383,7 @@ void HValue::DeleteAndReplaceWith(HValue* other) {
   // We replace all uses first, so Delete can assert that there are none.
   if (other != NULL) ReplaceAllUsesWith(other);
   ASSERT(HasNoUses());
-  ClearOperands();
+  Kill();
   DeleteFromGraph();
 }
 
@@ -392,9 +401,17 @@ void HValue::ReplaceAllUsesWith(HValue* other) {
 }
 
 
-void HValue::ClearOperands() {
+void HValue::Kill() {
+  // Instead of going through the entire use list of each operand, we only
+  // check the first item in each use list and rely on the tail() method to
+  // skip dead items, removing them lazily next time we traverse the list.
+  SetFlag(kIsDead);
   for (int i = 0; i < OperandCount(); ++i) {
-    SetOperandAt(i, NULL);
+    HValue* operand = OperandAt(i);
+    HUseListNode* first = operand->use_list_;
+    if (first != NULL && first->value() == this && first->index() == i) {
+      operand->use_list_ = first->tail();
+    }
   }
 }
 

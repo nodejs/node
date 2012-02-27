@@ -1088,9 +1088,10 @@ Serializer::Serializer(SnapshotByteSink* sink)
       external_reference_encoder_(new ExternalReferenceEncoder),
       large_object_total_(0),
       root_index_wave_front_(0) {
+  isolate_ = Isolate::Current();
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
-  ASSERT(Isolate::Current()->IsDefaultIsolate());
+  ASSERT(isolate_->IsDefaultIsolate());
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
@@ -1642,8 +1643,8 @@ int Serializer::Allocate(int space, int size, bool* new_page) {
     // serialized address.
     CHECK(IsPowerOf2(Page::kPageSize));
     int used_in_this_page = (fullness_[space] & (Page::kPageSize - 1));
-    CHECK(size <= Page::kObjectAreaSize);
-    if (used_in_this_page + size > Page::kObjectAreaSize) {
+    CHECK(size <= SpaceAreaSize(space));
+    if (used_in_this_page + size > SpaceAreaSize(space)) {
       *new_page = true;
       fullness_[space] = RoundUp(fullness_[space], Page::kPageSize);
     }
@@ -1651,6 +1652,15 @@ int Serializer::Allocate(int space, int size, bool* new_page) {
   int allocation_address = fullness_[space];
   fullness_[space] = allocation_address + size;
   return allocation_address;
+}
+
+
+int Serializer::SpaceAreaSize(int space) {
+  if (space == CODE_SPACE) {
+    return isolate_->memory_allocator()->CodePageAreaSize();
+  } else {
+    return Page::kPageSize - Page::kObjectStartOffset;
+  }
 }
 
 

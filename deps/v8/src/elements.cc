@@ -705,10 +705,20 @@ class NonStrictArgumentsElementsAccessor
     } else {
       // Object is not mapped, defer to the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
-      return ElementsAccessor::ForArray(arguments)->Get(arguments,
-                                                        key,
-                                                        obj,
-                                                        receiver);
+      MaybeObject* maybe_result = ElementsAccessor::ForArray(arguments)->Get(
+          arguments, key, obj, receiver);
+      Object* result;
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+      // Elements of the arguments object in slow mode might be slow aliases.
+      if (result->IsAliasedArgumentsEntry()) {
+        AliasedArgumentsEntry* entry = AliasedArgumentsEntry::cast(result);
+        Context* context = Context::cast(parameter_map->get(0));
+        int context_index = entry->aliased_context_slot();
+        ASSERT(!context->get(context_index)->IsTheHole());
+        return context->get(context_index);
+      } else {
+        return result;
+      }
     }
   }
 

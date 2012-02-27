@@ -356,6 +356,9 @@ class VirtualMemory {
   // Uncommit real memory.  Returns whether the operation succeeded.
   bool Uncommit(void* address, size_t size);
 
+  // Creates a single guard page at the given address.
+  bool Guard(void* address);
+
   void Release() {
     ASSERT(IsReserved());
     // Notice: Order is important here. The VirtualMemory object might live

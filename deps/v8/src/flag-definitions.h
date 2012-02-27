@@ -169,6 +169,9 @@ DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
+DEFINE_bool(optimize_for_in, false,
+            "optimize functions containing for-in loops")
+
 // Experimental profiler changes.
 DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")

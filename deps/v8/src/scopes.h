@@ -29,7 +29,7 @@
 #define V8_SCOPES_H_
 
 #include "ast.h"
-#include "hashmap.h"
+#include "zone.h"
 
 namespace v8 {
 namespace internal {
@@ -38,7 +38,7 @@ class CompilationInfo;
 
 
 // A hash map to support fast variable declaration and lookup.
-class VariableMap: public HashMap {
+class VariableMap: public ZoneHashMap {
  public:
   VariableMap();
 

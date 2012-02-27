@@ -42,20 +42,6 @@ S10.4.2.1_A1: FAIL
 15.2.3.6-4-415: FAIL
 15.2.3.6-4-420: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1772
-15.2.3.6-4-292-1: FAIL
-15.2.3.6-4-293-2: FAIL
-15.2.3.6-4-293-3: FAIL
-15.2.3.6-4-294-1: FAIL
-15.2.3.6-4-295-1: FAIL
-15.2.3.6-4-296-1: FAIL
-15.2.3.6-4-333-11: FAIL
-15.2.3.7-6-a-281: FAIL
-15.2.3.7-6-a-282: FAIL
-15.2.3.7-6-a-283: FAIL
-15.2.3.7-6-a-284: FAIL
-15.2.3.7-6-a-285: FAIL
-
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # We deliberately treat arguments to parseInt() with a leading zero as
@@ -68,11 +54,6 @@ S15.1.2.2_A5.1_T1: FAIL_OK
 S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
 S15.8.2.13_A23: PASS || FAIL_OK
-
-# We are silent in some regexp cases where the spec wants us to give
-# errors, for compatibility.
-S15.10.2.11_A1_T2: FAIL
-S15.10.2.11_A1_T3: FAIL
 
 # We are more lenient in which string character escapes we allow than
 # the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.

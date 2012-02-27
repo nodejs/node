@@ -122,13 +122,15 @@ Debug.State = {
 };
 var trace_compile = false;  // Tracing all compile events?
 var trace_debug_json = false; // Tracing all debug json packets?
-var last_cmd_line = '';
+var last_cmd = '';
 //var lol_is_enabled;  // Set to true in d8.cc if LIVE_OBJECT_LIST is defined.
 var lol_next_dump_index = 0;
 var kDefaultLolLinesToPrintAtATime = 10;
 var kMaxLolLinesToPrintAtATime = 1000;
 var repeat_cmd_line = '';
 var is_running = true;
+// Global variable used to store whether a handle was requested.
+var lookup_handle = null;
 
 // Copied from debug-delay.js.  This is needed below:
 function ScriptTypeFlag(type) {
@@ -155,7 +157,7 @@ function DebugMessageDetails(message) {
 }
 
 function DebugEventDetails(response) {
-  details = {text:'', running:false};
+  var details = {text:'', running:false};
 
   // Get the running state.
   details.running = response.running();
@@ -588,7 +590,6 @@ DebugRequest.prototype.createLOLRequest = function(command,
 
 // Create a JSON request for the evaluation command.
 DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
-  // Global varaible used to store whether a handle was requested.
   lookup_handle = null;
 
   if (lol_is_enabled) {
@@ -1948,7 +1949,7 @@ function roundNumber(num, length) {
 
 // Convert a JSON response to text for display in a text based debugger.
 function DebugResponseDetails(response) {
-  details = { text: '', running: false };
+  var details = { text: '', running: false };
 
   try {
     if (!response.success()) {

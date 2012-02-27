@@ -90,9 +90,14 @@ class FullCodeGenerator: public AstVisitor {
         stack_checks_(2),  // There's always at least one.
         type_feedback_cells_(info->HasDeoptimizationSupport()
                              ? info->function()->ast_node_count() : 0),
-        ic_total_count_(0) { }
+        ic_total_count_(0),
+        has_self_optimization_header_(false) { }
 
   static bool MakeCode(CompilationInfo* info);
+
+  // Returns the platform-specific size in bytes of the self-optimization
+  // header.
+  static int self_optimization_header_size();
 
   // Encode state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
@@ -786,6 +791,7 @@ class FullCodeGenerator: public AstVisitor {
   ZoneList<BailoutEntry> stack_checks_;
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
+  bool has_self_optimization_header_;
   Handle<FixedArray> handler_table_;
   Handle<JSGlobalPropertyCell> profiling_counter_;
 

@@ -563,6 +563,12 @@ void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
 }
 
 
+void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AliasedArgumentsEntry");
+  PrintF(out, "\n - aliased_context_slot: %d", aliased_context_slot());
+}
+
+
 void FixedArray::FixedArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "FixedArray");
   PrintF(out, " - length: %d", length());

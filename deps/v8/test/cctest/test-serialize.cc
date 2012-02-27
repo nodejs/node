@@ -558,7 +558,8 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
 TEST(LinearAllocation) {
   v8::V8::Initialize();
   int new_space_max = 512 * KB;
-  int paged_space_max = Page::kMaxHeapObjectSize;
+  int paged_space_max = Page::kMaxNonCodeHeapObjectSize;
+  int code_space_max = HEAP->code_space()->AreaSize();
 
   for (int size = 1000; size < 5 * MB; size += size >> 1) {
     size &= ~8;  // Round.
@@ -568,7 +569,7 @@ TEST(LinearAllocation) {
         new_space_size,
         paged_space_size,  // Old pointer space.
         paged_space_size,  // Old data space.
-        HEAP->code_space()->RoundSizeDownToObjectAlignment(paged_space_size),
+        HEAP->code_space()->RoundSizeDownToObjectAlignment(code_space_max),
         HEAP->map_space()->RoundSizeDownToObjectAlignment(paged_space_size),
         HEAP->cell_space()->RoundSizeDownToObjectAlignment(paged_space_size),
         size);             // Large object space.
@@ -604,7 +605,7 @@ TEST(LinearAllocation) {
       int old_page_fullness = i % Page::kPageSize;
       int page_fullness = (i + kSmallFixedArraySize) % Page::kPageSize;
       if (page_fullness < old_page_fullness ||
-          page_fullness > Page::kObjectAreaSize) {
+          page_fullness > HEAP->old_pointer_space()->AreaSize()) {
         i = RoundUp(i, Page::kPageSize);
         pointer_last = NULL;
       }
@@ -624,7 +625,7 @@ TEST(LinearAllocation) {
       int old_page_fullness = i % Page::kPageSize;
       int page_fullness = (i + kSmallStringSize) % Page::kPageSize;
       if (page_fullness < old_page_fullness ||
-          page_fullness > Page::kObjectAreaSize) {
+          page_fullness > HEAP->old_data_space()->AreaSize()) {
         i = RoundUp(i, Page::kPageSize);
         data_last = NULL;
       }
@@ -642,7 +643,7 @@ TEST(LinearAllocation) {
       int old_page_fullness = i % Page::kPageSize;
       int page_fullness = (i + kMapSize) % Page::kPageSize;
       if (page_fullness < old_page_fullness ||
-          page_fullness > Page::kObjectAreaSize) {
+          page_fullness > HEAP->map_space()->AreaSize()) {
         i = RoundUp(i, Page::kPageSize);
         map_last = NULL;
       }
@@ -653,7 +654,7 @@ TEST(LinearAllocation) {
       map_last = obj;
     }
 
-    if (size > Page::kObjectAreaSize) {
+    if (size > Page::kMaxNonCodeHeapObjectSize) {
       // Support for reserving space in large object space is not there yet,
       // but using an always-allocate scope is fine for now.
       AlwaysAllocateScope always;

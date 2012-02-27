@@ -2760,6 +2760,7 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
       self,
       index,
       value_obj,
+      NONE,
       i::kNonStrictMode);
   has_pending_exception = obj.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);

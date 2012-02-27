@@ -1054,3 +1054,24 @@ for (var i = 0; i < 1000; i++) {
   Object.defineProperty(o, i, {value: i, enumerable: false});
 }
 assertEquals(999, o[999]);
+
+
+// Regression test: Bizzare behavior on non-strict arguments object.
+(function test(arg0) {
+  // Here arguments[0] is a fast alias on arg0.
+  Object.defineProperty(arguments, "0", {
+    value:1,
+    enumerable:false
+  });
+  // Here arguments[0] is a slow alias on arg0.
+  Object.defineProperty(arguments, "0", {
+    value:2,
+    writable:false
+  });
+  // Here arguments[0] is no alias at all.
+  Object.defineProperty(arguments, "0", {
+    value:3
+  });
+  assertEquals(2, arg0);
+  assertEquals(3, arguments[0]);
+})(0);

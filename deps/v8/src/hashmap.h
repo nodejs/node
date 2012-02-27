@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,34 +29,22 @@
 #define V8_HASHMAP_H_
 
 #include "allocation.h"
+#include "checks.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
 
-
-// Allocator defines the memory allocator interface
-// used by HashMap and implements a default allocator.
-class Allocator BASE_EMBEDDED {
+template<class AllocationPolicy>
+class TemplateHashMap {
  public:
-  virtual ~Allocator()  {}
-  virtual void* New(size_t size)  { return Malloced::New(size); }
-  virtual void Delete(void* p)  { Malloced::Delete(p); }
-};
-
-
-class HashMap {
- public:
-  static Allocator* DefaultAllocator;
-
   typedef bool (*MatchFun) (void* key1, void* key2);
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  explicit HashMap(MatchFun match,
-                   Allocator* allocator = DefaultAllocator,
-                   uint32_t initial_capacity = 8);
+  TemplateHashMap(MatchFun match, uint32_t initial_capacity = 8);
 
-  ~HashMap();
+  ~TemplateHashMap();
 
   // HashMap entries are (key, value, hash) triplets.
   // Some clients may not need to use the value slot
@@ -100,7 +88,6 @@ class HashMap {
   Entry* Next(Entry* p) const;
 
  private:
-  Allocator* allocator_;
   MatchFun match_;
   Entry* map_;
   uint32_t capacity_;
@@ -112,6 +99,196 @@ class HashMap {
   void Resize();
 };
 
+typedef TemplateHashMap<FreeStoreAllocationPolicy> HashMap;
+
+template<class P>
+TemplateHashMap<P>::TemplateHashMap(MatchFun match,
+                    uint32_t initial_capacity) {
+  match_ = match;
+  Initialize(initial_capacity);
+}
+
+
+template<class P>
+TemplateHashMap<P>::~TemplateHashMap() {
+  P::Delete(map_);
+}
+
+
+template<class P>
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Lookup(
+    void* key, uint32_t hash, bool insert) {
+  // Find a matching entry.
+  Entry* p = Probe(key, hash);
+  if (p->key != NULL) {
+    return p;
+  }
+
+  // No entry found; insert one if necessary.
+  if (insert) {
+    p->key = key;
+    p->value = NULL;
+    p->hash = hash;
+    occupancy_++;
+
+    // Grow the map if we reached >= 80% occupancy.
+    if (occupancy_ + occupancy_/4 >= capacity_) {
+      Resize();
+      p = Probe(key, hash);
+    }
+
+    return p;
+  }
+
+  // No entry found and none inserted.
+  return NULL;
+}
+
+
+template<class P>
+void TemplateHashMap<P>::Remove(void* key, uint32_t hash) {
+  // Lookup the entry for the key to remove.
+  Entry* p = Probe(key, hash);
+  if (p->key == NULL) {
+    // Key not found nothing to remove.
+    return;
+  }
+
+  // To remove an entry we need to ensure that it does not create an empty
+  // entry that will cause the search for another entry to stop too soon. If all
+  // the entries between the entry to remove and the next empty slot have their
+  // initial position inside this interval, clearing the entry to remove will
+  // not break the search. If, while searching for the next empty entry, an
+  // entry is encountered which does not have its initial position between the
+  // entry to remove and the position looked at, then this entry can be moved to
+  // the place of the entry to remove without breaking the search for it. The
+  // entry made vacant by this move is now the entry to remove and the process
+  // starts over.
+  // Algorithm from http://en.wikipedia.org/wiki/Open_addressing.
+
+  // This guarantees loop termination as there is at least one empty entry so
+  // eventually the removed entry will have an empty entry after it.
+  ASSERT(occupancy_ < capacity_);
+
+  // p is the candidate entry to clear. q is used to scan forwards.
+  Entry* q = p;  // Start at the entry to remove.
+  while (true) {
+    // Move q to the next entry.
+    q = q + 1;
+    if (q == map_end()) {
+      q = map_;
+    }
+
+    // All entries between p and q have their initial position between p and q
+    // and the entry p can be cleared without breaking the search for these
+    // entries.
+    if (q->key == NULL) {
+      break;
+    }
+
+    // Find the initial position for the entry at position q.
+    Entry* r = map_ + (q->hash & (capacity_ - 1));
+
+    // If the entry at position q has its initial position outside the range
+    // between p and q it can be moved forward to position p and will still be
+    // found. There is now a new candidate entry for clearing.
+    if ((q > p && (r <= p || r > q)) ||
+        (q < p && (r <= p && r > q))) {
+      *p = *q;
+      p = q;
+    }
+  }
+
+  // Clear the entry which is allowed to en emptied.
+  p->key = NULL;
+  occupancy_--;
+}
+
+
+template<class P>
+void TemplateHashMap<P>::Clear() {
+  // Mark all entries as empty.
+  const Entry* end = map_end();
+  for (Entry* p = map_; p < end; p++) {
+    p->key = NULL;
+  }
+  occupancy_ = 0;
+}
+
+
+template<class P>
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Start() const {
+  return Next(map_ - 1);
+}
+
+
+template<class P>
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Next(Entry* p) const {
+  const Entry* end = map_end();
+  ASSERT(map_ - 1 <= p && p < end);
+  for (p++; p < end; p++) {
+    if (p->key != NULL) {
+      return p;
+    }
+  }
+  return NULL;
+}
+
+
+template<class P>
+typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Probe(void* key,
+                                                            uint32_t hash) {
+  ASSERT(key != NULL);
+
+  ASSERT(IsPowerOf2(capacity_));
+  Entry* p = map_ + (hash & (capacity_ - 1));
+  const Entry* end = map_end();
+  ASSERT(map_ <= p && p < end);
+
+  ASSERT(occupancy_ < capacity_);  // Guarantees loop termination.
+  while (p->key != NULL && (hash != p->hash || !match_(key, p->key))) {
+    p++;
+    if (p >= end) {
+      p = map_;
+    }
+  }
+
+  return p;
+}
+
+
+template<class P>
+void TemplateHashMap<P>::Initialize(uint32_t capacity) {
+  ASSERT(IsPowerOf2(capacity));
+  map_ = reinterpret_cast<Entry*>(P::New(capacity * sizeof(Entry)));
+  if (map_ == NULL) {
+    v8::internal::FatalProcessOutOfMemory("HashMap::Initialize");
+    return;
+  }
+  capacity_ = capacity;
+  Clear();
+}
+
+
+template<class P>
+void TemplateHashMap<P>::Resize() {
+  Entry* map = map_;
+  uint32_t n = occupancy_;
+
+  // Allocate larger map.
+  Initialize(capacity_ * 2);
+
+  // Rehash all current entries.
+  for (Entry* p = map; n > 0; p++) {
+    if (p->key != NULL) {
+      Lookup(p->key, p->hash, true)->value = p->value;
+      n--;
+    }
+  }
+
+  // Delete old map.
+  P::Delete(map);
+}
 
 } }  // namespace v8::internal
 

@@ -451,7 +451,7 @@ Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
     base = data->lazy_deoptimization_entry_code_;
   }
   return
-      static_cast<Address>(base->body()) + (id * table_entry_size_);
+      static_cast<Address>(base->area_start()) + (id * table_entry_size_);
 }
 
 
@@ -464,14 +464,14 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
     base = data->lazy_deoptimization_entry_code_;
   }
   if (base == NULL ||
-      addr < base->body() ||
-      addr >= base->body() +
+      addr < base->area_start() ||
+      addr >= base->area_start() +
           (kNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-      static_cast<int>(addr - base->body()) % table_entry_size_);
-  return static_cast<int>(addr - base->body()) / table_entry_size_;
+      static_cast<int>(addr - base->area_start()) % table_entry_size_);
+  return static_cast<int>(addr - base->area_start()) / table_entry_size_;
 }
 
 
@@ -1152,11 +1152,12 @@ MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
       Isolate::Current()->memory_allocator()->AllocateChunk(desc.instr_size,
                                                             EXECUTABLE,
                                                             NULL);
+  ASSERT(chunk->area_size() >= desc.instr_size);
   if (chunk == NULL) {
     V8::FatalProcessOutOfMemory("Not enough memory for deoptimization table");
   }
-  memcpy(chunk->body(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->body(), desc.instr_size);
+  memcpy(chunk->area_start(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(chunk->area_start(), desc.instr_size);
   return chunk;
 }
 

@@ -1,3 +1,17 @@
+2012-02-27: Version 3.9.11
+
+        Make 'module' a context-sensitive keyword (V8 issue 1957).
+
+
+2012-02-24: Version 3.9.10
+
+        Fixed V8 issues 1322, 1772 and 1969.
+
+        Conformance improvements.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-02-23: Version 3.9.9
 
         Supported fast case for-in in Crankshaft.

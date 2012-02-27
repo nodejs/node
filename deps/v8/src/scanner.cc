@@ -850,9 +850,6 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
   KEYWORD_GROUP('l')                                                \
   KEYWORD("let", harmony_scoping                                    \
                  ? Token::LET : Token::FUTURE_STRICT_RESERVED_WORD) \
-  KEYWORD_GROUP('m')                                                \
-  KEYWORD("module", harmony_modules                                 \
-                    ? Token::MODULE : Token::IDENTIFIER)            \
   KEYWORD_GROUP('n')                                                \
   KEYWORD("new", Token::NEW)                                        \
   KEYWORD("null", Token::NULL_LITERAL)                              \

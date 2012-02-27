@@ -214,13 +214,12 @@ class Genesis BASE_EMBEDDED {
   };
 
   class ExtensionStates {
-  public:
+   public:
     ExtensionStates();
     ExtensionTraversalState get_state(RegisteredExtension* extension);
     void set_state(RegisteredExtension* extension,
                    ExtensionTraversalState state);
-  private:
-    Allocator allocator_;
+   private:
     HashMap map_;
     DISALLOW_COPY_AND_ASSIGN(ExtensionStates);
   };
@@ -1961,9 +1960,7 @@ static bool MatchRegisteredExtensions(void* key1, void* key2) {
 }
 
 Genesis::ExtensionStates::ExtensionStates()
-  : allocator_(),
-    map_(MatchRegisteredExtensions, &allocator_, 8)
-  {}
+  : map_(MatchRegisteredExtensions, 8) { }
 
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {

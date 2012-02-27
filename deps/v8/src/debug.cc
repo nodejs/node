@@ -37,6 +37,7 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
+#include "full-codegen.h"
 #include "global-handles.h"
 #include "ic.h"
 #include "ic-inl.h"
@@ -1752,7 +1753,6 @@ static bool CompileFullCodeForDebugging(Handle<SharedFunctionInfo> shared,
     ASSERT(new_code->has_debug_break_slots());
     ASSERT(current_code->is_compiled_optimizable() ==
            new_code->is_compiled_optimizable());
-    ASSERT(current_code->instruction_size() <= new_code->instruction_size());
   }
 #endif
   return result;
@@ -1829,6 +1829,13 @@ static void RedirectActivationsToRecompiledCodeOnThread(
       // Passed a debug break slot in the full code with debug
       // break slots.
       debug_break_slot_count++;
+    }
+    if (frame_code->has_self_optimization_header() &&
+        !new_code->has_self_optimization_header()) {
+      delta -= FullCodeGenerator::self_optimization_header_size();
+    } else {
+      ASSERT(frame_code->has_self_optimization_header() ==
+             new_code->has_self_optimization_header());
     }
     int debug_break_slot_bytes =
         debug_break_slot_count * Assembler::kDebugBreakSlotLength;

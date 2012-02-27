@@ -237,8 +237,8 @@ bool IsEqualNumber(void* first, void* second) {
 
 
 void ObjectLiteral::CalculateEmitStore() {
-  HashMap properties(&IsEqualString);
-  HashMap elements(&IsEqualNumber);
+  ZoneHashMap properties(&IsEqualString);
+  ZoneHashMap elements(&IsEqualNumber);
   for (int i = this->properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = this->properties()->at(i);
     Literal* literal = property->key();
@@ -249,7 +249,7 @@ void ObjectLiteral::CalculateEmitStore() {
     }
 
     uint32_t hash;
-    HashMap* table;
+    ZoneHashMap* table;
     void* key;
     Factory* factory = Isolate::Current()->factory();
     if (handle->IsSymbol()) {

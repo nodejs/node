@@ -119,6 +119,11 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+int FullCodeGenerator::self_optimization_header_size() {
+  return 0;  // TODO(jkummerow): determine correct value.
+}
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right.  The actual
 // argument count matches the formal parameter count expected by the
@@ -140,13 +145,6 @@ void FullCodeGenerator::Generate() {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
-#ifdef DEBUG
-  if (strlen(FLAG_stop_at) > 0 &&
-      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-    __ stop("stop-at");
-  }
-#endif
-
   // We can optionally optimize based on counters rather than statistical
   // sampling.
   if (info->ShouldSelfOptimize()) {
@@ -154,6 +152,7 @@ void FullCodeGenerator::Generate() {
       PrintF("[adding self-optimization header to %s]\n",
              *info->function()->debug_name()->ToCString());
     }
+    has_self_optimization_header_ = true;
     MaybeObject* maybe_cell = isolate()->heap()->AllocateJSGlobalPropertyCell(
         Smi::FromInt(Compiler::kCallsUntilPrimitiveOpt));
     JSGlobalPropertyCell* cell;
@@ -165,8 +164,16 @@ void FullCodeGenerator::Generate() {
       Handle<Code> compile_stub(
           isolate()->builtins()->builtin(Builtins::kLazyRecompile));
       __ Jump(compile_stub, RelocInfo::CODE_TARGET, eq, a3, Operand(zero_reg));
+      ASSERT(masm_->pc_offset() == self_optimization_header_size());
     }
   }
+
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    __ stop("stop-at");
+  }
+#endif
 
   // Strict mode functions and builtins need to replace the receiver
   // with undefined when called as functions (without an explicit

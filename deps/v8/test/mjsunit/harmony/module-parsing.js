@@ -63,18 +63,28 @@ module E3 = E1.F
 
 // Check that ASI does not interfere.
 
-module
-X
+module X
 {
 let x
 }
 
-module
-Y
+module Y
 =
 X
 
-module
-Z
+module Z
 at
 "file://local"
+
+
+// Check that 'module' still works as an identifier.
+
+var module
+module = {}
+module["a"] = 6
+function module() {}
+function f(module) { return module }
+try {} catch (module) {}
+
+module
+v = 20

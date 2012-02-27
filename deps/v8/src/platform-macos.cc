@@ -429,6 +429,12 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 }
 
 
+bool VirtualMemory::Guard(void* address) {
+  OS::Guard(address, OS::CommitPageSize());
+  return true;
+}
+
+
 bool VirtualMemory::CommitRegion(void* address,
                                  size_t size,
                                  bool is_executable) {

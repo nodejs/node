@@ -556,6 +556,9 @@ class Serializer : public SerializerDeserializer {
     return external_reference_encoder_->Encode(addr);
   }
 
+  int SpaceAreaSize(int space);
+
+  Isolate* isolate_;
   // Keep track of the fullness of each space in order to generate
   // relative addresses for back references.  Large objects are
   // just numbered sequentially since relative addresses make no

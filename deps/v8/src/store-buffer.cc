@@ -453,14 +453,14 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
 
 // Compute start address of the first map following given addr.
 static inline Address MapStartAlign(Address addr) {
-  Address page = Page::FromAddress(addr)->ObjectAreaStart();
+  Address page = Page::FromAddress(addr)->area_start();
   return page + (((addr - page) + (Map::kSize - 1)) / Map::kSize * Map::kSize);
 }
 
 
 // Compute end address of the first map preceding given addr.
 static inline Address MapEndAlign(Address addr) {
-  Address page = Page::FromAllocationTop(addr)->ObjectAreaStart();
+  Address page = Page::FromAllocationTop(addr)->area_start();
   return page + ((addr - page) / Map::kSize * Map::kSize);
 }
 
@@ -523,8 +523,8 @@ void StoreBuffer::FindPointersToNewSpaceOnPage(
     Page* page,
     RegionCallback region_callback,
     ObjectSlotCallback slot_callback) {
-  Address visitable_start = page->ObjectAreaStart();
-  Address end_of_page = page->ObjectAreaEnd();
+  Address visitable_start = page->area_start();
+  Address end_of_page = page->area_end();
 
   Address visitable_end = visitable_start;
 

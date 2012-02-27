@@ -177,6 +177,7 @@ namespace internal {
   V(eval_symbol, "eval")                                                 \
   V(function_symbol, "function")                                         \
   V(length_symbol, "length")                                             \
+  V(module_symbol, "module")                                             \
   V(name_symbol, "name")                                                 \
   V(native_symbol, "native")                                             \
   V(null_symbol, "null")                                                 \
@@ -345,7 +346,7 @@ class PromotionQueue {
           NewSpacePage::FromAddress(reinterpret_cast<Address>(front_));
       ASSERT(!front_page->prev_page()->is_anchor());
       front_ =
-          reinterpret_cast<intptr_t*>(front_page->prev_page()->body_limit());
+          reinterpret_cast<intptr_t*>(front_page->prev_page()->area_end());
     }
     *target = reinterpret_cast<HeapObject*>(*(--front_));
     *size = static_cast<int>(*(--front_));
@@ -483,9 +484,6 @@ class Heap {
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
   intptr_t Available();
-
-  // Returns the maximum object size in paged space.
-  inline int MaxObjectSizeInPagedSpace();
 
   // Returns of size of all objects residing in the heap.
   intptr_t SizeOfObjects();
@@ -643,6 +641,9 @@ class Heap {
 
   // Allocates an empty TypeFeedbackInfo.
   MUST_USE_RESULT MaybeObject* AllocateTypeFeedbackInfo();
+
+  // Allocates an AliasedArgumentsEntry.
+  MUST_USE_RESULT MaybeObject* AllocateAliasedArgumentsEntry(int slot);
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();

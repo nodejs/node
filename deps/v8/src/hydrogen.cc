@@ -97,7 +97,7 @@ void HBasicBlock::RemovePhi(HPhi* phi) {
   ASSERT(phi->block() == this);
   ASSERT(phis_.Contains(phi));
   ASSERT(phi->HasNoUses() || !phi->is_live());
-  phi->ClearOperands();
+  phi->Kill();
   phis_.RemoveElement(phi);
   phi->SetBlock(NULL);
 }
@@ -3241,6 +3241,10 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   ASSERT(!HasStackOverflow());
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
+
+  if (!FLAG_optimize_for_in) {
+    return Bailout("ForInStatement optimization is disabled");
+  }
 
   if (!stmt->each()->IsVariableProxy() ||
       !stmt->each()->AsVariableProxy()->var()->IsStackLocal()) {

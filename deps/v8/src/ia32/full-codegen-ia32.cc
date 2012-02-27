@@ -100,6 +100,11 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+int FullCodeGenerator::self_optimization_header_size() {
+  return 13;
+}
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -122,13 +127,6 @@ void FullCodeGenerator::Generate() {
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
-#ifdef DEBUG
-  if (strlen(FLAG_stop_at) > 0 &&
-      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-    __ int3();
-  }
-#endif
-
   // We can optionally optimize based on counters rather than statistical
   // sampling.
   if (info->ShouldSelfOptimize()) {
@@ -136,6 +134,7 @@ void FullCodeGenerator::Generate() {
       PrintF("[adding self-optimization header to %s]\n",
              *info->function()->debug_name()->ToCString());
     }
+    has_self_optimization_header_ = true;
     MaybeObject* maybe_cell = isolate()->heap()->AllocateJSGlobalPropertyCell(
         Smi::FromInt(Compiler::kCallsUntilPrimitiveOpt));
     JSGlobalPropertyCell* cell;
@@ -146,8 +145,16 @@ void FullCodeGenerator::Generate() {
           isolate()->builtins()->builtin(Builtins::kLazyRecompile));
       STATIC_ASSERT(kSmiTag == 0);
       __ j(zero, compile_stub);
+      ASSERT(masm_->pc_offset() == self_optimization_header_size());
     }
   }
+
+#ifdef DEBUG
+  if (strlen(FLAG_stop_at) > 0 &&
+      info->function()->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+    __ int3();
+  }
+#endif
 
   // Strict mode functions and builtins need to replace the receiver
   // with undefined when called as functions (without an explicit
@@ -335,7 +342,15 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
       int distance = masm_->SizeOfCodeGeneratedSince(back_edge_target);
       weight = Min(127, Max(1, distance / 100));
     }
-    __ sub(Operand::Cell(profiling_counter_), Immediate(Smi::FromInt(weight)));
+    if (Serializer::enabled()) {
+      __ mov(ebx, Immediate(profiling_counter_));
+      __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+             Immediate(Smi::FromInt(weight)));
+    } else {
+      // This version is slightly faster, but not snapshot safe.
+      __ sub(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(weight)));
+    }
     __ j(positive, &ok, Label::kNear);
     InterruptStub stub;
     __ CallStub(&stub);
@@ -365,8 +380,14 @@ void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt,
 
   if (FLAG_count_based_interrupts) {
     // Reset the countdown.
-    __ mov(Operand::Cell(profiling_counter_),
-           Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+    if (Serializer::enabled()) {
+      __ mov(ebx, Immediate(profiling_counter_));
+      __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+    } else {
+      __ mov(Operand::Cell(profiling_counter_),
+             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+    }
   }
 
   __ bind(&ok);
@@ -396,8 +417,15 @@ void FullCodeGenerator::EmitReturnSequence() {
         int distance = masm_->pc_offset();
         weight = Min(127, Max(1, distance / 100));
       }
-      __ sub(Operand::Cell(profiling_counter_),
-             Immediate(Smi::FromInt(weight)));
+      if (Serializer::enabled()) {
+        __ mov(ebx, Immediate(profiling_counter_));
+        __ sub(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+               Immediate(Smi::FromInt(weight)));
+      } else {
+        // This version is slightly faster, but not snapshot safe.
+        __ sub(Operand::Cell(profiling_counter_),
+               Immediate(Smi::FromInt(weight)));
+      }
       Label ok;
       __ j(positive, &ok, Label::kNear);
       __ push(eax);
@@ -405,8 +433,14 @@ void FullCodeGenerator::EmitReturnSequence() {
       __ CallStub(&stub);
       __ pop(eax);
       // Reset the countdown.
-      __ mov(Operand::Cell(profiling_counter_),
-             Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      if (Serializer::enabled()) {
+        __ mov(ebx, Immediate(profiling_counter_));
+        __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
+               Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      } else {
+        __ mov(Operand::Cell(profiling_counter_),
+               Immediate(Smi::FromInt(FLAG_interrupt_budget)));
+      }
       __ bind(&ok);
     }
 #ifdef DEBUG

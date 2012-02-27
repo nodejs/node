@@ -1,4 +1,4 @@
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -78,7 +78,6 @@ SOURCES = {
     fast-dtoa.cc
     fixed-dtoa.cc
     handles.cc
-    hashmap.cc
     heap-profiler.cc
     heap.cc
     hydrogen.cc
@@ -246,7 +245,6 @@ PREPARSER_SOURCES = {
     dtoa.cc
     fast-dtoa.cc
     fixed-dtoa.cc
-    hashmap.cc
     preparse-data.cc
     preparser.cc
     preparser-api.cc

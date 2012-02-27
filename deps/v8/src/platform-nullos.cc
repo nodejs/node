@@ -295,6 +295,12 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
+bool VirtualMemory::Guard(void* address) {
+  UNIMPLEMENTED();
+  return false;
+}
+
+
 class Thread::PlatformData : public Malloced {
  public:
   PlatformData() {

@@ -1039,7 +1039,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
         elms->set(IS_ACCESSOR_INDEX, heap->false_value());
         elms->set(VALUE_INDEX, *substr);
         elms->set(WRITABLE_INDEX, heap->false_value());
-        elms->set(ENUMERABLE_INDEX,  heap->false_value());
+        elms->set(ENUMERABLE_INDEX,  heap->true_value());
         elms->set(CONFIGURABLE_INDEX, heap->false_value());
         return *desc;
       }
@@ -4355,53 +4355,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  // Check if this is an element.
-  uint32_t index;
-  bool is_element = name->AsArrayIndex(&index);
-
-  // Special case for elements if any of the flags might be involved.
-  // If elements are in fast case we always implicitly assume that:
-  // DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
-  if (is_element && (attr != NONE ||
-      js_object->HasLocalElement(index) == JSObject::DICTIONARY_ELEMENT)) {
-    // Normalize the elements to enable attributes on the property.
-    if (js_object->IsJSGlobalProxy()) {
-      // We do not need to do access checks here since these has already
-      // been performed by the call to GetOwnProperty.
-      Handle<Object> proto(js_object->GetPrototype());
-      // If proxy is detached, ignore the assignment. Alternatively,
-      // we could throw an exception.
-      if (proto->IsNull()) return *obj_value;
-      js_object = Handle<JSObject>::cast(proto);
-    }
-
-    // Don't allow element properties to be redefined on objects with external
-    // array elements.
-    if (js_object->HasExternalArrayElements()) {
-      Handle<Object> args[2] = { js_object, name };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("redef_external_array_element",
-                                           HandleVector(args, 2));
-      return isolate->Throw(*error);
-    }
-
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(js_object);
-    // Make sure that we never go back to fast case.
-    dictionary->set_requires_slow_elements();
-    PropertyDetails details = PropertyDetails(attr, NORMAL);
-    Handle<SeededNumberDictionary> extended_dictionary =
-        SeededNumberDictionary::Set(dictionary, index, obj_value, details);
-    if (*extended_dictionary != *dictionary) {
-      if (js_object->GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
-        FixedArray::cast(js_object->elements())->set(1, *extended_dictionary);
-      } else {
-        js_object->set_elements(*extended_dictionary);
-      }
-    }
-    return *obj_value;
-  }
-
   LookupResult result(isolate);
   js_object->LocalLookupRealNamedProperty(*name, &result);
 
@@ -4457,35 +4410,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
 }
 
 
-// Special case for elements if any of the flags are true.
-// If elements are in fast case we always implicitly assume that:
-// DONT_DELETE: false, DONT_ENUM: false, READ_ONLY: false.
-static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
-                                              Handle<JSObject> js_object,
-                                              uint32_t index,
-                                              Handle<Object> value,
-                                              PropertyAttributes attr) {
-  // Normalize the elements to enable attributes on the property.
-  Handle<SeededNumberDictionary> dictionary =
-      JSObject::NormalizeElements(js_object);
-  // Make sure that we never go back to fast case.
-  dictionary->set_requires_slow_elements();
-  PropertyDetails details = PropertyDetails(attr, NORMAL);
-  Handle<SeededNumberDictionary> extended_dictionary =
-      SeededNumberDictionary::Set(dictionary, index, value, details);
-  if (*extended_dictionary != *dictionary) {
-    js_object->set_elements(*extended_dictionary);
-  }
-  return *value;
-}
-
-
 MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
                                         Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value,
                                         PropertyAttributes attr,
                                         StrictModeFlag strict_mode) {
+  SetPropertyMode set_mode = attr == NONE ? SET_PROPERTY : DEFINE_PROPERTY;
   HandleScope scope(isolate);
 
   if (object->IsUndefined() || object->IsNull()) {
@@ -4523,12 +4454,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
-      return NormalizeObjectSetElement(isolate, js_object, index, value, attr);
-    }
-
-    Handle<Object> result =
-        JSObject::SetElement(js_object, index, value, strict_mode);
+    Handle<Object> result = JSObject::SetElement(
+        js_object, index, value, attr, strict_mode, set_mode);
     if (result.is_null()) return Failure::Exception();
     return *value;
   }
@@ -4536,15 +4463,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   if (key->IsString()) {
     Handle<Object> result;
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      if (((attr & (DONT_DELETE | DONT_ENUM | READ_ONLY)) != 0)) {
-        return NormalizeObjectSetElement(isolate,
-                                         js_object,
-                                         index,
-                                         value,
-                                         attr);
-      }
-      result =
-          JSObject::SetElement(js_object, index, value, strict_mode);
+      result = JSObject::SetElement(
+          js_object, index, value, attr, strict_mode, set_mode);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
@@ -4562,7 +4482,8 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value, strict_mode, true);
+    return js_object->SetElement(
+        index, *value, attr, strict_mode, true, set_mode);
   } else {
     return js_object->SetProperty(*name, *value, attr, strict_mode);
   }
@@ -4590,12 +4511,14 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
       return *value;
     }
 
-    return js_object->SetElement(index, *value, kNonStrictMode, true);
+    return js_object->SetElement(
+        index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
   }
 
   if (key->IsString()) {
     if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
-      return js_object->SetElement(index, *value, kNonStrictMode, true);
+      return js_object->SetElement(
+          index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
@@ -4612,7 +4535,8 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
-    return js_object->SetElement(index, *value, kNonStrictMode, true);
+    return js_object->SetElement(
+        index, *value, attr, kNonStrictMode, false, DEFINE_PROPERTY);
   } else {
     return js_object->SetLocalPropertyIgnoreAttributes(*name, *value, attr);
   }
@@ -10316,9 +10240,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SwapElements) {
   RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
 
   RETURN_IF_EMPTY_HANDLE(
-      isolate, JSObject::SetElement(jsobject, index1, tmp2, kStrictMode));
+      isolate, JSObject::SetElement(jsobject, index1, tmp2, NONE, kStrictMode));
   RETURN_IF_EMPTY_HANDLE(
-      isolate, JSObject::SetElement(jsobject, index2, tmp1, kStrictMode));
+      isolate, JSObject::SetElement(jsobject, index2, tmp1, NONE, kStrictMode));
 
   return isolate->heap()->undefined_value();
 }

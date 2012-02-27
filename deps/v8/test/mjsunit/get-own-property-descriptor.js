@@ -73,7 +73,7 @@ assertEquals(descObjectElement.value, 42);
 var a = new String('foobar');
 for (var i = 0; i < a.length; i++) {
   var descStringObject = Object.getOwnPropertyDescriptor(a, i);
-  assertFalse(descStringObject.enumerable);
+  assertTrue(descStringObject.enumerable);
   assertFalse(descStringObject.configurable);
   assertFalse(descStringObject.writable);
   assertEquals(descStringObject.value, a.substring(i, i+1));

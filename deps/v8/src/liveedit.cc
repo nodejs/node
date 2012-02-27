@@ -53,8 +53,8 @@ void SetElementNonStrict(Handle<JSObject> object,
   // Ignore return value from SetElement. It can only be a failure if there
   // are element setters causing exceptions and the debugger context has none
   // of these.
-  Handle<Object> no_failure;
-  no_failure = JSObject::SetElement(object, index, value, kNonStrictMode);
+  Handle<Object> no_failure =
+      JSObject::SetElement(object, index, value, NONE, kNonStrictMode);
   ASSERT(!no_failure.is_null());
   USE(no_failure);
 }

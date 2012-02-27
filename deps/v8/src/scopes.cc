@@ -40,26 +40,6 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// A Zone allocator for use with LocalsMap.
-
-// TODO(isolates): It is probably worth it to change the Allocator class to
-//                 take a pointer to an isolate.
-class ZoneAllocator: public Allocator {
- public:
-  /* nothing to do */
-  virtual ~ZoneAllocator()  {}
-
-  virtual void* New(size_t size)  { return ZONE->New(static_cast<int>(size)); }
-
-  /* ignored - Zone is freed in one fell swoop */
-  virtual void Delete(void* p)  {}
-};
-
-
-static ZoneAllocator* LocalsMapAllocator = ::new ZoneAllocator();
-
-
-// ----------------------------------------------------------------------------
 // Implementation of LocalsMap
 //
 // Note: We are storing the handle locations as key values in the hash map.
@@ -77,7 +57,7 @@ static bool Match(void* key1, void* key2) {
 }
 
 
-VariableMap::VariableMap() : HashMap(Match, LocalsMapAllocator, 8) {}
+VariableMap::VariableMap() : ZoneHashMap(Match, 8) {}
 VariableMap::~VariableMap() {}
 
 
@@ -88,7 +68,7 @@ Variable* VariableMap::Declare(
     bool is_valid_lhs,
     Variable::Kind kind,
     InitializationFlag initialization_flag) {
-  HashMap::Entry* p = HashMap::Lookup(name.location(), name->Hash(), true);
+  Entry* p = ZoneHashMap::Lookup(name.location(), name->Hash(), true);
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     ASSERT(p->key == name.location());
@@ -104,7 +84,7 @@ Variable* VariableMap::Declare(
 
 
 Variable* VariableMap::Lookup(Handle<String> name) {
-  HashMap::Entry* p = HashMap::Lookup(name.location(), name->Hash(), false);
+  Entry* p = ZoneHashMap::Lookup(name.location(), name->Hash(), false);
   if (p != NULL) {
     ASSERT(*reinterpret_cast<String**>(p->key) == *name);
     ASSERT(p->value != NULL);

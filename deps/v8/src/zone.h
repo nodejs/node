@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "checks.h"
+#include "hashmap.h"
 #include "globals.h"
 #include "list.h"
 #include "splay-tree.h"
@@ -238,6 +239,8 @@ class ZoneSplayTree: public SplayTree<Config, ZoneListAllocationPolicy> {
   ~ZoneSplayTree();
 };
 
+
+typedef TemplateHashMap<ZoneListAllocationPolicy> ZoneHashMap;
 
 } }  // namespace v8::internal
 

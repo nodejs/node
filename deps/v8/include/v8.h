@@ -3850,7 +3850,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa8;
+  static const int kJSObjectType = 0xa9;
   static const int kFirstNonstringType = 0x80;
   static const int kForeignType = 0x85;
 

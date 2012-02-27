@@ -1188,14 +1188,28 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
     case Token::LET:
     case Token::CONST:
       return ParseVariableStatement(kModuleElement, ok);
-    case Token::MODULE:
-      return ParseModuleDeclaration(ok);
     case Token::IMPORT:
       return ParseImportDeclaration(ok);
     case Token::EXPORT:
       return ParseExportDeclaration(ok);
-    default:
-      return ParseStatement(labels, ok);
+    default: {
+      Statement* stmt = ParseStatement(labels, CHECK_OK);
+      // Handle 'module' as a context-sensitive keyword.
+      if (FLAG_harmony_modules &&
+          peek() == Token::IDENTIFIER &&
+          !scanner().HasAnyLineTerminatorBeforeNext() &&
+          stmt != NULL) {
+        ExpressionStatement* estmt = stmt->AsExpressionStatement();
+        if (estmt != NULL &&
+            estmt->expression()->AsVariableProxy() != NULL &&
+            estmt->expression()->AsVariableProxy()->name()->Equals(
+                isolate()->heap()->module_symbol()) &&
+            !scanner().literal_contains_escapes()) {
+          return ParseModuleDeclaration(ok);
+        }
+      }
+      return stmt;
+    }
   }
 }
 
@@ -1206,7 +1220,6 @@ Block* Parser::ParseModuleDeclaration(bool* ok) {
 
   // Create new block with one expected declaration.
   Block* block = factory()->NewBlock(NULL, 1, true);
-  Expect(Token::MODULE, CHECK_OK);
   Handle<String> name = ParseIdentifier(CHECK_OK);
   // top_scope_->AddDeclaration(
   //     factory()->NewModuleDeclaration(proxy, module, top_scope_));
@@ -2172,8 +2185,17 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     return ParseNativeDeclaration(ok);
   }
 
-  // Parsed expression statement.
-  ExpectSemicolon(CHECK_OK);
+  // Parsed expression statement, or the context-sensitive 'module' keyword.
+  // Only expect semicolon in the former case.
+  if (!FLAG_harmony_modules ||
+      peek() != Token::IDENTIFIER ||
+      scanner().HasAnyLineTerminatorBeforeNext() ||
+      expr->AsVariableProxy() == NULL ||
+      !expr->AsVariableProxy()->name()->Equals(
+          isolate()->heap()->module_symbol()) ||
+      scanner().literal_contains_escapes()) {
+    ExpectSemicolon(CHECK_OK);
+  }
   return factory()->NewExpressionStatement(expr);
 }
 

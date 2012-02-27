@@ -677,7 +677,7 @@ TEST(TakeHeapSnapshotAborting) {
   LocalContext env;
 
   const int snapshots_count = v8::HeapProfiler::GetSnapshotsCount();
-  TestActivityControl aborting_control(3);
+  TestActivityControl aborting_control(1);
   const v8::HeapSnapshot* no_snapshot =
       v8::HeapProfiler::TakeSnapshot(v8_str("abort"),
                                      v8::HeapSnapshot::kFull,
