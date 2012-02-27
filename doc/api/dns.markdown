@@ -1,4 +1,4 @@
-## DNS
+# DNS
 
 Use `require('dns')` to access this module. All methods in the dns module
 use C-Ares except for `dns.lookup` which uses `getaddrinfo(3)` in a thread
@@ -31,7 +31,7 @@ resolves the IP addresses which are returned.
       });
     });
 
-### dns.lookup(domain, [family], callback)
+## dns.lookup(domain, [family], callback)
 
 Resolves a domain (e.g. `'google.com'`) into the first found A (IPv4) or
 AAAA (IPv6) record.
@@ -44,7 +44,7 @@ is either the integer 4 or 6 and denotes the family of `address` (not
 necessarily the value initially passed to `lookup`).
 
 
-### dns.resolve(domain, [rrtype], callback)
+## dns.resolve(domain, [rrtype], callback)
 
 Resolves a domain (e.g. `'google.com'`) into an array of the record types
 specified by rrtype. Valid rrtypes are `'A'` (IPV4 addresses, default),
@@ -61,50 +61,50 @@ one of the error codes listed below and `err.message` is a string describing
 the error in English.
 
 
-### dns.resolve4(domain, callback)
+## dns.resolve4(domain, callback)
 
 The same as `dns.resolve()`, but only for IPv4 queries (`A` records).
 `addresses` is an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-### dns.resolve6(domain, callback)
+## dns.resolve6(domain, callback)
 
 The same as `dns.resolve4()` except for IPv6 queries (an `AAAA` query).
 
 
-### dns.resolveMx(domain, callback)
+## dns.resolveMx(domain, callback)
 
 The same as `dns.resolve()`, but only for mail exchange queries (`MX` records).
 
 `addresses` is an array of MX records, each with a priority and an exchange
 attribute (e.g. `[{'priority': 10, 'exchange': 'mx.example.com'},...]`).
 
-### dns.resolveTxt(domain, callback)
+## dns.resolveTxt(domain, callback)
 
 The same as `dns.resolve()`, but only for text queries (`TXT` records).
 `addresses` is an array of the text records available for `domain` (e.g.,
 `['v=spf1 ip4:0.0.0.0 ~all']`).
 
-### dns.resolveSrv(domain, callback)
+## dns.resolveSrv(domain, callback)
 
 The same as `dns.resolve()`, but only for service records (`SRV` records).
 `addresses` is an array of the SRV records available for `domain`. Properties
 of SRV records are priority, weight, port, and name (e.g.,
 `[{'priority': 10, {'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
-### dns.reverse(ip, callback)
+## dns.reverse(ip, callback)
 
 Reverse resolves an ip address to an array of domain names.
 
 The callback has arguments `(err, domains)`.
 
-### dns.resolveNs(domain, callback)
+## dns.resolveNs(domain, callback)
 
 The same as `dns.resolve()`, but only for name server records (`NS` records).
 `addresses` is an array of the name server records available for `domain`
 (e.g., `['ns1.example.com', 'ns2.example.com']`).
 
-### dns.resolveCname(domain, callback)
+## dns.resolveCname(domain, callback)
 
 The same as `dns.resolve()`, but only for canonical name records (`CNAME`
 records). `addresses` is an array of the canonical name records available for
