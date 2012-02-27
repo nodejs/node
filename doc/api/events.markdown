@@ -1,5 +1,7 @@
 # Events
 
+<!--type=module-->
+
 Many objects in Node emit events: a `net.Server` emits an event each time
 a peer connects to it, a `fs.readStream` emits an event when the file is
 opened. All objects which emit events are instances of `events.EventEmitter`.

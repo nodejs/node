@@ -487,7 +487,7 @@ function deepCopy_(src) {
 
 
 // these parse out the contents of an H# tag
-var eventExpr = /^Event:?\s*['"]?([^"']+).*$/i;
+var eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
 var classExpr = /^Class:\s*([^ ]+).*?$/i;
 var propExpr = /^(?:property:?\s*)?[^\.]+\.([^ \.\(\)]+)\s*?$/i;
 var braceExpr = /^(?:property:?\s*)?[^\.\[]+(\[[^\]]+\])\s*?$/i;
