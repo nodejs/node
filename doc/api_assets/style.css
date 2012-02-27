@@ -123,7 +123,7 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
 }
 
-h1 {
+header h1 {
   font-family: Georgia, FreeSerif, Times, serif;
   font-size: 30px;
   font-weight: normal;
@@ -132,52 +132,52 @@ h1 {
   margin: 15px 0 11px;
 }
 
-h2 {
+h1 {
   font-size: 29px;
   line-height: 33px;
   margin: 2em 0 15px;
 }
 
-#toc + h2 {
+#toc + h1 {
   margin-top:1em;
   padding-top:0;
 }
 
-h3 {
+h2 {
   font-size: 1.4em;
   line-height: 1.0909em;
   margin: 1.5em 0 0.5em;
+}
+
+h2 + h2 {
+  margin: 0 0 0.5em;
+}
+
+h3 {
+  font-size: 1.3em;
+  line-height: 1.1282em;
+  margin: 2.2em 0 0.5em;
 }
 
 h3 + h3 {
   margin: 0 0 0.5em;
 }
 
-h4 {
-  font-size: 1.3em;
-  line-height: 1.1282em;
-  margin: 2.2em 0 0.5em;
-}
-
-h4 + h4 {
-  margin: 0 0 0.5em;
-}
-
-  h3, h4 {
+  h2, h3 {
     position:relative;
     padding-right:40px;
   }
-  h2 span, h3 span, h4 span {
+  h1 span, h2 span, h3 span {
     position:absolute;
     display:block;
     top:0;
     right:0;
     opacity: 0.3;
   }
-  h2 span:hover, h3 span:hover, h4 span:hover {
+  h1 span:hover, h2 span:hover, h3 span:hover {
     opacity: 1;
   }
-  h2 span a, h3 span a, h4 span a {
+  h1 span a, h2 span a, h3 span a {
     font-size: 0.8em;
     color: #000;
     text-decoration: none;
@@ -185,7 +185,7 @@ h4 + h4 {
     font-weight:bold;
   }
 
-  h2 span a.top, h3 span a.top, h4 span a.top {
+  h1 span a.top, h3 span a.top, h3 span a.top {
     /* XXX Get an image and clean up these two links
      * so that they look nice next to one another.
      * http://www.chrisglass.com/work/nodejs/website/v05/docs.html
@@ -210,7 +210,7 @@ h6 {
     font-family: Monaco, Consolas, "Lucida Console", monospace;
     margin: 0; padding: 0;
   }
-  
+
   .pre {
     font-family: Monaco, Consolas, "Lucida Console", monospace;
     line-height: 1.5438em;
@@ -226,7 +226,7 @@ h6 {
     margin: -0.5em 0 1.1em;
     overflow-x:auto;
   }
-  
+
   pre + h3 {
     margin-top: 2.225em;
   }
@@ -271,16 +271,16 @@ hr {
     line-height: 21px;
     margin: 0 0 0.5em;
   }
-  
+
   #toc h2 a {
     float: right;
   }
-  
+
   #toc hr {
     margin: 1em 0 2em;
   }
 
-  #toc ul {
+  #toc ul, #api-section-index ul li, #api-section-index ul {
     font-family: Georgia, FreeSerif, Times, serif;
   }
 
