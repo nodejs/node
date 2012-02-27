@@ -26,7 +26,7 @@
 * [Readline](readline.html)
 * [REPL](repl.html)
 * [VM](vm.html)
-* [Child Processes](child_processes.html)
+* [Child Processes](child_process.html)
 * [Assertion Testing](assert.html)
 * [TTY](tty.html)
 * [ZLIB](zlib.html)
