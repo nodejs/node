@@ -1,6 +1,6 @@
 # Debugger
 
-<!-- type=concept -->
+<!-- type=misc -->
 
 V8 comes with an extensive debugger which is accessible out-of-process via a
 simple [TCP protocol](http://code.google.com/p/v8/wiki/DebuggerProtocol).
