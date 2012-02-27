@@ -392,7 +392,7 @@ See `connect()`.
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `socket.setEncoding()`.
-(See the [Readable Stream](streams.html#readable_Stream) section for more
+(See the [Readable Stream](stream.html#readable_stream) section for more
 information.)
 
 Note that the __data will be lost__ if there is no listener when a `Socket`

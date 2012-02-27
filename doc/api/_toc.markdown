@@ -9,7 +9,7 @@
 * [Utilities](util.html)
 * [Events](events.html)
 * [Buffer](buffer.html)
-* [Streams](streams.html)
+* [Stream](stream.html)
 * [Crypto](crypto.html)
 * [TLS/SSL](tls.html)
 * [String Decoder](string_decoder.html)
