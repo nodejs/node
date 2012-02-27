@@ -1,39 +1,17 @@
-## UDP / Datagram Sockets
+# UDP / Datagram Sockets
+
+<!-- name=dgram -->
 
 Datagram sockets are available through `require('dgram')`.
 
-### Event: 'message'
+## dgram.createSocket(type, [callback])
 
-`function (msg, rinfo) { }`
+* `type` String. Either 'udp4' or 'udp6'
+* `callback` Function. Attached as a listener to `message` events.
+  Optional
+* Returns: Socket object
 
-Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and `rinfo` is
-an object with the sender's address information and the number of bytes in the datagram.
-
-### Event: 'listening'
-
-`function () { }`
-
-Emitted when a socket starts listening for datagrams.  This happens as soon as UDP sockets
-are created.
-
-### Event: 'close'
-
-`function () { }`
-
-Emitted when a socket is closed with `close()`.  No new `message` events will be emitted
-on this socket.
-
-### Event: 'error'
-
-`function (exception) {}`
-
-Emitted when an error occurs.
-
----
-
-### dgram.createSocket(type, [callback])
-
-Creates a datagram socket of the specified types.  Valid types are `udp4`
+Creates a datagram Socket of the specified types.  Valid types are `udp4`
 and `udp6`.
 
 Takes an optional callback which is added as a listener for `message` events.
@@ -43,7 +21,44 @@ to the "all interfaces" address on a random port (it does the right thing for
 both `udp4` and `udp6` sockets). You can then retrieve the address and port
 with `socket.address().address` and `socket.address().port`.
 
+## Class: Socket
+
+The dgram Socket class encapsulates the datagram functionality.  It
+should be created via `dgram.createSocket(type, [callback])`.
+
+### Event: 'message'
+
+* `msg` Buffer object. The message
+* `rinfo` Object. Remote address information
+
+Emitted when a new datagram is available on a socket.  `msg` is a `Buffer` and `rinfo` is
+an object with the sender's address information and the number of bytes in the datagram.
+
+### Event: 'listening'
+
+Emitted when a socket starts listening for datagrams.  This happens as soon as UDP sockets
+are created.
+
+### Event: 'close'
+
+Emitted when a socket is closed with `close()`.  No new `message` events will be emitted
+on this socket.
+
+### Event: 'error'
+
+* `exception` Error object
+
+Emitted when an error occurs.
+
 ### dgram.send(buf, offset, length, port, address, [callback])
+
+* `buf` Buffer object.  Message to be sent
+* `offset` Integer. Offset in the buffer where the message starts.
+* `length` Integer. Number of bytes in the message.
+* `port` Integer. destination port
+* `address` String. destination IP
+* `callback` Function. Callback when message is done being delivered.
+  Optional.
 
 For UDP sockets, the destination port and IP address must be specified.  A string
 may be supplied for the `address` parameter, and it will be resolved with DNS.  An
@@ -93,6 +108,9 @@ informing the source that the data did not reach its intended recipient).
 
 ### dgram.bind(port, [address])
 
+* `port` Integer
+* `address` String, Optional
+
 For UDP sockets, listen for datagrams on a named `port` and optional `address`. If
 `address` is not specified, the OS will try to listen on all addresses.
 
@@ -128,10 +146,14 @@ this object will contain `address` and `port`.
 
 ### dgram.setBroadcast(flag)
 
+* `flag` Boolean
+
 Sets or clears the `SO_BROADCAST` socket option.  When this option is set, UDP packets
 may be sent to a local interface's broadcast address.
 
 ### dgram.setTTL(ttl)
+
+* `ttl` Integer
 
 Sets the `IP_TTL` socket option.  TTL stands for "Time to Live," but in this context it
 specifies the number of IP hops that a packet is allowed to go through.  Each router or
@@ -144,6 +166,8 @@ systems is 64.
 
 ### dgram.setMulticastTTL(ttl)
 
+* `ttl` Integer
+
 Sets the `IP_MULTICAST_TTL` socket option.  TTL stands for "Time to Live," but in this
 context it specifies the number of IP hops that a packet is allowed to go through,
 specifically for multicast traffic.  Each router or gateway that forwards a packet
@@ -154,10 +178,15 @@ systems is 64.
 
 ### dgram.setMulticastLoopback(flag)
 
+* `flag` Boolean
+
 Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
 packets will also be received on the local interface.
 
 ### dgram.addMembership(multicastAddress, [multicastInterface])
+
+* `multicastAddress` String
+* `multicastInterface` String, Optional
 
 Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket option.
 
@@ -165,6 +194,9 @@ If `multicastInterface` is not specified, the OS will try to add membership to a
 interfaces.
 
 ### dgram.dropMembership(multicastAddress, [multicastInterface])
+
+* `multicastAddress` String
+* `multicastInterface` String, Optional
 
 Opposite of `addMembership` - tells the kernel to leave a multicast group with
 `IP_DROP_MEMBERSHIP` socket option. This is automatically called by the kernel

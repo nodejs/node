@@ -1,4 +1,6 @@
-## Synopsis
+# Synopsis
+
+<!--type=misc-->
 
 An example of a [web server](http.html) written with Node which responds with 'Hello
 World':

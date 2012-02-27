@@ -1,4 +1,6 @@
-## Cluster
+# Cluster
+
+    Stability: 1 - Experimental
 
 A single instance of Node runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node
@@ -36,19 +38,40 @@ Running node will now share port 8000 between the workers:
     Worker 2437 online
 
 
-### cluster.isMaster
+This feature was introduced recently, and may change in future versions.
+Please try it out and provide feedback.
 
-This boolean flag is true if the process is a master. This is determined
+## cluster.settings
+
+* {Object}
+  * `exec` {String} file path to worker file.  (Default=`__filename`)
+  * `args` {Array} string arguments passed to worker.
+    (Default=`process.argv.slice(2)`)
+  * `silent` {Boolean} whether or not to send output to parent's stdio.
+    (Default=`false`)
+
+All settings set by the `.setupMaster` is stored in this settings object.
+This object is not supposed to be change or set manually, by you.
+
+## cluster.isMaster
+
+* {Boolean}
+
+True if the process is a master. This is determined
 by the `process.env.NODE_UNIQUE_ID`. If `process.env.NODE_UNIQUE_ID` is
-undefined `isMaster` is `true`.
+undefined, then `isMaster` is `true`.
 
-### cluster.isWorker
+## cluster.isWorker
+
+* {Boolean}
 
 This boolean flag is true if the process is a worker forked from a master.
-If the `process.env.NODE_UNIQUE_ID` is set to a value different efined
+If the `process.env.NODE_UNIQUE_ID` is set to a value, then
 `isWorker` is `true`.
 
-### Event: 'fork'
+## Event: 'fork'
+
+* `worker` {Worker object}
 
 When a new worker is forked the cluster module will emit a 'fork' event.
 This can be used to log worker activity, and create you own timeout.
@@ -69,19 +92,23 @@ This can be used to log worker activity, and create you own timeout.
       errorMsg();
     });
 
-### Event: 'online'
+## Event: 'online'
+
+* `worker` {Worker object}
 
 After forking a new worker, the worker should respond with a online message.
 When the master receives a online message it will emit such event.
 The difference between 'fork' and 'online' is that fork is emitted when the
-master tries to fork a worker, and 'online' is emitted when the worker is being
-executed.
+master tries to fork a worker, and 'online' is emitted when the worker is
+being executed.
 
     cluster.on('online', function (worker) {
       console.log("Yay, the worker responded after it was forked");
     });
 
-### Event: 'listening'
+## Event: 'listening'
+
+* `worker` {Worker object}
 
 When calling `listen()` from a worker, a 'listening' event is automatically assigned
 to the server instance. When the server is listening a message is send to the master
@@ -91,7 +118,9 @@ where the 'listening' event is emitted.
       console.log("We are now connected");
     });
 
-### Event: 'death'
+## Event: 'death'
+
+* `worker` {Worker object}
 
 When any of the workers die the cluster module will emit the 'death' event.
 This can be used to restart the worker by calling `fork()` again.
@@ -101,15 +130,25 @@ This can be used to restart the worker by calling `fork()` again.
       cluster.fork();
     });
 
-### Event 'setup'
+## Event: 'setup'
 
-When the `.setupMaster()` function has been executed this event emits. If `.setupMaster()`
-was not executed before `fork()` this function will call `.setupMaster()` with no arguments.
+* `worker` {Worker object}
 
-### cluster.setupMaster([options])
+When the `.setupMaster()` function has been executed this event emits.
+If `.setupMaster()` was not executed before `fork()` this function will
+call `.setupMaster()` with no arguments.
 
-The `setupMaster` is used to change the default 'fork' behavior. It takes one option
-object argument.
+## cluster.setupMaster([settings])
+
+* `settings` {Object}
+  * `exec` {String} file path to worker file.  (Default=`__filename`)
+  * `args` {Array} string arguments passed to worker.
+    (Default=`process.argv.slice(2)`)
+  * `silent` {Boolean} whether or not to send output to parent's stdio.
+    (Default=`false`)
+
+The `setupMaster` is used to change the default 'fork' behavior. It takes
+one option object argument.
 
 Example:
 
@@ -121,26 +160,28 @@ Example:
     });
     cluster.autoFork();
 
-The options argument can contain 3 different properties.
+## cluster.fork([env])
 
-- `exec` are the file path to the worker file, by default this is the same file as the master.
-- `args` are a array of arguments send along with the worker, by default this is `process.argv.slice(2)`.
-- `silent`, if this option is true the output of a worker won't propagate to the master, by default this is false.
-
-### cluster.settings
-
-All settings set by the `.setupMaster` is stored in this settings object.
-This object is not supposed to be change or set manually, by you.
-
-All propertys are `undefined` if they are not yet set.
-
-### cluster.fork([env])
+* `env` {Object} Key/value pairs to add to child process environment.
+* return {Worker object}
 
 Spawn a new worker process. This can only be called from the master process.
-The function takes an optional `env` object. The properties in this object
-will be added to the process environment in the worker.
 
-### cluster.workers
+## cluster.settings
+
+* {Object}
+  * `exec` {String} file path to worker file.  Default: `__filename`
+  * `args` {Array} string arguments passed to worker.
+    (Default=`process.argv.slice(2)`)
+  * `silent` {Boolean} whether or not to send output to parent's stdio.
+    (Default=`false`)
+
+All settings set by the `.setupMaster` is stored in this settings object.
+This object is not supposed to be change or set manually.
+
+## cluster.workers
+
+* {Object}
 
 In the cluster all living worker objects are stored in this object by there
 `uniqueID` as the key. This makes it easy to loop through all living workers.
@@ -162,27 +203,48 @@ the worker's uniqueID is the easiest way to find the worker.
       var worker = cluster.workers[uniqueID];
     });
 
-## Worker
+## Class: Worker
 
-This object contains all public information and method about a worker.
+A Worker object contains all public information and method about a worker.
 In the master it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
-### Worker.uniqueID
+### worker.uniqueID
 
-Each new worker is given its own unique id, this id is stored in the `uniqueID`.
+* {String}
 
-### Worker.process
+Each new worker is given its own unique id, this id is stored in the
+`uniqueID`.
 
-All workers are created using `child_process.fork()`, the returned object from this
-function is stored in process.
+While a worker is alive, this is the key that indexes it in
+cluster.workers
 
-### Worker.send(message, [sendHandle])
+### worker.process
 
-This function is equal to the send methods provided by `child_process.fork()`.
-In the master you should use this function to send a message to a specific worker.
-However in a worker you can also use `process.send(message)`, since this is the same
-function.
+* {ChildProcess object}
+
+All workers are created using `child_process.fork()`, the returned object
+from this function is stored in process.
+
+See: [Child Process module](child_process.html)
+
+### worker.suicide
+
+* {Boolean}
+
+This property is a boolean. It is set when a worker dies, until then it is
+`undefined`.  It is true if the worker was killed using the `.destroy()`
+method, and false otherwise.
+
+### worker.send(message, [sendHandle])
+
+* `message` {Object}
+* `sendHandle` {Handle object}
+
+This function is equal to the send methods provided by
+`child_process.fork()`.  In the master you should use this function to
+send a message to a specific worker.  However in a worker you can also use
+`process.send(message)`, since this is the same function.
 
 This example will echo back all messages from the master:
 
@@ -196,10 +258,11 @@ This example will echo back all messages from the master:
       });
     }
 
-### Worker.destroy()
+### worker.destroy()
 
-This function will kill the worker, and inform the master to not spawn a new worker.
-To know the difference between suicide and accidentally death a suicide boolean is set to true.
+This function will kill the worker, and inform the master to not spawn a
+new worker.  To know the difference between suicide and accidentally death
+a suicide boolean is set to true.
 
     cluster.on('death', function (worker) {
       if (worker.suicide === true) {
@@ -210,12 +273,9 @@ To know the difference between suicide and accidentally death a suicide boolean 
     // destroy worker
     worker.destroy();
 
-### Worker.suicide
+### Event: 'message'
 
-This property is a boolean. It is set when a worker dies, until then it is `undefined`.
-It is true if the worker was killed using the `.destroy()` method, and false otherwise.
-
-### Event: message
+* `message` {Object}
 
 This event is the same as the one provided by `child_process.fork()`.
 In the master you should use this event, however in a worker you can also use
@@ -260,7 +320,9 @@ in the master process using the message system:
       }).listen(8000);
     }
 
-### Event: online
+### Event: 'online'
+
+* `worker` {Worker object}
 
 Same as the `cluster.on('online')` event, but emits only when the state change
 on the specified worker.
@@ -269,7 +331,9 @@ on the specified worker.
       // Worker is online
     };
 
-### Event: listening
+### Event: 'listening'
+
+* `worker` {Worker object}
 
 Same as the `cluster.on('listening')` event, but emits only when the state change
 on the specified worker.
@@ -278,7 +342,9 @@ on the specified worker.
       // Worker is listening
     };
 
-### Event: death
+### Event: 'death'
+
+* `worker` {Worker object}
 
 Same as the `cluster.on('death')` event, but emits only when the state change
 on the specified worker.

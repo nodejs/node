@@ -1,4 +1,4 @@
-## Appendix 1 - Third Party Modules
+# Appendix 1 - Third Party Modules
 
 There are many third party modules for Node. At the time of writing, August
 2010, the master repository of modules is
