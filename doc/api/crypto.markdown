@@ -1,4 +1,4 @@
-## Crypto
+# Crypto
 
 Use `require('crypto')` to access this module.
 
@@ -8,7 +8,7 @@ of a secure HTTPS net or http connection.
 
 It also offers a set of wrappers for OpenSSL's hash, hmac, cipher, decipher, sign and verify methods.
 
-### crypto.createCredentials(details)
+## crypto.createCredentials(details)
 
 Creates a credentials object, with the optional details being a dictionary with keys:
 
@@ -23,7 +23,7 @@ If no 'ca' details are given, then node.js will use the default publicly trusted
 <http://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt>.
 
 
-### crypto.createHash(algorithm)
+## crypto.createHash(algorithm)
 
 Creates and returns a hash object, a cryptographic hash with the given algorithm
 which can be used to generate hash digests.
@@ -50,6 +50,12 @@ Example: this program that takes the sha1 sum of a file
       console.log(d + '  ' + filename);
     });
 
+## Class: Hash
+
+The class for creating hash digests of data.
+
+Returned by `crypto.createHash`.
+
 ### hash.update(data, [input_encoding])
 
 Updates the hash content with the given `data`, the encoding of which is given
@@ -66,12 +72,18 @@ Defaults to `'binary'`.
 Note: `hash` object can not be used after `digest()` method been called.
 
 
-### crypto.createHmac(algorithm, key)
+## crypto.createHmac(algorithm, key)
 
 Creates and returns a hmac object, a cryptographic hmac with the given algorithm and key.
 
 `algorithm` is dependent on the available algorithms supported by OpenSSL - see createHash above.
 `key` is the hmac key to be used.
+
+## Class: Hmac
+
+Class for creating cryptographic hmac content.
+
+Returned by `crypto.createHmac`.
 
 ### hmac.update(data)
 
@@ -87,7 +99,7 @@ Defaults to `'binary'`.
 Note: `hmac` object can not be used after `digest()` method been called.
 
 
-### crypto.createCipher(algorithm, password)
+## crypto.createCipher(algorithm, password)
 
 Creates and returns a cipher object, with the given algorithm and password.
 
@@ -97,13 +109,19 @@ available cipher algorithms.
 `password` is used to derive key and IV, which must be `'binary'` encoded
 string (See the [Buffers](buffers.html) for more information).
 
-### crypto.createCipheriv(algorithm, key, iv)
+## crypto.createCipheriv(algorithm, key, iv)
 
 Creates and returns a cipher object, with the given algorithm, key and iv.
 
 `algorithm` is the same as the `createCipher()`. `key` is a raw key used in
 algorithm. `iv` is an Initialization vector. `key` and `iv` must be `'binary'`
 encoded string (See the [Buffers](buffers.html) for more information).
+
+## Class: Cipher
+
+Class for encrypting data.
+
+Returned by `crypto.createCipher` and `crypto.createCipheriv`.
 
 ### cipher.update(data, [input_encoding], [output_encoding])
 
@@ -130,15 +148,21 @@ the length of the entire input data must be a multiple of the cipher's block siz
 Useful for non-standard padding, e.g. using `0x0` instead of PKCS padding. You must call this before `cipher.final`.
 
 
-### crypto.createDecipher(algorithm, password)
+## crypto.createDecipher(algorithm, password)
 
 Creates and returns a decipher object, with the given algorithm and key.
 This is the mirror of the [createCipher()](#crypto.createCipher) above.
 
-### crypto.createDecipheriv(algorithm, key, iv)
+## crypto.createDecipheriv(algorithm, key, iv)
 
 Creates and returns a decipher object, with the given algorithm, key and iv.
 This is the mirror of the [createCipheriv()](#crypto.createCipheriv) above.
+
+## Class: Decipher
+
+Class for decrypting data.
+
+Returned by `crypto.createDecipher` and `crypto.createDecipheriv`.
 
 ### decipher.update(data, [input_encoding], [output_encoding])
 
@@ -163,11 +187,17 @@ You can disable auto padding if the data has been encrypted without standard blo
 ciphers block size. You must call this before streaming data to `decipher.update`.
 
 
-### crypto.createSign(algorithm)
+## crypto.createSign(algorithm)
 
 Creates and returns a signing object, with the given algorithm.
 On recent OpenSSL releases, `openssl list-public-key-algorithms` will display
 the available signing algorithms. Examples are `'RSA-SHA256'`.
+
+## Class: Signer
+
+Class for generating signatures.
+
+Returned by `crypto.createSign`.
 
 ### signer.update(data)
 
@@ -184,11 +214,16 @@ Returns the signature in `output_format` which can be `'binary'`, `'hex'` or
 
 Note: `signer` object can not be used after `sign()` method been called.
 
-
-### crypto.createVerify(algorithm)
+## crypto.createVerify(algorithm)
 
 Creates and returns a verification object, with the given algorithm.
 This is the mirror of the signing object above.
+
+## Class: Verify
+
+Class for verifying signatures.
+
+Returned by `crypto.createVerify`.
 
 ### verifier.update(data)
 
@@ -207,16 +242,22 @@ Returns true or false depending on the validity of the signature for the data an
 
 Note: `verifier` object can not be used after `verify()` method been called.
 
-### crypto.createDiffieHellman(prime_length)
+## crypto.createDiffieHellman(prime_length)
 
 Creates a Diffie-Hellman key exchange object and generates a prime of the
 given bit length. The generator used is `2`.
 
-### crypto.createDiffieHellman(prime, [encoding])
+## crypto.createDiffieHellman(prime, [encoding])
 
 Creates a Diffie-Hellman key exchange object using the supplied prime. The
 generator used is `2`. Encoding can be `'binary'`, `'hex'`, or `'base64'`.
 Defaults to `'binary'`.
+
+## Class: DiffieHellman
+
+The class for creating Diffie-Hellman key exchanges.
+
+Returned by `crypto.createDiffieHellman`.
 
 ### diffieHellman.generateKeys([encoding])
 
@@ -264,7 +305,7 @@ or `'base64'`. Defaults to `'binary'`.
 Sets the Diffie-Hellman private key. Key encoding can be `'binary'`, `'hex'`,
 or `'base64'`. Defaults to `'binary'`.
 
-### crypto.getDiffieHellman(group_name)
+## crypto.getDiffieHellman(group_name)
 
 Creates a predefined Diffie-Hellman key exchange object.
 The supported groups are: `'modp1'`, `'modp2'`, `'modp5'`
@@ -294,13 +335,13 @@ Example (obtaining a shared secret):
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
 
-### pbkdf2(password, salt, iterations, keylen, callback)
+## crypto.pbkdf2(password, salt, iterations, keylen, callback)
 
 Asynchronous PBKDF2 applies pseudorandom function HMAC-SHA1 to derive
 a key of given length from the given password, salt and iterations.
 The callback gets two arguments `(err, derivedKey)`.
 
-### randomBytes(size, [callback])
+## crypto.randomBytes(size, [callback])
 
 Generates cryptographically strong pseudo-random data. Usage:
 
