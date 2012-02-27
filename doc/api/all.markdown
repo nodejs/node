@@ -24,7 +24,7 @@
 @include readline
 @include repl
 @include vm
-@include child_processes
+@include child_process
 @include assert
 @include tty
 @include zlib
