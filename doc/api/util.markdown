@@ -1,10 +1,10 @@
-## util
+# util
 
 These functions are in the module `'util'`. Use `require('util')` to access
 them.
 
 
-### util.format()
+## util.format()
 
 Returns a formatted string using the first argument as a `printf`-like format.
 
@@ -35,7 +35,7 @@ Each argument is converted to a string with `util.inspect()`.
     util.format(1, 2, 3); // '1 2 3'
 
 
-### util.debug(string)
+## util.debug(string)
 
 A synchronous output function. Will block the process and
 output `string` immediately to `stderr`.
@@ -43,14 +43,14 @@ output `string` immediately to `stderr`.
     require('util').debug('message on stderr');
 
 
-### util.log(string)
+## util.log(string)
 
 Output with timestamp on `stdout`.
 
     require('util').log('Timestamped message.');
 
 
-### util.inspect(object, [showHidden], [depth], [colors])
+## util.inspect(object, [showHidden], [depth], [colors])
 
 Return a string representation of `object`, which is useful for debugging.
 
@@ -73,7 +73,7 @@ Example of inspecting all properties of the `util` object:
     console.log(util.inspect(util, true, null));
 
 
-### util.isArray(object)
+## util.isArray(object)
 
 Returns `true` if the given "object" is an `Array`. `false` otherwise.
 
@@ -87,7 +87,7 @@ Returns `true` if the given "object" is an `Array`. `false` otherwise.
       // false
 
 
-### util.isRegExp(object)
+## util.isRegExp(object)
 
 Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
 
@@ -101,7 +101,7 @@ Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
       // false
 
 
-### util.isDate(object)
+## util.isDate(object)
 
 Returns `true` if the given "object" is a `Date`. `false` otherwise.
 
@@ -115,7 +115,7 @@ Returns `true` if the given "object" is a `Date`. `false` otherwise.
       // false
 
 
-### util.isError(object)
+## util.isError(object)
 
 Returns `true` if the given "object" is an `Error`. `false` otherwise.
 
@@ -129,7 +129,7 @@ Returns `true` if the given "object" is an `Error`. `false` otherwise.
       // false
 
 
-### util.pump(readableStream, writableStream, [callback])
+## util.pump(readableStream, writableStream, [callback])
 
 Experimental
 
@@ -140,7 +140,7 @@ an error as its only argument and is called when `writableStream` is closed or
 when an error occurs.
 
 
-### util.inherits(constructor, superConstructor)
+## util.inherits(constructor, superConstructor)
 
 Inherit the prototype methods from one
 [constructor](https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor)
