@@ -368,6 +368,9 @@ function finishSection(section, parent) {
 
   if (!section.type) {
     section.type = 'module';
+    if (parent && (parent.type === 'misc')) {
+      section.type = 'misc';
+    }
     section.displayName = section.name;
     section.name = section.name.toLowerCase()
       .trim().replace(/\s+/g, '_');
@@ -439,6 +442,9 @@ function finishSection(section, parent) {
         case 'miscs':
           return;
         default:
+          if (parent.type === 'misc') {
+            return;
+          }
           if (Array.isArray(k) && parent[k]) {
             parent[k] = parent[k].concat(section[k]);
           } else if (!parent[k]) {
