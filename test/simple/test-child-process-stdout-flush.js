@@ -40,7 +40,7 @@ child.stderr.on('data', function(data) {
   assert.ok(false);
 });
 
-child.stderr.setEncoding('utf8');
+child.stdout.setEncoding('utf8');
 child.stdout.on('data', function(data) {
   count += data.length;
   console.log(count);
