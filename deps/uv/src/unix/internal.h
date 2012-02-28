@@ -160,7 +160,9 @@ enum {
   UV_READABLE      = 0x20,   /* The stream is readable */
   UV_WRITABLE      = 0x40,   /* The stream is writable */
   UV_TCP_NODELAY   = 0x080,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE = 0x100   /* Turn on keep-alive. */
+  UV_TCP_KEEPALIVE = 0x100,  /* Turn on keep-alive. */
+  UV_TIMER_ACTIVE  = 0x080,
+  UV_TIMER_REPEAT  = 0x100
 };
 
 /* core */
@@ -216,5 +218,15 @@ void uv__fs_event_destroy(uv_fs_event_t* handle);
 #define UV__F_NONBLOCK   (1 << 1)
 int uv__make_socketpair(int fds[2], int flags);
 int uv__make_pipe(int fds[2], int flags);
+
+#if __linux__
+void uv__inotify_loop_init(uv_loop_t* loop);
+void uv__inotify_loop_delete(uv_loop_t* loop);
+# define uv__loop_platform_init(loop)   uv__inotify_loop_init(loop)
+# define uv__loop_platform_delete(loop) uv__inotify_loop_delete(loop)
+#else
+# define uv__loop_platform_init(loop)
+# define uv__loop_platform_delete(loop)
+#endif
 
 #endif /* UV_UNIX_INTERNAL_H_ */

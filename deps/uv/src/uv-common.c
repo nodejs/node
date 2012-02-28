@@ -101,20 +101,23 @@ const char* uv_strerror(uv_err_t err) {
 #undef UV_STRERROR_GEN
 
 
-void uv__set_error(uv_loop_t* loop, uv_err_code code, int sys_error) {
+int uv__set_error(uv_loop_t* loop, uv_err_code code, int sys_error) {
   loop->last_err.code = code;
   loop->last_err.sys_errno_ = sys_error;
+  return -1;
 }
 
 
-void uv__set_sys_error(uv_loop_t* loop, int sys_error) {
+int uv__set_sys_error(uv_loop_t* loop, int sys_error) {
   loop->last_err.code = uv_translate_sys_error(sys_error);
   loop->last_err.sys_errno_ = sys_error;
+  return -1;
 }
 
 
-void uv__set_artificial_error(uv_loop_t* loop, uv_err_code code) {
+int uv__set_artificial_error(uv_loop_t* loop, uv_err_code code) {
   loop->last_err = uv__new_artificial_error(code);
+  return -1;
 }
 
 

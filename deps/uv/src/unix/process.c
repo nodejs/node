@@ -31,6 +31,10 @@
 #include <stdio.h>
 
 #ifdef __APPLE__
+# include <TargetConditionals.h>
+#endif
+
+#if defined(__APPLE__) && !defined(TARGET_OS_IPHONE)
 # include <crt_externs.h>
 # define environ (*_NSGetEnviron())
 #else

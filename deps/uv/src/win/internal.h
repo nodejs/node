@@ -337,6 +337,10 @@ int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
 /* Whether ipv6 is supported */
 extern int uv_allow_ipv6;
 
+/* Whether there are any non-IFS LSPs stacked on TCP */
+extern int uv_tcp_non_ifs_lsp_ipv4;
+extern int uv_tcp_non_ifs_lsp_ipv6;
+
 /* Ip address used to bind to any port at any interface */
 extern struct sockaddr_in uv_addr_ip4_any_;
 extern struct sockaddr_in6 uv_addr_ip6_any_;

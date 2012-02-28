@@ -18,13 +18,20 @@
  * IN THE SOFTWARE.
  */
 
+#include "uv.h"
+#include "internal.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/resource.h>
+#include <sys/sched.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
 
 #include <errno.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -159,9 +166,9 @@ uv_err_t uv_get_process_title(char* buffer, size_t size) {
 
 uv_err_t uv_resident_set_memory(size_t* rss) {
   kvm_t *kd = NULL;
-  struct kinfo_proc2 *kinfo = NULL;
+  struct kinfo_proc *kinfo = NULL;
   pid_t pid;
-  int nprocs, max_size = sizeof(struct kinfo_proc2);
+  int nprocs, max_size = sizeof(struct kinfo_proc);
   size_t page_size = getpagesize();
 
   pid = getpid();
@@ -169,7 +176,7 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   kd = kvm_open(NULL, _PATH_MEM, NULL, O_RDONLY, "kvm_open");
   if (kd == NULL) goto error;
 
-  kinfo = kvm_getproc2(kd, KERN_PROC_PID, pid, max_size, &nprocs);
+  kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, max_size, &nprocs);
   if (kinfo == NULL) goto error;
 
   *rss = kinfo->p_vm_rssize * page_size;
@@ -207,18 +214,18 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uint64_t info[CPUSTATES];
   char model[512];
   int numcpus = 1;
-  static int which[] = {CTL_HW, HW_MODEL, NULL};
+  static int which[] = {CTL_HW,HW_MODEL,0};
   size_t size;
   uv_cpu_info_t* cpu_info;
 
   size = sizeof(model);
   if (sysctl(which, 2, &model, &size, NULL, 0) < 0) {
-    return -1;
+    return uv__new_sys_error(errno);
   }
   which[1] = HW_NCPU;
   size = sizeof(numcpus);
   if (sysctl(which, 2, &numcpus, &size, NULL, 0) < 0) {
-    return -1;
+    return uv__new_sys_error(errno);
   }
 
   *cpu_infos = (uv_cpu_info_t*)malloc(numcpus * sizeof(uv_cpu_info_t));
@@ -248,11 +255,11 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
     cpu_info = &(*cpu_infos)[i];
     
-    cpu_info->cpu_times.user = (uint64_t)(info[CP_USER]) * multiplier);
-    cpu_info->cpu_times.nice = ((uint64_t)(info[CP_NICE]) * multiplier);
-    cpu_info->cpu_times.sys = (uint64_t)(info[CP_SYS]) * multiplier));
-    cpu_info->cpu_times.idle = (uint64_t)(info[CP_IDLE]) * multiplier));
-    cpu_info->cpu_times.irq = (uint64_t)(info[CP_INTR]) * multiplier));
+    cpu_info->cpu_times.user = (uint64_t)(info[CP_USER]) * multiplier;
+    cpu_info->cpu_times.nice = (uint64_t)(info[CP_NICE]) * multiplier;
+    cpu_info->cpu_times.sys = (uint64_t)(info[CP_SYS]) * multiplier;
+    cpu_info->cpu_times.idle = (uint64_t)(info[CP_IDLE]) * multiplier;
+    cpu_info->cpu_times.irq = (uint64_t)(info[CP_INTR]) * multiplier;
 
     cpu_info->model = strdup(model);
     cpu_info->speed = cpuspeed;
@@ -266,7 +273,7 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].brand);
+    free(cpu_infos[i].model);
   }
 
   free(cpu_infos);

@@ -1504,6 +1504,8 @@ struct uv_loop_s {
 #undef UV_FS_REQ_PRIVATE_FIELDS
 #undef UV_WORK_PRIVATE_FIELDS
 #undef UV_FS_EVENT_PRIVATE_FIELDS
+#undef UV_LOOP_PRIVATE_FIELDS
+#undef UV_LOOP_PRIVATE_PLATFORM_FIELDS
 
 #ifdef __cplusplus
 }

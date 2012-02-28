@@ -73,7 +73,6 @@ uint64_t uv_hrtime() {
 int uv_exepath(char* buffer, size_t* size) {
   uint32_t usize;
   int result;
-  char* path;
   char* fullpath;
 
   if (!buffer || !size) {
@@ -84,11 +83,9 @@ int uv_exepath(char* buffer, size_t* size) {
   result = _NSGetExecutablePath(buffer, &usize);
   if (result) return result;
 
-  path = (char*)malloc(2 * PATH_MAX);
-  fullpath = realpath(buffer, path);
+  fullpath = realpath(buffer, NULL);
 
   if (fullpath == NULL) {
-    free(path);
     return -1;
   }
 

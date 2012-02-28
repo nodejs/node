@@ -29,3 +29,5 @@ UpgradeLog*.XML
 Debug
 Release
 ipch
+*.mk
+*.Makefile

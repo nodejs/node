@@ -40,6 +40,16 @@
 #undef NANOSEC
 #define NANOSEC 1000000000
 
+#ifndef CPUSTATES
+# define CPUSTATES 5U
+#endif
+#ifndef CP_USER
+# define CP_USER 0
+# define CP_NICE 1
+# define CP_SYS 2
+# define CP_IDLE 3
+# define CP_INTR 4
+#endif
 
 static char *process_title;
 
@@ -164,7 +174,11 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   kinfo = kvm_getprocs(kd, KERN_PROC_PID, pid, &nprocs);
   if (kinfo == NULL) goto error;
 
+#ifdef __DragonFly__
+  *rss = kinfo->kp_vm_rssize * page_size;
+#else
   *rss = kinfo->ki_rssize * page_size;
+#endif
 
   kvm_close(kd);
 
@@ -227,10 +241,17 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   }
   /* kern.cp_times on FreeBSD i386 gives an array up to maxcpus instead of ncpu */
   size = sizeof(maxcpus);
+#ifdef __DragonFly__
+  if (sysctlbyname("hw.ncpu", &maxcpus, &size, NULL, 0) < 0) {
+    free(*cpu_infos);
+    return uv__new_sys_error(errno);
+  }
+#else
   if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &size, NULL, 0) < 0) {
     free(*cpu_infos);
     return uv__new_sys_error(errno);
   }
+#endif
 
   size = maxcpus * CPUSTATES * sizeof(long);
 

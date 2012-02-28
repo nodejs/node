@@ -217,7 +217,10 @@
         }],
         [ 'OS=="linux"', {
           'include_dirs': [ 'src/ares/config_linux' ],
-          'sources': [ 'src/unix/linux.c' ],
+          'sources': [
+            'src/unix/linux/core.c',
+            'src/unix/linux/inotify.c',
+          ],
           'defines': [
             'EV_CONFIG_H="config_linux.h"',
             'EIO_CONFIG_H="config_linux.h"',

@@ -65,7 +65,6 @@ static void uv__finish_close(uv_handle_t* handle);
 
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   uv_async_t* async;
-  uv_timer_t* timer;
   uv_stream_t* stream;
   uv_process_t* process;
 
@@ -118,11 +117,7 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
       break;
 
     case UV_TIMER:
-      timer = (uv_timer_t*)handle;
-      if (ev_is_active(&timer->timer_watcher)) {
-        ev_ref(timer->loop->ev);
-      }
-      ev_timer_stop(timer->loop->ev, &timer->timer_watcher);
+      uv_timer_stop((uv_timer_t*)handle);
       break;
 
     case UV_PROCESS:
@@ -157,6 +152,7 @@ static int uv__loop_init(uv_loop_t* loop,
 #endif
   ev_set_userdata(loop->ev, loop);
   eio_channel_init(&loop->uv_eio_channel, loop);
+  uv__loop_platform_init(loop);
   return 0;
 }
 
@@ -179,11 +175,10 @@ uv_loop_t* uv_loop_new(void) {
 void uv_loop_delete(uv_loop_t* loop) {
   uv_ares_destroy(loop, loop->channel);
   ev_loop_destroy(loop->ev);
-
+  uv__loop_platform_delete(loop);
 #ifndef NDEBUG
-  memset(loop, 0, sizeof *loop);
+  memset(loop, -1, sizeof *loop);
 #endif
-
   if (loop == default_loop_ptr)
     default_loop_ptr = NULL;
   else
@@ -531,10 +526,23 @@ int uv_async_send(uv_async_t* async) {
 }
 
 
+static int uv__timer_active(const uv_timer_t* timer) {
+  return timer->flags & UV_TIMER_ACTIVE;
+}
+
+
+static int uv__timer_repeating(const uv_timer_t* timer) {
+  return timer->flags & UV_TIMER_REPEAT;
+}
+
+
 static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
   uv_timer_t* timer = container_of(w, uv_timer_t, timer_watcher);
 
-  if (!ev_is_active(w)) {
+  assert(uv__timer_active(timer));
+
+  if (!uv__timer_repeating(timer)) {
+    timer->flags &= ~UV_TIMER_ACTIVE;
     ev_ref(EV_A);
   }
 
@@ -556,42 +564,60 @@ int uv_timer_init(uv_loop_t* loop, uv_timer_t* timer) {
 
 int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
     int64_t repeat) {
-  if (ev_is_active(&timer->timer_watcher)) {
+  if (uv__timer_active(timer)) {
     return -1;
   }
 
   timer->timer_cb = cb;
+  timer->flags |= UV_TIMER_ACTIVE;
+
+  if (repeat)
+    timer->flags |= UV_TIMER_REPEAT;
+  else
+    timer->flags &= ~UV_TIMER_REPEAT;
+
   ev_timer_set(&timer->timer_watcher, timeout / 1000.0, repeat / 1000.0);
   ev_timer_start(timer->loop->ev, &timer->timer_watcher);
   ev_unref(timer->loop->ev);
+
   return 0;
 }
 
 
 int uv_timer_stop(uv_timer_t* timer) {
-  if (ev_is_active(&timer->timer_watcher)) {
+  if (uv__timer_active(timer)) {
     ev_ref(timer->loop->ev);
   }
 
+  timer->flags &= ~(UV_TIMER_ACTIVE | UV_TIMER_REPEAT);
   ev_timer_stop(timer->loop->ev, &timer->timer_watcher);
+
   return 0;
 }
 
 
 int uv_timer_again(uv_timer_t* timer) {
-  if (!ev_is_active(&timer->timer_watcher)) {
+  if (!uv__timer_active(timer)) {
     uv__set_sys_error(timer->loop, EINVAL);
     return -1;
   }
 
+  assert(uv__timer_repeating(timer));
   ev_timer_again(timer->loop->ev, &timer->timer_watcher);
   return 0;
 }
 
+
 void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat) {
   assert(timer->type == UV_TIMER);
   timer->timer_watcher.repeat = repeat / 1000.0;
+
+  if (repeat)
+    timer->flags |= UV_TIMER_REPEAT;
+  else
+    timer->flags &= ~UV_TIMER_REPEAT;
 }
+
 
 int64_t uv_timer_get_repeat(uv_timer_t* timer) {
   assert(timer->type == UV_TIMER);
