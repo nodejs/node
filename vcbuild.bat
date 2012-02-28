@@ -148,7 +148,8 @@ goto exit
 :help
 echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [nobuild] [nosign]
 echo Examples:
-echo   vcbuild.bat                : builds debug build
+echo   vcbuild.bat                : builds release build
+echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
 goto exit
