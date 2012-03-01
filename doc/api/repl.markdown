@@ -1,4 +1,4 @@
-## REPL
+# REPL
 
 A Read-Eval-Print-Loop (REPL) is available both as a standalone program and easily
 includable in other programs.  REPL provides a way to interactively run
@@ -27,7 +27,7 @@ For example, you could add this to your bashrc file:
     alias node="env NODE_NO_READLINE=1 rlwrap node"
 
 
-### repl.start([prompt], [stream], [eval], [useGlobal], [ignoreUndefined])
+## repl.start([prompt], [stream], [eval], [useGlobal], [ignoreUndefined])
 
 Starts a REPL with `prompt` as the prompt and `stream` for all I/O.  `prompt`
 is optional and defaults to `> `.  `stream` is optional and defaults to
@@ -77,7 +77,9 @@ By starting a REPL from a Unix socket-based server instead of stdin, you can
 connect to a long-running node process without restarting it.
 
 
-### REPL Features
+## REPL Features
+
+<!-- type=misc -->
 
 Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
 Tab completion is supported for both global and local variables.

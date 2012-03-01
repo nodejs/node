@@ -1,4 +1,4 @@
-## Zlib
+# Zlib
 
 You can access this module with:
 
@@ -8,7 +8,7 @@ This provides bindings to Gzip/Gunzip, Deflate/Inflate, and
 DeflateRaw/InflateRaw classes.  Each class takes the same options, and
 is a readable/writable Stream.
 
-### Examples
+## Examples
 
 Compressing or decompressing a file can be done by piping an
 fs.ReadStream into a zlib stream, then into an fs.WriteStream.
@@ -101,72 +101,76 @@ tradeoffs involved in zlib usage.
       }
     }).listen(1337);
 
-### Constants
+## Constants
+
+<!--type=misc-->
 
 All of the constants defined in zlib.h are also defined on
 `require('zlib')`.  They are described in more detail in the zlib
 documentation.  See <http://zlib.net/manual.html#Constants>
 for more details.
 
-### zlib.createGzip([options])
+## zlib.createGzip([options])
 
 Returns a new [Gzip](#zlib.Gzip) object with an [options](#options).
 
-### zlib.createGunzip([options])
+## zlib.createGunzip([options])
 
 Returns a new [Gunzip](#zlib.Gunzip) object with an [options](#options).
 
-### zlib.createDeflate([options])
+## zlib.createDeflate([options])
 
 Returns a new [Deflate](#zlib.Deflate) object with an [options](#options).
 
-### zlib.createInflate([options])
+## zlib.createInflate([options])
 
 Returns a new [Inflate](#zlib.Inflate) object with an [options](#options).
 
-### zlib.createDeflateRaw([options])
+## zlib.createDeflateRaw([options])
 
 Returns a new [DeflateRaw](#zlib.DeflateRaw) object with an [options](#options).
 
-### zlib.createInflateRaw([options])
+## zlib.createInflateRaw([options])
 
 Returns a new [InflateRaw](#zlib.InflateRaw) object with an [options](#options).
 
-### zlib.createUnzip([options])
+## zlib.createUnzip([options])
 
 Returns a new [Unzip](#zlib.Unzip) object with an [options](#options).
 
 
-### zlib.Gzip
+## Class: zlib.Gzip
 
 Compress data using gzip.
 
-### zlib.Gunzip
+## Class: zlib.Gunzip
 
 Decompress a gzip stream.
 
-### zlib.Deflate
+## Class: zlib.Deflate
 
 Compress data using deflate.
 
-### zlib.Inflate
+## Class: zlib.Inflate
 
 Decompress a deflate stream.
 
-### zlib.DeflateRaw
+## Class: zlib.DeflateRaw
 
 Compress data using deflate, and do not append a zlib header.
 
-### zlib.InflateRaw
+## Class: zlib.InflateRaw
 
 Decompress a raw deflate stream.
 
-### zlib.Unzip
+## Class: zlib.Unzip
 
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
 
 ## Convenience Methods
+
+<!--type=misc-->
 
 All of these take a string or buffer as the first argument, and call the
 supplied callback with `callback(error, result)`.  The
@@ -174,35 +178,37 @@ compression/decompression engine is created using the default settings
 in all convenience methods.  To supply different options, use the
 zlib classes directly.
 
-### zlib.deflate(buf, callback)
+## zlib.deflate(buf, callback)
 
 Compress a string with Deflate.
 
-### zlib.deflateRaw(buf, callback)
+## zlib.deflateRaw(buf, callback)
 
 Compress a string with DeflateRaw.
 
-### zlib.gzip(buf, callback)
+## zlib.gzip(buf, callback)
 
 Compress a string with Gzip.
 
-### zlib.gunzip(buf, callback)
+## zlib.gunzip(buf, callback)
 
 Decompress a raw Buffer with Gunzip.
 
-### zlib.inflate(buf, callback)
+## zlib.inflate(buf, callback)
 
 Decompress a raw Buffer with Inflate.
 
-### zlib.inflateRaw(buf, callback)
+## zlib.inflateRaw(buf, callback)
 
 Decompress a raw Buffer with InflateRaw.
 
-### zlib.unzip(buf, callback)
+## zlib.unzip(buf, callback)
 
 Decompress a raw Buffer with Unzip.
 
 ## Options
+
+<!--type=misc-->
 
 Each class takes an options object.  All options are optional.  (The
 convenience methods use the default settings for all options.)
@@ -219,7 +225,9 @@ relevant when compressing, and are ignored by the decompression classes.
 See the description of `deflateInit2` and `inflateInit2` at
 <http://zlib.net/manual.html#Advanced> for more information on these.
 
-### Memory Usage Tuning
+## Memory Usage Tuning
+
+<!--type=misc-->
 
 From `zlib/zconf.h`, modified to node's usage:
 

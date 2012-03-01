@@ -1,4 +1,4 @@
-## Addons
+# Addons
 
 Addons are dynamically linked shared objects. They can provide glue to C and
 C++ libraries. The API (at the moment) is rather complex, involving
@@ -24,7 +24,7 @@ compiling your module, you don't need to worry about linking to any of these
 libraries.
 
 
-### Hello world
+## Hello world
 
 To get started let's make a small Addon which is the C++ equivalent of
 the following Javascript code:
@@ -129,7 +129,7 @@ In cases where there is more than one `.cc` file, simply add the file name to th
     obj.source = ['addon.cc', 'myexample.cc']
 
 
-#### Function arguments
+### Function arguments
 
 The following pattern illustrates how to read arguments from JavaScript
 function calls and return a result. This is the main and only needed source
@@ -172,7 +172,7 @@ You can test it with the following JavaScript snippet:
     console.log( 'This should be eight:', addon.add(3,5) );
 
 
-#### Callbacks
+### Callbacks
 
 You can pass JavaScript functions to a C++ function and execute them from
 there. Here's `addon.cc`:
@@ -209,7 +209,7 @@ To test it run the following JavaScript snippet:
     });
 
 
-#### Object factory
+### Object factory
 
 You can create and return new objects from within a C++ function with this
 `addon.cc` pattern, which returns an object with property `msg` that echoes
@@ -245,7 +245,7 @@ To test it in JavaScript:
     console.log(obj1.msg+' '+obj2.msg); // 'hello world'
 
 
-#### Function factory
+### Function factory
 
 This pattern illustrates how to create and return a JavaScript function that
 wraps a C++ function:
@@ -286,7 +286,7 @@ To test:
     console.log(fn()); // 'hello world'
 
 
-#### Wrapping C++ objects
+### Wrapping C++ objects
 
 Here we will create a wrapper for a C++ object/class `MyObject` that can be
 instantiated in JavaScript through the `new` operator. First prepare the main
@@ -381,7 +381,7 @@ Test it with:
     console.log( obj.plusOne() ); // 13
 
 
-#### Factory of wrapped objects
+### Factory of wrapped objects
 
 This is useful when you want to be able to create native objects without
 explicitly instantiating them with the `new` operator in JavaScript, e.g.
@@ -507,7 +507,7 @@ Test it with:
     console.log( obj2.plusOne() ); // 23
 
 
-#### Passing wrapped objects around
+### Passing wrapped objects around
 
 In addition to wrapping and returning C++ objects, you can pass them around
 by unwrapping them with Node's `node::ObjectWrap::Unwrap` helper function.

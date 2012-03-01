@@ -1,44 +1,46 @@
-## os Module
+# os
+
+Provides a few basic operating-system related utility functions.
 
 Use `require('os')` to access this module.
 
-### os.hostname()
+## os.hostname()
 
 Returns the hostname of the operating system.
 
-### os.type()
+## os.type()
 
 Returns the operating system name.
 
-### os.platform()
+## os.platform()
 
 Returns the operating system platform.
 
-### os.arch()
+## os.arch()
 
 Returns the operating system CPU architecture.
 
-### os.release()
+## os.release()
 
 Returns the operating system release.
 
-### os.uptime()
+## os.uptime()
 
 Returns the system uptime in seconds.
 
-### os.loadavg()
+## os.loadavg()
 
 Returns an array containing the 1, 5, and 15 minute load averages.
 
-### os.totalmem()
+## os.totalmem()
 
 Returns the total amount of system memory in bytes.
 
-### os.freemem()
+## os.freemem()
 
 Returns the amount of free system memory in bytes.
 
-### os.cpus()
+## os.cpus()
 
 Returns an array of objects containing information about each CPU/core installed: model, speed (in MHz), and times (an object containing the number of CPU ticks spent in: user, nice, sys, idle, and irq).
 
@@ -109,7 +111,7 @@ Example inspection of os.cpus:
            idle: 1072572010,
            irq: 30 } } ]
 
-### os.networkInterfaces()
+## os.networkInterfaces()
 
 Get a list of network interfaces:
 

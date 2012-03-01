@@ -1,30 +1,50 @@
-## Global Objects
+# Global Objects
+
+<!-- type=misc -->
 
 These objects are available in all modules. Some of these objects aren't
 actually in the global scope but in the module scope - this will be noted.
 
-### global
+## global
 
-The global namespace object.
+<!-- type=global -->
+
+* {Object} The global namespace object.
 
 In browsers, the top-level scope is the global scope. That means that in
 browsers if you're in the global scope `var something` will define a global
 variable. In Node this is different. The top-level scope is not the global
 scope; `var something` inside a Node module will be local to that module.
 
-### process
+## process
+
+<!-- type=global -->
+
+* {Object}
 
 The process object. See the [process object](process.html#process) section.
 
-### console
+## console
+
+<!-- type=global -->
+
+* {Object}
 
 Used to print to stdout and stderr. See the [stdio](stdio.html) section.
 
-### Buffer
+## Buffer
 
-Used to handle binary data. See the [buffers](buffers.html) section.
+<!-- type=global -->
 
-### require()
+* {Object}
+
+Used to handle binary data. See the [buffer section](buffer.html).
+
+## require()
+
+<!-- type=var -->
+
+* {Function}
 
 To require modules. See the [Modules](modules.html#modules) section.
 `require` isn't actually a global but rather local to each module.
@@ -37,11 +57,16 @@ but rather than loading the module, just return the resolved filename.
 
 ### require.cache
 
+* {Object}
+
 Modules are cached in this object when they are required. By deleting a key
 value from this object, the next `require` will reload the module.
 
+## __filename
 
-### __filename
+<!-- type=var -->
+
+* {String}
 
 The filename of the code being executed.  This is the resolved absolute path
 of this code file.  For a main program this is not necessarily the same
@@ -55,7 +80,11 @@ Example: running `node example.js` from `/Users/mjr`
 
 `__filename` isn't actually a global but rather local to each module.
 
-### __dirname
+## __dirname
+
+<!-- type=var -->
+
+* {String}
 
 The name of the directory that the currently executing script resides in.
 
@@ -67,7 +96,11 @@ Example: running `node example.js` from `/Users/mjr`
 `__dirname` isn't actually a global but rather local to each module.
 
 
-### module
+## module
+
+<!-- type=var -->
+
+* {Object}
 
 A reference to the current module. In particular
 `module.exports` is the same as the `exports` object. See `src/node.js`
@@ -75,7 +108,9 @@ for more information.
 `module` isn't actually a global but rather local to each module.
 
 
-### exports
+## exports
+
+<!-- type=var -->
 
 An object which is shared between all instances of the current module and
 made accessible through `require()`.
@@ -83,9 +118,16 @@ made accessible through `require()`.
 for more information.
 `exports` isn't actually a global but rather local to each module.
 
-### setTimeout(cb, ms)
-### clearTimeout(t)
-### setInterval(cb, ms)
-### clearInterval(t)
+See the [module system documentation](modules.html) for more
+information.
+
+See the [module section](modules.html) for more information.
+
+## setTimeout(cb, ms)
+## clearTimeout(t)
+## setInterval(cb, ms)
+## clearInterval(t)
+
+<!--type=global-->
 
 The timer functions are global variables. See the [timers](timers.html) section.
