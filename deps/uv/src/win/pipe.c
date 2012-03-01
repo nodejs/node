@@ -560,6 +560,12 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
 
   assert(handle->handle != INVALID_HANDLE_VALUE);
 
+  /* Ensure that what we just opened is actually a pipe */
+  if (!GetNamedPipeInfo(handle->handle, NULL, NULL, NULL, NULL)) {
+    errno = WSAENOTSOCK;
+    goto error;
+  }
+
   if (uv_set_pipe_handle(loop, (uv_pipe_t*)req->handle, handle->handle)) {
     errno = GetLastError();
     goto error;
