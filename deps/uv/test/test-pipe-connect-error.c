@@ -52,7 +52,8 @@ static void connect_cb(uv_connect_t* connect_req, int status) {
 
 static void connect_cb_file(uv_connect_t* connect_req, int status) {
   ASSERT(status == -1);
-  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSOCK);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSOCK ||
+         uv_last_error(uv_default_loop()).code == UV_ECONNREFUSED);
   uv_close((uv_handle_t*)connect_req->handle, close_cb);
   connect_cb_called++;
 }
