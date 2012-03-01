@@ -151,7 +151,9 @@ enum {
   UV_READABLE      = 0x20,   /* The stream is readable */
   UV_WRITABLE      = 0x40,   /* The stream is writable */
   UV_TCP_NODELAY   = 0x080,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE = 0x100   /* Turn on keep-alive. */
+  UV_TCP_KEEPALIVE = 0x100,  /* Turn on keep-alive. */
+  UV_TIMER_ACTIVE  = 0x080,
+  UV_TIMER_REPEAT  = 0x100
 };
 
 size_t uv__strlcpy(char* dst, const char* src, size_t size);
