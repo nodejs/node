@@ -53,29 +53,34 @@ noEntSocketClient.on('error', function(err) {
 });
 
 
-// Trying to connect to a socket one has no access to should result in EACCES
-var accessServer = net.createServer(function() {
-  assert.ok(false);
-});
-accessServer.listen(common.PIPE, function() {
-  fs.chmodSync(common.PIPE, 0);
-
-  var accessClient = net.createConnection(common.PIPE, function() {
+// On Windows a chmod has no effect on named pipes
+if (process.platform !== 'win32') {
+  // Trying to connect to a socket one has no access to should result in EACCES
+  var accessServer = net.createServer(function() {
     assert.ok(false);
   });
+  accessServer.listen(common.PIPE, function() {
+    fs.chmodSync(common.PIPE, 0);
 
-  accessClient.on('error', function(err) {
-    assert.equal(err.code, 'EACCES');
-    accessErrorFired = true;
-    accessServer.close();
+    var accessClient = net.createConnection(common.PIPE, function() {
+      assert.ok(false);
+    });
+
+    accessClient.on('error', function(err) {
+      assert.equal(err.code, 'EACCES');
+      accessErrorFired = true;
+      accessServer.close();
+    });
   });
-});
+}
 
 
 // Assert that all error events were fired
 process.on('exit', function() {
   assert.ok(notSocketErrorFired);
   assert.ok(noEntErrorFired);
-  assert.ok(accessErrorFired);
+  if (process.platform !== 'win32') {
+    assert.ok(accessErrorFired);
+  }
 });
 
