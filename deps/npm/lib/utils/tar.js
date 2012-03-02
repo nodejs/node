@@ -583,7 +583,9 @@ function makeList_ (dir, pkg, exList, dfc, cb) {
         // do fancy crap
         && dfc
         // not already part of a bundled dependency
-        && path.basename(path.dirname(pkg.path)) !== "node_modules") {
+        && (path.basename(path.dirname(pkg.path)) !== "node_modules"
+          // unless it's the root
+          || pkg.path === npm.prefix)) {
       log.verbose(dir, "doing fancy crap")
       files = filterNodeModules(files, pkg)
     } else {

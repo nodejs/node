@@ -3,7 +3,7 @@ npm-changelog(1) -- Changes
 
 ## HISTORY
 
-### 1.1.3
+### 1.1.3, 1.1.4
 
 * Update request to support HTTPS-over-HTTP proxy tunneling
 * Throw on undefined envs in config settings
