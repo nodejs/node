@@ -1,4 +1,44 @@
-2012.02.17 Version 0.6.11 (stable)
+2012.03.02 Version 0.6.12 (stable)
+
+* Upgrade V8 to 3.6.6.24
+
+* dtrace ustack helper improvements (Dave Pacheco)
+
+* API Documentation refactor (isaacs)
+
+* #2827 net: fix race write() before and after connect() (koichik)
+
+* #2554 #2567 throw if fs args for 'start' or 'end' are strings (AJ ONeal)
+
+* punycode: Update to v1.0.0 (Mathias Bynens)
+
+* Make a fat binary for the OS X pkg (isaacs)
+
+* Fix hang on accessing process.stdin (isaacs)
+
+* repl: make tab completion work on non-objects (Nathan Rajlich)
+
+* Fix fs.watch on OS X (Ben Noordhuis)
+
+* Fix #2515 nested setTimeouts cause premature process exit (Ben Noordhuis)
+
+* windows: fix time conversion in stat (Igor Zinkovsky)
+
+* windows: fs: handle EOF in read (Brandon Philips)
+
+* windows: avoid IOCP short-circuit on non-ifs lsps (Igor Zinkovsky)
+
+* Upgrade npm to 1.1.4 (isaacs)
+  - windows fixes
+  - Bundle nested bundleDependencies properly
+  - install: support --save with url install targets
+  - shrinkwrap: behave properly with url-installed modules
+  - support installing uncompressed tars or single file modules from urls etc.
+  - don't run make clean on rebuild
+  - support HTTPS-over-HTTP proxy tunneling
+
+
+2012.02.17 Version 0.6.11 (stable), 1eb1fe32250fc88cb5b0a97cddf3e02be02e3f4a
 
 * http: allow multiple WebSocket RFC6455 headers (Einar Otto Stangvik)
 

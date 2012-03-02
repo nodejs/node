@@ -255,6 +255,10 @@ const int kBinary32MinExponent  = 0x01;
 const int kBinary32MantissaBits = 23;
 const int kBinary32ExponentShift = 23;
 
+// Quiet NaNs have bits 51 to 62 set, possibly the sign bit, and no
+// other bits set.
+const uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
+
 // ASCII/UC16 constants
 // Code-point values in Unicode 4.0 are 21 bits wide.
 typedef uint16_t uc16;

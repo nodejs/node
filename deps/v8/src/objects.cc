@@ -10006,6 +10006,9 @@ template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
 template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     AtPut(uint32_t, Object*);
 
+template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    SlowReverseLookup(Object* value);
+
 template Object* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 

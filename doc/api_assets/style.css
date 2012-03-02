@@ -75,7 +75,7 @@ p {
   text-rendering: optimizeLegibility;
 }
 
-.apidoc p {
+.apidoc #apicontent p, .apidoc #apicontent li {
   font-size: 15px;
   line-height: 22px;
   color: #000;
@@ -280,7 +280,7 @@ hr {
     margin: 1em 0 2em;
   }
 
-  #toc ul, #api-section-index ul li, #api-section-index ul {
+  #toc ul, #api-section-index #apicontent ul li, #api-section-index #apicontent ul {
     font-family: Georgia, FreeSerif, Times, serif;
     color:#666!important;
   }
@@ -422,6 +422,9 @@ a.anchor {
     line-height:1em;
     padding: 0 0 0 195px;
     color: #666;
+}
+
+#footer p, #footer li {
     font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
 }
 
