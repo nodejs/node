@@ -183,7 +183,9 @@ function readDependencies (context, where, opts, cb) {
       })
       rv.dependencies = {}
       Object.keys(wrap).forEach(function (key) {
-        rv.dependencies[key] = wrap[key].version
+        log.verbose([key, wrap[key]], "from wrap")
+        var w = wrap[key]
+        rv.dependencies[key] = w.from || w.version
       })
       log.verbose([rv.dependencies], "readDependencies: returned deps")
       return cb(null, rv, wrap)
@@ -210,7 +212,8 @@ function readDependencies (context, where, opts, cb) {
       })
       rv.dependencies = {}
       Object.keys(newwrap.dependencies).forEach(function (key) {
-        rv.dependencies[key] = newwrap.dependencies[key].version
+        var w = newwrap.dependencies[key]
+        rv.dependencies[key] = w.from || w.version
       })
       log.verbose([rv.dependencies], "readDependencies: returned deps")
       return cb(null, rv, newwrap.dependencies)
@@ -225,14 +228,22 @@ function save (where, installed, tree, pretty, cb) {
   if (!npm.config.get("save") || npm.config.get("global")) {
     return cb(null, installed, tree, pretty)
   }
+
   // each item in the tree is a top-level thing that should be saved
   // to the package.json file.
   // The relevant tree shape is { <folder>: {what:<pkg>} }
   var saveTarget = path.resolve(where, "package.json")
     , things = Object.keys(tree).map(function (k) {
-        return tree[k].what.split("@")
+        // if "what" was a url, then save that instead.
+        var t = tree[k]
+          , u = url.parse(t.from)
+          , w = t.what.split("@")
+        if (u && u.protocol) w[1] = t.from
+        return w
       }).reduce(function (set, k) {
-        var rangeDescriptor = semver.gte(k[1], "0.1.0") ? "~" : ""
+        var rangeDescriptor = semver.valid(k[1]) &&
+                              semver.gte(k[1], "0.1.0")
+                            ? "~" : ""
         set[k[0]] = rangeDescriptor + k[1]
         return set
       }, {})
@@ -309,11 +320,13 @@ function treeify (installed) {
       , parent = r[2]
       , where = r[1]
       , what = r[0]
+      , from = r[4]
     l[where] = { parentDir: parentDir
                , parent: parent
                , children: []
                , where: where
-               , what: what }
+               , what: what
+               , from: from }
     return l
   }, {})
 
@@ -368,7 +381,6 @@ function installManyTop_ (what, where, context, cb) {
     if (er) return installMany(what, where, context, cb)
     pkgs = pkgs.filter(function (p) {
       return !p.match(/^[\._-]/)
-          && (!context.explicit || names.indexOf(p) === -1)
     })
     asyncMap(pkgs.map(function (p) {
       return path.resolve(nm, p, "package.json")
@@ -429,7 +441,7 @@ function installMany (what, where, context, cb) {
         log.info(t._id, "into "+where)
       })
       asyncMap(targets, function (target, cb) {
-        log(target._id, "installOne")
+        log.info(target._id, "installOne")
         var newWrap = wrap ? wrap[target.name].dependencies || {} : null
         var newContext = { family: newPrev
                          , ancestors: newAnc
@@ -469,6 +481,7 @@ function targetResolver (where, context, deps) {
     if (!alreadyInstalledManually) return setTimeout(function () {
       resolver(what, cb)
     }, to++)
+
     // now we know what's been installed here manually,
     // or tampered with in some way that npm doesn't want to overwrite.
     if (alreadyInstalledManually.indexOf(what.split("@").shift()) !== -1) {
@@ -479,13 +492,9 @@ function targetResolver (where, context, deps) {
     // check for a version installed higher in the tree.
     // If installing from a shrinkwrap, it must match exactly.
     if (context.family[what]) {
-      if (wrap && wrap[what].version == context.family[what]) {
-        log.verbose("using existing "+what+" (matches shrinkwrap)")
-        return cb(null, [])
-      }
 
-      if (!wrap && semver.satisfies(context.family[what], deps[what] || "")) {
-        log.verbose("using existing "+what+" (no shrinkwrap)")
+      if (wrap && wrap[what].version == context.family[what]) {
+        log.verbose(what, "using existing (matches shrinkwrap)")
         return cb(null, [])
       }
     }
@@ -493,10 +502,11 @@ function targetResolver (where, context, deps) {
     if (wrap) {
       name = what.split(/@/).shift()
       if (wrap[name]) {
-        log.verbose("shrinkwrap: resolving "+what+" to "+wrap[name].version)
-        what = name + "@" + wrap[name].version
+        var wrapTarget = wrap[name].from || wrap[name].version
+        log.verbose("resolving "+what+" to "+wrapTarget, "shrinkwrap")
+        what = name + "@" + wrapTarget
       } else {
-        log.verbose("shrinkwrap: skipping "+what+" (not in shrinkwrap)")
+        log.verbose("skipping "+what+" (not in shrinkwrap)", "shrinkwrap")
       }
     } else if (deps[what]) {
       what = what + "@" + deps[what]
@@ -504,13 +514,21 @@ function targetResolver (where, context, deps) {
 
     cache.add(what, function (er, data) {
       if (er && parent && parent.optionalDependencies &&
-          parent.optionalDependencies.hasOwnProperty(what.split("@").shift())) {
+          parent.optionalDependencies.hasOwnProperty(what.split("@")[0])) {
         log.warn(what, "optional dependency failed, continuing")
         return cb(null, [])
       }
-      if (!er && data && context.family[data.name] === data.version) {
+
+      if (!er &&
+          data &&
+          context.family[data.name] === data.version &&
+          !npm.config.get("force")) {
+        log.info(data.name + "@" + data.version, "already installed")
         return cb(null, [])
       }
+
+      if (data) data._from = what
+
       return cb(er, data)
     })
   }
@@ -575,7 +593,8 @@ function resultList (target, where, parentId) {
   return [ target._id
          , targetFolder
          , prettyWhere && parentId
-         , parentId && prettyWhere ]
+         , parentId && prettyWhere
+         , target._from ]
 }
 
 function installOne_ (target, where, context, cb) {
@@ -693,9 +712,11 @@ function write (target, targetFolder, context, cb_) {
   }
 
   chain
-    ( [ [ npm.commands.unbuild, [targetFolder] ]
-      , [ cache.unpack, target.name, target.version, targetFolder
+    ( [ [ cache.unpack, target.name, target.version, targetFolder
         , null, null, user, group ]
+      , [ fs, "writeFile"
+        , path.resolve(targetFolder, "package.json")
+        , JSON.stringify(target, null, 2) + "\n" ]
       , [ lifecycle, target, "preinstall", targetFolder ] ]
 
     // nest the chain so that we can throw away the results returned

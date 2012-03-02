@@ -752,12 +752,14 @@ function addTmpTarball (tgz, name, cb) {
 }
 
 function addTmpTarball_ (tgz, name, uid, gid, cb) {
-  var contents = path.resolve(path.dirname(tgz))  // , "contents")
+  var contents = path.dirname(tgz)
   tar.unpack( tgz, path.resolve(contents, "package")
             , null, null
             , uid, gid
             , function (er) {
-    if (er) return log.er(cb, "couldn't unpack "+tgz+" to "+contents)(er)
+    if (er) {
+      return log.er(cb, "couldn't unpack "+tgz+" to "+contents)(er)
+    }
     fs.readdir(contents, function (er, folder) {
       if (er) return log.er(cb, "couldn't readdir "+contents)(er)
       log.verbose(folder, "tarball contents")
@@ -792,11 +794,14 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
       log.error("Could not read data for "+pkg+"@"+ver)
       return cb(er)
     }
-    tar.unpack( path.join(npm.cache, pkg, ver, "package.tgz")
-             , unpackTarget
-             , dMode, fMode
-             , uid, gid
-             , cb )
+    npm.commands.unbuild([unpackTarget], function (er) {
+      if (er) return cb(er)
+      tar.unpack( path.join(npm.cache, pkg, ver, "package.tgz")
+                , unpackTarget
+                , dMode, fMode
+                , uid, gid
+                , cb )
+    })
   })
 }
 

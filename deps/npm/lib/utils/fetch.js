@@ -10,7 +10,6 @@ var request = require("request")
   , path = require("path")
   , mkdir = require("./mkdir-p.js")
   , regHost
-  , getAgent = require("./get-agent.js")
 
 module.exports = fetch
 
@@ -57,8 +56,8 @@ function makeRequest (remote, fstr, headers) {
 
   request({ url: remote
           , proxy: proxy
-          , agent: getAgent(remote)
           , strictSSL: npm.config.get("strict-ssl")
+          , ca: remote.host === regHost ? npm.config.get("ca") : undefined
           , onResponse: onResponse }).pipe(fstr)
   function onResponse (er, res) {
     if (er) return fstr.emit("error", er)

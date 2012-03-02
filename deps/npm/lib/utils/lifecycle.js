@@ -247,6 +247,10 @@ function makeEnv (data, prefix, env) {
       return
     }
     var value = ini.get(i)
+    if (/^(log|out)fd$/.test(i) && typeof value === "object") {
+      // not an fd, a stream
+      return
+    }
     if (!value) value = ""
     else if (typeof value !== "string") value = JSON.stringify(value)
 
