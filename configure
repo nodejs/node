@@ -2,6 +2,7 @@
 import optparse
 import os
 import pprint
+import re
 import subprocess
 import sys
 from distutils.version import StrictVersion
@@ -185,17 +186,17 @@ def host_arch():
 def target_arch():
   return host_arch()
 
-def gcc_optimize_level():
-  cc = ['gcc']
-  cmd = cc + [ '-dumpversion' ]
-  p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  p.stdin.write('\n')
-  out = p.communicate()[0]
-  gcc_version = (str(out).split('\n'))[0]
-  if StrictVersion(gcc_version) >= '4.6.1':
-    return '-O3'
-  else:
-    return '-O'
+
+def gcc_version():
+  try:
+    proc = subprocess.Popen('gcc -v'.split(), stderr=subprocess.PIPE)
+  except OSError:
+    return None
+  version = proc.communicate()[1].split('\n')[-2]
+  match = re.match('gcc version (\d+)\.(\d+)\.(\d+)', version)
+  assert match, 'Failed to parse gcc version `%s`' % version
+  return ['LLVM' in version] + map(int, match.groups())
+
 
 def configure_node(o):
   # TODO add gdb
@@ -207,10 +208,16 @@ def configure_node(o):
   o['variables']['target_arch'] = options.dest_cpu or target_arch()
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
+  # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
+  # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
+  # see http://code.google.com/p/v8/issues/detail?id=884
+  # TODO handle CC=clang
+  o['variables']['strict_aliasing'] = b(gcc_version() >= (False, 4, 6, 0))
+
   # TODO move to node.gyp
   if sys.platform == 'sunos5':
     o['variables']['visibility'] = '' # FIXME -fvisibility=hidden, should be a gcc check
-    o['variables']['gcc_optimize_level'] = gcc_optimize_level() # For bug fix of #2830
+
 
 def configure_libz(o):
   o['variables']['node_shared_zlib'] = b(options.shared_zlib)

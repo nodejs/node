@@ -1,5 +1,6 @@
 {
   'variables': {
+    'strict_aliasing%': 'false',     # turn on/off -fstrict-aliasing
     'visibility%': 'hidden',         # V8's visibility setting
     'target_arch%': 'ia32',          # set v8's target architecture
     'host_arch%': 'ia32',            # set v8's host architecture
@@ -34,18 +35,16 @@
         },
       },
       'Release': {
+        'cflags': [ '-O3', '-fdata-sections', '-ffunction-sections' ],
         'conditions': [
-          [ 'OS!="solaris"', {
-              'cflags': [ '-O3','-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
-          }],
-          [ 'OS=="solaris" and gcc_optimize_level =="-O3"', {
-              'cflags': [ '-O3', '-fdata-sections', '-ffunction-sections' ],	
-          }],
-          [ 'OS=="solaris" and gcc_optimize_level =="-O"', {
-              'cflags': [ '-O', '-fdata-sections', '-ffunction-sections' ], # For bug fix of #2830	
-          }],
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
+          }],
+          ['OS=="solaris"', {
+            'cflags': [ '-fno-omit-frame-pointer' ],
+          }],
+          ['strict_aliasing!="true"', {
+            'cflags': [ '-fno-strict-aliasing' ],
           }],
         ],
         'msvs_settings': {
