@@ -1,5 +1,7 @@
 # Readline
 
+    Stability: 3 - Stable
+
 To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as STDIN) on a line-by-line basis.
 

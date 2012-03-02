@@ -1,5 +1,7 @@
 # Debugger
 
+    Stability: 3 - Stable
+
 <!-- type=misc -->
 
 V8 comes with an extensive debugger which is accessible out-of-process via a

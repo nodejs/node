@@ -1,5 +1,7 @@
 # Child Process
 
+    Stability: 3 - Stable
+
 Node provides a tri-directional `popen(3)` facility through the
 `child_process` module.
 

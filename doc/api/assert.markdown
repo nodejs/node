@@ -1,5 +1,7 @@
 # Assert
 
+    Stability: 5 - Locked
+
 This module is used for writing unit tests for your applications, you can
 access it with `require('assert')`.
 

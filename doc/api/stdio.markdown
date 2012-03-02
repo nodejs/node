@@ -1,5 +1,7 @@
 # console
 
+    Stability: 4 - API Frozen
+
 * {Object}
 
 <!--type=global-->

@@ -1,5 +1,7 @@
 # Modules
 
+    Stability: 5 - Locked
+
 <!--name=module-->
 
 Node has a simple module loading system.  In Node, files and modules are in

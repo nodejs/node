@@ -1,5 +1,7 @@
 # TLS (SSL)
 
+    Stability: 3 - Stable
+
 Use `require('tls')` to access this module.
 
 The `tls` module uses OpenSSL to provide Transport Layer Security and/or

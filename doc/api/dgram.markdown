@@ -1,5 +1,7 @@
 # UDP / Datagram Sockets
 
+    Stability: 3 - Stable
+
 <!-- name=dgram -->
 
 Datagram sockets are available through `require('dgram')`.

@@ -1,5 +1,7 @@
 # Crypto
 
+    Stability: 3 - Stable
+
 Use `require('crypto')` to access this module.
 
 The crypto module requires OpenSSL to be available on the underlying platform.
