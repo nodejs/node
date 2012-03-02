@@ -986,7 +986,8 @@ class Smi: public Object {
   void SmiVerify();
 #endif
 
-  static const int kMinValue = (-1 << (kSmiValueSize - 1));
+  static const int kMinValue =
+      (static_cast<unsigned int>(-1)) << (kSmiValueSize - 1);
   static const int kMaxValue = -(kMinValue + 1);
 
  private:

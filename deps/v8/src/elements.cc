@@ -77,18 +77,17 @@ class ElementsAccessorBase : public ElementsAccessor {
                            uint32_t key,
                            JSObject* obj,
                            Object* receiver) {
-    return ElementsAccessorSubclass::Get(
+    return ElementsAccessorSubclass::GetImpl(
         BackingStoreClass::cast(backing_store), key, obj, receiver);
   }
 
-  static MaybeObject* Get(BackingStoreClass* backing_store,
-                          uint32_t key,
-                          JSObject* obj,
-                          Object* receiver) {
-    if (key < ElementsAccessorSubclass::GetCapacity(backing_store)) {
-      return backing_store->get(key);
-    }
-    return backing_store->GetHeap()->the_hole_value();
+  static MaybeObject* GetImpl(BackingStoreClass* backing_store,
+                              uint32_t key,
+                              JSObject* obj,
+                              Object* receiver) {
+    return (key < ElementsAccessorSubclass::GetCapacityImpl(backing_store))
+           ? backing_store->get(key)
+           : backing_store->GetHeap()->the_hole_value();
   }
 
   virtual MaybeObject* Delete(JSObject* obj,
@@ -108,7 +107,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     }
 #endif
     BackingStoreClass* backing_store = BackingStoreClass::cast(from);
-    uint32_t len1 = ElementsAccessorSubclass::GetCapacity(backing_store);
+    uint32_t len1 = ElementsAccessorSubclass::GetCapacityImpl(backing_store);
 
     // Optimize if 'other' is empty.
     // We cannot optimize if 'this' is empty, as other may have holes.
@@ -117,14 +116,13 @@ class ElementsAccessorBase : public ElementsAccessor {
     // Compute how many elements are not in other.
     int extra = 0;
     for (uint32_t y = 0; y < len1; y++) {
-      if (ElementsAccessorSubclass::HasElementAtIndex(backing_store,
-                                                      y,
-                                                      holder,
-                                                      receiver)) {
+      if (ElementsAccessorSubclass::HasElementAtIndexImpl(
+          backing_store, y, holder, receiver)) {
         uint32_t key =
-            ElementsAccessorSubclass::GetKeyForIndex(backing_store, y);
+            ElementsAccessorSubclass::GetKeyForIndexImpl(backing_store, y);
         MaybeObject* maybe_value =
-            ElementsAccessorSubclass::Get(backing_store, key, holder, receiver);
+            ElementsAccessorSubclass::GetImpl(backing_store, key,
+                                              holder, receiver);
         Object* value;
         if (!maybe_value->ToObject(&value)) return maybe_value;
         ASSERT(!value->IsTheHole());
@@ -155,14 +153,13 @@ class ElementsAccessorBase : public ElementsAccessor {
     // Fill in the extra values.
     int index = 0;
     for (uint32_t y = 0; y < len1; y++) {
-      if (ElementsAccessorSubclass::HasElementAtIndex(backing_store,
-                                                      y,
-                                                      holder,
-                                                      receiver)) {
+      if (ElementsAccessorSubclass::HasElementAtIndexImpl(
+          backing_store, y, holder, receiver)) {
         uint32_t key =
-            ElementsAccessorSubclass::GetKeyForIndex(backing_store, y);
+            ElementsAccessorSubclass::GetKeyForIndexImpl(backing_store, y);
         MaybeObject* maybe_value =
-            ElementsAccessorSubclass::Get(backing_store, key, holder, receiver);
+            ElementsAccessorSubclass::GetImpl(backing_store, key,
+                                              holder, receiver);
         Object* value;
         if (!maybe_value->ToObject(&value)) return maybe_value;
         if (!value->IsTheHole() && !HasKey(to, value)) {
@@ -176,25 +173,23 @@ class ElementsAccessorBase : public ElementsAccessor {
   }
 
  protected:
-  static uint32_t GetCapacity(BackingStoreClass* backing_store) {
+  static uint32_t GetCapacityImpl(BackingStoreClass* backing_store) {
     return backing_store->length();
   }
 
   virtual uint32_t GetCapacity(FixedArrayBase* backing_store) {
-    return ElementsAccessorSubclass::GetCapacity(
+    return ElementsAccessorSubclass::GetCapacityImpl(
         BackingStoreClass::cast(backing_store));
   }
 
-  static bool HasElementAtIndex(BackingStoreClass* backing_store,
-                                uint32_t index,
-                                JSObject* holder,
-                                Object* receiver) {
+  static bool HasElementAtIndexImpl(BackingStoreClass* backing_store,
+                                    uint32_t index,
+                                    JSObject* holder,
+                                    Object* receiver) {
     uint32_t key =
-        ElementsAccessorSubclass::GetKeyForIndex(backing_store, index);
-    MaybeObject* element = ElementsAccessorSubclass::Get(backing_store,
-                                                         key,
-                                                         holder,
-                                                         receiver);
+        ElementsAccessorSubclass::GetKeyForIndexImpl(backing_store, index);
+    MaybeObject* element =
+        ElementsAccessorSubclass::GetImpl(backing_store, key, holder, receiver);
     return !element->IsTheHole();
   }
 
@@ -202,18 +197,18 @@ class ElementsAccessorBase : public ElementsAccessor {
                                  uint32_t index,
                                  JSObject* holder,
                                  Object* receiver) {
-    return ElementsAccessorSubclass::HasElementAtIndex(
+    return ElementsAccessorSubclass::HasElementAtIndexImpl(
         BackingStoreClass::cast(backing_store), index, holder, receiver);
   }
 
-  static uint32_t GetKeyForIndex(BackingStoreClass* backing_store,
-                                 uint32_t index) {
+  static uint32_t GetKeyForIndexImpl(BackingStoreClass* backing_store,
+                                     uint32_t index) {
     return index;
   }
 
   virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
                                               uint32_t index) {
-    return ElementsAccessorSubclass::GetKeyForIndex(
+    return ElementsAccessorSubclass::GetKeyForIndexImpl(
         BackingStoreClass::cast(backing_store), index);
   }
 
@@ -297,10 +292,10 @@ class FastDoubleElementsAccessor
     return obj->GetHeap()->true_value();
   }
 
-  static bool HasElementAtIndex(FixedDoubleArray* backing_store,
-                                uint32_t index,
-                                JSObject* holder,
-                                Object* receiver) {
+  static bool HasElementAtIndexImpl(FixedDoubleArray* backing_store,
+                                    uint32_t index,
+                                    JSObject* holder,
+                                    Object* receiver) {
     return !backing_store->is_the_hole(index);
   }
 };
@@ -316,15 +311,14 @@ class ExternalElementsAccessor
   friend class ElementsAccessorBase<ExternalElementsAccessorSubclass,
                                     ExternalArray>;
 
-  static MaybeObject* Get(ExternalArray* backing_store,
-                          uint32_t key,
-                          JSObject* obj,
-                          Object* receiver) {
-    if (key < ExternalElementsAccessorSubclass::GetCapacity(backing_store)) {
-      return backing_store->get(key);
-    } else {
-      return backing_store->GetHeap()->undefined_value();
-    }
+  static MaybeObject* GetImpl(ExternalArray* backing_store,
+                              uint32_t key,
+                              JSObject* obj,
+                              Object* receiver) {
+    return
+        key < ExternalElementsAccessorSubclass::GetCapacityImpl(backing_store)
+        ? backing_store->get(key)
+        : backing_store->GetHeap()->undefined_value();
   }
 
   virtual MaybeObject* Delete(JSObject* obj,
@@ -449,10 +443,10 @@ class DictionaryElementsAccessor
     return DeleteCommon(obj, key, mode);
   }
 
-  static MaybeObject* Get(SeededNumberDictionary* backing_store,
-                          uint32_t key,
-                          JSObject* obj,
-                          Object* receiver) {
+  static MaybeObject* GetImpl(SeededNumberDictionary* backing_store,
+                              uint32_t key,
+                              JSObject* obj,
+                              Object* receiver) {
     int entry = backing_store->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* element = backing_store->ValueAt(entry);
@@ -469,8 +463,8 @@ class DictionaryElementsAccessor
     return obj->GetHeap()->the_hole_value();
   }
 
-  static uint32_t GetKeyForIndex(SeededNumberDictionary* dict,
-                                 uint32_t index) {
+  static uint32_t GetKeyForIndexImpl(SeededNumberDictionary* dict,
+                                     uint32_t index) {
     Object* key = dict->KeyAt(index);
     return Smi::cast(key)->value();
   }
@@ -484,10 +478,10 @@ class NonStrictArgumentsElementsAccessor
   friend class ElementsAccessorBase<NonStrictArgumentsElementsAccessor,
                                     FixedArray>;
 
-  static MaybeObject* Get(FixedArray* parameter_map,
-                          uint32_t key,
-                          JSObject* obj,
-                          Object* receiver) {
+  static MaybeObject* GetImpl(FixedArray* parameter_map,
+                              uint32_t key,
+                              JSObject* obj,
+                              Object* receiver) {
     Object* probe = GetParameterMapArg(parameter_map, key);
     if (!probe->IsTheHole()) {
       Context* context = Context::cast(parameter_map->get(0));
@@ -526,21 +520,21 @@ class NonStrictArgumentsElementsAccessor
     return obj->GetHeap()->true_value();
   }
 
-  static uint32_t GetCapacity(FixedArray* parameter_map) {
+  static uint32_t GetCapacityImpl(FixedArray* parameter_map) {
     FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
     return Max(static_cast<uint32_t>(parameter_map->length() - 2),
                ForArray(arguments)->GetCapacity(arguments));
   }
 
-  static uint32_t GetKeyForIndex(FixedArray* dict,
-                                 uint32_t index) {
+  static uint32_t GetKeyForIndexImpl(FixedArray* dict,
+                                     uint32_t index) {
     return index;
   }
 
-  static bool HasElementAtIndex(FixedArray* parameter_map,
-                                uint32_t index,
-                                JSObject* holder,
-                                Object* receiver) {
+  static bool HasElementAtIndexImpl(FixedArray* parameter_map,
+                                    uint32_t index,
+                                    JSObject* holder,
+                                    Object* receiver) {
     Object* probe = GetParameterMapArg(parameter_map, index);
     if (!probe->IsTheHole()) {
       return true;
