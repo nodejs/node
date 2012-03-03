@@ -19,7 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+// fs.watchFile is not available on Windows
+if (process.platform === 'win32') {
+  process.exit(0);
+}
 
 
 var common = require('../common');
