@@ -57,3 +57,12 @@ unlikely to ever have to change.
 
 * **5 - Locked**  Unless serious bugs are found, this code will not ever
 change.  Please do not suggest changes in this area; they will be refused.
+
+## JSON Output
+
+    Stability: 1 - Experimental
+
+Every HTML file in the markdown has a corresponding JSON file with the
+same data.
+
+This feature is new as of node v0.6.12.  It is experimental.
