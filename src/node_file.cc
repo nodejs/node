@@ -875,10 +875,10 @@ static Handle<Value> FChown(const Arguments& args) {
   HandleScope scope;
 
   int len = args.Length();
-  if (len < 1) return TYPE_ERROR("path required");
+  if (len < 1) return TYPE_ERROR("fd required");
   if (len < 2) return TYPE_ERROR("uid required");
   if (len < 3) return TYPE_ERROR("gid required");
-  if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
+  if (!args[0]->IsInt32()) return TYPE_ERROR("fd must be an int");
   if (!args[1]->IsInt32()) return TYPE_ERROR("uid must be an int");
   if (!args[2]->IsInt32()) return TYPE_ERROR("gid must be an int");
 
