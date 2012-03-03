@@ -211,7 +211,7 @@ def configure_node(o):
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
   # see http://code.google.com/p/v8/issues/detail?id=884
   # TODO handle CC=clang
-  o['variables']['strict_aliasing'] = b(gcc_version() >= (False, 4, 6, 0))
+  o['variables']['strict_aliasing'] = b(gcc_version() >= [False, 4, 6, 0])
 
   # TODO move to node.gyp
   if sys.platform == 'sunos5':
