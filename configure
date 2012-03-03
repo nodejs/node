@@ -5,7 +5,6 @@ import pprint
 import re
 import subprocess
 import sys
-from distutils.version import StrictVersion
 
 root_dir = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(root_dir, 'deps', 'v8', 'tools'))
