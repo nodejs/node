@@ -163,21 +163,22 @@ h3 + h3 {
   margin: 0 0 0.5em;
 }
 
-  h2, h3 {
+  h2, h3, h4 {
     position:relative;
     padding-right:40px;
   }
-  h1 span, h2 span, h3 span {
+  h1 span, h2 span, h3 span, h4 span {
+    font-size:25px;
     position:absolute;
     display:block;
     top:0;
     right:0;
     opacity: 0.3;
   }
-  h1 span:hover, h2 span:hover, h3 span:hover {
+  h1 span:hover, h2 span:hover, h3 span:hover, h4 span:hover {
     opacity: 1;
   }
-  h1 span a, h2 span a, h3 span a {
+  h1 span a, h2 span a, h3 span a, h4 span a {
     font-size: 0.8em;
     color: #000;
     text-decoration: none;
@@ -185,7 +186,7 @@ h3 + h3 {
     font-weight:bold;
   }
 
-  h1 span a.top, h3 span a.top, h3 span a.top {
+  h1 span a.top, h3 span a.top, h3 span a.top, h4 span a.top {
     /* XXX Get an image and clean up these two links
      * so that they look nice next to one another.
      * http://www.chrisglass.com/work/nodejs/website/v05/docs.html
