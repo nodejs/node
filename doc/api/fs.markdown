@@ -422,7 +422,7 @@ Stop watching for changes on `filename`.
 ## fs.watch(filename, [options], listener)
 
 Watch for changes on `filename`, where `filename` is either a file or a
-directory.  The returned object is [fs.FSWatcher](#fs.FSWatcher).
+directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
 
 The second argument is optional. The `options` if provided should be an object
 containing a boolean member `persistent`, which indicates whether the process
@@ -442,11 +442,11 @@ callback, and have some fallback logic if it is null.
 
     fs.watch('somedir', function (event, filename) {
       console.log('event is: ' + event);
-	  if (filename) {
+      if (filename) {
         console.log('filename provided: ' + filename);
-	  } else {
-	    console.log('filename not provided');
-	  }
+      } else {
+        console.log('filename not provided');
+      }
     });
 
 ## Class: fs.Stats
@@ -521,9 +521,9 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
 ### Event: 'open'
 
-`function (fd) { }`
+* `fd` {Integer} file descriptor used by the ReadStream.
 
- `fd` is the file descriptor used by the ReadStream.
+Emitted when the ReadStream's file is opened.
 
 
 ## fs.createWriteStream(path, [options])
@@ -547,9 +547,9 @@ default mode `w`.
 
 ### Event: 'open'
 
-`function (fd) { }`
+* `fd` {Integer} file descriptor used by the ReadStream.
 
- `fd` is the file descriptor used by the WriteStream.
+Emitted when the WriteStream's file is opened.
 
 ### file.bytesWritten
 
@@ -574,6 +574,6 @@ See more details in [fs.watch](#fs.watch).
 
 ### Event: 'error'
 
-`function (exception) {}`
+* `error` {Error object}
 
 Emitted when an error occurs.
