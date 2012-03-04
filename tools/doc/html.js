@@ -56,7 +56,6 @@ function parseLists(input) {
       return;
     }
     if (state === 'AFTERHEADING') {
-      if (tok.type === 'code') return;
       if (tok.type === 'list_start') {
         state = 'LIST';
         if (depth === 0) {
