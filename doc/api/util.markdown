@@ -1,5 +1,7 @@
 # util
 
+    Stability: 5 - Locked
+
 These functions are in the module `'util'`. Use `require('util')` to access
 them.
 

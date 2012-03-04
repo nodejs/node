@@ -57,6 +57,7 @@
  * Instance types
  */
 #define	V8_IT_FIXEDARRAY	0x9f
+#define	V8_IT_CODE		0x81
 
 /*
  * Identification masks and tags
@@ -64,6 +65,9 @@
 #define	V8_SmiTagMask		0x1
 #define	V8_SmiTag		0x0
 #define	V8_SmiValueShift	V8_SmiTagMask
+
+#define	V8_HeapObjectTagMask	0x3
+#define	V8_HeapObjectTag	0x1
 
 #define	V8_IsNotStringMask	0x80
 #define	V8_StringTag		0x0

@@ -1,5 +1,7 @@
 # Zlib
 
+    Stability: 3 - Stable
+
 You can access this module with:
 
     var zlib = require('zlib');

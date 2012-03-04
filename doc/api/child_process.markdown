@@ -1,5 +1,7 @@
 # Child Process
 
+    Stability: 3 - Stable
+
 Node provides a tri-directional `popen(3)` facility through the
 `child_process` module.
 
@@ -105,6 +107,7 @@ Note that while the function is called `kill`, the signal delivered to the child
 process may not actually kill it.  `kill` really just sends a signal to a process.
 
 See `kill(2)`
+
 
 ### child.send(message, [sendHandle])
 
@@ -394,4 +397,3 @@ there is no IPC channel keeping it alive. When calling this method the
 `disconnect` event will be emitted in both parent and child, and the
 `connected` flag will be set to `false`. Please note that you can also call
 `process.disconnect()` in the child process.
-

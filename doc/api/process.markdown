@@ -8,8 +8,6 @@ It is an instance of `EventEmitter`.
 
 ## Event: 'exit'
 
-`function () {}`
-
 Emitted when the process is about to exit.  This is a good hook to perform
 constant time checks of the module's state (like for unit tests).  The main
 event loop will no longer be run after the 'exit' callback finishes, so
@@ -25,8 +23,6 @@ Example of listening for `exit`:
     });
 
 ## Event: 'uncaughtException'
-
-`function (err) { }`
 
 Emitted when an exception bubbles all the way back to the event loop. If a
 listener is added for this exception, the default action (which is to print
@@ -56,8 +52,6 @@ stay running forever, `uncaughtException` can be a useful safety mechanism.
 
 <!--type=event-->
 <!--name=SIGINT, SIGUSR1, etc.-->
-
-`function () {}`
 
 Emitted when the processes receives a signal. See sigaction(2) for a list of
 standard POSIX signal names such as SIGINT, SIGUSR1, etc.

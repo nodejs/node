@@ -1,5 +1,7 @@
 # TTY
 
+    Stability: 3 - Stable
+
 Use `require('tty')` to access this module.
 
 Example:
@@ -26,15 +28,3 @@ terminal.
 
 `mode` should be `true` or `false`. This sets the properties of the current
 process's stdin fd to act either as a raw device or default.
-
-
-## tty.setWindowSize(fd, row, col)
-
-This function was removed in v0.6.0.
-
-## tty.getWindowSize(fd)
-
-This function was removed in v0.6.0. Use `process.stdout.getWindowSize()`
-instead.
-
-

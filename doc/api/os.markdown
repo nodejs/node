@@ -1,5 +1,7 @@
 # os
 
+    Stability: 4 - API Frozen
+
 Provides a few basic operating-system related utility functions.
 
 Use `require('os')` to access this module.

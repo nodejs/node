@@ -332,6 +332,7 @@ is a semver compatible version identifier.
 * `""` (just an empty string) Same as `*`
 * `version1 - version2` Same as `>=version1 <=version2`.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
+* `git...` See 'Git URLs as Dependencies' below
 
 For example, these are all valid:
 
@@ -386,6 +387,18 @@ of a version range.
 
 This tarball will be downloaded and installed locally to your package at
 install time.
+
+### Git URLs as Dependencies
+
+Git urls can be of the form:
+
+    git://github.com/user/project.git#commit-ish
+    git+ssh://user@hostname:project.git#commit-ish
+    git+http://user@hostname/project/blah.git#commit-ish
+    git+https://user@hostname/project/blah.git#commit-ish
+
+The `commit-ish` can be any tag, sha, or branch which can be supplied as
+an argument to `git checkout`.  The default is `master`.
 
 ## devDependencies
 

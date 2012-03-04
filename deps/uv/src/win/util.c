@@ -610,6 +610,7 @@ void uv_filetime_to_time_t(FILETIME* file_time, time_t* stat_time) {
     time.tm_hour = system_time.wHour;
     time.tm_min = system_time.wMinute;
     time.tm_sec = system_time.wSecond;
+    time.tm_isdst = -1;
 
     *stat_time = mktime(&time);
   } else {

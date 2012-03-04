@@ -123,7 +123,7 @@ doc-publish: doc
 	rsync -vazu --stats --no-implied-dirs --delete html/api/ npmjs.org:/var/www/npmjs.org/public/api
 
 zip-publish: release
-	scp release/*.zip npmjs.org:/var/www/npmjs.org/public/dist/
+	scp release/* npmjs.org:/var/www/npmjs.org/public/dist/
 
 release:
 	@bash scripts/release.sh

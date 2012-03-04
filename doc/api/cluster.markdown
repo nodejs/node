@@ -342,7 +342,7 @@ on the specified worker.
       // Worker is listening
     };
 
-### Event: 'death'
+## Event: 'death'
 
 * `worker` {Worker object}
 

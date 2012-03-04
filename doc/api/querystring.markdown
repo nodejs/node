@@ -1,5 +1,7 @@
 # Query String
 
+    Stability: 3 - Stable
+
 <!--name=querystring-->
 
 This module provides utilities for dealing with query strings.

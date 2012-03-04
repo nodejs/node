@@ -17,7 +17,16 @@
  * value.  To extract the actual integer value, we must shift it over.
  */
 #define	IS_SMI(value)			((value & V8_SmiTagMask) == V8_SmiTag)
-#define SMI_VALUE(value)		((int32_t)(value) >> V8_SmiValueShift)
+#define SMI_VALUE(value)		((uint32_t)(value) >> V8_SmiValueShift)
+
+/*
+ * Heap objects usually start off with a Map pointer, itself another heap
+ * object.  However, during garbage collection, the low order bits of the
+ * pointer (which are normally 01) are used to record GC state.  Of course, we
+ * have no idea if we're in GC or not, so we must always normalize the pointer.
+ */
+#define	V8_MAP_PTR(ptr)		\
+    ((ptr & ~V8_HeapObjectTagMask) | V8_HeapObjectTag)
 
 /*
  * Determine the encoding and representation of a V8 string.
@@ -88,7 +97,7 @@
  */
 #define	LOAD_STRFIELDS(str, len, attrs)					\
     len = SMI_VALUE(COPYIN_UINT32(str + V8_OFF_STR_LENGTH));		\
-    this->map = COPYIN_UINT32(str + V8_OFF_HEAPOBJ_MAP);		\
+    this->map = V8_MAP_PTR(COPYIN_UINT32(str + V8_OFF_HEAPOBJ_MAP));	\
     attrs = COPYIN_UINT8(this->map + V8_OFF_MAP_ATTRS);
 
 /*
@@ -170,7 +179,7 @@ dtrace:helper:ustack:							\
 }
 
 /*
- * Expand the ConsString "str" (represensted by "str", "len", and "attrs") into
+ * Expand the ConsString "str" (represented by "str", "len", and "attrs") into
  * strings "s1" (represented by "s1s", "s1l", and "s1a") and "s2" (represented
  * by "s2s", "s2l", "s2a").  If "str" is not a ConsString, do nothing.
  */
@@ -261,6 +270,7 @@ dtrace:helper:ustack:
 	this->func = 0;	
 	this->shared = 0;
 	this->map = 0;
+	this->attrs = 0;
 	this->funcnamestr = 0;
 	this->funcnamelen = 0;
 	this->funcnameattrs = 0;
@@ -436,6 +446,46 @@ dtrace:helper:ustack:
 }
 
 /*
+ * Now check for internal frames that we can only identify by seeing that
+ * there's a Code object where there would be a JSFunction object for a
+ * JavaScriptFrame.
+ */
+dtrace:helper:ustack:
+/!this->done/
+{
+	this->func = COPYIN_UINT32(this->fp + V8_OFF_FP_FUNC);
+	this->map = V8_MAP_PTR(COPYIN_UINT32(this->func + V8_OFF_HEAPOBJ_MAP));
+	this->attrs = COPYIN_UINT8(this->map + V8_OFF_MAP_ATTRS);
+}
+
+dtrace:helper:ustack:
+/!this->done && this->attrs == V8_IT_CODE/
+{
+	this->done = 1;
+	APPEND_CHR('<');
+	APPEND_CHR('<');
+	APPEND_CHR(' ');
+	APPEND_CHR('i');
+	APPEND_CHR('n');
+	APPEND_CHR('t');
+	APPEND_CHR('e');
+	APPEND_CHR('r');
+	APPEND_CHR('n');
+	APPEND_CHR('a');
+	APPEND_CHR('l');
+	APPEND_CHR(' ');
+	APPEND_CHR('c');
+	APPEND_CHR('o');
+	APPEND_CHR('d');
+	APPEND_CHR('e');
+	APPEND_CHR(' ');
+	APPEND_CHR('>');
+	APPEND_CHR('>');
+	APPEND_CHR('\0');
+	stringof(this->buf);	
+}
+
+/*
  * At this point, we're either looking at a JavaScriptFrame or an
  * OptimizedFrame.  For now, we assume JavaScript and start by grabbing the
  * function name.
@@ -443,7 +493,9 @@ dtrace:helper:ustack:
 dtrace:helper:ustack:
 /!this->done/
 {
-	this->func = COPYIN_UINT32(this->fp + V8_OFF_FP_FUNC);
+	this->map = 0;
+	this->attrs = 0;
+
 	this->shared = COPYIN_UINT32(this->func + V8_OFF_FUNC_SHARED);
 	this->funcnamestr = COPYIN_UINT32(this->shared + V8_OFF_SHARED_NAME);
 	LOAD_STRFIELDS(this->funcnamestr, this->funcnamelen,
@@ -515,7 +567,8 @@ dtrace:helper:ustack:
 {
 	this->position = COPYIN_UINT32(this->shared + V8_OFF_SHARED_FUNTOK);
 	this->line_ends = COPYIN_UINT32(this->script + V8_OFF_SCRIPT_LENDS);
-	this->map = COPYIN_UINT32(this->line_ends + V8_OFF_HEAPOBJ_MAP);
+	this->map = V8_MAP_PTR(COPYIN_UINT32(this->line_ends +
+	    V8_OFF_HEAPOBJ_MAP));
 	this->le_attrs = COPYIN_UINT8(this->map + V8_OFF_MAP_ATTRS);
 }
 

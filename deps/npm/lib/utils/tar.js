@@ -203,19 +203,57 @@ function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
   if (!fMode) fMode = npm.modes.file
   log.silly([dMode.toString(8), fMode.toString(8)], "gunzTarPerm modes")
 
-  fs.createReadStream(tarball)
-    .on("error", log.er(cb, "error reading "+tarball))
-    .pipe(zlib.Unzip())
-    .on("error", log.er(cb, "unzip error "+tarball))
-    .pipe(tar.Extract({ type: "Directory", path: tmp }))
-    .on("error", log.er(cb, "Failed unpacking "+tarball))
-    .on("close", afterUntar)
+  var fst = fs.createReadStream(tarball)
 
-  //
-  // XXX Do all this in an Extract filter.
-  //
+  fst.on("error", log.er(cb, "error reading "+tarball))
+  fst.on("data", function OD (c) {
+    // detect what it is.
+    // Then, depending on that, we'll figure out whether it's
+    // a single-file module, gzipped tarball, or naked tarball.
+    // gzipped files all start with 1f8b08
+    if (c[0] === 0x1F &&
+        c[1] === 0x8B &&
+        c[2] === 0x08) {
+      var extracter = tar.Extract({ type: "Directory", path: tmp })
+      fst
+        .pipe(zlib.Unzip())
+        .on("error", log.er(cb, "unzip error "+tarball))
+        .pipe(tar.Extract({ type: "Directory", path: tmp }))
+        .on("error", log.er(cb, "untar error "+tarball))
+        .on("close", afterUntar)
+    } else if (c.toString().match(/^package\//)) {
+      // naked tar
+      fst
+        .pipe(tar.Extract({ type: "Directory", path: tmp }))
+        .on("error", log.er(cb, "untar error "+tarball))
+        .on("close", afterUntar)
+    } else {
+      // naked js file
+      fst
+        .pipe(fstream.Writer({ path: path.resolve(tmp, "package/index.js") }))
+        .on("error", log.er(cb, "copy error "+tarball))
+        .on("close", function () {
+          var j = path.resolve(tmp, "package/package.json")
+          readJson(j, function (er, d) {
+            if (er) {
+              log.error(tarball, "Not a package")
+              return cb(er)
+            }
+            fs.writeFile(j, JSON.stringify(d) + "\n", function (er) {
+              if (er) return cb(er)
+              return afterUntar()
+            })
+          })
+        })
+    }
+
+    // now un-hook, and re-emit the chunk
+    fst.removeListener("data", OD)
+    fst.emit("data", c)
+  })
+
   function afterUntar (er) {
-    log.silly(er, "afterUntar")
+    log.silly(er || "ok", "afterUntar")
     // if we're not doing ownership management,
     // then we're done now.
     if (er) return log.er(cb, "Failed unpacking "+tarball)(er)
@@ -542,7 +580,13 @@ function makeList_ (dir, pkg, exList, dfc, cb) {
 
     if (path.basename(dir) === "node_modules"
         && pkg.path === path.dirname(dir)
-        && dfc) { // do fancy crap
+        // do fancy crap
+        && dfc
+        // not already part of a bundled dependency
+        && (path.basename(path.dirname(pkg.path)) !== "node_modules"
+          // unless it's the root
+          || pkg.path === npm.prefix)) {
+      log.verbose(dir, "doing fancy crap")
       files = filterNodeModules(files, pkg)
     } else {
       // If a directory is excluded, we still need to be

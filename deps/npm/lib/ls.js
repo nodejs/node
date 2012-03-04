@@ -53,6 +53,7 @@ function ls (args, silent, cb) {
 function getLite (data, noname) {
   var lite = {}
     , maxDepth = npm.config.get("depth")
+    , url = require("url")
 
   if (!noname && data.name) lite.name = data.name
   if (data.version) lite.version = data.version
@@ -62,6 +63,15 @@ function getLite (data, noname) {
     lite.problems.push( "extraneous: "
                       + data.name + "@" + data.version
                       + " " + (data.path || "") )
+  }
+
+  if (data._from) {
+    var from = data._from
+    if (from.indexOf(data.name + "@") === 0) {
+      from = from.substr(data.name.length + 1)
+    }
+    var u = url.parse(from)
+    if (u.protocol) lite.from = from
   }
 
   if (data.invalid) {

@@ -311,7 +311,7 @@ space-separated descriptors, OR a range like "fromVersion - toVersion"</p>
 <p>Version range descriptors may be any of the following styles, where "version"
 is a semver compatible version identifier.</p>
 
-<ul><li><code>version</code> Must match <code>version</code> exactly</li><li><code>=version</code> Same as just <code>version</code></li><li><code>&gt;version</code> Must be greater than <code>version</code></li><li><code>&gt;=version</code> etc</li><li><code>&lt;version</code></li><li><code>&lt;=version</code></li><li><code>~version</code> See 'Tilde Version Ranges' below</li><li><code>1.2.x</code> See 'X Version Ranges' below</li><li><code>http://...</code> See 'URLs as Dependencies' below</li><li><code>*</code> Matches any version</li><li><code>""</code> (just an empty string) Same as <code>*</code></li><li><code>version1 - version2</code> Same as <code>&gt;=version1 &lt;=version2</code>.</li><li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li></ul>
+<ul><li><code>version</code> Must match <code>version</code> exactly</li><li><code>=version</code> Same as just <code>version</code></li><li><code>&gt;version</code> Must be greater than <code>version</code></li><li><code>&gt;=version</code> etc</li><li><code>&lt;version</code></li><li><code>&lt;=version</code></li><li><code>~version</code> See 'Tilde Version Ranges' below</li><li><code>1.2.x</code> See 'X Version Ranges' below</li><li><code>http://...</code> See 'URLs as Dependencies' below</li><li><code>*</code> Matches any version</li><li><code>""</code> (just an empty string) Same as <code>*</code></li><li><code>version1 - version2</code> Same as <code>&gt;=version1 &lt;=version2</code>.</li><li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li><li><code>git...</code> See 'Git URLs as Dependencies' below</li></ul>
 
 <p>For example, these are all valid:</p>
 
@@ -359,6 +359,18 @@ of a version range.</p>
 
 <p>This tarball will be downloaded and installed locally to your package at
 install time.</p>
+
+<h3 id="Git-URLs-as-Dependencies">Git URLs as Dependencies</h3>
+
+<p>Git urls can be of the form:</p>
+
+<pre><code>git://github.com/user/project.git#commit-ish
+git+ssh://user@hostname:project.git#commit-ish
+git+http://user@hostname/project/blah.git#commit-ish
+git+https://user@hostname/project/blah.git#commit-ish</code></pre>
+
+<p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
+an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
 
 <h2 id="devDependencies">devDependencies</h2>
 
@@ -436,7 +448,7 @@ overridden.</p>
 
 <ul><li><a href="../doc/semver.html">semver(1)</a></li><li><a href="../doc/init.html">init(1)</a></li><li><a href="../doc/version.html">version(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/publish.html">publish(1)</a></li><li><a href="../doc/rm.html">rm(1)</a></li></ul>
 </div>
-<p id="footer">json &mdash; npm@1.1.2</p>
+<p id="footer">json &mdash; npm@1.1.4</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

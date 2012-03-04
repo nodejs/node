@@ -1,5 +1,7 @@
 # Events
 
+    Stability: 4 - API Frozen
+
 <!--type=module-->
 
 Many objects in Node emit events: a `net.Server` emits an event each time

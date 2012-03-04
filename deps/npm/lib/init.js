@@ -146,13 +146,6 @@ function init_ (data, folder, cb) {
         (data.scripts = data.scripts || {}).test = t
       }
     )
-    ( read
-    , [ { prompt: "What versions of node does it run on? "
-        , default: data.engines && data.engines.node || (eng) } ]
-    , function (nodever) {
-        (data.engines = data.engines || {}).node = nodever
-      }
-    )
     (cleanupPaths, [data, folder])
     (function (cb) {
       try { data = readJson.processJson(data) }

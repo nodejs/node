@@ -45,6 +45,9 @@ function findPrefix_ (p, original, cb) {
       return cb(null, p)
     }
 
-    return findPrefix_(path.dirname(p), original, cb)
+    var d = path.dirname(p)
+    if (d === p) return cb(null, original)
+
+    return findPrefix_(d, original, cb)
   })
 }

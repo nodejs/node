@@ -32,11 +32,11 @@ The process object. See the [process object](process.html#process) section.
 
 Used to print to stdout and stderr. See the [stdio](stdio.html) section.
 
-## Buffer
+## Class: Buffer
 
 <!-- type=global -->
 
-* {Object}
+* {Function}
 
 Used to handle binary data. See the [buffer section](buffer.html).
 
@@ -48,7 +48,6 @@ Used to handle binary data. See the [buffer section](buffer.html).
 
 To require modules. See the [Modules](modules.html#modules) section.
 `require` isn't actually a global but rather local to each module.
-
 
 ### require.resolve()
 
@@ -108,7 +107,6 @@ A reference to the current module. In particular
 
 See the [module system documentation](modules.html) for more
 information.
-
 
 ## exports
 

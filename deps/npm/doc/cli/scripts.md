@@ -62,6 +62,20 @@ Package scripts run in an environment where many pieces of information are
 made available regarding the setup of npm and the current state of the
 process.
 
+
+### path
+
+If you depend on modules that define executable scripts, like test suites,
+then those executables will be added to the `PATH` for executing the scripts.
+So, if your package.json has this:
+
+    { "name" : "foo"
+    , "dependencies" : { "bar" : "0.1.x" }
+    , "scripts": { "start" : "bar ./test" } }
+
+then you could run `npm start` to execute the `bar` script, which is exported
+into the `node_modules/.bin` directory on `npm install`.
+
 ### package.json vars
 
 The package.json fields are tacked onto the `npm_package_` prefix. So, for

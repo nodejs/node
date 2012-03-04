@@ -1,5 +1,7 @@
 # net
 
+    Stability: 3 - Stable
+
 The `net` module provides you with an asynchronous network wrapper. It contains
 methods for creating both servers and clients (called streams). You can include
 this module with `require('net');`
@@ -49,8 +51,8 @@ Use `nc` to connect to a UNIX domain socket server:
 
     nc -U /tmp/echo.sock
 
-## net.connect(options, [cnnectionListener])
-## net.createConnection(options, [cnnectionListener])
+## net.connect(options, [connectionListener])
+## net.createConnection(options, [connectionListener])
 
 Constructs a new socket object and opens the socket to the given location.
 When the socket is established, the ['connect'](#event_connect_) event will be
@@ -195,26 +197,22 @@ The number of concurrent connections on the server.
 
 ### Event: 'listening'
 
-`function () {}`
-
 Emitted when the server has been bound after calling `server.listen`.
 
 ### Event: 'connection'
 
-`function (socket) {}`
+* {Socket object} The connection object
 
 Emitted when a new connection is made. `socket` is an instance of
 `net.Socket`.
 
 ### Event: 'close'
 
-`function () {}`
-
 Emitted when the server closes.
 
 ### Event: 'error'
 
-`function (exception) {}`
+* {Error Object}
 
 Emitted when an error occurs.  The `'close'` event will be called directly
 following this event.  See example in discussion of `server.listen`.
@@ -381,14 +379,12 @@ The amount of bytes sent.
 
 ### Event: 'connect'
 
-`function () { }`
-
 Emitted when a socket connection is successfully established.
 See `connect()`.
 
 ### Event: 'data'
 
-`function (data) { }`
+* {Buffer object}
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `socket.setEncoding()`.
@@ -399,8 +395,6 @@ Note that the __data will be lost__ if there is no listener when a `Socket`
 emits a `'data'` event.
 
 ### Event: 'end'
-
-`function () { }`
 
 Emitted when the other end of the socket sends a FIN packet.
 
@@ -413,8 +407,6 @@ caveat that the user is required to `end()` their side now.
 
 ### Event: 'timeout'
 
-`function () { }`
-
 Emitted if the socket times out from inactivity. This is only to notify that
 the socket has been idle. The user must manually close the connection.
 
@@ -423,27 +415,24 @@ See also: `socket.setTimeout()`
 
 ### Event: 'drain'
 
-`function () { }`
-
 Emitted when the write buffer becomes empty. Can be used to throttle uploads.
 
 See also: the return values of `socket.write()`
 
 ### Event: 'error'
 
-`function (exception) { }`
+* {Error object}
 
 Emitted when an error occurs.  The `'close'` event will be called directly
 following this event.
 
 ### Event: 'close'
 
-`function (had_error) { }`
+* `had_error` {Boolean} true if the socket had a transmission error
 
 Emitted once the socket is fully closed. The argument `had_error` is a boolean
 which says if the socket was closed due to a transmission error.
 
-## net.isIP
 ## net.isIP(input)
 
 Tests if input is an IP address. Returns 0 for invalid strings,

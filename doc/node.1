@@ -52,15 +52,24 @@ If set to 1 then modules will load in their own global contexts.
 .IP NODE_DISABLE_COLORS
 If set to 1 then colors will not be used in the REPL.
 
-.IP NODE_USE_UV
-If set to 1 then Node will use the new libuv-based backend.
-
 .SH V8 OPTIONS
 
-  --crankshaft (use crankshaft)
+  --harmony_typeof (enable harmony semantics for typeof)
         type: bool  default: false
+  --harmony_proxies (enable harmony proxies)
+        type: bool  default: false
+  --harmony_weakmaps (enable harmony weak maps)
+        type: bool  default: false
+  --harmony_block_scoping (enable harmony block scoping)
+        type: bool  default: false
+  --unbox_double_arrays (automatically unbox arrays of doubles)
+        type: bool  default: true
+  --string_slices (use string slices)
+        type: bool  default: false
+  --crankshaft (use crankshaft)
+        type: bool  default: true
   --hydrogen_filter (hydrogen use/trace filter)
-        type: string  default: 
+        type: string  default:
   --use_hydrogen (use generated hydrogen for compilation)
         type: bool  default: true
   --build_lithium (use lithium chunk builder)
@@ -75,8 +84,6 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: true
   --use_gvn (use hydrogen global value numbering)
         type: bool  default: true
-  --use_peeling (use loop peeling)
-        type: bool  default: false
   --use_canonicalizing (use hydrogen instruction canonicalizing)
         type: bool  default: true
   --use_inlining (use function inlining)
@@ -87,13 +94,15 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: true
   --loop_invariant_code_motion (loop invariant code motion)
         type: bool  default: true
-  --time_hydrogen (timing for hydrogen)
+  --hydrogen_stats (print statistics for hydrogen)
         type: bool  default: false
   --trace_hydrogen (trace generated hydrogen to file)
         type: bool  default: false
   --trace_inlining (trace inlining decisions)
         type: bool  default: false
   --trace_alloc (trace register allocator)
+        type: bool  default: false
+  --trace_all_uses (trace all use positions)
         type: bool  default: false
   --trace_range (trace range analysis)
         type: bool  default: false
@@ -107,15 +116,11 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --deopt_every_n_times (deoptimize every n times a deopt point is passed)
         type: int  default: 0
-  --process_arguments_object (try to deal with arguments object)
-        type: bool  default: true
   --trap_on_deopt (put a break point before deoptimizing)
         type: bool  default: false
   --deoptimize_uncommon_cases (deoptimize uncommon cases)
         type: bool  default: true
   --polymorphic_inlining (polymorphic inlining)
-        type: bool  default: true
-  --aggressive_loop_invariant_motion (aggressive motion of instructions out of loops)
         type: bool  default: true
   --use_osr (use on-stack replacement)
         type: bool  default: true
@@ -129,12 +134,8 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --code_comments (emit comments in code disassembly)
         type: bool  default: false
-  --emit_branch_hints (emit branch hints)
-        type: bool  default: false
   --peephole_optimization (perform peephole optimizations in assembly code)
         type: bool  default: true
-  --print_peephole_optimization (print peephole optimizations in assembly code)
-        type: bool  default: false
   --enable_sse2 (enable use of SSE2 instructions if available)
         type: bool  default: true
   --enable_sse3 (enable use of SSE3 instructions if available)
@@ -147,9 +148,11 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: true
   --enable_sahf (enable use of SAHF instruction if available (X64 only))
         type: bool  default: true
-  --enable_vfp3 (enable use of VFP3 instructions if available (ARM only))
+  --enable_vfp3 (enable use of VFP3 instructions if available - this implies enabling ARMv7 instructions (ARM only))
         type: bool  default: true
   --enable_armv7 (enable use of ARMv7 instructions if available (ARM only))
+        type: bool  default: true
+  --enable_fpu (enable use of MIPS FPU instructions if available (MIPS only))
         type: bool  default: true
   --expose_natives_as (expose natives in global object)
         type: string  default: NULL
@@ -169,8 +172,6 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: true
   --trace (trace function calls)
         type: bool  default: false
-  --defer_negation (defer negation operation)
-        type: bool  default: true
   --mask_constants_with_cookie (use random jit cookie to mask large constants)
         type: bool  default: true
   --lazy (use lazy compilation)
@@ -187,32 +188,20 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --prepare_always_opt (prepare for turning on always opt)
         type: bool  default: false
-  --debug_info (add debug information to compiled functions)
-        type: bool  default: true
   --deopt (support deoptimization)
         type: bool  default: true
   --trace_deopt (trace deoptimization)
         type: bool  default: false
-  --strict (strict error checking)
-        type: bool  default: false
   --min_preparse_length (minimum length for automatic enable preparsing)
         type: int  default: 1024
-  --full_compiler (enable dedicated backend for run-once code)
-        type: bool  default: true
   --always_full_compiler (try to use the dedicated run-once backend for all code)
         type: bool  default: false
   --trace_bailout (print reasons for falling back to using the classic V8 backend)
         type: bool  default: false
-  --safe_int32_compiler (enable optimized side-effect-free int32 expressions.)
-        type: bool  default: true
-  --use_flow_graph (perform flow-graph based optimizations)
-        type: bool  default: false
   --compilation_cache (enable compilation cache)
         type: bool  default: true
-  --loop_peeling (Peel off the first iteration of loops.)
-        type: bool  default: false
-  --remote_debugging (enable remote debugging)
-        type: bool  default: false
+  --cache_prototype_transitions (cache prototype transitions)
+        type: bool  default: true
   --trace_debug_json (trace debugging JSON request/response)
         type: bool  default: false
   --debugger_auto_break (automatically set the debug break flag when debugger commands are in the queue)
@@ -257,9 +246,7 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --never_compact (Never perform compaction on full GC - testing only)
         type: bool  default: false
-  --cleanup_ics_at_gc (Flush inline caches prior to mark compact collection.)
-        type: bool  default: true
-  --cleanup_caches_in_maps_at_gc (Flush code caches in maps during mark compact cycle.)
+  --cleanup_code_caches_at_gc (Flush inline caches prior to mark compact collection and flush code caches in maps during mark compact cycle.)
         type: bool  default: true
   --random_seed (Default seed for initializing random generator (0, the default, means to use system random).)
         type: int  default: 0
@@ -279,8 +266,6 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --strict_mode (allow strict mode directives)
         type: bool  default: true
-  --optimize_ast (optimize the ast)
-        type: bool  default: true
   --trace_sim (Trace simulator execution)
         type: bool  default: false
   --check_icache (Check icache flushes in ARM simulator)
@@ -293,9 +278,11 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --preallocate_message_memory (preallocate some memory to build stack traces.)
         type: bool  default: false
+  --randomize_hashes (randomize hashes to avoid predictable hash collisions (with snapshots this option cannot override the baked-in seed))
+        type: bool  default: true
+  --hash_seed (Fixed seed to use to hash property keys (0 means random)(with snapshots this option cannot override the baked-in seed))
+        type: int  default: 0
   --preemption (activate a 100ms timer that switches between V8 threads)
-        type: bool  default: false
-  --trace_regexps (trace regexp execution)
         type: bool  default: false
   --regexp_optimization (generate optimized regexp code)
         type: bool  default: true
@@ -326,9 +313,9 @@ If set to 1 then Node will use the new libuv-based backend.
   --debugger_port (Port to use for remote debugging)
         type: int  default: 5858
   --map_counters (Map counters to a file)
-        type: string  default: NULL
+        type: string  default:
   --js_arguments (Pass all remaining arguments to the script. Alias for "--".)
-        type: arguments  default: 
+        type: arguments  default:
   --debug_compile_events (Enable debugger compile events)
         type: bool  default: true
   --debug_script_collected_events (Enable debugger script collected events)
@@ -338,6 +325,68 @@ If set to 1 then Node will use the new libuv-based backend.
   --gdbjit_full (enable GDBJIT interface for all code objects)
         type: bool  default: false
   --gdbjit_dump (dump elf objects with debug info to disk)
+        type: bool  default: false
+  --gdbjit_dump_filter (dump only objects containing this substring)
+        type: string  default:
+  --enable_slow_asserts (enable asserts that are slow to execute)
+        type: bool  default: false
+  --trace_codegen (print name of functions for which code is generated)
+        type: bool  default: false
+  --print_source (pretty print source code)
+        type: bool  default: false
+  --print_builtin_source (pretty print source code for builtins)
+        type: bool  default: false
+  --print_ast (print source AST)
+        type: bool  default: false
+  --print_builtin_ast (print source AST for builtins)
+        type: bool  default: false
+  --print_json_ast (print source AST as JSON)
+        type: bool  default: false
+  --print_builtin_json_ast (print source AST for builtins as JSON)
+        type: bool  default: false
+  --stop_at (function name where to insert a breakpoint)
+        type: string  default:
+  --verify_stack_height (verify stack height tracing on ia32)
+        type: bool  default: false
+  --print_builtin_scopes (print scopes for builtins)
+        type: bool  default: false
+  --print_scopes (print scopes)
+        type: bool  default: false
+  --trace_contexts (trace contexts operations)
+        type: bool  default: false
+  --gc_greedy (perform GC prior to some allocations)
+        type: bool  default: false
+  --gc_verbose (print stuff during garbage collection)
+        type: bool  default: false
+  --heap_stats (report heap statistics before and after GC)
+        type: bool  default: false
+  --code_stats (report code statistics after GC)
+        type: bool  default: false
+  --verify_heap (verify heap pointers before and after GC)
+        type: bool  default: false
+  --print_handles (report handles after GC)
+        type: bool  default: false
+  --print_global_handles (report global handles after GC)
+        type: bool  default: false
+  --trace_ic (trace inline cache state transitions)
+        type: bool  default: false
+  --trace_normalization (prints when objects are turned into dictionaries.)
+        type: bool  default: false
+  --trace_lazy (trace lazy compilation)
+        type: bool  default: false
+  --debug_serialization (write debug information into the snapshot.)
+        type: bool  default: false
+  --collect_heap_spill_statistics (report heap spill statistics along with heap_stats (requires heap_stats))
+        type: bool  default: false
+  --trace_isolates (trace isolate state changes)
+        type: bool  default: false
+  --log_state_changes (Log state changes.)
+        type: bool  default: false
+  --regexp_possessive_quantifier (enable possessive quantifier syntax for testing)
+        type: bool  default: false
+  --trace_regexp_bytecodes (trace regexp bytecode execution)
+        type: bool  default: false
+  --trace_regexp_assembler (trace regexp macro assembler calls.)
         type: bool  default: false
   --log (Minimal logging (no API, code, GC, suspect, or handles samples).)
         type: bool  default: false
@@ -357,8 +406,6 @@ If set to 1 then Node will use the new libuv-based backend.
         type: bool  default: false
   --log_suspect (Log suspect operations.)
         type: bool  default: false
-  --log_producers (Log stack traces of JS objects allocations.)
-        type: bool  default: false
   --prof (Log statistical profiling information (implies --log-code).)
         type: bool  default: false
   --prof_auto (Used with --prof, starts profiling automatically)
@@ -374,6 +421,18 @@ If set to 1 then Node will use the new libuv-based backend.
   --logfile (Specify the name of the log file.)
         type: string  default: v8.log
   --ll_prof (Enable low-level linux profiler.)
+        type: bool  default: false
+  --print_code_stubs (print code stubs)
+        type: bool  default: false
+  --print_code (print generated code)
+        type: bool  default: false
+  --print_opt_code (print optimized code)
+        type: bool  default: false
+  --print_unopt_code (print unoptimized code before printing optimized code based on it)
+        type: bool  default: false
+  --print_code_verbose (print more information for code)
+        type: bool  default: false
+  --print_builtin_code (print generated code for builtins)
         type: bool  default: false
 
 
