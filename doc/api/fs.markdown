@@ -393,7 +393,7 @@ The synchronous version of `fs.writeFile`.
 
 ## fs.watchFile(filename, [options], listener)
 
-   Stability: 2 - Unstable.  Use fs.watch instead, if available.
+    Stability: 2 - Unstable.  Use fs.watch instead, if available.
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
@@ -421,13 +421,13 @@ you need to compare `curr.mtime` and `prev.mtime`.
 
 ## fs.unwatchFile(filename)
 
-   Stability: 2 - Unstable.  Use fs.watch instead, if available.
+    Stability: 2 - Unstable.  Use fs.watch instead, if available.
 
 Stop watching for changes on `filename`.
 
 ## fs.watch(filename, [options], listener)
 
-   Stability: 2 - Unstable.  Not available on all platforms.
+    Stability: 2 - Unstable.  Not available on all platforms.
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
