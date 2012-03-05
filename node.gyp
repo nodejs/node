@@ -191,12 +191,6 @@
             'PLATFORM="darwin"',
           ],
         }],
-        [ 'OS=="linux"', {
-          'libraries': [
-            '-ldl',
-            '-lutil' # needed for openpty
-          ],
-        }],
         [ 'OS=="freebsd"', {
           'libraries': [
             '-lutil',
