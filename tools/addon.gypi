@@ -4,9 +4,9 @@
     'product_extension': 'node',
     'product_prefix': '',
     'include_dirs': [
-      '../src',
-      '../deps/uv/include',
-      '../deps/v8/include'
+      '<(node_root_dir)/src',
+      '<(node_root_dir)/deps/uv/include',
+      '<(node_root_dir)/deps/v8/include'
     ],
 
     'conditions': [
