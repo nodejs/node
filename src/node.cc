@@ -2126,6 +2126,15 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // assign it
   process->Set(String::NewSymbol("argv"), arguments);
 
+  // process.execArgv
+  Local<Array> execArgv = Array::New(option_end_index - 1);
+  for (j = 1, i = 0; j < option_end_index; j++, i++) {
+    execArgv->Set(Integer::New(i), String::New(argv[j]));
+  }
+  // assign it
+  process->Set(String::NewSymbol("execArgv"), execArgv);
+
+
   // create process.env
   Local<ObjectTemplate> envTemplate = ObjectTemplate::New();
   envTemplate->SetNamedPropertyHandler(EnvGetter,
@@ -2713,10 +2722,45 @@ void EmitExit(v8::Handle<v8::Object> process_l) {
   }
 }
 
+static char **copy_argv(int argc, char **argv) {
+  size_t strlen_sum;
+  char **argv_copy;
+  char *argv_data;
+  size_t len;
+  int i;
+
+  strlen_sum = 0;
+  for(i = 0; i < argc; i++) {
+    strlen_sum += strlen(argv[i]) + 1;
+  }
+
+  argv_copy = (char **) malloc(sizeof(char *) * (argc + 1) + strlen_sum);
+  if (!argv_copy) {
+    return NULL;
+  }
+
+  argv_data = (char *) argv_copy + sizeof(char *) * (argc + 1);
+
+  for(i = 0; i < argc; i++) {
+    argv_copy[i] = argv_data;
+    len = strlen(argv[i]) + 1;
+    memcpy(argv_data, argv[i], len);
+    argv_data += len;
+  }
+
+  argv_copy[argc] = NULL;
+
+  return argv_copy;
+}
 
 int Start(int argc, char *argv[]) {
+  // Logic to duplicate argv as Init() modifies arguments
+  // that are passed into it.
+  char **argv_copy = copy_argv(argc, argv);
+
   // This needs to run *before* V8::Initialize()
-  argv = Init(argc, argv);
+  // Use copy here as to not modify the original argv:
+  Init(argc, argv_copy);
 
   V8::Initialize();
   Persistent<Context> context;
@@ -2728,6 +2772,7 @@ int Start(int argc, char *argv[]) {
     Persistent<Context> context = Context::New();
     Context::Scope context_scope(context);
 
+    // Use original argv, as we're just copying values out of it.
     Handle<Object> process_l = SetupProcessObject(argc, argv);
     v8_typed_array::AttachBindings(context->Global());
 
@@ -2752,6 +2797,9 @@ int Start(int argc, char *argv[]) {
   // Clean up.
   V8::Dispose();
 #endif  // NDEBUG
+
+  // Clean up the copy:
+  free(argv_copy);
 
   return 0;
 }
