@@ -215,9 +215,9 @@ def configure_node(o):
   o['variables']['strict_aliasing'] = b(
     'clang' in CC or gcc_version() >= [False, 4, 6, 0])
 
-  # TODO move to node.gyp
-  if sys.platform == 'sunos5':
-    o['variables']['visibility'] = '' # FIXME -fvisibility=hidden, should be a gcc check
+  # clang has always supported -fvisibility=hidden, right?
+  if 'clang' not in CC and gcc_version() < [False, 4, 0, 0]:
+    o['variables']['visibility'] = ''
 
 
 def configure_libz(o):
