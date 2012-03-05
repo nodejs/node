@@ -32,6 +32,11 @@
       ],
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ],
+        'conditions': [
+          ['OS=="linux"', {
+            'libraries': [ '-ldl' ],
+          }],
+        ],
       },
 
       'defines': [
@@ -338,6 +343,7 @@
         'test/test-udp-send-and-recv.c',
         'test/test-udp-multicast-join.c',
         'test/test-counters-init.c',
+        'test/test-dlerror.c',
         'test/test-udp-multicast-ttl.c',
       ],
       'conditions': [

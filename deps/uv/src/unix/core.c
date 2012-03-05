@@ -541,8 +541,6 @@ static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
 
   assert(uv__timer_active(timer));
 
-  assert(uv__timer_active(timer));
-
   if (!uv__timer_repeating(timer)) {
     timer->flags &= ~UV_TIMER_ACTIVE;
     ev_ref(EV_A);

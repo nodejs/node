@@ -24,6 +24,8 @@
 
 #include <dlfcn.h>
 #include <errno.h>
+#include <string.h>
+#include <locale.h>
 
 /* The dl family of functions don't set errno. We need a good way to communicate
  * errors to the caller but there is only dlerror() and that returns a string -
@@ -66,4 +68,24 @@ uv_err_t uv_dlsym(uv_lib_t library, const char* name, void** ptr) {
 
   *ptr = (void*) address;
   return uv_ok_;
+}
+
+
+const char *uv_dlerror(uv_lib_t library) {
+  const char* buf = NULL;
+  /* Make uv_dlerror() be independent of locale */
+  char* loc = setlocale(LC_MESSAGES, NULL);
+  if(strcmp(loc, "C") == 0) {
+    return strdup(dlerror());
+  } else {
+    setlocale(LC_MESSAGES, "C");
+    buf = dlerror();
+    setlocale(LC_MESSAGES, loc);
+    return strdup(buf);
+  }
+}
+
+
+void uv_dlerror_free(uv_lib_t library, const char *msg) {
+  free((void*)msg);
 }

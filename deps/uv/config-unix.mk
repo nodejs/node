@@ -62,7 +62,7 @@ EV_CONFIG=config_linux.h
 EIO_CONFIG=config_linux.h
 CSTDFLAG += -D_GNU_SOURCE
 CPPFLAGS += -Isrc/ares/config_linux
-LINKFLAGS+=-lrt
+LINKFLAGS+=-ldl -lrt
 OBJS += src/unix/linux/core.o src/unix/linux/inotify.o
 endif
 
