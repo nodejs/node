@@ -4,8 +4,9 @@ import sys
 
 script_dir = os.path.dirname(__file__)
 node_root  = os.path.abspath(os.path.join(script_dir, os.pardir))
+module_root = os.getcwd()
 if sys.platform == 'win32':
-  output_dir = os.path.join(os.getcwd(), 'build')
+  output_dir = os.path.join(module_root, 'build')
 else:
   output_dir = 'build'
 
@@ -24,6 +25,7 @@ if __name__ == '__main__':
   args.extend(['-Dlibrary=shared_library'])
   args.extend(['-Dvisibility=default'])
   args.extend(['-Dnode_root_dir=%s' % node_root])
+  args.extend(['-Dmodule_root_dir=%s' % module_root])
   args.extend(['--depth=.']);
 
   # Tell gyp to write the Makefile/Solution files into output_dir
