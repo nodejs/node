@@ -20,7 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-
+// SIGUSR1 and SIGHUP are not supported on Windows
+if (process.platform === 'win32') {
+  process.exit(0);
+}
 
 var common = require('../common');
 var assert = require('assert');
