@@ -42,7 +42,7 @@ of command if it's `undefined`. Defaults to `false`.
 
 You can use your own `eval` function if it has following signature:
 
-    function eval(cmd, callback) {
+    function eval(cmd, context, filename, callback) {
       callback(null, result);
     }
 
