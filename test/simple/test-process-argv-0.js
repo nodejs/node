@@ -42,7 +42,12 @@ if (process.argv[2] !== "child") {
   });
   child.on('exit', function () {
     console.error('CHILD: %s', childErr.trim().split('\n').join('\nCHILD: '));
-    assert.equal(childArgv0, process.execPath);
+    if (process.platform === 'win32') {
+      // On Windows argv[0] is not expanded into full path
+      assert.equal(childArgv0, './node');
+    } else {
+      assert.equal(childArgv0, process.execPath);
+    }
   });
 }
 else {
