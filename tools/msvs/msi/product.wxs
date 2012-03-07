@@ -35,7 +35,7 @@
                          Name="PATH" 
                          Part="last" 
                          System="yes" 
-                         Value="[AppDataFolder]npm" />
+                         Value="[AppDataFolder]npm\" />
             <Environment Id="node_env"
                          Action="set"             
                          Name="PATH" 
