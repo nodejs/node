@@ -8,7 +8,6 @@ var maxSockets = parseInt(process.argv[3], 10) || 100;
 var runs = parseInt(process.argv[4], 10) || 100;
 var prefix = process.argv[5] || '';
 if (prefix) prefix += '_';
-var request = require('request');
 var r = 0;
 
 var port = parseInt(process.env.PORT, 10) || 8000;
