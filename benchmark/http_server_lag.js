@@ -4,7 +4,7 @@ var defaultLag = parseInt(process.argv[2], 10) || 100;
 
 http.createServer(function(req, res) {
   res.writeHead(200, { 'content-type': 'text/plain',
-                       'content-lengt': '2' });
+                       'content-length': '2' });
 
   var lag = parseInt(req.url.split("/").pop(), 10) || defaultLag;
   setTimeout(function() {
