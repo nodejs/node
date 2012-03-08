@@ -498,8 +498,7 @@ reliable.
 
 <!--type=misc-->
 
-When watching a directory,
-providing `filename` argument in the callback is not supported
+Providing `filename` argument in the callback is not supported
 on every platform (currently it's only supported on Linux and Windows).  Even
 on supported platforms `filename` is not always guaranteed to be provided.
 Therefore, don't assume that `filename` argument is always provided in the

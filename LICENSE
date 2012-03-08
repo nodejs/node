@@ -79,8 +79,13 @@ The externally maintained libraries used by Node are:
     licensed under a permissive free software license. See
     deps/zlib/LICENSE.
 
-  - deps/npm npm is a package manager program copyright 2009, 2010, 2011
+  - deps/npm npm is a package manager program copyright 2009 - 2012
     Isaac Z. Schlueter and licensed under MIT. npm includes several
     subpackages MIT or Apache licenses, see deps/npm/LICENSE for more
     information. npm is included in the Node .msi and .pkg distributions
     but not in the Node binary itself.
+
+  - tools/doc/node_modules/marked Marked is a Markdown parser Copyright
+    (c) 2011-2012, Christopher Jeffrey (https://github.com/chjj/).  Marked
+    is used in the generation of node documentation, but not distributed in
+    any node binaries.

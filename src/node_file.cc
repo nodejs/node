@@ -51,7 +51,18 @@ using namespace v8;
 
 #define THROW_BAD_ARGS TYPE_ERROR("Bad argument")
 
-typedef class ReqWrap<uv_fs_t> FSReqWrap;
+class FSReqWrap: public ReqWrap<uv_fs_t> {
+ public:
+  FSReqWrap(const char* syscall)
+    : syscall_(syscall) {
+  }
+
+  const char* syscall() { return syscall_; }
+
+ private:
+  const char* syscall_;
+};
+
 
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
@@ -88,11 +99,13 @@ static void After(uv_fs_t *req) {
     // If the request doesn't have a path parameter set.
 
     if (!req->path) {
-      argv[0] = UVException(req->errorno);
+      argv[0] = UVException(req->errorno,
+                            NULL,
+                            req_wrap->syscall());
     } else {
       argv[0] = UVException(req->errorno,
                             NULL,
-                            NULL,
+                            req_wrap->syscall(),
                             static_cast<const char*>(req->path));
     }
   } else {
@@ -208,7 +221,7 @@ struct fs_req_wrap {
 
 
 #define ASYNC_CALL(func, callback, ...)                           \
-  FSReqWrap* req_wrap = new FSReqWrap();                          \
+  FSReqWrap* req_wrap = new FSReqWrap(#func);                     \
   int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
       __VA_ARGS__, After);                                        \
   req_wrap->object_->Set(oncomplete_sym, callback);               \

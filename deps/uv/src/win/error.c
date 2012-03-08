@@ -78,6 +78,8 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case WSAEAFNOSUPPORT:                   return UV_EAFNOSUPPORT;
     case WSAEWOULDBLOCK:                    return UV_EAGAIN;
     case WSAEALREADY:                       return UV_EALREADY;
+    case ERROR_LOCK_VIOLATION:              return UV_EBUSY;
+    case ERROR_SHARING_VIOLATION:           return UV_EBUSY;
     case ERROR_CONNECTION_ABORTED:          return UV_ECONNABORTED;
     case WSAECONNABORTED:                   return UV_ECONNABORTED;
     case ERROR_CONNECTION_REFUSED:          return UV_ECONNREFUSED;
@@ -102,6 +104,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_OUTOFMEMORY:                 return UV_ENOMEM;
     case ERROR_NOT_CONNECTED:               return UV_ENOTCONN;
     case WSAENOTCONN:                       return UV_ENOTCONN;
+    case ERROR_DIR_NOT_EMPTY:               return UV_ENOTEMPTY;
     case ERROR_NOT_SUPPORTED:               return UV_ENOTSUP;
     case ERROR_INSUFFICIENT_BUFFER:         return UV_EINVAL;
     case ERROR_INVALID_FLAGS:               return UV_EBADF;

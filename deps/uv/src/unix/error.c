@@ -88,6 +88,8 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ESRCH: return UV_ESRCH;
     case ETIMEDOUT: return UV_ETIMEDOUT;
     case EXDEV: return UV_EXDEV;
+    case EBUSY: return UV_EBUSY;
+    case ENOTEMPTY: return UV_ENOTEMPTY;
     default: return UV_UNKNOWN;
   }
   UNREACHABLE();
