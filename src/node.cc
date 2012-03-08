@@ -55,6 +55,7 @@ typedef int mode_t;
 #endif
 #include <errno.h>
 #include <sys/types.h>
+#include "zlib.h"
 
 #ifdef __POSIX__
 # include <pwd.h> /* getpwnam() */
@@ -2088,6 +2089,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
   snprintf(buf, 20, "%d.%d", UV_VERSION_MAJOR, UV_VERSION_MINOR);
   versions->Set(String::NewSymbol("uv"), String::New(buf));
+  versions->Set(String::NewSymbol("zlib"), String::New(ZLIB_VERSION));
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
   int c, l = strlen(OPENSSL_VERSION_TEXT);
