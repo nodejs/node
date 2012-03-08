@@ -79,7 +79,7 @@ typedef intptr_t ssize_t;
   XX(  7, EAFNOSUPPORT, "") \
   XX(  8, EALREADY, "") \
   XX(  9, EBADF, "bad file descriptor") \
-  XX( 10, EBUSY, "mount device busy") \
+  XX( 10, EBUSY, "resource busy or locked") \
   XX( 11, ECONNABORTED, "software caused connection abort") \
   XX( 12, ECONNREFUSED, "connection refused") \
   XX( 13, ECONNRESET, "connection reset by peer") \
@@ -119,7 +119,8 @@ typedef intptr_t ssize_t;
   XX( 49, ENAMETOOLONG, "name too long") \
   XX( 50, EPERM, "operation not permitted") \
   XX( 51, ELOOP, "too many symbolic links encountered") \
-  XX( 52, EXDEV, "cross-device link not permitted")
+  XX( 52, EXDEV, "cross-device link not permitted") \
+  XX( 53, ENOTEMPTY, "directory not empty")
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,
