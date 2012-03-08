@@ -24,6 +24,8 @@
 
 #include "v8.h"
 
+#include "http_parser.h"
+
 namespace node {
 
 void InitHttpParser(v8::Handle<v8::Object> target);

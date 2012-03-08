@@ -25,8 +25,6 @@
 #include "node.h"
 #include "node_buffer.h"
 
-#include "http_parser.h"
-
 #include <string.h>  /* strdup() */
 #if !defined(_MSC_VER)
 #include <strings.h>  /* strcasecmp() */

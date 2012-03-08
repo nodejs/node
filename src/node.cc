@@ -2079,6 +2079,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   Local<Object> versions = Object::New();
   char buf[20];
   process->Set(String::NewSymbol("versions"), versions);
+  versions->Set(String::NewSymbol("http_parser"), String::New(
+               NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "."
+               NODE_STRINGIFY(HTTP_PARSER_VERSION_MINOR)));
   // +1 to get rid of the leading 'v'
   versions->Set(String::NewSymbol("node"), String::New(NODE_VERSION+1));
   versions->Set(String::NewSymbol("v8"), String::New(V8::GetVersion()));
