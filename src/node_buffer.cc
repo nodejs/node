@@ -171,13 +171,14 @@ Handle<Value> Buffer::New(const Arguments &args) {
 
   HandleScope scope;
 
-  if (args[0]->IsInt32()) {
-    // var buffer = new Buffer(1024);
-    size_t length = args[0]->Uint32Value();
-    new Buffer(args.This(), length);
-  } else {
-    return ThrowException(Exception::TypeError(String::New("Bad argument")));
+  if (!args[0]->IsUint32()) return ThrowTypeError("Bad argument");
+
+  size_t length = args[0]->Uint32Value();
+  if (length > Buffer::kMaxLength) {
+    return ThrowRangeError("length > kMaxLength");
   }
+  new Buffer(args.This(), length);
+
   return args.This();
 }
 

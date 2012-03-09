@@ -91,6 +91,10 @@ class ArrayBuffer {
     }
 
     size_t num_bytes = args[0]->Uint32Value();
+    if (num_bytes > node::Buffer::kMaxLength) {
+      return ThrowRangeError("length > kMaxLength");
+    }
+
     void* buf = calloc(num_bytes, 1);
     if (!buf)
       return ThrowError("Unable to allocate ArrayBuffer.");
@@ -224,6 +228,7 @@ class TypedArray {
           v8::Integer::NewFromUnsigned(length * TBytes)};
       buffer = ArrayBuffer::GetTemplate()->
                  GetFunction()->NewInstance(1, argv);
+      if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
       void* buf = buffer->GetPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
@@ -252,8 +257,9 @@ class TypedArray {
 
       buffer = ArrayBuffer::GetTemplate()->
                  GetFunction()->NewInstance(1, argv);
-      void* buf = buffer->GetPointerFromInternalField(0);
+      if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
+      void* buf = buffer->GetPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
           buf, TEAType, length);
       // TODO(deanm): check for failure.
