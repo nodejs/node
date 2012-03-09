@@ -22,6 +22,8 @@
 #ifndef SRC_NODE_INTERNALS_H_
 #define SRC_NODE_INTERNALS_H_
 
+#include "v8.h"
+
 namespace node {
 
 #ifndef offset_of
@@ -39,6 +41,27 @@ namespace node {
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
+
+// this would have been a template function were it not for the fact that g++
+// sometimes fails to resolve it...
+#define THROW_ERROR(fun)                                                      \
+  do {                                                                        \
+    v8::HandleScope scope;                                                    \
+    return v8::ThrowException(fun(v8::String::New(errmsg)));                  \
+  }                                                                           \
+  while (0)
+
+inline static v8::Handle<v8::Value> ThrowError(const char* errmsg) {
+  THROW_ERROR(v8::Exception::Error);
+}
+
+inline static v8::Handle<v8::Value> ThrowTypeError(const char* errmsg) {
+  THROW_ERROR(v8::Exception::TypeError);
+}
+
+inline static v8::Handle<v8::Value> ThrowRangeError(const char* errmsg) {
+  THROW_ERROR(v8::Exception::RangeError);
+}
 
 } // namespace node
 

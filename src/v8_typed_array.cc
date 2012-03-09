@@ -22,24 +22,16 @@
 #include <stdlib.h>  // calloc, etc
 #include <string.h>  // memmove
 
-#include <v8.h>
-
 #include "v8_typed_array.h"
 #include "node_buffer.h"
+#include "node.h"
+#include "v8.h"
 
 namespace {
 
-v8::Handle<v8::Value> ThrowError(const char* msg) {
-  return v8::ThrowException(v8::Exception::Error(v8::String::New(msg)));
-}
-
-v8::Handle<v8::Value> ThrowTypeError(const char* msg) {
-  return v8::ThrowException(v8::Exception::TypeError(v8::String::New(msg)));
-}
-
-v8::Handle<v8::Value> ThrowRangeError(const char* msg) {
-  return v8::ThrowException(v8::Exception::RangeError(v8::String::New(msg)));
-}
+using node::ThrowRangeError;
+using node::ThrowTypeError;
+using node::ThrowError;
 
 struct BatchedMethods {
   const char* name;
