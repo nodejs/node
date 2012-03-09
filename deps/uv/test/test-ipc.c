@@ -25,9 +25,6 @@
 #include <stdio.h>
 #include <string.h>
 
-static char exepath[1024];
-static size_t exepath_size = 1024;
-static char* args[3];
 static uv_pipe_t channel;
 static uv_tcp_t tcp_server;
 
@@ -184,31 +181,44 @@ static void on_read(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
 }
 
 
-int run_ipc_test(const char* helper) {
-  int r;
+void spawn_helper(uv_pipe_t* channel,
+                  uv_process_t* process,
+                  const char* helper) {
   uv_process_options_t options;
-  uv_process_t process;
+  size_t exepath_size;
+  char exepath[1024];
+  char* args[3];
+  int r;
 
-  r = uv_pipe_init(uv_default_loop(), &channel, 1);
+  r = uv_pipe_init(uv_default_loop(), channel, 1);
   ASSERT(r == 0);
-  ASSERT(channel.ipc);
+  ASSERT(channel->ipc);
 
-  memset(&options, 0, sizeof(uv_process_options_t));
-
+  exepath_size = sizeof(exepath);
   r = uv_exepath(exepath, &exepath_size);
   ASSERT(r == 0);
+
   exepath[exepath_size] = '\0';
   args[0] = exepath;
   args[1] = (char*)helper;
   args[2] = NULL;
+
+  memset(&options, 0, sizeof(options));
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
-  options.stdin_stream = &channel;
+  options.stdin_stream = channel;
 
-  r = uv_spawn(uv_default_loop(), &process, options);
+  r = uv_spawn(uv_default_loop(), process, options);
   ASSERT(r == 0);
+}
 
+
+static int run_ipc_test(const char* helper) {
+  uv_process_t process;
+  int r;
+
+  spawn_helper(&channel, &process, helper);
   uv_read2_start((uv_stream_t*)&channel, on_alloc, on_read);
 
   r = uv_run(uv_default_loop());
@@ -218,6 +228,7 @@ int run_ipc_test(const char* helper) {
   ASSERT(remote_conn_accepted == 1);
   ASSERT(read2_cb_called == 1);
   ASSERT(exit_cb_called == 1);
+
   return 0;
 }
 

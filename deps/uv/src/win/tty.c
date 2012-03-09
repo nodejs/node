@@ -1683,6 +1683,7 @@ int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
 
   handle->reqs_pending++;
   handle->write_reqs_pending++;
+  uv_ref(loop);
 
   req->queued_bytes = 0;
 
@@ -1715,10 +1716,13 @@ void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
+  uv_unref(loop);
 }
 
 
 void uv_tty_close(uv_tty_t* handle) {
+  handle->flags |= UV_HANDLE_SHUTTING;
+
   uv_tty_read_stop(handle);
   CloseHandle(handle->handle);
 
@@ -1729,17 +1733,22 @@ void uv_tty_close(uv_tty_t* handle) {
 
 
 void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
-  if (handle->flags & UV_HANDLE_CONNECTION &&
-      handle->flags & UV_HANDLE_SHUTTING &&
-      !(handle->flags & UV_HANDLE_SHUT) &&
+  if ((handle->flags && UV_HANDLE_CONNECTION) &&
+      handle->shutdown_req != NULL &&
       handle->write_reqs_pending == 0) {
-    handle->flags |= UV_HANDLE_SHUT;
-
     /* TTY shutdown is really just a no-op */
     if (handle->shutdown_req->cb) {
-      handle->shutdown_req->cb(handle->shutdown_req, 0);
+      if (handle->flags & UV_HANDLE_CLOSING) {
+        uv__set_sys_error(loop, WSAEINTR);
+        handle->shutdown_req->cb(handle->shutdown_req, -1);
+      } else {
+        handle->shutdown_req->cb(handle->shutdown_req, 0);
+      }
     }
 
+    handle->shutdown_req = NULL;
+
+    uv_unref(loop);
     DECREASE_PENDING_REQ_COUNT(handle);
     return;
   }

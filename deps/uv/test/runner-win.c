@@ -135,7 +135,7 @@ int process_start(char *name, char *part, process_info_t *p) {
   p->stdio_in = nul;
   p->stdio_out = file;
   p->process = pi.hProcess;
-  p->name = name;
+  p->name = part;
 
   return 0;
 

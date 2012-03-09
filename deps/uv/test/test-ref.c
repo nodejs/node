@@ -26,8 +26,36 @@
 #include <string.h>
 
 
+static uv_write_t write_req;
+static uv_shutdown_t shutdown_req;
+static uv_connect_t connect_req;
+
+static char buffer[32767];
+
+
 static void fail_cb(void) {
   FATAL("fail_cb should not have been called");
+}
+
+
+static void write_unref_cb(uv_connect_t* req, int status) {
+  uv_buf_t buf = uv_buf_init(buffer, sizeof buffer);
+
+  ASSERT(req == &connect_req);
+  ASSERT(status == 0);
+
+  uv_write(&write_req, req->handle, &buf, 1, (uv_write_cb) fail_cb);
+  uv_unref(uv_default_loop()); /* uv_write refs the loop */
+}
+
+
+
+static void shutdown_unref_cb(uv_connect_t* req, int status) {
+  ASSERT(req == &connect_req);
+  ASSERT(status == 0);
+
+  uv_shutdown(&shutdown_req, req->handle, (uv_shutdown_cb) fail_cb);
+  uv_unref(uv_default_loop()); /* uv_shutdown refs the loop */
 }
 
 
@@ -142,12 +170,33 @@ TEST_IMPL(tcp_ref2) {
 
 TEST_IMPL(tcp_ref3) {
   struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
-  uv_connect_t req;
   uv_tcp_t h;
   uv_tcp_init(uv_default_loop(), &h);
-  uv_tcp_connect(&req, &h, addr, (uv_connect_cb)fail_cb);
+  uv_tcp_connect(&connect_req, &h, addr, (uv_connect_cb)fail_cb);
   uv_unref(uv_default_loop());
   uv_unref(uv_default_loop()); /* connect req refs the loop */
+  uv_run(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(tcp_ref4) {
+  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  uv_tcp_t h;
+  uv_tcp_init(uv_default_loop(), &h);
+  uv_tcp_connect(&connect_req, &h, addr, write_unref_cb);
+  uv_unref(uv_default_loop());
+  uv_run(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(tcp_ref5) {
+  struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  uv_tcp_t h;
+  uv_tcp_init(uv_default_loop(), &h);
+  uv_tcp_connect(&connect_req, &h, addr, shutdown_unref_cb);
+  uv_unref(uv_default_loop());
   uv_run(uv_default_loop());
   return 0;
 }
@@ -210,12 +259,31 @@ TEST_IMPL(pipe_ref2) {
 
 
 TEST_IMPL(pipe_ref3) {
-  uv_connect_t req;
   uv_pipe_t h;
   uv_pipe_init(uv_default_loop(), &h, 0);
-  uv_pipe_connect(&req, &h, TEST_PIPENAME, (uv_connect_cb)fail_cb);
+  uv_pipe_connect(&connect_req, &h, TEST_PIPENAME, (uv_connect_cb)fail_cb);
   uv_unref(uv_default_loop());
   uv_unref(uv_default_loop()); /* connect req refs the loop */
+  uv_run(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(pipe_ref4) {
+  uv_pipe_t h;
+  uv_pipe_init(uv_default_loop(), &h, 0);
+  uv_pipe_connect(&connect_req, &h, TEST_PIPENAME, write_unref_cb);
+  uv_unref(uv_default_loop());
+  uv_run(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(pipe_ref5) {
+  uv_pipe_t h;
+  uv_pipe_init(uv_default_loop(), &h, 0);
+  uv_pipe_connect(&connect_req, &h, TEST_PIPENAME, shutdown_unref_cb);
+  uv_unref(uv_default_loop());
   uv_run(uv_default_loop());
   return 0;
 }

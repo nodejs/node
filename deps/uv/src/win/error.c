@@ -91,6 +91,8 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case WSAEFAULT:                         return UV_EFAULT;
     case ERROR_HOST_UNREACHABLE:            return UV_EHOSTUNREACH;
     case WSAEHOSTUNREACH:                   return UV_EHOSTUNREACH;
+    case ERROR_OPERATION_ABORTED:           return UV_EINTR;
+    case WSAEINTR:                          return UV_EINTR;
     case ERROR_INVALID_DATA:                return UV_EINVAL;
     case WSAEINVAL:                         return UV_EINVAL;
     case ERROR_CANT_RESOLVE_FILENAME:       return UV_ELOOP;

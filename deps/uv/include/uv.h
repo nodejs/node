@@ -1388,7 +1388,7 @@ UV_EXTERN extern uint64_t uv_hrtime(void);
 
 
 /*
- * Opens a shared library. The filename is in utf-8. On success, -1 is
+ * Opens a shared library. The filename is in utf-8. On success, -1 is returned
  * and the variable pointed by library receives a handle to the library.
  */
 UV_EXTERN uv_err_t uv_dlopen(const char* filename, uv_lib_t* library);

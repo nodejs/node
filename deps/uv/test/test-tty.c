@@ -22,23 +22,64 @@
 #include "uv.h"
 #include "task.h"
 
+#ifdef _WIN32
+# include <io.h>
+# include <windows.h>
+#else /*  Unix */
+# include <fcntl.h>
+# include <unistd.h>
+#endif
+
+
 TEST_IMPL(tty) {
   int r, width, height;
-  uv_tty_t tty;
+  int ttyin_fd, ttyout_fd;
+  uv_tty_t tty_in, tty_out;
   uv_loop_t* loop = uv_default_loop();
+
+  /* Make sure we have an FD that refers to a tty */
+#ifdef _WIN32
+  HANDLE handle;
+  handle = CreateFileA("conin$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ttyin_fd = _open_osfhandle((intptr_t) handle, 0);
+
+  handle = CreateFileA("conout$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ttyout_fd = _open_osfhandle((intptr_t) handle, 0);
+
+#else /* unix */
+  ttyin_fd = open("/dev/tty", O_RDONLY, 0);
+  ttyout_fd = open("/dev/tty", O_WRONLY, 0);
+#endif
+
+  ASSERT(ttyin_fd >= 0);
+  ASSERT(ttyout_fd >= 0);
 
   ASSERT(UV_UNKNOWN_HANDLE == uv_guess_handle(-1));
 
-  /*
-   * Not necessarily a problem if this assert goes off. E.G you are piping
-   * this test to a file. 0 == stdin.
-   */
-  ASSERT(UV_TTY == uv_guess_handle(0));
+  ASSERT(UV_TTY == uv_guess_handle(ttyin_fd));
+  ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
 
-  r = uv_tty_init(uv_default_loop(), &tty, 0, 1);
+  r = uv_tty_init(uv_default_loop(), &tty_in, ttyin_fd, 1);
   ASSERT(r == 0);
 
-  r = uv_tty_get_winsize(&tty, &width, &height);
+  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 2);
+  ASSERT(r == 0);
+
+  r = uv_tty_get_winsize(&tty_out, &width, &height);
   ASSERT(r == 0);
 
   printf("width=%d height=%d\n", width, height);
@@ -51,16 +92,17 @@ TEST_IMPL(tty) {
   ASSERT(height > 10);
 
   /* Turn on raw mode. */
-  r = uv_tty_set_mode(&tty, 1);
+  r = uv_tty_set_mode(&tty_in, 1);
   ASSERT(r == 0);
 
   /* Turn off raw mode. */
-  r = uv_tty_set_mode(&tty, 0);
+  r = uv_tty_set_mode(&tty_in, 0);
   ASSERT(r == 0);
 
   /* TODO check the actual mode! */
 
-  uv_close((uv_handle_t*)&tty, NULL);
+  uv_close((uv_handle_t*) &tty_in, NULL);
+  uv_close((uv_handle_t*) &tty_out, NULL);
 
   uv_run(loop);
 

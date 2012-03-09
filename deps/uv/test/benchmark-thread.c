@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_THREADS (100 * 1000)
+#define NUM_THREADS (20 * 1000)
 
 static volatile int num_threads;
 

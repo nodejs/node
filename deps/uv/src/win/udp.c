@@ -400,11 +400,13 @@ static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     /* Request completed immediately. */
     req->queued_bytes = 0;
     handle->reqs_pending++;
+    uv_ref(loop);
     uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
     /* Request queued by the kernel. */
     req->queued_bytes = uv_count_bufs(bufs, bufcnt);
     handle->reqs_pending++;
+    uv_ref(loop);
   } else {
     /* Send failed due to an error. */
     uv__set_sys_error(loop, WSAGetLastError());
@@ -569,6 +571,7 @@ void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
     }
   }
 
+  uv_unref(loop);
   DECREASE_PENDING_REQ_COUNT(handle);
 }
 
