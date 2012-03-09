@@ -67,6 +67,13 @@ uv_pipe_t* PipeWrap::UVHandle() {
 }
 
 
+Local<Object> PipeWrap::Instantiate() {
+  HandleScope scope;
+  assert(!pipeConstructor.IsEmpty());
+  return scope.Close(pipeConstructor->NewInstance());
+}
+
+
 PipeWrap* PipeWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);

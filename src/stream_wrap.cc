@@ -23,8 +23,11 @@
 #include <node_buffer.h>
 #include <handle_wrap.h>
 #include <stream_wrap.h>
+#include <pipe_wrap.h>
 #include <tcp_wrap.h>
 #include <req_wrap.h>
+
+#include <stdlib.h> // abort()
 
 
 namespace node {
@@ -237,36 +240,35 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
     slab_used -= (buf.len - nread);
   }
 
-  if (nread > 0) {
-    int argc = 3;
-    Local<Value> argv[4] = {
-      slab_v,
-      Integer::New(wrap->slab_offset_),
-      Integer::New(nread)
-    };
+  if (nread == 0) return;
 
+  int argc = 3;
+  Local<Value> argv[4] = {
+    slab_v,
+    Integer::New(wrap->slab_offset_),
+    Integer::New(nread)
+  };
 
-    if (pending == UV_TCP) {
-      // Instantiate the client javascript object and handle.
-      Local<Object> pending_obj = TCPWrap::Instantiate();
-
-      // Unwrap the client javascript object.
-      assert(pending_obj->InternalFieldCount() > 0);
-      TCPWrap* pending_wrap =
-          static_cast<TCPWrap*>(pending_obj->GetPointerFromInternalField(0));
-
-      int r = uv_accept(handle, pending_wrap->GetStream());
-      assert(r == 0);
-
-      argv[3] = pending_obj;
-      argc++;
-    } else {
-      // We only support sending UV_TCP right now.
-      assert(pending == UV_UNKNOWN_HANDLE);
-    }
-
-    MakeCallback(wrap->object_, "onread", argc, argv);
+  Local<Object> pending_obj;
+  if (pending == UV_TCP) {
+    pending_obj = TCPWrap::Instantiate();
+  } else if (pending == UV_NAMED_PIPE) {
+    pending_obj = PipeWrap::Instantiate();
+  } else {
+    // We only support sending UV_TCP and UV_NAMED_PIPE right now.
+    assert(pending == UV_UNKNOWN_HANDLE);
   }
+
+  if (!pending_obj.IsEmpty()) {
+    assert(pending_obj->InternalFieldCount() > 0);
+    StreamWrap* pending_wrap =
+      static_cast<StreamWrap*>(pending_obj->GetPointerFromInternalField(0));
+    if (uv_accept(handle, pending_wrap->GetStream())) abort();
+    argv[3] = pending_obj;
+    argc++;
+  }
+
+  MakeCallback(wrap->object_, "onread", argc, argv);
 }
 
 

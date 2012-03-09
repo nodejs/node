@@ -19,41 +19,39 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef PIPE_WRAP_H_
-#define PIPE_WRAP_H_
-#include <stream_wrap.h>
+var common = require('../common');
+var assert = require('assert');
+var cluster = require('cluster');
+var http = require('http');
 
-namespace node {
+if (cluster.isMaster) {
+  var ok = false;
+  var worker = cluster.fork();
+  worker.on('message', function(msg) {
+    assert.equal(msg, 'DONE');
+    ok = true;
+  });
+  worker.on('death', function() {
+    process.exit();
+  });
+  process.on('exit', function() {
+    assert(ok);
+  });
+  return;
+}
 
-class PipeWrap : StreamWrap {
- public:
-  uv_pipe_t* UVHandle();
-
-  static v8::Local<v8::Object> Instantiate();
-  static PipeWrap* Unwrap(v8::Local<v8::Object> obj);
-  static void Initialize(v8::Handle<v8::Object> target);
-
- private:
-  PipeWrap(v8::Handle<v8::Object> object, bool ipc);
-
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Bind(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Listen(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
-  static v8::Handle<v8::Value> Open(const v8::Arguments& args);
-
-#ifdef _WIN32
-  static v8::Handle<v8::Value> SetPendingInstances(const v8::Arguments& args);
-#endif
-
-  static void OnConnection(uv_stream_t* handle, int status);
-  static void AfterConnect(uv_connect_t* req, int status);
-
-  uv_pipe_t handle_;
-};
-
-
-}  // namespace node
-
-
-#endif  // PIPE_WRAP_H_
+http.createServer(function(req, res) {
+  assert.equal(req.connection.remoteAddress, undefined);
+  assert.equal(req.connection.localAddress, undefined); // TODO common.PIPE?
+  res.writeHead(200);
+  res.end('OK');
+}).listen(common.PIPE, function() {
+  var self = this;
+  http.get({ socketPath: common.PIPE, path: '/' }, function(res) {
+    res.on('end', function(err) {
+      if (err) throw err;
+      process.send('DONE');
+      process.exit();
+    });
+  });
+});
