@@ -22,8 +22,8 @@
 #ifndef node_os_h
 #define node_os_h
 
-#include <node.h>
-#include <v8.h>
+#include "node.h"
+#include "v8.h"
 
 namespace node {
 

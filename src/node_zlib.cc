@@ -20,15 +20,15 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-#include <v8.h>
+#include "v8.h"
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <zlib.h>
 
-#include <node.h>
-#include <node_buffer.h>
+#include "node.h"
+#include "node_buffer.h"
 
 
 namespace node {

@@ -21,7 +21,7 @@
 
 #ifndef TCP_WRAP_H_
 #define TCP_WRAP_H_
-#include <stream_wrap.h>
+#include "stream_wrap.h"
 
 namespace node {
 

@@ -19,13 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node.h>
+#include "node.h"
 
-#include <uv.h>
+#include "uv.h"
 
-#include <v8-debug.h>
+#include "v8-debug.h"
 #ifdef HAVE_DTRACE
-# include <node_dtrace.h>
+# include "node_dtrace.h"
 #endif
 
 #include <locale.h>
@@ -61,25 +61,25 @@ typedef int mode_t;
 # include <grp.h> /* getgrnam() */
 #endif
 
-#include <node_buffer.h>
+#include "node_buffer.h"
 #ifdef __POSIX__
-# include <node_io_watcher.h>
+# include "node_io_watcher.h"
 #endif
-#include <node_file.h>
-#include <node_http_parser.h>
+#include "node_file.h"
+#include "node_http_parser.h"
 #ifdef __POSIX__
-# include <node_signal_watcher.h>
-# include <node_stat_watcher.h>
+# include "node_signal_watcher.h"
+# include "node_stat_watcher.h"
 #endif
-#include <node_constants.h>
-#include <node_javascript.h>
-#include <node_version.h>
-#include <node_string.h>
+#include "node_constants.h"
+#include "node_javascript.h"
+#include "node_version.h"
+#include "node_string.h"
 #if HAVE_OPENSSL
-# include <node_crypto.h>
+# include "node_crypto.h"
 #endif
-#include <node_script.h>
-#include <v8_typed_array.h>
+#include "node_script.h"
+#include "v8_typed_array.h"
 
 using namespace v8;
 

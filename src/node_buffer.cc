@@ -20,10 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-#include <node.h>
-#include <node_buffer.h>
+#include "node.h"
+#include "node_buffer.h"
 
-#include <v8.h>
+#include "v8.h"
 
 #include <assert.h>
 #include <stdlib.h> // malloc, free

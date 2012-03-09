@@ -19,9 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node_constants.h>
+#include "node_constants.h"
 
-#include <uv.h>
+#include "uv.h"
 
 #include <errno.h>
 #if !defined(_MSC_VER)

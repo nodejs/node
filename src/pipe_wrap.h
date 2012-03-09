@@ -21,7 +21,7 @@
 
 #ifndef PIPE_WRAP_H_
 #define PIPE_WRAP_H_
-#include <stream_wrap.h>
+#include "stream_wrap.h"
 
 namespace node {
 

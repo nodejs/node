@@ -20,10 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-#include <node.h>
-#include <node_os.h>
+#include "node.h"
+#include "node_os.h"
 
-#include <v8.h>
+#include "v8.h"
 
 #include <errno.h>
 #include <string.h>

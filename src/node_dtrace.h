@@ -22,8 +22,8 @@
 #ifndef NODE_DTRACE_H_
 #define NODE_DTRACE_H_
 
-#include <node.h>
-#include <v8.h>
+#include "node.h"
+#include "v8.h"
 
 extern "C" {
 

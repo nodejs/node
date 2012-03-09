@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node_dtrace.h>
+#include "node_dtrace.h"
 #include <string.h>
 
 #ifdef HAVE_DTRACE

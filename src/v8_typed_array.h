@@ -22,7 +22,7 @@
 #ifndef V8_TYPED_ARRAY_H_
 #define V8_TYPED_ARRAY_H_
 
-#include <v8.h>
+#include "v8.h"
 
 namespace v8_typed_array {
 

@@ -22,9 +22,9 @@
 #ifndef NODE_SIGNAL_WATCHER_H_
 #define NODE_SIGNAL_WATCHER_H_
 
-#include <node.h>
-#include <v8.h>
-#include <uv-private/ev.h>
+#include "node.h"
+#include "v8.h"
+#include "uv-private/ev.h"
 
 namespace node {
 
