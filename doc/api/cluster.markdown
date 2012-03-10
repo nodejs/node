@@ -118,6 +118,21 @@ where the 'listening' event is emitted.
       console.log("We are now connected");
     });
 
+## Event: 'disconnect'
+
+* `worker` {Worker object}
+
+When a workers IPC channel has disconnected this event is emitted. This will happen
+when the worker die, usually after calling `.destroy()`.
+
+But also when calling `.disconnect()`, in this case it is possible there is delay
+between the `disconnect` and `death` and the event can be used to detect if the
+process is stuck in a cleanup or if there are long living connection.
+
+    cluster.on('disconnect', function(worker) {
+      console.log('The worker #' + worker.uniqueID + ' has disconnected');
+    });
+
 ## Event: 'death'
 
 * `worker` {Worker object}
@@ -179,6 +194,16 @@ Spawn a new worker process. This can only be called from the master process.
 All settings set by the `.setupMaster` is stored in this settings object.
 This object is not supposed to be change or set manually.
 
+## cluster.disconnect([callback])
+
+* `callback` {Function} called when all workers are disconnected and handlers are closed
+
+When calling this method all workers will commit a graceful suicide. When they are
+disconnected all internal handlers will be closed, allowing the master process to
+die graceful if no other event is waiting.
+
+The method takes an optional callback argument there will be called when finished.
+
 ## cluster.workers
 
 * {Object}
@@ -232,9 +257,8 @@ See: [Child Process module](child_process.html)
 
 * {Boolean}
 
-This property is a boolean. It is set when a worker dies, until then it is
-`undefined`.  It is true if the worker was killed using the `.destroy()`
-method, and false otherwise.
+This property is a boolean. It is set when a worker dies after calling `.destroy()`
+or immediately after calling the `.disconnect()` method. Until then it is `undefined`.
 
 ### worker.send(message, [sendHandle])
 
@@ -272,6 +296,55 @@ a suicide boolean is set to true.
 
     // destroy worker
     worker.destroy();
+
+
+## Worker.disconnect()
+
+When calling this function the worker will no longer accept new connections, but
+they will be handled by any other listening worker. Existing connection will be
+allowed to exit as usual. When no more connections exist, the IPC channel to the worker
+will close allowing it to die graceful. When the IPC channel is closed the `disconnect`
+event will emit, this is then followed by the `death` event, there is emitted when
+the worker finally die.
+
+Because there might be long living connections, it is useful to implement a timeout.
+This example ask the worker to disconnect and after 2 seconds it will destroy the
+server. An alternative wound be to execute `worker.destroy()` after 2 seconds, but
+that would normally not allow the worker to do any cleanup if needed.
+
+    if (cluster.isMaster) {
+      var worker = cluser.fork();
+      var timeout;
+
+      worker.on('listening', function () {
+        worker.disconnect();
+        timeout = setTimeout(function () {
+          worker.send('force kill');
+        }, 2000);
+      });
+
+      worker.on('disconnect', function () {
+        clearTimeout(timeout);
+      });
+
+    } else if (cluster.isWorker) {
+      var net = require('net');
+      var server = net.createServer(function (socket) {
+        // connection never end
+      });
+
+      server.listen(8000);
+
+      server.on('close', function () {
+        // cleanup
+      });
+
+      process.on('message', function (msg) {
+        if (msg === 'force kill') {
+          server.destroy();
+        }
+      });
+    }
 
 ### Event: 'message'
 
@@ -340,6 +413,17 @@ on the specified worker.
 
     cluster.fork().on('listening', function (worker) {
       // Worker is listening
+    };
+
+## Event: 'disconnect'
+
+* `worker` {Worker object}
+
+Same as the `cluster.on('disconnect')` event, but emits only when the state change
+on the specified worker.
+
+    cluster.fork().on('disconnect', function (worker) {
+      // Worker has disconnected
     };
 
 ## Event: 'death'
