@@ -11,7 +11,7 @@ Throws an exception that displays the values for `actual` and `expected` separat
 
 ## assert(value, message), assert.ok(value, [message])
 
-Tests if value is a `true` value, it is equivalent to `assert.equal(true, value, message);`
+Tests if value is truthy, it is equivalent to `assert.equal(true, !!value, message);`
 
 ## assert.equal(actual, expected, [message])
 
