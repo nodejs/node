@@ -206,6 +206,69 @@ assert.deepEqual(json, {
 });
 
 
+// now verify that module.children contains all the different
+// modules that we've required, and that all of them contain
+// the appropriate children, and so on.
+
+var children = module.children.reduce(function red(set, child) {
+  var id = path.relative(path.dirname(__dirname), child.id);
+  set[id] = child.children.reduce(red, {});
+  return set;
+}, {});
+
+assert.deepEqual(children, {
+  'common.js': {},
+  'fixtures/not-main-module.js': {},
+  'fixtures/a.js': {
+    'fixtures/b/c.js': {
+      'fixtures/b/d.js': {},
+      'fixtures/b/package/index.js': {}
+    }
+  },
+  'fixtures/foo': {},
+  'fixtures/nested-index/one/index.js': {
+    'fixtures/nested-index/one/hello.js': {}
+  },
+  'fixtures/nested-index/two/index.js': {
+    'fixtures/nested-index/two/hello.js': {}
+  },
+  'fixtures/nested-index/three.js': {},
+  'fixtures/nested-index/three/index.js': {},
+  'fixtures/packages/main/package-main-module.js': {},
+  'fixtures/packages/main-index/package-main-module/index.js': {},
+  'fixtures/cycles/root.js': {
+    'fixtures/cycles/folder/foo.js': {}
+  },
+  'fixtures/node_modules/foo.js': {
+    'fixtures/node_modules/baz/index.js': {
+      'fixtures/node_modules/bar.js': {},
+      'fixtures/node_modules/baz/node_modules/asdf.js': {}
+    }
+  },
+  'simple/path.js': {},
+  'fixtures/throws_error.js': {},
+  'fixtures/registerExt.test': {},
+  'fixtures/registerExt.hello.world': {},
+  'fixtures/registerExt2.test': {},
+  'fixtures/empty.js': {},
+  'fixtures/module-load-order/file1': {},
+  'fixtures/module-load-order/file2.js': {},
+  'fixtures/module-load-order/file3.node': {},
+  'fixtures/module-load-order/file4.reg': {},
+  'fixtures/module-load-order/file5.reg2': {},
+  'fixtures/module-load-order/file6/index.js': {},
+  'fixtures/module-load-order/file7/index.node': {},
+  'fixtures/module-load-order/file8/index.reg': {},
+  'fixtures/module-load-order/file9/index.reg2': {},
+  'fixtures/module-require/parent/index.js': {
+    'fixtures/module-require/child/index.js': {
+      'fixtures/module-require/child/node_modules/target.js': {}
+    }
+  },
+  'fixtures/packages/main/package.json': {}
+});
+
+
 process.on('exit', function() {
   assert.ok(common.indirectInstanceOf(a.A, Function));
   assert.equal('A done', a.A());
