@@ -545,6 +545,58 @@ var parseTests = {
     'query': 'n=Temperature',
     'pathname': '/.well-known/r',
     'path': '/.well-known/r?n=Temperature'
+  },
+  // empty port
+  'http://example.com:': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'href': 'http://example.com/',
+    'pathname': '/',
+    'path': '/'
+  },
+  'http://example.com:/a/b.html': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'href': 'http://example.com/a/b.html',
+    'pathname': '/a/b.html',
+    'path': '/a/b.html'
+  },
+  'http://example.com:?a=b': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'href': 'http://example.com/?a=b',
+    'search': '?a=b',
+    'query': 'a=b',
+    'pathname': '/',
+    'path': '/?a=b'
+  },
+  'http://example.com:#abc': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'href': 'http://example.com/#abc',
+    'hash': '#abc',
+    'pathname': '/',
+    'path': '/'
+  },
+  'http://[fe80::1]:/a/b?a=b#abc': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': '[fe80::1]',
+    'hostname': 'fe80::1',
+    'href': 'http://[fe80::1]/a/b?a=b#abc',
+    'search': '?a=b',
+    'query': 'a=b',
+    'hash': '#abc',
+    'pathname': '/a/b',
+    'path': '/a/b?a=b'
   }
 };
 
