@@ -156,7 +156,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
     buf = new Buffer(1234);
 
     console.log(buf.length);
-    buf.write("some string", "ascii", 0);
+    buf.write("some string", 0, "ascii");
     console.log(buf.length);
 
     // 1234
