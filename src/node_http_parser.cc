@@ -54,33 +54,6 @@ static Persistent<String> on_headers_complete_sym;
 static Persistent<String> on_body_sym;
 static Persistent<String> on_message_complete_sym;
 
-static Persistent<String> delete_sym;
-static Persistent<String> get_sym;
-static Persistent<String> head_sym;
-static Persistent<String> post_sym;
-static Persistent<String> purge_sym;
-static Persistent<String> put_sym;
-static Persistent<String> connect_sym;
-static Persistent<String> options_sym;
-static Persistent<String> trace_sym;
-static Persistent<String> patch_sym;
-static Persistent<String> copy_sym;
-static Persistent<String> lock_sym;
-static Persistent<String> mkcol_sym;
-static Persistent<String> move_sym;
-static Persistent<String> propfind_sym;
-static Persistent<String> proppatch_sym;
-static Persistent<String> unlock_sym;
-static Persistent<String> report_sym;
-static Persistent<String> mkactivity_sym;
-static Persistent<String> checkout_sym;
-static Persistent<String> merge_sym;
-static Persistent<String> msearch_sym;
-static Persistent<String> notify_sym;
-static Persistent<String> subscribe_sym;
-static Persistent<String> unsubscribe_sym;
-static Persistent<String> unknown_method_sym;
-
 static Persistent<String> method_sym;
 static Persistent<String> status_code_sym;
 static Persistent<String> http_version_sym;
@@ -90,6 +63,12 @@ static Persistent<String> should_keep_alive_sym;
 static Persistent<String> upgrade_sym;
 static Persistent<String> headers_sym;
 static Persistent<String> url_sym;
+
+static Persistent<String> unknown_method_sym;
+
+#define X(num, name, string) static Persistent<String> name##_sym;
+HTTP_METHOD_MAP(X)
+#undef X
 
 static struct http_parser_settings settings;
 
@@ -121,33 +100,11 @@ static size_t current_buffer_len;
 static inline Persistent<String>
 method_to_str(unsigned short m) {
   switch (m) {
-    case HTTP_DELETE:     return delete_sym;
-    case HTTP_GET:        return get_sym;
-    case HTTP_HEAD:       return head_sym;
-    case HTTP_POST:       return post_sym;
-    case HTTP_PURGE:      return purge_sym;
-    case HTTP_PUT:        return put_sym;
-    case HTTP_CONNECT:    return connect_sym;
-    case HTTP_OPTIONS:    return options_sym;
-    case HTTP_TRACE:      return trace_sym;
-    case HTTP_PATCH:      return patch_sym;
-    case HTTP_COPY:       return copy_sym;
-    case HTTP_LOCK:       return lock_sym;
-    case HTTP_MKCOL:      return mkcol_sym;
-    case HTTP_MOVE:       return move_sym;
-    case HTTP_PROPFIND:   return propfind_sym;
-    case HTTP_PROPPATCH:  return proppatch_sym;
-    case HTTP_UNLOCK:     return unlock_sym;
-    case HTTP_REPORT:     return report_sym;
-    case HTTP_MKACTIVITY: return mkactivity_sym;
-    case HTTP_CHECKOUT:   return checkout_sym;
-    case HTTP_MERGE:      return merge_sym;
-    case HTTP_MSEARCH:    return msearch_sym;
-    case HTTP_NOTIFY:     return notify_sym;
-    case HTTP_SUBSCRIBE:  return subscribe_sym;
-    case HTTP_UNSUBSCRIBE:return unsubscribe_sym;
-    default:              return unknown_method_sym;
+#define X(num, name, string) case HTTP_##name: return name##_sym;
+  HTTP_METHOD_MAP(X)
+#undef X
   }
+  return unknown_method_sym;
 }
 
 
@@ -609,31 +566,9 @@ void InitHttpParser(Handle<Object> target) {
   on_body_sym             = NODE_PSYMBOL("onBody");
   on_message_complete_sym = NODE_PSYMBOL("onMessageComplete");
 
-  delete_sym = NODE_PSYMBOL("DELETE");
-  get_sym = NODE_PSYMBOL("GET");
-  head_sym = NODE_PSYMBOL("HEAD");
-  post_sym = NODE_PSYMBOL("POST");
-  purge_sym = NODE_PSYMBOL("PURGE");
-  put_sym = NODE_PSYMBOL("PUT");
-  connect_sym = NODE_PSYMBOL("CONNECT");
-  options_sym = NODE_PSYMBOL("OPTIONS");
-  trace_sym = NODE_PSYMBOL("TRACE");
-  patch_sym = NODE_PSYMBOL("PATCH");
-  copy_sym = NODE_PSYMBOL("COPY");
-  lock_sym = NODE_PSYMBOL("LOCK");
-  mkcol_sym = NODE_PSYMBOL("MKCOL");
-  move_sym = NODE_PSYMBOL("MOVE");
-  propfind_sym = NODE_PSYMBOL("PROPFIND");
-  proppatch_sym = NODE_PSYMBOL("PROPPATCH");
-  unlock_sym = NODE_PSYMBOL("UNLOCK");
-  report_sym = NODE_PSYMBOL("REPORT");
-  mkactivity_sym = NODE_PSYMBOL("MKACTIVITY");
-  checkout_sym = NODE_PSYMBOL("CHECKOUT");
-  merge_sym = NODE_PSYMBOL("MERGE");
-  msearch_sym = NODE_PSYMBOL("M-SEARCH");
-  notify_sym = NODE_PSYMBOL("NOTIFY");
-  subscribe_sym = NODE_PSYMBOL("SUBSCRIBE");
-  unsubscribe_sym = NODE_PSYMBOL("UNSUBSCRIBE");;
+#define X(num, name, string) name##_sym = NODE_PSYMBOL(#string);
+  HTTP_METHOD_MAP(X)
+#undef X
   unknown_method_sym = NODE_PSYMBOL("UNKNOWN_METHOD");
 
   method_sym = NODE_PSYMBOL("method");
