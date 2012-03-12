@@ -60,6 +60,8 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       state_(IDLE),
 #endif
       sweep_precisely_(false),
+      reduce_memory_footprint_(false),
+      abort_incremental_marking_(false),
       compacting_(false),
       was_marked_incrementally_(false),
       collect_maps_(FLAG_collect_maps),
