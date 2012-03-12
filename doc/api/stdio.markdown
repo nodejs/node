@@ -32,7 +32,7 @@ Same as `console.log` but prints to stderr.
 
 ## console.dir(obj)
 
-Uses `util.inspect` on `obj` and prints resulting string to stderr.
+Uses `util.inspect` on `obj` and prints resulting string to stdout.
 
 ## console.time(label)
 
