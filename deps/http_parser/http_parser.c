@@ -123,31 +123,10 @@ do {                                                                 \
 
 
 static const char *method_strings[] =
-  { "DELETE"
-  , "GET"
-  , "HEAD"
-  , "POST"
-  , "PUT"
-  , "CONNECT"
-  , "OPTIONS"
-  , "TRACE"
-  , "COPY"
-  , "LOCK"
-  , "MKCOL"
-  , "MOVE"
-  , "PROPFIND"
-  , "PROPPATCH"
-  , "UNLOCK"
-  , "REPORT"
-  , "MKACTIVITY"
-  , "CHECKOUT"
-  , "MERGE"
-  , "M-SEARCH"
-  , "NOTIFY"
-  , "SUBSCRIBE"
-  , "UNSUBSCRIBE"
-  , "PATCH"
-  , "PURGE"
+  {
+#define XX(num, name, string) #string,
+  HTTP_METHOD_MAP(XX)
+#undef XX
   };
 
 
@@ -918,7 +897,7 @@ size_t http_parser_execute (http_parser *parser,
             /* or PROPFIND|PROPPATCH|PUT|PATCH|PURGE */
             break;
           case 'R': parser->method = HTTP_REPORT; break;
-          case 'S': parser->method = HTTP_SUBSCRIBE; break;
+          case 'S': parser->method = HTTP_SUBSCRIBE; /* or SEARCH */ break;
           case 'T': parser->method = HTTP_TRACE; break;
           case 'U': parser->method = HTTP_UNLOCK; /* or UNSUBSCRIBE */ break;
           default:
@@ -962,6 +941,12 @@ size_t http_parser_execute (http_parser *parser,
             parser->method = HTTP_MSEARCH;
           } else if (parser->index == 2 && ch == 'A') {
             parser->method = HTTP_MKACTIVITY;
+          } else {
+            goto error;
+          }
+        } else if (parser->method == HTTP_SUBSCRIBE) {
+          if (parser->index == 1 && ch == 'E') {
+            parser->method = HTTP_SEARCH;
           } else {
             goto error;
           }

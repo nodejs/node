@@ -1,5 +1,8 @@
+core
 tags
 *.o
 test
 test_g
 test_fast
+*.mk
+*.Makefile

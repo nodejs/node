@@ -65,7 +65,6 @@ typedef int ssize_t;
 
 typedef struct http_parser http_parser;
 typedef struct http_parser_settings http_parser_settings;
-typedef struct http_parser_result http_parser_result;
 
 
 /* Callbacks should return non-zero to indicate an error. The parser will
@@ -86,37 +85,44 @@ typedef int (*http_cb) (http_parser*);
 
 
 /* Request Methods */
+#define HTTP_METHOD_MAP(XX)         \
+  XX(0,  DELETE,      DELETE)       \
+  XX(1,  GET,         GET)          \
+  XX(2,  HEAD,        HEAD)         \
+  XX(3,  POST,        POST)         \
+  XX(4,  PUT,         PUT)          \
+  /* pathological */                \
+  XX(5,  CONNECT,     CONNECT)      \
+  XX(6,  OPTIONS,     OPTIONS)      \
+  XX(7,  TRACE,       TRACE)        \
+  /* webdav */                      \
+  XX(8,  COPY,        COPY)         \
+  XX(9,  LOCK,        LOCK)         \
+  XX(10, MKCOL,       MKCOL)        \
+  XX(11, MOVE,        MOVE)         \
+  XX(12, PROPFIND,    PROPFIND)     \
+  XX(13, PROPPATCH,   PROPPATCH)    \
+  XX(14, SEARCH,      SEARCH)       \
+  XX(15, UNLOCK,      UNLOCK)       \
+  /* subversion */                  \
+  XX(16, REPORT,      REPORT)       \
+  XX(17, MKACTIVITY,  MKACTIVITY)   \
+  XX(18, CHECKOUT,    CHECKOUT)     \
+  XX(19, MERGE,       MERGE)        \
+  /* upnp */                        \
+  XX(20, MSEARCH,     M-SEARCH)     \
+  XX(21, NOTIFY,      NOTIFY)       \
+  XX(22, SUBSCRIBE,   SUBSCRIBE)    \
+  XX(23, UNSUBSCRIBE, UNSUBSCRIBE)  \
+  /* RFC-5789 */                    \
+  XX(24, PATCH,       PATCH)        \
+  XX(25, PURGE,       PURGE)        \
+
 enum http_method
-  { HTTP_DELETE    = 0
-  , HTTP_GET
-  , HTTP_HEAD
-  , HTTP_POST
-  , HTTP_PUT
-  /* pathological */
-  , HTTP_CONNECT
-  , HTTP_OPTIONS
-  , HTTP_TRACE
-  /* webdav */
-  , HTTP_COPY
-  , HTTP_LOCK
-  , HTTP_MKCOL
-  , HTTP_MOVE
-  , HTTP_PROPFIND
-  , HTTP_PROPPATCH
-  , HTTP_UNLOCK
-  /* subversion */
-  , HTTP_REPORT
-  , HTTP_MKACTIVITY
-  , HTTP_CHECKOUT
-  , HTTP_MERGE
-  /* upnp */
-  , HTTP_MSEARCH
-  , HTTP_NOTIFY
-  , HTTP_SUBSCRIBE
-  , HTTP_UNSUBSCRIBE
-  /* RFC-5789 */
-  , HTTP_PATCH
-  , HTTP_PURGE
+  {
+#define XX(num, name, string) HTTP_##name = num,
+  HTTP_METHOD_MAP(XX)
+#undef XX
   };
 
 
