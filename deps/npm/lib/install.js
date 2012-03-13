@@ -464,10 +464,18 @@ function targetResolver (where, context, deps) {
     if (er) return alreadyInstalledManually = []
     asyncMap(inst, function (pkg, cb) {
       readJson(path.resolve(nm, pkg, "package.json"), function (er, d) {
+        // error means it's not a package, most likely.
         if (er) return cb(null, [])
-        if (semver.satisfies(d.version, deps[d.name] || "*")) {
+
+        // if it's a bundled dep, then assume that anything there is valid.
+        // otherwise, make sure that it's a semver match with what we want.
+        var bd = parent.bundleDependencies
+        if (bd && bd.indexOf(d.name) !== -1 ||
+            semver.satisfies(d.version, deps[d.name] || "*")) {
           return cb(null, d.name)
         }
+
+        // something is there, but it's not satisfactory.  Clobber it.
         return cb(null, [])
       })
     }, function (er, inst) {
