@@ -84,6 +84,15 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 namespace v8 {
 namespace internal {
 
+// Results of the library implementation of transcendental functions may differ
+// from the one we use in our generated code.  Therefore we use the same
+// generated code both in runtime and compiled code.
+typedef double (*TranscendentalFunction)(double x);
+
+TranscendentalFunction CreateTranscendentalFunction(
+    TranscendentalCache::Type type);
+
+
 class ElementsTransitionGenerator : public AllStatic {
  public:
   static void GenerateSmiOnlyToObject(MacroAssembler* masm);

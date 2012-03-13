@@ -437,6 +437,9 @@ class FullCodeGenerator: public AstVisitor {
   // the offset of the start of the table.
   unsigned EmitStackCheckTable();
 
+  void EmitProfilingCounterDecrement(int delta);
+  void EmitProfilingCounterReset();
+
   // Platform-specific return sequence
   void EmitReturnSequence();
 

@@ -191,7 +191,7 @@ inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
 inline bool StandardFrame::IsConstructFrame(Address fp) {
   Object* marker =
       Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset);
-  return marker == Smi::FromInt(CONSTRUCT);
+  return marker == Smi::FromInt(StackFrame::CONSTRUCT);
 }
 
 

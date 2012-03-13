@@ -2858,6 +2858,20 @@ typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
 
 
 /**
+ * ReturnAddressLocationResolver is used as a callback function when v8 is
+ * resolving the location of a return address on the stack. Profilers that
+ * change the return address on the stack can use this to resolve the stack
+ * location to whereever the profiler stashed the original return address.
+ * When invoked, return_addr_location will point to a location on stack where
+ * a machine return address resides, this function should return either the
+ * same pointer, or a pointer to the profiler's copy of the original return
+ * address.
+ */
+typedef uintptr_t (*ReturnAddressLocationResolver)(
+    uintptr_t return_addr_location);
+
+
+/**
  * Interface for iterating though all external resources in the heap.
  */
 class V8EXPORT ExternalResourceVisitor {  // NOLINT
@@ -3109,6 +3123,13 @@ class V8EXPORT V8 {
    * as a source of entropy for random number generators.
    */
   static void SetEntropySource(EntropySource source);
+
+  /**
+   * Allows the host application to provide a callback that allows v8 to
+   * cooperate with a profiler that rewrites return addresses on stack.
+   */
+  static void SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver return_address_resolver);
 
   /**
    * Adjusts the amount of registered external memory.  Used to give
@@ -3850,7 +3871,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kExternalTwoByteRepresentationTag = 0x02;
 
-  static const int kJSObjectType = 0xa9;
+  static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;
   static const int kForeignType = 0x85;
 

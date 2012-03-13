@@ -95,7 +95,7 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 }
 
 
-uint64_t HeapObjectsMap::GetNthGcSubrootId(int delta) {
+SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
   return kGcRootsFirstSubrootId + delta * kObjectIdStep;
 }
 
@@ -115,10 +115,10 @@ int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
 }
 
 
-uint64_t HeapEntry::id() {
+SnapshotObjectId HeapEntry::id() {
   union {
     Id stored_id;
-    uint64_t returned_id;
+    SnapshotObjectId returned_id;
   } id_adaptor = {id_};
   return id_adaptor.returned_id;
 }

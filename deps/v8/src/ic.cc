@@ -2482,9 +2482,21 @@ CompareIC::State CompareIC::TargetState(State state,
     case UNINITIALIZED:
       if (x->IsSmi() && y->IsSmi()) return SMIS;
       if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
-      if (!Token::IsEqualityOp(op_)) return GENERIC;
-      if (x->IsSymbol() && y->IsSymbol()) return SYMBOLS;
+      if (Token::IsOrderedRelationalCompareOp(op_)) {
+        // Ordered comparisons treat undefined as NaN, so the
+        // HEAP_NUMBER stub will do the right thing.
+        if ((x->IsNumber() && y->IsUndefined()) ||
+            (y->IsNumber() && x->IsUndefined())) {
+          return HEAP_NUMBERS;
+        }
+      }
+      if (x->IsSymbol() && y->IsSymbol()) {
+        // We compare symbols as strings if we need to determine
+        // the order in a non-equality compare.
+        return Token::IsEqualityOp(op_) ? SYMBOLS : STRINGS;
+      }
       if (x->IsString() && y->IsString()) return STRINGS;
+      if (!Token::IsEqualityOp(op_)) return GENERIC;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
             Handle<JSObject>::cast(y)->map() &&

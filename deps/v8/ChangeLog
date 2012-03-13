@@ -1,6 +1,74 @@
+2012-03-12: Version 3.9.17
+
+        Fixed VFP detection through compiler defines. (issue 1996)
+
+        Add Code-related fields to postmortem metadata.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-09: Version 3.9.16
+
+        Added basic interface inference for modules (behind the --harmony flag).
+
+        Added Object.is, Number.isFinite, Number.isNaN.
+
+        Updated the Unicode tables to Unicode version 6.1.0.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-06: Version 3.9.15
+
+        Fix the heap profiler crash caused by memory layout changes between
+        passes.
+
+        Fix Error.prototype.toString to throw TypeError. (issue 1980)
+
+        Fix double-rounding in strtod for MinGW. (issue 1062)
+
+        Fix corrupted snapshot serializaton on ia32. (Chromium issue v8/1985)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-01: Version 3.9.14
+
+        Performance and stability improvements on all platforms.
+
+
+2012-02-29: Version 3.9.13
+
+        Added code kind check before preparing for OSR. (issue 1900, 115073)
+
+        Fixed issue 1802: Pass zone explicitly to zone-allocation on x64 and
+        ARM.
+
+        Ported string construct stub to x64. (issue 849)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-02-28: Version 3.9.12
+
+        Fixed the negative lookup stub to handle deleted entries in a
+        dictionary. (issue 1964)
+
+        Added a new API where the host can supply a callback function. The
+        callback function can resolve the location of a return address on stack
+        to the location where a return-address rewriting profiler stashed the
+        original return address.
+
+        Fixed Chromium issue http://crbug.com/115646: When compiling for-in
+        pass correct context value to the increment instruction.
+
+        Fixed issue 1853: Update breakpoints set with partial file name after
+        compile.
+
+
 2012-02-27: Version 3.9.11
 
-        Make 'module' a context-sensitive keyword (V8 issue 1957).
+        Made 'module' a context-sensitive keyword (V8 issue 1957).
 
 
 2012-02-24: Version 3.9.10
@@ -55,11 +123,11 @@
 
 2012-02-14: Version 3.9.6
 
-        Fix template-related linker error. (issue 1936)
+        Fixed template-related linker error. (issue 1936)
 
-        Allow inlining of functions containing object literals.  (issue 1322)
+        Allowed inlining of functions containing object literals.  (issue 1322)
 
-        Add --call-graph-size option to tickprocessor.  (issue 1937)
+        Added --call-graph-size option to tickprocessor.  (issue 1937)
 
         Heap Snapshot maximum size limit is too low for really big apps. At the
         moment the limit is 256MB.  (Chromium issue 113015)
@@ -93,7 +161,7 @@
 
 2012-02-06: Version 3.9.2
 
-        Add timestamp to --trace-gc output. (issue 1932)
+        Added timestamp to --trace-gc output. (issue 1932)
 
         Heap profiler reports implicit references.
 
@@ -115,7 +183,7 @@
 
 2012-02-01: Version 3.9.0
 
-        Reduce memory use immediately after starting V8.
+        Reduced memory use immediately after starting V8.
 
         Stability fixes and performance improvements on all platforms.
 

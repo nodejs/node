@@ -36,6 +36,7 @@
 #include "contexts.h"
 #include "execution.h"
 #include "frames.h"
+#include "date.h"
 #include "global-handles.h"
 #include "handles.h"
 #include "hashmap.h"
@@ -1017,6 +1018,17 @@ class Isolate {
     return OS::TimeCurrentMillis() - time_millis_at_init_;
   }
 
+  DateCache* date_cache() {
+    return date_cache_;
+  }
+
+  void set_date_cache(DateCache* date_cache) {
+    if (date_cache != date_cache_) {
+      delete date_cache_;
+    }
+    date_cache_ = date_cache;
+  }
+
  private:
   Isolate();
 
@@ -1184,6 +1196,9 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
+
+  DateCache* date_cache_;
+
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   void* embedder_data_;
 

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --optimize-for-in --allow-natives-syntax
 
 // Test for-in support in Crankshaft.  For simplicity this tests assumes certain
 // fixed iteration order for properties and will have to be adjusted if V8
@@ -247,13 +247,15 @@ tryFunction("a1b2c3d4e5f6", function () {
 function osr_inner(t, limit) {
   var r = 1;
   for (var x in t) {
-    for (var i = 0; i < t[x].length; i++) {
-      r += t[x][i];
-      if (i === limit) {
-        %OptimizeFunctionOnNextCall(osr_inner, "osr");
+    if (t.hasOwnProperty(x)) {
+      for (var i = 0; i < t[x].length; i++) {
+        r += t[x][i];
+        if (i === limit) {
+          %OptimizeFunctionOnNextCall(osr_inner, "osr");
+        }
       }
+      r += x;
     }
-    r += x;
   }
   return r;
 }
@@ -290,7 +292,7 @@ function test_osr() {
     arr[i] = i + 1;
   }
   arr.push(":");  // Force deopt at the end of the loop.
-  assertEquals("211:x", osr_inner({x: arr}, (arr.length / 2) | 0));
+  assertEquals("211:x1234567891011121314151617181920:y", osr_inner({x: arr, y: arr}, (arr.length / 2) | 0));
   assertEquals("7x456y", osr_outer({x: [1,2,3], y: [4,5,6]}, "x"));
   assertEquals("101234567", osr_outer_and_deopt([1,2,3,4,5,6,7,8], "5"));
 }

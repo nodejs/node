@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -332,7 +332,7 @@ function ObjectLookupSetter(name) {
 
 function ObjectKeys(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["keys"]);
+    throw MakeTypeError("called_on_non_object", ["Object.keys"]);
   }
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
@@ -834,10 +834,6 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     }
 
     %DefineOrRedefineDataProperty(obj, p, value, flag);
-  } else if (IsGenericDescriptor(desc)) {
-    // Step 12 - updating an existing accessor property with generic
-    //           descriptor. Changing flags only.
-    %DefineOrRedefineAccessorProperty(obj, p, GETTER, current.getGet(), flag);
   } else {
     // There are 3 cases that lead here:
     // Step 4b - defining a new accessor property.
@@ -845,12 +841,9 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     //                 property.
     // Step 12 - updating an existing accessor property with an accessor
     //           descriptor.
-    if (desc.hasGetter()) {
-      %DefineOrRedefineAccessorProperty(obj, p, GETTER, desc.getGet(), flag);
-    }
-    if (desc.hasSetter()) {
-      %DefineOrRedefineAccessorProperty(obj, p, SETTER, desc.getSet(), flag);
-    }
+    var getter = desc.hasGetter() ? desc.getGet() : null;
+    var setter = desc.hasSetter() ? desc.getSet() : null;
+    %DefineOrRedefineAccessorProperty(obj, p, getter, setter, flag);
   }
   return true;
 }
@@ -943,7 +936,7 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
 // ES5 section 15.2.3.2.
 function ObjectGetPrototypeOf(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["getPrototypeOf"]);
+    throw MakeTypeError("called_on_non_object", ["Object.getPrototypeOf"]);
   }
   return %GetPrototype(obj);
 }
@@ -952,8 +945,8 @@ function ObjectGetPrototypeOf(obj) {
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object",
-                        ["getOwnPropertyDescriptor"]);
+    throw MakeTypeError("called_on_non_object",
+                        ["Object.getOwnPropertyDescriptor"]);
   }
   var desc = GetOwnProperty(obj, p);
   return FromPropertyDescriptor(desc);
@@ -983,8 +976,7 @@ function ToStringArray(obj, trap) {
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object",
-                        ["getOwnPropertyNames"]);
+    throw MakeTypeError("called_on_non_object", ["Object.getOwnPropertyNames"]);
   }
   // Special handling for proxies.
   if (%IsJSProxy(obj)) {
@@ -1057,7 +1049,7 @@ function ObjectCreate(proto, properties) {
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["defineProperty"]);
+    throw MakeTypeError("called_on_non_object", ["Object.defineProperty"]);
   }
   var name = ToString(p);
   if (%IsJSProxy(obj)) {
@@ -1109,7 +1101,7 @@ function GetOwnEnumerablePropertyNames(properties) {
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
+    throw MakeTypeError("called_on_non_object", ["Object.defineProperties"]);
   }
   var props = ToObject(properties);
   var names = GetOwnEnumerablePropertyNames(props);
@@ -1156,7 +1148,7 @@ function ProxyFix(obj) {
 // ES5 section 15.2.3.8.
 function ObjectSeal(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
+    throw MakeTypeError("called_on_non_object", ["Object.seal"]);
   }
   if (%IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1178,7 +1170,7 @@ function ObjectSeal(obj) {
 // ES5 section 15.2.3.9.
 function ObjectFreeze(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
+    throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
   }
   if (%IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1201,7 +1193,7 @@ function ObjectFreeze(obj) {
 // ES5 section 15.2.3.10
 function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+    throw MakeTypeError("called_on_non_object", ["Object.preventExtension"]);
   }
   if (%IsJSProxy(obj)) {
     ProxyFix(obj);
@@ -1214,7 +1206,7 @@ function ObjectPreventExtension(obj) {
 // ES5 section 15.2.3.11
 function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
+    throw MakeTypeError("called_on_non_object", ["Object.isSealed"]);
   }
   if (%IsJSProxy(obj)) {
     return false;
@@ -1235,7 +1227,7 @@ function ObjectIsSealed(obj) {
 // ES5 section 15.2.3.12
 function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
+    throw MakeTypeError("called_on_non_object", ["Object.isFrozen"]);
   }
   if (%IsJSProxy(obj)) {
     return false;
@@ -1257,12 +1249,22 @@ function ObjectIsFrozen(obj) {
 // ES5 section 15.2.3.13
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("obj_ctor_property_non_object", ["isExtensible"]);
+    throw MakeTypeError("called_on_non_object", ["Object.isExtensible"]);
   }
   if (%IsJSProxy(obj)) {
     return true;
   }
   return %IsExtensible(obj);
+}
+
+
+// Harmony egal.
+function ObjectIs(obj1, obj2) {
+  if (obj1 === obj2) {
+    return (obj1 !== 0) || (1 / obj1 === 1 / obj2);
+  } else {
+    return (obj1 !== obj1) && (obj2 !== obj2);
+  }
 }
 
 
@@ -1305,6 +1307,7 @@ function SetUpObject() {
     "getPrototypeOf", ObjectGetPrototypeOf,
     "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
     "getOwnPropertyNames", ObjectGetOwnPropertyNames,
+    "is", ObjectIs,
     "isExtensible", ObjectIsExtensible,
     "isFrozen", ObjectIsFrozen,
     "isSealed", ObjectIsSealed,
@@ -1469,6 +1472,18 @@ function NumberToPrecision(precision) {
 }
 
 
+// Harmony isFinite.
+function NumberIsFinite(number) {
+  return IS_NUMBER(number) && NUMBER_IS_FINITE(number);
+}
+
+
+// Harmony isNaN.
+function NumberIsNaN(number) {
+  return IS_NUMBER(number) && NUMBER_IS_NAN(number);
+}
+
+
 // ----------------------------------------------------------------------------
 
 function SetUpNumber() {
@@ -1512,6 +1527,10 @@ function SetUpNumber() {
     "toFixed", NumberToFixed,
     "toExponential", NumberToExponential,
     "toPrecision", NumberToPrecision
+  ));
+  InstallFunctions($Number, DONT_ENUM, $Array(
+    "isFinite", NumberIsFinite,
+    "isNaN", NumberIsNaN
   ));
 }
 

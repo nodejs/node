@@ -388,7 +388,7 @@ LOperand* LChunk::GetNextSpillSlot(bool is_double) {
 
 
 void LChunk::MarkEmptyBlocks() {
-  HPhase phase("Mark empty blocks", this);
+  HPhase phase("L_Mark empty blocks", this);
   for (int i = 0; i < graph()->blocks()->length(); ++i) {
     HBasicBlock* block = graph()->blocks()->at(i);
     int first = block->first_instruction_index();
@@ -551,7 +551,7 @@ Representation LChunk::LookupLiteralRepresentation(
 LChunk* LChunkBuilder::Build() {
   ASSERT(is_unused());
   chunk_ = new(zone()) LChunk(info(), graph());
-  HPhase phase("Building chunk", chunk_);
+  HPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
   const ZoneList<HBasicBlock*>* blocks = graph()->blocks();
   for (int i = 0; i < blocks->length(); i++) {
@@ -1005,11 +1005,12 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
   LEnvironment* outer =
       CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator);
   int ast_id = hydrogen_env->ast_id();
-  ASSERT(ast_id != AstNode::kNoNumber || hydrogen_env->is_arguments_adaptor());
+  ASSERT(ast_id != AstNode::kNoNumber ||
+         hydrogen_env->frame_type() != JS_FUNCTION);
   int value_count = hydrogen_env->length();
   LEnvironment* result =
       new(zone()) LEnvironment(hydrogen_env->closure(),
-                               hydrogen_env->is_arguments_adaptor(),
+                               hydrogen_env->frame_type(),
                                ast_id,
                                hydrogen_env->parameter_count(),
                                argument_count_,
@@ -1031,7 +1032,7 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
     result->AddValue(op, value->representation());
   }
 
-  if (!hydrogen_env->is_arguments_adaptor()) {
+  if (hydrogen_env->frame_type() == JS_FUNCTION) {
     *argument_index_accumulator = argument_index;
   }
 
@@ -1194,7 +1195,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
                                                                   input);
     return DefineSameAsFirst(result);
-  } else if (op == kMathSin || op == kMathCos) {
+  } else if (op == kMathSin || op == kMathCos || op == kMathTan) {
     LOperand* context = UseFixed(instr->context(), esi);
     LOperand* input = UseFixedDouble(instr->value(), xmm1);
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
@@ -1646,6 +1647,14 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
+  LOperand* date = UseFixed(instr->value(), eax);
+  LDateField* result =
+      new(zone()) LDateField(date, FixedTemp(ecx), instr->index());
+  return MarkAsCall(DefineFixed(result, eax), instr);
+}
+
+
 LInstruction* LChunkBuilder::DoBoundsCheck(HBoundsCheck* instr) {
   return AssignEnvironment(new(zone()) LBoundsCheck(
       UseRegisterOrConstantAtStart(instr->index()),
@@ -1812,34 +1821,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     LClampTToUint8* result = new(zone()) LClampTToUint8(reg, temp);
     return AssignEnvironment(DefineFixed(result, eax));
   }
-}
-
-
-LInstruction* LChunkBuilder::DoToInt32(HToInt32* instr) {
-  HValue* value = instr->value();
-  Representation input_rep = value->representation();
-
-  LInstruction* result;
-  if (input_rep.IsDouble()) {
-    LOperand* reg = UseRegister(value);
-    LOperand* temp_reg =
-        CpuFeatures::IsSupported(SSE3) ? NULL : TempRegister();
-    result = DefineAsRegister(new(zone()) LDoubleToI(reg, temp_reg));
-  } else if (input_rep.IsInteger32()) {
-    // Canonicalization should already have removed the hydrogen instruction in
-    // this case, since it is a noop.
-    UNREACHABLE();
-    return NULL;
-  } else {
-    ASSERT(input_rep.IsTagged());
-    LOperand* reg = UseRegister(value);
-    // Register allocator doesn't (yet) support allocation of double
-    // temps. Reserve xmm1 explicitly.
-    LOperand* xmm_temp =
-        CpuFeatures::IsSupported(SSE3) ? NULL : FixedTemp(xmm1);
-    result = DefineSameAsFirst(new(zone()) LTaggedToI(reg, xmm_temp));
-  }
-  return AssignEnvironment(result);
 }
 
 
@@ -2213,6 +2194,14 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 }
 
 
+LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
+  LOperand* context = UseFixed(instr->context(), esi);
+  LOperand* temp = TempRegister();
+  LAllocateObject* result = new(zone()) LAllocateObject(context, temp);
+  return AssignPointerMap(DefineAsRegister(result));
+}
+
+
 LInstruction* LChunkBuilder::DoFastLiteral(HFastLiteral* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   return MarkAsCall(
@@ -2385,7 +2374,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                instr->arguments_count(),
                                                instr->function(),
                                                undefined,
-                                               instr->call_kind());
+                                               instr->call_kind(),
+                                               instr->is_construct());
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
   return NULL;

@@ -55,8 +55,20 @@ void BreakableStatementChecker::VisitVariableDeclaration(
     VariableDeclaration* decl) {
 }
 
+void BreakableStatementChecker::VisitFunctionDeclaration(
+    FunctionDeclaration* decl) {
+}
+
 void BreakableStatementChecker::VisitModuleDeclaration(
     ModuleDeclaration* decl) {
+}
+
+void BreakableStatementChecker::VisitImportDeclaration(
+    ImportDeclaration* decl) {
+}
+
+void BreakableStatementChecker::VisitExportDeclaration(
+    ExportDeclaration* decl) {
 }
 
 
@@ -569,29 +581,28 @@ void FullCodeGenerator::VisitDeclarations(
        isolate()->factory()->NewFixedArray(2 * global_count_, TENURED);
     int length = declarations->length();
     for (int j = 0, i = 0; i < length; i++) {
-      VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
-      if (decl != NULL) {
-        Variable* var = decl->proxy()->var();
+      Declaration* decl = declarations->at(i);
+      Variable* var = decl->proxy()->var();
 
-        if (var->IsUnallocated()) {
-          array->set(j++, *(var->name()));
-          if (decl->fun() == NULL) {
-            if (var->binding_needs_init()) {
-              // In case this binding needs initialization use the hole.
-              array->set_the_hole(j++);
-            } else {
-              array->set_undefined(j++);
-            }
+      if (var->IsUnallocated()) {
+        array->set(j++, *(var->name()));
+        FunctionDeclaration* fun_decl = decl->AsFunctionDeclaration();
+        if (fun_decl == NULL) {
+          if (var->binding_needs_init()) {
+            // In case this binding needs initialization use the hole.
+            array->set_the_hole(j++);
           } else {
-            Handle<SharedFunctionInfo> function =
-                Compiler::BuildFunctionInfo(decl->fun(), script());
-            // Check for stack-overflow exception.
-            if (function.is_null()) {
-              SetStackOverflow();
-              return;
-            }
-            array->set(j++, *function);
+            array->set_undefined(j++);
           }
+        } else {
+          Handle<SharedFunctionInfo> function =
+              Compiler::BuildFunctionInfo(fun_decl->fun(), script());
+          // Check for stack-overflow exception.
+          if (function.is_null()) {
+            SetStackOverflow();
+            return;
+          }
+          array->set(j++, *function);
         }
       }
     }
@@ -605,11 +616,26 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 void FullCodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
+}
+
+
+void FullCodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
 }
 
 
 void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
+}
+
+
+void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), NULL);
+}
+
+
+void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* decl) {
   // TODO(rossberg)
 }
 
@@ -1133,6 +1159,10 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   Label test, body;
 
   Iteration loop_statement(this, stmt);
+
+  // Set statement position for a break slot before entering the for-body.
+  SetStatementPosition(stmt);
+
   if (stmt->init() != NULL) {
     Visit(stmt->init());
   }
@@ -1147,7 +1177,6 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
 
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   __ bind(loop_statement.continue_label());
-  SetStatementPosition(stmt);
   if (stmt->next() != NULL) {
     Visit(stmt->next());
   }

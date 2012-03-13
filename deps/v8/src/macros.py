@@ -164,16 +164,36 @@ const MAX_TIME_BEFORE_UTC = 8640002592000000;
 
 # Gets the value of a Date object. If arg is not a Date object
 # a type error is thrown.
-macro DATE_VALUE(arg) = (%_ClassOf(arg) === 'Date' ? %_ValueOf(arg) : ThrowDateTypeError());
-macro DAY(time) = ($floor(time / 86400000));
-macro NAN_OR_DATE_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : DateFromTime(time));
-macro HOUR_FROM_TIME(time) = (Modulo($floor(time / 3600000), 24));
-macro MIN_FROM_TIME(time) = (Modulo($floor(time / 60000), 60));
-macro NAN_OR_MIN_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : MIN_FROM_TIME(time));
-macro SEC_FROM_TIME(time) = (Modulo($floor(time / 1000), 60));
-macro NAN_OR_SEC_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : SEC_FROM_TIME(time));
-macro MS_FROM_TIME(time) = (Modulo(time, 1000));
-macro NAN_OR_MS_FROM_TIME(time) = (NUMBER_IS_NAN(time) ? time : MS_FROM_TIME(time));
+macro CHECK_DATE(arg) = if (%_ClassOf(arg) !== 'Date') ThrowDateTypeError();
+macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
+macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
+
+macro LOCAL_YEAR(arg)        = (%_DateField(arg, 1));
+macro LOCAL_MONTH(arg)       = (%_DateField(arg, 2));
+macro LOCAL_DAY(arg)         = (%_DateField(arg, 3));
+macro LOCAL_WEEKDAY(arg)     = (%_DateField(arg, 4));
+macro LOCAL_HOUR(arg)        = (%_DateField(arg, 5));
+macro LOCAL_MIN(arg)         = (%_DateField(arg, 6));
+macro LOCAL_SEC(arg)         = (%_DateField(arg, 7));
+macro LOCAL_MS(arg)          = (%_DateField(arg, 8));
+macro LOCAL_DAYS(arg)        = (%_DateField(arg, 9));
+macro LOCAL_TIME_IN_DAY(arg) = (%_DateField(arg, 10));
+
+macro UTC_YEAR(arg)        = (%_DateField(arg, 11));
+macro UTC_MONTH(arg)       = (%_DateField(arg, 12));
+macro UTC_DAY(arg)         = (%_DateField(arg, 13));
+macro UTC_WEEKDAY(arg)     = (%_DateField(arg, 14));
+macro UTC_HOUR(arg)        = (%_DateField(arg, 15));
+macro UTC_MIN(arg)         = (%_DateField(arg, 16));
+macro UTC_SEC(arg)         = (%_DateField(arg, 17));
+macro UTC_MS(arg)          = (%_DateField(arg, 18));
+macro UTC_DAYS(arg)        = (%_DateField(arg, 19));
+macro UTC_TIME_IN_DAY(arg) = (%_DateField(arg, 20));
+
+macro TIMEZONE_OFFSET(arg)   = (%_DateField(arg, 21));
+
+macro SET_UTC_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 1));
+macro SET_LOCAL_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 0));
 
 # Last input and last subject of regexp matches.
 macro LAST_SUBJECT(array) = ((array)[1]);

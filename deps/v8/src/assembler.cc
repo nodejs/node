@@ -813,6 +813,17 @@ ExternalReference ExternalReference::random_uint32_function(
 }
 
 
+ExternalReference ExternalReference::get_date_field_function(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(JSDate::GetField)));
+}
+
+
+ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
+  return ExternalReference(isolate->date_cache()->stamp_address());
+}
+
+
 ExternalReference ExternalReference::transcendental_cache_array_address(
     Isolate* isolate) {
   return ExternalReference(

@@ -5363,16 +5363,18 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
   __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-  __ Branch(&done, eq, a3, Operand(at));
+
+  __ Branch(USE_DELAY_SLOT, &done, eq, a3, Operand(at));
+  // An uninitialized cache is patched with the function.
+  // Store a1 in the delay slot. This may or may not get overwritten depending
+  // on the result of the comparison.
+  __ sw(a1, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
+  // No need for a write barrier here - cells are rescanned.
+
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
   __ sw(at, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
-  __ Branch(&done);
-
-  // An uninitialized cache is patched with the function.
-  __ sw(a1, FieldMemOperand(a2, JSGlobalPropertyCell::kValueOffset));
-  // No need for a write barrier here - cells are rescanned.
 
   __ bind(&done);
 }
@@ -6149,8 +6151,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   __ bind(&sliced_string);
   // Sliced string.  Fetch parent and correct start index by offset.
-  __ lw(t0, FieldMemOperand(v0, SlicedString::kOffsetOffset));
   __ lw(t1, FieldMemOperand(v0, SlicedString::kParentOffset));
+  __ lw(t0, FieldMemOperand(v0, SlicedString::kOffsetOffset));
   __ sra(t0, t0, 1);  // Add offset to index.
   __ Addu(a3, a3, t0);
   // Update instance type.
@@ -6188,8 +6190,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ AllocateTwoByteSlicedString(v0, a2, t2, t3, &runtime);
     __ bind(&set_slice_header);
     __ sll(a3, a3, 1);
-    __ sw(a3, FieldMemOperand(v0, SlicedString::kOffsetOffset));
     __ sw(t1, FieldMemOperand(v0, SlicedString::kParentOffset));
+    __ sw(a3, FieldMemOperand(v0, SlicedString::kOffsetOffset));
     __ jmp(&return_v0);
 
     __ bind(&copy_routine);
@@ -6783,15 +6785,15 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
   Label generic_stub;
-  Label unordered;
+  Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
   __ And(a2, a1, Operand(a0));
   __ JumpIfSmi(a2, &generic_stub);
 
   __ GetObjectType(a0, a2, a2);
-  __ Branch(&miss, ne, a2, Operand(HEAP_NUMBER_TYPE));
+  __ Branch(&maybe_undefined1, ne, a2, Operand(HEAP_NUMBER_TYPE));
   __ GetObjectType(a1, a2, a2);
-  __ Branch(&miss, ne, a2, Operand(HEAP_NUMBER_TYPE));
+  __ Branch(&maybe_undefined2, ne, a2, Operand(HEAP_NUMBER_TYPE));
 
   // Inlining the double comparison and falling back to the general compare
   // stub if NaN is involved or FPU is unsupported.
@@ -6823,13 +6825,28 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ bind(&fpu_lt);
     __ Ret(USE_DELAY_SLOT);
     __ li(v0, Operand(LESS));  // In delay slot.
-
-    __ bind(&unordered);
   }
+
+  __ bind(&unordered);
 
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, a1, a0);
   __ bind(&generic_stub);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&maybe_undefined1);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ Branch(&miss, ne, a0, Operand(at));
+    __ GetObjectType(a1, a2, a2);
+    __ Branch(&maybe_undefined2, ne, a2, Operand(HEAP_NUMBER_TYPE));
+    __ jmp(&unordered);
+  }
+
+  __ bind(&maybe_undefined2);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
+    __ Branch(&unordered, eq, a1, Operand(at));
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -7070,7 +7087,7 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   // not equal to the name and kProbes-th slot is not used (its name is the
   // undefined value), it guarantees the hash table doesn't contain the
   // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
+  // (their names are the hole value).
   for (int i = 0; i < kInlinedProbes; i++) {
     // scratch0 points to properties hash.
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -7099,8 +7116,14 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Branch(done, eq, entity_name, Operand(tmp));
 
     if (i != kInlinedProbes - 1) {
+      // Load the hole ready for use below:
+      __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
+
       // Stop if found the property.
       __ Branch(miss, eq, entity_name, Operand(Handle<String>(name)));
+
+      Label the_hole;
+      __ Branch(&the_hole, eq, entity_name, Operand(tmp));
 
       // Check if the entry name is not a symbol.
       __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
@@ -7108,6 +7131,8 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
       __ And(scratch0, entity_name, Operand(kIsSymbolMask));
       __ Branch(miss, eq, scratch0, Operand(zero_reg));
+
+      __ bind(&the_hole);
 
       // Restore the properties.
       __ lw(properties,

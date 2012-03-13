@@ -55,6 +55,30 @@ double modulo(double x, double y) {
 }
 
 
+double fast_sin(double x) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+double fast_cos(double x) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+double fast_tan(double x) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+double fast_log(double x) {
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
 // Initialize OS class early in the V8 startup.
 void OS::SetUp() {
   // Seed the random number generator.

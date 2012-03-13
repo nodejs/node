@@ -257,7 +257,8 @@ void RuntimeProfiler::OptimizeNow() {
       }
     }
 
-    if (function->IsMarkedForLazyRecompilation()) {
+    if (function->IsMarkedForLazyRecompilation() &&
+        function->shared()->code()->kind() == Code::FUNCTION) {
       Code* unoptimized = function->shared()->code();
       int nesting = unoptimized->allow_osr_at_loop_nesting_level();
       if (nesting == 0) AttemptOnStackReplacement(function);

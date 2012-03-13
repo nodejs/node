@@ -96,6 +96,12 @@ class Mutex;
 double ceiling(double x);
 double modulo(double x, double y);
 
+// Custom implementation of sin, cos, tan and log.
+double fast_sin(double input);
+double fast_cos(double input);
+double fast_tan(double input);
+double fast_log(double input);
+
 // Forward declarations.
 class Socket;
 

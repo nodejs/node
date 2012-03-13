@@ -59,7 +59,8 @@ Variable::Variable(Scope* scope,
                    VariableMode mode,
                    bool is_valid_LHS,
                    Kind kind,
-                   InitializationFlag initialization_flag)
+                   InitializationFlag initialization_flag,
+                   Interface* interface)
   : scope_(scope),
     name_(name),
     mode_(mode),
@@ -71,7 +72,8 @@ Variable::Variable(Scope* scope,
     is_valid_LHS_(is_valid_LHS),
     force_context_allocation_(false),
     is_used_(false),
-    initialization_flag_(initialization_flag) {
+    initialization_flag_(initialization_flag),
+    interface_(interface) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());
   // Var declared variables never need initialization.

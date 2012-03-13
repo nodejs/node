@@ -1,4 +1,44 @@
-2012.02.23, Version 0.7.5 (unstable)
+2012.03.13, Version 0.7.6 (unstable)
+
+* Upgrade v8 to 3.9.17
+
+* Upgrade npm to 1.1.8
+  - Add support for os/cpu fields in package.json (Adam Blackburn)
+  - Automatically node-gyp packages containing a binding.gyp
+  - Fix failures unpacking in UNC shares
+  - Never create un-listable directories
+  - Handle cases where an optionalDependency fails to build
+
+* events: newListener emit correct fn when using 'once' (Roly Fentanes)
+
+* url: Ignore empty port component (Łukasz Walukiewicz)
+
+* module: replace 'children' array (isaacs)
+
+* tls: parse multiple values of a key in ssl certificate (Sambasiva Suda)
+
+* cluster: support passing of named pipes (Ben Noordhuis)
+
+* Windows: include syscall in fs errors (Bert Belder)
+
+* http: #2888 Emit end event only once (Igor Zinkovsky)
+
+* readline: add multiline support (Rlidwka)
+
+* process: add `process.hrtime()` (Nathan Rajlich)
+
+* net, http, https: add localAddress option (Dmitry Nizovtsev)
+
+* addon improvements (Nathan Rajlich)
+
+* build improvements (Ben Noordhuis, Sadique Ali, T.C. Hollingsworth, Nathan Rajlich)
+
+* add support for "SEARCH" request methods (Nathan Rajlich)
+
+* expose the zlib and http_parser version in process.versions (Nathan Rajlich)
+
+
+2012.02.23, Version 0.7.5 (unstable), d384b8b0d2ab7f05465f0a3e15fe20b4e25b5f86
 
 * startup speed improvements (Maciej Małecki)
 

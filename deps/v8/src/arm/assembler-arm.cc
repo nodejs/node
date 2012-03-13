@@ -66,11 +66,13 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 
 #ifdef __arm__
   // If the compiler is allowed to use VFP then we can use VFP too in our code
-  // generation even when generating snapshots.  This won't work for cross
-  // compilation. VFPv3 implies ARMv7, see ARM DDI 0406B, page A1-6.
-#if defined(__VFP_FP__) && !defined(__SOFTFP__)
+  // generation even when generating snapshots. ARMv7 and hardware floating
+  // point support implies VFPv3, see ARM DDI 0406B, page A1-6.
+#if defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__) \
+    && !defined(__SOFTFP__)
   answer |= 1u << VFP3 | 1u << ARMv7;
-#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
+#endif  // defined(CAN_USE_ARMV7_INSTRUCTIONS) && defined(__VFP_FP__)
+        // && !defined(__SOFTFP__)
 #endif  // def __arm__
 
   return answer;

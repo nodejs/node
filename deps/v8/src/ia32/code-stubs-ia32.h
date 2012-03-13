@@ -49,6 +49,8 @@ class TranscendentalCacheStub: public CodeStub {
                           ArgumentType argument_type)
       : type_(type), argument_type_(argument_type) {}
   void Generate(MacroAssembler* masm);
+  static void GenerateOperation(MacroAssembler* masm,
+                                TranscendentalCache::Type type);
  private:
   TranscendentalCache::Type type_;
   ArgumentType argument_type_;
@@ -56,7 +58,6 @@ class TranscendentalCacheStub: public CodeStub {
   Major MajorKey() { return TranscendentalCache; }
   int MinorKey() { return type_ | argument_type_; }
   Runtime::FunctionId RuntimeFunction();
-  void GenerateOperation(MacroAssembler* masm);
 };
 
 

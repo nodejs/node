@@ -506,6 +506,11 @@ class MemoryChunk {
     size_ = size;
   }
 
+  void SetArea(Address area_start, Address area_end) {
+    area_start_ = area_start;
+    area_end_ = area_end;
+  }
+
   Executability executable() {
     return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
   }

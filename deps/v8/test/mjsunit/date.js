@@ -187,6 +187,12 @@ d = new Date(1969, 12, 1, Infinity);
 assertTrue(isNaN(d.getTime()));
 d = new Date(1969, 12, 1, -Infinity);
 assertTrue(isNaN(d.getTime()));
+d = new Date(1969, 12, 1, 0);
+d.setTime(Math.pow(2, 64));
+assertTrue(isNaN(d.getTime()));
+d = new Date(1969, 12, 1, 0);
+d.setTime(Math.pow(-2, 64));
+assertTrue(isNaN(d.getTime()));
 
 
 // Test creation with obscure date values.

@@ -595,6 +595,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference transcendental_cache_array_address(Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
 
+  static ExternalReference get_date_field_function(Isolate* isolate);
+  static ExternalReference date_cache_stamp(Isolate* isolate);
+
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);

@@ -686,8 +686,8 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 #endif
 
-  // Clear marking bits for precise sweeping to collect all garbage.
-  if (was_marked_incrementally_ && PreciseSweepingRequired()) {
+  // Clear marking bits if incremental marking is aborted.
+  if (was_marked_incrementally_ && abort_incremental_marking_) {
     heap()->incremental_marking()->Abort();
     ClearMarkbits();
     AbortCompaction();

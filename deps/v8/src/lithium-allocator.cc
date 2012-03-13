@@ -1105,7 +1105,7 @@ bool LAllocator::Allocate(LChunk* chunk) {
 
 
 void LAllocator::MeetRegisterConstraints() {
-  HPhase phase("Register constraints", chunk_);
+  HPhase phase("L_Register constraints", chunk_);
   first_artificial_register_ = next_virtual_register_;
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int i = 0; i < blocks->length(); ++i) {
@@ -1117,7 +1117,7 @@ void LAllocator::MeetRegisterConstraints() {
 
 
 void LAllocator::ResolvePhis() {
-  HPhase phase("Resolve phis", chunk_);
+  HPhase phase("L_Resolve phis", chunk_);
 
   // Process the blocks in reverse order.
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
@@ -1207,7 +1207,7 @@ HBasicBlock* LAllocator::GetBlock(LifetimePosition pos) {
 
 
 void LAllocator::ConnectRanges() {
-  HPhase phase("Connect ranges", this);
+  HPhase phase("L_Connect ranges", this);
   for (int i = 0; i < live_ranges()->length(); ++i) {
     LiveRange* first_range = live_ranges()->at(i);
     if (first_range == NULL || first_range->parent() != NULL) continue;
@@ -1247,7 +1247,7 @@ bool LAllocator::CanEagerlyResolveControlFlow(HBasicBlock* block) const {
 
 
 void LAllocator::ResolveControlFlow() {
-  HPhase phase("Resolve control flow", this);
+  HPhase phase("L_Resolve control flow", this);
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
   for (int block_id = 1; block_id < blocks->length(); ++block_id) {
     HBasicBlock* block = blocks->at(block_id);
@@ -1268,7 +1268,7 @@ void LAllocator::ResolveControlFlow() {
 
 
 void LAllocator::BuildLiveRanges() {
-  HPhase phase("Build live ranges", this);
+  HPhase phase("L_Build live ranges", this);
   InitializeLivenessAnalysis();
   // Process the blocks in reverse order.
   const ZoneList<HBasicBlock*>* blocks = graph_->blocks();
@@ -1373,7 +1373,7 @@ bool LAllocator::SafePointsAreInOrder() const {
 
 
 void LAllocator::PopulatePointerMaps() {
-  HPhase phase("Populate pointer maps", this);
+  HPhase phase("L_Populate pointer maps", this);
   const ZoneList<LPointerMap*>* pointer_maps = chunk_->pointer_maps();
 
   ASSERT(SafePointsAreInOrder());
@@ -1492,14 +1492,14 @@ void LAllocator::ProcessOsrEntry() {
 
 
 void LAllocator::AllocateGeneralRegisters() {
-  HPhase phase("Allocate general registers", this);
+  HPhase phase("L_Allocate general registers", this);
   num_registers_ = Register::kNumAllocatableRegisters;
   AllocateRegisters();
 }
 
 
 void LAllocator::AllocateDoubleRegisters() {
-  HPhase phase("Allocate double registers", this);
+  HPhase phase("L_Allocate double registers", this);
   num_registers_ = DoubleRegister::kNumAllocatableRegisters;
   mode_ = DOUBLE_REGISTERS;
   AllocateRegisters();

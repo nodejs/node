@@ -37,6 +37,19 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
+TranscendentalFunction CreateTranscendentalFunction(
+    TranscendentalCache::Type type) {
+  switch (type) {
+    case TranscendentalCache::SIN: return &sin;
+    case TranscendentalCache::COS: return &cos;
+    case TranscendentalCache::TAN: return &tan;
+    case TranscendentalCache::LOG: return &log;
+    default: UNIMPLEMENTED();
+  }
+  return NULL;
+}
+
+
 // -------------------------------------------------------------------------
 // Platform-specific RuntimeCallHelper functions.
 

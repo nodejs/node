@@ -757,6 +757,12 @@ void Parser::ReportMessage(const char* type, Vector<const char*> args) {
 }
 
 
+void Parser::ReportMessage(const char* type, Vector<Handle<String> > args) {
+  Scanner::Location source_location = scanner().location();
+  ReportMessageAt(source_location, type, args);
+}
+
+
 void Parser::ReportMessageAt(Scanner::Location source_location,
                              const char* type,
                              Vector<const char*> args) {
@@ -1163,6 +1169,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           this_property_assignment_finder.GetThisPropertyAssignments());
     }
   }
+
   return 0;
 }
 
@@ -1184,10 +1191,10 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
 
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(NULL, ok);
     case Token::LET:
     case Token::CONST:
-      return ParseVariableStatement(kModuleElement, ok);
+      return ParseVariableStatement(kModuleElement, NULL, ok);
     case Token::IMPORT:
       return ParseImportDeclaration(ok);
     case Token::EXPORT:
@@ -1205,7 +1212,7 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
             estmt->expression()->AsVariableProxy()->name()->Equals(
                 isolate()->heap()->module_symbol()) &&
             !scanner().literal_contains_escapes()) {
-          return ParseModuleDeclaration(ok);
+          return ParseModuleDeclaration(NULL, ok);
         }
       }
       return stmt;
@@ -1214,20 +1221,38 @@ Statement* Parser::ParseModuleElement(ZoneStringList* labels,
 }
 
 
-Block* Parser::ParseModuleDeclaration(bool* ok) {
+Block* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   // ModuleDeclaration:
   //    'module' Identifier Module
 
   // Create new block with one expected declaration.
   Block* block = factory()->NewBlock(NULL, 1, true);
   Handle<String> name = ParseIdentifier(CHECK_OK);
-  // top_scope_->AddDeclaration(
-  //     factory()->NewModuleDeclaration(proxy, module, top_scope_));
-  VariableProxy* proxy = Declare(name, LET, NULL, true, CHECK_OK);
-  Module* module = ParseModule(ok);
+
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Module %s...\n", name->ToAsciiArray());
+#endif
+
+  Module* module = ParseModule(CHECK_OK);
+  VariableProxy* proxy = NewUnresolved(name, LET, module->interface());
+  Declaration* declaration =
+      factory()->NewModuleDeclaration(proxy, module, top_scope_);
+  Declare(declaration, true, CHECK_OK);
+
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Module %s.\n", name->ToAsciiArray());
+
+  if (FLAG_print_interfaces) {
+    PrintF("module %s : ", name->ToAsciiArray());
+    module->interface()->Print();
+  }
+#endif
+
   // TODO(rossberg): Add initialization statement to block.
-  USE(proxy);
-  USE(module);
+
+  if (names) names->Add(name);
   return block;
 }
 
@@ -1235,19 +1260,26 @@ Block* Parser::ParseModuleDeclaration(bool* ok) {
 Module* Parser::ParseModule(bool* ok) {
   // Module:
   //    '{' ModuleElement '}'
-  //    '=' ModulePath
-  //    'at' String
+  //    '=' ModulePath ';'
+  //    'at' String ';'
 
   switch (peek()) {
     case Token::LBRACE:
       return ParseModuleLiteral(ok);
 
-    case Token::ASSIGN:
+    case Token::ASSIGN: {
       Expect(Token::ASSIGN, CHECK_OK);
-      return ParseModulePath(ok);
+      Module* result = ParseModulePath(CHECK_OK);
+      ExpectSemicolon(CHECK_OK);
+      return result;
+    }
 
-    default:
-      return ParseModuleUrl(ok);
+    default: {
+      ExpectContextualKeyword("at", CHECK_OK);
+      Module* result = ParseModuleUrl(CHECK_OK);
+      ExpectSemicolon(CHECK_OK);
+      return result;
+    }
   }
 }
 
@@ -1258,6 +1290,9 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
 
   // Construct block expecting 16 statements.
   Block* body = factory()->NewBlock(NULL, 16, false);
+#ifdef DEBUG
+  if (FLAG_print_interface_details) PrintF("# Literal ");
+#endif
   Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -1283,7 +1318,10 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
   scope->set_end_position(scanner().location().end_pos);
   body->set_block_scope(scope);
-  return factory()->NewModuleLiteral(body);
+
+  scope->interface()->Freeze(ok);
+  ASSERT(ok);
+  return factory()->NewModuleLiteral(body, scope->interface());
 }
 
 
@@ -1293,10 +1331,28 @@ Module* Parser::ParseModulePath(bool* ok) {
   //    ModulePath '.' Identifier
 
   Module* result = ParseModuleVariable(CHECK_OK);
-
   while (Check(Token::PERIOD)) {
     Handle<String> name = ParseIdentifierName(CHECK_OK);
-    result = factory()->NewModulePath(result, name);
+#ifdef DEBUG
+    if (FLAG_print_interface_details)
+      PrintF("# Path .%s ", name->ToAsciiArray());
+#endif
+    Module* member = factory()->NewModulePath(result, name);
+    result->interface()->Add(name, member->interface(), ok);
+    if (!*ok) {
+#ifdef DEBUG
+      if (FLAG_print_interfaces) {
+        PrintF("PATH TYPE ERROR at '%s'\n", name->ToAsciiArray());
+        PrintF("result: ");
+        result->interface()->Print();
+        PrintF("member: ");
+        member->interface()->Print();
+      }
+#endif
+      ReportMessage("invalid_module_path", Vector<Handle<String> >(&name, 1));
+      return NULL;
+    }
+    result = member;
   }
 
   return result;
@@ -1308,39 +1364,167 @@ Module* Parser::ParseModuleVariable(bool* ok) {
   //    Identifier
 
   Handle<String> name = ParseIdentifier(CHECK_OK);
+#ifdef DEBUG
+  if (FLAG_print_interface_details)
+    PrintF("# Module variable %s ", name->ToAsciiArray());
+#endif
   VariableProxy* proxy = top_scope_->NewUnresolved(
-      factory(), name, scanner().location().beg_pos);
+      factory(), name, scanner().location().beg_pos, Interface::NewModule());
+
   return factory()->NewModuleVariable(proxy);
 }
 
 
 Module* Parser::ParseModuleUrl(bool* ok) {
   // Module:
-  //    'at' String
+  //    String
 
-  Expect(Token::IDENTIFIER, CHECK_OK);
-  Handle<String> symbol = GetSymbol(CHECK_OK);
-  if (!symbol->IsEqualTo(CStrVector("at"))) {
-    *ok = false;
-    ReportUnexpectedToken(scanner().current_token());
-    return NULL;
-  }
   Expect(Token::STRING, CHECK_OK);
-  symbol = GetSymbol(CHECK_OK);
+  Handle<String> symbol = GetSymbol(CHECK_OK);
 
+  // TODO(ES6): Request JS resource from environment...
+
+#ifdef DEBUG
+  if (FLAG_print_interface_details) PrintF("# Url ");
+#endif
   return factory()->NewModuleUrl(symbol);
 }
 
 
-Block* Parser::ParseImportDeclaration(bool* ok) {
-  // TODO(rossberg)
-  return NULL;
+Module* Parser::ParseModuleSpecifier(bool* ok) {
+  // ModuleSpecifier:
+  //    String
+  //    ModulePath
+
+  if (peek() == Token::STRING) {
+    return ParseModuleUrl(ok);
+  } else {
+    return ParseModulePath(ok);
+  }
 }
 
 
-Block* Parser::ParseExportDeclaration(bool* ok) {
-  // TODO(rossberg)
-  return NULL;
+Block* Parser::ParseImportDeclaration(bool* ok) {
+  // ImportDeclaration:
+  //    'import' IdentifierName (',' IdentifierName)* 'from' ModuleSpecifier ';'
+  //
+  // TODO(ES6): implement destructuring ImportSpecifiers
+
+  Expect(Token::IMPORT, CHECK_OK);
+  ZoneStringList names(1);
+
+  Handle<String> name = ParseIdentifierName(CHECK_OK);
+  names.Add(name);
+  while (peek() == Token::COMMA) {
+    Consume(Token::COMMA);
+    name = ParseIdentifierName(CHECK_OK);
+    names.Add(name);
+  }
+
+  ExpectContextualKeyword("from", CHECK_OK);
+  Module* module = ParseModuleSpecifier(CHECK_OK);
+  ExpectSemicolon(CHECK_OK);
+
+  // Generate a separate declaration for each identifier.
+  // TODO(ES6): once we implement destructuring, make that one declaration.
+  Block* block = factory()->NewBlock(NULL, 1, true);
+  for (int i = 0; i < names.length(); ++i) {
+#ifdef DEBUG
+    if (FLAG_print_interface_details)
+      PrintF("# Import %s ", names[i]->ToAsciiArray());
+#endif
+    Interface* interface = Interface::NewUnknown();
+    module->interface()->Add(names[i], interface, ok);
+    if (!*ok) {
+#ifdef DEBUG
+      if (FLAG_print_interfaces) {
+        PrintF("IMPORT TYPE ERROR at '%s'\n", names[i]->ToAsciiArray());
+        PrintF("module: ");
+        module->interface()->Print();
+      }
+#endif
+      ReportMessage("invalid_module_path", Vector<Handle<String> >(&name, 1));
+      return NULL;
+    }
+    VariableProxy* proxy = NewUnresolved(names[i], LET, interface);
+    Declaration* declaration =
+        factory()->NewImportDeclaration(proxy, module, top_scope_);
+    Declare(declaration, true, CHECK_OK);
+    // TODO(rossberg): Add initialization statement to block.
+  }
+
+  return block;
+}
+
+
+Statement* Parser::ParseExportDeclaration(bool* ok) {
+  // ExportDeclaration:
+  //    'export' Identifier (',' Identifier)* ';'
+  //    'export' VariableDeclaration
+  //    'export' FunctionDeclaration
+  //    'export' ModuleDeclaration
+  //
+  // TODO(ES6): implement structuring ExportSpecifiers
+
+  Expect(Token::EXPORT, CHECK_OK);
+
+  Statement* result = NULL;
+  ZoneStringList names(1);
+  switch (peek()) {
+    case Token::IDENTIFIER: {
+      Handle<String> name = ParseIdentifier(CHECK_OK);
+      // Handle 'module' as a context-sensitive keyword.
+      if (!name->IsEqualTo(CStrVector("module"))) {
+        names.Add(name);
+        while (peek() == Token::COMMA) {
+          Consume(Token::COMMA);
+          name = ParseIdentifier(CHECK_OK);
+          names.Add(name);
+        }
+        ExpectSemicolon(CHECK_OK);
+        result = factory()->NewEmptyStatement();
+      } else {
+        result = ParseModuleDeclaration(&names, CHECK_OK);
+      }
+      break;
+    }
+
+    case Token::FUNCTION:
+      result = ParseFunctionDeclaration(&names, CHECK_OK);
+      break;
+
+    case Token::VAR:
+    case Token::LET:
+    case Token::CONST:
+      result = ParseVariableStatement(kModuleElement, &names, CHECK_OK);
+      break;
+
+    default:
+      *ok = false;
+      ReportUnexpectedToken(scanner().current_token());
+      return NULL;
+  }
+
+  // Extract declared names into export declarations and interface.
+  Interface* interface = top_scope_->interface();
+  for (int i = 0; i < names.length(); ++i) {
+#ifdef DEBUG
+    if (FLAG_print_interface_details)
+      PrintF("# Export %s ", names[i]->ToAsciiArray());
+#endif
+    Interface* inner = Interface::NewUnknown();
+    interface->Add(names[i], inner, CHECK_OK);
+    VariableProxy* proxy = NewUnresolved(names[i], LET, inner);
+    USE(proxy);
+    // TODO(rossberg): Rethink whether we actually need to store export
+    // declarations (for compilation?).
+    // ExportDeclaration* declaration =
+    //     factory()->NewExportDeclaration(proxy, top_scope_);
+    // top_scope_->AddDeclaration(declaration);
+  }
+
+  ASSERT(result != NULL);
+  return result;
 }
 
 
@@ -1358,10 +1542,10 @@ Statement* Parser::ParseBlockElement(ZoneStringList* labels,
 
   switch (peek()) {
     case Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(NULL, ok);
     case Token::LET:
     case Token::CONST:
-      return ParseVariableStatement(kModuleElement, ok);
+      return ParseVariableStatement(kModuleElement, NULL, ok);
     default:
       return ParseStatement(labels, ok);
   }
@@ -1403,7 +1587,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     case Token::CONST:  // fall through
     case Token::LET:
     case Token::VAR:
-      stmt = ParseVariableStatement(kStatement, ok);
+      stmt = ParseVariableStatement(kStatement, NULL, ok);
       break;
 
     case Token::SEMICOLON:
@@ -1480,7 +1664,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
         *ok = false;
         return NULL;
       }
-      return ParseFunctionDeclaration(ok);
+      return ParseFunctionDeclaration(NULL, ok);
     }
 
     case Token::DEBUGGER:
@@ -1497,21 +1681,24 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
 }
 
 
-VariableProxy* Parser::Declare(Handle<String> name,
-                               VariableMode mode,
-                               FunctionLiteral* fun,
-                               bool resolve,
-                               bool* ok) {
-  Variable* var = NULL;
+VariableProxy* Parser::NewUnresolved(
+    Handle<String> name, VariableMode mode, Interface* interface) {
   // If we are inside a function, a declaration of a var/const variable is a
   // truly local variable, and the scope of the variable is always the function
   // scope.
   // Let/const variables in harmony mode are always added to the immediately
   // enclosing scope.
-  Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
-      ? top_scope_ : top_scope_->DeclarationScope();
-  InitializationFlag init_flag = (fun != NULL || mode == VAR)
-      ? kCreatedInitialized : kNeedsInitialization;
+  return DeclarationScope(mode)->NewUnresolved(
+      factory(), name, scanner().location().beg_pos, interface);
+}
+
+
+void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
+  VariableProxy* proxy = declaration->proxy();
+  Handle<String> name = proxy->name();
+  VariableMode mode = declaration->mode();
+  Scope* declaration_scope = DeclarationScope(mode);
+  Variable* var = NULL;
 
   // If a function scope exists, then we can statically declare this
   // variable and also set its mode. In any case, a Declaration node
@@ -1526,12 +1713,14 @@ VariableProxy* Parser::Declare(Handle<String> name,
   if (declaration_scope->is_function_scope() ||
       declaration_scope->is_strict_or_extended_eval_scope() ||
       declaration_scope->is_block_scope() ||
-      declaration_scope->is_module_scope()) {
+      declaration_scope->is_module_scope() ||
+      declaration->AsModuleDeclaration() != NULL) {
     // Declare the variable in the function scope.
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = declaration_scope->DeclareLocal(name, mode, init_flag);
+      var = declaration_scope->DeclareLocal(
+          name, mode, declaration->initialization(), proxy->interface());
     } else {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
@@ -1558,7 +1747,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
           Vector<const char*> args(elms, 2);
           ReportMessage("redeclaration", args);
           *ok = false;
-          return NULL;
+          return;
         }
         const char* type = (var->mode() == VAR)
             ? "var" : var->is_const_mode() ? "const" : "let";
@@ -1588,10 +1777,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // semantic issue as long as we keep the source order, but it may be
   // a performance issue since it may lead to repeated
   // Runtime::DeclareContextSlot() calls.
-  VariableProxy* proxy = declaration_scope->NewUnresolved(
-      factory(), name, scanner().location().beg_pos);
-  declaration_scope->AddDeclaration(
-      factory()->NewVariableDeclaration(proxy, mode, fun, top_scope_));
+  declaration_scope->AddDeclaration(declaration);
 
   if ((mode == CONST || mode == CONST_HARMONY) &&
       declaration_scope->is_global_scope()) {
@@ -1615,7 +1801,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
                                mode,
                                true,
                                kind,
-                               init_flag);
+                               declaration->initialization());
     var->AllocateTo(Variable::LOOKUP, -1);
     resolve = true;
   }
@@ -1644,9 +1830,30 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // initialization code. Thus, inside the 'with' statement, we need
   // both access to the static and the dynamic context chain; the
   // runtime needs to provide both.
-  if (resolve && var != NULL) proxy->BindTo(var);
+  if (resolve && var != NULL) {
+    proxy->BindTo(var);
 
-  return proxy;
+    if (FLAG_harmony_modules) {
+      bool ok;
+#ifdef DEBUG
+      if (FLAG_print_interface_details)
+        PrintF("# Declare %s\n", var->name()->ToAsciiArray());
+#endif
+      proxy->interface()->Unify(var->interface(), &ok);
+      if (!ok) {
+#ifdef DEBUG
+        if (FLAG_print_interfaces) {
+          PrintF("DECLARE TYPE ERROR\n");
+          PrintF("proxy: ");
+          proxy->interface()->Print();
+          PrintF("var: ");
+          var->interface()->Print();
+        }
+#endif
+        ReportMessage("module_type_error", Vector<Handle<String> >(&name, 1));
+      }
+    }
+  }
 }
 
 
@@ -1673,7 +1880,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // isn't lazily compiled. The extension structures are only
   // accessible while parsing the first time not when reparsing
   // because of lazy compilation.
-  top_scope_->DeclarationScope()->ForceEagerCompilation();
+  DeclarationScope(VAR)->ForceEagerCompilation();
 
   // Compute the function template for the native function.
   v8::Handle<v8::FunctionTemplate> fun_template =
@@ -1698,16 +1905,19 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
   // other functions are set up when entering the surrounding scope.
+  VariableProxy* proxy = NewUnresolved(name, VAR);
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(proxy, VAR, top_scope_);
+  Declare(declaration, true, CHECK_OK);
   SharedFunctionInfoLiteral* lit =
       factory()->NewSharedFunctionInfoLiteral(shared);
-  VariableProxy* var = Declare(name, VAR, NULL, true, CHECK_OK);
   return factory()->NewExpressionStatement(
       factory()->NewAssignment(
-          Token::INIT_VAR, var, lit, RelocInfo::kNoPosition));
+          Token::INIT_VAR, proxy, lit, RelocInfo::kNoPosition));
 }
 
 
-Statement* Parser::ParseFunctionDeclaration(bool* ok) {
+Statement* Parser::ParseFunctionDeclaration(ZoneStringList* names, bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
@@ -1724,7 +1934,11 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   // scope, we treat is as such and introduce the function with it's
   // initial value upon entering the corresponding scope.
   VariableMode mode = is_extended_mode() ? LET : VAR;
-  Declare(name, mode, fun, true, CHECK_OK);
+  VariableProxy* proxy = NewUnresolved(name, mode);
+  Declaration* declaration =
+      factory()->NewFunctionDeclaration(proxy, mode, fun, top_scope_);
+  Declare(declaration, true, CHECK_OK);
+  if (names) names->Add(name);
   return factory()->NewEmptyStatement();
 }
 
@@ -1791,13 +2005,14 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
 
 
 Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
+                                      ZoneStringList* names,
                                       bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
   Handle<String> ignore;
   Block* result =
-      ParseVariableDeclarations(var_context, NULL, &ignore, CHECK_OK);
+      ParseVariableDeclarations(var_context, NULL, names, &ignore, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -1817,6 +2032,7 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 Block* Parser::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
     VariableDeclarationProperties* decl_props,
+    ZoneStringList* names,
     Handle<String>* out,
     bool* ok) {
   // VariableDeclarations ::
@@ -1902,8 +2118,8 @@ Block* Parser::ParseVariableDeclarations(
     UNREACHABLE();  // by current callers
   }
 
-  Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
-      ? top_scope_ : top_scope_->DeclarationScope();
+  Scope* declaration_scope = DeclarationScope(mode);
+
   // The scope of a var/const declared variable anywhere inside a function
   // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
   // transform a source-level var/const declaration into a (Function)
@@ -1950,7 +2166,10 @@ Block* Parser::ParseVariableDeclarations(
     // For let/const declarations in harmony mode, we can also immediately
     // pre-resolve the proxy because it resides in the same scope as the
     // declaration.
-    VariableProxy* proxy = Declare(name, mode, NULL, mode != VAR, CHECK_OK);
+    VariableProxy* proxy = NewUnresolved(name, mode);
+    Declaration* declaration =
+        factory()->NewVariableDeclaration(proxy, mode, top_scope_);
+    Declare(declaration, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
       ReportMessageAt(scanner().location(), "too_many_variables",
@@ -1958,6 +2177,7 @@ Block* Parser::ParseVariableDeclarations(
       *ok = false;
       return NULL;
     }
+    if (names) names->Add(name);
 
     // Parse initialization expression if present and/or needed. A
     // declaration of the form:
@@ -2610,7 +2830,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
       Handle<String> name;
       Block* variable_statement =
-          ParseVariableDeclarations(kForStatement, NULL, &name, CHECK_OK);
+          ParseVariableDeclarations(kForStatement, NULL, NULL, &name, CHECK_OK);
 
       if (peek() == Token::IN && !name.is_null()) {
         VariableProxy* each = top_scope_->NewUnresolved(factory(), name);
@@ -2639,7 +2859,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       Handle<String> name;
       VariableDeclarationProperties decl_props = kHasNoInitializers;
       Block* variable_statement =
-         ParseVariableDeclarations(kForStatement, &decl_props, &name, CHECK_OK);
+         ParseVariableDeclarations(kForStatement, &decl_props, NULL, &name,
+                                   CHECK_OK);
       bool accept_IN = !name.is_null() && decl_props != kHasInitializers;
       if (peek() == Token::IN && accept_IN) {
         // Rewrite a for-in statement of the form
@@ -3387,8 +3608,14 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
+      // The name may refer to a module instance object, so its type is unknown.
+#ifdef DEBUG
+      if (FLAG_print_interface_details)
+        PrintF("# Variable %s ", name->ToAsciiArray());
+#endif
+      Interface* interface = Interface::NewUnknown();
       result = top_scope_->NewUnresolved(
-          factory(), name, scanner().location().beg_pos);
+          factory(), name, scanner().location().beg_pos, interface);
       break;
     }
 
@@ -3672,17 +3899,11 @@ Handle<Object> Parser::GetBoilerplateValue(Expression* expression) {
   return isolate()->factory()->undefined_value();
 }
 
-// Defined in ast.cc
-bool IsEqualString(void* first, void* second);
-bool IsEqualNumber(void* first, void* second);
-
-
 // Validation per 11.1.5 Object Initialiser
 class ObjectLiteralPropertyChecker {
  public:
   ObjectLiteralPropertyChecker(Parser* parser, LanguageMode language_mode) :
-    props(&IsEqualString),
-    elems(&IsEqualNumber),
+    props_(Literal::Match),
     parser_(parser),
     language_mode_(language_mode) {
   }
@@ -3711,8 +3932,7 @@ class ObjectLiteralPropertyChecker {
     }
   }
 
-  HashMap props;
-  HashMap elems;
+  HashMap props_;
   Parser* parser_;
   LanguageMode language_mode_;
 };
@@ -3722,44 +3942,9 @@ void ObjectLiteralPropertyChecker::CheckProperty(
     ObjectLiteral::Property* property,
     Scanner::Location loc,
     bool* ok) {
-
   ASSERT(property != NULL);
-
-  Literal* lit = property->key();
-  Handle<Object> handle = lit->handle();
-
-  uint32_t hash;
-  HashMap* map;
-  void* key;
-
-  if (handle->IsSymbol()) {
-    Handle<String> name(String::cast(*handle));
-    if (name->AsArrayIndex(&hash)) {
-      Handle<Object> key_handle = FACTORY->NewNumberFromUint(hash);
-      key = key_handle.location();
-      map = &elems;
-    } else {
-      key = handle.location();
-      hash = name->Hash();
-      map = &props;
-    }
-  } else if (handle->ToArrayIndex(&hash)) {
-    key = handle.location();
-    map = &elems;
-  } else {
-    ASSERT(handle->IsNumber());
-    double num = handle->Number();
-    char arr[100];
-    Vector<char> buffer(arr, ARRAY_SIZE(arr));
-    const char* str = DoubleToCString(num, buffer);
-    Handle<String> name = FACTORY->NewStringFromAscii(CStrVector(str));
-    key = name.location();
-    hash = name->Hash();
-    map = &props;
-  }
-
-  // Lookup property previously defined, if any.
-  HashMap::Entry* entry = map->Lookup(key, hash, true);
+  Literal* literal = property->key();
+  HashMap::Entry* entry = props_.Lookup(literal, literal->Hash(), true);
   intptr_t prev = reinterpret_cast<intptr_t> (entry->value);
   intptr_t curr = GetPropertyKind(property);
 
@@ -3984,7 +4169,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     Expression* value = ParseAssignmentExpression(true, CHECK_OK);
 
     ObjectLiteral::Property* property =
-        new(zone()) ObjectLiteral::Property(key, value);
+        new(zone()) ObjectLiteral::Property(key, value, isolate());
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
@@ -4566,6 +4751,18 @@ void Parser::ExpectSemicolon(bool* ok) {
     return;
   }
   Expect(Token::SEMICOLON, ok);
+}
+
+
+void Parser::ExpectContextualKeyword(const char* keyword, bool* ok) {
+  Expect(Token::IDENTIFIER, ok);
+  if (!*ok) return;
+  Handle<String> symbol = GetSymbol(ok);
+  if (!*ok) return;
+  if (!symbol->IsEqualTo(CStrVector(keyword))) {
+    *ok = false;
+    ReportUnexpectedToken(scanner().current_token());
+  }
 }
 
 

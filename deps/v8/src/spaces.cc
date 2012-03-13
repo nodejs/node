@@ -2217,7 +2217,9 @@ bool PagedSpace::ReserveSpace(int size_in_bytes) {
 // You have to call this last, since the implementation from PagedSpace
 // doesn't know that memory was 'promised' to large object space.
 bool LargeObjectSpace::ReserveSpace(int bytes) {
-  return heap()->OldGenerationSpaceAvailable() >= bytes;
+  return heap()->OldGenerationCapacityAvailable() >= bytes &&
+         (!heap()->incremental_marking()->IsStopped() ||
+           heap()->OldGenerationSpaceAvailable() >= bytes);
 }
 
 

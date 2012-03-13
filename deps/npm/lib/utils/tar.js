@@ -214,9 +214,13 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   function extractEntry (entry) {
     // never create things that are user-unreadable,
     // or dirs that are user-un-listable. Only leads to headaches.
+    var originalMode = entry.mode = entry.mode || entry.props.mode
     entry.mode = entry.mode | (entry.type === "Directory" ? dMode : fMode)
     entry.mode = entry.mode & (~npm.modes.umask)
     entry.props.mode = entry.mode
+    if (originalMode !== entry.mode) {
+      log.silly([entry.path, originalMode, entry.mode], "modified mode")
+    }
 
     // if there's a specific owner uid/gid that we want, then set that
     if (process.platform !== "win32" &&

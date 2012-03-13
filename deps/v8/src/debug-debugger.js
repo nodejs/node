@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -478,7 +478,8 @@ ScriptBreakPoint.prototype.clear = function () {
 function UpdateScriptBreakPoints(script) {
   for (var i = 0; i < script_break_points.length; i++) {
     var break_point = script_break_points[i];
-    if ((break_point.type() == Debug.ScriptBreakPointType.ScriptName) &&
+    if ((break_point.type() == Debug.ScriptBreakPointType.ScriptName ||
+         break_point.type() == Debug.ScriptBreakPointType.ScriptRegExp) &&
         break_point.matchesScript(script)) {
       break_point.set(script);
     }

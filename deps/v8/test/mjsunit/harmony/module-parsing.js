@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,7 +27,7 @@
 
 // Flags: --harmony-modules
 
-// Test basic module syntax, with and without ASI.
+// Test basic module syntax, with and without automatic semicolon insertion.
 
 module A {}
 
@@ -36,19 +36,46 @@ module A2 = A;
 module A3 = A2
 
 module B {
-  var x
-  var x, y;
-  var x = 0, y
-  let x, y
-  let z = 1
+  export vx
+  export vy, lz, c, f
+
+  var vx
+  var vx, vy;
+  var vx = 0, vy
+  let lx, ly
+  let lz = 1
   const c = 9
   function f() {}
-  module C {
+
+  module C0 {}
+
+  export module C {
     let x
-    module D {}
+    export module D { export let x }
     let y
   }
+
   let zz = ""
+
+  export var x0
+  export var x1, x2 = 6, x3
+  export let y0
+  export let y1 = 0, y2
+  export const z0 = 0
+  export const z1 = 2, z2 = 3
+  export function f0() {}
+  export module M1 {}
+  export module M2 = C.D
+  export module M3 at "http://where"
+
+  import i0 from I
+  import i1, i2, i3, M from I
+  import i4, i5 from "http://where"
+}
+
+module I {
+  export let i0, i1, i2, i3;
+  export module M {}
 }
 
 module C1 = B.C;
@@ -59,7 +86,6 @@ module D3 = D2
 module E1 at "http://where"
 module E2 at "http://where";
 module E3 = E1.F
-
 
 // Check that ASI does not interfere.
 
@@ -75,6 +101,49 @@ X
 module Z
 at
 "file://local"
+
+import
+x
+,
+y
+from
+"file://local"
+
+
+module Wrap {
+export
+x
+,
+y
+
+export
+var
+v1 = 1
+
+export
+let
+v2 = 2
+
+export
+const
+v3 = 3
+
+export
+function
+f
+(
+)
+{
+}
+
+export
+module V
+{
+}
+}
+
+export A, A1, A2, A3, B, I, C1, D1, D2, D3, E1, E2, E3, X, Y, Z, Wrap, x, y, UU
+
 
 
 // Check that 'module' still works as an identifier.

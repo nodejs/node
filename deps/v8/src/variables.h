@@ -29,6 +29,7 @@
 #define V8_VARIABLES_H_
 
 #include "zone.h"
+#include "interface.h"
 
 namespace v8 {
 namespace internal {
@@ -78,7 +79,8 @@ class Variable: public ZoneObject {
            VariableMode mode,
            bool is_valid_lhs,
            Kind kind,
-           InitializationFlag initialization_flag);
+           InitializationFlag initialization_flag,
+           Interface* interface = Interface::NewValue());
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
@@ -153,6 +155,7 @@ class Variable: public ZoneObject {
   InitializationFlag initialization_flag() const {
     return initialization_flag_;
   }
+  Interface* interface() const { return interface_; }
 
   void AllocateTo(Location location, int index) {
     location_ = location;
@@ -183,6 +186,9 @@ class Variable: public ZoneObject {
   bool force_context_allocation_;  // set by variable resolver
   bool is_used_;
   InitializationFlag initialization_flag_;
+
+  // Module type info.
+  Interface* interface_;
 };
 
 

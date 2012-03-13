@@ -1628,7 +1628,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
     __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
   }
-  GenerateOperation(masm);
+  GenerateOperation(masm, type_);
   __ movq(Operand(rcx, 0), rbx);
   __ movq(Operand(rcx, 2 * kIntSize), rax);
   __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
@@ -1643,7 +1643,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ subq(rsp, Immediate(kDoubleSize));
     __ movsd(Operand(rsp, 0), xmm1);
     __ fld_d(Operand(rsp, 0));
-    GenerateOperation(masm);
+    GenerateOperation(masm, type_);
     __ fstp_d(Operand(rsp, 0));
     __ movsd(xmm1, Operand(rsp, 0));
     __ addq(rsp, Immediate(kDoubleSize));
@@ -1695,16 +1695,17 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
+void TranscendentalCacheStub::GenerateOperation(
+    MacroAssembler* masm, TranscendentalCache::Type type) {
   // Registers:
   // rax: Newly allocated HeapNumber, which must be preserved.
   // rbx: Bits of input double. Must be preserved.
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
   Label done;
-  if (type_ == TranscendentalCache::SIN ||
-      type_ == TranscendentalCache::COS ||
-      type_ == TranscendentalCache::TAN) {
+  if (type == TranscendentalCache::SIN ||
+      type == TranscendentalCache::COS ||
+      type == TranscendentalCache::TAN) {
     // Both fsin and fcos require arguments in the range +/-2^63 and
     // return NaN for infinities and NaN. They can share all code except
     // the actual fsin/fcos operation.
@@ -1725,8 +1726,12 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     __ j(not_equal, &non_nan_result, Label::kNear);
     // Input is +/-Infinity or NaN. Result is NaN.
     __ fstp(0);
-    __ LoadRoot(kScratchRegister, Heap::kNanValueRootIndex);
-    __ fld_d(FieldOperand(kScratchRegister, HeapNumber::kValueOffset));
+    // NaN is represented by 0x7ff8000000000000.
+    __ subq(rsp, Immediate(kPointerSize));
+    __ movl(Operand(rsp, 4), Immediate(0x7ff80000));
+    __ movl(Operand(rsp, 0), Immediate(0x00000000));
+    __ fld_d(Operand(rsp, 0));
+    __ addq(rsp, Immediate(kPointerSize));
     __ jmp(&done);
 
     __ bind(&non_nan_result);
@@ -1767,7 +1772,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     // FPU Stack: input % 2*pi
     __ movq(rax, rdi);  // Restore rax, pointer to the new HeapNumber.
     __ bind(&in_range);
-    switch (type_) {
+    switch (type) {
       case TranscendentalCache::SIN:
         __ fsin();
         break;
@@ -1785,7 +1790,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
     }
     __ bind(&done);
   } else {
-    ASSERT(type_ == TranscendentalCache::LOG);
+    ASSERT(type == TranscendentalCache::LOG);
     __ fldln2();
     __ fxch();
     __ fyl2x();
@@ -5224,12 +5229,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
     __ bind(&set_slice_header);
-    __ movq(FieldOperand(rax, SlicedString::kOffsetOffset), rdx);
     __ Integer32ToSmi(rcx, rcx);
     __ movq(FieldOperand(rax, SlicedString::kLengthOffset), rcx);
-    __ movq(FieldOperand(rax, SlicedString::kParentOffset), rdi);
     __ movq(FieldOperand(rax, SlicedString::kHashFieldOffset),
            Immediate(String::kEmptyHashField));
+    __ movq(FieldOperand(rax, SlicedString::kParentOffset), rdi);
+    __ movq(FieldOperand(rax, SlicedString::kOffsetOffset), rdx);
     __ IncrementCounter(counters->sub_string_native(), 1);
     __ ret(kArgumentsSize);
 
@@ -5449,7 +5454,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
   __ j(not_equal, chars_not_equal, near_jump);
-  __ addq(index, Immediate(1));
+  __ incq(index);
   __ j(not_zero, &loop);
 }
 
@@ -5522,15 +5527,15 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::HEAP_NUMBERS);
 
   Label generic_stub;
-  Label unordered;
+  Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
   Condition either_smi = masm->CheckEitherSmi(rax, rdx);
   __ j(either_smi, &generic_stub, Label::kNear);
 
   __ CmpObjectType(rax, HEAP_NUMBER_TYPE, rcx);
-  __ j(not_equal, &miss, Label::kNear);
+  __ j(not_equal, &maybe_undefined1, Label::kNear);
   __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
-  __ j(not_equal, &miss, Label::kNear);
+  __ j(not_equal, &maybe_undefined2, Label::kNear);
 
   // Load left and right operand
   __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
@@ -5551,10 +5556,24 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
   __ ret(0);
 
   __ bind(&unordered);
-
   CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
   __ bind(&generic_stub);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+
+  __ bind(&maybe_undefined1);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ Cmp(rax, masm->isolate()->factory()->undefined_value());
+    __ j(not_equal, &miss);
+    __ CmpObjectType(rdx, HEAP_NUMBER_TYPE, rcx);
+    __ j(not_equal, &maybe_undefined2, Label::kNear);
+    __ jmp(&unordered);
+  }
+
+  __ bind(&maybe_undefined2);
+  if (Token::IsOrderedRelationalCompareOp(op_)) {
+    __ Cmp(rdx, masm->isolate()->factory()->undefined_value());
+    __ j(equal, &unordered);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -5606,8 +5625,9 @@ void ICCompareStub::GenerateSymbols(MacroAssembler* masm) {
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::STRINGS);
-  ASSERT(GetCondition() == equal);
   Label miss;
+
+  bool equality = Token::IsEqualityOp(op_);
 
   // Registers containing left and right operands respectively.
   Register left = rdx;
@@ -5646,24 +5666,31 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Check that both strings are symbols. If they are, we're done
   // because we already know they are not identical.
-  Label do_compare;
-  STATIC_ASSERT(kSymbolTag != 0);
-  __ and_(tmp1, tmp2);
-  __ testb(tmp1, Immediate(kIsSymbolMask));
-  __ j(zero, &do_compare, Label::kNear);
-  // Make sure rax is non-zero. At this point input operands are
-  // guaranteed to be non-zero.
-  ASSERT(right.is(rax));
-  __ ret(0);
+  if (equality) {
+    Label do_compare;
+    STATIC_ASSERT(kSymbolTag != 0);
+    __ and_(tmp1, tmp2);
+    __ testb(tmp1, Immediate(kIsSymbolMask));
+    __ j(zero, &do_compare, Label::kNear);
+    // Make sure rax is non-zero. At this point input operands are
+    // guaranteed to be non-zero.
+    ASSERT(right.is(rax));
+    __ ret(0);
+    __ bind(&do_compare);
+  }
 
   // Check that both strings are sequential ASCII.
   Label runtime;
-  __ bind(&do_compare);
   __ JumpIfNotBothSequentialAsciiStrings(left, right, tmp1, tmp2, &runtime);
 
   // Compare flat ASCII strings. Returns when done.
-  StringCompareStub::GenerateFlatAsciiStringEquals(
-      masm, left, right, tmp1, tmp2);
+  if (equality) {
+    StringCompareStub::GenerateFlatAsciiStringEquals(
+        masm, left, right, tmp1, tmp2);
+  } else {
+    StringCompareStub::GenerateCompareFlatAsciiStrings(
+        masm, left, right, tmp1, tmp2, tmp3, kScratchRegister);
+  }
 
   // Handle more complex cases in runtime.
   __ bind(&runtime);
@@ -5671,7 +5698,11 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   __ push(left);
   __ push(right);
   __ push(tmp1);
-  __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
+  if (equality) {
+    __ TailCallRuntime(Runtime::kStringEquals, 2, 1);
+  } else {
+    __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
+  }
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -5753,7 +5784,7 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   // not equal to the name and kProbes-th slot is not used (its name is the
   // undefined value), it guarantees the hash table doesn't contain the
   // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
+  // (their names are the hole value).
   for (int i = 0; i < kInlinedProbes; i++) {
     // r0 points to properties hash.
     // Compute the masked index: (hash + i + i * i) & mask.
@@ -5782,11 +5813,18 @@ void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Cmp(entity_name, Handle<String>(name));
     __ j(equal, miss);
 
+    Label the_hole;
+    // Check for the hole and skip.
+    __ CompareRoot(entity_name, Heap::kTheHoleValueRootIndex);
+    __ j(equal, &the_hole, Label::kNear);
+
     // Check if the entry name is not a symbol.
     __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
     __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
              Immediate(kIsSymbolMask));
     __ j(zero, miss);
+
+    __ bind(&the_hole);
   }
 
   StringDictionaryLookupStub stub(properties,

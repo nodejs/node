@@ -40,6 +40,7 @@
 #include "dateparser-inl.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "date.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "isolate-inl.h"
@@ -882,14 +883,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IsInPrototypeChain) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_IsConstructCall) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  return isolate->heap()->ToBoolean(it.frame()->IsConstructor());
-}
-
-
 // Recursively traverses hidden prototypes if property is not found
 static void GetOwnPropertyImplementation(JSObject* obj,
                                          String* name,
@@ -1003,23 +996,14 @@ enum PropertyDescriptorIndices {
   DESCRIPTOR_SIZE
 };
 
-// Returns an array with the property description:
-//  if args[1] is not a property on args[0]
-//          returns undefined
-//  if args[1] is a data property on args[0]
-//         [false, value, Writeable, Enumerable, Configurable]
-//  if args[1] is an accessor on args[0]
-//         [true, GetFunction, SetFunction, Enumerable, Configurable]
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
-  ASSERT(args.length() == 2);
+
+static MaybeObject* GetOwnProperty(Isolate* isolate,
+                                   Handle<JSObject> obj,
+                                   Handle<String> name) {
   Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   Handle<JSArray> desc = isolate->factory()->NewJSArrayWithElements(elms);
   LookupResult result(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
-
   // This could be an element.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
@@ -1081,10 +1065,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
                 AccessorPair::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, heap->true_value());
             if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
-              elms->set(GETTER_INDEX, accessors->getter());
+              elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
             }
             if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
-              elms->set(SETTER_INDEX, accessors->setter());
+              elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
             }
             break;
           }
@@ -1131,10 +1115,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
 
     AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
-      elms->set(GETTER_INDEX, accessors->getter());
+      elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
     }
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
-      elms->set(SETTER_INDEX, accessors->setter());
+      elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
     }
   } else {
     elms->set(IS_ACCESSOR_INDEX, heap->false_value());
@@ -1150,6 +1134,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
   }
 
   return *desc;
+}
+
+
+// Returns an array with the property description:
+//  if args[1] is not a property on args[0]
+//          returns undefined
+//  if args[1] is a data property on args[0]
+//         [false, value, Writeable, Enumerable, Configurable]
+//  if args[1] is an accessor on args[0]
+//         [true, GetFunction, SetFunction, Enumerable, Configurable]
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
+  ASSERT(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  return GetOwnProperty(isolate, obj, name);
 }
 
 
@@ -3771,7 +3771,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
   int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers);
+  OffsetsVector registers(required_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
   bool first = true;
@@ -3844,7 +3844,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
   if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers);
+  OffsetsVector registers(required_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
 
   RegExpImpl::IrregexpResult result =
@@ -3863,7 +3863,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   if (result == RegExpImpl::RE_SUCCESS) {
     // Need to keep a copy of the previous match for creating last_match_info
     // at the end, so we have two vectors that we swap between.
-    OffsetsVector registers2(required_registers);
+    OffsetsVector registers2(required_registers, isolate);
     Vector<int> prev_register_vector(registers2.vector(), registers2.length());
     bool first = true;
     do {
@@ -4315,6 +4315,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
                                     args.at<Object>(1));
 }
 
+
+static bool IsValidAccessor(Handle<Object> obj) {
+  return obj->IsUndefined() || obj->IsSpecFunction() || obj->IsNull();
+}
+
+
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
 // Step 4b - define a new accessor property.
@@ -4325,17 +4331,37 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   ASSERT(args.length() == 5);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-  CONVERT_ARG_CHECKED(String, name, 1);
-  CONVERT_SMI_ARG_CHECKED(flag_setter, 2);
-  Object* fun = args[3];
+  RUNTIME_ASSERT(!obj->IsNull());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
+  RUNTIME_ASSERT(IsValidAccessor(getter));
+  CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
+  RUNTIME_ASSERT(IsValidAccessor(setter));
   CONVERT_SMI_ARG_CHECKED(unchecked, 4);
-
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  RUNTIME_ASSERT(!obj->IsNull());
-  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
-  return obj->DefineAccessor(name, flag_setter == 0, fun, attr);
+  // TODO(svenpanne) Define getter/setter/attributes in a single step.
+  if (getter->IsNull() && setter->IsNull()) {
+    JSArray* array;
+    { MaybeObject* maybe_array = GetOwnProperty(isolate, obj, name);
+      if (!maybe_array->To(&array)) return maybe_array;
+    }
+    Object* current = FixedArray::cast(array->elements())->get(GETTER_INDEX);
+    getter = Handle<Object>(current, isolate);
+  }
+  if (!getter->IsNull()) {
+    MaybeObject* ok =
+        obj->DefineAccessor(*name, ACCESSOR_GETTER, *getter, attr);
+    if (ok->IsFailure()) return ok;
+  }
+  if (!setter->IsNull()) {
+    MaybeObject* ok =
+        obj->DefineAccessor(*name, ACCESSOR_SETTER, *setter, attr);
+    if (ok->IsFailure()) return ok;
+  }
+
+  return isolate->heap()->undefined_value();
 }
 
 // Implements part of 8.12.9 DefineOwnProperty.
@@ -4349,9 +4375,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
-  Handle<Object> obj_value = args.at<Object>(2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj_value, 2);
   CONVERT_SMI_ARG_CHECKED(unchecked, 3);
-
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
@@ -7518,51 +7543,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_tan) {
 }
 
 
-static int MakeDay(int year, int month) {
-  static const int day_from_month[] = {0, 31, 59, 90, 120, 151,
-                                       181, 212, 243, 273, 304, 334};
-  static const int day_from_month_leap[] = {0, 31, 60, 91, 121, 152,
-                                            182, 213, 244, 274, 305, 335};
-
-  year += month / 12;
-  month %= 12;
-  if (month < 0) {
-    year--;
-    month += 12;
-  }
-
-  ASSERT(month >= 0);
-  ASSERT(month < 12);
-
-  // year_delta is an arbitrary number such that:
-  // a) year_delta = -1 (mod 400)
-  // b) year + year_delta > 0 for years in the range defined by
-  //    ECMA 262 - 15.9.1.1, i.e. upto 100,000,000 days on either side of
-  //    Jan 1 1970. This is required so that we don't run into integer
-  //    division of negative numbers.
-  // c) there shouldn't be an overflow for 32-bit integers in the following
-  //    operations.
-  static const int year_delta = 399999;
-  static const int base_day = 365 * (1970 + year_delta) +
-                              (1970 + year_delta) / 4 -
-                              (1970 + year_delta) / 100 +
-                              (1970 + year_delta) / 400;
-
-  int year1 = year + year_delta;
-  int day_from_year = 365 * year1 +
-                      year1 / 4 -
-                      year1 / 100 +
-                      year1 / 400 -
-                      base_day;
-
-  if ((year % 4 != 0) || (year % 100 == 0 && year % 400 != 0)) {
-    return day_from_year + day_from_month[month];
-  }
-
-  return day_from_year + day_from_month_leap[month];
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7570,319 +7550,44 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateMakeDay) {
   CONVERT_SMI_ARG_CHECKED(year, 0);
   CONVERT_SMI_ARG_CHECKED(month, 1);
 
-  return Smi::FromInt(MakeDay(year, month));
+  return Smi::FromInt(isolate->date_cache()->DaysFromYearMonth(year, month));
 }
 
 
-static const int kDays4Years[] = {0, 365, 2 * 365, 3 * 365 + 1};
-static const int kDaysIn4Years = 4 * 365 + 1;
-static const int kDaysIn100Years = 25 * kDaysIn4Years - 1;
-static const int kDaysIn400Years = 4 * kDaysIn100Years + 1;
-static const int kDays1970to2000 = 30 * 365 + 7;
-static const int kDaysOffset = 1000 * kDaysIn400Years + 5 * kDaysIn400Years -
-                               kDays1970to2000;
-static const int kYearsOffset = 400000;
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DateSetValue) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
 
-static const char kDayInYear[] = {
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+  CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 0);
+  CONVERT_DOUBLE_ARG_CHECKED(time, 1);
+  CONVERT_SMI_ARG_CHECKED(is_utc, 2);
 
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+  DateCache* date_cache = isolate->date_cache();
 
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30,
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-      22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-
-static const char kMonthInYear[] = {
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0,
-      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-      1, 1, 1,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2,
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-      3, 3, 3, 3, 3,
-      4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-      4, 4, 4, 4, 4, 4,
-      5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
-      5, 5, 5, 5, 5,
-      6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6,
-      6, 6, 6, 6, 6, 6,
-      7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
-      7, 7, 7, 7, 7, 7,
-      8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8,
-      8, 8, 8, 8, 8,
-      9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-      9, 9, 9, 9, 9, 9,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
-      11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11};
-
-
-// This function works for dates from 1970 to 2099.
-static inline void DateYMDFromTimeAfter1970(int date,
-                                            int& year, int& month, int& day) {
-#ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
-#endif
-
-  year = 1970 + (4 * date + 2) / kDaysIn4Years;
-  date %= kDaysIn4Years;
-
-  month = kMonthInYear[date];
-  day = kDayInYear[date];
-
-  ASSERT(MakeDay(year, month) + day - 1 == save_date);
-}
-
-
-static inline void DateYMDFromTimeSlow(int date,
-                                       int& year, int& month, int& day) {
-#ifdef DEBUG
-  int save_date = date;  // Need this for ASSERT in the end.
-#endif
-
-  date += kDaysOffset;
-  year = 400 * (date / kDaysIn400Years) - kYearsOffset;
-  date %= kDaysIn400Years;
-
-  ASSERT(MakeDay(year, 0) + date == save_date);
-
-  date--;
-  int yd1 = date / kDaysIn100Years;
-  date %= kDaysIn100Years;
-  year += 100 * yd1;
-
-  date++;
-  int yd2 = date / kDaysIn4Years;
-  date %= kDaysIn4Years;
-  year += 4 * yd2;
-
-  date--;
-  int yd3 = date / 365;
-  date %= 365;
-  year += yd3;
-
-  bool is_leap = (!yd1 || yd2) && !yd3;
-
-  ASSERT(date >= -1);
-  ASSERT(is_leap || (date >= 0));
-  ASSERT((date < 365) || (is_leap && (date < 366)));
-  ASSERT(is_leap == ((year % 4 == 0) && (year % 100 || (year % 400 == 0))));
-  ASSERT(is_leap || ((MakeDay(year, 0) + date) == save_date));
-  ASSERT(!is_leap || ((MakeDay(year, 0) + date + 1) == save_date));
-
-  if (is_leap) {
-    day = kDayInYear[2*365 + 1 + date];
-    month = kMonthInYear[2*365 + 1 + date];
+  Object* value = NULL;
+  bool is_value_nan = false;
+  if (isnan(time)) {
+    value = isolate->heap()->nan_value();
+    is_value_nan = true;
+  } else if (!is_utc &&
+             (time < -DateCache::kMaxTimeBeforeUTCInMs ||
+              time > DateCache::kMaxTimeBeforeUTCInMs)) {
+    value = isolate->heap()->nan_value();
+    is_value_nan = true;
   } else {
-    day = kDayInYear[date];
-    month = kMonthInYear[date];
+    time = is_utc ? time : date_cache->ToUTC(static_cast<int64_t>(time));
+    if (time < -DateCache::kMaxTimeInMs ||
+        time > DateCache::kMaxTimeInMs) {
+      value = isolate->heap()->nan_value();
+      is_value_nan = true;
+    } else  {
+      MaybeObject* maybe_result =
+          isolate->heap()->AllocateHeapNumber(DoubleToInteger(time));
+      if (!maybe_result->ToObject(&value)) return maybe_result;
+    }
   }
-
-  ASSERT(MakeDay(year, month) + day - 1 == save_date);
-}
-
-
-static inline void DateYMDFromTime(int date,
-                                   int& year, int& month, int& day) {
-  if (date >= 0 && date < 32 * kDaysIn4Years) {
-    DateYMDFromTimeAfter1970(date, year, month, day);
-  } else {
-    DateYMDFromTimeSlow(date, year, month, day);
-  }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DateYMDFromTime) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_DOUBLE_ARG_CHECKED(t, 0);
-  CONVERT_ARG_CHECKED(JSArray, res_array, 1);
-
-  int year, month, day;
-  DateYMDFromTime(static_cast<int>(floor(t / 86400000)), year, month, day);
-
-  FixedArrayBase* elms_base = FixedArrayBase::cast(res_array->elements());
-  RUNTIME_ASSERT(elms_base->length() == 3);
-  RUNTIME_ASSERT(res_array->HasFastTypeElements());
-
-  MaybeObject* maybe = res_array->EnsureWritableFastElements();
-  if (maybe->IsFailure()) return maybe;
-  FixedArray* elms = FixedArray::cast(res_array->elements());
-  elms->set(0, Smi::FromInt(year));
-  elms->set(1, Smi::FromInt(month));
-  elms->set(2, Smi::FromInt(day));
-
-  return isolate->heap()->undefined_value();
+  date->SetValue(value, is_value_nan);
+  return *date;
 }
 
 
@@ -9208,13 +8913,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StackGuard) {
     return isolate->StackOverflow();
   }
 
-  return Execution::HandleStackGuardInterrupt();
+  return Execution::HandleStackGuardInterrupt(isolate);
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Interrupt) {
   ASSERT(args.length() == 0);
-  return Execution::HandleStackGuardInterrupt();
+  return Execution::HandleStackGuardInterrupt(isolate);
 }
 
 
@@ -9358,25 +9063,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimezone) {
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  const char* zone = OS::LocalTimezone(x);
+  int64_t time = isolate->date_cache()->EquivalentTime(static_cast<int64_t>(x));
+  const char* zone = OS::LocalTimezone(static_cast<double>(time));
   return isolate->heap()->AllocateStringFromUtf8(CStrVector(zone));
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DateLocalTimeOffset) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return isolate->heap()->NumberFromDouble(OS::LocalTimeOffset());
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DateDaylightSavingsOffset) {
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DateToUTC) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->NumberFromDouble(OS::DaylightSavingsOffset(x));
+  int64_t time = isolate->date_cache()->ToUTC(static_cast<int64_t>(x));
+
+  return isolate->heap()->NumberFromDouble(static_cast<double>(time));
 }
 
 
@@ -10300,7 +10000,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LookupAccessor) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
   CONVERT_SMI_ARG_CHECKED(flag, 2);
-  return obj->LookupAccessor(name, flag == 0);
+  AccessorComponent component = flag == 0 ? ACCESSOR_GETTER : ACCESSOR_SETTER;
+  return obj->LookupAccessor(name, component);
 }
 
 
@@ -10499,9 +10200,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       details->set(0, *value);
       details->set(1, property_details);
       if (hasJavaScriptAccessors) {
+        AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
         details->set(2, isolate->heap()->ToBoolean(caught_exception));
-        details->set(3, AccessorPair::cast(*result_callback_obj)->getter());
-        details->set(4, AccessorPair::cast(*result_callback_obj)->setter());
+        details->set(3, accessors->SafeGet(ACCESSOR_GETTER));
+        details->set(4, accessors->SafeGet(ACCESSOR_SETTER));
       }
 
       return *isolate->factory()->NewJSArrayWithElements(details);
@@ -10640,6 +10342,7 @@ class FrameInspector {
           frame, inlined_jsframe_index, isolate);
     }
     has_adapted_arguments_ = frame_->has_adapted_arguments();
+    is_bottommost_ = inlined_jsframe_index == 0;
     is_optimized_ = frame_->is_optimized();
   }
 
@@ -10677,6 +10380,11 @@ class FrameInspector {
         ? deoptimized_frame_->GetSourcePosition()
         : frame_->LookupCode()->SourcePosition(frame_->pc());
   }
+  bool IsConstructor() {
+    return is_optimized_ && !is_bottommost_
+        ? deoptimized_frame_->HasConstructStub()
+        : frame_->IsConstructor();
+  }
 
   // To inspect all the provided arguments the frame might need to be
   // replaced with the arguments frame.
@@ -10692,6 +10400,7 @@ class FrameInspector {
   DeoptimizedFrameInfo* deoptimized_frame_;
   Isolate* isolate_;
   bool is_optimized_;
+  bool is_bottommost_;
   bool has_adapted_arguments_;
 
   DISALLOW_COPY_AND_ASSIGN(FrameInspector);
@@ -10785,9 +10494,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Find source position in unoptimized code.
   int position = frame_inspector.GetSourcePosition();
 
-  // Check for constructor frame. Inlined frames cannot be construct calls.
-  bool inlined_frame = is_optimized && inlined_jsframe_index != 0;
-  bool constructor = !inlined_frame && it.frame()->IsConstructor();
+  // Check for constructor frame.
+  bool constructor = frame_inspector.IsConstructor();
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(frame_inspector.GetFunction()));
@@ -12893,7 +12601,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetFlags) {
 // Performs a GC.
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectGarbage) {
-  isolate->heap()->CollectAllGarbage(true, "%CollectGarbage");
+  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "%CollectGarbage");
   return isolate->heap()->undefined_value();
 }
 

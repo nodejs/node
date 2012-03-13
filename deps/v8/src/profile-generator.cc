@@ -965,13 +965,13 @@ HeapEntry* HeapGraphEdge::From() {
 void HeapEntry::Init(HeapSnapshot* snapshot,
                      Type type,
                      const char* name,
-                     uint64_t id,
+                     SnapshotObjectId id,
                      int self_size,
                      int children_count,
                      int retainers_count) {
   snapshot_ = snapshot;
   type_ = type;
-  painted_ = kUnpainted;
+  painted_ = false;
   name_ = name;
   self_size_ = self_size;
   retained_size_ = 0;
@@ -980,7 +980,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   dominator_ = NULL;
 
   union {
-    uint64_t set_id;
+    SnapshotObjectId set_id;
     Id stored_id;
   } id_adaptor = {id};
   id_ = id_adaptor.stored_id;
@@ -992,8 +992,8 @@ void HeapEntry::SetNamedReference(HeapGraphEdge::Type type,
                                   const char* name,
                                   HeapEntry* entry,
                                   int retainer_index) {
-  children_arr()[child_index].Init(child_index, type, name, entry);
-  entry->retainers_arr()[retainer_index] = children_arr() + child_index;
+  children()[child_index].Init(child_index, type, name, entry);
+  entry->retainers()[retainer_index] = children_arr() + child_index;
 }
 
 
@@ -1002,22 +1002,14 @@ void HeapEntry::SetIndexedReference(HeapGraphEdge::Type type,
                                     int index,
                                     HeapEntry* entry,
                                     int retainer_index) {
-  children_arr()[child_index].Init(child_index, type, index, entry);
-  entry->retainers_arr()[retainer_index] = children_arr() + child_index;
+  children()[child_index].Init(child_index, type, index, entry);
+  entry->retainers()[retainer_index] = children_arr() + child_index;
 }
 
 
 void HeapEntry::SetUnidirElementReference(
     int child_index, int index, HeapEntry* entry) {
-  children_arr()[child_index].Init(child_index, index, entry);
-}
-
-
-int HeapEntry::RetainedSize(bool exact) {
-  if (exact && (retained_size_ & kExactRetainedSizeTag) == 0) {
-    CalculateExactRetainedSize();
-  }
-  return retained_size_ & (~kExactRetainedSizeTag);
+  children()[child_index].Init(child_index, index, entry);
 }
 
 
@@ -1026,43 +1018,10 @@ Handle<HeapObject> HeapEntry::GetHeapObject() {
 }
 
 
-template<class Visitor>
-void HeapEntry::ApplyAndPaintAllReachable(Visitor* visitor) {
-  List<HeapEntry*> list(10);
-  list.Add(this);
-  this->paint_reachable();
-  visitor->Apply(this);
-  while (!list.is_empty()) {
-    HeapEntry* entry = list.RemoveLast();
-    Vector<HeapGraphEdge> children = entry->children();
-    for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
-      HeapEntry* child = children[i].to();
-      if (!child->painted_reachable()) {
-        list.Add(child);
-        child->paint_reachable();
-        visitor->Apply(child);
-      }
-    }
-  }
-}
-
-
-class NullClass {
- public:
-  void Apply(HeapEntry* entry) { }
-};
-
-void HeapEntry::PaintAllReachable() {
-  NullClass null;
-  ApplyAndPaintAllReachable(&null);
-}
-
-
 void HeapEntry::Print(
     const char* prefix, const char* edge_name, int max_depth, int indent) {
   OS::Print("%6d %7d @%6llu %*c %s%s: ",
-            self_size(), RetainedSize(false), id(),
+            self_size(), retained_size(), id(),
             indent, ' ', prefix, edge_name);
   if (type() != kString) {
     OS::Print("%s %.40s\n", TypeAsString(), name_);
@@ -1137,66 +1096,12 @@ const char* HeapEntry::TypeAsString() {
 }
 
 
-int HeapEntry::EntriesSize(int entries_count,
-                           int children_count,
-                           int retainers_count) {
+size_t HeapEntry::EntriesSize(int entries_count,
+                              int children_count,
+                              int retainers_count) {
   return sizeof(HeapEntry) * entries_count         // NOLINT
       + sizeof(HeapGraphEdge) * children_count     // NOLINT
       + sizeof(HeapGraphEdge*) * retainers_count;  // NOLINT
-}
-
-
-class RetainedSizeCalculator {
- public:
-  RetainedSizeCalculator()
-      : retained_size_(0) {
-  }
-
-  int retained_size() const { return retained_size_; }
-
-  void Apply(HeapEntry** entry_ptr) {
-    if ((*entry_ptr)->painted_reachable()) {
-      retained_size_ += (*entry_ptr)->self_size();
-    }
-  }
-
- private:
-  int retained_size_;
-};
-
-
-void HeapEntry::CalculateExactRetainedSize() {
-  // To calculate retained size, first we paint all reachable nodes in
-  // one color, then we paint (or re-paint) all nodes reachable from
-  // other nodes with a different color. Then we sum up self sizes of
-  // nodes painted with the first color.
-  snapshot()->ClearPaint();
-  PaintAllReachable();
-
-  List<HeapEntry*> list(10);
-  HeapEntry* root = snapshot()->root();
-  if (this != root) {
-    list.Add(root);
-    root->paint_reachable_from_others();
-  }
-  while (!list.is_empty()) {
-    HeapEntry* curr = list.RemoveLast();
-    Vector<HeapGraphEdge> children = curr->children();
-    for (int i = 0; i < children.length(); ++i) {
-      if (children[i].type() == HeapGraphEdge::kShortcut) continue;
-      HeapEntry* child = children[i].to();
-      if (child != this && child->not_painted_reachable_from_others()) {
-        list.Add(child);
-        child->paint_reachable_from_others();
-      }
-    }
-  }
-
-  RetainedSizeCalculator ret_size_calc;
-  snapshot()->IterateEntries(&ret_size_calc);
-  retained_size_ = ret_size_calc.retained_size();
-  ASSERT((retained_size_ & kExactRetainedSizeTag) == 0);
-  retained_size_ |= kExactRetainedSizeTag;
 }
 
 
@@ -1209,13 +1114,14 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 36;
-  static const int kMaxSerializableSnapshotRawSize = 256 * MB;
+  static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
 template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 48;
-  static const int kMaxSerializableSnapshotRawSize = 768 * MB;
+  static const uint64_t kMaxSerializableSnapshotRawSize =
+      static_cast<uint64_t>(6000) * MB;
 };
 
 }  // namespace
@@ -1316,7 +1222,7 @@ HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag,
 
 HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   const char* name,
-                                  uint64_t id,
+                                  SnapshotObjectId id,
                                   int size,
                                   int children_count,
                                   int retainers_count) {
@@ -1348,7 +1254,7 @@ HeapEntry* HeapSnapshot::GetNextEntryToInit() {
 }
 
 
-HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
+HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
 
   // Perform a binary search by id.
@@ -1357,7 +1263,7 @@ HeapEntry* HeapSnapshot::GetEntryById(uint64_t id) {
   while (low <= high) {
     int mid =
         (static_cast<unsigned int>(low) + static_cast<unsigned int>(high)) >> 1;
-    uint64_t mid_id = entries_by_id->at(mid)->id();
+    SnapshotObjectId mid_id = entries_by_id->at(mid)->id();
     if (mid_id > id)
       high = mid - 1;
     else if (mid_id < id)
@@ -1393,12 +1299,12 @@ void HeapSnapshot::Print(int max_depth) {
 
 // We split IDs on evens for embedder objects (see
 // HeapObjectsMap::GenerateId) and odds for native objects.
-const uint64_t HeapObjectsMap::kInternalRootObjectId = 1;
-const uint64_t HeapObjectsMap::kGcRootsObjectId =
+const SnapshotObjectId HeapObjectsMap::kInternalRootObjectId = 1;
+const SnapshotObjectId HeapObjectsMap::kGcRootsObjectId =
     HeapObjectsMap::kInternalRootObjectId + HeapObjectsMap::kObjectIdStep;
-const uint64_t HeapObjectsMap::kGcRootsFirstSubrootId =
+const SnapshotObjectId HeapObjectsMap::kGcRootsFirstSubrootId =
     HeapObjectsMap::kGcRootsObjectId + HeapObjectsMap::kObjectIdStep;
-const uint64_t HeapObjectsMap::kFirstAvailableObjectId =
+const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
     VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
 
@@ -1420,12 +1326,12 @@ void HeapObjectsMap::SnapshotGenerationFinished() {
 }
 
 
-uint64_t HeapObjectsMap::FindObject(Address addr) {
+SnapshotObjectId HeapObjectsMap::FindObject(Address addr) {
   if (!initial_fill_mode_) {
-    uint64_t existing = FindEntry(addr);
+    SnapshotObjectId existing = FindEntry(addr);
     if (existing != 0) return existing;
   }
-  uint64_t id = next_id_;
+  SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
   AddEntry(addr, id);
   return id;
@@ -1448,7 +1354,7 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
 }
 
 
-void HeapObjectsMap::AddEntry(Address addr, uint64_t id) {
+void HeapObjectsMap::AddEntry(Address addr, SnapshotObjectId id) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), true);
   ASSERT(entry->value == NULL);
   entry->value = reinterpret_cast<void*>(entries_->length());
@@ -1456,7 +1362,7 @@ void HeapObjectsMap::AddEntry(Address addr, uint64_t id) {
 }
 
 
-uint64_t HeapObjectsMap::FindEntry(Address addr) {
+SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   HashMap::Entry* entry = entries_map_.Lookup(addr, AddressHash(addr), false);
   if (entry != NULL) {
     int entry_index =
@@ -1496,8 +1402,8 @@ void HeapObjectsMap::RemoveDeadEntries() {
 }
 
 
-uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
-  uint64_t id = static_cast<uint64_t>(info->GetHash());
+SnapshotObjectId HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
+  SnapshotObjectId id = static_cast<SnapshotObjectId>(info->GetHash());
   const char* label = info->GetLabel();
   id ^= HashSequentialString(label,
                              static_cast<int>(strlen(label)),
@@ -1567,7 +1473,8 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
 }
 
 
-Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
+Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(
+    SnapshotObjectId id) {
   // First perform a full GC in order to avoid dead objects.
   HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                           "HeapSnapshotsCollection::FindHeapObjectById");
@@ -1766,18 +1673,6 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
         GetGcSubrootOrder(object),
         children_count,
         retainers_count);
-  } else if (object->IsJSGlobalObject()) {
-    const char* tag = objects_tags_.GetTag(object);
-    const char* name = collection_->names()->GetName(
-        GetConstructorName(JSObject::cast(object)));
-    if (tag != NULL) {
-      name = collection_->names()->GetFormatted("%s / %s", name, tag);
-    }
-    return AddEntry(object,
-                    HeapEntry::kObject,
-                    name,
-                    children_count,
-                    retainers_count);
   } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
@@ -1798,8 +1693,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object,
   } else if (object->IsJSObject()) {
     return AddEntry(object,
                     HeapEntry::kObject,
-                    collection_->names()->GetName(
-                        GetConstructorName(JSObject::cast(object))),
+                    "",
                     children_count,
                     retainers_count);
   } else if (object->IsString()) {
@@ -2444,6 +2338,32 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 }
 
 
+bool V8HeapExplorer::IterateAndSetObjectNames(SnapshotFillerInterface* filler) {
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  filler_ = filler;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    SetObjectName(obj);
+  }
+  return true;
+}
+
+
+void V8HeapExplorer::SetObjectName(HeapObject* object) {
+  if (!object->IsJSObject() || object->IsJSRegExp() || object->IsJSFunction()) {
+    return;
+  }
+  const char* name = collection_->names()->GetName(
+      GetConstructorName(JSObject::cast(object)));
+  if (object->IsJSGlobalObject()) {
+    const char* tag = objects_tags_.GetTag(object);
+    if (tag != NULL) {
+      name = collection_->names()->GetFormatted("%s / %s", name, tag);
+    }
+  }
+  GetEntry(object)->set_name(name);
+}
+
+
 void V8HeapExplorer::SetClosureReference(HeapObject* parent_obj,
                                          HeapEntry* parent_entry,
                                          String* reference_name,
@@ -3002,15 +2922,6 @@ void NativeObjectsExplorer::VisitSubtreeWrapper(Object** p, uint16_t class_id) {
 }
 
 
-HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
-                                             v8::ActivityControl* control)
-    : snapshot_(snapshot),
-      control_(control),
-      v8_heap_explorer_(snapshot_, this),
-      dom_explorer_(snapshot_, this) {
-}
-
-
 class SnapshotCounter : public SnapshotFillerInterface {
  public:
   explicit SnapshotCounter(HeapEntriesMap* entries) : entries_(entries) { }
@@ -3135,6 +3046,15 @@ class SnapshotFiller : public SnapshotFillerInterface {
 };
 
 
+HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
+                                             v8::ActivityControl* control)
+    : snapshot_(snapshot),
+      control_(control),
+      v8_heap_explorer_(snapshot_, this),
+      dom_explorer_(snapshot_, this) {
+}
+
+
 bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8_heap_explorer_.TagGlobalObjects();
 
@@ -3179,17 +3099,19 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   debug_heap->Verify();
 #endif
 
-  // Allocate and fill entries in the snapshot, allocate references.
+  // Allocate memory for entries and references.
   snapshot_->AllocateEntries(entries_.entries_count(),
                              entries_.total_children_count(),
                              entries_.total_retainers_count());
+
+  // Allocate heap objects to entries hash map.
   entries_.AllocateEntries();
 
   // Pass 2. Fill references.
   if (!FillReferences()) return false;
 
   if (!SetEntriesDominators()) return false;
-  if (!ApproximateRetainedSizes()) return false;
+  if (!CalculateRetainedSizes()) return false;
 
   progress_counter_ = progress_total_;
   if (!ProgressReport(true)) return false;
@@ -3227,17 +3149,22 @@ void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
 bool HeapSnapshotGenerator::CountEntriesAndReferences() {
   SnapshotCounter counter(&entries_);
   v8_heap_explorer_.AddRootEntries(&counter);
-  return
-      v8_heap_explorer_.IterateAndExtractReferences(&counter) &&
-      dom_explorer_.IterateAndExtractReferences(&counter);
+  return v8_heap_explorer_.IterateAndExtractReferences(&counter)
+      && dom_explorer_.IterateAndExtractReferences(&counter);
 }
 
 
 bool HeapSnapshotGenerator::FillReferences() {
   SnapshotFiller filler(snapshot_, &entries_);
-  return
-      v8_heap_explorer_.IterateAndExtractReferences(&filler) &&
-      dom_explorer_.IterateAndExtractReferences(&filler);
+  // IterateAndExtractReferences cannot set object names because
+  // it makes call to JSObject::LocalLookupRealNamedProperty which
+  // in turn may relocate objects in property maps thus changing the heap
+  // layout and affecting retainer counts. This is not acceptable because
+  // number of retainers must not change between count and fill passes.
+  // To avoid this there's a separate postpass that set object names.
+  return v8_heap_explorer_.IterateAndExtractReferences(&filler)
+      && dom_explorer_.IterateAndExtractReferences(&filler)
+      && v8_heap_explorer_.IterateAndSetObjectNames(&filler);
 }
 
 
@@ -3247,7 +3174,7 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
   int current_entry = 0;
   List<HeapEntry*> nodes_to_visit;
   nodes_to_visit.Add(snapshot_->root());
-  snapshot_->root()->paint_reachable();
+  snapshot_->root()->paint();
   while (!nodes_to_visit.is_empty()) {
     HeapEntry* entry = nodes_to_visit.last();
     Vector<HeapGraphEdge> children = entry->children();
@@ -3255,9 +3182,9 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
     for (int i = 0; i < children.length(); ++i) {
       if (children[i].type() == HeapGraphEdge::kShortcut) continue;
       HeapEntry* child = children[i].to();
-      if (!child->painted_reachable()) {
+      if (!child->painted()) {
         nodes_to_visit.Add(child);
-        child->paint_reachable();
+        child->paint();
         has_new_edges = true;
       }
     }
@@ -3293,25 +3220,26 @@ bool HeapSnapshotGenerator::BuildDominatorTree(
   for (int i = 0; i < root_index; ++i) (*dominators)[i] = kNoDominator;
   (*dominators)[root_index] = root_index;
 
-  // The affected array is used to mark those entries that may
-  // be affected because of dominators change among their retainers.
+  // The affected array is used to mark entries which dominators
+  // have to be racalculated because of changes in their retainers.
   ScopedVector<bool> affected(entries_length);
-  for (int i = 0; i < entries_length; ++i) affected[i] = false;
+  for (int i = 0; i < affected.length(); ++i) affected[i] = false;
+  // Mark the root direct children as affected.
   Vector<HeapGraphEdge> children = entries[root_index]->children();
   for (int i = 0; i < children.length(); ++i) {
-    // Mark the root direct children as affected.
     affected[children[i].to()->ordered_index()] = true;
   }
 
   bool changed = true;
   while (changed) {
     changed = false;
+    if (!ProgressReport(true)) return false;
     for (int i = root_index - 1; i >= 0; --i) {
+      if (!affected[i]) continue;
+      affected[i] = false;
       // If dominator of the entry has already been set to root,
       // then it can't propagate any further.
       if ((*dominators)[i] == root_index) continue;
-      if (!affected[i]) continue;
-      affected[i] = false;
       int new_idom_index = kNoDominator;
       Vector<HeapGraphEdge*> rets = entries[i]->retainers();
       for (int j = 0; j < rets.length(); ++j) {
@@ -3355,7 +3283,7 @@ bool HeapSnapshotGenerator::SetEntriesDominators() {
 }
 
 
-bool HeapSnapshotGenerator::ApproximateRetainedSizes() {
+bool HeapSnapshotGenerator::CalculateRetainedSizes() {
   // As for the dominators tree we only know parent nodes, not
   // children, to sum up total sizes we "bubble" node's self size
   // adding it to all of its parents.
@@ -3510,8 +3438,8 @@ HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
   HeapEntry* root = result->AddRootEntry(1);
   const char* text = snapshot_->collection()->names()->GetFormatted(
       "The snapshot is too big. "
-      "Maximum snapshot size is %d MB. "
-      "Actual snapshot size is %d MB.",
+      "Maximum snapshot size is %"  V8_PTR_PREFIX "u MB. "
+      "Actual snapshot size is %"  V8_PTR_PREFIX "u MB.",
       SnapshotSizeConstants<kPointerSize>::kMaxSerializableSnapshotRawSize / MB,
       (snapshot_->raw_entries_size() + MB - 1) / MB);
   HeapEntry* message = result->AddEntry(
@@ -3588,6 +3516,9 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
       || edge->type() == HeapGraphEdge::kHidden
       || edge->type() == HeapGraphEdge::kWeak
       ? edge->index() : GetStringId(edge->name());
+  STATIC_CHECK(sizeof(int) == sizeof(edge->type()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(edge_name_or_index));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(edge->to())));  // NOLINT
   int result = OS::SNPrintF(buffer, ",%d,%d,%d",
       edge->type(), edge_name_or_index, GetNodeId(edge->to()));
   USE(result);
@@ -3597,17 +3528,26 @@ void HeapSnapshotJSONSerializer::SerializeEdge(HeapGraphEdge* edge) {
 
 
 void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
-  // The buffer needs space for 7 ints, 7 commas, \n and \0
+  // The buffer needs space for 6 ints, 1 uint32_t, 7 commas, \n and \0
   static const int kBufferSize =
-      MaxDecimalDigitsIn<sizeof(int)>::kSigned * 7 + 7 + 1 + 1;  // NOLINT
+      6 * MaxDecimalDigitsIn<sizeof(int)>::kSigned  // NOLINT
+      + MaxDecimalDigitsIn<sizeof(uint32_t)>::kUnsigned  // NOLINT
+      + 7 + 1 + 1;
   EmbeddedVector<char, kBufferSize> buffer;
   Vector<HeapGraphEdge> children = entry->children();
-  int result = OS::SNPrintF(buffer, "\n,%d,%d,%d,%d,%d,%d,%d",
+  STATIC_CHECK(sizeof(int) == sizeof(entry->type()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(GetStringId(entry->name())));  // NOLINT
+  STATIC_CHECK(sizeof(unsigned) == sizeof(entry->id()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(entry->self_size()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(entry->retained_size()));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(GetNodeId(entry->dominator())));  // NOLINT
+  STATIC_CHECK(sizeof(int) == sizeof(children.length()));  // NOLINT
+  int result = OS::SNPrintF(buffer, "\n,%d,%d,%u,%d,%d,%d,%d",
       entry->type(),
       GetStringId(entry->name()),
       entry->id(),
       entry->self_size(),
-      entry->RetainedSize(false),
+      entry->retained_size(),
       GetNodeId(entry->dominator()),
       children.length());
   USE(result);

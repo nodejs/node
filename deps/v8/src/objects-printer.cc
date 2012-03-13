@@ -151,6 +151,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       PrintF(out, "Value wrapper around:");
       JSValue::cast(this)->value()->Print(out);
       break;
+    case JS_DATE_TYPE:
+      JSDate::cast(this)->value()->Print(out);
+      break;
     case CODE_TYPE:
       Code::cast(this)->CodePrint(out);
       break;
@@ -657,6 +660,30 @@ char* String::ToAsciiArray() {
   WriteToFlat(this, buffer, 0, length());
   buffer[length()] = 0;
   return buffer;
+}
+
+
+static const char* const weekdays[] = {
+  "???", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+};
+
+void JSDate::JSDatePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSDate");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - value = ");
+  value()->Print(out);
+  if (!year()->IsSmi()) {
+    PrintF(out, " - time = NaN\n");
+  } else {
+    PrintF(out, " - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
+           weekdays[weekday()->IsSmi() ? Smi::cast(weekday())->value() + 1 : 0],
+           year()->IsSmi() ? Smi::cast(year())->value() : -1,
+           month()->IsSmi() ? Smi::cast(month())->value() : -1,
+           day()->IsSmi() ? Smi::cast(day())->value() : -1,
+           hour()->IsSmi() ? Smi::cast(hour())->value() : -1,
+           min()->IsSmi() ? Smi::cast(min())->value() : -1,
+           sec()->IsSmi() ? Smi::cast(sec())->value() : -1);
+  }
 }
 
 

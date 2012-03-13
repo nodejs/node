@@ -1353,6 +1353,10 @@ class MacroAssembler: public Assembler {
                          Register value,
                          Register scratch);
 
+  // Expects object in a0 and returns map with validated enum cache
+  // in a0.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Register null_value, Label* call_runtime);
+
  private:
   void CallCFunctionHelper(Register function,
                            int num_reg_arguments,

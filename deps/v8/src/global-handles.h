@@ -143,6 +143,11 @@ class GlobalHandles {
     return number_of_global_object_weak_handles_;
   }
 
+  // Returns the current number of handles to global objects.
+  int NumberOfGlobalHandles() {
+    return number_of_global_handles_;
+  }
+
   // Clear the weakness of a global handle.
   void ClearWeakness(Object** location);
 
@@ -247,6 +252,9 @@ class GlobalHandles {
   // to global objects.  These objects are also included in
   // number_of_weak_handles_.
   int number_of_global_object_weak_handles_;
+
+  // Field always containing the number of handles to global objects.
+  int number_of_global_handles_;
 
   // List of all allocated node blocks.
   NodeBlock* first_block_;

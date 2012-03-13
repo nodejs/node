@@ -175,7 +175,8 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
     case JSRegExp::IRREGEXP: {
       Handle<Object> result =
           IrregexpExec(regexp, subject, index, last_match_info);
-      ASSERT(!result.is_null() || Isolate::Current()->has_pending_exception());
+      ASSERT(!result.is_null() ||
+             regexp->GetIsolate()->has_pending_exception());
       return result;
     }
     default:
@@ -527,6 +528,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
                                         Handle<String> subject,
                                         int previous_index,
                                         Handle<JSArray> last_match_info) {
+  Isolate* isolate = jsregexp->GetIsolate();
   ASSERT_EQ(jsregexp->TypeTag(), JSRegExp::IRREGEXP);
 
   // Prepare space for the return values.
@@ -542,11 +544,11 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
   int required_registers = RegExpImpl::IrregexpPrepare(jsregexp, subject);
   if (required_registers < 0) {
     // Compiling failed with an exception.
-    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(isolate->has_pending_exception());
     return Handle<Object>::null();
   }
 
-  OffsetsVector registers(required_registers);
+  OffsetsVector registers(required_registers, isolate);
 
   IrregexpResult res = RegExpImpl::IrregexpExecOnce(
       jsregexp, subject, previous_index, Vector<int>(registers.vector(),
@@ -568,11 +570,11 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
     return last_match_info;
   }
   if (res == RE_EXCEPTION) {
-    ASSERT(Isolate::Current()->has_pending_exception());
+    ASSERT(isolate->has_pending_exception());
     return Handle<Object>::null();
   }
   ASSERT(res == RE_FAILURE);
-  return Isolate::Current()->factory()->null_value();
+  return isolate->factory()->null_value();
 }
 
 

@@ -95,6 +95,9 @@ class V8 : public AllStatic {
   // Allows an entropy source to be provided for use in random number
   // generation.
   static void SetEntropySource(EntropySource source);
+  // Support for return-address rewriting profilers.
+  static void SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver resolver);
   // Random number generation support. Not cryptographically safe.
   static uint32_t Random(Context* context);
   // We use random numbers internally in memory allocation and in the

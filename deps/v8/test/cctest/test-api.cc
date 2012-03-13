@@ -450,8 +450,7 @@ THREADED_TEST(ScriptMakingExternalString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -477,8 +476,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -2253,9 +2251,8 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
-  // Do a single full GC. Use kMakeHeapIterableMask to ensure that
-  // incremental garbage collection is stopped.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  // Do a single full GC, ensure incremental marking is stopped.
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All object should be alive.
   CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -2279,7 +2276,7 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, counter.NumberOfWeakCalls());
@@ -2288,7 +2285,7 @@ THREADED_TEST(ApiObjectGroups) {
   g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
   g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(7, counter.NumberOfWeakCalls());
 }
 
@@ -2344,7 +2341,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
   // Do a single full GC
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All object should be alive.
   CHECK_EQ(0, counter.NumberOfWeakCalls());
@@ -2368,7 +2365,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 
   // All objects should be gone. 7 global handles in total.
   CHECK_EQ(7, counter.NumberOfWeakCalls());
@@ -12910,7 +12907,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   if (array_type == v8::kExternalDoubleArray ||
       array_type == v8::kExternalFloatArray) {
     CHECK_EQ(
-        static_cast<int>(0x80000000),
+        static_cast<int>(i::OS::nan_value()),
         static_cast<int>(jsobj->GetElement(7)->ToObjectChecked()->Number()));
   } else {
     CHECK_EQ(0, static_cast<int>(
@@ -16102,3 +16099,72 @@ TEST(CallCompletedCallbackTwoExceptions) {
   v8::V8::AddCallCompletedCallback(CallCompletedCallbackException);
   CompileRun("throw 'first exception';");
 }
+
+
+static int probes_counter = 0;
+static int misses_counter = 0;
+static int updates_counter = 0;
+
+
+static int* LookupCounter(const char* name) {
+  if (strcmp(name, "c:V8.MegamorphicStubCacheProbes") == 0) {
+    return &probes_counter;
+  } else if (strcmp(name, "c:V8.MegamorphicStubCacheMisses") == 0) {
+    return &misses_counter;
+  } else if (strcmp(name, "c:V8.MegamorphicStubCacheUpdates") == 0) {
+    return &updates_counter;
+  }
+  return NULL;
+}
+
+
+static const char* kMegamorphicTestProgram =
+    "function ClassA() { };"
+    "function ClassB() { };"
+    "ClassA.prototype.foo = function() { };"
+    "ClassB.prototype.foo = function() { };"
+    "function fooify(obj) { obj.foo(); };"
+    "var a = new ClassA();"
+    "var b = new ClassB();"
+    "for (var i = 0; i < 10000; i++) {"
+    "  fooify(a);"
+    "  fooify(b);"
+    "}";
+
+
+static void StubCacheHelper(bool primary) {
+  V8::SetCounterFunction(LookupCounter);
+  USE(kMegamorphicTestProgram);
+#ifdef DEBUG
+  i::FLAG_native_code_counters = true;
+  if (primary) {
+    i::FLAG_test_primary_stub_cache = true;
+  } else {
+    i::FLAG_test_secondary_stub_cache = true;
+  }
+  i::FLAG_crankshaft = false;
+  v8::HandleScope scope;
+  LocalContext env;
+  int initial_probes = probes_counter;
+  int initial_misses = misses_counter;
+  int initial_updates = updates_counter;
+  CompileRun(kMegamorphicTestProgram);
+  int probes = probes_counter - initial_probes;
+  int misses = misses_counter - initial_misses;
+  int updates = updates_counter - initial_updates;
+  CHECK_LT(updates, 10);
+  CHECK_LT(misses, 10);
+  CHECK_GE(probes, 10000);
+#endif
+}
+
+
+TEST(SecondaryStubCache) {
+  StubCacheHelper(true);
+}
+
+
+TEST(PrimaryStubCache) {
+  StubCacheHelper(false);
+}
+

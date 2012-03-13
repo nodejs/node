@@ -52,12 +52,9 @@ Sets the prompt, for example when you run `node` on the command line, you see
 Readies readline for input from the user, putting the current `setPrompt`
 options on a new line, giving the user a new spot to write.
 
-<<<<<<< HEAD
 This will also resume the `in` stream used with `createInterface` if it has
 been paused.
 
-=======
->>>>>>> ry/v0.6
 ### rl.question(query, callback)
 
 Prepends the prompt with `query` and invokes `callback` with the user's

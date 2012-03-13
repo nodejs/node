@@ -605,6 +605,7 @@ TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
+TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 
 
@@ -797,6 +798,11 @@ double Object::Number() {
   return IsSmi()
     ? static_cast<double>(reinterpret_cast<Smi*>(this)->value())
     : reinterpret_cast<HeapNumber*>(this)->value();
+}
+
+
+bool Object::IsNaN() {
+  return this->IsHeapNumber() && isnan(HeapNumber::cast(this)->value());
 }
 
 
@@ -1425,6 +1431,8 @@ int JSObject::GetHeaderSize() {
       return JSFunction::kSize;
     case JS_VALUE_TYPE:
       return JSValue::kSize;
+    case JS_DATE_TYPE:
+      return JSDate::kSize;
     case JS_ARRAY_TYPE:
       return JSArray::kSize;
     case JS_WEAK_MAP_TYPE:
@@ -1988,7 +1996,8 @@ AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
 
 
 bool DescriptorArray::IsProperty(int descriptor_number) {
-  return IsRealProperty(GetType(descriptor_number));
+  Entry entry(this, descriptor_number);
+  return IsPropertyDescriptor(&entry);
 }
 
 
@@ -4115,6 +4124,24 @@ JSValue* JSValue::cast(Object* obj) {
   ASSERT(obj->IsJSValue());
   ASSERT(HeapObject::cast(obj)->Size() == JSValue::kSize);
   return reinterpret_cast<JSValue*>(obj);
+}
+
+
+ACCESSORS(JSDate, value, Object, kValueOffset)
+ACCESSORS(JSDate, cache_stamp, Object, kCacheStampOffset)
+ACCESSORS(JSDate, year, Object, kYearOffset)
+ACCESSORS(JSDate, month, Object, kMonthOffset)
+ACCESSORS(JSDate, day, Object, kDayOffset)
+ACCESSORS(JSDate, weekday, Object, kWeekdayOffset)
+ACCESSORS(JSDate, hour, Object, kHourOffset)
+ACCESSORS(JSDate, min, Object, kMinOffset)
+ACCESSORS(JSDate, sec, Object, kSecOffset)
+
+
+JSDate* JSDate::cast(Object* obj) {
+  ASSERT(obj->IsJSDate());
+  ASSERT(HeapObject::cast(obj)->Size() == JSDate::kSize);
+  return reinterpret_cast<JSDate*>(obj);
 }
 
 

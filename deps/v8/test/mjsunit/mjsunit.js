@@ -221,6 +221,8 @@ var assertUnreachable;
 
 
   assertSame = function assertSame(expected, found, name_opt) {
+    // TODO(mstarzinger): We should think about using Harmony's egal operator
+    // or the function equivalent Object.is() here.
     if (found === expected) {
       if (expected !== 0 || (1 / expected) == (1 / found)) return;
     } else if ((expected !== expected) && (found !== found)) {

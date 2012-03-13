@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -112,8 +112,8 @@ function testGetter1_2() {
 function testGetter1_3() {
   expected_function_name = 'getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
-  debugger;
   for (var i = 1; i < 2; i++) {
+    debugger;
     var x = c['getter' + i];
   }
 }
