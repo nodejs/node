@@ -66,6 +66,8 @@ function shebang(line, file) {
   if (content !== newContent) {
     fs.writeFileSync(file, newContent, 'utf8');
   }
+  var mode = parseInt('0777', 8) & (~process.umask());
+  fs.chmodSync(file, mode);
 }
 
 // Run every command in queue, one-by-one
