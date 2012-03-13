@@ -2077,8 +2077,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   module_load_list = Persistent<Array>::New(Array::New());
   process->Set(String::NewSymbol("moduleLoadList"), module_load_list);
 
+  // process.versions
   Local<Object> versions = Object::New();
-  char buf[20];
   process->Set(String::NewSymbol("versions"), versions);
   versions->Set(String::NewSymbol("http_parser"), String::New(
                NODE_STRINGIFY(HTTP_PARSER_VERSION_MAJOR) "."
@@ -2087,8 +2087,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("node"), String::New(NODE_VERSION+1));
   versions->Set(String::NewSymbol("v8"), String::New(V8::GetVersion()));
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
-  snprintf(buf, 20, "%d.%d", UV_VERSION_MAJOR, UV_VERSION_MINOR);
-  versions->Set(String::NewSymbol("uv"), String::New(buf));
+  versions->Set(String::NewSymbol("uv"), String::New(
+               NODE_STRINGIFY(UV_VERSION_MAJOR) "."
+               NODE_STRINGIFY(UV_VERSION_MINOR)));
   versions->Set(String::NewSymbol("zlib"), String::New(ZLIB_VERSION));
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
