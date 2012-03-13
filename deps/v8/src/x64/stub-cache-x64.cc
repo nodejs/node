@@ -43,31 +43,60 @@ static void ProbeTable(Isolate* isolate,
                        MacroAssembler* masm,
                        Code::Flags flags,
                        StubCache::Table table,
+                       Register receiver,
                        Register name,
+                       // The offset is scaled by 4, based on
+                       // kHeapObjectTagSize, which is two bits
                        Register offset) {
-  ASSERT_EQ(8, kPointerSize);
-  ASSERT_EQ(16, sizeof(StubCache::Entry));
+  // We need to scale up the pointer by 2 because the offset is scaled by less
+  // than the pointer size.
+  ASSERT(kPointerSizeLog2 == kHeapObjectTagSize + 1);
+  ScaleFactor scale_factor = times_2;
+
+  ASSERT_EQ(24, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking
   // and shifting optimizations).
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
+  ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
   Label miss;
 
+  // Multiply by 3 because there are 3 fields per entry (name, code, map).
+  __ lea(offset, Operand(offset, offset, times_2, 0));
+
   __ LoadAddress(kScratchRegister, key_offset);
+
   // Check that the key in the entry matches the name.
   // Multiply entry offset by 16 to get the entry address. Since the
   // offset register already holds the entry offset times four, multiply
   // by a further four.
-  __ cmpl(name, Operand(kScratchRegister, offset, times_4, 0));
+  __ cmpl(name, Operand(kScratchRegister, offset, scale_factor, 0));
   __ j(not_equal, &miss);
-  // Get the code entry from the cache.
-  // Use key_offset + kPointerSize, rather than loading value_offset.
+
+  // Get the map entry from the cache.
+  // Use key_offset + kPointerSize * 2, rather than loading map_offset.
   __ movq(kScratchRegister,
-          Operand(kScratchRegister, offset, times_4, kPointerSize));
+          Operand(kScratchRegister, offset, scale_factor, kPointerSize * 2));
+  __ cmpq(kScratchRegister, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ j(not_equal, &miss);
+
+  // Get the code entry from the cache.
+  __ LoadAddress(kScratchRegister, value_offset);
+  __ movq(kScratchRegister,
+          Operand(kScratchRegister, offset, scale_factor, 0));
+
   // Check that the flags match what we're looking for.
   __ movl(offset, FieldOperand(kScratchRegister, Code::kFlagsOffset));
   __ and_(offset, Immediate(~Code::kFlagsNotUsedInLookup));
   __ cmpl(offset, Immediate(flags));
   __ j(not_equal, &miss);
+
+#ifdef DEBUG
+    if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
+      __ jmp(&miss);
+    } else if (FLAG_test_primary_stub_cache && table == StubCache::kSecondary) {
+      __ jmp(&miss);
+    }
+#endif
 
   // Jump to the first instruction in the code stub.
   __ addq(kScratchRegister, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -134,14 +163,16 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
                               Register name,
                               Register scratch,
                               Register extra,
-                              Register extra2) {
+                              Register extra2,
+                              Register extra3) {
   Isolate* isolate = masm->isolate();
   Label miss;
   USE(extra);   // The register extra is not used on the X64 platform.
   USE(extra2);  // The register extra2 is not used on the X64 platform.
-  // Make sure that code is valid. The shifting code relies on the
-  // entry size being 16.
-  ASSERT(sizeof(Entry) == 16);
+  USE(extra3);  // The register extra2 is not used on the X64 platform.
+  // Make sure that code is valid. The multiplying code relies on the
+  // entry size being 24.
+  ASSERT(sizeof(Entry) == 24);
 
   // Make sure the flags do not name a specific type.
   ASSERT(Code::ExtractTypeFromFlags(flags) == 0);
@@ -153,6 +184,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Check scratch register is valid, extra and extra2 are unused.
   ASSERT(!scratch.is(no_reg));
   ASSERT(extra2.is(no_reg));
+  ASSERT(extra3.is(no_reg));
+
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->megamorphic_stub_cache_probes(), 1);
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, &miss);
@@ -162,10 +197,12 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   // Use only the low 32 bits of the map pointer.
   __ addl(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, Immediate(flags));
+  // We mask out the last two bits because they are not part of the hash and
+  // they are always 01 for maps.  Also in the two 'and' instructions below.
   __ and_(scratch, Immediate((kPrimaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, kPrimary, name, scratch);
+  ProbeTable(isolate, masm, flags, kPrimary, receiver, name, scratch);
 
   // Primary miss: Compute hash for secondary probe.
   __ movl(scratch, FieldOperand(name, String::kHashFieldOffset));
@@ -177,11 +214,12 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ and_(scratch, Immediate((kSecondaryTableSize - 1) << kHeapObjectTagSize));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, kSecondary, name, scratch);
+  ProbeTable(isolate, masm, flags, kSecondary, receiver, name, scratch);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
   __ bind(&miss);
+  __ IncrementCounter(counters->megamorphic_stub_cache_misses(), 1);
 }
 
 

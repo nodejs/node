@@ -525,7 +525,8 @@ Extension::Extension(const char* name,
                      int source_length)
     : name_(name),
       source_length_(source_length >= 0 ?
-                  source_length : (source ? strlen(source) : 0)),
+                     source_length :
+                     (source ? static_cast<int>(strlen(source)) : 0)),
       source_(source, source_length_),
       dep_count_(dep_count),
       deps_(deps),
@@ -4026,6 +4027,12 @@ void v8::V8::SetEntropySource(EntropySource source) {
 }
 
 
+void v8::V8::SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver return_address_resolver) {
+  i::V8::SetReturnAddressLocationResolver(return_address_resolver);
+}
+
+
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
@@ -4728,8 +4735,8 @@ double v8::Date::NumberValue() const {
   if (IsDeadCheck(isolate, "v8::Date::NumberValue()")) return 0;
   LOG_API(isolate, "Date::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  return jsvalue->value()->Number();
+  i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
+  return jsdate->value()->Number();
 }
 
 
@@ -4740,8 +4747,10 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
   LOG_API(isolate, "Date::DateTimeConfigurationChangeNotification");
   ENTER_V8(isolate);
 
+  isolate->date_cache()->ResetDateCache();
+
   i::HandleScope scope(isolate);
-  // Get the function ResetDateCache (defined in date-delay.js).
+  // Get the function ResetDateCache (defined in date.js).
   i::Handle<i::String> func_name_str =
       isolate->factory()->LookupAsciiSymbol("ResetDateCache");
   i::MaybeObject* result =
@@ -5867,10 +5876,10 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
-int HeapGraphNode::GetRetainedSize(bool exact) const {
+int HeapGraphNode::GetRetainedSize() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
-  return ToInternal(this)->RetainedSize(exact);
+  return ToInternal(this)->retained_size();
 }
 
 
@@ -5972,7 +5981,7 @@ const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
-      ToInternal(this)->GetEntryById(id));
+      ToInternal(this)->GetEntryById(static_cast<i::SnapshotObjectId>(id)));
 }
 
 
@@ -6064,6 +6073,11 @@ void HeapProfiler::DefineWrapperClass(uint16_t class_id,
                                                              callback);
 }
 
+
+int HeapProfiler::GetPersistentHandleCount() {
+  i::Isolate* isolate = i::Isolate::Current();
+  return isolate->global_handles()->NumberOfGlobalHandles();
+}
 
 
 v8::Testing::StressType internal::Testing::stress_type_ =

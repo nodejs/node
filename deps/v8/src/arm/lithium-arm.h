@@ -49,6 +49,7 @@ class LCodeGen;
 #define LITHIUM_CONCRETE_INSTRUCTION_LIST(V)    \
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
+  V(AllocateObject)                             \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
   V(ArgumentsLength)                            \
@@ -176,8 +177,8 @@ class LCodeGen;
   V(ForInPrepareMap)                            \
   V(ForInCacheArray)                            \
   V(CheckMapValue)                              \
-  V(LoadFieldByIndex)
-
+  V(LoadFieldByIndex)                           \
+  V(DateField)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -986,6 +987,41 @@ class LValueOf: public LTemplateInstruction<1, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(ValueOf, "value-of")
   DECLARE_HYDROGEN_ACCESSOR(ValueOf)
+};
+
+
+class LDateField: public LTemplateInstruction<1, 1, 1> {
+ public:
+  LDateField(LOperand* date, LOperand* temp, Smi* index) : index_(index) {
+    inputs_[0] = date;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(ValueOf, "date-field")
+  DECLARE_HYDROGEN_ACCESSOR(ValueOf)
+  Smi* index() const { return index_; }
+
+ private:
+  Smi* index_;
+};
+
+
+class LSetDateField: public LTemplateInstruction<1, 2, 1> {
+ public:
+  LSetDateField(LOperand* date, LOperand* value, LOperand* temp, int index)
+      : index_(index) {
+    inputs_[0] = date;
+    inputs_[1] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-set-field")
+  DECLARE_HYDROGEN_ACCESSOR(DateField)
+
+  int index() const { return index_; }
+
+ private:
+  int index_;
 };
 
 
@@ -1922,6 +1958,18 @@ class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
 };
 
 
+class LAllocateObject: public LTemplateInstruction<1, 0, 2> {
+ public:
+  LAllocateObject(LOperand* temp1, LOperand* temp2) {
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
+  DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
+};
+
+
 class LFastLiteral: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(FastLiteral, "fast-literal")
@@ -2192,6 +2240,7 @@ class LChunkBuilder BASE_EMBEDDED {
       : chunk_(NULL),
         info_(info),
         graph_(graph),
+        zone_(graph->isolate()->zone()),
         status_(UNUSED),
         current_instruction_(NULL),
         current_block_(NULL),
@@ -2221,6 +2270,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
+  Zone* zone() const { return zone_; }
 
   bool is_unused() const { return status_ == UNUSED; }
   bool is_building() const { return status_ == BUILDING; }
@@ -2325,6 +2375,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
+  Zone* zone_;
   Status status_;
   HInstruction* current_instruction_;
   HBasicBlock* current_block_;

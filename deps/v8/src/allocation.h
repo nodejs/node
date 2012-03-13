@@ -80,7 +80,7 @@ class AllStatic {
 
 
 template <typename T>
-T* NewArray(int size) {
+T* NewArray(size_t size) {
   T* result = new T[size];
   if (result == NULL) Malloced::FatalProcessOutOfMemory();
   return result;

@@ -187,15 +187,15 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
 // pair r0, r1 is loaded with 0.0. If -mfloat-abi=hard is pased to GCC then
 // calling this will return 1.0 and otherwise 0.0.
 static void ArmUsingHardFloatHelper() {
-  asm("mov r0, #0");
+  asm("mov r0, #0":::"r0");
 #if defined(__VFP_FP__) && !defined(__SOFTFP__)
   // Load 0x3ff00000 into r1 using instructions available in both ARM
   // and Thumb mode.
-  asm("mov r1, #3");
-  asm("mov r2, #255");
-  asm("lsl r1, r1, #8");
-  asm("orr r1, r1, r2");
-  asm("lsl r1, r1, #20");
+  asm("mov r1, #3":::"r1");
+  asm("mov r2, #255":::"r2");
+  asm("lsl r1, r1, #8":::"r1");
+  asm("orr r1, r1, r2":::"r1");
+  asm("lsl r1, r1, #20":::"r1");
   // For vmov d0, r0, r1 use ARM mode.
 #ifdef __thumb__
   asm volatile(
@@ -209,12 +209,12 @@ static void ArmUsingHardFloatHelper() {
     "    adr r3, 2f+1    \n\t"
     "    bx  r3          \n\t"
     "    .THUMB          \n"
-    "2:                  \n\t");
+    "2:                  \n\t":::"r3");
 #else
   asm("vmov d0, r0, r1");
 #endif  // __thumb__
 #endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
-  asm("mov r1, #0");
+  asm("mov r1, #0":::"r1");
 }
 
 

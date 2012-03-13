@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,8 @@
 #define V8_ELEMENTS_H_
 
 #include "objects.h"
+#include "heap.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -37,19 +39,38 @@ namespace internal {
 // ElementsKinds.
 class ElementsAccessor {
  public:
-  ElementsAccessor() { }
+  explicit ElementsAccessor(const char* name) : name_(name) { }
   virtual ~ElementsAccessor() { }
-  virtual MaybeObject* Get(FixedArrayBase* backing_store,
-                           uint32_t key,
+
+  virtual ElementsKind kind() const = 0;
+  const char* name() const { return name_; }
+
+  // Returns true if a holder contains an element with the specified key
+  // without iterating up the prototype chain.  The caller can optionally pass
+  // in the backing store to use for the check, which must be compatible with
+  // the ElementsKind of the ElementsAccessor. If backing_store is NULL, the
+  // holder->elements() is used as the backing store.
+  virtual bool HasElement(Object* receiver,
+                          JSObject* holder,
+                          uint32_t key,
+                          FixedArrayBase* backing_store = NULL) = 0;
+
+  // Returns the element with the specified key or undefined if there is no such
+  // element. This method doesn't iterate up the prototype chain.  The caller
+  // can optionally pass in the backing store to use for the check, which must
+  // be compatible with the ElementsKind of the ElementsAccessor. If
+  // backing_store is NULL, the holder->elements() is used as the backing store.
+  virtual MaybeObject* Get(Object* receiver,
                            JSObject* holder,
-                           Object* receiver) = 0;
+                           uint32_t key,
+                           FixedArrayBase* backing_store = NULL) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
   // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that
   // have non-deletable elements can only be shrunk to the size of highest
   // element that is non-deletable.
-  virtual MaybeObject* SetLength(JSObject* holder,
+  virtual MaybeObject* SetLength(JSArray* holder,
                                  Object* new_length) = 0;
 
   // Modifies both the length and capacity of a JSArray, resizing the underlying
@@ -62,14 +83,34 @@ class ElementsAccessor {
                                             int capacity,
                                             int length) = 0;
 
+  // Deletes an element in an object, returning a new elements backing store.
   virtual MaybeObject* Delete(JSObject* holder,
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
-  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
-                                               FixedArray* to,
+  // Copy elements from one backing store to another. Typically, callers specify
+  // the source JSObject or JSArray in source_holder. If the holder's backing
+  // store is available, it can be passed in source and source_holder is
+  // ignored.
+  virtual MaybeObject* CopyElements(JSObject* source_holder,
+                                    uint32_t source_start,
+                                    FixedArrayBase* destination,
+                                    ElementsKind destination_kind,
+                                    uint32_t destination_start,
+                                    int copy_size,
+                                    FixedArrayBase* source = NULL) = 0;
+
+  MaybeObject* CopyElements(JSObject* from_holder,
+                            FixedArrayBase* to,
+                            ElementsKind to_kind,
+                            FixedArrayBase* from = NULL) {
+    return CopyElements(from_holder, 0, to, to_kind, 0, -1, from);
+  }
+
+  virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
                                                JSObject* holder,
-                                               Object* receiver) = 0;
+                                               FixedArray* to,
+                                               FixedArrayBase* from = NULL) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
@@ -86,27 +127,34 @@ class ElementsAccessor {
 
   virtual uint32_t GetCapacity(FixedArrayBase* backing_store) = 0;
 
-  virtual bool HasElementAtIndex(FixedArrayBase* backing_store,
-                                 uint32_t index,
-                                 JSObject* holder,
-                                 Object* receiver) = 0;
-
-  // Element handlers distinguish between indexes and keys when the manipulate
+  // Element handlers distinguish between indexes and keys when they manipulate
   // elements.  Indexes refer to elements in terms of their location in the
-  // underlying storage's backing store representation, and are between 0
+  // underlying storage's backing store representation, and are between 0 and
   // GetCapacity.  Keys refer to elements in terms of the value that would be
-  // specific in JavaScript to access the element. In most implementations, keys
-  // are equivalent to indexes, and GetKeyForIndex returns the same value it is
-  // passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps the
-  // index to a key using the KeyAt method on the NumberDictionary.
+  // specified in JavaScript to access the element. In most implementations,
+  // keys are equivalent to indexes, and GetKeyForIndex returns the same value
+  // it is passed. In the NumberDictionary ElementsAccessor, GetKeyForIndex maps
+  // the index to a key using the KeyAt method on the NumberDictionary.
   virtual uint32_t GetKeyForIndex(FixedArrayBase* backing_store,
                                   uint32_t index) = 0;
 
  private:
   static ElementsAccessor** elements_accessors_;
+  const char* name_;
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
+
+
+void CopyObjectToObjectElements(AssertNoAllocation* no_gc,
+                                FixedArray* from_obj,
+                                ElementsKind from_kind,
+                                uint32_t from_start,
+                                FixedArray* to_obj,
+                                ElementsKind to_kind,
+                                uint32_t to_start,
+                                int copy_size);
+
 
 } }  // namespace v8::internal
 

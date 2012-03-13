@@ -64,6 +64,7 @@
 //             - JSBuiltinsObject
 //           - JSGlobalProxy
 //           - JSValue
+//             - JSDate
 //           - JSMessageObject
 //         - JSProxy
 //           - JSFunctionProxy
@@ -300,6 +301,7 @@ const int kVariableSizeSentinel = 0;
   V(JS_MESSAGE_OBJECT_TYPE)                                                    \
                                                                                \
   V(JS_VALUE_TYPE)                                                             \
+  V(JS_DATE_TYPE)                                                              \
   V(JS_OBJECT_TYPE)                                                            \
   V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                                          \
   V(JS_GLOBAL_OBJECT_TYPE)                                                     \
@@ -619,6 +621,7 @@ enum InstanceType {
   JS_PROXY_TYPE,  // LAST_JS_PROXY_TYPE
 
   JS_VALUE_TYPE,  // FIRST_JS_OBJECT_TYPE
+  JS_DATE_TYPE,
   JS_OBJECT_TYPE,
   JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
@@ -813,6 +816,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Oddball)                                   \
   V(SharedFunctionInfo)                        \
   V(JSValue)                                   \
+  V(JSDate)                                    \
   V(JSMessageObject)                           \
   V(StringWrapper)                             \
   V(Foreign)                                   \
@@ -854,6 +858,8 @@ class JSReceiver;
 class Object : public MaybeObject {
  public:
   // Type testing.
+  bool IsObject() { return true; }
+
 #define IS_TYPE_FUNCTION_DECL(type_)  inline bool Is##type_();
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
@@ -887,6 +893,7 @@ class Object : public MaybeObject {
 
   // Extract the number.
   inline double Number();
+  inline bool IsNaN();
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
@@ -1360,6 +1367,13 @@ enum SetPropertyMode {
 };
 
 
+// Indicator for one component of an AccessorPair.
+enum AccessorComponent {
+  ACCESSOR_GETTER,
+  ACCESSOR_SETTER
+};
+
+
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
@@ -1612,10 +1626,10 @@ class JSObject: public JSReceiver {
       bool continue_search);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
-                                              bool is_getter,
+                                              AccessorComponent component,
                                               Object* fun,
                                               PropertyAttributes attributes);
-  Object* LookupAccessor(String* name, bool is_getter);
+  Object* LookupAccessor(String* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
 
@@ -1745,7 +1759,6 @@ class JSObject: public JSReceiver {
   LocalElementType HasLocalElement(uint32_t index);
 
   bool HasElementWithInterceptor(JSReceiver* receiver, uint32_t index);
-  bool HasElementPostInterceptor(JSReceiver* receiver, uint32_t index);
 
   MUST_USE_RESULT MaybeObject* SetFastElement(uint32_t index,
                                               Object* value,
@@ -2145,9 +2158,6 @@ class JSObject: public JSReceiver {
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
-  bool HasElementInElements(FixedArray* elements,
-                            ElementsKind kind,
-                            uint32_t index);
 
   // Returns true if most of the elements backing storage is used.
   bool HasDenseElements();
@@ -2166,12 +2176,12 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineElementAccessor(
       uint32_t index,
-      bool is_getter,
+      AccessorComponent component,
       Object* fun,
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
       String* name,
-      bool is_getter,
+      AccessorComponent component,
       Object* fun,
       PropertyAttributes attributes);
   void LookupInDescriptor(String* name, LookupResult* result);
@@ -2503,8 +2513,8 @@ class DescriptorArray: public FixedArray {
   MUST_USE_RESULT MaybeObject* CopyInsert(Descriptor* descriptor,
                                           TransitionFlag transition_flag);
 
-  // Remove all transitions.  Return  a copy of the array with all transitions
-  // removed, or a Failure object if the new array could not be allocated.
+  // Return a copy of the array with all transitions and null descriptors
+  // removed. Return a Failure object in case of an allocation failure.
   MUST_USE_RESULT MaybeObject* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
@@ -2589,6 +2599,20 @@ class DescriptorArray: public FixedArray {
   static const int kMaxNumberOfDescriptors = 1024 + 512;
 
  private:
+  // An entry in a DescriptorArray, represented as an (array, index) pair.
+  class Entry {
+   public:
+    inline explicit Entry(DescriptorArray* descs, int index) :
+        descs_(descs), index_(index) { }
+
+    inline PropertyType type() { return descs_->GetType(index_); }
+    inline Object* GetCallbackObject() { return descs_->GetValue(index_); }
+
+   private:
+    DescriptorArray* descs_;
+    int index_;
+  };
+
   // Conversion from descriptor number to array indices.
   static int ToKeyIndex(int descriptor_number) {
     return descriptor_number+kFirstIndex;
@@ -4063,6 +4087,9 @@ class TypeFeedbackCells: public FixedArray {
 
   // Casting.
   static inline TypeFeedbackCells* cast(Object* obj);
+
+  static const int kForInFastCaseMarker = 0;
+  static const int kForInSlowCaseMarker = 1;
 };
 
 
@@ -5972,7 +5999,7 @@ class JSBuiltinsObject: public GlobalObject {
 };
 
 
-// Representation for JS Wrapper objects, String, Number, Boolean, Date, etc.
+// Representation for JS Wrapper objects, String, Number, Boolean, etc.
 class JSValue: public JSObject {
  public:
   // [value]: the object being wrapped.
@@ -5998,6 +6025,106 @@ class JSValue: public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
+};
+
+
+class DateCache;
+
+// Representation for JS date objects.
+class JSDate: public JSObject {
+ public:
+  // If one component is NaN, all of them are, indicating a NaN time value.
+  // [value]: the time value.
+  DECL_ACCESSORS(value, Object)
+  // [year]: caches year. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(year, Object)
+  // [month]: caches month. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(month, Object)
+  // [day]: caches day. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(day, Object)
+  // [weekday]: caches day of week. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(weekday, Object)
+  // [hour]: caches hours. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(hour, Object)
+  // [min]: caches minutes. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(min, Object)
+  // [sec]: caches seconds. Either undefined, smi, or NaN.
+  DECL_ACCESSORS(sec, Object)
+  // [cache stamp]: sample of the date cache stamp at the
+  // moment when local fields were cached.
+  DECL_ACCESSORS(cache_stamp, Object)
+
+  // Casting.
+  static inline JSDate* cast(Object* obj);
+
+  // Returns the date field with the specified index.
+  // See FieldIndex for the list of date fields.
+  static MaybeObject* GetField(Object* date, Smi* index);
+
+  void SetValue(Object* value, bool is_value_nan);
+
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSDatePrint() {
+    JSDatePrint(stdout);
+  }
+  void JSDatePrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSDateVerify();
+#endif
+  // The order is important. It must be kept in sync with date macros
+  // in macros.py.
+  enum FieldIndex {
+    kDateValue,
+    kYear,
+    kMonth,
+    kDay,
+    kWeekday,
+    kHour,
+    kMinute,
+    kSecond,
+    kFirstUncachedField,
+    kMillisecond = kFirstUncachedField,
+    kDays,
+    kTimeInDay,
+    kFirstUTCField,
+    kYearUTC = kFirstUTCField,
+    kMonthUTC,
+    kDayUTC,
+    kWeekdayUTC,
+    kHourUTC,
+    kMinuteUTC,
+    kSecondUTC,
+    kMillisecondUTC,
+    kDaysUTC,
+    kTimeInDayUTC,
+    kTimezoneOffset
+  };
+
+  // Layout description.
+  static const int kValueOffset = JSObject::kHeaderSize;
+  static const int kYearOffset = kValueOffset + kPointerSize;
+  static const int kMonthOffset = kYearOffset + kPointerSize;
+  static const int kDayOffset = kMonthOffset + kPointerSize;
+  static const int kWeekdayOffset = kDayOffset + kPointerSize;
+  static const int kHourOffset = kWeekdayOffset  + kPointerSize;
+  static const int kMinOffset = kHourOffset + kPointerSize;
+  static const int kSecOffset = kMinOffset + kPointerSize;
+  static const int kCacheStampOffset = kSecOffset + kPointerSize;
+  static const int kSize = kCacheStampOffset + kPointerSize;
+
+ private:
+  inline Object* DoGetField(FieldIndex index);
+
+  Object* GetUTCField(FieldIndex index, double value, DateCache* date_cache);
+
+  // Computes and caches the cacheable fields of the date.
+  inline void SetLocalFields(int64_t local_time_ms, DateCache* date_cache);
+
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDate);
 };
 
 
@@ -7910,13 +8037,25 @@ class AccessorPair: public Struct {
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
 
-  // TODO(svenpanne) Evil temporary helper, will vanish soon...
-  void set(bool modify_getter, Object* value) {
-    if (modify_getter) {
+  Object* get(AccessorComponent component) {
+    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
+    return (component == ACCESSOR_GETTER) ? getter() : setter();
+  }
+
+  void set(AccessorComponent component, Object* value) {
+    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
+    if (component == ACCESSOR_GETTER) {
       set_getter(value);
     } else {
       set_setter(value);
     }
+  }
+
+  // Same as get, but returns undefined instead of the hole.
+  Object* SafeGet(AccessorComponent component);
+
+  bool ContainsAccessor() {
+    return IsJSAccessor(getter()) || IsJSAccessor(setter());
   }
 
 #ifdef OBJECT_PRINT
@@ -7931,6 +8070,15 @@ class AccessorPair: public Struct {
   static const int kSize = kSetterOffset + kPointerSize;
 
  private:
+  // Strangely enough, in addition to functions and harmony proxies, the spec
+  // requires us to consider undefined as a kind of accessor, too:
+  //    var obj = {};
+  //    Object.defineProperty(obj, "foo", {get: undefined});
+  //    assertTrue("foo" in obj);
+  bool IsJSAccessor(Object* obj) {
+    return obj->IsSpecFunction() || obj->IsUndefined();
+  }
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
 };
 

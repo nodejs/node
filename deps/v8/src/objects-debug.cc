@@ -138,6 +138,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValueVerify();
       break;
+    case JS_DATE_TYPE:
+      JSDate::cast(this)->JSDateVerify();
+      break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
       break;
@@ -367,6 +370,53 @@ void JSValue::JSValueVerify() {
   Object* v = value();
   if (v->IsHeapObject()) {
     VerifyHeapPointer(v);
+  }
+}
+
+
+void JSDate::JSDateVerify() {
+  if (value()->IsHeapObject()) {
+    VerifyHeapPointer(value());
+  }
+  CHECK(value()->IsUndefined() || value()->IsSmi() || value()->IsHeapNumber());
+  CHECK(year()->IsUndefined() || year()->IsSmi() || year()->IsNaN());
+  CHECK(month()->IsUndefined() || month()->IsSmi() || month()->IsNaN());
+  CHECK(day()->IsUndefined() || day()->IsSmi() || day()->IsNaN());
+  CHECK(weekday()->IsUndefined() || weekday()->IsSmi() || weekday()->IsNaN());
+  CHECK(hour()->IsUndefined() || hour()->IsSmi() || hour()->IsNaN());
+  CHECK(min()->IsUndefined() || min()->IsSmi() || min()->IsNaN());
+  CHECK(sec()->IsUndefined() || sec()->IsSmi() || sec()->IsNaN());
+  CHECK(cache_stamp()->IsUndefined() ||
+        cache_stamp()->IsSmi() ||
+        cache_stamp()->IsNaN());
+
+  if (month()->IsSmi()) {
+    int month = Smi::cast(this->month())->value();
+    CHECK(0 <= month && month <= 11);
+  }
+  if (day()->IsSmi()) {
+    int day = Smi::cast(this->day())->value();
+    CHECK(1 <= day && day <= 31);
+  }
+  if (hour()->IsSmi()) {
+    int hour = Smi::cast(this->hour())->value();
+    CHECK(0 <= hour && hour <= 23);
+  }
+  if (min()->IsSmi()) {
+    int min = Smi::cast(this->min())->value();
+    CHECK(0 <= min && min <= 59);
+  }
+  if (sec()->IsSmi()) {
+    int sec = Smi::cast(this->sec())->value();
+    CHECK(0 <= sec && sec <= 59);
+  }
+  if (weekday()->IsSmi()) {
+    int weekday = Smi::cast(this->weekday())->value();
+    CHECK(0 <= weekday && weekday <= 6);
+  }
+  if (cache_stamp()->IsSmi()) {
+    CHECK(Smi::cast(cache_stamp())->value() <=
+          Smi::cast(Isolate::Current()->date_cache()->stamp())->value());
   }
 }
 

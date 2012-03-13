@@ -75,6 +75,10 @@ ifeq ($(vfp3), off)
 else
   GYPFLAGS += -Dv8_can_use_vfp_instructions=true
 endif
+# debuggersupport=off
+ifeq ($(debuggersupport), off)
+  GYPFLAGS += -Dv8_enable_debugger_support=0
+endif
 # soname_version=1.2.3
 ifdef soname_version
   GYPFLAGS += -Dsoname_version=$(soname_version)

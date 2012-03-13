@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -215,7 +215,7 @@ class Token {
     return EQ <= op && op <= IN;
   }
 
-  static bool IsOrderedCompareOp(Value op) {
+  static bool IsOrderedRelationalCompareOp(Value op) {
     return op == LT || op == LTE || op == GT || op == GTE;
   }
 

@@ -56,6 +56,7 @@
 #include <windows.h>
 
 #ifdef V8_WIN32_HEADERS_FULL
+#include <signal.h>  // For raise().
 #include <time.h>  // For LocalOffset() implementation.
 #include <mmsystem.h>  // For timeGetTime().
 #ifdef __MINGW32__
@@ -78,7 +79,7 @@
 #ifndef __MINGW32__
 #include <wspiapi.h>
 #endif  // __MINGW32__
-#include <process.h>  // for _beginthreadex()
+#include <process.h>  // For _beginthreadex().
 #include <stdlib.h>
 #endif  // V8_WIN32_HEADERS_FULL
 

@@ -310,28 +310,6 @@ BUILTIN(ArrayCodeGeneric) {
 }
 
 
-static void CopyElements(Heap* heap,
-                         AssertNoAllocation* no_gc,
-                         FixedArray* dst,
-                         int dst_index,
-                         FixedArray* src,
-                         int src_index,
-                         int len) {
-  if (len == 0) return;
-  ASSERT(dst != src);  // Use MoveElements instead.
-  ASSERT(dst->map() != HEAP->fixed_cow_array_map());
-  ASSERT(len > 0);
-  CopyWords(dst->data_start() + dst_index,
-            src->data_start() + src_index,
-            len);
-  WriteBarrierMode mode = dst->GetWriteBarrierMode(*no_gc);
-  if (mode == UPDATE_WRITE_BARRIER) {
-    heap->RecordWrites(dst->address(), dst->OffsetOfElementAt(dst_index), len);
-  }
-  heap->incremental_marking()->RecordWrites(dst);
-}
-
-
 static void MoveElements(Heap* heap,
                          AssertNoAllocation* no_gc,
                          FixedArray* dst,
@@ -531,7 +509,8 @@ BUILTIN(ArrayPush) {
     FixedArray* new_elms = FixedArray::cast(obj);
 
     AssertNoAllocation no_gc;
-    CopyElements(heap, &no_gc, new_elms, 0, elms, 0, len);
+    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+                               new_elms, FAST_ELEMENTS, 0, len);
     FillWithHoles(heap, new_elms, new_length, capacity);
 
     elms = new_elms;
@@ -667,7 +646,8 @@ BUILTIN(ArrayUnshift) {
     }
     FixedArray* new_elms = FixedArray::cast(obj);
     AssertNoAllocation no_gc;
-    CopyElements(heap, &no_gc, new_elms, to_add, elms, 0, len);
+    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+                               new_elms, FAST_ELEMENTS, to_add, len);
     FillWithHoles(heap, new_elms, new_length, capacity);
     elms = new_elms;
     array->set_elements(elms);
@@ -778,8 +758,9 @@ BUILTIN(ArraySlice) {
   if (!maybe_array->To(&result_array)) return maybe_array;
 
   AssertNoAllocation no_gc;
-  CopyElements(heap, &no_gc, FixedArray::cast(result_array->elements()), 0,
-               elms, k, result_len);
+  CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, k,
+                             FixedArray::cast(result_array->elements()),
+                             FAST_ELEMENTS, 0, result_len);
 
   return result_array;
 }
@@ -852,11 +833,9 @@ BUILTIN(ArraySplice) {
   {
     AssertNoAllocation no_gc;
     // Fill newly created array.
-    CopyElements(heap,
-                 &no_gc,
-                 FixedArray::cast(result_array->elements()), 0,
-                 elms, actual_start,
-                 actual_delete_count);
+    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, actual_start,
+                               FixedArray::cast(result_array->elements()),
+                               FAST_ELEMENTS, 0, actual_delete_count);
   }
 
   int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
@@ -906,12 +885,13 @@ BUILTIN(ArraySplice) {
       {
         AssertNoAllocation no_gc;
         // Copy the part before actual_start as is.
-        CopyElements(heap, &no_gc, new_elms, 0, elms, 0, actual_start);
+        CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+                                   new_elms, FAST_ELEMENTS, 0, actual_start);
         const int to_copy = len - actual_delete_count - actual_start;
-        CopyElements(heap, &no_gc,
-                     new_elms, actual_start + item_count,
-                     elms, actual_start + actual_delete_count,
-                     to_copy);
+        CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS,
+                                   actual_start + actual_delete_count,
+                                   new_elms, FAST_ELEMENTS,
+                                   actual_start + item_count, to_copy);
       }
 
       FillWithHoles(heap, new_elms, new_length, capacity);
@@ -1000,7 +980,9 @@ BUILTIN(ArrayConcat) {
     JSArray* array = JSArray::cast(args[i]);
     int len = Smi::cast(array->length())->value();
     FixedArray* elms = FixedArray::cast(array->elements());
-    CopyElements(heap, &no_gc, result_elms, start_pos, elms, 0, len);
+    CopyObjectToObjectElements(&no_gc, elms, FAST_ELEMENTS, 0,
+                               result_elms, FAST_ELEMENTS,
+                               start_pos, len);
     start_pos += len;
   }
   ASSERT(start_pos == result_len);

@@ -18,14 +18,30 @@ class NamedEntriesDetector {
       : has_A2(false), has_B2(false), has_C2(false) {
   }
 
-  void Apply(i::HeapEntry** entry_ptr) {
-    if (IsReachableNodeWithName(*entry_ptr, "A2")) has_A2 = true;
-    if (IsReachableNodeWithName(*entry_ptr, "B2")) has_B2 = true;
-    if (IsReachableNodeWithName(*entry_ptr, "C2")) has_C2 = true;
+  void CheckEntry(i::HeapEntry* entry) {
+    if (strcmp(entry->name(), "A2") == 0) has_A2 = true;
+    if (strcmp(entry->name(), "B2") == 0) has_B2 = true;
+    if (strcmp(entry->name(), "C2") == 0) has_C2 = true;
   }
 
-  static bool IsReachableNodeWithName(i::HeapEntry* entry, const char* name) {
-    return strcmp(name, entry->name()) == 0 && entry->painted_reachable();
+  void CheckAllReachables(i::HeapEntry* root) {
+    i::List<i::HeapEntry*> list(10);
+    list.Add(root);
+    root->paint();
+    CheckEntry(root);
+    while (!list.is_empty()) {
+      i::HeapEntry* entry = list.RemoveLast();
+      i::Vector<i::HeapGraphEdge> children = entry->children();
+      for (int i = 0; i < children.length(); ++i) {
+        if (children[i].type() == i::HeapGraphEdge::kShortcut) continue;
+        i::HeapEntry* child = children[i].to();
+        if (!child->painted()) {
+          list.Add(child);
+          child->paint();
+          CheckEntry(child);
+        }
+      }
+    }
   }
 
   bool has_A2;
@@ -90,10 +106,6 @@ TEST(HeapSnapshot) {
       const_cast<i::HeapSnapshot*>(
           reinterpret_cast<const i::HeapSnapshot*>(snapshot_env2));
   const v8::HeapGraphNode* global_env2 = GetGlobalObject(snapshot_env2);
-  // Paint all nodes reachable from global object.
-  i_snapshot_env2->ClearPaint();
-  const_cast<i::HeapEntry*>(
-      reinterpret_cast<const i::HeapEntry*>(global_env2))->PaintAllReachable();
 
   // Verify, that JS global object of env2 has '..2' properties.
   const v8::HeapGraphNode* a2_node =
@@ -105,8 +117,11 @@ TEST(HeapSnapshot) {
       NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "b2_2"));
   CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kShortcut, "c2"));
 
+  // Paint all nodes reachable from global object.
   NamedEntriesDetector det;
-  i_snapshot_env2->IterateEntries(&det);
+  i_snapshot_env2->ClearPaint();
+  det.CheckAllReachables(const_cast<i::HeapEntry*>(
+      reinterpret_cast<const i::HeapEntry*>(global_env2)));
   CHECK(det.has_A2);
   CHECK(det.has_B2);
   CHECK(det.has_C2);
@@ -136,14 +151,10 @@ TEST(HeapSnapshotObjectSizes) {
       GetProperty(x, v8::HeapGraphEdge::kProperty, "b");
   CHECK_NE(NULL, x2);
 
-  // Test approximate sizes.
-  CHECK_EQ(x->GetSelfSize() * 3, x->GetRetainedSize(false));
-  CHECK_EQ(x1->GetSelfSize(), x1->GetRetainedSize(false));
-  CHECK_EQ(x2->GetSelfSize(), x2->GetRetainedSize(false));
-  // Test exact sizes.
-  CHECK_EQ(x->GetSelfSize() * 3, x->GetRetainedSize(true));
-  CHECK_EQ(x1->GetSelfSize(), x1->GetRetainedSize(true));
-  CHECK_EQ(x2->GetSelfSize(), x2->GetRetainedSize(true));
+  // Test sizes.
+  CHECK_EQ(x->GetSelfSize() * 3, x->GetRetainedSize());
+  CHECK_EQ(x1->GetSelfSize(), x1->GetRetainedSize());
+  CHECK_EQ(x2->GetSelfSize(), x2->GetRetainedSize());
 }
 
 
@@ -1267,4 +1278,38 @@ TEST(SfiAndJsFunctionWeakRefs) {
   const v8::HeapGraphNode* shared =
       GetProperty(fun, v8::HeapGraphEdge::kInternal, "shared");
   CHECK(HasWeakEdge(shared));
+}
+
+
+TEST(PersistentHandleCount) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  // V8 also uses global handles internally, so we can't test for an absolute
+  // number.
+  int global_handle_count = v8::HeapProfiler::GetPersistentHandleCount();
+
+  // Create some persistent handles.
+  v8::Persistent<v8::String> p_AAA =
+      v8::Persistent<v8::String>::New(v8_str("AAA"));
+  CHECK_EQ(global_handle_count + 1,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  v8::Persistent<v8::String> p_BBB =
+      v8::Persistent<v8::String>::New(v8_str("BBB"));
+  CHECK_EQ(global_handle_count + 2,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  v8::Persistent<v8::String> p_CCC =
+      v8::Persistent<v8::String>::New(v8_str("CCC"));
+  CHECK_EQ(global_handle_count + 3,
+           v8::HeapProfiler::GetPersistentHandleCount());
+
+  // Dipose the persistent handles in a different order.
+  p_AAA.Dispose();
+  CHECK_EQ(global_handle_count + 2,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  p_CCC.Dispose();
+  CHECK_EQ(global_handle_count + 1,
+           v8::HeapProfiler::GetPersistentHandleCount());
+  p_BBB.Dispose();
+  CHECK_EQ(global_handle_count, v8::HeapProfiler::GetPersistentHandleCount());
 }

@@ -115,6 +115,9 @@ extras_accessors = [
     'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
     'SeqAsciiString, chars, char, kHeaderSize',
+    'SharedFunctionInfo, code, Code, kCodeOffset',
+    'Code, instruction_start, uintptr_t, kHeaderSize',
+    'Code, instruction_size, int, kInstructionSizeOffset',
 ];
 
 #

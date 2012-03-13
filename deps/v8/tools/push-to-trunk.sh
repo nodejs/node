@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -31,18 +31,12 @@
 
 BRANCHNAME=prepare-push
 TRUNKBRANCH=trunk-push
-TEMP_BRANCH=v8-push-to-trunk-script-temporary-branch
-VERSION_FILE="src/version.cc"
 PERSISTFILE_BASENAME=/tmp/v8-push-to-trunk-tempfile
-CHANGELOG_ENTRY_FILE="$PERSISTFILE_BASENAME-changelog-entry"
-PATCH_FILE="$PERSISTFILE_BASENAME-patch"
-COMMITMSG_FILE="$PERSISTFILE_BASENAME-commitmsg"
-TOUCHED_FILES_FILE="$PERSISTFILE_BASENAME-touched-files"
-TRUNK_REVISION_FILE="$PERSISTFILE_BASENAME-trunkrevision"
-STEP=0
-
+CHROME_PATH=
 
 ########## Function definitions
+
+source $(dirname $BASH_SOURCE)/common-includes.sh
 
 usage() {
 cat << EOF
@@ -55,70 +49,23 @@ OPTIONS:
   -h    Show this message
   -s    Specify the step where to start work. Default: 0.
   -l    Manually specify the git commit ID of the last push to trunk.
+  -c    Specify the path to your Chromium src/ directory to automate the
+        V8 roll.
 EOF
 }
 
-die() {
-  [[ -n "$1" ]] && echo "Error: $1"
-  echo "Exiting."
-  exit 1
-}
-
-confirm() {
-  echo -n "$1 [Y/n] "
-  read ANSWER
-  if [[ -z "$ANSWER" || "$ANSWER" == "Y" || "$ANSWER" == "y" ]] ; then
-    return 0
-  else
-    return 1
-  fi
-}
-
-delete_branch() {
-  local MATCH=$(git branch | grep $1 | awk '{print $NF}' )
-  if [ "$MATCH" == "$1" ] ; then
-    confirm "Branch $1 exists, do you want to delete it?"
-    if [ $? -eq 0 ] ; then
-      git branch -D $1 || die "Deleting branch '$1' failed."
-      echo "Branch $1 deleted."
-    else
-      die "Can't continue. Please delete branch $1 and try again."
-    fi
-  fi
-}
-
-# Persist and restore variables to support canceling/resuming execution
-# of this script.
-persist() {
-  local VARNAME=$1
-  local FILE="$PERSISTFILE_BASENAME-$VARNAME"
-  echo "${!VARNAME}" > $FILE
-}
-
-restore() {
-  local VARNAME=$1
-  local FILE="$PERSISTFILE_BASENAME-$VARNAME"
-  local VALUE="$(cat $FILE)"
-  eval "$VARNAME=\"$VALUE\""
-}
-
-restore_if_unset() {
-  local VARNAME=$1
-  [[ -z "${!VARNAME}" ]] && restore "$VARNAME"
-  [[ -z "${!VARNAME}" ]] && die "Variable '$VARNAME' could not be restored."
-}
-
-
 ########## Option parsing
 
-while getopts ":hs:l:" OPTION ; do
+while getopts ":hs:l:c:" OPTION ; do
   case $OPTION in
     h)  usage
         exit 0
         ;;
-    s)  STEP=$OPTARG
+    s)  START_STEP=$OPTARG
         ;;
     l)  LASTPUSH=$OPTARG
+        ;;
+    c)  CHROME_PATH=$OPTARG
         ;;
     ?)  echo "Illegal option: -$OPTARG"
         usage
@@ -130,46 +77,24 @@ done
 
 ########## Regular workflow
 
-# Cancel if this is not a git checkout.
-[[ -d .git ]] \
-  || die "This is not a git checkout, this script won't work for you."
+initial_environment_checks
 
-# Cancel if EDITOR is unset or not executable.
-[[ -n "$EDITOR" && -x "$(which $EDITOR)" ]] \
-  || die "Please set your EDITOR environment variable, you'll need it."
-
-if [ $STEP -le 0 ] ; then
-  echo ">>> Step 0: Preparation"
-  # Check for a clean workdir.
-  [[ -z "$(git status -s -uno)" ]] \
-    || die "Workspace is not clean. Please commit or undo your changes."
-
-  # Persist current branch.
-  CURRENT_BRANCH=$(git status -s -b -uno | grep "^##" | awk '{print $2}')
-  persist "CURRENT_BRANCH"
-  # Get ahold of a safe temporary branch and check it out.
-  if [ "$CURRENT_BRANCH" != "$TEMP_BRANCH" ] ; then
-    delete_branch $TEMP_BRANCH
-    git checkout -b $TEMP_BRANCH
-  fi
-  # Delete branches if they exist.
-  delete_branch $BRANCHNAME
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Preparation"
+  common_prepare
   delete_branch $TRUNKBRANCH
 fi
 
-if [ $STEP -le 1 ] ; then
-  echo ">>> Step 1: Fetch unfetched revisions."
-  git svn fetch || die "'git svn fetch' failed."
-fi
-
-if [ $STEP -le 2 ] ; then
-  echo ">>> Step 2: Create a fresh branch."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Create a fresh branch."
   git checkout -b $BRANCHNAME svn/bleeding_edge \
     || die "Creating branch $BRANCHNAME failed."
 fi
 
-if [ $STEP -le 3 ] ; then
-  echo ">>> Step 3: Detect commit ID of last push to trunk."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Detect commit ID of last push to trunk."
   [[ -n "$LASTPUSH" ]] || LASTPUSH=$(git log -1 --format=%H ChangeLog)
   LOOP=1
   while [ $LOOP -eq 1 ] ; do
@@ -185,15 +110,11 @@ if [ $STEP -le 3 ] ; then
   persist "LASTPUSH"
 fi
 
-if [ $STEP -le 4 ] ; then
-  echo ">>> Step 4: Prepare raw ChangeLog entry."
-# These version numbers are used again later for the trunk commit.
-  MAJOR=$(grep "#define MAJOR_VERSION" "$VERSION_FILE" | awk '{print $NF}')
-  persist "MAJOR"
-  MINOR=$(grep "#define MINOR_VERSION" "$VERSION_FILE" | awk '{print $NF}')
-  persist "MINOR"
-  BUILD=$(grep "#define BUILD_NUMBER" "$VERSION_FILE" | awk '{print $NF}')
-  persist "BUILD"
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Prepare raw ChangeLog entry."
+  # These version numbers are used again later for the trunk commit.
+  read_and_persist_version
 
   DATE=$(date +%Y-%m-%d)
   persist "DATE"
@@ -206,7 +127,7 @@ if [ $STEP -le 4 ] ; then
     # Grep for "BUG=xxxx" lines in the commit message and convert them to
     # "(issue xxxx)".
     git log -1 $commit --format="%B" \
-        | grep "^BUG=" | grep -v "BUG=$" \
+        | grep "^BUG=" | grep -v "BUG=$" | grep -v "BUG=none$" \
         | sed -e 's/^/        /' \
         | sed -e 's/BUG=v8:\(.*\)$/(issue \1)/' \
         | sed -e 's/BUG=\(.*\)$/(Chromium issue \1)/' \
@@ -215,10 +136,13 @@ if [ $STEP -le 4 ] ; then
     git log -1 $commit --format="%w(80,8,8)(%an)" >> "$CHANGELOG_ENTRY_FILE"
     echo "" >> "$CHANGELOG_ENTRY_FILE"
   done
+  echo "        Performance and stability improvements on all platforms." \
+    >> "$CHANGELOG_ENTRY_FILE"
 fi
 
-if [ $STEP -le 5 ] ; then
-  echo ">>> Step 5: Edit ChangeLog entry."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Edit ChangeLog entry."
   echo -n "Please press <Return> to have your EDITOR open the ChangeLog entry, \
 then edit its contents to your liking. When you're done, save the file and \
 exit your EDITOR. "
@@ -241,8 +165,9 @@ exit your EDITOR. "
   mv "$NEWCHANGELOG" ChangeLog
 fi
 
-if [ $STEP -le 6 ] ; then
-  echo ">>> Step 6: Increment version number."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Increment version number."
   restore_if_unset "BUILD"
   NEWBUILD=$(($BUILD + 1))
   confirm "Automatically increment BUILD_NUMBER? (Saying 'n' will fire up \
@@ -254,19 +179,13 @@ you're done, save the file and exit your EDITOR.)"
   else
     $EDITOR "$VERSION_FILE"
   fi
-  NEWMAJOR=$(grep "#define MAJOR_VERSION" "$VERSION_FILE" | awk '{print $NF}')
-  persist "NEWMAJOR"
-  NEWMINOR=$(grep "#define MINOR_VERSION" "$VERSION_FILE" | awk '{print $NF}')
-  persist "NEWMINOR"
-  NEWBUILD=$(grep "#define BUILD_NUMBER" "$VERSION_FILE" | awk '{print $NF}')
-  persist "NEWBUILD"
+  read_and_persist_version "NEW"
 fi
 
-if [ $STEP -le 7 ] ; then
-  echo ">>> Step 7: Commit to local branch."
-  restore_if_unset "NEWMAJOR"
-  restore_if_unset "NEWMINOR"
-  restore_if_unset "NEWBUILD"
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Commit to local branch."
+  restore_version_if_unset "NEW"
   PREPARE_COMMIT_MSG="Prepare push to trunk.  \
 Now working on version $NEWMAJOR.$NEWMINOR.$NEWBUILD."
   persist "PREPARE_COMMIT_MSG"
@@ -274,25 +193,12 @@ Now working on version $NEWMAJOR.$NEWMINOR.$NEWBUILD."
     || die "'git commit -a' failed."
 fi
 
-if [ $STEP -le 8 ] ; then
-  echo ">>> Step 8: Upload for code review."
-  echo -n "Please enter the email address of a V8 reviewer for your patch: "
-  read REVIEWER
-  git cl upload -r $REVIEWER --send-mail \
-    || die "'git cl upload' failed, please try again."
-fi
+upload_step
 
-if [ $STEP -le 9 ] ; then
-  echo ">>> Step 9: Commit to the repository."
-  echo "Please wait for an LGTM, then type \"LGTM<Return>\" to commit your \
-change. (If you need to iterate on the patch, do so in another shell. Do not \
-modify the existing local commit's commit message.)"
-  unset ANSWER
-  while [ "$ANSWER" != "LGTM" ] ; do
-    [[ -n "$ANSWER" ]] && echo "That was not 'LGTM'."
-    echo -n "> "
-    read ANSWER
-  done
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Commit to the repository."
+  wait_for_lgtm
   # Re-read the ChangeLog entry (to pick up possible changes).
   cat ChangeLog | awk --posix '{
     if ($0 ~ /^[0-9]{4}-[0-9]{2}-[0-9]{2}:/) {
@@ -307,9 +213,10 @@ modify the existing local commit's commit message.)"
   git cl dcommit || die "'git cl dcommit' failed, please try again."
 fi
 
-if [ $STEP -le 10 ] ; then
-  echo ">>> Step 10: Fetch straggler commits that sneaked in between \
-steps 1 and 9."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Fetch straggler commits that sneaked in \
+since this script was started."
   git svn fetch || die "'git svn fetch' failed."
   git checkout svn/bleeding_edge
   restore_if_unset "PREPARE_COMMIT_MSG"
@@ -317,8 +224,9 @@ steps 1 and 9."
   persist "PREPARE_COMMIT_HASH"
 fi
 
-if [ $STEP -le 11 ] ; then
-  echo ">>> Step 11: Squash commits into one."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Squash commits into one."
   # Instead of relying on "git rebase -i", we'll just create a diff, because
   # that's easier to automate.
   restore_if_unset "PREPARE_COMMIT_HASH"
@@ -344,54 +252,29 @@ if [ $STEP -le 11 ] ; then
           need_space = 1;
         }
       }' > "$COMMITMSG_FILE" || die "Commit message editing failed."
-  LOOP=1
-  while [ $LOOP -eq 1 ] ; do
-    echo "This is the trunk commit message:"
-    echo "--------------------"
-    cat "$COMMITMSG_FILE"
-    echo -e "\n--------------------"
-    confirm "Does this look good to you? (Saying 'n' will fire up your \
-EDITOR so you can change the commit message. When you're done, save the \
-file and exit your EDITOR.)"
-    if [ $? -eq 0 ] ; then
-      LOOP=0
-    else
-      $EDITOR "$COMMITMSG_FILE"
-    fi
-  done
   rm -f "$CHANGELOG_ENTRY_FILE"
 fi
 
-if [ $STEP -le 12 ] ; then
-  echo ">>> Step 12: Create a new branch from trunk."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Create a new branch from trunk."
   git checkout -b $TRUNKBRANCH svn/trunk \
     || die "Checking out a new branch '$TRUNKBRANCH' failed."
 fi
 
-if [ $STEP -le 13 ] ; then
-  echo ">>> Step 13: Apply squashed changes."
-  patch -p1 < "$PATCH_FILE" | tee >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
-  [[ $? -eq 0 ]] || die "Applying the patch to trunk failed."
-  # Stage added and modified files.
-  TOUCHED_FILES=$(cat "$TOUCHED_FILES_FILE")
-  for FILE in $TOUCHED_FILES ; do
-    git add "$FILE"
-  done
-  # Stage deleted files.
-  DELETED_FILES=$(git status -s -uno --porcelain | grep "^ D" \
-                                                 | awk '{print $NF}')
-  for FILE in $DELETED_FILES ; do
-    git rm "$FILE"
-  done
-  rm -f "$PATCH_FILE"
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Apply squashed changes."
   rm -f "$TOUCHED_FILES_FILE"
+  apply_patch "$PATCH_FILE"
+  stage_files
+  rm -f "$PATCH_FILE"
 fi
 
-if [ $STEP -le 14 ] ; then
-  echo ">>> Step 14: Set correct version for trunk."
-  restore_if_unset "MAJOR"
-  restore_if_unset "MINOR"
-  restore_if_unset "BUILD"
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Set correct version for trunk."
+  restore_version_if_unset
   sed -e "/#define MAJOR_VERSION/s/[0-9]*$/$MAJOR/" \
       -e "/#define MINOR_VERSION/s/[0-9]*$/$MINOR/" \
       -e "/#define BUILD_NUMBER/s/[0-9]*$/$BUILD/" \
@@ -400,57 +283,107 @@ if [ $STEP -le 14 ] ; then
       -i "$VERSION_FILE" || die "Patching $VERSION_FILE failed."
 fi
 
-if [ $STEP -le 15 ] ; then
-  echo ">>> Step 15: Commit to local trunk branch."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Commit to local trunk branch."
   git add "$VERSION_FILE"
   git commit -F "$COMMITMSG_FILE" || die "'git commit' failed."
   rm -f "$COMMITMSG_FILE"
 fi
 
-if [ $STEP -le 16 ] ; then
-  echo ">>> Step 16: Sanity check."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Sanity check."
   confirm "Please check if your local checkout is sane: Inspect $VERSION_FILE, \
 compile, run tests. Do you want to commit this new trunk revision to the \
 repository?"
   [[ $? -eq 0 ]] || die "Execution canceled."
 fi
 
-if [ $STEP -le 17 ] ; then
-  echo ">>> Step 17. Commit to SVN."
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Commit to SVN."
   git svn dcommit | tee >(grep -E "^Committed r[0-9]+" \
                           | sed -e 's/^Committed r\([0-9]\+\)/\1/' \
                           > "$TRUNK_REVISION_FILE") \
     || die "'git svn dcommit' failed."
+  TRUNK_REVISION=$(cat "$TRUNK_REVISION_FILE")
+  persist "TRUNK_REVISION"
+  rm -f "$TRUNK_REVISION_FILE"
 fi
 
-if [ $STEP -le 18 ] ; then
-  echo ">>> Step 18: Tag the new revision."
-  restore_if_unset "MAJOR"
-  restore_if_unset "MINOR"
-  restore_if_unset "BUILD"
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Tag the new revision."
+  restore_version_if_unset
   git svn tag $MAJOR.$MINOR.$BUILD -m "Tagging version $MAJOR.$MINOR.$BUILD" \
     || die "'git svn tag' failed."
 fi
 
-if [ $STEP -le 19 ] ; then
-  echo ">>> Step 19: Cleanup."
-  restore_if_unset "CURRENT_BRANCH"
-  git checkout -f $CURRENT_BRANCH
-  [[ "$TEMP_BRANCH" != "$CURRENT_BRANCH" ]] && git branch -D $TEMP_BRANCH
-  [[ "$BRANCHNAME" != "$CURRENT_BRANCH" ]] && git branch -D $BRANCHNAME
-  [[ "$TRUNKBRANCH" != "$CURRENT_BRANCH" ]] && git branch -D $TRUNKBRANCH
-fi
+if [ -n "$CHROME_PATH" ] ; then
 
-if [ $STEP -le 20 ] ; then
-  echo ">>> Step 20: Done!"
-  restore_if_unset "MAJOR"
-  restore_if_unset "MINOR"
-  restore_if_unset "BUILD"
-  echo "Congratulations, you have successfully created the trunk revision \
+  let CURRENT_STEP+=1
+  if [ $START_STEP -le $CURRENT_STEP ] ; then
+    echo ">>> Step $CURRENT_STEP: Switch to Chromium checkout."
+    V8_PATH=$(pwd)
+    persist "V8_PATH"
+    cd "$CHROME_PATH"
+    initial_environment_checks
+    # Check for a clean workdir.
+    [[ -z "$(git status -s -uno)" ]] \
+      || die "Workspace is not clean. Please commit or undo your changes."
+  fi
+
+  let CURRENT_STEP+=1
+  if [ $START_STEP -le $CURRENT_STEP ] ; then
+    echo ">>> Step $CURRENT_STEP: Update the checkout and create a new branch."
+    git checkout master || die "'git checkout master' failed."
+    git pull || die "'git pull' failed, please try again."
+    restore_if_unset "TRUNK_REVISION"
+    git checkout -b "v8-roll-$TRUNK_REVISION" \
+      || die "Failed to checkout a new branch."
+  fi
+
+  let CURRENT_STEP+=1
+  if [ $START_STEP -le $CURRENT_STEP ] ; then
+    echo ">>> Step $CURRENT_STEP: Create and upload CL."
+    # Patch DEPS file.
+    sed -e "/\"v8_revision\": /s/\"[0-9]+\"/\"$TRUNK_REVISION\"/" \
+        -i DEPS
+    restore_version_if_unset
+    echo -n "Please enter the email address of a reviewer for the roll CL: "
+    read REVIEWER
+    git commit -am "Update V8 to version $MAJOR.$MINOR.$BUILD.
+
+TBR=$REVIEWER" || die "'git commit' failed."
+    git cl upload --send-mail --use-commit-queue \
+      || die "'git cl upload' failed, please try again."
+    echo "CL uploaded and sent to commit queue."
+  fi
+
+  let CURRENT_STEP+=1
+  if [ $START_STEP -le $CURRENT_STEP ] ; then
+    echo ">>> Step $CURRENT_STEP: Returning to V8 checkout."
+    restore_if_unset "V8_PATH"
+    cd "$V8_PATH"
+  fi
+fi  # if [ -n "$CHROME_PATH" ]
+
+let CURRENT_STEP+=1
+if [ $START_STEP -le $CURRENT_STEP ] ; then
+  echo ">>> Step $CURRENT_STEP: Done!"
+  restore_version_if_unset
+  restore_if_unset "TRUNK_REVISION"
+  if [ -n "$CHROME_PATH" ] ; then
+    echo "Congratulations, you have successfully created the trunk revision \
+$MAJOR.$MINOR.$BUILD and rolled it into Chromium. Please don't forget to \
+update the v8rel spreadsheet:"
+  else
+    echo "Congratulations, you have successfully created the trunk revision \
 $MAJOR.$MINOR.$BUILD. Please don't forget to roll this new version into \
 Chromium, and to update the v8rel spreadsheet:"
-  TRUNK_REVISION=$(cat "$TRUNK_REVISION_FILE")
+  fi
   echo -e "$MAJOR.$MINOR.$BUILD\ttrunk\t$TRUNK_REVISION"
-  # Clean up all temporary files.
-  rm -f "$PERSISTFILE_BASENAME"*
+  common_cleanup
+  [[ "$TRUNKBRANCH" != "$CURRENT_BRANCH" ]] && git branch -D $TRUNKBRANCH
 fi

@@ -927,7 +927,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   {  // --- D a t e ---
     // Builtin functions for Date.prototype.
     Handle<JSFunction> date_fun =
-        InstallFunction(global, "Date", JS_VALUE_TYPE, JSValue::kSize,
+        InstallFunction(global, "Date", JS_DATE_TYPE, JSDate::kSize,
                         isolate->initial_object_prototype(),
                         Builtins::kIllegal, true);
 

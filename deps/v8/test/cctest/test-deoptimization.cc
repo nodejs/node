@@ -100,8 +100,7 @@ class AllowNativesSyntaxNoInlining {
 // Abort any ongoing incremental marking to make sure that all weak global
 // handle callbacks are processed.
 static void NonIncrementalGC() {
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
 }
 
 

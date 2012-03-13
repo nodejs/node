@@ -384,6 +384,7 @@ GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
       number_of_weak_handles_(0),
       number_of_global_object_weak_handles_(0),
+      number_of_global_handles_(0),
       first_block_(NULL),
       first_used_block_(NULL),
       first_free_(NULL),
@@ -403,6 +404,7 @@ GlobalHandles::~GlobalHandles() {
 
 Handle<Object> GlobalHandles::Create(Object* value) {
   isolate_->counters()->global_handles()->Increment();
+  number_of_global_handles_++;
   if (first_free_ == NULL) {
     first_block_ = new NodeBlock(first_block_);
     first_block_->PutNodesOnFreeList(&first_free_);
@@ -423,6 +425,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 void GlobalHandles::Destroy(Object** location) {
   isolate_->counters()->global_handles()->Decrement();
+  number_of_global_handles_--;
   if (location == NULL) return;
   Node::FromLocation(location)->Release(this);
 }

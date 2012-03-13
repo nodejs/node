@@ -120,7 +120,7 @@ class JumpPatchSite BASE_EMBEDDED {
 
 
 int FullCodeGenerator::self_optimization_header_size() {
-  return 0;  // TODO(jkummerow): determine correct value.
+  return 11 * Instruction::kInstrSize;
 }
 
 
@@ -164,7 +164,7 @@ void FullCodeGenerator::Generate() {
       Handle<Code> compile_stub(
           isolate()->builtins()->builtin(Builtins::kLazyRecompile));
       __ Jump(compile_stub, RelocInfo::CODE_TARGET, eq, a3, Operand(zero_reg));
-      ASSERT(masm_->pc_offset() == self_optimization_header_size());
+      ASSERT_EQ(masm_->pc_offset(), self_optimization_header_size());
     }
   }
 
@@ -952,7 +952,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Register null_value = t1;
   __ LoadRoot(null_value, Heap::kNullValueRootIndex);
   __ Branch(&exit, eq, a0, Operand(null_value));
-
+  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
+  __ mov(a0, v0);
   // Convert the object to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(a0, &convert);
@@ -975,44 +976,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  Label next;
-  // Preload a couple of values used in the loop.
-  Register  empty_fixed_array_value = t2;
-  __ LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  Register empty_descriptor_array_value = t3;
-  __ LoadRoot(empty_descriptor_array_value,
-              Heap::kEmptyDescriptorArrayRootIndex);
-  __ mov(a1, a0);
-  __ bind(&next);
-
-  // Check that there are no elements.  Register a1 contains the
-  // current JS object we've reached through the prototype chain.
-  __ lw(a2, FieldMemOperand(a1, JSObject::kElementsOffset));
-  __ Branch(&call_runtime, ne, a2, Operand(empty_fixed_array_value));
-
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in a2 for the subsequent
-  // prototype load.
-  __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ lw(a3, FieldMemOperand(a2, Map::kInstanceDescriptorsOrBitField3Offset));
-  __ JumpIfSmi(a3, &call_runtime);
-
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (a3).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  __ lw(a3, FieldMemOperand(a3, DescriptorArray::kEnumerationIndexOffset));
-  __ JumpIfSmi(a3, &call_runtime);
-
-  // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  __ Branch(&check_prototype, eq, a1, Operand(a0));
-  __ lw(a3, FieldMemOperand(a3, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  __ Branch(&call_runtime, ne, a3, Operand(empty_fixed_array_value));
-
-  // Load the prototype from the map and loop if non-null.
-  __ bind(&check_prototype);
-  __ lw(a1, FieldMemOperand(a2, Map::kPrototypeOffset));
-  __ Branch(&next, ne, a1, Operand(null_value));
+  __ CheckEnumCache(null_value, &call_runtime);
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.
@@ -1051,6 +1015,16 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a fixed array in register v0. Iterate through that.
   Label non_proxy;
   __ bind(&fixed_array);
+
+  Handle<JSGlobalPropertyCell> cell =
+      isolate()->factory()->NewJSGlobalPropertyCell(
+          Handle<Object>(
+              Smi::FromInt(TypeFeedbackCells::kForInFastCaseMarker)));
+  RecordTypeFeedbackCell(stmt->PrepareId(), cell);
+  __ LoadHeapObject(a1, cell);
+  __ li(a2, Operand(Smi::FromInt(TypeFeedbackCells::kForInSlowCaseMarker)));
+  __ sw(a2, FieldMemOperand(a1, JSGlobalPropertyCell::kValueOffset));
+
   __ li(a1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
   __ lw(a2, MemOperand(sp, 0 * kPointerSize));  // Get enumerated object
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -1064,6 +1038,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Push(a1, a0);  // Fixed array length (as smi) and initial index.
 
   // Generate code for doing the condition check.
+  PrepareForBailoutForId(stmt->BodyId(), NO_REGISTERS);
   __ bind(&loop);
   // Load the current count to a0, load the length to a1.
   __ lw(a0, MemOperand(sp, 0 * kPointerSize));
@@ -1108,7 +1083,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(result_register(), a3);
   // Perform the assignment as if via '='.
   { EffectContext context(this);
-    EmitAssignment(stmt->each(), stmt->AssignmentId());
+    EmitAssignment(stmt->each());
   }
 
   // Generate code for the body of the loop.
@@ -1129,6 +1104,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Drop(5);
 
   // Exit and decrement the loop depth.
+  PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
   __ bind(&exit);
   decrement_loop_depth();
 }
@@ -1534,11 +1510,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ lw(a0, MemOperand(sp));
         __ push(a0);
         VisitForStackValue(key);
-        __ li(a1, Operand(property->kind() == ObjectLiteral::Property::SETTER ?
-                           Smi::FromInt(1) :
-                           Smi::FromInt(0)));
-        __ push(a1);
-        VisitForStackValue(value);
+        if (property->kind() == ObjectLiteral::Property::GETTER) {
+          VisitForStackValue(value);
+          __ LoadRoot(a1, Heap::kNullValueRootIndex);
+          __ push(a1);
+        } else {
+          __ LoadRoot(a1, Heap::kNullValueRootIndex);
+          __ push(a1);
+          VisitForStackValue(value);
+        }
         __ li(a0, Operand(Smi::FromInt(NONE)));
         __ push(a0);
         __ CallRuntime(Runtime::kDefineOrRedefineAccessorProperty, 5);
@@ -1899,7 +1879,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
 }
 
 
-void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
+void FullCodeGenerator::EmitAssignment(Expression* expr) {
   // Invalid left-hand sides are rewritten to have a 'throw
   // ReferenceError' on the left-hand side.
   if (!expr->IsValidLeftHandSide()) {
@@ -1951,7 +1931,6 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       break;
     }
   }
-  PrepareForBailoutForId(bailout_ast_id, TOS_REG);
   context()->Plug(v0);
 }
 
@@ -2444,6 +2423,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   CallConstructStub stub(flags);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   context()->Plug(v0);
 }
 

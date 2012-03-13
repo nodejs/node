@@ -73,26 +73,6 @@ enum PropertyType {
 };
 
 
-inline bool IsRealProperty(PropertyType type) {
-  switch (type) {
-    case NORMAL:
-    case FIELD:
-    case CONSTANT_FUNCTION:
-    case CALLBACKS:
-    case HANDLER:
-    case INTERCEPTOR:
-      return true;
-    case MAP_TRANSITION:
-    case ELEMENTS_TRANSITION:
-    case CONSTANT_TRANSITION:
-    case NULL_DESCRIPTOR:
-      return false;
-  }
-  UNREACHABLE();  // keep the compiler happy
-  return false;
-}
-
-
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {

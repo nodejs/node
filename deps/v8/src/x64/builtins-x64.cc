@@ -329,6 +329,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                         NullCallWrapper(), CALL_AS_METHOD);
     }
 
+    // Store offset of return address for deoptimizer.
+    if (!is_api_function && !count_constructions) {
+      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+    }
+
     // Restore context from the frame.
     __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 
@@ -1427,9 +1432,130 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
 
 
 void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
-  // TODO(849): implement custom construct stub.
-  // Generate a copy of the generic stub for now.
-  Generate_JSConstructStubGeneric(masm);
+  // ----------- S t a t e -------------
+  //  -- rax                 : number of arguments
+  //  -- rdi                 : constructor function
+  //  -- rsp[0]              : return address
+  //  -- rsp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- rsp[(argc + 1) * 8] : receiver
+  // -----------------------------------
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->string_ctor_calls(), 1);
+
+  if (FLAG_debug_code) {
+    __ LoadGlobalFunction(Context::STRING_FUNCTION_INDEX, rcx);
+    __ cmpq(rdi, rcx);
+    __ Assert(equal, "Unexpected String function");
+  }
+
+  // Load the first argument into rax and get rid of the rest
+  // (including the receiver).
+  Label no_arguments;
+  __ testq(rax, rax);
+  __ j(zero, &no_arguments);
+  __ movq(rbx, Operand(rsp, rax, times_pointer_size, 0));
+  __ pop(rcx);
+  __ lea(rsp, Operand(rsp, rax, times_pointer_size, kPointerSize));
+  __ push(rcx);
+  __ movq(rax, rbx);
+
+  // Lookup the argument in the number to string cache.
+  Label not_cached, argument_is_string;
+  NumberToStringStub::GenerateLookupNumberStringCache(
+      masm,
+      rax,  // Input.
+      rbx,  // Result.
+      rcx,  // Scratch 1.
+      rdx,  // Scratch 2.
+      false,  // Input is known to be smi?
+      &not_cached);
+  __ IncrementCounter(counters->string_ctor_cached_number(), 1);
+  __ bind(&argument_is_string);
+
+  // ----------- S t a t e -------------
+  //  -- rbx    : argument converted to string
+  //  -- rdi    : constructor function
+  //  -- rsp[0] : return address
+  // -----------------------------------
+
+  // Allocate a JSValue and put the tagged pointer into rax.
+  Label gc_required;
+  __ AllocateInNewSpace(JSValue::kSize,
+                        rax,  // Result.
+                        rcx,  // New allocation top (we ignore it).
+                        no_reg,
+                        &gc_required,
+                        TAG_OBJECT);
+
+  // Set the map.
+  __ LoadGlobalFunctionInitialMap(rdi, rcx);
+  if (FLAG_debug_code) {
+    __ cmpb(FieldOperand(rcx, Map::kInstanceSizeOffset),
+            Immediate(JSValue::kSize >> kPointerSizeLog2));
+    __ Assert(equal, "Unexpected string wrapper instance size");
+    __ cmpb(FieldOperand(rcx, Map::kUnusedPropertyFieldsOffset), Immediate(0));
+    __ Assert(equal, "Unexpected unused properties of string wrapper");
+  }
+  __ movq(FieldOperand(rax, HeapObject::kMapOffset), rcx);
+
+  // Set properties and elements.
+  __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
+  __ movq(FieldOperand(rax, JSObject::kPropertiesOffset), rcx);
+  __ movq(FieldOperand(rax, JSObject::kElementsOffset), rcx);
+
+  // Set the value.
+  __ movq(FieldOperand(rax, JSValue::kValueOffset), rbx);
+
+  // Ensure the object is fully initialized.
+  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
+
+  // We're done. Return.
+  __ ret(0);
+
+  // The argument was not found in the number to string cache. Check
+  // if it's a string already before calling the conversion builtin.
+  Label convert_argument;
+  __ bind(&not_cached);
+  STATIC_ASSERT(kSmiTag == 0);
+  __ JumpIfSmi(rax, &convert_argument);
+  Condition is_string = masm->IsObjectStringType(rax, rbx, rcx);
+  __ j(NegateCondition(is_string), &convert_argument);
+  __ movq(rbx, rax);
+  __ IncrementCounter(counters->string_ctor_string_value(), 1);
+  __ jmp(&argument_is_string);
+
+  // Invoke the conversion builtin and put the result into rbx.
+  __ bind(&convert_argument);
+  __ IncrementCounter(counters->string_ctor_conversions(), 1);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rdi);  // Preserve the function.
+    __ push(rax);
+    __ InvokeBuiltin(Builtins::TO_STRING, CALL_FUNCTION);
+    __ pop(rdi);
+  }
+  __ movq(rbx, rax);
+  __ jmp(&argument_is_string);
+
+  // Load the empty string into rbx, remove the receiver from the
+  // stack, and jump back to the case where the argument is a string.
+  __ bind(&no_arguments);
+  __ LoadRoot(rbx, Heap::kEmptyStringRootIndex);
+  __ pop(rcx);
+  __ lea(rsp, Operand(rsp, kPointerSize));
+  __ push(rcx);
+  __ jmp(&argument_is_string);
+
+  // At this point the argument is already a string. Call runtime to
+  // create a string wrapper.
+  __ bind(&gc_required);
+  __ IncrementCounter(counters->string_ctor_gc_required(), 1);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rbx);
+    __ CallRuntime(Runtime::kNewStringWrapper, 1);
+  }
+  __ ret(0);
 }
 
 
@@ -1538,7 +1664,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ bind(&invoke);
   __ call(rdx);
 
+  // Store offset of return address for deoptimizer.
   masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
+
   // Leave frame and return.
   LeaveArgumentsAdaptorFrame(masm);
   __ ret(0);

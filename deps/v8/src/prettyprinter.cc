@@ -61,10 +61,15 @@ void PrettyPrinter::VisitBlock(Block* node) {
 void PrettyPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
   Print("var ");
   PrintLiteral(node->proxy()->name(), false);
-  if (node->fun() != NULL) {
-    Print(" = ");
-    PrintFunctionLiteral(node->fun());
-  }
+  Print(";");
+}
+
+
+void PrettyPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
+  Print("function ");
+  PrintLiteral(node->proxy()->name(), false);
+  Print(" = ");
+  PrintFunctionLiteral(node->fun());
   Print(";");
 }
 
@@ -74,6 +79,22 @@ void PrettyPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
   PrintLiteral(node->proxy()->name(), false);
   Print(" = ");
   Visit(node->module());
+  Print(";");
+}
+
+
+void PrettyPrinter::VisitImportDeclaration(ImportDeclaration* node) {
+  Print("import ");
+  PrintLiteral(node->proxy()->name(), false);
+  Print(" from ");
+  Visit(node->module());
+  Print(";");
+}
+
+
+void PrettyPrinter::VisitExportDeclaration(ExportDeclaration* node) {
+  Print("export ");
+  PrintLiteral(node->proxy()->name(), false);
   Print(";");
 }
 
@@ -744,19 +765,18 @@ void AstPrinter::VisitBlock(Block* node) {
 
 
 void AstPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
-  if (node->fun() == NULL) {
-    // var or const declarations
-    PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
-                                 node->proxy()->var(),
-                                 node->proxy()->name());
-  } else {
-    // function declarations
-    PrintIndented("FUNCTION ");
-    PrintLiteral(node->proxy()->name(), true);
-    Print(" = function ");
-    PrintLiteral(node->fun()->name(), false);
-    Print("\n");
-  }
+  PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
+                               node->proxy()->var(),
+                               node->proxy()->name());
+}
+
+
+void AstPrinter::VisitFunctionDeclaration(FunctionDeclaration* node) {
+  PrintIndented("FUNCTION ");
+  PrintLiteral(node->proxy()->name(), true);
+  Print(" = function ");
+  PrintLiteral(node->fun()->name(), false);
+  Print("\n");
 }
 
 
@@ -764,6 +784,19 @@ void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
   IndentedScope indent(this, "MODULE");
   PrintLiteralIndented("NAME", node->proxy()->name(), true);
   Visit(node->module());
+}
+
+
+void AstPrinter::VisitImportDeclaration(ImportDeclaration* node) {
+  IndentedScope indent(this, "IMPORT");
+  PrintLiteralIndented("NAME", node->proxy()->name(), true);
+  Visit(node->module());
+}
+
+
+void AstPrinter::VisitExportDeclaration(ExportDeclaration* node) {
+  IndentedScope indent(this, "EXPORT ");
+  PrintLiteral(node->proxy()->name(), true);
 }
 
 

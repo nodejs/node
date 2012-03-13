@@ -228,6 +228,7 @@ class Expression;
 class Property;
 class SmallMapList;
 class UnaryOperation;
+class ForInStatement;
 
 
 class TypeFeedbackOracle BASE_EMBEDDED {
@@ -242,6 +243,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
+
+  bool IsForInFastCase(ForInStatement* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(Expression* expr);
@@ -267,6 +270,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
   Handle<JSFunction> GetCallTarget(Call* expr);
+  Handle<JSFunction> GetCallNewTarget(CallNew* expr);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 

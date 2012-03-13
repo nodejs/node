@@ -48,12 +48,12 @@ S10.4.2.1_A1: FAIL
 # octal numbers in order to not break the web.
 S15.1.2.2_A5.1_T1: FAIL_OK
 
-# This tests precision of trignometric functions.  We're slightly off
-# from the implementation in libc (~ 1e-17) but it's not clear if we
-# or they are closer to the right answer, or if it even matters.
+# This tests precision of Math.tan and Math.sin.  The implementation for those
+# trigonometric functions are platform/compiler dependent.  Furthermore, the
+# expectation values by far deviates from the actual result given by an
+# arbitrary-precision calculator, making those tests partly bogus.
 S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
-S15.8.2.13_A23: PASS || FAIL_OK
 
 # We are more lenient in which string character escapes we allow than
 # the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
@@ -70,8 +70,8 @@ S7.8.4_A7.2_T6: FAIL_OK
 
 # Linux and Mac defaults to extended 80 bit floating point format in the FPU.
 # We follow the other major JS engines by keeping this default.
-S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
-S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
+S8.5_A2.2: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
+S8.5_A2.1: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
 
 ############################ SKIPPED TESTS #############################
 

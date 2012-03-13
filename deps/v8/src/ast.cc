@@ -76,7 +76,8 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
       is_this_(var->is_this()),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(RelocInfo::kNoPosition) {
+      position_(RelocInfo::kNoPosition),
+      interface_(var->interface()) {
   BindTo(var);
 }
 
@@ -84,14 +85,16 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
 VariableProxy::VariableProxy(Isolate* isolate,
                              Handle<String> name,
                              bool is_this,
-                             int position)
+                             int position,
+                             Interface* interface)
     : Expression(isolate),
       name_(name),
       var_(NULL),
       is_this_(is_this),
       is_trivial_(false),
       is_lvalue_(false),
-      position_(position) {
+      position_(position),
+      interface_(interface) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());
 }
@@ -168,12 +171,15 @@ LanguageMode FunctionLiteral::language_mode() const {
 }
 
 
-ObjectLiteral::Property::Property(Literal* key, Expression* value) {
+ObjectLiteral::Property::Property(Literal* key,
+                                  Expression* value,
+                                  Isolate* isolate) {
   emit_store_ = true;
   key_ = key;
   value_ = value;
   Object* k = *key->handle();
-  if (k->IsSymbol() && HEAP->Proto_symbol()->Equals(String::cast(k))) {
+  if (k->IsSymbol() &&
+      isolate->heap()->Proto_symbol()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -237,55 +243,21 @@ bool IsEqualNumber(void* first, void* second) {
 
 
 void ObjectLiteral::CalculateEmitStore() {
-  ZoneHashMap properties(&IsEqualString);
-  ZoneHashMap elements(&IsEqualNumber);
-  for (int i = this->properties()->length() - 1; i >= 0; i--) {
-    ObjectLiteral::Property* property = this->properties()->at(i);
+  ZoneHashMap table(Literal::Match);
+  for (int i = properties()->length() - 1; i >= 0; i--) {
+    ObjectLiteral::Property* property = properties()->at(i);
     Literal* literal = property->key();
-    Handle<Object> handle = literal->handle();
-
-    if (handle->IsNull()) {
-      continue;
-    }
-
-    uint32_t hash;
-    ZoneHashMap* table;
-    void* key;
-    Factory* factory = Isolate::Current()->factory();
-    if (handle->IsSymbol()) {
-      Handle<String> name(String::cast(*handle));
-      if (name->AsArrayIndex(&hash)) {
-        Handle<Object> key_handle = factory->NewNumberFromUint(hash);
-        key = key_handle.location();
-        table = &elements;
-      } else {
-        key = name.location();
-        hash = name->Hash();
-        table = &properties;
-      }
-    } else if (handle->ToArrayIndex(&hash)) {
-      key = handle.location();
-      table = &elements;
-    } else {
-      ASSERT(handle->IsNumber());
-      double num = handle->Number();
-      char arr[100];
-      Vector<char> buffer(arr, ARRAY_SIZE(arr));
-      const char* str = DoubleToCString(num, buffer);
-      Handle<String> name = factory->NewStringFromAscii(CStrVector(str));
-      key = name.location();
-      hash = name->Hash();
-      table = &properties;
-    }
+    if (literal->handle()->IsNull()) continue;
+    uint32_t hash = literal->Hash();
     // If the key of a computed property is in the table, do not emit
     // a store for the property later.
-    if (property->kind() == ObjectLiteral::Property::COMPUTED) {
-      if (table->Lookup(key, hash, false) != NULL) {
-        property->set_emit_store(false);
-      }
+    if (property->kind() == ObjectLiteral::Property::COMPUTED &&
+        table.Lookup(literal, hash, false) != NULL) {
+      property->set_emit_store(false);
+    } else {
+      // Add key to the table.
+      table.Lookup(literal, hash, true);
     }
-    // Add key to the table.
-    table->Lookup(key, hash, true);
   }
 }
 
@@ -417,8 +389,8 @@ bool Declaration::IsInlineable() const {
   return proxy()->var()->IsStackAllocated();
 }
 
-bool VariableDeclaration::IsInlineable() const {
-  return Declaration::IsInlineable() && fun() == NULL;
+bool FunctionDeclaration::IsInlineable() const {
+  return false;
 }
 
 
@@ -517,13 +489,27 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
   LookupResult lookup(type->GetIsolate());
   while (true) {
     type->LookupInDescriptors(NULL, *name, &lookup);
-    // For properties we know the target iff we have a constant function.
-    if (lookup.IsFound() && lookup.IsProperty()) {
-      if (lookup.type() == CONSTANT_FUNCTION) {
-        target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-        return true;
+    if (lookup.IsFound()) {
+      switch (lookup.type()) {
+        case CONSTANT_FUNCTION:
+          // We surely know the target for a constant function.
+          target_ =
+              Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
+          return true;
+        case NORMAL:
+        case FIELD:
+        case CALLBACKS:
+        case HANDLER:
+        case INTERCEPTOR:
+          // We don't know the target.
+          return false;
+        case MAP_TRANSITION:
+        case ELEMENTS_TRANSITION:
+        case CONSTANT_TRANSITION:
+        case NULL_DESCRIPTOR:
+          // Perhaps something interesting is up in the prototype chain...
+          break;
       }
-      return false;
     }
     // If we reach the end of the prototype chain, we don't know the target.
     if (!type->prototype()->IsJSObject()) return false;
@@ -592,6 +578,14 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
       }
       is_monomorphic_ = ComputeTarget(map, name);
     }
+  }
+}
+
+
+void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
+  if (is_monomorphic_) {
+    target_ = oracle->GetCallNewTarget(this);
   }
 }
 
@@ -995,7 +989,10 @@ CaseClause::CaseClause(Isolate* isolate,
   }
 
 INCREASE_NODE_COUNT(VariableDeclaration)
+INCREASE_NODE_COUNT(FunctionDeclaration)
 INCREASE_NODE_COUNT(ModuleDeclaration)
+INCREASE_NODE_COUNT(ImportDeclaration)
+INCREASE_NODE_COUNT(ExportDeclaration)
 INCREASE_NODE_COUNT(ModuleLiteral)
 INCREASE_NODE_COUNT(ModuleVariable)
 INCREASE_NODE_COUNT(ModulePath)
@@ -1136,5 +1133,23 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     add_flag(kDontInline);
   }
 }
+
+
+Handle<String> Literal::ToString() {
+  if (handle_->IsString()) return Handle<String>::cast(handle_);
+  ASSERT(handle_->IsNumber());
+  char arr[100];
+  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  const char* str;
+  if (handle_->IsSmi()) {
+    // Optimization only, the heap number case would subsume this.
+    OS::SNPrintF(buffer, "%d", Smi::cast(*handle_)->value());
+    str = arr;
+  } else {
+    str = DoubleToCString(handle_->Number(), buffer);
+  }
+  return FACTORY->NewStringFromAscii(CStrVector(str));
+}
+
 
 } }  // namespace v8::internal

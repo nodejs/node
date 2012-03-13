@@ -41,6 +41,7 @@
 #include "token.h"
 #include "utils.h"
 #include "variables.h"
+#include "interface.h"
 #include "zone-inl.h"
 
 namespace v8 {
@@ -61,7 +62,10 @@ namespace internal {
 
 #define DECLARATION_NODE_LIST(V)                \
   V(VariableDeclaration)                        \
+  V(FunctionDeclaration)                        \
   V(ModuleDeclaration)                          \
+  V(ImportDeclaration)                          \
+  V(ExportDeclaration)                          \
 
 #define MODULE_NODE_LIST(V)                     \
   V(ModuleLiteral)                              \
@@ -444,10 +448,10 @@ class Declaration: public AstNode {
   VariableProxy* proxy() const { return proxy_; }
   VariableMode mode() const { return mode_; }
   Scope* scope() const { return scope_; }
+  virtual InitializationFlag initialization() const = 0;
   virtual bool IsInlineable() const;
 
   virtual Declaration* AsDeclaration() { return this; }
-  virtual VariableDeclaration* AsVariableDeclaration() { return NULL; }
 
  protected:
   Declaration(VariableProxy* proxy,
@@ -475,22 +479,43 @@ class VariableDeclaration: public Declaration {
  public:
   DECLARE_NODE_TYPE(VariableDeclaration)
 
-  virtual VariableDeclaration* AsVariableDeclaration() { return this; }
-
-  FunctionLiteral* fun() const { return fun_; }  // may be NULL
-  virtual bool IsInlineable() const;
+  virtual InitializationFlag initialization() const {
+    return mode() == VAR ? kCreatedInitialized : kNeedsInitialization;
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
 
   VariableDeclaration(VariableProxy* proxy,
                       VariableMode mode,
+                      Scope* scope)
+      : Declaration(proxy, mode, scope) {
+  }
+};
+
+
+class FunctionDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(FunctionDeclaration)
+
+  FunctionLiteral* fun() const { return fun_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+  virtual bool IsInlineable() const;
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  FunctionDeclaration(VariableProxy* proxy,
+                      VariableMode mode,
                       FunctionLiteral* fun,
                       Scope* scope)
       : Declaration(proxy, mode, scope),
         fun_(fun) {
-    // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == VAR || mode == LET);
+    // At the moment there are no "const functions" in JavaScript...
+    ASSERT(mode == VAR || mode == LET);
+    ASSERT(fun != NULL);
   }
 
  private:
@@ -503,6 +528,9 @@ class ModuleDeclaration: public Declaration {
   DECLARE_NODE_TYPE(ModuleDeclaration)
 
   Module* module() const { return module_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -519,10 +547,58 @@ class ModuleDeclaration: public Declaration {
 };
 
 
-class Module: public AstNode {
-  // TODO(rossberg): stuff to come...
+class ImportDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ImportDeclaration)
+
+  Module* module() const { return module_; }
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+
  protected:
-  Module() {}
+  template<class> friend class AstNodeFactory;
+
+  ImportDeclaration(VariableProxy* proxy,
+                    Module* module,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope),
+        module_(module) {
+  }
+
+ private:
+  Module* module_;
+};
+
+
+class ExportDeclaration: public Declaration {
+ public:
+  DECLARE_NODE_TYPE(ExportDeclaration)
+
+  virtual InitializationFlag initialization() const {
+    return kCreatedInitialized;
+  }
+
+ protected:
+  template<class> friend class AstNodeFactory;
+
+  ExportDeclaration(VariableProxy* proxy,
+                    Scope* scope)
+      : Declaration(proxy, LET, scope) {
+  }
+};
+
+
+class Module: public AstNode {
+ public:
+  Interface* interface() const { return interface_; }
+
+ protected:
+  Module() : interface_(Interface::NewModule()) {}
+  explicit Module(Interface* interface) : interface_(interface) {}
+
+ private:
+  Interface* interface_;
 };
 
 
@@ -535,8 +611,9 @@ class ModuleLiteral: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleLiteral(Block* body)
-      : body_(body) {
+  ModuleLiteral(Block* body, Interface* interface)
+      : Module(interface),
+        body_(body) {
   }
 
  private:
@@ -553,9 +630,7 @@ class ModuleVariable: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleVariable(VariableProxy* proxy)
-      : proxy_(proxy) {
-  }
+  inline explicit ModuleVariable(VariableProxy* proxy);
 
  private:
   VariableProxy* proxy_;
@@ -1136,11 +1211,6 @@ class Literal: public Expression {
  public:
   DECLARE_NODE_TYPE(Literal)
 
-  // Check if this literal is identical to the other literal.
-  bool IsIdenticalTo(const Literal* other) const {
-    return handle_.is_identical_to(other->handle_);
-  }
-
   virtual bool IsPropertyName() {
     if (handle_->IsSymbol()) {
       uint32_t ignored;
@@ -1173,6 +1243,16 @@ class Literal: public Expression {
 
   Handle<Object> handle() const { return handle_; }
 
+  // Support for using Literal as a HashMap key. NOTE: Currently, this works
+  // only for string and number literals!
+  uint32_t Hash() { return ToString()->Hash(); }
+
+  static bool Match(void* literal1, void* literal2) {
+    Handle<String> s1 = static_cast<Literal*>(literal1)->ToString();
+    Handle<String> s2 = static_cast<Literal*>(literal2)->ToString();
+    return s1->Equals(*s2);
+  }
+
  protected:
   template<class> friend class AstNodeFactory;
 
@@ -1181,6 +1261,8 @@ class Literal: public Expression {
         handle_(handle) { }
 
  private:
+  Handle<String> ToString();
+
   Handle<Object> handle_;
 };
 
@@ -1232,7 +1314,7 @@ class ObjectLiteral: public MaterializedLiteral {
       PROTOTYPE              // Property is __proto__.
     };
 
-    Property(Literal* key, Expression* value);
+    Property(Literal* key, Expression* value, Isolate* isolate);
 
     Literal* key() { return key_; }
     Expression* value() { return value_; }
@@ -1382,6 +1464,8 @@ class VariableProxy: public Expression {
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   int position() const { return position_; }
+  Interface* interface() const { return interface_; }
+
 
   void MarkAsTrivial() { is_trivial_ = true; }
   void MarkAsLValue() { is_lvalue_ = true; }
@@ -1397,7 +1481,8 @@ class VariableProxy: public Expression {
   VariableProxy(Isolate* isolate,
                 Handle<String> name,
                 bool is_this,
-                int position);
+                int position,
+                Interface* interface);
 
   Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
@@ -1407,6 +1492,7 @@ class VariableProxy: public Expression {
   // or with a increment/decrement operator.
   bool is_lvalue_;
   int position_;
+  Interface* interface_;
 };
 
 
@@ -1528,6 +1614,13 @@ class CallNew: public Expression {
   ZoneList<Expression*>* arguments() const { return arguments_; }
   virtual int position() const { return pos_; }
 
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  virtual bool IsMonomorphic() { return is_monomorphic_; }
+  Handle<JSFunction> target() { return target_; }
+
+  // Bailout support.
+  int ReturnId() const { return return_id_; }
+
  protected:
   template<class> friend class AstNodeFactory;
 
@@ -1538,12 +1631,19 @@ class CallNew: public Expression {
       : Expression(isolate),
         expression_(expression),
         arguments_(arguments),
-        pos_(pos) { }
+        pos_(pos),
+        is_monomorphic_(false),
+        return_id_(GetNextId(isolate)) { }
 
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   int pos_;
+
+  bool is_monomorphic_;
+  Handle<JSFunction> target_;
+
+  int return_id_;
 };
 
 
@@ -2423,6 +2523,15 @@ class RegExpEmpty: public RegExpTree {
 
 
 // ----------------------------------------------------------------------------
+// Out-of-line inline constructors (to side-step cyclic dependencies).
+
+inline ModuleVariable::ModuleVariable(VariableProxy* proxy)
+    : Module(proxy->interface()),
+      proxy_(proxy) {
+}
+
+
+// ----------------------------------------------------------------------------
 // Basic visitor
 // - leaf node visitors are abstract.
 
@@ -2518,11 +2627,19 @@ class AstNodeFactory BASE_EMBEDDED {
 
   VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
                                               VariableMode mode,
-                                              FunctionLiteral* fun,
                                               Scope* scope) {
     VariableDeclaration* decl =
-        new(zone_) VariableDeclaration(proxy, mode, fun, scope);
+        new(zone_) VariableDeclaration(proxy, mode, scope);
     VISIT_AND_RETURN(VariableDeclaration, decl)
+  }
+
+  FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,
+                                              VariableMode mode,
+                                              FunctionLiteral* fun,
+                                              Scope* scope) {
+    FunctionDeclaration* decl =
+        new(zone_) FunctionDeclaration(proxy, mode, fun, scope);
+    VISIT_AND_RETURN(FunctionDeclaration, decl)
   }
 
   ModuleDeclaration* NewModuleDeclaration(VariableProxy* proxy,
@@ -2533,8 +2650,23 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(ModuleDeclaration, decl)
   }
 
-  ModuleLiteral* NewModuleLiteral(Block* body) {
-    ModuleLiteral* module = new(zone_) ModuleLiteral(body);
+  ImportDeclaration* NewImportDeclaration(VariableProxy* proxy,
+                                          Module* module,
+                                          Scope* scope) {
+    ImportDeclaration* decl =
+        new(zone_) ImportDeclaration(proxy, module, scope);
+    VISIT_AND_RETURN(ImportDeclaration, decl)
+  }
+
+  ExportDeclaration* NewExportDeclaration(VariableProxy* proxy,
+                                          Scope* scope) {
+    ExportDeclaration* decl =
+        new(zone_) ExportDeclaration(proxy, scope);
+    VISIT_AND_RETURN(ExportDeclaration, decl)
+  }
+
+  ModuleLiteral* NewModuleLiteral(Block* body, Interface* interface) {
+    ModuleLiteral* module = new(zone_) ModuleLiteral(body, interface);
     VISIT_AND_RETURN(ModuleLiteral, module)
   }
 
@@ -2690,9 +2822,11 @@ class AstNodeFactory BASE_EMBEDDED {
 
   VariableProxy* NewVariableProxy(Handle<String> name,
                                   bool is_this,
-                                  int position = RelocInfo::kNoPosition) {
+                                  int position = RelocInfo::kNoPosition,
+                                  Interface* interface =
+                                      Interface::NewValue()) {
     VariableProxy* proxy =
-        new(zone_) VariableProxy(isolate_, name, is_this, position);
+        new(zone_) VariableProxy(isolate_, name, is_this, position, interface);
     VISIT_AND_RETURN(VariableProxy, proxy)
   }
 

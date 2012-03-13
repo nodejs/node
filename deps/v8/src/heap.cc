@@ -499,7 +499,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   }
 
   if (collector == MARK_COMPACTOR &&
-      !mark_compact_collector()->PreciseSweepingRequired() &&
+      !mark_compact_collector()->abort_incremental_marking_ &&
       !incremental_marking()->IsStopped() &&
       !incremental_marking()->should_hurry() &&
       FLAG_incremental_marking_steps) {
@@ -578,6 +578,17 @@ static void VerifySymbolTable() {
 }
 
 
+static bool AbortIncrementalMarkingAndCollectGarbage(
+    Heap* heap,
+    AllocationSpace space,
+    const char* gc_reason = NULL) {
+  heap->mark_compact_collector()->SetFlags(Heap::kAbortIncrementalMarkingMask);
+  bool result = heap->CollectGarbage(space, gc_reason);
+  heap->mark_compact_collector()->SetFlags(Heap::kNoGCFlags);
+  return result;
+}
+
+
 void Heap::ReserveSpace(
     int new_space_size,
     int pointer_space_size,
@@ -604,28 +615,28 @@ void Heap::ReserveSpace(
       gc_performed = true;
     }
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      Heap::CollectGarbage(OLD_POINTER_SPACE,
-                           "failed to reserve space in the old pointer space");
+      AbortIncrementalMarkingAndCollectGarbage(this, OLD_POINTER_SPACE,
+          "failed to reserve space in the old pointer space");
       gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
-      Heap::CollectGarbage(OLD_DATA_SPACE,
-                           "failed to reserve space in the old data space");
+      AbortIncrementalMarkingAndCollectGarbage(this, OLD_DATA_SPACE,
+          "failed to reserve space in the old data space");
       gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
-      Heap::CollectGarbage(CODE_SPACE,
-                           "failed to reserve space in the code space");
+      AbortIncrementalMarkingAndCollectGarbage(this, CODE_SPACE,
+          "failed to reserve space in the code space");
       gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
-      Heap::CollectGarbage(MAP_SPACE,
-                           "failed to reserve space in the map space");
+      AbortIncrementalMarkingAndCollectGarbage(this, MAP_SPACE,
+          "failed to reserve space in the map space");
       gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
-      Heap::CollectGarbage(CELL_SPACE,
-                           "failed to reserve space in the cell space");
+      AbortIncrementalMarkingAndCollectGarbage(this, CELL_SPACE,
+          "failed to reserve space in the cell space");
       gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
@@ -637,8 +648,8 @@ void Heap::ReserveSpace(
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
     if (!(lo_space->ReserveSpace(large_object_size))) {
-      Heap::CollectGarbage(LO_SPACE,
-                           "failed to reserve space in the large object space");
+      AbortIncrementalMarkingAndCollectGarbage(this, LO_SPACE,
+          "failed to reserve space in the large object space");
       gc_performed = true;
     }
   }
@@ -1909,11 +1920,10 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
 
 
 MaybeObject* Heap::AllocateCodeCache() {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateStruct(CODE_CACHE_TYPE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  CodeCache* code_cache;
+  { MaybeObject* maybe_code_cache = AllocateStruct(CODE_CACHE_TYPE);
+    if (!maybe_code_cache->To(&code_cache)) return maybe_code_cache;
   }
-  CodeCache* code_cache = CodeCache::cast(result);
   code_cache->set_default_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code_cache->set_normal_type_cache(undefined_value(), SKIP_WRITE_BARRIER);
   return code_cache;
@@ -1926,22 +1936,20 @@ MaybeObject* Heap::AllocatePolymorphicCodeCache() {
 
 
 MaybeObject* Heap::AllocateAccessorPair() {
-  Object* result;
-  { MaybeObject* maybe_result = AllocateStruct(ACCESSOR_PAIR_TYPE);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
+  AccessorPair* accessors;
+  { MaybeObject* maybe_accessors = AllocateStruct(ACCESSOR_PAIR_TYPE);
+    if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
-  AccessorPair* accessors = AccessorPair::cast(result);
-  // Later we will have to distinguish between undefined and the hole...
-  // accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
-  // accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_getter(the_hole_value(), SKIP_WRITE_BARRIER);
+  accessors->set_setter(the_hole_value(), SKIP_WRITE_BARRIER);
   return accessors;
 }
 
 
 MaybeObject* Heap::AllocateTypeFeedbackInfo() {
   TypeFeedbackInfo* info;
-  { MaybeObject* maybe_result = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
-    if (!maybe_result->To(&info)) return maybe_result;
+  { MaybeObject* maybe_info = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
+    if (!maybe_info->To(&info)) return maybe_info;
   }
   info->set_ic_total_count(0);
   info->set_ic_with_typeinfo_count(0);
@@ -1953,8 +1961,8 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
 
 MaybeObject* Heap::AllocateAliasedArgumentsEntry(int aliased_context_slot) {
   AliasedArgumentsEntry* entry;
-  { MaybeObject* maybe_result = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
-    if (!maybe_result->To(&entry)) return maybe_result;
+  { MaybeObject* maybe_entry = AllocateStruct(ALIASED_ARGUMENTS_ENTRY_TYPE);
+    if (!maybe_entry->To(&entry)) return maybe_entry;
   }
   entry->set_aliased_context_slot(aliased_context_slot);
   return entry;
@@ -6921,14 +6929,18 @@ void Heap::FreeQueuedChunks() {
       // pieces and initialize size, owner and flags field of every piece.
       // If FromAnyPointerAddress encounters a slot that belongs to one of
       // these smaller pieces it will treat it as a slot on a normal Page.
+      Address chunk_end = chunk->address() + chunk->size();
       MemoryChunk* inner = MemoryChunk::FromAddress(
           chunk->address() + Page::kPageSize);
-      MemoryChunk* inner_last = MemoryChunk::FromAddress(
-          chunk->address() + chunk->size() - 1);
+      MemoryChunk* inner_last = MemoryChunk::FromAddress(chunk_end - 1);
       while (inner <= inner_last) {
         // Size of a large chunk is always a multiple of
         // OS::AllocateAlignment() so there is always
         // enough space for a fake MemoryChunk header.
+        Address area_end = Min(inner->address() + Page::kPageSize, chunk_end);
+        // Guard against overflow.
+        if (area_end < inner->address()) area_end = chunk_end;
+        inner->SetArea(inner->address(), area_end);
         inner->set_size(Page::kPageSize);
         inner->set_owner(lo_space());
         inner->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);

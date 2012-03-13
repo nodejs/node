@@ -300,7 +300,12 @@ V8_EXTRA_FLAGS = {
                        '-Wnon-virtual-dtor']
     },
     'os:win32': {
-      'WARNINGFLAGS': ['-pedantic', '-Wno-long-long', '-Wno-pedantic-ms-format']
+      'WARNINGFLAGS': ['-pedantic',
+                       '-Wno-long-long',
+                       '-Wno-pedantic-ms-format'],
+      'library:shared': {
+        'LIBS': ['winmm', 'ws2_32']
+      }
     },
     'os:linux': {
       'WARNINGFLAGS': ['-pedantic'],

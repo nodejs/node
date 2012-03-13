@@ -285,6 +285,14 @@ HUseListNode* HUseListNode::tail() {
 }
 
 
+bool HValue::CheckUsesForFlag(Flag f) {
+  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
+    if (!it.value()->CheckFlag(f)) return false;
+  }
+  return true;
+}
+
+
 HUseIterator::HUseIterator(HUseListNode* head) : next_(head) {
   Advance();
 }
@@ -495,9 +503,9 @@ void HValue::RegisterUse(int index, HValue* new_value) {
 }
 
 
-void HValue::AddNewRange(Range* r) {
-  if (!HasRange()) ComputeInitialRange();
-  if (!HasRange()) range_ = new Range();
+void HValue::AddNewRange(Range* r, Zone* zone) {
+  if (!HasRange()) ComputeInitialRange(zone);
+  if (!HasRange()) range_ = new(zone) Range();
   ASSERT(HasRange());
   r->StackUpon(range_);
   range_ = r;
@@ -511,9 +519,9 @@ void HValue::RemoveLastAddedRange() {
 }
 
 
-void HValue::ComputeInitialRange() {
+void HValue::ComputeInitialRange(Zone* zone) {
   ASSERT(!HasRange());
-  range_ = InferRange();
+  range_ = InferRange(zone);
   ASSERT(HasRange());
 }
 
@@ -831,12 +839,12 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
 
 
 HValue* HConstant::Canonicalize() {
-  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+  return HasNoUses() ? NULL : this;
 }
 
 
 HValue* HTypeof::Canonicalize() {
-  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+  return HasNoUses() ? NULL : this;
 }
 
 
@@ -854,6 +862,20 @@ HValue* HBitwise::Canonicalize() {
       HConstant::cast(right())->Integer32Value() == nop_constant) {
     return left();
   }
+  return this;
+}
+
+
+HValue* HAdd::Canonicalize() {
+  if (!representation().IsInteger32()) return this;
+  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
+  return this;
+}
+
+
+HValue* HSub::Canonicalize() {
+  if (!representation().IsInteger32()) return this;
+  if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
   return this;
 }
 
@@ -986,15 +1008,15 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 }
 
 
-Range* HValue::InferRange() {
+Range* HValue::InferRange(Zone* zone) {
   // Untagged integer32 cannot be -0, all other representations can.
-  Range* result = new Range();
+  Range* result = new(zone) Range();
   result->set_can_be_minus_zero(!representation().IsInteger32());
   return result;
 }
 
 
-Range* HChange::InferRange() {
+Range* HChange::InferRange(Zone* zone) {
   Range* input_range = value()->range();
   if (from().IsInteger32() &&
       to().IsTagged() &&
@@ -1002,46 +1024,46 @@ Range* HChange::InferRange() {
     set_type(HType::Smi());
   }
   Range* result = (input_range != NULL)
-      ? input_range->Copy()
-      : HValue::InferRange();
+      ? input_range->Copy(zone)
+      : HValue::InferRange(zone);
   if (to().IsInteger32()) result->set_can_be_minus_zero(false);
   return result;
 }
 
 
-Range* HConstant::InferRange() {
+Range* HConstant::InferRange(Zone* zone) {
   if (has_int32_value_) {
-    Range* result = new Range(int32_value_, int32_value_);
+    Range* result = new(zone) Range(int32_value_, int32_value_);
     result->set_can_be_minus_zero(false);
     return result;
   }
-  return HValue::InferRange();
+  return HValue::InferRange(zone);
 }
 
 
-Range* HPhi::InferRange() {
+Range* HPhi::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     if (block()->IsLoopHeader()) {
-      Range* range = new Range(kMinInt, kMaxInt);
+      Range* range = new(zone) Range(kMinInt, kMaxInt);
       return range;
     } else {
-      Range* range = OperandAt(0)->range()->Copy();
+      Range* range = OperandAt(0)->range()->Copy(zone);
       for (int i = 1; i < OperandCount(); ++i) {
         range->Union(OperandAt(i)->range());
       }
       return range;
     }
   } else {
-    return HValue::InferRange();
+    return HValue::InferRange(zone);
   }
 }
 
 
-Range* HAdd::InferRange() {
+Range* HAdd::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
-    Range* res = a->Copy();
+    Range* res = a->Copy(zone);
     if (!res->AddAndCheckOverflow(b)) {
       ClearFlag(kCanOverflow);
     }
@@ -1049,32 +1071,32 @@ Range* HAdd::InferRange() {
     res->set_can_be_minus_zero(m0);
     return res;
   } else {
-    return HValue::InferRange();
+    return HValue::InferRange(zone);
   }
 }
 
 
-Range* HSub::InferRange() {
+Range* HSub::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
-    Range* res = a->Copy();
+    Range* res = a->Copy(zone);
     if (!res->SubAndCheckOverflow(b)) {
       ClearFlag(kCanOverflow);
     }
     res->set_can_be_minus_zero(a->CanBeMinusZero() && b->CanBeZero());
     return res;
   } else {
-    return HValue::InferRange();
+    return HValue::InferRange(zone);
   }
 }
 
 
-Range* HMul::InferRange() {
+Range* HMul::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
     Range* b = right()->range();
-    Range* res = a->Copy();
+    Range* res = a->Copy(zone);
     if (!res->MulAndCheckOverflow(b)) {
       ClearFlag(kCanOverflow);
     }
@@ -1083,14 +1105,14 @@ Range* HMul::InferRange() {
     res->set_can_be_minus_zero(m0);
     return res;
   } else {
-    return HValue::InferRange();
+    return HValue::InferRange(zone);
   }
 }
 
 
-Range* HDiv::InferRange() {
+Range* HDiv::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
-    Range* result = new Range();
+    Range* result = new(zone) Range();
     if (left()->range()->CanBeMinusZero()) {
       result->set_can_be_minus_zero(true);
     }
@@ -1108,15 +1130,15 @@ Range* HDiv::InferRange() {
     }
     return result;
   } else {
-    return HValue::InferRange();
+    return HValue::InferRange(zone);
   }
 }
 
 
-Range* HMod::InferRange() {
+Range* HMod::InferRange(Zone* zone) {
   if (representation().IsInteger32()) {
     Range* a = left()->range();
-    Range* result = new Range();
+    Range* result = new(zone) Range();
     if (a->CanBeMinusZero() || a->CanBeNegative()) {
       result->set_can_be_minus_zero(true);
     }
@@ -1125,7 +1147,7 @@ Range* HMod::InferRange() {
     }
     return result;
   } else {
-    return HValue::InferRange();
+    return HValue::InferRange(zone);
   }
 }
 
@@ -1324,40 +1346,41 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-Range* HBitwise::InferRange() {
-  if (op() == Token::BIT_XOR) return HValue::InferRange();
+Range* HBitwise::InferRange(Zone* zone) {
+  if (op() == Token::BIT_XOR) return HValue::InferRange(zone);
+  const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
   int32_t left_mask = (left()->range() != NULL)
       ? left()->range()->Mask()
-      : 0xffffffff;
+      : kDefaultMask;
   int32_t right_mask = (right()->range() != NULL)
       ? right()->range()->Mask()
-      : 0xffffffff;
+      : kDefaultMask;
   int32_t result_mask = (op() == Token::BIT_AND)
       ? left_mask & right_mask
       : left_mask | right_mask;
   return (result_mask >= 0)
-      ? new Range(0, result_mask)
-      : HValue::InferRange();
+      ? new(zone) Range(0, result_mask)
+      : HValue::InferRange(zone);
 }
 
 
-Range* HSar::InferRange() {
+Range* HSar::InferRange(Zone* zone) {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
       Range* result = (left()->range() != NULL)
-          ? left()->range()->Copy()
-          : new Range();
+          ? left()->range()->Copy(zone)
+          : new(zone) Range();
       result->Sar(c->Integer32Value());
       result->set_can_be_minus_zero(false);
       return result;
     }
   }
-  return HValue::InferRange();
+  return HValue::InferRange(zone);
 }
 
 
-Range* HShr::InferRange() {
+Range* HShr::InferRange(Zone* zone) {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
@@ -1365,53 +1388,54 @@ Range* HShr::InferRange() {
       if (left()->range()->CanBeNegative()) {
         // Only compute bounds if the result always fits into an int32.
         return (shift_count >= 1)
-            ? new Range(0, static_cast<uint32_t>(0xffffffff) >> shift_count)
-            : new Range();
+            ? new(zone) Range(0,
+                              static_cast<uint32_t>(0xffffffff) >> shift_count)
+            : new(zone) Range();
       } else {
         // For positive inputs we can use the >> operator.
         Range* result = (left()->range() != NULL)
-            ? left()->range()->Copy()
-            : new Range();
+            ? left()->range()->Copy(zone)
+            : new(zone) Range();
         result->Sar(c->Integer32Value());
         result->set_can_be_minus_zero(false);
         return result;
       }
     }
   }
-  return HValue::InferRange();
+  return HValue::InferRange(zone);
 }
 
 
-Range* HShl::InferRange() {
+Range* HShl::InferRange(Zone* zone) {
   if (right()->IsConstant()) {
     HConstant* c = HConstant::cast(right());
     if (c->HasInteger32Value()) {
       Range* result = (left()->range() != NULL)
-          ? left()->range()->Copy()
-          : new Range();
+          ? left()->range()->Copy(zone)
+          : new(zone) Range();
       result->Shl(c->Integer32Value());
       result->set_can_be_minus_zero(false);
       return result;
     }
   }
-  return HValue::InferRange();
+  return HValue::InferRange(zone);
 }
 
 
-Range* HLoadKeyedSpecializedArrayElement::InferRange() {
+Range* HLoadKeyedSpecializedArrayElement::InferRange(Zone* zone) {
   switch (elements_kind()) {
     case EXTERNAL_PIXEL_ELEMENTS:
-      return new Range(0, 255);
+      return new(zone) Range(0, 255);
     case EXTERNAL_BYTE_ELEMENTS:
-      return new Range(-128, 127);
+      return new(zone) Range(-128, 127);
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      return new Range(0, 255);
+      return new(zone) Range(0, 255);
     case EXTERNAL_SHORT_ELEMENTS:
-      return new Range(-32768, 32767);
+      return new(zone) Range(-32768, 32767);
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      return new Range(0, 65535);
+      return new(zone) Range(0, 65535);
     default:
-      return HValue::InferRange();
+      return HValue::InferRange(zone);
   }
 }
 
@@ -1456,7 +1480,22 @@ void HGoto::PrintDataTo(StringStream* stream) {
 void HCompareIDAndBranch::SetInputRepresentation(Representation r) {
   input_representation_ = r;
   if (r.IsDouble()) {
-    SetFlag(kDeoptimizeOnUndefined);
+    // According to the ES5 spec (11.9.3, 11.8.5), Equality comparisons (==, ===
+    // and !=) have special handling of undefined, e.g. undefined == undefined
+    // is 'true'. Relational comparisons have a different semantic, first
+    // calling ToPrimitive() on their arguments.  The standard Crankshaft
+    // tagged-to-double conversion to ensure the HCompareIDAndBranch's inputs
+    // are doubles caused 'undefined' to be converted to NaN. That's compatible
+    // out-of-the box with ordered relational comparisons (<, >, <=,
+    // >=). However, for equality comparisons (and for 'in' and 'instanceof'),
+    // it is not consistent with the spec. For example, it would cause undefined
+    // == undefined (should be true) to be evaluated as NaN == NaN
+    // (false). Therefore, any comparisons other than ordered relational
+    // comparisons must cause a deopt when one of their arguments is undefined.
+    // See also v8:1434
+    if (!Token::IsOrderedRelationalCompareOp(token_)) {
+      SetFlag(kDeoptimizeOnUndefined);
+    }
   } else {
     ASSERT(r.IsInteger32());
   }
@@ -1920,6 +1959,11 @@ HType HUnaryMathOperation::CalculateInferredType() {
 
 HType HStringCharFromCode::CalculateInferredType() {
   return HType::String();
+}
+
+
+HType HAllocateObject::CalculateInferredType() {
+  return HType::JSObject();
 }
 
 

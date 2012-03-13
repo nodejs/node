@@ -73,6 +73,8 @@ def BuildOptions():
       choices=PROGRESS_INDICATORS, default="mono")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
+  result.add_option("--download-data", help="Download missing test suite data",
+      default=False, action="store_true")
   result.add_option("-s", "--suite", help="A test suite",
       default=[], action="append")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
@@ -161,6 +163,8 @@ def PassOnOptions(options):
     result += ['--progress=' + options.progress]
   if options.report:
     result += ['--report']
+  if options.download_data:
+    result += ['--download-data']
   if options.suite != []:
     for suite in options.suite:
       result += ['--suite=../../test/' + suite]

@@ -59,6 +59,7 @@ SOURCES = {
     counters.cc
     cpu-profiler.cc
     data-flow.cc
+    date.cc
     dateparser.cc
     debug-agent.cc
     debug.cc
@@ -84,6 +85,7 @@ SOURCES = {
     hydrogen-instructions.cc
     ic.cc
     incremental-marking.cc
+    interface.cc
     inspector.cc
     interpreter-irregexp.cc
     isolate.cc

@@ -210,7 +210,10 @@ void Processor::VisitWithStatement(WithStatement* node) {
 
 // Do nothing:
 void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
+void Processor::VisitFunctionDeclaration(FunctionDeclaration* node) {}
 void Processor::VisitModuleDeclaration(ModuleDeclaration* node) {}
+void Processor::VisitImportDeclaration(ImportDeclaration* node) {}
+void Processor::VisitExportDeclaration(ExportDeclaration* node) {}
 void Processor::VisitModuleLiteral(ModuleLiteral* node) {}
 void Processor::VisitModuleVariable(ModuleVariable* node) {}
 void Processor::VisitModulePath(ModulePath* node) {}

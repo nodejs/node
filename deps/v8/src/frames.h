@@ -241,6 +241,11 @@ class StackFrame BASE_EMBEDDED {
   virtual void Iterate(ObjectVisitor* v) const = 0;
   static void IteratePc(ObjectVisitor* v, Address* pc_address, Code* holder);
 
+  // Sets a callback function for return-address rewriting profilers
+  // to resolve the location of a return address to the location of the
+  // profiler's stashed return address.
+  static void SetReturnAddressLocationResolver(
+      ReturnAddressLocationResolver resolver);
 
   // Printing support.
   enum PrintMode { OVERVIEW, DETAILS };

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -210,7 +210,7 @@ function FormatMessage(message) {
       "no_input_to_regexp",           ["No input to ", "%0"],
       "invalid_json",                 ["String '", "%0", "' is not valid JSON"],
       "circular_structure",           ["Converting circular structure to JSON"],
-      "obj_ctor_property_non_object", ["Object.", "%0", " called on non-object"],
+      "called_on_non_object",         ["%0", " called on non-object"],
       "called_on_null_or_undefined",  ["%0", " called on null or undefined"],
       "array_indexof_not_defined",    ["Array.getIndexOf: Argument undefined"],
       "object_not_extensible",        ["Can't add property ", "%0", ", object is not extensible"],
@@ -246,6 +246,8 @@ function FormatMessage(message) {
       "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
       "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
       "harmony_const_assign",         ["Assignment to constant variable."],
+      "invalid_module_path",          ["Module does not export '", "%0", "', or export is not itself a module"],
+      "module_type_error",            ["Module '", "%0", "' used improperly"],
     ];
     var messages = { __proto__ : null };
     for (var i = 0; i < messagesDictionary.length; i += 2) {
@@ -533,6 +535,13 @@ function ScriptNameOrSourceURL() {
   if (this.name) {
     return this.name;
   }
+
+  // The result is cached as on long scripts it takes noticable time to search
+  // for the sourceURL.
+  if (this.hasCachedNameOrSourceURL)
+      return this.cachedNameOrSourceURL;
+  this.hasCachedNameOrSourceURL = true;
+
   // TODO(608): the spaces in a regexp below had to be escaped as \040
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
@@ -541,6 +550,7 @@ function ScriptNameOrSourceURL() {
   // the scanner/parser.
   var source = ToString(this.source);
   var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
+  this.cachedNameOrSourceURL = this.name;
   if (sourceUrlPos > 4) {
     var sourceUrlPattern =
         /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
@@ -551,15 +561,17 @@ function ScriptNameOrSourceURL() {
     var match =
         %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
     if (match) {
-      return SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+      this.cachedNameOrSourceURL =
+          SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
     }
   }
-  return this.name;
+  return this.cachedNameOrSourceURL;
 }
 
 
 SetUpLockedPrototype(Script,
-  $Array("source", "name", "line_ends", "line_offset", "column_offset"),
+  $Array("source", "name", "line_ends", "line_offset", "column_offset",
+         "cachedNameOrSourceURL", "hasCachedNameOrSourceURL" ),
   $Array(
     "lineFromPosition", ScriptLineFromPosition,
     "locationFromPosition", ScriptLocationFromPosition,
@@ -759,8 +771,7 @@ function DefineOneShotAccessor(obj, name, fun) {
     hasBeenSet = true;
     value = v;
   };
-  %DefineOrRedefineAccessorProperty(obj, name, GETTER, getter, DONT_ENUM);
-  %DefineOrRedefineAccessorProperty(obj, name, SETTER, setter, DONT_ENUM);
+  %DefineOrRedefineAccessorProperty(obj, name, getter, setter, DONT_ENUM);
 }
 
 function CallSite(receiver, fun, pos) {
@@ -1190,9 +1201,8 @@ function ErrorToStringDetectCycle(error) {
 }
 
 function ErrorToString() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Error.prototype.toString"]);
+  if (!IS_SPEC_OBJECT(this)) {
+    throw MakeTypeError("called_on_non_object", ["Error.prototype.toString"]);
   }
 
   try {

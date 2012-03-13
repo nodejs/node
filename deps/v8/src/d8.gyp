@@ -41,9 +41,6 @@
       'include_dirs+': [
         '../src',
       ],
-      'defines': [
-        'ENABLE_DEBUGGER_SUPPORT',
-      ],
       'sources': [
         'd8.cc',
       ],

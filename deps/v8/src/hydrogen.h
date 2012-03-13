@@ -361,19 +361,19 @@ class HGraph: public ZoneObject {
 Zone* HBasicBlock::zone() { return graph_->zone(); }
 
 
+// Type of stack frame an environment might refer to.
+enum FrameType { JS_FUNCTION, JS_CONSTRUCT, ARGUMENTS_ADAPTOR };
+
+
 class HEnvironment: public ZoneObject {
  public:
   HEnvironment(HEnvironment* outer,
                Scope* scope,
                Handle<JSFunction> closure);
 
-  bool is_arguments_adaptor() const {
-    return arguments_adaptor_;
-  }
-
   HEnvironment* DiscardInlined(bool drop_extra) {
-    HEnvironment* outer = outer_->is_arguments_adaptor() ?
-        outer_->outer_ : outer_;
+    HEnvironment* outer = outer_;
+    while (outer->frame_type() != JS_FUNCTION) outer = outer->outer_;
     if (drop_extra) outer->Drop(1);
     return outer;
   }
@@ -384,6 +384,7 @@ class HEnvironment: public ZoneObject {
   const ZoneList<int>* assigned_variables() const {
     return &assigned_variables_;
   }
+  FrameType frame_type() const { return frame_type_; }
   int parameter_count() const { return parameter_count_; }
   int specials_count() const { return specials_count_; }
   int local_count() const { return local_count_; }
@@ -469,7 +470,8 @@ class HEnvironment: public ZoneObject {
                                 int arguments,
                                 FunctionLiteral* function,
                                 HConstant* undefined,
-                                CallKind call_kind) const;
+                                CallKind call_kind,
+                                bool is_construct) const;
 
   void AddIncomingEdge(HBasicBlock* block, HEnvironment* other);
 
@@ -490,9 +492,17 @@ class HEnvironment: public ZoneObject {
  private:
   explicit HEnvironment(const HEnvironment* other);
 
-  // Create an argument adaptor environment.
-  HEnvironment(HEnvironment* outer, Handle<JSFunction> closure, int arguments);
+  HEnvironment(HEnvironment* outer,
+               Handle<JSFunction> closure,
+               FrameType frame_type,
+               int arguments);
 
+  // Create an artificial stub environment (e.g. for argument adaptor or
+  // constructor stub).
+  HEnvironment* CreateStubEnvironment(HEnvironment* outer,
+                                      Handle<JSFunction> target,
+                                      FrameType frame_type,
+                                      int arguments) const;
 
   // True if index is included in the expression stack part of the environment.
   bool HasExpressionAt(int index) const;
@@ -515,6 +525,7 @@ class HEnvironment: public ZoneObject {
   // Value array [parameters] [specials] [locals] [temporaries].
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_variables_;
+  FrameType frame_type_;
   int parameter_count_;
   int specials_count_;
   int local_count_;
@@ -522,7 +533,6 @@ class HEnvironment: public ZoneObject {
   int pop_count_;
   int push_count_;
   int ast_id_;
-  bool arguments_adaptor_;
 };
 
 
@@ -650,18 +660,26 @@ class TestContext: public AstContext {
 };
 
 
+enum ReturnHandlingFlag {
+  NORMAL_RETURN,
+  DROP_EXTRA_ON_RETURN,
+  CONSTRUCT_CALL_RETURN
+};
+
+
 class FunctionState {
  public:
   FunctionState(HGraphBuilder* owner,
                 CompilationInfo* info,
                 TypeFeedbackOracle* oracle,
-                bool drop_extra);
+                ReturnHandlingFlag return_handling);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
   TypeFeedbackOracle* oracle() { return oracle_; }
   AstContext* call_context() { return call_context_; }
-  bool drop_extra() { return drop_extra_; }
+  bool drop_extra() { return return_handling_ == DROP_EXTRA_ON_RETURN; }
+  bool is_construct() { return return_handling_ == CONSTRUCT_CALL_RETURN; }
   HBasicBlock* function_return() { return function_return_; }
   TestContext* test_context() { return test_context_; }
   void ClearInlinedTestContext() {
@@ -681,11 +699,13 @@ class FunctionState {
   // inlined. NULL when not inlining.
   AstContext* call_context_;
 
-  // Indicate if we have to drop an extra value from the environment on
-  // return from inlined functions.
-  bool drop_extra_;
+  // Indicate whether we have to perform special handling on return from
+  // inlined functions.
+  // - DROP_EXTRA_ON_RETURN: Drop an extra value from the environment.
+  // - CONSTRUCT_CALL_RETURN: Either use allocated receiver or return value.
+  ReturnHandlingFlag return_handling_;
 
-  // When inlining in an effect of value context, this is the return block.
+  // When inlining in an effect or value context, this is the return block.
   // It is NULL otherwise.  When inlining in a test context, there are a
   // pair of return blocks in the context.  When not inlining, there is no
   // local return point.
@@ -825,7 +845,6 @@ class HGraphBuilder: public AstVisitor {
   CompilationInfo* info() const {
     return function_state()->compilation_info();
   }
-
   AstContext* call_context() const {
     return function_state()->call_context();
   }
@@ -851,10 +870,10 @@ class HGraphBuilder: public AstVisitor {
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
-  void HandleVariableDeclaration(VariableProxy* proxy,
-                                 VariableMode mode,
-                                 FunctionLiteral* function,
-                                 int* global_count);
+  void HandleDeclaration(VariableProxy* proxy,
+                         VariableMode mode,
+                         FunctionLiteral* function,
+                         int* global_count);
 
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
@@ -922,7 +941,7 @@ class HGraphBuilder: public AstVisitor {
 
   // Remove the arguments from the bailout environment and emit instructions
   // to push them as outgoing parameters.
-  template <int V> HInstruction* PreProcessCall(HCall<V>* call);
+  template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
   void TraceRepresentation(Token::Value op,
                            TypeInfo info,
@@ -954,11 +973,20 @@ class HGraphBuilder: public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
-  bool TryInline(Call* expr, bool drop_extra = false);
+  bool TryInline(CallKind call_kind,
+                 Handle<JSFunction> target,
+                 ZoneList<Expression*>* arguments,
+                 HValue* receiver,
+                 int ast_id,
+                 int return_id,
+                 ReturnHandlingFlag return_handling);
+
+  bool TryInlineCall(Call* expr, bool drop_extra = false);
+  bool TryInlineConstruct(CallNew* expr, HValue* receiver);
   bool TryInlineBuiltinMethodCall(Call* expr,
-                                HValue* receiver,
-                                Handle<Map> receiver_map,
-                                CheckType check_type);
+                                  HValue* receiver,
+                                  Handle<Map> receiver_map,
+                                  CheckType check_type);
   bool TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining

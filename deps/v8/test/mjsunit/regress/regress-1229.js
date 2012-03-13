@@ -139,6 +139,8 @@ function bar(x, y, z) {
   assertSame(non_construct, NON_CONSTRUCT_MARKER);
   var construct = new baz(0);
   assertSame(construct, CONSTRUCT_MARKER);
+  var construct = new baz(0, 0);
+  assertSame(construct, CONSTRUCT_MARKER);
 }
 
 invoke(bar, [1, 2, 3]);

@@ -420,13 +420,8 @@ class MarkCompactCollector {
   // Pointer to member function, used in IterateLiveObjects.
   typedef int (MarkCompactCollector::*LiveObjectCallback)(HeapObject* obj);
 
-  // Set the global force_compaction flag, it must be called before Prepare
-  // to take effect.
+  // Set the global flags, it must be called before Prepare to take effect.
   inline void SetFlags(int flags);
-
-  inline bool PreciseSweepingRequired() {
-    return sweep_precisely_;
-  }
 
   static void Initialize();
 
@@ -578,6 +573,8 @@ class MarkCompactCollector {
   bool sweep_precisely_;
 
   bool reduce_memory_footprint_;
+
+  bool abort_incremental_marking_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

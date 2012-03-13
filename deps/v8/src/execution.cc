@@ -376,6 +376,12 @@ void StackGuard::DisableInterrupts() {
 }
 
 
+bool StackGuard::ShouldPostponeInterrupts() {
+  ExecutionAccess access(isolate_);
+  return should_postpone_interrupts(access);
+}
+
+
 bool StackGuard::IsInterrupted() {
   ExecutionAccess access(isolate_);
   return (thread_local_.interrupt_flags_ & INTERRUPT) != 0;
@@ -872,9 +878,11 @@ void Execution::ProcessDebugMessages(bool debug_command_only) {
 
 #endif
 
-MaybeObject* Execution::HandleStackGuardInterrupt() {
-  Isolate* isolate = Isolate::Current();
+MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
   StackGuard* stack_guard = isolate->stack_guard();
+  if (stack_guard->ShouldPostponeInterrupts()) {
+    return isolate->heap()->undefined_value();
+  }
 
   if (stack_guard->IsGCRequest()) {
     isolate->heap()->CollectAllGarbage(false, "StackGuard GC request");

@@ -959,17 +959,17 @@ TEST(TestCodeFlushing) {
   CHECK(function->shared()->is_compiled());
 
   // TODO(1609) Currently incremental marker does not support code flushing.
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   CHECK(function->shared()->is_compiled());
 
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
