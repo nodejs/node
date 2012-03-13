@@ -17,8 +17,6 @@ require("path").SPLIT_CHAR = process.platform === "win32" ? "\\" : "/"
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter
   , config = require("./config.js")
-  , set = require("./utils/set.js")
-  , get = require("./utils/get.js")
   , ini = require("./utils/ini.js")
   , log = require("./utils/log.js")
   , fs = require("graceful-fs")
@@ -40,6 +38,7 @@ npm.EJSONPARSE = {}
 npm.EISGIT = {}
 npm.ECYCLE = {}
 npm.ENOTSUP = {}
+npm.EBADPLATFORM = {}
 
 // HACK for windows
 if (process.platform === "win32") {

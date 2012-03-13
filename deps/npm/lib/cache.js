@@ -758,7 +758,7 @@ function addTmpTarball_ (tgz, name, uid, gid, cb) {
             , uid, gid
             , function (er) {
     if (er) {
-      return log.er(cb, "couldn't unpack "+tgz+" to "+contents)(er)
+      return cb(er)
     }
     fs.readdir(contents, function (er, folder) {
       if (er) return log.er(cb, "couldn't readdir "+contents)(er)

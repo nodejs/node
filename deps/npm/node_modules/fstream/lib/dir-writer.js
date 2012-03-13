@@ -37,6 +37,7 @@ DirWriter.prototype._create = function () {
     // ready to start getting entries!
     me.ready = true
     me.emit("ready")
+    me._process()
   })
 }
 

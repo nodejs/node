@@ -1,0 +1,307 @@
+[MASTER]
+
+# Specify a configuration file.
+#rcfile=
+
+# Python code to execute, usually for sys.path manipulation such as
+# pygtk.require().
+#init-hook=
+
+# Profiled execution.
+profile=no
+
+# Add files or directories to the blacklist. They should be base names, not
+# paths.
+ignore=CVS
+
+# Pickle collected data for later comparisons.
+persistent=yes
+
+# List of plugins (as comma separated values of python modules names) to load,
+# usually to register additional checkers.
+load-plugins=
+
+
+[MESSAGES CONTROL]
+
+# Enable the message, report, category or checker with the given id(s). You can
+# either give multiple identifier separated by comma (,) or put this option
+# multiple time.
+#enable=
+
+# Disable the message, report, category or checker with the given id(s). You
+# can either give multiple identifier separated by comma (,) or put this option
+# multiple time (only on the command line, not in the configuration file where
+# it should appear only once).
+# C0103: Invalid name "NN" (should match [a-z_][a-z0-9_]{2,30}$)
+# C0111: Missing docstring
+# C0302: Too many lines in module (NN)
+# R0902: Too many instance attributes (N/7)
+# R0903: Too few public methods (N/2)
+# R0904: Too many public methods (NN/20)
+# R0912: Too many branches (NN/12)
+# R0913: Too many arguments (N/5)
+# R0914: Too many local variables (NN/15)
+# R0915: Too many statements (NN/50)
+# W0141: Used builtin function 'map'
+# W0142: Used * or ** magic
+# W0232: Class has no __init__ method
+# W0511: TODO
+# W0603: Using the global statement
+#
+# These should be enabled eventually:
+# C0112: Empty docstring
+# C0301: Line too long (NN/80)
+# C0321: More than one statement on single line
+# C0322: Operator not preceded by a space
+# C0323: Operator not followed by a space
+# C0324: Comma not followed by a space
+# E0101: Explicit return in __init__
+# E0102: function already defined line NN
+# E1002: Use of super on an old style class
+# E1101: Instance of 'XX' has no 'YY' member
+# E1103: Instance of 'XX' has no 'XX' member (but some types could not be inferred)
+# E0602: Undefined variable 'XX'
+# F0401: Unable to import 'XX'
+# R0201: Method could be a function
+# R0801: Similar lines in N files
+# W0102: Dangerous default value {} as argument
+# W0104: Statement seems to have no effect
+# W0105: String statement has no effect
+# W0108: Lambda may not be necessary
+# W0201: Attribute 'XX' defined outside __init__
+# W0212: Access to a protected member XX of a client class
+# W0221: Arguments number differs from overridden method
+# W0223: Method 'XX' is abstract in class 'YY' but is not overridden
+# W0231: __init__ method from base class 'XX' is not called
+# W0301: Unnecessary semicolon
+# W0311: Bad indentation. Found NN spaces, expected NN
+# W0401: Wildcard import XX
+# W0402: Uses of a deprecated module 'string'
+# W0403: Relative import 'XX', should be 'YY.XX'
+# W0404: Reimport 'XX' (imported line NN)
+# W0601: Global variable 'XX' undefined at the module level
+# W0602: Using global for 'XX' but no assignment is done
+# W0611: Unused import pprint
+# W0612: Unused variable 'XX'
+# W0613: Unused argument 'XX'
+# W0614: Unused import XX from wildcard import
+# W0621: Redefining name 'XX' from outer scope (line NN)
+# W0622: Redefining built-in 'NN'
+# W0631: Using possibly undefined loop variable 'XX'
+# W0701: Raising a string exception
+# W0702: No exception type(s) specified
+disable=C0103,C0111,C0302,R0902,R0903,R0904,R0912,R0913,R0914,R0915,W0141,W0142,W0232,W0511,W0603,C0112,C0301,C0321,C0322,C0323,C0324,E0101,E0102,E1002,E1101,E1103,E0602,F0401,R0201,R0801,W0102,W0104,W0105,W0108,W0201,W0212,W0221,W0223,W0231,W0301,W0311,W0401,W0402,W0403,W0404,W0601,W0602,W0611,W0612,W0613,W0614,W0621,W0622,W0631,W0701,W0702
+
+
+[REPORTS]
+
+# Set the output format. Available formats are text, parseable, colorized, msvs
+# (visual studio) and html
+output-format=text
+
+# Include message's id in output
+include-ids=yes
+
+# Put messages in a separate file for each module / package specified on the
+# command line instead of printing them on stdout. Reports (if any) will be
+# written in a file name "pylint_global.[txt|html]".
+files-output=no
+
+# Tells whether to display a full report or only the messages
+reports=no
+
+# Python expression which should return a note less than 10 (10 is the highest
+# note). You have access to the variables errors warning, statement which
+# respectively contain the number of errors / warnings messages and the total
+# number of statements analyzed. This is used by the global evaluation report
+# (RP0004).
+evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)
+
+# Add a comment according to your evaluation note. This is used by the global
+# evaluation report (RP0004).
+comment=no
+
+
+[VARIABLES]
+
+# Tells whether we should check for unused import in __init__ files.
+init-import=no
+
+# A regular expression matching the beginning of the name of dummy variables
+# (i.e. not used).
+dummy-variables-rgx=_|dummy
+
+# List of additional names supposed to be defined in builtins. Remember that
+# you should avoid to define new builtins when possible.
+additional-builtins=
+
+
+[TYPECHECK]
+
+# Tells whether missing members accessed in mixin class should be ignored. A
+# mixin class is detected if its name ends with "mixin" (case insensitive).
+ignore-mixin-members=yes
+
+# List of classes names for which member attributes should not be checked
+# (useful for classes with attributes dynamically set).
+ignored-classes=SQLObject
+
+# When zope mode is activated, add a predefined set of Zope acquired attributes
+# to generated-members.
+zope=no
+
+# List of members which are set dynamically and missed by pylint inference
+# system, and so shouldn't trigger E0201 when accessed. Python regular
+# expressions are accepted.
+generated-members=REQUEST,acl_users,aq_parent
+
+
+[MISCELLANEOUS]
+
+# List of note tags to take in consideration, separated by a comma.
+notes=FIXME,XXX,TODO
+
+
+[SIMILARITIES]
+
+# Minimum lines number of a similarity.
+min-similarity-lines=4
+
+# Ignore comments when computing similarities.
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities.
+ignore-docstrings=yes
+
+
+[FORMAT]
+
+# Maximum number of characters on a single line.
+max-line-length=80
+
+# Maximum number of lines in a module
+max-module-lines=1000
+
+# String used as indentation unit. This is usually " " (4 spaces) or "\t" (1
+# tab).
+indent-string='  '
+
+
+[BASIC]
+
+# Required attributes for module, separated by a comma
+required-attributes=
+
+# List of builtins function names that should not be used, separated by a comma
+bad-functions=map,filter,apply,input
+
+# Regular expression which should only match correct module names
+module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
+
+# Regular expression which should only match correct module level names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+# Regular expression which should only match correct class names
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+# Regular expression which should only match correct function names
+function-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression which should only match correct method names
+method-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression which should only match correct instance attribute names
+attr-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression which should only match correct argument names
+argument-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression which should only match correct variable names
+variable-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression which should only match correct list comprehension /
+# generator expression variable names
+inlinevar-rgx=[A-Za-z_][A-Za-z0-9_]*$
+
+# Good variable names which should always be accepted, separated by a comma
+good-names=i,j,k,ex,Run,_
+
+# Bad variable names which should always be refused, separated by a comma
+bad-names=foo,bar,baz,toto,tutu,tata
+
+# Regular expression which should only match functions or classes name which do
+# not require a docstring
+no-docstring-rgx=__.*__
+
+
+[DESIGN]
+
+# Maximum number of arguments for function / method
+max-args=5
+
+# Argument names that match this expression will be ignored. Default to name
+# with leading underscore
+ignored-argument-names=_.*
+
+# Maximum number of locals for function / method body
+max-locals=15
+
+# Maximum number of return / yield for function / method body
+max-returns=6
+
+# Maximum number of branch for function / method body
+max-branchs=12
+
+# Maximum number of statements in function / method body
+max-statements=50
+
+# Maximum number of parents for a class (see R0901).
+max-parents=7
+
+# Maximum number of attributes for a class (see R0902).
+max-attributes=7
+
+# Minimum number of public methods for a class (see R0903).
+min-public-methods=2
+
+# Maximum number of public methods for a class (see R0904).
+max-public-methods=20
+
+
+[CLASSES]
+
+# List of interface methods to ignore, separated by a comma. This is used for
+# instance to not check methods defines in Zope's Interface base class.
+ignore-iface-methods=isImplementedBy,deferred,extends,names,namesAndDescriptions,queryDescriptionFor,getBases,getDescriptionFor,getDoc,getName,getTaggedValue,getTaggedValueTags,isEqualOrExtendedBy,setTaggedValue,isImplementedByInstancesOf,adaptWith,is_implemented_by
+
+# List of method names used to declare (i.e. assign) instance attributes.
+defining-attr-methods=__init__,__new__,setUp
+
+# List of valid names for the first argument in a class method.
+valid-classmethod-first-arg=cls
+
+
+[IMPORTS]
+
+# Deprecated modules which should not be used, separated by a comma
+deprecated-modules=regsub,string,TERMIOS,Bastion,rexec
+
+# Create a graph of every (i.e. internal and external) dependencies in the
+# given file (report RP0402 must not be disabled)
+import-graph=
+
+# Create a graph of external dependencies in the given file (report RP0402 must
+# not be disabled)
+ext-import-graph=
+
+# Create a graph of internal dependencies in the given file (report RP0402 must
+# not be disabled)
+int-import-graph=
+
+
+[EXCEPTIONS]
+
+# Exceptions that will emit a warning when being caught. Defaults to
+# "Exception"
+overgeneral-exceptions=Exception

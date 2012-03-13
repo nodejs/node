@@ -492,8 +492,7 @@ function targetResolver (where, context, deps) {
     // check for a version installed higher in the tree.
     // If installing from a shrinkwrap, it must match exactly.
     if (context.family[what]) {
-
-      if (wrap && wrap[what].version == context.family[what]) {
+      if (wrap && wrap[what].version === context.family[what]) {
         log.verbose(what, "using existing (matches shrinkwrap)")
         return cb(null, [])
       }
@@ -516,11 +515,13 @@ function targetResolver (where, context, deps) {
       if (er && parent && parent.optionalDependencies &&
           parent.optionalDependencies.hasOwnProperty(what.split("@")[0])) {
         log.warn(what, "optional dependency failed, continuing")
+        log.verbose([what, er], "optional dependency failed, continuing")
         return cb(null, [])
       }
 
       if (!er &&
           data &&
+          !context.explicit &&
           context.family[data.name] === data.version &&
           !npm.config.get("force")) {
         log.info(data.name + "@" + data.version, "already installed")
@@ -543,7 +544,19 @@ function installOne (target, where, context, cb) {
       && !npm.config.get("global")) {
     return localLink(target, where, context, cb)
   }
-  installOne_(target, where, context, cb)
+  installOne_(target, where, context, function (er, installedWhat) {
+
+    // check if this one is optional to its parent.
+    if (er && context.parent && context.parent.optionalDependencies &&
+        context.parent.optionalDependencies.hasOwnProperty(target.name)) {
+      log.warn(target._id, "optional dependency failed, continuing")
+      log.verbose([target._id, er], "optional dependency failed, continuing")
+      er = null
+    }
+
+    cb(er, installedWhat)
+  })
+
 }
 
 function localLink (target, where, context, cb) {
@@ -607,11 +620,11 @@ function installOne_ (target, where, context, cb) {
 
   chain
     ( [ [checkEngine, target]
+      , [checkPlatform, target]
       , [checkCycle, target, context.ancestors]
       , [checkGit, targetFolder]
       , [write, target, targetFolder, context] ]
     , function (er, d) {
-        log.verbose(target._id, "installOne cb")
         if (er) return cb(er)
         d.push(resultList(target, where, parent && parent._id))
         cb(er, d)
@@ -636,6 +649,58 @@ function checkEngine (target, cb) {
   return cb()
 }
 
+function checkPlatform (target, cb) {
+  var platform = process.platform
+    , arch = process.arch
+    , osOk = true
+    , cpuOk = true
+    , force = npm.config.get("force")
+
+  if (force) {
+    return cb()
+  }
+
+  if (target.os) {
+    osOk = checkList(platform, target.os)
+  }
+  if (target.cpu) {
+    cpuOk = checkList(arch, target.cpu)
+  }
+  if (!osOk || !cpuOk) {
+    var er = new Error("Unsupported")
+    er.errno = npm.EBADPLATFORM
+    er.os = target.os || ['any']
+    er.cpu = target.cpu || ['any']
+    er.pkgid = target._id
+    return cb(er)
+  }
+  return cb()
+}
+
+function checkList (value, list) {
+  var tmp
+    , match = false
+    , blc = 0
+  if (typeof list === "string") {
+    list = [list]
+  }
+  if (list.length === 1 && list[0] === "any") {
+    return true;
+  }
+  for (var i = 0; i < list.length; ++i) {
+    tmp = list[i]
+    if (tmp[0] === '!') {
+      tmp = tmp.slice(1)
+      if (tmp === value) {
+        return false;
+      }
+      ++blc
+    } else {
+      match = match || tmp === value
+    }
+  }
+  return match || blc === list.length
+}
 
 function checkCycle (target, ancestors, cb) {
   // there are some very rare and pathological edge-cases where
@@ -703,7 +768,7 @@ function write (target, targetFolder, context, cb_) {
     // cache.unpack returns the data object, and all we care about
     // is the list of installed packages from that last thing.
     if (!er) return cb_(er, data)
-    log.error(target._id,"error installing")
+
     if (false === npm.config.get("rollback")) return cb_(er)
     npm.commands.unbuild([targetFolder], function (er2) {
       if (er2) log.error(er2, "error rolling back "+target._id)
@@ -711,22 +776,44 @@ function write (target, targetFolder, context, cb_) {
     })
   }
 
+  var bundled = []
+
   chain
     ( [ [ cache.unpack, target.name, target.version, targetFolder
         , null, null, user, group ]
       , [ fs, "writeFile"
         , path.resolve(targetFolder, "package.json")
         , JSON.stringify(target, null, 2) + "\n" ]
-      , [ lifecycle, target, "preinstall", targetFolder ] ]
+      , [ lifecycle, target, "preinstall", targetFolder ]
+      , function (cb) {
+          if (!target.bundleDependencies) return cb()
+
+          var bd = path.resolve(targetFolder, "node_modules")
+          fs.readdir(bd, function (er, b) {
+            // nothing bundled, maybe
+            if (er) return cb()
+            bundled = b || []
+            cb()
+          })
+        } ]
 
     // nest the chain so that we can throw away the results returned
     // up until this point, since we really don't care about it.
-    , function (er) {
+    , function X (er) {
       if (er) return cb(er)
 
       // before continuing to installing dependencies, check for a shrinkwrap.
       readDependencies(context, targetFolder, {}, function (er, data, wrap) {
         var deps = Object.keys(data.dependencies || {})
+
+        // don't install bundleDependencies, unless they're missing.
+        if (data.bundleDependencies) {
+          deps = deps.filter(function (d) {
+            return data.bundleDependencies.indexOf(d) === -1 ||
+                   bundled.indexOf(d) === -1
+          })
+        }
+
         var newcontext = { family: family
                          , ancestors: context.ancestors
                          , parent: target
@@ -743,12 +830,12 @@ function write (target, targetFolder, context, cb_) {
           t = d + "@" + t
           return t
         }), targetFolder, newcontext, function (er, d) {
-            log.verbose(targetFolder, "about to build")
-            if (er) return cb(er)
-            npm.commands.build( [targetFolder]
-                              , npm.config.get("global")
-                              , true
-                              , function (er) { return cb(er, d) })
+          log.verbose(targetFolder, "about to build")
+          if (er) return cb(er)
+          npm.commands.build( [targetFolder]
+                            , npm.config.get("global")
+                            , true
+                            , function (er) { return cb(er, d) })
         })
       })
     })

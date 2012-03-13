@@ -24,6 +24,10 @@ function Extract (opts) {
   opts.type = "Directory"
   opts.Directory = true
 
+  // similar to --strip or --strip-components
+  opts.strip = +opts.strip
+  if (!opts.strip || opts.strip <= 0) opts.strip = 0
+
   this._fst = fstream.Writer(opts)
 
   this.pause()
@@ -33,6 +37,16 @@ function Extract (opts) {
   // of the tarball.  So, they need to be resolved against
   // the target directory in order to be created properly.
   me.on("entry", function (entry) {
+    // if there's a "strip" argument, then strip off that many
+    // path components.
+    if (opts.strip) {
+      var p = entry.path.split("/").slice(opts.strip).join("/")
+      entry.path = entry.props.path = p
+      if (entry.linkpath) {
+        var lp = entry.linkpath.split("/").slice(opts.strip).join("/")
+        entry.linkpath = entry.props.linkpath = lp
+      }
+    }
     if (entry.type !== "Link") return
     entry.linkpath = entry.props.linkpath =
       path.join(opts.path, path.join("/", entry.props.linkpath))

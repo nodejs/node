@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+import os
+import sys
+
+script_dir = os.path.dirname(__file__)
+node_root  = os.path.abspath(os.path.join(script_dir, os.pardir))
+module_root = os.getcwd()
+if sys.platform == 'win32':
+  output_dir = os.path.join(module_root, 'build')
+else:
+  output_dir = 'build'
+
+sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
+import gyp
+
+if __name__ == '__main__':
+  args = sys.argv[1:]
+  addon_gypi = os.path.join(node_root, 'tools', 'addon.gypi')
+  common_gypi = os.path.join(node_root, 'common.gypi')
+  config_gypi = os.path.join(node_root, 'config.gypi')
+  args.extend(['-I', addon_gypi])
+  args.extend(['-I', common_gypi])
+  if os.path.exists(config_gypi):
+    args.extend(['-I', config_gypi])
+  args.extend(['-Dlibrary=shared_library'])
+  args.extend(['-Dvisibility=default'])
+  args.extend(['-Dnode_root_dir=%s' % node_root])
+  args.extend(['-Dmodule_root_dir=%s' % module_root])
+  args.extend(['--depth=.']);
+
+  # Tell gyp to write the Makefile/Solution files into output_dir
+  args.extend(['--generator-output', output_dir])
+
+  # Tell make to write its output into the same dir
+  args.extend(['-Goutput_dir=.'])
+
+  gyp_args = list(args)
+  rc = gyp.main(gyp_args)
+  if rc != 0:
+    print 'Error running GYP'
+    sys.exit(rc)
+

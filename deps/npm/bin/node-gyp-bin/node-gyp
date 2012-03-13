@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+node "`dirname "$0"`/../../node_modules/node-gyp/bin/node-gyp.js" "$@"

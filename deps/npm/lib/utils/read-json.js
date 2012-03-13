@@ -34,6 +34,47 @@ function readJson (jsonFile, opts, cb) {
   var wscript = null
     , contributors = null
     , serverjs = null
+    , gypfile = null
+
+  if (opts.gypfile !== null && opts.gypfile !== undefined) {
+    gypfile = opts.gypfile
+    next()
+  } else {
+    var pkgdir = path.dirname(jsonFile)
+
+    function hasGyp (has) {
+      gypfile = opts.gypfile = has
+      next()
+    }
+
+    fs.readdir(pkgdir, function (er, gf) {
+      // this would be weird.
+      if (er) return hasGyp(false)
+
+      // see if there are any *.gyp files in there.
+      // If there are, then copy them to binding.gyp
+      // if there are not, then just proceed without
+      gf = gf.filter(function (f) {
+        return f.match(/\.gyp$/)
+      })
+      gf = gf[0]
+      if (!gf) return hasGyp(false)
+      if (gf === "binding.gyp") return hasGyp(true)
+
+      // need to rename.  windows is annoying.
+      // why not fs.rename?  because we just saw the file, so it'll
+      // be cached for potentially several seconds on a network share.
+      return fs.readFile(path.resolve(pkgdir, gf), function (er, d) {
+        if (er) return hasGyp(false)
+        fs.writeFile(path.resolve(pkgdir, "binding.gyp"), d, function (er) {
+          if (er) return hasGyp(false)
+          fs.unlink(path.resolve(pkgdir, gf), function (er) {
+            return hasGyp(!er)
+          })
+        })
+      })
+    })
+  }
 
   if (opts.wscript !== null && opts.wscript !== undefined) {
     wscript = opts.wscript
@@ -76,9 +117,10 @@ function readJson (jsonFile, opts, cb) {
   })
 
   function next () {
-    if (wscript === null
-        || contributors === null
-        || serverjs === null) {
+    if (wscript === null ||
+        contributors === null ||
+        gypfile === null ||
+        serverjs === null) {
       return
     }
 
@@ -332,6 +374,15 @@ function processObject (opts, cb) { return function (er, json) {
 
   var scripts = json.scripts || {}
 
+  // if it has a bindings.gyp, then build with node-gyp
+  if (opts.gypfile && !json.prebuilt) {
+    log.verbose([json.prebuilt, opts], "has bindings.gyp")
+    if (!scripts.install && !scripts.preinstall) {
+      scripts.install = "node-gyp rebuild"
+      json.scripts = scripts
+    }
+  }
+
   // if it has a wscript, then build it.
   if (opts.wscript && !json.prebuilt) {
     log.verbose([json.prebuilt, opts], "has wscript")
@@ -411,11 +462,9 @@ function processObject (opts, cb) { return function (er, json) {
   if (opts.dev
       || npm.config.get("dev")
       || npm.config.get("npat")) {
-    // log.warn(json._id, "Adding devdeps")
     Object.keys(json.devDependencies || {}).forEach(function (d) {
       json.dependencies[d] = json.devDependencies[d]
     })
-    // log.warn(json.dependencies, "Added devdeps")
   }
 
   typoWarn(json)
@@ -441,13 +490,6 @@ function processObject (opts, cb) { return function (er, json) {
 
 var depObjectifyWarn = {}
 function depObjectify (deps, d, id) {
-  if ((!deps || typeof deps !== "object" || Array.isArray(deps))
-      && !depObjectifyWarn[id+d]) {
-    log.warn( d + " field should be hash of <name>:<version-range> pairs"
-            , id )
-    depObjectifyWarn[id + d] = true
-  }
-
   if (!deps) return {}
   if (typeof deps === "string") {
     deps = deps.trim().split(/[\n\r\s\t ,]+/)

@@ -7,11 +7,11 @@
       "from": "https://raw.github.com/gist/1837112/index.js"
     },
     "glob": {
-      "version": "3.1.4",
-      "from": "git://github.com/isaacs/node-glob.git",
+      "version": "3.1.5",
+      "from": "git://github.com/isaacs/node-glob.git#npm-test",
       "dependencies": {
         "minimatch": {
-          "version": "0.2.0",
+          "version": "0.2.1",
           "dependencies": {
             "lru-cache": {
               "version": "1.0.5"
