@@ -25,6 +25,8 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 
 var pwd_called = false;
+var childClosed = false;
+var childExited = false;
 
 function pwd(callback) {
   var output = '';
@@ -39,8 +41,13 @@ function pwd(callback) {
   child.on('exit', function(c) {
     console.log('exit: ' + c);
     assert.equal(0, c);
+    childExited = true;
+  });
+
+  child.on('close', function () {
     callback(output);
     pwd_called = true;
+    childClosed = true;
   });
 }
 
@@ -53,4 +60,6 @@ pwd(function(result) {
 
 process.on('exit', function() {
   assert.equal(true, pwd_called);
+  assert.equal(true, childExited);
+  assert.equal(true, childClosed);
 });

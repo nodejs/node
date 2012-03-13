@@ -44,8 +44,11 @@ function testCwd(options, forCode, forData) {
   });
 
   child.on('exit', function(code, signal) {
-    forData && assert.strictEqual(forData, data.replace(/[\s\r\n]+$/, ''));
     assert.strictEqual(forCode, code);
+  });
+
+  child.on('close', function () {
+    forData && assert.strictEqual(forData, data.replace(/[\s\r\n]+$/, ''));
     returns--;
   });
 
