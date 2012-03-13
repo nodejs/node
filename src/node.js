@@ -100,6 +100,9 @@
       if (NativeModule.require('tty').isatty(0)) {
         // REPL
         var repl = Module.requireRepl().start('> ', null, null, true);
+        repl.on('exit', function() {
+          process.exit();
+        });
 
       } else {
         // Read all of stdin - execute it.
