@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "dependencies": {
     "npm-test-single-file": "https://raw.github.com/gist/1837112/index.js",
-    "glob": "git://github.com/isaacs/node-glob.git",
+    "glob": "git://github.com/isaacs/node-glob.git#npm-test",
     "minimatch": "~0.1.0"
   },
   "scripts": {

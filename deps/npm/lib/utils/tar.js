@@ -23,6 +23,11 @@ var npm = require("../npm.js")
   , zlib = require("zlib")
   , fstream = require("fstream")
 
+if (process.env.SUDO_UID && myUid === 0) {
+  if (!isNaN(process.env.SUDO_UID)) myUid = +process.env.SUDO_UID
+  if (!isNaN(process.env.SUDO_GID)) myGid = +process.env.SUDO_GID
+}
+
 exports.pack = pack
 exports.unpack = unpack
 exports.makeList = makeList
@@ -143,39 +148,26 @@ function unpack_ ( tarball, unpackTarget, dMode, fMode, uid, gid, cb ) {
   // rename that to /path/to/foo, and delete /path/to/.foo.npm
   var parent = path.dirname(unpackTarget)
     , base = path.basename(unpackTarget)
-    , tmp = path.resolve(parent, "___" + base + ".npm")
 
-  mkdir(tmp, dMode || npm.modes.exec, uid, gid, function (er) {
-    log.verbose([uid, gid], "unpack_ uid, gid")
-    log.verbose(unpackTarget, "unpackTarget")
-    if (er) return log.er(cb, "Could not create "+tmp)(er)
-    // cp the gzip of the tarball, pipe the stdout into tar's stdin
-    // gzip {tarball} --decompress --stdout \
-    //   | tar -mvxpf - --strip-components=1 -C {unpackTarget}
-    gunzTarPerm( tarball, tmp
-               , dMode, fMode
-               , uid, gid
-               , function (er, folder) {
+  rm(unpackTarget, function (er) {
+    if (er) return cb(er)
+
+    mkdir(unpackTarget, dMode || npm.modes.exec, uid, gid, function (er) {
+      log.verbose([uid, gid], "unpack_ uid, gid")
+      log.verbose(unpackTarget, "unpackTarget")
       if (er) return cb(er)
-      log.verbose(folder, "gunzed")
 
-      rm(unpackTarget, function (er) {
+      // cp the gzip of the tarball, pipe the stdout into tar's stdin
+      // gzip {tarball} --decompress --stdout \
+      //   | tar -mvxpf - --strip-components=1 -C {unpackTarget}
+      gunzTarPerm( tarball, unpackTarget
+                 , dMode, fMode
+                 , uid, gid
+                 , function (er, folder) {
         if (er) return cb(er)
-        log.verbose(unpackTarget, "rm'ed")
-
-        moveIntoPlace(folder, unpackTarget, function (er) {
-          if (er) return cb(er)
-          log.verbose([folder, unpackTarget], "renamed")
-          // curse you, nfs!  It will lie and tell you that the
-          // mv is done, when in fact, it isn't.  In theory,
-          // reading the file should cause it to wait until it's done.
-          readJson( path.resolve(unpackTarget, "package.json")
-                  , function (er, data) {
-            // now we read the json, so we know it's there.
-            rm(tmp, function (er2) { cb(er || er2, data) })
-          })
-        })
-      })
+        log.verbose(folder, "gunzed")
+        readJson(path.resolve(folder, "package.json"), cb)
+     })
     })
   })
 }
@@ -198,12 +190,48 @@ function moveIntoPlace (folder, unpackTarget, cb) {
 }
 
 
-function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
+function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   if (!dMode) dMode = npm.modes.exec
   if (!fMode) fMode = npm.modes.file
   log.silly([dMode.toString(8), fMode.toString(8)], "gunzTarPerm modes")
 
+  var cbCalled = false
+  function cb (er) {
+    if (cbCalled) return
+    cbCalled = true
+    cb_(er, target)
+  }
+
   var fst = fs.createReadStream(tarball)
+
+  // figure out who we're supposed to be, if we're not pretending
+  // to be a specific user.
+  if (npm.config.get("unsafe-perm") && process.platform !== "win32") {
+    uid = myUid
+    gid = myGid
+  }
+
+  function extractEntry (entry) {
+    // never create things that are user-unreadable,
+    // or dirs that are user-un-listable. Only leads to headaches.
+    var originalMode = entry.mode = entry.mode || entry.props.mode
+    entry.mode = entry.mode | (entry.type === "Directory" ? dMode : fMode)
+    entry.mode = entry.mode & (~npm.modes.umask)
+    entry.props.mode = entry.mode
+    if (originalMode !== entry.mode) {
+      log.silly([entry.path, originalMode, entry.mode], "modified mode")
+    }
+
+    // if there's a specific owner uid/gid that we want, then set that
+    if (process.platform !== "win32" &&
+        typeof uid === "number" &&
+        typeof gid === "number") {
+      entry.props.uid = entry.uid = uid
+      entry.props.gid = entry.gid = gid
+    }
+  }
+
+  var extractOpts = { type: "Directory", path: target, strip: 1 }
 
   fst.on("error", log.er(cb, "error reading "+tarball))
   fst.on("data", function OD (c) {
@@ -214,35 +242,34 @@ function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
     if (c[0] === 0x1F &&
         c[1] === 0x8B &&
         c[2] === 0x08) {
-      var extracter = tar.Extract({ type: "Directory", path: tmp })
+      var extracter = tar.Extract(extractOpts)
       fst
         .pipe(zlib.Unzip())
         .on("error", log.er(cb, "unzip error "+tarball))
-        .pipe(tar.Extract({ type: "Directory", path: tmp }))
+        .pipe(tar.Extract(extractOpts))
+        .on("entry", extractEntry)
         .on("error", log.er(cb, "untar error "+tarball))
-        .on("close", afterUntar)
+        .on("close", cb)
     } else if (c.toString().match(/^package\//)) {
       // naked tar
       fst
-        .pipe(tar.Extract({ type: "Directory", path: tmp }))
+        .pipe(tar.Extract(extractOpts))
+        .on("entry", extractEntry)
         .on("error", log.er(cb, "untar error "+tarball))
-        .on("close", afterUntar)
+        .on("close", cb)
     } else {
       // naked js file
       fst
-        .pipe(fstream.Writer({ path: path.resolve(tmp, "package/index.js") }))
+        .pipe(fstream.Writer({ path: path.resolve(target, "index.js") }))
         .on("error", log.er(cb, "copy error "+tarball))
         .on("close", function () {
-          var j = path.resolve(tmp, "package/package.json")
+          var j = path.resolve(target, "package.json")
           readJson(j, function (er, d) {
             if (er) {
               log.error(tarball, "Not a package")
               return cb(er)
             }
-            fs.writeFile(j, JSON.stringify(d) + "\n", function (er) {
-              if (er) return cb(er)
-              return afterUntar()
-            })
+            fs.writeFile(j, JSON.stringify(d) + "\n", cb)
           })
         })
     }
@@ -251,76 +278,6 @@ function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
     fst.removeListener("data", OD)
     fst.emit("data", c)
   })
-
-  function afterUntar (er) {
-    log.silly(er || "ok", "afterUntar")
-    // if we're not doing ownership management,
-    // then we're done now.
-    if (er) return log.er(cb, "Failed unpacking "+tarball)(er)
-
-    // HACK skip on windows
-    if (npm.config.get("unsafe-perm") && process.platform !== "win32") {
-      uid = process.getuid()
-      gid = process.getgid()
-      if (uid === 0) {
-        if (process.env.SUDO_UID) uid = +process.env.SUDO_UID
-        if (process.env.SUDO_GID) gid = +process.env.SUDO_GID
-      }
-    }
-
-    if (process.platform === "win32") {
-      return fs.readdir(tmp, function (er, files) {
-        files = files.filter(function (f) {
-          return f && f.indexOf("\0") === -1
-        })
-        cb(er, files && path.resolve(tmp, files[0]))
-      })
-    }
-
-    find(tmp, function (f) {
-      return f !== tmp
-    }, function (er, files) {
-      if (er) return cb(er)
-      asyncMap(files, function (f, cb) {
-        f = path.resolve(f)
-        log.silly(f, "asyncMap in gTP")
-        fs.lstat(f, function (er, stat) {
-
-          if (er || stat.isSymbolicLink()) return cb(er)
-          if (typeof uid === "number" && typeof gid === "number") {
-            fs.chown(f, uid, gid, chown)
-          } else chown()
-
-          function chown (er) {
-            if (er) return cb(er)
-            var mode = stat.isDirectory() ? dMode : fMode
-              , oldMode = stat.mode & 0777
-              , newMode = (oldMode | mode) & (~npm.modes.umask)
-            if (mode && newMode !== oldMode) {
-              log.silly(newMode.toString(8), "chmod "+path.basename(f))
-              fs.chmod(f, newMode, cb)
-            } else cb()
-          }
-        })
-      }, function (er) {
-
-        if (er) return cb(er)
-        if (typeof myUid === "number" && typeof myGid === "number") {
-          fs.chown(tmp, myUid, myGid, chown)
-        } else chown()
-
-        function chown (er) {
-          if (er) return cb(er)
-          fs.readdir(tmp, function (er, folder) {
-            folder = folder && folder.filter(function (f) {
-              return f && !f.match(/^\._/)
-            })
-            cb(er, folder && path.resolve(tmp, folder[0]))
-          })
-        }
-      })
-    })
-  }
 }
 
 function makeList (dir, pkg, dfc, cb) {
@@ -504,6 +461,7 @@ function makeList_ (dir, pkg, exList, dfc, cb) {
       // waf/vim/OSX garbage.  this is a firm requirement.
       return !( f === ".git/"
              || f === ".lock-wscript"
+             || f.match(/^\.wafpickle-[0-9]+$/)
              || f === "CVS/"
              || f === ".svn/"
              || f === ".hg/"

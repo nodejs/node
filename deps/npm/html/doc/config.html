@@ -200,6 +200,26 @@ to trust only that specific signing authority.</p>
 
 <p>The location of npm's cache directory.  See <code><a href="../doc/cache.html">cache(1)</a></code></p>
 
+<h3 id="cache-max">cache-max</h3>
+
+<ul><li>Default: Infinity</li><li>Type: Number</li></ul>
+
+<p>The maximum time (in seconds) to keep items in the registry cache before
+re-checking against the registry.</p>
+
+<p>Note that no purging is done unless the <code>npm cache clean</code> command is
+explicitly used, and that only GET requests use the cache.</p>
+
+<h3 id="cache-min">cache-min</h3>
+
+<ul><li>Default: 0</li><li>Type: Number</li></ul>
+
+<p>The minimum time (in seconds) to keep items in the registry cache before
+re-checking against the registry.</p>
+
+<p>Note that no purging is done unless the <code>npm cache clean</code> command is
+explicitly used, and that only GET requests use the cache.</p>
+
 <h3 id="color">color</h3>
 
 <ul><li>Default: true on Posix, false on Windows</li><li>Type: Boolean or <code>"always"</code></li></ul>
@@ -642,7 +662,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.4</p>
+<p id="footer">config &mdash; npm@1.1.9</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -73,6 +73,11 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
     acc = path.join(acc, "node_modules", pp)
   })
   pathArr.unshift(path.join(acc, "node_modules", ".bin"))
+
+  // we also unshift the bundled node-gyp-bin folder so that
+  // the bundled one will be used for installing things.
+  pathArr.unshift(path.join(__dirname, "..", "..", "bin", "node-gyp-bin"))
+
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === "win32" ? ";" : ":")
 

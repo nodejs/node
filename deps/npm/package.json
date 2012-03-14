@@ -10,7 +10,7 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.4",
+  "version": "1.1.9",
   "preferGlobal": true,
   "config": {
     "publishtest": false
@@ -47,13 +47,14 @@
     "request": "~2.9",
     "which": "1",
     "tar": "~0.1.12",
-    "fstream": "~0.1.5",
+    "fstream": "~0.1.13",
     "block-stream": "*",
     "inherits": "1",
     "mkdirp": "0.3",
     "fast-list": "~1.0.1",
     "read": "0",
-    "lru-cache": "1"
+    "lru-cache": "1",
+    "node-gyp": "~0.3.4"
   },
   "bundleDependencies": [
     "slide",
@@ -75,7 +76,8 @@
     "mkdirp",
     "fast-list",
     "read",
-    "lru-cache"
+    "lru-cache",
+    "node-gyp"
   ],
   "devDependencies": {
     "ronn": "https://github.com/isaacs/ronnjs/tarball/master"

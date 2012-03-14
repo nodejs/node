@@ -428,7 +428,7 @@ node that your stuff works on:
     { "engines" : { "node" : ">=0.1.27 <0.1.30" } }
 
 And, like with dependencies, if you don't specify the version (or if you
-specify "*" as the version), then any version of node will do.
+specify "\*" as the version), then any version of node will do.
 
 If you specify an "engines" field, then npm will require that "node" be
 somewhere on that list. If "engines" is omitted, then npm will just assume
@@ -438,6 +438,36 @@ You can also use the "engines" field to specify which versions of npm
 are capable of properly installing your program.  For example:
 
     { "engines" : { "npm" : "~1.0.20" } }
+
+## os
+
+You can specify which operating systems your
+module will run on:
+
+    "os" : [ "darwin", "linux" ]
+
+You can also blacklist instead of whitelist operating systems,
+just prepend the blacklisted os with a '!':
+
+    "os" : [ "!win32" ]
+
+The host operating system is determined by `process.platform`
+
+It is allowed to both blacklist, and whitelist, although there isn't any
+good reason to do this.
+
+## cpu
+
+If your code only runs on certain cpu architectures,
+you can specify which ones.
+
+    "cpu" : [ "x64", "ia32" ]
+
+Like the `os` option, you can also blacklist architectures:
+
+    "cpu" : [ "!arm", "!mips" ]
+
+The host architecture is determined by `process.arch`
 
 ## preferGlobal
 

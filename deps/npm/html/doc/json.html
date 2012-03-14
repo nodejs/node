@@ -411,6 +411,36 @@ are capable of properly installing your program.  For example:</p>
 
 <pre><code>{ "engines" : { "npm" : "~1.0.20" } }</code></pre>
 
+<h2 id="os">os</h2>
+
+<p>You can specify which operating systems your
+module will run on:</p>
+
+<pre><code>"os" : [ "darwin", "linux" ]</code></pre>
+
+<p>You can also blacklist instead of whitelist operating systems,
+just prepend the blacklisted os with a '!':</p>
+
+<pre><code>"os" : [ "!win32" ]</code></pre>
+
+<p>The host operating system is determined by <code>process.platform</code></p>
+
+<p>It is allowed to both blacklist, and whitelist, although there isn't any
+good reason to do this.</p>
+
+<h2 id="cpu">cpu</h2>
+
+<p>If your code only runs on certain cpu architectures,
+you can specify which ones.</p>
+
+<pre><code>"cpu" : [ "x64", "ia32" ]</code></pre>
+
+<p>Like the <code>os</code> option, you can also blacklist architectures:</p>
+
+<pre><code>"cpu" : [ "!arm", "!mips" ]</code></pre>
+
+<p>The host architecture is determined by <code>process.arch</code></p>
+
 <h2 id="preferGlobal">preferGlobal</h2>
 
 <p>If your package is primarily a command-line application that should be
@@ -448,7 +478,7 @@ overridden.</p>
 
 <ul><li><a href="../doc/semver.html">semver(1)</a></li><li><a href="../doc/init.html">init(1)</a></li><li><a href="../doc/version.html">version(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/publish.html">publish(1)</a></li><li><a href="../doc/rm.html">rm(1)</a></li></ul>
 </div>
-<p id="footer">json &mdash; npm@1.1.4</p>
+<p id="footer">json &mdash; npm@1.1.9</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

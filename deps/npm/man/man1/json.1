@@ -631,6 +631,67 @@ are capable of properly installing your program\.  For example:
 .
 .IP "" 0
 .
+.SH "os"
+You can specify which operating systems your
+module will run on:
+.
+.IP "" 4
+.
+.nf
+"os" : [ "darwin", "linux" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+You can also blacklist instead of whitelist operating systems,
+just prepend the blacklisted os with a \'!\':
+.
+.IP "" 4
+.
+.nf
+"os" : [ "!win32" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The host operating system is determined by \fBprocess\.platform\fR
+.
+.P
+It is allowed to both blacklist, and whitelist, although there isn\'t any
+good reason to do this\.
+.
+.SH "cpu"
+If your code only runs on certain cpu architectures,
+you can specify which ones\.
+.
+.IP "" 4
+.
+.nf
+"cpu" : [ "x64", "ia32" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Like the \fBos\fR option, you can also blacklist architectures:
+.
+.IP "" 4
+.
+.nf
+"cpu" : [ "!arm", "!mips" ]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The host architecture is determined by \fBprocess\.arch\fR
+.
 .SH "preferGlobal"
 If your package is primarily a command\-line application that should be
 installed globally, then set this value to \fBtrue\fR to provide a warning

@@ -19,6 +19,9 @@ function get (project, version, timeout, nofollow, staleOk, cb) {
     throw new Error("No callback provided to registry.get")
   }
 
+  timeout = Math.min(timeout, npm.config.get("cache-max"))
+  timeout = Math.max(timeout, npm.config.get("cache-min"))
+
   if ( process.env.COMP_CWORD !== undefined
     && process.env.COMP_LINE !== undefined
     && process.env.COMP_POINT !== undefined
@@ -136,7 +139,7 @@ function get_ (uri, timeout, cache, stat, data, nofollow, staleOk, cb) {
 
     data = remoteData
     if (!data) {
-      er = new Error("failed to fetch from registry: " + uri)
+      er = er || new Error("failed to fetch from registry: " + uri)
     }
 
     if (er) return cb(er, data, raw, response)
