@@ -288,7 +288,7 @@ def JS2C(source, target):
     lines = ExpandMacros(lines, macros)
     lines = CompressScript(lines, do_jsmin)
     data = ToCArray(s, lines)
-    id = (os.path.split(str(s))[1])[:-3]
+    id = os.path.basename(str(s)).split('.')[0]
     if delay: id = id[:-6]
     if delay:
       delay_ids.append((id, len(lines)))
