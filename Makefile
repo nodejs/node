@@ -33,10 +33,10 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/z
 	tools/gyp_node -f make
 
 install: all
-	out/Release/node tools/installer.js ./config.gypi install
+	out/Release/node tools/installer.js install
 
 uninstall:
-	out/Release/node tools/installer.js ./config.gypi uninstall
+	out/Release/node tools/installer.js uninstall
 
 clean:
 	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node
