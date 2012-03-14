@@ -219,8 +219,8 @@
           'action_name': 'node_js2c',
 
           'inputs': [
-            './tools/js2c.py',
             '<@(library_files)',
+            './config.gypi',
           ],
 
           'outputs': [
@@ -237,14 +237,14 @@
                 'python',
                 'tools/js2c.py',
                 '<@(_outputs)',
-                '<@(library_files)'
+                '<@(_inputs)',
               ],
             }, { # No Dtrace
               'action': [
                 'python',
                 'tools/js2c.py',
                 '<@(_outputs)',
-                '<@(library_files)',
+                '<@(_inputs)',
                 'src/macros.py'
               ],
             }]
