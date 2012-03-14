@@ -115,7 +115,7 @@ void check_permission(const char* filename, int mode) {
 
   s = req.ptr;
 #ifdef _WIN32
-  /* 
+  /*
    * On Windows, chmod can only modify S_IWUSR (_S_IWRITE) bit,
    * so only testing for the specified flags.
    */
@@ -186,8 +186,14 @@ static void chown_cb(uv_fs_t* req) {
 
 static void chown_root_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_CHOWN);
+#ifdef _WIN32
+  /* On windows, chown is a no-op and always succeeds. */
+  ASSERT(req->result == 0);
+#else
+  /* On unix, chown'ing the root directory is not allowed. */
   ASSERT(req->result == -1);
   ASSERT(req->errorno == UV_EPERM);
+#endif
   chown_cb_count++;
   uv_fs_req_cleanup(req);
 }
@@ -1210,7 +1216,7 @@ TEST_IMPL(fs_symlink) {
        */
       return 0;
     } else if (uv_last_error(loop).sys_errno_ == ERROR_PRIVILEGE_NOT_HELD) {
-      /* 
+      /*
        * Creating a symlink is only allowed when running elevated.
        * We pass the test and bail out early if we get ERROR_PRIVILEGE_NOT_HELD.
        */

@@ -299,6 +299,7 @@
         'test/test-pipe-bind-error.c',
         'test/test-pipe-connect-error.c',
         'test/test-ref.c',
+        'test/test-shutdown-close.c',
         'test/test-shutdown-eof.c',
         'test/test-spawn.c',
         'test/test-stdio-over-pipes.c',

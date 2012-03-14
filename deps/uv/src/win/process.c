@@ -832,7 +832,7 @@ done:
 static int duplicate_std_handle(uv_loop_t* loop, DWORD id, HANDLE* dup) {
   HANDLE handle;
   HANDLE current_process = GetCurrentProcess();
-  
+
   handle = GetStdHandle(id);
 
   if (handle == NULL) {

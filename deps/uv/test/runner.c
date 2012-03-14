@@ -186,7 +186,8 @@ out:
     process_terminate(&processes[i]);
   }
 
-  if (process_wait(processes, process_count - 1, -1) < 0) {
+  if (process_count > 0 &&
+      process_wait(processes, process_count - 1, -1) < 0) {
     FATAL("process_wait failed");
   }
 

@@ -37,17 +37,20 @@ TEST_IMPL(cwd_and_chdir) {
   err = uv_cwd(buffer_orig, size);
   ASSERT(err.code == UV_OK);
 
-  last_slash = strrchr(buffer_orig,
+  /* Remove trailing slash unless at a root directory. */
 #ifdef _WIN32
-          '\\'
-#else
-          '/'
-#endif
-  );
-
+  last_slash = strrchr(buffer_orig, '\\');
   ASSERT(last_slash);
-
-  *last_slash = '\0';
+  if (last_slash > buffer_orig && *(last_slash - 1) != ':') {
+    *last_slash = '\0';
+  }
+#else /* Unix */
+  last_slash = strrchr(buffer_orig, '/');
+  ASSERT(last_slash);
+  if (last_slash != buffer_orig) {
+    *last_slash = '\0';
+  }
+#endif
 
   err = uv_chdir(buffer_orig);
   ASSERT(err.code == UV_OK);

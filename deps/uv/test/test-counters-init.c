@@ -92,21 +92,21 @@ static void create_cb(uv_fs_t* req) {
 
 TEST_IMPL(counters_init) {
   int r;
-  int eio_init_prev;
-  int req_init_prev;
-  int handle_init_prev;
-  int stream_init_prev;
-  int tcp_init_prev;
-  int udp_init_prev;
-  int pipe_init_prev;
-  int tty_init_prev;
-  int prepare_init_prev;
-  int check_init_prev;
-  int idle_init_prev;
-  int async_init_prev;
-  int timer_init_prev;
-  int process_init_prev;
-  int fs_event_init_prev;
+  uint64_t eio_init_prev;
+  uint64_t req_init_prev;
+  uint64_t handle_init_prev;
+  uint64_t stream_init_prev;
+  uint64_t tcp_init_prev;
+  uint64_t udp_init_prev;
+  uint64_t pipe_init_prev;
+  uint64_t tty_init_prev;
+  uint64_t prepare_init_prev;
+  uint64_t check_init_prev;
+  uint64_t idle_init_prev;
+  uint64_t async_init_prev;
+  uint64_t timer_init_prev;
+  uint64_t process_init_prev;
+  uint64_t fs_event_init_prev;
 
   /* req_init and eio_init test by uv_fs_open() */
   unlink("test_file");

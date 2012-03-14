@@ -547,7 +547,8 @@ static void fs__stat(uv_fs_t* req, const wchar_t* path) {
   req->stat.st_size = ((int64_t) info.nFileSizeHigh << 32) +
                       (int64_t) info.nFileSizeLow;
 
-  req->stat.st_nlink = info.nNumberOfLinks;
+  req->stat.st_nlink = (info.nNumberOfLinks <= SHRT_MAX) ?
+                       (short) info.nNumberOfLinks : SHRT_MAX;
 
   req->ptr = &req->stat;
   req->result = 0;

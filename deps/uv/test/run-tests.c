@@ -84,7 +84,7 @@ static void ipc_on_connection(uv_stream_t* server, int status) {
   uv_tcp_t* conn;
 
   if (!connection_accepted) {
-    /* 
+    /*
      * Accept the connection and close it.  Also let the other
      * side know.
      */
@@ -119,7 +119,7 @@ static int ipc_helper(int listen_after_write) {
    * data is transfered over the channel. XXX edit this comment after handle
    * transfer is added.
    */
-  
+
   uv_write_t write_req;
   int r;
   uv_buf_t buf;
@@ -129,8 +129,8 @@ static int ipc_helper(int listen_after_write) {
 
   uv_pipe_open(&channel, 0);
 
-  ASSERT(uv_is_readable(&channel));
-  ASSERT(uv_is_writable(&channel));
+  ASSERT(uv_is_readable((uv_stream_t*) &channel));
+  ASSERT(uv_is_writable((uv_stream_t*) &channel));
 
   r = uv_tcp_init(uv_default_loop(), &tcp_server);
   ASSERT(r == 0);
@@ -206,7 +206,7 @@ static int stdio_over_pipes_helper() {
   uv_buf_t buf[COUNTOF(buffers)];
   int r, i;
   uv_loop_t* loop = uv_default_loop();
-  
+
   ASSERT(UV_NAMED_PIPE == uv_guess_handle(0));
   ASSERT(UV_NAMED_PIPE == uv_guess_handle(1));
 

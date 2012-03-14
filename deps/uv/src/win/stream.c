@@ -47,6 +47,8 @@ void uv_connection_init(uv_stream_t* handle) {
   handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
   handle->read_req.type = UV_READ;
   handle->read_req.data = handle;
+
+  handle->shutdown_req = NULL;
 }
 
 
@@ -169,6 +171,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   handle->flags |= UV_HANDLE_SHUTTING;
   handle->shutdown_req = req;
   handle->reqs_pending++;
+  uv_ref(loop);
 
   uv_want_endgame(loop, (uv_handle_t*)handle);
 
@@ -194,5 +197,5 @@ int uv_is_readable(uv_stream_t* handle) {
 
 
 int uv_is_writable(uv_stream_t* handle) {
-  return !(handle->flags & UV_HANDLE_SHUT);
+  return !(handle->flags & UV_HANDLE_SHUTTING);
 }

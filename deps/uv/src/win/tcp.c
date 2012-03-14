@@ -171,11 +171,13 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   uv_tcp_accept_t* req;
 
   if (handle->flags & UV_HANDLE_CONNECTION &&
-      handle->flags & UV_HANDLE_SHUTTING &&
-      !(handle->flags & UV_HANDLE_SHUT) &&
+      handle->shutdown_req != NULL &&
       handle->write_reqs_pending == 0) {
 
-    if (shutdown(handle->socket, SD_SEND) != SOCKET_ERROR) {
+    if (handle->flags & UV_HANDLE_CLOSING) {
+      status = -1;
+      sys_error = WSAEINTR;
+    } else if (shutdown(handle->socket, SD_SEND) != SOCKET_ERROR) {
       status = 0;
       handle->flags |= UV_HANDLE_SHUT;
     } else {
@@ -189,6 +191,9 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
       handle->shutdown_req->cb(handle->shutdown_req, status);
     }
 
+    handle->shutdown_req = NULL;
+
+    uv_unref(loop);
     DECREASE_PENDING_REQ_COUNT(handle);
     return;
   }
@@ -552,7 +557,7 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
 
       if (server->processed_accepts >= uv_simultaneous_server_accepts) {
         server->processed_accepts = 0;
-        /* 
+        /*
          * All previously queued accept requests are now processed.
          * We now switch to queueing just a single accept.
          */
@@ -643,10 +648,12 @@ int uv__tcp_connect(uv_connect_t* req,
   if (UV_SUCCEEDED_WITHOUT_IOCP(success)) {
     /* Process the req without IOCP. */
     handle->reqs_pending++;
+    uv_ref(loop);
     uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(success)) {
     /* The req will be processed with IOCP. */
     handle->reqs_pending++;
+    uv_ref(loop);
   } else {
     uv__set_sys_error(loop, WSAGetLastError());
     return -1;
@@ -702,9 +709,11 @@ int uv__tcp_connect6(uv_connect_t* req,
 
   if (UV_SUCCEEDED_WITHOUT_IOCP(success)) {
     handle->reqs_pending++;
+    uv_ref(loop);
     uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(success)) {
     handle->reqs_pending++;
+    uv_ref(loop);
   } else {
     uv__set_sys_error(loop, WSAGetLastError());
     return -1;
@@ -799,12 +808,14 @@ int uv_tcp_write(uv_loop_t* loop, uv_write_t* req, uv_tcp_t* handle,
     handle->reqs_pending++;
     handle->write_reqs_pending++;
     uv_insert_pending_req(loop, (uv_req_t*) req);
+    uv_ref(loop);
   } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
     /* Request queued by the kernel. */
     req->queued_bytes = uv_count_bufs(bufs, bufcnt);
     handle->reqs_pending++;
     handle->write_reqs_pending++;
     handle->write_queue_size += req->queued_bytes;
+    uv_ref(loop);
   } else {
     /* Send failed due to an error. */
     uv__set_sys_error(loop, WSAGetLastError());
@@ -835,7 +846,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
       err = GET_REQ_SOCK_ERROR(req);
 
       if (err == WSAECONNABORTED) {
-        /* 
+        /*
          * Turn WSAECONNABORTED into UV_ECONNRESET to be consistent with Unix.
          */
         uv__set_error(loop, UV_ECONNRESET, err);
@@ -904,7 +915,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           handle->read_cb((uv_stream_t*)handle, 0, buf);
         } else {
           if (err == WSAECONNABORTED) {
-            /* 
+            /*
              * Turn WSAECONNABORTED into UV_ECONNRESET to be consistent with Unix.
              */
             uv__set_error(loop, UV_ECONNRESET, err);
@@ -950,6 +961,7 @@ void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
+  uv_unref(loop);
 }
 
 
@@ -1024,6 +1036,7 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
+  uv_unref(loop);
 }
 
 
@@ -1090,7 +1103,7 @@ int uv_tcp_duplicate_socket(uv_tcp_t* handle, int pid,
     LPWSAPROTOCOL_INFOW protocol_info) {
   assert(!(handle->flags & UV_HANDLE_CONNECTION));
 
-  /* 
+  /*
    * We're about to share the socket with another process.  Because
    * this is a listening socket, we assume that the other process will
    * be accepting connections on it.  So, before sharing the socket
