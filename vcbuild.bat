@@ -15,6 +15,8 @@ if /i "%1"=="/?" goto help
 set config=Release
 set target=Build
 set target_arch=ia32
+set debug_arg=
+set nosnapshot_arg=
 set noprojgen=
 set nobuild=
 set nosign=
@@ -57,21 +59,15 @@ goto next-arg
 if defined upload goto upload
 if defined jslint goto jslint
 
+if "%config%"=="Debug" set debug_arg=--debug
+if defined nosnapshot set nosnapshot_arg=--without-snapshot
 
 :project-gen
 @rem Skip project generation if requested.
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-if defined nosnapshot goto nosnapshotgen
-python tools\gyp_node -f msvs -G msvs_version=2010 -Dtarget_arch=%target_arch%
-if errorlevel 1 goto create-msvs-files-failed
-if not exist node.sln goto create-msvs-files-failed
-echo Project files generated.
-goto msbuild
-
-:nosnapshotgen
-python tools\gyp_node -f msvs -G msvs_version=2010 -D v8_use_snapshot='false' -Dtarget_arch=%target_arch%
+python configure %debug_arg% %nosnapshot_arg% --dest-cpu=%target_arch%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
