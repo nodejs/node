@@ -38,8 +38,6 @@ var assert = require('assert');
 
   process.on('exit', function() {
     assert.equal(ncalled, 1);
-    // timer should be already closed
-    assert.equal(timer.close(), -1);
   });
 })();
 
