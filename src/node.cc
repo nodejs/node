@@ -2624,9 +2624,6 @@ char** Init(int argc, char *argv[]) {
   // Initialize prog_start_time to get relative uptime.
   uv_uptime(&prog_start_time);
 
-  // Hack aroung with the argv pointer. Used for process.title = "blah".
-  argv = uv_setup_args(argc, argv);
-
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(argc, argv);
   // Parse the rest of the args (up to the 'option_end_index' (where '--' was
@@ -2754,6 +2751,9 @@ static char **copy_argv(int argc, char **argv) {
 }
 
 int Start(int argc, char *argv[]) {
+  // Hack aroung with the argv pointer. Used for process.title = "blah".
+  argv = uv_setup_args(argc, argv);
+
   // Logic to duplicate argv as Init() modifies arguments
   // that are passed into it.
   char **argv_copy = copy_argv(argc, argv);
