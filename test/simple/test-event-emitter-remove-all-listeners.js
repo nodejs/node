@@ -29,14 +29,20 @@ function listener() {}
 var e1 = new events.EventEmitter();
 e1.on('foo', listener);
 e1.on('bar', listener);
+e1.on('baz', listener);
+e1.on('baz', listener);
 var fooListeners = e1.listeners('foo');
 var barListeners = e1.listeners('bar');
-e1.removeAllListeners('foo');
-assert.deepEqual(e1.listeners('foo'), []);
-assert.deepEqual(e1.listeners('bar'), [listener]);
+var bazListeners = e1.listeners('baz');
+e1.removeAllListeners('bar');
+e1.removeAllListeners('baz');
+assert.deepEqual(e1.listeners('foo'), [listener]);
+assert.deepEqual(e1.listeners('bar'), []);
+assert.deepEqual(e1.listeners('baz'), []);
 // identity check, the array should not change
 assert.equal(e1.listeners('foo'), fooListeners);
 assert.equal(e1.listeners('bar'), barListeners);
+assert.equal(e1.listeners('baz'), bazListeners);
 
 var e2 = new events.EventEmitter();
 e2.on('foo', listener);
