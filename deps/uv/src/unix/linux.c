@@ -170,10 +170,15 @@ uint64_t uv_get_total_memory(void) {
 #if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
 
 static int new_inotify_fd(void) {
-#if HAVE_INOTIFY_INIT1
-  return inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
-#else
   int fd;
+
+#if HAVE_INOTIFY_INIT1
+  fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+  if (fd != -1)
+    return fd;
+  if (errno != ENOSYS)
+    return -1;
+#endif
 
   if ((fd = inotify_init()) == -1)
     return -1;
@@ -184,7 +189,6 @@ static int new_inotify_fd(void) {
   }
 
   return fd;
-#endif
 }
 
 

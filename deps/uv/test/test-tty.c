@@ -25,7 +25,7 @@
 #ifdef _WIN32
 # include <io.h>
 # include <windows.h>
-#else // Unix
+#else /*  Unix */
 # include <fcntl.h>
 # include <unistd.h>
 #endif
@@ -37,7 +37,7 @@ TEST_IMPL(tty) {
   uv_tty_t tty_in, tty_out;
   uv_loop_t* loop = uv_default_loop();
 
-  // Make sure we have an FD that refers to a tty
+  /* Make sure we have an FD that refers to a tty */
 #ifdef _WIN32
   HANDLE handle;
   handle = CreateFileA("conin$",

@@ -45,7 +45,7 @@ static void write_unref_cb(uv_connect_t* req, int status) {
   ASSERT(status == 0);
 
   uv_write(&write_req, req->handle, &buf, 1, (uv_write_cb) fail_cb);
-  uv_unref(uv_default_loop()); // uv_write refs the loop
+  uv_unref(uv_default_loop()); /* uv_write refs the loop */
 }
 
 
@@ -55,7 +55,7 @@ static void shutdown_unref_cb(uv_connect_t* req, int status) {
   ASSERT(status == 0);
 
   uv_shutdown(&shutdown_req, req->handle, (uv_shutdown_cb) fail_cb);
-  uv_unref(uv_default_loop()); // uv_shutdown refs the loop
+  uv_unref(uv_default_loop()); /* uv_shutdown refs the loop */
 }
 
 
