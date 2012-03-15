@@ -160,10 +160,11 @@ the last parameter `listeningListener` will be added as an listener for the
 
 ### server.close([cb])
 
-Stops the server from accepting new connections. This function is
-asynchronous, the server is finally closed when the server emits a `'close'`
-event. Optionally, you can pass a callback to listen for the `'close'` event.
-
+Stops the server from accepting new connections and keeps existing
+connections. This function is asynchronous, the server is finally
+closed when all connections are ended and the server emits a `'close'`
+event. Optionally, you can pass a callback to listen for the `'close'`
+event.
 
 ### server.address()
 
@@ -210,7 +211,8 @@ Emitted when a new connection is made. `socket` is an instance of
 
 ### Event: 'close'
 
-Emitted when the server closes.
+Emitted when the server closes. Note that if connections exist, this
+event is not emitted until all connections are ended.
 
 ### Event: 'error'
 
