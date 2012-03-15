@@ -33,6 +33,25 @@ using node::ThrowRangeError;
 using node::ThrowTypeError;
 using node::ThrowError;
 
+int SizeOfArrayElementForType(v8::ExternalArrayType type) {
+  switch (type) {
+    case v8::kExternalByteArray:
+    case v8::kExternalUnsignedByteArray:
+      return 1;
+    case v8::kExternalShortArray:
+    case v8::kExternalUnsignedShortArray:
+      return 2;
+    case v8::kExternalIntArray:
+    case v8::kExternalUnsignedIntArray:
+    case v8::kExternalFloatArray:
+      return 4;
+    case v8::kExternalDoubleArray:
+      return 8;
+    default:
+      return 0;
+  }
+}
+
 struct BatchedMethods {
   const char* name;
   v8::Handle<v8::Value> (*func)(const v8::Arguments& args);
@@ -64,7 +83,7 @@ class ArrayBuffer {
     v8::Object* obj = v8::Object::Cast(*value);
 
     void* ptr = obj->GetIndexedPropertiesExternalArrayData();
-    int element_size = v8_typed_array::SizeOfArrayElementForType(
+    int element_size = SizeOfArrayElementForType(
         obj->GetIndexedPropertiesExternalArrayDataType());
     int size =
         obj->GetIndexedPropertiesExternalArrayDataLength() * element_size;
@@ -699,7 +718,7 @@ class DataView {
     unsigned int index = args[0]->Uint32Value();
     bool little_endian = args[1]->BooleanValue();
     // TODO(deanm): All of these things should be cacheable.
-    int element_size = v8_typed_array::SizeOfArrayElementForType(
+    int element_size = SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
     int size = args.This()->GetIndexedPropertiesExternalArrayDataLength() *
                element_size;
@@ -719,7 +738,7 @@ class DataView {
     unsigned int index = args[0]->Int32Value();
     bool little_endian = args[2]->BooleanValue();
     // TODO(deanm): All of these things should be cacheable.
-    int element_size = v8_typed_array::SizeOfArrayElementForType(
+    int element_size = SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
     int size = args.This()->GetIndexedPropertiesExternalArrayDataLength() *
                element_size;
@@ -827,25 +846,6 @@ void AttachBindings(v8::Handle<v8::Object> obj) {
            Float64Array::GetTemplate()->GetFunction());
   obj->Set(v8::String::New("DataView"),
            DataView::GetTemplate()->GetFunction());
-}
-
-int SizeOfArrayElementForType(v8::ExternalArrayType type) {
-  switch (type) {
-    case v8::kExternalByteArray:
-    case v8::kExternalUnsignedByteArray:
-      return 1;
-    case v8::kExternalShortArray:
-    case v8::kExternalUnsignedShortArray:
-      return 2;
-    case v8::kExternalIntArray:
-    case v8::kExternalUnsignedIntArray:
-    case v8::kExternalFloatArray:
-      return 4;
-    case v8::kExternalDoubleArray:
-      return 8;
-    default:
-      return 0;
-  }
 }
 
 }  // namespace v8_typed_array
