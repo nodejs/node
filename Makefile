@@ -102,7 +102,7 @@ website_files = \
 	out/doc/logos/index.html \
 	$(doc_images)
 
-doc: node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/
+doc: program $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs) tools/doc/
 
 $(apidoc_dirs):
 	mkdir -p $@

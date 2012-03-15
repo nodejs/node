@@ -1,4 +1,28 @@
-2012.03.02 Version 0.6.12 (stable)
+2012.03.15 Version 0.6.13 (stable)
+
+* Windows: Many libuv test fixes (Bert Belder)
+
+* Windows: avoid uv_guess_handle crash in when fd < 0 (Bert Belder)
+
+* Map EBUSY and ENOTEMPTY errors (Bert Belder)
+
+* Windows: include syscall in fs errors (Bert Belder)
+
+* Fix fs.watch ENOSYS on Linux kernel version mismatch (Ben Noordhuis)
+
+* Update npm to 1.1.9
+  - upgrade node-gyp to 0.3.5 (Nathan Rajlich)
+  - Fix isaacs/npm#2249 Add cache-max and cache-min configs
+  - Properly redirect across https/http registry requests
+  - log config usage if undefined key in set function (Kris Windham)
+  - Add support for os/cpu fields in package.json (Adam Blackburn)
+  - Automatically node-gyp packages containing a binding.gyp
+  - Fix failures unpacking in UNC shares
+  - Never create un-listable directories
+  - Handle cases where an optionalDependency fails to build
+
+
+2012.03.02 Version 0.6.12 (stable), 48a2d34cfe6b7e1c9d15202a4ef5e3c82d1fba35
 
 * Upgrade V8 to 3.6.6.24
 
