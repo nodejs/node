@@ -27,7 +27,8 @@ var debug = require('_debugger');
 
 var script = common.fixturesDir + '/breakpoints.js';
 
-var child = spawn(process.execPath, ['debug', '--port=' + common.PORT, script]);
+var child = spawn(process.execPath,
+  ['debug', '--port=' + (common.PORT + 1337), script]);
 
 var buffer = '';
 child.stdout.setEncoding('utf-8');
