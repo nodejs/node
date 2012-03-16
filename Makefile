@@ -110,6 +110,9 @@ $(apidoc_dirs):
 out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
 
+out/doc/%.html: doc/%.html
+	cat $< | sed -e 's|__VERSION__|'$(VERSION)'|g' > $@
+
 out/doc/%: doc/%
 	cp -r $< $@
 
