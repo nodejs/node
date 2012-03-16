@@ -56,6 +56,12 @@ function install (gyp, argv, callback) {
     return callback(new Error('Minimum target version is `0.6` or greater. Got: ' + versionStr))
   }
 
+  // 0.x.y-pre versions are not published yet. Use previous release.
+  if (version[5] === '-pre') {
+    version[3] = +version[3] - 1
+    version[5] = null
+  }
+
   // flatten version into String
   version = version.slice(1, 4).join('.')
   gyp.verbose('installing version', version)

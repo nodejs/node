@@ -139,6 +139,8 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , cache : process.platform === "win32"
             ? path.resolve(process.env.APPDATA || home || temp, "npm-cache")
             : path.resolve( home || temp, ".npm")
+    , "cache-max": Infinity
+    , "cache-min": 0
 
     , color : process.platform !== "win32" || winColor
     , coverage: false
@@ -222,6 +224,8 @@ exports.types =
   , browser : String
   , ca: [null, String]
   , cache : path
+  , "cache-max": Number
+  , "cache-min": Number
   , color : ["always", Boolean]
   , coverage: Boolean
   , depth : Number

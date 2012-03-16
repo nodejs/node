@@ -108,7 +108,7 @@ Commands
  * `clean` - Removes any generated project files and the `out` dir
  * `configure` - Generates project build files for the current platform
  * `rebuild` - Runs "clean", "configure" and "build" all at once
- * `install` - Installs node development files for the given version.  Respects http_proxy/HTTP_PROXY and --proxy=<proxyurl> when downloading.
+ * `install` - Installs node development files for the given version.
  * `list` - Lists the currently installed node development file versions
  * `remove` - Removes a node development files for a given version
 

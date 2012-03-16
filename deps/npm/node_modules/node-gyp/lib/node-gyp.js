@@ -59,6 +59,7 @@ proto.package = require('../package')
 proto.configDefs = {
     help: Boolean    // everywhere
   , arch: String     // 'configure'
+  , msvs_version: String // 'configure'
   , debug: Boolean   // 'build'
   , ensure: Boolean  // 'install'
   , verbose: Boolean // everywhere

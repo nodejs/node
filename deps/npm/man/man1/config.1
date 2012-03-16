@@ -357,6 +357,42 @@ Type: path
 .P
 The location of npm\'s cache directory\.  See \fBnpm help cache\fR
 .
+.SS "cache\-max"
+.
+.IP "\(bu" 4
+Default: Infinity
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The maximum time (in seconds) to keep items in the registry cache before
+re\-checking against the registry\.
+.
+.P
+Note that no purging is done unless the \fBnpm cache clean\fR command is
+explicitly used, and that only GET requests use the cache\.
+.
+.SS "cache\-min"
+.
+.IP "\(bu" 4
+Default: 0
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The minimum time (in seconds) to keep items in the registry cache before
+re\-checking against the registry\.
+.
+.P
+Note that no purging is done unless the \fBnpm cache clean\fR command is
+explicitly used, and that only GET requests use the cache\.
+.
 .SS "color"
 .
 .IP "\(bu" 4

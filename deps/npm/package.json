@@ -10,7 +10,7 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.8",
+  "version": "1.1.9",
   "preferGlobal": true,
   "config": {
     "publishtest": false

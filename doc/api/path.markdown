@@ -138,4 +138,3 @@ an empty string.  Examples:
     path.extname('index')
     // returns
     ''
-

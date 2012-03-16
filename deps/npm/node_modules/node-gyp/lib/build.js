@@ -92,9 +92,18 @@ function build (gyp, argv, callback) {
       , frameworkDir = path.resolve(windir, 'Microsoft.NET', 'Framework')
       , versionDir = path.resolve(frameworkDir, 'v4.0.30319') // This is probably the most brittle part...
       , msbuild = path.resolve(versionDir, 'msbuild.exe')
-    // TODO: Check to see if this file actually exists and error out if it doesn't
-    command = msbuild
-    build()
+    fs.stat(msbuild, function (err, stat) {
+      if (err) {
+        if (err.code == 'ENOENT') {
+          callback(new Error('Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2010 installed?'))
+        } else {
+          callback(err)
+        }
+        return
+      }
+      command = msbuild
+      build()
+    })
   }
 
   /**

@@ -218,6 +218,28 @@ See also the `strict-ssl` config.
 
 The location of npm's cache directory.  See `npm-cache(1)`
 
+### cache-max
+
+* Default: Infinity
+* Type: Number
+
+The maximum time (in seconds) to keep items in the registry cache before
+re-checking against the registry.
+
+Note that no purging is done unless the `npm cache clean` command is
+explicitly used, and that only GET requests use the cache.
+
+### cache-min
+
+* Default: 0
+* Type: Number
+
+The minimum time (in seconds) to keep items in the registry cache before
+re-checking against the registry.
+
+Note that no purging is done unless the `npm cache clean` command is
+explicitly used, and that only GET requests use the cache.
+
 ### color
 
 * Default: true on Posix, false on Windows
