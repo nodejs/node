@@ -35,7 +35,15 @@ normally, `code` is the final exit code of the process, otherwise `null`. If
 the process terminated due to receipt of a signal, `signal` is the string name
 of the signal, otherwise `null`.
 
+Note that the child process stdio streams might still be open.
+
 See `waitpid(2)`.
+
+### Event: 'close'
+
+This event is emitted when the stdio streams of a child process have all
+terminated.  This is distinct from 'exit', since multiple processes
+might share the same stdio streams.
 
 ### Event: 'disconnect'
 
