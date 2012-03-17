@@ -86,7 +86,7 @@ function processIncludes(input, cb) {
         if (er) return cb(errState = er);
         incCount--;
         includeData[fname] = inc;
-        input = input.split(include).join(includeData[fname]);
+        input = input.split(include+'\n').join(includeData[fname]+'\n');
         if (incCount === 0) {
           return cb(null, input);
         }
