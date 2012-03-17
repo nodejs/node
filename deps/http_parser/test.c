@@ -780,8 +780,8 @@ const struct message responses[] =
 , {.name= "404 no headers no body"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 404 Not Found\r\n\r\n"
-  ,.should_keep_alive= TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= TRUE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 404
@@ -795,8 +795,8 @@ const struct message responses[] =
 , {.name= "301 no response phrase"
   ,.type= HTTP_RESPONSE
   ,.raw= "HTTP/1.1 301\r\n\r\n"
-  ,.should_keep_alive = TRUE
-  ,.message_complete_on_eof= FALSE
+  ,.should_keep_alive = FALSE
+  ,.message_complete_on_eof= TRUE
   ,.http_major= 1
   ,.http_minor= 1
   ,.status_code= 301
@@ -1057,8 +1057,46 @@ const struct message responses[] =
     {}
   ,.body= ""
   }
-, {.name= NULL } /* sentinel */
 
+#define NO_CONTENT_LENGTH_NO_TRANSFER_ENCODING_RESPONSE 13
+/* The client should wait for the server's EOF. That is, when neither
+ * content-length nor transfer-encoding is specified, the end of body
+ * is specified by the EOF.
+ */
+, {.name= "neither content-length nor transfer-encoding response"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 200 OK\r\n"
+         "Content-Type: text/plain\r\n"
+         "\r\n"
+         "hello world"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= TRUE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 200
+  ,.num_headers= 1
+  ,.headers=
+    { { "Content-Type", "text/plain" }
+    }
+  ,.body= "hello world"
+  }
+
+#define NO_HEADERS_NO_BODY_204 14
+, {.name= "204 no headers no body"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/1.1 204 No Content\r\n\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.status_code= 204
+  ,.num_headers= 0
+  ,.headers= {}
+  ,.body_size= 0
+  ,.body= ""
+  }
+
+, {.name= NULL } /* sentinel */
 };
 
 int
@@ -1888,7 +1926,7 @@ main (void)
 
   printf("response scan 1/2      ");
   test_scan( &responses[TRAILING_SPACE_ON_CHUNKED_BODY]
-           , &responses[NO_HEADERS_NO_BODY_404]
+           , &responses[NO_HEADERS_NO_BODY_204]
            , &responses[NO_REASON_PHRASE]
            );
 

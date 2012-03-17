@@ -1733,9 +1733,20 @@ http_should_keep_alive (http_parser *parser)
     /* HTTP/1.1 */
     if (parser->flags & F_CONNECTION_CLOSE) {
       return 0;
-    } else {
-      return 1;
     }
+    if (parser->type == HTTP_RESPONSE) {
+      /* See RFC 2616 section 4.4 */
+      if (parser->status_code / 100 == 1 || /* 1xx e.g. Continue */
+          parser->status_code == 204 ||     /* No Content */
+          parser->status_code == 304 ||     /* Not Modified */
+          parser->flags & F_SKIPBODY) {     /* response to a HEAD request */
+        return 1;
+      }
+      if (!(parser->flags & F_CHUNKED) && parser->content_length == -1) {
+        return 0;
+      }
+    }
+    return 1;
   } else {
     /* HTTP/1.0 or earlier */
     if (parser->flags & F_CONNECTION_KEEP_ALIVE) {
