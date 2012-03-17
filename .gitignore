@@ -37,3 +37,6 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
+email.md
+blog.html
+deps/v8-*
