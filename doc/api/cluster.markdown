@@ -123,11 +123,12 @@ where the 'listening' event is emitted.
 * `worker` {Worker object}
 
 When a workers IPC channel has disconnected this event is emitted. This will happen
-when the worker die, usually after calling `.destroy()`.
+when the worker dies, usually after calling `.destroy()`.
 
-But also when calling `.disconnect()`, in this case it is possible there is delay
-between the `disconnect` and `death` and the event can be used to detect if the
-process is stuck in a cleanup or if there are long living connection.
+When calling `.disconnect()`, there may be a delay between the
+`disconnect` and `death` events.  This event can be used to detect if
+the process is stuck in a cleanup or if there are long-living
+connections.
 
     cluster.on('disconnect', function(worker) {
       console.log('The worker #' + worker.uniqueID + ' has disconnected');
@@ -198,11 +199,11 @@ This object is not supposed to be change or set manually.
 
 * `callback` {Function} called when all workers are disconnected and handlers are closed
 
-When calling this method all workers will commit a graceful suicide. When they are
+When calling this method, all workers will commit a graceful suicide. When they are
 disconnected all internal handlers will be closed, allowing the master process to
 die graceful if no other event is waiting.
 
-The method takes an optional callback argument there will be called when finished.
+The method takes an optional callback argument which will be called when finished.
 
 ## cluster.workers
 
