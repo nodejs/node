@@ -27,11 +27,29 @@
 
 var common = require('../common');
 var assert = require('assert');
-var SlowBuffer = process.binding('buffer').SlowBuffer;
-var ArrayBuffer = process.binding('typed_array').ArrayBuffer;
-var Int32Array = process.binding('typed_array').Int32Array;
-var Int16Array = process.binding('typed_array').Int16Array;
-var Uint8Array = process.binding('typed_array').Uint8Array;
+
+[
+  'ArrayBuffer',
+  'Int8Array',
+  'Uint8Array',
+  'Int16Array',
+  'Uint16Array',
+  'Int32Array',
+  'Uint32Array',
+  'Float32Array',
+  'Float64Array'
+].forEach(function(name) {
+  var expected = '[object ' + name + ']';
+  var clazz = global[name];
+  var obj = new clazz(1);
+
+  assert.equal(obj.toString(), expected);
+  assert.equal(Object.prototype.toString.call(obj), expected);
+
+  obj = new DataView(obj);
+  assert.equal(obj.toString(), '[object DataView]');
+  assert.equal(Object.prototype.toString.call(obj), '[object DataView]');
+});
 
 // initialize a zero-filled buffer
 var buffer = new Buffer(8);
