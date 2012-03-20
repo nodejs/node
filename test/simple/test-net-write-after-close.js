@@ -24,21 +24,23 @@ var assert = require('assert');
 var net = require('net');
 
 var gotError = false;
+var gotWriteCB = false;
 
 process.on('exit', function() {
   assert(gotError);
+  assert(gotWriteCB);
 });
 
 var server = net.createServer(function(socket) {
-  setTimeout(function() {
-    assert.throws(
-      function() {
-        socket.write('test');
-      },
-      /This socket is closed/
-    );
+  socket.on('error', function(error) {
     server.close();
     gotError = true;
+  });
+
+  setTimeout(function() {
+    socket.write('test', function(e) {
+      gotWriteCB = true;
+    });
   }, 250);
 });
 
