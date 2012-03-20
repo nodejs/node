@@ -33,79 +33,97 @@ var Int32Array = process.binding('typed_array').Int32Array;
 var Int16Array = process.binding('typed_array').Int16Array;
 var Uint8Array = process.binding('typed_array').Uint8Array;
 
-function test(clazz) {
-  var size = clazz.length;
-  var b = clazz;
+// initialize a zero-filled buffer
+var buffer = new Buffer(8);
+buffer.fill(0);
 
-  // create a view v1 referring to b, of type Int32, starting at
-  // the default byte index (0) and extending until the end of the buffer
-  var v1 = new Int32Array(b);
-  assert(4, v1.BYTES_PER_ELEMENT);
+var uint8 = new Uint8Array(buffer);
+var uint16 = new Uint16Array(buffer);
+var uint16slice = new Uint16Array(buffer, 2, 2);
+var uint32 = new Uint32Array(buffer);
 
-  // create a view v2 referring to b, of type Uint8, starting at
-  // byte index 2 and extending until the end of the buffer
-  var v2 = new Uint8Array(b, 2);
-  assert(1, v1.BYTES_PER_ELEMENT);
+assert.equal(uint8.BYTES_PER_ELEMENT, 1);
+assert.equal(uint16.BYTES_PER_ELEMENT, 2);
+assert.equal(uint16slice.BYTES_PER_ELEMENT, 2);
+assert.equal(uint32.BYTES_PER_ELEMENT, 4);
 
-  // create a view v3 referring to b, of type Int16, starting at
-  // byte index 2 and having a length of 2
-  var v3 = new Int16Array(b, 2, 2);
-  assert(2, v1.BYTES_PER_ELEMENT);
+// now change the underlying buffer
+buffer[0] = 0x08;
+buffer[1] = 0x09;
+buffer[2] = 0x0a;
+buffer[3] = 0x0b;
+buffer[4] = 0x0c;
+buffer[5] = 0x0d;
+buffer[6] = 0x0e;
+buffer[7] = 0x0f;
 
-  // The layout is now
-  // var index
-  // b = |0|1|2|3|4|5|6|7| bytes (not indexable)
-  // v1 = |0 |1 | indices (indexable)
-  // v2 = |0|1|2|3|4|5|
-  // v3 = |0 |1 |
+/*
+  This is what we expect the variables to look like at this point (on
+  little-endian machines):
 
-  // testing values
-  v1[0] = 0x1234;
-  v1[1] = 0x5678;
+  buffer      | 0x08 | 0x09 | 0x0a | 0x0b | 0x0c | 0x0d | 0x0e | 0x0f |
+  uint8       | 0x08 | 0x09 | 0x0a | 0x0b | 0x0c | 0x0d | 0x0e | 0x0f |
+  uint16      |    0x0908   |    0x0b0a   |    0x0d0c   |    0x0f0e   |
+  uint16slice --------------|    0x0b0a   |    0x0d0c   |--------------
+  uint32      |         0x0b0a0908        |         0x0f0e0d0c        |
+*/
 
-  assert(0x1234, v1[0]);
-  assert(0x5678, v1[1]);
+assert.equal(uint8[0], 0x08);
+assert.equal(uint8[1], 0x09);
+assert.equal(uint8[2], 0x0a);
+assert.equal(uint8[3], 0x0b);
+assert.equal(uint8[4], 0x0c);
+assert.equal(uint8[5], 0x0d);
+assert.equal(uint8[6], 0x0e);
+assert.equal(uint8[7], 0x0f);
 
-  assert(0x3, v2[0]);
-  assert(0x4, v2[1]);
-  assert(0x5, v2[2]);
-  assert(0x6, v2[3]);
-  assert(0x7, v2[4]);
-  assert(0x8, v2[5]);
+// determine whether or not typed array values are stored little-endian first
+// internally
+var IS_LITTLE_ENDIAN = (new Uint16Array([0x1234])).buffer[0] === 0x34;
 
-  assert(0x34, v3[0]);
-  assert(0x56, v3[1]);
+if (IS_LITTLE_ENDIAN) {
+  assert.equal(uint16[0], 0x0908);
+  assert.equal(uint16[1], 0x0b0a);
+  assert.equal(uint16[2], 0x0d0c);
+  assert.equal(uint16[3], 0x0f0e);
 
-  // test get/set
-  v2.set(1, 0x8);
-  v2.set(2, 0xF);
-  assert(0x8, v2.get(1));
-  assert(0xF, v2.get(2));
-  assert(0x38, v3.get(0));
-  assert(0xF6, v3.get(1));
+  assert.equal(uint16slice[0], 0x0b0a);
+  assert.equal(uint16slice[1], 0x0d0c);
 
-  // test subarray
-  var v4 = v1.subarray(1);
-  assert(Int32Array, typeof v4);
-  assert(0xF678, v4[0]);
+  assert.equal(uint32[0], 0x0b0a0908);
+  assert.equal(uint32[1], 0x0f0e0d0c);
+} else {
+  assert.equal(uint16[0], 0x0809);
+  assert.equal(uint16[1], 0x0a0b);
+  assert.equal(uint16[2], 0x0c0d);
+  assert.equal(uint16[3], 0x0e0f);
 
-  // test set with typed array and []
-  v2.set([1, 2, 3, 4], 2);
-  assert(0x1234, v1[0]);
+  assert.equal(uint16slice[0], 0x0a0b);
+  assert.equal(uint16slice[1], 0x0c0d);
 
-  var sub = new Int32Array(4);
-  sub[0] = 0xabcd;
-  v2.set(sub, 1);
-  assert(0x3a, v3[0]);
-  assert(0xbc, v3[1]);
+  assert.equal(uint32[0], 0x08090a0b);
+  assert.equal(uint32[1], 0x0c0d0e0f);
 }
 
-// basic Typed Arrays tests
-var size = 8;
-var ab = new ArrayBuffer(size);
-assert.equal(size, ab.byteLength);
-test(ab);
+// test .subarray(begin, end)
+var sub = uint8.subarray(2, 4);
 
-// testing sharing Buffer object
-var buffer = new Buffer(size);
-test(buffer);
+assert.ok(sub instanceof Uint8Array);
+assert.equal(sub[0], 0x0a);
+assert.equal(sub[1], 0x0b);
+
+// modifications of a value in the subarray of `uint8` should propagate to
+// the other views
+sub[0] = 0x12;
+sub[1] = 0x34;
+
+assert.equal(uint8[2], 0x12);
+assert.equal(uint8[3], 0x34);
+
+// test .set(index, value), .set(arr, offset) and .get(index)
+uint8.set(1, 0x09);
+uint8.set([0x0a, 0x0b], 2);
+
+assert.equal(uint8.get(1), 0x09);
+assert.equal(uint8.get(2), 0x0a);
+assert.equal(uint8.get(3), 0x0b);
