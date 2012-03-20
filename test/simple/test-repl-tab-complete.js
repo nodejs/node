@@ -190,3 +190,15 @@ putIn.run([
 testMe.complete('str.len', function(error, data) {
   assert.deepEqual(data, [['str.length'], 'str.len']);
 });
+
+putIn.run(['.clear']);
+
+// tab completion should not break on spaces
+var spaceTimeout = setTimeout(function() {
+  throw new Error('timeout');
+}, 1000);
+
+testMe.complete(' ', function(error, data) {
+  assert.deepEqual(data, [[],undefined]);
+  clearTimeout(spaceTimeout);
+});
