@@ -120,7 +120,7 @@ class ProcessWrap : public HandleWrap {
       // Heap allocate to detect errors. +1 is for NULL.
       options.args = new char*[argc + 1];
       for (int i = 0; i < argc; i++) {
-        String::Utf8Value arg(js_argv->Get(i)->ToString());
+        String::Utf8Value arg(js_argv->Get(i));
         options.args[i] = strdup(*arg);
       }
       options.args[argc] = NULL;
@@ -140,7 +140,7 @@ class ProcessWrap : public HandleWrap {
       int envc = env->Length();
       options.env = new char*[envc + 1]; // Heap allocated to detect errors.
       for (int i = 0; i < envc; i++) {
-        String::Utf8Value pair(env->Get(i)->ToString());
+        String::Utf8Value pair(env->Get(i));
         options.env[i] = strdup(*pair);
       }
       options.env[envc] = NULL;

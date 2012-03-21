@@ -144,7 +144,7 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
 
   UNWRAP
 
-  String::AsciiValue name(args[0]->ToString());
+  String::AsciiValue name(args[0]);
 
   int r = uv_pipe_bind(&wrap->handle_, *name);
 
@@ -271,7 +271,7 @@ Handle<Value> PipeWrap::Connect(const Arguments& args) {
 
   UNWRAP
 
-  String::AsciiValue name(args[0]->ToString());
+  String::AsciiValue name(args[0]);
 
   ConnectWrap* req_wrap = new ConnectWrap();
 

@@ -298,7 +298,7 @@ Handle<Value> TCPWrap::Bind(const Arguments& args) {
 
   UNWRAP
 
-  String::AsciiValue ip_address(args[0]->ToString());
+  String::AsciiValue ip_address(args[0]);
   int port = args[1]->Int32Value();
 
   struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
@@ -316,7 +316,7 @@ Handle<Value> TCPWrap::Bind6(const Arguments& args) {
 
   UNWRAP
 
-  String::AsciiValue ip6_address(args[0]->ToString());
+  String::AsciiValue ip6_address(args[0]);
   int port = args[1]->Int32Value();
 
   struct sockaddr_in6 address = uv_ip6_addr(*ip6_address, port);
@@ -412,7 +412,7 @@ Handle<Value> TCPWrap::Connect(const Arguments& args) {
 
   UNWRAP
 
-  String::AsciiValue ip_address(args[0]->ToString());
+  String::AsciiValue ip_address(args[0]);
   int port = args[1]->Int32Value();
 
   struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
@@ -442,7 +442,7 @@ Handle<Value> TCPWrap::Connect6(const Arguments& args) {
 
   UNWRAP
 
-  String::AsciiValue ip_address(args[0]->ToString());
+  String::AsciiValue ip_address(args[0]);
   int port = args[1]->Int32Value();
 
   struct sockaddr_in6 address = uv_ip6_addr(*ip_address, port);

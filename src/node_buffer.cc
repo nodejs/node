@@ -589,7 +589,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
             "Argument must be a string")));
   }
 
-  String::AsciiValue s(args[0]->ToString());
+  String::AsciiValue s(args[0]);
   size_t offset = args[1]->Int32Value();
   size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
                                              : args[2]->Uint32Value();

@@ -185,7 +185,7 @@ Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
   // bind(ip, port, flags)
   assert(args.Length() == 3);
 
-  String::Utf8Value address(args[0]->ToString());
+  String::Utf8Value address(args[0]);
   const int port = args[1]->Uint32Value();
   const int flags = args[2]->Uint32Value();
 
@@ -244,8 +244,8 @@ Handle<Value> UDPWrap::SetMembership(const Arguments& args,
 
   assert(args.Length() == 2);
 
-  String::Utf8Value address(args[0]->ToString());
-  String::Utf8Value iface(args[1]->ToString());
+  String::Utf8Value address(args[0]);
+  String::Utf8Value iface(args[1]);
 
   const char* iface_cstr = *iface;
   if (args[1]->IsUndefined() || args[1]->IsNull()) {
@@ -296,7 +296,7 @@ Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
                              length);
 
   const unsigned short port = args[3]->Uint32Value();
-  String::Utf8Value address(args[4]->ToString());
+  String::Utf8Value address(args[4]);
 
   switch (family) {
   case AF_INET:

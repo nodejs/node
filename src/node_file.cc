@@ -354,7 +354,7 @@ static Handle<Value> Stat(const Arguments& args) {
   if (args.Length() < 1) return TYPE_ERROR("path required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
     ASYNC_CALL(stat, args[1], *path)
@@ -370,7 +370,7 @@ static Handle<Value> LStat(const Arguments& args) {
   if (args.Length() < 1) return TYPE_ERROR("path required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
     ASYNC_CALL(lstat, args[1], *path)
@@ -406,12 +406,12 @@ static Handle<Value> Symlink(const Arguments& args) {
   if (!args[0]->IsString()) return TYPE_ERROR("dest path must be a string");
   if (!args[1]->IsString()) return TYPE_ERROR("src path must be a string");
 
-  String::Utf8Value dest(args[0]->ToString());
-  String::Utf8Value path(args[1]->ToString());
+  String::Utf8Value dest(args[0]);
+  String::Utf8Value path(args[1]);
   int flags = 0;
 
   if (args[2]->IsString()) {
-    String::Utf8Value mode(args[2]->ToString());
+    String::Utf8Value mode(args[2]);
     if (memcmp(*mode, "dir\0", 4) == 0) {
       flags |= UV_FS_SYMLINK_DIR;
     }
@@ -434,8 +434,8 @@ static Handle<Value> Link(const Arguments& args) {
   if (!args[0]->IsString()) return TYPE_ERROR("dest path must be a string");
   if (!args[1]->IsString()) return TYPE_ERROR("src path must be a string");
 
-  String::Utf8Value orig_path(args[0]->ToString());
-  String::Utf8Value new_path(args[1]->ToString());
+  String::Utf8Value orig_path(args[0]);
+  String::Utf8Value new_path(args[1]);
 
   if (args[2]->IsFunction()) {
     ASYNC_CALL(link, args[2], *orig_path, *new_path)
@@ -451,7 +451,7 @@ static Handle<Value> ReadLink(const Arguments& args) {
   if (args.Length() < 1) return TYPE_ERROR("path required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readlink, args[1], *path)
@@ -470,8 +470,8 @@ static Handle<Value> Rename(const Arguments& args) {
   if (!args[0]->IsString()) return TYPE_ERROR("old path must be a string");
   if (!args[1]->IsString()) return TYPE_ERROR("new path must be a string");
   
-  String::Utf8Value old_path(args[0]->ToString());
-  String::Utf8Value new_path(args[1]->ToString());
+  String::Utf8Value old_path(args[0]);
+  String::Utf8Value new_path(args[1]);
 
   if (args[2]->IsFunction()) {
     ASYNC_CALL(rename, args[2], *old_path, *new_path)
@@ -555,7 +555,7 @@ static Handle<Value> Unlink(const Arguments& args) {
   if (args.Length() < 1) return TYPE_ERROR("path required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
     ASYNC_CALL(unlink, args[1], *path)
@@ -571,7 +571,7 @@ static Handle<Value> RMDir(const Arguments& args) {
   if (args.Length() < 1) return TYPE_ERROR("path required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
     ASYNC_CALL(rmdir, args[1], *path)
@@ -588,7 +588,7 @@ static Handle<Value> MKDir(const Arguments& args) {
     return THROW_BAD_ARGS;
   }
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
   if (args[2]->IsFunction()) {
@@ -629,7 +629,7 @@ static Handle<Value> ReadDir(const Arguments& args) {
   if (args.Length() < 1) return TYPE_ERROR("path required");
   if (!args[0]->IsString()) return TYPE_ERROR("path must be a string");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
@@ -667,7 +667,7 @@ static Handle<Value> Open(const Arguments& args) {
   if (!args[1]->IsInt32()) return TYPE_ERROR("flags must be an int");
   if (!args[2]->IsInt32()) return TYPE_ERROR("mode must be an int");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
   int flags = args[1]->Int32Value();
   int mode = static_cast<int>(args[2]->Int32Value());
 
@@ -821,7 +821,7 @@ static Handle<Value> Chmod(const Arguments& args) {
   if(args.Length() < 2 || !args[0]->IsString() || !args[1]->IsInt32()) {
     return THROW_BAD_ARGS;
   }
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
   int mode = static_cast<int>(args[1]->Int32Value());
 
   if(args[2]->IsFunction()) {
@@ -868,7 +868,7 @@ static Handle<Value> Chown(const Arguments& args) {
   if (!args[1]->IsInt32()) return TYPE_ERROR("uid must be an int");
   if (!args[2]->IsInt32()) return TYPE_ERROR("gid must be an int");
 
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
   int uid = static_cast<int>(args[1]->Int32Value());
   int gid = static_cast<int>(args[2]->Int32Value());
 
@@ -919,7 +919,7 @@ static Handle<Value> UTimes(const Arguments& args) {
   if (!args[1]->IsNumber()) return TYPE_ERROR("atime must be a number");
   if (!args[2]->IsNumber()) return TYPE_ERROR("mtime must be a number");
 
-  const String::Utf8Value path(args[0]->ToString());
+  const String::Utf8Value path(args[0]);
   const double atime = static_cast<double>(args[1]->NumberValue());
   const double mtime = static_cast<double>(args[2]->NumberValue());
 

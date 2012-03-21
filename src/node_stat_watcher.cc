@@ -78,7 +78,7 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
   }
 
   StatWatcher *handler = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
-  String::Utf8Value path(args[0]->ToString());
+  String::Utf8Value path(args[0]);
 
   assert(handler->path_ == NULL);
   handler->path_ = strdup(*path);
