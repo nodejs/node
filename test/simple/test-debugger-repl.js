@@ -25,10 +25,13 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 var debug = require('_debugger');
 
+var port = common.PORT + 1337;
+
 var script = common.fixturesDir + '/breakpoints.js';
 
-var child = spawn(process.execPath,
-  ['debug', '--port=' + (common.PORT + 1337), script]);
+var child = spawn(process.execPath, ['debug', '--port=' + port, script]);
+
+console.error('./node', 'debug', '--port=' + port, script);
 
 var buffer = '';
 child.stdout.setEncoding('utf-8');
@@ -44,6 +47,8 @@ child.stderr.pipe(process.stdout);
 var expected = [];
 
 child.on('line', function(line) {
+  line = line.replace(/^(debug> )+/, 'debug> ');
+  console.error('line> ' + line);
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
   var expectedLine = expected[0].lines.shift();
@@ -138,12 +143,6 @@ addTest('c', [
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 
-// Continue
-addTest('c, bt', [
-  /Can't request backtrace now/
-]);
-
-
 function finish() {
   process.exit(0);
 }
@@ -159,8 +158,14 @@ setTimeout(function() {
   if (expected.length > 0 && expected[0].lines) {
     err = err + '. Expected: ' + expected[0].lines.shift();
   }
+  quit();
+  child.kill('SIGKILL');
 
-  throw new Error(err);
+  // give the sigkill time to work.
+  setTimeout(function() {
+    throw new Error(err);
+  }, 100);
+
 }, 5000);
 
 process.once('uncaughtException', function(e) {
