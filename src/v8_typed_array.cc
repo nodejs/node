@@ -122,7 +122,7 @@ class ArrayBuffer {
   }
 };
 
-static bool checkAlignment(unsigned int val, unsigned int bytes) {
+static bool checkAlignment(size_t val, unsigned int bytes) {
   return (val & (bytes - 1)) == 0;  // Handles bytes == 0.
 }
 
@@ -186,15 +186,12 @@ class TypedArray {
     if (node::Buffer::HasInstance(args[0])
         || ArrayBuffer::HasInstance(args[0])) {  // ArrayBuffer constructor.
       buffer = v8::Local<v8::Object>::Cast(args[0]);
-      unsigned int buflen =
+      size_t buflen =
           buffer->GetIndexedPropertiesExternalArrayDataLength();
 
       if (!args[1]->IsUndefined() && args[1]->Int32Value() < 0)
         return ThrowRangeError("Byte offset out of range.");
       byte_offset = args[1]->IsUndefined() ? 0 : args[1]->Uint32Value();
-
-      if (!checkAlignment(byte_offset, TBytes))
-        return ThrowRangeError("Byte offset is not aligned.");
 
       if (args.Length() > 2) {
         if (args[2]->Int32Value() < 0)
@@ -214,10 +211,14 @@ class TypedArray {
         return ThrowRangeError("Length is out of range.");
       }
 
-      // TODO(deanm): Error check.
       void* buf = buffer->GetIndexedPropertiesExternalArrayData();
+      char* begin = reinterpret_cast<char*>(buf) + byte_offset;
+
+      if (!checkAlignment(reinterpret_cast<uintptr_t>(begin), TBytes))
+        return ThrowRangeError("Byte offset is not aligned.");
+
       args.This()->SetIndexedPropertiesToExternalArrayData(
-          reinterpret_cast<char*>(buf) + byte_offset, TEAType, length);
+        begin, TEAType, length);
     }
     else if (args[0]->IsObject()) {  // TypedArray / type[] constructor.
       v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(args[0]);

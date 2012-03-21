@@ -53,13 +53,28 @@ var assert = require('assert');
 });
 
 // initialize a zero-filled buffer
-var buffer = new Buffer(8);
+var buffer = new Buffer(16);
 buffer.fill(0);
 
-var uint8 = new Uint8Array(buffer);
-var uint16 = new Uint16Array(buffer);
-var uint16slice = new Uint16Array(buffer, 2, 2);
-var uint32 = new Uint32Array(buffer);
+// only one of these instantiations should succeed, as the other ones will be
+// unaligned
+var errors = 0;
+var offset;
+for (var i = 0; i < 8; i++) {
+  try {
+    new Float64Array(buffer, i);
+    offset = i;
+  } catch (e) {
+    errors += 1;
+  }
+}
+
+assert.equal(errors, 7);
+
+var uint8 = new Uint8Array(buffer, offset);
+var uint16 = new Uint16Array(buffer, offset);
+var uint16slice = new Uint16Array(buffer, offset + 2, 2);
+var uint32 = new Uint32Array(buffer, offset);
 
 assert.equal(uint8.BYTES_PER_ELEMENT, 1);
 assert.equal(uint16.BYTES_PER_ELEMENT, 2);
@@ -67,20 +82,19 @@ assert.equal(uint16slice.BYTES_PER_ELEMENT, 2);
 assert.equal(uint32.BYTES_PER_ELEMENT, 4);
 
 // now change the underlying buffer
-buffer[0] = 0x08;
-buffer[1] = 0x09;
-buffer[2] = 0x0a;
-buffer[3] = 0x0b;
-buffer[4] = 0x0c;
-buffer[5] = 0x0d;
-buffer[6] = 0x0e;
-buffer[7] = 0x0f;
+buffer[offset    ] = 0x08;
+buffer[offset + 1] = 0x09;
+buffer[offset + 2] = 0x0a;
+buffer[offset + 3] = 0x0b;
+buffer[offset + 4] = 0x0c;
+buffer[offset + 5] = 0x0d;
+buffer[offset + 6] = 0x0e;
+buffer[offset + 7] = 0x0f;
 
 /*
   This is what we expect the variables to look like at this point (on
   little-endian machines):
 
-  buffer      | 0x08 | 0x09 | 0x0a | 0x0b | 0x0c | 0x0d | 0x0e | 0x0f |
   uint8       | 0x08 | 0x09 | 0x0a | 0x0b | 0x0c | 0x0d | 0x0e | 0x0f |
   uint16      |    0x0908   |    0x0b0a   |    0x0d0c   |    0x0f0e   |
   uint16slice --------------|    0x0b0a   |    0x0d0c   |--------------
