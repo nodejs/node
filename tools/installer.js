@@ -118,13 +118,13 @@ if (cmd === 'install') {
   copy('out/Release/node', 'bin/node');
 
   // Install node-waf
-  if (variables.node_install_waf == 'true') {
+  if (variables.node_install_waf) {
     copy('tools/wafadmin', 'lib/node/');
     copy('tools/node-waf', 'bin/node-waf');
   }
 
   // Install npm (eventually)
-  if (variables.node_install_npm == 'true') {
+  if (variables.node_install_npm) {
     copy('deps/npm', 'lib/node_modules/npm');
     queue.push('ln -sf ../lib/node_modules/npm/bin/npm-cli.js ' +
                path.join(node_prefix, 'bin/npm'));
