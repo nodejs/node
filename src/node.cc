@@ -111,6 +111,7 @@ static Persistent<String> emit_symbol;
 
 
 static bool print_eval = false;
+static bool force_repl = false;
 static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
@@ -2155,6 +2156,10 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
     process->Set(String::NewSymbol("_print_eval"), Boolean::New(print_eval));
   }
 
+  if (force_repl) {
+    process->Set(String::NewSymbol("_forceRepl"), True());
+  }
+
   size_t size = 2*PATH_MAX;
   char* execPath = new char[size];
   if (uv_exepath(execPath, &size) != 0) {
@@ -2299,6 +2304,8 @@ static void PrintHelp() {
          "  -v, --version        print node's version\n"
          "  -e, --eval script    evaluate script\n"
          "  -p, --print          print result of --eval\n"
+         "  -i, --interactive    always enter the REPL even if stdin\n"
+         "                       does not appear to be a terminal\n"
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
@@ -2359,6 +2366,9 @@ static void ParseArgs(int argc, char **argv) {
       eval_string = argv[++i];
     } else if (strcmp(arg, "--print") == 0 || strcmp(arg, "-p") == 0) {
       print_eval = true;
+      argv[i] = const_cast<char*>("");
+    } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
+      force_repl = true;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = const_cast<char*>("--help");

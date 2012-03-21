@@ -118,8 +118,8 @@
     } else {
       var Module = NativeModule.require('module');
 
-      // If stdin is a TTY.
-      if (NativeModule.require('tty').isatty(0)) {
+      // If -i or --interactive were passed, or stdin is a TTY.
+      if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
         // REPL
         var repl = Module.requireRepl().start('> ', null, null, true);
         repl.on('exit', function() {
