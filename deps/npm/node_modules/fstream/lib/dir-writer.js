@@ -123,6 +123,9 @@ DirWriter.prototype._process = function () {
   // get rid of any ../../ shenanigans
   props.path = path.join(me.path, path.join("/", p))
 
+  // if i have a filter, the child should inherit it.
+  props.filter = me.filter
+
   // all the rest of the stuff, copy over from the source.
   Object.keys(entry.props).forEach(function (k) {
     if (!props.hasOwnProperty(k)) {

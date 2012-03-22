@@ -40,7 +40,12 @@ function uninstall (args, cb) {
 
 function uninstall_ (args, nm, cb) {
   asyncMap(args, function (arg, cb) {
-    var p = path.resolve(nm, arg)
+    // uninstall .. should not delete /usr/local/lib/node_modules/..
+    var p = path.join(path.resolve(nm), path.join("/", arg))
+    if (path.resolve(p) === nm) {
+      log.warn(arg, "uninstall: invalid argument")
+      return cb(null, [])
+    }
     fs.lstat(p, function (er) {
       if (er) {
         log.warn(arg, "Not installed in "+nm)

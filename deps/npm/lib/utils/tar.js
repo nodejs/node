@@ -98,6 +98,14 @@ function packFiles (targetTarball, parent, files, pkg, cb_) {
                      this.props.mode = this.props.mode | 0200
                      var inc = -1 !== files.indexOf(this.path)
 
+                     // symbolic links are not allowed in packages.
+                     if (this.type.match(/^.*Link$/)) {
+                       log.warn( this.path.substr(parent.length + 1)
+                               + ' -> ' + this.linkpath
+                               , "excluding symbolic link")
+                       return false
+                     }
+
                      // WARNING! Hackety hack!
                      // XXX Fix this in a better way.
                      // Rename .gitignore to .npmignore if there is not a
@@ -111,6 +119,7 @@ function packFiles (targetTarball, parent, files, pkg, cb_) {
                        this.basename = ".npmignore"
                        this.path = path.join(d, ".npmignore")
                      }
+
                      return inc
                    }
                  })
@@ -172,23 +181,6 @@ function unpack_ ( tarball, unpackTarget, dMode, fMode, uid, gid, cb ) {
   })
 }
 
-// on Windows, A/V software can lock the directory, causing this
-// to fail with an EACCES.  Try again on failure, for up to 1 second.
-// XXX Fix this by not unpacking into a temp directory, instead just
-// renaming things on the way out of the tarball.
-function moveIntoPlace (folder, unpackTarget, cb) {
-  var start = Date.now()
-  fs.rename(folder, unpackTarget, function CB (er) {
-    if (er
-        && process.platform === "win32"
-        && er.code === "EACCES"
-        && Date.now() - start < 1000) {
-      return fs.rename(folder, unpackTarget, CB)
-    }
-    cb(er)
-  })
-}
-
 
 function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   if (!dMode) dMode = npm.modes.exec
@@ -232,6 +224,18 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   }
 
   var extractOpts = { type: "Directory", path: target, strip: 1 }
+
+  extractOpts.filter = function () {
+    // symbolic links are not allowed in packages.
+    if (this.type.match(/^.*Link$/)) {
+      log.warn( this.path.substr(target.length + 1)
+              + ' -> ' + this.linkpath
+              , "excluding symbolic link")
+      return false
+    }
+    return true
+  }
+
 
   fst.on("error", log.er(cb, "error reading "+tarball))
   fst.on("data", function OD (c) {

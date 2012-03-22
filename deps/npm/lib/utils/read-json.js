@@ -262,11 +262,12 @@ function typoWarn (json) {
                   }
 
   if (typeof json.bugs === "object") {
+    // just go ahead and correct these.
     Object.keys(bugsTypos).forEach(function (d) {
       if (json.bugs.hasOwnProperty(d)) {
-        log.warn( "package.json: bugs['" + d + "'] should probably be "
-                + "bugs['" + bugsTypos[d] + "']", json._id)
-        }
+        json.bugs[ bugsTypos[d] ] = json.bugs[d]
+        delete json.bugs[d]
+      }
     })
   }
 

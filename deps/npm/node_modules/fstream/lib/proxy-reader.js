@@ -59,6 +59,9 @@ ProxyReader.prototype._addProxy = function (proxy) {
     , "close"
     , "linkpath"
     , "entry"
+    , "entryEnd"
+    , "child"
+    , "childEnd"
     , "warn"
     ].forEach(function (ev) {
       // console.error("~~ proxy event", ev, me.path)

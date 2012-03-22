@@ -10,7 +10,7 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.9",
+  "version": "1.1.12",
   "preferGlobal": true,
   "config": {
     "publishtest": false
@@ -51,7 +51,6 @@
     "block-stream": "*",
     "inherits": "1",
     "mkdirp": "0.3",
-    "fast-list": "~1.0.1",
     "read": "0",
     "lru-cache": "1",
     "node-gyp": "~0.3.4"

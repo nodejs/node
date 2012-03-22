@@ -1,3 +1,5 @@
 .*.swp
-examples/deep-copy
 node_modules/
+examples/deep-copy/
+examples/path/
+examples/filter-copy/

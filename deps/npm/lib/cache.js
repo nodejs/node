@@ -95,12 +95,10 @@ function cache (args, cb) {
 // if the pkg and ver are in the cache, then
 // just do a readJson and return.
 // if they're not, then fetch them from the registry.
-var cacheSeen = {}
 function read (name, ver, forceBypass, cb) {
   if (typeof cb !== "function") cb = forceBypass, forceBypass = true
   var jsonFile = path.join(npm.cache, name, ver, "package", "package.json")
   function c (er, data) {
-    if (!er) cacheSeen[data._id] = data
     if (data) deprCheck(data)
     return cb(er, data)
   }
@@ -108,10 +106,6 @@ function read (name, ver, forceBypass, cb) {
   if (forceBypass && npm.config.get("force")) {
     log.verbose(true, "force found, skipping cache")
     return addNamed(name, ver, c)
-  }
-
-  if (name+"@"+ver in cacheSeen) {
-    return cb(null, cacheSeen[name+"@"+ver])
   }
 
   readJson(jsonFile, function (er, data) {
@@ -126,9 +120,13 @@ function ls (args, cb) {
   output = output || require("./utils/output.js")
   args = args.join("/").split("@").join("/")
   if (args.substr(-1) === "/") args = args.substr(0, args.length - 1)
+  var prefix = npm.config.get("cache")
+  if (0 === prefix.indexOf(process.env.HOME)) {
+    prefix = "~" + prefix.substr(process.env.HOME.length)
+  }
   ls_(args, npm.config.get("depth"), function(er, files) {
     output.write(files.map(function (f) {
-      return path.join("~/.npm", f)
+      return path.join(prefix, f)
     }).join("\n").trim(), function (er) {
       return cb(er, files)
     })
@@ -212,7 +210,7 @@ function add (args, cb) {
 
   // see if the spec is a url
   // otherwise, treat as name@version
-  var p = url.parse(spec.replace(/^git\+/, "git")) || {}
+  var p = url.parse(spec) || {}
   log.verbose(p, "parsed url")
 
   // it could be that we got name@http://blah
@@ -230,11 +228,11 @@ function add (args, cb) {
     case "https:":
       return addRemoteTarball(spec, null, name, cb)
     case "git:":
-    case "githttp:":
-    case "githttps:":
-    case "gitrsync:":
-    case "gitftp:":
-    case "gitssh:":
+    case "git+http:":
+    case "git+https:":
+    case "git+rsync:":
+    case "git+ftp:":
+    case "git+ssh:":
       //p.protocol = p.protocol.replace(/^git([^:])/, "$1")
       return addRemoteGit(spec, p, name, cb)
     default:

@@ -98,6 +98,8 @@ function Writer (props, current) {
   me._buffer = []
   me.ready = false
 
+  me.filter = typeof props.filter === "function" ? props.filter: null
+
   // start the ball rolling.
   // this checks what's there already, and then calls
   // me._create() to call the impl-specific creation stuff.
@@ -126,6 +128,13 @@ Writer.prototype._stat = function (current) {
   else fs[stat](me._path, statCb)
 
   function statCb (er, current) {
+    if (me.filter && !me.filter.call(me._proxy || me, current)) {
+      me._aborted = true
+      me.emit("end")
+      me.emit("close")
+      return
+    }
+
     // if it's not there, great.  We'll just create it.
     // if it is there, then we'll need to change whatever differs
     if (er || !current) {

@@ -506,6 +506,15 @@ function targetResolver (where, context, deps) {
       }
     }
 
+    // if it's identical to its parent, then it's probably someone
+    // doing `npm install foo` inside of the foo project.  Print
+    // a warning, and skip it.
+    if (parent && parent.name === what && !npm.config.get("force")) {
+      log.warn("Refusing to install "+what+" as a dependency of itself"
+              ,"install")
+      return cb(null, [])
+    }
+
     if (wrap) {
       name = what.split(/@/).shift()
       if (wrap[name]) {
@@ -723,8 +732,16 @@ function checkCycle (target, ancestors, cb) {
   // A more correct, but more complex, solution would be to symlink
   // the deeper thing into the new location.
   // Will do that if anyone whines about this irl.
+  //
+  // Note: `npm install foo` inside of the `foo` package will abort
+  // earlier if `--force` is not set.  However, if it IS set, then
+  // we need to still fail here, but just skip the first level. Of
+  // course, it'll still fail eventually if it's a true cycle, and
+  // leave things in an undefined state, but that's what is to be
+  // expected when `--force` is used.  That is why getPrototypeOf
+  // is used *twice* here: to skip the first level of repetition.
 
-  var p = Object.getPrototypeOf(ancestors)
+  var p = Object.getPrototypeOf(Object.getPrototypeOf(ancestors))
     , name = target.name
     , version = target.version
   while (p && p !== Object.prototype && p[name] !== version) {

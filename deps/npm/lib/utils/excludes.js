@@ -92,6 +92,7 @@ function test (file, excludeList) {
   // log.warn(excludeList, "test list")
   var incRe = /^\!(\!\!)*/
     , excluded = false
+    , mmconf = { matchBase: true, dot: true }
   for (var i = 0, l = excludeList.length; i < l; i ++) {
     var excludes = excludeList[i]
       , dir = excludes.dir
@@ -121,12 +122,12 @@ function test (file, excludeList) {
       if (inc && !excluded) continue
 
       // if it matches the pattern, then it should be excluded.
-      excluded = !!minimatch(rf, ex, { matchBase: true })
+      excluded = !!minimatch(rf, ex, mmconf)
       // log.error([rf, ex, excluded], "rf, ex, excluded")
 
       // if you include foo, then it also includes foo/bar.js
       if (inc && excluded && ex.slice(-3) !== "/**") {
-        excluded = minimatch(rf, ex + "/**", { matchBase: true })
+        excluded = minimatch(rf, ex + "/**", mmconf)
         // log.warn([rf, ex + "/**", inc, excluded], "dir without /")
       }
 
@@ -141,6 +142,7 @@ function test (file, excludeList) {
         ll ++
       }
     }
+
     // log.warn([rf, excluded, excludes], "rf, excluded, excludes")
   }
   // true if it *should* be included
