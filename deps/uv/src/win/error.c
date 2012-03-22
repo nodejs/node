@@ -104,6 +104,11 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case WSAENETUNREACH:                    return UV_ENETUNREACH;
     case WSAENOBUFS:                        return UV_ENOBUFS;
     case ERROR_OUTOFMEMORY:                 return UV_ENOMEM;
+    case ERROR_CANNOT_MAKE:                 return UV_ENOSPC;
+    case ERROR_DISK_FULL:                   return UV_ENOSPC;
+    case ERROR_EA_TABLE_FULL:               return UV_ENOSPC;
+    case ERROR_END_OF_MEDIA:                return UV_ENOSPC;
+    case ERROR_HANDLE_DISK_FULL:            return UV_ENOSPC;
     case ERROR_NOT_CONNECTED:               return UV_ENOTCONN;
     case WSAENOTCONN:                       return UV_ENOTCONN;
     case ERROR_DIR_NOT_EMPTY:               return UV_ENOTEMPTY;

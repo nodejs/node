@@ -120,7 +120,8 @@ typedef intptr_t ssize_t;
   XX( 50, EPERM, "operation not permitted") \
   XX( 51, ELOOP, "too many symbolic links encountered") \
   XX( 52, EXDEV, "cross-device link not permitted") \
-  XX( 53, ENOTEMPTY, "directory not empty")
+  XX( 53, ENOTEMPTY, "directory not empty") \
+  XX( 54, ENOSPC, "no space left on device")
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,

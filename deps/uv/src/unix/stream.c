@@ -182,6 +182,9 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
       } else if (errno == EMFILE) {
         /* TODO special trick. unlock reserved socket, accept, close. */
         return;
+      } else if (errno == ECONNABORTED) {
+        /* ignore */
+        continue;
       } else {
         uv__set_sys_error(stream->loop, errno);
         stream->connection_cb((uv_stream_t*)stream, -1);
