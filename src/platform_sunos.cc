@@ -36,6 +36,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 #ifdef SUNOS_HAVE_IFADDRS
 # include <ifaddrs.h>
@@ -80,25 +81,19 @@ const char* Platform::GetProcessTitle(int *len) {
 
 
 int Platform::GetMemory(size_t *rss) {
-  pid_t pid = getpid();
-
-  char pidpath[1024];
-  sprintf(pidpath, "/proc/%d/psinfo", pid);
-
   psinfo_t psinfo;
-  FILE *f = fopen(pidpath, "r");
-  if (!f) return -1;
+  int fd;
 
-  if (fread(&psinfo, sizeof(psinfo_t), 1, f) != 1) {
-    fclose (f);
+  if ((fd = open("/proc/self/psinfo", O_RDONLY)) < 0)
+    return -1;
+
+  if (read(fd, &psinfo, sizeof (psinfo_t)) != sizeof (psinfo_t)) {
+    (void) close(fd);
     return -1;
   }
 
-  /* XXX correct? */
-
   *rss = (size_t) psinfo.pr_rssize * 1024;
-
-  fclose (f);
+  (void) close(fd);
 
   return 0;
 }
