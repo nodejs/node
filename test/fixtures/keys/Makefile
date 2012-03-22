@@ -23,7 +23,7 @@ ca2-cert.pem: ca2.cnf
 #
 
 agent1-key.pem:
-	openssl genrsa -out agent1-key.pem
+	openssl genrsa -out agent1-key.pem 1024
 
 agent1-csr.pem: agent1.cnf agent1-key.pem
 	openssl req -new -config agent1.cnf -key agent1-key.pem -out agent1-csr.pem
@@ -47,7 +47,7 @@ agent1-verify: agent1-cert.pem ca1-cert.pem
 #
 # Generate new private key
 agent2-key.pem:
-	openssl genrsa -out agent2-key.pem
+	openssl genrsa -out agent2-key.pem 1024
 
 # Create a Certificate Signing Request for the key
 agent2-csr.pem: agent2-key.pem agent2.cnf
@@ -69,7 +69,7 @@ agent2-verify: agent2-cert.pem
 #
 
 agent3-key.pem:
-	openssl genrsa -out agent3-key.pem
+	openssl genrsa -out agent3-key.pem 1024
 
 agent3-csr.pem: agent3.cnf agent3-key.pem
 	openssl req -new -config agent3.cnf -key agent3-key.pem -out agent3-csr.pem
@@ -93,7 +93,7 @@ agent3-verify: agent3-cert.pem ca2-cert.pem
 #
 
 agent4-key.pem:
-	openssl genrsa -out agent4-key.pem
+	openssl genrsa -out agent4-key.pem 1024
 
 agent4-csr.pem: agent4.cnf agent4-key.pem
 	openssl req -new -config agent4.cnf -key agent4-key.pem -out agent4-csr.pem
