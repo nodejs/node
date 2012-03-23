@@ -95,7 +95,7 @@ The `options` object has these possibilities:
     it is recommended that you use this option in conjunction with the
     `honorCipherOrder` option described below to prioritize the RC4 algorithm,
     since it is a non-CBC cipher. A recommended cipher list follows:
-    `ECDHE-RSA-AES256-SHA384:AES256-SHA256:RC4-SHA:RC4:HIGH:!MD5:!aNULL:!EDH:!AESGCM`
+    `ECDHE-RSA-AES256-SHA:AES256-SHA:RC4-SHA:RC4:HIGH:!MD5:!aNULL:!EDH:!AESGCM`
 
   - `honorCipherOrder` :
 	When choosing a cipher, use the server's preferences instead of the client
