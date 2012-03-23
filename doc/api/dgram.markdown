@@ -176,7 +176,7 @@ specifically for multicast traffic.  Each router or gateway that forwards a pack
 decrements the TTL. If the TTL is decremented to 0 by a router, it will not be forwarded.
 
 The argument to `setMulticastTTL()` is a number of hops between 0 and 255.  The default on most
-systems is 64.
+systems is 1.
 
 ### dgram.setMulticastLoopback(flag)
 
