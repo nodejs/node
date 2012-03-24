@@ -416,7 +416,7 @@ on the specified worker.
       // Worker is listening
     };
 
-## Event: 'disconnect'
+### Event: 'disconnect'
 
 * `worker` {Worker object}
 
@@ -427,7 +427,7 @@ on the specified worker.
       // Worker has disconnected
     };
 
-## Event: 'death'
+### Event: 'death'
 
 * `worker` {Worker object}
 
