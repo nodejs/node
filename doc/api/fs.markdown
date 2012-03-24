@@ -586,7 +586,7 @@ Returns a new ReadStream object (See `Readable Stream`).
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
-start at 0.
+start at 0. The `encoding` can be `'utf8'`, `'ascii'`, or `'base64'`.
 
 An example to read the last 10 bytes of a file which is 100 bytes long:
 
