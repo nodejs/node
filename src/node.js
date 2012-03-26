@@ -121,7 +121,12 @@
       // If -i or --interactive were passed, or stdin is a TTY.
       if (process._forceRepl || NativeModule.require('tty').isatty(0)) {
         // REPL
-        var repl = Module.requireRepl().start('> ', null, null, true);
+        var repl = Module.requireRepl().start({
+          prompt: '> ',
+          terminal: !parseInt(process.env['NODE_NO_READLINE'], 10),
+          useGlobal: true,
+          ignoreUndefined: false
+        });
         repl.on('exit', function() {
           process.exit();
         });
@@ -320,6 +325,11 @@
         er = er || new Error('process.stdout cannot be closed.');
         stdout.emit('error', er);
       };
+      if (stdout.isTTY) {
+        process.on('SIGWINCH', function() {
+          stdout._refreshSize();
+        });
+      }
       return stdout;
     });
 

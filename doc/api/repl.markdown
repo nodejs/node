@@ -1,8 +1,8 @@
 # REPL
 
-A Read-Eval-Print-Loop (REPL) is available both as a standalone program and easily
-includable in other programs.  REPL provides a way to interactively run
-JavaScript and see the results.  It can be used for debugging, testing, or
+A Read-Eval-Print-Loop (REPL) is available both as a standalone program and
+easily includable in other programs. The REPL provides a way to interactively
+run JavaScript and see the results.  It can be used for debugging, testing, or
 just trying things out.
 
 By executing `node` without any arguments from the command-line you will be
@@ -19,26 +19,39 @@ dropped into the REPL. It has simplistic emacs line-editing.
     2
     3
 
-For advanced line-editors, start node with the environmental variable `NODE_NO_READLINE=1`.
-This will start the REPL in canonical terminal settings which will allow you to use with `rlwrap`.
+For advanced line-editors, start node with the environmental variable
+`NODE_NO_READLINE=1`. This will start the main and debugger REPL in canonical
+terminal settings which will allow you to use with `rlwrap`.
 
 For example, you could add this to your bashrc file:
 
     alias node="env NODE_NO_READLINE=1 rlwrap node"
 
 
-## repl.start([prompt], [stream], [eval], [useGlobal], [ignoreUndefined])
+## repl.start(options)
 
-Returns and starts a REPL with `prompt` as the prompt and `stream` for all I/O.
-`prompt` is optional and defaults to `> `.  `stream` is optional and defaults to
-`process.stdin`. `eval` is optional too and defaults to async wrapper for
-`eval()`.
+Returns and starts a `REPLServer` instance. Accepts an "options" Object that
+takes the following values:
 
-If `useGlobal` is set to true, then the repl will use the global object,
-instead of running scripts in a separate context. Defaults to `false`.
+ - `prompt` - the prompt and `stream` for all I/O. Defaults to `> `.
 
-If `ignoreUndefined` is set to true, then the repl will not output return value
-of command if it's `undefined`. Defaults to `false`.
+ - `input` - the readable stream to listen to. Defaults to `process.stdin`.
+
+ - `output` - the writable stream to write readline data to. Defaults to
+   `process.stdout`.
+
+ - `terminal` - pass `true` if the `stream` should be treated like a TTY, and
+   have ANSI/VT100 escape codes written to it. Defaults to checking `isTTY`
+   on the `output` stream upon instantiation.
+
+ - `eval` - function that will be used to eval each given line. Defaults to
+   an async wrapper for `eval()`. See below for an example of a custom `eval`.
+
+ - `useGlobal` - if set to `true`, then the repl will use the `global` object,
+   instead of running scripts in a separate context. Defaults to `false`.
+
+ - `ignoreUndefined` - if set to `true`, then the repl will not output the
+   return value of command if it's `undefined`. Defaults to `false`.
 
 You can use your own `eval` function if it has following signature:
 
@@ -56,16 +69,32 @@ Here is an example that starts a REPL on stdin, a Unix socket, and a TCP socket:
 
     connections = 0;
 
-    repl.start("node via stdin> ");
+    repl.start({
+      prompt: "node via stdin> ",
+      input: process.stdin,
+      output: process.stdout
+    });
 
     net.createServer(function (socket) {
       connections += 1;
-      repl.start("node via Unix socket> ", socket);
+      repl.start({
+        prompt: "node via Unix socket> ",
+        input: socket,
+        output: socket
+      }).on('exit', function() {
+        socket.end();
+      })
     }).listen("/tmp/node-repl-sock");
 
     net.createServer(function (socket) {
       connections += 1;
-      repl.start("node via TCP socket> ", socket);
+      repl.start({
+        prompt: "node via TCP socket> ",
+        input: socket,
+        output: socket
+      }).on('exit', function() {
+        socket.end();
+      });
     }).listen(5001);
 
 Running this program from the command line will start a REPL on stdin.  Other
@@ -75,6 +104,12 @@ TCP sockets.
 
 By starting a REPL from a Unix socket-based server instead of stdin, you can
 connect to a long-running node process without restarting it.
+
+For an example of running a "full-featured" (`terminal`) REPL over
+a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
+
+For an example of running a REPL instance over `curl(1)`,
+see: https://gist.github.com/2053342
 
 ### Event: 'exit'
 
