@@ -57,20 +57,21 @@
 
 namespace node {
 
-using v8::Object;
-using v8::Handle;
-using v8::Local;
-using v8::Persistent;
-using v8::Value;
-using v8::HandleScope;
-using v8::FunctionTemplate;
-using v8::String;
-using v8::Function;
-using v8::TryCatch;
-using v8::Context;
 using v8::Arguments;
+using v8::Context;
+using v8::Function;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
 using v8::Integer;
+using v8::Local;
+using v8::Object;
+using v8::Null;
+using v8::Persistent;
+using v8::String;
+using v8::TryCatch;
 using v8::Undefined;
+using v8::Value;
 
 static Persistent<Function> tcpConstructor;
 static Persistent<String> family_symbol;
@@ -355,7 +356,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
   // uv_close() on the handle.
   assert(wrap->object_.IsEmpty() == false);
 
-  Handle<Value> argv[1];
+  Local<Value> argv[1];
 
   if (status == 0) {
     // Instantiate the client javascript object and handle.
@@ -372,7 +373,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     argv[0] = client_obj;
   } else {
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = v8::Null();
+    argv[0] = Local<Value>::New(Null());
   }
 
   MakeCallback(wrap->object_, "onconnection", 1, argv);
