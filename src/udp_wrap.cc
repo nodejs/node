@@ -420,11 +420,11 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
   UDPWrap* wrap = reinterpret_cast<UDPWrap*>(handle->data);
 
-  Handle<Value> argv[4] = {
-    wrap->object_,
+  Local<Value> argv[4] = {
+    Local<Object>::New(wrap->object_),
     Integer::New(nread),
-    Null(),
-    Null()
+    Local<Value>::New(Null()),
+    Local<Value>::New(Null())
   };
 
   if (nread == -1) {
@@ -433,7 +433,8 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   else {
     Local<Object> rinfo = Object::New();
     AddressToJS(rinfo, addr, sizeof *addr);
-    argv[2] = Buffer::New(buf.base, nread, NULL, NULL)->handle_;
+    argv[2] = Local<Object>::New(
+        Buffer::New(buf.base, nread, NULL, NULL)->handle_);
     argv[3] = rinfo;
   }
   free(buf.base);
