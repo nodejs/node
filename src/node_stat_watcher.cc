@@ -51,9 +51,9 @@ void StatWatcher::Callback(EV_P_ ev_stat *watcher, int revents) {
   StatWatcher *handler = static_cast<StatWatcher*>(watcher->data);
   assert(watcher == &handler->watcher_);
   HandleScope scope;
-  Handle<Value> argv[2];
-  argv[0] = Handle<Value>(BuildStatsObject(&watcher->attr));
-  argv[1] = Handle<Value>(BuildStatsObject(&watcher->prev));
+  Local<Value> argv[2];
+  argv[0] = BuildStatsObject(&watcher->attr);
+  argv[1] = BuildStatsObject(&watcher->prev);
   MakeCallback(handler->handle_, "onchange", 2, argv);
 }
 
