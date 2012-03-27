@@ -29,17 +29,21 @@ namespace node {
 #ifndef offset_of
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
-#define offset_of(type, member) \
+# define offset_of(type, member) \
   ((intptr_t) ((char *) &(((type *) 8)->member) - 8))
 #endif
 
 #ifndef container_of
-#define container_of(ptr, type, member) \
+# define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offset_of(type, member)))
 #endif
 
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+# define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#endif
+
+#ifndef ROUND_UP
+# define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
 #endif
 
 // this would have been a template function were it not for the fact that g++
