@@ -406,7 +406,7 @@ public:
     size_t len = args[2]->Int32Value();
     if (off+len > buffer_len) {
       return ThrowException(Exception::Error(
-            String::New("Length is extends beyond buffer")));
+            String::New("off + len > buffer.length")));
     }
 
     // Assign 'buffer_' while we parse. The callbacks will access that varible.

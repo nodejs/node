@@ -730,7 +730,7 @@ static Handle<Value> Write(const Arguments& args) {
   ssize_t len = args[3]->Int32Value();
   if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
-          String::New("Length is extends beyond buffer")));
+          String::New("off + len > buffer.length")));
   }
 
   ASSERT_OFFSET(args[4]);
