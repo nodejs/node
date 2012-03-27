@@ -116,7 +116,8 @@ see: https://gist.github.com/2053342
 `function () {}`
 
 Emitted when the user exits the REPL in any of the defined ways. Namely, typing
-`.exit` at the repl, or pressing Ctrl+C twice to signal SIGINT.
+`.exit` at the repl, pressing Ctrl+C twice to signal SIGINT, or pressing Ctrl+D
+to signal "end" on the `input` stream.
 
 Example of listening for `exit`:
 

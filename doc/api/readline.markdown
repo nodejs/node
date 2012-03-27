@@ -160,6 +160,14 @@ Example of listening for `resume`:
       console.log('Readline resumed.');
     });
 
+### Event: 'end'
+
+`function () {}`
+
+Emitted when the `input` stream receives its "end" event, or when `^D` is
+pressed by the user. It's generally a good idea to consider this `Interface`
+instance as completed after this is emitted.
+
 ### Event: 'SIGINT'
 
 `function () {}`
