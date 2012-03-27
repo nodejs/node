@@ -89,31 +89,10 @@
       }
 
       var Module = NativeModule.require('module');
-
-      if (global.v8debug &&
-          process.execArgv.some(function(arg) {
-            return arg.match(/^--debug-brk(=[0-9]*)?$/);
-          })) {
-
-        // XXX Fix this terrible hack!
-        //
-        // Give the client program a few ticks to connect.
-        // Otherwise, there's a race condition where `node debug foo.js`
-        // will not be able to connect in time to catch the first
-        // breakpoint message on line 1.
-        //
-        // A better fix would be to somehow get a message from the
-        // global.v8debug object about a connection, and runMain when
-        // that occurs.  --isaacs
-
-        setTimeout(Module.runMain, 50);
-
-      } else {
-        // REMOVEME: nextTick should not be necessary. This hack to get
-        // test/simple/test-exception-handler2.js working.
-        // Main entry point into most programs:
-        process.nextTick(Module.runMain);
-      }
+      // REMOVEME: nextTick should not be necessary. This hack to get
+      // test/simple/test-exception-handler2.js working.
+      // Main entry point into most programs:
+      process.nextTick(Module.runMain);
 
     } else {
       var Module = NativeModule.require('module');
