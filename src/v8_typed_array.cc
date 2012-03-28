@@ -339,6 +339,15 @@ class TypedArray {
         reinterpret_cast<float*>(ptr)[index] = (float) args[1]->NumberValue();
       else if (TEAType == v8::kExternalDoubleArray)
         reinterpret_cast<double*>(ptr)[index] = (double) args[1]->NumberValue();
+      else if (TEAType == v8::kExternalPixelArray) {
+        int value = args[1]->Int32Value();
+        if (value < 0)
+          value = 0;
+        else if (value > 255)
+          value = 255;
+        reinterpret_cast<unsigned char*>(ptr)[index] =
+            (unsigned char) value;
+      }
     } else if (args[0]->IsObject()) {
       v8::Handle<v8::Object> obj = v8::Handle<v8::Object>::Cast(args[0]);
 
@@ -439,6 +448,7 @@ class TypedArray {
       case v8::kExternalUnsignedIntArray: return "Uint32Array";
       case v8::kExternalFloatArray: return "Float32Array";
       case v8::kExternalDoubleArray: return "Float64Array";
+      case v8::kExternalPixelArray: return "Uint8ClampedArray";
     }
     abort();
   }
@@ -446,6 +456,7 @@ class TypedArray {
 
 class Int8Array : public TypedArray<1, v8::kExternalByteArray> { };
 class Uint8Array : public TypedArray<1, v8::kExternalUnsignedByteArray> { };
+class Uint8ClampedArray : public TypedArray<1, v8::kExternalPixelArray> { };
 class Int16Array : public TypedArray<2, v8::kExternalShortArray> { };
 class Uint16Array : public TypedArray<2, v8::kExternalUnsignedShortArray> { };
 class Int32Array : public TypedArray<4, v8::kExternalIntArray> { };
@@ -799,6 +810,8 @@ void AttachBindings(v8::Handle<v8::Object> obj) {
            Int8Array::GetTemplate()->GetFunction());
   obj->Set(v8::String::New("Uint8Array"),
            Uint8Array::GetTemplate()->GetFunction());
+  obj->Set(v8::String::New("Uint8ClampedArray"),
+           Uint8ClampedArray::GetTemplate()->GetFunction());
   obj->Set(v8::String::New("Int16Array"),
            Int16Array::GetTemplate()->GetFunction());
   obj->Set(v8::String::New("Uint16Array"),

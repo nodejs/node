@@ -37,7 +37,8 @@ var assert = require('assert');
   'Int32Array',
   'Uint32Array',
   'Float32Array',
-  'Float64Array'
+  'Float64Array',
+  'Uint8ClampedArray'
 ].forEach(function(name) {
   var expected = '[object ' + name + ']';
   var clazz = global[name];
@@ -145,3 +146,17 @@ uint8.set([0x0a, 0x0b], 2);
 assert.equal(uint8.get(1), 0x09);
 assert.equal(uint8.get(2), 0x0a);
 assert.equal(uint8.get(3), 0x0b);
+
+// test clamped array
+var uint8c = new Uint8ClampedArray(buffer);
+uint8c[0] = -1;
+uint8c[1] = 257;
+
+assert.equal(uint8c[0], 0);
+assert.equal(uint8c[1], 255);
+
+uint8c.set(0, -10);
+uint8c.set(1, 260);
+
+assert.equal(uint8c[0], 0);
+assert.equal(uint8c[1], 255);

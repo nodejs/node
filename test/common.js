@@ -111,6 +111,7 @@ process.on('exit', function() {
     knownGlobals.push(ArrayBuffer);
     knownGlobals.push(Int8Array);
     knownGlobals.push(Uint8Array);
+    knownGlobals.push(Uint8ClampedArray);
     knownGlobals.push(Int16Array);
     knownGlobals.push(Uint16Array);
     knownGlobals.push(Int32Array);
