@@ -11,6 +11,7 @@
  */
 
 #include <v8constants.h>
+#include <v8abbr.h>
 
 /*
  * V8 represents small integers (SMI) using the upper 31 bits of a 32-bit

@@ -8,6 +8,7 @@
     'library%': 'static_library',    # allow override to 'shared_library' for DLL/.so builds
     'component%': 'static_library',  # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',  # we do enable multicore compiles, but not using the V8 way
+    'v8_postmortem_support': 'true', # V8's postmortem metadata
   },
 
   'target_defaults': {
@@ -42,6 +43,8 @@
           }],
           ['OS=="solaris"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
+            # pull in V8's postmortem metadata
+            'ldflags': [ '-Wl,-z,allextract' ]
           }],
           ['strict_aliasing!="true"', {
             'cflags': [ '-fno-strict-aliasing' ],

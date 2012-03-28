@@ -108,7 +108,12 @@ parser.add_option("--shared-zlib-libname",
 parser.add_option("--with-dtrace",
     action="store_true",
     dest="with_dtrace",
-    help="Build with DTrace (experimental)")
+    help="Build with DTrace (default is true on supported systems)")
+
+parser.add_option("--without-dtrace",
+    action="store_true",
+    dest="without_dtrace",
+    help="Build without DTrace")
 
 # CHECKME does this still work with recent releases of V8?
 parser.add_option("--gdb",
@@ -225,7 +230,6 @@ def gcc_version():
 def configure_node(o):
   # TODO add gdb
   o['variables']['node_prefix'] = options.prefix if options.prefix else ''
-  o['variables']['node_use_dtrace'] = b(options.with_dtrace)
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_waf'] = b(not options.without_waf)
   o['variables']['host_arch'] = host_arch()
@@ -241,6 +245,16 @@ def configure_node(o):
   # clang has always supported -fvisibility=hidden, right?
   if 'clang' not in CC and gcc_version() < [False, 4, 0, 0]:
     o['variables']['visibility'] = ''
+
+  # By default, enable DTrace on SunOS systems. Don't allow it on other
+  # systems, since it won't work.  (The MacOS build process is different than
+  # SunOS, and we haven't implemented it.)
+  if sys.platform.startswith('sunos'):
+    o['variables']['node_use_dtrace'] = b(not options.without_dtrace);
+  elif b(options.with_dtrace) == 'true':
+    raise Exception('DTrace is currently only supported on SunOS systems.')
+  else:
+    o['variables']['node_use_dtrace'] = 'false'
 
 
 def configure_libz(o):
