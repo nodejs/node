@@ -1,6 +1,6 @@
 # Readline
 
-    Stability: 3 - Stable
+    Stability: 2 - Unstable
 
 To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as `process.stdin`) on a line-by-line basis.
