@@ -47,6 +47,10 @@ takes the following values:
  - `eval` - function that will be used to eval each given line. Defaults to
    an async wrapper for `eval()`. See below for an example of a custom `eval`.
 
+ - `useColors` - a boolean which specifies whether or not the `writer` function
+   should output colors. If a different `writer` function is set then this does
+   nothing. Defaults to the repl's `terminal` value.
+
  - `useGlobal` - if set to `true`, then the repl will use the `global` object,
    instead of running scripts in a separate context. Defaults to `false`.
 

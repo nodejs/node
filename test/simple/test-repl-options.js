@@ -40,6 +40,7 @@ assert.equal(r1.rli.output, stream);
 assert.equal(r1.rli.input, r1.inputStream);
 assert.equal(r1.rli.output, r1.outputStream);
 assert.equal(r1.rli.terminal, true);
+assert.equal(r1.useColors, r1.rli.terminal);
 assert.equal(r1.useGlobal, false);
 assert.equal(r1.ignoreUndefined, false);
 
@@ -50,6 +51,7 @@ var r2 = repl.start({
   input: stream,
   output: stream,
   terminal: false,
+  useColors: true,
   useGlobal: true,
   ignoreUndefined: true,
   eval: evaler,
@@ -60,6 +62,7 @@ assert.equal(r2.rli.output, stream);
 assert.equal(r2.rli.input, r2.inputStream);
 assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
+assert.equal(r2.useColors, true);
 assert.equal(r2.useGlobal, true);
 assert.equal(r2.ignoreUndefined, true);
 assert.equal(r2.eval, evaler);
