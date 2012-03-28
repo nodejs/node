@@ -53,6 +53,10 @@ takes the following values:
  - `ignoreUndefined` - if set to `true`, then the repl will not output the
    return value of command if it's `undefined`. Defaults to `false`.
 
+ - `writer` - the function to invoke for each command that gets evaluated which
+   returns the formatting (including coloring) to display. Defaults to
+   `util.inspect`.
+
 You can use your own `eval` function if it has following signature:
 
     function eval(cmd, context, filename, callback) {
