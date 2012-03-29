@@ -36,18 +36,17 @@ function tryToKillEventLoop() {
     if (err) {
       throw new Exception('first fs.stat failed');
     } else {
-      console.log('first fs.stat succeeded ...');
       fs.stat(__filename, function(err) {
         if (err) {
           throw new Exception('second fs.stat failed');
         } else {
-          console.log('second fs.stat succeeded ...');
           console.log('could not kill event loop, retrying...');
 
           setTimeout(function() {
             if (--count) {
               tryToKillEventLoop();
             } else {
+              console.log('done trying to kill event loop');
               process.exit(0);
             }
           }, 1);
@@ -81,5 +80,6 @@ fs.open(filename, 'r', 0666, function(err, fd) {
 tryToKillEventLoop();
 
 process.on('exit', function() {
+  console.log('done with test');
   assert.ok(pos > 10000);
 });
