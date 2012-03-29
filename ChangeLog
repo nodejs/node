@@ -1,4 +1,45 @@
-2012.03.13, Version 0.7.6 (unstable)
+2012.03.30, Version 0.7.7 (unstable)
+
+* Upgrade V8 to 3.9.24.7
+
+* Upgrade npm to 1.1.15
+
+* Handle Emoji characters properly (Erik Corry, Bert Belder)
+
+* readline: migrate ansi/vt100 logic from tty to readline (Nathan Rajlich)
+
+* readline: Fix multiline handling (Alex Kocharin)
+
+* add a -i/--interactive flag to force the REPL (Nathan Rajlich)
+
+* debugger: add breakOnException command (Fedor Indutny)
+
+* cluster: kill workers when master dies (Andreas Madsen)
+
+* cluster: add graceful disconnect support (Andreas Madsen)
+
+* child_process: Separate 'close' event from 'exit' (Charlie McConnell)
+
+* typed arrays: add Uint8ClampedArray (Mikael Bourges-Sevenier)
+
+* buffer: Fix byte alignment issues (Ben Noordhuis, Erik Lundin)
+
+* tls: fix CryptoStream.setKeepAlive() (Shigeki Ohtsu)
+
+* Expose http parse error codes (Felix Geisendörfer)
+
+* events: don't delete the listeners array (Ben Noordhuis, Nathan Rajlich)
+
+* process: add process.config to view node's ./configure settings (Nathan Rajlich)
+
+* process: process.execArgv to see node's arguments (Micheil Smith)
+
+* process: fix process.title setter (Ben Noordhuis)
+
+* timers: handle negative or non-numeric timeout values (Ben Noordhuis)
+
+
+2012.03.13, Version 0.7.6 (unstable), f06abda6f58e517349d1b63a2cbf5a8d04a03505
 
 * Upgrade v8 to 3.9.17
 
