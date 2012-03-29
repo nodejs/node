@@ -122,7 +122,12 @@ out/doc/api/%.json: doc/api/%.markdown
 out/doc/api/%.html: doc/api/%.markdown
 	out/Release/node tools/doc/generate.js --format=html --template=doc/template.html $< > $@
 
-out/doc/%:
+email.md: ChangeLog tools/email-footer.md
+	bash tools/changelog-head.sh > $@
+	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
+
+blog.html: email.md
+	cat $< | node tools/doc/node_modules/.bin/marked > $@
 
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
@@ -143,11 +148,13 @@ docclean:
 clean:
 	$(WAF) clean
 	-find tools -name "*.pyc" | xargs rm -f
+	-rm -rf blog.html email.md
 
 distclean: docclean
 	-find tools -name "*.pyc" | xargs rm -f
 	-rm -rf dist-osx
 	-rm -rf out/ node node_g
+	-rm -rf blog.html email.md
 
 check:
 	@tools/waf-light check
