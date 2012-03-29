@@ -88,7 +88,7 @@ Address RelocInfo::target_address_address() {
 
 
 int RelocInfo::target_address_size() {
-  return Assembler::kExternalTargetSize;
+  return Assembler::kSpecialTargetSize;
 }
 
 

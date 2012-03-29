@@ -81,17 +81,41 @@
 
 #ifdef FLAG_MODE_DECLARE
 // Structure used to hold a collection of arguments to the JavaScript code.
+#define JSARGUMENTS_INIT {{}}
 struct JSArguments {
 public:
-  JSArguments();
-  JSArguments(int argc, const char** argv);
-  int argc() const;
-  const char** argv();
-  const char*& operator[](int idx);
-  JSArguments& operator=(JSArguments args);
+  inline int argc() const {
+    return static_cast<int>(storage_[0]);
+  }
+  inline const char** argv() const {
+    return reinterpret_cast<const char**>(storage_[1]);
+  }
+  inline const char*& operator[] (int idx) const {
+    return argv()[idx];
+  }
+  inline JSArguments& operator=(JSArguments args) {
+    set_argc(args.argc());
+    set_argv(args.argv());
+    return *this;
+  }
+  static JSArguments Create(int argc, const char** argv) {
+    JSArguments args;
+    args.set_argc(argc);
+    args.set_argv(argv);
+    return args;
+  }
 private:
-  int argc_;
-  const char** argv_;
+  void set_argc(int argc) {
+    storage_[0] = argc;
+  }
+  void set_argv(const char** argv) {
+    storage_[1] = reinterpret_cast<AtomicWord>(argv);
+  }
+public:
+  // Contains argc and argv. Unfortunately we have to store these two fields
+  // into a single one to avoid making the initialization macro (which would be
+  // "{ 0, NULL }") contain a coma.
+  AtomicWord storage_[2];
 };
 #endif
 
@@ -135,7 +159,7 @@ DEFINE_bool(string_slices, true, "use string slices")
 
 // Flags for Crankshaft.
 DEFINE_bool(crankshaft, true, "use crankshaft")
-DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
+DEFINE_string(hydrogen_filter, "", "optimization filter")
 DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(eliminate_dead_phis, true, "eliminate dead phis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
@@ -168,14 +192,15 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
-DEFINE_bool(inline_construct, false, "inline constructor calls")
+DEFINE_bool(inline_construct, true, "inline constructor calls")
+DEFINE_bool(inline_arguments, true, "inline functions with arguments object")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 DEFINE_bool(optimize_for_in, true,
             "optimize functions containing for-in loops")
 
 // Experimental profiler changes.
-DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
+DEFINE_bool(experimental_profiler, true, "enable all profiler experiments")
 DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
 DEFINE_int(frame_count, 1, "number of stack frames inspected by the profiler")
 DEFINE_bool(self_optimization, false,
@@ -191,7 +216,7 @@ DEFINE_bool(weighted_back_edges, false,
             "weight back edges by jump distance for interrupt triggering")
 DEFINE_int(interrupt_budget, 5900,
            "execution budget before interrupt is triggered")
-DEFINE_int(type_info_threshold, 40,
+DEFINE_int(type_info_threshold, 15,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_int(self_opt_count, 130, "call count before self-optimization")
 
@@ -282,6 +307,7 @@ DEFINE_bool(debugger_auto_break, true,
             "automatically set the debug break flag when debugger commands are "
             "in the queue")
 DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
+DEFINE_bool(break_on_abort, true, "always cause a debug break before aborting")
 
 // execution.cc
 DEFINE_int(stack_size, kPointerSize * 128,
@@ -324,6 +350,9 @@ DEFINE_bool(trace_incremental_marking, false,
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
+
+DEFINE_bool(send_idle_notification, false,
+            "Send idle notifcation between stress runs.")
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
 
@@ -417,7 +446,7 @@ DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 DEFINE_string(map_counters, "", "Map counters to a file")
-DEFINE_args(js_arguments, JSArguments(),
+DEFINE_args(js_arguments, JSARGUMENTS_INIT,
             "Pass all remaining arguments to the script. Alias for \"--\".")
 
 #if defined(WEBOS__)

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -515,7 +515,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
               Format(instr, "cvt.w.d 'fd, 'fs");
               break;
             case CVT_L_D: {
-              if (mips32r2) {
+              if (kArchVariant == kMips32r2) {
                 Format(instr, "cvt.l.d 'fd, 'fs");
               } else {
                 Unknown(instr);
@@ -526,7 +526,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
               Format(instr, "trunc.w.d 'fd, 'fs");
               break;
             case TRUNC_L_D: {
-              if (mips32r2) {
+              if (kArchVariant == kMips32r2) {
                 Format(instr, "trunc.l.d 'fd, 'fs");
               } else {
                 Unknown(instr);
@@ -592,7 +592,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
         case L:
           switch (instr->FunctionFieldRaw()) {
             case CVT_D_L: {
-              if (mips32r2) {
+              if (kArchVariant == kMips32r2) {
                 Format(instr, "cvt.d.l 'fd, 'fs");
               } else {
                 Unknown(instr);
@@ -600,7 +600,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
               break;
             }
             case CVT_S_L: {
-              if (mips32r2) {
+              if (kArchVariant == kMips32r2) {
                 Format(instr, "cvt.s.l 'fd, 'fs");
               } else {
                 Unknown(instr);
@@ -636,7 +636,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
           if (instr->RsValue() == 0) {
             Format(instr, "srl     'rd, 'rt, 'sa");
           } else {
-            if (mips32r2) {
+            if (kArchVariant == kMips32r2) {
               Format(instr, "rotr    'rd, 'rt, 'sa");
             } else {
               Unknown(instr);
@@ -653,7 +653,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
           if (instr->SaValue() == 0) {
             Format(instr, "srlv    'rd, 'rt, 'rs");
           } else {
-            if (mips32r2) {
+            if (kArchVariant == kMips32r2) {
               Format(instr, "rotrv   'rd, 'rt, 'rs");
             } else {
               Unknown(instr);
@@ -770,7 +770,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
     case SPECIAL3:
       switch (instr->FunctionFieldRaw()) {
         case INS: {
-          if (mips32r2) {
+          if (kArchVariant == kMips32r2) {
             Format(instr, "ins     'rt, 'rs, 'sa, 'ss2");
           } else {
             Unknown(instr);
@@ -778,7 +778,7 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
           break;
         }
         case EXT: {
-          if (mips32r2) {
+          if (kArchVariant == kMips32r2) {
             Format(instr, "ext     'rt, 'rs, 'sa, 'ss1");
           } else {
             Unknown(instr);

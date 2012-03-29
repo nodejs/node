@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -148,12 +148,14 @@ TEST(Type0) {
   COMPARE(divu(v0, v1),
           "0043001b       divu    v0, v1");
 
-  COMPARE(mul(a0, a1, a2),
-          "70a62002       mul     a0, a1, a2");
-  COMPARE(mul(t2, t3, t4),
-          "716c5002       mul     t2, t3, t4");
-  COMPARE(mul(v0, v1, s0),
-          "70701002       mul     v0, v1, s0");
+  if (kArchVariant != kLoongson) {
+    COMPARE(mul(a0, a1, a2),
+            "70a62002       mul     a0, a1, a2");
+    COMPARE(mul(t2, t3, t4),
+            "716c5002       mul     t2, t3, t4");
+    COMPARE(mul(v0, v1, s0),
+            "70701002       mul     v0, v1, s0");
+  }
 
   COMPARE(addiu(a0, a1, 0x0),
           "24a40000       addiu   a0, a1, 0");
@@ -274,7 +276,7 @@ TEST(Type0) {
   COMPARE(srav(v0, v1, fp),
           "03c31007       srav    v0, v1, fp");
 
-  if (mips32r2) {
+  if (kArchVariant == kMips32r2) {
     COMPARE(rotr(a0, a1, 0),
             "00252002       rotr    a0, a1, 0");
     COMPARE(rotr(s0, s1, 8),
@@ -377,48 +379,50 @@ TEST(Type0) {
   COMPARE(sltiu(v0, v1, -1),
           "2c62ffff       sltiu   v0, v1, -1");
 
-  COMPARE(movz(a0, a1, a2),
-          "00a6200a       movz    a0, a1, a2");
-  COMPARE(movz(s0, s1, s2),
-          "0232800a       movz    s0, s1, s2");
-  COMPARE(movz(t2, t3, t4),
-          "016c500a       movz    t2, t3, t4");
-  COMPARE(movz(v0, v1, a2),
-          "0066100a       movz    v0, v1, a2");
-  COMPARE(movn(a0, a1, a2),
-          "00a6200b       movn    a0, a1, a2");
-  COMPARE(movn(s0, s1, s2),
-          "0232800b       movn    s0, s1, s2");
-  COMPARE(movn(t2, t3, t4),
-          "016c500b       movn    t2, t3, t4");
-  COMPARE(movn(v0, v1, a2),
-          "0066100b       movn    v0, v1, a2");
+  if (kArchVariant != kLoongson) {
+    COMPARE(movz(a0, a1, a2),
+            "00a6200a       movz    a0, a1, a2");
+    COMPARE(movz(s0, s1, s2),
+            "0232800a       movz    s0, s1, s2");
+    COMPARE(movz(t2, t3, t4),
+            "016c500a       movz    t2, t3, t4");
+    COMPARE(movz(v0, v1, a2),
+            "0066100a       movz    v0, v1, a2");
+    COMPARE(movn(a0, a1, a2),
+            "00a6200b       movn    a0, a1, a2");
+    COMPARE(movn(s0, s1, s2),
+            "0232800b       movn    s0, s1, s2");
+    COMPARE(movn(t2, t3, t4),
+            "016c500b       movn    t2, t3, t4");
+    COMPARE(movn(v0, v1, a2),
+            "0066100b       movn    v0, v1, a2");
 
-  COMPARE(movt(a0, a1, 1),
-          "00a52001       movt    a0, a1, 1");
-  COMPARE(movt(s0, s1, 2),
-          "02298001       movt    s0, s1, 2");
-  COMPARE(movt(t2, t3, 3),
-          "016d5001       movt    t2, t3, 3");
-  COMPARE(movt(v0, v1, 7),
-          "007d1001       movt    v0, v1, 7");
-  COMPARE(movf(a0, a1, 0),
-          "00a02001       movf    a0, a1, 0");
-  COMPARE(movf(s0, s1, 4),
-          "02308001       movf    s0, s1, 4");
-  COMPARE(movf(t2, t3, 5),
-          "01745001       movf    t2, t3, 5");
-  COMPARE(movf(v0, v1, 6),
-          "00781001       movf    v0, v1, 6");
+    COMPARE(movt(a0, a1, 1),
+            "00a52001       movt    a0, a1, 1");
+    COMPARE(movt(s0, s1, 2),
+            "02298001       movt    s0, s1, 2");
+    COMPARE(movt(t2, t3, 3),
+            "016d5001       movt    t2, t3, 3");
+    COMPARE(movt(v0, v1, 7),
+            "007d1001       movt    v0, v1, 7");
+    COMPARE(movf(a0, a1, 0),
+            "00a02001       movf    a0, a1, 0");
+    COMPARE(movf(s0, s1, 4),
+            "02308001       movf    s0, s1, 4");
+    COMPARE(movf(t2, t3, 5),
+            "01745001       movf    t2, t3, 5");
+    COMPARE(movf(v0, v1, 6),
+            "00781001       movf    v0, v1, 6");
 
-  COMPARE(clz(a0, a1),
-          "70a42020       clz     a0, a1");
-  COMPARE(clz(s6, s7),
-          "72f6b020       clz     s6, s7");
-  COMPARE(clz(v0, v1),
-          "70621020       clz     v0, v1");
+    COMPARE(clz(a0, a1),
+            "70a42020       clz     a0, a1");
+    COMPARE(clz(s6, s7),
+            "72f6b020       clz     s6, s7");
+    COMPARE(clz(v0, v1),
+            "70621020       clz     v0, v1");
+  }
 
-  if (mips32r2) {
+  if (kArchVariant == kMips32r2) {
     COMPARE(ins_(a0, a1, 31, 1),
             "7ca4ffc4       ins     a0, a1, 31, 1");
     COMPARE(ins_(s6, s7, 30, 2),

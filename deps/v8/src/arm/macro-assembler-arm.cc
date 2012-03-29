@@ -3647,8 +3647,8 @@ void MacroAssembler::ClampDoubleToUint8(Register result_reg,
   bind(&in_bounds);
   Vmov(temp_double_reg, 0.5);
   vadd(temp_double_reg, input_reg, temp_double_reg);
-  vcvt_u32_f64(s0, temp_double_reg);
-  vmov(result_reg, s0);
+  vcvt_u32_f64(temp_double_reg.low(), temp_double_reg);
+  vmov(result_reg, temp_double_reg.low());
   bind(&done);
 }
 

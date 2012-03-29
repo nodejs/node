@@ -36,6 +36,7 @@ TEMP_BRANCH=$BRANCHNAME-temporary-branch-created-by-script
 VERSION_FILE="src/version.cc"
 CHANGELOG_ENTRY_FILE="$PERSISTFILE_BASENAME-changelog-entry"
 PATCH_FILE="$PERSISTFILE_BASENAME-patch"
+PATCH_OUTPUT_FILE="$PERSISTFILE_BASENAME-patch-output"
 COMMITMSG_FILE="$PERSISTFILE_BASENAME-commitmsg"
 TOUCHED_FILES_FILE="$PERSISTFILE_BASENAME-touched-files"
 TRUNK_REVISION_FILE="$PERSISTFILE_BASENAME-trunkrevision"
@@ -59,7 +60,7 @@ confirm() {
 }
 
 delete_branch() {
-  local MATCH=$(git branch | grep $1 | awk '{print $NF}' )
+  local MATCH=$(git branch | grep "$1" | awk '{print $NF}' | grep -x $1)
   if [ "$MATCH" == "$1" ] ; then
     confirm "Branch $1 exists, do you want to delete it?"
     if [ $? -eq 0 ] ; then
@@ -174,8 +175,10 @@ the uploaded CL."
 
 # Takes a file containing the patch to apply as first argument.
 apply_patch() {
-  patch -p1 < "$1" | tee >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
-  [[ $? -eq 0 ]] || die "Applying the patch failed."
+  patch -p1 < "$1" > "$PATCH_OUTPUT_FILE" || \
+    { cat "$PATCH_OUTPUT_FILE" && die "Applying the patch failed."; }
+  tee < "$PATCH_OUTPUT_FILE" >(awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
+  rm "$PATCH_OUTPUT_FILE"
 }
 
 stage_files() {

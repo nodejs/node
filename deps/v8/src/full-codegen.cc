@@ -313,7 +313,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
-  code->set_optimizable(info->IsOptimizable());
+  code->set_optimizable(info->IsOptimizable() &&
+                        !info->function()->flags()->Contains(kDontOptimize));
   code->set_self_optimization_header(cgen.has_self_optimization_header_);
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);

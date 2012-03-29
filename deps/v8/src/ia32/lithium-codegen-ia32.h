@@ -58,7 +58,6 @@ class LCodeGen BASE_EMBEDDED {
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
-        dynamic_frame_alignment_(false),
         deferred_(8),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
@@ -144,10 +143,6 @@ class LCodeGen BASE_EMBEDDED {
 
   StrictModeFlag strict_mode_flag() const {
     return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
-  }
-  bool dynamic_frame_alignment() const { return dynamic_frame_alignment_; }
-  void set_dynamic_frame_alignment(bool value) {
-    dynamic_frame_alignment_ = value;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -333,7 +328,6 @@ class LCodeGen BASE_EMBEDDED {
   int inlined_function_count_;
   Scope* const scope_;
   Status status_;
-  bool dynamic_frame_alignment_;
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   int osr_pc_offset_;

@@ -352,6 +352,59 @@ TEST(HeapSnapshotInternalReferences) {
 #define CHECK_NE_UINT64_T(a, b) \
   CHECK((a) != (b))  // NOLINT
 
+TEST(HeapEntryIdsAndArrayShift) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "function AnObject() {\n"
+      "    this.first = 'first';\n"
+      "    this.second = 'second';\n"
+      "}\n"
+      "var a = new Array();\n"
+      "for (var i = 0; i < 10; ++i)\n"
+      "  a.push(new AnObject());\n");
+  const v8::HeapSnapshot* snapshot1 =
+      v8::HeapProfiler::TakeSnapshot(v8_str("s1"));
+
+  CompileRun(
+      "for (var i = 0; i < 1; ++i)\n"
+      "  a.shift();\n");
+
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+
+  const v8::HeapSnapshot* snapshot2 =
+      v8::HeapProfiler::TakeSnapshot(v8_str("s2"));
+
+  const v8::HeapGraphNode* global1 = GetGlobalObject(snapshot1);
+  const v8::HeapGraphNode* global2 = GetGlobalObject(snapshot2);
+  CHECK_NE_UINT64_T(0, global1->GetId());
+  CHECK_EQ_UINT64_T(global1->GetId(), global2->GetId());
+
+  const v8::HeapGraphNode* a1 =
+      GetProperty(global1, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, a1);
+  const v8::HeapGraphNode* e1 =
+      GetProperty(a1, v8::HeapGraphEdge::kHidden, "1");
+  CHECK_NE(NULL, e1);
+  const v8::HeapGraphNode* k1 =
+      GetProperty(e1, v8::HeapGraphEdge::kInternal, "elements");
+  CHECK_NE(NULL, k1);
+  const v8::HeapGraphNode* a2 =
+      GetProperty(global2, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, a2);
+  const v8::HeapGraphNode* e2 =
+      GetProperty(a2, v8::HeapGraphEdge::kHidden, "1");
+  CHECK_NE(NULL, e2);
+  const v8::HeapGraphNode* k2 =
+      GetProperty(e2, v8::HeapGraphEdge::kInternal, "elements");
+  CHECK_NE(NULL, k2);
+
+  CHECK_EQ_UINT64_T(a1->GetId(), a2->GetId());
+  CHECK_EQ_UINT64_T(e1->GetId(), e2->GetId());
+  CHECK_EQ_UINT64_T(k1->GetId(), k2->GetId());
+}
+
 TEST(HeapEntryIdsAndGC) {
   v8::HandleScope scope;
   LocalContext env;

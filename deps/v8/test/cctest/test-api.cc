@@ -5526,6 +5526,17 @@ static int StrNCmp16(uint16_t* a, uint16_t* b, int n) {
 }
 
 
+int GetUtf8Length(Handle<String> str) {
+  int len = str->Utf8Length();
+  if (len < 0) {
+    i::Handle<i::String> istr(v8::Utils::OpenHandle(*str));
+    i::FlattenString(istr);
+    len = str->Utf8Length();
+  }
+  return len;
+}
+
+
 THREADED_TEST(StringWrite) {
   LocalContext context;
   v8::HandleScope scope;
@@ -5606,7 +5617,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = left_tree->Utf8Length();
+  len = GetUtf8Length(left_tree);
   int utf8_expected =
       (0x80 + (0x800 - 0x80) * 2 + (0xd800 - 0x800) * 3) / kStride;
   CHECK_EQ(utf8_expected, len);
@@ -5620,7 +5631,7 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(1, utf8buf[utf8_expected]);
 
   memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = right_tree->Utf8Length();
+  len = GetUtf8Length(right_tree);
   CHECK_EQ(utf8_expected, len);
   len = right_tree->WriteUtf8(utf8buf, utf8_expected, &charlen);
   CHECK_EQ(utf8_expected, len);
@@ -5742,6 +5753,225 @@ THREADED_TEST(StringWrite) {
   CHECK_NE(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
   utf8buf[8] = '\0';
   CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
+}
+
+
+static void Utf16Helper(
+    LocalContext& context,
+    const char* name,
+    const char* lengths_name,
+    int len) {
+  Local<v8::Array> a =
+      Local<v8::Array>::Cast(context->Global()->Get(v8_str(name)));
+  Local<v8::Array> alens =
+      Local<v8::Array>::Cast(context->Global()->Get(v8_str(lengths_name)));
+  for (int i = 0; i < len; i++) {
+    Local<v8::String> string =
+      Local<v8::String>::Cast(a->Get(i));
+    Local<v8::Number> expected_len =
+      Local<v8::Number>::Cast(alens->Get(i));
+    CHECK_EQ(expected_len->Value() != string->Length(),
+             string->MayContainNonAscii());
+    int length = GetUtf8Length(string);
+    CHECK_EQ(static_cast<int>(expected_len->Value()), length);
+  }
+}
+
+
+static uint16_t StringGet(Handle<String> str, int index) {
+  i::Handle<i::String> istring =
+      v8::Utils::OpenHandle(String::Cast(*str));
+  return istring->Get(index);
+}
+
+
+static void WriteUtf8Helper(
+    LocalContext& context,
+    const char* name,
+    const char* lengths_name,
+    int len) {
+  Local<v8::Array> b =
+      Local<v8::Array>::Cast(context->Global()->Get(v8_str(name)));
+  Local<v8::Array> alens =
+      Local<v8::Array>::Cast(context->Global()->Get(v8_str(lengths_name)));
+  char buffer[1000];
+  char buffer2[1000];
+  for (int i = 0; i < len; i++) {
+    Local<v8::String> string =
+      Local<v8::String>::Cast(b->Get(i));
+    Local<v8::Number> expected_len =
+      Local<v8::Number>::Cast(alens->Get(i));
+    int utf8_length = static_cast<int>(expected_len->Value());
+    for (int j = utf8_length + 1; j >= 0; j--) {
+      memset(reinterpret_cast<void*>(&buffer), 42, sizeof(buffer));
+      memset(reinterpret_cast<void*>(&buffer2), 42, sizeof(buffer2));
+      int nchars;
+      int utf8_written =
+          string->WriteUtf8(buffer, j, &nchars, String::NO_OPTIONS);
+      int utf8_written2 =
+          string->WriteUtf8(buffer2, j, &nchars, String::NO_NULL_TERMINATION);
+      CHECK_GE(utf8_length + 1, utf8_written);
+      CHECK_GE(utf8_length, utf8_written2);
+      for (int k = 0; k < utf8_written2; k++) {
+        CHECK_EQ(buffer[k], buffer2[k]);
+      }
+      CHECK(nchars * 3 >= utf8_written - 1);
+      CHECK(nchars <= utf8_written);
+      if (j == utf8_length + 1) {
+        CHECK_EQ(utf8_written2, utf8_length);
+        CHECK_EQ(utf8_written2 + 1, utf8_written);
+      }
+      CHECK_EQ(buffer[utf8_written], 42);
+      if (j > utf8_length) {
+        if (utf8_written != 0) CHECK_EQ(buffer[utf8_written - 1], 0);
+        if (utf8_written > 1) CHECK_NE(buffer[utf8_written - 2], 42);
+        Handle<String> roundtrip = v8_str(buffer);
+        CHECK(roundtrip->Equals(string));
+      } else {
+        if (utf8_written != 0) CHECK_NE(buffer[utf8_written - 1], 42);
+      }
+      if (utf8_written2 != 0) CHECK_NE(buffer[utf8_written - 1], 42);
+      if (nchars >= 2) {
+        uint16_t trail = StringGet(string, nchars - 1);
+        uint16_t lead = StringGet(string, nchars - 2);
+        if (((lead & 0xfc00) == 0xd800) &&
+            ((trail & 0xfc00) == 0xdc00)) {
+          unsigned char u1 = buffer2[utf8_written2 - 4];
+          unsigned char u2 = buffer2[utf8_written2 - 3];
+          unsigned char u3 = buffer2[utf8_written2 - 2];
+          unsigned char u4 = buffer2[utf8_written2 - 1];
+          CHECK_EQ((u1 & 0xf8), 0xf0);
+          CHECK_EQ((u2 & 0xc0), 0x80);
+          CHECK_EQ((u3 & 0xc0), 0x80);
+          CHECK_EQ((u4 & 0xc0), 0x80);
+          uint32_t c = 0x10000 + ((lead & 0x3ff) << 10) + (trail & 0x3ff);
+          CHECK_EQ((u4 & 0x3f), (c & 0x3f));
+          CHECK_EQ((u3 & 0x3f), ((c >> 6) & 0x3f));
+          CHECK_EQ((u2 & 0x3f), ((c >> 12) & 0x3f));
+          CHECK_EQ((u1 & 0x3), c >> 18);
+        }
+      }
+    }
+  }
+}
+
+
+THREADED_TEST(Utf16) {
+  LocalContext context;
+  v8::HandleScope scope;
+  CompileRun(
+      "var pad = '01234567890123456789';"
+      "var p = [];"
+      "var plens = [20, 3, 3];"
+      "p.push('01234567890123456789');"
+      "var lead = 0xd800;"
+      "var trail = 0xdc00;"
+      "p.push(String.fromCharCode(0xd800));"
+      "p.push(String.fromCharCode(0xdc00));"
+      "var a = [];"
+      "var b = [];"
+      "var c = [];"
+      "var alens = [];"
+      "for (var i = 0; i < 3; i++) {"
+      "  p[1] = String.fromCharCode(lead++);"
+      "  for (var j = 0; j < 3; j++) {"
+      "    p[2] = String.fromCharCode(trail++);"
+      "    a.push(p[i] + p[j]);"
+      "    b.push(p[i] + p[j]);"
+      "    c.push(p[i] + p[j]);"
+      "    alens.push(plens[i] + plens[j]);"
+      "  }"
+      "}"
+      "alens[5] -= 2;"  // Here the surrogate pairs match up.
+      "var a2 = [];"
+      "var b2 = [];"
+      "var c2 = [];"
+      "var a2lens = [];"
+      "for (var m = 0; m < 9; m++) {"
+      "  for (var n = 0; n < 9; n++) {"
+      "    a2.push(a[m] + a[n]);"
+      "    b2.push(b[m] + b[n]);"
+      "    var newc = 'x' + c[m] + c[n] + 'y';"
+      "    c2.push(newc.substring(1, newc.length - 1));"
+      "    var utf = alens[m] + alens[n];"  // And here.
+           // The 'n's that start with 0xdc.. are 6-8
+           // The 'm's that end with 0xd8.. are 1, 4 and 7
+      "    if ((m % 3) == 1 && n >= 6) utf -= 2;"
+      "    a2lens.push(utf);"
+      "  }"
+      "}");
+  Utf16Helper(context, "a", "alens", 9);
+  Utf16Helper(context, "a2", "a2lens", 81);
+  WriteUtf8Helper(context, "b", "alens", 9);
+  WriteUtf8Helper(context, "b2", "a2lens", 81);
+  WriteUtf8Helper(context, "c2", "a2lens", 81);
+}
+
+
+static bool SameSymbol(Handle<String> s1, Handle<String> s2) {
+  i::Handle<i::String> is1(v8::Utils::OpenHandle(*s1));
+  i::Handle<i::String> is2(v8::Utils::OpenHandle(*s2));
+  return *is1 == *is2;
+}
+
+
+static void SameSymbolHelper(const char* a, const char* b) {
+  Handle<String> symbol1 = v8::String::NewSymbol(a);
+  Handle<String> symbol2 = v8::String::NewSymbol(b);
+  CHECK(SameSymbol(symbol1, symbol2));
+}
+
+
+THREADED_TEST(Utf16Symbol) {
+  LocalContext context;
+  v8::HandleScope scope;
+
+  Handle<String> symbol1 = v8::String::NewSymbol("abc");
+  Handle<String> symbol2 = v8::String::NewSymbol("abc");
+  CHECK(SameSymbol(symbol1, symbol2));
+
+  SameSymbolHelper("\360\220\220\205",  // 4 byte encoding.
+                   "\355\240\201\355\260\205");  // 2 3-byte surrogates.
+  SameSymbolHelper("\355\240\201\355\260\206",  // 2 3-byte surrogates.
+                   "\360\220\220\206");  // 4 byte encoding.
+  SameSymbolHelper("x\360\220\220\205",  // 4 byte encoding.
+                   "x\355\240\201\355\260\205");  // 2 3-byte surrogates.
+  SameSymbolHelper("x\355\240\201\355\260\206",  // 2 3-byte surrogates.
+                   "x\360\220\220\206");  // 4 byte encoding.
+  CompileRun(
+      "var sym0 = 'benedictus';"
+      "var sym0b = 'S\303\270ren';"
+      "var sym1 = '\355\240\201\355\260\207';"
+      "var sym2 = '\360\220\220\210';"
+      "var sym3 = 'x\355\240\201\355\260\207';"
+      "var sym4 = 'x\360\220\220\210';"
+      "if (sym1.length != 2) throw sym1;"
+      "if (sym1.charCodeAt(1) != 0xdc07) throw sym1.charCodeAt(1);"
+      "if (sym2.length != 2) throw sym2;"
+      "if (sym2.charCodeAt(1) != 0xdc08) throw sym2.charCodeAt(2);"
+      "if (sym3.length != 3) throw sym3;"
+      "if (sym3.charCodeAt(2) != 0xdc07) throw sym1.charCodeAt(2);"
+      "if (sym4.length != 3) throw sym4;"
+      "if (sym4.charCodeAt(2) != 0xdc08) throw sym2.charCodeAt(2);");
+  Handle<String> sym0 = v8::String::NewSymbol("benedictus");
+  Handle<String> sym0b = v8::String::NewSymbol("S\303\270ren");
+  Handle<String> sym1 = v8::String::NewSymbol("\355\240\201\355\260\207");
+  Handle<String> sym2 = v8::String::NewSymbol("\360\220\220\210");
+  Handle<String> sym3 = v8::String::NewSymbol("x\355\240\201\355\260\207");
+  Handle<String> sym4 = v8::String::NewSymbol("x\360\220\220\210");
+  v8::Local<v8::Object> global = context->Global();
+  Local<Value> s0 = global->Get(v8_str("sym0"));
+  Local<Value> s0b = global->Get(v8_str("sym0b"));
+  Local<Value> s1 = global->Get(v8_str("sym1"));
+  Local<Value> s2 = global->Get(v8_str("sym2"));
+  Local<Value> s3 = global->Get(v8_str("sym3"));
+  Local<Value> s4 = global->Get(v8_str("sym4"));
+  CHECK(SameSymbol(sym0, Handle<String>(String::Cast(*s0))));
+  CHECK(SameSymbol(sym0b, Handle<String>(String::Cast(*s0b))));
+  CHECK(SameSymbol(sym1, Handle<String>(String::Cast(*s1))));
+  CHECK(SameSymbol(sym2, Handle<String>(String::Cast(*s2))));
+  CHECK(SameSymbol(sym3, Handle<String>(String::Cast(*s3))));
+  CHECK(SameSymbol(sym4, Handle<String>(String::Cast(*s4))));
 }
 
 
@@ -11704,6 +11934,9 @@ THREADED_TEST(MorphCompositeStringTest) {
         "var cons = lhs + rhs;"
         "var slice = lhs.substring(1, lhs.length - 1);"
         "var slice_on_cons = (lhs + rhs).substring(1, lhs.length *2 - 1);");
+
+    CHECK(!lhs->MayContainNonAscii());
+    CHECK(!rhs->MayContainNonAscii());
 
     MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
     MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);

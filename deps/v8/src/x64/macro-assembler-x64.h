@@ -1307,7 +1307,7 @@ class MacroAssembler: public Assembler {
  private:
   // Order general registers are pushed by Pushad.
   // rax, rcx, rdx, rbx, rsi, rdi, r8, r9, r11, r14, r15.
-  static int kSafepointPushRegisterIndices[Register::kNumRegisters];
+  static const int kSafepointPushRegisterIndices[Register::kNumRegisters];
   static const int kNumSafepointSavedRegisters = 11;
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 

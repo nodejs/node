@@ -418,6 +418,7 @@ namespace internal {
   F(DebugReferencedBy, 3, 1) \
   F(DebugConstructedBy, 2, 1) \
   F(DebugGetPrototype, 1, 1) \
+  F(DebugSetScriptSource, 2, 1) \
   F(SystemBreak, 0, 1) \
   F(DebugDisassembleFunction, 1, 1) \
   F(DebugDisassembleConstructor, 1, 1) \
@@ -485,12 +486,13 @@ namespace internal {
   F(IsNonNegativeSmi, 1, 1)                                                  \
   F(IsArray, 1, 1)                                                           \
   F(IsRegExp, 1, 1)                                                          \
+  F(IsConstructCall, 0, 1)                                                   \
   F(CallFunction, -1 /* receiver + n args + function */, 1)                  \
   F(ArgumentsLength, 0, 1)                                                   \
   F(Arguments, 1, 1)                                                         \
   F(ValueOf, 1, 1)                                                           \
   F(SetValueOf, 2, 1)                                                        \
-  F(DateField, 2 /* date object, field index */, 1)                \
+  F(DateField, 2 /* date object, field index */, 1)                          \
   F(StringCharFromCode, 1, 1)                                                \
   F(StringCharAt, 2, 1)                                                      \
   F(ObjectEquals, 2, 1)                                                      \
@@ -518,7 +520,6 @@ namespace internal {
 // a corresponding runtime function, that is called for slow cases.
 // Entries have the form F(name, number of arguments, number of return values).
 #define INLINE_RUNTIME_FUNCTION_LIST(F) \
-  F(IsConstructCall, 0, 1)                                                   \
   F(ClassOf, 1, 1)                                                           \
   F(StringCharCodeAt, 2, 1)                                                  \
   F(Log, 3, 1)                                                               \

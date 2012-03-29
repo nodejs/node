@@ -88,6 +88,15 @@ class ElementsAccessor {
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
 
+  // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
+  // of elements from source after source_start to the destination array.
+  static const int kCopyToEnd = -1;
+  // If kCopyToEndAndInitializeToHole is specified as the copy_size to
+  // CopyElements, it copies all of elements from source after source_start to
+  // destination array, padding any remaining uninitialized elements in the
+  // destination array with the hole.
+  static const int kCopyToEndAndInitializeToHole = -2;
+
   // Copy elements from one backing store to another. Typically, callers specify
   // the source JSObject or JSArray in source_holder. If the holder's backing
   // store is available, it can be passed in source and source_holder is
@@ -104,7 +113,8 @@ class ElementsAccessor {
                             FixedArrayBase* to,
                             ElementsKind to_kind,
                             FixedArrayBase* from = NULL) {
-    return CopyElements(from_holder, 0, to, to_kind, 0, -1, from);
+    return CopyElements(from_holder, 0, to, to_kind, 0,
+                        kCopyToEndAndInitializeToHole, from);
   }
 
   virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
@@ -146,8 +156,7 @@ class ElementsAccessor {
 };
 
 
-void CopyObjectToObjectElements(AssertNoAllocation* no_gc,
-                                FixedArray* from_obj,
+void CopyObjectToObjectElements(FixedArray* from_obj,
                                 ElementsKind from_kind,
                                 uint32_t from_start,
                                 FixedArray* to_obj,

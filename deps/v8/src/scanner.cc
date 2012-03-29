@@ -45,7 +45,7 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
       harmony_modules_(false) { }
 
 
-void Scanner::Initialize(UC16CharacterStream* source) {
+void Scanner::Initialize(Utf16CharacterStream* source) {
   source_ = source;
   // Need to capture identifiers in order to recognize "get" and "set"
   // in object literals.

@@ -1320,6 +1320,11 @@ class ObjectLiteral: public MaterializedLiteral {
     Expression* value() { return value_; }
     Kind kind() { return kind_; }
 
+    // Type feedback information.
+    void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+    bool IsMonomorphic() { return !receiver_type_.is_null(); }
+    Handle<Map> GetReceiverType() { return receiver_type_; }
+
     bool IsCompileTimeValue();
 
     void set_emit_store(bool emit_store);
@@ -1336,6 +1341,7 @@ class ObjectLiteral: public MaterializedLiteral {
     Expression* value_;
     Kind kind_;
     bool emit_store_;
+    Handle<Map> receiver_type_;
   };
 
   DECLARE_NODE_TYPE(ObjectLiteral)
@@ -1358,6 +1364,12 @@ class ObjectLiteral: public MaterializedLiteral {
     kNoFlags = 0,
     kFastElements = 1,
     kHasFunction = 1 << 1
+  };
+
+  struct Accessors: public ZoneObject {
+    Accessors() : getter(NULL), setter(NULL) { }
+    Expression* getter;
+    Expression* setter;
   };
 
  protected:
@@ -1515,6 +1527,7 @@ class Property: public Expression {
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   bool IsArrayLength() { return is_array_length_; }
+  bool IsUninitialized() { return is_uninitialized_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -1528,6 +1541,7 @@ class Property: public Expression {
         key_(key),
         pos_(pos),
         is_monomorphic_(false),
+        is_uninitialized_(false),
         is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
@@ -1540,6 +1554,7 @@ class Property: public Expression {
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
+  bool is_uninitialized_ : 1;
   bool is_array_length_ : 1;
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;

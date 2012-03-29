@@ -94,6 +94,15 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
+// Getter that returns a tagged Smi and setter that writes a tagged Smi.
+#define ACCESSORS_TO_SMI(holder, name, offset)                          \
+  Smi* holder::name() { return Smi::cast(READ_FIELD(this, offset)); }   \
+  void holder::set_##name(Smi* value, WriteBarrierMode mode) {          \
+    WRITE_FIELD(this, offset, value);                                   \
+  }
+
+
+// Getter that returns a Smi as an int and writes an int as a Smi.
 #define SMI_ACCESSORS(holder, name, offset)             \
   int holder::name() {                                  \
     Object* value = READ_FIELD(this, offset);           \
@@ -935,6 +944,12 @@ MaybeObject* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_UINT32_FIELD(p, offset, value) \
   (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_INT64_FIELD(p, offset) \
+  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_INT64_FIELD(p, offset, value) \
+  (*reinterpret_cast<int64_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_SHORT_FIELD(p, offset) \
   (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)))
 
@@ -1692,6 +1707,12 @@ double FixedDoubleArray::get_scalar(int index) {
   return result;
 }
 
+int64_t FixedDoubleArray::get_representation(int index) {
+  ASSERT(map() != HEAP->fixed_cow_array_map() &&
+         map() != HEAP->fixed_array_map());
+  ASSERT(index >= 0 && index < this->length());
+  return READ_INT64_FIELD(this, kHeaderSize + index * kDoubleSize);
+}
 
 MaybeObject* FixedDoubleArray::get(int index) {
   if (is_the_hole(index)) {
@@ -1722,65 +1743,6 @@ void FixedDoubleArray::set_the_hole(int index) {
 bool FixedDoubleArray::is_the_hole(int index) {
   int offset = kHeaderSize + index * kDoubleSize;
   return is_the_hole_nan(READ_DOUBLE_FIELD(this, offset));
-}
-
-
-void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
-  int old_length = from->length();
-  ASSERT(old_length < length());
-  if (old_length * kDoubleSize >= OS::kMinComplexMemCopy) {
-    OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
-                FIELD_ADDR(from, kHeaderSize),
-                old_length * kDoubleSize);
-  } else {
-    for (int i = 0; i < old_length; ++i) {
-      if (from->is_the_hole(i)) {
-        set_the_hole(i);
-      } else {
-        set(i, from->get_scalar(i));
-      }
-    }
-  }
-  int offset = kHeaderSize + old_length * kDoubleSize;
-  for (int current = from->length(); current < length(); ++current) {
-    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
-    offset += kDoubleSize;
-  }
-}
-
-
-void FixedDoubleArray::Initialize(FixedArray* from) {
-  int old_length = from->length();
-  ASSERT(old_length <= length());
-  for (int i = 0; i < old_length; i++) {
-    Object* hole_or_object = from->get(i);
-    if (hole_or_object->IsTheHole()) {
-      set_the_hole(i);
-    } else {
-      set(i, hole_or_object->Number());
-    }
-  }
-  int offset = kHeaderSize + old_length * kDoubleSize;
-  for (int current = from->length(); current < length(); ++current) {
-    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
-    offset += kDoubleSize;
-  }
-}
-
-
-void FixedDoubleArray::Initialize(SeededNumberDictionary* from) {
-  int offset = kHeaderSize;
-  for (int current = 0; current < length(); ++current) {
-    WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());
-    offset += kDoubleSize;
-  }
-  for (int i = 0; i < from->Capacity(); i++) {
-    Object* key = from->KeyAt(i);
-    if (key->IsNumber()) {
-      uint32_t entry = static_cast<uint32_t>(key->Number());
-      set(entry, from->ValueAt(i)->Number());
-    }
-  }
 }
 
 
@@ -3454,7 +3416,7 @@ ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
-ACCESSORS(AccessorInfo, flag, Smi, kFlagOffset)
+ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
@@ -3495,7 +3457,7 @@ ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
           kInstanceCallHandlerOffset)
 ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
           kAccessCheckInfoOffset)
-ACCESSORS(FunctionTemplateInfo, flag, Smi, kFlagOffset)
+ACCESSORS_TO_SMI(FunctionTemplateInfo, flag, kFlagOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
@@ -3509,17 +3471,18 @@ ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
 ACCESSORS(Script, source, Object, kSourceOffset)
 ACCESSORS(Script, name, Object, kNameOffset)
 ACCESSORS(Script, id, Object, kIdOffset)
-ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
-ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
+ACCESSORS_TO_SMI(Script, line_offset, kLineOffsetOffset)
+ACCESSORS_TO_SMI(Script, column_offset, kColumnOffsetOffset)
 ACCESSORS(Script, data, Object, kDataOffset)
 ACCESSORS(Script, context_data, Object, kContextOffset)
 ACCESSORS(Script, wrapper, Foreign, kWrapperOffset)
-ACCESSORS(Script, type, Smi, kTypeOffset)
-ACCESSORS(Script, compilation_type, Smi, kCompilationTypeOffset)
+ACCESSORS_TO_SMI(Script, type, kTypeOffset)
+ACCESSORS_TO_SMI(Script, compilation_type, kCompilationTypeOffset)
+ACCESSORS_TO_SMI(Script, compilation_state, kCompilationStateOffset)
 ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 ACCESSORS(Script, eval_from_shared, Object, kEvalFromSharedOffset)
-ACCESSORS(Script, eval_from_instructions_offset, Smi,
-          kEvalFrominstructionsOffsetOffset)
+ACCESSORS_TO_SMI(Script, eval_from_instructions_offset,
+                 kEvalFrominstructionsOffsetOffset)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
@@ -3527,9 +3490,9 @@ ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)
 ACCESSORS(DebugInfo, code, Code, kPatchedCodeIndex)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
 
-ACCESSORS(BreakPointInfo, code_position, Smi, kCodePositionIndex)
-ACCESSORS(BreakPointInfo, source_position, Smi, kSourcePositionIndex)
-ACCESSORS(BreakPointInfo, statement_position, Smi, kStatementPositionIndex)
+ACCESSORS_TO_SMI(BreakPointInfo, code_position, kCodePositionIndex)
+ACCESSORS_TO_SMI(BreakPointInfo, source_position, kSourcePositionIndex)
+ACCESSORS_TO_SMI(BreakPointInfo, statement_position, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)
 #endif
 
@@ -4167,7 +4130,7 @@ ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
 ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 ACCESSORS(Code, type_feedback_info, Object, kTypeFeedbackInfoOffset)
 ACCESSORS(Code, gc_metadata, Object, kGCMetadataOffset)
-
+INT_ACCESSORS(Code, ic_age, kICAgeOffset)
 
 byte* Code::instruction_start()  {
   return FIELD_ADDR(this, kHeaderSize);
@@ -4463,7 +4426,11 @@ bool StringHasher::has_trivial_hash() {
 }
 
 
-void StringHasher::AddCharacter(uc32 c) {
+void StringHasher::AddCharacter(uint32_t c) {
+  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    AddSurrogatePair(c);  // Not inlined.
+    return;
+  }
   // Use the Jenkins one-at-a-time hash function to update the hash
   // for the given character.
   raw_running_hash_ += c;
@@ -4492,8 +4459,12 @@ void StringHasher::AddCharacter(uc32 c) {
 }
 
 
-void StringHasher::AddCharacterNoIndex(uc32 c) {
+void StringHasher::AddCharacterNoIndex(uint32_t c) {
   ASSERT(!is_array_index());
+  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+    AddSurrogatePairNoIndex(c);  // Not inlined.
+    return;
+  }
   raw_running_hash_ += c;
   raw_running_hash_ += (raw_running_hash_ << 10);
   raw_running_hash_ ^= (raw_running_hash_ >> 6);
@@ -4742,6 +4713,7 @@ void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
   // Please note this function is used during marking:
   //  - MarkCompactCollector::MarkUnmarkedObject
+  //  - IncrementalMarking::Step
   ASSERT(!heap->InNewSpace(heap->raw_unchecked_empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, heap->raw_unchecked_empty_fixed_array());
 }
@@ -4933,22 +4905,27 @@ void FlexibleBodyDescriptor<start_offset>::IterateBody(HeapObject* obj,
 
 #undef SLOT_ADDR
 
-
+#undef TYPE_CHECKER
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
-#undef SMI_ACCESSORS
 #undef ACCESSORS
+#undef ACCESSORS_TO_SMI
+#undef SMI_ACCESSORS
+#undef BOOL_GETTER
+#undef BOOL_ACCESSORS
 #undef FIELD_ADDR
 #undef READ_FIELD
 #undef WRITE_FIELD
 #undef WRITE_BARRIER
 #undef CONDITIONAL_WRITE_BARRIER
-#undef READ_MEMADDR_FIELD
-#undef WRITE_MEMADDR_FIELD
 #undef READ_DOUBLE_FIELD
 #undef WRITE_DOUBLE_FIELD
 #undef READ_INT_FIELD
 #undef WRITE_INT_FIELD
+#undef READ_INTPTR_FIELD
+#undef WRITE_INTPTR_FIELD
+#undef READ_UINT32_FIELD
+#undef WRITE_UINT32_FIELD
 #undef READ_SHORT_FIELD
 #undef WRITE_SHORT_FIELD
 #undef READ_BYTE_FIELD

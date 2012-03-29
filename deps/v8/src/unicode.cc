@@ -276,6 +276,7 @@ uchar Utf8::CalculateValue(const byte* str,
   return kBadChar;
 }
 
+
 const byte* Utf8::ReadBlock(Buffer<const char*> str, byte* buffer,
     unsigned capacity, unsigned* chars_read_ptr, unsigned* offset_ptr) {
   unsigned offset = *offset_ptr;
@@ -333,6 +334,16 @@ unsigned CharacterStream::Length() {
   while (has_more()) {
     result++;
     GetNext();
+  }
+  Rewind();
+  return result;
+}
+
+unsigned CharacterStream::Utf16Length() {
+  unsigned result = 0;
+  while (has_more()) {
+    uchar c = GetNext();
+    result += c > Utf16::kMaxNonSurrogateCharCode ? 2 : 1;
   }
   Rewind();
   return result;

@@ -1097,6 +1097,14 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 }
 
 
+LInstruction* LChunkBuilder::DoWrapReceiver(HWrapReceiver* instr) {
+  LOperand* receiver = UseRegisterAtStart(instr->receiver());
+  LOperand* function = UseRegisterAtStart(instr->function());
+  LWrapReceiver* result = new(zone()) LWrapReceiver(receiver, function);
+  return AssignEnvironment(DefineSameAsFirst(result));
+}
+
+
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), a1);
   LOperand* receiver = UseFixed(instr->receiver(), a0);
@@ -1601,6 +1609,13 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
   LOperand* object = UseRegister(instr->value());
   LValueOf* result = new(zone()) LValueOf(object, TempRegister());
   return DefineAsRegister(result);
+}
+
+
+LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
+  LOperand* object = UseFixed(instr->value(), a0);
+  LDateField* result = new LDateField(object, FixedTemp(a1), instr->index());
+  return MarkAsCall(DefineFixed(result, v0), instr);
 }
 
 

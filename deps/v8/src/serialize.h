@@ -485,7 +485,7 @@ class Serializer : public SerializerDeserializer {
  protected:
   static const int kInvalidRootIndex = -1;
 
-  int RootIndex(HeapObject* heap_object);
+  int RootIndex(HeapObject* heap_object, HowToCode from);
   virtual bool ShouldBeInThePartialSnapshotCache(HeapObject* o) = 0;
   intptr_t root_index_wave_front() { return root_index_wave_front_; }
   void set_root_index_wave_front(intptr_t value) {

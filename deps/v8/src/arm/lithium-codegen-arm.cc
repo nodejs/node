@@ -648,7 +648,6 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
-  ASSERT(entry != NULL);
   if (entry == NULL) {
     Abort("bailout was not prepared");
     return;
@@ -2800,15 +2799,10 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 }
 
 
-void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register length = ToRegister(instr->length());
-  Register elements = ToRegister(instr->elements());
   Register scratch = scratch0();
-  ASSERT(receiver.is(r0));  // Used for parameter count.
-  ASSERT(function.is(r1));  // Required by InvokeFunction.
-  ASSERT(ToRegister(instr->result()).is(r0));
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
@@ -2849,6 +2843,18 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ ldr(receiver,
          FieldMemOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
+}
+
+
+void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+  Register scratch = scratch0();
+  ASSERT(receiver.is(r0));  // Used for parameter count.
+  ASSERT(function.is(r1));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(r0));
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
@@ -4601,34 +4607,51 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
     }
   }
 
-  // Copy elements backing store header.
-  ASSERT(!has_elements || elements->IsFixedArray());
   if (has_elements) {
+    // Copy elements backing store header.
     __ LoadHeapObject(source, elements);
     for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
       __ ldr(r2, FieldMemOperand(source, i));
       __ str(r2, FieldMemOperand(result, elements_offset + i));
     }
-  }
 
-  // Copy elements backing store content.
-  ASSERT(!has_elements || elements->IsFixedArray());
-  int elements_length = has_elements ? elements->length() : 0;
-  for (int i = 0; i < elements_length; i++) {
-    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-    Handle<Object> value = JSObject::GetElement(object, i);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      __ add(r2, result, Operand(*offset));
-      __ str(r2, FieldMemOperand(result, total_offset));
-      __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
-    } else if (value->IsHeapObject()) {
-      __ LoadHeapObject(r2, Handle<HeapObject>::cast(value));
-      __ str(r2, FieldMemOperand(result, total_offset));
+    // Copy elements backing store content.
+    int elements_length = has_elements ? elements->length() : 0;
+    if (elements->IsFixedDoubleArray()) {
+      Handle<FixedDoubleArray> double_array =
+          Handle<FixedDoubleArray>::cast(elements);
+      for (int i = 0; i < elements_length; i++) {
+        int64_t value = double_array->get_representation(i);
+        // We only support little endian mode...
+        int32_t value_low = value & 0xFFFFFFFF;
+        int32_t value_high = value >> 32;
+        int total_offset =
+            elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
+        __ mov(r2, Operand(value_low));
+        __ str(r2, FieldMemOperand(result, total_offset));
+        __ mov(r2, Operand(value_high));
+        __ str(r2, FieldMemOperand(result, total_offset + 4));
+      }
+    } else if (elements->IsFixedArray()) {
+      for (int i = 0; i < elements_length; i++) {
+        int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+        Handle<Object> value = JSObject::GetElement(object, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          __ add(r2, result, Operand(*offset));
+          __ str(r2, FieldMemOperand(result, total_offset));
+          __ LoadHeapObject(source, value_object);
+          EmitDeepCopy(value_object, result, source, offset);
+        } else if (value->IsHeapObject()) {
+          __ LoadHeapObject(r2, Handle<HeapObject>::cast(value));
+          __ str(r2, FieldMemOperand(result, total_offset));
+        } else {
+          __ mov(r2, Operand(value));
+          __ str(r2, FieldMemOperand(result, total_offset));
+        }
+      }
     } else {
-      __ mov(r2, Operand(value));
-      __ str(r2, FieldMemOperand(result, total_offset));
+      UNREACHABLE();
     }
   }
 }

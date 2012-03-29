@@ -36,19 +36,19 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// BufferedUC16CharacterStreams
+// BufferedUtf16CharacterStreams
 
-BufferedUC16CharacterStream::BufferedUC16CharacterStream()
-    : UC16CharacterStream(),
+BufferedUtf16CharacterStream::BufferedUtf16CharacterStream()
+    : Utf16CharacterStream(),
       pushback_limit_(NULL) {
   // Initialize buffer as being empty. First read will fill the buffer.
   buffer_cursor_ = buffer_;
   buffer_end_ = buffer_;
 }
 
-BufferedUC16CharacterStream::~BufferedUC16CharacterStream() { }
+BufferedUtf16CharacterStream::~BufferedUtf16CharacterStream() { }
 
-void BufferedUC16CharacterStream::PushBack(uc32 character) {
+void BufferedUtf16CharacterStream::PushBack(uc32 character) {
   if (character == kEndOfInput) {
     pos_--;
     return;
@@ -63,7 +63,7 @@ void BufferedUC16CharacterStream::PushBack(uc32 character) {
 }
 
 
-void BufferedUC16CharacterStream::SlowPushBack(uc16 character) {
+void BufferedUtf16CharacterStream::SlowPushBack(uc16 character) {
   // In pushback mode, the end of the buffer contains pushback,
   // and the start of the buffer (from buffer start to pushback_limit_)
   // contains valid data that comes just after the pushback.
@@ -89,7 +89,7 @@ void BufferedUC16CharacterStream::SlowPushBack(uc16 character) {
 }
 
 
-bool BufferedUC16CharacterStream::ReadBlock() {
+bool BufferedUtf16CharacterStream::ReadBlock() {
   buffer_cursor_ = buffer_;
   if (pushback_limit_ != NULL) {
     // Leave pushback mode.
@@ -106,7 +106,7 @@ bool BufferedUC16CharacterStream::ReadBlock() {
 }
 
 
-unsigned BufferedUC16CharacterStream::SlowSeekForward(unsigned delta) {
+unsigned BufferedUtf16CharacterStream::SlowSeekForward(unsigned delta) {
   // Leave pushback mode (i.e., ignore that there might be valid data
   // in the buffer before the pushback_limit_ point).
   pushback_limit_ = NULL;
@@ -114,10 +114,10 @@ unsigned BufferedUC16CharacterStream::SlowSeekForward(unsigned delta) {
 }
 
 // ----------------------------------------------------------------------------
-// GenericStringUC16CharacterStream
+// GenericStringUtf16CharacterStream
 
 
-GenericStringUC16CharacterStream::GenericStringUC16CharacterStream(
+GenericStringUtf16CharacterStream::GenericStringUtf16CharacterStream(
     Handle<String> data,
     unsigned start_position,
     unsigned end_position)
@@ -130,10 +130,10 @@ GenericStringUC16CharacterStream::GenericStringUC16CharacterStream(
 }
 
 
-GenericStringUC16CharacterStream::~GenericStringUC16CharacterStream() { }
+GenericStringUtf16CharacterStream::~GenericStringUtf16CharacterStream() { }
 
 
-unsigned GenericStringUC16CharacterStream::BufferSeekForward(unsigned delta) {
+unsigned GenericStringUtf16CharacterStream::BufferSeekForward(unsigned delta) {
   unsigned old_pos = pos_;
   pos_ = Min(pos_ + delta, length_);
   ReadBlock();
@@ -141,7 +141,7 @@ unsigned GenericStringUC16CharacterStream::BufferSeekForward(unsigned delta) {
 }
 
 
-unsigned GenericStringUC16CharacterStream::FillBuffer(unsigned from_pos,
+unsigned GenericStringUtf16CharacterStream::FillBuffer(unsigned from_pos,
                                                       unsigned length) {
   if (from_pos >= length_) return 0;
   if (from_pos + length > length_) {
@@ -153,10 +153,10 @@ unsigned GenericStringUC16CharacterStream::FillBuffer(unsigned from_pos,
 
 
 // ----------------------------------------------------------------------------
-// Utf8ToUC16CharacterStream
-Utf8ToUC16CharacterStream::Utf8ToUC16CharacterStream(const byte* data,
-                                                     unsigned length)
-    : BufferedUC16CharacterStream(),
+// Utf8ToUtf16CharacterStream
+Utf8ToUtf16CharacterStream::Utf8ToUtf16CharacterStream(const byte* data,
+                                                       unsigned length)
+    : BufferedUtf16CharacterStream(),
       raw_data_(data),
       raw_data_length_(length),
       raw_data_pos_(0),
@@ -165,10 +165,10 @@ Utf8ToUC16CharacterStream::Utf8ToUC16CharacterStream(const byte* data,
 }
 
 
-Utf8ToUC16CharacterStream::~Utf8ToUC16CharacterStream() { }
+Utf8ToUtf16CharacterStream::~Utf8ToUtf16CharacterStream() { }
 
 
-unsigned Utf8ToUC16CharacterStream::BufferSeekForward(unsigned delta) {
+unsigned Utf8ToUtf16CharacterStream::BufferSeekForward(unsigned delta) {
   unsigned old_pos = pos_;
   unsigned target_pos = pos_ + delta;
   SetRawPosition(target_pos);
@@ -178,9 +178,9 @@ unsigned Utf8ToUC16CharacterStream::BufferSeekForward(unsigned delta) {
 }
 
 
-unsigned Utf8ToUC16CharacterStream::FillBuffer(unsigned char_position,
-                                               unsigned length) {
-  static const unibrow::uchar kMaxUC16Character = 0xffff;
+unsigned Utf8ToUtf16CharacterStream::FillBuffer(unsigned char_position,
+                                                unsigned length) {
+  static const unibrow::uchar kMaxUtf16Character = 0xffff;
   SetRawPosition(char_position);
   if (raw_character_position_ != char_position) {
     // char_position was not a valid position in the stream (hit the end
@@ -188,7 +188,7 @@ unsigned Utf8ToUC16CharacterStream::FillBuffer(unsigned char_position,
     return 0u;
   }
   unsigned i = 0;
-  while (i < length) {
+  while (i < length - 1) {
     if (raw_data_pos_ == raw_data_length_) break;
     unibrow::uchar c = raw_data_[raw_data_pos_];
     if (c <= unibrow::Utf8::kMaxOneByteChar) {
@@ -197,12 +197,13 @@ unsigned Utf8ToUC16CharacterStream::FillBuffer(unsigned char_position,
       c =  unibrow::Utf8::CalculateValue(raw_data_ + raw_data_pos_,
                                          raw_data_length_ - raw_data_pos_,
                                          &raw_data_pos_);
-      // Don't allow characters outside of the BMP.
-      if (c > kMaxUC16Character) {
-        c = unibrow::Utf8::kBadChar;
-      }
     }
-    buffer_[i++] = static_cast<uc16>(c);
+    if (c > kMaxUtf16Character) {
+      buffer_[i++] = unibrow::Utf16::LeadSurrogate(c);
+      buffer_[i++] = unibrow::Utf16::TrailSurrogate(c);
+    } else {
+      buffer_[i++] = static_cast<uc16>(c);
+    }
   }
   raw_character_position_ = char_position + i;
   return i;
@@ -266,37 +267,52 @@ static inline void Utf8CharacterForward(const byte* buffer, unsigned* cursor) {
 }
 
 
-void Utf8ToUC16CharacterStream::SetRawPosition(unsigned target_position) {
+// This can't set a raw position between two surrogate pairs, since there
+// is no position in the UTF8 stream that corresponds to that.  This assumes
+// that the surrogate pair is correctly coded as a 4 byte UTF-8 sequence.  If
+// it is illegally coded as two 3 byte sequences then there is no problem here.
+void Utf8ToUtf16CharacterStream::SetRawPosition(unsigned target_position) {
   if (raw_character_position_ > target_position) {
     // Spool backwards in utf8 buffer.
     do {
+      int old_pos = raw_data_pos_;
       Utf8CharacterBack(raw_data_, &raw_data_pos_);
       raw_character_position_--;
+      ASSERT(old_pos - raw_data_pos_ <= 4);
+      // Step back over both code units for surrogate pairs.
+      if (old_pos - raw_data_pos_ == 4) raw_character_position_--;
     } while (raw_character_position_ > target_position);
+    // No surrogate pair splitting.
+    ASSERT(raw_character_position_ == target_position);
     return;
   }
   // Spool forwards in the utf8 buffer.
   while (raw_character_position_ < target_position) {
     if (raw_data_pos_ == raw_data_length_) return;
+    int old_pos = raw_data_pos_;
     Utf8CharacterForward(raw_data_, &raw_data_pos_);
     raw_character_position_++;
+    ASSERT(raw_data_pos_ - old_pos <= 4);
+    if (raw_data_pos_ - old_pos == 4) raw_character_position_++;
   }
+  // No surrogate pair splitting.
+  ASSERT(raw_character_position_ == target_position);
 }
 
 
 // ----------------------------------------------------------------------------
-// ExternalTwoByteStringUC16CharacterStream
+// ExternalTwoByteStringUtf16CharacterStream
 
-ExternalTwoByteStringUC16CharacterStream::
-    ~ExternalTwoByteStringUC16CharacterStream() { }
+ExternalTwoByteStringUtf16CharacterStream::
+    ~ExternalTwoByteStringUtf16CharacterStream() { }
 
 
-ExternalTwoByteStringUC16CharacterStream
-    ::ExternalTwoByteStringUC16CharacterStream(
+ExternalTwoByteStringUtf16CharacterStream
+    ::ExternalTwoByteStringUtf16CharacterStream(
         Handle<ExternalTwoByteString> data,
         int start_position,
         int end_position)
-    : UC16CharacterStream(),
+    : Utf16CharacterStream(),
       source_(data),
       raw_data_(data->GetTwoByteData(start_position)) {
   buffer_cursor_ = raw_data_,

@@ -78,7 +78,7 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
 }
 
 
-unsigned Utf8::Encode(char* str, uchar c) {
+unsigned Utf8::Encode(char* str, uchar c, int previous) {
   static const int kMask = ~(1 << 6);
   if (c <= kMaxOneByteChar) {
     str[0] = c;
@@ -88,6 +88,13 @@ unsigned Utf8::Encode(char* str, uchar c) {
     str[1] = 0x80 | (c & kMask);
     return 2;
   } else if (c <= kMaxThreeByteChar) {
+    if (Utf16::IsTrailSurrogate(c) &&
+        Utf16::IsLeadSurrogate(previous)) {
+      const int kUnmatchedSize = kSizeOfUnmatchedSurrogate;
+      return Encode(str - kUnmatchedSize,
+                    Utf16::CombineSurrogatePair(previous, c),
+                    Utf16::kNoPreviousCharacter) - kUnmatchedSize;
+    }
     str[0] = 0xE0 | (c >> 12);
     str[1] = 0x80 | ((c >> 6) & kMask);
     str[2] = 0x80 | (c & kMask);
@@ -113,12 +120,16 @@ uchar Utf8::ValueOf(const byte* bytes, unsigned length, unsigned* cursor) {
   return CalculateValue(bytes, length, cursor);
 }
 
-unsigned Utf8::Length(uchar c) {
+unsigned Utf8::Length(uchar c, int previous) {
   if (c <= kMaxOneByteChar) {
     return 1;
   } else if (c <= kMaxTwoByteChar) {
     return 2;
   } else if (c <= kMaxThreeByteChar) {
+    if (Utf16::IsTrailSurrogate(c) &&
+        Utf16::IsLeadSurrogate(previous)) {
+      return kSizeOfUnmatchedSurrogate - kBytesSavedByCombiningSurrogates;
+    }
     return 3;
   } else {
     return 4;

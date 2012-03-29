@@ -87,10 +87,10 @@ namespace internal {
 // Results of the library implementation of transcendental functions may differ
 // from the one we use in our generated code.  Therefore we use the same
 // generated code both in runtime and compiled code.
-typedef double (*TranscendentalFunction)(double x);
+typedef double (*UnaryMathFunction)(double x);
 
-TranscendentalFunction CreateTranscendentalFunction(
-    TranscendentalCache::Type type);
+UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type);
+UnaryMathFunction CreateSqrtFunction();
 
 
 class ElementsTransitionGenerator : public AllStatic {

@@ -7024,44 +7024,47 @@ struct AheadOfTimeWriteBarrierStubList {
 };
 
 
-struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+#define REG(Name) { kRegister_ ## Name ## _Code }
+
+static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // Used in RegExpExecStub.
-  { ebx, eax, edi, EMIT_REMEMBERED_SET },
+  { REG(ebx), REG(eax), REG(edi), EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
-  { ebx, ecx, edx, EMIT_REMEMBERED_SET },
-  { ebx, edi, edx, OMIT_REMEMBERED_SET },
+  { REG(ebx), REG(ecx), REG(edx), EMIT_REMEMBERED_SET },
+  { REG(ebx), REG(edi), REG(edx), OMIT_REMEMBERED_SET },
   // Used in CompileStoreGlobal and CallFunctionStub.
-  { ebx, ecx, edx, OMIT_REMEMBERED_SET },
+  { REG(ebx), REG(ecx), REG(edx), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField and
   // KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
-  { edx, ecx, ebx, EMIT_REMEMBERED_SET },
+  { REG(edx), REG(ecx), REG(ebx), EMIT_REMEMBERED_SET },
   // GenerateStoreField calls the stub with two different permutations of
   // registers.  This is the second.
-  { ebx, ecx, edx, EMIT_REMEMBERED_SET },
+  { REG(ebx), REG(ecx), REG(edx), EMIT_REMEMBERED_SET },
   // StoreIC::GenerateNormal via GenerateDictionaryStore
-  { ebx, edi, edx, EMIT_REMEMBERED_SET },
+  { REG(ebx), REG(edi), REG(edx), EMIT_REMEMBERED_SET },
   // KeyedStoreIC::GenerateGeneric.
-  { ebx, edx, ecx, EMIT_REMEMBERED_SET},
+  { REG(ebx), REG(edx), REG(ecx), EMIT_REMEMBERED_SET},
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { edi, ebx, ecx, EMIT_REMEMBERED_SET},
-  { edx, edi, ebx, EMIT_REMEMBERED_SET},
+  { REG(edi), REG(ebx), REG(ecx), EMIT_REMEMBERED_SET},
+  { REG(edx), REG(edi), REG(ebx), EMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { edx, ebx, edi, EMIT_REMEMBERED_SET},
-  { edx, ebx, edi, OMIT_REMEMBERED_SET},
+  { REG(edx), REG(ebx), REG(edi), EMIT_REMEMBERED_SET},
+  { REG(edx), REG(ebx), REG(edi), OMIT_REMEMBERED_SET},
   // ElementsTransitionGenerator::GenerateDoubleToObject
-  { eax, edx, esi, EMIT_REMEMBERED_SET},
-  { edx, eax, edi, EMIT_REMEMBERED_SET},
+  { REG(eax), REG(edx), REG(esi), EMIT_REMEMBERED_SET},
+  { REG(edx), REG(eax), REG(edi), EMIT_REMEMBERED_SET},
   // StoreArrayLiteralElementStub::Generate
-  { ebx, eax, ecx, EMIT_REMEMBERED_SET},
+  { REG(ebx), REG(eax), REG(ecx), EMIT_REMEMBERED_SET},
   // Null termination.
-  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+  { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
 
+#undef REG
 
 bool RecordWriteStub::IsPregenerated() {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+  for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
     if (object_.is(entry->object) &&
@@ -7089,7 +7092,7 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
 
 
 void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+  for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
     RecordWriteStub stub(entry->object,

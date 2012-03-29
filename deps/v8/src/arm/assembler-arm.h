@@ -124,24 +124,47 @@ struct Register {
   int code_;
 };
 
-const Register no_reg = { -1 };
+// These constants are used in several locations, including static initializers
+const int kRegister_no_reg_Code = -1;
+const int kRegister_r0_Code = 0;
+const int kRegister_r1_Code = 1;
+const int kRegister_r2_Code = 2;
+const int kRegister_r3_Code = 3;
+const int kRegister_r4_Code = 4;
+const int kRegister_r5_Code = 5;
+const int kRegister_r6_Code = 6;
+const int kRegister_r7_Code = 7;
+const int kRegister_r8_Code = 8;
+const int kRegister_r9_Code = 9;
+const int kRegister_r10_Code = 10;
+const int kRegister_fp_Code = 11;
+const int kRegister_ip_Code = 12;
+const int kRegister_sp_Code = 13;
+const int kRegister_lr_Code = 14;
+const int kRegister_pc_Code = 15;
 
-const Register r0  = {  0 };
-const Register r1  = {  1 };
-const Register r2  = {  2 };
-const Register r3  = {  3 };
-const Register r4  = {  4 };
-const Register r5  = {  5 };
-const Register r6  = {  6 };
-const Register r7  = {  7 };
-const Register r8  = {  8 };  // Used as context register.
-const Register r9  = {  9 };  // Used as lithium codegen scratch register.
-const Register r10 = { 10 };  // Used as roots register.
-const Register fp  = { 11 };
-const Register ip  = { 12 };
-const Register sp  = { 13 };
-const Register lr  = { 14 };
-const Register pc  = { 15 };
+const Register no_reg = { kRegister_no_reg_Code };
+
+const Register r0  = { kRegister_r0_Code };
+const Register r1  = { kRegister_r1_Code };
+const Register r2  = { kRegister_r2_Code };
+const Register r3  = { kRegister_r3_Code };
+const Register r4  = { kRegister_r4_Code };
+const Register r5  = { kRegister_r5_Code };
+const Register r6  = { kRegister_r6_Code };
+const Register r7  = { kRegister_r7_Code };
+// Used as context register.
+const Register r8  = { kRegister_r8_Code };
+// Used as lithium codegen scratch register.
+const Register r9  = { kRegister_r9_Code };
+// Used as roots register.
+const Register r10 = { kRegister_r10_Code };
+const Register fp  = { kRegister_fp_Code };
+const Register ip  = { kRegister_ip_Code };
+const Register sp  = { kRegister_sp_Code };
+const Register lr  = { kRegister_lr_Code };
+const Register pc  = { kRegister_pc_Code };
+
 
 // Single word VFP register.
 struct SwVfpRegister {
@@ -581,6 +604,7 @@ extern const Instr kLdrPCMask;
 extern const Instr kLdrPCPattern;
 extern const Instr kBlxRegMask;
 extern const Instr kBlxRegPattern;
+extern const Instr kBlxIp;
 
 extern const Instr kMovMvnMask;
 extern const Instr kMovMvnPattern;
@@ -662,20 +686,18 @@ class Assembler : public AssemblerBase {
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
-  inline static void set_target_at(Address constant_pool_entry, Address target);
+  inline static void deserialization_set_special_target_at(
+      Address constant_pool_entry, Address target);
 
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches to runtime code.
   inline static void set_external_target_at(Address constant_pool_entry,
-                                            Address target) {
-    set_target_at(constant_pool_entry, target);
-  }
+                                            Address target);
 
   // Here we are patching the address in the constant pool, not the actual call
   // instruction.  The address in the constant pool is the same size as a
   // pointer.
-  static const int kCallTargetSize = kPointerSize;
-  static const int kExternalTargetSize = kPointerSize;
+  static const int kSpecialTargetSize = kPointerSize;
 
   // Size of an instruction.
   static const int kInstrSize = sizeof(Instr);

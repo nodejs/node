@@ -1214,7 +1214,7 @@ void PreParser::CheckDuplicate(DuplicateFinder* finder,
     old_type = finder->AddAsciiSymbol(scanner_->literal_ascii_string(),
                                       type);
   } else {
-    old_type = finder->AddUC16Symbol(scanner_->literal_uc16_string(), type);
+    old_type = finder->AddUtf16Symbol(scanner_->literal_utf16_string(), type);
   }
   if (HasConflict(old_type, type)) {
     if (IsDataDataConflict(old_type, type)) {
@@ -1387,7 +1387,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
           duplicate_finder.AddAsciiSymbol(scanner_->literal_ascii_string(), 1);
     } else {
       prev_value =
-          duplicate_finder.AddUC16Symbol(scanner_->literal_uc16_string(), 1);
+          duplicate_finder.AddUtf16Symbol(scanner_->literal_utf16_string(), 1);
     }
 
     if (prev_value != 0) {
@@ -1485,7 +1485,7 @@ void PreParser::LogSymbol() {
   if (scanner_->is_literal_ascii()) {
     log_->LogAsciiSymbol(identifier_pos, scanner_->literal_ascii_string());
   } else {
-    log_->LogUC16Symbol(identifier_pos, scanner_->literal_uc16_string());
+    log_->LogUtf16Symbol(identifier_pos, scanner_->literal_utf16_string());
   }
 }
 
@@ -1657,7 +1657,7 @@ int DuplicateFinder::AddAsciiSymbol(i::Vector<const char> key, int value) {
   return AddSymbol(i::Vector<const byte>::cast(key), true, value);
 }
 
-int DuplicateFinder::AddUC16Symbol(i::Vector<const uint16_t> key, int value) {
+int DuplicateFinder::AddUtf16Symbol(i::Vector<const uint16_t> key, int value) {
   return AddSymbol(i::Vector<const byte>::cast(key), false, value);
 }
 

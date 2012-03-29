@@ -117,13 +117,31 @@ Address RelocInfo::target_address() {
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
-  return reinterpret_cast<Address>(pc_);
+  ASSERT(IsCodeTarget(rmode_) ||
+         rmode_ == RUNTIME_ENTRY ||
+         rmode_ == EMBEDDED_OBJECT ||
+         rmode_ == EXTERNAL_REFERENCE);
+  // Read the address of the word containing the target_address in an
+  // instruction stream.
+  // The only architecture-independent user of this function is the serializer.
+  // The serializer uses it to find out how many raw bytes of instruction to
+  // output before the next target.
+  // For an instruction like LUI/ORI where the target bits are mixed into the
+  // instruction bits, the size of the target will be zero, indicating that the
+  // serializer should not step forward in memory after a target is resolved
+  // and written. In this case the target_address_address function should
+  // return the end of the instructions to be patched, allowing the
+  // deserializer to deserialize the instructions as raw bytes and put them in
+  // place, ready to be patched with the target. After jump optimization,
+  // that is the address of the instruction that follows J/JAL/JR/JALR
+  // instruction.
+  return reinterpret_cast<Address>(
+    pc_ + Assembler::kInstructionsFor32BitConstant * Assembler::kInstrSize);
 }
 
 
 int RelocInfo::target_address_size() {
-  return Assembler::kExternalTargetSize;
+  return Assembler::kSpecialTargetSize;
 }
 
 
@@ -281,7 +299,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
     visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    visitor->VisitExternalReference(target_reference_address());
+    visitor->VisitExternalReference(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
@@ -307,7 +325,7 @@ void RelocInfo::Visit(Heap* heap) {
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
     StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
-    StaticVisitor::VisitExternalReference(target_reference_address());
+    StaticVisitor::VisitExternalReference(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&

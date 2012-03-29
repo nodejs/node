@@ -1832,6 +1832,11 @@ ScriptMirror.prototype.source = function() {
 };
 
 
+ScriptMirror.prototype.setSource = function(source) {
+  %DebugSetScriptSource(this.script_, source);
+};
+
+
 ScriptMirror.prototype.lineOffset = function() {
   return this.script_.line_offset;
 };

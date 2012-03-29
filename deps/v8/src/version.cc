@@ -34,8 +34,8 @@
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     3
 #define MINOR_VERSION     9
-#define BUILD_NUMBER      17
-#define PATCH_LEVEL       0
+#define BUILD_NUMBER      24
+#define PATCH_LEVEL       6
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
 #define IS_CANDIDATE_VERSION 0

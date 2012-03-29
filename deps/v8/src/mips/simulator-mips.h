@@ -309,6 +309,14 @@ class Simulator {
   void InstructionDecode(Instruction* instr);
   // Execute one instruction placed in a branch delay slot.
   void BranchDelayInstructionDecode(Instruction* instr) {
+    if (instr->InstructionBits() == nopInstr) {
+      // Short-cut generic nop instructions. They are always valid and they
+      // never change the simulator state.
+      set_register(pc, reinterpret_cast<int32_t>(instr) +
+                       Instruction::kInstrSize);
+      return;
+    }
+
     if (instr->IsForbiddenInBranchDelay()) {
       V8_Fatal(__FILE__, __LINE__,
                "Eror:Unexpected %i opcode in a branch delay slot.",

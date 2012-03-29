@@ -161,23 +161,41 @@ struct Register {
   static const int kAllocationIndexByRegisterCode[kNumRegisters];
 };
 
-const Register rax = { 0 };
-const Register rcx = { 1 };
-const Register rdx = { 2 };
-const Register rbx = { 3 };
-const Register rsp = { 4 };
-const Register rbp = { 5 };
-const Register rsi = { 6 };
-const Register rdi = { 7 };
-const Register r8 = { 8 };
-const Register r9 = { 9 };
-const Register r10 = { 10 };
-const Register r11 = { 11 };
-const Register r12 = { 12 };
-const Register r13 = { 13 };
-const Register r14 = { 14 };
-const Register r15 = { 15 };
-const Register no_reg = { -1 };
+const int kRegister_rax_Code = 0;
+const int kRegister_rcx_Code = 1;
+const int kRegister_rdx_Code = 2;
+const int kRegister_rbx_Code = 3;
+const int kRegister_rsp_Code = 4;
+const int kRegister_rbp_Code = 5;
+const int kRegister_rsi_Code = 6;
+const int kRegister_rdi_Code = 7;
+const int kRegister_r8_Code = 8;
+const int kRegister_r9_Code = 9;
+const int kRegister_r10_Code = 10;
+const int kRegister_r11_Code = 11;
+const int kRegister_r12_Code = 12;
+const int kRegister_r13_Code = 13;
+const int kRegister_r14_Code = 14;
+const int kRegister_r15_Code = 15;
+const int kRegister_no_reg_Code = -1;
+
+const Register rax = { kRegister_rax_Code };
+const Register rcx = { kRegister_rcx_Code };
+const Register rdx = { kRegister_rdx_Code };
+const Register rbx = { kRegister_rbx_Code };
+const Register rsp = { kRegister_rsp_Code };
+const Register rbp = { kRegister_rbp_Code };
+const Register rsi = { kRegister_rsi_Code };
+const Register rdi = { kRegister_rdi_Code };
+const Register r8 = { kRegister_r8_Code };
+const Register r9 = { kRegister_r9_Code };
+const Register r10 = { kRegister_r10_Code };
+const Register r11 = { kRegister_r11_Code };
+const Register r12 = { kRegister_r12_Code };
+const Register r13 = { kRegister_r13_Code };
+const Register r14 = { kRegister_r14_Code };
+const Register r15 = { kRegister_r15_Code };
+const Register no_reg = { kRegister_no_reg_Code };
 
 
 struct XMMRegister {
@@ -559,8 +577,8 @@ class Assembler : public AssemblerBase {
 
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
-  inline static void set_target_at(Address instruction_payload,
-                                   Address target) {
+  inline static void deserialization_set_special_target_at(
+      Address instruction_payload, Address target) {
     set_target_address_at(instruction_payload, target);
   }
 
@@ -573,8 +591,7 @@ class Assembler : public AssemblerBase {
 
   inline Handle<Object> code_target_object_handle_at(Address pc);
   // Number of bytes taken up by the branch target in the code.
-  static const int kCallTargetSize = 4;      // Use 32-bit displacement.
-  static const int kExternalTargetSize = 8;  // Use 64-bit absolute.
+  static const int kSpecialTargetSize = 4;  // Use 32-bit displacement.
   // Distance between the address of the code target in the call instruction
   // and the return address pushed on the stack.
   static const int kCallTargetAddressOffset = 4;  // Use 32-bit displacement.

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,11 +39,20 @@
 
 #define UNSUPPORTED_MIPS() v8::internal::PrintF("Unsupported instruction.\n")
 
+enum ArchVariants {
+  kMips32r2,
+  kMips32r1,
+  kLoongson
+};
 
 #ifdef _MIPS_ARCH_MIPS32R2
-  #define mips32r2 1
+  static const ArchVariants kArchVariant = kMips32r2;
+#elif _MIPS_ARCH_LOONGSON
+// The loongson flag refers to the LOONGSON architectures based on MIPS-III,
+// which predates (and is a subset of) the mips32r2 and r1 architectures.
+  static const ArchVariants kArchVariant = kLoongson;
 #else
-  #define mips32r2 0
+  static const ArchVariants kArchVariant = kMips32r1;
 #endif
 
 

@@ -512,8 +512,8 @@ void CallICBase::GenerateMiss(MacroAssembler* masm,
     __ Push(a3, a2);
 
     // Call the entry.
-    __ li(a0, Operand(2));
-    __ li(a1, Operand(ExternalReference(IC_Utility(id), isolate)));
+    __ PrepareCEntryArgs(2);
+    __ PrepareCEntryFunction(ExternalReference(IC_Utility(id), isolate));
 
     CEntryStub stub(1);
     __ CallStub(&stub);
@@ -758,8 +758,6 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
                                                 Register scratch3,
                                                 Label* unmapped_case,
                                                 Label* slow_case) {
-  Heap* heap = masm->isolate()->heap();
-
   // Check that the receiver is a JSObject. Because of the map check
   // later, we do not need to check for interceptors or whether it
   // requires access checks.
@@ -773,10 +771,12 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ Branch(slow_case, ne, scratch1, Operand(zero_reg));
 
   // Load the elements into scratch1 and check its map.
-  Handle<Map> arguments_map(heap->non_strict_arguments_elements_map());
   __ lw(scratch1, FieldMemOperand(object, JSObject::kElementsOffset));
-  __ CheckMap(scratch1, scratch2, arguments_map, slow_case, DONT_DO_SMI_CHECK);
-
+  __ CheckMap(scratch1,
+              scratch2,
+              Heap::kNonStrictArgumentsElementsMapRootIndex,
+              slow_case,
+              DONT_DO_SMI_CHECK);
   // Check if element is in the range of mapped arguments. If not, jump
   // to the unmapped lookup with the parameter map in scratch1.
   __ lw(scratch2, FieldMemOperand(scratch1, FixedArray::kLengthOffset));
@@ -788,7 +788,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
       FixedArray::kHeaderSize + 2 * kPointerSize - kHeapObjectTag;
 
   __ li(scratch3, Operand(kPointerSize >> 1));
-  __ mul(scratch3, key, scratch3);
+  __ Mul(scratch3, key, scratch3);
   __ Addu(scratch3, scratch3, Operand(kOffset));
 
   __ Addu(scratch2, scratch1, scratch3);
@@ -801,7 +801,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // map in scratch1).
   __ lw(scratch1, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
   __ li(scratch3, Operand(kPointerSize >> 1));
-  __ mul(scratch3, scratch2, scratch3);
+  __ Mul(scratch3, scratch2, scratch3);
   __ Addu(scratch3, scratch3, Operand(Context::kHeaderSize - kHeapObjectTag));
   __ Addu(scratch2, scratch1, scratch3);
   return MemOperand(scratch2);
@@ -820,13 +820,15 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
   Register backing_store = parameter_map;
   __ lw(backing_store, FieldMemOperand(parameter_map, kBackingStoreOffset));
-  Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
-  __ CheckMap(backing_store, scratch, fixed_array_map, slow_case,
+  __ CheckMap(backing_store,
+              scratch,
+              Heap::kFixedArrayMapRootIndex,
+              slow_case,
               DONT_DO_SMI_CHECK);
   __ lw(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
   __ Branch(slow_case, Ugreater_equal, key, Operand(scratch));
   __ li(scratch, Operand(kPointerSize >> 1));
-  __ mul(scratch, key, scratch);
+  __ Mul(scratch, key, scratch);
   __ Addu(scratch,
           scratch,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -844,8 +846,8 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   Label slow, notin;
   MemOperand mapped_location =
       GenerateMappedArgumentsLookup(masm, a1, a0, a2, a3, t0, &notin, &slow);
+  __ Ret(USE_DELAY_SLOT);
   __ lw(v0, mapped_location);
-  __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in a2.
   MemOperand unmapped_location =
@@ -853,8 +855,8 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ lw(a2, unmapped_location);
   __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
   __ Branch(&slow, eq, a2, Operand(a3));
+  __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a2);
-  __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);
 }
@@ -1253,8 +1255,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ lw(t0, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ Branch(&slow, hs, key, Operand(t0));
   __ lw(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ Branch(&check_if_double_array, ne, elements_map,
-      Operand(masm->isolate()->factory()->fixed_array_map()));
+  __ Branch(
+      &check_if_double_array, ne, elements_map, Heap::kFixedArrayMapRootIndex);
+
   // Calculate key + 1 as smi.
   STATIC_ASSERT(kSmiTag == 0);
   __ Addu(t0, key, Operand(Smi::FromInt(1)));
@@ -1262,8 +1265,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ Branch(&fast_object_without_map_check);
 
   __ bind(&check_if_double_array);
-  __ Branch(&slow, ne, elements_map,
-      Operand(masm->isolate()->factory()->fixed_double_array_map()));
+  __ Branch(&slow, ne, elements_map, Heap::kFixedDoubleArrayMapRootIndex);
   // Add 1 to key, and go to common element store code for doubles.
   STATIC_ASSERT(kSmiTag == 0);
   __ Addu(t0, key, Operand(Smi::FromInt(1)));
@@ -1285,8 +1287,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Register scratch_value = t0;
   Register address = t1;
   __ lw(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ Branch(&fast_double_with_map_check, ne, elements_map,
-      Operand(masm->isolate()->factory()->fixed_array_map()));
+  __ Branch(&fast_double_with_map_check,
+            ne,
+            elements_map,
+            Heap::kFixedArrayMapRootIndex);
   __ bind(&fast_object_without_map_check);
   // Smi stores don't require further checks.
   Label non_smi_value;
@@ -1323,8 +1327,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&fast_double_with_map_check);
   // Check for fast double array case. If this fails, call through to the
   // runtime.
-  __ Branch(&slow, ne, elements_map,
-      Operand(masm->isolate()->factory()->fixed_double_array_map()));
+  __ Branch(&slow, ne, elements_map, Heap::kFixedDoubleArrayMapRootIndex);
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(value,
                                  key,

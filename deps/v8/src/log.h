@@ -454,7 +454,6 @@ class SamplerRegistry : public AllStatic {
     return active_samplers_ != NULL && !active_samplers_->is_empty();
   }
 
-  static Mutex* mutex_;  // Protects the state below.
   static List<Sampler*>* active_samplers_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SamplerRegistry);

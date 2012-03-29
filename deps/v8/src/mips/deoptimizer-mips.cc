@@ -119,7 +119,7 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   const int kInstrSize = Assembler::kInstrSize;
   // This structure comes from FullCodeGenerator::EmitStackCheck.
   // The call of the stack guard check has the following form:
-  // sltu at, sp, t0
+  // sltu at, sp, t0 / slt at, a3, zero_reg (in case of count based interrupts)
   // beq at, zero_reg, ok
   // lui t9, <stack guard address> upper
   // ori t9, <stack guard address> lower
@@ -167,7 +167,11 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 
   // Restore the sltu instruction so beq can be taken again.
   CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
-  patcher.masm()->sltu(at, sp, t0);
+  if (FLAG_count_based_interrupts) {
+    patcher.masm()->slt(at, a3, zero_reg);
+  } else {
+    patcher.masm()->sltu(at, sp, t0);
+  }
 
   // Replace the on-stack replacement address in the load-immediate (lui/ori
   // pair) with the entry address of the normal stack-check code.

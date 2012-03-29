@@ -2257,3 +2257,22 @@ TestIsEnumerableThrow(Proxy.create({
     return function(k) { throw "myexn" }
   }
 }))
+
+
+
+// Constructor functions with proxy prototypes.
+
+function TestConstructorWithProxyPrototype() {
+  TestWithProxies(TestConstructorWithProxyPrototype2, {})
+}
+
+function TestConstructorWithProxyPrototype2(create, handler) {
+  function C() {};
+  C.prototype = create(handler);
+
+  var o = new C;
+  assertSame(C.prototype, o.__proto__);
+  assertSame(C.prototype, Object.getPrototypeOf(o));
+}
+
+TestConstructorWithProxyPrototype();

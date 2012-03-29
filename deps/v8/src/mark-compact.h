@@ -638,9 +638,6 @@ class MarkCompactCollector {
   // Marks the object black.  This is for non-incremental marking.
   INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
 
-  // Clears the cache of ICs related to this map.
-  INLINE(void ClearCacheOnMap(Map* map));
-
   void ProcessNewlyMarkedObject(HeapObject* obj);
 
   // Creates back pointers for all map transitions, stores them in

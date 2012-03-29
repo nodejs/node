@@ -136,7 +136,6 @@ class RuntimeProfiler {
   //   -1            => the profiler thread is waiting on the semaphore
   //   0 or positive => the number of isolates running JavaScript code.
   static Atomic32 state_;
-  static Semaphore* semaphore_;
 
 #ifdef DEBUG
   static bool has_been_globally_set_up_;

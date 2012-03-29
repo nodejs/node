@@ -178,7 +178,12 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
 
   void VisitCodeTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
-    Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
+        && (target->ic_age() != heap_->global_ic_age())) {
+      IC::Clear(rinfo->pc());
+      target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    }
     heap_->mark_compact_collector()->RecordRelocSlot(rinfo, Code::cast(target));
     MarkObject(target);
   }
@@ -396,7 +401,7 @@ bool IncrementalMarking::WorthActivating() {
   return !FLAG_expose_gc &&
       FLAG_incremental_marking &&
       !Serializer::enabled() &&
-      heap_->PromotedSpaceSize() > kActivationThreshold;
+      heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
 
 
@@ -794,6 +799,12 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       // correct only for objects that occupy at least two words.
       Map* map = obj->map();
       if (map == filler_map) continue;
+
+      if (obj->IsMap()) {
+        Map* map = Map::cast(obj);
+        heap_->ClearCacheOnMap(map);
+      }
+
 
       int size = obj->SizeFromMap(map);
       bytes_to_process -= size;

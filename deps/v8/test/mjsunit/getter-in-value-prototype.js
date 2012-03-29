@@ -31,5 +31,5 @@
 // JSObject.
 
 String.prototype.__defineGetter__('x', function() { return this; });
-assertEquals('asdf', 'asdf'.x);
+assertEquals(Object('asdf'), 'asdf'.x);
 

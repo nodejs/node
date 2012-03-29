@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -701,3 +701,7 @@ assertThrows("RegExp('(*)')");
 assertThrows("RegExp('(?:*)')");
 assertThrows("RegExp('(?=*)')");
 assertThrows("RegExp('(?!*)')");
+
+// Test trimmed regular expression for RegExp.test().
+assertTrue(/.*abc/.test("abc"));
+assertFalse(/.*\d+/.test("q"));

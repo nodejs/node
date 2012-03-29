@@ -57,8 +57,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-TranscendentalFunction CreateTranscendentalFunction(
-    TranscendentalCache::Type type) {
+UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
@@ -99,7 +98,40 @@ TranscendentalFunction CreateTranscendentalFunction(
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<TranscendentalFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+}
+
+
+UnaryMathFunction CreateSqrtFunction() {
+  size_t actual_size;
+  // Allocate buffer in executable space.
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
+  // If SSE2 is not available, we can use libc's implementation to ensure
+  // consistency since code by fullcodegen's calls into runtime in that case.
+  if (buffer == NULL || !CpuFeatures::IsSupported(SSE2)) return &sqrt;
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  // esp[1 * kPointerSize]: raw double input
+  // esp[0 * kPointerSize]: return address
+  // Move double input into registers.
+  {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ movdbl(xmm0, Operand(esp, 1 * kPointerSize));
+    __ sqrtsd(xmm0, xmm0);
+    __ movdbl(Operand(esp, 1 * kPointerSize), xmm0);
+    // Load result into floating point register as return value.
+    __ fld_d(Operand(esp, 1 * kPointerSize));
+    __ Ret();
+  }
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  ASSERT(desc.reloc_size == 0);
+
+  CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
 

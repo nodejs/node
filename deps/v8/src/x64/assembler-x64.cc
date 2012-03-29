@@ -3045,8 +3045,6 @@ bool RelocInfo::IsCodedSpecially() {
   return (1 << rmode_) & kApplyMask;
 }
 
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X64

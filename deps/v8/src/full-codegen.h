@@ -470,6 +470,8 @@ class FullCodeGenerator: public AstVisitor {
                                  Label* done);
   void EmitVariableLoad(VariableProxy* proxy);
 
+  void EmitAccessor(Expression* expression);
+
   // Expects the arguments and the function already pushed.
   void EmitResolvePossiblyDirectEval(int arg_count);
 
@@ -801,6 +803,28 @@ class FullCodeGenerator: public AstVisitor {
   friend class NestedStatement;
 
   DISALLOW_COPY_AND_ASSIGN(FullCodeGenerator);
+};
+
+
+// A map from property names to getter/setter pairs allocated in the zone.
+class AccessorTable: public TemplateHashMap<Literal,
+                                            ObjectLiteral::Accessors,
+                                            ZoneListAllocationPolicy> {
+ public:
+  explicit AccessorTable(Zone* zone) :
+      TemplateHashMap<Literal,
+                      ObjectLiteral::Accessors,
+                      ZoneListAllocationPolicy>(Literal::Match),
+      zone_(zone) { }
+
+  Iterator lookup(Literal* literal) {
+    Iterator it = find(literal, true);
+    if (it->second == NULL) it->second = new(zone_) ObjectLiteral::Accessors();
+    return it;
+  }
+
+ private:
+  Zone* zone_;
 };
 
 

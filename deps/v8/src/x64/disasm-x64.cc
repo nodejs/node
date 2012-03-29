@@ -34,6 +34,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "disasm.h"
+#include "lazy-instance.h"
 
 namespace disasm {
 
@@ -269,7 +270,8 @@ void InstructionTable::AddJumpConditionalShort() {
 }
 
 
-static InstructionTable instruction_table;
+static v8::internal::LazyInstance<InstructionTable>::type instruction_table =
+    LAZY_INSTANCE_INITIALIZER;
 
 
 static InstructionDesc cmov_instructions[16] = {
@@ -1338,7 +1340,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
     data++;
   }
 
-  const InstructionDesc& idesc = instruction_table.Get(current);
+  const InstructionDesc& idesc = instruction_table.Get().Get(current);
   byte_size_operand_ = idesc.byte_size_operation;
   switch (idesc.type) {
     case ZERO_OPERANDS_INSTR:

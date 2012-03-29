@@ -544,7 +544,7 @@ class HeapEntry BASE_EMBEDDED {
   Type type() { return static_cast<Type>(type_); }
   const char* name() { return name_; }
   void set_name(const char* name) { name_ = name; }
-  inline SnapshotObjectId id();
+  inline SnapshotObjectId id() { return id_; }
   int self_size() { return self_size_; }
   int retained_size() { return retained_size_; }
   void add_retained_size(int size) { retained_size_ += size; }
@@ -608,12 +608,9 @@ class HeapEntry BASE_EMBEDDED {
     int ordered_index_;  // Used during dominator tree building.
     int retained_size_;  // At that moment, there is no retained size yet.
   };
+  SnapshotObjectId id_;
   HeapEntry* dominator_;
   HeapSnapshot* snapshot_;
-  struct Id {
-    uint32_t id1_;
-    uint32_t id2_;
-  } id_;  // This is to avoid extra padding of 64-bit value.
   const char* name_;
 
   DISALLOW_COPY_AND_ASSIGN(HeapEntry);

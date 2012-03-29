@@ -1,3 +1,84 @@
+2012-03-23: Version 3.9.24
+
+        Activated count-based profiler for ARM.
+
+        Fixed use of proxies as f.prototype properties. (issue 2021)
+
+        Enabled snapshots on MIPS.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-21: Version 3.9.23
+
+        Use correct arguments adaptation environment when inlining function
+        containing arguments. (Issue 2014)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-20: Version 3.9.22
+
+        Enabled count-based profiler by default.
+
+        Implemented a hash based look-up to speed up address checks
+        in large object space (issue 853).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-19: Version 3.9.21
+
+        Fixed push-to-trunk script (and re-push).
+
+        Added API call that identifies strings that are guaranteed only to
+        contain ASCII characters.
+
+
+2012-03-19: Version 3.9.20
+
+        Fixed declarations escaping global strict eval. (Issue 1624)
+
+        Fixed wrapping of receiver for non-strict callbacks. (Issue 1973)
+
+        Fixed function declarations overwriting read-only global properties.
+        (Chromium issue 115452)
+
+        Fixed --use-strict flag in combination with --harmony[-scoping].
+
+        Debugger: naive implementation of "step into Function.prototype.bind".
+
+        Debugger: added ability to set script source from within OnBeforeCompile
+
+        Added flag to always call DebugBreak on abort.
+
+        Re-enabled constructor inlining and inline === comparison with boolean
+        constants. (Issue 2009)
+
+        Don't use an explicit s0 in ClampDoubleToUint8. (Issue 2004)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-14: Version 3.9.19
+
+        Ensure there is a smi check of the receiver for global load and call
+        ICs (Chromium issue 117794).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-03-13: Version 3.9.18
+
+        Ensure consistency of Math.sqrt on Intel platforms.
+
+        Remove static initializers in v8. (issue 1859)
+
+        Add explicit dependency on v8_base in the GYP-based build.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-12: Version 3.9.17
 
         Fixed VFP detection through compiler defines. (issue 1996)

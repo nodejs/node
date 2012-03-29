@@ -114,15 +114,6 @@ int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
       HeapObjectsMap::kObjectIdStep);
 }
 
-
-SnapshotObjectId HeapEntry::id() {
-  union {
-    Id stored_id;
-    SnapshotObjectId returned_id;
-  } id_adaptor = {id_};
-  return id_adaptor.returned_id;
-}
-
 } }  // namespace v8::internal
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_

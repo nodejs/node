@@ -38,9 +38,11 @@
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "isolate.h"
+#include "lazy-instance.h"
 #include "lithium-allocator.h"
 #include "log.h"
 #include "messages.h"
+#include "platform.h"
 #include "regexp-stack.h"
 #include "runtime-profiler.h"
 #include "scopeinfo.h"
@@ -55,6 +57,31 @@
 namespace v8 {
 namespace internal {
 
+struct GlobalState {
+  Thread::LocalStorageKey per_isolate_thread_data_key;
+  Thread::LocalStorageKey isolate_key;
+  Thread::LocalStorageKey thread_id_key;
+  Isolate* default_isolate;
+  Isolate::ThreadDataTable* thread_data_table;
+  Mutex* mutex;
+};
+
+struct InitializeGlobalState {
+  static void Construct(GlobalState* state) {
+    state->isolate_key = Thread::CreateThreadLocalKey();
+    state->thread_id_key = Thread::CreateThreadLocalKey();
+    state->per_isolate_thread_data_key = Thread::CreateThreadLocalKey();
+    state->thread_data_table = new Isolate::ThreadDataTable();
+    state->default_isolate = new Isolate();
+    state->mutex = OS::CreateMutex();
+    // Can't use SetIsolateThreadLocals(default_isolate_, NULL) here
+    // because a non-null thread data may be already set.
+    Thread::SetThreadLocal(state->isolate_key, state->default_isolate);
+  }
+};
+
+static LazyInstance<GlobalState, InitializeGlobalState>::type global_state;
+
 Atomic32 ThreadId::highest_thread_id_ = 0;
 
 int ThreadId::AllocateThreadId() {
@@ -64,10 +91,11 @@ int ThreadId::AllocateThreadId() {
 
 
 int ThreadId::GetCurrentThreadId() {
-  int thread_id = Thread::GetThreadLocalInt(Isolate::thread_id_key_);
+  const GlobalState& global = global_state.Get();
+  int thread_id = Thread::GetThreadLocalInt(global.thread_id_key);
   if (thread_id == 0) {
     thread_id = AllocateThreadId();
-    Thread::SetThreadLocalInt(Isolate::thread_id_key_, thread_id);
+    Thread::SetThreadLocalInt(global.thread_id_key, thread_id);
   }
   return thread_id;
 }
@@ -311,44 +339,16 @@ void Isolate::PreallocatedStorageDelete(void* p) {
   storage->LinkTo(&free_list_);
 }
 
-
-Isolate* Isolate::default_isolate_ = NULL;
-Thread::LocalStorageKey Isolate::isolate_key_;
-Thread::LocalStorageKey Isolate::thread_id_key_;
-Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-Mutex* Isolate::process_wide_mutex_ = OS::CreateMutex();
-Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
-
-
-class IsolateInitializer {
- public:
-  IsolateInitializer() {
-    Isolate::EnsureDefaultIsolate();
-  }
-};
-
-static IsolateInitializer* EnsureDefaultIsolateAllocated() {
-  // TODO(isolates): Use the system threading API to do this once?
-  static IsolateInitializer static_initializer;
-  return &static_initializer;
-}
-
-// This variable only needed to trigger static intialization.
-static IsolateInitializer* static_initializer = EnsureDefaultIsolateAllocated();
-
-
-
-
-
 Isolate::PerIsolateThreadData* Isolate::AllocatePerIsolateThreadData(
     ThreadId thread_id) {
   ASSERT(!thread_id.Equals(ThreadId::Invalid()));
   PerIsolateThreadData* per_thread = new PerIsolateThreadData(this, thread_id);
   {
-    ScopedLock lock(process_wide_mutex_);
-    ASSERT(thread_data_table_->Lookup(this, thread_id) == NULL);
-    thread_data_table_->Insert(per_thread);
-    ASSERT(thread_data_table_->Lookup(this, thread_id) == per_thread);
+    GlobalState* const global = global_state.Pointer();
+    ScopedLock lock(global->mutex);
+    ASSERT(global->thread_data_table->Lookup(this, thread_id) == NULL);
+    global->thread_data_table->Insert(per_thread);
+    ASSERT(global->thread_data_table->Lookup(this, thread_id) == per_thread);
   }
   return per_thread;
 }
@@ -359,8 +359,9 @@ Isolate::PerIsolateThreadData*
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    ScopedLock lock(process_wide_mutex_);
-    per_thread = thread_data_table_->Lookup(this, thread_id);
+    GlobalState* const global = global_state.Pointer();
+    ScopedLock lock(global->mutex);
+    per_thread = global->thread_data_table->Lookup(this, thread_id);
     if (per_thread == NULL) {
       per_thread = AllocatePerIsolateThreadData(thread_id);
     }
@@ -373,26 +374,25 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
   PerIsolateThreadData* per_thread = NULL;
   {
-    ScopedLock lock(process_wide_mutex_);
-    per_thread = thread_data_table_->Lookup(this, thread_id);
+    GlobalState* const global = global_state.Pointer();
+    ScopedLock lock(global->mutex);
+    per_thread = global->thread_data_table->Lookup(this, thread_id);
   }
   return per_thread;
 }
 
 
+bool Isolate::IsDefaultIsolate() const {
+  return this == global_state.Get().default_isolate;
+}
+
+
 void Isolate::EnsureDefaultIsolate() {
-  ScopedLock lock(process_wide_mutex_);
-  if (default_isolate_ == NULL) {
-    isolate_key_ = Thread::CreateThreadLocalKey();
-    thread_id_key_ = Thread::CreateThreadLocalKey();
-    per_isolate_thread_data_key_ = Thread::CreateThreadLocalKey();
-    thread_data_table_ = new Isolate::ThreadDataTable();
-    default_isolate_ = new Isolate();
-  }
+  GlobalState* const global = global_state.Pointer();
   // Can't use SetIsolateThreadLocals(default_isolate_, NULL) here
-  // becase a non-null thread data may be already set.
-  if (Thread::GetThreadLocal(isolate_key_) == NULL) {
-    Thread::SetThreadLocal(isolate_key_, default_isolate_);
+  // because a non-null thread data may be already set.
+  if (Thread::GetThreadLocal(global->isolate_key) == NULL) {
+    Thread::SetThreadLocal(global->isolate_key, global->default_isolate);
   }
 }
 
@@ -400,32 +400,48 @@ void Isolate::EnsureDefaultIsolate() {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 Debugger* Isolate::GetDefaultIsolateDebugger() {
   EnsureDefaultIsolate();
-  return default_isolate_->debugger();
+  return global_state.Pointer()->default_isolate->debugger();
 }
 #endif
 
 
 StackGuard* Isolate::GetDefaultIsolateStackGuard() {
   EnsureDefaultIsolate();
-  return default_isolate_->stack_guard();
+  return global_state.Pointer()->default_isolate->stack_guard();
+}
+
+
+Thread::LocalStorageKey Isolate::isolate_key() {
+  return global_state.Get().isolate_key;
+}
+
+
+Thread::LocalStorageKey Isolate::thread_id_key() {
+  return global_state.Get().thread_id_key;
+}
+
+
+Thread::LocalStorageKey Isolate::per_isolate_thread_data_key() {
+  return global_state.Get().per_isolate_thread_data_key;
 }
 
 
 void Isolate::EnterDefaultIsolate() {
   EnsureDefaultIsolate();
-  ASSERT(default_isolate_ != NULL);
+  Isolate* const default_isolate = global_state.Pointer()->default_isolate;
+  ASSERT(default_isolate != NULL);
 
   PerIsolateThreadData* data = CurrentPerIsolateThreadData();
   // If not yet in default isolate - enter it.
-  if (data == NULL || data->isolate() != default_isolate_) {
-    default_isolate_->Enter();
+  if (data == NULL || data->isolate() != default_isolate) {
+    default_isolate->Enter();
   }
 }
 
 
 Isolate* Isolate::GetDefaultIsolateForLocking() {
   EnsureDefaultIsolate();
-  return default_isolate_;
+  return global_state.Pointer()->default_isolate;
 }
 
 
@@ -1548,8 +1564,8 @@ void Isolate::TearDown() {
 
   Deinit();
 
-  { ScopedLock lock(process_wide_mutex_);
-    thread_data_table_->RemoveAllThreads(this);
+  { ScopedLock lock(global_state.Pointer()->mutex);
+    global_state.Pointer()->thread_data_table->RemoveAllThreads(this);
   }
 
   if (!IsDefaultIsolate()) {
@@ -1602,8 +1618,9 @@ void Isolate::Deinit() {
 
 void Isolate::SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data) {
-  Thread::SetThreadLocal(isolate_key_, isolate);
-  Thread::SetThreadLocal(per_isolate_thread_data_key_, data);
+  const GlobalState& global = global_state.Get();
+  Thread::SetThreadLocal(global.isolate_key, isolate);
+  Thread::SetThreadLocal(global.per_isolate_thread_data_key, data);
 }
 
 

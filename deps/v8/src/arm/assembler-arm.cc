@@ -139,7 +139,6 @@ bool RelocInfo::IsCodedSpecially() {
 }
 
 
-
 void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   Instr* pc = reinterpret_cast<Instr*>(pc_);
@@ -238,25 +237,27 @@ MemOperand::MemOperand(Register rn, Register rm,
 
 // add(sp, sp, 4) instruction (aka Pop())
 const Instr kPopInstruction =
-    al | PostIndex | 4 | LeaveCC | I | sp.code() * B16 | sp.code() * B12;
+    al | PostIndex | 4 | LeaveCC | I | kRegister_sp_Code * B16 |
+        kRegister_sp_Code * B12;
 // str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
 // register r is not encoded.
 const Instr kPushRegPattern =
-    al | B26 | 4 | NegPreIndex | sp.code() * B16;
+    al | B26 | 4 | NegPreIndex | kRegister_sp_Code * B16;
 // ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
 // register r is not encoded.
 const Instr kPopRegPattern =
-    al | B26 | L | 4 | PostIndex | sp.code() * B16;
+    al | B26 | L | 4 | PostIndex | kRegister_sp_Code * B16;
 // mov lr, pc
-const Instr kMovLrPc = al | MOV | pc.code() | lr.code() * B12;
+const Instr kMovLrPc = al | MOV | kRegister_pc_Code | kRegister_lr_Code * B12;
 // ldr rd, [pc, #offset]
 const Instr kLdrPCMask = kCondMask | 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPCPattern = al | 5 * B24 | L | pc.code() * B16;
+const Instr kLdrPCPattern = al | 5 * B24 | L | kRegister_pc_Code * B16;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
 const Instr kBlxRegPattern =
     B24 | B21 | 15 * B16 | 15 * B12 | 15 * B8 | BLX;
+const Instr kBlxIp = al | kBlxRegPattern | ip.code();
 const Instr kMovMvnMask = 0x6d * B21 | 0xf * B16;
 const Instr kMovMvnPattern = 0xd * B21;
 const Instr kMovMvnFlip = B22;
@@ -273,13 +274,13 @@ const Instr kAndBicFlip = 0xe * B21;
 
 // A mask for the Rd register for push, pop, ldr, str instructions.
 const Instr kLdrRegFpOffsetPattern =
-    al | B26 | L | Offset | fp.code() * B16;
+    al | B26 | L | Offset | kRegister_fp_Code * B16;
 const Instr kStrRegFpOffsetPattern =
-    al | B26 | Offset | fp.code() * B16;
+    al | B26 | Offset | kRegister_fp_Code * B16;
 const Instr kLdrRegFpNegOffsetPattern =
-    al | B26 | L | NegOffset | fp.code() * B16;
+    al | B26 | L | NegOffset | kRegister_fp_Code * B16;
 const Instr kStrRegFpNegOffsetPattern =
-    al | B26 | NegOffset | fp.code() * B16;
+    al | B26 | NegOffset | kRegister_fp_Code * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
 const Instr kLdrStrInstrArgumentMask = 0x0000ffff;
 const Instr kLdrStrOffsetMask = 0x00000fff;

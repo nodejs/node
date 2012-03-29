@@ -71,13 +71,6 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
   } else {
     print_source = FLAG_print_source;
     print_ast = FLAG_print_ast;
-    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
-    if (print_source && !filter.is_empty()) {
-      print_source = info->function()->name()->IsEqualTo(filter);
-    }
-    if (print_ast && !filter.is_empty()) {
-      print_ast = info->function()->name()->IsEqualTo(filter);
-    }
     ftype = "user-defined";
   }
 
@@ -124,11 +117,9 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
   bool print_code = Isolate::Current()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
       : (FLAG_print_code || (info->IsOptimizing() && FLAG_print_opt_code));
-  Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
-  FunctionLiteral* function = info->function();
-  bool match = filter.is_empty() || function->debug_name()->IsEqualTo(filter);
-  if (print_code && match) {
+  if (print_code) {
     // Print the source code if available.
+    FunctionLiteral* function = info->function();
     Handle<Script> script = info->script();
     if (!script->IsUndefined() && !script->source()->IsUndefined()) {
       PrintF("--- Raw source ---\n");

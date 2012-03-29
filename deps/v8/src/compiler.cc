@@ -243,12 +243,15 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   // Take --hydrogen-filter into account.
-  Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
   Handle<String> name = info->function()->debug_name();
-  bool match = filter.is_empty() || name->IsEqualTo(filter);
-  if (!match) {
-    info->SetCode(code);
-    return true;
+  if (*FLAG_hydrogen_filter != '\0') {
+    Vector<const char> filter = CStrVector(FLAG_hydrogen_filter);
+    if ((filter[0] == '-'
+         && name->IsEqualTo(filter.SubVector(1, filter.length())))
+        || (filter[0] != '-' && !name->IsEqualTo(filter))) {
+      info->SetCode(code);
+      return true;
+    }
   }
 
   // Recompile the unoptimized version of the code if the current version
@@ -450,6 +453,9 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(result, lit->expected_property_count());
 
+  script->set_compilation_state(
+      Smi::FromInt(Script::COMPILATION_STATE_COMPILED));
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger
   isolate->debugger()->OnAfterCompile(
@@ -518,7 +524,9 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
-    if (FLAG_use_strict) info.SetLanguageMode(STRICT_MODE);
+    if (FLAG_use_strict) {
+      info.SetLanguageMode(FLAG_harmony_scoping ? EXTENDED_MODE : STRICT_MODE);
+    }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);

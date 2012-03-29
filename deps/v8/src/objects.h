@@ -293,6 +293,8 @@ const int kVariableSizeSentinel = 0;
   V(SCRIPT_TYPE)                                                               \
   V(CODE_CACHE_TYPE)                                                           \
   V(POLYMORPHIC_CODE_CACHE_TYPE)                                               \
+  V(TYPE_FEEDBACK_INFO_TYPE)                                                   \
+  V(ALIASED_ARGUMENTS_ENTRY_TYPE)                                              \
                                                                                \
   V(FIXED_ARRAY_TYPE)                                                          \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                                   \
@@ -1625,9 +1627,14 @@ class JSObject: public JSReceiver {
       String* name,
       bool continue_search);
 
+  static void DefineAccessor(Handle<JSObject> object,
+                             Handle<String> name,
+                             Handle<Object> getter,
+                             Handle<Object> setter,
+                             PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineAccessor(String* name,
-                                              AccessorComponent component,
-                                              Object* fun,
+                                              Object* getter,
+                                              Object* setter,
                                               PropertyAttributes attributes);
   Object* LookupAccessor(String* name, AccessorComponent component);
 
@@ -2176,13 +2183,13 @@ class JSObject: public JSReceiver {
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefineElementAccessor(
       uint32_t index,
-      AccessorComponent component,
-      Object* fun,
+      Object* getter,
+      Object* setter,
       PropertyAttributes attributes);
   MUST_USE_RESULT MaybeObject* DefinePropertyAccessor(
       String* name,
-      AccessorComponent component,
-      Object* fun,
+      Object* getter,
+      Object* setter,
       PropertyAttributes attributes);
   void LookupInDescriptor(String* name, LookupResult* result);
 
@@ -2336,12 +2343,9 @@ class FixedArray: public FixedArrayBase {
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray: public FixedArrayBase {
  public:
-  inline void Initialize(FixedArray* from);
-  inline void Initialize(FixedDoubleArray* from);
-  inline void Initialize(SeededNumberDictionary* from);
-
   // Setter and getter for elements.
   inline double get_scalar(int index);
+  inline int64_t get_representation(int index);
   MUST_USE_RESULT inline MaybeObject* get(int index);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
@@ -4176,6 +4180,11 @@ class Code: public HeapObject {
   // it is only used by the garbage collector itself.
   DECL_ACCESSORS(gc_metadata, Object)
 
+  // [ic_age]: Inline caching age: the value of the Heap::global_ic_age
+  // at the moment when this object was created.
+  inline void set_ic_age(int count);
+  inline int ic_age();
+
   // Unchecked accessors to be used during GC.
   inline ByteArray* unchecked_relocation_info();
   inline FixedArray* unchecked_deoptimization_data();
@@ -4428,8 +4437,9 @@ class Code: public HeapObject {
   static const int kTypeFeedbackInfoOffset =
       kDeoptimizationDataOffset + kPointerSize;
   static const int kGCMetadataOffset = kTypeFeedbackInfoOffset + kPointerSize;
-  static const int kFlagsOffset = kGCMetadataOffset + kPointerSize;
-
+  static const int kICAgeOffset =
+      kGCMetadataOffset + kPointerSize;
+  static const int kFlagsOffset = kICAgeOffset + kIntSize;
   static const int kKindSpecificFlagsOffset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlagsSize = 2 * kIntSize;
 
@@ -4976,6 +4986,12 @@ class Script: public Struct {
     COMPILATION_TYPE_EVAL = 1
   };
 
+  // Script compilation state.
+  enum CompilationState {
+    COMPILATION_STATE_INITIAL = 0,
+    COMPILATION_STATE_COMPILED = 1
+  };
+
   // [source]: the script source.
   DECL_ACCESSORS(source, Object)
 
@@ -5006,6 +5022,9 @@ class Script: public Struct {
 
   // [compilation]: how the the script was compiled.
   DECL_ACCESSORS(compilation_type, Smi)
+
+  // [is_compiled]: determines whether the script has already been compiled.
+  DECL_ACCESSORS(compilation_state, Smi)
 
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
@@ -5043,7 +5062,9 @@ class Script: public Struct {
   static const int kWrapperOffset = kContextOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
   static const int kCompilationTypeOffset = kTypeOffset + kPointerSize;
-  static const int kLineEndsOffset = kCompilationTypeOffset + kPointerSize;
+  static const int kCompilationStateOffset =
+      kCompilationTypeOffset + kPointerSize;
+  static const int kLineEndsOffset = kCompilationStateOffset + kPointerSize;
   static const int kIdOffset = kLineEndsOffset + kPointerSize;
   static const int kEvalFromSharedOffset = kIdOffset + kPointerSize;
   static const int kEvalFrominstructionsOffsetOffset =
@@ -6616,12 +6637,17 @@ class StringHasher {
   inline bool has_trivial_hash();
 
   // Add a character to the hash and update the array index calculation.
-  inline void AddCharacter(uc32 c);
+  inline void AddCharacter(uint32_t c);
 
   // Adds a character to the hash but does not update the array index
   // calculation.  This can only be called when it has been verified
   // that the input is not an array index.
-  inline void AddCharacterNoIndex(uc32 c);
+  inline void AddCharacterNoIndex(uint32_t c);
+
+  // Add a character above 0xffff as a surrogate pair.  These can get into
+  // the hasher through the routines that take a UTF-8 string and make a symbol.
+  void AddSurrogatePair(uc32 c);
+  void AddSurrogatePairNoIndex(uc32 c);
 
   // Returns the value to store in the hash field of a string with
   // the given length and contents.
@@ -6871,9 +6897,6 @@ class String: public HeapObject {
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
 
-  inline int Utf8Length() { return Utf8Length(this, 0, length()); }
-  static int Utf8Length(String* input, int from, int to);
-
   // Return a 16 bit Unicode representation of the string.
   // The string should be nearly flat, otherwise the performance of
   // of this method may be very bad.  Setting robustness_flag to
@@ -6939,7 +6962,7 @@ class String: public HeapObject {
   // Max ASCII char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
   static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
-  static const int kMaxUC16CharCode = 0xffff;
+  static const int kMaxUtf16CodeUnit = 0xffff;
 
   // Mask constant for checking if a string has a computed hash code
   // and if it is an array index.  The least significant bit indicates
@@ -7570,9 +7593,6 @@ class Oddball: public HeapObject {
   static const byte kUndefined = 5;
   static const byte kOther = 6;
 
-  // The ToNumber value of a hidden oddball is a negative smi.
-  static const int kLeastHiddenOddballNumber = -5;
-
   typedef FixedBodyDescriptor<kToStringOffset,
                               kToNumberOffset + kPointerSize,
                               kSize> BodyDescriptor;
@@ -8037,22 +8057,14 @@ class AccessorPair: public Struct {
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
 
-  Object* get(AccessorComponent component) {
-    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
-    return (component == ACCESSOR_GETTER) ? getter() : setter();
-  }
+  // Note: Returns undefined instead in case of a hole.
+  Object* GetComponent(AccessorComponent component);
 
-  void set(AccessorComponent component, Object* value) {
-    ASSERT(component == ACCESSOR_GETTER || component == ACCESSOR_SETTER);
-    if (component == ACCESSOR_GETTER) {
-      set_getter(value);
-    } else {
-      set_setter(value);
-    }
+  // Set both components, skipping arguments which are a JavaScript null.
+  void SetComponents(Object* getter, Object* setter) {
+    if (!getter->IsNull()) set_getter(getter);
+    if (!setter->IsNull()) set_setter(setter);
   }
-
-  // Same as get, but returns undefined instead of the hole.
-  Object* SafeGet(AccessorComponent component);
 
   bool ContainsAccessor() {
     return IsJSAccessor(getter()) || IsJSAccessor(setter());

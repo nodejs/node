@@ -197,9 +197,9 @@ def PassOnOptions(options):
   if options.crankshaft:
     result += ['--crankshaft']
   if options.shard_count != 1:
-    result += ['--shard_count=%s' % options.shard_count]
+    result += ['--shard-count=%s' % options.shard_count]
   if options.shard_run != 1:
-    result += ['--shard_run=%s' % options.shard_run]
+    result += ['--shard-run=%s' % options.shard_run]
   if options.noprof:
     result += ['--noprof']
   return result

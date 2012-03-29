@@ -427,14 +427,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0]->SetPc(reinterpret_cast<uint32_t>(from_));
   } else {
     // Set up the frame pointer and the context pointer.
-    // All OSR stack frames are dynamically aligned to an 8-byte boundary.
-    int frame_pointer = input_->GetRegister(ebp.code());
-    if ((frame_pointer & 0x4) == 0) {
-      // Return address at FP + 4 should be aligned, so FP mod 8 should be 4.
-      frame_pointer -= kPointerSize;
-      has_alignment_padding_ = 1;
-    }
-    output_[0]->SetRegister(ebp.code(), frame_pointer);
+    output_[0]->SetRegister(ebp.code(), input_->GetRegister(ebp.code()));
     output_[0]->SetRegister(esi.code(), input_->GetRegister(esi.code()));
 
     unsigned pc_offset = data->OsrPcOffset()->value();
@@ -692,11 +685,9 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // top address and the current frame's size.
   uint32_t top_address;
   if (is_bottommost) {
-    // If the optimized frame had alignment padding, adjust the frame pointer
-    // to point to the new position of the old frame pointer after padding
-    // is removed. Subtract 2 * kPointerSize for the context and function slots.
-    top_address = input_->GetRegister(ebp.code()) - (2 * kPointerSize) -
-        height_in_bytes + has_alignment_padding_ * kPointerSize;
+    // 2 = context and function in the frame.
+    top_address =
+        input_->GetRegister(ebp.code()) - (2 * kPointerSize) - height_in_bytes;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
@@ -747,9 +738,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   }
   output_frame->SetFrameSlot(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  ASSERT(!is_bottommost ||
-      input_->GetRegister(ebp.code()) + has_alignment_padding_ * kPointerSize
-      == fp_value);
+  ASSERT(!is_bottommost || input_->GetRegister(ebp.code()) == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(ebp.code(), fp_value);
   if (FLAG_trace_deopt) {
@@ -939,17 +928,6 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ cmp(ecx, esp);
   __ j(not_equal, &pop_loop);
 
-  // If frame was dynamically aligned, pop padding.
-  Label sentinel, sentinel_done;
-  __ pop(ecx);
-  __ cmp(ecx, Operand(eax, Deoptimizer::frame_alignment_marker_offset()));
-  __ j(equal, &sentinel);
-  __ push(ecx);
-  __ jmp(&sentinel_done);
-  __ bind(&sentinel);
-  __ mov(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
-         Immediate(1));
-  __ bind(&sentinel_done);
   // Compute the output frame in the deoptimizer.
   __ push(eax);
   __ PrepareCallCFunction(1, ebx);
@@ -960,17 +938,6 @@ void Deoptimizer::EntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate), 1);
   }
   __ pop(eax);
-
-  if (type() == OSR) {
-    // If alignment padding is added, push the sentinel.
-    Label no_osr_padding;
-    __ cmp(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
-           Immediate(0));
-    __ j(equal, &no_osr_padding, Label::kNear);
-    __ push(Operand(eax, Deoptimizer::frame_alignment_marker_offset()));
-    __ bind(&no_osr_padding);
-  }
-
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop;

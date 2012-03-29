@@ -240,7 +240,7 @@ class ZoneSplayTree: public SplayTree<Config, ZoneListAllocationPolicy> {
 };
 
 
-typedef TemplateHashMap<ZoneListAllocationPolicy> ZoneHashMap;
+typedef TemplateHashMapImpl<ZoneListAllocationPolicy> ZoneHashMap;
 
 } }  // namespace v8::internal
 

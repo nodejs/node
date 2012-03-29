@@ -36,15 +36,15 @@ namespace v8 {
 namespace internal {
 
 template<class AllocationPolicy>
-class TemplateHashMap {
+class TemplateHashMapImpl {
  public:
   typedef bool (*MatchFun) (void* key1, void* key2);
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  TemplateHashMap(MatchFun match, uint32_t initial_capacity = 8);
+  TemplateHashMapImpl(MatchFun match, uint32_t initial_capacity = 8);
 
-  ~TemplateHashMap();
+  ~TemplateHashMapImpl();
 
   // HashMap entries are (key, value, hash) triplets.
   // Some clients may not need to use the value slot
@@ -99,10 +99,10 @@ class TemplateHashMap {
   void Resize();
 };
 
-typedef TemplateHashMap<FreeStoreAllocationPolicy> HashMap;
+typedef TemplateHashMapImpl<FreeStoreAllocationPolicy> HashMap;
 
 template<class P>
-TemplateHashMap<P>::TemplateHashMap(MatchFun match,
+TemplateHashMapImpl<P>::TemplateHashMapImpl(MatchFun match,
                     uint32_t initial_capacity) {
   match_ = match;
   Initialize(initial_capacity);
@@ -110,13 +110,13 @@ TemplateHashMap<P>::TemplateHashMap(MatchFun match,
 
 
 template<class P>
-TemplateHashMap<P>::~TemplateHashMap() {
+TemplateHashMapImpl<P>::~TemplateHashMapImpl() {
   P::Delete(map_);
 }
 
 
 template<class P>
-typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Lookup(
+typename TemplateHashMapImpl<P>::Entry* TemplateHashMapImpl<P>::Lookup(
     void* key, uint32_t hash, bool insert) {
   // Find a matching entry.
   Entry* p = Probe(key, hash);
@@ -146,7 +146,7 @@ typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Lookup(
 
 
 template<class P>
-void TemplateHashMap<P>::Remove(void* key, uint32_t hash) {
+void TemplateHashMapImpl<P>::Remove(void* key, uint32_t hash) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key, hash);
   if (p->key == NULL) {
@@ -206,7 +206,7 @@ void TemplateHashMap<P>::Remove(void* key, uint32_t hash) {
 
 
 template<class P>
-void TemplateHashMap<P>::Clear() {
+void TemplateHashMapImpl<P>::Clear() {
   // Mark all entries as empty.
   const Entry* end = map_end();
   for (Entry* p = map_; p < end; p++) {
@@ -217,13 +217,14 @@ void TemplateHashMap<P>::Clear() {
 
 
 template<class P>
-typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Start() const {
+typename TemplateHashMapImpl<P>::Entry* TemplateHashMapImpl<P>::Start() const {
   return Next(map_ - 1);
 }
 
 
 template<class P>
-typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Next(Entry* p) const {
+typename TemplateHashMapImpl<P>::Entry* TemplateHashMapImpl<P>::Next(Entry* p)
+    const {
   const Entry* end = map_end();
   ASSERT(map_ - 1 <= p && p < end);
   for (p++; p < end; p++) {
@@ -236,7 +237,7 @@ typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Next(Entry* p) const {
 
 
 template<class P>
-typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Probe(void* key,
+typename TemplateHashMapImpl<P>::Entry* TemplateHashMapImpl<P>::Probe(void* key,
                                                             uint32_t hash) {
   ASSERT(key != NULL);
 
@@ -258,7 +259,7 @@ typename TemplateHashMap<P>::Entry* TemplateHashMap<P>::Probe(void* key,
 
 
 template<class P>
-void TemplateHashMap<P>::Initialize(uint32_t capacity) {
+void TemplateHashMapImpl<P>::Initialize(uint32_t capacity) {
   ASSERT(IsPowerOf2(capacity));
   map_ = reinterpret_cast<Entry*>(P::New(capacity * sizeof(Entry)));
   if (map_ == NULL) {
@@ -271,7 +272,7 @@ void TemplateHashMap<P>::Initialize(uint32_t capacity) {
 
 
 template<class P>
-void TemplateHashMap<P>::Resize() {
+void TemplateHashMapImpl<P>::Resize() {
   Entry* map = map_;
   uint32_t n = occupancy_;
 
@@ -289,6 +290,50 @@ void TemplateHashMap<P>::Resize() {
   // Delete old map.
   P::Delete(map);
 }
+
+
+// A hash map for pointer keys and values with an STL-like interface.
+template<class Key, class Value, class AllocationPolicy>
+class TemplateHashMap: private TemplateHashMapImpl<AllocationPolicy> {
+ public:
+  STATIC_ASSERT(sizeof(Key*) == sizeof(void*));  // NOLINT
+  STATIC_ASSERT(sizeof(Value*) == sizeof(void*));  // NOLINT
+  struct value_type {
+    Key* first;
+    Value* second;
+  };
+
+  class Iterator {
+   public:
+    Iterator& operator++() {
+      entry_ = map_->Next(entry_);
+      return *this;
+    }
+
+    value_type* operator->() { return reinterpret_cast<value_type*>(entry_); }
+    bool operator!=(const Iterator& other) { return  entry_ != other.entry_; }
+
+   private:
+    Iterator(const TemplateHashMapImpl<AllocationPolicy>* map,
+             typename TemplateHashMapImpl<AllocationPolicy>::Entry* entry) :
+        map_(map), entry_(entry) { }
+
+    const TemplateHashMapImpl<AllocationPolicy>* map_;
+    typename TemplateHashMapImpl<AllocationPolicy>::Entry* entry_;
+
+    friend class TemplateHashMap;
+  };
+
+  TemplateHashMap(
+      typename TemplateHashMapImpl<AllocationPolicy>::MatchFun match)
+    : TemplateHashMapImpl<AllocationPolicy>(match) { }
+
+  Iterator begin() const { return Iterator(this, this->Start()); }
+  Iterator end() const { return Iterator(this, NULL); }
+  Iterator find(Key* key, bool insert = false) {
+    return Iterator(this, this->Lookup(key, key->Hash(), insert));
+  }
+};
 
 } }  // namespace v8::internal
 

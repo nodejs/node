@@ -131,42 +131,50 @@ static Failure* ThrowArrayLengthRangeError(Heap* heap) {
 }
 
 
-void CopyObjectToObjectElements(AssertNoAllocation* no_gc,
-                                FixedArray* from_obj,
+void CopyObjectToObjectElements(FixedArray* from,
                                 ElementsKind from_kind,
                                 uint32_t from_start,
-                                FixedArray* to_obj,
+                                FixedArray* to,
                                 ElementsKind to_kind,
                                 uint32_t to_start,
-                                int copy_size) {
-  ASSERT(to_obj->map() != HEAP->fixed_cow_array_map());
+                                int raw_copy_size) {
+  ASSERT(to->map() != HEAP->fixed_cow_array_map());
   ASSERT(from_kind == FAST_ELEMENTS || from_kind == FAST_SMI_ONLY_ELEMENTS);
   ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
-  if (copy_size == -1) {
-    copy_size = Min(from_obj->length() - from_start,
-                    to_obj->length() - to_start);
+  int copy_size = raw_copy_size;
+  if (raw_copy_size < 0) {
+    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    copy_size = Min(from->length() - from_start,
+                    to->length() - to_start);
+#ifdef DEBUG
+    // FAST_ELEMENT arrays cannot be uninitialized. Ensure they are already
+    // marked with the hole.
+    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
+      for (int i = to_start + copy_size; i < to->length(); ++i) {
+        ASSERT(to->get(i)->IsTheHole());
+      }
+    }
+#endif
   }
-  ASSERT(((copy_size + static_cast<int>(to_start)) <= to_obj->length() &&
-          (copy_size + static_cast<int>(from_start)) <= from_obj->length()));
+  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length() &&
+         (copy_size + static_cast<int>(from_start)) <= from->length());
   if (copy_size == 0) return;
-  Address to = to_obj->address() + FixedArray::kHeaderSize;
-  Address from = from_obj->address() + FixedArray::kHeaderSize;
-  CopyWords(reinterpret_cast<Object**>(to) + to_start,
-            reinterpret_cast<Object**>(from) + from_start,
+  Address to_address = to->address() + FixedArray::kHeaderSize;
+  Address from_address = from->address() + FixedArray::kHeaderSize;
+  CopyWords(reinterpret_cast<Object**>(to_address) + to_start,
+            reinterpret_cast<Object**>(from_address) + from_start,
             copy_size);
   if (from_kind == FAST_ELEMENTS && to_kind == FAST_ELEMENTS) {
-    Heap* heap = from_obj->GetHeap();
-    WriteBarrierMode mode = to_obj->GetWriteBarrierMode(*no_gc);
-    if (mode == UPDATE_WRITE_BARRIER) {
-      heap->RecordWrites(to_obj->address(),
-                         to_obj->OffsetOfElementAt(to_start),
+    Heap* heap = from->GetHeap();
+    if (!heap->InNewSpace(to)) {
+      heap->RecordWrites(to->address(),
+                         to->OffsetOfElementAt(to_start),
                          copy_size);
     }
-    heap->incremental_marking()->RecordWrites(to_obj);
+    heap->incremental_marking()->RecordWrites(to);
   }
 }
-
-
 
 
 static void CopyDictionaryToObjectElements(SeededNumberDictionary* from,
@@ -174,52 +182,81 @@ static void CopyDictionaryToObjectElements(SeededNumberDictionary* from,
                                            FixedArray* to,
                                            ElementsKind to_kind,
                                            uint32_t to_start,
-                                           int copy_size) {
-  ASSERT(to != from);
-  ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
-  ASSERT(copy_size == -1 ||
-         (copy_size + static_cast<int>(to_start)) <= to->length());
-  WriteBarrierMode mode = to_kind == FAST_ELEMENTS
-      ? UPDATE_WRITE_BARRIER
-      : SKIP_WRITE_BARRIER;
-  uint32_t copy_limit = (copy_size == -1)
-      ? to->length()
-      : Min(to_start + copy_size, static_cast<uint32_t>(to->length()));
-  for (int i = 0; i < from->Capacity(); ++i) {
-    Object* key = from->KeyAt(i);
-    if (key->IsNumber()) {
-      uint32_t entry = static_cast<uint32_t>(key->Number());
-      if (entry >= to_start && entry < copy_limit) {
-        Object* value = from->ValueAt(i);
-        ASSERT(to_kind == FAST_ELEMENTS || value->IsSmi());
-        to->set(entry, value, mode);
+                                           int raw_copy_size) {
+  int copy_size = raw_copy_size;
+  Heap* heap = from->GetHeap();
+  if (raw_copy_size < 0) {
+    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    copy_size = from->max_number_key() + 1 - from_start;
+#ifdef DEBUG
+    // FAST_ELEMENT arrays cannot be uninitialized. Ensure they are already
+    // marked with the hole.
+    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
+      for (int i = to_start + copy_size; i < to->length(); ++i) {
+        ASSERT(to->get(i)->IsTheHole());
       }
     }
+#endif
+  }
+  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length());
+  ASSERT(to != from);
+  ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
+  if (copy_size == 0) return;
+  for (int i = 0; i < copy_size; i++) {
+    int entry = from->FindEntry(i + from_start);
+    if (entry != SeededNumberDictionary::kNotFound) {
+      Object* value = from->ValueAt(entry);
+      ASSERT(!value->IsTheHole());
+      to->set(i + to_start, value, SKIP_WRITE_BARRIER);
+    } else {
+      to->set_the_hole(i + to_start);
+    }
+  }
+  if (to_kind == FAST_ELEMENTS) {
+    if (!heap->InNewSpace(to)) {
+      heap->RecordWrites(to->address(),
+                         to->OffsetOfElementAt(to_start),
+                         copy_size);
+    }
+    heap->incremental_marking()->RecordWrites(to);
   }
 }
 
 
 MUST_USE_RESULT static MaybeObject* CopyDoubleToObjectElements(
-    FixedDoubleArray* from_obj,
+    FixedDoubleArray* from,
     uint32_t from_start,
-    FixedArray* to_obj,
+    FixedArray* to,
     ElementsKind to_kind,
     uint32_t to_start,
-    int copy_size) {
+    int raw_copy_size) {
   ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
-  if (copy_size == -1) {
-    copy_size = Min(from_obj->length() - from_start,
-                    to_obj->length() - to_start);
+  int copy_size = raw_copy_size;
+  if (raw_copy_size < 0) {
+    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    copy_size = Min(from->length() - from_start,
+                    to->length() - to_start);
+#ifdef DEBUG
+    // FAST_ELEMENT arrays cannot be uninitialized. Ensure they are already
+    // marked with the hole.
+    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
+      for (int i = to_start + copy_size; i < to->length(); ++i) {
+        ASSERT(to->get(i)->IsTheHole());
+      }
+    }
+#endif
   }
-  ASSERT(((copy_size + static_cast<int>(to_start)) <= to_obj->length() &&
-          (copy_size + static_cast<int>(from_start)) <= from_obj->length()));
-  if (copy_size == 0) return from_obj;
+  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length() &&
+         (copy_size + static_cast<int>(from_start)) <= from->length());
+  if (copy_size == 0) return from;
   for (int i = 0; i < copy_size; ++i) {
     if (to_kind == FAST_SMI_ONLY_ELEMENTS) {
       UNIMPLEMENTED();
       return Failure::Exception();
     } else {
-      MaybeObject* maybe_value = from_obj->get(i + from_start);
+      MaybeObject* maybe_value = from->get(i + from_start);
       Object* value;
       ASSERT(to_kind == FAST_ELEMENTS);
       // Because FAST_DOUBLE_ELEMENTS -> FAST_ELEMENT allocate HeapObjects
@@ -229,39 +266,106 @@ MUST_USE_RESULT static MaybeObject* CopyDoubleToObjectElements(
       // can't be taken from new space.
       if (!maybe_value->ToObject(&value)) {
         ASSERT(maybe_value->IsRetryAfterGC() || maybe_value->IsOutOfMemory());
-        Heap* heap = from_obj->GetHeap();
+        Heap* heap = from->GetHeap();
         MaybeObject* maybe_value_object =
-            heap->AllocateHeapNumber(from_obj->get_scalar(i + from_start),
+            heap->AllocateHeapNumber(from->get_scalar(i + from_start),
                                      TENURED);
         if (!maybe_value_object->ToObject(&value)) return maybe_value_object;
       }
-      to_obj->set(i + to_start, value, UPDATE_WRITE_BARRIER);
+      to->set(i + to_start, value, UPDATE_WRITE_BARRIER);
     }
   }
-  return to_obj;
+  return to;
 }
 
 
-static void CopyDoubleToDoubleElements(FixedDoubleArray* from_obj,
+static void CopyDoubleToDoubleElements(FixedDoubleArray* from,
                                        uint32_t from_start,
-                                       FixedDoubleArray* to_obj,
+                                       FixedDoubleArray* to,
                                        uint32_t to_start,
-                                       int copy_size) {
-  if (copy_size == -1) {
-    copy_size = Min(from_obj->length() - from_start,
-                    to_obj->length() - to_start);
+                                       int raw_copy_size) {
+  int copy_size = raw_copy_size;
+  if (raw_copy_size < 0) {
+    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    copy_size = Min(from->length() - from_start,
+                    to->length() - to_start);
+    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
+      for (int i = to_start + copy_size; i < to->length(); ++i) {
+        to->set_the_hole(i);
+      }
+    }
   }
-  ASSERT(((copy_size + static_cast<int>(to_start)) <= to_obj->length() &&
-          (copy_size + static_cast<int>(from_start)) <= from_obj->length()));
+  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length() &&
+         (copy_size + static_cast<int>(from_start)) <= from->length());
   if (copy_size == 0) return;
-  Address to = to_obj->address() + FixedDoubleArray::kHeaderSize;
-  Address from = from_obj->address() + FixedDoubleArray::kHeaderSize;
-  to += kDoubleSize * to_start;
-  from += kDoubleSize * from_start;
+  Address to_address = to->address() + FixedDoubleArray::kHeaderSize;
+  Address from_address = from->address() + FixedDoubleArray::kHeaderSize;
+  to_address += kDoubleSize * to_start;
+  from_address += kDoubleSize * from_start;
   int words_per_double = (kDoubleSize / kPointerSize);
-  CopyWords(reinterpret_cast<Object**>(to),
-            reinterpret_cast<Object**>(from),
+  CopyWords(reinterpret_cast<Object**>(to_address),
+            reinterpret_cast<Object**>(from_address),
             words_per_double * copy_size);
+}
+
+
+static void CopyObjectToDoubleElements(FixedArray* from,
+                                       uint32_t from_start,
+                                       FixedDoubleArray* to,
+                                       uint32_t to_start,
+                                       int raw_copy_size) {
+  int copy_size = raw_copy_size;
+  if (raw_copy_size < 0) {
+    ASSERT(raw_copy_size == ElementsAccessor::kCopyToEnd ||
+           raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    copy_size = from->length() - from_start;
+    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
+      for (int i = to_start + copy_size; i < to->length(); ++i) {
+        to->set_the_hole(i);
+      }
+    }
+  }
+  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length() &&
+         (copy_size + static_cast<int>(from_start)) <= from->length());
+  if (copy_size == 0) return;
+  for (int i = 0; i < copy_size; i++) {
+    Object* hole_or_object = from->get(i + from_start);
+    if (hole_or_object->IsTheHole()) {
+      to->set_the_hole(i + to_start);
+    } else {
+      to->set(i + to_start, hole_or_object->Number());
+    }
+  }
+}
+
+
+static void CopyDictionaryToDoubleElements(SeededNumberDictionary* from,
+                                           uint32_t from_start,
+                                           FixedDoubleArray* to,
+                                           uint32_t to_start,
+                                           int raw_copy_size) {
+  int copy_size = raw_copy_size;
+  if (copy_size < 0) {
+    ASSERT(copy_size == ElementsAccessor::kCopyToEnd ||
+           copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole);
+    copy_size = from->max_number_key() + 1 - from_start;
+    if (raw_copy_size == ElementsAccessor::kCopyToEndAndInitializeToHole) {
+      for (int i = to_start + copy_size; i < to->length(); ++i) {
+        to->set_the_hole(i);
+      }
+    }
+  }
+  ASSERT(copy_size + static_cast<int>(to_start) <= to->length());
+  if (copy_size == 0) return;
+  for (int i = 0; i < copy_size; i++) {
+    int entry = from->FindEntry(i + from_start);
+    if (entry != SeededNumberDictionary::kNotFound) {
+      to->set(i + to_start, from->ValueAt(entry)->Number());
+    } else {
+      to->set_the_hole(i + to_start);
+    }
+  }
 }
 
 
@@ -383,6 +487,9 @@ class ElementsAccessorBase : public ElementsAccessor {
                                     FixedArrayBase* from) {
     if (from == NULL) {
       from = from_holder->elements();
+    }
+    if (from->length() == 0) {
+      return from;
     }
     return ElementsAccessorSubclass::CopyElementsImpl(
         from, from_start, to, to_kind, to_start, copy_size);
@@ -626,12 +733,16 @@ class FastObjectElementsAccessor
     switch (to_kind) {
       case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS: {
-        AssertNoAllocation no_gc;
         CopyObjectToObjectElements(
-            &no_gc, FixedArray::cast(from), ElementsTraits::Kind, from_start,
+            FixedArray::cast(from), ElementsTraits::Kind, from_start,
             FixedArray::cast(to), to_kind, to_start, copy_size);
         return from;
       }
+      case FAST_DOUBLE_ELEMENTS:
+        CopyObjectToDoubleElements(
+            FixedArray::cast(from), from_start,
+            FixedDoubleArray::cast(to), to_start, copy_size);
+        return from;
       default:
         UNREACHABLE();
     }
@@ -726,7 +837,8 @@ class FastDoubleElementsAccessor
                              JSObject* holder,
                              uint32_t key,
                              FixedDoubleArray* backing_store) {
-    return !backing_store->is_the_hole(key);
+    return key < static_cast<uint32_t>(backing_store->length()) &&
+        !backing_store->is_the_hole(key);
   }
 };
 
@@ -996,6 +1108,11 @@ class DictionaryElementsAccessor
         CopyDictionaryToObjectElements(
             SeededNumberDictionary::cast(from), from_start,
             FixedArray::cast(to), to_kind, to_start, copy_size);
+        return from;
+      case FAST_DOUBLE_ELEMENTS:
+        CopyDictionaryToDoubleElements(
+            SeededNumberDictionary::cast(from), from_start,
+            FixedDoubleArray::cast(to), to_start, copy_size);
         return from;
       default:
         UNREACHABLE();

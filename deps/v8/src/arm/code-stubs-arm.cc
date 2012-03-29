@@ -480,7 +480,7 @@ void ConvertToDoubleStub::Generate(MacroAssembler* masm) {
   __ b(gt, &not_special);
 
   // For 1 or -1 we need to or in the 0 exponent (biased to 1023).
-  static const uint32_t exponent_word_for_1 =
+  const uint32_t exponent_word_for_1 =
       HeapNumber::kExponentBias << HeapNumber::kExponentShift;
   __ orr(exponent, exponent, Operand(exponent_word_for_1), LeaveCC, eq);
   // 1, 0 and -1 all have 0 for the second word.
@@ -4237,7 +4237,7 @@ Register InstanceofStub::right() { return r1; }
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The displacement is the offset of the last parameter (if any)
   // relative to the frame pointer.
-  static const int kDisplacement =
+  const int kDisplacement =
       StandardFrameConstants::kCallerSPOffset - kPointerSize;
 
   // Check that the key is a smi.
@@ -4622,10 +4622,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   //  sp[8]: subject string
   //  sp[12]: JSRegExp object
 
-  static const int kLastMatchInfoOffset = 0 * kPointerSize;
-  static const int kPreviousIndexOffset = 1 * kPointerSize;
-  static const int kSubjectOffset = 2 * kPointerSize;
-  static const int kJSRegExpOffset = 3 * kPointerSize;
+  const int kLastMatchInfoOffset = 0 * kPointerSize;
+  const int kPreviousIndexOffset = 1 * kPointerSize;
+  const int kSubjectOffset = 2 * kPointerSize;
+  const int kJSRegExpOffset = 3 * kPointerSize;
 
   Label runtime, invoke_regexp;
 
@@ -4824,8 +4824,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(isolate->counters()->regexp_entry_native(), 1, r0, r2);
 
   // Isolates: note we add an additional parameter here (isolate pointer).
-  static const int kRegExpExecuteArguments = 8;
-  static const int kParameterRegisters = 4;
+  const int kRegExpExecuteArguments = 8;
+  const int kParameterRegisters = 4;
   __ EnterExitFrame(false, kRegExpExecuteArguments - kParameterRegisters);
 
   // Stack pointer now points to cell where return address is to be written.
@@ -5714,7 +5714,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   // scratch: -
 
   // Perform a number of probes in the symbol table.
-  static const int kProbes = 4;
+  const int kProbes = 4;
   Label found_in_symbol_table;
   Label next_probe[kProbes];
   Register candidate = scratch5;  // Scratch register contains candidate.
@@ -5839,9 +5839,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   //  0 <= from <= to <= string.length.
   // If any of these assumptions fail, we call the runtime system.
 
-  static const int kToOffset = 0 * kPointerSize;
-  static const int kFromOffset = 1 * kPointerSize;
-  static const int kStringOffset = 2 * kPointerSize;
+  const int kToOffset = 0 * kPointerSize;
+  const int kFromOffset = 1 * kPointerSize;
+  const int kStringOffset = 2 * kPointerSize;
 
   __ Ldrd(r2, r3, MemOperand(sp, kToOffset));
   STATIC_ASSERT(kFromOffset == kToOffset + 4);
@@ -7085,43 +7085,45 @@ struct AheadOfTimeWriteBarrierStubList {
   RememberedSetAction action;
 };
 
+#define REG(Name) { kRegister_ ## Name ## _Code }
 
-struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
+static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   // Used in RegExpExecStub.
-  { r6, r4, r7, EMIT_REMEMBERED_SET },
-  { r6, r2, r7, EMIT_REMEMBERED_SET },
+  { REG(r6), REG(r4), REG(r7), EMIT_REMEMBERED_SET },
+  { REG(r6), REG(r2), REG(r7), EMIT_REMEMBERED_SET },
   // Used in CompileArrayPushCall.
   // Also used in StoreIC::GenerateNormal via GenerateDictionaryStore.
   // Also used in KeyedStoreIC::GenerateGeneric.
-  { r3, r4, r5, EMIT_REMEMBERED_SET },
+  { REG(r3), REG(r4), REG(r5), EMIT_REMEMBERED_SET },
   // Used in CompileStoreGlobal.
-  { r4, r1, r2, OMIT_REMEMBERED_SET },
+  { REG(r4), REG(r1), REG(r2), OMIT_REMEMBERED_SET },
   // Used in StoreStubCompiler::CompileStoreField via GenerateStoreField.
-  { r1, r2, r3, EMIT_REMEMBERED_SET },
-  { r3, r2, r1, EMIT_REMEMBERED_SET },
+  { REG(r1), REG(r2), REG(r3), EMIT_REMEMBERED_SET },
+  { REG(r3), REG(r2), REG(r1), EMIT_REMEMBERED_SET },
   // Used in KeyedStoreStubCompiler::CompileStoreField via GenerateStoreField.
-  { r2, r1, r3, EMIT_REMEMBERED_SET },
-  { r3, r1, r2, EMIT_REMEMBERED_SET },
+  { REG(r2), REG(r1), REG(r3), EMIT_REMEMBERED_SET },
+  { REG(r3), REG(r1), REG(r2), EMIT_REMEMBERED_SET },
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
-  { r3, r2, r4, EMIT_REMEMBERED_SET },
-  { r2, r3, r4, EMIT_REMEMBERED_SET },
+  { REG(r3), REG(r2), REG(r4), EMIT_REMEMBERED_SET },
+  { REG(r2), REG(r3), REG(r4), EMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateSmiOnlyToObject
   // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
   // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { r2, r3, r9, EMIT_REMEMBERED_SET },
-  { r2, r3, r9, OMIT_REMEMBERED_SET },
+  { REG(r2), REG(r3), REG(r9), EMIT_REMEMBERED_SET },
+  { REG(r2), REG(r3), REG(r9), OMIT_REMEMBERED_SET },
   // ElementsTransitionGenerator::GenerateDoubleToObject
-  { r6, r2, r0, EMIT_REMEMBERED_SET },
-  { r2, r6, r9, EMIT_REMEMBERED_SET },
+  { REG(r6), REG(r2), REG(r0), EMIT_REMEMBERED_SET },
+  { REG(r2), REG(r6), REG(r9), EMIT_REMEMBERED_SET },
   // StoreArrayLiteralElementStub::Generate
-  { r5, r0, r6, EMIT_REMEMBERED_SET },
+  { REG(r5), REG(r0), REG(r6), EMIT_REMEMBERED_SET },
   // Null termination.
-  { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
+  { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
 
+#undef REG
 
 bool RecordWriteStub::IsPregenerated() {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+  for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
     if (object_.is(entry->object) &&
@@ -7148,7 +7150,7 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime() {
 
 
 void RecordWriteStub::GenerateFixedRegStubsAheadOfTime() {
-  for (AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
+  for (const AheadOfTimeWriteBarrierStubList* entry = kAheadOfTime;
        !entry->object.is(no_reg);
        entry++) {
     RecordWriteStub stub(entry->object,

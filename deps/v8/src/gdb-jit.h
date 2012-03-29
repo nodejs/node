@@ -132,9 +132,6 @@ class GDBJITInterface: public AllStatic {
   static void RemoveCode(Code* code);
 
   static void RegisterDetailedLineInfo(Code* code, GDBJITLineInfo* line_info);
-
- private:
-  static Mutex* mutex_;
 };
 
 #define GDBJIT(action) GDBJITInterface::action

@@ -220,11 +220,6 @@ class Deoptimizer : public Malloced {
     return OFFSET_OF(Deoptimizer, output_count_);
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
-  static int frame_alignment_marker_offset() {
-    return OFFSET_OF(Deoptimizer, frame_alignment_marker_); }
-  static int has_alignment_padding_offset() {
-    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
-  }
 
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
@@ -336,10 +331,6 @@ class Deoptimizer : public Malloced {
   int jsframe_count_;
   // Array of output frame descriptions.
   FrameDescription** output_;
-
-  // Frames can be dynamically padded on ia32 to align untagged doubles.
-  Object* frame_alignment_marker_;
-  intptr_t has_alignment_padding_;
 
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
 

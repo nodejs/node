@@ -885,6 +885,15 @@ HValue* HChange::Canonicalize() {
 }
 
 
+HValue* HWrapReceiver::Canonicalize() {
+  if (HasNoUses()) return NULL;
+  if (receiver()->type().IsJSObject()) {
+    return receiver();
+  }
+  return this;
+}
+
+
 void HTypeof::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -2245,6 +2254,46 @@ void HIn::PrintDataTo(StringStream* stream) {
   key()->PrintNameTo(stream);
   stream->Add(" ");
   object()->PrintNameTo(stream);
+}
+
+
+Representation HPhi::InferredRepresentation() {
+  bool double_occurred = false;
+  bool int32_occurred = false;
+  for (int i = 0; i < OperandCount(); ++i) {
+    HValue* value = OperandAt(i);
+    if (value->IsUnknownOSRValue()) {
+      HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
+      if (hint_value != NULL) {
+        Representation hint = hint_value->representation();
+        if (hint.IsDouble()) double_occurred = true;
+        if (hint.IsInteger32()) int32_occurred = true;
+      }
+      continue;
+    }
+    if (value->representation().IsDouble()) double_occurred = true;
+    if (value->representation().IsInteger32()) int32_occurred = true;
+    if (value->representation().IsTagged()) {
+      if (value->IsConstant()) {
+        HConstant* constant = HConstant::cast(value);
+        if (constant->IsConvertibleToInteger()) {
+          int32_occurred = true;
+        } else if (constant->HasNumberValue()) {
+          double_occurred = true;
+        } else {
+          return Representation::Tagged();
+        }
+      } else {
+        return Representation::Tagged();
+      }
+    }
+  }
+
+  if (double_occurred) return Representation::Double();
+
+  if (int32_occurred) return Representation::Integer32();
+
+  return Representation::None();
 }
 
 

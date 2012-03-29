@@ -399,6 +399,9 @@ bool FunctionDeclaration::IsInlineable() const {
 
 void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
+  is_uninitialized_ = oracle->LoadIsUninitialized(this);
+  if (is_uninitialized_) return;
+
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   receiver_types_.Clear();
   if (key()->IsPropertyName()) {
@@ -599,6 +602,13 @@ void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else {
     ASSERT(compare_type_ == NONE);
   }
+}
+
+
+void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+  receiver_type_ = oracle->ObjectLiteralStoreIsMonomorphic(this)
+      ? oracle->GetObjectLiteralStoreMap(this)
+      : Handle<Map>::null();
 }
 
 
@@ -1054,8 +1064,6 @@ void AstConstructionVisitor::VisitForStatement(ForStatement* node) {
 
 void AstConstructionVisitor::VisitForInStatement(ForInStatement* node) {
   increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
   add_flag(kDontSelfOptimize);
 }
 

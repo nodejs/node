@@ -69,6 +69,10 @@ class LOperand: public ZoneObject {
     ASSERT(this->index() == index);
   }
 
+  // Calls SetUpCache() for each subclass. Don't forget to update this method
+  // if you add a new LOperand subclass.
+  static void SetUpCaches();
+
  protected:
   static const int kKindFieldWidth = 3;
   class KindField : public BitField<Kind, 0, kKindFieldWidth> { };
@@ -264,7 +268,7 @@ class LConstantOperand: public LOperand {
 
  private:
   static const int kNumCachedOperands = 128;
-  static LConstantOperand cache[];
+  static LConstantOperand* cache;
 
   LConstantOperand() : LOperand() { }
   explicit LConstantOperand(int index) : LOperand(CONSTANT_OPERAND, index) { }
@@ -299,7 +303,7 @@ class LStackSlot: public LOperand {
 
  private:
   static const int kNumCachedOperands = 128;
-  static LStackSlot cache[];
+  static LStackSlot* cache;
 
   LStackSlot() : LOperand() { }
   explicit LStackSlot(int index) : LOperand(STACK_SLOT, index) { }
@@ -323,7 +327,7 @@ class LDoubleStackSlot: public LOperand {
 
  private:
   static const int kNumCachedOperands = 128;
-  static LDoubleStackSlot cache[];
+  static LDoubleStackSlot* cache;
 
   LDoubleStackSlot() : LOperand() { }
   explicit LDoubleStackSlot(int index) : LOperand(DOUBLE_STACK_SLOT, index) { }
@@ -347,7 +351,7 @@ class LRegister: public LOperand {
 
  private:
   static const int kNumCachedOperands = 16;
-  static LRegister cache[];
+  static LRegister* cache;
 
   LRegister() : LOperand() { }
   explicit LRegister(int index) : LOperand(REGISTER, index) { }
@@ -371,7 +375,7 @@ class LDoubleRegister: public LOperand {
 
  private:
   static const int kNumCachedOperands = 16;
-  static LDoubleRegister cache[];
+  static LDoubleRegister* cache;
 
   LDoubleRegister() : LOperand() { }
   explicit LDoubleRegister(int index) : LOperand(DOUBLE_REGISTER, index) { }

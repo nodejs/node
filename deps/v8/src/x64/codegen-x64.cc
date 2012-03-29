@@ -55,8 +55,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-TranscendentalFunction CreateTranscendentalFunction(
-    TranscendentalCache::Type type) {
+UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
@@ -96,7 +95,31 @@ TranscendentalFunction CreateTranscendentalFunction(
 
   CPU::FlushICache(buffer, actual_size);
   OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<TranscendentalFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+}
+
+
+UnaryMathFunction CreateSqrtFunction() {
+  size_t actual_size;
+  // Allocate buffer in executable space.
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB,
+                                                 &actual_size,
+                                                 true));
+  if (buffer == NULL) return &sqrt;
+
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  // xmm0: raw double input.
+  // Move double input into registers.
+  __ sqrtsd(xmm0, xmm0);
+  __ Ret();
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  ASSERT(desc.reloc_size == 0);
+
+  CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
 }
 
 

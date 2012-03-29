@@ -46,29 +46,6 @@
 namespace v8 {
 namespace internal {
 
-
-#define DEFINE_OPERAND_CACHE(name, type)                      \
-  name name::cache[name::kNumCachedOperands];                 \
-  void name::SetUpCache() {                                   \
-    for (int i = 0; i < kNumCachedOperands; i++) {            \
-      cache[i].ConvertTo(type, i);                            \
-    }                                                         \
-  }                                                           \
-  static bool name##_initialize() {                           \
-    name::SetUpCache();                                       \
-    return true;                                              \
-  }                                                           \
-  static bool name##_cache_initialized = name##_initialize();
-
-DEFINE_OPERAND_CACHE(LConstantOperand, CONSTANT_OPERAND)
-DEFINE_OPERAND_CACHE(LStackSlot,       STACK_SLOT)
-DEFINE_OPERAND_CACHE(LDoubleStackSlot, DOUBLE_STACK_SLOT)
-DEFINE_OPERAND_CACHE(LRegister,        REGISTER)
-DEFINE_OPERAND_CACHE(LDoubleRegister,  DOUBLE_REGISTER)
-
-#undef DEFINE_OPERAND_CACHE
-
-
 static inline LifetimePosition Min(LifetimePosition a, LifetimePosition b) {
   return a.Value() < b.Value() ? a : b;
 }

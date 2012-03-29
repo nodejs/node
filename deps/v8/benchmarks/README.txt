@@ -77,3 +77,10 @@ input strings.
 Furthermore, the benchmark runner was changed to run the benchmarks
 for at least a few times to stabilize the reported numbers on slower
 machines.
+
+
+Changes from Version 6 to Version 7
+===================================
+
+Added the Navier-Stokes benchmark, a 2D differential equation solver
+that stresses arithmetic computations on double arrays.

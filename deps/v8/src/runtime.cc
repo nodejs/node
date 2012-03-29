@@ -1065,10 +1065,10 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
                 AccessorPair::cast(dictionary->ValueAt(entry));
             elms->set(IS_ACCESSOR_INDEX, heap->true_value());
             if (CheckElementAccess(*obj, index, v8::ACCESS_GET)) {
-              elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
+              elms->set(GETTER_INDEX, accessors->GetComponent(ACCESSOR_GETTER));
             }
             if (CheckElementAccess(*obj, index, v8::ACCESS_SET)) {
-              elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
+              elms->set(SETTER_INDEX, accessors->GetComponent(ACCESSOR_SETTER));
             }
             break;
           }
@@ -1115,10 +1115,10 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
 
     AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
-      elms->set(GETTER_INDEX, accessors->SafeGet(ACCESSOR_GETTER));
+      elms->set(GETTER_INDEX, accessors->GetComponent(ACCESSOR_GETTER));
     }
     if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
-      elms->set(SETTER_INDEX, accessors->SafeGet(ACCESSOR_SETTER));
+      elms->set(SETTER_INDEX, accessors->GetComponent(ACCESSOR_SETTER));
     }
   } else {
     elms->set(IS_ACCESSOR_INDEX, heap->false_value());
@@ -1337,6 +1337,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
       attr |= READ_ONLY;
     }
 
+    LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
+
     // Safari does not allow the invocation of callback setters for
     // function declarations. To mimic this behavior, we do not allow
     // the invocation of setters for function values. This makes a
@@ -1344,9 +1346,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // handlers such as "function onload() {}". Firefox does call the
     // onload setter in those case and Safari does not. We follow
     // Safari for compatibility.
-    if (value->IsJSFunction()) {
-      // Do not change DONT_DELETE to false from true.
+    if (is_function_declaration) {
       if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
+        // Do not overwrite READ_ONLY properties.
+        if (lookup.GetAttributes() & READ_ONLY) {
+          if (language_mode != CLASSIC_MODE) {
+            Handle<Object> args[] = { name };
+            return isolate->Throw(*isolate->factory()->NewTypeError(
+                "strict_cannot_assign", HandleVector(args, ARRAY_SIZE(args))));
+          }
+          continue;
+        }
+        // Do not change DONT_DELETE to false from true.
         attr |= lookup.GetAttributes() & DONT_DELETE;
       }
       PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
@@ -1356,14 +1367,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
           JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
                                                      attributes));
     } else {
-      LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
-      StrictModeFlag strict_mode_flag = (language_mode == CLASSIC_MODE)
-          ? kNonStrictMode : kStrictMode;
       RETURN_IF_EMPTY_HANDLE(
           isolate,
           JSReceiver::SetProperty(global, name, value,
                                   static_cast<PropertyAttributes>(attr),
-                                  strict_mode_flag));
+                                  language_mode == CLASSIC_MODE
+                                      ? kNonStrictMode : kStrictMode));
     }
   }
 
@@ -4341,26 +4350,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  // TODO(svenpanne) Define getter/setter/attributes in a single step.
-  if (getter->IsNull() && setter->IsNull()) {
-    JSArray* array;
-    { MaybeObject* maybe_array = GetOwnProperty(isolate, obj, name);
-      if (!maybe_array->To(&array)) return maybe_array;
-    }
-    Object* current = FixedArray::cast(array->elements())->get(GETTER_INDEX);
-    getter = Handle<Object>(current, isolate);
-  }
-  if (!getter->IsNull()) {
-    MaybeObject* ok =
-        obj->DefineAccessor(*name, ACCESSOR_GETTER, *getter, attr);
-    if (ok->IsFailure()) return ok;
-  }
-  if (!setter->IsNull()) {
-    MaybeObject* ok =
-        obj->DefineAccessor(*name, ACCESSOR_SETTER, *setter, attr);
-    if (ok->IsFailure()) return ok;
-  }
-
+  bool fast = obj->HasFastProperties();
+  JSObject::DefineAccessor(obj, name, getter, setter, attr);
+  if (fast) JSObject::TransformToFastProperties(obj, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -6760,6 +6752,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
         ascii = false;
       }
     } else {
+      ASSERT(!elt->IsTheHole());
       return isolate->Throw(isolate->heap()->illegal_argument_symbol());
     }
     if (increment > String::kMaxLength - position) {
@@ -7441,9 +7434,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   if (y == y_int) {
     result = power_double_int(x, y_int);  // Returns 1 if exponent is 0.
   } else  if (y == 0.5) {
-    result = (isinf(x)) ? V8_INFINITY : sqrt(x + 0.0);  // Convert -0 to +0.
+    result = (isinf(x)) ? V8_INFINITY
+                        : fast_sqrt(x + 0.0);  // Convert -0 to +0.
   } else if (y == -0.5) {
-    result = (isinf(x)) ? 0 : 1.0 / sqrt(x + 0.0);  // Convert -0 to +0.
+    result = (isinf(x)) ? 0
+                        : 1.0 / fast_sqrt(x + 0.0);  // Convert -0 to +0.
   } else {
     result = power_double_double(x, y);
   }
@@ -7529,7 +7524,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_sqrt) {
   isolate->counters()->math_sqrt()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return isolate->heap()->AllocateHeapNumber(sqrt(x));
+  return isolate->heap()->AllocateHeapNumber(fast_sqrt(x));
 }
 
 
@@ -8112,25 +8107,8 @@ class ActivationsFinder : public ThreadVisitor {
 };
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  RUNTIME_ASSERT(args[0]->IsSmi());
-  Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
-  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
-  ASSERT(isolate->heap()->IsAllocationAllowed());
-  int jsframes = deoptimizer->jsframe_count();
-
-  deoptimizer->MaterializeHeapNumbers();
-  delete deoptimizer;
-
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = NULL;
-  for (int i = 0; i < jsframes - 1; i++) it.Advance();
-  frame = it.frame();
-
-  RUNTIME_ASSERT(frame->function()->IsJSFunction());
+static void MaterializeArgumentsObjectInFrame(Isolate* isolate,
+                                              JavaScriptFrame* frame) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
   Handle<Object> arguments;
   for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
@@ -8147,6 +8125,32 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
       frame->SetExpression(i, *arguments);
     }
   }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  RUNTIME_ASSERT(args[0]->IsSmi());
+  Deoptimizer::BailoutType type =
+      static_cast<Deoptimizer::BailoutType>(args.smi_at(0));
+  Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
+  ASSERT(isolate->heap()->IsAllocationAllowed());
+  int jsframes = deoptimizer->jsframe_count();
+
+  deoptimizer->MaterializeHeapNumbers();
+  delete deoptimizer;
+
+  JavaScriptFrameIterator it(isolate);
+  for (int i = 0; i < jsframes - 1; i++) {
+    MaterializeArgumentsObjectInFrame(isolate, it.frame());
+    it.Advance();
+  }
+
+  JavaScriptFrame* frame = it.frame();
+  RUNTIME_ASSERT(frame->function()->IsJSFunction());
+  Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate);
+  MaterializeArgumentsObjectInFrame(isolate, frame);
 
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());
@@ -8354,7 +8358,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     PrintF("]\n");
   }
   Handle<Code> check_code;
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_MIPS)
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     check_code = interrupt_stub.GetCode();
@@ -10202,8 +10208,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPropertyDetails) {
       if (hasJavaScriptAccessors) {
         AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
         details->set(2, isolate->heap()->ToBoolean(caught_exception));
-        details->set(3, accessors->SafeGet(ACCESSOR_GETTER));
-        details->set(4, accessors->SafeGet(ACCESSOR_SETTER));
+        details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
+        details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
       }
 
       return *isolate->factory()->NewJSArrayWithElements(details);
@@ -12257,6 +12263,25 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetPrototype) {
 }
 
 
+// Patches script source (should be called upon BeforeCompile event).
+RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugSetScriptSource) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
+  Handle<String> source(String::cast(args[1]));
+
+  RUNTIME_ASSERT(script_wrapper->value()->IsScript());
+  Handle<Script> script(Script::cast(script_wrapper->value()));
+
+  int compilation_state = Smi::cast(script->compilation_state())->value();
+  RUNTIME_ASSERT(compilation_state == Script::COMPILATION_STATE_INITIAL);
+  script->set_source(*source);
+
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_SystemBreak) {
   ASSERT(args.length() == 0);
   CPU::DebugBreak();
@@ -13313,6 +13338,7 @@ void Runtime::PerformGC(Object* result) {
     if (isolate->heap()->new_space()->AddFreshPage()) {
       return;
     }
+
     // Try to do a garbage collection; ignore it if it fails. The C
     // entry stub will throw an out-of-memory exception in that case.
     isolate->heap()->CollectGarbage(failure->allocation_space(),

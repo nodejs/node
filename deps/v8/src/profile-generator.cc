@@ -978,12 +978,7 @@ void HeapEntry::Init(HeapSnapshot* snapshot,
   children_count_ = children_count;
   retainers_count_ = retainers_count;
   dominator_ = NULL;
-
-  union {
-    SnapshotObjectId set_id;
-    Id stored_id;
-  } id_adaptor = {id};
-  id_ = id_adaptor.stored_id;
+  id_ = id;
 }
 
 
@@ -1113,7 +1108,7 @@ template <size_t ptr_size> struct SnapshotSizeConstants;
 
 template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
-  static const int kExpectedHeapEntrySize = 36;
+  static const int kExpectedHeapEntrySize = 32;
   static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
@@ -1139,10 +1134,10 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       natives_root_entry_(NULL),
       raw_entries_(NULL),
       entries_sorted_(false) {
-  STATIC_ASSERT(
+  STATIC_CHECK(
       sizeof(HeapGraphEdge) ==
       SnapshotSizeConstants<kPointerSize>::kExpectedHeapGraphEdgeSize);
-  STATIC_ASSERT(
+  STATIC_CHECK(
       sizeof(HeapEntry) ==
       SnapshotSizeConstants<kPointerSize>::kExpectedHeapEntrySize);
   for (int i = 0; i < VisitorSynchronization::kNumberOfSyncTags; ++i) {

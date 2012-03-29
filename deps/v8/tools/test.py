@@ -472,7 +472,7 @@ def RunProcess(context, timeout, args, **rest):
   popen_args = args
   prev_error_mode = SEM_INVALID_VALUE
   if utils.IsWindows():
-    popen_args = '"' + subprocess.list2cmdline(args) + '"'
+    popen_args = subprocess.list2cmdline(args)
     if context.suppress_dialogs:
       # Try to change the error mode to avoid dialogs on fatal errors. Don't
       # touch any existing error mode flags by merging the existing error mode.
@@ -686,8 +686,8 @@ SUFFIX = {
     'debug'   : '_g',
     'release' : '' }
 FLAGS = {
-    'debug'   : ['--enable-slow-asserts', '--debug-code', '--verify-heap'],
-    'release' : []}
+    'debug'   : ['--nobreak-on-abort', '--enable-slow-asserts', '--debug-code', '--verify-heap'],
+    'release' : ['--nobreak-on-abort']}
 TIMEOUT_SCALEFACTOR = {
     'debug'   : 4,
     'release' : 1 }

@@ -540,7 +540,6 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
-  ASSERT(entry != NULL);
   if (entry == NULL) {
     Abort("bailout was not prepared");
     return;
@@ -2544,14 +2543,9 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 }
 
 
-void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register length = ToRegister(instr->length());
-  Register elements = ToRegister(instr->elements());
-  ASSERT(receiver.is(rax));  // Used for parameter count.
-  ASSERT(function.is(rdi));  // Required by InvokeFunction.
-  ASSERT(ToRegister(instr->result()).is(rax));
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
@@ -2594,6 +2588,17 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ movq(receiver,
           FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
+}
+
+
+void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+  ASSERT(receiver.is(rax));  // Used for parameter count.
+  ASSERT(function.is(rdi));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(rax));
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
@@ -4224,34 +4229,46 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
     }
   }
 
-  // Copy elements backing store header.
-  ASSERT(!has_elements || elements->IsFixedArray());
   if (has_elements) {
+    // Copy elements backing store header.
     __ LoadHeapObject(source, elements);
     for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
       __ movq(rcx, FieldOperand(source, i));
       __ movq(FieldOperand(result, elements_offset + i), rcx);
     }
-  }
 
-  // Copy elements backing store content.
-  ASSERT(!has_elements || elements->IsFixedArray());
-  int elements_length = has_elements ? elements->length() : 0;
-  for (int i = 0; i < elements_length; i++) {
-    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-    Handle<Object> value = JSObject::GetElement(object, i);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      __ lea(rcx, Operand(result, *offset));
-      __ movq(FieldOperand(result, total_offset), rcx);
-      __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
-    } else if (value->IsHeapObject()) {
-      __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
-      __ movq(FieldOperand(result, total_offset), rcx);
+    // Copy elements backing store content.
+    int elements_length = elements->length();
+    if (elements->IsFixedDoubleArray()) {
+      Handle<FixedDoubleArray> double_array =
+          Handle<FixedDoubleArray>::cast(elements);
+      for (int i = 0; i < elements_length; i++) {
+        int64_t value = double_array->get_representation(i);
+        int total_offset =
+            elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
+        __ movq(rcx, value, RelocInfo::NONE);
+        __ movq(FieldOperand(result, total_offset), rcx);
+      }
+    } else if (elements->IsFixedArray()) {
+      for (int i = 0; i < elements_length; i++) {
+        int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+        Handle<Object> value = JSObject::GetElement(object, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          __ lea(rcx, Operand(result, *offset));
+          __ movq(FieldOperand(result, total_offset), rcx);
+          __ LoadHeapObject(source, value_object);
+          EmitDeepCopy(value_object, result, source, offset);
+        } else if (value->IsHeapObject()) {
+          __ LoadHeapObject(rcx, Handle<HeapObject>::cast(value));
+          __ movq(FieldOperand(result, total_offset), rcx);
+        } else {
+          __ movq(rcx, value, RelocInfo::NONE);
+          __ movq(FieldOperand(result, total_offset), rcx);
+        }
+      }
     } else {
-      __ movq(rcx, value, RelocInfo::NONE);
-      __ movq(FieldOperand(result, total_offset), rcx);
+      UNREACHABLE();
     }
   }
 }
@@ -4701,7 +4718,7 @@ void LCodeGen::DoForInCacheArray(LForInCacheArray* instr) {
   __ movq(result,
           FieldOperand(result, FixedArray::SizeFor(instr->idx())));
   Condition cc = masm()->CheckSmi(result);
-  DeoptimizeIf(NegateCondition(cc), instr->environment());
+  DeoptimizeIf(cc, instr->environment());
 }
 
 

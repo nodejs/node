@@ -67,21 +67,6 @@ class AssemblerBase: public Malloced {
   int jit_cookie_;
 };
 
-// -----------------------------------------------------------------------------
-// Common double constants.
-
-class DoubleConstant: public AllStatic {
- public:
-  static const double min_int;
-  static const double one_half;
-  static const double minus_zero;
-  static const double zero;
-  static const double uint8_max_value;
-  static const double negative_infinity;
-  static const double canonical_non_hole_nan;
-  static const double the_hole_nan;
-};
-
 
 // -----------------------------------------------------------------------------
 // Labels represent pc locations; they are typically jump or call targets.

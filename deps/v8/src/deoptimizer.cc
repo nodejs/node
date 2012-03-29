@@ -358,8 +358,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       output_count_(0),
       jsframe_count_(0),
       output_(NULL),
-      frame_alignment_marker_(isolate->heap()->frame_alignment_marker()),
-      has_alignment_padding_(0),
       deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
     if (type == DEBUGGER) {
@@ -847,7 +845,6 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::ARGUMENTS_OBJECT: {
       // Use the arguments marker value as a sentinel and fill in the arguments
       // object after the deoptimized frame is built.
-      ASSERT(frame_index == 0);  // Only supported for first frame.
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,

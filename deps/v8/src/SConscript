@@ -101,6 +101,7 @@ SOURCES = {
     objects.cc
     objects-printer.cc
     objects-visiting.cc
+    once.cc
     parser.cc
     preparser.cc
     preparse-data.cc

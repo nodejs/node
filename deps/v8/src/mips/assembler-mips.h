@@ -553,10 +553,13 @@ class Assembler : public AssemblerBase {
   static void JumpLabelToJumpRegister(Address pc);
 
   // This sets the branch destination (which gets loaded at the call address).
-  // This is for calls and branches within generated code.
-  inline static void set_target_at(Address instruction_payload,
-                                   Address target) {
-    set_target_address_at(instruction_payload, target);
+  // This is for calls and branches within generated code.  The serializer
+  // has already deserialized the lui/ori instructions etc.
+  inline static void deserialization_set_special_target_at(
+      Address instruction_payload, Address target) {
+    set_target_address_at(
+        instruction_payload - kInstructionsFor32BitConstant * kInstrSize,
+        target);
   }
 
   // This sets the branch destination.
@@ -578,8 +581,7 @@ class Assembler : public AssemblerBase {
   // are split across two consecutive instructions and don't exist separately
   // in the code, so the serializer should not step forwards in memory after
   // a target is resolved and written.
-  static const int kCallTargetSize = 0 * kInstrSize;
-  static const int kExternalTargetSize = 0 * kInstrSize;
+  static const int kSpecialTargetSize = 0;
 
   // Number of consecutive instructions used to store 32bit constant.
   // Before jump-optimizations, this constant was used in

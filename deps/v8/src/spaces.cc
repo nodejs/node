@@ -594,6 +594,9 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
     PerformAllocationCallback(space, kAllocationActionFree, chunk->size());
   }
 
+  isolate_->heap()->RememberUnmappedPage(
+      reinterpret_cast<Address>(chunk), chunk->IsEvacuationCandidate());
+
   delete chunk->slots_buffer();
   delete chunk->skip_list();
 
@@ -2522,6 +2525,10 @@ HeapObject* LargeObjectIterator::Next() {
 
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
+static bool ComparePointers(void* key1, void* key2) {
+    return key1 == key2;
+}
+
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap,
                                    intptr_t max_capacity,
@@ -2531,7 +2538,8 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap,
       first_page_(NULL),
       size_(0),
       page_count_(0),
-      objects_size_(0) {}
+      objects_size_(0),
+      chunk_map_(ComparePointers, 1024) {}
 
 
 bool LargeObjectSpace::SetUp() {
@@ -2539,6 +2547,7 @@ bool LargeObjectSpace::SetUp() {
   size_ = 0;
   page_count_ = 0;
   objects_size_ = 0;
+  chunk_map_.Clear();
   return true;
 }
 
@@ -2582,6 +2591,18 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   page->set_next_page(first_page_);
   first_page_ = page;
 
+  // Register all MemoryChunk::kAlignment-aligned chunks covered by
+  // this large page in the chunk map.
+  uintptr_t base = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
+  uintptr_t limit = base + (page->size() - 1) / MemoryChunk::kAlignment;
+  for (uintptr_t key = base; key <= limit; key++) {
+    HashMap::Entry* entry = chunk_map_.Lookup(reinterpret_cast<void*>(key),
+                                              static_cast<uint32_t>(key),
+                                              true);
+    ASSERT(entry != NULL);
+    entry->value = page;
+  }
+
   HeapObject* object = page->GetObject();
 
 #ifdef DEBUG
@@ -2598,27 +2619,25 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
 
 // GC support
 MaybeObject* LargeObjectSpace::FindObject(Address a) {
-  for (LargePage* page = first_page_;
-       page != NULL;
-       page = page->next_page()) {
-    Address page_address = page->address();
-    if (page_address <= a && a < page_address + page->size()) {
-      return page->GetObject();
-    }
+  LargePage* page = FindPage(a);
+  if (page != NULL) {
+    return page->GetObject();
   }
   return Failure::Exception();
 }
 
 
-LargePage* LargeObjectSpace::FindPageContainingPc(Address pc) {
-  // TODO(853): Change this implementation to only find executable
-  // chunks and use some kind of hash-based approach to speed it up.
-  for (LargePage* chunk = first_page_;
-       chunk != NULL;
-       chunk = chunk->next_page()) {
-    Address chunk_address = chunk->address();
-    if (chunk_address <= pc && pc < chunk_address + chunk->size()) {
-      return chunk;
+LargePage* LargeObjectSpace::FindPage(Address a) {
+  uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
+  HashMap::Entry* e = chunk_map_.Lookup(reinterpret_cast<void*>(key),
+                                        static_cast<uint32_t>(key),
+                                        false);
+  if (e != NULL) {
+    ASSERT(e->value != NULL);
+    LargePage* page = reinterpret_cast<LargePage*>(e->value);
+    ASSERT(page->is_valid());
+    if (page->Contains(a)) {
+      return page;
     }
   }
   return NULL;
@@ -2655,6 +2674,17 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       size_ -= static_cast<int>(page->size());
       objects_size_ -= object->Size();
       page_count_--;
+
+      // Remove entries belonging to this page.
+      // Use variable alignment to help pass length check (<= 80 characters)
+      // of single line in tools/presubmit.py.
+      const intptr_t alignment = MemoryChunk::kAlignment;
+      uintptr_t base = reinterpret_cast<uintptr_t>(page)/alignment;
+      uintptr_t limit = base + (page->size()-1)/alignment;
+      for (uintptr_t key = base; key <= limit; key++) {
+        chunk_map_.Remove(reinterpret_cast<void*>(key),
+                          static_cast<uint32_t>(key));
+      }
 
       if (is_pointer_object) {
         heap()->QueueMemoryChunkForFree(page);

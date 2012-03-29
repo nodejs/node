@@ -258,7 +258,7 @@ Handle<String> Parser::LookupSymbol(int symbol_id) {
           scanner().literal_ascii_string());
     } else {
       return isolate()->factory()->LookupTwoByteSymbol(
-          scanner().literal_uc16_string());
+          scanner().literal_utf16_string());
     }
   }
   return LookupCachedSymbol(symbol_id);
@@ -279,7 +279,7 @@ Handle<String> Parser::LookupCachedSymbol(int symbol_id) {
           scanner().literal_ascii_string());
     } else {
       result = isolate()->factory()->LookupTwoByteSymbol(
-          scanner().literal_uc16_string());
+          scanner().literal_utf16_string());
     }
     symbol_cache_.at(symbol_id) = result;
     return result;
@@ -576,12 +576,12 @@ FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
     // identical calls.
-    ExternalTwoByteStringUC16CharacterStream stream(
+    ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
     return DoParseProgram(info, source, &zone_scope);
   } else {
-    GenericStringUC16CharacterStream stream(source, 0, source->length());
+    GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
     return DoParseProgram(info, source, &zone_scope);
   }
@@ -604,10 +604,14 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   FunctionLiteral* result = NULL;
   { Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
     info->SetGlobalScope(scope);
-    if (!info->is_global() &&
-        (info->shared_info().is_null() || info->shared_info()->is_function())) {
-      scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
-      scope = NewScope(scope, EVAL_SCOPE);
+    if (info->is_eval()) {
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      if (!info->is_global() && (shared.is_null() || shared->is_function())) {
+        scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
+      }
+      if (!scope->is_global_scope() || info->language_mode() != CLASSIC_MODE) {
+        scope = NewScope(scope, EVAL_SCOPE);
+      }
     }
     scope->set_start_position(0);
     scope->set_end_position(source->length());
@@ -616,13 +620,13 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
-    ParseSourceElements(body, Token::EOS, &ok);
+    ParseSourceElements(body, Token::EOS, info->is_eval(), &ok);
     if (ok && !top_scope_->is_classic_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
 
     if (ok && is_extended_mode()) {
-      CheckConflictingVarDeclarations(scope, &ok);
+      CheckConflictingVarDeclarations(top_scope_, &ok);
     }
 
     if (ok) {
@@ -665,16 +669,16 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
   // Initialize parser state.
   source->TryFlatten();
   if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUC16CharacterStream stream(
+    ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source),
         shared_info->start_position(),
         shared_info->end_position());
     FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
     return result;
   } else {
-    GenericStringUC16CharacterStream stream(source,
-                                            shared_info->start_position(),
-                                            shared_info->end_position());
+    GenericStringUtf16CharacterStream stream(source,
+                                             shared_info->start_position(),
+                                             shared_info->end_position());
     FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
     return result;
   }
@@ -682,7 +686,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
 
 
 FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
-                                   UC16CharacterStream* source,
+                                   Utf16CharacterStream* source,
                                    ZoneScope* zone_scope) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
@@ -1096,6 +1100,7 @@ class ThisNamedPropertyAssignmentFinder : public ParserFinder {
 
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
+                                  bool is_eval,
                                   bool* ok) {
   // SourceElements ::
   //   (ModuleElement)* <end_token>
@@ -1138,6 +1143,17 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
+          // TODO(mstarzinger): Global strict eval calls, need their own scope
+          // as specified in ES5 10.4.2(3). The correct fix would be to always
+          // add this scope in DoParseProgram(), but that requires adaptations
+          // all over the code base, so we go with a quick-fix for now.
+          if (is_eval && !top_scope_->is_eval_scope()) {
+            ASSERT(top_scope_->is_global_scope());
+            Scope* scope = NewScope(top_scope_, EVAL_SCOPE);
+            scope->set_start_position(top_scope_->start_position());
+            scope->set_end_position(top_scope_->end_position());
+            top_scope_ = scope;
+          }
           // TODO(ES6): Fix entering extended mode, once it is specified.
           top_scope_->SetLanguageMode(FLAG_harmony_scoping
                                       ? EXTENDED_MODE : STRICT_MODE);
@@ -4285,7 +4301,7 @@ class SingletonLogger : public ParserRecorder {
 
   // Logs a symbol creation of a literal or identifier.
   virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
-  virtual void LogUC16Symbol(int start, Vector<const uc16> literal) { }
+  virtual void LogUtf16Symbol(int start, Vector<const uc16> literal) { }
 
   // Logs an error message and marks the log as containing an error.
   // Further logging will be ignored, and ExtractData will return a vector
@@ -4548,7 +4564,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                      factory()->NewThisFunction(),
                                      RelocInfo::kNoPosition)));
       }
-      ParseSourceElements(body, Token::RBRACE, CHECK_OK);
+      ParseSourceElements(body, Token::RBRACE, false, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
@@ -5874,7 +5890,7 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
-static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
+static ScriptDataImpl* DoPreParse(Utf16CharacterStream* source,
                                   int flags,
                                   ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
@@ -5915,17 +5931,17 @@ ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
   PartialParserRecorder recorder;
   int source_length = source->length();
   if (source->IsExternalTwoByteString()) {
-    ExternalTwoByteStringUC16CharacterStream stream(
+    ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source_length);
     return DoPreParse(&stream, flags, &recorder);
   } else {
-    GenericStringUC16CharacterStream stream(source, 0, source_length);
+    GenericStringUtf16CharacterStream stream(source, 0, source_length);
     return DoPreParse(&stream, flags, &recorder);
   }
 }
 
 
-ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PreParse(Utf16CharacterStream* source,
                                     v8::Extension* extension,
                                     int flags) {
   Handle<Script> no_script;

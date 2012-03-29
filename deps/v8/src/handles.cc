@@ -800,4 +800,162 @@ Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
 }
 
 
+// This method determines the type of string involved and then gets the UTF8
+// length of the string.  It doesn't flatten the string and has log(n) recursion
+// for a string of length n.  If the failure flag gets set, then we have to
+// flatten the string and retry.  Failures are caused by surrogate pairs in deep
+// cons strings.
+
+// Single surrogate characters that are encountered in the UTF-16 character
+// sequence of the input string get counted as 3 UTF-8 bytes, because that
+// is the way that WriteUtf8 will encode them.  Surrogate pairs are counted and
+// encoded as one 4-byte UTF-8 sequence.
+
+// This function conceptually uses recursion on the two halves of cons strings.
+// However, in order to avoid the recursion going too deep it recurses on the
+// second string of the cons, but iterates on the first substring (by manually
+// eliminating it as a tail recursion).  This means it counts the UTF-8 length
+// from the end to the start, which makes no difference to the total.
+
+// Surrogate pairs are recognized even if they are split across two sides of a
+// cons, which complicates the implementation somewhat.  Therefore, too deep
+// recursion cannot always be avoided.  This case is detected, and the failure
+// flag is set, a signal to the caller that the string should be flattened and
+// the operation retried.
+int Utf8LengthHelper(String* input,
+                     int from,
+                     int to,
+                     bool followed_by_surrogate,
+                     int max_recursion,
+                     bool* failure,
+                     bool* starts_with_surrogate) {
+  if (from == to) return 0;
+  int total = 0;
+  bool dummy;
+  while (true) {
+    if (input->IsAsciiRepresentation()) {
+      *starts_with_surrogate = false;
+      return total + to - from;
+    }
+    switch (StringShape(input).representation_tag()) {
+      case kConsStringTag: {
+        ConsString* str = ConsString::cast(input);
+        String* first = str->first();
+        String* second = str->second();
+        int first_length = first->length();
+        if (first_length - from > to - first_length) {
+          if (first_length < to) {
+            // Right hand side is shorter.  No need to check the recursion depth
+            // since this can only happen log(n) times.
+            bool right_starts_with_surrogate = false;
+            total += Utf8LengthHelper(second,
+                                      0,
+                                      to - first_length,
+                                      followed_by_surrogate,
+                                      max_recursion - 1,
+                                      failure,
+                                      &right_starts_with_surrogate);
+            if (*failure) return 0;
+            followed_by_surrogate = right_starts_with_surrogate;
+            input = first;
+            to = first_length;
+          } else {
+            // We only need the left hand side.
+            input = first;
+          }
+        } else {
+          if (first_length > from) {
+            // Left hand side is shorter.
+            if (first->IsAsciiRepresentation()) {
+              total += first_length - from;
+              *starts_with_surrogate = false;
+              starts_with_surrogate = &dummy;
+              input = second;
+              from = 0;
+              to -= first_length;
+            } else if (second->IsAsciiRepresentation()) {
+              followed_by_surrogate = false;
+              total += to - first_length;
+              input = first;
+              to = first_length;
+            } else if (max_recursion > 0) {
+              bool right_starts_with_surrogate = false;
+              // Recursing on the long one.  This may fail.
+              total += Utf8LengthHelper(second,
+                                        0,
+                                        to - first_length,
+                                        followed_by_surrogate,
+                                        max_recursion - 1,
+                                        failure,
+                                        &right_starts_with_surrogate);
+              if (*failure) return 0;
+              input = first;
+              to = first_length;
+              followed_by_surrogate = right_starts_with_surrogate;
+            } else {
+              *failure = true;
+              return 0;
+            }
+          } else {
+            // We only need the right hand side.
+            input = second;
+            from = 0;
+            to -= first_length;
+          }
+        }
+        continue;
+      }
+      case kExternalStringTag:
+      case kSeqStringTag: {
+        Vector<const uc16> vector = input->GetFlatContent().ToUC16Vector();
+        const uc16* p = vector.start();
+        int previous = unibrow::Utf16::kNoPreviousCharacter;
+        for (int i = from; i < to; i++) {
+          uc16 c = p[i];
+          total += unibrow::Utf8::Length(c, previous);
+          previous = c;
+        }
+        if (to - from > 0) {
+          if (unibrow::Utf16::IsLeadSurrogate(previous) &&
+              followed_by_surrogate) {
+            total -= unibrow::Utf8::kBytesSavedByCombiningSurrogates;
+          }
+          if (unibrow::Utf16::IsTrailSurrogate(p[from])) {
+            *starts_with_surrogate = true;
+          }
+        }
+        return total;
+      }
+      case kSlicedStringTag: {
+        SlicedString* str = SlicedString::cast(input);
+        int offset = str->offset();
+        input = str->parent();
+        from += offset;
+        to += offset;
+        continue;
+      }
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return 0;
+  }
+  return 0;
+}
+
+
+int Utf8Length(Handle<String> str) {
+  bool dummy;
+  bool failure;
+  int len;
+  const int kRecursionBudget = 100;
+  do {
+    failure = false;
+    len = Utf8LengthHelper(
+        *str, 0, str->length(), false, kRecursionBudget, &failure, &dummy);
+    if (failure) FlattenString(str);
+  } while (failure);
+  return len;
+}
+
 } }  // namespace v8::internal

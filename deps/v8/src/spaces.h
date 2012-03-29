@@ -29,6 +29,7 @@
 #define V8_SPACES_H_
 
 #include "allocation.h"
+#include "hashmap.h"
 #include "list.h"
 #include "log.h"
 
@@ -2499,9 +2500,9 @@ class LargeObjectSpace : public Space {
   // space, may be slow.
   MaybeObject* FindObject(Address a);
 
-  // Finds a large object page containing the given pc, returns NULL
+  // Finds a large object page containing the given address, returns NULL
   // if such a page doesn't exist.
-  LargePage* FindPageContainingPc(Address pc);
+  LargePage* FindPage(Address a);
 
   // Frees unmarked objects.
   void FreeUnmarkedObjects();
@@ -2536,6 +2537,8 @@ class LargeObjectSpace : public Space {
   intptr_t size_;  // allocated bytes
   int page_count_;  // number of chunks
   intptr_t objects_size_;  // size of objects
+  // Map MemoryChunk::kAlignment-aligned chunks to large pages covering them
+  HashMap chunk_map_;
 
   friend class LargeObjectIterator;
 

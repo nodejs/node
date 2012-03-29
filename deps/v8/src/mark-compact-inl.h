@@ -52,13 +52,6 @@ void MarkCompactCollector::SetFlags(int flags) {
 }
 
 
-void MarkCompactCollector::ClearCacheOnMap(Map* map) {
-  if (FLAG_cleanup_code_caches_at_gc) {
-    map->ClearCodeCache(heap());
-  }
-}
-
-
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
@@ -88,7 +81,7 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   mark_bit.Set();
   MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
   if (obj->IsMap()) {
-    ClearCacheOnMap(Map::cast(obj));
+    heap_->ClearCacheOnMap(Map::cast(obj));
   }
 }
 

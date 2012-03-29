@@ -1017,6 +1017,15 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(*code);
   } else if (state == MONOMORPHIC) {
+    // We are transitioning from monomorphic to megamorphic case.
+    // Place the current monomorphic stub and stub compiled for
+    // the receiver into stub cache.
+    Map* map = target()->FindFirstMap();
+    if (map != NULL) {
+      isolate()->stub_cache()->Set(*name, map, target());
+    }
+    isolate()->stub_cache()->Set(*name, receiver->map(), *code);
+
     set_target(*megamorphic_stub());
   } else if (state == MEGAMORPHIC) {
     // Cache code holding map should be consistent with
@@ -1365,7 +1374,7 @@ MaybeObject* StoreIC::Store(State state,
       // Strict mode doesn't allow setting non-existent global property
       // or an assignment to a read only property.
       if (strict_mode == kStrictMode) {
-        if (lookup.IsFound() && lookup.IsReadOnly()) {
+        if (lookup.IsProperty() && lookup.IsReadOnly()) {
           return TypeError("strict_read_only_property", object, name);
         } else if (IsContextual(object)) {
           return ReferenceError("not_defined", name);

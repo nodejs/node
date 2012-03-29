@@ -77,6 +77,17 @@ Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
 }
 
 
+bool TypeFeedbackOracle::LoadIsUninitialized(Property* expr) {
+  Handle<Object> map_or_code = GetInfo(expr->id());
+  if (map_or_code->IsMap()) return false;
+  if (map_or_code->IsCode()) {
+    Handle<Code> code = Handle<Code>::cast(map_or_code);
+    return code->is_inline_cache_stub() && code->ic_state() == UNINITIALIZED;
+  }
+  return false;
+}
+
+
 bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
   Handle<Object> map_or_code = GetInfo(expr->id());
   if (map_or_code->IsMap()) return true;
@@ -151,6 +162,13 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
   Handle<Object> value = GetInfo(expr->id());
   return value->IsJSFunction();
+}
+
+
+bool TypeFeedbackOracle::ObjectLiteralStoreIsMonomorphic(
+    ObjectLiteral::Property* prop) {
+  Handle<Object> map_or_code = GetInfo(prop->key()->id());
+  return map_or_code->IsMap();
 }
 
 
@@ -268,6 +286,13 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(CallNew* expr) {
 }
 
 
+Handle<Map> TypeFeedbackOracle::GetObjectLiteralStoreMap(
+    ObjectLiteral::Property* prop) {
+  ASSERT(ObjectLiteralStoreIsMonomorphic(prop));
+  return Handle<Map>::cast(GetInfo(prop->key()->id()));
+}
+
+
 bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
   return *GetInfo(expr->id()) ==
       isolate_->builtins()->builtin(id);
@@ -368,6 +393,10 @@ TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
       case BinaryOpIC::SMI:
         switch (result_type) {
           case BinaryOpIC::UNINITIALIZED:
+            if (expr->op() == Token::DIV) {
+              return TypeInfo::Double();
+            }
+            return TypeInfo::Smi();
           case BinaryOpIC::SMI:
             return TypeInfo::Smi();
           case BinaryOpIC::INT32:
@@ -631,7 +660,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
               SetInfo(ast_id, map);
             }
           }
-        } else if (target->ic_state() == MEGAMORPHIC) {
+        } else {
           SetInfo(ast_id, target);
         }
         break;

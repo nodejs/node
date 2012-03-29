@@ -33,9 +33,6 @@ def FAIL_OK = FAIL, OKAY
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
-S10.4.2.1_A1: FAIL
-
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
 15.2.3.6-4-405: FAIL
 15.2.3.6-4-410: FAIL
@@ -72,6 +69,19 @@ S7.8.4_A7.2_T6: FAIL_OK
 # We follow the other major JS engines by keeping this default.
 S8.5_A2.2: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
 S8.5_A2.1: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
+
+############################ INVALID TESTS #############################
+
+# The reference value calculated by Test262 is incorrect if you run these tests
+# in PST/PDT between first Sunday in March and first Sunday in April. The DST
+# switch was moved in 2007 whereas Test262 bases the reference value on 2000.
+# Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=293
+S15.9.3.1_A5_T1: PASS || FAIL_OK
+S15.9.3.1_A5_T2: PASS || FAIL_OK
+S15.9.3.1_A5_T3: PASS || FAIL_OK
+S15.9.3.1_A5_T4: PASS || FAIL_OK
+S15.9.3.1_A5_T5: PASS || FAIL_OK
+S15.9.3.1_A5_T6: PASS || FAIL_OK
 
 ############################ SKIPPED TESTS #############################
 

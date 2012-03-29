@@ -100,7 +100,7 @@ class UnicodeData {
   static const uchar kMaxCodePoint;
 };
 
-// --- U t f   8 ---
+// --- U t f   8   a n d   16 ---
 
 template <typename Data>
 class Buffer {
@@ -114,10 +114,46 @@ class Buffer {
   unsigned length_;
 };
 
+
+class Utf16 {
+ public:
+  static inline bool IsLeadSurrogate(int code) {
+    if (code == kNoPreviousCharacter) return false;
+    return (code & 0xfc00) == 0xd800;
+  }
+  static inline bool IsTrailSurrogate(int code) {
+    if (code == kNoPreviousCharacter) return false;
+    return (code & 0xfc00) == 0xdc00;
+  }
+
+  static inline int CombineSurrogatePair(uchar lead, uchar trail) {
+    return 0x10000 + ((lead & 0x3ff) << 10) + (trail & 0x3ff);
+  }
+  static const int kNoPreviousCharacter = -1;
+  static const uchar kMaxNonSurrogateCharCode = 0xffff;
+  // Encoding a single UTF-16 code unit will produce 1, 2 or 3 bytes
+  // of UTF-8 data.  The special case where the unit is a surrogate
+  // trail produces 1 byte net, because the encoding of the pair is
+  // 4 bytes and the 3 bytes that were used to encode the lead surrogate
+  // can be reclaimed.
+  static const int kMaxExtraUtf8BytesForOneUtf16CodeUnit = 3;
+  // One UTF-16 surrogate is endoded (illegally) as 3 UTF-8 bytes.
+  // The illegality stems from the surrogate not being part of a pair.
+  static const int kUtf8BytesToCodeASurrogate = 3;
+  static inline uchar LeadSurrogate(int char_code) {
+    return 0xd800 + (((char_code - 0x10000) >> 10) & 0x3ff);
+  }
+  static inline uchar TrailSurrogate(int char_code) {
+    return 0xdc00 + (char_code & 0x3ff);
+  }
+};
+
+
 class Utf8 {
  public:
-  static inline uchar Length(uchar chr);
-  static inline unsigned Encode(char* out, uchar c);
+  static inline uchar Length(uchar chr, int previous);
+  static inline unsigned Encode(
+      char* out, uchar c, int previous);
   static const byte* ReadBlock(Buffer<const char*> str, byte* buffer,
       unsigned capacity, unsigned* chars_read, unsigned* offset);
   static uchar CalculateValue(const byte* str,
@@ -129,6 +165,11 @@ class Utf8 {
   static const unsigned kMaxTwoByteChar   = 0x7ff;
   static const unsigned kMaxThreeByteChar = 0xffff;
   static const unsigned kMaxFourByteChar  = 0x1fffff;
+
+  // A single surrogate is coded as a 3 byte UTF-8 sequence, but two together
+  // that match are coded as a 4 byte UTF-8 sequence.
+  static const unsigned kBytesSavedByCombiningSurrogates = 2;
+  static const unsigned kSizeOfUnmatchedSurrogate = 3;
 
  private:
   template <unsigned s> friend class Utf8InputBuffer;
@@ -147,6 +188,7 @@ class CharacterStream {
   // Note that default implementation is not efficient.
   virtual void Seek(unsigned);
   unsigned Length();
+  unsigned Utf16Length();
   virtual ~CharacterStream() { }
   static inline bool EncodeCharacter(uchar c, byte* buffer, unsigned capacity,
       unsigned& offset);
@@ -156,6 +198,7 @@ class CharacterStream {
       unsigned capacity, unsigned& offset);
   static inline uchar DecodeCharacter(const byte* buffer, unsigned* offset);
   virtual void Rewind() = 0;
+
  protected:
   virtual void FillBuffer() = 0;
   // The number of characters left in the current buffer

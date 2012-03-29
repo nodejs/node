@@ -185,7 +185,8 @@ class LChunkBuilder;
   V(ForInCacheArray)                           \
   V(CheckMapValue)                             \
   V(LoadFieldByIndex)                          \
-  V(DateField)
+  V(DateField)                                 \
+  V(WrapReceiver)
 
 #define GVN_FLAG_LIST(V)                       \
   V(Calls)                                     \
@@ -2260,20 +2261,7 @@ class HPhi: public HValue {
     SetFlag(kFlexibleRepresentation);
   }
 
-  virtual Representation InferredRepresentation() {
-    bool double_occurred = false;
-    bool int32_occurred = false;
-    for (int i = 0; i < OperandCount(); ++i) {
-      HValue* value = OperandAt(i);
-      if (value->representation().IsDouble()) double_occurred = true;
-      if (value->representation().IsInteger32()) int32_occurred = true;
-      if (value->representation().IsTagged()) return Representation::Tagged();
-    }
-
-    if (double_occurred) return Representation::Double();
-    if (int32_occurred) return Representation::Integer32();
-    return Representation::None();
-  }
+  virtual Representation InferredRepresentation();
 
   virtual Range* InferRange(Zone* zone);
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2500,6 +2488,27 @@ class HBinaryOperation: public HTemplateInstruction<3> {
   virtual bool IsCommutative() const { return false; }
 
   virtual void PrintDataTo(StringStream* stream);
+};
+
+
+class HWrapReceiver: public HTemplateInstruction<2> {
+ public:
+  HWrapReceiver(HValue* receiver, HValue* function) {
+    set_representation(Representation::Tagged());
+    SetOperandAt(0, receiver);
+    SetOperandAt(1, function);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Tagged();
+  }
+
+  HValue* receiver() { return OperandAt(0); }
+  HValue* function() { return OperandAt(1); }
+
+  virtual HValue* Canonicalize();
+
+  DECLARE_CONCRETE_INSTRUCTION(WrapReceiver)
 };
 
 
@@ -3414,13 +3423,27 @@ class HCallStub: public HUnaryCall {
 
 class HUnknownOSRValue: public HTemplateInstruction<0> {
  public:
-  HUnknownOSRValue() { set_representation(Representation::Tagged()); }
+  HUnknownOSRValue()
+      : incoming_value_(NULL) {
+    set_representation(Representation::Tagged());
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  void set_incoming_value(HPhi* value) {
+    incoming_value_ = value;
+  }
+
+  HPhi* incoming_value() {
+    return incoming_value_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(UnknownOSRValue)
+
+ private:
+  HPhi* incoming_value_;
 };
 
 
@@ -4284,7 +4307,7 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
   virtual bool DataEquals(HValue* other) { return true; }
 
   virtual Range* InferRange(Zone* zone) {
-    return new(zone) Range(0, String::kMaxUC16CharCode);
+    return new(zone) Range(0, String::kMaxUtf16CodeUnit);
   }
 };
 

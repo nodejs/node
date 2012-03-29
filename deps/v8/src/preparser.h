@@ -65,7 +65,7 @@ class DuplicateFinder {
         map_(&Match) { }
 
   int AddAsciiSymbol(i::Vector<const char> key, int value);
-  int AddUC16Symbol(i::Vector<const uint16_t> key, int value);
+  int AddUtf16Symbol(i::Vector<const uint16_t> key, int value);
   // Add a a number literal by converting it (if necessary)
   // to the string that ToString(ToNumber(literal)) would generate.
   // and then adding that string with AddAsciiSymbol.

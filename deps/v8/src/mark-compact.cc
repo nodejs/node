@@ -1049,7 +1049,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
         && (target->ic_state() == MEGAMORPHIC ||
-            heap->mark_compact_collector()->flush_monomorphic_ics_)) {
+            heap->mark_compact_collector()->flush_monomorphic_ics_ ||
+            target->ic_age() != heap->global_ic_age())) {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     }
@@ -1797,7 +1798,7 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
   ASSERT(HEAP->Contains(object));
   if (object->IsMap()) {
     Map* map = Map::cast(object);
-    ClearCacheOnMap(map);
+    heap_->ClearCacheOnMap(map);
 
     // When map collection is enabled we have to mark through map's transitions
     // in a special way to make transition links weak.
@@ -3427,7 +3428,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     space->Free(p->area_start(), p->area_size());
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
-    p->ClearEvacuationCandidate();
     p->ResetLiveBytes();
     space->ReleasePage(p);
   }

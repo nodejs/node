@@ -67,9 +67,11 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
-  // JumpToExternalReference expects a0 to contain the number of arguments
+  // JumpToExternalReference expects s0 to contain the number of arguments
   // including the receiver and the extra arguments.
-  __ Addu(a0, a0, Operand(num_extra_args + 1));
+  __ Addu(s0, a0, num_extra_args + 1);
+  __ sll(s1, s0, kPointerSizeLog2);
+  __ Subu(s1, s1, kPointerSize);
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
@@ -1094,8 +1096,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Set up the context from the function argument.
     __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-
-    __ InitializeRootRegister();
 
     // Push the function and the receiver onto the stack.
     __ Push(a1, a2);

@@ -239,6 +239,7 @@ class Debug {
   void ClearBreakPoint(Handle<Object> break_point_object);
   void ClearAllBreakPoints();
   void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
+  void FloodBoundFunctionWithOneShot(Handle<JSFunction> function);
   void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);

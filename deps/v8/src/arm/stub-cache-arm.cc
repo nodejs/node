@@ -1387,14 +1387,8 @@ void CallStubCompiler::GenerateGlobalReceiverCheck(Handle<JSObject> object,
   // Get the receiver from the stack.
   __ ldr(r0, MemOperand(sp, argc * kPointerSize));
 
-  // If the object is the holder then we know that it's a global
-  // object which can only happen for contextual calls. In this case,
-  // the receiver cannot be a smi.
-  if (!object.is_identical_to(holder)) {
-    __ JumpIfSmi(r0, miss);
-  }
-
   // Check that the maps haven't changed.
+  __ JumpIfSmi(r0, miss);
   CheckPrototypes(object, r0, holder, r3, r1, r4, name, miss);
 }
 
@@ -2813,14 +2807,8 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
   // -----------------------------------
   Label miss;
 
-  // If the object is the holder then we know that it's a global
-  // object which can only happen for contextual calls. In this case,
-  // the receiver cannot be a smi.
-  if (!object.is_identical_to(holder)) {
-    __ JumpIfSmi(r0, &miss);
-  }
-
   // Check that the map of the global has not changed.
+  __ JumpIfSmi(r0, &miss);
   CheckPrototypes(object, r0, holder, r3, r4, r1, name, &miss);
 
   // Get the value from the cell.

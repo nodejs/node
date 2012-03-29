@@ -48,6 +48,7 @@ to other branches, including trunk.
 OPTIONS:
   -h    Show this message
   -s    Specify the step where to start work. Default: 0.
+  -p    Specify a patch file to apply as part of the merge
 EOF
 }
 
@@ -61,16 +62,18 @@ restore_patch_commit_hashes() {
 
 restore_patch_commit_hashes_if_unset() {
   [[ "${#PATCH_COMMIT_HASHES[@]}" == 0 ]] && restore_patch_commit_hashes
-  [[ "${#PATCH_COMMIT_HASHES[@]}" == 0 ]] && \
+  [[ "${#PATCH_COMMIT_HASHES[@]}" == 0 ]] && [[ -z "$EXTRA_PATCH" ]] && \
       die "Variable PATCH_COMMIT_HASHES could not be restored."
 }
 
 ########## Option parsing
 
-while getopts ":hs:f" OPTION ; do
+while getopts ":hs:fp:" OPTION ; do
   case $OPTION in
     h)  usage
         exit 0
+        ;;
+    p)  EXTRA_PATCH=$OPTARG
         ;;
     f)  rm -f "$ALREADY_MERGING_SENTINEL_FILE"
         ;;
@@ -88,13 +91,16 @@ shift $OPTION_COUNT
 ########## Regular workflow
 
 # If there is a merge in progress, abort.
-[[ -e "$ALREADY_MERGING_SENTINEL_FILE" ]] && [[ -z "$START_STEP" ]] \
+[[ -e "$ALREADY_MERGING_SENTINEL_FILE" ]] && [[ $START_STEP -eq 0 ]] \
    && die "A merge is already in progress"
 touch "$ALREADY_MERGING_SENTINEL_FILE"
 
 initial_environment_checks
 
 if [ $START_STEP -le $CURRENT_STEP ] ; then
+  if [ ${#@} -lt 2 ] && [ -z "$EXTRA_PATCH" ] ; then
+    die "Either a patch file or revision numbers must be specified"
+  fi
   echo ">>> Step $CURRENT_STEP: Preparation"
   MERGE_TO_BRANCH=$1
   [[ -n "$MERGE_TO_BRANCH" ]] || die "Please specify a branch to merge to"
@@ -121,11 +127,15 @@ revisions associated with the patches."
     [[ -n "$NEXT_HASH" ]] \
       || die "Cannot determine git hash for r$REVISION"
     PATCH_COMMIT_HASHES[$current]="$NEXT_HASH"
-    [[ -n "$NEW_COMMIT_MSG" ]] && NEW_COMMIT_MSG="$NEW_COMMIT_MSG,"
-    NEW_COMMIT_MSG="$NEW_COMMIT_MSG r$REVISION"
+    [[ -n "$REVISION_LIST" ]] && REVISION_LIST="$REVISION_LIST,"
+    REVISION_LIST="$REVISION_LIST r$REVISION"
     let current+=1
   done
-  NEW_COMMIT_MSG="Merged$NEW_COMMIT_MSG into $MERGE_TO_BRANCH branch."
+  if [ -z "$REVISION_LIST" ] ; then
+    NEW_COMMIT_MSG="Applied patch to $MERGE_TO_BRANCH branch."
+  else
+    NEW_COMMIT_MSG="Merged$REVISION_LIST into $MERGE_TO_BRANCH branch."
+  fi;
 
   echo "$NEW_COMMIT_MSG" > $COMMITMSG_FILE
   echo "" >> $COMMITMSG_FILE
@@ -145,6 +155,7 @@ revisions associated with the patches."
     echo "BUG=$BUG_AGGREGATE" >> $COMMITMSG_FILE
   fi
   persist "NEW_COMMIT_MSG"
+  persist "REVISION_LIST"
   persist_patch_commit_hashes
 fi
 
@@ -159,6 +170,9 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
     git log -1 -p $HASH > "$TEMPORARY_PATCH_FILE"
     apply_patch "$TEMPORARY_PATCH_FILE"
   done
+  if [ -n "$EXTRA_PATCH" ] ; then
+    apply_patch "$EXTRA_PATCH"
+  fi
   stage_files
 fi
 
@@ -234,10 +248,20 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
     https://v8.googlecode.com/svn/$TO_URL \
     https://v8.googlecode.com/svn/tags/$NEWMAJOR.$NEWMINOR.$NEWBUILD.$NEWPATCH \
     -m "Tagging version $NEWMAJOR.$NEWMINOR.$NEWBUILD.$NEWPATCH"
+  persist "TO_URL"
 fi
 
 let CURRENT_STEP+=1
 if [ $START_STEP -le $CURRENT_STEP ] ; then
   echo ">>> Step $CURRENT_STEP: Cleanup."
+  restore_if_unset "SVN_REVISION"
+  restore_if_unset "TO_URL"
+  restore_if_unset "REVISION_LIST"
+  restore_version_if_unset "NEW"
   common_cleanup
+  echo "*** SUMMARY ***"
+  echo "version: $NEWMAJOR.$NEWMINOR.$NEWBUILD.$NEWPATCH"
+  echo "branch: $TO_URL"
+  echo "svn revision: $SVN_REVISION"
+  [[ -n "$REVISION_LIST" ]] && echo "patches:$REVISION_LIST"
 fi

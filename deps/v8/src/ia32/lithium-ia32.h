@@ -173,7 +173,8 @@ class LCodeGen;
   V(ForInCacheArray)                            \
   V(CheckMapValue)                              \
   V(LoadFieldByIndex)                           \
-  V(DateField)
+  V(DateField)                                  \
+  V(WrapReceiver)
 
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
@@ -456,18 +457,33 @@ class LControlInstruction: public LTemplateInstruction<0, I, T> {
 };
 
 
-class LApplyArguments: public LTemplateInstruction<1, 4, 1> {
+class LWrapReceiver: public LTemplateInstruction<1, 2, 1> {
+ public:
+  LWrapReceiver(LOperand* receiver,
+                LOperand* function,
+                LOperand* temp) {
+    inputs_[0] = receiver;
+    inputs_[1] = function;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(WrapReceiver, "wrap-receiver")
+
+  LOperand* receiver() { return inputs_[0]; }
+  LOperand* function() { return inputs_[1]; }
+};
+
+
+class LApplyArguments: public LTemplateInstruction<1, 4, 0> {
  public:
   LApplyArguments(LOperand* function,
                   LOperand* receiver,
                   LOperand* length,
-                  LOperand* elements,
-                  LOperand* temp) {
+                  LOperand* elements) {
     inputs_[0] = function;
     inputs_[1] = receiver;
     inputs_[2] = length;
     inputs_[3] = elements;
-    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ApplyArguments, "apply-arguments")
@@ -2273,7 +2289,6 @@ class LChunk: public ZoneObject {
       graph_(graph),
       instructions_(32),
       pointer_maps_(8),
-      num_double_slots_(0),
       inlined_closures_(1) { }
 
   void AddInstruction(LInstruction* instruction, HBasicBlock* block);
@@ -2287,8 +2302,6 @@ class LChunk: public ZoneObject {
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
   int spill_slot_count() const { return spill_slot_count_; }
-  int num_double_slots() const { return num_double_slots_; }
-
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
@@ -2330,7 +2343,6 @@ class LChunk: public ZoneObject {
   HGraph* const graph_;
   ZoneList<LInstruction*> instructions_;
   ZoneList<LPointerMap*> pointer_maps_;
-  int num_double_slots_;
   ZoneList<Handle<JSFunction> > inlined_closures_;
 };
 

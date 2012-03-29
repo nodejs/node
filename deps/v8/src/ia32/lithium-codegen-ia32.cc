@@ -79,9 +79,6 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
-  dynamic_frame_alignment_ = chunk()->num_double_slots() > 2 ||
-                             info()->osr_ast_id() != AstNode::kNoNumber;
-
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
@@ -154,29 +151,6 @@ bool LCodeGen::GeneratePrologue() {
     __ mov(Operand(esp, receiver_offset),
            Immediate(isolate()->factory()->undefined_value()));
     __ bind(&ok);
-  }
-
-  if (dynamic_frame_alignment_) {
-    Label do_not_pad, align_loop;
-    STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
-    // Align esp to a multiple of 2 * kPointerSize.
-    __ test(esp, Immediate(kPointerSize));
-    __ j(zero, &do_not_pad, Label::kNear);
-    __ push(Immediate(0));
-    __ mov(ebx, esp);
-    // Copy arguments, receiver, and return address.
-    __ mov(ecx, Immediate(scope()->num_parameters() + 2));
-
-    __ bind(&align_loop);
-    __ mov(eax, Operand(ebx, 1 * kPointerSize));
-    __ mov(Operand(ebx, 0), eax);
-    __ add(Operand(ebx), Immediate(kPointerSize));
-    __ dec(ecx);
-    __ j(not_zero, &align_loop, Label::kNear);
-    __ mov(Operand(ebx, 0),
-           Immediate(isolate()->factory()->frame_alignment_marker()));
-
-    __ bind(&do_not_pad);
   }
 
   __ push(ebp);  // Caller's frame pointer.
@@ -579,7 +553,6 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
-  ASSERT(entry != NULL);
   if (entry == NULL) {
     Abort("bailout was not prepared");
     return;
@@ -2125,17 +2098,6 @@ void LCodeGen::DoReturn(LReturn* instr) {
   }
   __ mov(esp, ebp);
   __ pop(ebp);
-  if (dynamic_frame_alignment_) {
-    Label aligned;
-    // Frame alignment marker (padding) is below arguments,
-    // and receiver, so its return-address-relative offset is
-    // (num_arguments + 2) words.
-    __ cmp(Operand(esp, (GetParameterCount() + 2) * kPointerSize),
-           Immediate(factory()->frame_alignment_marker()));
-    __ j(not_equal, &aligned);
-    __ Ret((GetParameterCount() + 2) * kPointerSize, ecx);
-    __ bind(&aligned);
-  }
   __ Ret((GetParameterCount() + 1) * kPointerSize, ecx);
 }
 
@@ -2625,15 +2587,10 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 }
 
 
-void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register length = ToRegister(instr->length());
-  Register elements = ToRegister(instr->elements());
   Register scratch = ToRegister(instr->TempAt(0));
-  ASSERT(receiver.is(eax));  // Used for parameter count.
-  ASSERT(function.is(edi));  // Required by InvokeFunction.
-  ASSERT(ToRegister(instr->result()).is(eax));
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
@@ -2675,6 +2632,17 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ mov(receiver,
          FieldOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
+}
+
+
+void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+  ASSERT(receiver.is(eax));  // Used for parameter count.
+  ASSERT(function.is(edi));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(eax));
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.
@@ -4493,33 +4461,47 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
     }
   }
 
-  // Copy elements backing store header.
-  ASSERT(!has_elements || elements->IsFixedArray());
   if (has_elements) {
+    // Copy elements backing store header.
     __ LoadHeapObject(source, elements);
     for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
       __ mov(ecx, FieldOperand(source, i));
       __ mov(FieldOperand(result, elements_offset + i), ecx);
     }
-  }
 
-  // Copy elements backing store content.
-  ASSERT(!has_elements || elements->IsFixedArray());
-  int elements_length = has_elements ? elements->length() : 0;
-  for (int i = 0; i < elements_length; i++) {
-    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-    Handle<Object> value = JSObject::GetElement(object, i);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      __ lea(ecx, Operand(result, *offset));
-      __ mov(FieldOperand(result, total_offset), ecx);
-      __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
-    } else if (value->IsHeapObject()) {
-      __ LoadHeapObject(ecx, Handle<HeapObject>::cast(value));
-      __ mov(FieldOperand(result, total_offset), ecx);
+    // Copy elements backing store content.
+    int elements_length = elements->length();
+    if (elements->IsFixedDoubleArray()) {
+      Handle<FixedDoubleArray> double_array =
+          Handle<FixedDoubleArray>::cast(elements);
+      for (int i = 0; i < elements_length; i++) {
+        int64_t value = double_array->get_representation(i);
+        int32_t value_low = value & 0xFFFFFFFF;
+        int32_t value_high = value >> 32;
+        int total_offset =
+            elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
+        __ mov(FieldOperand(result, total_offset), Immediate(value_low));
+        __ mov(FieldOperand(result, total_offset + 4), Immediate(value_high));
+      }
+    } else if (elements->IsFixedArray()) {
+      for (int i = 0; i < elements_length; i++) {
+        int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+        Handle<Object> value = JSObject::GetElement(object, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          __ lea(ecx, Operand(result, *offset));
+          __ mov(FieldOperand(result, total_offset), ecx);
+          __ LoadHeapObject(source, value_object);
+          EmitDeepCopy(value_object, result, source, offset);
+        } else if (value->IsHeapObject()) {
+          __ LoadHeapObject(ecx, Handle<HeapObject>::cast(value));
+          __ mov(FieldOperand(result, total_offset), ecx);
+        } else {
+          __ mov(FieldOperand(result, total_offset), Immediate(value));
+        }
+      }
     } else {
-      __ mov(FieldOperand(result, total_offset), Immediate(value));
+      UNREACHABLE();
     }
   }
 }

@@ -612,7 +612,6 @@ void LCodeGen::DeoptimizeIf(Condition cc,
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
-  ASSERT(entry != NULL);
   if (entry == NULL) {
     Abort("bailout was not prepared");
     return;
@@ -635,13 +634,9 @@ void LCodeGen::DeoptimizeIf(Condition cc,
     __ bind(&skip);
   }
 
-  if (cc == al) {
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY);
-  } else {
-    // TODO(plind): The Arm port is a little different here, due to their
-    // DeOpt jump table, which is not used for Mips yet.
-    __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
-  }
+  // TODO(plind): The Arm port is a little different here, due to their
+  // DeOpt jump table, which is not used for Mips yet.
+  __ Jump(entry, RelocInfo::RUNTIME_ENTRY, cc, src1, src2);
 }
 
 
@@ -1018,7 +1013,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
         } else {
           // Generate standard code.
           __ li(at, constant);
-          __ mul(result, left, at);
+          __ Mul(result, left, at);
         }
     }
 
@@ -1036,7 +1031,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
       __ sra(at, result, 31);
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(at));
     } else {
-      __ mul(result, left, right);
+      __ Mul(result, left, right);
     }
 
     if (bailout_on_minus_zero) {
@@ -1258,6 +1253,46 @@ void LCodeGen::DoValueOf(LValueOf* instr) {
   __ lw(result, FieldMemOperand(input, JSValue::kValueOffset));
 
   __ bind(&done);
+}
+
+
+void LCodeGen::DoDateField(LDateField* instr) {
+  Register object = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+  Register scratch = ToRegister(instr->TempAt(0));
+  Smi* index = instr->index();
+  Label runtime, done;
+  ASSERT(object.is(a0));
+  ASSERT(result.is(v0));
+  ASSERT(!scratch.is(scratch0()));
+  ASSERT(!scratch.is(object));
+
+#ifdef DEBUG
+  __ AbortIfSmi(object);
+  __ GetObjectType(object, scratch, scratch);
+  __ Assert(eq, "Trying to get date field from non-date.",
+      scratch, Operand(JS_DATE_TYPE));
+#endif
+
+  if (index->value() == 0) {
+    __ lw(result, FieldMemOperand(object, JSDate::kValueOffset));
+  } else {
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ li(scratch, Operand(stamp));
+      __ lw(scratch, MemOperand(scratch));
+      __ lw(scratch0(), FieldMemOperand(object, JSDate::kCacheStampOffset));
+      __ Branch(&runtime, ne, scratch, Operand(scratch0()));
+      __ lw(result, FieldMemOperand(object, JSDate::kValueOffset +
+                                            kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2, scratch);
+    __ li(a1, Operand(index));
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ bind(&done);
+  }
 }
 
 
@@ -2042,7 +2077,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
   // We use Factory::the_hole_value() on purpose instead of loading from the
   // root array to force relocation to be able to later patch
   // with true or false.
-  __ li(result, Operand(factory()->the_hole_value()), true);
+  __ li(result, Operand(factory()->the_hole_value()), CONSTANT_SIZE);
   __ Branch(&done);
 
   // The inlined call site cache did not match. Check null and string before
@@ -2097,7 +2132,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ bind(&before_push_delta);
   {
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
-    __ li(temp, Operand(delta * kPointerSize), true);
+    __ li(temp, Operand(delta * kPointerSize), CONSTANT_SIZE);
     __ StoreToSafepointRegisterSlot(temp, temp);
   }
   CallCodeGeneric(stub.GetCode(),
@@ -2624,8 +2659,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
 
   // Result is the frame pointer for the frame if not adapted and for the real
   // frame below the adaptor frame if adapted.
-  __ movn(result, fp, temp);  // move only if temp is not equal to zero (ne)
-  __ movz(result, scratch, temp);  // move only if temp is equal to zero (eq)
+  __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
+  __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
 }
 
 
@@ -2650,15 +2685,10 @@ void LCodeGen::DoArgumentsLength(LArgumentsLength* instr) {
 }
 
 
-void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   Register receiver = ToRegister(instr->receiver());
   Register function = ToRegister(instr->function());
-  Register length = ToRegister(instr->length());
-  Register elements = ToRegister(instr->elements());
   Register scratch = scratch0();
-  ASSERT(receiver.is(a0));  // Used for parameter count.
-  ASSERT(function.is(a1));  // Required by InvokeFunction.
-  ASSERT(ToRegister(instr->result()).is(v0));
 
   // If the receiver is null or undefined, we have to pass the global
   // object as a receiver to normal functions. Values have to be
@@ -2699,6 +2729,17 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ lw(receiver,
          FieldMemOperand(receiver, JSGlobalObject::kGlobalReceiverOffset));
   __ bind(&receiver_ok);
+}
+
+void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register function = ToRegister(instr->function());
+  Register length = ToRegister(instr->length());
+  Register elements = ToRegister(instr->elements());
+  Register scratch = scratch0();
+  ASSERT(receiver.is(a0));  // Used for parameter count.
+  ASSERT(function.is(a1));  // Required by InvokeFunction.
+  ASSERT(ToRegister(instr->result()).is(v0));
 
   // Copy the arguments to this function possibly from the
   // adaptor frame below it.

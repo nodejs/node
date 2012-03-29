@@ -250,27 +250,30 @@ function RegExpTest(string) {
     // Remove irrelevant preceeding '.*' in a non-global test regexp.
     // The expression checks whether this.source starts with '.*' and
     // that the third char is not a '?'.
-    if (%_StringCharCodeAt(this.source, 0) == 46 &&  // '.'
-        %_StringCharCodeAt(this.source, 1) == 42 &&  // '*'
-        %_StringCharCodeAt(this.source, 2) != 63) {  // '?'
-      if (!%_ObjectEquals(regexp_key, this)) {
-        regexp_key = this;
-        regexp_val = new $RegExp(SubString(this.source, 2, this.source.length),
-                                 (!this.ignoreCase
-                                  ? !this.multiline ? "" : "m"
-                                  : !this.multiline ? "i" : "im"));
-      }
-      if (%_RegExpExec(regexp_val, string, 0, lastMatchInfo) === null) {
-        return false;
-      }
+    var regexp = this;
+    if (%_StringCharCodeAt(regexp.source, 0) == 46 &&  // '.'
+        %_StringCharCodeAt(regexp.source, 1) == 42 &&  // '*'
+        %_StringCharCodeAt(regexp.source, 2) != 63) {  // '?'
+      regexp = TrimRegExp(regexp);
     }
-    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, string, lastIndex]);
+    %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [regexp, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
-    var matchIndices = %_RegExpExec(this, string, 0, lastMatchInfo);
+    var matchIndices = %_RegExpExec(regexp, string, 0, lastMatchInfo);
     if (matchIndices === null) return false;
     lastMatchInfoOverride = null;
     return true;
   }
+}
+
+function TrimRegExp(regexp) {
+  if (!%_ObjectEquals(regexp_key, regexp)) {
+    regexp_key = regexp;
+    regexp_val =
+      new $RegExp(SubString(regexp.source, 2, regexp.source.length),
+                  (regexp.ignoreCase ? regexp.multiline ? "im" : "i"
+                                     : regexp.multiline ? "m" : ""));
+  }
+  return regexp_val;
 }
 
 

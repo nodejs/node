@@ -1098,6 +1098,14 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
 }
 
 
+LInstruction* LChunkBuilder::DoWrapReceiver(HWrapReceiver* instr) {
+  LOperand* receiver = UseRegisterAtStart(instr->receiver());
+  LOperand* function = UseRegisterAtStart(instr->function());
+  LWrapReceiver* result = new(zone()) LWrapReceiver(receiver, function);
+  return AssignEnvironment(DefineSameAsFirst(result));
+}
+
+
 LInstruction* LChunkBuilder::DoApplyArguments(HApplyArguments* instr) {
   LOperand* function = UseFixed(instr->function(), r1);
   LOperand* receiver = UseFixed(instr->receiver(), r0);

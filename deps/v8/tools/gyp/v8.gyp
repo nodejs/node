@@ -40,10 +40,16 @@
               'toolsets': ['target'],
             }],
             ['v8_use_snapshot=="true"', {
-              'dependencies': ['v8_snapshot'],
+              # The dependency on v8_base should come from a transitive
+              # dependency however the Android toolchain requires libv8_base.a
+              # to appear before libv8_snapshot.a so it's listed explicitly.
+              'dependencies': ['v8_base', 'v8_snapshot'],
             },
             {
-              'dependencies': ['v8_nosnapshot'],
+              # The dependency on v8_base should come from a transitive
+              # dependency however the Android toolchain requires libv8_base.a
+              # to appear before libv8_snapshot.a so it's listed explicitly.
+              'dependencies': ['v8_base', 'v8_nosnapshot'],
             }],
             ['component=="shared_library"', {
               'type': '<(component)',
@@ -241,6 +247,7 @@
             '../../src/assembler.h',
             '../../src/ast.cc',
             '../../src/ast.h',
+            '../../src/atomicops.h',
             '../../src/atomicops_internals_x86_gcc.cc',
             '../../src/bignum.cc',
             '../../src/bignum.h',
@@ -353,6 +360,7 @@
             '../../src/jsregexp.h',
             '../../src/isolate.cc',
             '../../src/isolate.h',
+            '../../src/lazy-instance.h'
             '../../src/list-inl.h',
             '../../src/list.h',
             '../../src/lithium.cc',
@@ -383,6 +391,8 @@
             '../../src/objects-visiting.h',
             '../../src/objects.cc',
             '../../src/objects.h',
+            '../../src/once.cc',
+            '../../src/once.h',
             '../../src/parser.cc',
             '../../src/parser.h',
             '../../src/platform-tls-mac.h',
@@ -904,6 +914,8 @@
             '../../include/v8stdint.h',
             '../../src/allocation.cc',
             '../../src/allocation.h',
+            '../../src/atomicops.h',
+            '../../src/atomicops_internals_x86_gcc.cc',
             '../../src/bignum.cc',
             '../../src/bignum.h',
             '../../src/bignum-dtoa.cc',
@@ -929,6 +941,8 @@
             '../../src/hashmap.h',
             '../../src/list-inl.h',
             '../../src/list.h',
+            '../../src/once.cc',
+            '../../src/once.h',
             '../../src/preparse-data-format.h',
             '../../src/preparse-data.cc',
             '../../src/preparse-data.h',

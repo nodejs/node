@@ -72,9 +72,9 @@ static const int kMaxSizeEarlyOpt = 500;
 
 
 Atomic32 RuntimeProfiler::state_ = 0;
-// TODO(isolates): Create the semaphore lazily and clean it up when no
-// longer required.
-Semaphore* RuntimeProfiler::semaphore_ = OS::CreateSemaphore(0);
+
+// TODO(isolates): Clean up the semaphore when it is no longer required.
+static LazySemaphore<0>::type semaphore = LAZY_SEMAPHORE_INITIALIZER;
 
 #ifdef DEBUG
 bool RuntimeProfiler::has_been_globally_set_up_ = false;
@@ -173,7 +173,9 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // prepared to generate it, but we don't expect to have to.
   bool found_code = false;
   Code* stack_check_code = NULL;
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_MIPS)
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
@@ -268,6 +270,7 @@ void RuntimeProfiler::OptimizeNow() {
 
     // Do not record non-optimizable functions.
     if (!function->IsOptimizable()) continue;
+    if (function->shared()->optimization_disabled()) continue;
 
     // Only record top-level code on top of the execution stack and
     // avoid optimizing excessively large scripts since top-level code
@@ -289,7 +292,12 @@ void RuntimeProfiler::OptimizeNow() {
           // If this particular function hasn't had any ICs patched for enough
           // ticks, optimize it now.
           Optimize(function, "hot and stable");
+        } else if (ticks >= 100) {
+          // If this function does not have enough type info, but has
+          // seen a huge number of ticks, optimize it as it is.
+          Optimize(function, "not much type info but very hot");
         } else {
+          function->shared()->set_profiler_ticks(ticks + 1);
           if (FLAG_trace_opt_verbose) {
             PrintF("[not yet optimizing ");
             function->PrintName();
@@ -343,7 +351,9 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
-#ifdef V8_TARGET_ARCH_IA32
+#if defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_MIPS)
   if (FLAG_count_based_interrupts) return;
 #endif
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
@@ -406,7 +416,7 @@ void RuntimeProfiler::HandleWakeUp(Isolate* isolate) {
   // undid the decrement done by the profiler thread. Increment again
   // to get the right count of active isolates.
   NoBarrier_AtomicIncrement(&state_, 1);
-  semaphore_->Signal();
+  semaphore.Pointer()->Signal();
 }
 
 
@@ -419,7 +429,7 @@ bool RuntimeProfiler::WaitForSomeIsolateToEnterJS() {
   Atomic32 old_state = NoBarrier_CompareAndSwap(&state_, 0, -1);
   ASSERT(old_state >= -1);
   if (old_state != 0) return false;
-  semaphore_->Wait();
+  semaphore.Pointer()->Wait();
   return true;
 }
 
@@ -435,7 +445,7 @@ void RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(Thread* thread) {
   if (new_state == 0) {
     // The profiler thread is waiting. Wake it up. It must check for
     // stop conditions before attempting to wait again.
-    semaphore_->Signal();
+    semaphore.Pointer()->Signal();
   }
   thread->Join();
   // The profiler thread is now stopped. Undo the increment in case it

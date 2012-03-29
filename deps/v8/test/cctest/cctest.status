@@ -84,10 +84,6 @@ test-debug/DebugBreakLoop: SKIP
 
 
 ##############################################################################
-[ $arch == mips ]
-test-serialize: SKIP
-
-##############################################################################
 [ $arch == mips && $crankshaft ]
 
 # Tests that time out with crankshaft.
