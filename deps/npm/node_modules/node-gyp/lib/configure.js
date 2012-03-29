@@ -92,13 +92,16 @@ function configure (gyp, argv, callback) {
     if (!version) {
       return callback(new Error('Invalid version number: ' + versionStr))
     }
-    version = version.slice(1, 4).join('.')
     gyp.opts.ensure = true
-    gyp.commands.install([ version ], createBuildDir)
+    gyp.commands.install([ versionStr ], function (err, _version) {
+      if (err) return callback(err)
+      version = _version
+      gyp.verbose('setting target version to:', version)
+      createBuildDir()
+    })
   }
 
-  function createBuildDir (err) {
-    if (err) return callback(err)
+  function createBuildDir () {
     gyp.verbose('attempting to create "build" dir', buildDir)
     mkdirp(buildDir, function (err, isNew) {
       if (err) return callback(err)

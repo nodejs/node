@@ -52,27 +52,11 @@ function readJson (jsonFile, opts, cb) {
       if (er) return hasGyp(false)
 
       // see if there are any *.gyp files in there.
-      // If there are, then copy them to binding.gyp
-      // if there are not, then just proceed without
       gf = gf.filter(function (f) {
         return f.match(/\.gyp$/)
       })
       gf = gf[0]
-      if (!gf) return hasGyp(false)
-      if (gf === "binding.gyp") return hasGyp(true)
-
-      // need to rename.  windows is annoying.
-      // why not fs.rename?  because we just saw the file, so it'll
-      // be cached for potentially several seconds on a network share.
-      return fs.readFile(path.resolve(pkgdir, gf), function (er, d) {
-        if (er) return hasGyp(false)
-        fs.writeFile(path.resolve(pkgdir, "binding.gyp"), d, function (er) {
-          if (er) return hasGyp(false)
-          fs.unlink(path.resolve(pkgdir, gf), function (er) {
-            return hasGyp(!er)
-          })
-        })
-      })
+      return hasGyp(!!gf)
     })
   }
 
@@ -262,11 +246,12 @@ function typoWarn (json) {
                   }
 
   if (typeof json.bugs === "object") {
+    // just go ahead and correct these.
     Object.keys(bugsTypos).forEach(function (d) {
       if (json.bugs.hasOwnProperty(d)) {
-        log.warn( "package.json: bugs['" + d + "'] should probably be "
-                + "bugs['" + bugsTypos[d] + "']", json._id)
-        }
+        json.bugs[ bugsTypos[d] ] = json.bugs[d]
+        delete json.bugs[d]
+      }
     })
   }
 

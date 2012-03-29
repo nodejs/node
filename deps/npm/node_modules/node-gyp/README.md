@@ -83,10 +83,10 @@ building a node addon looks like:
 
 ``` json
 {
-  'targets': [
+  "targets": [
     {
-      'target_name': 'binding',
-      'sources': [ 'src/binding.cc' ]
+      "target_name": "binding",
+      "sources": [ "src/binding.cc" ]
     }
   ]
 }

@@ -14,7 +14,7 @@ cmdShim.ifExists = cmdShimIfExists
 
 var fs = require("graceful-fs")
   , chain = require("slide").chain
-  , mkdir = require("./mkdir-p.js")
+  , mkdir = require("mkdirp")
   , rm = require("rimraf")
   , log = require("./log.js")
   , path = require("path")
