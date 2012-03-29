@@ -4505,34 +4505,51 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
   }
 
 
-  // Copy elements backing store header.
-  ASSERT(!has_elements || elements->IsFixedArray());
   if (has_elements) {
+    // Copy elements backing store header.
     __ LoadHeapObject(source, elements);
     for (int i = 0; i < FixedArray::kHeaderSize; i += kPointerSize) {
       __ lw(a2, FieldMemOperand(source, i));
       __ sw(a2, FieldMemOperand(result, elements_offset + i));
     }
-  }
 
-  // Copy elements backing store content.
-  ASSERT(!has_elements || elements->IsFixedArray());
-  int elements_length = has_elements ? elements->length() : 0;
-  for (int i = 0; i < elements_length; i++) {
-    int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-    Handle<Object> value = JSObject::GetElement(object, i);
-    if (value->IsJSObject()) {
-      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
-      __ Addu(a2, result, Operand(*offset));
-      __ sw(a2, FieldMemOperand(result, total_offset));
-      __ LoadHeapObject(source, value_object);
-      EmitDeepCopy(value_object, result, source, offset);
-    } else if (value->IsHeapObject()) {
-      __ LoadHeapObject(a2, Handle<HeapObject>::cast(value));
-      __ sw(a2, FieldMemOperand(result, total_offset));
+    // Copy elements backing store content.
+    int elements_length = has_elements ? elements->length() : 0;
+    if (elements->IsFixedDoubleArray()) {
+      Handle<FixedDoubleArray> double_array =
+          Handle<FixedDoubleArray>::cast(elements);
+      for (int i = 0; i < elements_length; i++) {
+        int64_t value = double_array->get_representation(i);
+        // We only support little endian mode...
+        int32_t value_low = value & 0xFFFFFFFF;
+        int32_t value_high = value >> 32;
+        int total_offset =
+            elements_offset + FixedDoubleArray::OffsetOfElementAt(i);
+        __ li(a2, Operand(value_low));
+        __ sw(a2, FieldMemOperand(result, total_offset));
+        __ li(a2, Operand(value_high));
+        __ sw(a2, FieldMemOperand(result, total_offset + 4));
+      }
+    } else if (elements->IsFixedArray()) {
+      for (int i = 0; i < elements_length; i++) {
+        int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
+        Handle<Object> value = JSObject::GetElement(object, i);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          __ Addu(a2, result, Operand(*offset));
+          __ sw(a2, FieldMemOperand(result, total_offset));
+          __ LoadHeapObject(source, value_object);
+          EmitDeepCopy(value_object, result, source, offset);
+        } else if (value->IsHeapObject()) {
+          __ LoadHeapObject(a2, Handle<HeapObject>::cast(value));
+          __ sw(a2, FieldMemOperand(result, total_offset));
+        } else {
+          __ li(a2, Operand(value));
+          __ sw(a2, FieldMemOperand(result, total_offset));
+        }
+      }
     } else {
-      __ li(a2, Operand(value));
-      __ sw(a2, FieldMemOperand(result, total_offset));
+      UNREACHABLE();
     }
   }
 }
