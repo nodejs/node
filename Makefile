@@ -39,13 +39,14 @@ uninstall:
 	out/Release/node tools/installer.js uninstall
 
 clean:
-	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node
+	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node blog.html email.md
 	-find out/ -name '*.o' -o -name '*.a' | xargs rm -rf
 
 distclean:
 	-rm -rf out
 	-rm -f config.gypi
 	-rm -f config.mk
+	-rm -rf node node_g blog.html email.md
 
 test: all
 	$(PYTHON) tools/test.py --mode=release simple message
@@ -135,6 +136,13 @@ out/doc/api/%.json: doc/api/%.markdown
 
 out/doc/api/%.html: doc/api/%.markdown
 	out/Release/node tools/doc/generate.js --format=html --template=doc/template.html $< > $@
+
+email.md: ChangeLog tools/email-footer.md
+	bash tools/changelog-head.sh > $@
+	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
+
+blog.html: email.md
+	cat $< | node tools/doc/node_modules/.bin/marked > $@
 
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
