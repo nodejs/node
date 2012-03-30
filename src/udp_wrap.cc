@@ -63,10 +63,7 @@ namespace node {
 
 typedef ReqWrap<uv_udp_send_t> SendWrap;
 
-void AddressToJS(Handle<Object> info,
-                 const sockaddr* addr,
-                 int addrlen);
-
+Local<Object> AddressToJS(const sockaddr* addr);
 
 static Persistent<String> address_symbol;
 static Persistent<String> port_symbol;
@@ -364,15 +361,13 @@ Handle<Value> UDPWrap::GetSockName(const Arguments& args) {
                              reinterpret_cast<sockaddr*>(&address),
                              &addrlen);
 
-  if (r == 0) {
-    Local<Object> sockname = Object::New();
-    AddressToJS(sockname, reinterpret_cast<sockaddr*>(&address), addrlen);
-    return scope.Close(sockname);
-  }
-  else {
+  if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     return Null();
   }
+
+  const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
+  return scope.Close(AddressToJS(addr));
 }
 
 
@@ -431,34 +426,25 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     return;
   }
 
-  Local<Object> rinfo = Object::New();
-  AddressToJS(rinfo, addr, sizeof(*addr));
-
   Local<Value> argv[] = {
     Local<Object>::New(wrap->object_),
     slab,
     Integer::NewFromUnsigned(buf.base - Buffer::Data(slab)),
     Integer::NewFromUnsigned(nread),
-    rinfo
+    AddressToJS(addr)
   };
   MakeCallback(wrap->object_, "onmessage", ARRAY_SIZE(argv), argv);
 }
 
 
-void AddressToJS(Handle<Object> info,
-                 const sockaddr* addr,
-                 int addrlen) {
+Local<Object> AddressToJS(const sockaddr* addr) {
+  HandleScope scope;
   char ip[INET6_ADDRSTRLEN];
   const sockaddr_in *a4;
   const sockaddr_in6 *a6;
   int port;
 
-  assert(addr != NULL);
-
-  if (addrlen == 0) {
-    info->Set(address_symbol, String::Empty());
-    return;
-  }
+  Local<Object> info = Object::New();
 
   switch (addr->sa_family) {
   case AF_INET6:
@@ -480,6 +466,8 @@ void AddressToJS(Handle<Object> info,
   default:
     info->Set(address_symbol, String::Empty());
   }
+
+  return scope.Close(info);
 }
 
 
