@@ -21,11 +21,13 @@
 
 #include "node.h"
 #include "node_buffer.h"
-
+#include "slab_allocator.h"
 #include "req_wrap.h"
 #include "handle_wrap.h"
 
 #include <stdlib.h>
+
+#define SLAB_SIZE (1024 * 1024)
 
 // Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
 // Clean this up in tcp_wrap.cc too.
@@ -59,16 +61,17 @@ namespace node {
     return scope.Close(Integer::New(-1));                                   \
   }
 
-// TODO share with tcp_wrap.cc
-Persistent<String> address_symbol;
-Persistent<String> port_symbol;
-Persistent<String> buffer_sym;
+typedef ReqWrap<uv_udp_send_t> SendWrap;
 
 void AddressToJS(Handle<Object> info,
                  const sockaddr* addr,
                  int addrlen);
 
-typedef ReqWrap<uv_udp_send_t> SendWrap;
+
+static Persistent<String> address_symbol;
+static Persistent<String> port_symbol;
+static Persistent<String> buffer_sym;
+static SlabAllocator slab_allocator(SLAB_SIZE);
 
 
 class UDPWrap: public HandleWrap {
@@ -402,7 +405,9 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 
 
 uv_buf_t UDPWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
-  return uv_buf_init(new char[suggested_size], suggested_size);
+  UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
+  char* buf = slab_allocator.Allocate(wrap->object_, suggested_size);
+  return uv_buf_init(buf, suggested_size);
 }
 
 
@@ -413,32 +418,29 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
                      unsigned flags) {
   HandleScope scope;
 
-  if (nread == 0) {
-    free(buf.base);
+  UDPWrap* wrap = reinterpret_cast<UDPWrap*>(handle->data);
+  Local<Object> slab = slab_allocator.Shrink(wrap->object_,
+                                             buf.base,
+                                             nread < 0 ? 0 : nread);
+  if (nread == 0) return;
+
+  if (nread < 0) {
+    Local<Value> argv[] = { Local<Object>::New(wrap->object_) };
+    SetErrno(uv_last_error(uv_default_loop()));
+    MakeCallback(wrap->object_, "onmessage", ARRAY_SIZE(argv), argv);
     return;
   }
 
-  UDPWrap* wrap = reinterpret_cast<UDPWrap*>(handle->data);
+  Local<Object> rinfo = Object::New();
+  AddressToJS(rinfo, addr, sizeof(*addr));
 
-  Local<Value> argv[4] = {
+  Local<Value> argv[] = {
     Local<Object>::New(wrap->object_),
-    Integer::New(nread),
-    Local<Value>::New(Null()),
-    Local<Value>::New(Null())
+    slab,
+    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab)),
+    Integer::NewFromUnsigned(nread),
+    rinfo
   };
-
-  if (nread == -1) {
-    SetErrno(uv_last_error(uv_default_loop()));
-  }
-  else {
-    Local<Object> rinfo = Object::New();
-    AddressToJS(rinfo, addr, sizeof *addr);
-    argv[2] = Local<Object>::New(
-        Buffer::New(buf.base, nread, NULL, NULL)->handle_);
-    argv[3] = rinfo;
-  }
-  free(buf.base);
-
   MakeCallback(wrap->object_, "onmessage", ARRAY_SIZE(argv), argv);
 }
 
