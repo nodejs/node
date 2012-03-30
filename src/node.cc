@@ -1777,13 +1777,6 @@ void FatalException(TryCatch &try_catch) {
 }
 
 
-static void DebugBreakMessageHandler(const v8::Debug::Message& message) {
-  // do nothing with debug messages.
-  // The message handler will get changed by DebuggerAgent::CreateSession in
-  // debug-agent.cc of v8/src when a new session is created
-}
-
-
 Persistent<Object> binding_cache;
 Persistent<Array> module_load_list;
 
