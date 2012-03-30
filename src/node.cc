@@ -1668,7 +1668,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 
   /* Add the `_module` suffix to the extension name. */
   r = snprintf(symbol, sizeof symbol, "%s_module", base);
-  if (r <= 0 || r >= sizeof symbol) {
+  if (r <= 0 || static_cast<size_t>(r) >= sizeof symbol) {
     Local<Value> exception =
         Exception::Error(String::New("Out of memory."));
     return ThrowException(exception);
