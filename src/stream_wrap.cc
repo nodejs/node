@@ -234,7 +234,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
     return;
   }
 
-  assert(nread <= buf.len);
+  assert(static_cast<size_t>(nread) <= buf.len);
 
   if (handle_that_last_alloced == handle) {
     slab_used -= (buf.len - nread);
