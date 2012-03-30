@@ -181,7 +181,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   if (data.link) out.label += "-> " + data.link
 
   if (data.invalid) {
-    if (data.realName !== data.name) l += " ("+data.realName+")"
+    if (data.realName !== data.name) out.label += " ("+data.realName+")"
     out.label += " \033[31;40minvalid\033[0m"
   }
 
