@@ -2853,16 +2853,12 @@ class Hmac : public ObjectWrap {
     HandleScope scope;
 
     unsigned char* md_value = NULL;
-    unsigned int md_len = -1;
+    unsigned int md_len = 0;
     char* md_hexdigest;
     int md_hex_len;
-    Local<Value> outString ;
+    Local<Value> outString;
 
     int r = hmac->HmacDigest(&md_value, &md_len);
-
-    assert(md_value != NULL);
-    assert(md_len != -1);
-
     if (md_len == 0 || r == 0) {
       return scope.Close(String::New(""));
     }
