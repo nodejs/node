@@ -286,8 +286,8 @@ This example will echo back all messages from the master:
 ### worker.destroy()
 
 This function will kill the worker, and inform the master to not spawn a
-new worker.  To know the difference between suicide and accidentally
-exit, the `suicide` boolean is set to true.
+new worker.  The boolean `suicide` lets you distinguish between voluntary
+and accidental exit.
 
     cluster.on('exit', function (worker) {
       if (worker.suicide === true) {
