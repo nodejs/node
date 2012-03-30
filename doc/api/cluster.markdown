@@ -19,7 +19,7 @@ all share server ports.
         cluster.fork();
       }
 
-      cluster.on('death', function(worker) {
+      cluster.on('exit', function(worker) {
         console.log('worker ' + worker.pid + ' died');
       });
     } else {
@@ -87,7 +87,7 @@ This can be used to log worker activity, and create you own timeout.
     cluster.on('listening', function (worker) {
       clearTimeout(timeouts[worker.uniqueID]);
     });
-    cluster.on('death', function (worker) {
+    cluster.on('exit', function (worker) {
       clearTimeout(timeouts[worker.uniqueID]);
       errorMsg();
     });
@@ -126,7 +126,7 @@ When a workers IPC channel has disconnected this event is emitted. This will hap
 when the worker dies, usually after calling `.destroy()`.
 
 When calling `.disconnect()`, there may be a delay between the
-`disconnect` and `death` events.  This event can be used to detect if
+`disconnect` and `exit` events.  This event can be used to detect if
 the process is stuck in a cleanup or if there are long-living
 connections.
 
@@ -134,14 +134,14 @@ connections.
       console.log('The worker #' + worker.uniqueID + ' has disconnected');
     });
 
-## Event: 'death'
+## Event: 'exit'
 
 * `worker` {Worker object}
 
-When any of the workers die the cluster module will emit the 'death' event.
+When any of the workers die the cluster module will emit the 'exit' event.
 This can be used to restart the worker by calling `fork()` again.
 
-    cluster.on('death', function(worker) {
+    cluster.on('exit', function(worker) {
       console.log('worker ' + worker.pid + ' died. restart...');
       cluster.fork();
     });
@@ -286,10 +286,10 @@ This example will echo back all messages from the master:
 ### worker.destroy()
 
 This function will kill the worker, and inform the master to not spawn a
-new worker.  To know the difference between suicide and accidentally death
-a suicide boolean is set to true.
+new worker.  To know the difference between suicide and accidentally
+exit, the `suicide` boolean is set to true.
 
-    cluster.on('death', function (worker) {
+    cluster.on('exit', function (worker) {
       if (worker.suicide === true) {
         console.log('Oh, it was just suicide\' – no need to worry').
       }
@@ -305,7 +305,7 @@ When calling this function the worker will no longer accept new connections, but
 they will be handled by any other listening worker. Existing connection will be
 allowed to exit as usual. When no more connections exist, the IPC channel to the worker
 will close allowing it to die graceful. When the IPC channel is closed the `disconnect`
-event will emit, this is then followed by the `death` event, there is emitted when
+event will emit, this is then followed by the `exit` event, there is emitted when
 the worker finally die.
 
 Because there might be long living connections, it is useful to implement a timeout.
@@ -427,13 +427,13 @@ on the specified worker.
       // Worker has disconnected
     };
 
-### Event: 'death'
+### Event: 'exit'
 
 * `worker` {Worker object}
 
-Same as the `cluster.on('death')` event, but emits only when the state change
+Same as the `cluster.on('exit')` event, but emits only when the state change
 on the specified worker.
 
-    cluster.fork().on('death', function (worker) {
+    cluster.fork().on('exit', function (worker) {
       // Worker has died
     };

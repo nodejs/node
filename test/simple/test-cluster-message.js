@@ -114,7 +114,7 @@ else if (cluster.isMaster) {
       worker.destroy();
     });
 
-    worker.on('death', function() {
+    worker.on('exit', function() {
       process.exit(0);
     });
 

@@ -49,13 +49,13 @@ else if (cluster.isMaster) {
         fork: false,
         online: false,
         listening: false,
-        death: false
+        exit: false
       },
       equal: {
         fork: false,
         online: false,
         listening: false,
-        death: false
+        exit: false
       }
     },
 
@@ -63,12 +63,12 @@ else if (cluster.isMaster) {
       events: {
         online: false,
         listening: false,
-        death: false
+        exit: false
       },
       equal: {
         online: false,
         listening: false,
-        death: false
+        exit: false
       },
       states: {
         none: false,
@@ -106,7 +106,7 @@ else if (cluster.isMaster) {
   });
 
   //Kill process when worker is killed
-  cluster.on('death', function() {
+  cluster.on('exit', function() {
     process.exit(0);
   });
 

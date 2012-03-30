@@ -35,12 +35,12 @@ if (cluster.isWorker) {
   var checks = {
     cluster: {
       emitDisconnect: false,
-      emitDeath: false,
+      emitExit: false,
       callback: false
     },
     worker: {
       emitDisconnect: false,
-      emitDeath: false,
+      emitExit: false,
       state: false,
       suicideMode: false,
       died: false
@@ -69,8 +69,8 @@ if (cluster.isWorker) {
   cluster.once('disconnect', function() {
     checks.cluster.emitDisconnect = true;
   });
-  cluster.once('death', function() {
-    checks.cluster.emitDeath = true;
+  cluster.once('exit', function() {
+    checks.cluster.emitExit = true;
   });
 
   // Check worker eventes and properties
@@ -81,8 +81,8 @@ if (cluster.isWorker) {
   });
 
   // Check that the worker died
-  worker.once('death', function() {
-    checks.worker.emitDeath = true;
+  worker.once('exit', function() {
+    checks.worker.emitExit = true;
     checks.worker.died = !alive(worker.process.pid);
     process.nextTick(function() {
       process.exit(0);
@@ -97,8 +97,8 @@ if (cluster.isWorker) {
     // events
     assert.ok(w.emitDisconnect, 'Disconnect event did not emit');
     assert.ok(c.emitDisconnect, 'Disconnect event did not emit');
-    assert.ok(w.emitDeath, 'Death event did not emit');
-    assert.ok(c.emitDeath, 'Death event did not emit');
+    assert.ok(w.emitExit, 'Exit event did not emit');
+    assert.ok(c.emitExit, 'Exit event did not emit');
 
     // flags
     assert.equal(w.state, 'disconnected', 'The state property was not set');
