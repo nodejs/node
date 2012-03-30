@@ -95,7 +95,7 @@ Example: compile and execute code in a existing context.
     // { animal: 'cat', count: 3, name: 'CATT' }
 
 Note that `createContext` will perform a shallow clone of the supplied sandbox object in order to
-initialise the global object of the freshly constructed context.
+initialize the global object of the freshly constructed context.
 
 Note that running untrusted code is a tricky business requiring great care.  To prevent accidental
 global variable leakage, `vm.runInContext` is quite useful, but safely running untrusted code

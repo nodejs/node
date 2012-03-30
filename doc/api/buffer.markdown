@@ -35,7 +35,7 @@ encoding method.  Here are the different string encodings.
   should be avoided in favor of `Buffer` objects where possible. This encoding
   will be removed in future versions of Node.
 
-* `'hex'` - Encode each byte as two hexidecimal characters.
+* `'hex'` - Encode each byte as two hexadecimal characters.
 
 ## Class: Buffer
 

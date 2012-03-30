@@ -77,7 +77,7 @@ Once you have a readline instance, you most commonly listen for the
 `"line"` event.
 
 If `terminal` is `true` for this instance then the `output` stream will get
-the best compatability if it defines an `output.columns` property, and fires
+the best compatibility if it defines an `output.columns` property, and fires
 a `"resize"` event on the `output` if/when the columns ever change
 (`process.stdout` does this automatically when it is a TTY).
 
