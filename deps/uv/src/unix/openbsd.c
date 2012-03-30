@@ -216,6 +216,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   int numcpus = 1;
   static int which[] = {CTL_HW,HW_MODEL,0};
   size_t size;
+  int i;
   uv_cpu_info_t* cpu_info;
 
   size = sizeof(model);
@@ -245,7 +246,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   size = sizeof(info);
   which[0] = CTL_KERN;
   which[1] = KERN_CPTIME2;
-  for (int i = 0; i < numcpus; i++) {
+  for (i = 0; i < numcpus; i++) {
     which[2] = i;
     size = sizeof(info);
     if (sysctl(which, 3, &info, &size, NULL, 0) < 0) {

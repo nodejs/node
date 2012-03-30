@@ -152,14 +152,16 @@ src/unix/uv-eio.o: src/unix/uv-eio.c
 
 clean-platform:
 	-rm -f src/ares/*.o
+	-rm -f src/unix/*.o
 	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/eio/*.o
-	-rm -f src/unix/*.o
+	-rm -f src/unix/linux/*.o
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM
 
 distclean-platform:
 	-rm -f src/ares/*.o
-	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/*.o
+	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/eio/*.o
+	-rm -f src/unix/linux/*.o
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM

@@ -78,6 +78,10 @@ typedef void* uv_lib_t;
   /* Poll result queue */ \
   eio_channel uv_eio_channel; \
   struct ev_loop* ev; \
+  /* Various thing for libeio. */ \
+  uv_async_t uv_eio_want_poll_notifier; \
+  uv_async_t uv_eio_done_poll_notifier; \
+  uv_idle_t uv_eio_poller; \
   UV_LOOP_PRIVATE_PLATFORM_FIELDS
 
 #define UV_REQ_BUFSML_SIZE (4)

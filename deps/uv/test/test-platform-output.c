@@ -40,7 +40,7 @@ TEST_IMPL(platform_output) {
 
   err = uv_resident_set_memory(&rss);
   ASSERT(UV_OK == err.code);
-  fprintf(stderr, "uv_resident_set_memory: %d\n", rss);
+  fprintf(stderr, "uv_resident_set_memory: %zu\n", rss);
 
   err = uv_uptime(&uptime);
   ASSERT(UV_OK == err.code);
@@ -53,11 +53,11 @@ TEST_IMPL(platform_output) {
   for (i = 0; i < count; i++) {
     fprintf(stderr, "  model: %s\n", cpus[i].model);
     fprintf(stderr, "  speed: %d\n", cpus[i].speed);
-    fprintf(stderr, "  times.sys: %llu\n", cpus[i].cpu_times.sys);
-    fprintf(stderr, "  times.user: %llu\n", cpus[i].cpu_times.user);
-    fprintf(stderr, "  times.idle: %llu\n", cpus[i].cpu_times.idle);
-    fprintf(stderr, "  times.irq: %llu\n", cpus[i].cpu_times.irq);
-    fprintf(stderr, "  times.nice: %llu\n", cpus[i].cpu_times.nice);
+    fprintf(stderr, "  times.sys: %zu\n", (size_t)cpus[i].cpu_times.sys);
+    fprintf(stderr, "  times.user: %zu\n", (size_t)cpus[i].cpu_times.user);
+    fprintf(stderr, "  times.idle: %zu\n", (size_t)cpus[i].cpu_times.idle);
+    fprintf(stderr, "  times.irq: %zu\n", (size_t)cpus[i].cpu_times.irq);
+    fprintf(stderr, "  times.nice: %zu\n", (size_t)cpus[i].cpu_times.nice);
   }
   uv_free_cpu_info(cpus, count);
 

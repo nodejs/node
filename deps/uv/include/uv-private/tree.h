@@ -23,10 +23,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  _UV_TREE_H_
-#define  _UV_TREE_H_
+#ifndef  UV_TREE_H_
+#define  UV_TREE_H_
 
-#define __unused
+#if __GNUC__
+# define __unused __attribute__((unused))
+#else
+# define __unused
+#endif
 
 /*
  * This file defines data structures for different types of trees:
@@ -759,4 +763,4 @@ name##_RB_MINMAX(struct name *head, int val)                                  \
       ((x) != NULL) && ((y) = name##_RB_PREV(x), (x) != NULL);                \
        (x) = (y))
 
-#endif  /* _UV_TREE_H_ */
+#endif  /* UV_TREE_H_ */

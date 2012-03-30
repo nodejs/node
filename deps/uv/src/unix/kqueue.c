@@ -124,7 +124,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 void uv__fs_event_destroy(uv_fs_event_t* handle) {
   uv__fs_event_stop(handle);
   free(handle->filename);
-  uv__close(handle->fd);
+  close(handle->fd);
   handle->fd = -1;
 }
 

@@ -301,6 +301,13 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   assert(handle->req_pending);
   handle->req_pending = 0;
 
+  /* If we're closing, don't report any callbacks, and just push the handle */
+  /* onto the endgame queue. */
+  if (handle->flags & UV_HANDLE_CLOSING) {
+    uv_want_endgame(loop, (uv_handle_t*) handle);
+    return;
+  };
+
   file_info = (FILE_NOTIFY_INFORMATION*)(handle->buffer + offset);
 
   if (REQ_SUCCESS(req)) {
@@ -438,11 +445,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
         }
 
         offset = file_info->NextEntryOffset;
-      } while(offset);
+      } while (offset && !(handle->flags & UV_HANDLE_CLOSING));
     } else {
-      if (!(handle->flags & UV_HANDLE_CLOSING)) {
-        handle->cb(handle, NULL, UV_CHANGE, 0);
-      }
+      handle->cb(handle, NULL, UV_CHANGE, 0);
     }
   } else {
     uv__set_sys_error(loop, GET_REQ_ERROR(req));

@@ -159,6 +159,7 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read,
       }
       uv_handle_ares->type = UV_ARES_TASK;
       uv_handle_ares->close_cb = NULL;
+      uv_handle_ares->loop = loop;
       uv_handle_ares->data = loop;
       uv_handle_ares->sock = sock;
       uv_handle_ares->h_wait = NULL;

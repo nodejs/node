@@ -59,7 +59,6 @@ static void uv_init(void) {
 
 
 static void uv_loop_init(uv_loop_t* loop) {
-  loop->uv_ares_handles_ = NULL;
   /* Create an I/O completion port */
   loop->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
   if (loop->iocp == NULL) {
@@ -75,6 +74,7 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->endgame_handles = NULL;
 
   RB_INIT(&loop->timers);
+  RB_INIT(&loop->uv_ares_handles_);
 
   loop->check_handles = NULL;
   loop->prepare_handles = NULL;

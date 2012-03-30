@@ -42,8 +42,9 @@ static const int64_t eof_timeout = 50; /* ms */
 static const int default_pending_pipe_instances = 4;
 
 /* IPC protocol flags. */
-#define UV_IPC_RAW_DATA   0x0001
-#define UV_IPC_UV_STREAM  0x0002
+#define UV_IPC_RAW_DATA       0x0001
+#define UV_IPC_TCP_SERVER     0x0002
+#define UV_IPC_TCP_CONNECTION 0x0004
 
 /* IPC frame header. */
 typedef struct {
@@ -79,7 +80,8 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   handle->name = NULL;
   handle->ipc_pid = 0;
   handle->remaining_ipc_rawdata_bytes = 0;
-  handle->pending_socket_info = NULL;
+  handle->pending_ipc_info.socket_info = NULL;
+  handle->pending_ipc_info.tcp_connection = 0;
   handle->ipc = ipc;
   handle->non_overlapped_writes_tail = NULL;
 
@@ -356,9 +358,9 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
     handle->flags |= UV_HANDLE_CLOSED;
 
     if (handle->flags & UV_HANDLE_CONNECTION) {
-      if (handle->pending_socket_info) {
-        free(handle->pending_socket_info);
-        handle->pending_socket_info = NULL;
+      if (handle->pending_ipc_info.socket_info) {
+        free(handle->pending_ipc_info.socket_info);
+        handle->pending_ipc_info.socket_info = NULL;
       }
 
       if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
@@ -711,13 +713,14 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
   uv_pipe_accept_t* req;
 
   if (server->ipc) {
-    if (!server->pending_socket_info) {
+    if (!server->pending_ipc_info.socket_info) {
       /* No valid pending sockets. */
       uv__set_sys_error(loop, WSAEWOULDBLOCK);
       return -1;
     }
 
-    return uv_tcp_import((uv_tcp_t*)client, server->pending_socket_info);
+    return uv_tcp_import((uv_tcp_t*)client, server->pending_ipc_info.socket_info, 
+                         server->pending_ipc_info.tcp_connection);
   } else {
     pipe_client = (uv_pipe_t*)client;
 
@@ -1051,9 +1054,10 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     return -1;
   }
 
-  /* Only TCP server handles are supported for sharing. */
-  if (send_handle && (send_handle->type != UV_TCP ||
-      send_handle->flags & UV_HANDLE_CONNECTION)) {
+  /* Only TCP handles are supported for sharing. */
+  if (send_handle && ((send_handle->type != UV_TCP) ||
+      (!(send_handle->flags & UV_HANDLE_BOUND) &&
+       !(send_handle->flags & UV_HANDLE_CONNECTION)))) {
     uv__set_artificial_error(loop, UV_ENOTSUP);
     return -1;
   }
@@ -1091,7 +1095,11 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
           &ipc_frame.socket_info)) {
         return -1;
       }
-      ipc_frame.header.flags |= UV_IPC_UV_STREAM;
+      ipc_frame.header.flags |= UV_IPC_TCP_SERVER;
+
+      if (tcp_send_handle->flags & UV_HANDLE_CONNECTION) {
+        ipc_frame.header.flags |= UV_IPC_TCP_CONNECTION;
+      }
     }
 
     if (bufcnt == 1) {
@@ -1132,7 +1140,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
 
     result = WriteFile(handle->handle,
                         &ipc_frame,
-                        ipc_frame.header.flags & UV_IPC_UV_STREAM ?
+                        ipc_frame.header.flags & UV_IPC_TCP_SERVER ?
                           sizeof(ipc_frame) : sizeof(ipc_frame.header),
                         NULL,
                         &ipc_header_req->overlapped);
@@ -1146,7 +1154,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
       ipc_header_req->queued_bytes = 0;
     } else {
       /* Request queued by the kernel. */
-      ipc_header_req->queued_bytes = ipc_frame.header.flags & UV_IPC_UV_STREAM ?
+      ipc_header_req->queued_bytes = ipc_frame.header.flags & UV_IPC_TCP_SERVER ?
         sizeof(ipc_frame) : sizeof(ipc_frame.header);
       handle->write_queue_size += req->queued_bytes;
     }
@@ -1330,9 +1338,10 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
           }
 
           assert(bytes == sizeof(ipc_frame.header));
-          assert(ipc_frame.header.flags <= (UV_IPC_UV_STREAM | UV_IPC_RAW_DATA));
+          assert(ipc_frame.header.flags <= (UV_IPC_TCP_SERVER | UV_IPC_RAW_DATA |
+            UV_IPC_TCP_CONNECTION));
 
-          if (ipc_frame.header.flags & UV_IPC_UV_STREAM) {
+          if (ipc_frame.header.flags & UV_IPC_TCP_SERVER) {
             assert(avail - sizeof(ipc_frame.header) >=
               sizeof(ipc_frame.socket_info));
 
@@ -1350,14 +1359,16 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
             assert(bytes == sizeof(ipc_frame) - sizeof(ipc_frame.header));
 
             /* Store the pending socket info. */
-            assert(!handle->pending_socket_info);
-            handle->pending_socket_info =
-              (WSAPROTOCOL_INFOW*)malloc(sizeof(*(handle->pending_socket_info)));
-            if (!handle->pending_socket_info) {
+            assert(!handle->pending_ipc_info.socket_info);
+            handle->pending_ipc_info.socket_info =
+              (WSAPROTOCOL_INFOW*)malloc(sizeof(*(handle->pending_ipc_info.socket_info)));
+            if (!handle->pending_ipc_info.socket_info) {
               uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
             }
 
-            *(handle->pending_socket_info) = ipc_frame.socket_info;
+            *(handle->pending_ipc_info.socket_info) = ipc_frame.socket_info;
+            handle->pending_ipc_info.tcp_connection =
+              ipc_frame.header.flags & UV_IPC_TCP_CONNECTION;
           }
 
           if (ipc_frame.header.flags & UV_IPC_RAW_DATA) {
@@ -1385,14 +1396,14 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
             handle->remaining_ipc_rawdata_bytes - bytes;
           if (handle->read2_cb) {
             handle->read2_cb(handle, bytes, buf,
-              handle->pending_socket_info ? UV_TCP : UV_UNKNOWN_HANDLE);
+              handle->pending_ipc_info.socket_info ? UV_TCP : UV_UNKNOWN_HANDLE);
           } else if (handle->read_cb) {
             handle->read_cb((uv_stream_t*)handle, bytes, buf);
           }
 
-          if (handle->pending_socket_info) {
-            free(handle->pending_socket_info);
-            handle->pending_socket_info = NULL;
+          if (handle->pending_ipc_info.socket_info) {
+            free(handle->pending_ipc_info.socket_info);
+            handle->pending_ipc_info.socket_info = NULL;
           }
         } else {
           handle->read_cb((uv_stream_t*)handle, bytes, buf);

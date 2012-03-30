@@ -48,6 +48,14 @@
 #undef NANOSEC
 #define NANOSEC 1000000000
 
+/* This is rather annoying: CLOCK_BOOTTIME lives in <linux/time.h> but we can't
+ * include that file because it conflicts with <time.h>. We'll just have to
+ * define it ourselves.
+ */
+#ifndef CLOCK_BOOTTIME
+# define CLOCK_BOOTTIME 7
+#endif
+
 static char buf[MAXPATHLEN + 1];
 
 static struct {
@@ -267,22 +275,28 @@ error:
 
 
 uv_err_t uv_uptime(double* uptime) {
-#ifdef CLOCK_MONOTONIC
+  static volatile int no_clock_boottime;
   struct timespec now;
-  if (0 == clock_gettime(CLOCK_MONOTONIC, &now)) {
-    *uptime = now.tv_sec;
-    *uptime += (double)now.tv_nsec / 1000000000.0;
-    return uv_ok_;
+  int r;
+
+  /* Try CLOCK_BOOTTIME first, fall back to CLOCK_MONOTONIC if not available
+   * (pre-2.6.39 kernels). CLOCK_MONOTONIC doesn't increase when the system
+   * is suspended.
+   */
+  if (no_clock_boottime) {
+    retry: r = clock_gettime(CLOCK_MONOTONIC, &now);
   }
-  return uv__new_sys_error(errno);
-#else
-  struct sysinfo info;
-  if (sysinfo(&info) < 0) {
+  else if ((r = clock_gettime(CLOCK_BOOTTIME, &now)) && errno == EINVAL) {
+    no_clock_boottime = 1;
+    goto retry;
+  }
+
+  if (r)
     return uv__new_sys_error(errno);
-  }
-  *uptime = (double)info.uptime;
+
+  *uptime = now.tv_sec;
+  *uptime += (double)now.tv_nsec / 1000000000.0;
   return uv_ok_;
-#endif
 }
 
 

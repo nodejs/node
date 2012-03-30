@@ -86,6 +86,7 @@ int run_test(const char* test, int timeout, int benchmark_output) {
   int i;
 
   status = 255;
+  main_proc = NULL;
   process_count = 0;
 
   /* If it's a helper the user asks for, start it directly. */
@@ -123,7 +124,7 @@ int run_test(const char* test, int timeout, int benchmark_output) {
   uv_sleep(250);
 
   /* Now start the test itself. */
-  for (main_proc = NULL, task = TASKS; task->main; task++) {
+  for (task = TASKS; task->main; task++) {
     if (strcmp(test, task->task_name) != 0) {
       continue;
     }

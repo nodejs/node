@@ -40,6 +40,7 @@ static uv_loop_t* loop;
 static char output[OUTPUT_SIZE];
 static int output_used;
 
+
 typedef struct {
   uv_write_t req;
   uv_buf_t buf;
@@ -155,3 +156,101 @@ TEST_IMPL(stdio_over_pipes) {
   return 0;
 }
 
+
+/* Everything here runs in a child process. */
+
+static int on_pipe_read_called;
+static int after_write_called;
+static uv_pipe_t stdin_pipe;
+static uv_pipe_t stdout_pipe;
+
+static void on_pipe_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
+  ASSERT(nread > 0);
+  ASSERT(memcmp("hello world\n", buf.base, nread) == 0);
+  on_pipe_read_called++;
+
+  free(buf.base);
+
+  uv_close((uv_handle_t*)&stdin_pipe, close_cb);
+  uv_close((uv_handle_t*)&stdout_pipe, close_cb);
+}
+
+
+static void after_pipe_write(uv_write_t* req, int status) {
+  ASSERT(status == 0);
+  after_write_called++;
+}
+
+
+static uv_buf_t on_read_alloc(uv_handle_t* handle,
+    size_t suggested_size) {
+  uv_buf_t buf;
+  buf.base = (char*)malloc(suggested_size);
+  buf.len = suggested_size;
+  return buf;
+}
+
+
+int stdio_over_pipes_helper() {
+  /* Write several buffers to test that the write order is preserved. */
+  char* buffers[] = {
+    "he",
+    "ll",
+    "o ",
+    "wo",
+    "rl",
+    "d",
+    "\n"
+  };
+
+  uv_write_t write_req[ARRAY_SIZE(buffers)];
+  uv_buf_t buf[ARRAY_SIZE(buffers)];
+  int r, i;
+  uv_loop_t* loop = uv_default_loop();
+
+  ASSERT(UV_NAMED_PIPE == uv_guess_handle(0));
+  ASSERT(UV_NAMED_PIPE == uv_guess_handle(1));
+
+  r = uv_pipe_init(loop, &stdin_pipe, 0);
+  ASSERT(r == 0);
+  r = uv_pipe_init(loop, &stdout_pipe, 0);
+  ASSERT(r == 0);
+
+  uv_pipe_open(&stdin_pipe, 0);
+  uv_pipe_open(&stdout_pipe, 1);
+
+  /* Unref both stdio handles to make sure that all writes complete. */
+  uv_unref(loop);
+  uv_unref(loop);
+
+  for (i = 0; i < ARRAY_SIZE(buffers); i++) {
+    buf[i] = uv_buf_init((char*)buffers[i], strlen(buffers[i]));
+  }
+
+  for (i = 0; i < ARRAY_SIZE(buffers); i++) {
+    r = uv_write(&write_req[i], (uv_stream_t*)&stdout_pipe, &buf[i], 1,
+      after_pipe_write);
+    ASSERT(r == 0);
+  }
+
+  uv_run(loop);
+
+  ASSERT(after_write_called == 7);
+  ASSERT(on_pipe_read_called == 0);
+  ASSERT(close_cb_called == 0);
+
+  uv_ref(loop);
+  uv_ref(loop);
+
+  r = uv_read_start((uv_stream_t*)&stdin_pipe, on_read_alloc,
+    on_pipe_read);
+  ASSERT(r == 0);
+
+  uv_run(loop);
+
+  ASSERT(after_write_called == 7);
+  ASSERT(on_pipe_read_called == 1);
+  ASSERT(close_cb_called == 2);
+
+  return 0;
+}

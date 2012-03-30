@@ -62,7 +62,7 @@ static void uv__ares_io(struct ev_loop* ev, struct ev_io* watcher,
 
 
 /* Allocates and returns a new uv_ares_task_t */
-static uv_ares_task_t* uv__ares_task_create(int fd) {
+static uv_ares_task_t* uv__ares_task_create(uv_loop_t* loop, int fd) {
   uv_ares_task_t* h = malloc(sizeof(uv_ares_task_t));
 
   if (h == NULL) {
@@ -70,6 +70,7 @@ static uv_ares_task_t* uv__ares_task_create(int fd) {
     return NULL;
   }
 
+  h->loop = loop;
   h->sock = fd;
 
   ev_io_init(&h->read_watcher, uv__ares_io, fd, EV_READ);
@@ -102,7 +103,7 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
         ev_timer_again(loop->ev, &loop->timer);
       }
 
-      h = uv__ares_task_create(sock);
+      h = uv__ares_task_create(loop, sock);
       uv_add_ares_handle(loop, h);
     }
 

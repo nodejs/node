@@ -88,7 +88,7 @@ static void uv__udp_stop_write_watcher(uv_udp_t* handle) {
 void uv__udp_start_close(uv_udp_t* handle) {
   uv__udp_stop_write_watcher(handle);
   uv__udp_stop_read_watcher(handle);
-  uv__close(handle->fd);
+  close(handle->fd);
   handle->fd = -1;
 }
 
@@ -383,7 +383,7 @@ static int uv__bind(uv_udp_t* handle,
 
 out:
   if (status)
-    uv__close(fd);
+    close(fd);
 
   errno = saved_errno;
   return status;

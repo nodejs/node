@@ -193,7 +193,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 void uv__fs_event_destroy(uv_fs_event_t* handle) {
   ev_ref(handle->loop->ev);
   ev_io_stop(handle->loop->ev, &handle->event_watcher);
-  uv__close(handle->fd);
+  close(handle->fd);
   handle->fd = -1;
   free(handle->filename);
   handle->filename = NULL;

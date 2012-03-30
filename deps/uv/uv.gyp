@@ -211,7 +211,6 @@
           'sources': [ 'src/unix/darwin.c' ],
           'direct_dependent_settings': {
             'libraries': [
-              '$(SDKROOT)/System/Library/Frameworks/Carbon.framework',
               '$(SDKROOT)/System/Library/Frameworks/CoreServices.framework',
             ],
           },

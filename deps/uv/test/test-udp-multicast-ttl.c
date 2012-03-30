@@ -32,10 +32,7 @@
 static uv_udp_t server;
 static uv_udp_t client;
 
-static int cl_recv_cb_called;
-
 static int sv_send_cb_called;
-
 static int close_cb_called;
 
 

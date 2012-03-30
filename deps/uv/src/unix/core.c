@@ -82,11 +82,11 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
       uv_read_stop(stream);
       ev_io_stop(stream->loop->ev, &stream->write_watcher);
 
-      uv__close(stream->fd);
+      close(stream->fd);
       stream->fd = -1;
 
       if (stream->accepted_fd >= 0) {
-        uv__close(stream->accepted_fd);
+        close(stream->accepted_fd);
         stream->accepted_fd = -1;
       }
 
@@ -145,6 +145,7 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 static int uv__loop_init(uv_loop_t* loop,
                          struct ev_loop *(ev_loop_new)(unsigned int flags)) {
   memset(loop, 0, sizeof(*loop));
+  RB_INIT(&loop->uv_ares_handles_);
 #if HAVE_KQUEUE
   loop->ev = ev_loop_new(EVBACKEND_KQUEUE);
 #else
@@ -751,7 +752,7 @@ int uv__socket(int domain, int type, int protocol) {
     goto out;
 
   if (uv__nonblock(sockfd, 1) || uv__cloexec(sockfd, 1)) {
-    uv__close(sockfd);
+    close(sockfd);
     sockfd = -1;
   }
 
@@ -787,7 +788,7 @@ int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
     }
 
     if (uv__cloexec(peerfd, 1) || uv__nonblock(peerfd, 1)) {
-      uv__close(peerfd);
+      close(peerfd);
       peerfd = -1;
     }
 
@@ -861,7 +862,7 @@ int uv__dup(int fd) {
     return -1;
 
   if (uv__cloexec(fd, 1)) {
-    SAVE_ERRNO(uv__close(fd));
+    SAVE_ERRNO(close(fd));
     return -1;
   }
 

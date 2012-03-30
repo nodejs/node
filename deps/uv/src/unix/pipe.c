@@ -109,7 +109,7 @@ out:
       assert(pipe_fname != NULL);
       unlink(pipe_fname);
     }
-    uv__close(sockfd);
+    close(sockfd);
 
     free((void*)pipe_fname);
   }
@@ -210,7 +210,7 @@ void uv_pipe_connect(uv_connect_t* req,
 
   if (r == -1) {
     status = errno;
-    uv__close(sockfd);
+    close(sockfd);
     goto out;
   }
 

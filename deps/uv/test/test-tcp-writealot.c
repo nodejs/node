@@ -41,7 +41,6 @@ static int write_cb_called = 0;
 static int close_cb_called = 0;
 static int bytes_sent = 0;
 static int bytes_sent_done = 0;
-static int bytes_received = 0;
 static int bytes_received_done = 0;
 
 

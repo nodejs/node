@@ -121,7 +121,8 @@ typedef intptr_t ssize_t;
   XX( 50, EPERM, "operation not permitted") \
   XX( 51, ELOOP, "too many symbolic links encountered") \
   XX( 52, EXDEV, "cross-device link not permitted") \
-  XX( 53, ENOTEMPTY, "directory not empty")
+  XX( 53, ENOTEMPTY, "directory not empty") \
+  XX( 54, ENOSPC, "no space left on device")
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,
@@ -494,6 +495,13 @@ UV_EXTERN int uv_read2_start(uv_stream_t*, uv_alloc_cb alloc_cb,
 UV_EXTERN int uv_write(uv_write_t* req, uv_stream_t* handle,
     uv_buf_t bufs[], int bufcnt, uv_write_cb cb);
 
+/*
+ * Extended write function for sending handles over a pipe. The pipe must be
+ * initialized with ipc == 1.
+ * send_handle must be a TCP socket or pipe, which is a server or a connection
+ * (listening or connected state).  Bound sockets or pipes will be assumed to
+ * be servers.
+ */
 UV_EXTERN int uv_write2(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[],
     int bufcnt, uv_stream_t* send_handle, uv_write_cb cb);
 
@@ -509,10 +517,9 @@ struct uv_write_s {
 
 /*
  * Used to determine whether a stream is readable or writable.
- * TODO: export in v0.8.
  */
-/* UV_EXTERN */ int uv_is_readable(uv_stream_t* handle);
-/* UV_EXTERN */ int uv_is_writable(uv_stream_t* handle);
+UV_EXTERN int uv_is_readable(uv_stream_t* handle);
+UV_EXTERN int uv_is_writable(uv_stream_t* handle);
 
 
 /*
@@ -1482,12 +1489,8 @@ struct uv_counters_s {
 
 struct uv_loop_s {
   UV_LOOP_PRIVATE_FIELDS
-  /* list used for ares task handles */
-  uv_ares_task_t* uv_ares_handles_;
-  /* Various thing for libeio. */
-  uv_async_t uv_eio_want_poll_notifier;
-  uv_async_t uv_eio_done_poll_notifier;
-  uv_idle_t uv_eio_poller;
+  /* RB_HEAD(uv__ares_tasks, uv_ares_task_t) */
+  struct uv__ares_tasks { uv_ares_task_t* rbh_root; } uv_ares_handles_;
   /* Diagnostic counters */
   uv_counters_t counters;
   /* The last error */

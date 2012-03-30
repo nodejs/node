@@ -185,6 +185,9 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
       } else if (errno == EMFILE) {
         /* TODO special trick. unlock reserved socket, accept, close. */
         return;
+      } else if (errno == ECONNABORTED) {
+        /* ignore */
+        continue;
       } else {
         uv__set_sys_error(stream->loop, errno);
         stream->connection_cb((uv_stream_t*)stream, -1);
@@ -225,7 +228,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   if (uv__stream_open(streamClient, streamServer->accepted_fd,
         UV_READABLE | UV_WRITABLE)) {
     /* TODO handle error */
-    uv__close(streamServer->accepted_fd);
+    close(streamServer->accepted_fd);
     streamServer->accepted_fd = -1;
     goto out;
   }
@@ -793,7 +796,7 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
     }
 
     if (uv__stream_open(stream, sockfd, UV_READABLE | UV_WRITABLE)) {
-      uv__close(sockfd);
+      close(sockfd);
       return -2;
     }
   }

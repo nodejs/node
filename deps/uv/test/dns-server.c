@@ -50,14 +50,12 @@ typedef struct {
 static uv_loop_t* loop;
 
 
-static int server_closed;
 static uv_tcp_t server;
 
 
 static void after_write(uv_write_t* req, int status);
 static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer);
-static void on_server_close(uv_handle_t* handle);
 static void on_connection(uv_stream_t*, int status);
 
 #define WRITE_BUF_LEN   (64*1024)
@@ -280,11 +278,6 @@ static void on_connection(uv_stream_t* server, int status) {
 
   r = uv_read_start((uv_stream_t*)handle, buf_alloc, after_read);
   ASSERT(r == 0);
-}
-
-
-static void on_server_close(uv_handle_t* handle) {
-  ASSERT(handle == (uv_handle_t*)&server);
 }
 
 

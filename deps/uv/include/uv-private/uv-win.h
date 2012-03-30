@@ -318,7 +318,10 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   uv_write_t ipc_header_write_req;        \
   int ipc_pid;                            \
   uint64_t remaining_ipc_rawdata_bytes;   \
-  WSAPROTOCOL_INFOW* pending_socket_info; \
+  struct {                                \
+    WSAPROTOCOL_INFOW* socket_info;       \
+    int tcp_connection;                   \
+  } pending_ipc_info;                     \
   uv_write_t* non_overlapped_writes_tail;
 
 #define UV_PIPE_PRIVATE_FIELDS            \

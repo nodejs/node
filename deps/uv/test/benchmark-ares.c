@@ -28,15 +28,13 @@
 
 static uv_loop_t* loop;
 
-ares_channel channel;
-struct ares_options options;
-int optmask;
+static ares_channel channel;
+static struct ares_options options;
+static int optmask;
 
-struct in_addr testsrv;
-
-int ares_callbacks;
-int ares_errors;
-int argument;
+static int ares_callbacks;
+static int ares_errors;
+static int argument;
 
 #define NUM_CALLS_TO_START    1000
 

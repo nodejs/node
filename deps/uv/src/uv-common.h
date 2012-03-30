@@ -28,6 +28,7 @@
 #define UV_COMMON_H_
 
 #include "uv.h"
+#include "tree.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -35,8 +36,7 @@
 struct uv_ares_task_s {
   UV_HANDLE_FIELDS
   UV_ARES_TASK_PRIVATE_FIELDS
-  uv_ares_task_t* ares_prev;
-  uv_ares_task_t* ares_next;
+  RB_ENTRY(uv_ares_task_s) node;
 };
 
 

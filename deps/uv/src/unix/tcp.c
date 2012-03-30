@@ -51,7 +51,7 @@ static int uv__bind(uv_tcp_t* tcp,
     }
 
     if (uv__stream_open((uv_stream_t*)tcp, tcp->fd, UV_READABLE | UV_WRITABLE)) {
-      uv__close(tcp->fd);
+      close(tcp->fd);
       tcp->fd = -1;
       status = -2;
       goto out;
@@ -182,7 +182,7 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
     }
 
     if (uv__stream_open((uv_stream_t*)tcp, tcp->fd, UV_READABLE)) {
-      uv__close(tcp->fd);
+      close(tcp->fd);
       tcp->fd = -1;
       return -1;
     }
