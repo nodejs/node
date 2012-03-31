@@ -1880,12 +1880,9 @@ static Handle<Boolean> EnvDeleter(Local<String> property,
   HandleScope scope;
 #ifdef __POSIX__
   String::Utf8Value key(property);
-  // prototyped as `void unsetenv(const char*)` on some platforms
-  if (unsetenv(*key) < 0) {
-    // Deletion failed. Return true if the key wasn't there in the first place,
-    // false if it is still there.
-    return scope.Close(Boolean::New(getenv(*key) == NULL));
-  };
+  if (!getenv(*key)) return False();
+  unsetenv(*key); // can't check return value, it's void on some platforms
+  return True();
 #else
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
@@ -1896,9 +1893,8 @@ static Handle<Boolean> EnvDeleter(Local<String> property,
               GetLastError() != ERROR_SUCCESS;
     return scope.Close(Boolean::New(rv));
   }
+  return True();
 #endif
-  // It worked
-  return v8::True();
 }
 
 
