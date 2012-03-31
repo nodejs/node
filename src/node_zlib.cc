@@ -142,7 +142,7 @@ class ZCtx : public ObjectWrap {
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
     // that all of the input was consumed.
-    int err;
+    int err = Z_STREAM_ERROR;
     switch (ctx->mode_) {
       case DEFLATE:
       case GZIP:
