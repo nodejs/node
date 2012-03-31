@@ -26,6 +26,10 @@
 
 namespace node {
 
+#ifdef _WIN32
+# define snprintf _snprintf
+#endif
+
 #ifndef offset_of
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
