@@ -36,6 +36,7 @@ using namespace v8;
 
 
 static Persistent<String> callback_sym;
+static Persistent<String> onerror_sym;
 
 enum node_zlib_mode {
   DEFLATE = 1,
@@ -142,37 +143,41 @@ class ZCtx : public ObjectWrap {
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
     // that all of the input was consumed.
-    int err = Z_STREAM_ERROR;
     switch (ctx->mode_) {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        err = deflate(&ctx->strm_, ctx->flush_);
+        ctx->err_ = deflate(&ctx->strm_, ctx->flush_);
         break;
       case UNZIP:
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
-        err = inflate(&ctx->strm_, ctx->flush_);
+        ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
 
         // If data was encoded with dictionary
-        if (err == Z_NEED_DICT) {
+        if (ctx->err_ == Z_NEED_DICT) {
           assert(ctx->dictionary_ != NULL && "Stream has no dictionary");
+          if (ctx->dictionary_ != NULL) {
 
-          // Load it
-          err = inflateSetDictionary(&ctx->strm_,
-                                     ctx->dictionary_,
-                                     ctx->dictionary_len_);
-          assert(err == Z_OK && "Failed to set dictionary");
+            // Load it
+            ctx->err_ = inflateSetDictionary(&ctx->strm_,
+                                             ctx->dictionary_,
+                                             ctx->dictionary_len_);
+            assert(ctx->err_ == Z_OK && "Failed to set dictionary");
+            if (ctx->err_ == Z_OK) {
 
-          // And try to decode again
-          err = inflate(&ctx->strm_, ctx->flush_);
+              // And try to decode again
+              ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
+            }
+          }
         }
         break;
       default:
         assert(0 && "wtf?");
     }
-    assert(err != Z_STREAM_ERROR);
+
+    // pass any errors back to the main thread to deal with.
 
     // now After will emit the output, and
     // either schedule another call to Process,
@@ -183,6 +188,19 @@ class ZCtx : public ObjectWrap {
   static void After(uv_work_t* work_req) {
     HandleScope scope;
     ZCtx *ctx = container_of(work_req, ZCtx, work_req_);
+
+    // Acceptable error states depend on the type of zlib stream.
+    switch (ctx->err_) {
+      case Z_OK:
+      case Z_STREAM_END:
+      case Z_BUF_ERROR:
+        // normal statuses, not fatal
+        break;
+      default:
+        // something else.
+        ZCtx::Error(ctx, "Zlib error");
+        return;
+    }
 
     Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in);
@@ -195,6 +213,25 @@ class ZCtx : public ObjectWrap {
     Local<Value> args[2] = { avail_in, avail_out };
     MakeCallback(ctx->handle_, "callback", 2, args);
 
+    ctx->Unref();
+  }
+
+  static void Error(ZCtx *ctx, const char *msg_) {
+    const char *msg;
+    if (ctx->strm_.msg != NULL) {
+      msg = ctx->strm_.msg;
+    } else {
+      msg = msg_;
+    }
+
+    assert(ctx->handle_->Get(onerror_sym)->IsFunction() &&
+           "Invalid error handler");
+    HandleScope scope;
+    Local<Value> args[2] = { String::New(msg),
+                             Local<Value>::New(Number::New(ctx->err_)) };
+    MakeCallback(ctx->handle_, "onerror", ARRAY_SIZE(args), args);
+
+    // no hope of rescue.
     ctx->Unref();
   }
 
@@ -279,6 +316,8 @@ class ZCtx : public ObjectWrap {
 
     ctx->flush_ = Z_NO_FLUSH;
 
+    ctx->err_ = Z_OK;
+
     if (ctx->mode_ == GZIP || ctx->mode_ == GUNZIP) {
       ctx->windowBits_ += 16;
     }
@@ -291,29 +330,31 @@ class ZCtx : public ObjectWrap {
       ctx->windowBits_ *= -1;
     }
 
-    int err;
     switch (ctx->mode_) {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        err = deflateInit2(&ctx->strm_,
-                           ctx->level_,
-                           Z_DEFLATED,
-                           ctx->windowBits_,
-                           ctx->memLevel_,
-                           ctx->strategy_);
+        ctx->err_ = deflateInit2(&ctx->strm_,
+                                 ctx->level_,
+                                 Z_DEFLATED,
+                                 ctx->windowBits_,
+                                 ctx->memLevel_,
+                                 ctx->strategy_);
         break;
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
       case UNZIP:
-        err = inflateInit2(&ctx->strm_, ctx->windowBits_);
+        ctx->err_ = inflateInit2(&ctx->strm_, ctx->windowBits_);
         break;
       default:
         assert(0 && "wtf?");
     }
 
-    assert(err == Z_OK);
+    if (ctx->err_ != Z_OK) {
+      ZCtx::Error(ctx, "Init error");
+    }
+
 
     ctx->dictionary_ = reinterpret_cast<Bytef *>(dictionary);
     ctx->dictionary_len_ = dictionary_len;
@@ -325,39 +366,43 @@ class ZCtx : public ObjectWrap {
   static void SetDictionary(ZCtx* ctx) {
     if (ctx->dictionary_ == NULL) return;
 
-    int err = Z_OK;
+    ctx->err_ = Z_OK;
 
     switch (ctx->mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        err = deflateSetDictionary(&ctx->strm_,
-                                   ctx->dictionary_,
-                                   ctx->dictionary_len_);
+        ctx->err_ = deflateSetDictionary(&ctx->strm_,
+                                         ctx->dictionary_,
+                                         ctx->dictionary_len_);
         break;
       default:
         break;
     }
 
-    assert(err == Z_OK && "Failed to set dictionary");
+    if (ctx->err_ != Z_OK) {
+      ZCtx::Error(ctx, "Failed to set dictionary");
+    }
   }
 
   static void Reset(ZCtx* ctx) {
-    int err = Z_OK;
+    ctx->err_ = Z_OK;
 
     switch (ctx->mode_) {
       case DEFLATE:
       case DEFLATERAW:
-        err = deflateReset(&ctx->strm_);
+        ctx->err_ = deflateReset(&ctx->strm_);
         break;
       case INFLATE:
       case INFLATERAW:
-        err = inflateReset(&ctx->strm_);
+        ctx->err_ = inflateReset(&ctx->strm_);
         break;
       default:
         break;
     }
 
-    assert(err == Z_OK && "Failed to reset stream");
+    if (ctx->err_ != Z_OK) {
+      ZCtx::Error(ctx, "Failed to reset stream");
+    }
   }
 
  private:
@@ -369,6 +414,8 @@ class ZCtx : public ObjectWrap {
   int windowBits_;
   int memLevel_;
   int strategy_;
+
+  int err_;
 
   Bytef* dictionary_;
   size_t dictionary_len_;
@@ -399,6 +446,7 @@ void InitZlib(Handle<Object> target) {
   target->Set(String::NewSymbol("Zlib"), z->GetFunction());
 
   callback_sym = NODE_PSYMBOL("callback");
+  onerror_sym = NODE_PSYMBOL("onerror");
 
   NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
   NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
@@ -406,6 +454,8 @@ void InitZlib(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, Z_FULL_FLUSH);
   NODE_DEFINE_CONSTANT(target, Z_FINISH);
   NODE_DEFINE_CONSTANT(target, Z_BLOCK);
+
+  // return/error codes
   NODE_DEFINE_CONSTANT(target, Z_OK);
   NODE_DEFINE_CONSTANT(target, Z_STREAM_END);
   NODE_DEFINE_CONSTANT(target, Z_NEED_DICT);
@@ -415,6 +465,7 @@ void InitZlib(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, Z_MEM_ERROR);
   NODE_DEFINE_CONSTANT(target, Z_BUF_ERROR);
   NODE_DEFINE_CONSTANT(target, Z_VERSION_ERROR);
+
   NODE_DEFINE_CONSTANT(target, Z_NO_COMPRESSION);
   NODE_DEFINE_CONSTANT(target, Z_BEST_SPEED);
   NODE_DEFINE_CONSTANT(target, Z_BEST_COMPRESSION);
