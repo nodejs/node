@@ -24,68 +24,536 @@ IN THE SOFTWARE.
 ====
 
 This license applies to all parts of Node that are not externally
-maintained libraries.
+maintained libraries. The externally maintained libraries used by Node are:
 
-The externally maintained libraries used by Node are:
+- V8, located at deps/v8. V8's license follows:
+  """
+    This license applies to all parts of V8 that are not externally
+    maintained libraries.  The externally maintained libraries used by V8
+    are:
 
-  - v8, located at deps/v8. v8 is copyright Google, Inc, and released
-    under a BSD license.
+      - PCRE test suite, located in
+        test/mjsunit/third_party/regexp-pcre.js.  This is based on the
+        test suite from PCRE-7.3, which is copyrighted by the University
+        of Cambridge and Google, Inc.  The copyright notice and license
+        are embedded in regexp-pcre.js.
 
-  - libev, located at deps/uv/src/unix/ev, and libeio, located at
-    deps/uv/src/unix/eio. libev and libeio are copyright Marc Alexander
-    Lehmann, and dual-licensed under the MIT license and GPL2.
+      - Layout tests, located in test/mjsunit/third_party.  These are
+        based on layout tests from webkit.org which are copyrighted by
+        Apple Computer, Inc. and released under a 3-clause BSD license.
 
-  - WAF build system, located at tools/waf. WAF is copyright Thomas Nagy,
-    and released under the MIT license.
+      - Strongtalk assembler, the basis of the files assembler-arm-inl.h,
+        assembler-arm.cc, assembler-arm.h, assembler-ia32-inl.h,
+        assembler-ia32.cc, assembler-ia32.h, assembler-x64-inl.h,
+        assembler-x64.cc, assembler-x64.h, assembler-mips-inl.h,
+        assembler-mips.cc, assembler-mips.h, assembler.cc and assembler.h.
+        This code is copyrighted by Sun Microsystems Inc. and released
+        under a 3-clause BSD license.
 
-  - The SCONS build system, located at tools/scons. SCONS is copyright
-    the SCONS Foundation and released under the MIT license.
+      - Valgrind client API header, located at third_party/valgrind/valgrind.h
+        This is release under the BSD license.
 
-  - C-Ares, an asynchronous DNS client, located at deps/c-ares. C-Ares is
-    copyright the Massachusetts Institute of Technology, authored by
-    Greg Hudson, Daniel Stenberg and others, and released under the MIT
-    license.
+    These libraries have their own licenses; we recommend you read them,
+    as their terms may differ from the terms below.
 
-  - Node, optionally, links to OpenSSL, it is located at deps/openssl.
-    OpenSSL is cryptographic software written by Eric Young
-    (eay@cryptsoft.com) to provide SSL/TLS encryption. OpenSSL is copyright
-    The OpenSSL Project and released under the OpenSSL license.
+    Copyright 2006-2012, the V8 project authors. All rights reserved.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
 
-  - tools/doctool/markdown.js is copyright 2009-2010 Dominic Baggott and Ash
-    Berli and released under the MIT license.
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+        * Neither the name of Google Inc. nor the names of its
+          contributors may be used to endorse or promote products derived
+          from this software without specific prior written permission.
 
-  - HTTP Parser, located at deps/http_parser, is a small C library
-    copyright Ryan Lienhart Dahl and released under the MIT license.
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
 
-  - src/platform_darwin_proctitle.cc, has code taken from the Chromium
-    project copyright Google Inc. and released under a BSD license.
+- libev, located at deps/uv/src/unix/ev. libev's license follows:
+  """
+    All files in libev are Copyright (C)2007,2008,2009 Marc Alexander Lehmann.
 
-  - tools/closure_linter is copyright The Closure Linter Authors and
-    Google Inc. and released under the Apache License, version 2.0.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
 
-  - tools/cpplint.py is copyright Google Inc. and released under a
-    BSD license.
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
 
-  - lib/buffer_ieee754.js is copyright 2008 Fair Oaks Labs, Inc. and released
-    under the New BSD license.
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
 
-  - lib/punycode.js is copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
-    and released under the MIT license.
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-  - tools/gyp GYP is a meta-build system copyright 2009 Google Inc and
-    licensed under the three clause BSD license. See tools/gyp/LICENSE.
+    Alternatively, the contents of this package may be used under the terms
+    of the GNU General Public License ("GPL") version 2 or any later version,
+    in which case the provisions of the GPL are applicable instead of the
+    above. If you wish to allow the use of your version of this package only
+    under the terms of the GPL and not to allow others to use your version of
+    this file under the BSD license, indicate your decision by deleting the
+    provisions above and replace them with the notice and other provisions
+    required by the GPL in this and the other files of this package. If you do
+    not delete the provisions above, a recipient may use your version of this
+    file under either the BSD or the GPL.
+  """
 
-  - deps/zlib copyright 1995-2010 Jean-loup Gailly and Mark Adler
-    licensed under a permissive free software license. See
-    deps/zlib/LICENSE.
+- libeio, located at deps/uv/src/unix/eio. libeio's license follows:
+  """
+    All files in libeio are Copyright (C)2007,2008 Marc Alexander Lehmann.
 
-  - deps/npm npm is a package manager program copyright 2009 - 2012
-    Isaac Z. Schlueter and licensed under MIT. npm includes several
-    subpackages MIT or Apache licenses, see deps/npm/LICENSE for more
-    information. npm is included in the Node .msi and .pkg distributions
-    but not in the Node binary itself.
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
 
-  - tools/doc/node_modules/marked Marked is a Markdown parser Copyright
-    (c) 2011-2012, Christopher Jeffrey (https://github.com/chjj/).  Marked
-    is used in the generation of node documentation, but not distributed in
-    any node binaries.
+        * Redistributions of source code must retain the above copyright
+          notice, this list of conditions and the following disclaimer.
+
+        * Redistributions in binary form must reproduce the above
+          copyright notice, this list of conditions and the following
+          disclaimer in the documentation and/or other materials provided
+          with the distribution.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    Alternatively, the contents of this package may be used under the terms
+    of the GNU General Public License ("GPL") version 2 or any later version,
+    in which case the provisions of the GPL are applicable instead of the
+    above. If you wish to allow the use of your version of this package only
+    under the terms of the GPL and not to allow others to use your version of
+    this file under the BSD license, indicate your decision by deleting the
+    provisions above and replace them with the notice and other provisions
+    required by the GPL in this and the other files of this package. If you do
+    not delete the provisions above, a recipient may use your version of this
+    file under either the BSD or the GPL.
+  """
+
+- WAF build system, located at tools/waf*. WAF's license follows:
+  """
+    Copyright Thomas Nagy, 2005-2011
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met:
+
+    1. Redistributions of source code must retain the above copyright
+       notice, this list of conditions and the following disclaimer.
+
+    2. Redistributions in binary form must reproduce the above copyright
+       notice, this list of conditions and the following disclaimer in the
+       documentation and/or other materials provided with the distribution.
+
+    3. The name of the author may not be used to endorse or promote products
+       derived from this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR
+    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- C-Ares, an asynchronous DNS client, located at deps/uv/src/ares. C-Ares license
+  follows
+  """
+    /* Copyright 1998 by the Massachusetts Institute of Technology.
+     *
+     * Permission to use, copy, modify, and distribute this
+     * software and its documentation for any purpose and without
+     * fee is hereby granted, provided that the above copyright
+     * notice appear in all copies and that both that copyright
+     * notice and this permission notice appear in supporting
+     * documentation, and that the name of M.I.T. not be used in
+     * advertising or publicity pertaining to distribution of the
+     * software without specific, written prior permission.
+     * M.I.T. makes no representations about the suitability of
+     * this software for any purpose.  It is provided "as is"
+     * without express or implied warranty.
+  """
+
+- OpenSSL located at deps/openssl. OpenSSL is cryptographic software written
+  by Eric Young (eay@cryptsoft.com) to provide SSL/TLS encryption. OpenSSL's
+  license follows
+  """
+    /* ====================================================================
+     * Copyright (c) 1998-2011 The OpenSSL Project.  All rights reserved.
+     *
+     * Redistribution and use in source and binary forms, with or without
+     * modification, are permitted provided that the following conditions
+     * are met:
+     *
+     * 1. Redistributions of source code must retain the above copyright
+     *    notice, this list of conditions and the following disclaimer. 
+     *
+     * 2. Redistributions in binary form must reproduce the above copyright
+     *    notice, this list of conditions and the following disclaimer in
+     *    the documentation and/or other materials provided with the
+     *    distribution.
+     *
+     * 3. All advertising materials mentioning features or use of this
+     *    software must display the following acknowledgment:
+     *    "This product includes software developed by the OpenSSL Project
+     *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+     *
+     * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+     *    endorse or promote products derived from this software without
+     *    prior written permission. For written permission, please contact
+     *    openssl-core@openssl.org.
+     *
+     * 5. Products derived from this software may not be called "OpenSSL"
+     *    nor may "OpenSSL" appear in their names without prior written
+     *    permission of the OpenSSL Project.
+     *
+     * 6. Redistributions of any form whatsoever must retain the following
+     *    acknowledgment:
+     *    "This product includes software developed by the OpenSSL Project
+     *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+     *
+     * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+     * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+     * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+     * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+     * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+     * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+     * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+     * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+     * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+     * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+     * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+     * OF THE POSSIBILITY OF SUCH DAMAGE.
+     * ====================================================================
+     *
+     * This product includes cryptographic software written by Eric Young
+     * (eay@cryptsoft.com).  This product includes software written by Tim
+     * Hudson (tjh@cryptsoft.com).
+     *
+     */
+  """
+
+- HTTP Parser, located at deps/http_parser. HTTP Parser's license follows:
+  """
+    http_parser.c is based on src/http/ngx_http_parse.c from NGINX copyright
+    Igor Sysoev.
+
+    Additional changes are licensed under the same terms as NGINX and
+    copyright Joyent, Inc. and other Node contributors. All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to
+    deal in the Software without restriction, including without limitation the
+    rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+    sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+    IN THE SOFTWARE. 
+  """
+
+- Closure Linter is located at tools/closure_linter. Closure's license
+  follows
+  """
+    # Copyright (c) 2007, Google Inc.
+    # All rights reserved.
+    #
+    # Redistribution and use in source and binary forms, with or without
+    # modification, are permitted provided that the following conditions are
+    # met:
+    #
+    #     * Redistributions of source code must retain the above copyright
+    # notice, this list of conditions and the following disclaimer.
+    #     * Redistributions in binary form must reproduce the above
+    # copyright notice, this list of conditions and the following disclaimer
+    # in the documentation and/or other materials provided with the
+    # distribution.
+    #     * Neither the name of Google Inc. nor the names of its
+    # contributors may be used to endorse or promote products derived from
+    # this software without specific prior written permission.
+    #
+    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- tools/cpplint.py is a C++ linter. Its license follows:
+  """
+    # Copyright (c) 2009 Google Inc. All rights reserved.
+    #
+    # Redistribution and use in source and binary forms, with or without
+    # modification, are permitted provided that the following conditions are
+    # met:
+    #
+    #    * Redistributions of source code must retain the above copyright
+    # notice, this list of conditions and the following disclaimer.
+    #    * Redistributions in binary form must reproduce the above
+    # copyright notice, this list of conditions and the following disclaimer
+    # in the documentation and/or other materials provided with the
+    # distribution.
+    #    * Neither the name of Google Inc. nor the names of its
+    # contributors may be used to endorse or promote products derived from
+    # this software without specific prior written permission.
+    #
+    # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    # A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    # OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    # SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    # LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    # Here are some issues that I've had people identify in my code during reviews,
+    # that I think are possible to flag automatically in a lint tool.  If these were
+    # caught by lint, it would save time both for myself and that of my reviewers.
+    # Most likely, some of these are beyond the scope of the current lint framework,
+    # but I think it is valuable to retain these wish-list items even if they cannot
+    # be immediately implemented.
+  """
+
+- lib/buffer_ieee754.js. Its license follows:
+  """
+    // Copyright (c) 2008, Fair Oaks Labs, Inc.
+    // All rights reserved.
+    //
+    // Redistribution and use in source and binary forms, with or without
+    // modification, are permitted provided that the following conditions are met:
+    //
+    //  * Redistributions of source code must retain the above copyright notice,
+    //    this list of conditions and the following disclaimer.
+    //
+    //  * Redistributions in binary form must reproduce the above copyright notice,
+    //    this list of conditions and the following disclaimer in the documentation
+    //    and/or other materials provided with the distribution.
+    //
+    //  * Neither the name of Fair Oaks Labs, Inc. nor the names of its contributors
+    //    may be used to endorse or promote products derived from this software
+    //    without specific prior written permission.
+    //
+    // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+    // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+    // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+    // ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+    // LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+    // CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+    // SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+    // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+    // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+    // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    // POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- lib/punycode.js is copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
+  and released under the MIT license.
+  """
+    * Punycode.js <http://mths.be/punycode>
+    * Copyright 2011 Mathias Bynens <http://mathiasbynens.be/>
+    * Available under MIT license <http://mths.be/mit>
+  """
+
+- tools/gyp GYP is a meta-build system. GYP's license follows:
+  """
+    Copyright (c) 2009 Google Inc. All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+       * Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+       * Redistributions in binary form must reproduce the above
+    copyright notice, this list of conditions and the following disclaimer
+    in the documentation and/or other materials provided with the
+    distribution.
+       * Neither the name of Google Inc. nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+    A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+    OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+    SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+    LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+    DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+    THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+    OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  """
+
+- Zlib at deps/zlib. zlib's license follows
+  """
+    /* zlib.h -- interface of the 'zlib' general purpose compression library
+      version 1.2.4, March 14th, 2010
+
+      Copyright (C) 1995-2010 Jean-loup Gailly and Mark Adler
+
+      This software is provided 'as-is', without any express or implied
+      warranty.  In no event will the authors be held liable for any damages
+      arising from the use of this software.
+
+      Permission is granted to anyone to use this software for any purpose,
+      including commercial applications, and to alter it and redistribute it
+      freely, subject to the following restrictions:
+
+      1. The origin of this software must not be misrepresented; you must not
+         claim that you wrote the original software. If you use this software
+         in a product, an acknowledgment in the product documentation would be
+         appreciated but is not required.
+      2. Altered source versions must be plainly marked as such, and must not be
+         misrepresented as being the original software.
+      3. This notice may not be removed or altered from any source distribution.
+
+      Jean-loup Gailly
+      Mark Adler
+
+    */
+  """
+
+- npm is a package manager program located at deps/npm. 
+  npm's license follows: 
+  """
+    Copyright 2009-2012, Isaac Z. Schlueter (the "Original Author")
+    All rights reserved.
+
+    MIT +no-false-attribs License
+
+    Permission is hereby granted, free of charge, to any person
+    obtaining a copy of this software and associated documentation
+    files (the "Software"), to deal in the Software without
+    restriction, including without limitation the rights to use,
+    copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following
+    conditions:
+
+    The above copyright notice and this permission notice shall be
+    included in all copies or substantial portions of the Software.
+
+    Distributions of all or part of the Software intended to be used
+    by the recipients as they would use the unmodified Software,
+    containing modifications that substantially alter, remove, or
+    disable functionality of the Software, outside of the documented
+    configuration mechanisms provided by the Software, shall be
+    modified such that the Original Author's bug reporting email
+    addresses and urls are either replaced with the contact information
+    of the parties responsible for the changes, or removed entirely.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+    OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+    HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
+
+
+    Except where noted, this license applies to any and all software
+    programs and associated documentation files created by the
+    Original Author, when distributed with the Software.
+
+    "Node.js" and "node" trademark Joyent, Inc. npm is not officially
+    part of the Node.js project, and is neither owned by nor
+    officially affiliated with Joyent, Inc.
+
+    Packages published in the npm registry are not part of npm
+    itself, are the sole property of their respective maintainers,
+    and are not covered by this license.
+
+    "npm Logo" created by Mathias Pettersson and Brian Hammond,
+    used with permission.
+
+    This program uses "node-uuid", Copyright (c) 2010 Robert Kieffer,
+    according to the terms of the MIT license.
+
+    This program uses "request", Copyright (c) 2011 Mikeal Rogers,
+    according to the terms of the Apache license.
+
+    This program uses "mkdirp",  Copyright (c) 2010 James Halliday,
+    according to the terms of the MIT/X11 license.
+  """
+
+- tools/doc/node_modules/marked Marked is a Markdown parser. Marked's
+  license follows
+  """
+    Copyright (c) 2011-2012, Christopher Jeffrey (https://github.com/chjj/)
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+  """
