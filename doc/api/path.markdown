@@ -138,3 +138,19 @@ an empty string.  Examples:
     path.extname('index')
     // returns
     ''
+
+## path.sep
+
+The platform-specific file separator. `'\\'` or `'/'`.
+
+An example on linux:
+
+    'foo/bar/baz'.split(path.sep)
+    // returns
+    ['foo', 'bar', 'baz']
+
+An example on windows:
+
+    'foo\\bar\\baz'.split(path.sep)
+    // returns
+    ['foo', 'bar', 'baz']

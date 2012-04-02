@@ -273,3 +273,11 @@ relativeTests.forEach(function(test) {
 });
 assert.equal(failures.length, 0, failures.join(''));
 
+// path.sep tests
+if (isWindows) {
+    // windows
+    assert.equal(path.sep, '\\');
+} else {
+    // posix
+    assert.equal(path.sep, '/');
+}
