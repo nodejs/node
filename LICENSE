@@ -31,9 +31,9 @@ The externally maintained libraries used by Node are:
   - v8, located at deps/v8. v8 is copyright Google, Inc, and released
     under a BSD license.
 
-  - libev, located at deps/libev, and libeio, located at deps/libeio. libev
-    and libeio are copyright Marc Alexander Lehmann, and dual-licensed
-    under the MIT license and GPL2.
+  - libev, located at deps/uv/src/unix/ev, and libeio, located at
+    deps/uv/src/unix/eio. libev and libeio are copyright Marc Alexander
+    Lehmann, and dual-licensed under the MIT license and GPL2.
 
   - WAF build system, located at tools/waf. WAF is copyright Thomas Nagy,
     and released under the MIT license.
