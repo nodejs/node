@@ -469,6 +469,9 @@ def configure(conf):
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
 
+  if sys.platform.startswith('darwin'):
+    conf.env.append_value('CPPFLAGS', '-D_DARWIN_USE_64_BIT_INODE=1')
+
   # Makes select on windows support more than 64 FDs
   if sys.platform.startswith("win32"):
     conf.env.append_value('CPPFLAGS', '-DFD_SETSIZE=1024');
