@@ -22,6 +22,7 @@ set nosnapshot=
 set test=
 set test_args=
 set msi=
+set licensertf=
 set upload=
 
 :next-arg
@@ -36,6 +37,7 @@ if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set nosign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
+if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test-uv"       set test=test-uv&goto arg-ok
 if /i "%1"=="test-internet" set test=test-internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test=test-pummel&goto arg-ok
@@ -43,7 +45,7 @@ if /i "%1"=="test-simple"   set test=test-simple&goto arg-ok
 if /i "%1"=="test-message"  set test=test-message&goto arg-ok
 if /i "%1"=="test-all"      set test=test-all&goto arg-ok
 if /i "%1"=="test"          set test=test&goto arg-ok
-if /i "%1"=="msi"           set msi=1&goto arg-ok
+if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
 
 echo Warning: ignoring invalid command line option `%1`.
@@ -75,7 +77,7 @@ echo Project files generated.
 
 :msbuild
 @rem Skip project generation if requested.
-if defined nobuild goto msi
+if defined nobuild goto sign
 
 @rem Bail out early if not running in VS build env.
 if defined VCINSTALLDIR goto msbuild-found
@@ -94,8 +96,18 @@ goto run
 msbuild node.sln /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
-if defined nosign goto msi
+:sign
+@rem Skip signing if the `nosign` option was specified.
+if defined nosign goto licensertf
+
 signtool sign /a Release\node.exe
+
+:licensertf
+@rem Skip license.rtf generation if not requested.
+if not defined licensertf goto msi
+
+%config%\node tools\license2rtf.js < LICENSE > %config%\license.rtf
+if errorlevel 1 echo Failed to generate license.rtf&goto exit
 
 :msi
 @rem Skip msi generation if not requested
