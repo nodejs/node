@@ -102,9 +102,12 @@
       <DialogRef Id="ProgressDlg" />
       <DialogRef Id="ResumeDlg" />
       <DialogRef Id="UserExit" />
-      <DialogRef Id="WelcomeDlg" /> 
+      <DialogRef Id="WelcomeDlg" />
+      <DialogRef Id="LicenseAgreementDlg"/>
 
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="PrepareDlg">1</Publish> 
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+      <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="PrepareDlg">1</Publish>
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
       <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
@@ -120,6 +123,7 @@
     <UIRef Id="WixUI_Common" />
     <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.jpg" />
     <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.jpg" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.sourcedir)\LICENSE.rtf" />
   </Product>
 
 </Wix>
