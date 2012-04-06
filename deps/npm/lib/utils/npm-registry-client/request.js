@@ -94,6 +94,8 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb) {
 
   headers.accept = "application/json"
 
+  headers["user-agent"] = npm.config.get("user-agent")
+
   opts.proxy = npm.config.get( remote.protocol === "https:"
                              ? "https-proxy" : "proxy" )
 

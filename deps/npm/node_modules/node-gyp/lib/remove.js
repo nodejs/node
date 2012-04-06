@@ -23,7 +23,7 @@ function remove (gyp, argv, callback) {
   var v = argv[0] || gyp.opts.target
 
   if (!v) {
-    return callback(new Error('You must specify a version number to remove. Ex: "0.6.12"'))
+    return callback(new Error('You must specify a version number to remove. Ex: "' + process.version + '"'))
   }
 
   // parse the version to normalize and make sure it's valid

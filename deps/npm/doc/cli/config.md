@@ -358,6 +358,13 @@ user.
 
 A proxy to use for outgoing https requests.
 
+### user-agent
+
+* Default: npm/{npm.version} node/{process.version}
+* Type: String
+
+Sets a User-Agent to the request header
+
 ### ignore
 
 * Default: ""

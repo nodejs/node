@@ -10,7 +10,7 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.12",
+  "version": "1.1.16",
   "preferGlobal": true,
   "config": {
     "publishtest": false
@@ -39,7 +39,7 @@
     "slide": "1",
     "abbrev": "1",
     "graceful-fs": "~1.1.1",
-    "minimatch": "0",
+    "minimatch": "~0.2",
     "nopt": "1",
     "node-uuid": "~1.3",
     "proto-list": "1",
@@ -47,13 +47,17 @@
     "request": "~2.9",
     "which": "1",
     "tar": "~0.1.12",
-    "fstream": "~0.1.13",
+    "fstream": "~0.1.17",
     "block-stream": "*",
     "inherits": "1",
     "mkdirp": "0.3",
     "read": "0",
     "lru-cache": "1",
-    "node-gyp": "~0.3.4"
+    "node-gyp": "~0.3.7",
+    "fstream-npm": "0 >=0.0.4",
+    "uid-number": "0",
+    "archy": "0",
+    "chownr": "0"
   },
   "bundleDependencies": [
     "slide",
@@ -76,7 +80,11 @@
     "fast-list",
     "read",
     "lru-cache",
-    "node-gyp"
+    "node-gyp",
+    "fstream-npm",
+    "uid-number",
+    "archy",
+    "chownr"
   ],
   "devDependencies": {
     "ronn": "https://github.com/isaacs/ronnjs/tarball/master"

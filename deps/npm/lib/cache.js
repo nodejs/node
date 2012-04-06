@@ -3,11 +3,10 @@
 /*
 adding a folder:
 1. tar into tmp/random/package.tgz
-2. untar into tmp/random/contents/{blah}
-3. rename {blah} to "package"
-4. tar tmp/random/contents/package to cache/n/v/package.tgz
-5. untar cache/n/v/package.tgz into cache/n/v/package
-6. rm tmp/random
+2. untar into tmp/random/contents/package, stripping one dir piece
+3. tar tmp/random/contents/package to cache/n/v/package.tgz
+4. untar cache/n/v/package.tgz into cache/n/v/package
+5. rm tmp/random
 
 Adding a url:
 1. fetch to tmp/random/package.tgz
@@ -32,7 +31,7 @@ exports.read = read
 exports.clean = clean
 exports.unpack = unpack
 
-var mkdir = require("./utils/mkdir-p.js")
+var mkdir = require("mkdirp")
   , exec = require("./utils/exec.js")
   , fetch = require("./utils/fetch.js")
   , npm = require("./npm.js")
@@ -50,6 +49,7 @@ var mkdir = require("./utils/mkdir-p.js")
   , tar = require("./utils/tar.js")
   , fileCompletion = require("./utils/completion/file-completion.js")
   , url = require("url")
+  , chownr = require("chownr")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -634,7 +634,7 @@ function getCacheStat (cb) {
 }
 
 function makeCacheDir (cb) {
-  if (!process.getuid) return mkdir(npm.cache, npm.modes.exec, cb)
+  if (!process.getuid) return mkdir(npm.cache, cb)
 
   var uid = +process.getuid()
     , gid = +process.getgid()
@@ -645,18 +645,28 @@ function makeCacheDir (cb) {
   }
   if (uid !== 0 || !process.env.HOME) {
     cacheStat = {uid: uid, gid: gid}
-    return mkdir(npm.cache, npm.modes.exec, uid, gid, function (er) {
-      return cb(er, cacheStat)
-    })
+    return mkdir(npm.cache, afterMkdir)
   }
+
   fs.stat(process.env.HOME, function (er, st) {
     if (er) return log.er(cb, "homeless?")(er)
     cacheStat = st
     log.silly([st.uid, st.gid], "uid, gid for cache dir")
-    return mkdir(npm.cache, npm.modes.exec, st.uid, st.gid, function (er) {
+    return mkdir(npm.cache, afterMkdir)
+  })
+
+  function afterMkdir (er, made) {
+    if (er || !cacheStat || isNaN(cacheStat.uid) || isNaN(cacheStat.gid)) {
+      return cb(er, cacheStat)
+    }
+
+    if (!made) return cb(er, cacheStat)
+
+    // ensure that the ownership is correct.
+    chownr(made, cacheStat.uid, cacheStat.gid, function (er) {
       return cb(er, cacheStat)
     })
-  })
+  }
 }
 
 
@@ -734,9 +744,20 @@ function addLocalDirectory (p, name, cb) {
       , tgz = placeDirect ? placed : tmptgz
       , doFancyCrap = p.indexOf(npm.tmp) !== 0
                     && p.indexOf(npm.cache) !== 0
-    tar.pack(tgz, p, data, doFancyCrap, function (er) {
-      if (er) return log.er(cb,"couldn't pack "+p+ " to "+tgz)(er)
-      addLocalTarball(tgz, name, cb)
+    getCacheStat(function (er, cs) {
+      mkdir(path.dirname(tgz), function (er, made) {
+        if (er) return cb(er)
+        tar.pack(tgz, p, data, doFancyCrap, function (er) {
+          if (er) return log.er(cb,"couldn't pack "+p+ " to "+tgz)(er)
+
+          if (er || !cs || isNaN(cs.uid) || isNaN(cs.gid)) return cb()
+
+          chownr(made || tgz, cs.uid, cs.gid, function (er) {
+            if (er) return cb(er)
+            addLocalTarball(tgz, name, cb)
+          })
+        })
+      })
     })
   })
 }
@@ -745,38 +766,15 @@ function addTmpTarball (tgz, name, cb) {
   if (!cb) cb = name, name = ""
   getCacheStat(function (er, cs) {
     if (er) return cb(er)
-    return addTmpTarball_(tgz, name, cs.uid, cs.gid, cb)
-  })
-}
-
-function addTmpTarball_ (tgz, name, uid, gid, cb) {
-  var contents = path.dirname(tgz)
-  tar.unpack( tgz, path.resolve(contents, "package")
-            , null, null
-            , uid, gid
-            , function (er) {
-    if (er) {
-      return cb(er)
-    }
-    fs.readdir(contents, function (er, folder) {
-      if (er) return log.er(cb, "couldn't readdir "+contents)(er)
-      log.verbose(folder, "tarball contents")
-      if (folder.length > 1) {
-        folder = folder.filter(function (f) {
-          return !f.match(/^\.|^tmp\.tgz$/)
-        })
+    var contents = path.dirname(tgz)
+    tar.unpack( tgz, path.resolve(contents, "package")
+              , null, null
+              , cs.uid, cs.gid
+              , function (er) {
+      if (er) {
+        return cb(er)
       }
-      if (folder.length > 1) {
-        log.warn(folder.slice(1).join("\n")
-                ,"extra junk in folder, ignoring")
-      }
-      if (!folder.length) return cb(new Error("Empty package tarball"))
-      folder = path.join(contents, folder[0])
-      var newName = path.join(contents, "package")
-      fs.rename(folder, newName, function (er) {
-        if (er) return log.er(cb, "couldn't rename "+folder+" to package")(er)
-        addLocalDirectory(newName, name, cb)
-      })
+      addLocalDirectory(path.resolve(contents, "package"), name, cb)
     })
   })
 }

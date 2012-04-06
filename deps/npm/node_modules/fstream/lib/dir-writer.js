@@ -100,7 +100,9 @@ DirWriter.prototype._process = function () {
   // don't allow recursive copying
   var p = entry
   do {
-    if (p._path === me.root._path || p._path === me._path) {
+    var pp = p._path || p.path
+    if (pp === me.root._path || pp === me._path ||
+        (pp && pp.indexOf(me._path) === 0)) {
       // console.error("DW Exit (recursive)", entry.basename, me._path)
       me._processing = false
       if (entry._collected) entry.pipe()

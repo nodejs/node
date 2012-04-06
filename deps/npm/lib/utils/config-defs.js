@@ -9,6 +9,7 @@ var path = require("path")
   , os = require("os")
   , nopt = require("nopt")
   , log = require("./log.js")
+  , npm = require("../npm.js")
 
 function Octal () {}
 function validateOctal (data, k, val) {
@@ -183,6 +184,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
                       process.env.HTTP_PROXY || process.env.http_proxy || null
+    , "user-agent" : "npm/" + npm.version + " node/" + process.version
     , "rebuild-bundle" : true
     , registry : "http" + (httpsOk ? "s" : "") + "://registry.npmjs.org/"
     , rollback : true
@@ -239,6 +241,7 @@ exports.types =
   , globalignorefile: path
   , group : [Number, String]
   , "https-proxy" : [null, url]
+  , "user-agent" : String
   , ignore : String
   , "init.version" : [null, semver]
   , "init.author.name" : String

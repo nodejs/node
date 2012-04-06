@@ -99,7 +99,10 @@ function init_ (data, folder, cb) {
           , function (er, r) {
               if (er) return cb(er)
               if (r !== "none") {
-                data.repository = (data.repository || {}).url = r
+                data.repository = (data.repository || {})
+                data.repository.url = r
+              } else {
+                delete data.repository
               }
               cb()
             }

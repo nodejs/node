@@ -20,6 +20,11 @@ Abstract.prototype.on = function (ev, fn) {
   return this
 }
 
+Abstract.prototype.abort = function () {
+  this._aborted = true
+  this.emit("abort")
+}
+
 Abstract.prototype.destroy = function () {}
 
 Abstract.prototype.warn = function (msg, code) {

@@ -63,6 +63,7 @@ ProxyReader.prototype._addProxy = function (proxy) {
     , "child"
     , "childEnd"
     , "warn"
+    , "stat"
     ].forEach(function (ev) {
       // console.error("~~ proxy event", ev, me.path)
       proxy.on(ev, me.emit.bind(me, ev))

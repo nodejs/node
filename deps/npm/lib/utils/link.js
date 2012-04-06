@@ -4,7 +4,7 @@ link.ifExists = linkIfExists
 
 var fs = require("graceful-fs")
   , chain = require("slide").chain
-  , mkdir = require("./mkdir-p.js")
+  , mkdir = require("mkdirp")
   , rm = require("./gently-rm.js")
   , log = require("./log.js")
   , path = require("path")

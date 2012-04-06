@@ -10,7 +10,7 @@ process.title = 'node-gyp'
  * Module dependencies.
  */
 
-var gyp = require('../lib/node-gyp')
+var gyp = require('../')
   , inspect = require('util').inspect
   , ansi = require('ansi')
   , cursor = ansi(process.stderr)

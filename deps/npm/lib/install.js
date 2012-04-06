@@ -1,4 +1,3 @@
-
 // npm install <pkg> <pkg> <pkg>
 //
 // See doc/install.md for more description
@@ -68,8 +67,9 @@ var npm = require("./npm.js")
   , relativize = require("./utils/relativize.js")
   , output
   , url = require("url")
-  , mkdir = require("./utils/mkdir-p.js")
+  , mkdir = require("mkdirp")
   , lifecycle = require("./utils/lifecycle.js")
+  , archy = require("archy")
 
 function install (args, cb_) {
 
@@ -107,7 +107,7 @@ function install (args, cb_) {
     })
   }
 
-  mkdir(where, function (er) {
+  mkdir(where, function (er, made) {
     if (er) return cb(er)
     // install dependencies locally by default,
     // or install current folder globally
@@ -278,26 +278,46 @@ function save (where, installed, tree, pretty, cb) {
 // that the submodules are not immediately require()able.
 // TODO: Show the complete tree, ls-style, but only if --long is provided
 function prettify (tree, installed) {
-  // XXX This should match the data structure provided by npm ls --json
-  if (npm.config.get("json")) return JSON.stringify(tree, null, 2)
-  if (npm.config.get("parseable")) return parseable(installed)
-  return Object.keys(tree).map(function (p) {
-    p = tree[p]
-    var c = ""
-    if (p.children && p.children.length) {
-      pref = "\n"
-      var l = p.children.pop()
-      c = p.children.map(function (c) {
-        var gc = c.children && c.children.length
-               ? " (" + c.children.map(function (gc) {
-                   return gc.what
-                 }).join(" ") + ")"
-               : ""
-        return "\n├── " + c.what + gc
-      }).join("") + "\n└── " + l.what
+  if (npm.config.get("json")) {
+    function red (set, kv) {
+      set[kv[0]] = kv[1]
+      return set
     }
-    return [p.what, p.where, c].join(" ")
 
+    tree = Object.keys(tree).map(function (p) {
+      if (!tree[p]) return null
+      var what = tree[p].what.split("@")
+        , name = what.shift()
+        , version = what.join("@")
+        , o = { name: name, version: version, from: tree[p].from }
+      o.dependencies = tree[p].children.map(function P (dep) {
+         var what = dep.what.split("@")
+           , name = what.shift()
+           , version = what.join("@")
+           , o = { version: version, from: dep.from }
+         o.dependencies = dep.children.map(P).reduce(red, {})
+         return [name, o]
+       }).reduce(red, {})
+       return o
+    })
+
+    return JSON.stringify(tree, null, 2)
+  }
+  if (npm.config.get("parseable")) return parseable(installed)
+
+  return Object.keys(tree).map(function (p) {
+    return archy({ label: tree[p].what + " " + p
+                 , nodes: (tree[p].children || []).map(function P (c) {
+                     if (npm.config.get("long")) {
+                       return { label: c.what, nodes: c.children.map(P) }
+                     }
+                     var g = c.children.map(function (g) {
+                       return g.what
+                     }).join(", ")
+                     if (g) g = " (" + g + ")"
+                     return c.what + g
+                   })
+                 })
   }).join("\n")
 }
 
