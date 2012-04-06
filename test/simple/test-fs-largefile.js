@@ -53,6 +53,6 @@ assert.ok(exceptionRaised);
 fs.close(fd);
 
 process.on('exit', function() {
-  fs.unlink(filepath);
+  fs.unlinkSync(filepath);
 });
 
