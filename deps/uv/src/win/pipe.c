@@ -217,6 +217,11 @@ static int uv_set_pipe_handle(uv_loop_t* loop, uv_pipe_t* handle,
   DWORD mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT;
 
   if (!SetNamedPipeHandleState(pipeHandle, &mode, NULL, NULL)) {
+    /* If this returns ERROR_INVALID_PARAMETER we probably opened something */
+    /* that is not a pipe. */
+    if (GetLastError() == ERROR_INVALID_PARAMETER) {
+      SetLastError(WSAENOTSOCK);
+    }
     return -1;
   }
 

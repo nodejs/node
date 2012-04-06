@@ -125,6 +125,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_SEM_TIMEOUT:                 return UV_ETIMEDOUT;
     case WSAETIMEDOUT:                      return UV_ETIMEDOUT;
     case WSAHOST_NOT_FOUND:                 return UV_ENOENT;
+    case WSAENOTSOCK:                       return UV_ENOTSOCK;
     default:                                return UV_UNKNOWN;
   }
 }

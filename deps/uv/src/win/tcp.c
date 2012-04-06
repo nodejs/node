@@ -239,10 +239,9 @@ static int uv__bind(uv_tcp_t* handle,
                     int addrsize) {
   DWORD err;
   int r;
-  SOCKET sock;
 
   if (handle->socket == INVALID_SOCKET) {
-    sock = socket(domain, SOCK_STREAM, 0);
+    SOCKET sock = socket(domain, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
       uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;

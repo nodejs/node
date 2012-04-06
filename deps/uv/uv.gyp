@@ -208,6 +208,7 @@
             ],
           },
           'defines': [
+            '_DARWIN_USE_64_BIT_INODE=1',
             'EV_CONFIG_H="config_darwin.h"',
             'EIO_CONFIG_H="config_darwin.h"',
           ]

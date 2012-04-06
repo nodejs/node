@@ -1155,11 +1155,17 @@ UV_EXTERN int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path,
 UV_EXTERN int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     void* buf, size_t length, off_t offset, uv_fs_cb cb);
 
+int uv_fs_read64(uv_loop_t* loop, uv_fs_t* req, uv_file file,
+    void* buf, size_t length, int64_t offset, uv_fs_cb cb);
+
 UV_EXTERN int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     void* buf, size_t length, off_t offset, uv_fs_cb cb);
+
+int uv_fs_write64(uv_loop_t* loop, uv_fs_t* req, uv_file file,
+    void* buf, size_t length, int64_t offset, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path,
     int mode, uv_fs_cb cb);
@@ -1187,6 +1193,9 @@ UV_EXTERN int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file,
 
 UV_EXTERN int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file,
     off_t offset, uv_fs_cb cb);
+
+int uv_fs_ftruncate64(uv_loop_t* loop, uv_fs_t* req, uv_file file,
+    int64_t offset, uv_fs_cb cb);
 
 UV_EXTERN int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd,
     uv_file in_fd, off_t in_offset, size_t length, uv_fs_cb cb);

@@ -701,3 +701,34 @@ int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb,
 
   return 0;
 }
+
+
+int uv_fs_read64(uv_loop_t* loop,
+                 uv_fs_t* req,
+                 uv_file file,
+                 void* buf,
+                 size_t length,
+                 int64_t offset,
+                 uv_fs_cb cb) {
+  return uv_fs_read(loop, req, file, buf, length, offset, cb);
+}
+
+
+int uv_fs_write64(uv_loop_t* loop,
+                  uv_fs_t* req,
+                  uv_file file,
+                  void* buf,
+                  size_t length,
+                  int64_t offset,
+                  uv_fs_cb cb) {
+  return uv_fs_write(loop, req, file, buf, length, offset, cb);
+}
+
+
+int uv_fs_ftruncate64(uv_loop_t* loop,
+                      uv_fs_t* req,
+                      uv_file file,
+                      int64_t offset,
+                      uv_fs_cb cb) {
+  return uv_fs_ftruncate(loop, req, file, offset, cb);
+}

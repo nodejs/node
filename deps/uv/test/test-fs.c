@@ -249,6 +249,11 @@ static void read_cb(uv_fs_t* req) {
   uv_fs_req_cleanup(req);
   if (read_cb_count == 1) {
     ASSERT(strcmp(buf, test_buf) == 0);
+    memset(buf, 0, sizeof(buf));
+    r = uv_fs_read64(loop, &read_req, open_req1.result, buf, sizeof(buf), 0,
+        read_cb);
+  } else if (read_cb_count == 2) {
+    ASSERT(strcmp(buf, test_buf) == 0);
     r = uv_fs_ftruncate(loop, &ftruncate_req, open_req1.result, 7,
         ftruncate_cb);
   } else {
@@ -319,7 +324,13 @@ static void write_cb(uv_fs_t* req) {
   ASSERT(req->result != -1);
   write_cb_count++;
   uv_fs_req_cleanup(req);
-  r = uv_fs_fdatasync(loop, &fdatasync_req, open_req1.result, fdatasync_cb);
+
+  if (write_cb_count == 1) {
+    r = uv_fs_write64(loop, &write_req, open_req1.result, test_buf, sizeof(test_buf),
+        -1, write_cb);
+  } else {
+    r = uv_fs_fdatasync(loop, &fdatasync_req, open_req1.result, fdatasync_cb);
+  }
 }
 
 
@@ -596,7 +607,7 @@ TEST_IMPL(fs_file_async) {
   uv_run(loop);
 
   ASSERT(create_cb_count == 1);
-  ASSERT(write_cb_count == 1);
+  ASSERT(write_cb_count == 2);
   ASSERT(fsync_cb_count == 1);
   ASSERT(fdatasync_cb_count == 1);
   ASSERT(close_cb_count == 1);
@@ -606,7 +617,7 @@ TEST_IMPL(fs_file_async) {
 
   uv_run(loop);
   ASSERT(create_cb_count == 1);
-  ASSERT(write_cb_count == 1);
+  ASSERT(write_cb_count == 2);
   ASSERT(close_cb_count == 1);
   ASSERT(rename_cb_count == 1);
 
@@ -615,11 +626,11 @@ TEST_IMPL(fs_file_async) {
 
   uv_run(loop);
   ASSERT(open_cb_count == 1);
-  ASSERT(read_cb_count == 1);
+  ASSERT(read_cb_count == 2);
   ASSERT(close_cb_count == 2);
   ASSERT(rename_cb_count == 1);
   ASSERT(create_cb_count == 1);
-  ASSERT(write_cb_count == 1);
+  ASSERT(write_cb_count == 2);
   ASSERT(ftruncate_cb_count == 1);
 
   r = uv_fs_open(loop, &open_req1, "test_file2", O_RDONLY, 0, open_cb);
@@ -627,12 +638,12 @@ TEST_IMPL(fs_file_async) {
 
   uv_run(loop);
   ASSERT(open_cb_count == 2);
-  ASSERT(read_cb_count == 2);
+  ASSERT(read_cb_count == 3);
   ASSERT(close_cb_count == 3);
   ASSERT(rename_cb_count == 1);
   ASSERT(unlink_cb_count == 1);
   ASSERT(create_cb_count == 1);
-  ASSERT(write_cb_count == 1);
+  ASSERT(write_cb_count == 2);
   ASSERT(ftruncate_cb_count == 1);
 
   /* Cleanup. */
@@ -675,6 +686,14 @@ TEST_IMPL(fs_file_sync) {
   uv_fs_req_cleanup(&open_req1);
 
   r = uv_fs_read(loop, &read_req, open_req1.result, buf, sizeof(buf), -1,
+      NULL);
+  ASSERT(r != -1);
+  ASSERT(read_req.result != -1);
+  ASSERT(strcmp(buf, test_buf) == 0);
+  uv_fs_req_cleanup(&read_req);
+
+  memset(buf, 0, sizeof(buf));
+  r = uv_fs_read64(loop, &read_req, open_req1.result, buf, sizeof(buf), 0,
       NULL);
   ASSERT(r != -1);
   ASSERT(read_req.result != -1);
@@ -899,7 +918,7 @@ TEST_IMPL(fs_fstat) {
   file = req.result;
   uv_fs_req_cleanup(&req);
 
-  r = uv_fs_write(loop, &req, file, test_buf, sizeof(test_buf), -1, NULL);
+  r = uv_fs_write64(loop, &req, file, test_buf, sizeof(test_buf), -1, NULL);
   ASSERT(r == sizeof(test_buf));
   ASSERT(req.result == sizeof(test_buf));
   uv_fs_req_cleanup(&req);
