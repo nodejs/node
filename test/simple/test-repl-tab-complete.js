@@ -30,7 +30,7 @@ function ArrayStream() {
   this.run = function(data) {
     var self = this;
     data.forEach(function(line) {
-      self.emit('data', line);
+      self.emit('data', line + '\n');
     });
   }
 }
