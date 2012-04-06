@@ -52,7 +52,7 @@ function send_expect(list) {
     cur.client.expect = cur.expect;
     cur.client.list = list;
     if (cur.send.length > 0) {
-      cur.client.write(cur.send);
+      cur.client.write(cur.send + '\n');
     }
   }
 }
@@ -167,12 +167,12 @@ function tcp_test() {
       send_expect([
         { client: client_tcp, send: '',
           expect: prompt_tcp },
-        { client: client_tcp, send: 'invoke_me(333)\n',
+        { client: client_tcp, send: 'invoke_me(333)',
           expect: ('\'' + 'invoked 333' + '\'\n' + prompt_tcp) },
-        { client: client_tcp, send: 'a += 1\n',
+        { client: client_tcp, send: 'a += 1',
           expect: ('12346' + '\n' + prompt_tcp) },
         { client: client_tcp,
-          send: 'require(' + JSON.stringify(moduleFilename) + ').number\n',
+          send: 'require(' + JSON.stringify(moduleFilename) + ').number',
           expect: ('42' + '\n' + prompt_tcp) }
       ]);
     });
@@ -230,13 +230,13 @@ function unix_test() {
       send_expect([
         { client: client_unix, send: '',
           expect: prompt_unix },
-        { client: client_unix, send: 'message\n',
+        { client: client_unix, send: 'message',
           expect: ('\'' + message + '\'\n' + prompt_unix) },
-        { client: client_unix, send: 'invoke_me(987)\n',
+        { client: client_unix, send: 'invoke_me(987)',
           expect: ('\'' + 'invoked 987' + '\'\n' + prompt_unix) },
-        { client: client_unix, send: 'a = 12345\n',
+        { client: client_unix, send: 'a = 12345',
           expect: ('12345' + '\n' + prompt_unix) },
-        { client: client_unix, send: '{a:1}\n',
+        { client: client_unix, send: '{a:1}',
           expect: ('{ a: 1 }' + '\n' + prompt_unix) }
       ]);
     });
