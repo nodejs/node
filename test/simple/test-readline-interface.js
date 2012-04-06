@@ -104,3 +104,19 @@ rli.on('line', function(line) {
 });
 fi.emit('data', expectedLines.join(''));
 assert.equal(callCount, expectedLines.length - 1);
+
+// sending a multi-byte utf8 char over multiple writes
+var buf = Buffer('☮', 'utf8');
+fi = new FakeInput();
+rli = new readline.Interface(fi, {});
+callCount = 0;
+rli.on('line', function(line) {
+  callCount++;
+  assert.equal(line, buf.toString('utf8') + '\n');
+});
+[].forEach.call(buf, function(i) {
+  fi.emit('data', Buffer([i]));
+});
+assert.equal(callCount, 0);
+fi.emit('data', '\n');
+assert.equal(callCount, 1);
