@@ -235,7 +235,13 @@
       nextTickQueue = [];
 
       try {
-        for (var i = 0; i < l; i++) q[i]();
+        for (var i = 0; i < l; i++) {
+          var tock = q[i];
+          var callback = tock.callback;
+          if (tock.domain) tock.domain.enter();
+          callback();
+          if (tock.domain) tock.domain.exit();
+        }
       }
       catch (e) {
         if (i + 1 < l) {
@@ -249,7 +255,9 @@
     };
 
     process.nextTick = function(callback) {
-      nextTickQueue.push(callback);
+      var tock = { callback: callback };
+      if (process.domain) tock.domain = process.domain;
+      nextTickQueue.push(tock);
       process._needTickCallback();
     };
   };
