@@ -44,7 +44,9 @@ var testMe = repl.start('', putIn, null, true);
 test1();
 
 function test1(){
+  var gotWrite = false;
   putIn.write = function (data) {
+    gotWrite = true;
     if (data.length) {
       // inspect output matches repl output
       assert.equal(data, util.inspect(require('fs'), null, null, false) + '\n');
@@ -53,11 +55,15 @@ function test1(){
       test2();
     }
   };
+  assert(!gotWrite);
   putIn.run(['fs']);
+  assert(gotWrite);
 }
 
 function test2(){
+  var gotWrite = false;
   putIn.write = function(data) {
+    gotWrite = true;
     if (data.length) {
       // repl response error message
       assert.equal(data.indexOf('A different'), 0);
@@ -67,5 +73,7 @@ function test2(){
   };
   var val = {};
   global.url = val;
+  assert(!gotWrite);
   putIn.run(['url']);
+  assert(gotWrite);
 }
