@@ -1724,16 +1724,8 @@ static void OnFatalError(const char* location, const char* message) {
   exit(1);
 }
 
-static int uncaught_exception_counter = 0;
-
 void FatalException(TryCatch &try_catch) {
   HandleScope scope;
-
-  // Check if uncaught_exception_counter indicates a recursion
-  if (uncaught_exception_counter > 0) {
-    ReportException(try_catch, true);
-    exit(1);
-  }
 
   if (listeners_symbol.IsEmpty()) {
     listeners_symbol = NODE_PSYMBOL("listeners");
@@ -1770,10 +1762,13 @@ void FatalException(TryCatch &try_catch) {
   Local<Value> error = try_catch.Exception();
   Local<Value> event_argv[2] = { uncaught_exception_symbol_l, error };
 
-  uncaught_exception_counter++;
+  TryCatch event_try_catch;
   emit->Call(process, 2, event_argv);
-  // Decrement so we know if the next exception is a recursion or not
-  uncaught_exception_counter--;
+  if (event_try_catch.HasCaught()) {
+    // the uncaught exception event threw, so we must exit.
+    ReportException(event_try_catch, true);
+    exit(1);
+  }
 }
 
 
