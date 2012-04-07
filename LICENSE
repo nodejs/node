@@ -361,13 +361,6 @@ maintained libraries. The externally maintained libraries used by Node are:
     # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
     # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-    # Here are some issues that I've had people identify in my code during reviews,
-    # that I think are possible to flag automatically in a lint tool.  If these were
-    # caught by lint, it would save time both for myself and that of my reviewers.
-    # Most likely, some of these are beyond the scope of the current lint framework,
-    # but I think it is valuable to retain these wish-list items even if they cannot
-    # be immediately implemented.
   """
 
 - lib/buffer_ieee754.js. Its license follows:
