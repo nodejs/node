@@ -17,9 +17,9 @@ string will not be in the parsed object. Examples are shown for the URL
 * `protocol`: The request protocol, lowercased.
 
   Example: `'http:'`
-* `host`: The full lowercased host portion of the URL, including port and authentication information.
+* `host`: The full lowercased host portion of the URL, including the port.
 
-  Example: `'user:pass@host.com:8080'`
+  Example: `'host.com:8080'`
 * `auth`: The authentication information portion of a URL.
 
   Example: `'user:pass'`
