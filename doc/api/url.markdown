@@ -70,7 +70,7 @@ Take a parsed URL object, and return a formatted URL string.
 * `auth` will only be used if `host` is absent.
 * `hostname` will only be used if `host` is absent.
 * `port` will only be used if `host` is absent.
-* `host` will be used in place of `auth`, `hostname`, and `port`
+* `host` will be used in place of `hostname` and `port`
 * `pathname` is treated the same with or without the leading `/` (slash)
 * `search` will be used in place of `query`
 * `query` (object; see `querystring`) will only be used if `search` is absent.
