@@ -1,4 +1,27 @@
-2012.03.22 Version 0.6.14 (stable)
+2012.04.09 Version 0.6.15 (stable)
+
+* Update npm to 1.1.16
+
+* Show licenses in binary installers.
+
+* unix: add uv_fs_read64, uv_fs_write64 and uv_fs_ftruncate64 (Ben Noordhuis)
+
+* add 64bit offset fs functions (Igor Zinkovsky)
+
+* windows: don't report ENOTSOCK when attempting to bind an udp handle twice (Bert Belder)
+
+* windows: backport pipe-connect-to-file fixes from master (Bert Belder)
+
+* windows: never call fs event callbacks after closing the watcher (Bert Belder)
+
+* fs.readFile: don't make the callback before the fd is closed (Bert Belder)
+
+* windows: use 64bit offsets for uv_fs apis (Igor Zinkovsky)
+
+* Fix #2061: segmentation fault on OS X due to stat size mismatch (Ben Noordhuis)
+
+
+2012.03.22 Version 0.6.14 (stable), e513ffef7549a56a5af728e1f0c2c0c8f290518a
 
 * net: don't crash when queued write fails (Igor Zinkovsky)
 
