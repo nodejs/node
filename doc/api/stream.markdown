@@ -57,7 +57,13 @@ Makes the data event emit a string instead of a `Buffer`. `encoding` can be
 
 ### stream.pause()
 
-Pauses the incoming `'data'` events.
+Issues an advisory signal to the underlying communication layer, requesting
+that no further data be sent until `resume()` is called.
+
+Note that, due to the advisory nature, certain streams will not be paused
+immediately, and so `'data'` events may be emitted for some indeterminate
+period of time even after `pause()` is called. You may wish to buffer such
+`'data'` events.
 
 ### stream.resume()
 
