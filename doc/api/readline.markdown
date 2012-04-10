@@ -124,6 +124,8 @@ Writes to `output` stream.
 
 This will also resume the `input` stream if it has been paused.
 
+## Events
+
 ### Event: 'line'
 
 `function (line) {}`
@@ -235,6 +237,8 @@ Example of listening for `SIGCONT`:
       rl.prompt();
     });
 
+
+## Example: Tiny CLI
 
 Here's an example of how to use all these together to craft a tiny command
 line interface:
