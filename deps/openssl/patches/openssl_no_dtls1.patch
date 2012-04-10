@@ -1,0 +1,13 @@
+--- openssl-1.0.0f.orig/ssl/ssl_lib.c	2012-01-04 22:13:21.000000000 +0000
++++ openssl-1.0.0f/ssl/ssl_lib.c	2012-01-04 22:13:21.000000000 +0000
+@@ -1063,8 +1063,10 @@ long SSL_ctrl(SSL *s,int cmd,long larg,v
+ 		s->max_cert_list=larg;
+ 		return(l);
+ 	case SSL_CTRL_SET_MTU:
++#ifndef OPENSSL_NO_DTLS1
+ 		if (larg < (long)dtls1_min_mtu())
+ 			return 0;
++#endif
+ 
+ 		if (SSL_version(s) == DTLS1_VERSION ||
+ 		    SSL_version(s) == DTLS1_BAD_VER)

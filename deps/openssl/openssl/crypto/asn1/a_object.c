@@ -139,7 +139,7 @@ int a2d_ASN1_OBJECT(unsigned char *out, int olen, const char *buf, int num)
 				ASN1err(ASN1_F_A2D_ASN1_OBJECT,ASN1_R_INVALID_DIGIT);
 				goto err;
 				}
-			if (!use_bn && l > (ULONG_MAX / 10L))
+			if (!use_bn && l >= ((ULONG_MAX - 80) / 10L))
 				{
 				use_bn = 1;
 				if (!bl)
@@ -281,8 +281,6 @@ ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
 	return ret;
 err:
 	ASN1err(ASN1_F_D2I_ASN1_OBJECT,i);
-	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
-		ASN1_OBJECT_free(ret);
 	return(NULL);
 }
 ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
@@ -290,11 +288,12 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
 	{
 	ASN1_OBJECT *ret=NULL;
 	const unsigned char *p;
+	unsigned char *data;
 	int i;
 	/* Sanity check OID encoding: can't have leading 0x80 in
 	 * subidentifiers, see: X.690 8.19.2
 	 */
-	for (i = 0, p = *pp + 1; i < len - 1; i++, p++)
+	for (i = 0, p = *pp; i < len; i++, p++)
 		{
 		if (*p == 0x80 && (!i || !(p[-1] & 0x80)))
 			{
@@ -313,15 +312,22 @@ ASN1_OBJECT *c2i_ASN1_OBJECT(ASN1_OBJECT **a, const unsigned char **pp,
 	else	ret=(*a);
 
 	p= *pp;
-	if ((ret->data == NULL) || (ret->length < len))
+	/* detach data from object */
+	data = (unsigned char *)ret->data;
+	ret->data = NULL;
+	/* once detached we can change it */
+	if ((data == NULL) || (ret->length < len))
 		{
-		if (ret->data != NULL) OPENSSL_free(ret->data);
-		ret->data=(unsigned char *)OPENSSL_malloc(len ? (int)len : 1);
-		ret->flags|=ASN1_OBJECT_FLAG_DYNAMIC_DATA;
-		if (ret->data == NULL)
+		ret->length=0;
+		if (data != NULL) OPENSSL_free(data);
+		data=(unsigned char *)OPENSSL_malloc(len ? (int)len : 1);
+		if (data == NULL)
 			{ i=ERR_R_MALLOC_FAILURE; goto err; }
+		ret->flags|=ASN1_OBJECT_FLAG_DYNAMIC_DATA;
 		}
-	memcpy(ret->data,p,(int)len);
+	memcpy(data,p,(int)len);
+	/* reattach data to object, after which it remains const */
+	ret->data  =data;
 	ret->length=(int)len;
 	ret->sn=NULL;
 	ret->ln=NULL;
@@ -370,7 +376,7 @@ void ASN1_OBJECT_free(ASN1_OBJECT *a)
 		}
 	if (a->flags & ASN1_OBJECT_FLAG_DYNAMIC_DATA)
 		{
-		if (a->data != NULL) OPENSSL_free(a->data);
+		if (a->data != NULL) OPENSSL_free((void *)a->data);
 		a->data=NULL;
 		a->length=0;
 		}

@@ -60,8 +60,8 @@
 #include <openssl/objects.h>
 #include "ssl_locl.h"
 
-static SSL_METHOD *ssl23_get_method(int ver);
-static SSL_METHOD *ssl23_get_method(int ver)
+static const SSL_METHOD *ssl23_get_method(int ver);
+static const SSL_METHOD *ssl23_get_method(int ver)
 	{
 #ifndef OPENSSL_NO_SSL2
 	if (ver == SSL2_VERSION)

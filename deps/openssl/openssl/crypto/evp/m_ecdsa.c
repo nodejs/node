@@ -130,7 +130,7 @@ static const EVP_MD ecdsa_md=
 	NID_ecdsa_with_SHA1,
 	NID_ecdsa_with_SHA1,
 	SHA_DIGEST_LENGTH,
-	0,
+	EVP_MD_FLAG_PKEY_DIGEST,
 	init,
 	update,
 	final,

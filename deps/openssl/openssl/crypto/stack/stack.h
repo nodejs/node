@@ -70,37 +70,36 @@ typedef struct stack_st
 	int sorted;
 
 	int num_alloc;
-	int (*comp)(const char * const *, const char * const *);
-	} STACK;
+	int (*comp)(const void *, const void *);
+	} _STACK;  /* Use STACK_OF(...) instead */
 
 #define M_sk_num(sk)		((sk) ? (sk)->num:-1)
 #define M_sk_value(sk,n)	((sk) ? (sk)->data[n] : NULL)
 
-int sk_num(const STACK *);
-char *sk_value(const STACK *, int);
+int sk_num(const _STACK *);
+void *sk_value(const _STACK *, int);
 
-char *sk_set(STACK *, int, char *);
+void *sk_set(_STACK *, int, void *);
 
-STACK *sk_new(int (*cmp)(const char * const *, const char * const *));
-STACK *sk_new_null(void);
-void sk_free(STACK *);
-void sk_pop_free(STACK *st, void (*func)(void *));
-int sk_insert(STACK *sk,char *data,int where);
-char *sk_delete(STACK *st,int loc);
-char *sk_delete_ptr(STACK *st, char *p);
-int sk_find(STACK *st,char *data);
-int sk_find_ex(STACK *st,char *data);
-int sk_push(STACK *st,char *data);
-int sk_unshift(STACK *st,char *data);
-char *sk_shift(STACK *st);
-char *sk_pop(STACK *st);
-void sk_zero(STACK *st);
-int (*sk_set_cmp_func(STACK *sk, int (*c)(const char * const *,
-			const char * const *)))
-			(const char * const *, const char * const *);
-STACK *sk_dup(STACK *st);
-void sk_sort(STACK *st);
-int sk_is_sorted(const STACK *st);
+_STACK *sk_new(int (*cmp)(const void *, const void *));
+_STACK *sk_new_null(void);
+void sk_free(_STACK *);
+void sk_pop_free(_STACK *st, void (*func)(void *));
+int sk_insert(_STACK *sk, void *data, int where);
+void *sk_delete(_STACK *st, int loc);
+void *sk_delete_ptr(_STACK *st, void *p);
+int sk_find(_STACK *st, void *data);
+int sk_find_ex(_STACK *st, void *data);
+int sk_push(_STACK *st, void *data);
+int sk_unshift(_STACK *st, void *data);
+void *sk_shift(_STACK *st);
+void *sk_pop(_STACK *st);
+void sk_zero(_STACK *st);
+int (*sk_set_cmp_func(_STACK *sk, int (*c)(const void *, const void *)))
+	(const void *, const void *);
+_STACK *sk_dup(_STACK *st);
+void sk_sort(_STACK *st);
+int sk_is_sorted(const _STACK *st);
 
 #ifdef  __cplusplus
 }

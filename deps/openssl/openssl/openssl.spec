@@ -1,8 +1,8 @@
 %define _unpackaged_files_terminate_build 0
-%define libmaj 0
-%define libmin 9
-%define librel 8
-%define librev r
+%define libmaj 1
+%define libmin 0
+%define librel 0
+%define librev f
 Release: 1
 
 %define openssldir /var/ssl

@@ -356,7 +356,7 @@ int X509_NAME_ENTRY_set_data(X509_NAME_ENTRY *ne, int type,
 		return ASN1_STRING_set_by_NID(&ne->value, bytes,
 						len, type,
 					OBJ_obj2nid(ne->object)) ? 1 : 0;
-	if (len < 0) len=strlen((char *)bytes);
+	if (len < 0) len=strlen((const char *)bytes);
 	i=ASN1_STRING_set(ne->value,bytes,len);
 	if (!i) return(0);
 	if (type != V_ASN1_UNDEF)

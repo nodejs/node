@@ -100,12 +100,10 @@ void fcrypt_body(DES_LONG *out, DES_key_schedule *ks, DES_LONG Eswap0,
 #ifndef DES_UNROLL
 		register int i;
 
-		for (i=0; i<32; i+=8)
+		for (i=0; i<32; i+=4)
 			{
 			D_ENCRYPT(l,r,i+0); /*  1 */
 			D_ENCRYPT(r,l,i+2); /*  2 */
-			D_ENCRYPT(l,r,i+4); /*  1 */
-			D_ENCRYPT(r,l,i+6); /*  2 */
 			}
 #else
 		D_ENCRYPT(l,r, 0); /*  1 */

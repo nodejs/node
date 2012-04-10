@@ -81,7 +81,9 @@ int RSA_verify_PKCS1_PSS(RSA *rsa, const unsigned char *mHash,
 	EVP_MD_CTX ctx;
 	unsigned char H_[EVP_MAX_MD_SIZE];
 
-	hLen = M_EVP_MD_size(Hash);
+	hLen = EVP_MD_size(Hash);
+	if (hLen < 0)
+		goto err;
 	/*
 	 * Negative sLen has special meanings:
 	 *	-1	sLen == hLen
@@ -126,7 +128,8 @@ int RSA_verify_PKCS1_PSS(RSA *rsa, const unsigned char *mHash,
 		RSAerr(RSA_F_RSA_VERIFY_PKCS1_PSS, ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
-	PKCS1_MGF1(DB, maskedDBLen, H, hLen, Hash);
+	if (PKCS1_MGF1(DB, maskedDBLen, H, hLen, Hash) < 0)
+		goto err;
 	for (i = 0; i < maskedDBLen; i++)
 		DB[i] ^= EM[i];
 	if (MSBits)
@@ -176,7 +179,9 @@ int RSA_padding_add_PKCS1_PSS(RSA *rsa, unsigned char *EM,
 	unsigned char *H, *salt = NULL, *p;
 	EVP_MD_CTX ctx;
 
-	hLen = M_EVP_MD_size(Hash);
+	hLen = EVP_MD_size(Hash);
+	if (hLen < 0)
+		goto err;
 	/*
 	 * Negative sLen has special meanings:
 	 *	-1	sLen == hLen
@@ -232,7 +237,8 @@ int RSA_padding_add_PKCS1_PSS(RSA *rsa, unsigned char *EM,
 	EVP_MD_CTX_cleanup(&ctx);
 
 	/* Generate dbMask in place then perform XOR on it */
-	PKCS1_MGF1(EM, maskedDBLen, H, hLen, Hash);
+	if (PKCS1_MGF1(EM, maskedDBLen, H, hLen, Hash))
+		goto err;
 
 	p = EM;
 

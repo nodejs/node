@@ -146,14 +146,14 @@ struct st_dynamic_data_ctx
 	 * 'dirs' for loading. Default is to use 'dirs' as a fallback. */
 	int dir_load;
 	/* A stack of directories from which ENGINEs could be loaded */
-	STACK *dirs;
+	STACK_OF(OPENSSL_STRING) *dirs;
 	};
 
 /* This is the "ex_data" index we obtain and reserve for use with our context
  * structure. */
 static int dynamic_ex_data_idx = -1;
 
-static void int_free_str(void *s) { OPENSSL_free(s); }
+static void int_free_str(char *s) { OPENSSL_free(s); }
 /* Because our ex_data element may or may not get allocated depending on whether
  * a "first-use" occurs before the ENGINE is freed, we have a memory leak
  * problem to solve. We can't declare a "new" handler for the ex_data as we
@@ -174,7 +174,7 @@ static void dynamic_data_ctx_free_func(void *parent, void *ptr,
 		if(ctx->engine_id)
 			OPENSSL_free((void*)ctx->engine_id);
 		if(ctx->dirs)
-			sk_pop_free(ctx->dirs, int_free_str);
+			sk_OPENSSL_STRING_pop_free(ctx->dirs, int_free_str);
 		OPENSSL_free(ctx);
 		}
 	}
@@ -203,7 +203,7 @@ static int dynamic_set_data_ctx(ENGINE *e, dynamic_data_ctx **ctx)
 	c->DYNAMIC_F1 = "v_check";
 	c->DYNAMIC_F2 = "bind_engine";
 	c->dir_load = 1;
-	c->dirs = sk_new_null();
+	c->dirs = sk_OPENSSL_STRING_new_null();
 	if(!c->dirs)
 		{
 		ENGINEerr(ENGINE_F_DYNAMIC_SET_DATA_CTX,ERR_R_MALLOC_FAILURE);
@@ -393,7 +393,7 @@ static int dynamic_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)(void))
 				ERR_R_MALLOC_FAILURE);
 			return 0;
 			}
-		sk_insert(ctx->dirs, tmp_str, -1);
+		sk_OPENSSL_STRING_insert(ctx->dirs, tmp_str, -1);
 		}
 		return 1;
 	default:
@@ -411,11 +411,11 @@ static int int_load(dynamic_data_ctx *ctx)
 				ctx->DYNAMIC_LIBNAME, NULL, 0)) != NULL)
 		return 1;
 	/* If we're not allowed to use 'dirs' or we have none, fail */
-	if(!ctx->dir_load || ((num = sk_num(ctx->dirs)) < 1))
+	if(!ctx->dir_load || (num = sk_OPENSSL_STRING_num(ctx->dirs)) < 1)
 		return 0;
 	for(loop = 0; loop < num; loop++)
 		{
-		const char *s = sk_value(ctx->dirs, loop);
+		const char *s = sk_OPENSSL_STRING_value(ctx->dirs, loop);
 		char *merge = DSO_merge(ctx->dynamic_dso, ctx->DYNAMIC_LIBNAME, s);
 		if(!merge)
 			return 0;

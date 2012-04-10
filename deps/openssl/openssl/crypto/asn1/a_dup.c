@@ -62,7 +62,7 @@
 
 #ifndef NO_OLD_ASN1
 
-void *ASN1_dup(i2d_of_void *i2d, d2i_of_void *d2i, char *x)
+void *ASN1_dup(i2d_of_void *i2d, d2i_of_void *d2i, void *x)
 	{
 	unsigned char *b,*p;
 	const unsigned char *p2;

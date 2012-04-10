@@ -697,9 +697,11 @@ static int ctx_set_dh(SSL_CTX *ctx, const char *dh_file, const char *dh_special)
 			abort();
 		fprintf(stderr, "Info, generating DH parameters ... ");
 		fflush(stderr);
-		if((dh = DH_generate_parameters(512, DH_GENERATOR_5,
-					NULL, NULL)) == NULL) {
+		if(!(dh = DH_new()) || !DH_generate_parameters_ex(dh, 512,
+					DH_GENERATOR_5, NULL)) {
 			fprintf(stderr, "error!\n");
+			if(dh)
+				DH_free(dh);
 			return 0;
 		}
 		fprintf(stderr, "complete\n");
@@ -733,7 +735,7 @@ static SSL_CTX *initialise_ssl_ctx(int server_mode, const char *engine_id,
 		unsigned int verify_depth)
 {
 	SSL_CTX *ctx = NULL, *ret = NULL;
-	SSL_METHOD *meth;
+	const SSL_METHOD *meth;
 	ENGINE *e = NULL;
 
         OpenSSL_add_ssl_algorithms();

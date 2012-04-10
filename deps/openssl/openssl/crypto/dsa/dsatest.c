@@ -169,7 +169,6 @@ int main(int argc, char **argv)
 		}
 	BIO_printf(bio_err,"\ncounter=%d h=%ld\n",counter,h);
 		
-	if (dsa == NULL) goto end;
 	DSA_print(bio_err,dsa,0);
 	if (counter != 105) 
 		{
@@ -223,7 +222,7 @@ end:
 		ERR_print_errors(bio_err);
 	if (dsa != NULL) DSA_free(dsa);
 	CRYPTO_cleanup_all_ex_data();
-	ERR_remove_state(0);
+	ERR_remove_thread_state(NULL);
 	ERR_free_strings();
 	CRYPTO_mem_leaks(bio_err);
 	if (bio_err != NULL)

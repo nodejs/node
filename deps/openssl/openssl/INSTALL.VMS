@@ -71,7 +71,7 @@ the top to understand how to use them.  However, if you want to
 compile all you can get, the simplest is to use MAKEVMS.COM in the top
 directory.  The syntax is the following:
 
-  @MAKEVMS <option> <rsaref-p> <debug-p> [<compiler>]
+  @MAKEVMS <option> <bits> <debug-p> [<compiler>]
 
 <option> must be one of the following:
 
@@ -87,24 +87,11 @@ directory.  The syntax is the following:
       TEST      Just build the "[.xxx.EXE.TEST]" test programs for OpenSSL.
       APPS      Just build the "[.xxx.EXE.APPS]" application programs for OpenSSL.
 
-<rsaref-p> must be one of the following:
+<bits> must be one of the following:
 
-      RSAREF    compile using the RSAREF Library
-      NORSAREF  compile without using RSAREF
-
-Note 0: The RSAREF library IS NO LONGER NEEDED.  The RSA patent
-        expires September 20, 2000, and RSA Security chose to make
-        the algorithm public domain two weeks before that.
-
-Note 1: If you still want to use RSAREF, the library is NOT INCLUDED
-        and you have to download it.  RSA Security doesn't carry it
-        any more, but there are a number of places where you can find
-        it.  You have to get the ".tar-Z" file as the ".zip" file
-        doesn't have the directory structure stored.  You have to
-        extract the file into the [.RSAREF] directory as that is where
-        the scripts will look for the files.
-
-Note 2: I have never done this, so I've no idea if it works or not.
+      ""        compile using default pointer size
+      32        compile using 32 bit pointer size
+      64        compile using 64 bit pointer size
 
 <debug-p> must be one of the following:
 
@@ -117,12 +104,13 @@ Note 2: I have never done this, so I've no idea if it works or not.
       GNUC      For GNU C.
 
 
-You will find the crypto library in [.xxx.EXE.CRYPTO], called LIBCRYPTO.OLB,
-where xxx is VAX or AXP.  You will find the SSL library in [.xxx.EXE.SSL],
-named LIBSSL.OLB, and you will find a bunch of useful programs in
-[.xxx.EXE.APPS].  However, these shouldn't be used right off unless it's
-just to test them.  For production use, make sure you install first, see
-Installation below.
+You will find the crypto library in [.xxx.EXE.CRYPTO] (where xxx is VAX,
+ALPHA or IA64), called SSL_LIBCRYPTO32.OLB or SSL_LIBCRYPTO.OLB depending
+on how it was built.  You will find the SSL library in [.xxx.EXE.SSL],
+named SSL_LIBSSL32.OLB or SSL_LIBSSL.OLB, and you will find a bunch of
+useful programs in [.xxx.EXE.APPS].  However, these shouldn't be used
+right off unless it's just to test them.  For production use, make sure
+you install first, see Installation below.
 
 Note 1: Some programs in this package require a TCP/IP library.
 
@@ -170,11 +158,13 @@ Installation:
 
 Installation is easy, just do the following:
 
-  @INSTALL <root>
+  @INSTALL <root> <bits>
 
 <root> is the directory in which everything will be installed,
 subdirectories, libraries, header files, programs and startup command
 procedures.
+
+<bits> works the same way as for MAKEVMS.COM
 
 N.B.: INSTALL.COM builds a new directory structure, different from
 the directory tree where you have now build OpenSSL.
@@ -196,6 +186,10 @@ following command procedures:
         sets up the symbols to the applications.  Should be called
         from for example SYS$MANAGER:SYLOGIN.COM 
 
+  OPENSSL_UNDO.COM
+
+	deassigns the logical names created with OPENSSL_STARTUP.COM.
+
 The logical names that are set up are the following:
 
   SSLROOT       a dotted concealed logical name pointing at the
@@ -203,7 +197,6 @@ The logical names that are set up are the following:
 
   SSLCERTS      Initially an empty directory, this is the default
 		location for certificate files.
-  SSLMISC	Various scripts.
   SSLPRIVATE	Initially an empty directory, this is the default
 		location for private key files.
 
@@ -211,8 +204,9 @@ The logical names that are set up are the following:
 		programs.
   SSLINCLUDE    Contains the header files needed if you want to
 		compile programs with libcrypto or libssl.
-  SSLLIB        Contains the OpenSSL library files (LIBCRYPTO.OLB
-		and LIBSSL.OLB) themselves.
+  SSLLIB        Contains the OpenSSL library files themselves:
+  		- SSL_LIBCRYPTO32.OLB and SSL_LIBSSL32.OLB or
+		- SSL_LIBCRYPTO.OLB and SSL_LIBSSL.OLB
 
   OPENSSL	Same as SSLINCLUDE.  This is because the standard
 		way to include OpenSSL header files from version
@@ -296,4 +290,4 @@ have any ideas.
 
 --
 Richard Levitte <richard@levitte.org>
-2000-02-27
+2000-02-27, 2011-03-18

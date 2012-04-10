@@ -255,7 +255,8 @@ extern "C" {
 	     : "r"(a), "r"(b));		\
 	ret;			})
 #  endif	/* compiler */
-# elif defined(__x86_64) && defined(SIXTY_FOUR_BIT_LONG)
+# elif (defined(__x86_64) || defined(__x86_64__)) && \
+       (defined(SIXTY_FOUR_BIT_LONG) || defined(SIXTY_FOUR_BIT))
 #  if defined(__GNUC__)
 #   define BN_UMULT_HIGH(a,b)	({	\
 	register BN_ULONG ret,discard;	\

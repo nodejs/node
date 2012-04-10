@@ -70,6 +70,28 @@ int EVP_VerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sigbuf,
 	int i,ok=0,v;
 	EVP_MD_CTX tmp_ctx;
 
+	EVP_MD_CTX_init(&tmp_ctx);
+	EVP_MD_CTX_copy_ex(&tmp_ctx,ctx);     
+	EVP_DigestFinal_ex(&tmp_ctx,&(m[0]),&m_len);
+	EVP_MD_CTX_cleanup(&tmp_ctx);
+
+	if (ctx->digest->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE)
+		{
+		EVP_PKEY_CTX *pkctx = NULL;
+		i = -1;
+		pkctx = EVP_PKEY_CTX_new(pkey, NULL);
+		if (!pkctx)
+			goto err;
+		if (EVP_PKEY_verify_init(pkctx) <= 0)
+			goto err;
+		if (EVP_PKEY_CTX_set_signature_md(pkctx, ctx->digest) <= 0)
+			goto err;
+		i = EVP_PKEY_verify(pkctx, sigbuf, siglen, m, m_len);
+		err:
+		EVP_PKEY_CTX_free(pkctx);
+		return i;
+		}
+
 	for (i=0; i<4; i++)
 		{
 		v=ctx->digest->required_pkey_type[i];
@@ -85,29 +107,13 @@ int EVP_VerifyFinal(EVP_MD_CTX *ctx, const unsigned char *sigbuf,
 		EVPerr(EVP_F_EVP_VERIFYFINAL,EVP_R_WRONG_PUBLIC_KEY_TYPE);
 		return(-1);
 		}
-	if (ctx->digest->verify == NULL)
+        if (ctx->digest->verify == NULL)
                 {
 		EVPerr(EVP_F_EVP_VERIFYFINAL,EVP_R_NO_VERIFY_FUNCTION_CONFIGURED);
 		return(0);
 		}
 
-	EVP_MD_CTX_init(&tmp_ctx);
-	EVP_MD_CTX_copy_ex(&tmp_ctx,ctx);     
-	if (ctx->digest->flags & EVP_MD_FLAG_SVCTX)
-		{
-		EVP_MD_SVCTX sctmp;
-		sctmp.mctx = &tmp_ctx;
-		sctmp.key = pkey->pkey.ptr;
-		i = ctx->digest->verify(ctx->digest->type,
-			NULL, -1, sigbuf, siglen, &sctmp);
-		}
-	else
-		{
-		EVP_DigestFinal_ex(&tmp_ctx,&(m[0]),&m_len);
-		i = ctx->digest->verify(ctx->digest->type,m,m_len,
-					sigbuf,siglen,pkey->pkey.ptr);
-		}
-	EVP_MD_CTX_cleanup(&tmp_ctx);
-	return i;
+	return(ctx->digest->verify(ctx->digest->type,m,m_len,
+		sigbuf,siglen,pkey->pkey.ptr));
 	}
 

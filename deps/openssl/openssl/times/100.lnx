@@ -1,0 +1,32 @@
+SSLeay 0.8.4c 03-Aug-1999
+built on Tue Nov  4 02:52:29 EST 1997
+options:bn(64,32) md2(int) rc4(ptr,int) des(ptr,risc1,16,long) idea(int) blowfish(ptr2) 
+C flags:gcc -DL_ENDIAN -DTERMIO -DBN_ASM -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized -DMD5_ASM -DSHA1_ASM
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                53.27k      155.95k      201.30k      216.41k      236.78k
+mdc2              192.98k      207.98k      206.76k      206.17k      208.87k
+md5               993.15k     5748.27k    11944.70k    16477.53k    18287.27k
+hmac(md5)         404.97k     2787.58k     7690.07k    13744.43k    17601.88k
+sha1              563.24k     2851.67k     5363.71k     6879.23k     7441.07k
+rc4              7876.70k    10400.85k    10825.90k    10943.49k    10745.17k
+des cbc          2047.39k     2188.25k     2188.29k     2239.49k     2233.69k
+des ede3          660.55k      764.01k      773.55k      779.21k      780.97k
+idea cbc          653.93k      708.48k      715.43k      719.87k      720.90k
+rc2 cbc           648.08k      702.23k      708.78k      711.00k      709.97k
+blowfish cbc     3764.39k     4288.66k     4375.04k     4497.07k     4423.68k
+cast cbc         2757.14k     2993.75k     3035.31k     3078.90k     3055.62k
+
+blowfish cbc     3258.81k     3673.47k     3767.30k     3774.12k     3719.17k
+cast cbc         2677.05k     3164.78k     3273.05k     3287.38k     3244.03k
+
+
+                  sign    verify
+rsa  512 bits   0.0213s   0.0020s
+rsa 1024 bits   0.1073s   0.0063s
+rsa 2048 bits   0.6873s   0.0224s
+rsa 4096 bits   4.9333s   0.0845s
+                  sign    verify
+dsa  512 bits   0.0201s   0.0385s
+dsa 1024 bits   0.0604s   0.1190s
+dsa 2048 bits   0.2121s   0.4229s

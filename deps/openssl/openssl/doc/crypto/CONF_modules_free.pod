@@ -1,0 +1,47 @@
+=pod
+
+=head1 NAME
+
+ CONF_modules_free, CONF_modules_finish, CONF_modules_unload -
+ OpenSSL configuration cleanup functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/conf.h>
+
+ void CONF_modules_free(void);
+ void CONF_modules_finish(void);
+ void CONF_modules_unload(int all);
+
+=head1 DESCRIPTION
+
+CONF_modules_free() closes down and frees up all memory allocated by all
+configuration modules.
+
+CONF_modules_finish() calls each configuration modules B<finish> handler
+to free up any configuration that module may have performed.
+
+CONF_modules_unload() finishes and unloads configuration modules. If
+B<all> is set to B<0> only modules loaded from DSOs will be unloads. If
+B<all> is B<1> all modules, including builtin modules will be unloaded.
+
+=head1 NOTES
+
+Normally applications will only call CONF_modules_free() at application to
+tidy up any configuration performed.
+
+=head1 RETURN VALUE
+
+None of the functions return a value.
+
+=head1 SEE ALSO
+
+L<conf(5)|conf(5)>, L<OPENSSL_config(3)|OPENSSL_config(3)>,
+L<CONF_modules_load_file(3), CONF_modules_load_file(3)>
+
+=head1 HISTORY
+
+CONF_modules_free(), CONF_modules_unload(), and CONF_modules_finish()
+first appeared in OpenSSL 0.9.7.
+
+=cut

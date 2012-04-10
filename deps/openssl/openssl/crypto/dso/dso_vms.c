@@ -68,7 +68,19 @@
 #include <stsdef.h>
 #include <descrip.h>
 #include <starlet.h>
+#include "vms_rms.h"
 #endif
+
+/* Some compiler options may mask the declaration of "_malloc32". */
+#if __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE
+# if __INITIAL_POINTER_SIZE == 64
+#  pragma pointer_size save
+#  pragma pointer_size 32
+    void * _malloc32  (__size_t);
+#  pragma pointer_size restore
+# endif /* __INITIAL_POINTER_SIZE == 64 */
+#endif /* __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE */
+
 
 #ifndef OPENSSL_SYS_VMS
 DSO_METHOD *DSO_METHOD_vms(void)
@@ -121,13 +133,12 @@ typedef struct dso_internal_st
 	/* This should contain the name only, no directory,
 	 * no extension, nothing but a name. */
 	struct dsc$descriptor_s filename_dsc;
-	char filename[FILENAME_MAX+1];
+	char filename[ NAMX_MAXRSS+ 1];
 	/* This contains whatever is not in filename, if needed.
 	 * Normally not defined. */
 	struct dsc$descriptor_s imagename_dsc;
-	char imagename[FILENAME_MAX+1];
+	char imagename[ NAMX_MAXRSS+ 1];
 	} DSO_VMS_INTERNAL;
-
 
 DSO_METHOD *DSO_METHOD_vms(void)
 	{
@@ -139,7 +150,22 @@ static int vms_load(DSO *dso)
 	void *ptr = NULL;
 	/* See applicable comments in dso_dl.c */
 	char *filename = DSO_convert_filename(dso, NULL);
-	DSO_VMS_INTERNAL *p;
+
+/* Ensure 32-bit pointer for "p", and appropriate malloc() function. */
+#if __INITIAL_POINTER_SIZE == 64
+# define DSO_MALLOC _malloc32
+# pragma pointer_size save
+# pragma pointer_size 32
+#else /* __INITIAL_POINTER_SIZE == 64 */
+# define DSO_MALLOC OPENSSL_malloc
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
+
+	DSO_VMS_INTERNAL *p = NULL;
+
+#if __INITIAL_POINTER_SIZE == 64
+# pragma pointer_size restore
+#endif /* __INITIAL_POINTER_SIZE == 64 */
+
 	const char *sp1, *sp2;	/* Search result */
 
 	if(filename == NULL)
@@ -192,7 +218,7 @@ static int vms_load(DSO *dso)
 		goto err;
 		}
 
-	p = (DSO_VMS_INTERNAL *)OPENSSL_malloc(sizeof(DSO_VMS_INTERNAL));
+	p = DSO_MALLOC(sizeof(DSO_VMS_INTERNAL));
 	if(p == NULL)
 		{
 		DSOerr(DSO_F_VMS_LOAD,ERR_R_MALLOC_FAILURE);
@@ -215,7 +241,7 @@ static int vms_load(DSO *dso)
 	p->imagename_dsc.dsc$b_class = DSC$K_CLASS_S;
 	p->imagename_dsc.dsc$a_pointer = p->imagename;
 
-	if(!sk_push(dso->meth_data, (char *)p))
+	if(!sk_void_push(dso->meth_data, (char *)p))
 		{
 		DSOerr(DSO_F_VMS_LOAD,DSO_R_STACK_ERROR);
 		goto err;
@@ -245,9 +271,9 @@ static int vms_unload(DSO *dso)
 		DSOerr(DSO_F_VMS_UNLOAD,ERR_R_PASSED_NULL_PARAMETER);
 		return(0);
 		}
-	if(sk_num(dso->meth_data) < 1)
+	if(sk_void_num(dso->meth_data) < 1)
 		return(1);
-	p = (DSO_VMS_INTERNAL *)sk_pop(dso->meth_data);
+	p = (DSO_VMS_INTERNAL *)sk_void_pop(dso->meth_data);
 	if(p == NULL)
 		{
 		DSOerr(DSO_F_VMS_UNLOAD,DSO_R_NULL_HANDLE);
@@ -290,25 +316,45 @@ void vms_bind_sym(DSO *dso, const char *symname, void **sym)
 	int flags = 0;
 #endif
 	struct dsc$descriptor_s symname_dsc;
-	*sym = NULL;
 
-	symname_dsc.dsc$w_length = strlen(symname);
-	symname_dsc.dsc$b_dtype = DSC$K_DTYPE_T;
-	symname_dsc.dsc$b_class = DSC$K_CLASS_S;
-	symname_dsc.dsc$a_pointer = (char *)symname; /* The cast is needed */
+/* Arrange 32-bit pointer to (copied) string storage, if needed. */
+#if __INITIAL_POINTER_SIZE == 64
+# define SYMNAME symname_32p
+# pragma pointer_size save
+# pragma pointer_size 32
+	char *symname_32p;
+# pragma pointer_size restore
+	char symname_32[ NAMX_MAXRSS+ 1];
+#else /* __INITIAL_POINTER_SIZE == 64 */
+# define SYMNAME ((char *) symname)
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
+
+	*sym = NULL;
 
 	if((dso == NULL) || (symname == NULL))
 		{
 		DSOerr(DSO_F_VMS_BIND_SYM,ERR_R_PASSED_NULL_PARAMETER);
 		return;
 		}
-	if(sk_num(dso->meth_data) < 1)
+
+#if __INITIAL_POINTER_SIZE == 64
+	/* Copy the symbol name to storage with a 32-bit pointer. */
+	symname_32p = symname_32;
+	strcpy( symname_32p, symname);
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
+
+	symname_dsc.dsc$w_length = strlen(SYMNAME);
+	symname_dsc.dsc$b_dtype = DSC$K_DTYPE_T;
+	symname_dsc.dsc$b_class = DSC$K_CLASS_S;
+	symname_dsc.dsc$a_pointer = SYMNAME;
+
+	if(sk_void_num(dso->meth_data) < 1)
 		{
 		DSOerr(DSO_F_VMS_BIND_SYM,DSO_R_STACK_ERROR);
 		return;
 		}
-	ptr = (DSO_VMS_INTERNAL *)sk_value(dso->meth_data,
-		sk_num(dso->meth_data) - 1);
+	ptr = (DSO_VMS_INTERNAL *)sk_void_value(dso->meth_data,
+		sk_void_num(dso->meth_data) - 1);
 	if(ptr == NULL)
 		{
 		DSOerr(DSO_F_VMS_BIND_SYM,DSO_R_NULL_HANDLE);
@@ -372,64 +418,60 @@ static DSO_FUNC_TYPE vms_bind_func(DSO *dso, const char *symname)
 	return sym;
 	}
 
+
 static char *vms_merger(DSO *dso, const char *filespec1, const char *filespec2)
 	{
 	int status;
 	int filespec1len, filespec2len;
 	struct FAB fab;
-#ifdef NAML$C_MAXRSS
-	struct NAML nam;
-	char esa[NAML$C_MAXRSS];
-#else
-	struct NAM nam;
-	char esa[NAM$C_MAXRSS];
-#endif
+	struct NAMX_STRUCT nam;
+	char esa[ NAMX_MAXRSS+ 1];
 	char *merged;
+
+/* Arrange 32-bit pointer to (copied) string storage, if needed. */
+#if __INITIAL_POINTER_SIZE == 64
+# define FILESPEC1 filespec1_32p;
+# define FILESPEC2 filespec2_32p;
+# pragma pointer_size save
+# pragma pointer_size 32
+	char *filespec1_32p;
+	char *filespec2_32p;
+# pragma pointer_size restore
+	char filespec1_32[ NAMX_MAXRSS+ 1];
+	char filespec2_32[ NAMX_MAXRSS+ 1];
+#else /* __INITIAL_POINTER_SIZE == 64 */
+# define FILESPEC1 ((char *) filespec1)
+# define FILESPEC2 ((char *) filespec2)
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
 
 	if (!filespec1) filespec1 = "";
 	if (!filespec2) filespec2 = "";
 	filespec1len = strlen(filespec1);
 	filespec2len = strlen(filespec2);
 
-	fab = cc$rms_fab;
-#ifdef NAML$C_MAXRSS
-	nam = cc$rms_naml;
-#else
-	nam = cc$rms_nam;
-#endif
+#if __INITIAL_POINTER_SIZE == 64
+	/* Copy the file names to storage with a 32-bit pointer. */
+	filespec1_32p = filespec1_32;
+	filespec2_32p = filespec2_32;
+	strcpy( filespec1_32p, filespec1);
+	strcpy( filespec2_32p, filespec2);
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
 
-	fab.fab$l_fna = (char *)filespec1;
-	fab.fab$b_fns = filespec1len;
-	fab.fab$l_dna = (char *)filespec2;
-	fab.fab$b_dns = filespec2len;
-#ifdef NAML$C_MAXRSS
-	if (filespec1len > NAM$C_MAXRSS)
-		{
-		fab.fab$l_fna = 0;
-		fab.fab$b_fns = 0;
-		nam.naml$l_long_filename = (char *)filespec1;
-		nam.naml$l_long_filename_size = filespec1len;
-		}
-	if (filespec2len > NAM$C_MAXRSS)
-		{
-		fab.fab$l_dna = 0;
-		fab.fab$b_dns = 0;
-		nam.naml$l_long_defname = (char *)filespec2;
-		nam.naml$l_long_defname_size = filespec2len;
-		}
-	nam.naml$l_esa = esa;
-	nam.naml$b_ess = NAM$C_MAXRSS;
-	nam.naml$l_long_expand = esa;
-	nam.naml$l_long_expand_alloc = sizeof(esa);
-	nam.naml$b_nop = NAM$M_SYNCHK | NAM$M_PWD;
-	nam.naml$v_no_short_upcase = 1;
-	fab.fab$l_naml = &nam;
-#else
-	nam.nam$l_esa = esa;
-	nam.nam$b_ess = NAM$C_MAXRSS;
-	nam.nam$b_nop = NAM$M_SYNCHK | NAM$M_PWD;
-	fab.fab$l_nam = &nam;
-#endif
+	fab = cc$rms_fab;
+	nam = CC_RMS_NAMX;
+
+	FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNA = FILESPEC1;
+	FAB_OR_NAML( fab, nam).FAB_OR_NAML_FNS = filespec1len;
+	FAB_OR_NAML( fab, nam).FAB_OR_NAML_DNA = FILESPEC2;
+	FAB_OR_NAML( fab, nam).FAB_OR_NAML_DNS = filespec2len;
+	NAMX_DNA_FNA_SET( fab)
+
+	nam.NAMX_ESA = esa;
+	nam.NAMX_ESS = NAMX_MAXRSS;
+	nam.NAMX_NOP = NAM$M_SYNCHK | NAM$M_PWD;
+	SET_NAMX_NO_SHORT_UPCASE( nam);
+
+	fab.FAB_NAMX = &nam;
 
 	status = sys$parse(&fab, 0, 0);
 
@@ -460,33 +502,12 @@ static char *vms_merger(DSO *dso, const char *filespec1, const char *filespec2)
 			}
 		return(NULL);
 		}
-#ifdef NAML$C_MAXRSS
-	if (nam.naml$l_long_expand_size)
-		{
-		merged = OPENSSL_malloc(nam.naml$l_long_expand_size + 1);
-		if(!merged)
-			goto malloc_err;
-		strncpy(merged, nam.naml$l_long_expand,
-			nam.naml$l_long_expand_size);
-		merged[nam.naml$l_long_expand_size] = '\0';
-		}
-	else
-		{
-		merged = OPENSSL_malloc(nam.naml$b_esl + 1);
-		if(!merged)
-			goto malloc_err;
-		strncpy(merged, nam.naml$l_esa,
-			nam.naml$b_esl);
-		merged[nam.naml$b_esl] = '\0';
-		}
-#else
-	merged = OPENSSL_malloc(nam.nam$b_esl + 1);
+
+	merged = OPENSSL_malloc( nam.NAMX_ESL+ 1);
 	if(!merged)
 		goto malloc_err;
-	strncpy(merged, nam.nam$l_esa,
-		nam.nam$b_esl);
-	merged[nam.nam$b_esl] = '\0';
-#endif
+	strncpy( merged, nam.NAMX_ESA, nam.NAMX_ESL);
+	merged[ nam.NAMX_ESL] = '\0';
 	return(merged);
  malloc_err:
 	DSOerr(DSO_F_VMS_MERGER,

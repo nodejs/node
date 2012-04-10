@@ -133,15 +133,34 @@ int BN_get_params(int which)
 
 const BIGNUM *BN_value_one(void)
 	{
-	static BN_ULONG data_one=1L;
-	static BIGNUM const_one={&data_one,1,1,0,BN_FLG_STATIC_DATA};
+	static const BN_ULONG data_one=1L;
+	static const BIGNUM const_one={(BN_ULONG *)&data_one,1,1,0,BN_FLG_STATIC_DATA};
 
 	return(&const_one);
 	}
 
+char *BN_options(void)
+	{
+	static int init=0;
+	static char data[16];
+
+	if (!init)
+		{
+		init++;
+#ifdef BN_LLONG
+		BIO_snprintf(data,sizeof data,"bn(%d,%d)",
+			     (int)sizeof(BN_ULLONG)*8,(int)sizeof(BN_ULONG)*8);
+#else
+		BIO_snprintf(data,sizeof data,"bn(%d,%d)",
+			     (int)sizeof(BN_ULONG)*8,(int)sizeof(BN_ULONG)*8);
+#endif
+		}
+	return(data);
+	}
+
 int BN_num_bits_word(BN_ULONG l)
 	{
-	static const char bits[256]={
+	static const unsigned char bits[256]={
 		0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,
 		5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
 		6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
@@ -216,7 +235,7 @@ int BN_num_bits_word(BN_ULONG l)
 		else
 #endif
 			{
-#if defined(SIXTEEN_BIT) || defined(THIRTY_TWO_BIT) || defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG)
+#if defined(THIRTY_TWO_BIT) || defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG)
 			if (l & 0xff00L)
 				return(bits[(int)(l>>8)]+8);
 			else	
@@ -744,7 +763,7 @@ int BN_is_bit_set(const BIGNUM *a, int n)
 	i=n/BN_BITS2;
 	j=n%BN_BITS2;
 	if (a->top <= i) return 0;
-	return(((a->d[i])>>j)&((BN_ULONG)1));
+	return (int)(((a->d[i])>>j)&((BN_ULONG)1));
 	}
 
 int BN_mask_bits(BIGNUM *a, int n)

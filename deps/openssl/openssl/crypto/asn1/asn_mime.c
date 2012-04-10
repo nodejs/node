@@ -59,6 +59,7 @@
 #include <openssl/x509.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include "asn1_locl.h"
 
 /* Generalised MIME like utilities for streaming ASN1. Although many
  * have a PKCS7/CMS like flavour others are more general purpose.
@@ -86,6 +87,8 @@ STACK_OF(MIME_PARAM) *params;		/* Zero or more parameters */
 DECLARE_STACK_OF(MIME_HEADER)
 IMPLEMENT_STACK_OF(MIME_HEADER)
 
+static int asn1_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
+					const ASN1_ITEM *it);
 static char * strip_ends(char *name);
 static char * strip_start(char *name);
 static char * strip_end(char *name);
@@ -107,6 +110,39 @@ static void mime_hdr_free(MIME_HEADER *hdr);
 #define MAX_SMLEN 1024
 #define mime_debug(x) /* x */
 
+/* Output an ASN1 structure in BER format streaming if necessary */
+
+int i2d_ASN1_bio_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
+				const ASN1_ITEM *it)
+	{
+	/* If streaming create stream BIO and copy all content through it */
+	if (flags & SMIME_STREAM)
+		{
+		BIO *bio, *tbio;
+		bio = BIO_new_NDEF(out, val, it);
+		if (!bio)
+			{
+			ASN1err(ASN1_F_I2D_ASN1_BIO_STREAM,ERR_R_MALLOC_FAILURE);
+			return 0;
+			}
+		SMIME_crlf_copy(in, bio, flags);
+		(void)BIO_flush(bio);
+		/* Free up successive BIOs until we hit the old output BIO */
+		do
+			{
+			tbio = BIO_pop(bio);
+			BIO_free(bio);
+			bio = tbio;
+			} while (bio != out);
+		}
+	/* else just write out ASN1 structure which will have all content
+	 * stored internally
+	 */
+	else
+		ASN1_item_i2d_bio(it, out, val);
+	return 1;
+	}
+
 /* Base 64 read and write of ASN1 structure */
 
 static int B64_write_ASN1(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
@@ -123,10 +159,23 @@ static int B64_write_ASN1(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
 	/* prepend the b64 BIO so all data is base64 encoded.
 	 */
 	out = BIO_push(b64, out);
-	r = ASN1_item_i2d_bio(it, out, val);
+	r = i2d_ASN1_bio_stream(out, val, in, flags, it);
 	(void)BIO_flush(out);
 	BIO_pop(out);
 	BIO_free(b64);
+	return r;
+	}
+
+/* Streaming ASN1 PEM write */
+
+int PEM_write_bio_ASN1_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
+				const char *hdr,
+				const ASN1_ITEM *it)
+	{
+	int r;
+	BIO_printf(out, "-----BEGIN %s-----\n", hdr);
+	r = B64_write_ASN1(out, val, in, flags, it);
+	BIO_printf(out, "-----END %s-----\n", hdr);
 	return r;
 	}
 
@@ -152,7 +201,8 @@ static ASN1_VALUE *b64_read_asn1(BIO *bio, const ASN1_ITEM *it)
 
 static int asn1_write_micalg(BIO *out, STACK_OF(X509_ALGOR) *mdalgs)
 	{
-	int i, have_unknown = 0, write_comma, md_nid;
+	const EVP_MD *md;
+	int i, have_unknown = 0, write_comma, ret = 0, md_nid;
 	have_unknown = 0;
 	write_comma = 0;
 	for (i = 0; i < sk_X509_ALGOR_num(mdalgs); i++)
@@ -161,6 +211,21 @@ static int asn1_write_micalg(BIO *out, STACK_OF(X509_ALGOR) *mdalgs)
 			BIO_write(out, ",", 1);
 		write_comma = 1;
 		md_nid = OBJ_obj2nid(sk_X509_ALGOR_value(mdalgs, i)->algorithm);
+		md = EVP_get_digestbynid(md_nid);
+		if (md && md->md_ctrl)
+			{
+			int rv;
+			char *micstr;
+			rv = md->md_ctrl(NULL, EVP_MD_CTRL_MICALG, 0, &micstr);
+			if (rv > 0)
+				{
+				BIO_puts(out, micstr);
+				OPENSSL_free(micstr);
+				continue;
+				}
+			if (rv != -2)
+				goto err;
+			}
 		switch(md_nid)
 			{
 			case NID_sha1:
@@ -183,6 +248,11 @@ static int asn1_write_micalg(BIO *out, STACK_OF(X509_ALGOR) *mdalgs)
 			BIO_puts(out, "sha-512");
 			break;
 
+			case NID_id_GostR3411_94:
+			BIO_puts(out, "gostr3411-94");
+				goto err;
+			break;
+
 			default:
 			if (have_unknown)
 				write_comma = 0;
@@ -196,16 +266,18 @@ static int asn1_write_micalg(BIO *out, STACK_OF(X509_ALGOR) *mdalgs)
 			}
 		}
 
-	return 1;
+	ret = 1;
+	err:
+
+	return ret;
 
 	}
 
 /* SMIME sender */
 
-int int_smime_write_ASN1(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
+int SMIME_write_ASN1(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
 				int ctype_nid, int econt_nid,
 				STACK_OF(X509_ALGOR) *mdalgs,
-				asn1_output_data_fn *data_fn,
 				const ASN1_ITEM *it)
 {
 	char bound[33], c;
@@ -243,7 +315,7 @@ int int_smime_write_ASN1(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
 						mime_eol, mime_eol);
 		/* Now write out the first part */
 		BIO_printf(bio, "------%s%s", bound, mime_eol);
-		if (!data_fn(bio, data, val, flags, it))
+		if (!asn1_output_data(bio, data, val, flags, it))
 			return 0;
 		BIO_printf(bio, "%s------%s%s", mime_eol, bound, mime_eol);
 
@@ -296,8 +368,6 @@ int int_smime_write_ASN1(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
 	return 1;
 }
 
-#if 0
-
 /* Handle output of ASN1 data */
 
 
@@ -349,8 +419,6 @@ static int asn1_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
 	return 1;
 
 	}
-
-#endif
 
 /* SMIME reader: handle multipart/signed and opaque signing.
  * in multipart case the content is placed in a memory BIO

@@ -4,7 +4,7 @@
  * \author Written by Nils Larsch for the OpenSSL project
  */
 /* ====================================================================
- * Copyright (c) 2000-2003 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -81,156 +81,143 @@ typedef struct ECDSA_SIG_st
 	BIGNUM *s;
 	} ECDSA_SIG;
 
-/** ECDSA_SIG *ECDSA_SIG_new(void)
- * allocates and initialize a ECDSA_SIG structure
- * \return pointer to a ECDSA_SIG structure or NULL if an error occurred
+/** Allocates and initialize a ECDSA_SIG structure
+ *  \return pointer to a ECDSA_SIG structure or NULL if an error occurred
  */
 ECDSA_SIG *ECDSA_SIG_new(void);
 
-/** ECDSA_SIG_free
- * frees a ECDSA_SIG structure
- * \param a pointer to the ECDSA_SIG structure
+/** frees a ECDSA_SIG structure
+ *  \param  sig  pointer to the ECDSA_SIG structure
  */
-void	  ECDSA_SIG_free(ECDSA_SIG *a);
+void	  ECDSA_SIG_free(ECDSA_SIG *sig);
 
-/** i2d_ECDSA_SIG
- * DER encode content of ECDSA_SIG object (note: this function modifies *pp
- * (*pp += length of the DER encoded signature)).
- * \param a  pointer to the ECDSA_SIG object
- * \param pp pointer to a unsigned char pointer for the output or NULL
- * \return the length of the DER encoded ECDSA_SIG object or 0 
+/** DER encode content of ECDSA_SIG object (note: this function modifies *pp
+ *  (*pp += length of the DER encoded signature)).
+ *  \param  sig  pointer to the ECDSA_SIG object
+ *  \param  pp   pointer to a unsigned char pointer for the output or NULL
+ *  \return the length of the DER encoded ECDSA_SIG object or 0 
  */
-int	  i2d_ECDSA_SIG(const ECDSA_SIG *a, unsigned char **pp);
+int	  i2d_ECDSA_SIG(const ECDSA_SIG *sig, unsigned char **pp);
 
-/** d2i_ECDSA_SIG
- * decodes a DER encoded ECDSA signature (note: this function changes *pp
- * (*pp += len)). 
- * \param v pointer to ECDSA_SIG pointer (may be NULL)
- * \param pp buffer with the DER encoded signature
- * \param len bufferlength
- * \return pointer to the decoded ECDSA_SIG structure (or NULL)
+/** Decodes a DER encoded ECDSA signature (note: this function changes *pp
+ *  (*pp += len)). 
+ *  \param  sig  pointer to ECDSA_SIG pointer (may be NULL)
+ *  \param  pp   memory buffer with the DER encoded signature
+ *  \param  len  length of the buffer
+ *  \return pointer to the decoded ECDSA_SIG structure (or NULL)
  */
-ECDSA_SIG *d2i_ECDSA_SIG(ECDSA_SIG **v, const unsigned char **pp, long len);
+ECDSA_SIG *d2i_ECDSA_SIG(ECDSA_SIG **sig, const unsigned char **pp, long len);
 
-/** ECDSA_do_sign
- * computes the ECDSA signature of the given hash value using
- * the supplied private key and returns the created signature.
- * \param dgst pointer to the hash value
- * \param dgst_len length of the hash value
- * \param eckey pointer to the EC_KEY object containing a private EC key
- * \return pointer to a ECDSA_SIG structure or NULL
+/** Computes the ECDSA signature of the given hash value using
+ *  the supplied private key and returns the created signature.
+ *  \param  dgst      pointer to the hash value
+ *  \param  dgst_len  length of the hash value
+ *  \param  eckey     EC_KEY object containing a private EC key
+ *  \return pointer to a ECDSA_SIG structure or NULL if an error occurred
  */
 ECDSA_SIG *ECDSA_do_sign(const unsigned char *dgst,int dgst_len,EC_KEY *eckey);
 
-/** ECDSA_do_sign_ex
- * computes ECDSA signature of a given hash value using the supplied
- * private key (note: sig must point to ECDSA_size(eckey) bytes of memory).
- * \param dgst pointer to the hash value to sign
- * \param dgstlen length of the hash value
- * \param kinv optional pointer to a pre-computed inverse k
- * \param rp optional pointer to the pre-computed rp value (see 
- *        ECDSA_sign_setup
- * \param eckey pointer to the EC_KEY object containing a private EC key
- * \return pointer to a ECDSA_SIG structure or NULL
+/** Computes ECDSA signature of a given hash value using the supplied
+ *  private key (note: sig must point to ECDSA_size(eckey) bytes of memory).
+ *  \param  dgst     pointer to the hash value to sign
+ *  \param  dgstlen  length of the hash value
+ *  \param  kinv     BIGNUM with a pre-computed inverse k (optional)
+ *  \param  rp       BIGNUM with a pre-computed rp value (optioanl), 
+ *                   see ECDSA_sign_setup
+ *  \param  eckey    EC_KEY object containing a private EC key
+ *  \return pointer to a ECDSA_SIG structure or NULL if an error occurred
  */
 ECDSA_SIG *ECDSA_do_sign_ex(const unsigned char *dgst, int dgstlen, 
 		const BIGNUM *kinv, const BIGNUM *rp, EC_KEY *eckey);
 
-/** ECDSA_do_verify
- * verifies that the supplied signature is a valid ECDSA
- * signature of the supplied hash value using the supplied public key.
- * \param dgst pointer to the hash value
- * \param dgst_len length of the hash value
- * \param sig  pointer to the ECDSA_SIG structure
- * \param eckey pointer to the EC_KEY object containing a public EC key
- * \return 1 if the signature is valid, 0 if the signature is invalid and -1 on error
+/** Verifies that the supplied signature is a valid ECDSA
+ *  signature of the supplied hash value using the supplied public key.
+ *  \param  dgst      pointer to the hash value
+ *  \param  dgst_len  length of the hash value
+ *  \param  sig       ECDSA_SIG structure
+ *  \param  eckey     EC_KEY object containing a public EC key
+ *  \return 1 if the signature is valid, 0 if the signature is invalid
+ *          and -1 on error
  */
 int	  ECDSA_do_verify(const unsigned char *dgst, int dgst_len,
 		const ECDSA_SIG *sig, EC_KEY* eckey);
 
 const ECDSA_METHOD *ECDSA_OpenSSL(void);
 
-/** ECDSA_set_default_method
- * sets the default ECDSA method
- * \param meth the new default ECDSA_METHOD
+/** Sets the default ECDSA method
+ *  \param  meth  new default ECDSA_METHOD
  */
 void	  ECDSA_set_default_method(const ECDSA_METHOD *meth);
 
-/** ECDSA_get_default_method
- * returns the default ECDSA method
- * \return pointer to ECDSA_METHOD structure containing the default method
+/** Returns the default ECDSA method
+ *  \return pointer to ECDSA_METHOD structure containing the default method
  */
 const ECDSA_METHOD *ECDSA_get_default_method(void);
 
-/** ECDSA_set_method
- * sets method to be used for the ECDSA operations
- * \param eckey pointer to the EC_KEY object
- * \param meth  pointer to the new method
- * \return 1 on success and 0 otherwise 
+/** Sets method to be used for the ECDSA operations
+ *  \param  eckey  EC_KEY object
+ *  \param  meth   new method
+ *  \return 1 on success and 0 otherwise 
  */
 int 	  ECDSA_set_method(EC_KEY *eckey, const ECDSA_METHOD *meth);
 
-/** ECDSA_size
- * returns the maximum length of the DER encoded signature
- * \param  eckey pointer to a EC_KEY object
- * \return numbers of bytes required for the DER encoded signature
+/** Returns the maximum length of the DER encoded signature
+ *  \param  eckey  EC_KEY object
+ *  \return numbers of bytes required for the DER encoded signature
  */
 int	  ECDSA_size(const EC_KEY *eckey);
 
-/** ECDSA_sign_setup
- * precompute parts of the signing operation. 
- * \param eckey pointer to the EC_KEY object containing a private EC key
- * \param ctx  pointer to a BN_CTX object (may be NULL)
- * \param kinv pointer to a BIGNUM pointer for the inverse of k
- * \param rp   pointer to a BIGNUM pointer for x coordinate of k * generator
- * \return 1 on success and 0 otherwise
+/** Precompute parts of the signing operation
+ *  \param  eckey  EC_KEY object containing a private EC key
+ *  \param  ctx    BN_CTX object (optional)
+ *  \param  kinv   BIGNUM pointer for the inverse of k
+ *  \param  rp     BIGNUM pointer for x coordinate of k * generator
+ *  \return 1 on success and 0 otherwise
  */
 int 	  ECDSA_sign_setup(EC_KEY *eckey, BN_CTX *ctx, BIGNUM **kinv, 
 		BIGNUM **rp);
 
-/** ECDSA_sign
- * computes ECDSA signature of a given hash value using the supplied
- * private key (note: sig must point to ECDSA_size(eckey) bytes of memory).
- * \param type this parameter is ignored
- * \param dgst pointer to the hash value to sign
- * \param dgstlen length of the hash value
- * \param sig buffer to hold the DER encoded signature
- * \param siglen pointer to the length of the returned signature
- * \param eckey pointer to the EC_KEY object containing a private EC key
- * \return 1 on success and 0 otherwise
+/** Computes ECDSA signature of a given hash value using the supplied
+ *  private key (note: sig must point to ECDSA_size(eckey) bytes of memory).
+ *  \param  type     this parameter is ignored
+ *  \param  dgst     pointer to the hash value to sign
+ *  \param  dgstlen  length of the hash value
+ *  \param  sig      memory for the DER encoded created signature
+ *  \param  siglen   pointer to the length of the returned signature
+ *  \param  eckey    EC_KEY object containing a private EC key
+ *  \return 1 on success and 0 otherwise
  */
 int	  ECDSA_sign(int type, const unsigned char *dgst, int dgstlen, 
 		unsigned char *sig, unsigned int *siglen, EC_KEY *eckey);
 
 
-/** ECDSA_sign_ex
- * computes ECDSA signature of a given hash value using the supplied
- * private key (note: sig must point to ECDSA_size(eckey) bytes of memory).
- * \param type this parameter is ignored
- * \param dgst pointer to the hash value to sign
- * \param dgstlen length of the hash value
- * \param sig buffer to hold the DER encoded signature
- * \param siglen pointer to the length of the returned signature
- * \param kinv optional pointer to a pre-computed inverse k
- * \param rp optional pointer to the pre-computed rp value (see 
- *        ECDSA_sign_setup
- * \param eckey pointer to the EC_KEY object containing a private EC key
- * \return 1 on success and 0 otherwise
+/** Computes ECDSA signature of a given hash value using the supplied
+ *  private key (note: sig must point to ECDSA_size(eckey) bytes of memory).
+ *  \param  type     this parameter is ignored
+ *  \param  dgst     pointer to the hash value to sign
+ *  \param  dgstlen  length of the hash value
+ *  \param  sig      buffer to hold the DER encoded signature
+ *  \param  siglen   pointer to the length of the returned signature
+ *  \param  kinv     BIGNUM with a pre-computed inverse k (optional)
+ *  \param  rp       BIGNUM with a pre-computed rp value (optioanl), 
+ *                   see ECDSA_sign_setup
+ *  \param  eckey    EC_KEY object containing a private EC key
+ *  \return 1 on success and 0 otherwise
  */
 int	  ECDSA_sign_ex(int type, const unsigned char *dgst, int dgstlen, 
 		unsigned char *sig, unsigned int *siglen, const BIGNUM *kinv,
 		const BIGNUM *rp, EC_KEY *eckey);
 
-/** ECDSA_verify
- * verifies that the given signature is valid ECDSA signature
- * of the supplied hash value using the specified public key.
- * \param type this parameter is ignored
- * \param dgst pointer to the hash value 
- * \param dgstlen length of the hash value
- * \param sig  pointer to the DER encoded signature
- * \param siglen length of the DER encoded signature
- * \param eckey pointer to the EC_KEY object containing a public EC key
- * \return 1 if the signature is valid, 0 if the signature is invalid and -1 on error
+/** Verifies that the given signature is valid ECDSA signature
+ *  of the supplied hash value using the specified public key.
+ *  \param  type     this parameter is ignored
+ *  \param  dgst     pointer to the hash value 
+ *  \param  dgstlen  length of the hash value
+ *  \param  sig      pointer to the DER encoded signature
+ *  \param  siglen   length of the DER encoded signature
+ *  \param  eckey    EC_KEY object containing a public EC key
+ *  \return 1 if the signature is valid, 0 if the signature is invalid
+ *          and -1 on error
  */
 int 	  ECDSA_verify(int type, const unsigned char *dgst, int dgstlen, 
 		const unsigned char *sig, int siglen, EC_KEY *eckey);

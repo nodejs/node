@@ -343,7 +343,7 @@ err:
 	if (ctx) BN_CTX_free(ctx);
 	BIO_free(out);
 	CRYPTO_cleanup_all_ex_data();
-	ERR_remove_state(0);
+	ERR_remove_thread_state(NULL);
 	CRYPTO_mem_leaks_fp(stderr);
 	EXIT(ret);
 	return(ret);

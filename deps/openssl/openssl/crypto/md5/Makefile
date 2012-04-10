@@ -38,21 +38,19 @@ top:
 all:    lib
 
 lib:    $(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
-# ELF
-mx86-elf.s: asm/md5-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) md5-586.pl elf $(CFLAGS) > ../$@)
-# COFF
-mx86-cof.s: asm/md5-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) md5-586.pl coff $(CFLAGS) > ../$@)
-# a.out
-mx86-out.s: asm/md5-586.pl ../perlasm/x86asm.pl
-	(cd asm; $(PERL) md5-586.pl a.out $(CFLAGS) > ../$@)
+md5-586.s:	asm/md5-586.pl ../perlasm/x86asm.pl
+	$(PERL) asm/md5-586.pl $(PERLASM_SCHEME) $(CFLAGS) > $@
 
-md5-x86_64.s:	asm/md5-x86_64.pl;	$(PERL) asm/md5-x86_64.pl $@
+md5-x86_64.s:	asm/md5-x86_64.pl
+	$(PERL) asm/md5-x86_64.pl $(PERLASM_SCHEME) > $@
+
+md5-ia64.s: asm/md5-ia64.S
+	$(CC) $(CFLAGS) -E asm/md5-ia64.S | \
+	$(PERL) -ne 's/;\s+/;\n/g; print;' > $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -91,13 +89,9 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-md5_dgst.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
-md5_dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
-md5_dgst.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-md5_dgst.o: ../../include/openssl/md5.h ../../include/openssl/opensslconf.h
-md5_dgst.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-md5_dgst.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-md5_dgst.o: ../../include/openssl/symhacks.h ../md32_common.h md5_dgst.c
+md5_dgst.o: ../../include/openssl/e_os2.h ../../include/openssl/md5.h
+md5_dgst.o: ../../include/openssl/opensslconf.h
+md5_dgst.o: ../../include/openssl/opensslv.h ../md32_common.h md5_dgst.c
 md5_dgst.o: md5_locl.h
 md5_one.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 md5_one.o: ../../include/openssl/md5.h ../../include/openssl/opensslconf.h

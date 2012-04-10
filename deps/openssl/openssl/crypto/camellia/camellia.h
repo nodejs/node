@@ -58,6 +58,8 @@
 #error CAMELLIA is disabled.
 #endif
 
+#include <stddef.h>
+
 #define CAMELLIA_ENCRYPT	1
 #define CAMELLIA_DECRYPT	0
 
@@ -74,23 +76,17 @@ extern "C" {
 #define CAMELLIA_TABLE_BYTE_LEN 272
 #define CAMELLIA_TABLE_WORD_LEN (CAMELLIA_TABLE_BYTE_LEN / 4)
 
- /* to match with WORD */
-typedef unsigned int KEY_TABLE_TYPE[CAMELLIA_TABLE_WORD_LEN];
+typedef unsigned int KEY_TABLE_TYPE[CAMELLIA_TABLE_WORD_LEN]; /* to match with WORD */
 
 struct camellia_key_st 
 	{
-	KEY_TABLE_TYPE rd_key;
-	int bitLength;
-	void (*enc)(const unsigned int *subkey, unsigned int *io);
-	void (*dec)(const unsigned int *subkey, unsigned int *io);
+	union	{
+		double d;	/* ensures 64-bit align */
+		KEY_TABLE_TYPE rd_key;
+		} u;
+	int grand_rounds;
 	};
-
 typedef struct camellia_key_st CAMELLIA_KEY;
-
-#ifdef OPENSSL_FIPS
-int private_Camellia_set_key(const unsigned char *userKey, const int bits,
-	CAMELLIA_KEY *key);
-#endif
 
 int Camellia_set_key(const unsigned char *userKey, const int bits,
 	CAMELLIA_KEY *key);
@@ -103,25 +99,22 @@ void Camellia_decrypt(const unsigned char *in, unsigned char *out,
 void Camellia_ecb_encrypt(const unsigned char *in, unsigned char *out,
 	const CAMELLIA_KEY *key, const int enc);
 void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
-	const unsigned long length, const CAMELLIA_KEY *key,
+	size_t length, const CAMELLIA_KEY *key,
 	unsigned char *ivec, const int enc);
 void Camellia_cfb128_encrypt(const unsigned char *in, unsigned char *out,
-	const unsigned long length, const CAMELLIA_KEY *key,
+	size_t length, const CAMELLIA_KEY *key,
 	unsigned char *ivec, int *num, const int enc);
 void Camellia_cfb1_encrypt(const unsigned char *in, unsigned char *out,
-	const unsigned long length, const CAMELLIA_KEY *key,
+	size_t length, const CAMELLIA_KEY *key,
 	unsigned char *ivec, int *num, const int enc);
 void Camellia_cfb8_encrypt(const unsigned char *in, unsigned char *out,
-	const unsigned long length, const CAMELLIA_KEY *key,
+	size_t length, const CAMELLIA_KEY *key,
 	unsigned char *ivec, int *num, const int enc);
-void Camellia_cfbr_encrypt_block(const unsigned char *in,unsigned char *out,
-	const int nbits,const CAMELLIA_KEY *key,
-	unsigned char *ivec,const int enc);
 void Camellia_ofb128_encrypt(const unsigned char *in, unsigned char *out,
-	const unsigned long length, const CAMELLIA_KEY *key,
+	size_t length, const CAMELLIA_KEY *key,
 	unsigned char *ivec, int *num);
 void Camellia_ctr128_encrypt(const unsigned char *in, unsigned char *out,
-	const unsigned long length, const CAMELLIA_KEY *key,
+	size_t length, const CAMELLIA_KEY *key,
 	unsigned char ivec[CAMELLIA_BLOCK_SIZE],
 	unsigned char ecount_buf[CAMELLIA_BLOCK_SIZE],
 	unsigned int *num);
@@ -131,4 +124,3 @@ void Camellia_ctr128_encrypt(const unsigned char *in, unsigned char *out,
 #endif
 
 #endif /* !HEADER_Camellia_H */
-

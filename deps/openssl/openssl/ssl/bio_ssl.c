@@ -348,7 +348,11 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
 		break;
 	case BIO_C_SET_SSL:
 		if (ssl != NULL)
+			{
 			ssl_free(b);
+			if (!ssl_new(b))
+				return 0;
+			}
 		b->shutdown=(int)num;
 		ssl=(SSL *)ptr;
 		((BIO_SSL *)b->ptr)->ssl=ssl;
@@ -398,17 +402,19 @@ static long ssl_ctrl(BIO *b, int cmd, long num, void *ptr)
 			}
 		break;
 	case BIO_CTRL_POP:
-		/* ugly bit of a hack */
-		if (ssl->rbio != ssl->wbio) /* we are in trouble :-( */
+		/* Only detach if we are the BIO explicitly being popped */
+		if (b == ptr)
 			{
-			BIO_free_all(ssl->wbio);
+			/* Shouldn't happen in practice because the
+			 * rbio and wbio are the same when pushed.
+			 */
+			if (ssl->rbio != ssl->wbio)
+				BIO_free_all(ssl->wbio);
+			if (b->next_bio != NULL)
+				CRYPTO_add(&b->next_bio->references,-1,CRYPTO_LOCK_BIO);
+			ssl->wbio=NULL;
+			ssl->rbio=NULL;
 			}
-		if (b->next_bio != NULL)
-			{
-			CRYPTO_add(&b->next_bio->references,1,CRYPTO_LOCK_BIO);
-			}
-		ssl->wbio=NULL;
-		ssl->rbio=NULL;
 		break;
 	case BIO_C_DO_STATE_MACHINE:
 		BIO_clear_retry_flags(b);
@@ -543,7 +549,6 @@ BIO *BIO_new_ssl_connect(SSL_CTX *ctx)
 	return(ret);
 err:
 	if (con != NULL) BIO_free(con);
-	if (ret != NULL) BIO_free(ret);
 	return(NULL);
 	}
 

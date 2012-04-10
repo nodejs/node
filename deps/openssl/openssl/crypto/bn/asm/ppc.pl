@@ -100,9 +100,9 @@
 #	me a note at schari@us.ibm.com
 #
 
-$opf = shift;
+$flavour = shift;
 
-if ($opf =~ /32\.s/) {
+if ($flavour =~ /32/) {
 	$BITS=	32;
 	$BNSZ=	$BITS/8;
 	$ISA=	"\"ppc\"";
@@ -125,7 +125,7 @@ if ($opf =~ /32\.s/) {
 	$INSR=	"insrwi";	# insert right
 	$ROTL=	"rotlwi";	# rotate left by immediate
 	$TR=	"tw";		# conditional trap
-} elsif ($opf =~ /64\.s/) {
+} elsif ($flavour =~ /64/) {
 	$BITS=	64;
 	$BNSZ=	$BITS/8;
 	$ISA=	"\"ppc64\"";
@@ -149,93 +149,16 @@ if ($opf =~ /32\.s/) {
 	$INSR=	"insrdi";	# insert right 
 	$ROTL=	"rotldi";	# rotate left by immediate
 	$TR=	"td";		# conditional trap
-} else { die "nonsense $opf"; }
+} else { die "nonsense $flavour"; }
 
-( defined shift || open STDOUT,">$opf" ) || die "can't open $opf: $!";
+$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+( $xlate="${dir}ppc-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}../../perlasm/ppc-xlate.pl" and -f $xlate) or
+die "can't locate ppc-xlate.pl";
 
-# function entry points from the AIX code
-#
-# There are other, more elegant, ways to handle this. We (IBM) chose
-# this approach as it plays well with scripts we run to 'namespace'
-# OpenSSL .i.e. we add a prefix to all the public symbols so we can
-# co-exist in the same process with other implementations of OpenSSL.
-# 'cleverer' ways of doing these substitutions tend to hide data we
-# need to be obvious.
-#
-my @items = ("bn_sqr_comba4",
-	     "bn_sqr_comba8",
-	     "bn_mul_comba4",
-	     "bn_mul_comba8",
-	     "bn_sub_words",
-	     "bn_add_words",
-	     "bn_div_words",
-	     "bn_sqr_words",
-	     "bn_mul_words",
-	     "bn_mul_add_words");
+open STDOUT,"| $^X $xlate $flavour ".shift || die "can't call $xlate: $!";
 
-if    ($opf =~ /linux/)	{  do_linux();	}
-elsif ($opf =~ /aix/)	{  do_aix();	}
-elsif ($opf =~ /osx/)	{  do_osx();	}
-else			{  do_bsd();	}
-
-sub do_linux {
-    $d=&data();
-
-    if ($BITS==64) {
-      foreach $t (@items) {
-        $d =~ s/\.$t:/\
-\t.section\t".opd","aw"\
-\t.align\t3\
-\t.globl\t$t\
-$t:\
-\t.quad\t.$t,.TOC.\@tocbase,0\
-\t.size\t$t,24\
-\t.previous\n\
-\t.type\t.$t,\@function\
-\t.globl\t.$t\
-.$t:/g;
-      }
-    }
-    else {
-      foreach $t (@items) {
-        $d=~s/\.$t/$t/g;
-      }
-    }
-    # hide internal labels to avoid pollution of name table...
-    $d=~s/Lppcasm_/.Lppcasm_/gm;
-    print $d;
-}
-
-sub do_aix {
-    # AIX assembler is smart enough to please the linker without
-    # making us do something special...
-    print &data();
-}
-
-# MacOSX 32 bit
-sub do_osx {
-    $d=&data();
-    # Change the bn symbol prefix from '.' to '_'
-    foreach $t (@items) {
-      $d=~s/\.$t/_$t/g;
-    }
-    # Change .machine to something OS X asm will accept
-    $d=~s/\.machine.*/.text/g;
-    $d=~s/\#/;/g; # change comment from '#' to ';'
-    print $d;
-}
-
-# BSD (Untested)
-sub do_bsd {
-    $d=&data();
-    foreach $t (@items) {
-      $d=~s/\.$t/_$t/g;
-    }
-    print $d;
-}
-
-sub data {
-	local($data)=<<EOF;
+$data=<<EOF;
 #--------------------------------------------------------------------
 #
 #
@@ -297,33 +220,20 @@ sub data {
 #
 #	Defines to be used in the assembly code.
 #	
-.set r0,0	# we use it as storage for value of 0
-.set SP,1	# preserved
-.set RTOC,2	# preserved 
-.set r3,3	# 1st argument/return value
-.set r4,4	# 2nd argument/volatile register
-.set r5,5	# 3rd argument/volatile register
-.set r6,6	# ...
-.set r7,7
-.set r8,8
-.set r9,9
-.set r10,10
-.set r11,11
-.set r12,12
-.set r13,13	# not used, nor any other "below" it...
-
-.set BO_IF_NOT,4
-.set BO_IF,12
-.set BO_dCTR_NZERO,16
-.set BO_dCTR_ZERO,18
-.set BO_ALWAYS,20
-.set CR0_LT,0;
-.set CR0_GT,1;
-.set CR0_EQ,2
-.set CR1_FX,4;
-.set CR1_FEX,5;
-.set CR1_VX,6
-.set LR,8
+#.set r0,0	# we use it as storage for value of 0
+#.set SP,1	# preserved
+#.set RTOC,2	# preserved 
+#.set r3,3	# 1st argument/return value
+#.set r4,4	# 2nd argument/volatile register
+#.set r5,5	# 3rd argument/volatile register
+#.set r6,6	# ...
+#.set r7,7
+#.set r8,8
+#.set r9,9
+#.set r10,10
+#.set r11,11
+#.set r12,12
+#.set r13,13	# not used, nor any other "below" it...
 
 #	Declare function names to be global
 #	NOTE:	For gcc these names MUST be changed to remove
@@ -344,7 +254,7 @@ sub data {
 	
 # .text section
 	
-	.machine	$ISA
+	.machine	"any"
 
 #
 #	NOTE:	The following label name should be changed to
@@ -478,7 +388,7 @@ sub data {
 
 	$ST		r9,`6*$BNSZ`(r3)	#r[6]=c1
 	$ST		r10,`7*$BNSZ`(r3)	#r[7]=c2
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 #
@@ -903,7 +813,7 @@ sub data {
 	$ST		r9, `15*$BNSZ`(r3)	#r[15]=c1;
 
 
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 
 	.long	0x00000000
 
@@ -1039,7 +949,7 @@ sub data {
 	addze	r11,r0
 					#mul_add_c(a[3],b[2],c3,c1,c2);
 	$LD	r6,`3*$BNSZ`(r4)
-	$LD	r7,`2*$BNSZ`(r4)
+	$LD	r7,`2*$BNSZ`(r5)
 	$UMULL	r8,r6,r7
 	$UMULH	r9,r6,r7
 	addc	r12,r8,r12
@@ -1055,7 +965,7 @@ sub data {
 
 	$ST	r10,`6*$BNSZ`(r3)	#r[6]=c1
 	$ST	r11,`7*$BNSZ`(r3)	#r[7]=c2
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 #
@@ -1591,7 +1501,7 @@ sub data {
 	adde	r10,r10,r9
 	$ST	r12,`14*$BNSZ`(r3)	#r[14]=c3;
 	$ST	r10,`15*$BNSZ`(r3)	#r[15]=c1;
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 #
@@ -1623,7 +1533,7 @@ sub data {
 	subfc.	r7,r0,r6        # If r6 is 0 then result is 0.
 				# if r6 > 0 then result !=0
 				# In either case carry bit is set.
-	bc	BO_IF,CR0_EQ,Lppcasm_sub_adios
+	beq	Lppcasm_sub_adios
 	addi	r4,r4,-$BNSZ
 	addi	r3,r3,-$BNSZ
 	addi	r5,r5,-$BNSZ
@@ -1635,11 +1545,11 @@ Lppcasm_sub_mainloop:
 				# if carry = 1 this is r7-r8. Else it
 				# is r7-r8 -1 as we need.
 	$STU	r6,$BNSZ(r3)
-	bc	BO_dCTR_NZERO,CR0_EQ,Lppcasm_sub_mainloop
+	bdnz-	Lppcasm_sub_mainloop
 Lppcasm_sub_adios:	
 	subfze	r3,r0		# if carry bit is set then r3 = 0 else -1
 	andi.	r3,r3,1         # keep only last bit.
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 
@@ -1670,7 +1580,7 @@ Lppcasm_sub_adios:
 #	check for r6 = 0. Is this needed?
 #
 	addic.	r6,r6,0		#test r6 and clear carry bit.
-	bc	BO_IF,CR0_EQ,Lppcasm_add_adios
+	beq	Lppcasm_add_adios
 	addi	r4,r4,-$BNSZ
 	addi	r3,r3,-$BNSZ
 	addi	r5,r5,-$BNSZ
@@ -1680,10 +1590,10 @@ Lppcasm_add_mainloop:
 	$LDU	r8,$BNSZ(r5)
 	adde	r8,r7,r8
 	$STU	r8,$BNSZ(r3)
-	bc	BO_dCTR_NZERO,CR0_EQ,Lppcasm_add_mainloop
+	bdnz-	Lppcasm_add_mainloop
 Lppcasm_add_adios:	
 	addze	r3,r0			#return carry bit.
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 #
@@ -1707,24 +1617,24 @@ Lppcasm_add_adios:
 #	r5 = d
 	
 	$UCMPI	0,r5,0			# compare r5 and 0
-	bc	BO_IF_NOT,CR0_EQ,Lppcasm_div1	# proceed if d!=0
+	bne	Lppcasm_div1		# proceed if d!=0
 	li	r3,-1			# d=0 return -1
-	bclr	BO_ALWAYS,CR0_LT	
+	blr
 Lppcasm_div1:
 	xor	r0,r0,r0		#r0=0
 	li	r8,$BITS
 	$CNTLZ.	r7,r5			#r7 = num leading 0s in d.
-	bc	BO_IF,CR0_EQ,Lppcasm_div2	#proceed if no leading zeros
+	beq	Lppcasm_div2		#proceed if no leading zeros
 	subf	r8,r7,r8		#r8 = BN_num_bits_word(d)
 	$SHR.	r9,r3,r8		#are there any bits above r8'th?
 	$TR	16,r9,r0		#if there're, signal to dump core...
 Lppcasm_div2:
 	$UCMP	0,r3,r5			#h>=d?
-	bc	BO_IF,CR0_LT,Lppcasm_div3	#goto Lppcasm_div3 if not
+	blt	Lppcasm_div3		#goto Lppcasm_div3 if not
 	subf	r3,r5,r3		#h-=d ; 
 Lppcasm_div3:				#r7 = BN_BITS2-i. so r7=i
 	cmpi	0,0,r7,0		# is (i == 0)?
-	bc	BO_IF,CR0_EQ,Lppcasm_div4
+	beq	Lppcasm_div4
 	$SHL	r3,r3,r7		# h = (h<< i)
 	$SHR	r8,r4,r8		# r8 = (l >> BN_BITS2 -i)
 	$SHL	r5,r5,r7		# d<<=i
@@ -1741,7 +1651,7 @@ Lppcasm_divouterloop:
 	$SHRI	r11,r4,`$BITS/2`	#r11= (l&BN_MASK2h)>>BN_BITS4
 					# compute here for innerloop.
 	$UCMP	0,r8,r9			# is (h>>BN_BITS4)==dh
-	bc	BO_IF_NOT,CR0_EQ,Lppcasm_div5	# goto Lppcasm_div5 if not
+	bne	Lppcasm_div5		# goto Lppcasm_div5 if not
 
 	li	r8,-1
 	$CLRU	r8,r8,`$BITS/2`		#q = BN_MASK2l 
@@ -1762,9 +1672,9 @@ Lppcasm_divinnerloop:
 					# the following 2 instructions do that
 	$SHLI	r7,r10,`$BITS/2`	# r7 = (t<<BN_BITS4)
 	or	r7,r7,r11		# r7|=((l&BN_MASK2h)>>BN_BITS4)
-	$UCMP	1,r6,r7			# compare (tl <= r7)
-	bc	BO_IF_NOT,CR0_EQ,Lppcasm_divinnerexit
-	bc	BO_IF_NOT,CR1_FEX,Lppcasm_divinnerexit
+	$UCMP	cr1,r6,r7		# compare (tl <= r7)
+	bne	Lppcasm_divinnerexit
+	ble	cr1,Lppcasm_divinnerexit
 	addi	r8,r8,-1		#q--
 	subf	r12,r9,r12		#th -=dh
 	$CLRU	r10,r5,`$BITS/2`	#r10=dl. t is no longer needed in loop.
@@ -1773,14 +1683,14 @@ Lppcasm_divinnerloop:
 Lppcasm_divinnerexit:
 	$SHRI	r10,r6,`$BITS/2`	#t=(tl>>BN_BITS4)
 	$SHLI	r11,r6,`$BITS/2`	#tl=(tl<<BN_BITS4)&BN_MASK2h;
-	$UCMP	1,r4,r11		# compare l and tl
+	$UCMP	cr1,r4,r11		# compare l and tl
 	add	r12,r12,r10		# th+=t
-	bc	BO_IF_NOT,CR1_FX,Lppcasm_div7  # if (l>=tl) goto Lppcasm_div7
+	bge	cr1,Lppcasm_div7	# if (l>=tl) goto Lppcasm_div7
 	addi	r12,r12,1		# th++
 Lppcasm_div7:
 	subf	r11,r11,r4		#r11=l-tl
-	$UCMP	1,r3,r12		#compare h and th
-	bc	BO_IF_NOT,CR1_FX,Lppcasm_div8	#if (h>=th) goto Lppcasm_div8
+	$UCMP	cr1,r3,r12		#compare h and th
+	bge	cr1,Lppcasm_div8	#if (h>=th) goto Lppcasm_div8
 	addi	r8,r8,-1		# q--
 	add	r3,r5,r3		# h+=d
 Lppcasm_div8:
@@ -1791,12 +1701,12 @@ Lppcasm_div8:
 					# the following 2 instructions will do this.
 	$INSR	r11,r12,`$BITS/2`,`$BITS/2`	# r11 is the value we want rotated $BITS/2.
 	$ROTL	r3,r11,`$BITS/2`	# rotate by $BITS/2 and store in r3
-	bc	BO_dCTR_ZERO,CR0_EQ,Lppcasm_div9#if (count==0) break ;
+	bdz	Lppcasm_div9		#if (count==0) break ;
 	$SHLI	r0,r8,`$BITS/2`		#ret =q<<BN_BITS4
 	b	Lppcasm_divouterloop
 Lppcasm_div9:
 	or	r3,r8,r0
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 #
@@ -1822,7 +1732,7 @@ Lppcasm_div9:
 #	No unrolling done here. Not performance critical.
 
 	addic.	r5,r5,0			#test r5.
-	bc	BO_IF,CR0_EQ,Lppcasm_sqr_adios
+	beq	Lppcasm_sqr_adios
 	addi	r4,r4,-$BNSZ
 	addi	r3,r3,-$BNSZ
 	mtctr	r5
@@ -1833,9 +1743,9 @@ Lppcasm_sqr_mainloop:
 	$UMULH  r8,r6,r6
 	$STU	r7,$BNSZ(r3)
 	$STU	r8,$BNSZ(r3)
-	bc	BO_dCTR_NZERO,CR0_EQ,Lppcasm_sqr_mainloop
+	bdnz-	Lppcasm_sqr_mainloop
 Lppcasm_sqr_adios:	
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 
@@ -1858,7 +1768,7 @@ Lppcasm_sqr_adios:
 	xor	r0,r0,r0
 	xor	r12,r12,r12		# used for carry
 	rlwinm.	r7,r5,30,2,31		# num >> 2
-	bc	BO_IF,CR0_EQ,Lppcasm_mw_REM
+	beq	Lppcasm_mw_REM
 	mtctr	r7
 Lppcasm_mw_LOOP:	
 					#mul(rp[0],ap[0],w,c1);
@@ -1896,11 +1806,11 @@ Lppcasm_mw_LOOP:
 	
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
-	bc	BO_dCTR_NZERO,CR0_EQ,Lppcasm_mw_LOOP
+	bdnz-	Lppcasm_mw_LOOP
 
 Lppcasm_mw_REM:
 	andi.	r5,r5,0x3
-	bc	BO_IF,CR0_EQ,Lppcasm_mw_OVER
+	beq	Lppcasm_mw_OVER
 					#mul(rp[0],ap[0],w,c1);
 	$LD	r8,`0*$BNSZ`(r4)
 	$UMULL	r9,r6,r8
@@ -1912,7 +1822,7 @@ Lppcasm_mw_REM:
 	
 	addi	r5,r5,-1
 	cmpli	0,0,r5,0
-	bc	BO_IF,CR0_EQ,Lppcasm_mw_OVER
+	beq	Lppcasm_mw_OVER
 
 	
 					#mul(rp[1],ap[1],w,c1);
@@ -1926,7 +1836,7 @@ Lppcasm_mw_REM:
 	
 	addi	r5,r5,-1
 	cmpli	0,0,r5,0
-	bc	BO_IF,CR0_EQ,Lppcasm_mw_OVER
+	beq	Lppcasm_mw_OVER
 	
 					#mul_add(rp[2],ap[2],w,c1);
 	$LD	r8,`2*$BNSZ`(r4)
@@ -1939,7 +1849,7 @@ Lppcasm_mw_REM:
 		
 Lppcasm_mw_OVER:	
 	addi	r3,r12,0
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 
 #
@@ -1964,7 +1874,7 @@ Lppcasm_mw_OVER:
 	xor	r0,r0,r0		#r0 = 0
 	xor	r12,r12,r12  		#r12 = 0 . used for carry		
 	rlwinm.	r7,r5,30,2,31		# num >> 2
-	bc	BO_IF,CR0_EQ,Lppcasm_maw_leftover	# if (num < 4) go LPPCASM_maw_leftover
+	beq	Lppcasm_maw_leftover	# if (num < 4) go LPPCASM_maw_leftover
 	mtctr	r7
 Lppcasm_maw_mainloop:	
 					#mul_add(rp[0],ap[0],w,c1);
@@ -2017,11 +1927,11 @@ Lppcasm_maw_mainloop:
 	$ST	r11,`3*$BNSZ`(r3)
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
-	bc	BO_dCTR_NZERO,CR0_EQ,Lppcasm_maw_mainloop
+	bdnz-	Lppcasm_maw_mainloop
 	
 Lppcasm_maw_leftover:
 	andi.	r5,r5,0x3
-	bc	BO_IF,CR0_EQ,Lppcasm_maw_adios
+	beq	Lppcasm_maw_adios
 	addi	r3,r3,-$BNSZ
 	addi	r4,r4,-$BNSZ
 					#mul_add(rp[0],ap[0],w,c1);
@@ -2036,7 +1946,7 @@ Lppcasm_maw_leftover:
 	addze	r12,r10
 	$ST	r9,0(r3)
 	
-	bc	BO_dCTR_ZERO,CR0_EQ,Lppcasm_maw_adios
+	bdz	Lppcasm_maw_adios
 					#mul_add(rp[1],ap[1],w,c1);
 	$LDU	r8,$BNSZ(r4)	
 	$UMULL	r9,r6,r8
@@ -2048,7 +1958,7 @@ Lppcasm_maw_leftover:
 	addze	r12,r10
 	$ST	r9,0(r3)
 	
-	bc	BO_dCTR_ZERO,CR0_EQ,Lppcasm_maw_adios
+	bdz	Lppcasm_maw_adios
 					#mul_add(rp[2],ap[2],w,c1);
 	$LDU	r8,$BNSZ(r4)
 	$UMULL	r9,r6,r8
@@ -2062,19 +1972,10 @@ Lppcasm_maw_leftover:
 		
 Lppcasm_maw_adios:	
 	addi	r3,r12,0
-	bclr	BO_ALWAYS,CR0_LT
+	blr
 	.long	0x00000000
 	.align	4
 EOF
-	$data =~ s/\`([^\`]*)\`/eval $1/gem;
-
-	# if some assembler chokes on some simplified mnemonic,
-	# this is the spot to fix it up, e.g.:
-	# GNU as doesn't seem to accept cmplw, 32-bit unsigned compare
-	$data =~ s/^(\s*)cmplw(\s+)([^,]+),(.*)/$1cmpl$2$3,0,$4/gm;
-	# assembler X doesn't accept li, load immediate value
-	#$data =~ s/^(\s*)li(\s+)([^,]+),(.*)/$1addi$2$3,0,$4/gm;
-	# assembler Y chokes on apostrophes in comments
-	$data =~ s/'//gm;
-	return($data);
-}
+$data =~ s/\`([^\`]*)\`/eval $1/gem;
+print $data;
+close STDOUT;

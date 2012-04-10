@@ -781,6 +781,7 @@ static long bio_zlib_ctrl(BIO *b, int cmd, long num, void *ptr)
 	default:
 		ret = BIO_ctrl(b->next_bio, cmd, num, ptr);
 		break;
+
 		}
 
 	return ret;

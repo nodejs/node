@@ -758,8 +758,6 @@ static EVP_PKEY* sureware_load_public(ENGINE *e,const char *key_id,char *hptr,un
 	}
 	return res;
  err:
-	if (res)
-		EVP_PKEY_free(res);
 #ifndef OPENSSL_NO_RSA
 	if (rsatmp)
 		RSA_free(rsatmp);

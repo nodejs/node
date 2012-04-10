@@ -15,7 +15,7 @@ make -f ms/mingw32.mak
 if errorlevel 1 goto end
 
 @rem Generate the DLLs and input libraries
-dllwrap --dllname libeay32.dll --output-lib out/libeay32.a --def ms/libeay32.def out/libcrypto.a -lwsock32 -lgdi32
+dllwrap --dllname libeay32.dll --output-lib out/libeay32.a --def ms/libeay32.def out/libcrypto.a -lws2_32 -lgdi32
 if errorlevel 1 goto end
 dllwrap --dllname libssl32.dll --output-lib out/libssl32.a --def ms/ssleay32.def out/libssl.a out/libeay32.a
 if errorlevel 1 goto end

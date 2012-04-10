@@ -5,18 +5,29 @@
  [Instructions for building for Windows CE can be found in INSTALL.WCE]
  [Instructions for building for Win64 can be found in INSTALL.W64]
 
- Heres a few comments about building OpenSSL in Windows environments.  Most
- of this is tested on Win32 but it may also work in Win 3.1 with some
- modification.
+ Here are a few comments about building OpenSSL for Win32 environments,
+ such as Windows NT and Windows 9x. It should be noted though that
+ Windows 9x are not ordinarily tested. Its mention merely means that we
+ attempt to maintain certain programming discipline and pay attention
+ to backward compatibility issues, in other words it's kind of expected
+ to work on Windows 9x, but no regression tests are actually performed.
 
- You need Perl for Win32.  Unless you will build on Cygwin, you will need
- ActiveState Perl, available from http://www.activestate.com/ActivePerl.
+ On additional note newer OpenSSL versions are compiled and linked with
+ Winsock 2. This means that minimum OS requirement was elevated to NT 4
+ and Windows 98 [there is Winsock 2 update for Windows 95 though].
 
- and one of the following C compilers:
+ - you need Perl for Win32.  Unless you will build on Cygwin, you will need
+   ActiveState Perl, available from http://www.activestate.com/ActivePerl.
+
+ - one of the following C compilers:
 
   * Visual C++
   * Borland C
   * GNU C (Cygwin or MinGW)
+
+- Netwide Assembler, a.k.a. NASM, available from http://nasm.sourceforge.net/
+  is required if you intend to utilize assembler modules. Note that NASM
+  is now the only supported assembler.
 
  If you are compiling from a tarball or a CVS snapshot then the Win32 files
  may well be not up to date. This may mean that some "tweaking" is required to
@@ -26,39 +37,18 @@
  Visual C++
  ----------
 
- If you want to compile in the assembly language routines with Visual C++ then
- you will need an assembler. This is worth doing because it will result in
- faster code: for example it will typically result in a 2 times speedup in the
- RSA routines. Currently the following assemblers are supported:
+ If you want to compile in the assembly language routines with Visual
+ C++, then you will need already mentioned Netwide Assembler binary,
+ nasmw.exe or nasm.exe, to be available on your %PATH%.
 
-  * Microsoft MASM (aka "ml")
-  * Free Netwide Assembler NASM.
+ Firstly you should run Configure with platform VC-WIN32:
 
- MASM is distributed with most versions of VC++. For the versions where it is
- not included in VC++, it is also distributed with some Microsoft DDKs, for
- example the Windows NT 4.0 DDK and the Windows 98 DDK. If you do not have
- either of these DDKs then you can just download the binaries for the Windows
- 98 DDK and extract and rename the two files XXXXXml.exe and XXXXXml.err, to
- ml.exe and ml.err and install somewhere on your PATH. Both DDKs can be
- downloaded from the Microsoft developers site www.msdn.com.
+ > perl Configure VC-WIN32 --prefix=c:\some\openssl\dir
 
- NASM is freely available. Version 0.98 was used during testing: other versions
- may also work. It is available from many places, see for example:
- http://www.kernel.org/pub/software/devel/nasm/binaries/win32/
- The NASM binary nasmw.exe needs to be installed anywhere on your PATH.
+ Where the prefix argument specifies where OpenSSL will be installed to.
 
- Firstly you should run Configure:
-
- > perl Configure VC-WIN32 --prefix=c:/some/openssl/dir
-
-Where the prefix argument specifies where OpenSSL will be installed to.
-
- Next you need to build the Makefiles and optionally the assembly language
- files:
-
- - If you are using MASM then run:
-
-   > ms\do_masm
+ Next you need to build the Makefiles and optionally the assembly
+ language files:
 
  - If you are using NASM then run:
 
@@ -66,6 +56,7 @@ Where the prefix argument specifies where OpenSSL will be installed to.
 
  - If you don't want to use the assembly language files at all then run:
 
+   > perl Configure VC-WIN32 no-asm --prefix=c:/some/openssl/dir
    > ms\do_ms
 
  If you get errors about things not having numbers assigned then check the
@@ -76,40 +67,37 @@ Where the prefix argument specifies where OpenSSL will be installed to.
 
  > nmake -f ms\ntdll.mak
 
- If all is well it should compile and you will have some DLLs and executables
- in out32dll. If you want to try the tests then do:
+ If all is well it should compile and you will have some DLLs and
+ executables in out32dll. If you want to try the tests then do:
  
  > nmake -f ms\ntdll.mak test
 
 
-To install OpenSSL to the specified location do:
+ To install OpenSSL to the specified location do:
 
-> nmake -f ms\ntdll.mak install
+ > nmake -f ms\ntdll.mak install
 
  Tweaks:
 
- There are various changes you can make to the Win32 compile environment. By
- default the library is not compiled with debugging symbols. If you add 'debug'
- to the mk1mf.pl lines in the do_* batch file then debugging symbols will be
- compiled in. Note that mk1mf.pl expects the platform to be the last argument
- on the command line, so 'debug' must appear before that, as all other options.
+ There are various changes you can make to the Win32 compile
+ environment. By default the library is not compiled with debugging
+ symbols. If you use the platform debug-VC-WIN32 instead of VC-WIN32
+ then debugging symbols will be compiled in.
 
-
- By default in 0.9.8 OpenSSL will compile builtin ENGINES into the libeay32.dll
- shared library. If you specify the "no-static-engine" option on the command
- line to Configure the shared library build (ms\ntdll.mak) will compile the
- engines as separate DLLs.
+ By default in 1.0.0 OpenSSL will compile builtin ENGINES into the
+ separate shared librariesy. If you specify the "enable-static-engine"
+ option on the command line to Configure the shared library build
+ (ms\ntdll.mak) will compile the engines into libeay32.dll instead.
 
  The default Win32 environment is to leave out any Windows NT specific
  features.
 
- If you want to enable the NT specific features of OpenSSL (currently only the
- logging BIO) follow the instructions above but call the batch file do_nt.bat
- instead of do_ms.bat.
+ If you want to enable the NT specific features of OpenSSL (currently
+ only the logging BIO) follow the instructions above but call the batch
+ file do_nt.bat instead of do_ms.bat.
 
  You can also build a static version of the library using the Makefile
  ms\nt.mak
-
 
 
  Borland C++ builder 5
@@ -137,17 +125,13 @@ To install OpenSSL to the specified location do:
  GNU C (Cygwin)
  --------------
 
- Cygwin provides a bash shell and GNU tools environment running
- on NT 4.0, Windows 9x, Windows ME, Windows 2000, and Windows XP.
- Consequently, a make of OpenSSL with Cygwin is closer to a GNU
- bash environment such as Linux than to other the other Win32
- makes.
-
- Cygwin implements a Posix/Unix runtime system (cygwin1.dll).
- It is also possible to create Win32 binaries that only use the
- Microsoft C runtime system (msvcrt.dll or crtdll.dll) using
- MinGW. MinGW can be used in the Cygwin development environment
- or in a standalone setup as described in the following section.
+ Cygwin implements a Posix/Unix runtime system (cygwin1.dll) on top of
+ Win32 subsystem and provides a bash shell and GNU tools environment.
+ Consequently, a make of OpenSSL with Cygwin is virtually identical to
+ Unix procedure. It is also possible to create Win32 binaries that only
+ use the Microsoft C runtime system (msvcrt.dll or crtdll.dll) using
+ MinGW. MinGW can be used in the Cygwin development environment or in a
+ standalone setup as described in the following section.
 
  To build OpenSSL using Cygwin:
 
@@ -192,35 +176,44 @@ To install OpenSSL to the specified location do:
  non-fatal error in "make test" but is otherwise harmless.  If
  desired and needed, GNU bc can be built with Cygwin without change.
 
- GNU C (MinGW)
+ GNU C (MinGW/MSYS)
  -------------
 
- * Compiler installation:
+ * Compiler and shell environment installation:
 
-   MinGW is available from http://www.mingw.org. Run the installer and
-   set the MinGW bin directory to the PATH in "System Properties" or
-   autoexec.bat.
+   MinGW and MSYS are available from http://www.mingw.org/, both are
+   required. Run the installers and do whatever magic they say it takes
+   to start MSYS bash shell with GNU tools on its PATH.
+
+   N.B. Since source tar-ball can contain symbolic links, it's essential
+   that you use accompanying MSYS tar to unpack the source. It will
+   either handle them in one way or another or fail to extract them,
+   which does the trick too. Latter means that you may safely ignore all
+   "cannot create symlink" messages, as they will be "re-created" at
+   configure stage by copying corresponding files. Alternative programs
+   were observed to create empty files instead, which results in build
+   failure.
 
  * Compile OpenSSL:
 
-   > ms\mingw32
+   $ ./config
+   [...]
+   $ make
+   [...]
+   $ make test
 
-   This will create the library and binaries in out. In case any problems
-   occur, try
-   > ms\mingw32 no-asm
-   instead.
+   This will create the library and binaries in root source directory
+   and openssl.exe application in apps directory.
+
+   It is also possible to cross-compile it on Linux by configuring
+   with './Configure --cross-compile-prefix=i386-mingw32- mingw ...'.
+   'make test' is naturally not applicable then.
 
    libcrypto.a and libssl.a are the static libraries. To use the DLLs,
    link with libeay32.a and libssl32.a instead.
 
-   See troubleshooting if you get error messages about functions not having
-   a number assigned.
-
- * You can now try the tests:
-
-   > cd out
-   > ..\ms\test
-
+   See troubleshooting if you get error messages about functions not
+   having a number assigned.
 
  Installation
  ------------
@@ -307,13 +300,24 @@ To install OpenSSL to the specified location do:
 
  If you link with static OpenSSL libraries [those built with ms/nt.mak],
  then you're expected to additionally link your application with
- WSOCK32.LIB, ADVAPI32.LIB, GDI32.LIB and USER32.LIB. Those developing
+ WS2_32.LIB, ADVAPI32.LIB, GDI32.LIB and USER32.LIB. Those developing
  non-interactive service applications might feel concerned about linking
- with latter two, as they are justly associated with interactive desktop,
- which is not available to service processes. The toolkit is designed
- to detect in which context it's currently executed, GUI, console app
- or service, and act accordingly, namely whether or not to actually make
- GUI calls.
+ with the latter two, as they are justly associated with interactive
+ desktop, which is not available to service processes. The toolkit is
+ designed to detect in which context it's currently executed, GUI,
+ console app or service, and act accordingly, namely whether or not to
+ actually make GUI calls. Additionally those who wish to
+ /DELAYLOAD:GDI32.DLL and /DELAYLOAD:USER32.DLL and actually keep them
+ off service process should consider implementing and exporting from
+ .exe image in question own _OPENSSL_isservice not relying on USER32.DLL.
+ E.g., on Windows Vista and later you could:
+
+	__declspec(dllexport) __cdecl BOOL _OPENSSL_isservice(void)
+	{   DWORD sess;
+	    if (ProcessIdToSessionId(GetCurrentProcessId(),&sess))
+	        return sess==0;
+	    return FALSE;
+	}
 
  If you link with OpenSSL .DLLs, then you're expected to include into
  your application code small "shim" snippet, which provides glue between

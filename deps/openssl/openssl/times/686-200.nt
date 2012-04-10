@@ -1,0 +1,24 @@
+built on Tue May 13 08:24:51 EST 1997
+options:bn(64,32) md2(char) rc4(idx,int) des(ptr,risc1,16,long) idea(int) blowfi
+sh(ptr2)
+C flags not available
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2               156.39k      427.99k      576.14k      628.36k      647.27k
+md5              2120.48k    10255.02k    18396.07k    22795.13k    24244.53k
+sha              1468.59k     6388.89k    10686.12k    12826.62k    13640.01k
+sha1             1393.46k     6013.34k     9974.56k    11932.59k    12633.45k
+rc4             13833.46k    19275.29k    20321.24k    20281.93k    20520.08k
+des cbc          3382.50k     4104.02k     4152.78k     4194.30k     4194.30k
+des ede3         1465.51k     1533.00k     1549.96k     1553.29k     1570.29k
+idea cbc         2579.52k     3079.52k     3130.08k     3153.61k     3106.89k
+rc2 cbc          1204.57k     1276.42k     1285.81k     1289.76k     1285.81k
+blowfish cbc     5229.81k     6374.32k     6574.14k     6574.14k     6594.82k
+rsa  512 bits   0.008s   0.001
+rsa 1024 bits   0.038s   0.001
+rsa 2048 bits   0.231s   0.008
+rsa 4096 bits   1.540s   0.027
+dsa  512 bits   0.007s   0.013
+dsa 1024 bits   0.021s   0.040
+dsa 2048 bits   0.066s   0.130
+

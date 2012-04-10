@@ -1,0 +1,34 @@
+=pod
+
+=head1 NAME
+
+DSA_generate_key - generate DSA key pair
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+
+ int DSA_generate_key(DSA *a);
+
+=head1 DESCRIPTION
+
+DSA_generate_key() expects B<a> to contain DSA parameters. It generates
+a new key pair and stores it in B<a-E<gt>pub_key> and B<a-E<gt>priv_key>.
+
+The PRNG must be seeded prior to calling DSA_generate_key().
+
+=head1 RETURN VALUE
+
+DSA_generate_key() returns 1 on success, 0 otherwise.
+The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<dsa(3)|dsa(3)>, L<ERR_get_error(3)|ERR_get_error(3)>, L<rand(3)|rand(3)>,
+L<DSA_generate_parameters(3)|DSA_generate_parameters(3)>
+
+=head1 HISTORY
+
+DSA_generate_key() is available since SSLeay 0.8.
+
+=cut

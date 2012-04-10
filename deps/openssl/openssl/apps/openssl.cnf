@@ -21,11 +21,16 @@ oid_section		= new_oids
 
 [ new_oids ]
 
-# We can add new OIDs in here for use by 'ca' and 'req'.
+# We can add new OIDs in here for use by 'ca', 'req' and 'ts'.
 # Add a simple OID like this:
 # testoid1=1.2.3.4
 # Or use config file substitution like this:
 # testoid2=${testoid1}.5.6
+
+# Policies used by the TSA examples.
+tsa_policy1 = 1.2.3.4.1
+tsa_policy2 = 1.2.3.4.5.6
+tsa_policy3 = 1.2.3.4.5.7
 
 ####################################################################
 [ ca ]
@@ -67,7 +72,7 @@ cert_opt 	= ca_default		# Certificate field options
 
 default_days	= 365			# how long to certify for
 default_crl_days= 30			# how long before next CRL
-default_md	= sha1			# which md to use.
+default_md	= default		# use public key default MD
 preserve	= no			# keep passed DN ordering
 
 # A few difference way of specifying how similar the request should look
@@ -110,13 +115,12 @@ x509_extensions	= v3_ca	# The extentions to add to the self signed cert
 
 # This sets a mask for permitted string types. There are several options. 
 # default: PrintableString, T61String, BMPString.
-# pkix	 : PrintableString, BMPString.
-# utf8only: only UTF8Strings.
+# pkix	 : PrintableString, BMPString (PKIX recommendation before 2004)
+# utf8only: only UTF8Strings (PKIX recommendation after 2004).
 # nombstr : PrintableString, T61String (no BMPStrings or UTF8Strings).
 # MASK:XXXX a literal mask value.
-# WARNING: current versions of Netscape crash on BMPStrings or UTF8Strings
-# so use this option with caution!
-string_mask = nombstr
+# WARNING: ancient versions of Netscape crash on BMPStrings or UTF8Strings.
+string_mask = utf8only
 
 # req_extensions = v3_req # The extensions to add to a certificate request
 
@@ -141,7 +145,7 @@ localityName			= Locality Name (eg, city)
 organizationalUnitName		= Organizational Unit Name (eg, section)
 #organizationalUnitName_default	=
 
-commonName			= Common Name (eg, YOUR name)
+commonName			= Common Name (e.g. server FQDN or YOUR name)
 commonName_max			= 64
 
 emailAddress			= Email Address
@@ -207,6 +211,9 @@ authorityKeyIdentifier=keyid,issuer
 #nsCaPolicyUrl
 #nsSslServerName
 
+# This is required for TSA certificates.
+# extendedKeyUsage = critical,timeStamping
+
 [ v3_req ]
 
 # Extensions to add to a certificate request
@@ -224,7 +231,7 @@ keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 
 subjectKeyIdentifier=hash
 
-authorityKeyIdentifier=keyid:always,issuer:always
+authorityKeyIdentifier=keyid:always,issuer
 
 # This is what PKIX recommends but some broken software chokes on critical
 # extensions.
@@ -257,7 +264,7 @@ basicConstraints = CA:true
 # Only issuerAltName and authorityKeyIdentifier make any sense in a CRL.
 
 # issuerAltName=issuer:copy
-authorityKeyIdentifier=keyid:always,issuer:always
+authorityKeyIdentifier=keyid:always
 
 [ proxy_cert_ext ]
 # These extensions should be added when creating a proxy certificate
@@ -290,7 +297,7 @@ nsComment			= "OpenSSL Generated Certificate"
 
 # PKIX recommendations harmless if included in all certificates.
 subjectKeyIdentifier=hash
-authorityKeyIdentifier=keyid,issuer:always
+authorityKeyIdentifier=keyid,issuer
 
 # This stuff is for subjectAltName and issuerAltname.
 # Import the email address.
@@ -311,3 +318,33 @@ authorityKeyIdentifier=keyid,issuer:always
 
 # This really needs to be in place for it to be a proxy certificate.
 proxyCertInfo=critical,language:id-ppl-anyLanguage,pathlen:3,policy:foo
+
+####################################################################
+[ tsa ]
+
+default_tsa = tsa_config1	# the default TSA section
+
+[ tsa_config1 ]
+
+# These are used by the TSA reply generation only.
+dir		= ./demoCA		# TSA root directory
+serial		= $dir/tsaserial	# The current serial number (mandatory)
+crypto_device	= builtin		# OpenSSL engine to use for signing
+signer_cert	= $dir/tsacert.pem 	# The TSA signing certificate
+					# (optional)
+certs		= $dir/cacert.pem	# Certificate chain to include in reply
+					# (optional)
+signer_key	= $dir/private/tsakey.pem # The TSA private key (optional)
+
+default_policy	= tsa_policy1		# Policy if request did not specify it
+					# (optional)
+other_policies	= tsa_policy2, tsa_policy3	# acceptable policies (optional)
+digests		= md5, sha1		# Acceptable message digests (mandatory)
+accuracy	= secs:1, millisecs:500, microsecs:100	# (optional)
+clock_precision_digits  = 0	# number of digits after dot. (optional)
+ordering		= yes	# Is ordering defined for timestamps?
+				# (optional, default: no)
+tsa_name		= yes	# Must the TSA name be included in the reply?
+				# (optional, default: no)
+ess_cert_id_chain	= no	# Must the ESS cert id chain be included?
+				# (optional, default: no)

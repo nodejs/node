@@ -1,0 +1,30 @@
+=pod
+
+=head1 NAME
+
+d2i_DHparams, i2d_DHparams - PKCS#3 DH parameter functions.
+
+=head1 SYNOPSIS
+
+ #include <openssl/dh.h>
+
+ DH *d2i_DHparams(DH **a, unsigned char **pp, long length);
+ int i2d_DHparams(DH *a, unsigned char **pp);
+
+=head1 DESCRIPTION
+
+These functions decode and encode PKCS#3 DH parameters using the
+DHparameter structure described in PKCS#3.
+
+Othewise these behave in a similar way to d2i_X509() and i2d_X509()
+described in the L<d2i_X509(3)|d2i_X509(3)> manual page.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)|d2i_X509(3)>
+
+=head1 HISTORY
+
+TBA
+
+=cut

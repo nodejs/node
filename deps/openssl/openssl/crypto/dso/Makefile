@@ -18,9 +18,9 @@ APPS=
 
 LIB=$(TOP)/libcrypto.a
 LIBSRC= dso_dl.c dso_dlfcn.c dso_err.c dso_lib.c dso_null.c \
-	dso_openssl.c dso_win32.c dso_vms.c
+	dso_openssl.c dso_win32.c dso_vms.c dso_beos.c
 LIBOBJ= dso_dl.o dso_dlfcn.o dso_err.o dso_lib.o dso_null.o \
-	dso_openssl.o dso_win32.o dso_vms.o
+	dso_openssl.o dso_win32.o dso_vms.o dso_beos.o
 
 SRC= $(LIBSRC)
 
@@ -35,7 +35,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -76,6 +76,14 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
+dso_beos.o: ../../e_os.h ../../include/openssl/bio.h
+dso_beos.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
+dso_beos.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h
+dso_beos.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
+dso_beos.o: ../../include/openssl/opensslconf.h
+dso_beos.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+dso_beos.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+dso_beos.o: ../../include/openssl/symhacks.h ../cryptlib.h dso_beos.c
 dso_dl.o: ../../e_os.h ../../include/openssl/bio.h
 dso_dl.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 dso_dl.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h

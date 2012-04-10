@@ -1,0 +1,26 @@
+=pod
+
+=head1 NAME
+
+SSL_get_SSL_CTX - get the SSL_CTX from which an SSL is created
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ SSL_CTX *SSL_get_SSL_CTX(const SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_get_SSL_CTX() returns a pointer to the SSL_CTX object, from which
+B<ssl> was created with L<SSL_new(3)|SSL_new(3)>.
+
+=head1 RETURN VALUES
+
+The pointer to the SSL_CTX object is returned.
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_new(3)|SSL_new(3)>
+
+=cut

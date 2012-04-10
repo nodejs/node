@@ -117,8 +117,8 @@ err:
 
 int ASN1_GENERALIZEDTIME_check(ASN1_GENERALIZEDTIME *d)
 	{
-	static int min[9]={ 0, 0, 1, 1, 0, 0, 0, 0, 0};
-	static int max[9]={99, 99,12,31,23,59,59,12,59};
+	static const int min[9]={ 0, 0, 1, 1, 0, 0, 0, 0, 0};
+	static const int max[9]={99, 99,12,31,23,59,59,12,59};
 	char *a;
 	int n,i,l,o;
 
@@ -176,6 +176,11 @@ int ASN1_GENERALIZEDTIME_check(ASN1_GENERALIZEDTIME *d)
 			o++;
 			}
 		}
+	else
+		{
+		/* Missing time zone information. */
+		goto err;
+		}
 	return(o == l);
 err:
 	return(0);
@@ -206,6 +211,12 @@ int ASN1_GENERALIZEDTIME_set_string(ASN1_GENERALIZEDTIME *s, const char *str)
 ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_set(ASN1_GENERALIZEDTIME *s,
 	     time_t t)
 	{
+		return ASN1_GENERALIZEDTIME_adj(s, t, 0, 0);
+	}
+
+ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_adj(ASN1_GENERALIZEDTIME *s,
+	     time_t t, int offset_day, long offset_sec)
+	{
 	char *p;
 	struct tm *ts;
 	struct tm data;
@@ -220,13 +231,19 @@ ASN1_GENERALIZEDTIME *ASN1_GENERALIZEDTIME_set(ASN1_GENERALIZEDTIME *s,
 	if (ts == NULL)
 		return(NULL);
 
+	if (offset_day || offset_sec)
+		{ 
+		if (!OPENSSL_gmtime_adj(ts, offset_day, offset_sec))
+			return NULL;
+		}
+
 	p=(char *)s->data;
 	if ((p == NULL) || ((size_t)s->length < len))
 		{
 		p=OPENSSL_malloc(len);
 		if (p == NULL)
 			{
-			ASN1err(ASN1_F_ASN1_GENERALIZEDTIME_SET,
+			ASN1err(ASN1_F_ASN1_GENERALIZEDTIME_ADJ,
 				ERR_R_MALLOC_FAILURE);
 			return(NULL);
 			}

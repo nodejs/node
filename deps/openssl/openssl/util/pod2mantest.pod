@@ -1,0 +1,15 @@
+=pod
+
+=head1 NAME
+
+foo, bar,
+MARKER - test of multiline name section
+
+=head1 DESCRIPTION
+
+This is a test .pod file to see if we have a buggy pod2man or not.
+If we have a buggy implementation, we will get a line matching the
+regular expression "^ +MARKER - test of multiline name section *$"
+at the end of the resulting document.
+
+=cut

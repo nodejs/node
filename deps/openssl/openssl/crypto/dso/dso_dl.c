@@ -85,6 +85,8 @@ static int dl_ctrl(DSO *dso, int cmd, long larg, void *parg);
 #endif
 static char *dl_name_converter(DSO *dso, const char *filename);
 static char *dl_merger(DSO *dso, const char *filespec1, const char *filespec2);
+static int dl_pathbyaddr(void *addr,char *path,int sz);
+static void *dl_globallookup(const char *name);
 
 static DSO_METHOD dso_meth_dl = {
 	"OpenSSL 'dl' shared library method",
@@ -101,7 +103,9 @@ static DSO_METHOD dso_meth_dl = {
 	dl_name_converter,
 	dl_merger,
 	NULL, /* init */
-	NULL  /* finish */
+	NULL, /* finish */
+	dl_pathbyaddr,
+	dl_globallookup
 	};
 
 DSO_METHOD *DSO_METHOD_dl(void)
@@ -350,4 +354,40 @@ static char *dl_name_converter(DSO *dso, const char *filename)
 	return(translated);
 	}
 
+static int dl_pathbyaddr(void *addr,char *path,int sz)
+	{
+	struct shl_descriptor inf;
+	int i,len;
+
+	if (addr == NULL)
+		{
+		union	{ int(*f)(void*,char*,int); void *p; } t =
+			{ dl_pathbyaddr };
+		addr = t.p;
+		}
+
+	for (i=-1;shl_get_r(i,&inf)==0;i++)
+		{
+		if (((size_t)addr >= inf.tstart && (size_t)addr < inf.tend) ||
+		    ((size_t)addr >= inf.dstart && (size_t)addr < inf.dend))
+			{
+			len = (int)strlen(inf.filename);
+			if (sz <= 0) return len+1;
+			if (len >= sz) len=sz-1;
+			memcpy(path,inf.filename,len);
+			path[len++] = 0;
+			return len;
+			}
+		}
+
+	return -1;
+	}
+
+static void *dl_globallookup(const char *name)
+	{
+	void *ret;
+	shl_t h = NULL;
+
+	return shl_findsym(&h,name,TYPE_UNDEFINED,&ret) ? NULL : ret;
+	}
 #endif /* DSO_DL */

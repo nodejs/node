@@ -1,0 +1,110 @@
+=pod
+
+=head1 NAME
+
+dsaparam - DSA parameter manipulation and generation
+
+=head1 SYNOPSIS
+
+B<openssl dsaparam>
+[B<-inform DER|PEM>]
+[B<-outform DER|PEM>]
+[B<-in filename>]
+[B<-out filename>]
+[B<-noout>]
+[B<-text>]
+[B<-C>]
+[B<-rand file(s)>]
+[B<-genkey>]
+[B<-engine id>]
+[B<numbits>]
+
+=head1 DESCRIPTION
+
+This command is used to manipulate or generate DSA parameter files.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-inform DER|PEM>
+
+This specifies the input format. The B<DER> option uses an ASN1 DER encoded
+form compatible with RFC2459 (PKIX) DSS-Parms that is a SEQUENCE consisting
+of p, q and g respectively. The PEM form is the default format: it consists
+of the B<DER> format base64 encoded with additional header and footer lines.
+
+=item B<-outform DER|PEM>
+
+This specifies the output format, the options have the same meaning as the 
+B<-inform> option.
+
+=item B<-in filename>
+
+This specifies the input filename to read parameters from or standard input if
+this option is not specified. If the B<numbits> parameter is included then
+this option will be ignored.
+
+=item B<-out filename>
+
+This specifies the output filename parameters to. Standard output is used
+if this option is not present. The output filename should B<not> be the same
+as the input filename.
+
+=item B<-noout>
+
+this option inhibits the output of the encoded version of the parameters.
+
+=item B<-text>
+
+this option prints out the DSA parameters in human readable form.
+
+=item B<-C>
+
+this option converts the parameters into C code. The parameters can then
+be loaded by calling the B<get_dsaXXX()> function.
+
+=item B<-genkey>
+
+this option will generate a DSA either using the specified or generated
+parameters.
+
+=item B<-rand file(s)>
+
+a file or files containing random data used to seed the random number
+generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
+Multiple files can be specified separated by a OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=item B<numbits>
+
+this option specifies that a parameter set should be generated of size
+B<numbits>. It must be the last option. If this option is included then
+the input file (if any) is ignored.
+
+=item B<-engine id>
+
+specifying an engine (by its unique B<id> string) will cause B<dsaparam>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=back
+
+=head1 NOTES
+
+PEM format DSA parameters use the header and footer lines:
+
+ -----BEGIN DSA PARAMETERS-----
+ -----END DSA PARAMETERS-----
+
+DSA parameter generation is a slow process and as a result the same set of
+DSA parameters is often used to generate several distinct keys.
+
+=head1 SEE ALSO
+
+L<gendsa(1)|gendsa(1)>, L<dsa(1)|dsa(1)>, L<genrsa(1)|genrsa(1)>,
+L<rsa(1)|rsa(1)>
+
+=cut

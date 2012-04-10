@@ -2,7 +2,7 @@
  * Mask of various character properties
  */
 
-static unsigned char char_type[] = {
+static const unsigned char char_type[] = {
  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
  2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
 120, 0, 1,40, 0, 0, 0,16,16,16, 0,25,25,16,16,16,

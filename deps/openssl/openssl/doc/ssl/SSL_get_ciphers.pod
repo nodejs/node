@@ -1,0 +1,42 @@
+=pod
+
+=head1 NAME
+
+SSL_get_ciphers, SSL_get_cipher_list - get list of available SSL_CIPHERs
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ STACK_OF(SSL_CIPHER) *SSL_get_ciphers(const SSL *ssl);
+ const char *SSL_get_cipher_list(const SSL *ssl, int priority);
+
+=head1 DESCRIPTION
+
+SSL_get_ciphers() returns the stack of available SSL_CIPHERs for B<ssl>,
+sorted by preference. If B<ssl> is NULL or no ciphers are available, NULL
+is returned.
+
+SSL_get_cipher_list() returns a pointer to the name of the SSL_CIPHER
+listed for B<ssl> with B<priority>. If B<ssl> is NULL, no ciphers are
+available, or there are less ciphers than B<priority> available, NULL
+is returned.
+
+=head1 NOTES
+
+The details of the ciphers obtained by SSL_get_ciphers() can be obtained using
+the L<SSL_CIPHER_get_name(3)|SSL_CIPHER_get_name(3)> family of functions.
+
+Call SSL_get_cipher_list() with B<priority> starting from 0 to obtain the
+sorted list of available ciphers, until NULL is returned.
+
+=head1 RETURN VALUES
+
+See DESCRIPTION
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_CTX_set_cipher_list(3)|SSL_CTX_set_cipher_list(3)>,
+L<SSL_CIPHER_get_name(3)|SSL_CIPHER_get_name(3)>
+
+=cut

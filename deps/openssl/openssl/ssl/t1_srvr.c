@@ -64,8 +64,8 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 
-static SSL_METHOD *tls1_get_server_method(int ver);
-static SSL_METHOD *tls1_get_server_method(int ver)
+static const SSL_METHOD *tls1_get_server_method(int ver);
+static const SSL_METHOD *tls1_get_server_method(int ver)
 	{
 	if (ver == TLS1_VERSION)
 		return(TLSv1_server_method());

@@ -97,10 +97,12 @@ int MAIN(int argc, char **argv)
 			out = BIO_push(tmpbio, out);
 			}
 #endif
-			lh_node_stats_bio((LHASH *)ERR_get_string_table(),out);
-			lh_stats_bio((LHASH *)ERR_get_string_table(),out);
-			lh_node_usage_stats_bio((LHASH *)
-				ERR_get_string_table(),out);
+			lh_ERR_STRING_DATA_node_stats_bio(
+						  ERR_get_string_table(), out);
+			lh_ERR_STRING_DATA_stats_bio(ERR_get_string_table(),
+						     out);
+			lh_ERR_STRING_DATA_node_usage_stats_bio(
+						    ERR_get_string_table(),out);
 			}
 		if (out != NULL) BIO_free_all(out);
 		argc--;

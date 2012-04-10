@@ -151,7 +151,7 @@ static int i2r_ASIdentifierChoice(BIO *out,
 /*
  * i2r method for an ASIdentifier extension.
  */
-static int i2r_ASIdentifiers(X509V3_EXT_METHOD *method,
+static int i2r_ASIdentifiers(const X509V3_EXT_METHOD *method,
 			     void *ext,
 			     BIO *out,
 			     int indent)
@@ -465,7 +465,7 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
 	break;
       }
       ASIdOrRange_free(b);
-      (void)sk_ASIdOrRange_delete(choice->u.asIdsOrRanges, i + 1);
+      sk_ASIdOrRange_delete(choice->u.asIdsOrRanges, i + 1);
       i--;
       continue;
     }
@@ -494,7 +494,7 @@ int v3_asid_canonize(ASIdentifiers *asid)
 /*
  * v2i method for an ASIdentifier extension.
  */
-static void *v2i_ASIdentifiers(struct v3_ext_method *method,
+static void *v2i_ASIdentifiers(const struct v3_ext_method *method,
 			       struct v3_ext_ctx *ctx,
 			       STACK_OF(CONF_VALUE) *values)
 {
@@ -706,7 +706,7 @@ static int v3_asid_validate_path_internal(X509_STORE_CTX *ctx,
 {
   ASIdOrRanges *child_as = NULL, *child_rdi = NULL;
   int i, ret = 1, inherit_as = 0, inherit_rdi = 0;
-  X509 *x = NULL;
+  X509 *x;
 
   OPENSSL_assert(chain != NULL && sk_X509_num(chain) > 0);
   OPENSSL_assert(ctx != NULL || ext != NULL);
@@ -719,6 +719,7 @@ static int v3_asid_validate_path_internal(X509_STORE_CTX *ctx,
    */
   if (ext != NULL) {
     i = -1;
+    x = NULL;
   } else {
     i = 0;
     x = sk_X509_value(chain, i);
@@ -798,6 +799,7 @@ static int v3_asid_validate_path_internal(X509_STORE_CTX *ctx,
   /*
    * Trust anchor can't inherit.
    */
+  OPENSSL_assert(x != NULL);
   if (x->rfc3779_asid != NULL) {
     if (x->rfc3779_asid->asnum != NULL &&
 	x->rfc3779_asid->asnum->type == ASIdentifierChoice_inherit)

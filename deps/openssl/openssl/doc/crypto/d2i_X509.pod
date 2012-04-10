@@ -1,0 +1,231 @@
+=pod
+
+=head1 NAME
+
+d2i_X509, i2d_X509, d2i_X509_bio, d2i_X509_fp, i2d_X509_bio,
+i2d_X509_fp - X509 encode and decode functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509.h>
+
+ X509 *d2i_X509(X509 **px, const unsigned char **in, int len);
+ int i2d_X509(X509 *x, unsigned char **out);
+
+ X509 *d2i_X509_bio(BIO *bp, X509 **x);
+ X509 *d2i_X509_fp(FILE *fp, X509 **x);
+
+ int i2d_X509_bio(BIO *bp, X509 *x);
+ int i2d_X509_fp(FILE *fp, X509 *x);
+
+=head1 DESCRIPTION
+
+The X509 encode and decode routines encode and parse an
+B<X509> structure, which represents an X509 certificate.
+
+d2i_X509() attempts to decode B<len> bytes at B<*in>. If 
+successful a pointer to the B<X509> structure is returned. If an error
+occurred then B<NULL> is returned. If B<px> is not B<NULL> then the
+returned structure is written to B<*px>. If B<*px> is not B<NULL>
+then it is assumed that B<*px> contains a valid B<X509>
+structure and an attempt is made to reuse it. If the call is
+successful B<*in> is incremented to the byte following the
+parsed data.
+
+i2d_X509() encodes the structure pointed to by B<x> into DER format.
+If B<out> is not B<NULL> is writes the DER encoded data to the buffer
+at B<*out>, and increments it to point after the data just written.
+If the return value is negative an error occurred, otherwise it
+returns the length of the encoded data. 
+
+For OpenSSL 0.9.7 and later if B<*out> is B<NULL> memory will be
+allocated for a buffer and the encoded data written to it. In this
+case B<*out> is not incremented and it points to the start of the
+data just written.
+
+d2i_X509_bio() is similar to d2i_X509() except it attempts
+to parse data from BIO B<bp>.
+
+d2i_X509_fp() is similar to d2i_X509() except it attempts
+to parse data from FILE pointer B<fp>.
+
+i2d_X509_bio() is similar to i2d_X509() except it writes
+the encoding of the structure B<x> to BIO B<bp> and it
+returns 1 for success and 0 for failure.
+
+i2d_X509_fp() is similar to i2d_X509() except it writes
+the encoding of the structure B<x> to BIO B<bp> and it
+returns 1 for success and 0 for failure.
+
+=head1 NOTES
+
+The letters B<i> and B<d> in for example B<i2d_X509> stand for
+"internal" (that is an internal C structure) and "DER". So that
+B<i2d_X509> converts from internal to DER.
+
+The functions can also understand B<BER> forms.
+
+The actual X509 structure passed to i2d_X509() must be a valid
+populated B<X509> structure it can B<not> simply be fed with an
+empty structure such as that returned by X509_new().
+
+The encoded data is in binary form and may contain embedded zeroes.
+Therefore any FILE pointers or BIOs should be opened in binary mode.
+Functions such as B<strlen()> will B<not> return the correct length
+of the encoded structure.
+
+The ways that B<*in> and B<*out> are incremented after the operation
+can trap the unwary. See the B<WARNINGS> section for some common
+errors.
+
+The reason for the auto increment behaviour is to reflect a typical
+usage of ASN1 functions: after one structure is encoded or decoded
+another will processed after it.
+
+=head1 EXAMPLES
+
+Allocate and encode the DER encoding of an X509 structure:
+
+ int len;
+ unsigned char *buf, *p;
+
+ len = i2d_X509(x, NULL);
+
+ buf = OPENSSL_malloc(len);
+
+ if (buf == NULL)
+	/* error */
+
+ p = buf;
+
+ i2d_X509(x, &p);
+
+If you are using OpenSSL 0.9.7 or later then this can be
+simplified to:
+
+
+ int len;
+ unsigned char *buf;
+
+ buf = NULL;
+
+ len = i2d_X509(x, &buf);
+
+ if (len < 0)
+	/* error */
+
+Attempt to decode a buffer:
+
+ X509 *x;
+
+ unsigned char *buf, *p;
+
+ int len;
+
+ /* Something to setup buf and len */
+
+ p = buf;
+
+ x = d2i_X509(NULL, &p, len);
+
+ if (x == NULL)
+    /* Some error */
+
+Alternative technique:
+
+ X509 *x;
+
+ unsigned char *buf, *p;
+
+ int len;
+
+ /* Something to setup buf and len */
+
+ p = buf;
+
+ x = NULL;
+
+ if(!d2i_X509(&x, &p, len))
+    /* Some error */
+
+
+=head1 WARNINGS
+
+The use of temporary variable is mandatory. A common
+mistake is to attempt to use a buffer directly as follows:
+
+ int len;
+ unsigned char *buf;
+
+ len = i2d_X509(x, NULL);
+
+ buf = OPENSSL_malloc(len);
+
+ if (buf == NULL)
+	/* error */
+
+ i2d_X509(x, &buf);
+
+ /* Other stuff ... */
+
+ OPENSSL_free(buf);
+
+This code will result in B<buf> apparently containing garbage because
+it was incremented after the call to point after the data just written.
+Also B<buf> will no longer contain the pointer allocated by B<OPENSSL_malloc()>
+and the subsequent call to B<OPENSSL_free()> may well crash.
+
+The auto allocation feature (setting buf to NULL) only works on OpenSSL
+0.9.7 and later. Attempts to use it on earlier versions will typically
+cause a segmentation violation.
+
+Another trap to avoid is misuse of the B<xp> argument to B<d2i_X509()>:
+
+ X509 *x;
+
+ if (!d2i_X509(&x, &p, len))
+	/* Some error */
+
+This will probably crash somewhere in B<d2i_X509()>. The reason for this
+is that the variable B<x> is uninitialized and an attempt will be made to
+interpret its (invalid) value as an B<X509> structure, typically causing
+a segmentation violation. If B<x> is set to NULL first then this will not
+happen.
+
+=head1 BUGS
+
+In some versions of OpenSSL the "reuse" behaviour of d2i_X509() when 
+B<*px> is valid is broken and some parts of the reused structure may
+persist if they are not present in the new one. As a result the use
+of this "reuse" behaviour is strongly discouraged.
+
+i2d_X509() will not return an error in many versions of OpenSSL,
+if mandatory fields are not initialized due to a programming error
+then the encoded structure may contain invalid data or omit the
+fields entirely and will not be parsed by d2i_X509(). This may be
+fixed in future so code should not assume that i2d_X509() will
+always succeed.
+
+=head1 RETURN VALUES
+
+d2i_X509(), d2i_X509_bio() and d2i_X509_fp() return a valid B<X509> structure
+or B<NULL> if an error occurs. The error code that can be obtained by
+L<ERR_get_error(3)|ERR_get_error(3)>. 
+
+i2d_X509() returns the number of bytes successfully encoded or a negative
+value if an error occurs. The error code can be obtained by
+L<ERR_get_error(3)|ERR_get_error(3)>. 
+
+i2d_X509_bio() and i2d_X509_fp() return 1 for success and 0 if an error 
+occurs The error code can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>. 
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)|ERR_get_error(3)>
+
+=head1 HISTORY
+
+d2i_X509, i2d_X509, d2i_X509_bio, d2i_X509_fp, i2d_X509_bio and i2d_X509_fp
+are available in all versions of SSLeay and OpenSSL.
+
+=cut

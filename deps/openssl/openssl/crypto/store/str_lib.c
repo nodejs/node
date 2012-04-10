@@ -1670,7 +1670,7 @@ int STORE_parse_attrs_endp(void *handle)
 	}
 
 static int attr_info_compare_compute_range(
-	unsigned char *abits, unsigned char *bbits,
+	const unsigned char *abits, const unsigned char *bbits,
 	unsigned int *alowp, unsigned int *ahighp,
 	unsigned int *blowp, unsigned int *bhighp)
 	{
@@ -1739,13 +1739,15 @@ static int attr_info_compare_compute_range(
 	return res;
 	}
 
-int STORE_ATTR_INFO_compare(STORE_ATTR_INFO *a, STORE_ATTR_INFO *b)
+int STORE_ATTR_INFO_compare(const STORE_ATTR_INFO * const *a,
+			    const STORE_ATTR_INFO * const *b)
 	{
 	if (a == b) return 0;
 	if (!a) return -1;
 	if (!b) return 1;
-	return attr_info_compare_compute_range(a->set, b->set, 0, 0, 0, 0);
+	return attr_info_compare_compute_range((*a)->set, (*b)->set, 0, 0, 0, 0);
 	}
+
 int STORE_ATTR_INFO_in_range(STORE_ATTR_INFO *a, STORE_ATTR_INFO *b)
 	{
 	unsigned int alow, ahigh, blow, bhigh;
@@ -1759,6 +1761,7 @@ int STORE_ATTR_INFO_in_range(STORE_ATTR_INFO *a, STORE_ATTR_INFO *b)
 		return 1;
 	return 0;
 	}
+
 int STORE_ATTR_INFO_in(STORE_ATTR_INFO *a, STORE_ATTR_INFO *b)
 	{
 	unsigned char *abits, *bbits;
@@ -1776,6 +1779,7 @@ int STORE_ATTR_INFO_in(STORE_ATTR_INFO *a, STORE_ATTR_INFO *b)
 		}
 	return 1;
 	}
+
 int STORE_ATTR_INFO_in_ex(STORE_ATTR_INFO *a, STORE_ATTR_INFO *b)
 	{
 	STORE_ATTR_TYPES i;

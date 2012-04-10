@@ -77,7 +77,7 @@ extern "C" {
  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  */
 
-#if defined(OPENSSL_SYS_WIN16) || defined(__LP32__)
+#if defined(__LP32__)
 #define MD5_LONG unsigned long
 #elif defined(OPENSSL_SYS_CRAY) || defined(__ILP64__)
 #define MD5_LONG unsigned long
@@ -105,9 +105,6 @@ typedef struct MD5state_st
 	unsigned int num;
 	} MD5_CTX;
 
-#ifdef OPENSSL_FIPS
-int private_MD5_Init(MD5_CTX *c);
-#endif
 int MD5_Init(MD5_CTX *c);
 int MD5_Update(MD5_CTX *c, const void *data, size_t len);
 int MD5_Final(unsigned char *md, MD5_CTX *c);

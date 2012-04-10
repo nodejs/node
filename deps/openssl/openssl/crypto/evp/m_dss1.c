@@ -68,8 +68,6 @@
 #include <openssl/dsa.h>
 #endif
 
-#ifndef OPENSSL_FIPS
-
 static int init(EVP_MD_CTX *ctx)
 	{ return SHA1_Init(ctx->md_data); }
 
@@ -84,7 +82,7 @@ static const EVP_MD dss1_md=
 	NID_dsa,
 	NID_dsaWithSHA1,
 	SHA_DIGEST_LENGTH,
-	0,
+	EVP_MD_FLAG_PKEY_DIGEST,
 	init,
 	update,
 	final,
@@ -99,5 +97,4 @@ const EVP_MD *EVP_dss1(void)
 	{
 	return(&dss1_md);
 	}
-#endif
 #endif

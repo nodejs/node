@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 		  	{
 			if (BN_cmp(r_simple,r_mont) != 0)
 				printf("\nsimple and mont results differ\n");
-			if (BN_cmp(r_simple,r_mont) != 0)
+			if (BN_cmp(r_simple,r_mont_const) != 0)
 				printf("\nsimple and mont const time results differ\n");
 			if (BN_cmp(r_simple,r_recp) != 0)
 				printf("\nsimple and recp results differ\n");
@@ -187,7 +187,7 @@ int main(int argc, char *argv[])
 	BN_free(b);
 	BN_free(m);
 	BN_CTX_free(ctx);
-	ERR_remove_state(0);
+	ERR_remove_thread_state(NULL);
 	CRYPTO_mem_leaks(out);
 	BIO_free(out);
 	printf(" done\n");

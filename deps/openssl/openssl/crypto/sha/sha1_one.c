@@ -61,7 +61,7 @@
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
 
-#if !defined(OPENSSL_NO_SHA1)
+#ifndef OPENSSL_NO_SHA1
 unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md)
 	{
 	SHA_CTX c;

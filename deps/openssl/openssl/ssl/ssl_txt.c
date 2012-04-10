@@ -55,6 +55,32 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright 2005 Nokia. All rights reserved.
+ *
+ * The portions of the attached software ("Contribution") is developed by
+ * Nokia Corporation and is licensed pursuant to the OpenSSL open source
+ * license.
+ *
+ * The Contribution, originally written by Mika Kousa and Pasi Eronen of
+ * Nokia Corporation, consists of the "PSK" (Pre-Shared Key) ciphersuites
+ * support (see RFC 4279) to OpenSSL.
+ *
+ * No patent licenses or other rights except those expressly stated in
+ * the OpenSSL open source license shall be deemed granted or received
+ * expressly, by implication, estoppel, or otherwise.
+ *
+ * No assurances are provided by Nokia that the Contribution does not
+ * infringe the patent or other intellectual property rights of any third
+ * party or that the license provides you with all the necessary rights
+ * to make use of the Contribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. IN
+ * ADDITION TO THE DISCLAIMERS INCLUDED IN THE LICENSE, NOKIA
+ * SPECIFICALLY DISCLAIMS ANY LIABILITY FOR CLAIMS BROUGHT BY YOU OR ANY
+ * OTHER ENTITY BASED ON INFRINGEMENT OF INTELLECTUAL PROPERTY RIGHTS OR
+ * OTHERWISE.
+ */
 
 #include <stdio.h>
 #include <openssl/buffer.h>
@@ -155,6 +181,12 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 			if (BIO_printf(bp,"%02X",x->krb5_client_princ[i]) <= 0) goto err;
 			}
 #endif /* OPENSSL_NO_KRB5 */
+#ifndef OPENSSL_NO_PSK
+	if (BIO_puts(bp,"\n    PSK identity: ") <= 0) goto err;
+	if (BIO_printf(bp, "%s", x->psk_identity ? x->psk_identity : "None") <= 0) goto err;
+	if (BIO_puts(bp,"\n    PSK identity hint: ") <= 0) goto err;
+	if (BIO_printf(bp, "%s", x->psk_identity_hint ? x->psk_identity_hint : "None") <= 0) goto err;
+#endif
 #ifndef OPENSSL_NO_TLSEXT
 	if (x->tlsext_tick_lifetime_hint)
 		{
@@ -170,12 +202,13 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 			goto err;
 		}
 #endif
+
 #ifndef OPENSSL_NO_COMP
 	if (x->compress_meth != 0)
 		{
 		SSL_COMP *comp = NULL;
 
-		ssl_cipher_get_evp(x,NULL,NULL,&comp);
+		ssl_cipher_get_evp(x,NULL,NULL,NULL,NULL,&comp);
 		if (comp == NULL)
 			{
 			if (BIO_printf(bp,"\n    Compression: %d",x->compress_meth) <= 0) goto err;

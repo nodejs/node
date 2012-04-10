@@ -68,12 +68,6 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 
-#ifdef OPENSSL_SYS_NETWARE
-/* Rename these functions to avoid name clashes on NetWare OS */
-#define uni2asc OPENSSL_uni2asc
-#define asc2uni OPENSSL_asc2uni
-#endif
-
 #define PROG pkcs12_main
 
 const EVP_CIPHER *enc;
@@ -94,6 +88,7 @@ int print_attribs(BIO *out, STACK_OF(X509_ATTRIBUTE) *attrlst,const char *name);
 void hex_prin(BIO *out, unsigned char *buf, int len);
 int alg_print(BIO *x, X509_ALGOR *alg);
 int cert_load(BIO *in, STACK_OF(X509) *sk);
+static int set_pbe(BIO *err, int *ppbe, const char *str);
 
 int MAIN(int, char **);
 
@@ -117,29 +112,23 @@ int MAIN(int argc, char **argv)
     int maciter = PKCS12_DEFAULT_ITER;
     int twopass = 0;
     int keytype = 0;
-    int cert_pbe;
+    int cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
     int key_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     int ret = 1;
     int macver = 1;
     int noprompt = 0;
-    STACK *canames = NULL;
+    STACK_OF(OPENSSL_STRING) *canames = NULL;
     char *cpass = NULL, *mpass = NULL;
     char *passargin = NULL, *passargout = NULL, *passarg = NULL;
     char *passin = NULL, *passout = NULL;
     char *inrand = NULL;
+    char *macalg = NULL;
     char *CApath = NULL, *CAfile = NULL;
 #ifndef OPENSSL_NO_ENGINE
     char *engine=NULL;
 #endif
 
     apps_startup();
-
-#ifdef OPENSSL_FIPS
-    if (FIPS_mode())
-	cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
-    else
-#endif
-    cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
 
     enc = EVP_des_ede3_cbc();
     if (bio_err == NULL ) bio_err = BIO_new_fp (stderr, BIO_NOCLOSE);
@@ -191,33 +180,18 @@ int MAIN(int argc, char **argv)
 					 maciter = 1;
 		else if (!strcmp (*args, "-nomac"))
 					 maciter = -1;
+		else if (!strcmp (*args, "-macalg"))
+		    if (args[1]) {
+			args++;	
+			macalg = *args;
+		    } else badarg = 1;
 		else if (!strcmp (*args, "-nodes")) enc=NULL;
 		else if (!strcmp (*args, "-certpbe")) {
-			if (args[1]) {
-				args++;
-				if (!strcmp(*args, "NONE"))
-					cert_pbe = -1;
-				else
-					cert_pbe=OBJ_txt2nid(*args);
-				if(cert_pbe == NID_undef) {
-					BIO_printf(bio_err,
-						 "Unknown PBE algorithm %s\n", *args);
-					badarg = 1;
-				}
-			} else badarg = 1;
+			if (!set_pbe(bio_err, &cert_pbe, *++args))
+				badarg = 1;
 		} else if (!strcmp (*args, "-keypbe")) {
-			if (args[1]) {
-				args++;
-				if (!strcmp(*args, "NONE"))
-					key_pbe = -1;
-				else
-					key_pbe=OBJ_txt2nid(*args);
-				if(key_pbe == NID_undef) {
-					BIO_printf(bio_err,
-						 "Unknown PBE algorithm %s\n", *args);
-					badarg = 1;
-				}
-			} else badarg = 1;
+			if (!set_pbe(bio_err, &key_pbe, *++args))
+				badarg = 1;
 		} else if (!strcmp (*args, "-rand")) {
 		    if (args[1]) {
 			args++;	
@@ -248,8 +222,8 @@ int MAIN(int argc, char **argv)
 		} else if (!strcmp (*args, "-caname")) {
 		    if (args[1]) {
 			args++;	
-			if (!canames) canames = sk_new_null();
-			sk_push(canames, *args);
+			if (!canames) canames = sk_OPENSSL_STRING_new_null();
+			sk_OPENSSL_STRING_push(canames, *args);
 		    } else badarg = 1;
 		} else if (!strcmp (*args, "-in")) {
 		    if (args[1]) {
@@ -338,11 +312,14 @@ int MAIN(int argc, char **argv)
 #endif
 	BIO_printf (bio_err, "-nodes        don't encrypt private keys\n");
 	BIO_printf (bio_err, "-noiter       don't use encryption iteration\n");
+	BIO_printf (bio_err, "-nomaciter    don't use MAC iteration\n");
 	BIO_printf (bio_err, "-maciter      use MAC iteration\n");
+	BIO_printf (bio_err, "-nomac        don't generate MAC\n");
 	BIO_printf (bio_err, "-twopass      separate MAC, encryption passwords\n");
 	BIO_printf (bio_err, "-descert      encrypt PKCS#12 certificates with triple DES (default RC2-40)\n");
 	BIO_printf (bio_err, "-certpbe alg  specify certificate PBE algorithm (default RC2-40)\n");
 	BIO_printf (bio_err, "-keypbe alg   specify private key PBE algorithm (default 3DES)\n");
+	BIO_printf (bio_err, "-macalg alg   digest algorithm used in MAC (default SHA1)\n");
 	BIO_printf (bio_err, "-keyex        set MS key exchange type\n");
 	BIO_printf (bio_err, "-keysig       set MS key signature type\n");
 	BIO_printf (bio_err, "-password p   set import/export password source\n");
@@ -354,8 +331,8 @@ int MAIN(int argc, char **argv)
 	BIO_printf(bio_err,  "-rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
 	BIO_printf(bio_err,  "              load the file (or the files in the directory) into\n");
 	BIO_printf(bio_err,  "              the random number generator\n");
-  	BIO_printf(bio_err,  "-CSP name     Microsoft CSP name\n");
- 	BIO_printf(bio_err,  "-LMK          Add local machine keyset attribute to private key\n");
+	BIO_printf(bio_err,  "-CSP name     Microsoft CSP name\n");
+	BIO_printf(bio_err,  "-LMK          Add local machine keyset attribute to private key\n");
     	goto end;
     }
 
@@ -445,6 +422,7 @@ int MAIN(int argc, char **argv)
 	EVP_PKEY *key = NULL;
 	X509 *ucert = NULL, *x = NULL;
 	STACK_OF(X509) *certs=NULL;
+	const EVP_MD *macmd = NULL;
 	unsigned char *catmp = NULL;
 	int i;
 
@@ -571,9 +549,9 @@ int MAIN(int argc, char **argv)
 
 	/* Add any CA names */
 
-	for (i = 0; i < sk_num(canames); i++)
+	for (i = 0; i < sk_OPENSSL_STRING_num(canames); i++)
 		{
-		catmp = (unsigned char *)sk_value(canames, i);
+		catmp = (unsigned char *)sk_OPENSSL_STRING_value(canames, i);
 		X509_alias_set1(sk_X509_value(certs, i), catmp, -1);
 		}
 
@@ -611,8 +589,18 @@ int MAIN(int argc, char **argv)
 		goto export_end;
 		}
 
+	if (macalg)
+		{
+		macmd = EVP_get_digestbyname(macalg);
+		if (!macmd)
+			{
+			BIO_printf(bio_err, "Unknown digest algorithm %s\n", 
+						macalg);
+			}
+		}
+
 	if (maciter != -1)
-		PKCS12_set_mac(p12, mpass, -1, NULL, 0, maciter, NULL);
+		PKCS12_set_mac(p12, mpass, -1, NULL, 0, maciter, macmd);
 
 #ifdef CRYPTO_MDEBUG
 	CRYPTO_pop_info();
@@ -659,7 +647,7 @@ int MAIN(int argc, char **argv)
 
     if (!twopass) BUF_strlcpy(macpass, pass, sizeof macpass);
 
-    if (options & INFO) BIO_printf (bio_err, "MAC Iteration %ld\n", p12->mac->iter ? ASN1_INTEGER_get (p12->mac->iter) : 1);
+    if ((options & INFO) && p12->mac) BIO_printf (bio_err, "MAC Iteration %ld\n", p12->mac->iter ? ASN1_INTEGER_get (p12->mac->iter) : 1);
     if(macver) {
 #ifdef CRYPTO_MDEBUG
     CRYPTO_push_info("verify MAC");
@@ -699,7 +687,7 @@ int MAIN(int argc, char **argv)
 #endif
     BIO_free(in);
     BIO_free_all(out);
-    if (canames) sk_free(canames);
+    if (canames) sk_OPENSSL_STRING_free(canames);
     if(passin) OPENSSL_free(passin);
     if(passout) OPENSSL_free(passout);
     apps_shutdown();
@@ -935,7 +923,7 @@ int print_attribs (BIO *out, STACK_OF(X509_ATTRIBUTE) *attrlst,const char *name)
 			av = sk_ASN1_TYPE_value(attr->value.set, 0);
 			switch(av->type) {
 				case V_ASN1_BMPSTRING:
-        			value = uni2asc(av->value.bmpstring->data,
+        			value = OPENSSL_uni2asc(av->value.bmpstring->data,
                                 	       av->value.bmpstring->length);
 				BIO_printf(out, "%s\n", value);
 				OPENSSL_free(value);
@@ -968,4 +956,22 @@ void hex_prin(BIO *out, unsigned char *buf, int len)
 	for (i = 0; i < len; i++) BIO_printf (out, "%02X ", buf[i]);
 }
 
+static int set_pbe(BIO *err, int *ppbe, const char *str)
+	{
+	if (!str)
+		return 0;
+	if (!strcmp(str, "NONE"))
+		{
+		*ppbe = -1;
+		return 1;
+		}
+	*ppbe=OBJ_txt2nid(str);
+	if (*ppbe == NID_undef)
+		{
+		BIO_printf(bio_err, "Unknown PBE algorithm %s\n", str);
+		return 0;
+		}
+	return 1;
+	}
+			
 #endif

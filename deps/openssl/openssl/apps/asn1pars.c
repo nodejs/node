@@ -96,7 +96,7 @@ int MAIN(int argc, char **argv)
 	unsigned char *tmpbuf;
 	const unsigned char *ctmpbuf;
 	BUF_MEM *buf=NULL;
-	STACK *osk=NULL;
+	STACK_OF(OPENSSL_STRING) *osk=NULL;
 	ASN1_TYPE *at=NULL;
 
 	informat=FORMAT_PEM;
@@ -113,7 +113,7 @@ int MAIN(int argc, char **argv)
 	prog=argv[0];
 	argc--;
 	argv++;
-	if ((osk=sk_new_null()) == NULL)
+	if ((osk=sk_OPENSSL_STRING_new_null()) == NULL)
 		{
 		BIO_printf(bio_err,"Memory allocation failure\n");
 		goto end;
@@ -169,7 +169,7 @@ int MAIN(int argc, char **argv)
 		else if (strcmp(*argv,"-strparse") == 0)
 			{
 			if (--argc < 1) goto bad;
-			sk_push(osk,*(++argv));
+			sk_OPENSSL_STRING_push(osk,*(++argv));
 			}
 		else if (strcmp(*argv,"-genstr") == 0)
 			{
@@ -302,18 +302,18 @@ bad:
 
 	/* If any structs to parse go through in sequence */
 
-	if (sk_num(osk))
+	if (sk_OPENSSL_STRING_num(osk))
 		{
 		tmpbuf=(unsigned char *)str;
 		tmplen=num;
-		for (i=0; i<sk_num(osk); i++)
+		for (i=0; i<sk_OPENSSL_STRING_num(osk); i++)
 			{
 			ASN1_TYPE *atmp;
 			int typ;
-			j=atoi(sk_value(osk,i));
+			j=atoi(sk_OPENSSL_STRING_value(osk,i));
 			if (j == 0)
 				{
-				BIO_printf(bio_err,"'%s' is an invalid number\n",sk_value(osk,i));
+				BIO_printf(bio_err,"'%s' is an invalid number\n",sk_OPENSSL_STRING_value(osk,i));
 				continue;
 				}
 			tmpbuf+=j;
@@ -378,7 +378,7 @@ end:
 		ERR_print_errors(bio_err);
 	if (buf != NULL) BUF_MEM_free(buf);
 	if (at != NULL) ASN1_TYPE_free(at);
-	if (osk != NULL) sk_free(osk);
+	if (osk != NULL) sk_OPENSSL_STRING_free(osk);
 	OBJ_cleanup();
 	apps_shutdown();
 	OPENSSL_EXIT(ret);
@@ -408,6 +408,7 @@ static int do_generate(BIO *bio, char *genstr, char *genconf, BUF_MEM *buf)
 
 	atyp = ASN1_generate_nconf(genstr, cnf);
 	NCONF_free(cnf);
+	cnf = NULL;
 
 	if (!atyp)
 		return -1;

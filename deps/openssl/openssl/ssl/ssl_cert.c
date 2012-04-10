@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2007 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -197,8 +197,10 @@ CERT *ssl_cert_dup(CERT *cert)
 	 * if you find that more readable */
 
 	ret->valid = cert->valid;
-	ret->mask = cert->mask;
-	ret->export_mask = cert->export_mask;
+	ret->mask_k = cert->mask_k;
+	ret->mask_a = cert->mask_a;
+	ret->export_mask_k = cert->export_mask_k;
+	ret->export_mask_a = cert->export_mask_a;
 
 #ifndef OPENSSL_NO_RSA
 	if (cert->rsa_tmp != NULL)

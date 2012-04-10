@@ -66,7 +66,8 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
 	{
 	ASN1_OBJECT *r;
 	int i;
-	char *ln=NULL;
+	char *ln=NULL,*sn=NULL;
+	unsigned char *data=NULL;
 
 	if (o == NULL) return(NULL);
 	if (!(o->flags & ASN1_OBJECT_FLAG_DYNAMIC))
@@ -79,42 +80,42 @@ ASN1_OBJECT *OBJ_dup(const ASN1_OBJECT *o)
 		OBJerr(OBJ_F_OBJ_DUP,ERR_R_ASN1_LIB);
 		return(NULL);
 		}
-	r->data=OPENSSL_malloc(o->length);
-	if (r->data == NULL)
+	data=OPENSSL_malloc(o->length);
+	if (data == NULL)
 		goto err;
 	if (o->data != NULL)
-		memcpy(r->data,o->data,o->length);
+		memcpy(data,o->data,o->length);
+	/* once data attached to object it remains const */
+	r->data = data;
 	r->length=o->length;
 	r->nid=o->nid;
 	r->ln=r->sn=NULL;
 	if (o->ln != NULL)
 		{
 		i=strlen(o->ln)+1;
-		r->ln=ln=OPENSSL_malloc(i);
-		if (r->ln == NULL) goto err;
+		ln=OPENSSL_malloc(i);
+		if (ln == NULL) goto err;
 		memcpy(ln,o->ln,i);
+		r->ln=ln;
 		}
 
 	if (o->sn != NULL)
 		{
-		char *s;
-
 		i=strlen(o->sn)+1;
-		r->sn=s=OPENSSL_malloc(i);
-		if (r->sn == NULL) goto err;
-		memcpy(s,o->sn,i);
+		sn=OPENSSL_malloc(i);
+		if (sn == NULL) goto err;
+		memcpy(sn,o->sn,i);
+		r->sn=sn;
 		}
 	r->flags=o->flags|(ASN1_OBJECT_FLAG_DYNAMIC|
 		ASN1_OBJECT_FLAG_DYNAMIC_STRINGS|ASN1_OBJECT_FLAG_DYNAMIC_DATA);
 	return(r);
 err:
 	OBJerr(OBJ_F_OBJ_DUP,ERR_R_MALLOC_FAILURE);
-	if (r != NULL)
-		{
-		if (ln != NULL) OPENSSL_free(ln);
-		if (r->data != NULL) OPENSSL_free(r->data);
-		OPENSSL_free(r);
-		}
+	if (ln != NULL)		OPENSSL_free(ln);
+	if (sn != NULL)		OPENSSL_free(sn);
+	if (data != NULL)	OPENSSL_free(data);
+	if (r != NULL)		OPENSSL_free(r);
 	return(NULL);
 	}
 

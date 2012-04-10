@@ -1,20 +1,34 @@
 Name: openssl
 URL: http://openssl.org/source/
-Version: 0.9.8o
+Version: 1.0.0f
 License: BSDish
 License File: openssl/LICENSE
 
 Description:
-This is OpenSSL, the standard SSL/TLS library, which is used only for testing.
+This is OpenSSL, the standard SSL/TLS library, which is used only in Android.
+
 It's an unmodified, upstream source except for the patches listed below.
 
 
-Patches are applied in this order:
+********************************************************************************
+The following patches are taken from Android Open Source Project.
 
-missing_stddef.patch
 
-Add stddef.h to header files which use size_t, otherwise apps that include
-those headers get compiler errors.
+progs.patch:
+
+Fixup sources under the apps/ directory that are not built under the android environment.
+
+
+small_records.patch:
+
+Reduce OpenSSL memory consumption.
+SSL records may be as large as 16K, but are typically < 2K.  In
+addition, a historic bug in Windows allowed records to be as large
+32K.  OpenSSL statically allocates read and write buffers (34K and
+18K respectively) used for processing records.
+With this patch, OpenSSL statically allocates 4K + 4K buffers, with
+the option of dynamically growing buffers to 34K + 4K, which is a
+saving of 44K per connection for the typical case.
 
 
 handshake_cutthrough.patch
@@ -25,24 +39,58 @@ clients can negotiate SSL connections in 1-RTT even when performing
 full-handshakes.
 
 
-next_proto_neg.patch
+jsse.patch
 
-Adds next-protocol-negotation support:
-  http://tools.ietf.org/html/draft-agl-tls-nextprotoneg-00
-
-EXPERIMENTAL: this patches uses extension and handshake numbers that are not
-assigned by IANA.
-
-This patch implements server and client side support. Additionally, it includes
-code that assumes the structure of the 'opaque' protocol strings in the draft.
+Support for JSSE implementation based on OpenSSL.
 
 
-snap_start.patch
+npn.patch
 
-Adds server-side support for Snap Start. This allows for 0-RTT handshakes in
-the case that the application protocol involves the client side speaking first.
+Transport Layer Security (TLS) Next Protocol Negotiation Extension
 
-http://tools.ietf.org/html/draft-agl-tls-snapstart-00
 
-EXPERIMENTAL: this patches uses an extension number that is not assigned by
-IANA.
+sha1_armv4_large.patch
+
+This patch eliminates memory stores to addresses below SP.
+
+
+openssl_no_dtls1.patch
+
+Add missing #ifndef OPENSSL_NO_DTLS1
+
+
+********************************************************************************
+The following patches are needed to compile this openssl on Chromium and pass
+the related net unit tests.
+
+
+empty_OPENSSL_cpuid_setup.patch
+
+Use a empty implementation for function OPENSSL_cpuid_setup to resolve link
+error. We should figure out how to geenrate platform specific implementation
+of OPENSSL_cpuid_setup by leveraging crypto/*cpuid.pl.
+
+
+x509_hash_name_algorithm_change.patch
+
+There are many symbolic links under /etc/ssl/certs created by using hash of
+the pem certificates in order for OpenSSL to find those certificate.
+Openssl has a tool to help you create hash symbolic links. (See tools/c_rehash)
+However the new openssl changed the hash algorithm, Unless you compile/install
+the latest openssl library and re-create all related symbolic links, the new
+openssl can not find some certificates because the links of those certificates
+were created by using old hash algorithm, which causes some tests failed.
+This patch gives a way to find a certificate according to its hash by using both
+new algorithm and old algorithm.
+crbug.com/111045 is used to track this issue.
+
+
+tls_exporter.patch
+
+Keying Material Exporters for Transport Layer Security (RFC 5705).
+
+
+Android platform support
+
+Copy config/android/openssl/opensslconf.h from Android's
+external/openssl/include/openssl/opensslconf.h

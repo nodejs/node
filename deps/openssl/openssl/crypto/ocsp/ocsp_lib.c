@@ -69,6 +69,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
 #include <openssl/ocsp.h>
+#include <openssl/asn1t.h>
 
 /* Convert a certificate and its issuer to an OCSP_CERTID */
 
@@ -169,13 +170,13 @@ int OCSP_parse_url(char *url, char **phost, char **pport, char **ppath, int *pss
 
 	char *host, *port;
 
-	/* dup the buffer since we are going to mess with it */
-	buf = BUF_strdup(url);
-	if (!buf) goto mem_err;
-
 	*phost = NULL;
 	*pport = NULL;
 	*ppath = NULL;
+
+	/* dup the buffer since we are going to mess with it */
+	buf = BUF_strdup(url);
+	if (!buf) goto mem_err;
 
 	/* Check for initial colon */
 	p = strchr(buf, ':');
@@ -260,3 +261,5 @@ int OCSP_parse_url(char *url, char **phost, char **pport, char **ppath, int *pss
 	return 0;
 
 	}
+
+IMPLEMENT_ASN1_DUP_FUNCTION(OCSP_CERTID)

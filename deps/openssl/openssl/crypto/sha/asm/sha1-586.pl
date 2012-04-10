@@ -215,5 +215,6 @@ sub BODY_40_59
 
 	&stack_pop(16);
 &function_end("sha1_block_data_order");
+&asciz("SHA1 block transform for x86, CRYPTOGAMS by <appro\@openssl.org>");
 
 &asm_finish();

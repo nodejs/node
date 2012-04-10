@@ -88,15 +88,14 @@
 #include <openssl/ecdsa.h>
 #endif
 #include <openssl/rand.h>
-#include <openssl/store.h>
 #include <openssl/ui.h>
 #include <openssl/err.h>
 #endif
 
-#include <openssl/x509.h>
-
 #include <openssl/ossl_typ.h>
 #include <openssl/symhacks.h>
+
+#include <openssl/x509.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -113,6 +112,8 @@ extern "C" {
 #define ENGINE_METHOD_CIPHERS		(unsigned int)0x0040
 #define ENGINE_METHOD_DIGESTS		(unsigned int)0x0080
 #define ENGINE_METHOD_STORE		(unsigned int)0x0100
+#define ENGINE_METHOD_PKEY_METHS	(unsigned int)0x0200
+#define ENGINE_METHOD_PKEY_ASN1_METHS	(unsigned int)0x0400
 /* Obvious all-or-nothing cases. */
 #define ENGINE_METHOD_ALL		(unsigned int)0xFFFF
 #define ENGINE_METHOD_NONE		(unsigned int)0x0000
@@ -297,7 +298,8 @@ typedef int (*ENGINE_SSL_CLIENT_CERT_PTR)(ENGINE *, SSL *ssl,
  * parameter is non-NULL it is set to the size of the returned array. */
 typedef int (*ENGINE_CIPHERS_PTR)(ENGINE *, const EVP_CIPHER **, const int **, int);
 typedef int (*ENGINE_DIGESTS_PTR)(ENGINE *, const EVP_MD **, const int **, int);
-
+typedef int (*ENGINE_PKEY_METHS_PTR)(ENGINE *, EVP_PKEY_METHOD **, const int **, int);
+typedef int (*ENGINE_PKEY_ASN1_METHS_PTR)(ENGINE *, EVP_PKEY_ASN1_METHOD **, const int **, int);
 /* STRUCTURE functions ... all of these functions deal with pointers to ENGINE
  * structures where the pointers have a "structural reference". This means that
  * their reference is to allowed access to the structure but it does not imply
@@ -329,21 +331,20 @@ void ENGINE_load_aep(void);
 void ENGINE_load_atalla(void);
 void ENGINE_load_chil(void);
 void ENGINE_load_cswift(void);
-#ifndef OPENSSL_NO_GMP
-void ENGINE_load_gmp(void);
-#endif
 void ENGINE_load_nuron(void);
 void ENGINE_load_sureware(void);
 void ENGINE_load_ubsec(void);
+void ENGINE_load_padlock(void);
+void ENGINE_load_capi(void);
+#ifndef OPENSSL_NO_GMP
+void ENGINE_load_gmp(void);
+#endif
+#ifndef OPENSSL_NO_GOST
+void ENGINE_load_gost(void);
+#endif
 #endif
 void ENGINE_load_cryptodev(void);
-void ENGINE_load_padlock(void);
 void ENGINE_load_builtin_engines(void);
-#ifdef OPENSSL_SYS_WIN32
-#ifndef OPENSSL_NO_CAPIENG
-void ENGINE_load_capi(void);
-#endif
-#endif
 
 /* Get and set global flags (ENGINE_TABLE_FLAG_***) for the implementation
  * "registry" handling. */
@@ -393,6 +394,14 @@ void ENGINE_register_all_ciphers(void);
 int ENGINE_register_digests(ENGINE *e);
 void ENGINE_unregister_digests(ENGINE *e);
 void ENGINE_register_all_digests(void);
+
+int ENGINE_register_pkey_meths(ENGINE *e);
+void ENGINE_unregister_pkey_meths(ENGINE *e);
+void ENGINE_register_all_pkey_meths(void);
+
+int ENGINE_register_pkey_asn1_meths(ENGINE *e);
+void ENGINE_unregister_pkey_asn1_meths(ENGINE *e);
+void ENGINE_register_all_pkey_asn1_meths(void);
 
 /* These functions register all support from the above categories. Note, use of
  * these functions can result in static linkage of code your application may not
@@ -473,6 +482,8 @@ int ENGINE_set_load_ssl_client_cert_function(ENGINE *e,
 				ENGINE_SSL_CLIENT_CERT_PTR loadssl_f);
 int ENGINE_set_ciphers(ENGINE *e, ENGINE_CIPHERS_PTR f);
 int ENGINE_set_digests(ENGINE *e, ENGINE_DIGESTS_PTR f);
+int ENGINE_set_pkey_meths(ENGINE *e, ENGINE_PKEY_METHS_PTR f);
+int ENGINE_set_pkey_asn1_meths(ENGINE *e, ENGINE_PKEY_ASN1_METHS_PTR f);
 int ENGINE_set_flags(ENGINE *e, int flags);
 int ENGINE_set_cmd_defns(ENGINE *e, const ENGINE_CMD_DEFN *defns);
 /* These functions allow control over any per-structure ENGINE data. */
@@ -509,8 +520,16 @@ ENGINE_LOAD_KEY_PTR ENGINE_get_load_pubkey_function(const ENGINE *e);
 ENGINE_SSL_CLIENT_CERT_PTR ENGINE_get_ssl_client_cert_function(const ENGINE *e);
 ENGINE_CIPHERS_PTR ENGINE_get_ciphers(const ENGINE *e);
 ENGINE_DIGESTS_PTR ENGINE_get_digests(const ENGINE *e);
+ENGINE_PKEY_METHS_PTR ENGINE_get_pkey_meths(const ENGINE *e);
+ENGINE_PKEY_ASN1_METHS_PTR ENGINE_get_pkey_asn1_meths(const ENGINE *e);
 const EVP_CIPHER *ENGINE_get_cipher(ENGINE *e, int nid);
 const EVP_MD *ENGINE_get_digest(ENGINE *e, int nid);
+const EVP_PKEY_METHOD *ENGINE_get_pkey_meth(ENGINE *e, int nid);
+const EVP_PKEY_ASN1_METHOD *ENGINE_get_pkey_asn1_meth(ENGINE *e, int nid);
+const EVP_PKEY_ASN1_METHOD *ENGINE_get_pkey_asn1_meth_str(ENGINE *e,
+					const char *str, int len);
+const EVP_PKEY_ASN1_METHOD *ENGINE_pkey_asn1_find_str(ENGINE **pe,
+					const char *str, int len);
 const ENGINE_CMD_DEFN *ENGINE_get_cmd_defns(const ENGINE *e);
 int ENGINE_get_flags(const ENGINE *e);
 
@@ -562,6 +581,8 @@ ENGINE *ENGINE_get_default_RAND(void);
  * ciphering or digesting corresponding to "nid". */
 ENGINE *ENGINE_get_cipher_engine(int nid);
 ENGINE *ENGINE_get_digest_engine(int nid);
+ENGINE *ENGINE_get_pkey_meth_engine(int nid);
+ENGINE *ENGINE_get_pkey_asn1_meth_engine(int nid);
 
 /* This sets a new default ENGINE structure for performing RSA
  * operations. If the result is non-zero (success) then the ENGINE
@@ -577,6 +598,8 @@ int ENGINE_set_default_DH(ENGINE *e);
 int ENGINE_set_default_RAND(ENGINE *e);
 int ENGINE_set_default_ciphers(ENGINE *e);
 int ENGINE_set_default_digests(ENGINE *e);
+int ENGINE_set_default_pkey_meths(ENGINE *e);
+int ENGINE_set_default_pkey_asn1_meths(ENGINE *e);
 
 /* The combination "set" - the flags are bitwise "OR"d from the
  * ENGINE_METHOD_*** defines above. As with the "ENGINE_register_complete()"
@@ -654,6 +677,7 @@ typedef struct st_dynamic_fns {
  * can be fully instantiated with IMPLEMENT_DYNAMIC_CHECK_FN(). */
 typedef unsigned long (*dynamic_v_check_fn)(unsigned long ossl_version);
 #define IMPLEMENT_DYNAMIC_CHECK_FN() \
+	OPENSSL_EXPORT unsigned long v_check(unsigned long v); \
 	OPENSSL_EXPORT unsigned long v_check(unsigned long v) { \
 		if(v >= OSSL_DYNAMIC_OLDEST) return OSSL_DYNAMIC_VERSION; \
 		return 0; }
@@ -676,6 +700,8 @@ typedef unsigned long (*dynamic_v_check_fn)(unsigned long ossl_version);
 typedef int (*dynamic_bind_engine)(ENGINE *e, const char *id,
 				const dynamic_fns *fns);
 #define IMPLEMENT_DYNAMIC_BIND_FN(fn) \
+	OPENSSL_EXPORT \
+	int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns); \
 	OPENSSL_EXPORT \
 	int bind_engine(ENGINE *e, const char *id, const dynamic_fns *fns) { \
 		if(ENGINE_get_static_state() == fns->static_state) goto skip_cbs; \
@@ -705,7 +731,7 @@ typedef int (*dynamic_bind_engine)(ENGINE *e, const char *id,
  * values. */
 void *ENGINE_get_static_state(void);
 
-#if defined(__OpenBSD__) || defined(__FreeBSD__)
+#if defined(__OpenBSD__) || defined(__FreeBSD__) || defined(HAVE_CRYPTODEV)
 void ENGINE_setup_bsd_cryptodev(void);
 #endif
 
@@ -734,13 +760,15 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_F_ENGINE_GET_DEFAULT_TYPE		 177
 #define ENGINE_F_ENGINE_GET_DIGEST			 186
 #define ENGINE_F_ENGINE_GET_NEXT			 115
+#define ENGINE_F_ENGINE_GET_PKEY_ASN1_METH		 193
+#define ENGINE_F_ENGINE_GET_PKEY_METH			 192
 #define ENGINE_F_ENGINE_GET_PREV			 116
 #define ENGINE_F_ENGINE_INIT				 119
 #define ENGINE_F_ENGINE_LIST_ADD			 120
 #define ENGINE_F_ENGINE_LIST_REMOVE			 121
 #define ENGINE_F_ENGINE_LOAD_PRIVATE_KEY		 150
 #define ENGINE_F_ENGINE_LOAD_PUBLIC_KEY			 151
-#define ENGINE_F_ENGINE_LOAD_SSL_CLIENT_CERT		 192
+#define ENGINE_F_ENGINE_LOAD_SSL_CLIENT_CERT		 194
 #define ENGINE_F_ENGINE_NEW				 122
 #define ENGINE_F_ENGINE_REMOVE				 123
 #define ENGINE_F_ENGINE_SET_DEFAULT_STRING		 189
@@ -769,7 +797,7 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_R_DSO_FAILURE				 104
 #define ENGINE_R_DSO_NOT_FOUND				 132
 #define ENGINE_R_ENGINES_SECTION_ERROR			 148
-#define ENGINE_R_ENGINE_CONFIGURATION_ERROR		 101
+#define ENGINE_R_ENGINE_CONFIGURATION_ERROR		 102
 #define ENGINE_R_ENGINE_IS_NOT_IN_LIST			 105
 #define ENGINE_R_ENGINE_SECTION_ERROR			 149
 #define ENGINE_R_FAILED_LOADING_PRIVATE_KEY		 128
@@ -796,6 +824,7 @@ void ERR_load_ENGINE_strings(void);
 #define ENGINE_R_RSA_NOT_IMPLEMENTED			 141
 #define ENGINE_R_UNIMPLEMENTED_CIPHER			 146
 #define ENGINE_R_UNIMPLEMENTED_DIGEST			 147
+#define ENGINE_R_UNIMPLEMENTED_PUBLIC_KEY_METHOD	 101
 #define ENGINE_R_VERSION_INCOMPATIBILITY		 145
 
 #ifdef  __cplusplus

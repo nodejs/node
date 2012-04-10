@@ -18,23 +18,23 @@ TEST=
 APPS=
 
 LIB=$(TOP)/libcrypto.a
-LIBSRC=	o_names.c obj_dat.c obj_lib.c obj_err.c
-LIBOBJ= o_names.o obj_dat.o obj_lib.o obj_err.o
+LIBSRC=	o_names.c obj_dat.c obj_lib.c obj_err.c obj_xref.c
+LIBOBJ= o_names.o obj_dat.o obj_lib.o obj_err.o obj_xref.o
 
 SRC= $(LIBSRC)
 
 EXHEADER= objects.h obj_mac.h
-HEADER=	$(EXHEADER) obj_dat.h
+HEADER=	$(EXHEADER) obj_dat.h obj_xref.h
 
 ALL=    $(GENERAL) $(SRC) $(HEADER)
 
 top:
 	(cd ../..; $(MAKE) DIRS=crypto SDIRS=$(DIR) sub_all)
 
-all:	obj_dat.h lib
+all:	obj_dat.h obj_xref.h lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -45,6 +45,10 @@ obj_dat.h: obj_dat.pl obj_mac.h
 obj_mac.h: objects.pl objects.txt obj_mac.num
 	$(PERL) objects.pl objects.txt obj_mac.num obj_mac.h
 	@sleep 1; touch obj_mac.h; sleep 1
+
+obj_xref.h: objxref.pl obj_xref.txt obj_mac.num
+	$(PERL) objxref.pl obj_mac.num obj_xref.txt > obj_xref.h
+	@sleep 1; touch obj_xref.h; sleep 1
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -117,3 +121,10 @@ obj_lib.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
 obj_lib.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 obj_lib.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 obj_lib.o: ../cryptlib.h obj_lib.c
+obj_xref.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
+obj_xref.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+obj_xref.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+obj_xref.o: ../../include/openssl/opensslconf.h
+obj_xref.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+obj_xref.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+obj_xref.o: ../../include/openssl/symhacks.h obj_xref.c obj_xref.h

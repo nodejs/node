@@ -116,6 +116,13 @@ int X509_CRL_cmp(const X509_CRL *a, const X509_CRL *b)
 	return(X509_NAME_cmp(a->crl->issuer,b->crl->issuer));
 	}
 
+#ifndef OPENSSL_NO_SHA
+int X509_CRL_match(const X509_CRL *a, const X509_CRL *b)
+	{
+	return memcmp(a->sha1_hash, b->sha1_hash, 20);
+	}
+#endif
+
 X509_NAME *X509_get_issuer_name(X509 *a)
 	{
 	return(a->cert_info->issuer);
@@ -125,6 +132,13 @@ unsigned long X509_issuer_name_hash(X509 *x)
 	{
 	return(X509_NAME_hash(x->cert_info->issuer));
 	}
+
+#ifndef OPENSSL_NO_MD5
+unsigned long X509_issuer_name_hash_old(X509 *x)
+	{
+	return(X509_NAME_hash_old(x->cert_info->issuer));
+	}
+#endif
 
 X509_NAME *X509_get_subject_name(X509 *a)
 	{
@@ -140,6 +154,13 @@ unsigned long X509_subject_name_hash(X509 *x)
 	{
 	return(X509_NAME_hash(x->cert_info->subject));
 	}
+
+#ifndef OPENSSL_NO_MD5
+unsigned long X509_subject_name_hash_old(X509 *x)
+	{
+	return(X509_NAME_hash_old(x->cert_info->subject));
+	}
+#endif
 
 #ifndef OPENSSL_NO_SHA
 /* Compare two certificates: they must be identical for
@@ -162,177 +183,63 @@ int X509_cmp(const X509 *a, const X509 *b)
 #endif
 
 
-/* Case insensitive string comparision */
-static int nocase_cmp(const ASN1_STRING *a, const ASN1_STRING *b)
-{
-	int i;
-
-	if (a->length != b->length)
-		return (a->length - b->length);
-
-	for (i=0; i<a->length; i++)
-	{
-		int ca, cb;
-
-		ca = tolower(a->data[i]);
-		cb = tolower(b->data[i]);
-
-		if (ca != cb)
-			return(ca-cb);
-	}
-	return 0;
-}
-
-/* Case insensitive string comparision with space normalization 
- * Space normalization - ignore leading, trailing spaces, 
- *       multiple spaces between characters are replaced by single space  
- */
-static int nocase_spacenorm_cmp(const ASN1_STRING *a, const ASN1_STRING *b)
-{
-	unsigned char *pa = NULL, *pb = NULL;
-	int la, lb;
-	
-	la = a->length;
-	lb = b->length;
-	pa = a->data;
-	pb = b->data;
-
-	/* skip leading spaces */
-	while (la > 0 && isspace(*pa))
-	{
-		la--;
-		pa++;
-	}
-	while (lb > 0 && isspace(*pb))
-	{
-		lb--;
-		pb++;
-	}
-
-	/* skip trailing spaces */
-	while (la > 0 && isspace(pa[la-1]))
-		la--;
-	while (lb > 0 && isspace(pb[lb-1]))
-		lb--;
-
-	/* compare strings with space normalization */
-	while (la > 0 && lb > 0)
-	{
-		int ca, cb;
-
-		/* compare character */
-		ca = tolower(*pa);
-		cb = tolower(*pb);
-		if (ca != cb)
-			return (ca - cb);
-
-		pa++; pb++;
-		la--; lb--;
-
-		if (la <= 0 || lb <= 0)
-			break;
-
-		/* is white space next character ? */
-		if (isspace(*pa) && isspace(*pb))
-		{
-			/* skip remaining white spaces */
-			while (la > 0 && isspace(*pa))
-			{
-				la--;
-				pa++;
-			}
-			while (lb > 0 && isspace(*pb))
-			{
-				lb--;
-				pb++;
-			}
-		}
-	}
-	if (la > 0 || lb > 0)
-		return la - lb;
-
-	return 0;
-}
-
-static int asn1_string_memcmp(ASN1_STRING *a, ASN1_STRING *b)
-	{
-	int j;
-	j = a->length - b->length;
-	if (j)
-		return j;
-	return memcmp(a->data, b->data, a->length);
-	}
-
-#define STR_TYPE_CMP (B_ASN1_PRINTABLESTRING|B_ASN1_T61STRING|B_ASN1_UTF8STRING)
-
 int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b)
 	{
-	int i,j;
-	X509_NAME_ENTRY *na,*nb;
+	int ret;
 
-	unsigned long nabit, nbbit;
+	/* Ensure canonical encoding is present and up to date */
 
-	j = sk_X509_NAME_ENTRY_num(a->entries)
-		  - sk_X509_NAME_ENTRY_num(b->entries);
-	if (j)
-		return j;
-	for (i=sk_X509_NAME_ENTRY_num(a->entries)-1; i>=0; i--)
+	if (!a->canon_enc || a->modified)
 		{
-		na=sk_X509_NAME_ENTRY_value(a->entries,i);
-		nb=sk_X509_NAME_ENTRY_value(b->entries,i);
-		j=na->value->type-nb->value->type;
-		if (j)
-			{
-			nabit = ASN1_tag2bit(na->value->type);
-			nbbit = ASN1_tag2bit(nb->value->type);
-			if (!(nabit & STR_TYPE_CMP) ||
-				!(nbbit & STR_TYPE_CMP))
-				return j;
-			if (!asn1_string_memcmp(na->value, nb->value))
-				j = 0;
-			}
-		else if (na->value->type == V_ASN1_PRINTABLESTRING)
-			j=nocase_spacenorm_cmp(na->value, nb->value);
-		else if (na->value->type == V_ASN1_IA5STRING
-			&& OBJ_obj2nid(na->object) == NID_pkcs9_emailAddress)
-			j=nocase_cmp(na->value, nb->value);
-		else
-			j = asn1_string_memcmp(na->value, nb->value);
-		if (j) return(j);
-		j=na->set-nb->set;
-		if (j) return(j);
+		ret = i2d_X509_NAME((X509_NAME *)a, NULL);
+		if (ret < 0)
+			return -2;
 		}
 
-	/* We will check the object types after checking the values
-	 * since the values will more often be different than the object
-	 * types. */
-	for (i=sk_X509_NAME_ENTRY_num(a->entries)-1; i>=0; i--)
+	if (!b->canon_enc || b->modified)
 		{
-		na=sk_X509_NAME_ENTRY_value(a->entries,i);
-		nb=sk_X509_NAME_ENTRY_value(b->entries,i);
-		j=OBJ_cmp(na->object,nb->object);
-		if (j) return(j);
+		ret = i2d_X509_NAME((X509_NAME *)b, NULL);
+		if (ret < 0)
+			return -2;
 		}
-	return(0);
+
+	ret = a->canon_enclen - b->canon_enclen;
+
+	if (ret)
+		return ret;
+
+	return memcmp(a->canon_enc, b->canon_enc, a->canon_enclen);
+
 	}
+
+unsigned long X509_NAME_hash(X509_NAME *x)
+	{
+	unsigned long ret=0;
+	unsigned char md[SHA_DIGEST_LENGTH];
+
+	/* Make sure X509_NAME structure contains valid cached encoding */
+	i2d_X509_NAME(x,NULL);
+	EVP_Digest(x->canon_enc, x->canon_enclen, md, NULL, EVP_sha1(), NULL);
+
+	ret=(	((unsigned long)md[0]     )|((unsigned long)md[1]<<8L)|
+		((unsigned long)md[2]<<16L)|((unsigned long)md[3]<<24L)
+		)&0xffffffffL;
+	return(ret);
+	}
+
 
 #ifndef OPENSSL_NO_MD5
 /* I now DER encode the name and hash it.  Since I cache the DER encoding,
  * this is reasonably efficient. */
-unsigned long X509_NAME_hash(X509_NAME *x)
+
+unsigned long X509_NAME_hash_old(X509_NAME *x)
 	{
 	unsigned long ret=0;
 	unsigned char md[16];
-	EVP_MD_CTX md_ctx;
 
 	/* Make sure X509_NAME structure contains valid cached encoding */
 	i2d_X509_NAME(x,NULL);
-	EVP_MD_CTX_init(&md_ctx);
-	EVP_MD_CTX_set_flags(&md_ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
-	EVP_DigestInit_ex(&md_ctx, EVP_md5(), NULL);
-	EVP_DigestUpdate(&md_ctx, x->bytes->data, x->bytes->length);
-	EVP_DigestFinal_ex(&md_ctx,md,NULL);
-	EVP_MD_CTX_cleanup(&md_ctx);
+	EVP_Digest(x->bytes->data, x->bytes->length, md, NULL, EVP_md5(), NULL);
 
 	ret=(	((unsigned long)md[0]     )|((unsigned long)md[1]<<8L)|
 		((unsigned long)md[2]<<16L)|((unsigned long)md[3]<<24L)
@@ -393,14 +300,19 @@ ASN1_BIT_STRING *X509_get0_pubkey_bitstr(const X509 *x)
 
 int X509_check_private_key(X509 *x, EVP_PKEY *k)
 	{
-	EVP_PKEY *xk=NULL;
-	int ok=0;
+	EVP_PKEY *xk;
+	int ret;
 
 	xk=X509_get_pubkey(x);
-	switch (EVP_PKEY_cmp(xk, k))
+
+	if (xk)
+		ret = EVP_PKEY_cmp(xk, k);
+	else
+		ret = -2;
+
+	switch (ret)
 		{
 	case 1:
-		ok=1;
 		break;
 	case 0:
 		X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_VALUES_MISMATCH);
@@ -409,24 +321,11 @@ int X509_check_private_key(X509 *x, EVP_PKEY *k)
 		X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_KEY_TYPE_MISMATCH);
 		break;
 	case -2:
-#ifndef OPENSSL_NO_EC
-		if (k->type == EVP_PKEY_EC)
-			{
-			X509err(X509_F_X509_CHECK_PRIVATE_KEY, ERR_R_EC_LIB);
-			break;
-			}
-#endif
-#ifndef OPENSSL_NO_DH
-		if (k->type == EVP_PKEY_DH)
-			{
-			/* No idea */
-			X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_CANT_CHECK_DH_KEY);
-			break;
-			}
-#endif
 	        X509err(X509_F_X509_CHECK_PRIVATE_KEY,X509_R_UNKNOWN_KEY_TYPE);
 		}
-
-	EVP_PKEY_free(xk);
-	return(ok);
+	if (xk)
+		EVP_PKEY_free(xk);
+	if (ret > 0)
+		return 1;
+	return 0;
 	}

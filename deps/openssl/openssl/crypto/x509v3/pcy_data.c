@@ -82,17 +82,21 @@ void policy_data_free(X509_POLICY_DATA *data)
  * another source.
  */
 
-X509_POLICY_DATA *policy_data_new(POLICYINFO *policy, ASN1_OBJECT *id, int crit)
+X509_POLICY_DATA *policy_data_new(POLICYINFO *policy,
+					const ASN1_OBJECT *cid, int crit)
 	{
 	X509_POLICY_DATA *ret;
-	if (!policy && !id)
+	ASN1_OBJECT *id;
+	if (!policy && !cid)
 		return NULL;
-	if (id)
+	if (cid)
 		{
-		id = OBJ_dup(id);
+		id = OBJ_dup(cid);
 		if (!id)
 			return NULL;
 		}
+	else
+		id = NULL;
 	ret = OPENSSL_malloc(sizeof(X509_POLICY_DATA));
 	if (!ret)
 		return NULL;

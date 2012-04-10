@@ -37,14 +37,25 @@ $ VERIFY = openssl + " verify"
 $ X509   = openssl + " x509"
 $ PKCS12 = openssl + " pkcs12"
 $ echo   = "write sys$Output"
+$ RET = 1
 $!
-$ s = F$PARSE(F$ENVIRONMENT("DEFAULT"),"[]") - "].;"
-$ CATOP  := 's'.demoCA
-$ CAKEY  := ]cakey.pem
-$ CACERT := ]cacert.pem
+$! 2010-12-20 SMS.
+$! Use a concealed logical name to reduce command line lengths, to
+$! avoid DCL errors on VAX:
+$!     %DCL-W-TKNOVF, command element is too long - shorten
+$! (Path segments like "openssl-1_0_1-stable-SNAP-20101217" accumulate
+$! quickly.)
+$!
+$ CATOP = F$PARSE( F$ENVIRONMENT( "DEFAULT"), "[]")- "].;"+ ".demoCA.]"
+$ define /translation_attributes = concealed CATOP 'CATOP'
+$!
+$ on error then goto clean_up
+$ on control_y then goto clean_up
+$!
+$ CAKEY  = "CATOP:[private]cakey.pem"
+$ CACERT = "CATOP:[000000]cacert.pem"
 $
 $ __INPUT := SYS$COMMAND
-$ RET = 1
 $!
 $ i = 1
 $opt_loop:
@@ -55,7 +66,7 @@ $
 $ IF (prog_opt .EQS. "?" .OR. prog_opt .EQS. "-h" .OR. prog_opt .EQS. "-help") 
 $ THEN
 $   echo "usage: CA -newcert|-newreq|-newca|-sign|-verify" 
-$   exit
+$   goto clean_up
 $ ENDIF
 $!
 $ IF (prog_opt .EQS. "-input")
@@ -69,7 +80,7 @@ $!
 $ IF (prog_opt .EQS. "-newcert")
 $ THEN
 $   ! Create a certificate.
-$   DEFINE/USER SYS$INPUT '__INPUT'
+$   DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $   REQ -new -x509 -keyout newreq.pem -out newreq.pem 'DAYS'
 $   RET=$STATUS
 $   echo "Certificate (and private key) is in newreq.pem"
@@ -79,7 +90,7 @@ $!
 $ IF (prog_opt .EQS. "-newreq")
 $ THEN
 $   ! Create a certificate request
-$   DEFINE/USER SYS$INPUT '__INPUT'
+$   DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $   REQ -new -keyout newreq.pem -out newreq.pem 'DAYS'
 $   RET=$STATUS
 $   echo "Request (and private key) is in newreq.pem"
@@ -90,41 +101,40 @@ $ IF (prog_opt .EQS. "-newca")
 $ THEN
 $   ! If explicitly asked for or it doesn't exist then setup the directory
 $   ! structure that Eric likes to manage things.
-$   IF F$SEARCH(CATOP+"]serial.") .EQS. ""
+$   IF F$SEARCH( "CATOP:[000000]serial.") .EQS. ""
 $   THEN
-$     CREATE /DIR /PROTECTION=OWNER:RWED 'CATOP']
-$     CREATE /DIR /PROTECTION=OWNER:RWED 'CATOP'.certs]
-$     CREATE /DIR /PROTECTION=OWNER:RWED 'CATOP'.crl]
-$     CREATE /DIR /PROTECTION=OWNER:RWED 'CATOP'.newcerts]
-$     CREATE /DIR /PROTECTION=OWNER:RWED 'CATOP'.private]
+$     CREATE /DIRECTORY /PROTECTION=OWNER:RWED CATOP:[000000]
+$     CREATE /DIRECTORY /PROTECTION=OWNER:RWED CATOP:[certs]
+$     CREATE /DIRECTORY /PROTECTION=OWNER:RWED CATOP:[crl]
+$     CREATE /DIRECTORY /PROTECTION=OWNER:RWED CATOP:[newcerts]
+$     CREATE /DIRECTORY /PROTECTION=OWNER:RWED CATOP:[private]
 $
-$     OPEN   /WRITE ser_file 'CATOP']serial. 
+$     OPEN /WRITE ser_file CATOP:[000000]serial. 
 $     WRITE ser_file "01"
 $     CLOSE ser_file
-$     APPEND/NEW NL: 'CATOP']index.txt
+$     APPEND /NEW_VERSION NL: CATOP:[000000]index.txt
 $
 $     ! The following is to make sure access() doesn't get confused.  It
 $     ! really needs one file in the directory to give correct answers...
-$     COPY NLA0: 'CATOP'.certs].;
-$     COPY NLA0: 'CATOP'.crl].;
-$     COPY NLA0: 'CATOP'.newcerts].;
-$     COPY NLA0: 'CATOP'.private].;
+$     COPY NLA0: CATOP:[certs].;
+$     COPY NLA0: CATOP:[crl].;
+$     COPY NLA0: CATOP:[newcerts].;
+$     COPY NLA0: CATOP:[private].;
 $   ENDIF
 $!
-$   IF F$SEARCH(CATOP+".private"+CAKEY) .EQS. ""
+$   IF F$SEARCH( CAKEY) .EQS. ""
 $   THEN
 $     READ '__INPUT' FILE -
-	   /PROMPT="CA certificate filename (or enter to create): "
+       /PROMPT="CA certificate filename (or enter to create): "
 $     IF (FILE .NES. "") .AND. (F$SEARCH(FILE) .NES. "")
 $     THEN
-$       COPY 'FILE' 'CATOP'.private'CAKEY'
-$	RET=$STATUS
+$       COPY 'FILE' 'CAKEY'
+$       RET=$STATUS
 $     ELSE
 $       echo "Making CA certificate ..."
-$       DEFINE/USER SYS$INPUT '__INPUT'
-$       REQ -new -x509 -keyout 'CATOP'.private'CAKEY' -
-		       -out 'CATOP''CACERT' 'DAYS'
-$	RET=$STATUS
+$       DEFINE /USER_MODE SYS$INPUT '__INPUT'
+$       REQ -new -x509 -keyout 'CAKEY' -out 'CACERT' 'DAYS'
+$       RET=$STATUS
 $     ENDIF
 $   ENDIF
 $   GOTO opt_loop_continue
@@ -135,16 +145,16 @@ $ THEN
 $   i = i + 1
 $   cname = P'i'
 $   IF cname .EQS. "" THEN cname = "My certificate"
-$   PKCS12 -in newcert.pem -inkey newreq.pem -certfile 'CATOP''CACERT -
-	   -out newcert.p12 -export -name "''cname'"
+$   PKCS12 -in newcert.pem -inkey newreq.pem -certfile 'CACERT' -
+     -out newcert.p12 -export -name "''cname'"
 $   RET=$STATUS
-$   exit RET
+$   goto clean_up
 $ ENDIF
 $!
 $ IF (prog_opt .EQS. "-xsign")
 $ THEN
 $!
-$   DEFINE/USER SYS$INPUT '__INPUT'
+$   DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $   CA -policy policy_anything -infiles newreq.pem
 $   RET=$STATUS
 $   GOTO opt_loop_continue
@@ -153,7 +163,7 @@ $!
 $ IF ((prog_opt .EQS. "-sign") .OR. (prog_opt .EQS. "-signreq"))
 $ THEN
 $!   
-$   DEFINE/USER SYS$INPUT '__INPUT'
+$   DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $   CA -policy policy_anything -out newcert.pem -infiles newreq.pem
 $   RET=$STATUS
 $   type newcert.pem
@@ -165,9 +175,9 @@ $ IF (prog_opt .EQS. "-signcert")
 $  THEN
 $!   
 $   echo "Cert passphrase will be requested twice - bug?"
-$   DEFINE/USER SYS$INPUT '__INPUT'
+$   DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $   X509 -x509toreq -in newreq.pem -signkey newreq.pem -out tmp.pem
-$   DEFINE/USER SYS$INPUT '__INPUT'
+$   DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $   CA -policy policy_anything -out newcert.pem -infiles tmp.pem
 y
 y
@@ -182,17 +192,17 @@ $!
 $   i = i + 1
 $   IF (p'i' .EQS. "")
 $   THEN
-$     DEFINE/USER SYS$INPUT '__INPUT'
-$     VERIFY "-CAfile" 'CATOP''CACERT' newcert.pem
+$     DEFINE /USER_MODE SYS$INPUT '__INPUT'
+$     VERIFY "-CAfile" 'CACERT' newcert.pem
 $   ELSE
 $     j = i
 $    verify_opt_loop:
 $     IF j .GT. 8 THEN GOTO verify_opt_loop_end
 $     IF p'j' .NES. ""
 $     THEN 
-$       DEFINE/USER SYS$INPUT '__INPUT'
+$       DEFINE /USER_MODE SYS$INPUT '__INPUT'
 $       __tmp = p'j'
-$       VERIFY "-CAfile" 'CATOP''CACERT' '__tmp'
+$       VERIFY "-CAfile" 'CACERT' '__tmp'
 $       tmp=$STATUS
 $       IF tmp .NE. 0 THEN RET=tmp
 $     ENDIF
@@ -208,8 +218,8 @@ $ IF (prog_opt .NES. "")
 $ THEN
 $!   
 $   echo "Unknown argument ''prog_opt'"
-$   
-$   EXIT 3
+$   RET = 3
+$   goto clean_up
 $ ENDIF
 $
 $opt_loop_continue:
@@ -217,4 +227,10 @@ $ i = i + 1
 $ GOTO opt_loop
 $
 $opt_loop_end:
+$!
+$clean_up:
+$!
+$ if f$trnlnm( "CATOP", "LNM$PROCESS") .nes. "" then -
+   deassign /process CATOP
+$!
 $ EXIT 'RET'

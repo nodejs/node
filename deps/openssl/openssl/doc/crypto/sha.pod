@@ -1,0 +1,70 @@
+=pod
+
+=head1 NAME
+
+SHA1, SHA1_Init, SHA1_Update, SHA1_Final - Secure Hash Algorithm
+
+=head1 SYNOPSIS
+
+ #include <openssl/sha.h>
+
+ unsigned char *SHA1(const unsigned char *d, unsigned long n,
+                  unsigned char *md);
+
+ int SHA1_Init(SHA_CTX *c);
+ int SHA1_Update(SHA_CTX *c, const void *data,
+                  unsigned long len);
+ int SHA1_Final(unsigned char *md, SHA_CTX *c);
+
+=head1 DESCRIPTION
+
+SHA-1 (Secure Hash Algorithm) is a cryptographic hash function with a
+160 bit output.
+
+SHA1() computes the SHA-1 message digest of the B<n>
+bytes at B<d> and places it in B<md> (which must have space for
+SHA_DIGEST_LENGTH == 20 bytes of output). If B<md> is NULL, the digest
+is placed in a static array.
+
+The following functions may be used if the message is not completely
+stored in memory:
+
+SHA1_Init() initializes a B<SHA_CTX> structure.
+
+SHA1_Update() can be called repeatedly with chunks of the message to
+be hashed (B<len> bytes at B<data>).
+
+SHA1_Final() places the message digest in B<md>, which must have space
+for SHA_DIGEST_LENGTH == 20 bytes of output, and erases the B<SHA_CTX>.
+
+Applications should use the higher level functions
+L<EVP_DigestInit(3)|EVP_DigestInit(3)>
+etc. instead of calling the hash functions directly.
+
+The predecessor of SHA-1, SHA, is also implemented, but it should be
+used only when backward compatibility is required.
+
+=head1 RETURN VALUES
+
+SHA1() returns a pointer to the hash value. 
+
+SHA1_Init(), SHA1_Update() and SHA1_Final() return 1 for success, 0 otherwise.
+
+=head1 CONFORMING TO
+
+SHA: US Federal Information Processing Standard FIPS PUB 180 (Secure Hash
+Standard),
+SHA-1: US Federal Information Processing Standard FIPS PUB 180-1 (Secure Hash
+Standard),
+ANSI X9.30
+
+=head1 SEE ALSO
+
+L<ripemd(3)|ripemd(3)>, L<hmac(3)|hmac(3)>, L<EVP_DigestInit(3)|EVP_DigestInit(3)>
+
+=head1 HISTORY
+
+SHA1(), SHA1_Init(), SHA1_Update() and SHA1_Final() are available in all
+versions of SSLeay and OpenSSL.
+
+=cut

@@ -35,7 +35,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -89,14 +89,14 @@ str_lib.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 str_lib.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
 str_lib.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
 str_lib.o: ../../include/openssl/err.h ../../include/openssl/evp.h
-str_lib.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-str_lib.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-str_lib.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-str_lib.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pkcs7.h
-str_lib.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
-str_lib.o: ../../include/openssl/stack.h ../../include/openssl/store.h
-str_lib.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
-str_lib.o: ../../include/openssl/x509_vfy.h str_lib.c str_locl.h
+str_lib.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+str_lib.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
+str_lib.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+str_lib.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
+str_lib.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+str_lib.o: ../../include/openssl/store.h ../../include/openssl/symhacks.h
+str_lib.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
+str_lib.o: str_lib.c str_locl.h
 str_mem.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
 str_mem.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
 str_mem.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h

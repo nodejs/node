@@ -1,130 +1,207 @@
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 # require 'x86asm.pl';
-# &asm_init("cpp","des-586.pl");
-# XXX
-# XXX
-# main'asm_finish
+# &asm_init(<flavor>,"des-586.pl"[,$i386only]);
+# &function_begin("foo");
+# ...
+# &function_end("foo");
+# &asm_finish
 
-sub main'asm_finish
-	{
-	&file_end();
-	&asm_finish_cpp() if $cpp;
-	print &asm_get_output();
-	}
+$out=();
+$i386=0;
 
-sub main'asm_init
-	{
-	($type,$fn,$i386)=@_;
-	$filename=$fn;
+# AUTOLOAD is this context has quite unpleasant side effect, namely
+# that typos in function calls effectively go to assembler output,
+# but on the pros side we don't have to implement one subroutine per
+# each opcode...
+sub ::AUTOLOAD
+{ my $opcode = $AUTOLOAD;
 
-	$elf=$cpp=$coff=$aout=$win32=$netware=$mwerks=0;
-	if (	($type eq "elf"))
-		{ $elf=1; require "x86unix.pl"; }
-	elsif (	($type eq "a.out"))
-		{ $aout=1; require "x86unix.pl"; }
-	elsif (	($type eq "coff" or $type eq "gaswin"))
-		{ $coff=1; require "x86unix.pl"; }
-	elsif (	($type eq "cpp"))
-		{ $cpp=1; require "x86unix.pl"; }
-	elsif (	($type eq "win32"))
-		{ $win32=1; require "x86ms.pl"; }
-	elsif (	($type eq "win32n"))
-		{ $win32=1; require "x86nasm.pl"; }
-	elsif (	($type eq "nw-nasm"))
-		{ $netware=1; require "x86nasm.pl"; }
-	elsif (	($type eq "nw-mwasm"))
-		{ $netware=1; $mwerks=1; require "x86nasm.pl"; }
-	else
-		{
-		print STDERR <<"EOF";
+    die "more than 4 arguments passed to $opcode" if ($#_>3);
+
+    $opcode =~ s/.*:://;
+    if    ($opcode =~ /^push/) { $stack+=4; }
+    elsif ($opcode =~ /^pop/)  { $stack-=4; }
+
+    &generic($opcode,@_) or die "undefined subroutine \&$AUTOLOAD";
+}
+
+sub ::emit
+{ my $opcode=shift;
+
+    if ($#_==-1)    { push(@out,"\t$opcode\n");				}
+    else            { push(@out,"\t$opcode\t".join(',',@_)."\n");	}
+}
+
+sub ::LB
+{   $_[0] =~ m/^e?([a-d])x$/o or die "$_[0] does not have a 'low byte'";
+  $1."l";
+}
+sub ::HB
+{   $_[0] =~ m/^e?([a-d])x$/o or die "$_[0] does not have a 'high byte'";
+  $1."h";
+}
+sub ::stack_push{ my $num=$_[0]*4; $stack+=$num; &sub("esp",$num);	}
+sub ::stack_pop	{ my $num=$_[0]*4; $stack-=$num; &add("esp",$num);	}
+sub ::blindpop	{ &pop($_[0]); $stack+=4;				}
+sub ::wparam	{ &DWP($stack+4*$_[0],"esp");				}
+sub ::swtmp	{ &DWP(4*$_[0],"esp");					}
+
+sub ::bswap
+{   if ($i386)	# emulate bswap for i386
+    {	&comment("bswap @_");
+	&xchg(&HB(@_),&LB(@_));
+	&ror (@_,16);
+	&xchg(&HB(@_),&LB(@_));
+    }
+    else
+    {	&generic("bswap",@_);	}
+}
+# These are made-up opcodes introduced over the years essentially
+# by ignorance, just alias them to real ones...
+sub ::movb	{ &mov(@_);	}
+sub ::xorb	{ &xor(@_);	}
+sub ::rotl	{ &rol(@_);	}
+sub ::rotr	{ &ror(@_);	}
+sub ::exch	{ &xchg(@_);	}
+sub ::halt	{ &hlt;		}
+sub ::movz	{ &movzx(@_);	}
+sub ::pushf	{ &pushfd;	}
+sub ::popf	{ &popfd;	}
+
+# 3 argument instructions
+sub ::movq
+{ my($p1,$p2,$optimize)=@_;
+
+    if ($optimize && $p1=~/^mm[0-7]$/ && $p2=~/^mm[0-7]$/)
+    # movq between mmx registers can sink Intel CPUs
+    {	&::pshufw($p1,$p2,0xe4);		}
+    else
+    {	&::generic("movq",@_);			}
+}
+
+# label management
+$lbdecor="L";		# local label decoration, set by package
+$label="000";
+
+sub ::islabel		# see is argument is a known label
+{ my $i;
+    foreach $i (values %label) { return $i if ($i eq $_[0]); }
+  $label{$_[0]};	# can be undef
+}
+
+sub ::label		# instantiate a function-scope label
+{   if (!defined($label{$_[0]}))
+    {	$label{$_[0]}="${lbdecor}${label}${_[0]}"; $label++;   }
+  $label{$_[0]};
+}
+
+sub ::LABEL		# instantiate a file-scope label
+{   $label{$_[0]}=$_[1] if (!defined($label{$_[0]}));
+  $label{$_[0]};
+}
+
+sub ::static_label	{ &::LABEL($_[0],$lbdecor.$_[0]); }
+
+sub ::set_label_B	{ push(@out,"@_:\n"); }
+sub ::set_label
+{ my $label=&::label($_[0]);
+    &::align($_[1]) if ($_[1]>1);
+    &::set_label_B($label);
+  $label;
+}
+
+sub ::wipe_labels	# wipes function-scope labels
+{   foreach $i (keys %label)
+    {	delete $label{$i} if ($label{$i} =~ /^\Q${lbdecor}\E[0-9]{3}/);	}
+}
+
+# subroutine management
+sub ::function_begin
+{   &function_begin_B(@_);
+    $stack=4;
+    &push("ebp");
+    &push("ebx");
+    &push("esi");
+    &push("edi");
+}
+
+sub ::function_end
+{   &pop("edi");
+    &pop("esi");
+    &pop("ebx");
+    &pop("ebp");
+    &ret();
+    &function_end_B(@_);
+    $stack=0;
+    &wipe_labels();
+}
+
+sub ::function_end_A
+{   &pop("edi");
+    &pop("esi");
+    &pop("ebx");
+    &pop("ebp");
+    &ret();
+    $stack+=16;	# readjust esp as if we didn't pop anything
+}
+
+sub ::asciz
+{ my @str=unpack("C*",shift);
+    push @str,0;
+    while ($#str>15) {
+	&data_byte(@str[0..15]);
+	foreach (0..15) { shift @str; }
+    }
+    &data_byte(@str) if (@str);
+}
+
+sub ::asm_finish
+{   &file_end();
+    print @out;
+}
+
+sub ::asm_init
+{ my ($type,$fn,$cpu)=@_;
+
+    $filename=$fn;
+    $i386=$cpu;
+
+    $elf=$cpp=$coff=$aout=$macosx=$win32=$netware=$mwerks=0;
+    if    (($type eq "elf"))
+    {	$elf=1;			require "x86gas.pl";	}
+    elsif (($type eq "a\.out"))
+    {	$aout=1;		require "x86gas.pl";	}
+    elsif (($type eq "coff" or $type eq "gaswin"))
+    {	$coff=1;		require "x86gas.pl";	}
+    elsif (($type eq "win32n"))
+    {	$win32=1;		require "x86nasm.pl";	}
+    elsif (($type eq "nw-nasm"))
+    {	$netware=1;		require "x86nasm.pl";	}
+    #elsif (($type eq "nw-mwasm"))
+    #{	$netware=1; $mwerks=1;	require "x86nasm.pl";	}
+    elsif (($type eq "win32"))
+    {	$win32=1;		require "x86masm.pl";	}
+    elsif (($type eq "macosx"))
+    {	$aout=1; $macosx=1;	require "x86gas.pl";	}
+    else
+    {	print STDERR <<"EOF";
 Pick one target type from
 	elf	- Linux, FreeBSD, Solaris x86, etc.
-	a.out	- OpenBSD, DJGPP, etc.
+	a.out	- DJGPP, elder OpenBSD, etc.
 	coff	- GAS/COFF such as Win32 targets
-	win32	- Windows 95/Windows NT
 	win32n	- Windows 95/Windows NT NASM format
 	nw-nasm - NetWare NASM format
-	nw-mwasm- NetWare Metrowerks Assembler
+	macosx	- Mac OS X
 EOF
-		exit(1);
-		}
+	exit(1);
+    }
 
-	$pic=0;
-	for (@ARGV) {	$pic=1 if (/\-[fK]PIC/i);	}
+    $pic=0;
+    for (@ARGV) { $pic=1 if (/\-[fK]PIC/i); }
 
-	&asm_init_output();
-
-&comment("Don't even think of reading this code");
-&comment("It was automatically generated by $filename");
-&comment("Which is a perl program used to generate the x86 assember for");
-&comment("any of ELF, a.out, COFF, Win32, ...");
-&comment("eric <eay\@cryptsoft.com>");
-&comment("");
-
-	$filename =~ s/\.pl$//;
-	&file($filename);
-	}
-
-sub asm_finish_cpp
-	{
-	return unless $cpp;
-
-	local($tmp,$i);
-	foreach $i (&get_labels())
-		{
-		$tmp.="#define $i _$i\n";
-		}
-	print <<"EOF";
-/* Run the C pre-processor over this file with one of the following defined
- * ELF - elf object files,
- * OUT - a.out object files,
- * BSDI - BSDI style a.out object files
- * SOL - Solaris style elf
- */
-
-#define TYPE(a,b)       .type   a,b
-#define SIZE(a,b)       .size   a,b
-
-#if defined(OUT) || (defined(BSDI) && !defined(ELF))
-$tmp
-#endif
-
-#ifdef OUT
-#define OK	1
-#define ALIGN	4
-#if defined(__CYGWIN__) || defined(__DJGPP__) || (__MINGW32__)
-#undef SIZE
-#undef TYPE
-#define SIZE(a,b)
-#define TYPE(a,b)	.def a; .scl 2; .type 32; .endef
-#endif /* __CYGWIN || __DJGPP */
-#endif
-
-#if defined(BSDI) && !defined(ELF)
-#define OK              1
-#define ALIGN           4
-#undef SIZE
-#undef TYPE
-#define SIZE(a,b)
-#define TYPE(a,b)
-#endif
-
-#if defined(ELF) || defined(SOL)
-#define OK              1
-#define ALIGN           16
-#endif
-
-#ifndef OK
-You need to define one of
-ELF - elf systems - linux-elf, NetBSD and DG-UX
-OUT - a.out systems - linux-a.out and FreeBSD
-SOL - solaris systems, which are elf with strange comment lines
-BSDI - a.out with a very primative version of as.
-#endif
-
-/* Let the Assembler begin :-) */
-EOF
-	}
+    $filename =~ s/\.pl$//;
+    &file($filename);
+}
 
 1;

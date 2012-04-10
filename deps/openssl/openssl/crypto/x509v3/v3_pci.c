@@ -82,7 +82,7 @@ static int process_pci_value(CONF_VALUE *val,
 		{
 		if (*language)
 			{
-			X509V3err(X509V3_F_PROCESS_PCI_VALUE,X509V3_R_POLICY_LANGUAGE_ALREADTY_DEFINED);
+			X509V3err(X509V3_F_PROCESS_PCI_VALUE,X509V3_R_POLICY_LANGUAGE_ALREADY_DEFINED);
 			X509V3_conf_err(val);
 			return 0;
 			}
@@ -97,7 +97,7 @@ static int process_pci_value(CONF_VALUE *val,
 		{
 		if (*pathlen)
 			{
-			X509V3err(X509V3_F_PROCESS_PCI_VALUE,X509V3_R_POLICY_PATH_LENGTH_ALREADTY_DEFINED);
+			X509V3err(X509V3_F_PROCESS_PCI_VALUE,X509V3_R_POLICY_PATH_LENGTH_ALREADY_DEFINED);
 			X509V3_conf_err(val);
 			return 0;
 			}

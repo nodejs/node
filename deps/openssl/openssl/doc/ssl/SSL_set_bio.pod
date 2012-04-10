@@ -1,0 +1,34 @@
+=pod
+
+=head1 NAME
+
+SSL_set_bio - connect the SSL object with a BIO
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ void SSL_set_bio(SSL *ssl, BIO *rbio, BIO *wbio);
+
+=head1 DESCRIPTION
+
+SSL_set_bio() connects the BIOs B<rbio> and B<wbio> for the read and write
+operations of the TLS/SSL (encrypted) side of B<ssl>.
+
+The SSL engine inherits the behaviour of B<rbio> and B<wbio>, respectively.
+If a BIO is non-blocking, the B<ssl> will also have non-blocking behaviour.
+
+If there was already a BIO connected to B<ssl>, BIO_free() will be called
+(for both the reading and writing side, if different).
+
+=head1 RETURN VALUES
+
+SSL_set_bio() cannot fail.
+
+=head1 SEE ALSO
+
+L<SSL_get_rbio(3)|SSL_get_rbio(3)>,
+L<SSL_connect(3)|SSL_connect(3)>, L<SSL_accept(3)|SSL_accept(3)>,
+L<SSL_shutdown(3)|SSL_shutdown(3)>, L<ssl(3)|ssl(3)>, L<bio(3)|bio(3)>
+
+=cut

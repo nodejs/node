@@ -1,0 +1,346 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_options, SSL_set_options, SSL_CTX_clear_options, SSL_clear_options, SSL_CTX_get_options, SSL_get_options, SSL_get_secure_renegotiation_support - manipulate SSL options
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ long SSL_CTX_set_options(SSL_CTX *ctx, long options);
+ long SSL_set_options(SSL *ssl, long options);
+
+ long SSL_CTX_clear_options(SSL_CTX *ctx, long options);
+ long SSL_clear_options(SSL *ssl, long options);
+
+ long SSL_CTX_get_options(SSL_CTX *ctx);
+ long SSL_get_options(SSL *ssl);
+
+ long SSL_get_secure_renegotiation_support(SSL *ssl);
+
+=head1 DESCRIPTION
+
+Note: all these functions are implemented using macros.
+
+SSL_CTX_set_options() adds the options set via bitmask in B<options> to B<ctx>.
+Options already set before are not cleared!
+
+SSL_set_options() adds the options set via bitmask in B<options> to B<ssl>.
+Options already set before are not cleared!
+
+SSL_CTX_clear_options() clears the options set via bitmask in B<options>
+to B<ctx>.
+
+SSL_clear_options() clears the options set via bitmask in B<options> to B<ssl>.
+
+SSL_CTX_get_options() returns the options set for B<ctx>.
+
+SSL_get_options() returns the options set for B<ssl>.
+
+SSL_get_secure_renegotiation_support() indicates whether the peer supports
+secure renegotiation.
+
+=head1 NOTES
+
+The behaviour of the SSL library can be changed by setting several options.
+The options are coded as bitmasks and can be combined by a logical B<or>
+operation (|).
+
+SSL_CTX_set_options() and SSL_set_options() affect the (external)
+protocol behaviour of the SSL library. The (internal) behaviour of
+the API can be changed by using the similar
+L<SSL_CTX_set_mode(3)|SSL_CTX_set_mode(3)> and SSL_set_mode() functions.
+
+During a handshake, the option settings of the SSL object are used. When
+a new SSL object is created from a context using SSL_new(), the current
+option setting is copied. Changes to B<ctx> do not affect already created
+SSL objects. SSL_clear() does not affect the settings.
+
+The following B<bug workaround> options are available:
+
+=over 4
+
+=item SSL_OP_MICROSOFT_SESS_ID_BUG
+
+www.microsoft.com - when talking SSLv2, if session-id reuse is
+performed, the session-id passed back in the server-finished message
+is different from the one decided upon.
+
+=item SSL_OP_NETSCAPE_CHALLENGE_BUG
+
+Netscape-Commerce/1.12, when talking SSLv2, accepts a 32 byte
+challenge but then appears to only use 16 bytes when generating the
+encryption keys.  Using 16 bytes is ok but it should be ok to use 32.
+According to the SSLv3 spec, one should use 32 bytes for the challenge
+when operating in SSLv2/v3 compatibility mode, but as mentioned above,
+this breaks this server so 16 bytes is the way to go.
+
+=item SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
+
+As of OpenSSL 0.9.8q and 1.0.0c, this option has no effect.
+
+=item SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
+
+...
+
+=item SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
+
+...
+
+=item SSL_OP_MSIE_SSLV2_RSA_PADDING
+
+As of OpenSSL 0.9.7h and 0.9.8a, this option has no effect.
+
+=item SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+
+...
+
+=item SSL_OP_TLS_D5_BUG
+
+...
+
+=item SSL_OP_TLS_BLOCK_PADDING_BUG
+
+...
+
+=item SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
+
+Disables a countermeasure against a SSL 3.0/TLS 1.0 protocol
+vulnerability affecting CBC ciphers, which cannot be handled by some
+broken SSL implementations.  This option has no effect for connections
+using other ciphers.
+
+=item SSL_OP_ALL
+
+All of the above bug workarounds.
+
+=back
+
+It is usually safe to use B<SSL_OP_ALL> to enable the bug workaround
+options if compatibility with somewhat broken implementations is
+desired.
+
+The following B<modifying> options are available:
+
+=over 4
+
+=item SSL_OP_TLS_ROLLBACK_BUG
+
+Disable version rollback attack detection.
+
+During the client key exchange, the client must send the same information
+about acceptable SSL/TLS protocol levels as during the first hello. Some
+clients violate this rule by adapting to the server's answer. (Example:
+the client sends a SSLv2 hello and accepts up to SSLv3.1=TLSv1, the server
+only understands up to SSLv3. In this case the client must still use the
+same SSLv3.1=TLSv1 announcement. Some clients step down to SSLv3 with respect
+to the server's answer and violate the version rollback protection.)
+
+=item SSL_OP_SINGLE_DH_USE
+
+Always create a new key when using temporary/ephemeral DH parameters
+(see L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>).
+This option must be used to prevent small subgroup attacks, when
+the DH parameters were not generated using "strong" primes
+(e.g. when using DSA-parameters, see L<dhparam(1)|dhparam(1)>).
+If "strong" primes were used, it is not strictly necessary to generate
+a new DH key during each handshake but it is also recommended.
+B<SSL_OP_SINGLE_DH_USE> should therefore be enabled whenever
+temporary/ephemeral DH parameters are used.
+
+=item SSL_OP_EPHEMERAL_RSA
+
+Always use ephemeral (temporary) RSA key when doing RSA operations
+(see L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>).
+According to the specifications this is only done, when a RSA key
+can only be used for signature operations (namely under export ciphers
+with restricted RSA keylength). By setting this option, ephemeral
+RSA keys are always used. This option breaks compatibility with the
+SSL/TLS specifications and may lead to interoperability problems with
+clients and should therefore never be used. Ciphers with EDH (ephemeral
+Diffie-Hellman) key exchange should be used instead.
+
+=item SSL_OP_CIPHER_SERVER_PREFERENCE
+
+When choosing a cipher, use the server's preferences instead of the client
+preferences. When not set, the SSL server will always follow the clients
+preferences. When set, the SSLv3/TLSv1 server will choose following its
+own preferences. Because of the different protocol, for SSLv2 the server
+will send its list of preferences to the client and the client chooses.
+
+=item SSL_OP_PKCS1_CHECK_1
+
+...
+
+=item SSL_OP_PKCS1_CHECK_2
+
+...
+
+=item SSL_OP_NETSCAPE_CA_DN_BUG
+
+If we accept a netscape connection, demand a client cert, have a
+non-self-signed CA which does not have its CA in netscape, and the
+browser has a cert, it will crash/hang.  Works for 3.x and 4.xbeta 
+
+=item SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+
+...
+
+=item SSL_OP_NO_SSLv2
+
+Do not use the SSLv2 protocol.
+
+=item SSL_OP_NO_SSLv3
+
+Do not use the SSLv3 protocol.
+
+=item SSL_OP_NO_TLSv1
+
+Do not use the TLSv1 protocol.
+
+=item SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+
+When performing renegotiation as a server, always start a new session
+(i.e., session resumption requests are only accepted in the initial
+handshake). This option is not needed for clients.
+
+=item SSL_OP_NO_TICKET
+
+Normally clients and servers will, where possible, transparently make use
+of RFC4507bis tickets for stateless session resumption.
+
+If this option is set this functionality is disabled and tickets will
+not be used by clients or servers.
+
+=item SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
+
+Allow legacy insecure renegotiation between OpenSSL and unpatched clients or
+servers. See the B<SECURE RENEGOTIATION> section for more details.
+
+=item SSL_OP_LEGACY_SERVER_CONNECT
+
+Allow legacy insecure renegotiation between OpenSSL and unpatched servers
+B<only>: this option is currently set by default. See the
+B<SECURE RENEGOTIATION> section for more details.
+
+=back
+
+=head1 SECURE RENEGOTIATION
+
+OpenSSL 0.9.8m and later always attempts to use secure renegotiation as
+described in RFC5746. This counters the prefix attack described in
+CVE-2009-3555 and elsewhere.
+
+The deprecated and highly broken SSLv2 protocol does not support
+renegotiation at all: its use is B<strongly> discouraged.
+
+This attack has far reaching consequences which application writers should be
+aware of. In the description below an implementation supporting secure
+renegotiation is referred to as I<patched>. A server not supporting secure
+renegotiation is referred to as I<unpatched>.
+
+The following sections describe the operations permitted by OpenSSL's secure
+renegotiation implementation.
+
+=head2 Patched client and server
+
+Connections and renegotiation are always permitted by OpenSSL implementations.
+
+=head2 Unpatched client and patched OpenSSL server
+
+The initial connection suceeds but client renegotiation is denied by the
+server with a B<no_renegotiation> warning alert if TLS v1.0 is used or a fatal
+B<handshake_failure> alert in SSL v3.0.
+
+If the patched OpenSSL server attempts to renegotiate a fatal
+B<handshake_failure> alert is sent. This is because the server code may be
+unaware of the unpatched nature of the client.
+
+If the option B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION> is set then
+renegotiation B<always> succeeds.
+
+B<NB:> a bug in OpenSSL clients earlier than 0.9.8m (all of which are
+unpatched) will result in the connection hanging if it receives a
+B<no_renegotiation> alert. OpenSSL versions 0.9.8m and later will regard
+a B<no_renegotiation> alert as fatal and respond with a fatal
+B<handshake_failure> alert. This is because the OpenSSL API currently has
+no provision to indicate to an application that a renegotiation attempt
+was refused.
+
+=head2 Patched OpenSSL client and unpatched server.
+
+If the option B<SSL_OP_LEGACY_SERVER_CONNECT> or
+B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION> is set then initial connections
+and renegotiation between patched OpenSSL clients and unpatched servers
+succeeds. If neither option is set then initial connections to unpatched
+servers will fail.
+
+The option B<SSL_OP_LEGACY_SERVER_CONNECT> is currently set by default even
+though it has security implications: otherwise it would be impossible to
+connect to unpatched servers (i.e. all of them initially) and this is clearly
+not acceptable. Renegotiation is permitted because this does not add any
+additional security issues: during an attack clients do not see any
+renegotiations anyway.
+
+As more servers become patched the option B<SSL_OP_LEGACY_SERVER_CONNECT> will
+B<not> be set by default in a future version of OpenSSL.
+
+OpenSSL client applications wishing to ensure they can connect to unpatched
+servers should always B<set> B<SSL_OP_LEGACY_SERVER_CONNECT>
+
+OpenSSL client applications that want to ensure they can B<not> connect to
+unpatched servers (and thus avoid any security issues) should always B<clear>
+B<SSL_OP_LEGACY_SERVER_CONNECT> using SSL_CTX_clear_options() or
+SSL_clear_options().
+
+The difference between the B<SSL_OP_LEGACY_SERVER_CONNECT> and
+B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION> options is that
+B<SSL_OP_LEGACY_SERVER_CONNECT> enables initial connections and secure
+renegotiation between OpenSSL clients and unpatched servers B<only>, while
+B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION> allows initial connections
+and renegotiation between OpenSSL and unpatched clients or servers.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_options() and SSL_set_options() return the new options bitmask
+after adding B<options>.
+
+SSL_CTX_clear_options() and SSL_clear_options() return the new options bitmask
+after clearing B<options>.
+
+SSL_CTX_get_options() and SSL_get_options() return the current bitmask.
+
+SSL_get_secure_renegotiation_support() returns 1 is the peer supports
+secure renegotiation and 0 if it does not.
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_new(3)|SSL_new(3)>, L<SSL_clear(3)|SSL_clear(3)>,
+L<SSL_CTX_set_tmp_dh_callback(3)|SSL_CTX_set_tmp_dh_callback(3)>,
+L<SSL_CTX_set_tmp_rsa_callback(3)|SSL_CTX_set_tmp_rsa_callback(3)>,
+L<dhparam(1)|dhparam(1)>
+
+=head1 HISTORY
+
+B<SSL_OP_CIPHER_SERVER_PREFERENCE> and
+B<SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION> have been added in
+OpenSSL 0.9.7.
+
+B<SSL_OP_TLS_ROLLBACK_BUG> has been added in OpenSSL 0.9.6 and was automatically
+enabled with B<SSL_OP_ALL>. As of 0.9.7, it is no longer included in B<SSL_OP_ALL>
+and must be explicitly set.
+
+B<SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS> has been added in OpenSSL 0.9.6e.
+Versions up to OpenSSL 0.9.6c do not include the countermeasure that
+can be disabled with this option (in OpenSSL 0.9.6d, it was always
+enabled).
+
+SSL_CTX_clear_options() and SSL_clear_options() were first added in OpenSSL
+0.9.8m.
+
+B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION>, B<SSL_OP_LEGACY_SERVER_CONNECT>
+and the function SSL_get_secure_renegotiation_support() were first added in
+OpenSSL 0.9.8m.
+
+=cut

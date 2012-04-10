@@ -2,9 +2,7 @@
 
 # fixes bug in floating point emulation on sparc64 when
 # this script produces off-by-one output on sparc64
-eval 'use integer;';
-
-print STDERR "Warning: perl module integer not found.\n" if ($@);
+use integer;
 
 sub obj_cmp
 	{
@@ -150,13 +148,13 @@ for ($i=0; $i<$n; $i++)
 @a=grep(defined($sn{$nid{$_}}),0 .. $n);
 foreach (sort { $sn{$nid{$a}} cmp $sn{$nid{$b}} } @a)
 	{
-	push(@sn,sprintf("&(nid_objs[%2d]),/* \"$sn{$nid{$_}}\" */\n",$_));
+	push(@sn,sprintf("%2d,\t/* \"$sn{$nid{$_}}\" */\n",$_));
 	}
 
 @a=grep(defined($ln{$nid{$_}}),0 .. $n);
 foreach (sort { $ln{$nid{$a}} cmp $ln{$nid{$b}} } @a)
 	{
-	push(@ln,sprintf("&(nid_objs[%2d]),/* \"$ln{$nid{$_}}\" */\n",$_));
+	push(@ln,sprintf("%2d,\t/* \"$ln{$nid{$_}}\" */\n",$_));
 	}
 
 @a=grep(defined($obj{$nid{$_}}),0 .. $n);
@@ -166,7 +164,7 @@ foreach (sort obj_cmp @a)
 	$v=$objd{$m};
 	$v =~ s/L//g;
 	$v =~ s/,/ /g;
-	push(@ob,sprintf("&(nid_objs[%2d]),/* %-32s %s */\n",$_,$m,$v));
+	push(@ob,sprintf("%2d,\t/* %-32s %s */\n",$_,$m,$v));
 	}
 
 print OUT <<'EOF';
@@ -241,11 +239,11 @@ printf OUT "#define NUM_SN %d\n",$#sn+1;
 printf OUT "#define NUM_LN %d\n",$#ln+1;
 printf OUT "#define NUM_OBJ %d\n\n",$#ob+1;
 
-printf OUT "static unsigned char lvalues[%d]={\n",$lvalues+1;
+printf OUT "static const unsigned char lvalues[%d]={\n",$lvalues+1;
 print OUT @lvalues;
 print OUT "};\n\n";
 
-printf OUT "static ASN1_OBJECT nid_objs[NUM_NID]={\n";
+printf OUT "static const ASN1_OBJECT nid_objs[NUM_NID]={\n";
 foreach (@out)
 	{
 	if (length($_) > 75)
@@ -269,15 +267,15 @@ foreach (@out)
 	}
 print  OUT "};\n\n";
 
-printf OUT "static ASN1_OBJECT *sn_objs[NUM_SN]={\n";
+printf OUT "static const unsigned int sn_objs[NUM_SN]={\n";
 print  OUT @sn;
 print  OUT "};\n\n";
 
-printf OUT "static ASN1_OBJECT *ln_objs[NUM_LN]={\n";
+printf OUT "static const unsigned int ln_objs[NUM_LN]={\n";
 print  OUT @ln;
 print  OUT "};\n\n";
 
-printf OUT "static ASN1_OBJECT *obj_objs[NUM_OBJ]={\n";
+printf OUT "static const unsigned int obj_objs[NUM_OBJ]={\n";
 print  OUT @ob;
 print  OUT "};\n\n";
 

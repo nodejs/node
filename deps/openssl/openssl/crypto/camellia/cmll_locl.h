@@ -68,98 +68,16 @@
 #ifndef HEADER_CAMELLIA_LOCL_H
 #define HEADER_CAMELLIA_LOCL_H
 
-#include "openssl/e_os2.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+typedef unsigned int  u32;
 typedef unsigned char u8;
-typedef unsigned int u32;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_AMD64) || defined(_M_X64))
-# define SWAP(x) ( _lrotl(x, 8) & 0x00ff00ff | _lrotr(x, 8) & 0xff00ff00 )
-# define GETU32(p) SWAP(*((u32 *)(p)))
-# define PUTU32(ct, st) { *((u32 *)(ct)) = SWAP((st)); }
-# define CAMELLIA_SWAP4(x) (x = ( _lrotl(x, 8) & 0x00ff00ff | _lrotr(x, 8) & 0xff00ff00) )
-
-#else /* not windows */
-# define GETU32(pt) (((u32)(pt)[0] << 24) \
-	^ ((u32)(pt)[1] << 16) \
-	^ ((u32)(pt)[2] <<  8) \
-	^ ((u32)(pt)[3]))
-
-# define PUTU32(ct, st) { (ct)[0] = (u8)((st) >> 24); \
-	(ct)[1] = (u8)((st) >> 16); \
-	(ct)[2] = (u8)((st) >>  8); \
-	(ct)[3] = (u8)(st); }
-
-#if (defined (__GNUC__) && (defined(__x86_64__) || defined(__x86_64)))
-#define CAMELLIA_SWAP4(x) \
-  do{\
-    asm("bswap %1" : "+r" (x));\
-  }while(0)
-#else
-#define CAMELLIA_SWAP4(x) \
-   do{\
-     x = ((u32)x << 16) + ((u32)x >> 16);\
-     x = (((u32)x & 0xff00ff) << 8) + (((u32)x >> 8) & 0xff00ff);\
-   } while(0)
-#endif
-#endif
-
-#define COPY4WORD(dst, src)	 \
-	     do			 \
-		     {		 \
-		     (dst)[0]=(src)[0];		\
-		     (dst)[1]=(src)[1];		\
-		     (dst)[2]=(src)[2];		\
-		     (dst)[3]=(src)[3];		\
-		     }while(0)
-
-#define SWAP4WORD(word)				\
-   do						\
-	   {					\
-	   CAMELLIA_SWAP4((word)[0]);			\
-	   CAMELLIA_SWAP4((word)[1]);			\
-	   CAMELLIA_SWAP4((word)[2]);			\
-	   CAMELLIA_SWAP4((word)[3]);			\
-	   }while(0)
-
-#define XOR4WORD(a, b)/* a = a ^ b */		\
-   do						\
-	{					\
-	(a)[0]^=(b)[0];				\
-	(a)[1]^=(b)[1];				\
-	(a)[2]^=(b)[2];				\
-	(a)[3]^=(b)[3];				\
-	}while(0)
-
-#define XOR4WORD2(a, b, c)/* a = b ^ c */	\
-   do						\
-	{					\
-	(a)[0]=(b)[0]^(c)[0];			\
-	(a)[1]=(b)[1]^(c)[1];				\
-	(a)[2]=(b)[2]^(c)[2];				\
-	(a)[3]=(b)[3]^(c)[3];				\
-	}while(0)
-
-
-void camellia_setup128(const u8 *key, u32 *subkey);
-void camellia_setup192(const u8 *key, u32 *subkey);
-void camellia_setup256(const u8 *key, u32 *subkey);
-
-void camellia_encrypt128(const u32 *subkey, u32 *io);
-void camellia_decrypt128(const u32 *subkey, u32 *io);
-void camellia_encrypt256(const u32 *subkey, u32 *io);
-void camellia_decrypt256(const u32 *subkey, u32 *io);
-
-#ifdef __cplusplus
-}
-#endif
-
+int Camellia_Ekeygen(int keyBitLength, const u8 *rawKey, KEY_TABLE_TYPE keyTable);
+void Camellia_EncryptBlock_Rounds(int grandRounds, const u8 plaintext[], 
+		const KEY_TABLE_TYPE keyTable, u8 ciphertext[]);
+void Camellia_DecryptBlock_Rounds(int grandRounds, const u8 ciphertext[], 
+		const KEY_TABLE_TYPE keyTable, u8 plaintext[]);
+void Camellia_EncryptBlock(int keyBitLength, const u8 plaintext[], 
+		const KEY_TABLE_TYPE keyTable, u8 ciphertext[]);
+void Camellia_DecryptBlock(int keyBitLength, const u8 ciphertext[], 
+		const KEY_TABLE_TYPE keyTable, u8 plaintext[]);
 #endif /* #ifndef HEADER_CAMELLIA_LOCL_H */
-

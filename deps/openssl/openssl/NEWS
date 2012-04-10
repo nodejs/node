@@ -5,6 +5,68 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.0e and OpenSSL 1.0.0f:
+
+      o Fix for DTLS plaintext recovery attack CVE-2011-4108
+      o Clear block padding bytes of SSL 3.0 records CVE-2011-4576
+      o Only allow one SGC handshake restart for SSL/TLS CVE-2011-4619
+      o Check parameters are not NULL in GOST ENGINE CVE-2012-0027
+      o Check for malformed RFC3779 data CVE-2011-4577
+
+  Major changes between OpenSSL 1.0.0d and OpenSSL 1.0.0e:
+
+      o Fix for CRL vulnerability issue CVE-2011-3207
+      o Fix for ECDH crashes CVE-2011-3210
+      o Protection against EC timing attacks.
+      o Support ECDH ciphersuites for certificates using SHA2 algorithms.
+      o Various DTLS fixes.
+
+  Major changes between OpenSSL 1.0.0c and OpenSSL 1.0.0d:
+
+      o Fix for security issue CVE-2011-0014
+
+  Major changes between OpenSSL 1.0.0b and OpenSSL 1.0.0c:
+
+      o Fix for security issue CVE-2010-4180
+      o Fix for CVE-2010-4252
+      o Fix mishandling of absent EC point format extension.
+      o Fix various platform compilation issues.
+      o Corrected fix for security issue CVE-2010-3864.
+
+  Major changes between OpenSSL 1.0.0a and OpenSSL 1.0.0b:
+
+      o Fix for security issue CVE-2010-3864.
+      o Fix for CVE-2010-2939
+      o Fix WIN32 build system for GOST ENGINE.
+
+  Major changes between OpenSSL 1.0.0 and OpenSSL 1.0.0a:
+
+      o Fix for security issue CVE-2010-1633.
+      o GOST MAC and CFB fixes.
+
+  Major changes between OpenSSL 0.9.8n and OpenSSL 1.0.0:
+
+      o RFC3280 path validation: sufficient to process PKITS tests.
+      o Integrated support for PVK files and keyblobs.
+      o Change default private key format to PKCS#8.
+      o CMS support: able to process all examples in RFC4134
+      o Streaming ASN1 encode support for PKCS#7 and CMS.
+      o Multiple signer and signer add support for PKCS#7 and CMS.
+      o ASN1 printing support.
+      o Whirlpool hash algorithm added.
+      o RFC3161 time stamp support.
+      o New generalised public key API supporting ENGINE based algorithms.
+      o New generalised public key API utilities.
+      o New ENGINE supporting GOST algorithms.
+      o SSL/TLS GOST ciphersuite support.
+      o PKCS#7 and CMS GOST support.
+      o RFC4279 PSK ciphersuite support.
+      o Supported points format extension for ECC ciphersuites.
+      o ecdsa-with-SHA224/256/384/512 signature types.
+      o dsa-with-SHA224 and dsa-with-SHA256 signature types.
+      o Opaque PRF Input TLS extension support.
+      o Updated time routines to avoid OS limitations.
+
   Major changes between OpenSSL 0.9.8q and OpenSSL 0.9.8r:
 
       o Fix for security issue CVE-2011-0014

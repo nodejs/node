@@ -62,6 +62,7 @@
 #include <openssl/rsa.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
+#include "rsa_locl.h"
 
 /* Size of an SSL signature: MD5+SHA1 */
 #define SSL_SIG_LENGTH	36
@@ -90,14 +91,6 @@ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
 		i = SSL_SIG_LENGTH;
 		s = m;
 	} else {
-	/* NB: in FIPS mode block anything that isn't a TLS signature */
-#ifdef OPENSSL_FIPS
-		if(FIPS_mode() && !(rsa->flags & RSA_FLAG_NON_FIPS_ALLOW))
-			{
-			RSAerr(RSA_F_RSA_SIGN, RSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE);
-			return 0;
-			}
-#endif
 		sig.algor= &algor;
 		sig.algor->algorithm=OBJ_nid2obj(type);
 		if (sig.algor->algorithm == NULL)
@@ -137,12 +130,7 @@ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
 		i2d_X509_SIG(&sig,&p);
 		s=tmps;
 	}
-#ifdef OPENSSL_FIPS
-	/* Bypass algorithm blocking: this is allowed if we get this far */
-	i=rsa->meth->rsa_priv_enc(i,s,sigret,rsa,RSA_PKCS1_PADDING);
-#else
 	i=RSA_private_encrypt(i,s,sigret,rsa,RSA_PKCS1_PADDING);
-#endif
 	if (i <= 0)
 		ret=0;
 	else
@@ -155,8 +143,11 @@ int RSA_sign(int type, const unsigned char *m, unsigned int m_len,
 	return(ret);
 	}
 
-int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
-	     unsigned char *sigbuf, unsigned int siglen, RSA *rsa)
+int int_rsa_verify(int dtype, const unsigned char *m,
+			  unsigned int m_len,
+			  unsigned char *rm, size_t *prm_len,
+			  const unsigned char *sigbuf, size_t siglen,
+			  RSA *rsa)
 	{
 	int i,ret=0,sigtype;
 	unsigned char *s;
@@ -164,49 +155,38 @@ int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
 
 	if (siglen != (unsigned int)RSA_size(rsa))
 		{
-		RSAerr(RSA_F_RSA_VERIFY,RSA_R_WRONG_SIGNATURE_LENGTH);
+		RSAerr(RSA_F_INT_RSA_VERIFY,RSA_R_WRONG_SIGNATURE_LENGTH);
 		return(0);
 		}
 
-	if((rsa->flags & RSA_FLAG_SIGN_VER) && rsa->meth->rsa_verify)
+	if((dtype == NID_md5_sha1) && rm)
 		{
-		return rsa->meth->rsa_verify(dtype, m, m_len,
-			sigbuf, siglen, rsa);
+		i = RSA_public_decrypt((int)siglen,
+					sigbuf,rm,rsa,RSA_PKCS1_PADDING);
+		if (i <= 0)
+			return 0;
+		*prm_len = i;
+		return 1;
 		}
 
 	s=(unsigned char *)OPENSSL_malloc((unsigned int)siglen);
 	if (s == NULL)
 		{
-		RSAerr(RSA_F_RSA_VERIFY,ERR_R_MALLOC_FAILURE);
+		RSAerr(RSA_F_INT_RSA_VERIFY,ERR_R_MALLOC_FAILURE);
 		goto err;
 		}
-	if(dtype == NID_md5_sha1)
-		{
-		if (m_len != SSL_SIG_LENGTH)
-			{
-			RSAerr(RSA_F_RSA_VERIFY,RSA_R_INVALID_MESSAGE_LENGTH);
+	if((dtype == NID_md5_sha1) && (m_len != SSL_SIG_LENGTH) ) {
+			RSAerr(RSA_F_INT_RSA_VERIFY,RSA_R_INVALID_MESSAGE_LENGTH);
 			goto err;
-			}
-		}
-	/* NB: in FIPS mode block anything that isn't a TLS signature */
-#ifdef OPENSSL_FIPS
-	else if(FIPS_mode() && !(rsa->flags & RSA_FLAG_NON_FIPS_ALLOW))
-		{
-		RSAerr(RSA_F_RSA_VERIFY, RSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE);
-		return 0;
-		}
-	/* Bypass algorithm blocking: this is allowed */
-	i=rsa->meth->rsa_pub_dec((int)siglen,sigbuf,s,rsa,RSA_PKCS1_PADDING);
-#else
+	}
 	i=RSA_public_decrypt((int)siglen,sigbuf,s,rsa,RSA_PKCS1_PADDING);
-#endif
 
 	if (i <= 0) goto err;
 
 	/* Special case: SSL signature */
 	if(dtype == NID_md5_sha1) {
 		if((i != SSL_SIG_LENGTH) || memcmp(s, m, SSL_SIG_LENGTH))
-				RSAerr(RSA_F_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
+				RSAerr(RSA_F_INT_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
 		else ret = 1;
 	} else {
 		const unsigned char *p=s;
@@ -217,7 +197,7 @@ int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
 		/* Excess data can be used to create forgeries */
 		if(p != s+i)
 			{
-			RSAerr(RSA_F_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
+			RSAerr(RSA_F_INT_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
 			goto err;
 			}
 
@@ -226,7 +206,7 @@ int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
 		if(sig->algor->parameter
 		   && ASN1_TYPE_get(sig->algor->parameter) != V_ASN1_NULL)
 			{
-			RSAerr(RSA_F_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
+			RSAerr(RSA_F_INT_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
 			goto err;
 			}
 
@@ -252,15 +232,30 @@ int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
 				}
 			else
 				{
-				RSAerr(RSA_F_RSA_VERIFY,
+				RSAerr(RSA_F_INT_RSA_VERIFY,
 						RSA_R_ALGORITHM_MISMATCH);
 				goto err;
 				}
 			}
-		if (	((unsigned int)sig->digest->length != m_len) ||
+		if (rm)
+			{
+			const EVP_MD *md;
+			md = EVP_get_digestbynid(dtype);
+			if (md && (EVP_MD_size(md) != sig->digest->length))
+				RSAerr(RSA_F_INT_RSA_VERIFY,
+						RSA_R_INVALID_DIGEST_LENGTH);
+			else
+				{
+				memcpy(rm, sig->digest->data,
+							sig->digest->length);
+				*prm_len = sig->digest->length;
+				ret = 1;
+				}
+			}
+		else if (((unsigned int)sig->digest->length != m_len) ||
 			(memcmp(m,sig->digest->data,m_len) != 0))
 			{
-			RSAerr(RSA_F_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
+			RSAerr(RSA_F_INT_RSA_VERIFY,RSA_R_BAD_SIGNATURE);
 			}
 		else
 			ret=1;
@@ -275,3 +270,16 @@ err:
 	return(ret);
 	}
 
+int RSA_verify(int dtype, const unsigned char *m, unsigned int m_len,
+		const unsigned char *sigbuf, unsigned int siglen,
+		RSA *rsa)
+	{
+
+	if((rsa->flags & RSA_FLAG_SIGN_VER) && rsa->meth->rsa_verify)
+		{
+		return rsa->meth->rsa_verify(dtype, m, m_len,
+			sigbuf, siglen, rsa);
+		}
+
+	return int_rsa_verify(dtype, m, m_len, NULL, NULL, sigbuf, siglen, rsa);
+	}

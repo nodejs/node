@@ -59,15 +59,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <openssl/blowfish.h>
-#include <openssl/crypto.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 #include "bf_locl.h"
 #include "bf_pi.h"
 
-FIPS_NON_FIPS_VCIPHER_Init(BF)
+void BF_set_key(BF_KEY *key, int len, const unsigned char *data)
 	{
 	int i;
 	BF_LONG *p,ri,in[2];

@@ -1,0 +1,82 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_config, OPENSSL_no_config - simple OpenSSL configuration functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/conf.h>
+
+ void OPENSSL_config(const char *config_name);
+ void OPENSSL_no_config(void);
+
+=head1 DESCRIPTION
+
+OPENSSL_config() configures OpenSSL using the standard B<openssl.cnf>
+configuration file name using B<config_name>. If B<config_name> is NULL then
+the default name B<openssl_conf> will be used. Any errors are ignored. Further
+calls to OPENSSL_config() will have no effect. The configuration file format
+is documented in the L<conf(5)|conf(5)> manual page.
+
+OPENSSL_no_config() disables configuration. If called before OPENSSL_config()
+no configuration takes place.
+
+=head1 NOTES
+
+It is B<strongly> recommended that B<all> new applications call OPENSSL_config()
+or the more sophisticated functions such as CONF_modules_load() during
+initialization (that is before starting any threads). By doing this
+an application does not need to keep track of all configuration options
+and some new functionality can be supported automatically.
+
+It is also possible to automatically call OPENSSL_config() when an application
+calls OPENSSL_add_all_algorithms() by compiling an application with the
+preprocessor symbol B<OPENSSL_LOAD_CONF> #define'd. In this way configuration
+can be added without source changes.
+
+The environment variable B<OPENSSL_CONF> can be set to specify the location
+of the configuration file.
+ 
+Currently ASN1 OBJECTs and ENGINE configuration can be performed future
+versions of OpenSSL will add new configuration options.
+
+There are several reasons why calling the OpenSSL configuration routines is
+advisable. For example new ENGINE functionality was added to OpenSSL 0.9.7.
+In OpenSSL 0.9.7 control functions can be supported by ENGINEs, this can be
+used (among other things) to load dynamic ENGINEs from shared libraries (DSOs).
+However very few applications currently support the control interface and so
+very few can load and use dynamic ENGINEs. Equally in future more sophisticated
+ENGINEs will require certain control operations to customize them. If an
+application calls OPENSSL_config() it doesn't need to know or care about
+ENGINE control operations because they can be performed by editing a
+configuration file.
+
+Applications should free up configuration at application closedown by calling
+CONF_modules_free().
+
+=head1 RESTRICTIONS
+
+The OPENSSL_config() function is designed to be a very simple "call it and
+forget it" function. As a result its behaviour is somewhat limited. It ignores
+all errors silently and it can only load from the standard configuration file
+location for example.
+
+It is however B<much> better than nothing. Applications which need finer
+control over their configuration functionality should use the configuration
+functions such as CONF_load_modules() directly.
+
+=head1 RETURN VALUES
+
+Neither OPENSSL_config() nor OPENSSL_no_config() return a value.
+
+=head1 SEE ALSO
+
+L<conf(5)|conf(5)>, L<CONF_load_modules_file(3)|CONF_load_modules_file(3)>,
+L<CONF_modules_free(3),CONF_modules_free(3)>
+
+=head1 HISTORY
+
+OPENSSL_config() and OPENSSL_no_config() first appeared in OpenSSL 0.9.7
+
+=cut

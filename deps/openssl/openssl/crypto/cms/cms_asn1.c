@@ -87,7 +87,8 @@ ASN1_NDEF_SEQUENCE(CMS_EncapsulatedContentInfo) = {
 } ASN1_NDEF_SEQUENCE_END(CMS_EncapsulatedContentInfo)
 
 /* Minor tweak to operation: free up signer key, cert */
-static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int cms_si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
 	{
 	if(operation == ASN1_OP_FREE_POST)
 		{
@@ -213,7 +214,8 @@ ASN1_SEQUENCE(CMS_OtherRecipientInfo) = {
 } ASN1_SEQUENCE_END(CMS_OtherRecipientInfo)
 
 /* Free up RecipientInfo additional data */
-static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int cms_ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
 	{
 	if(operation == ASN1_OP_FREE_PRE)
 		{
@@ -300,10 +302,42 @@ ASN1_ADB(CMS_ContentInfo) = {
 	ADB_ENTRY(NID_id_smime_ct_compressedData, ASN1_NDEF_EXP(CMS_ContentInfo, d.compressedData, CMS_CompressedData, 0)),
 } ASN1_ADB_END(CMS_ContentInfo, 0, contentType, 0, &cms_default_tt, NULL);
 
-ASN1_NDEF_SEQUENCE(CMS_ContentInfo) = {
+/* CMS streaming support */
+static int cms_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
+	{
+	ASN1_STREAM_ARG *sarg = exarg;
+	CMS_ContentInfo *cms = NULL;
+	if (pval)
+		cms = (CMS_ContentInfo *)*pval;
+	else
+		return 1;
+	switch(operation)
+		{
+
+		case ASN1_OP_STREAM_PRE:
+		if (CMS_stream(&sarg->boundary, cms) <= 0)
+			return 0;
+		case ASN1_OP_DETACHED_PRE:
+		sarg->ndef_bio = CMS_dataInit(cms, sarg->out);
+		if (!sarg->ndef_bio)
+			return 0;
+		break;
+
+		case ASN1_OP_STREAM_POST:
+		case ASN1_OP_DETACHED_POST:
+		if (CMS_dataFinal(cms, sarg->ndef_bio) <= 0)
+			return 0;
+		break;
+
+		}
+	return 1;
+	}
+
+ASN1_NDEF_SEQUENCE_cb(CMS_ContentInfo, cms_cb) = {
 	ASN1_SIMPLE(CMS_ContentInfo, contentType, ASN1_OBJECT),
 	ASN1_ADB_OBJECT(CMS_ContentInfo)
-} ASN1_NDEF_SEQUENCE_END(CMS_ContentInfo)
+} ASN1_NDEF_SEQUENCE_END_cb(CMS_ContentInfo, CMS_ContentInfo)
 
 /* Specials for signed attributes */
 

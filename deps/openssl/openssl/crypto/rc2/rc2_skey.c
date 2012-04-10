@@ -57,14 +57,9 @@
  */
 
 #include <openssl/rc2.h>
-#include <openssl/crypto.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 #include "rc2_locl.h"
 
-static unsigned char key_table[256]={
+static const unsigned char key_table[256]={
 	0xd9,0x78,0xf9,0xc4,0x19,0xdd,0xb5,0xed,0x28,0xe9,0xfd,0x79,
 	0x4a,0xa0,0xd8,0x9d,0xc6,0x7e,0x37,0x83,0x2b,0x76,0x53,0x8e,
 	0x62,0x4c,0x64,0x88,0x44,0x8b,0xfb,0xa2,0x17,0x9a,0x59,0xf5,
@@ -99,19 +94,7 @@ static unsigned char key_table[256]={
  * BSAFE uses the 'retarded' version.  What I previously shipped is
  * the same as specifying 1024 for the 'bits' parameter.  Bsafe uses
  * a version where the bits parameter is the same as len*8 */
-
-#ifdef OPENSSL_FIPS
 void RC2_set_key(RC2_KEY *key, int len, const unsigned char *data, int bits)
-	{
-	if (FIPS_mode())
-		FIPS_BAD_ABORT(RC2)
-	private_RC2_set_key(key, len, data, bits);
-	}
-void private_RC2_set_key(RC2_KEY *key, int len, const unsigned char *data,
-								int bits)
-#else
-void RC2_set_key(RC2_KEY *key, int len, const unsigned char *data, int bits)
-#endif
 	{
 	int i,j;
 	unsigned char *k;

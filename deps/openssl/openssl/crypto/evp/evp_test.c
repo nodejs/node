@@ -153,8 +153,8 @@ static void test1(const EVP_CIPHER *c,const unsigned char *key,int kn,
     
     if(kn != c->key_len)
 	{
-	fprintf(stderr,"Key length doesn't match, got %d expected %d\n",kn,
-		c->key_len);
+	fprintf(stderr,"Key length doesn't match, got %d expected %lu\n",kn,
+		(unsigned long)c->key_len);
 	test1_exit(5);
 	}
     EVP_CIPHER_CTX_init(&ctx);
@@ -435,13 +435,14 @@ int main(int argc,char **argv)
 	    EXIT(3);
 	    }
 	}
+	fclose(f);
 
 #ifndef OPENSSL_NO_ENGINE
     ENGINE_cleanup();
 #endif
     EVP_cleanup();
     CRYPTO_cleanup_all_ex_data();
-    ERR_remove_state(0);
+    ERR_remove_thread_state(NULL);
     ERR_free_strings();
     CRYPTO_mem_leaks_fp(stderr);
 

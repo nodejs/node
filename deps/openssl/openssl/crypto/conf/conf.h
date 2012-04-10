@@ -79,8 +79,7 @@ typedef struct
 	} CONF_VALUE;
 
 DECLARE_STACK_OF(CONF_VALUE)
-DECLARE_STACK_OF(CONF_MODULE)
-DECLARE_STACK_OF(CONF_IMODULE)
+DECLARE_LHASH_OF(CONF_VALUE);
 
 struct conf_st;
 struct conf_method_st;
@@ -105,6 +104,9 @@ struct conf_method_st
 typedef struct conf_imodule_st CONF_IMODULE;
 typedef struct conf_module_st CONF_MODULE;
 
+DECLARE_STACK_OF(CONF_MODULE)
+DECLARE_STACK_OF(CONF_IMODULE)
+
 /* DSO module function typedefs */
 typedef int conf_init_func(CONF_IMODULE *md, const CONF *cnf);
 typedef void conf_finish_func(CONF_IMODULE *md);
@@ -117,18 +119,23 @@ typedef void conf_finish_func(CONF_IMODULE *md);
 #define CONF_MFLAGS_DEFAULT_SECTION	0x20
 
 int CONF_set_default_method(CONF_METHOD *meth);
-void CONF_set_nconf(CONF *conf,LHASH *hash);
-LHASH *CONF_load(LHASH *conf,const char *file,long *eline);
+void CONF_set_nconf(CONF *conf,LHASH_OF(CONF_VALUE) *hash);
+LHASH_OF(CONF_VALUE) *CONF_load(LHASH_OF(CONF_VALUE) *conf,const char *file,
+				long *eline);
 #ifndef OPENSSL_NO_FP_API
-LHASH *CONF_load_fp(LHASH *conf, FILE *fp,long *eline);
+LHASH_OF(CONF_VALUE) *CONF_load_fp(LHASH_OF(CONF_VALUE) *conf, FILE *fp,
+				   long *eline);
 #endif
-LHASH *CONF_load_bio(LHASH *conf, BIO *bp,long *eline);
-STACK_OF(CONF_VALUE) *CONF_get_section(LHASH *conf,const char *section);
-char *CONF_get_string(LHASH *conf,const char *group,const char *name);
-long CONF_get_number(LHASH *conf,const char *group,const char *name);
-void CONF_free(LHASH *conf);
-int CONF_dump_fp(LHASH *conf, FILE *out);
-int CONF_dump_bio(LHASH *conf, BIO *out);
+LHASH_OF(CONF_VALUE) *CONF_load_bio(LHASH_OF(CONF_VALUE) *conf, BIO *bp,long *eline);
+STACK_OF(CONF_VALUE) *CONF_get_section(LHASH_OF(CONF_VALUE) *conf,
+				       const char *section);
+char *CONF_get_string(LHASH_OF(CONF_VALUE) *conf,const char *group,
+		      const char *name);
+long CONF_get_number(LHASH_OF(CONF_VALUE) *conf,const char *group,
+		     const char *name);
+void CONF_free(LHASH_OF(CONF_VALUE) *conf);
+int CONF_dump_fp(LHASH_OF(CONF_VALUE) *conf, FILE *out);
+int CONF_dump_bio(LHASH_OF(CONF_VALUE) *conf, BIO *out);
 
 void OPENSSL_config(const char *config_name);
 void OPENSSL_no_config(void);
@@ -140,7 +147,7 @@ struct conf_st
 	{
 	CONF_METHOD *meth;
 	void *meth_data;
-	LHASH *data;
+	LHASH_OF(CONF_VALUE) *data;
 	};
 
 CONF *NCONF_new(CONF_METHOD *meth);
@@ -214,6 +221,7 @@ void ERR_load_CONF_strings(void);
 #define CONF_F_CONF_LOAD_BIO				 102
 #define CONF_F_CONF_LOAD_FP				 103
 #define CONF_F_CONF_MODULES_LOAD			 116
+#define CONF_F_CONF_PARSE_LIST				 119
 #define CONF_F_DEF_LOAD					 120
 #define CONF_F_DEF_LOAD_BIO				 121
 #define CONF_F_MODULE_INIT				 115
@@ -233,6 +241,7 @@ void ERR_load_CONF_strings(void);
 
 /* Reason codes. */
 #define CONF_R_ERROR_LOADING_DSO			 110
+#define CONF_R_LIST_CANNOT_BE_NULL			 115
 #define CONF_R_MISSING_CLOSE_SQUARE_BRACKET		 100
 #define CONF_R_MISSING_EQUAL_SIGN			 101
 #define CONF_R_MISSING_FINISH_FUNCTION			 111

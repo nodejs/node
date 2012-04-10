@@ -58,7 +58,6 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
-#include "evp_locl.h"
 
 #if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA0)
 

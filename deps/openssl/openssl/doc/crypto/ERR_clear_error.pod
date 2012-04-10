@@ -1,0 +1,29 @@
+=pod
+
+=head1 NAME
+
+ERR_clear_error - clear the error queue
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ void ERR_clear_error(void);
+
+=head1 DESCRIPTION
+
+ERR_clear_error() empties the current thread's error queue.
+
+=head1 RETURN VALUES
+
+ERR_clear_error() has no return value.
+
+=head1 SEE ALSO
+
+L<err(3)|err(3)>, L<ERR_get_error(3)|ERR_get_error(3)>
+
+=head1 HISTORY
+
+ERR_clear_error() is available in all versions of SSLeay and OpenSSL.
+
+=cut

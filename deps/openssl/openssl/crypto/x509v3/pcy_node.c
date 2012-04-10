@@ -92,13 +92,25 @@ X509_POLICY_NODE *tree_find_sk(STACK_OF(X509_POLICY_NODE) *nodes,
 	}
 
 X509_POLICY_NODE *level_find_node(const X509_POLICY_LEVEL *level,
+					const X509_POLICY_NODE *parent,	
 					const ASN1_OBJECT *id)
 	{
-	return tree_find_sk(level->nodes, id);
+	X509_POLICY_NODE *node;
+	int i;
+	for (i = 0; i < sk_X509_POLICY_NODE_num(level->nodes); i++)
+		{
+		node = sk_X509_POLICY_NODE_value(level->nodes, i);
+		if (node->parent == parent)
+			{
+			if (!OBJ_cmp(node->data->valid_policy, id))
+				return node;
+			}
+		}
+	return NULL;
 	}
 
 X509_POLICY_NODE *level_add_node(X509_POLICY_LEVEL *level,
-			X509_POLICY_DATA *data,
+			const X509_POLICY_DATA *data,
 			X509_POLICY_NODE *parent,
 			X509_POLICY_TREE *tree)
 	{
@@ -155,4 +167,31 @@ void policy_node_free(X509_POLICY_NODE *node)
 	OPENSSL_free(node);
 	}
 
+/* See if a policy node matches a policy OID. If mapping enabled look through
+ * expected policy set otherwise just valid policy.
+ */
 
+int policy_node_match(const X509_POLICY_LEVEL *lvl,
+		      const X509_POLICY_NODE *node, const ASN1_OBJECT *oid)
+	{
+	int i;
+	ASN1_OBJECT *policy_oid;
+	const X509_POLICY_DATA *x = node->data;
+
+	if (	    (lvl->flags & X509_V_FLAG_INHIBIT_MAP)
+		|| !(x->flags & POLICY_DATA_FLAG_MAP_MASK))
+		{
+		if (!OBJ_cmp(x->valid_policy, oid))
+			return 1;
+		return 0;
+		}
+
+	for (i = 0; i < sk_ASN1_OBJECT_num(x->expected_policy_set); i++)
+		{
+		policy_oid = sk_ASN1_OBJECT_value(x->expected_policy_set, i);
+		if (!OBJ_cmp(policy_oid, oid))
+			return 1;
+		}
+	return 0;
+
+	}

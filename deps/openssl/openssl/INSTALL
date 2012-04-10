@@ -98,11 +98,17 @@
                 The crypto/<cipher> directory can be removed after running
                 "make depend".
 
-  -Dxxx, -lxxx, -Lxxx, -fxxx, -mxxx, -Kxxx These system specific options will
+  -Dxxx, -lxxx, -Lxxx, -fxxx, -mXXX, -Kxxx These system specific options will
                 be passed through to the compiler to allow you to
                 define preprocessor symbols, specify additional libraries,
                 library directories or other compiler options.
 
+  -DHAVE_CRYPTODEV Enable the BSD cryptodev engine even if we are not using
+		BSD. Useful if you are running ocf-linux or something
+		similar. Once enabled you can also enable the use of
+		cryptodev digests, which is usually slower unless you have
+		large amounts data. Use -DUSE_CRYPTODEV_DIGESTS to force
+		it.
 
  Installation in Detail
  ----------------------
@@ -205,6 +211,10 @@
        include/openssl Contains the header files needed if you want to
                        compile programs with libcrypto or libssl.
        lib             Contains the OpenSSL library files themselves.
+
+     Use "make install_sw" to install the software without documentation,
+     and "install_docs_html" to install HTML renditions of the manual
+     pages.
 
      Package builders who want to configure the library for standard
      locations, but have the package installed somewhere else so that

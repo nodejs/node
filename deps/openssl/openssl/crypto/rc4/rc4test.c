@@ -114,8 +114,8 @@ static unsigned char output[7][30]={
 
 int main(int argc, char *argv[])
 	{
-	int err=0;
-	unsigned int i, j;
+	int i,err=0;
+	int j;
 	unsigned char *p;
 	RC4_KEY key;
 	unsigned char obuf[512];
@@ -129,12 +129,12 @@ int main(int argc, char *argv[])
 			{
 			printf("error calculating RC4\n");
 			printf("output:");
-			for (j=0; j<data_len[i]+1U; j++)
+			for (j=0; j<data_len[i]+1; j++)
 				printf(" %02x",obuf[j]);
 			printf("\n");
 			printf("expect:");
 			p= &(output[i][0]);
-			for (j=0; j<data_len[i]+1U; j++)
+			for (j=0; j<data_len[i]+1; j++)
 				printf(" %02x",*(p++));
 			printf("\n");
 			err++;
@@ -180,12 +180,12 @@ int main(int argc, char *argv[])
 			{
 			printf("error in RC4 multi-call processing\n");
 			printf("output:");
-			for (j=0; j<data_len[3]+1U; j++)
+			for (j=0; j<data_len[3]+1; j++)
 				printf(" %02x",obuf[j]);
 			printf("\n");
 			printf("expect:");
 			p= &(output[3][0]);
-			for (j=0; j<data_len[3]+1U; j++)
+			for (j=0; j<data_len[3]+1; j++)
 				printf(" %02x",*(p++));
 			err++;
 			}
@@ -216,11 +216,11 @@ int main(int argc, char *argv[])
 		if (memcmp(md,expected,sizeof(md))) {
 			printf("error in RC4 bulk test\n");
 			printf("output:");
-			for (j=0; j<sizeof(md); j++)
+			for (j=0; j<(int)sizeof(md); j++)
 				printf(" %02x",md[j]);
 			printf("\n");
 			printf("expect:");
-			for (j=0; j<sizeof(md); j++)
+			for (j=0; j<(int)sizeof(md); j++)
 				printf(" %02x",expected[j]);
 			printf("\n");
 			err++;

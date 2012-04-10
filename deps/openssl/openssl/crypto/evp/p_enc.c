@@ -66,7 +66,7 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 
-int EVP_PKEY_encrypt(unsigned char *ek, const unsigned char *key, int key_len,
+int EVP_PKEY_encrypt_old(unsigned char *ek, const unsigned char *key, int key_len,
 	     EVP_PKEY *pubk)
 	{
 	int ret=0;
@@ -75,7 +75,7 @@ int EVP_PKEY_encrypt(unsigned char *ek, const unsigned char *key, int key_len,
 	if (pubk->type != EVP_PKEY_RSA)
 		{
 #endif
-		EVPerr(EVP_F_EVP_PKEY_ENCRYPT,EVP_R_PUBLIC_KEY_NOT_RSA);
+		EVPerr(EVP_F_EVP_PKEY_ENCRYPT_OLD,EVP_R_PUBLIC_KEY_NOT_RSA);
 #ifndef OPENSSL_NO_RSA
 		goto err;
 		}

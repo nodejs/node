@@ -63,8 +63,8 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 
-static SSL_METHOD *tls1_get_client_method(int ver);
-static SSL_METHOD *tls1_get_client_method(int ver)
+static const SSL_METHOD *tls1_get_client_method(int ver);
+static const SSL_METHOD *tls1_get_client_method(int ver)
 	{
 	if (ver == TLS1_VERSION)
 		return(TLSv1_client_method());

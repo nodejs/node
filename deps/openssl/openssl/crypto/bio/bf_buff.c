@@ -209,7 +209,7 @@ start:
 	/* add to buffer and return */
 	if (i >= inl)
 		{
-		memcpy(&(ctx->obuf[ctx->obuf_len]),in,inl);
+		memcpy(&(ctx->obuf[ctx->obuf_off+ctx->obuf_len]),in,inl);
 		ctx->obuf_len+=inl;
 		return(num+inl);
 		}
@@ -219,7 +219,7 @@ start:
 		{
 		if (i > 0) /* lets fill it up if we can */
 			{
-			memcpy(&(ctx->obuf[ctx->obuf_len]),in,i);
+			memcpy(&(ctx->obuf[ctx->obuf_off+ctx->obuf_len]),in,i);
 			in+=i;
 			inl-=i;
 			num+=i;
@@ -294,9 +294,9 @@ static long buffer_ctrl(BIO *b, int cmd, long num, void *ptr)
 	case BIO_C_GET_BUFF_NUM_LINES:
 		ret=0;
 		p1=ctx->ibuf;
-		for (i=ctx->ibuf_off; i<ctx->ibuf_len; i++)
+		for (i=0; i<ctx->ibuf_len; i++)
 			{
-			if (p1[i] == '\n') ret++;
+			if (p1[ctx->ibuf_off + i] == '\n') ret++;
 			}
 		break;
 	case BIO_CTRL_WPENDING:
@@ -399,17 +399,18 @@ static long buffer_ctrl(BIO *b, int cmd, long num, void *ptr)
 		for (;;)
 			{
 			BIO_clear_retry_flags(b);
-			if (ctx->obuf_len > ctx->obuf_off)
+			if (ctx->obuf_len > 0)
 				{
 				r=BIO_write(b->next_bio,
 					&(ctx->obuf[ctx->obuf_off]),
-					ctx->obuf_len-ctx->obuf_off);
+					ctx->obuf_len);
 #if 0
-fprintf(stderr,"FLUSH [%3d] %3d -> %3d\n",ctx->obuf_off,ctx->obuf_len-ctx->obuf_off,r);
+fprintf(stderr,"FLUSH [%3d] %3d -> %3d\n",ctx->obuf_off,ctx->obuf_len,r);
 #endif
 				BIO_copy_next_retry(b);
 				if (r <= 0) return((long)r);
 				ctx->obuf_off+=r;
+				ctx->obuf_len-=r;
 				}
 			else
 				{

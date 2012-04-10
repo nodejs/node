@@ -56,6 +56,16 @@
  *
  */
 
+/* We need to do this early, because stdio.h includes the header files
+   that handle _GNU_SOURCE and other similar macros.  Defining it later
+   is simply too late, because those headers are protected from re-
+   inclusion.  */
+#ifdef __linux
+# ifndef _GNU_SOURCE
+#  define _GNU_SOURCE	/* make sure dladdr is declared */
+# endif
+#endif
+
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/dso.h>
@@ -68,7 +78,17 @@ DSO_METHOD *DSO_METHOD_dlfcn(void)
 #else
 
 #ifdef HAVE_DLFCN_H
-#include <dlfcn.h>
+# ifdef __osf__
+#  define __EXTENSIONS__
+# endif
+# include <dlfcn.h>
+# define HAVE_DLINFO 1
+# if defined(_AIX) || defined(__CYGWIN__) || \
+     defined(__SCO_VERSION__) || defined(_SCO_ELF) || \
+     (defined(__osf__) && !defined(RTLD_NEXT))     || \
+     (defined(__OpenBSD__) && !defined(RTLD_SELF))
+#  undef HAVE_DLINFO
+# endif
 #endif
 
 /* Part of the hack in "dlfcn_load" ... */
@@ -87,6 +107,8 @@ static long dlfcn_ctrl(DSO *dso, int cmd, long larg, void *parg);
 static char *dlfcn_name_converter(DSO *dso, const char *filename);
 static char *dlfcn_merger(DSO *dso, const char *filespec1,
 	const char *filespec2);
+static int dlfcn_pathbyaddr(void *addr,char *path,int sz);
+static void *dlfcn_globallookup(const char *name);
 
 static DSO_METHOD dso_meth_dlfcn = {
 	"OpenSSL 'dlfcn' shared library method",
@@ -103,7 +125,9 @@ static DSO_METHOD dso_meth_dlfcn = {
 	dlfcn_name_converter,
 	dlfcn_merger,
 	NULL, /* init */
-	NULL  /* finish */
+	NULL, /* finish */
+	dlfcn_pathbyaddr,
+	dlfcn_globallookup
 	};
 
 DSO_METHOD *DSO_METHOD_dlfcn(void)
@@ -163,7 +187,7 @@ static int dlfcn_load(DSO *dso)
 		ERR_add_error_data(4, "filename(", filename, "): ", dlerror());
 		goto err;
 		}
-	if(!sk_push(dso->meth_data, (char *)ptr))
+	if(!sk_void_push(dso->meth_data, (char *)ptr))
 		{
 		DSOerr(DSO_F_DLFCN_LOAD,DSO_R_STACK_ERROR);
 		goto err;
@@ -188,15 +212,15 @@ static int dlfcn_unload(DSO *dso)
 		DSOerr(DSO_F_DLFCN_UNLOAD,ERR_R_PASSED_NULL_PARAMETER);
 		return(0);
 		}
-	if(sk_num(dso->meth_data) < 1)
+	if(sk_void_num(dso->meth_data) < 1)
 		return(1);
-	ptr = (void *)sk_pop(dso->meth_data);
+	ptr = sk_void_pop(dso->meth_data);
 	if(ptr == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_UNLOAD,DSO_R_NULL_HANDLE);
 		/* Should push the value back onto the stack in
 		 * case of a retry. */
-		sk_push(dso->meth_data, (char *)ptr);
+		sk_void_push(dso->meth_data, ptr);
 		return(0);
 		}
 	/* For now I'm not aware of any errors associated with dlclose() */
@@ -213,12 +237,12 @@ static void *dlfcn_bind_var(DSO *dso, const char *symname)
 		DSOerr(DSO_F_DLFCN_BIND_VAR,ERR_R_PASSED_NULL_PARAMETER);
 		return(NULL);
 		}
-	if(sk_num(dso->meth_data) < 1)
+	if(sk_void_num(dso->meth_data) < 1)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_VAR,DSO_R_STACK_ERROR);
 		return(NULL);
 		}
-	ptr = (void *)sk_value(dso->meth_data, sk_num(dso->meth_data) - 1);
+	ptr = sk_void_value(dso->meth_data, sk_void_num(dso->meth_data) - 1);
 	if(ptr == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_VAR,DSO_R_NULL_HANDLE);
@@ -247,12 +271,12 @@ static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname)
 		DSOerr(DSO_F_DLFCN_BIND_FUNC,ERR_R_PASSED_NULL_PARAMETER);
 		return(NULL);
 		}
-	if(sk_num(dso->meth_data) < 1)
+	if(sk_void_num(dso->meth_data) < 1)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_FUNC,DSO_R_STACK_ERROR);
 		return(NULL);
 		}
-	ptr = (void *)sk_value(dso->meth_data, sk_num(dso->meth_data) - 1);
+	ptr = sk_void_value(dso->meth_data, sk_void_num(dso->meth_data) - 1);
 	if(ptr == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_FUNC,DSO_R_NULL_HANDLE);
@@ -281,13 +305,12 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
 		}
 	/* If the first file specification is a rooted path, it rules.
 	   same goes if the second file specification is missing. */
-	if (!filespec2 || filespec1[0] == '/')
+	if (!filespec2 || (filespec1 != NULL && filespec1[0] == '/'))
 		{
 		merged = OPENSSL_malloc(strlen(filespec1) + 1);
 		if(!merged)
 			{
-			DSOerr(DSO_F_DLFCN_MERGER,
-				ERR_R_MALLOC_FAILURE);
+			DSOerr(DSO_F_DLFCN_MERGER, ERR_R_MALLOC_FAILURE);
 			return(NULL);
 			}
 		strcpy(merged, filespec1);
@@ -313,7 +336,7 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
 		{
 		int spec2len, len;
 
-		spec2len = (filespec2 ? strlen(filespec2) : 0);
+		spec2len = strlen(filespec2);
 		len = spec2len + (filespec1 ? strlen(filespec1) : 0);
 
 		if(filespec2 && filespec2[spec2len - 1] == '/')
@@ -378,4 +401,83 @@ static char *dlfcn_name_converter(DSO *dso, const char *filename)
 	return(translated);
 	}
 
+#ifdef __sgi
+/*
+This is a quote from IRIX manual for dladdr(3c):
+
+     <dlfcn.h> does not contain a prototype for dladdr or definition of
+     Dl_info.  The #include <dlfcn.h>  in the SYNOPSIS line is traditional,
+     but contains no dladdr prototype and no IRIX library contains an
+     implementation.  Write your own declaration based on the code below.
+
+     The following code is dependent on internal interfaces that are not
+     part of the IRIX compatibility guarantee; however, there is no future
+     intention to change this interface, so on a practical level, the code
+     below is safe to use on IRIX.
+*/
+#include <rld_interface.h>
+#ifndef _RLD_INTERFACE_DLFCN_H_DLADDR
+#define _RLD_INTERFACE_DLFCN_H_DLADDR
+typedef struct Dl_info {
+    const char * dli_fname;
+    void       * dli_fbase;
+    const char * dli_sname;
+    void       * dli_saddr;
+    int          dli_version;
+    int          dli_reserved1;
+    long         dli_reserved[4];
+} Dl_info;
+#else
+typedef struct Dl_info Dl_info;
+#endif
+#define _RLD_DLADDR             14
+
+static int dladdr(void *address, Dl_info *dl)
+{
+	void *v;
+	v = _rld_new_interface(_RLD_DLADDR,address,dl);
+	return (int)v;
+}
+#endif /* __sgi */
+
+static int dlfcn_pathbyaddr(void *addr,char *path,int sz)
+	{
+#ifdef HAVE_DLINFO
+	Dl_info dli;
+	int len;
+
+	if (addr == NULL)
+		{
+		union	{ int(*f)(void*,char*,int); void *p; } t =
+			{ dlfcn_pathbyaddr };
+		addr = t.p;
+		}
+
+	if (dladdr(addr,&dli))
+		{
+		len = (int)strlen(dli.dli_fname);
+		if (sz <= 0) return len+1;
+		if (len >= sz) len=sz-1;
+		memcpy(path,dli.dli_fname,len);
+		path[len++]=0;
+		return len;
+		}
+
+	ERR_add_error_data(4, "dlfcn_pathbyaddr(): ", dlerror());
+#endif
+	return -1;
+	}
+
+static void *dlfcn_globallookup(const char *name)
+	{
+	void *ret = NULL,*handle = dlopen(NULL,RTLD_LAZY);
+	
+	if (handle)
+		{
+		ret = dlsym(handle,name);
+		dlclose(handle);
+		}
+
+	return ret;
+	}
 #endif /* DSO_DLFCN */

@@ -123,7 +123,6 @@
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
 #include <openssl/ssl.h>
-#include <openssl/pq_compat.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -163,12 +162,14 @@ extern "C" {
 #define SSL3_CK_ADH_DES_64_CBC_SHA		0x0300001A
 #define SSL3_CK_ADH_DES_192_CBC_SHA		0x0300001B
 
-#define SSL3_CK_FZA_DMS_NULL_SHA		0x0300001C
-#define SSL3_CK_FZA_DMS_FZA_SHA			0x0300001D
-#if 0 /* Because it clashes with KRB5, is never used any more, and is safe
-	 to remove according to David Hopwood <david.hopwood@zetnet.co.uk>
-	 of the ietf-tls list */
-#define SSL3_CK_FZA_DMS_RC4_SHA			0x0300001E
+#if 0
+	#define SSL3_CK_FZA_DMS_NULL_SHA		0x0300001C
+	#define SSL3_CK_FZA_DMS_FZA_SHA			0x0300001D
+	#if 0 /* Because it clashes with KRB5, is never used any more, and is safe
+		 to remove according to David Hopwood <david.hopwood@zetnet.co.uk>
+		 of the ietf-tls list */
+	#define SSL3_CK_FZA_DMS_RC4_SHA			0x0300001E
+	#endif
 #endif
 
 /*    VRS Additional Kerberos5 entries
@@ -220,9 +221,11 @@ extern "C" {
 #define SSL3_TXT_ADH_DES_64_CBC_SHA		"ADH-DES-CBC-SHA"
 #define SSL3_TXT_ADH_DES_192_CBC_SHA		"ADH-DES-CBC3-SHA"
 
-#define SSL3_TXT_FZA_DMS_NULL_SHA		"FZA-NULL-SHA"
-#define SSL3_TXT_FZA_DMS_FZA_SHA		"FZA-FZA-CBC-SHA"
-#define SSL3_TXT_FZA_DMS_RC4_SHA		"FZA-RC4-SHA"
+#if 0
+	#define SSL3_TXT_FZA_DMS_NULL_SHA		"FZA-NULL-SHA"
+	#define SSL3_TXT_FZA_DMS_FZA_SHA		"FZA-FZA-CBC-SHA"
+	#define SSL3_TXT_FZA_DMS_RC4_SHA		"FZA-RC4-SHA"
+#endif
 
 #define SSL3_TXT_KRB5_DES_64_CBC_SHA		"KRB5-DES-CBC-SHA"
 #define SSL3_TXT_KRB5_DES_192_CBC3_SHA		"KRB5-DES-CBC3-SHA"
@@ -248,23 +251,75 @@ extern "C" {
 #define SSL3_SESSION_ID_SIZE			32
 #define SSL3_RT_HEADER_LENGTH			5
 
-/* Due to MS stuffing up, this can change.... */
-#if defined(OPENSSL_SYS_WIN16) || \
-	(defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_WIN32))
-#define SSL3_RT_MAX_EXTRA			(14000)
+#ifndef SSL3_ALIGN_PAYLOAD
+ /* Some will argue that this increases memory footprint, but it's
+  * not actually true. Point is that malloc has to return at least
+  * 64-bit aligned pointers, meaning that allocating 5 bytes wastes
+  * 3 bytes in either case. Suggested pre-gaping simply moves these
+  * wasted bytes from the end of allocated region to its front,
+  * but makes data payload aligned, which improves performance:-) */
+# define SSL3_ALIGN_PAYLOAD			8
 #else
-#define SSL3_RT_MAX_EXTRA			(16384)
+# if (SSL3_ALIGN_PAYLOAD&(SSL3_ALIGN_PAYLOAD-1))!=0
+#  error "insane SSL3_ALIGN_PAYLOAD"
+#  undef SSL3_ALIGN_PAYLOAD
+# endif
 #endif
 
+/* This is the maximum MAC (digest) size used by the SSL library.
+ * Currently maximum of 20 is used by SHA1, but we reserve for
+ * future extension for 512-bit hashes.
+ */
+
+#define SSL3_RT_MAX_MD_SIZE			64
+
+/* Maximum block size used in all ciphersuites. Currently 16 for AES.
+ */
+
+#define	SSL_RT_MAX_CIPHER_BLOCK_SIZE		16
+
+#define SSL3_RT_MAX_EXTRA			(16384)
+
+/* Default buffer length used for writen records.  Thus a generated record
+ * will contain plaintext no larger than this value. */
+#define SSL3_RT_DEFAULT_PLAIN_LENGTH	2048
+/* Maximum plaintext length: defined by SSL/TLS standards */
 #define SSL3_RT_MAX_PLAIN_LENGTH		16384
+/* Maximum compression overhead: defined by SSL/TLS standards */
+#define SSL3_RT_MAX_COMPRESSED_OVERHEAD		1024
+
+/* The standards give a maximum encryption overhead of 1024 bytes.
+ * In practice the value is lower than this. The overhead is the maximum
+ * number of padding bytes (256) plus the mac size.
+ */
+#define SSL3_RT_MAX_ENCRYPTED_OVERHEAD	(256 + SSL3_RT_MAX_MD_SIZE)
+
+/* OpenSSL currently only uses a padding length of at most one block so
+ * the send overhead is smaller.
+ */
+
+#define SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD \
+			(SSL_RT_MAX_CIPHER_BLOCK_SIZE + SSL3_RT_MAX_MD_SIZE)
+
+/* If compression isn't used don't include the compression overhead */
+
 #ifdef OPENSSL_NO_COMP
-#define SSL3_RT_MAX_COMPRESSED_LENGTH	SSL3_RT_MAX_PLAIN_LENGTH
+#define SSL3_RT_MAX_COMPRESSED_LENGTH		SSL3_RT_MAX_PLAIN_LENGTH
 #else
-#define SSL3_RT_MAX_COMPRESSED_LENGTH	(1024+SSL3_RT_MAX_PLAIN_LENGTH)
+#define SSL3_RT_MAX_COMPRESSED_LENGTH	\
+		(SSL3_RT_MAX_PLAIN_LENGTH+SSL3_RT_MAX_COMPRESSED_OVERHEAD)
 #endif
-#define SSL3_RT_MAX_ENCRYPTED_LENGTH	(1024+SSL3_RT_MAX_COMPRESSED_LENGTH)
-#define SSL3_RT_MAX_PACKET_SIZE		(SSL3_RT_MAX_ENCRYPTED_LENGTH+SSL3_RT_HEADER_LENGTH)
-#define SSL3_RT_MAX_DATA_SIZE			(1024*1024)
+#define SSL3_RT_MAX_ENCRYPTED_LENGTH	\
+		(SSL3_RT_MAX_ENCRYPTED_OVERHEAD+SSL3_RT_MAX_COMPRESSED_LENGTH)
+#define SSL3_RT_MAX_PACKET_SIZE		\
+		(SSL3_RT_MAX_ENCRYPTED_LENGTH+SSL3_RT_HEADER_LENGTH)
+
+/* Extra space for empty fragment, headers, MAC, and padding. */
+#define SSL3_RT_DEFAULT_WRITE_OVERHEAD  256
+#define SSL3_RT_DEFAULT_PACKET_SIZE     4096 - SSL3_RT_DEFAULT_WRITE_OVERHEAD
+#if SSL3_RT_DEFAULT_PLAIN_LENGTH + SSL3_RT_DEFAULT_WRITE_OVERHEAD > SSL3_RT_DEFAULT_PACKET_SIZE
+#error "Insufficient space allocated for write buffers."
+#endif
 
 #define SSL3_MD_CLIENT_FINISHED_CONST	"\x43\x4C\x4E\x54"
 #define SSL3_MD_SERVER_FINISHED_CONST	"\x53\x52\x56\x52"
@@ -303,7 +358,7 @@ typedef struct ssl3_record_st
 /*rw*/	unsigned char *input;   /* where the decode bytes are */
 /*r */	unsigned char *comp;    /* only used with decompression - malloc()ed */
 /*r */  unsigned long epoch;    /* epoch number, needed by DTLS1 */
-/*r */  PQ_64BIT seq_num;       /* sequence number, needed by DTLS1 */
+/*r */  unsigned char seq_num[8]; /* sequence number, needed by DTLS1 */
 	} SSL3_RECORD;
 
 typedef struct ssl3_buffer_st
@@ -326,13 +381,25 @@ typedef struct ssl3_buffer_st
  * enough to contain all of the cert types defined either for
  * SSLv3 and TLSv1.
  */
-#define SSL3_CT_NUMBER			7
+#define SSL3_CT_NUMBER			9
 
 
 #define SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS	0x0001
 #define SSL3_FLAGS_DELAY_CLIENT_FINISHED	0x0002
 #define SSL3_FLAGS_POP_BUFFER			0x0004
 #define TLS1_FLAGS_TLS_PADDING_BUG		0x0008
+#define TLS1_FLAGS_SKIP_CERT_VERIFY		0x0010
+ 
+/* SSL3_FLAGS_SGC_RESTART_DONE is set when we
+ * restart a handshake because of MS SGC and so prevents us
+ * from restarting the handshake in a loop. It's reset on a
+ * renegotiation, so effectively limits the client to one restart
+ * per negotiation. This limits the possibility of a DDoS
+ * attack where the client handshakes in a loop using SGC to
+ * restart. Servers which permit renegotiation can still be
+ * effected, but we can't prevent that.
+ */
+#define SSL3_FLAGS_SGC_RESTART_DONE		0x0040
 
 typedef struct ssl3_state_st
 	{
@@ -340,8 +407,10 @@ typedef struct ssl3_state_st
 	int delay_buf_pop_ret;
 
 	unsigned char read_sequence[8];
+	int read_mac_secret_size;
 	unsigned char read_mac_secret[EVP_MAX_MD_SIZE];
 	unsigned char write_sequence[8];
+	int write_mac_secret_size;
 	unsigned char write_mac_secret[EVP_MAX_MD_SIZE];
 
 	unsigned char server_random[SSL3_RANDOM_SIZE];
@@ -350,6 +419,9 @@ typedef struct ssl3_state_st
 	/* flags for countermeasure against known-IV weakness */
 	int need_empty_fragments;
 	int empty_fragment_done;
+
+	/* The value of 'extra' when the buffers were initialized */
+	int init_extra;
 
 	SSL3_BUFFER rbuf;	/* read IO goes into here */
 	SSL3_BUFFER wbuf;	/* write IO goes into here */
@@ -372,9 +444,11 @@ typedef struct ssl3_state_st
 	const unsigned char *wpend_buf;
 
 	/* used during startup, digest all incoming/outgoing packets */
-	EVP_MD_CTX finish_dgst1;
-	EVP_MD_CTX finish_dgst2;
-
+	BIO *handshake_buffer;
+	/* When set of handshake digests is determined, buffer is hashed
+	 * and freed and MD_CTX-es for all required digests are stored in
+	 * this array */
+	EVP_MD_CTX **handshake_dgst;
 	/* this is set whenerver we see a change_cipher_spec message
 	 * come in when we are not looking for one */
 	int change_cipher_spec;
@@ -394,8 +468,19 @@ typedef struct ssl3_state_st
 
 	int in_read_app_data;
 
-	/* Set if we saw the Next Protocol Negotiation extension from our peer. */
+	/* Opaque PRF input as used for the current handshake.
+	 * These fields are used only if TLSEXT_TYPE_opaque_prf_input is defined
+	 * (otherwise, they are merely present to improve binary compatibility) */
+	void *client_opaque_prf_input;
+	size_t client_opaque_prf_input_len;
+	void *server_opaque_prf_input;
+	size_t server_opaque_prf_input_len;
+
+#ifndef OPENSSL_NO_NEXTPROTONEG
+	/* Set if we saw the Next Protocol Negotiation extension from
+	   our peer. */
 	int next_proto_neg_seen;
+#endif
 
 	struct	{
 		/* actually only needs to be 16+20 */
@@ -411,7 +496,7 @@ typedef struct ssl3_state_st
 		int message_type;
 
 		/* used to hold the new cipher we are going to use */
-		SSL_CIPHER *new_cipher;
+		const SSL_CIPHER *new_cipher;
 #ifndef OPENSSL_NO_DH
 		DH *dh;
 #endif
@@ -438,6 +523,8 @@ typedef struct ssl3_state_st
 
 		const EVP_CIPHER *new_sym_enc;
 		const EVP_MD *new_hash;
+		int new_mac_pkey_type;
+		int new_mac_secret_size;
 #ifndef OPENSSL_NO_COMP
 		const SSL_COMP *new_compression;
 #else
@@ -452,48 +539,6 @@ typedef struct ssl3_state_st
         unsigned char previous_server_finished[EVP_MAX_MD_SIZE];
         unsigned char previous_server_finished_len;
         int send_connection_binding; /* TODOEKR */
-
-	/* Snap Start support (server-side only):
-	 *
-	 * Snap Start allows the client to 'suggest' the value of our random
-	 * nonce. Assuming that we accept this suggestion, then the client can
-	 * predict our exact reply and calculate a complete handshake based on
-	 * that. These opportunistic handshake messages are embedded in the
-	 * Snap Start extension, possibly including application data.
-	 *
-	 * (Note that if the handshake doesn't resume a session, the client
-	 * couldn't hope to predict the exact server reply unless it uses the
-	 * session ticket extension to suppress session ID generation.)
-	 *
-	 * All this allows for a TLS handshake that doesn't incur additional
-	 * latency if the client side sends application data first. */
-
-	/* Set if the client presented a Snap Start extension (empty or
-	 * otherwise and the SSL_CTX has a cell configured. Server side only. */
-	int snap_start_ext_seen;
-	/* Set if the client-suggested a server random value (which is stored
-	 * in |server_random|) */
-	char snap_start_requested;
-	/* Set if the appplication has indicated that the client's
-	 * server_random suggestion is acceptable (see
-	 * SSL_set_suggested_server_random_validity). If so, a Snap Start
-	 * handshake will be attempted. */
-	char server_random_suggestion_valid;
-	/* Client's predicted response_hash from client snap start extension.
-	 * Valid if |snap_start_requested| is set. */
-	unsigned char predicted_response_hash[8];
-	/* Actual server handshake message hash.  A Snap Start handshake is
-	 * possible only if predicated_response_hash matches this. */
-	unsigned char response_hash[8];
-	/* If we need to enter snap start recovery then we need to reset the
-	 * Finished hash with a different value for the ClientHello. Thus, we
-	 * need a copy of the whole ClientHello: */
-	SSL3_BUFFER snap_start_client_hello;
-	/* A snap start ClientHello can contain records embedded in an
-	 * extension. If we wish to read them then this points to the records
-	 * within |snap_start_client_hello|. */
-	SSL3_BUFFER snap_start_records;
-
 	} SSL3_STATE;
 
 
@@ -501,7 +546,7 @@ typedef struct ssl3_state_st
 /*client */
 /* extra state */
 #define SSL3_ST_CW_FLUSH		(0x100|SSL_ST_CONNECT)
-#define SSL3_ST_CUTTHROUGH_COMPLETE (0x101|SSL_ST_CONNECT)
+#define SSL3_ST_CUTTHROUGH_COMPLETE	(0x101|SSL_ST_CONNECT)
 /* write to server */
 #define SSL3_ST_CW_CLNT_HELLO_A		(0x110|SSL_ST_CONNECT)
 #define SSL3_ST_CW_CLNT_HELLO_B		(0x111|SSL_ST_CONNECT)
@@ -529,8 +574,10 @@ typedef struct ssl3_state_st
 #define SSL3_ST_CW_CERT_VRFY_B		(0x191|SSL_ST_CONNECT)
 #define SSL3_ST_CW_CHANGE_A		(0x1A0|SSL_ST_CONNECT)
 #define SSL3_ST_CW_CHANGE_B		(0x1A1|SSL_ST_CONNECT)
+#ifndef OPENSSL_NO_NEXTPROTONEG
 #define SSL3_ST_CW_NEXT_PROTO_A		(0x200|SSL_ST_CONNECT)
 #define SSL3_ST_CW_NEXT_PROTO_B		(0x201|SSL_ST_CONNECT)
+#endif
 #define SSL3_ST_CW_FINISHED_A		(0x1B0|SSL_ST_CONNECT)
 #define SSL3_ST_CW_FINISHED_B		(0x1B1|SSL_ST_CONNECT)
 /* read from server */
@@ -576,8 +623,10 @@ typedef struct ssl3_state_st
 #define SSL3_ST_SR_CERT_VRFY_B		(0x1A1|SSL_ST_ACCEPT)
 #define SSL3_ST_SR_CHANGE_A		(0x1B0|SSL_ST_ACCEPT)
 #define SSL3_ST_SR_CHANGE_B		(0x1B1|SSL_ST_ACCEPT)
+#ifndef OPENSSL_NO_NEXTPROTONEG
 #define SSL3_ST_SR_NEXT_PROTO_A		(0x210|SSL_ST_ACCEPT)
 #define SSL3_ST_SR_NEXT_PROTO_B		(0x211|SSL_ST_ACCEPT)
+#endif
 #define SSL3_ST_SR_FINISHED_A		(0x1C0|SSL_ST_ACCEPT)
 #define SSL3_ST_SR_FINISHED_B		(0x1C1|SSL_ST_ACCEPT)
 /* write to client */
@@ -602,7 +651,9 @@ typedef struct ssl3_state_st
 #define SSL3_MT_CLIENT_KEY_EXCHANGE		16
 #define SSL3_MT_FINISHED			20
 #define SSL3_MT_CERTIFICATE_STATUS		22
+#ifndef OPENSSL_NO_NEXTPROTONEG
 #define SSL3_MT_NEXT_PROTO			67
+#endif
 #define DTLS1_MT_HELLO_VERIFY_REQUEST    3
 
 
@@ -622,4 +673,3 @@ typedef struct ssl3_state_st
 }
 #endif
 #endif
-

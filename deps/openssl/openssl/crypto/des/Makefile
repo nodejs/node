@@ -12,8 +12,6 @@ MAKEFILE=	Makefile
 AR=		ar r
 RANLIB=		ranlib
 DES_ENC=	des_enc.o fcrypt_b.o
-# or use
-#DES_ENC=	dx86-elf.o yx86-elf.o
 
 CFLAGS= $(INCLUDES) $(CFLAG)
 ASFLAGS= $(INCLUDES) $(ASFLAG)
@@ -24,7 +22,7 @@ TEST=destest.c
 APPS=
 
 LIB=$(TOP)/libcrypto.a
-LIBSRC=	des_lib.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
+LIBSRC=	cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
 	ecb3_enc.c ecb_enc.c  enc_read.c enc_writ.c \
 	fcrypt.c ofb64enc.c ofb_enc.c  pcbc_enc.c \
 	qud_cksm.c rand_key.c rpc_enc.c  set_key.c  \
@@ -33,7 +31,7 @@ LIBSRC=	des_lib.c cbc_cksm.c cbc_enc.c  cfb64enc.c cfb_enc.c  \
 	str2key.c  cfb64ede.c ofb64ede.c ede_cbcm_enc.c des_old.c des_old2.c \
 	read2pwd.c
 
-LIBOBJ= des_lib.o set_key.o  ecb_enc.o  cbc_enc.o \
+LIBOBJ= set_key.o  ecb_enc.o  cbc_enc.o \
 	ecb3_enc.o cfb64enc.o cfb64ede.o cfb_enc.o  ofb64ede.o \
 	enc_read.o enc_writ.o ofb64enc.o \
 	ofb_enc.o  str2key.o  pcbc_enc.o qud_cksm.o rand_key.o \
@@ -54,7 +52,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -64,21 +62,10 @@ des: des.o cbc3_enc.o lib
 des_enc-sparc.S:	asm/des_enc.m4
 	m4 -B 8192 asm/des_enc.m4 > des_enc-sparc.S
 
-# ELF
-dx86-elf.s:	asm/des-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) des-586.pl elf $(CFLAGS) > ../$@)
-yx86-elf.s:	asm/crypt586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) crypt586.pl elf $(CFLAGS) > ../$@)
-# COFF
-dx86-cof.s: asm/des-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) des-586.pl coff $(CFLAGS) > ../$@)
-yx86-cof.s: asm/crypt586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) crypt586.pl coff $(CFLAGS) > ../$@)
-# a.out
-dx86-out.s: asm/des-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) des-586.pl a.out $(CFLAGS) > ../$@)
-yx86-out.s: asm/crypt586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) crypt586.pl a.out $(CFLAGS) > ../$@)
+des-586.s:	asm/des-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
+	$(PERL) asm/des-586.pl $(PERLASM_SCHEME) $(CFLAGS) > $@
+crypt586.s:	asm/crypt586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
+	$(PERL) asm/crypt586.pl $(PERLASM_SCHEME) $(CFLAGS) > $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -156,14 +143,7 @@ des_enc.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 des_enc.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 des_enc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 des_enc.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
-des_enc.o: des_enc.c des_locl.h ncbc_enc.c
-des_lib.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
-des_lib.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
-des_lib.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-des_lib.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-des_lib.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-des_lib.o: ../../include/openssl/symhacks.h ../../include/openssl/ui.h
-des_lib.o: ../../include/openssl/ui_compat.h des_lib.c des_locl.h des_ver.h
+des_enc.o: des_enc.c des_locl.h ncbc_enc.c spr.h
 des_old.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
 des_old.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 des_old.o: ../../include/openssl/ossl_typ.h ../../include/openssl/rand.h
@@ -182,12 +162,13 @@ ecb3_enc.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
 ecb3_enc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 ecb3_enc.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
 ecb3_enc.o: des_locl.h ecb3_enc.c
+ecb_enc.o: ../../include/openssl/bio.h ../../include/openssl/crypto.h
 ecb_enc.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
 ecb_enc.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-ecb_enc.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
-ecb_enc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-ecb_enc.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
-ecb_enc.o: des_locl.h ecb_enc.c spr.h
+ecb_enc.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+ecb_enc.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+ecb_enc.o: ../../include/openssl/symhacks.h ../../include/openssl/ui.h
+ecb_enc.o: ../../include/openssl/ui_compat.h des_locl.h des_ver.h ecb_enc.c
 ede_cbcm_enc.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
 ede_cbcm_enc.o: ../../include/openssl/e_os2.h
 ede_cbcm_enc.o: ../../include/openssl/opensslconf.h
@@ -277,11 +258,11 @@ rpc_enc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 rpc_enc.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
 rpc_enc.o: des_locl.h des_ver.h rpc_des.h rpc_enc.c
 set_key.o: ../../include/openssl/des.h ../../include/openssl/des_old.h
-set_key.o: ../../include/openssl/e_os2.h ../../include/openssl/fips.h
-set_key.o: ../../include/openssl/opensslconf.h ../../include/openssl/ossl_typ.h
-set_key.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-set_key.o: ../../include/openssl/symhacks.h ../../include/openssl/ui.h
-set_key.o: ../../include/openssl/ui_compat.h des_locl.h set_key.c
+set_key.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
+set_key.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
+set_key.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+set_key.o: ../../include/openssl/ui.h ../../include/openssl/ui_compat.h
+set_key.o: des_locl.h set_key.c
 str2key.o: ../../include/openssl/crypto.h ../../include/openssl/des.h
 str2key.o: ../../include/openssl/des_old.h ../../include/openssl/e_os2.h
 str2key.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h

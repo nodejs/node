@@ -76,14 +76,6 @@ static const DSA_METHOD *default_DSA_method = NULL;
 
 void DSA_set_default_method(const DSA_METHOD *meth)
 	{
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(meth->flags & DSA_FLAG_FIPS_METHOD))
-		{
-		DSAerr(DSA_F_DSA_SET_DEFAULT_METHOD, DSA_R_NON_FIPS_METHOD);
-		return;
-		}
-#endif
-		
 	default_DSA_method = meth;
 	}
 
@@ -104,13 +96,6 @@ int DSA_set_method(DSA *dsa, const DSA_METHOD *meth)
 	/* NB: The caller is specifically setting a method, so it's not up to us
 	 * to deal with which ENGINE it comes from. */
         const DSA_METHOD *mtmp;
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(meth->flags & DSA_FLAG_FIPS_METHOD))
-		{
-		DSAerr(DSA_F_DSA_SET_METHOD, DSA_R_NON_FIPS_METHOD);
-		return 0;
-		}
-#endif
         mtmp = dsa->meth;
         if (mtmp->finish) mtmp->finish(dsa);
 #ifndef OPENSSL_NO_ENGINE
@@ -162,18 +147,6 @@ DSA *DSA_new_method(ENGINE *engine)
 			}
 		}
 #endif
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(ret->meth->flags & DSA_FLAG_FIPS_METHOD))
-		{
-		DSAerr(DSA_F_DSA_NEW_METHOD, DSA_R_NON_FIPS_METHOD);
-#ifndef OPENSSL_NO_ENGINE
-		if (ret->engine)
-			ENGINE_finish(ret->engine);
-#endif
-		OPENSSL_free(ret);
-		return NULL;
-		}
-#endif
 
 	ret->pad=0;
 	ret->version=0;
@@ -190,7 +163,7 @@ DSA *DSA_new_method(ENGINE *engine)
 	ret->method_mont_p=NULL;
 
 	ret->references=1;
-	ret->flags=ret->meth->flags & ~DSA_FLAG_NON_FIPS_ALLOW;
+	ret->flags=ret->meth->flags;
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_DSA, ret, &ret->ex_data);
 	if ((ret->meth->init != NULL) && !ret->meth->init(ret))
 		{
@@ -258,6 +231,28 @@ int DSA_up_ref(DSA *r)
 		}
 #endif
 	return ((i > 1) ? 1 : 0);
+	}
+
+int DSA_size(const DSA *r)
+	{
+	int ret,i;
+	ASN1_INTEGER bs;
+	unsigned char buf[4];	/* 4 bytes looks really small.
+				   However, i2d_ASN1_INTEGER() will not look
+				   beyond the first byte, as long as the second
+				   parameter is NULL. */
+
+	i=BN_num_bits(r->q);
+	bs.length=(i+7)/8;
+	bs.data=buf;
+	bs.type=V_ASN1_INTEGER;
+	/* If the top bit is set the asn1 encoding is 1 larger. */
+	buf[0]=0xff;	
+
+	i=i2d_ASN1_INTEGER(&bs,NULL);
+	i+=i; /* r and s */
+	ret=ASN1_object_size(1,i,V_ASN1_SEQUENCE);
+	return(ret);
 	}
 
 int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,

@@ -582,8 +582,14 @@ int CONF_parse_list(const char *list_, int sep, int nospc,
 	{
 	int ret;
 	const char *lstart, *tmpend, *p;
-	lstart = list_;
 
+	if(list_ == NULL)
+		{
+		CONFerr(CONF_F_CONF_PARSE_LIST, CONF_R_LIST_CANNOT_BE_NULL);
+		return 0;
+		}
+
+	lstart = list_;
 	for(;;)
 		{
 		if (nospc)

@@ -79,7 +79,7 @@ EC_GROUP *EC_GROUP_new(const EC_METHOD *meth)
 
 	if (meth == NULL)
 		{
-		ECerr(EC_F_EC_GROUP_NEW, ERR_R_PASSED_NULL_PARAMETER);
+		ECerr(EC_F_EC_GROUP_NEW, EC_R_SLOT_FULL);
 		return NULL;
 		}
 	if (meth->group_init == 0)
@@ -740,7 +740,7 @@ void EC_POINT_clear_free(EC_POINT *point)
 
 	if (point->meth->point_clear_finish != 0)
 		point->meth->point_clear_finish(point);
-	else if (point->meth != NULL && point->meth->point_finish != 0)
+	else if (point->meth->point_finish != 0)
 		point->meth->point_finish(point);
 	OPENSSL_cleanse(point, sizeof *point);
 	OPENSSL_free(point);

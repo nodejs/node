@@ -87,7 +87,7 @@ int MAIN(int argc, char **argv)
 	BIO *in=NULL,*out=NULL;
 	int informat,outformat;
 	char *infile,*outfile,*prog;
-	int print_certs=0,text=0,noout=0;
+	int print_certs=0,text=0,noout=0,p7_print=0;
 	int ret=1;
 #ifndef OPENSSL_NO_ENGINE
 	char *engine=NULL;
@@ -136,6 +136,8 @@ int MAIN(int argc, char **argv)
 			noout=1;
 		else if (strcmp(*argv,"-text") == 0)
 			text=1;
+		else if (strcmp(*argv,"-print") == 0)
+			p7_print=1;
 		else if (strcmp(*argv,"-print_certs") == 0)
 			print_certs=1;
 #ifndef OPENSSL_NO_ENGINE
@@ -234,6 +236,9 @@ bad:
 			goto end;
 			}
 		}
+
+	if (p7_print)
+		PKCS7_print_ctx(out, p7, 0, NULL);
 
 	if (print_certs)
 		{

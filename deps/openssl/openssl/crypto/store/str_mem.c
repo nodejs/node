@@ -76,30 +76,35 @@
    attribute type code).
 */
 
-struct mem_object_data_st
+typedef struct mem_object_data_st
 	{
 	STORE_OBJECT *object;
 	STORE_ATTR_INFO *attr_info;
 	int references;
-	};
+	} MEM_OBJECT_DATA;
 
+DECLARE_STACK_OF(MEM_OBJECT_DATA)
 struct mem_data_st
 	{
-	STACK *data;		/* A stack of mem_object_data_st,
-				   sorted with STORE_ATTR_INFO_compare(). */
+	STACK_OF(MEM_OBJECT_DATA) *data; /* sorted with
+					  * STORE_ATTR_INFO_compare(). */
 	unsigned int compute_components : 1; /* Currently unused, but can
 						be used to add attributes
 						from parts of the data. */
 	};
 
+DECLARE_STACK_OF(STORE_ATTR_INFO)
 struct mem_ctx_st
 	{
 	int type;		/* The type we're searching for */
-	STACK *search_attributes; /* Sets of attributes to search for.
-				     Each element is a STORE_ATTR_INFO. */
-	int search_index;	/* which of the search attributes we found a match
-				   for, -1 when we still haven't found any */
-	int index;		/* -1 as long as we're searching for the first */
+	STACK_OF(STORE_ATTR_INFO) *search_attributes; /* Sets of
+				     attributes to search for.  Each
+				     element is a STORE_ATTR_INFO. */
+	int search_index;	/* which of the search attributes we
+				   found a match for, -1 when we still
+				   haven't found any */
+	int index;		/* -1 as long as we're searching for
+                                    the first */
 	};
 
 static int mem_init(STORE *s);
@@ -240,7 +245,7 @@ static void *mem_list_start(STORE *s, STORE_OBJECT_TYPES type,
 		if (context->search_attributes == NULL)
 			{
 			context->search_attributes =
-				sk_new((int (*)(const char * const *, const char * const *))STORE_ATTR_INFO_compare);
+				sk_STORE_ATTR_INFO_new(STORE_ATTR_INFO_compare);
 			if (!context->search_attributes)
 				{
 				STOREerr(STORE_F_MEM_LIST_START,
@@ -248,7 +253,7 @@ static void *mem_list_start(STORE *s, STORE_OBJECT_TYPES type,
 				goto err;
 				}
 			}
-		sk_push(context->search_attributes,(char *)attrs);
+		sk_STORE_ATTR_INFO_push(context->search_attributes,attrs);
 		}
 	if (!STORE_parse_attrs_endp(attribute_context))
 		goto err;
@@ -284,11 +289,14 @@ static STORE_OBJECT *mem_list_next(STORE *s, void *handle)
 
 	if (context->search_index == -1)
 		{
-		for (i = 0; i < sk_num(context->search_attributes); i++)
+		for (i = 0;
+		     i < sk_STORE_ATTR_INFO_num(context->search_attributes);
+		     i++)
 			{
-			key.attr_info =
-				(STORE_ATTR_INFO *)sk_value(context->search_attributes, i);
-			srch = sk_find_ex(store->data, (char *)&key);
+			key.attr_info
+			  = sk_STORE_ATTR_INFO_value(context->search_attributes,
+						     i);
+			srch = sk_MEM_OBJECT_DATA_find_ex(store->data, &key);
 
 			if (srch >= 0)
 				{
@@ -301,21 +309,20 @@ static STORE_OBJECT *mem_list_next(STORE *s, void *handle)
 		return NULL;
 	
 	key.attr_info =
-		(STORE_ATTR_INFO *)sk_value(context->search_attributes,
-			context->search_index);
+		sk_STORE_ATTR_INFO_value(context->search_attributes,
+					 context->search_index);
 	for(srch = context->search_index;
-	    srch < sk_num(store->data)
+	    srch < sk_MEM_OBJECT_DATA_num(store->data)
 		    && STORE_ATTR_INFO_in_range(key.attr_info,
-			    (STORE_ATTR_INFO *)sk_value(store->data, srch))
+			    sk_MEM_OBJECT_DATA_value(store->data, srch)->attr_info)
 		    && !(cres = STORE_ATTR_INFO_in_ex(key.attr_info,
-				 (STORE_ATTR_INFO *)sk_value(store->data, srch)));
+				 sk_MEM_OBJECT_DATA_value(store->data, srch)->attr_info));
 	    srch++)
 		;
 
 	context->search_index = srch;
 	if (cres)
-		return ((struct mem_object_data_st *)sk_value(store->data,
-				srch))->object;
+		return (sk_MEM_OBJECT_DATA_value(store->data, srch))->object;
 	return NULL;
 	}
 static int mem_list_end(STORE *s, void *handle)
@@ -328,7 +335,7 @@ static int mem_list_end(STORE *s, void *handle)
 		return 0;
 		}
 	if (context && context->search_attributes)
-		sk_free(context->search_attributes);
+		sk_STORE_ATTR_INFO_free(context->search_attributes);
 	if (context) OPENSSL_free(context);
 	return 1;
 	}
@@ -337,7 +344,8 @@ static int mem_list_endp(STORE *s, void *handle)
 	struct mem_ctx_st *context = (struct mem_ctx_st *)handle;
 
 	if (!context
-		|| context->search_index == sk_num(context->search_attributes))
+	    || context->search_index
+	       == sk_STORE_ATTR_INFO_num(context->search_attributes))
 		return 1;
 	return 0;
 	}

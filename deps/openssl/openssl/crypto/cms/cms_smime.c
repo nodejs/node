@@ -171,7 +171,7 @@ CMS_ContentInfo *CMS_data_create(BIO *in, unsigned int flags)
 	if (!cms)
 		return NULL;
 
-	if (CMS_final(cms, in, NULL, flags))
+	if ((flags & CMS_STREAM) || CMS_final(cms, in, NULL, flags))
 		return cms;
 
 	CMS_ContentInfo_free(cms);
@@ -214,10 +214,7 @@ CMS_ContentInfo *CMS_digest_create(BIO *in, const EVP_MD *md,
 		return NULL;
 
 	if(!(flags & CMS_DETACHED))
-		{
-		flags &= ~CMS_STREAM;
 		CMS_set_detached(cms, 0);
-		}
 
 	if ((flags & CMS_STREAM) || CMS_final(cms, in, NULL, flags))
 		return cms;
@@ -269,10 +266,7 @@ CMS_ContentInfo *CMS_EncryptedData_encrypt(BIO *in, const EVP_CIPHER *cipher,
 		return NULL;
 
 	if(!(flags & CMS_DETACHED))
-		{
-		flags &= ~CMS_STREAM;
 		CMS_set_detached(cms, 0);
-		}
 
 	if ((flags & (CMS_STREAM|CMS_PARTIAL))
 		|| CMS_final(cms, in, NULL, flags))
@@ -456,6 +450,7 @@ int CMS_verify_receipt(CMS_ContentInfo *rcms, CMS_ContentInfo *ocms,
 			X509_STORE *store, unsigned int flags)
 	{
 	int r;
+	flags &= ~(CMS_DETACHED|CMS_TEXT);
 	r = CMS_verify(rcms, certs, store, NULL, NULL, flags);
 	if (r <= 0)
 		return r;
@@ -486,10 +481,7 @@ CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
 		}
 
 	if(!(flags & CMS_DETACHED))
-		{
-		flags &= ~CMS_STREAM;
 		CMS_set_detached(cms, 0);
-		}
 
 	if ((flags & (CMS_STREAM|CMS_PARTIAL))
 		|| CMS_final(cms, data, NULL, flags))
@@ -517,7 +509,7 @@ CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si,
 	BIO *rct_cont = NULL;
 	int r = 0;
 
-	flags &= ~CMS_STREAM;
+	flags &= ~(CMS_STREAM|CMS_TEXT);
 	/* Not really detached but avoids content being allocated */
 	flags |= CMS_PARTIAL|CMS_BINARY|CMS_DETACHED;
 	if (!pkey || !signcert)
@@ -598,10 +590,7 @@ CMS_ContentInfo *CMS_encrypt(STACK_OF(X509) *certs, BIO *data,
 		}
 
 	if(!(flags & CMS_DETACHED))
-		{
-		flags &= ~CMS_STREAM;
 		CMS_set_detached(cms, 0);
-		}
 
 	if ((flags & (CMS_STREAM|CMS_PARTIAL))
 		|| CMS_final(cms, data, NULL, flags))
@@ -781,12 +770,9 @@ CMS_ContentInfo *CMS_compress(BIO *in, int comp_nid, unsigned int flags)
 		return NULL;
 
 	if(!(flags & CMS_DETACHED))
-		{
-		flags &= ~CMS_STREAM;
 		CMS_set_detached(cms, 0);
-		}
 
-	if (CMS_final(cms, in, NULL, flags))
+	if ((flags & CMS_STREAM) || CMS_final(cms, in, NULL, flags))
 		return cms;
 
 	CMS_ContentInfo_free(cms);

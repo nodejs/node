@@ -13,12 +13,16 @@ print <<'EOF';
 #define FUNC_TYPE_GENERAL	1
 #define FUNC_TYPE_MD		2
 #define FUNC_TYPE_CIPHER	3
+#define FUNC_TYPE_PKEY		4
+#define FUNC_TYPE_MD_ALG	5
+#define FUNC_TYPE_CIPHER_ALG	6
 
 typedef struct {
 	int type;
 	const char *name;
 	int (*func)(int argc,char *argv[]);
 	} FUNCTION;
+DECLARE_LHASH_OF(FUNCTION);
 
 FUNCTION functions[] = {
 EOF
@@ -45,6 +49,8 @@ foreach (@ARGV)
 		{ print "#if !defined(OPENSSL_NO_DES) && !defined(OPENSSL_NO_SHA1)\n${str}#endif\n"; }
 	elsif ( ($_ =~ /^cms$/))
 		{ print "#ifndef OPENSSL_NO_CMS\n${str}#endif\n"; }
+	elsif ( ($_ =~ /^ocsp$/))
+		{ print "#ifndef OPENSSL_NO_OCSP\n${str}#endif\n"; }
 	else
 		{ print $str; }
 	}
@@ -62,7 +68,7 @@ foreach (
 	"camellia-128-cbc", "camellia-128-ecb",
 	"camellia-192-cbc", "camellia-192-ecb",
 	"camellia-256-cbc", "camellia-256-ecb",
-	"base64",
+	"base64", "zlib",
 	"des", "des3", "desx", "idea", "seed", "rc4", "rc4-40",
 	"rc2", "bf", "cast", "rc5",
 	"des-ecb", "des-ede",    "des-ede3",
@@ -89,6 +95,7 @@ foreach (
 	elsif ($_ =~ /bf/)   { $t="#ifndef OPENSSL_NO_BF\n${t}#endif\n"; }
 	elsif ($_ =~ /cast/) { $t="#ifndef OPENSSL_NO_CAST\n${t}#endif\n"; }
 	elsif ($_ =~ /rc5/)  { $t="#ifndef OPENSSL_NO_RC5\n${t}#endif\n"; }
+	elsif ($_ =~ /zlib/)  { $t="#ifdef ZLIB\n${t}#endif\n"; }
 	print $t;
 	}
 

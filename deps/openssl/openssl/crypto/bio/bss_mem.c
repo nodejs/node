@@ -94,16 +94,18 @@ BIO *BIO_new_mem_buf(void *buf, int len)
 {
 	BIO *ret;
 	BUF_MEM *b;
+	size_t sz;
+
 	if (!buf) {
 		BIOerr(BIO_F_BIO_NEW_MEM_BUF,BIO_R_NULL_PARAMETER);
 		return NULL;
 	}
-	if(len == -1) len = strlen(buf);
+	sz = (len<0) ? strlen(buf) : (size_t)len;
 	if(!(ret = BIO_new(BIO_s_mem())) ) return NULL;
 	b = (BUF_MEM *)ret->ptr;
 	b->data = buf;
-	b->length = len;
-	b->max = len;
+	b->length = sz;
+	b->max = sz;
 	ret->flags |= BIO_FLAGS_MEM_RDONLY;
 	/* Since this is static data retrying wont help */
 	ret->num = 0;
@@ -144,22 +146,16 @@ static int mem_read(BIO *b, char *out, int outl)
 	{
 	int ret= -1;
 	BUF_MEM *bm;
-	int i;
-	char *from,*to;
 
 	bm=(BUF_MEM *)b->ptr;
 	BIO_clear_retry_flags(b);
-	ret=(outl > bm->length)?bm->length:outl;
+	ret=(outl >=0 && (size_t)outl > bm->length)?(int)bm->length:outl;
 	if ((out != NULL) && (ret > 0)) {
 		memcpy(out,bm->data,ret);
 		bm->length-=ret;
-		/* memmove(&(bm->data[0]),&(bm->data[ret]), bm->length); */
 		if(b->flags & BIO_FLAGS_MEM_RDONLY) bm->data += ret;
 		else {
-			from=(char *)&(bm->data[ret]);
-			to=(char *)&(bm->data[0]);
-			for (i=0; i<bm->length; i++)
-				to[i]=from[i];
+			memmove(&(bm->data[0]),&(bm->data[ret]),bm->length);
 		}
 	} else if (bm->length == 0)
 		{

@@ -153,6 +153,13 @@ err:\
 		M_ASN1_D2I_get(b,func); \
 		}
 
+#define M_ASN1_D2I_get_int_opt(b,func,type) \
+	if ((c.slen != 0) && ((M_ASN1_next & (~V_ASN1_CONSTRUCTED)) \
+		== (V_ASN1_UNIVERSAL|(type)))) \
+		{ \
+		M_ASN1_D2I_get_int(b,func); \
+		}
+
 #define M_ASN1_D2I_get_imp(b,func, type) \
 	M_ASN1_next=(_tmp& V_ASN1_CONSTRUCTED)|type; \
 	c.q=c.p; \

@@ -1,6 +1,6 @@
 /* crypto/rand/rand_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,14 +70,6 @@
 
 static ERR_STRING_DATA RAND_str_functs[]=
 	{
-{ERR_FUNC(RAND_F_ENG_RAND_GET_RAND_METHOD),	"ENG_RAND_GET_RAND_METHOD"},
-{ERR_FUNC(RAND_F_FIPS_RAND),	"FIPS_RAND"},
-{ERR_FUNC(RAND_F_FIPS_RAND_BYTES),	"FIPS_RAND_BYTES"},
-{ERR_FUNC(RAND_F_FIPS_RAND_GET_RAND_METHOD),	"FIPS_RAND_GET_RAND_METHOD"},
-{ERR_FUNC(RAND_F_FIPS_RAND_SET_DT),	"FIPS_RAND_SET_DT"},
-{ERR_FUNC(RAND_F_FIPS_SET_DT),	"FIPS_SET_DT"},
-{ERR_FUNC(RAND_F_FIPS_SET_PRNG_SEED),	"FIPS_SET_PRNG_SEED"},
-{ERR_FUNC(RAND_F_FIPS_SET_TEST_MODE),	"FIPS_SET_TEST_MODE"},
 {ERR_FUNC(RAND_F_RAND_GET_RAND_METHOD),	"RAND_get_rand_method"},
 {ERR_FUNC(RAND_F_SSLEAY_RAND_BYTES),	"SSLEAY_RAND_BYTES"},
 {0,NULL}
@@ -85,17 +77,7 @@ static ERR_STRING_DATA RAND_str_functs[]=
 
 static ERR_STRING_DATA RAND_str_reasons[]=
 	{
-{ERR_REASON(RAND_R_NON_FIPS_METHOD)      ,"non fips method"},
-{ERR_REASON(RAND_R_NOT_IN_TEST_MODE)     ,"not in test mode"},
-{ERR_REASON(RAND_R_NO_KEY_SET)           ,"no key set"},
-{ERR_REASON(RAND_R_PRNG_ASKING_FOR_TOO_MUCH),"prng asking for too much"},
-{ERR_REASON(RAND_R_PRNG_ERROR)           ,"prng error"},
-{ERR_REASON(RAND_R_PRNG_KEYED)           ,"prng keyed"},
-{ERR_REASON(RAND_R_PRNG_NOT_REKEYED)     ,"prng not rekeyed"},
-{ERR_REASON(RAND_R_PRNG_NOT_RESEEDED)    ,"prng not reseeded"},
 {ERR_REASON(RAND_R_PRNG_NOT_SEEDED)      ,"PRNG not seeded"},
-{ERR_REASON(RAND_R_PRNG_SEED_MUST_NOT_MATCH_KEY),"prng seed must not match key"},
-{ERR_REASON(RAND_R_PRNG_STUCK)           ,"prng stuck"},
 {0,NULL}
 	};
 

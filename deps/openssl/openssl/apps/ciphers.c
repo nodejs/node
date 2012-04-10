@@ -71,7 +71,8 @@
 
 static const char *ciphers_usage[]={
 "usage: ciphers args\n",
-" -v          - verbose mode, a textual listing of the ciphers in SSLeay\n",
+" -v          - verbose mode, a textual listing of the SSL/TLS ciphers in OpenSSL\n",
+" -V          - even more verbose\n",
 " -ssl2       - SSL2 mode\n",
 " -ssl3       - SSL3 mode\n",
 " -tls1       - TLS1 mode\n",
@@ -83,14 +84,14 @@ int MAIN(int, char **);
 int MAIN(int argc, char **argv)
 	{
 	int ret=1,i;
-	int verbose=0;
+	int verbose=0,Verbose=0;
 	const char **pp;
 	const char *p;
 	int badops=0;
 	SSL_CTX *ctx=NULL;
 	SSL *ssl=NULL;
 	char *ciphers=NULL;
-	SSL_METHOD *meth=NULL;
+	const SSL_METHOD *meth=NULL;
 	STACK_OF(SSL_CIPHER) *sk;
 	char buf[512];
 	BIO *STDout=NULL;
@@ -114,6 +115,8 @@ int MAIN(int argc, char **argv)
 	STDout = BIO_push(tmpbio, STDout);
 	}
 #endif
+	if (!load_config(bio_err, NULL))
+		goto end;
 
 	argc--;
 	argv++;
@@ -121,6 +124,8 @@ int MAIN(int argc, char **argv)
 		{
 		if (strcmp(*argv,"-v") == 0)
 			verbose=1;
+		else if (strcmp(*argv,"-V") == 0)
+			verbose=Verbose=1;
 #ifndef OPENSSL_NO_SSL2
 		else if (strcmp(*argv,"-ssl2") == 0)
 			meth=SSLv2_client_method();
@@ -179,15 +184,33 @@ int MAIN(int argc, char **argv)
 			}
 		BIO_printf(STDout,"\n");
 		}
-	else
+	else /* verbose */
 		{
 		sk=SSL_get_ciphers(ssl);
 
 		for (i=0; i<sk_SSL_CIPHER_num(sk); i++)
 			{
-			BIO_puts(STDout,SSL_CIPHER_description(
-				sk_SSL_CIPHER_value(sk,i),
-				buf,sizeof buf));
+			SSL_CIPHER *c;
+
+			c = sk_SSL_CIPHER_value(sk,i);
+			
+			if (Verbose)
+				{
+				unsigned long id = c->id;
+				int id0 = (int)(id >> 24);
+				int id1 = (int)((id >> 16) & 0xffL);
+				int id2 = (int)((id >> 8) & 0xffL);
+				int id3 = (int)(id & 0xffL);
+				
+				if ((id & 0xff000000L) == 0x02000000L)
+					BIO_printf(STDout, "     0x%02X,0x%02X,0x%02X - ", id1, id2, id3); /* SSL2 cipher */
+				else if ((id & 0xff000000L) == 0x03000000L)
+					BIO_printf(STDout, "          0x%02X,0x%02X - ", id2, id3); /* SSL3 cipher */
+				else
+					BIO_printf(STDout, "0x%02X,0x%02X,0x%02X,0x%02X - ", id0, id1, id2, id3); /* whatever */
+				}
+
+			BIO_puts(STDout,SSL_CIPHER_description(c,buf,sizeof buf));
 			}
 		}
 

@@ -137,11 +137,6 @@ long app_RAND_load_files(char *file); /* `file' is a list of files to read,
                                        * (see e_os.h).  The string is
                                        * destroyed! */
 
-#ifdef OPENSSL_SYS_WIN32
-#define rename(from,to) WIN32_rename((from),(to))
-int WIN32_rename(const char *oldname,const char *newname);
-#endif
-
 #ifndef MONOLITH
 
 #define MAIN(a,v)	main(a,v)
@@ -149,11 +144,9 @@ int WIN32_rename(const char *oldname,const char *newname);
 #ifndef NON_MAIN
 CONF *config=NULL;
 BIO *bio_err=NULL;
-int in_FIPS_mode=0;
 #else
 extern CONF *config;
 extern BIO *bio_err;
-extern int in_FIPS_mode;
 #endif
 
 #else
@@ -162,7 +155,6 @@ extern int in_FIPS_mode;
 extern CONF *config;
 extern char *default_config_file;
 extern BIO *bio_err;
-extern int in_FIPS_mode;
 
 #endif
 
@@ -176,61 +168,37 @@ extern int in_FIPS_mode;
 #define do_pipe_sig()
 #endif
 
+#ifdef OPENSSL_NO_COMP
+#define zlib_cleanup() 
+#else
+#define zlib_cleanup() COMP_zlib_cleanup()
+#endif
+
 #if defined(MONOLITH) && !defined(OPENSSL_C)
 #  define apps_startup() \
 		do_pipe_sig()
 #  define apps_shutdown()
 #else
 #  ifndef OPENSSL_NO_ENGINE
-#    if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WIN16) || \
-     defined(OPENSSL_SYS_WIN32)
-#      ifdef _O_BINARY
-#        define apps_startup() \
-			do { _fmode=_O_BINARY; do_pipe_sig(); CRYPTO_malloc_init(); \
+#    define apps_startup() \
+			do { do_pipe_sig(); CRYPTO_malloc_init(); \
 			ERR_load_crypto_strings(); OpenSSL_add_all_algorithms(); \
 			ENGINE_load_builtin_engines(); setup_ui_method(); } while(0)
-#      else
-#        define apps_startup() \
-			do { _fmode=O_BINARY; do_pipe_sig(); CRYPTO_malloc_init(); \
-			ERR_load_crypto_strings(); OpenSSL_add_all_algorithms(); \
-			ENGINE_load_builtin_engines(); setup_ui_method(); } while(0)
-#      endif
-#    else
-#      define apps_startup() \
-			do { do_pipe_sig(); OpenSSL_add_all_algorithms(); \
-			ERR_load_crypto_strings(); ENGINE_load_builtin_engines(); \
-			setup_ui_method(); } while(0)
-#    endif
 #    define apps_shutdown() \
 			do { CONF_modules_unload(1); destroy_ui_method(); \
-			EVP_cleanup(); ENGINE_cleanup(); \
-			CRYPTO_cleanup_all_ex_data(); ERR_remove_state(0); \
-			ERR_free_strings(); } while(0)
+			OBJ_cleanup(); EVP_cleanup(); ENGINE_cleanup(); \
+			CRYPTO_cleanup_all_ex_data(); ERR_remove_thread_state(NULL); \
+			ERR_free_strings(); zlib_cleanup();} while(0)
 #  else
-#    if defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_WIN16) || \
-     defined(OPENSSL_SYS_WIN32)
-#      ifdef _O_BINARY
-#        define apps_startup() \
-			do { _fmode=_O_BINARY; do_pipe_sig(); CRYPTO_malloc_init(); \
+#    define apps_startup() \
+			do { do_pipe_sig(); CRYPTO_malloc_init(); \
 			ERR_load_crypto_strings(); OpenSSL_add_all_algorithms(); \
 			setup_ui_method(); } while(0)
-#      else
-#        define apps_startup() \
-			do { _fmode=O_BINARY; do_pipe_sig(); CRYPTO_malloc_init(); \
-			ERR_load_crypto_strings(); OpenSSL_add_all_algorithms(); \
-			setup_ui_method(); } while(0)
-#      endif
-#    else
-#      define apps_startup() \
-			do { do_pipe_sig(); OpenSSL_add_all_algorithms(); \
-			ERR_load_crypto_strings(); \
-			setup_ui_method(); } while(0)
-#    endif
 #    define apps_shutdown() \
 			do { CONF_modules_unload(1); destroy_ui_method(); \
-			EVP_cleanup(); \
-			CRYPTO_cleanup_all_ex_data(); ERR_remove_state(0); \
-			ERR_free_strings(); } while(0)
+			OBJ_cleanup(); EVP_cleanup(); \
+			CRYPTO_cleanup_all_ex_data(); ERR_remove_thread_state(NULL); \
+			ERR_free_strings(); zlib_cleanup(); } while(0)
 #  endif
 #endif
 
@@ -239,6 +207,7 @@ extern int in_FIPS_mode;
 #else
 #  define openssl_fdset(a,b) FD_SET(a, b)
 #endif
+
 
 typedef struct args_st
 	{
@@ -282,6 +251,8 @@ EVP_PKEY *load_pubkey(BIO *err, const char *file, int format, int maybe_stdin,
 	const char *pass, ENGINE *e, const char *key_descrip);
 STACK_OF(X509) *load_certs(BIO *err, const char *file, int format,
 	const char *pass, ENGINE *e, const char *cert_descrip);
+STACK_OF(X509_CRL) *load_crls(BIO *err, const char *file, int format,
+	const char *pass, ENGINE *e, const char *cert_descrip);
 X509_STORE *setup_verify(BIO *bp, char *CAfile, char *CApath);
 #ifndef OPENSSL_NO_ENGINE
 ENGINE *setup_engine(BIO *err, const char *engine, int debug);
@@ -290,6 +261,7 @@ ENGINE *setup_engine(BIO *err, const char *engine, int debug);
 #ifndef OPENSSL_NO_OCSP
 OCSP_RESPONSE *process_responder(BIO *err, OCSP_REQUEST *req,
 			char *host, char *path, char *port, int use_ssl,
+			STACK_OF(CONF_VALUE) *headers,
 			int req_timeout);
 #endif
 
@@ -331,13 +303,23 @@ int index_index(CA_DB *db);
 int save_index(const char *dbfile, const char *suffix, CA_DB *db);
 int rotate_index(const char *dbfile, const char *new_suffix, const char *old_suffix);
 void free_index(CA_DB *db);
-int index_name_cmp(const char **a, const char **b);
+#define index_name_cmp_noconst(a, b) \
+	index_name_cmp((const OPENSSL_CSTRING *)CHECKED_PTR_OF(OPENSSL_STRING, a), \
+	(const OPENSSL_CSTRING *)CHECKED_PTR_OF(OPENSSL_STRING, b))
+int index_name_cmp(const OPENSSL_CSTRING *a, const OPENSSL_CSTRING *b);
 int parse_yesno(const char *str, int def);
 
 X509_NAME *parse_name(char *str, long chtype, int multirdn);
 int args_verify(char ***pargs, int *pargc,
 			int *badarg, BIO *err, X509_VERIFY_PARAM **pm);
 void policies_print(BIO *out, X509_STORE_CTX *ctx);
+int bio_to_mem(unsigned char **out, int maxlen, BIO *in);
+int pkey_ctrl_string(EVP_PKEY_CTX *ctx, char *value);
+int init_gen_str(BIO *err, EVP_PKEY_CTX **pctx,
+			const char *algname, ENGINE *e, int do_param);
+#ifndef OPENSSL_NO_PSK
+extern char *psk_key;
+#endif
 #ifndef OPENSSL_NO_JPAKE
 void jpake_client_auth(BIO *out, BIO *conn, const char *secret);
 void jpake_server_auth(BIO *out, BIO *conn, const char *secret);
@@ -353,6 +335,10 @@ void jpake_server_auth(BIO *out, BIO *conn, const char *secret);
 #define FORMAT_ENGINE   7
 #define FORMAT_IISSGC	8	/* XXX this stupid macro helps us to avoid
 				 * adding yet another param to load_*key() */
+#define FORMAT_PEMRSA	9	/* PEM RSAPubicKey format */
+#define FORMAT_ASN1RSA	10	/* DER RSAPubicKey format */
+#define FORMAT_MSBLOB	11	/* MS Key blob format */
+#define FORMAT_PVK	12	/* MS PVK file format */
 
 #define EXT_COPY_NONE	0
 #define EXT_COPY_ADD	1
@@ -364,4 +350,15 @@ void jpake_server_auth(BIO *out, BIO *conn, const char *secret);
 
 #define SERIAL_RAND_BITS	64
 
+int app_isdir(const char *);
+int raw_read_stdin(void *,int);
+int raw_write_stdout(const void *,int);
+
+#define TM_START	0
+#define TM_STOP		1
+double app_tminterval (int stop,int usertime);
+#endif
+
+#ifndef OPENSSL_NO_NEXTPROTONEG
+unsigned char *next_protos_parse(unsigned short *outlen, const char *in);
 #endif

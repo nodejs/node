@@ -162,8 +162,28 @@ const char *X509_verify_cert_error_string(long n)
 		return("invalid or inconsistent certificate policy extension");
 	case X509_V_ERR_NO_EXPLICIT_POLICY:
 		return("no explicit policy");
-	case X509_V_ERR_UNNESTED_RESOURCE:
-		return("RFC 3779 resource not subset of parent's resources");
+	case X509_V_ERR_DIFFERENT_CRL_SCOPE:
+	return("Different CRL scope");
+	case X509_V_ERR_UNSUPPORTED_EXTENSION_FEATURE:
+	return("Unsupported extension feature");
+ 	case X509_V_ERR_UNNESTED_RESOURCE:
+ 		return("RFC 3779 resource not subset of parent's resources");
+
+	case X509_V_ERR_PERMITTED_VIOLATION:
+		return("permitted subtree violation");
+	case X509_V_ERR_EXCLUDED_VIOLATION:
+		return("excluded subtree violation");
+	case X509_V_ERR_SUBTREE_MINMAX:
+		return("name constraints minimum and maximum not supported");
+	case X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE:
+		return("unsupported name constraint type");
+	case X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX:
+		return("unsupported or invalid name constraint syntax");
+	case X509_V_ERR_UNSUPPORTED_NAME_SYNTAX:
+		return("unsupported or invalid name syntax");
+	case X509_V_ERR_CRL_PATH_VALIDATION_ERROR:
+		return("CRL path validation error");
+
 	default:
 		BIO_snprintf(buf,sizeof buf,"error number %ld",n);
 		return(buf);

@@ -77,10 +77,39 @@ ASN1_ADB(PKCS7) = {
 	ADB_ENTRY(NID_pkcs7_encrypted, ASN1_NDEF_EXP_OPT(PKCS7, d.encrypted, PKCS7_ENCRYPT, 0))
 } ASN1_ADB_END(PKCS7, 0, type, 0, &p7default_tt, NULL);
 
-ASN1_NDEF_SEQUENCE(PKCS7) = {
+/* PKCS#7 streaming support */
+static int pk7_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
+{
+	ASN1_STREAM_ARG *sarg = exarg;
+	PKCS7 **pp7 = (PKCS7 **)pval;
+
+	switch(operation)
+		{
+
+		case ASN1_OP_STREAM_PRE:
+		if (PKCS7_stream(&sarg->boundary, *pp7) <= 0)
+			return 0;
+		case ASN1_OP_DETACHED_PRE:
+		sarg->ndef_bio = PKCS7_dataInit(*pp7, sarg->out);
+		if (!sarg->ndef_bio)
+			return 0;
+		break;
+
+		case ASN1_OP_STREAM_POST:
+		case ASN1_OP_DETACHED_POST:
+		if (PKCS7_dataFinal(*pp7, sarg->ndef_bio) <= 0)
+			return 0;
+		break;
+
+		}
+	return 1;
+}
+
+ASN1_NDEF_SEQUENCE_cb(PKCS7, pk7_cb) = {
 	ASN1_SIMPLE(PKCS7, type, ASN1_OBJECT),
 	ASN1_ADB_OBJECT(PKCS7)
-}ASN1_NDEF_SEQUENCE_END(PKCS7)
+}ASN1_NDEF_SEQUENCE_END_cb(PKCS7, PKCS7)
 
 IMPLEMENT_ASN1_FUNCTIONS(PKCS7)
 IMPLEMENT_ASN1_NDEF_FUNCTION(PKCS7)
@@ -98,7 +127,8 @@ ASN1_NDEF_SEQUENCE(PKCS7_SIGNED) = {
 IMPLEMENT_ASN1_FUNCTIONS(PKCS7_SIGNED)
 
 /* Minor tweak to operation: free up EVP_PKEY */
-static int si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int si_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
 {
 	if(operation == ASN1_OP_FREE_POST) {
 		PKCS7_SIGNER_INFO *si = (PKCS7_SIGNER_INFO *)*pval;
@@ -140,7 +170,8 @@ ASN1_NDEF_SEQUENCE(PKCS7_ENVELOPE) = {
 IMPLEMENT_ASN1_FUNCTIONS(PKCS7_ENVELOPE)
 
 /* Minor tweak to operation: free up X509 */
-static int ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int ri_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+								void *exarg)
 {
 	if(operation == ASN1_OP_FREE_POST) {
 		PKCS7_RECIP_INFO *ri = (PKCS7_RECIP_INFO *)*pval;
@@ -161,7 +192,7 @@ IMPLEMENT_ASN1_FUNCTIONS(PKCS7_RECIP_INFO)
 ASN1_NDEF_SEQUENCE(PKCS7_ENC_CONTENT) = {
 	ASN1_SIMPLE(PKCS7_ENC_CONTENT, content_type, ASN1_OBJECT),
 	ASN1_SIMPLE(PKCS7_ENC_CONTENT, algorithm, X509_ALGOR),
-	ASN1_IMP_OPT(PKCS7_ENC_CONTENT, enc_data, ASN1_OCTET_STRING, 0)
+	ASN1_IMP_OPT(PKCS7_ENC_CONTENT, enc_data, ASN1_OCTET_STRING_NDEF, 0)
 } ASN1_NDEF_SEQUENCE_END(PKCS7_ENC_CONTENT)
 
 IMPLEMENT_ASN1_FUNCTIONS(PKCS7_ENC_CONTENT)
@@ -212,3 +243,5 @@ ASN1_ITEM_TEMPLATE(PKCS7_ATTR_VERIFY) =
 	ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF | ASN1_TFLG_IMPTAG | ASN1_TFLG_UNIVERSAL,
 				V_ASN1_SET, PKCS7_ATTRIBUTES, X509_ATTRIBUTE)
 ASN1_ITEM_TEMPLATE_END(PKCS7_ATTR_VERIFY)
+
+IMPLEMENT_ASN1_PRINT_FUNCTION(PKCS7)

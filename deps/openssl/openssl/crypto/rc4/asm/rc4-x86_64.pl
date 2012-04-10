@@ -58,14 +58,18 @@
 # fit for Core2 and therefore the code was modified to skip cloop8 on
 # this CPU.
 
-$output=shift;
+$flavour = shift;
+$output  = shift;
+if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+
+$win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
 
 $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open STDOUT,"| $^X $xlate $output";
+open STDOUT,"| $^X $xlate $flavour $output";
 
 $dat="%rdi";	    # arg1
 $len="%rsi";	    # arg2
@@ -87,8 +91,10 @@ RC4:	or	$len,$len
 	jne	.Lentry
 	ret
 .Lentry:
+	push	%rbx
 	push	%r12
 	push	%r13
+.Lprologue:
 
 	add	\$8,$dat
 	movl	-8($dat),$XX[0]#d
@@ -133,16 +139,8 @@ $code.=<<___;
 	jnz	.Lloop8
 	cmp	\$0,$len
 	jne	.Lloop1
-___
-$code.=<<___;
-.Lexit:
-	sub	\$1,$XX[0]#b
-	movl	$XX[0]#d,-8($dat)
-	movl	$YY#d,-4($dat)
+	jmp	.Lexit
 
-	pop	%r13
-	pop	%r12
-	ret
 .align	16
 .Lloop1:
 	add	$TX[0]#b,$YY#b
@@ -169,7 +167,6 @@ $code.=<<___;
 	jz	.Lcloop1
 	cmpl	\$0,260($dat)
 	jnz	.Lcloop1
-	push	%rbx
 	jmp	.Lcloop8
 .align	16
 .Lcloop8:
@@ -224,7 +221,6 @@ $code.=<<___;
 
 	test	\$-8,$len
 	jnz	.Lcloop8
-	pop	%rbx
 	cmp	\$0,$len
 	jne	.Lcloop1
 	jmp	.Lexit
@@ -249,6 +245,19 @@ $code.=<<___;
 	sub	\$1,$len
 	jnz	.Lcloop1
 	jmp	.Lexit
+
+.align	16
+.Lexit:
+	sub	\$1,$XX[0]#b
+	movl	$XX[0]#d,-8($dat)
+	movl	$YY#d,-4($dat)
+
+	mov	(%rsp),%r13
+	mov	8(%rsp),%r12
+	mov	16(%rsp),%rbx
+	add	\$24,%rsp
+.Lepilogue:
+	ret
 .size	RC4,.-RC4
 ___
 
@@ -333,11 +342,10 @@ RC4_set_key:
 .size	RC4_set_key,.-RC4_set_key
 
 .globl	RC4_options
-.type	RC4_options,\@function,0
+.type	RC4_options,\@abi-omnipotent
 .align	16
 RC4_options:
-	.picmeup %rax
-	lea	.Lopts-.(%rax),%rax
+	lea	.Lopts(%rip),%rax
 	mov	OPENSSL_ia32cap_P(%rip),%edx
 	bt	\$20,%edx
 	jnc	.Ldone
@@ -357,9 +365,139 @@ RC4_options:
 .size	RC4_options,.-RC4_options
 ___
 
-$code =~ s/#([bwd])/$1/gm;
+# EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
+#		CONTEXT *context,DISPATCHER_CONTEXT *disp)
+if ($win64) {
+$rec="%rcx";
+$frame="%rdx";
+$context="%r8";
+$disp="%r9";
 
-$code =~ s/RC4_set_key/private_RC4_set_key/g if ($ENV{FIPSCANLIB} ne "");
+$code.=<<___;
+.extern	__imp_RtlVirtualUnwind
+.type	stream_se_handler,\@abi-omnipotent
+.align	16
+stream_se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	lea	.Lprologue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip<prologue label
+	jb	.Lin_prologue
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	lea	.Lepilogue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip>=epilogue label
+	jae	.Lin_prologue
+
+	lea	24(%rax),%rax
+
+	mov	-8(%rax),%rbx
+	mov	-16(%rax),%r12
+	mov	-24(%rax),%r13
+	mov	%rbx,144($context)	# restore context->Rbx
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+
+.Lin_prologue:
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rax,152($context)	# restore context->Rsp
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+	jmp	.Lcommon_seh_exit
+.size	stream_se_handler,.-stream_se_handler
+
+.type	key_se_handler,\@abi-omnipotent
+.align	16
+key_se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	152($context),%rax	# pull context->Rsp
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+.Lcommon_seh_exit:
+
+	mov	40($disp),%rdi		# disp->ContextRecord
+	mov	$context,%rsi		# context
+	mov	\$154,%ecx		# sizeof(CONTEXT)
+	.long	0xa548f3fc		# cld; rep movsq
+
+	mov	$disp,%rsi
+	xor	%rcx,%rcx		# arg1, UNW_FLAG_NHANDLER
+	mov	8(%rsi),%rdx		# arg2, disp->ImageBase
+	mov	0(%rsi),%r8		# arg3, disp->ControlPc
+	mov	16(%rsi),%r9		# arg4, disp->FunctionEntry
+	mov	40(%rsi),%r10		# disp->ContextRecord
+	lea	56(%rsi),%r11		# &disp->HandlerData
+	lea	24(%rsi),%r12		# &disp->EstablisherFrame
+	mov	%r10,32(%rsp)		# arg5
+	mov	%r11,40(%rsp)		# arg6
+	mov	%r12,48(%rsp)		# arg7
+	mov	%rcx,56(%rsp)		# arg8, (NULL)
+	call	*__imp_RtlVirtualUnwind(%rip)
+
+	mov	\$1,%eax		# ExceptionContinueSearch
+	add	\$64,%rsp
+	popfq
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	pop	%rdi
+	pop	%rsi
+	ret
+.size	key_se_handler,.-key_se_handler
+
+.section	.pdata
+.align	4
+	.rva	.LSEH_begin_RC4
+	.rva	.LSEH_end_RC4
+	.rva	.LSEH_info_RC4
+
+	.rva	.LSEH_begin_RC4_set_key
+	.rva	.LSEH_end_RC4_set_key
+	.rva	.LSEH_info_RC4_set_key
+
+.section	.xdata
+.align	8
+.LSEH_info_RC4:
+	.byte	9,0,0,0
+	.rva	stream_se_handler
+.LSEH_info_RC4_set_key:
+	.byte	9,0,0,0
+	.rva	key_se_handler
+___
+}
+
+$code =~ s/#([bwd])/$1/gm;
 
 print $code;
 

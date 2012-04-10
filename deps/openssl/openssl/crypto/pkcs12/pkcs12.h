@@ -108,8 +108,6 @@ PKCS12_MAC_DATA *mac;
 PKCS7 *authsafes;
 } PKCS12;
 
-PREDECLARE_STACK_OF(PKCS12_SAFEBAG)
-
 typedef struct {
 ASN1_OBJECT *type;
 union {
@@ -232,14 +230,9 @@ int PKCS12_set_mac(PKCS12 *p12, const char *pass, int passlen,
 		   const EVP_MD *md_type);
 int PKCS12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt,
 					 int saltlen, const EVP_MD *md_type);
-#if defined(NETWARE) || defined(OPENSSL_SYS_NETWARE)
-/* Rename these functions to avoid name clashes on NetWare OS */
 unsigned char *OPENSSL_asc2uni(const char *asc, int asclen, unsigned char **uni, int *unilen);
 char *OPENSSL_uni2asc(unsigned char *uni, int unilen);
-#else
-unsigned char *asc2uni(const char *asc, int asclen, unsigned char **uni, int *unilen);
-char *uni2asc(unsigned char *uni, int unilen);
-#endif
+
 DECLARE_ASN1_FUNCTIONS(PKCS12)
 DECLARE_ASN1_FUNCTIONS(PKCS12_MAC_DATA)
 DECLARE_ASN1_FUNCTIONS(PKCS12_SAFEBAG)

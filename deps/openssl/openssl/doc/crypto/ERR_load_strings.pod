@@ -1,0 +1,54 @@
+=pod
+
+=head1 NAME
+
+ERR_load_strings, ERR_PACK, ERR_get_next_error_library - load
+arbitrary error strings
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ void ERR_load_strings(int lib, ERR_STRING_DATA str[]);
+
+ int ERR_get_next_error_library(void);
+
+ unsigned long ERR_PACK(int lib, int func, int reason);
+
+=head1 DESCRIPTION
+
+ERR_load_strings() registers error strings for library number B<lib>.
+
+B<str> is an array of error string data:
+
+ typedef struct ERR_string_data_st
+ {
+        unsigned long error;
+        char *string;
+ } ERR_STRING_DATA;
+
+The error code is generated from the library number and a function and
+reason code: B<error> = ERR_PACK(B<lib>, B<func>, B<reason>).
+ERR_PACK() is a macro.
+
+The last entry in the array is {0,0}.
+
+ERR_get_next_error_library() can be used to assign library numbers
+to user libraries at runtime.
+
+=head1 RETURN VALUE
+
+ERR_load_strings() returns no value. ERR_PACK() return the error code.
+ERR_get_next_error_library() returns a new library number.
+
+=head1 SEE ALSO
+
+L<err(3)|err(3)>, L<ERR_load_strings(3)|ERR_load_strings(3)>
+
+=head1 HISTORY
+
+ERR_load_error_strings() and ERR_PACK() are available in all versions
+of SSLeay and OpenSSL. ERR_get_next_error_library() was added in
+SSLeay 0.9.0.
+
+=cut

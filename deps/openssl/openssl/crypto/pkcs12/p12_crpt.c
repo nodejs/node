@@ -60,28 +60,10 @@
 #include "cryptlib.h"
 #include <openssl/pkcs12.h>
 
-/* PKCS#12 specific PBE functions */
+/* PKCS#12 PBE algorithms now in static table */
 
 void PKCS12_PBE_add(void)
 {
-#ifndef OPENSSL_NO_RC4
-EVP_PBE_alg_add(NID_pbe_WithSHA1And128BitRC4, EVP_rc4(), EVP_sha1(),
-							 PKCS12_PBE_keyivgen);
-EVP_PBE_alg_add(NID_pbe_WithSHA1And40BitRC4, EVP_rc4_40(), EVP_sha1(),
-							 PKCS12_PBE_keyivgen);
-#endif
-#ifndef OPENSSL_NO_DES
-EVP_PBE_alg_add(NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
-		 	EVP_des_ede3_cbc(), EVP_sha1(), PKCS12_PBE_keyivgen);
-EVP_PBE_alg_add(NID_pbe_WithSHA1And2_Key_TripleDES_CBC, 
-			EVP_des_ede_cbc(), EVP_sha1(), PKCS12_PBE_keyivgen);
-#endif
-#ifndef OPENSSL_NO_RC2
-EVP_PBE_alg_add(NID_pbe_WithSHA1And128BitRC2_CBC, EVP_rc2_cbc(),
-					EVP_sha1(), PKCS12_PBE_keyivgen);
-EVP_PBE_alg_add(NID_pbe_WithSHA1And40BitRC2_CBC, EVP_rc2_40_cbc(),
-					EVP_sha1(), PKCS12_PBE_keyivgen);
-#endif
 }
 
 int PKCS12_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,

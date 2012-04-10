@@ -105,24 +105,12 @@
  * [including the GNU Public Licence.]
  */
 
-#include "seed_locl.h"
-#include <string.h>
+#include <openssl/seed.h>
+#include <openssl/modes.h>
 
 void SEED_ofb128_encrypt(const unsigned char *in, unsigned char *out,
                          size_t len, const SEED_KEY_SCHEDULE *ks,
                          unsigned char ivec[SEED_BLOCK_SIZE], int *num)
 	{
-	int n;
-
-	n = *num;
-	
-	while (len--)
-		{
-		if (n == 0)
-			SEED_encrypt(ivec, ivec, ks);
-		*(out++) = *(in++) ^ ivec[n];
-		n = (n+1) % SEED_BLOCK_SIZE;
-		}
-
-	*num = n;
+	CRYPTO_ofb128_encrypt(in,out,len,ks,ivec,num,(block128_f)SEED_encrypt);
 	}

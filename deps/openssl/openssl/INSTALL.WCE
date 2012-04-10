@@ -4,27 +4,36 @@
 
  Building OpenSSL for Windows CE requires the following external tools:
 
-  * Microsoft eMbedded Visual C++ 3.0
-  * wcecompat compatibility library (www.essemer.com.au)
-  * Optionally ceutils for running automated tests (www.essemer.com.au)
+  * Microsoft eMbedded Visual C++ 3.0 or later
+  * Appropriate SDK might be required
+  * Perl for Win32 [commonly recommended ActiveState Perl is available
+    from http://www.activestate.com/Products/ActivePerl/]
 
- You also need Perl for Win32.  You will need ActiveState Perl, available
- from http://www.activestate.com/ActivePerl.
+  * wcecompat compatibility library available at
+    http://www.essemer.com.au/windowsce/
+  * Optionally ceutils for running automated tests (same location)
 
- Windows CE support in OpenSSL relies on wcecompat and therefore it's
- appropriate to check http://www.essemer.com.au/windowsce/ for updates in
- case of compilation problems. As for the moment of this writing version
- 1.1 is available and actually required for WCE 4.2 and newer platforms.
- All Windows CE specific issues should be directed to www.essemer.com.au.
+  _or_
 
- The C Runtime Library implementation for Windows CE that is included with
- Microsoft eMbedded Visual C++ 3.0 is incomplete and in some places
- incorrect.  wcecompat plugs the holes and tries to bring the Windows CE
- CRT to a level that is more compatible with ANSI C.  wcecompat goes further
- and provides low-level IO and stream IO support for stdin/stdout/stderr
- (which Windows CE does not provide).  This IO functionality is not needed
- by the OpenSSL library itself but is used for the tests and openssl.exe.
- More information is available at www.essemer.com.au.
+  * PocketConsole driver and PortSDK available at
+    http://www.symbolictools.de/public/pocketconsole/
+  * CMD command interpreter (same location)
+
+ As Windows CE support in OpenSSL relies on 3rd party compatibility
+ library, it's appropriate to check corresponding URL for updates. For
+ example if you choose wcecompat, note that as for the moment of this
+ writing version 1.2 is available and actually required for WCE 4.2
+ and newer platforms. All wcecompat issues should be directed to
+ www.essemer.com.au.
+
+ Why compatibility library at all? The C Runtime Library implementation
+ for Windows CE that is included with Microsoft eMbedded Visual C++ is
+ incomplete and in some places incorrect.  Compatibility library plugs
+ the holes and tries to bring the Windows CE CRT to [more] usable level.
+ Most gaping hole in CRT is support for stdin/stdout/stderr IO, which
+ proposed compatibility libraries solve in two different ways: wcecompat
+ redirects IO to active sync link, while PortSDK - to NT-like console
+ driver on the handheld itself.
 
  Building
  --------
@@ -34,9 +43,21 @@
 
  > "C:\Program Files\Microsoft eMbedded Tools\EVC\WCE300\BIN\WCEARM.BAT"
 
- Next indicate where wcecompat is located:
+ Next pick compatibility library according to your preferences.
 
- > set WCECOMPAT=C:\wcecompat
+ 1. To choose wcecompat set up WCECOMPAT environment variable pointing
+    at the location of wcecompat tree "root":
+
+    > set WCECOMPAT=C:\wcecompat
+    > set PORTSDK_LIBPATH=
+
+ 2. To choose PortSDK set up PORTSDK_LIBPATH to point at hardware-
+    specific location where your portlib.lib is installed:
+
+    > set PORTSDK_LIBPATH=C:\PortSDK\lib\ARM
+    > set WCECOMPAT=
+
+ Note that you may not set both variables.
 
  Next you should run Configure:
 
@@ -52,16 +73,16 @@
 
  Then from the VC++ environment at a prompt do:
 
- - to build static libraries:
-
-   > nmake -f ms\ce.mak
-
- - or to build DLLs:
-
    > nmake -f ms\cedll.mak
 
- If all is well it should compile and you will have some static libraries and
- executables in out32, or some DLLs and executables in out32dll.  If you want
+ [note that static builds are not supported under CE]
+
+ If all is well it should compile and you will have some DLLs and executables
+ in out32dll*. 
+
+ <<< everyting below needs revision in respect to wcecompat vs. PortSDK >>>
+
+ If you want
  to try the tests then make sure the ceutils are in the path and do:
  
  > cd out32

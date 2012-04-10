@@ -55,6 +55,59 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
 
 #ifndef HEADER_ERR_H
 #define HEADER_ERR_H
@@ -94,7 +147,7 @@ extern "C" {
 #define ERR_NUM_ERRORS	16
 typedef struct err_state_st
 	{
-	unsigned long pid;
+	CRYPTO_THREADID tid;
 	int err_flags[ERR_NUM_ERRORS];
 	unsigned long err_buffer[ERR_NUM_ERRORS];
 	char *err_data[ERR_NUM_ERRORS];
@@ -142,7 +195,9 @@ typedef struct err_state_st
 #define ERR_LIB_STORE           44
 #define ERR_LIB_FIPS		45
 #define ERR_LIB_CMS		46
-#define ERR_LIB_JPAKE		47
+#define ERR_LIB_TS		47
+#define ERR_LIB_HMAC		48
+#define ERR_LIB_JPAKE		49
 
 #define ERR_LIB_USER		128
 
@@ -176,6 +231,8 @@ typedef struct err_state_st
 #define STOREerr(f,r) ERR_PUT_error(ERR_LIB_STORE,(f),(r),__FILE__,__LINE__)
 #define FIPSerr(f,r) ERR_PUT_error(ERR_LIB_FIPS,(f),(r),__FILE__,__LINE__)
 #define CMSerr(f,r) ERR_PUT_error(ERR_LIB_CMS,(f),(r),__FILE__,__LINE__)
+#define TSerr(f,r) ERR_PUT_error(ERR_LIB_TS,(f),(r),__FILE__,__LINE__)
+#define HMACerr(f,r) ERR_PUT_error(ERR_LIB_HMAC,(f),(r),__FILE__,__LINE__)
 #define JPAKEerr(f,r) ERR_PUT_error(ERR_LIB_JPAKE,(f),(r),__FILE__,__LINE__)
 
 /* Borland C seems too stupid to be able to shift and do longs in
@@ -232,6 +289,7 @@ typedef struct err_state_st
 #define ERR_R_ECDSA_LIB ERR_LIB_ECDSA	 /* 42 */
 #define ERR_R_ECDH_LIB  ERR_LIB_ECDH	 /* 43 */
 #define ERR_R_STORE_LIB ERR_LIB_STORE    /* 44 */
+#define ERR_R_TS_LIB	ERR_LIB_TS       /* 45 */
 
 #define ERR_R_NESTED_ASN1_ERROR			58
 #define ERR_R_BAD_ASN1_OBJECT_HEADER		59
@@ -294,25 +352,22 @@ void ERR_load_ERR_strings(void);
 void ERR_load_crypto_strings(void);
 void ERR_free_strings(void);
 
+void ERR_remove_thread_state(const CRYPTO_THREADID *tid);
+#ifndef OPENSSL_NO_DEPRECATED
 void ERR_remove_state(unsigned long pid); /* if zero we look it up */
+#endif
 ERR_STATE *ERR_get_state(void);
 
 #ifndef OPENSSL_NO_LHASH
-LHASH *ERR_get_string_table(void);
-LHASH *ERR_get_err_state_table(void);
-void ERR_release_err_state_table(LHASH **hash);
+LHASH_OF(ERR_STRING_DATA) *ERR_get_string_table(void);
+LHASH_OF(ERR_STATE) *ERR_get_err_state_table(void);
+void ERR_release_err_state_table(LHASH_OF(ERR_STATE) **hash);
 #endif
 
 int ERR_get_next_error_library(void);
 
 int ERR_set_mark(void);
 int ERR_pop_to_mark(void);
-
-#ifdef OPENSSL_FIPS
-void int_ERR_set_state_func(ERR_STATE *(*get_func)(void),
-				void (*remove_func)(unsigned long pid));
-void int_ERR_lib_init(void);
-#endif
 
 /* Already defined in ossl_typ.h */
 /* typedef struct st_ERR_FNS ERR_FNS; */

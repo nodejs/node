@@ -84,20 +84,24 @@ int X509V3_EXT_add(X509V3_EXT_METHOD *ext)
 }
 
 static int ext_cmp(const X509V3_EXT_METHOD * const *a,
-		const X509V3_EXT_METHOD * const *b)
+		   const X509V3_EXT_METHOD * const *b)
 {
 	return ((*a)->ext_nid - (*b)->ext_nid);
 }
 
-X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
+DECLARE_OBJ_BSEARCH_CMP_FN(const X509V3_EXT_METHOD *, const X509V3_EXT_METHOD *,
+			   ext);
+IMPLEMENT_OBJ_BSEARCH_CMP_FN(const X509V3_EXT_METHOD *,
+			     const X509V3_EXT_METHOD *, ext);
+
+const X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
 {
-	X509V3_EXT_METHOD tmp, *t = &tmp, **ret;
+	X509V3_EXT_METHOD tmp;
+	const X509V3_EXT_METHOD *t = &tmp, * const *ret;
 	int idx;
 	if(nid < 0) return NULL;
 	tmp.ext_nid = nid;
-	ret = (X509V3_EXT_METHOD **) OBJ_bsearch((char *)&t,
-			(char *)standard_exts, STANDARD_EXTENSION_COUNT,
-			sizeof(X509V3_EXT_METHOD *), (int (*)(const void *, const void *))ext_cmp);
+	ret = OBJ_bsearch_ext(&t, standard_exts, STANDARD_EXTENSION_COUNT);
 	if(ret) return *ret;
 	if(!ext_list) return NULL;
 	idx = sk_X509V3_EXT_METHOD_find(ext_list, &tmp);
@@ -105,7 +109,7 @@ X509V3_EXT_METHOD *X509V3_EXT_get_nid(int nid)
 	return sk_X509V3_EXT_METHOD_value(ext_list, idx);
 }
 
-X509V3_EXT_METHOD *X509V3_EXT_get(X509_EXTENSION *ext)
+const X509V3_EXT_METHOD *X509V3_EXT_get(X509_EXTENSION *ext)
 {
 	int nid;
 	if((nid = OBJ_obj2nid(ext->object)) == NID_undef) return NULL;
@@ -122,7 +126,9 @@ int X509V3_EXT_add_list(X509V3_EXT_METHOD *extlist)
 
 int X509V3_EXT_add_alias(int nid_to, int nid_from)
 {
-	X509V3_EXT_METHOD *ext, *tmpext;
+	const X509V3_EXT_METHOD *ext;
+	X509V3_EXT_METHOD *tmpext;
+
 	if(!(ext = X509V3_EXT_get_nid(nid_from))) {
 		X509V3err(X509V3_F_X509V3_EXT_ADD_ALIAS,X509V3_R_EXTENSION_NOT_FOUND);
 		return 0;
@@ -161,7 +167,7 @@ int X509V3_add_standard_extensions(void)
 
 void *X509V3_EXT_d2i(X509_EXTENSION *ext)
 {
-	X509V3_EXT_METHOD *method;
+	const X509V3_EXT_METHOD *method;
 	const unsigned char *p;
 
 	if(!(method = X509V3_EXT_get(ext))) return NULL;

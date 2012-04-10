@@ -34,7 +34,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -75,13 +75,32 @@ clean:
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 
-seed.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-seed.o: ../../include/openssl/seed.h seed.c seed_locl.h
-seed_cbc.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-seed_cbc.o: ../../include/openssl/seed.h seed_cbc.c seed_locl.h
-seed_cfb.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-seed_cfb.o: ../../include/openssl/seed.h seed_cfb.c seed_locl.h
-seed_ecb.o: ../../include/openssl/opensslconf.h ../../include/openssl/seed.h
+seed.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+seed.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+seed.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
+seed.o: ../../include/openssl/seed.h ../../include/openssl/stack.h
+seed.o: ../../include/openssl/symhacks.h seed.c seed_locl.h
+seed_cbc.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+seed_cbc.o: ../../include/openssl/modes.h ../../include/openssl/opensslconf.h
+seed_cbc.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+seed_cbc.o: ../../include/openssl/safestack.h ../../include/openssl/seed.h
+seed_cbc.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+seed_cbc.o: seed_cbc.c
+seed_cfb.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+seed_cfb.o: ../../include/openssl/modes.h ../../include/openssl/opensslconf.h
+seed_cfb.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+seed_cfb.o: ../../include/openssl/safestack.h ../../include/openssl/seed.h
+seed_cfb.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+seed_cfb.o: seed_cfb.c
+seed_ecb.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+seed_ecb.o: ../../include/openssl/opensslconf.h
+seed_ecb.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+seed_ecb.o: ../../include/openssl/safestack.h ../../include/openssl/seed.h
+seed_ecb.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 seed_ecb.o: seed_ecb.c
-seed_ofb.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
-seed_ofb.o: ../../include/openssl/seed.h seed_locl.h seed_ofb.c
+seed_ofb.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+seed_ofb.o: ../../include/openssl/modes.h ../../include/openssl/opensslconf.h
+seed_ofb.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+seed_ofb.o: ../../include/openssl/safestack.h ../../include/openssl/seed.h
+seed_ofb.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+seed_ofb.o: seed_ofb.c

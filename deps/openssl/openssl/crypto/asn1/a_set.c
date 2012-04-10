@@ -85,8 +85,9 @@ static int SetBlobCmp(const void *elem1, const void *elem2 )
     }
 
 /* int is_set:  if TRUE, then sort the contents (i.e. it isn't a SEQUENCE)    */
-int i2d_ASN1_SET(STACK *a, unsigned char **pp, i2d_of_void *i2d, int ex_tag,
-		 int ex_class, int is_set)
+int i2d_ASN1_SET(STACK_OF(OPENSSL_BLOCK) *a, unsigned char **pp,
+		 i2d_of_void *i2d, int ex_tag, int ex_class,
+		 int is_set)
 	{
 	int ret=0,r;
 	int i;
@@ -96,8 +97,8 @@ int i2d_ASN1_SET(STACK *a, unsigned char **pp, i2d_of_void *i2d, int ex_tag,
         int totSize;
 
 	if (a == NULL) return(0);
-	for (i=sk_num(a)-1; i>=0; i--)
-		ret+=i2d(sk_value(a,i),NULL);
+	for (i=sk_OPENSSL_BLOCK_num(a)-1; i>=0; i--)
+		ret+=i2d(sk_OPENSSL_BLOCK_value(a,i),NULL);
 	r=ASN1_object_size(1,ret,ex_tag);
 	if (pp == NULL) return(r);
 
@@ -108,10 +109,10 @@ int i2d_ASN1_SET(STACK *a, unsigned char **pp, i2d_of_void *i2d, int ex_tag,
 	/* And then again by Ben */
 	/* And again by Steve */
 
-	if(!is_set || (sk_num(a) < 2))
+	if(!is_set || (sk_OPENSSL_BLOCK_num(a) < 2))
 		{
-		for (i=0; i<sk_num(a); i++)
-                	i2d(sk_value(a,i),&p);
+		for (i=0; i<sk_OPENSSL_BLOCK_num(a); i++)
+                	i2d(sk_OPENSSL_BLOCK_value(a,i),&p);
 
 		*pp=p;
 		return(r);
@@ -119,17 +120,17 @@ int i2d_ASN1_SET(STACK *a, unsigned char **pp, i2d_of_void *i2d, int ex_tag,
 
         pStart  = p; /* Catch the beg of Setblobs*/
 		/* In this array we will store the SET blobs */
-		rgSetBlob = (MYBLOB *)OPENSSL_malloc(sk_num(a) * sizeof(MYBLOB));
+		rgSetBlob = OPENSSL_malloc(sk_OPENSSL_BLOCK_num(a) * sizeof(MYBLOB));
 		if (rgSetBlob == NULL)
 			{
 			ASN1err(ASN1_F_I2D_ASN1_SET,ERR_R_MALLOC_FAILURE);
 			return(0);
 			}
 
-        for (i=0; i<sk_num(a); i++)
+        for (i=0; i<sk_OPENSSL_BLOCK_num(a); i++)
 	        {
                 rgSetBlob[i].pbData = p;  /* catch each set encode blob */
-                i2d(sk_value(a,i),&p);
+                i2d(sk_OPENSSL_BLOCK_value(a,i),&p);
                 rgSetBlob[i].cbData = p - rgSetBlob[i].pbData; /* Length of this
 SetBlob
 */
@@ -139,7 +140,7 @@ SetBlob
 
  /* Now we have to sort the blobs. I am using a simple algo.
     *Sort ptrs *Copy to temp-mem *Copy from temp-mem to user-mem*/
-        qsort( rgSetBlob, sk_num(a), sizeof(MYBLOB), SetBlobCmp);
+        qsort( rgSetBlob, sk_OPENSSL_BLOCK_num(a), sizeof(MYBLOB), SetBlobCmp);
 		if (!(pTempMem = OPENSSL_malloc(totSize)))
 			{
 			ASN1err(ASN1_F_I2D_ASN1_SET,ERR_R_MALLOC_FAILURE);
@@ -148,7 +149,7 @@ SetBlob
 
 /* Copy to temp mem */
         p = pTempMem;
-        for(i=0; i<sk_num(a); ++i)
+        for(i=0; i<sk_OPENSSL_BLOCK_num(a); ++i)
 		{
                 memcpy(p, rgSetBlob[i].pbData, rgSetBlob[i].cbData);
                 p += rgSetBlob[i].cbData;
@@ -162,16 +163,18 @@ SetBlob
         return(r);
         }
 
-STACK *d2i_ASN1_SET(STACK **a, const unsigned char **pp, long length,
-		    d2i_of_void *d2i, void (*free_func)(void *), int ex_tag,
-		    int ex_class)
+STACK_OF(OPENSSL_BLOCK) *d2i_ASN1_SET(STACK_OF(OPENSSL_BLOCK) **a,
+			      const unsigned char **pp,
+			      long length, d2i_of_void *d2i,
+			      void (*free_func)(OPENSSL_BLOCK), int ex_tag,
+			      int ex_class)
 	{
 	ASN1_const_CTX c;
-	STACK *ret=NULL;
+	STACK_OF(OPENSSL_BLOCK) *ret=NULL;
 
 	if ((a == NULL) || ((*a) == NULL))
 		{
-		if ((ret=sk_new_null()) == NULL)
+		if ((ret=sk_OPENSSL_BLOCK_new_null()) == NULL)
 			{
 			ASN1err(ASN1_F_D2I_ASN1_SET,ERR_R_MALLOC_FAILURE);
 			goto err;
@@ -216,10 +219,10 @@ STACK *d2i_ASN1_SET(STACK **a, const unsigned char **pp, long length,
 		if ((s=d2i(NULL,&c.p,c.slen)) == NULL)
 			{
 			ASN1err(ASN1_F_D2I_ASN1_SET,ASN1_R_ERROR_PARSING_SET_ELEMENT);
-			asn1_add_error(*pp,(int)(c.q- *pp));
+			asn1_add_error(*pp,(int)(c.p- *pp));
 			goto err;
 			}
-		if (!sk_push(ret,s)) goto err;
+		if (!sk_OPENSSL_BLOCK_push(ret,s)) goto err;
 		}
 	if (a != NULL) (*a)=ret;
 	*pp=c.p;
@@ -228,9 +231,9 @@ err:
 	if ((ret != NULL) && ((a == NULL) || (*a != ret)))
 		{
 		if (free_func != NULL)
-			sk_pop_free(ret,free_func);
+			sk_OPENSSL_BLOCK_pop_free(ret,free_func);
 		else
-			sk_free(ret);
+			sk_OPENSSL_BLOCK_free(ret);
 		}
 	return(NULL);
 	}

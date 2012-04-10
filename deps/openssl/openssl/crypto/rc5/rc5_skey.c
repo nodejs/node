@@ -56,28 +56,11 @@
  * [including the GNU Public Licence.]
  */
 
-#include <openssl/crypto.h>
 #include <openssl/rc5.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 #include "rc5_locl.h"
 
-#ifdef OPENSSL_FIPS
 void RC5_32_set_key(RC5_32_KEY *key, int len, const unsigned char *data,
 		    int rounds)
-	{
-	if (FIPS_mode())
-		FIPS_BAD_ABORT(RC5)
-	private_RC5_32_set_key(key, len, data, rounds);
-	}
-void private_RC5_32_set_key(RC5_32_KEY *key, int len, const unsigned char *data,
-		    int rounds)
-#else
-void RC5_32_set_key(RC5_32_KEY *key, int len, const unsigned char *data,
-		    int rounds)
-#endif
 	{
 	RC5_32_INT L[64],l,ll,A,B,*S,k;
 	int i,j,m,c,t,ii,jj;

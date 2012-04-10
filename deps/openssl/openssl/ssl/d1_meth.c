@@ -61,8 +61,8 @@
 #include <openssl/objects.h>
 #include "ssl_locl.h"
 
-static SSL_METHOD *dtls1_get_method(int ver);
-static SSL_METHOD *dtls1_get_method(int ver)
+static const SSL_METHOD *dtls1_get_method(int ver);
+static const SSL_METHOD *dtls1_get_method(int ver)
 	{
 	if (ver == DTLS1_VERSION)
 		return(DTLSv1_method());

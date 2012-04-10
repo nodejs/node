@@ -100,8 +100,8 @@ static int acpt_new(BIO *h);
 static int acpt_free(BIO *data);
 static int acpt_state(BIO *b, BIO_ACCEPT *c);
 static void acpt_close_socket(BIO *data);
-BIO_ACCEPT *BIO_ACCEPT_new(void );
-void BIO_ACCEPT_free(BIO_ACCEPT *a);
+static BIO_ACCEPT *BIO_ACCEPT_new(void );
+static void BIO_ACCEPT_free(BIO_ACCEPT *a);
 
 #define ACPT_S_BEFORE			1
 #define ACPT_S_GET_ACCEPT_SOCKET	2
@@ -141,7 +141,7 @@ static int acpt_new(BIO *bi)
 	return(1);
 	}
 
-BIO_ACCEPT *BIO_ACCEPT_new(void)
+static BIO_ACCEPT *BIO_ACCEPT_new(void)
 	{
 	BIO_ACCEPT *ret;
 
@@ -154,7 +154,7 @@ BIO_ACCEPT *BIO_ACCEPT_new(void)
 	return(ret);
 	}
 
-void BIO_ACCEPT_free(BIO_ACCEPT *a)
+static void BIO_ACCEPT_free(BIO_ACCEPT *a)
 	{
 	if(a == NULL)
 	    return;

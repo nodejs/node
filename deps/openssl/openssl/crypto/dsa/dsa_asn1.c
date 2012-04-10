@@ -3,7 +3,7 @@
  * project 2000.
  */
 /* ====================================================================
- * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,25 +61,23 @@
 #include <openssl/dsa.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
-#include <openssl/bn.h>
-#include <openssl/rand.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 
 /* Override the default new methods */
-static int sig_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int sig_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+								void *exarg)
 {
 	if(operation == ASN1_OP_NEW_PRE) {
 		DSA_SIG *sig;
 		sig = OPENSSL_malloc(sizeof(DSA_SIG));
+		if (!sig)
+			{
+			DSAerr(DSA_F_SIG_CB, ERR_R_MALLOC_FAILURE);
+			return 0;
+			}
 		sig->r = NULL;
 		sig->s = NULL;
 		*pval = (ASN1_VALUE *)sig;
-		if(sig) return 2;
-		DSAerr(DSA_F_SIG_CB, ERR_R_MALLOC_FAILURE);
-		return 0;
+		return 2;
 	}
 	return 1;
 }
@@ -89,10 +87,11 @@ ASN1_SEQUENCE_cb(DSA_SIG, sig_cb) = {
 	ASN1_SIMPLE(DSA_SIG, s, CBIGNUM)
 } ASN1_SEQUENCE_END_cb(DSA_SIG, DSA_SIG)
 
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(DSA_SIG,DSA_SIG,DSA_SIG)
+IMPLEMENT_ASN1_FUNCTIONS_const(DSA_SIG)
 
 /* Override the default free and new methods */
-static int dsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int dsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
 {
 	if(operation == ASN1_OP_NEW_PRE) {
 		*pval = (ASN1_VALUE *)DSA_new();
@@ -145,76 +144,7 @@ ASN1_CHOICE_cb(DSAPublicKey, dsa_cb) = {
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(DSA, DSAPublicKey, DSAPublicKey)
 
-int DSA_sign(int type, const unsigned char *dgst, int dlen, unsigned char *sig,
-	     unsigned int *siglen, DSA *dsa)
+DSA *DSAparams_dup(DSA *dsa)
 	{
-	DSA_SIG *s;
-#ifdef OPENSSL_FIPS
-	if(FIPS_mode() && !(dsa->flags & DSA_FLAG_NON_FIPS_ALLOW))
-		{
-		DSAerr(DSA_F_DSA_SIGN, DSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE);
-		return 0;
-		}
-#endif
-	RAND_seed(dgst, dlen);
-	s=DSA_do_sign(dgst,dlen,dsa);
-	if (s == NULL)
-		{
-		*siglen=0;
-		return(0);
-		}
-	*siglen=i2d_DSA_SIG(s,&sig);
-	DSA_SIG_free(s);
-	return(1);
+	return ASN1_item_dup(ASN1_ITEM_rptr(DSAparams), dsa);
 	}
-
-int DSA_size(const DSA *r)
-	{
-	int ret,i;
-	ASN1_INTEGER bs;
-	unsigned char buf[4];	/* 4 bytes looks really small.
-				   However, i2d_ASN1_INTEGER() will not look
-				   beyond the first byte, as long as the second
-				   parameter is NULL. */
-
-	i=BN_num_bits(r->q);
-	bs.length=(i+7)/8;
-	bs.data=buf;
-	bs.type=V_ASN1_INTEGER;
-	/* If the top bit is set the asn1 encoding is 1 larger. */
-	buf[0]=0xff;	
-
-	i=i2d_ASN1_INTEGER(&bs,NULL);
-	i+=i; /* r and s */
-	ret=ASN1_object_size(1,i,V_ASN1_SEQUENCE);
-	return(ret);
-	}
-
-/* data has already been hashed (probably with SHA or SHA-1). */
-/* returns
- *      1: correct signature
- *      0: incorrect signature
- *     -1: error
- */
-int DSA_verify(int type, const unsigned char *dgst, int dgst_len,
-	     const unsigned char *sigbuf, int siglen, DSA *dsa)
-	{
-	DSA_SIG *s;
-	int ret=-1;
-#ifdef OPENSSL_FIPS
-	if(FIPS_mode() && !(dsa->flags & DSA_FLAG_NON_FIPS_ALLOW))
-		{
-		DSAerr(DSA_F_DSA_VERIFY, DSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE);
-		return 0;
-		}
-#endif
-
-	s = DSA_SIG_new();
-	if (s == NULL) return(ret);
-	if (d2i_DSA_SIG(&s,&sigbuf,siglen) == NULL) goto err;
-	ret=DSA_do_verify(dgst,dgst_len,s,dsa);
-err:
-	DSA_SIG_free(s);
-	return(ret);
-	}
-

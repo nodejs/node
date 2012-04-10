@@ -60,7 +60,8 @@
 #include "cms.h"
 #include "cms_lcl.h"
 
-IMPLEMENT_ASN1_FUNCTIONS_const(CMS_ContentInfo)
+IMPLEMENT_ASN1_FUNCTIONS(CMS_ContentInfo)
+IMPLEMENT_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 
 DECLARE_ASN1_ITEM(CMS_CertificateChoices)
 DECLARE_ASN1_ITEM(CMS_RevocationInfoChoice)
@@ -346,20 +347,10 @@ void cms_DigestAlgorithm_set(X509_ALGOR *alg, const EVP_MD *md)
 	{
 	int param_type;
 
-	switch (EVP_MD_type(md))
-		{
-		case NID_sha1:
-		case NID_sha224:
-		case NID_sha256:
-		case NID_sha384:
-		case NID_sha512:
+	if (md->flags & EVP_MD_FLAG_DIGALGID_ABSENT)
 		param_type = V_ASN1_UNDEF;
-		break;
-	
-		default:
+	else
 		param_type = V_ASN1_NULL;
-		break;
-		}
 
 	X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_MD_type(md)), param_type, NULL);
 
@@ -559,6 +550,15 @@ int CMS_add0_crl(CMS_ContentInfo *cms, X509_CRL *crl)
 	rch->type = CMS_REVCHOICE_CRL;
 	rch->d.crl = crl;
 	return 1;
+	}
+
+int CMS_add1_crl(CMS_ContentInfo *cms, X509_CRL *crl)
+	{
+	int r;
+	r = CMS_add0_crl(cms, crl);
+	if (r > 0)
+		CRYPTO_add(&crl->references, 1, CRYPTO_LOCK_X509_CRL);
+	return r;
 	}
 
 STACK_OF(X509) *CMS_get1_certs(CMS_ContentInfo *cms)

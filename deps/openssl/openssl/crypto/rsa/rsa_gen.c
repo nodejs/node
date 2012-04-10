@@ -68,8 +68,6 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 
-#ifndef OPENSSL_FIPS
-
 static int rsa_builtin_keygen(RSA *rsa, int bits, BIGNUM *e_value, BN_GENCB *cb);
 
 /* NB: this wrapper would normally be placed in rsa_lib.c and the static
@@ -219,4 +217,3 @@ err:
 	return ok;
 	}
 
-#endif

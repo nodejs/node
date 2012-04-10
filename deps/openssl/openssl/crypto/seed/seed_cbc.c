@@ -49,81 +49,15 @@
  *
  */
 
-#include "seed_locl.h"
-#include <string.h>
+#include <openssl/seed.h>
+#include <openssl/modes.h>
 
 void SEED_cbc_encrypt(const unsigned char *in, unsigned char *out,
                       size_t len, const SEED_KEY_SCHEDULE *ks,
                       unsigned char ivec[SEED_BLOCK_SIZE], int enc)
 	{
-	size_t n;
-	unsigned char tmp[SEED_BLOCK_SIZE];
-	const unsigned char *iv = ivec;
-
 	if (enc)
-		{
-		while (len >= SEED_BLOCK_SIZE)
-			{
-			for (n = 0; n < SEED_BLOCK_SIZE; ++n)
-				out[n] = in[n] ^ iv[n];
-			SEED_encrypt(out, out, ks);
-			iv = out;
-			len -= SEED_BLOCK_SIZE;
-			in  += SEED_BLOCK_SIZE;
-			out += SEED_BLOCK_SIZE;
-			}
-		if (len)
-			{
-			for (n = 0; n < len; ++n)
-				out[n] = in[n] ^ iv[n];
-			for (n = len; n < SEED_BLOCK_SIZE; ++n)
-				out[n] = iv[n];
-			SEED_encrypt(out, out, ks);
-			iv = out;
-			}
-		memcpy(ivec, iv, SEED_BLOCK_SIZE);
-		}
-	else if (in != out) /* decrypt */
-		{
-		while (len >= SEED_BLOCK_SIZE)
-			{
-			SEED_decrypt(in, out, ks);
-			for (n = 0; n < SEED_BLOCK_SIZE; ++n)
-				out[n] ^= iv[n];
-			iv = in;
-			len -= SEED_BLOCK_SIZE;
-			in  += SEED_BLOCK_SIZE;
-			out += SEED_BLOCK_SIZE;
-			}
-		if (len)
-			{
-			SEED_decrypt(in, tmp, ks);
-			for (n = 0; n < len; ++n)
-				out[n] = tmp[n] ^ iv[n];
-			iv = in;
-			}
-		memcpy(ivec, iv, SEED_BLOCK_SIZE);
-		}
-	else /* decrypt, overlap */
-		{
-		while (len >= SEED_BLOCK_SIZE)
-			{
-			memcpy(tmp, in, SEED_BLOCK_SIZE);
-			SEED_decrypt(in, out, ks);
-			for (n = 0; n < SEED_BLOCK_SIZE; ++n)
-				out[n] ^= ivec[n];
-			memcpy(ivec, tmp, SEED_BLOCK_SIZE);
-			len -= SEED_BLOCK_SIZE;
-			in  += SEED_BLOCK_SIZE;
-			out += SEED_BLOCK_SIZE;
-			}
-		if (len)
-			{
-			memcpy(tmp, in, SEED_BLOCK_SIZE);
-			SEED_decrypt(tmp, tmp, ks);
-			for (n = 0; n < len; ++n)
-				out[n] = tmp[n] ^ ivec[n];
-			memcpy(ivec, tmp, SEED_BLOCK_SIZE);
-			}
-		}
+		CRYPTO_cbc128_encrypt(in,out,len,ks,ivec,(block128_f)SEED_encrypt);
+	else
+		CRYPTO_cbc128_decrypt(in,out,len,ks,ivec,(block128_f)SEED_decrypt);
 	}

@@ -486,7 +486,7 @@ static void print_word(BIO *bp,BN_ULONG w)
 		return;
 		}
 #endif
-	BIO_printf(bp,"%lX",w);
+	BIO_printf(bp,BN_HEX_FMT1,w);
 	}
 
 int test_div_word(BIO *bp)
@@ -732,6 +732,8 @@ int test_mont(BIO *bp, BN_CTX *ctx)
 	BN_init(&n);
 
 	mont=BN_MONT_CTX_new();
+	if (mont == NULL)
+		return 0;
 
 	BN_bntest_rand(&a,100,0,0); /**/
 	BN_bntest_rand(&b,100,0,0); /**/
@@ -1116,8 +1118,8 @@ int test_gf2m_mod(BIO *bp)
 	{
 	BIGNUM *a,*b[2],*c,*d,*e;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1174,8 +1176,8 @@ int test_gf2m_mod_mul(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d,*e,*f,*g,*h;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1245,8 +1247,8 @@ int test_gf2m_mod_sqr(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1304,8 +1306,8 @@ int test_gf2m_mod_inv(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1359,8 +1361,8 @@ int test_gf2m_mod_div(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d,*e,*f;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1422,8 +1424,8 @@ int test_gf2m_mod_exp(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d,*e,*f;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1493,8 +1495,8 @@ int test_gf2m_mod_sqrt(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d,*e,*f;
 	int i, j, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();
@@ -1552,8 +1554,8 @@ int test_gf2m_mod_solve_quad(BIO *bp,BN_CTX *ctx)
 	{
 	BIGNUM *a,*b[2],*c,*d,*e;
 	int i, j, s = 0, t, ret = 0;
-	unsigned int p0[] = {163,7,6,3,0};
-	unsigned int p1[] = {193,15,0};
+	int p0[] = {163,7,6,3,0,-1};
+	int p1[] = {193,15,0,-1};
 
 	a=BN_new();
 	b[0]=BN_new();

@@ -1,6 +1,6 @@
 /* crypto/cms/cms_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2008 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -133,7 +133,7 @@ static ERR_STRING_DATA CMS_str_functs[]=
 {ERR_FUNC(CMS_F_CMS_SIGNERINFO_VERIFY_CERT),	"CMS_SIGNERINFO_VERIFY_CERT"},
 {ERR_FUNC(CMS_F_CMS_SIGNERINFO_VERIFY_CONTENT),	"CMS_SignerInfo_verify_content"},
 {ERR_FUNC(CMS_F_CMS_SIGN_RECEIPT),	"CMS_sign_receipt"},
-{ERR_FUNC(CMS_F_CMS_STREAM),	"CMS_STREAM"},
+{ERR_FUNC(CMS_F_CMS_STREAM),	"CMS_stream"},
 {ERR_FUNC(CMS_F_CMS_UNCOMPRESS),	"CMS_uncompress"},
 {ERR_FUNC(CMS_F_CMS_VERIFY),	"CMS_verify"},
 {0,NULL}

@@ -5,10 +5,6 @@
  * ====================================================================
  */
 #include <openssl/opensslconf.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 #if !defined(OPENSSL_NO_SHA) && !defined(OPENSSL_NO_SHA512)
 /*
  * IMPLEMENTATION NOTES.
@@ -65,9 +61,19 @@ const char SHA512_version[]="SHA-512" OPENSSL_VERSION_PTEXT;
 
 int SHA384_Init (SHA512_CTX *c)
 	{
-#ifdef OPENSSL_FIPS
-	FIPS_selftest_check();
-#endif
+#if defined(SHA512_ASM) && (defined(__arm__) || defined(__arm))
+	/* maintain dword order required by assembler module */
+	unsigned int *h = (unsigned int *)c->h;
+
+	h[0]  = 0xcbbb9d5d; h[1]  = 0xc1059ed8;
+	h[2]  = 0x629a292a; h[3]  = 0x367cd507;
+	h[4]  = 0x9159015a; h[5]  = 0x3070dd17;
+	h[6]  = 0x152fecd8; h[7]  = 0xf70e5939;
+	h[8]  = 0x67332667; h[9]  = 0xffc00b31;
+	h[10] = 0x8eb44a87; h[11] = 0x68581511;
+	h[12] = 0xdb0c2e0d; h[13] = 0x64f98fa7;
+	h[14] = 0x47b5481d; h[15] = 0xbefa4fa4;
+#else
 	c->h[0]=U64(0xcbbb9d5dc1059ed8);
 	c->h[1]=U64(0x629a292a367cd507);
 	c->h[2]=U64(0x9159015a3070dd17);
@@ -76,6 +82,7 @@ int SHA384_Init (SHA512_CTX *c)
 	c->h[5]=U64(0x8eb44a8768581511);
 	c->h[6]=U64(0xdb0c2e0d64f98fa7);
 	c->h[7]=U64(0x47b5481dbefa4fa4);
+#endif
         c->Nl=0;        c->Nh=0;
         c->num=0;       c->md_len=SHA384_DIGEST_LENGTH;
         return 1;
@@ -83,9 +90,19 @@ int SHA384_Init (SHA512_CTX *c)
 
 int SHA512_Init (SHA512_CTX *c)
 	{
-#ifdef OPENSSL_FIPS
-	FIPS_selftest_check();
-#endif
+#if defined(SHA512_ASM) && (defined(__arm__) || defined(__arm))
+	/* maintain dword order required by assembler module */
+	unsigned int *h = (unsigned int *)c->h;
+
+	h[0]  = 0x6a09e667; h[1]  = 0xf3bcc908;
+	h[2]  = 0xbb67ae85; h[3]  = 0x84caa73b;
+	h[4]  = 0x3c6ef372; h[5]  = 0xfe94f82b;
+	h[6]  = 0xa54ff53a; h[7]  = 0x5f1d36f1;
+	h[8]  = 0x510e527f; h[9]  = 0xade682d1;
+	h[10] = 0x9b05688c; h[11] = 0x2b3e6c1f;
+	h[12] = 0x1f83d9ab; h[13] = 0xfb41bd6b;
+	h[14] = 0x5be0cd19; h[15] = 0x137e2179;
+#else
 	c->h[0]=U64(0x6a09e667f3bcc908);
 	c->h[1]=U64(0xbb67ae8584caa73b);
 	c->h[2]=U64(0x3c6ef372fe94f82b);
@@ -94,6 +111,7 @@ int SHA512_Init (SHA512_CTX *c)
 	c->h[5]=U64(0x9b05688c2b3e6c1f);
 	c->h[6]=U64(0x1f83d9abfb41bd6b);
 	c->h[7]=U64(0x5be0cd19137e2179);
+#endif
         c->Nl=0;        c->Nh=0;
         c->num=0;       c->md_len=SHA512_DIGEST_LENGTH;
         return 1;
@@ -142,6 +160,24 @@ int SHA512_Final (unsigned char *md, SHA512_CTX *c)
 
 	if (md==0) return 0;
 
+#if defined(SHA512_ASM) && (defined(__arm__) || defined(__arm))
+	/* recall assembler dword order... */
+	n = c->md_len;
+	if (n == SHA384_DIGEST_LENGTH || n == SHA512_DIGEST_LENGTH)
+		{
+		unsigned int *h = (unsigned int *)c->h, t;
+
+		for (n/=4;n;n--)
+			{
+			t = *(h++);
+			*(md++) = (unsigned char)(t>>24);
+			*(md++) = (unsigned char)(t>>16);
+			*(md++) = (unsigned char)(t>>8);
+			*(md++) = (unsigned char)(t);
+			}
+		}
+	else	return 0;
+#else
 	switch (c->md_len)
 		{
 		/* Let compiler decide if it's appropriate to unroll... */
@@ -178,7 +214,7 @@ int SHA512_Final (unsigned char *md, SHA512_CTX *c)
 		/* ... as well as make sure md_len is not abused. */
 		default:	return 0;
 		}
-
+#endif
 	return 1;
 	}
 
@@ -204,7 +240,7 @@ int SHA512_Update (SHA512_CTX *c, const void *_data, size_t len)
 
 		if (len < n)
 			{
-			memcpy (p+c->num,data,len), c->num += len;
+			memcpy (p+c->num,data,len), c->num += (unsigned int)len;
 			return 1;
 			}
 		else	{
@@ -314,7 +350,7 @@ static const SHA_LONG64 K512[80] = {
 #ifndef PEDANTIC
 # if defined(__GNUC__) && __GNUC__>=2 && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
 #  if defined(__x86_64) || defined(__x86_64__)
-#   define ROTR(a,n)	({ unsigned long ret;		\
+#   define ROTR(a,n)	({ SHA_LONG64 ret;		\
 				asm ("rorq %1,%0"	\
 				: "=r"(ret)		\
 				: "J"(n),"0"(a)		\
@@ -337,20 +373,21 @@ static const SHA_LONG64 K512[80] = {
 				((SHA_LONG64)hi)<<32|lo;	})
 #   else
 #    define PULL64(x) ({ const unsigned int *p=(const unsigned int *)(&(x));\
-			 unsigned int hi=p[0],lo=p[1];			\
+			 unsigned int hi=p[0],lo=p[1];		\
 				asm ("bswapl %0; bswapl %1;"	\
 				: "=r"(lo),"=r"(hi)		\
 				: "0"(lo),"1"(hi));		\
 				((SHA_LONG64)hi)<<32|lo;	})
 #   endif
 #  elif (defined(_ARCH_PPC) && defined(__64BIT__)) || defined(_ARCH_PPC64)
-#   define ROTR(a,n)	({ unsigned long ret;		\
+#   define ROTR(a,n)	({ SHA_LONG64 ret;		\
 				asm ("rotrdi %0,%1,%2"	\
 				: "=r"(ret)		\
 				: "r"(a),"K"(n)); ret;	})
 #  endif
 # elif defined(_MSC_VER)
 #  if defined(_WIN64)	/* applies to both IA-64 and AMD64 */
+#   pragma intrinsic(_rotr64)
 #   define ROTR(a,n)	_rotr64((a),n)
 #  endif
 #  if defined(_M_IX86) && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
@@ -398,15 +435,66 @@ static const SHA_LONG64 K512[80] = {
 #define Ch(x,y,z)	(((x) & (y)) ^ ((~(x)) & (z)))
 #define Maj(x,y,z)	(((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
 
-#if defined(OPENSSL_IA32_SSE2) && !defined(OPENSSL_NO_ASM) && !defined(I386_ONLY)
-#define	GO_FOR_SSE2(ctx,in,num)		do {		\
-	void	sha512_block_sse2(void *,const void *,size_t);	\
-	if (!(OPENSSL_ia32cap_P & (1<<26))) break;	\
-	sha512_block_sse2(ctx->h,in,num); return;	\
-					} while (0)
-#endif
 
-#ifdef OPENSSL_SMALL_FOOTPRINT
+#if defined(__i386) || defined(__i386__) || defined(_M_IX86)
+/*
+ * This code should give better results on 32-bit CPU with less than
+ * ~24 registers, both size and performance wise...
+ */
+static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num)
+	{
+	const SHA_LONG64 *W=in;
+	SHA_LONG64	A,E,T;
+	SHA_LONG64	X[9+80],*F;
+	int i;
+
+			while (num--) {
+
+	F    = X+80;
+	A    = ctx->h[0];	F[1] = ctx->h[1];
+	F[2] = ctx->h[2];	F[3] = ctx->h[3];
+	E    = ctx->h[4];	F[5] = ctx->h[5];
+	F[6] = ctx->h[6];	F[7] = ctx->h[7];
+
+	for (i=0;i<16;i++,F--)
+		{
+#ifdef B_ENDIAN
+		T = W[i];
+#else
+		T = PULL64(W[i]);
+#endif
+		F[0] = A;
+		F[4] = E;
+		F[8] = T;
+		T   += F[7] + Sigma1(E) + Ch(E,F[5],F[6]) + K512[i];
+		E    = F[3] + T;
+		A    = T + Sigma0(A) + Maj(A,F[1],F[2]);
+		}
+
+	for (;i<80;i++,F--)
+		{
+		T    = sigma0(F[8+16-1]);
+		T   += sigma1(F[8+16-14]);
+		T   += F[8+16] + F[8+16-9];
+
+		F[0] = A;
+		F[4] = E;
+		F[8] = T;
+		T   += F[7] + Sigma1(E) + Ch(E,F[5],F[6]) + K512[i];
+		E    = F[3] + T;
+		A    = T + Sigma0(A) + Maj(A,F[1],F[2]);
+		}
+
+	ctx->h[0] += A;		ctx->h[1] += F[1];
+	ctx->h[2] += F[2];	ctx->h[3] += F[3];
+	ctx->h[4] += E;		ctx->h[5] += F[5];
+	ctx->h[6] += F[6];	ctx->h[7] += F[7];
+
+			W+=SHA_LBLOCK;
+			}
+	}
+
+#elif defined(OPENSSL_SMALL_FOOTPRINT)
 
 static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num)
 	{
@@ -414,10 +502,6 @@ static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num
 	SHA_LONG64	a,b,c,d,e,f,g,h,s0,s1,T1,T2;
 	SHA_LONG64	X[16];
 	int i;
-
-#ifdef GO_FOR_SSE2
-	GO_FOR_SSE2(ctx,in,num);
-#endif
 
 			while (num--) {
 
@@ -463,11 +547,11 @@ static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num
 	h = Sigma0(a) + Maj(a,b,c);			\
 	d += T1;	h += T1;		} while (0)
 
-#define	ROUND_16_80(i,a,b,c,d,e,f,g,h,X)	do {	\
-	s0 = X[(i+1)&0x0f];	s0 = sigma0(s0);	\
-	s1 = X[(i+14)&0x0f];	s1 = sigma1(s1);	\
-	T1 = X[(i)&0x0f] += s0 + s1 + X[(i+9)&0x0f];	\
-	ROUND_00_15(i,a,b,c,d,e,f,g,h);		} while (0)
+#define	ROUND_16_80(i,j,a,b,c,d,e,f,g,h,X)	do {	\
+	s0 = X[(j+1)&0x0f];	s0 = sigma0(s0);	\
+	s1 = X[(j+14)&0x0f];	s1 = sigma1(s1);	\
+	T1 = X[(j)&0x0f] += s0 + s1 + X[(j+9)&0x0f];	\
+	ROUND_00_15(i+j,a,b,c,d,e,f,g,h);		} while (0)
 
 static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num)
 	{
@@ -475,10 +559,6 @@ static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num
 	SHA_LONG64	a,b,c,d,e,f,g,h,s0,s1,T1;
 	SHA_LONG64	X[16];
 	int i;
-
-#ifdef GO_FOR_SSE2
-	GO_FOR_SSE2(ctx,in,num);
-#endif
 
 			while (num--) {
 
@@ -521,16 +601,24 @@ static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num
 	T1 = X[15] = PULL64(W[15]);	ROUND_00_15(15,b,c,d,e,f,g,h,a);
 #endif
 
-	for (i=16;i<80;i+=8)
+	for (i=16;i<80;i+=16)
 		{
-		ROUND_16_80(i+0,a,b,c,d,e,f,g,h,X);
-		ROUND_16_80(i+1,h,a,b,c,d,e,f,g,X);
-		ROUND_16_80(i+2,g,h,a,b,c,d,e,f,X);
-		ROUND_16_80(i+3,f,g,h,a,b,c,d,e,X);
-		ROUND_16_80(i+4,e,f,g,h,a,b,c,d,X);
-		ROUND_16_80(i+5,d,e,f,g,h,a,b,c,X);
-		ROUND_16_80(i+6,c,d,e,f,g,h,a,b,X);
-		ROUND_16_80(i+7,b,c,d,e,f,g,h,a,X);
+		ROUND_16_80(i, 0,a,b,c,d,e,f,g,h,X);
+		ROUND_16_80(i, 1,h,a,b,c,d,e,f,g,X);
+		ROUND_16_80(i, 2,g,h,a,b,c,d,e,f,X);
+		ROUND_16_80(i, 3,f,g,h,a,b,c,d,e,X);
+		ROUND_16_80(i, 4,e,f,g,h,a,b,c,d,X);
+		ROUND_16_80(i, 5,d,e,f,g,h,a,b,c,X);
+		ROUND_16_80(i, 6,c,d,e,f,g,h,a,b,X);
+		ROUND_16_80(i, 7,b,c,d,e,f,g,h,a,X);
+		ROUND_16_80(i, 8,a,b,c,d,e,f,g,h,X);
+		ROUND_16_80(i, 9,h,a,b,c,d,e,f,g,X);
+		ROUND_16_80(i,10,g,h,a,b,c,d,e,f,X);
+		ROUND_16_80(i,11,f,g,h,a,b,c,d,e,X);
+		ROUND_16_80(i,12,e,f,g,h,a,b,c,d,X);
+		ROUND_16_80(i,13,d,e,f,g,h,a,b,c,X);
+		ROUND_16_80(i,14,c,d,e,f,g,h,a,b,X);
+		ROUND_16_80(i,15,b,c,d,e,f,g,h,a,X);
 		}
 
 	ctx->h[0] += a;	ctx->h[1] += b;	ctx->h[2] += c;	ctx->h[3] += d;
@@ -544,13 +632,10 @@ static void sha512_block_data_order (SHA512_CTX *ctx, const void *in, size_t num
 
 #endif /* SHA512_ASM */
 
-#else /* OPENSSL_NO_SHA512 */
+#else /* !OPENSSL_NO_SHA512 */
 
-/* Sensitive compilers ("Compaq C V6.4-005 on OpenVMS VAX V7.3", for
- * example) dislike a statement-free file, complaining:
- * "%CC-W-EMPTYFILE, Source file does not contain any declarations."
- */
+#if defined(PEDANTIC) || defined(__DECC) || defined(OPENSSL_SYS_MACOSX)
+static void *dummy=&dummy;
+#endif
 
-int sha512_dummy();
-
-#endif /* OPENSSL_NO_SHA512 */
+#endif /* !OPENSSL_NO_SHA512 */

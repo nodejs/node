@@ -63,7 +63,7 @@
 DECLARE_ASN1_ITEM(CMS_ReceiptRequest)
 DECLARE_ASN1_ITEM(CMS_Receipt)
 
-IMPLEMENT_ASN1_FUNCTIONS_const(CMS_ReceiptRequest)
+IMPLEMENT_ASN1_FUNCTIONS(CMS_ReceiptRequest)
 
 /* ESS services: for now just Signed Receipt related */
 

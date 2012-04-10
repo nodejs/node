@@ -30,10 +30,6 @@
 #include <openssl/engine.h>
 #include <openssl/evp.h>
 #include <openssl/bn.h>
-#include <openssl/dsa.h>
-#include <openssl/rsa.h>
-#include <openssl/dh.h>
-#include <openssl/err.h>
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG) && \
 	(defined(OpenBSD) || defined(__FreeBSD__))
@@ -59,6 +55,10 @@ ENGINE_load_cryptodev(void)
  
 #include <sys/types.h>
 #include <crypto/cryptodev.h>
+#include <crypto/dh/dh.h>
+#include <crypto/dsa/dsa.h>
+#include <crypto/err/err.h>
+#include <crypto/rsa/rsa.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <stdio.h>
@@ -72,6 +72,16 @@ ENGINE_load_cryptodev(void)
 struct dev_crypto_state {
 	struct session_op d_sess;
 	int d_fd;
+
+#ifdef USE_CRYPTODEV_DIGESTS
+	char dummy_mac_key[HASH_MAX_LEN];
+
+	unsigned char digest_res[HASH_MAX_LEN];
+	char *mac_data;
+	int mac_len;
+
+	int copy;
+#endif
 };
 
 static u_int32_t cryptodev_asymfeat = 0;
@@ -79,15 +89,14 @@ static u_int32_t cryptodev_asymfeat = 0;
 static int get_asym_dev_crypto(void);
 static int open_dev_crypto(void);
 static int get_dev_crypto(void);
-static int cryptodev_max_iv(int cipher);
-static int cryptodev_key_length_valid(int cipher, int len);
-static int cipher_nid_to_cryptodev(int nid);
 static int get_cryptodev_ciphers(const int **cnids);
-/*static int get_cryptodev_digests(const int **cnids);*/
+#ifdef USE_CRYPTODEV_DIGESTS
+static int get_cryptodev_digests(const int **cnids);
+#endif
 static int cryptodev_usable_ciphers(const int **nids);
 static int cryptodev_usable_digests(const int **nids);
 static int cryptodev_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-    const unsigned char *in, unsigned int inl);
+    const unsigned char *in, size_t inl);
 static int cryptodev_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
     const unsigned char *iv, int enc);
 static int cryptodev_cleanup(EVP_CIPHER_CTX *ctx);
@@ -121,7 +130,7 @@ static int cryptodev_mod_exp_dh(const DH *dh, BIGNUM *r, const BIGNUM *a,
 static int cryptodev_dh_compute_key(unsigned char *key,
     const BIGNUM *pub_key, DH *dh);
 static int cryptodev_ctrl(ENGINE *e, int cmd, long i, void *p,
-    void (*f)());
+    void (*f)(void));
 void ENGINE_load_cryptodev(void);
 
 static const ENGINE_CMD_DEFN cryptodev_defns[] = {
@@ -134,27 +143,32 @@ static struct {
 	int	ivmax;
 	int	keylen;
 } ciphers[] = {
+	{ CRYPTO_ARC4,			NID_rc4,		0,	16, },
 	{ CRYPTO_DES_CBC,		NID_des_cbc,		8,	 8, },
 	{ CRYPTO_3DES_CBC,		NID_des_ede3_cbc,	8,	24, },
 	{ CRYPTO_AES_CBC,		NID_aes_128_cbc,	16,	16, },
+	{ CRYPTO_AES_CBC,		NID_aes_192_cbc,	16,	24, },
+	{ CRYPTO_AES_CBC,		NID_aes_256_cbc,	16,	32, },
 	{ CRYPTO_BLF_CBC,		NID_bf_cbc,		8,	16, },
 	{ CRYPTO_CAST_CBC,		NID_cast5_cbc,		8,	16, },
 	{ CRYPTO_SKIPJACK_CBC,		NID_undef,		0,	 0, },
 	{ 0,				NID_undef,		0,	 0, },
 };
 
-#if 0
+#ifdef USE_CRYPTODEV_DIGESTS
 static struct {
 	int	id;
 	int	nid;
+	int 	keylen;
 } digests[] = {
-	{ CRYPTO_SHA1_HMAC,		NID_hmacWithSHA1,	},
-	{ CRYPTO_RIPEMD160_HMAC,	NID_ripemd160,		},
-	{ CRYPTO_MD5_KPDK,		NID_undef,		},
-	{ CRYPTO_SHA1_KPDK,		NID_undef,		},
-	{ CRYPTO_MD5,			NID_md5,		},
-	{ CRYPTO_SHA1,			NID_undef,		},
-	{ 0,				NID_undef,		},
+	{ CRYPTO_MD5_HMAC,		NID_hmacWithMD5,	16},
+	{ CRYPTO_SHA1_HMAC,		NID_hmacWithSHA1,	20},
+	{ CRYPTO_RIPEMD160_HMAC,	NID_ripemd160,		16/*?*/},
+	{ CRYPTO_MD5_KPDK,		NID_undef,		0},
+	{ CRYPTO_SHA1_KPDK,		NID_undef,		0},
+	{ CRYPTO_MD5,			NID_md5,		16},
+	{ CRYPTO_SHA1,			NID_sha1,		20},
+	{ 0,				NID_undef,		0},
 };
 #endif
 
@@ -209,50 +223,6 @@ get_asym_dev_crypto(void)
 }
 
 /*
- * XXXX this needs to be set for each alg - and determined from
- * a running card.
- */
-static int
-cryptodev_max_iv(int cipher)
-{
-	int i;
-
-	for (i = 0; ciphers[i].id; i++)
-		if (ciphers[i].id == cipher)
-			return (ciphers[i].ivmax);
-	return (0);
-}
-
-/*
- * XXXX this needs to be set for each alg - and determined from
- * a running card. For now, fake it out - but most of these
- * for real devices should return 1 for the supported key
- * sizes the device can handle.
- */
-static int
-cryptodev_key_length_valid(int cipher, int len)
-{
-	int i;
-
-	for (i = 0; ciphers[i].id; i++)
-		if (ciphers[i].id == cipher)
-			return (ciphers[i].keylen == len);
-	return (0);
-}
-
-/* convert libcrypto nids to cryptodev */
-static int
-cipher_nid_to_cryptodev(int nid)
-{
-	int i;
-
-	for (i = 0; ciphers[i].id; i++)
-		if (ciphers[i].nid == nid)
-			return (ciphers[i].id);
-	return (0);
-}
-
-/*
  * Find out what ciphers /dev/crypto will let us have a session for.
  * XXX note, that some of these openssl doesn't deal with yet!
  * returning them here is harmless, as long as we return NULL
@@ -270,7 +240,7 @@ get_cryptodev_ciphers(const int **cnids)
 		return (0);
 	}
 	memset(&sess, 0, sizeof(sess));
-	sess.key = (caddr_t)"123456781234567812345678";
+	sess.key = (caddr_t)"123456789abcdefghijklmno";
 
 	for (i = 0; ciphers[i].id && count < CRYPTO_ALGORITHM_MAX; i++) {
 		if (ciphers[i].nid == NID_undef)
@@ -291,7 +261,7 @@ get_cryptodev_ciphers(const int **cnids)
 	return (count);
 }
 
-#if 0  /* unused */
+#ifdef USE_CRYPTODEV_DIGESTS
 /*
  * Find out what digests /dev/crypto will let us have a session for.
  * XXX note, that some of these openssl doesn't deal with yet!
@@ -310,10 +280,12 @@ get_cryptodev_digests(const int **cnids)
 		return (0);
 	}
 	memset(&sess, 0, sizeof(sess));
+	sess.mackey = (caddr_t)"123456789abcdefghijklmno";
 	for (i = 0; digests[i].id && count < CRYPTO_ALGORITHM_MAX; i++) {
 		if (digests[i].nid == NID_undef)
 			continue;
 		sess.mac = digests[i].id;
+		sess.mackeylen = digests[i].keylen;
 		sess.cipher = 0;
 		if (ioctl(fd, CIOCGSESSION, &sess) != -1 &&
 		    ioctl(fd, CIOCFSESSION, &sess.ses) != -1)
@@ -327,8 +299,7 @@ get_cryptodev_digests(const int **cnids)
 		*cnids = NULL;
 	return (count);
 }
-
-#endif
+#endif  /* 0 */
 
 /*
  * Find the useable ciphers|digests from dev/crypto - this is the first
@@ -360,6 +331,9 @@ cryptodev_usable_ciphers(const int **nids)
 static int
 cryptodev_usable_digests(const int **nids)
 {
+#ifdef USE_CRYPTODEV_DIGESTS
+	return (get_cryptodev_digests(nids));
+#else
 	/*
 	 * XXXX just disable all digests for now, because it sucks.
 	 * we need a better way to decide this - i.e. I may not
@@ -374,11 +348,12 @@ cryptodev_usable_digests(const int **nids)
 	 */
 	*nids = NULL;
 	return (0);
+#endif
 }
 
 static int
 cryptodev_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-    const unsigned char *in, unsigned int inl)
+    const unsigned char *in, size_t inl)
 {
 	struct crypt_op cryp;
 	struct dev_crypto_state *state = ctx->cipher_data;
@@ -436,23 +411,27 @@ cryptodev_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 {
 	struct dev_crypto_state *state = ctx->cipher_data;
 	struct session_op *sess = &state->d_sess;
-	int cipher;
+	int cipher = -1, i;
 
-	if ((cipher = cipher_nid_to_cryptodev(ctx->cipher->nid)) == NID_undef)
-		return (0);
+	for (i = 0; ciphers[i].id; i++)
+		if (ctx->cipher->nid == ciphers[i].nid &&
+		    ctx->cipher->iv_len <= ciphers[i].ivmax &&
+		    ctx->key_len == ciphers[i].keylen) {
+			cipher = ciphers[i].id;
+			break;
+		}
 
-	if (ctx->cipher->iv_len > cryptodev_max_iv(cipher))
+	if (!ciphers[i].id) {
+		state->d_fd = -1;
 		return (0);
-
-	if (!cryptodev_key_length_valid(cipher, ctx->key_len))
-		return (0);
+	}
 
 	memset(sess, 0, sizeof(struct session_op));
 
 	if ((state->d_fd = get_dev_crypto()) < 0)
 		return (0);
 
-	sess->key = (char *)key;
+	sess->key = (caddr_t)key;
 	sess->keylen = ctx->key_len;
 	sess->cipher = cipher;
 
@@ -504,6 +483,20 @@ cryptodev_cleanup(EVP_CIPHER_CTX *ctx)
  * libcrypto EVP stuff - this is how we get wired to EVP so the engine
  * gets called when libcrypto requests a cipher NID.
  */
+
+/* RC4 */
+const EVP_CIPHER cryptodev_rc4 = {
+	NID_rc4,
+	1, 16, 0,
+	EVP_CIPH_VARIABLE_LENGTH,
+	cryptodev_init_key,
+	cryptodev_cipher,
+	cryptodev_cleanup,
+	sizeof(struct dev_crypto_state),
+	NULL,
+	NULL,
+	NULL
+};
 
 /* DES CBC EVP */
 const EVP_CIPHER cryptodev_des_cbc = {
@@ -572,6 +565,32 @@ const EVP_CIPHER cryptodev_aes_cbc = {
 	NULL
 };
 
+const EVP_CIPHER cryptodev_aes_192_cbc = {
+	NID_aes_192_cbc,
+	16, 24, 16,
+	EVP_CIPH_CBC_MODE,
+	cryptodev_init_key,
+	cryptodev_cipher,
+	cryptodev_cleanup,
+	sizeof(struct dev_crypto_state),
+	EVP_CIPHER_set_asn1_iv,
+	EVP_CIPHER_get_asn1_iv,
+	NULL
+};
+
+const EVP_CIPHER cryptodev_aes_256_cbc = {
+	NID_aes_256_cbc,
+	16, 32, 16,
+	EVP_CIPH_CBC_MODE,
+	cryptodev_init_key,
+	cryptodev_cipher,
+	cryptodev_cleanup,
+	sizeof(struct dev_crypto_state),
+	EVP_CIPHER_set_asn1_iv,
+	EVP_CIPHER_get_asn1_iv,
+	NULL
+};
+
 /*
  * Registered by the ENGINE when used to find out how to deal with
  * a particular NID in the ENGINE. this says what we'll do at the
@@ -585,6 +604,9 @@ cryptodev_engine_ciphers(ENGINE *e, const EVP_CIPHER **cipher,
 		return (cryptodev_usable_ciphers(nids));
 
 	switch (nid) {
+	case NID_rc4:
+		*cipher = &cryptodev_rc4;
+		break;
 	case NID_des_ede3_cbc:
 		*cipher = &cryptodev_3des_cbc;
 		break;
@@ -600,12 +622,246 @@ cryptodev_engine_ciphers(ENGINE *e, const EVP_CIPHER **cipher,
 	case NID_aes_128_cbc:
 		*cipher = &cryptodev_aes_cbc;
 		break;
+	case NID_aes_192_cbc:
+		*cipher = &cryptodev_aes_192_cbc;
+		break;
+	case NID_aes_256_cbc:
+		*cipher = &cryptodev_aes_256_cbc;
+		break;
 	default:
 		*cipher = NULL;
 		break;
 	}
 	return (*cipher != NULL);
 }
+
+
+#ifdef USE_CRYPTODEV_DIGESTS
+
+/* convert digest type to cryptodev */
+static int
+digest_nid_to_cryptodev(int nid)
+{
+	int i;
+
+	for (i = 0; digests[i].id; i++)
+		if (digests[i].nid == nid)
+			return (digests[i].id);
+	return (0);
+}
+
+
+static int
+digest_key_length(int nid)
+{
+	int i;
+
+	for (i = 0; digests[i].id; i++)
+		if (digests[i].nid == nid)
+			return digests[i].keylen;
+	return (0);
+}
+
+
+static int cryptodev_digest_init(EVP_MD_CTX *ctx)
+{
+	struct dev_crypto_state *state = ctx->md_data;
+	struct session_op *sess = &state->d_sess;
+	int digest;
+
+	if ((digest = digest_nid_to_cryptodev(ctx->digest->type)) == NID_undef){
+		printf("cryptodev_digest_init: Can't get digest \n");
+		return (0);
+	}
+
+	memset(state, 0, sizeof(struct dev_crypto_state));
+
+	if ((state->d_fd = get_dev_crypto()) < 0) {
+		printf("cryptodev_digest_init: Can't get Dev \n");
+		return (0);
+	}
+
+	sess->mackey = state->dummy_mac_key;
+	sess->mackeylen = digest_key_length(ctx->digest->type);
+	sess->mac = digest;
+
+	if (ioctl(state->d_fd, CIOCGSESSION, sess) < 0) {
+		close(state->d_fd);
+		state->d_fd = -1;
+		printf("cryptodev_digest_init: Open session failed\n");
+		return (0);
+	}
+
+	return (1);
+}
+
+static int cryptodev_digest_update(EVP_MD_CTX *ctx, const void *data,
+		size_t count)
+{
+	struct crypt_op cryp;
+	struct dev_crypto_state *state = ctx->md_data;
+	struct session_op *sess = &state->d_sess;
+
+	if (!data || state->d_fd < 0) {
+		printf("cryptodev_digest_update: illegal inputs \n");
+		return (0);
+	}
+
+	if (!count) {
+		return (0);
+	}
+
+	if (!(ctx->flags & EVP_MD_CTX_FLAG_ONESHOT)) {
+		/* if application doesn't support one buffer */
+		state->mac_data = OPENSSL_realloc(state->mac_data, state->mac_len + count);
+
+		if (!state->mac_data) {
+			printf("cryptodev_digest_update: realloc failed\n");
+			return (0);
+		}
+
+		memcpy(state->mac_data + state->mac_len, data, count);
+   		state->mac_len += count;
+	
+		return (1);
+	}
+
+	memset(&cryp, 0, sizeof(cryp));
+
+	cryp.ses = sess->ses;
+	cryp.flags = 0;
+	cryp.len = count;
+	cryp.src = (caddr_t) data;
+	cryp.dst = NULL;
+	cryp.mac = (caddr_t) state->digest_res;
+	if (ioctl(state->d_fd, CIOCCRYPT, &cryp) < 0) {
+		printf("cryptodev_digest_update: digest failed\n");
+		return (0);
+	}
+	return (1);
+}
+
+
+static int cryptodev_digest_final(EVP_MD_CTX *ctx, unsigned char *md)
+{
+	struct crypt_op cryp;
+	struct dev_crypto_state *state = ctx->md_data;
+	struct session_op *sess = &state->d_sess;
+
+	int ret = 1;
+
+	if (!md || state->d_fd < 0) {
+		printf("cryptodev_digest_final: illegal input\n");
+		return(0);
+	}
+
+	if (! (ctx->flags & EVP_MD_CTX_FLAG_ONESHOT) ) {
+		/* if application doesn't support one buffer */
+		memset(&cryp, 0, sizeof(cryp));
+
+		cryp.ses = sess->ses;
+		cryp.flags = 0;
+		cryp.len = state->mac_len;
+		cryp.src = state->mac_data;
+		cryp.dst = NULL;
+		cryp.mac = (caddr_t)md;
+
+		if (ioctl(state->d_fd, CIOCCRYPT, &cryp) < 0) {
+			printf("cryptodev_digest_final: digest failed\n");
+			return (0);
+		}
+
+		return 1;
+	}
+
+	memcpy(md, state->digest_res, ctx->digest->md_size);
+
+	return (ret);
+}
+
+
+static int cryptodev_digest_cleanup(EVP_MD_CTX *ctx)
+{
+	int ret = 1;
+	struct dev_crypto_state *state = ctx->md_data;
+	struct session_op *sess = &state->d_sess;
+
+	if (state->d_fd < 0) {
+		printf("cryptodev_digest_cleanup: illegal input\n");
+		return (0);
+	}
+
+	if (state->mac_data) {
+		OPENSSL_free(state->mac_data);
+		state->mac_data = NULL;
+		state->mac_len = 0;
+	}
+
+	if (state->copy)
+		return 1;
+
+	if (ioctl(state->d_fd, CIOCFSESSION, &sess->ses) < 0) {
+		printf("cryptodev_digest_cleanup: failed to close session\n");
+		ret = 0;
+	} else {
+		ret = 1;
+	}
+	close(state->d_fd);	
+	state->d_fd = -1;
+
+	return (ret);
+}
+
+static int cryptodev_digest_copy(EVP_MD_CTX *to,const EVP_MD_CTX *from)
+{
+	struct dev_crypto_state *fstate = from->md_data;
+	struct dev_crypto_state *dstate = to->md_data;
+
+	memcpy(dstate, fstate, sizeof(struct dev_crypto_state));
+
+	if (fstate->mac_len != 0) {
+		dstate->mac_data = OPENSSL_malloc(fstate->mac_len);
+		memcpy(dstate->mac_data, fstate->mac_data, fstate->mac_len);
+	}
+
+	dstate->copy = 1;
+
+	return 1;
+}
+
+
+const EVP_MD cryptodev_sha1 = {
+	NID_sha1,
+	NID_undef, 
+	SHA_DIGEST_LENGTH, 
+	EVP_MD_FLAG_ONESHOT,
+	cryptodev_digest_init,
+	cryptodev_digest_update,
+	cryptodev_digest_final,
+	cryptodev_digest_copy,
+	cryptodev_digest_cleanup,
+	EVP_PKEY_NULL_method,
+	SHA_CBLOCK,
+	sizeof(struct dev_crypto_state),
+};
+
+const EVP_MD cryptodev_md5 = {
+	NID_md5,
+	NID_undef, 
+	16 /* MD5_DIGEST_LENGTH */, 
+	EVP_MD_FLAG_ONESHOT,
+	cryptodev_digest_init,
+	cryptodev_digest_update,
+	cryptodev_digest_final,
+	cryptodev_digest_copy,
+	cryptodev_digest_cleanup,
+	EVP_PKEY_NULL_method,
+	64 /* MD5_CBLOCK */,
+	sizeof(struct dev_crypto_state),
+};
+
+#endif /* USE_CRYPTODEV_DIGESTS */
+
 
 static int
 cryptodev_engine_digests(ENGINE *e, const EVP_MD **digest,
@@ -615,10 +871,15 @@ cryptodev_engine_digests(ENGINE *e, const EVP_MD **digest,
 		return (cryptodev_usable_digests(nids));
 
 	switch (nid) {
+#ifdef USE_CRYPTODEV_DIGESTS
 	case NID_md5:
-		*digest = NULL; /* need to make a clean md5 critter */
+		*digest = &cryptodev_md5; 
 		break;
+	case NID_sha1:
+		*digest = &cryptodev_sha1;
+ 		break;
 	default:
+#endif /* USE_CRYPTODEV_DIGESTS */
 		*digest = NULL;
 		break;
 	}
@@ -646,8 +907,9 @@ bn2crparam(const BIGNUM *a, struct crparam *crp)
 	b = malloc(bytes);
 	if (b == NULL)
 		return (1);
+	memset(b, 0, bytes);
 
-	crp->crp_p = (char *)b;
+	crp->crp_p = (caddr_t) b;
 	crp->crp_nbits = bits;
 
 	for (i = 0, j = 0; i < a->top; i++) {
@@ -690,7 +952,7 @@ zapparams(struct crypt_kop *kop)
 {
 	int i;
 
-	for (i = 0; i <= kop->crk_iparams + kop->crk_oparams; i++) {
+	for (i = 0; i < kop->crk_iparams + kop->crk_oparams; i++) {
 		if (kop->crk_param[i].crp_p)
 			free(kop->crk_param[i].crp_p);
 		kop->crk_param[i].crp_p = NULL;
@@ -776,8 +1038,9 @@ static int
 cryptodev_rsa_nocrt_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 {
 	int r;
-
+	ctx = BN_CTX_new();
 	r = cryptodev_bn_mod_exp(r0, I, rsa->d, rsa->n, ctx, NULL);
+	BN_CTX_free(ctx);
 	return (r);
 }
 
@@ -1017,7 +1280,7 @@ cryptodev_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 		goto err;
 	kop.crk_iparams = 3;
 
-	kop.crk_param[3].crp_p = (char *)key;
+	kop.crk_param[3].crp_p = (caddr_t) key;
 	kop.crk_param[3].crp_nbits = keylen * 8;
 	kop.crk_oparams = 1;
 
@@ -1048,7 +1311,7 @@ static DH_METHOD cryptodev_dh = {
  * but I expect we'll want some options soon.
  */
 static int
-cryptodev_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)())
+cryptodev_ctrl(ENGINE *e, int cmd, long i, void *p, void (*f)(void))
 {
 #ifdef HAVE_SYSLOG_R
 	struct syslog_data sd = SYSLOG_DATA_INIT;

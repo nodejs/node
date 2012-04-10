@@ -3,99 +3,134 @@ $!
 $! Author: Richard Levitte <richard@levitte.org>
 $! Time of creation: 22-MAY-1998 10:13
 $!
-$! P1	root of the directory tree
+$! P1  root of the directory tree
+$! P2  "64" for 64-bit pointers.
 $!
-$	DEF_ORIG = F$ENVIRONMENT( "DEFAULT")
-$	ON ERROR THEN GOTO TIDY
-$	ON CONTROL_C THEN GOTO TIDY
-$
-$	IF P1 .EQS. ""
-$	THEN
-$	    WRITE SYS$OUTPUT "First argument missing."
-$	    WRITE SYS$OUTPUT -
-		  "It Should be the directory where you want things installed."
-$	    EXIT
-$	ENDIF
-$
-$	IF (F$GETSYI("CPU").LT.128)
-$	THEN
-$	    ARCH := VAX
-$	ELSE
-$	    ARCH = F$EDIT( F$GETSYI( "ARCH_NAME"), "UPCASE")
-$	    IF (ARCH .EQS. "") THEN ARCH = "UNK"
-$	ENDIF
-$
-$	ROOT = F$PARSE(P1,"[]A.;0",,,"SYNTAX_ONLY,NO_CONCEAL") - "A.;0"
-$	ROOT_DEV = F$PARSE(ROOT,,,"DEVICE","SYNTAX_ONLY")
-$	ROOT_DIR = F$PARSE(ROOT,,,"DIRECTORY","SYNTAX_ONLY") -
+$!
+$! Announce/identify.
+$!
+$ proc = f$environment( "procedure")
+$ write sys$output "@@@ "+ -
+   f$parse( proc, , , "name")+ f$parse( proc, , , "type")
+$!
+$ def_orig = f$environment( "default")
+$ on error then goto tidy
+$ on control_c then goto tidy
+$!
+$ if (p1 .eqs. "")
+$ then
+$   write sys$output "First argument missing."
+$   write sys$output -
+     "It should be the directory where you want things installed."
+$   exit
+$ endif
+$!
+$ if (f$getsyi("cpu") .lt. 128)
+$ then
+$   arch = "VAX"
+$ else
+$   arch = f$edit( f$getsyi( "arch_name"), "upcase")
+$   if (arch .eqs. "") then arch = "UNK"
+$ endif
+$!
+$ archd = arch
+$!
+$ if (p2 .nes. "")
+$ then
+$   if (p2 .eqs. "64")
+$   then
+$     archd = arch+ "_64"
+$   else
+$     if (p2 .nes. "32")
+$     then
+$       write sys$output "Second argument invalid."
+$       write sys$output "It should be "32", "64", or nothing."
+$       exit
+$     endif
+$   endif
+$ endif
+$!
+$ root = f$parse( p1, "[]A.;0", , , "syntax_only, no_conceal") - "A.;0"
+$ root_dev = f$parse( root, , , "device", "syntax_only")
+$ root_dir = f$parse( root, , , "directory", "syntax_only") -
 		   - ".][000000" - "[000000." - "][" - "[" - "]"
-$	ROOT = ROOT_DEV + "[" + ROOT_DIR
-$
-$	DEFINE/NOLOG WRK_SSLROOT 'ROOT'.] /TRANS=CONC
-$	DEFINE/NOLOG WRK_SSLXLIB WRK_SSLROOT:['ARCH'_LIB]
-$	DEFINE/NOLOG WRK_SSLLIB WRK_SSLROOT:[LIB]
-$	DEFINE/NOLOG WRK_SSLINCLUDE WRK_SSLROOT:[INCLUDE]
-$	DEFINE/NOLOG WRK_SSLXEXE WRK_SSLROOT:['ARCH'_EXE]
-$	DEFINE/NOLOG WRK_SSLCERTS WRK_SSLROOT:[CERTS]
-$	DEFINE/NOLOG WRK_SSLPRIVATE WRK_SSLROOT:[PRIVATE]
-$
+$ root = root_dev + "[" + root_dir
+$!
+$ define /nolog wrk_sslroot 'root'.] /trans=conc
+$ define /nolog wrk_sslcerts wrk_sslroot:[certs]
+$ define /nolog wrk_sslinclude wrk_sslroot:[include]
+$ define /nolog wrk_ssllib wrk_sslroot:[lib]
+$ define /nolog wrk_sslprivate wrk_sslroot:[private]
+$ define /nolog wrk_sslxexe wrk_sslroot:['archd'_exe]
+$ define /nolog wrk_sslxlib wrk_sslroot:['arch'_lib]
 $!
 $! Exhibit the destination directory.
 $!
-$	WRITE SYS$OUTPUT "   Installing to (WRK_SSLROOT) ="
-$	WRITE SYS$OUTPUT "    ''f$trnlnm( "WRK_SSLROOT")'"
-$	WRITE SYS$OUTPUT ""
-$
-$	IF F$PARSE("WRK_SSLROOT:[000000]") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLROOT:[000000]
-$	IF F$PARSE("WRK_SSLXEXE:") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLXEXE:
-$	IF F$PARSE("WRK_SSLXLIB:") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLXLIB:
-$	IF F$PARSE("WRK_SSLLIB:") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLLIB:
-$	IF F$PARSE("WRK_SSLINCLUDE:") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLINCLUDE:
-$	IF F$PARSE("WRK_SSLCERTS:") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLCERTS:
-$	IF F$PARSE("WRK_SSLPRIVATE:") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLPRIVATE:
-$	IF F$PARSE("WRK_SSLROOT:[VMS]") .EQS. "" THEN -
-	   CREATE/DIR/LOG WRK_SSLROOT:[VMS]
-$
-$	SDIRS := CRYPTO,SSL,APPS,VMS!,RSAREF,TEST,TOOLS
-$	EXHEADER := e_os2.h
-$
-$	COPY 'EXHEADER' WRK_SSLINCLUDE: /LOG
-$	SET FILE/PROT=WORLD:RE WRK_SSLINCLUDE:'EXHEADER'
-$
-$	I = 0
-$ LOOP_SDIRS: 
-$	D = F$ELEMENT(I, ",", SDIRS)
-$	I = I + 1
-$	IF D .EQS. "," THEN GOTO LOOP_SDIRS_END
-$	WRITE SYS$OUTPUT "Installing ",D," files."
-$	SET DEFAULT [.'D']
-$	@INSTALL 'ROOT']
-$	SET DEFAULT [-]
-$	GOTO LOOP_SDIRS
-$ LOOP_SDIRS_END:
-$
-$	WRITE SYS$OUTPUT ""
-$	WRITE SYS$OUTPUT "	Installation done!"
-$	WRITE SYS$OUTPUT ""
-$	WRITE SYS$OUTPUT "	You might want to purge ",ROOT,"...]"
-$	WRITE SYS$OUTPUT ""
-$
-$ TIDY:
-$	SET DEFAULT 'DEF_ORIG'
-$
-$	DEASSIGN WRK_SSLROOT
-$	DEASSIGN WRK_SSLXLIB
-$	DEASSIGN WRK_SSLLIB
-$	DEASSIGN WRK_SSLINCLUDE
-$	DEASSIGN WRK_SSLXEXE
-$	DEASSIGN WRK_SSLCERTS
-$	DEASSIGN WRK_SSLPRIVATE
-$
-$	EXIT
+$ write sys$output "   Installing to (WRK_SSLROOT) ="
+$ write sys$output "    ''f$trnlnm( "wrk_sslroot")'"
+$ write sys$output ""
+$!
+$ if f$parse("wrk_sslroot:[000000]") .eqs. "" then -
+   create /directory /log wrk_sslroot:[000000]
+$ if f$parse("wrk_sslxexe:") .eqs. "" then -
+   create /directory /log wrk_sslxexe:
+$ if f$parse("wrk_sslxlib:") .eqs. "" then -
+   create /directory /log wrk_sslxlib:
+$ if f$parse("wrk_ssllib:") .eqs. "" then -
+   create /directory /log wrk_ssllib:
+$ if f$parse("wrk_sslinclude:") .eqs. "" then -
+   create /directory /log wrk_sslinclude:
+$ if f$parse("wrk_sslcerts:") .eqs. "" then -
+   create /directory /log wrk_sslcerts:
+$ if f$parse("wrk_sslprivate:") .eqs. "" then -
+   create /directory /log wrk_sslprivate:
+$ if f$parse("wrk_sslroot:[VMS]") .EQS. "" THEN -
+   create /directory /log wrk_sslroot:[VMS]
+$!
+$ sdirs := CRYPTO, SSL, APPS, VMS !!!, RSAREF, TEST, TOOLS
+$ exheader := e_os2.h
+$!
+$ copy /protection = w:re 'exheader' wrk_sslinclude: /log
+$!
+$ i = 0
+$ loop_sdirs: 
+$   d = f$edit( f$element(i, ",", sdirs), "trim")
+$   i = i + 1
+$   if d .eqs. "," then goto loop_sdirs_end
+$   write sys$output "Installing ", d, " files."
+$   set default [.'d']
+$   @ install-'d'.com 'root'] 'p2'
+$   set default 'def_orig'
+$ goto loop_sdirs
+$ loop_sdirs_end:
+$!
+$ write sys$output ""
+$ write sys$output "	Installation done!"
+$ write sys$output ""
+$ if (f$search( root+ "...]*.*;-1") .nes. "")
+$ then
+$   write sys$output "	You might want to purge ", root, "...]"
+$   write sys$output ""
+$ endif
+$!
+$ tidy:
+$!
+$ set default 'def_orig'
+$!
+$ call deass wrk_sslroot
+$ call deass wrk_sslcerts
+$ call deass wrk_sslinclude
+$ call deass wrk_ssllib
+$ call deass wrk_sslprivate
+$ call deass wrk_sslxexe
+$ call deass wrk_sslxlib
+$!
+$ exit
+$!
+$ deass: subroutine
+$ if (f$trnlnm( p1, "LNM$PROCESS") .nes. "")
+$ then
+$   deassign /process 'p1'
+$ endif
+$ endsubroutine
+$!

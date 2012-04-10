@@ -159,6 +159,8 @@ cd ..\..\..
 echo SHA1
 cd crypto\sha\asm
 perl sha1-586.pl %ASM_MODE% > s1-nw.asm
+perl sha256-586.pl %ASM_MODE% > sha256-nw.asm
+perl sha512-586.pl %ASM_MODE% > sha512-nw.asm
 cd ..\..\..
 
 echo RIPEMD160
@@ -169,6 +171,11 @@ cd ..\..\..
 echo RC5\32
 cd crypto\rc5\asm
 perl rc5-586.pl %ASM_MODE% > r5-nw.asm
+cd ..\..\..
+
+echo WHIRLPOOL
+cd crypto\whrlpool\asm
+perl wp-mmx.pl %ASM_MODE% > wp-nw.asm
 cd ..\..\..
 
 echo CPUID

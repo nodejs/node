@@ -34,7 +34,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -97,14 +97,13 @@ ecs_lib.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
 ecs_lib.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
 ecs_lib.o: ../../include/openssl/ecdsa.h ../../include/openssl/engine.h
 ecs_lib.o: ../../include/openssl/err.h ../../include/openssl/evp.h
-ecs_lib.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-ecs_lib.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-ecs_lib.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-ecs_lib.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pkcs7.h
-ecs_lib.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
-ecs_lib.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-ecs_lib.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
-ecs_lib.o: ecs_lib.c ecs_locl.h
+ecs_lib.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+ecs_lib.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
+ecs_lib.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+ecs_lib.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
+ecs_lib.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+ecs_lib.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
+ecs_lib.o: ../../include/openssl/x509_vfy.h ecs_lib.c ecs_locl.h
 ecs_ossl.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 ecs_ossl.o: ../../include/openssl/bn.h ../../include/openssl/crypto.h
 ecs_ossl.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
@@ -119,9 +118,8 @@ ecs_sign.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 ecs_sign.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
 ecs_sign.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
 ecs_sign.o: ../../include/openssl/engine.h ../../include/openssl/evp.h
-ecs_sign.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-ecs_sign.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-ecs_sign.o: ../../include/openssl/opensslconf.h
+ecs_sign.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+ecs_sign.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
 ecs_sign.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 ecs_sign.o: ../../include/openssl/pkcs7.h ../../include/openssl/rand.h
 ecs_sign.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
@@ -133,11 +131,10 @@ ecs_vrf.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 ecs_vrf.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
 ecs_vrf.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
 ecs_vrf.o: ../../include/openssl/engine.h ../../include/openssl/evp.h
-ecs_vrf.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-ecs_vrf.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-ecs_vrf.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-ecs_vrf.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pkcs7.h
-ecs_vrf.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
-ecs_vrf.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-ecs_vrf.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
-ecs_vrf.o: ecs_locl.h ecs_vrf.c
+ecs_vrf.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+ecs_vrf.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
+ecs_vrf.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+ecs_vrf.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
+ecs_vrf.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+ecs_vrf.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
+ecs_vrf.o: ../../include/openssl/x509_vfy.h ecs_locl.h ecs_vrf.c

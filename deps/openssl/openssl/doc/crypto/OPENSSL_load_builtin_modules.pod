@@ -1,0 +1,51 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_load_builtin_modules - add standard configuration modules
+
+=head1 SYNOPSIS
+
+ #include <openssl/conf.h>
+
+ void OPENSSL_load_builtin_modules(void);
+ void ASN1_add_oid_module(void);
+ ENGINE_add_conf_module();
+
+=head1 DESCRIPTION
+
+The function OPENSSL_load_builtin_modules() adds all the standard OpenSSL
+configuration modules to the internal list. They can then be used by the
+OpenSSL configuration code.
+
+ASN1_add_oid_module() adds just the ASN1 OBJECT module.
+
+ENGINE_add_conf_module() adds just the ENGINE configuration module.
+
+=head1 NOTES
+
+If the simple configuration function OPENSSL_config() is called then 
+OPENSSL_load_builtin_modules() is called automatically.
+
+Applications which use the configuration functions directly will need to
+call OPENSSL_load_builtin_modules() themselves I<before> any other 
+configuration code.
+
+Applications should call OPENSSL_load_builtin_modules() to load all
+configuration modules instead of adding modules selectively: otherwise 
+functionality may be missing from the application if an when new
+modules are added.
+
+=head1 RETURN VALUE
+
+None of the functions return a value.
+
+=head1 SEE ALSO
+
+L<conf(3)|conf(3)>, L<OPENSSL_config(3)|OPENSSL_config(3)>
+
+=head1 HISTORY
+
+These functions first appeared in OpenSSL 0.9.7.
+
+=cut

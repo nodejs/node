@@ -60,6 +60,7 @@
 #include <time.h>
 
 #include "cryptlib.h"
+#include "asn1_locl.h"
 
 #ifndef NO_SYS_TYPES_H
 # include <sys/types.h>
@@ -100,12 +101,7 @@ int ASN1_verify(i2d_of_void *i2d, X509_ALGOR *a, ASN1_BIT_STRING *signature,
 	p=buf_in;
 
 	i2d(data,&p);
-	if (!EVP_VerifyInit_ex(&ctx,type, NULL))
-		{
-		ASN1err(ASN1_F_ASN1_VERIFY,ERR_R_EVP_LIB);
-		ret=0;
-		goto err;
-		}
+	EVP_VerifyInit_ex(&ctx,type, NULL);
 	EVP_VerifyUpdate(&ctx,(unsigned char *)buf_in,inl);
 
 	OPENSSL_cleanse(buf_in,(unsigned int)inl);
@@ -134,16 +130,31 @@ int ASN1_item_verify(const ASN1_ITEM *it, X509_ALGOR *a, ASN1_BIT_STRING *signat
 	     void *asn, EVP_PKEY *pkey)
 	{
 	EVP_MD_CTX ctx;
-	const EVP_MD *type;
+	const EVP_MD *type = NULL;
 	unsigned char *buf_in=NULL;
-	int ret= -1,i,inl;
+	int ret= -1,inl;
+
+	int mdnid, pknid;
 
 	EVP_MD_CTX_init(&ctx);
-	i=OBJ_obj2nid(a->algorithm);
-	type=EVP_get_digestbyname(OBJ_nid2sn(i));
+
+	/* Convert signature OID into digest and public key OIDs */
+	if (!OBJ_find_sigid_algs(OBJ_obj2nid(a->algorithm), &mdnid, &pknid))
+		{
+		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_UNKNOWN_SIGNATURE_ALGORITHM);
+		goto err;
+		}
+	type=EVP_get_digestbynid(mdnid);
 	if (type == NULL)
 		{
 		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_UNKNOWN_MESSAGE_DIGEST_ALGORITHM);
+		goto err;
+		}
+
+	/* Check public key OID matches public key type */
+	if (EVP_PKEY_type(pknid) != pkey->ameth->pkey_id)
+		{
+		ASN1err(ASN1_F_ASN1_ITEM_VERIFY,ASN1_R_WRONG_PUBLIC_KEY_TYPE);
 		goto err;
 		}
 

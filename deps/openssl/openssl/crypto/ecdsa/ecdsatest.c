@@ -168,10 +168,9 @@ int fbytes(unsigned char *buf, int num)
 		return 0;
 		}
 	fbytes_counter ++;
-	ret = BN_bn2bin(tmp, buf);	
-	if (ret == 0 || ret != num)
+	if (num != BN_num_bytes(tmp) || !BN_bn2bin(tmp, buf))
 		ret = 0;
-	else
+	else 
 		ret = 1;
 	if (tmp)
 		BN_free(tmp);
@@ -287,9 +286,12 @@ int test_builtin(BIO *out)
 	size_t		crv_len = 0, n = 0;
 	EC_KEY		*eckey = NULL, *wrong_eckey = NULL;
 	EC_GROUP	*group;
+	ECDSA_SIG	*ecdsa_sig = NULL;
 	unsigned char	digest[20], wrong_digest[20];
-	unsigned char	*signature = NULL; 
-	unsigned int	sig_len;
+	unsigned char	*signature = NULL;
+	unsigned char	*sig_ptr;
+	unsigned char	*raw_buf = NULL;
+	unsigned int	sig_len, degree, r_len, s_len, bn_len, buf_len;
 	int		nid, ret =  0;
 	
 	/* fill digest values with some random data */
@@ -339,7 +341,8 @@ int test_builtin(BIO *out)
 		if (EC_KEY_set_group(eckey, group) == 0)
 			goto builtin_err;
 		EC_GROUP_free(group);
-		if (EC_GROUP_get_degree(EC_KEY_get0_group(eckey)) < 160)
+		degree = EC_GROUP_get_degree(EC_KEY_get0_group(eckey));
+		if (degree < 160)
 			/* drop the curve */ 
 			{
 			EC_KEY_free(eckey);
@@ -415,11 +418,68 @@ int test_builtin(BIO *out)
 			}
 		BIO_printf(out, ".");
 		(void)BIO_flush(out);
-		/* modify a single byte of the signature */
-		offset = signature[10] % sig_len;
-		dirt   = signature[11];
-		signature[offset] ^= dirt ? dirt : 1; 
+		/* wrong length */
+		if (ECDSA_verify(0, digest, 20, signature, sig_len - 1,
+			eckey) == 1)
+			{
+			BIO_printf(out, " failed\n");
+			goto builtin_err;
+			}
+		BIO_printf(out, ".");
+		(void)BIO_flush(out);
+
+		/* Modify a single byte of the signature: to ensure we don't
+		 * garble the ASN1 structure, we read the raw signature and
+		 * modify a byte in one of the bignums directly. */
+		sig_ptr = signature;
+		if ((ecdsa_sig = d2i_ECDSA_SIG(NULL, &sig_ptr, sig_len)) == NULL)
+			{
+			BIO_printf(out, " failed\n");
+			goto builtin_err;
+			}
+
+		/* Store the two BIGNUMs in raw_buf. */
+		r_len = BN_num_bytes(ecdsa_sig->r);
+		s_len = BN_num_bytes(ecdsa_sig->s);
+		bn_len = (degree + 7) / 8;
+		if ((r_len > bn_len) || (s_len > bn_len))
+			{
+			BIO_printf(out, " failed\n");
+			goto builtin_err;
+			}
+		buf_len = 2 * bn_len;
+		if ((raw_buf = OPENSSL_malloc(buf_len)) == NULL)
+			goto builtin_err;
+		/* Pad the bignums with leading zeroes. */
+		memset(raw_buf, 0, buf_len);
+		BN_bn2bin(ecdsa_sig->r, raw_buf + bn_len - r_len);
+		BN_bn2bin(ecdsa_sig->s, raw_buf + buf_len - s_len);
+
+		/* Modify a single byte in the buffer. */
+		offset = raw_buf[10] % buf_len;
+		dirt   = raw_buf[11] ? raw_buf[11] : 1;
+		raw_buf[offset] ^= dirt;
+		/* Now read the BIGNUMs back in from raw_buf. */
+		if ((BN_bin2bn(raw_buf, bn_len, ecdsa_sig->r) == NULL) ||
+			(BN_bin2bn(raw_buf + bn_len, bn_len, ecdsa_sig->s) == NULL))
+			goto builtin_err;
+
+		sig_ptr = signature;
+		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr);
 		if (ECDSA_verify(0, digest, 20, signature, sig_len, eckey) == 1)
+			{
+			BIO_printf(out, " failed\n");
+			goto builtin_err;
+			}
+		/* Sanity check: undo the modification and verify signature. */
+		raw_buf[offset] ^= dirt;
+		if ((BN_bin2bn(raw_buf, bn_len, ecdsa_sig->r) == NULL) ||
+			(BN_bin2bn(raw_buf + bn_len, bn_len, ecdsa_sig->s) == NULL))
+			goto builtin_err;
+
+		sig_ptr = signature;
+		sig_len = i2d_ECDSA_SIG(ecdsa_sig, &sig_ptr);
+		if (ECDSA_verify(0, digest, 20, signature, sig_len, eckey) != 1)
 			{
 			BIO_printf(out, " failed\n");
 			goto builtin_err;
@@ -429,12 +489,18 @@ int test_builtin(BIO *out)
 		
 		BIO_printf(out, " ok\n");
 		/* cleanup */
+		/* clean bogus errors */
+		ERR_clear_error();
 		OPENSSL_free(signature);
 		signature = NULL;
 		EC_KEY_free(eckey);
 		eckey = NULL;
 		EC_KEY_free(wrong_eckey);
 		wrong_eckey = NULL;
+		ECDSA_SIG_free(ecdsa_sig);
+		ecdsa_sig = NULL;
+		OPENSSL_free(raw_buf);
+		raw_buf = NULL;
 		}
 
 	ret = 1;	
@@ -443,8 +509,12 @@ builtin_err:
 		EC_KEY_free(eckey);
 	if (wrong_eckey)
 		EC_KEY_free(wrong_eckey);
+	if (ecdsa_sig)
+		ECDSA_SIG_free(ecdsa_sig);
 	if (signature)
 		OPENSSL_free(signature);
+	if (raw_buf)
+		OPENSSL_free(raw_buf);
 	if (curves)
 		OPENSSL_free(curves);
 
@@ -490,7 +560,7 @@ err:
 	if (ret)
 		ERR_print_errors(out);
 	CRYPTO_cleanup_all_ex_data();
-	ERR_remove_state(0);
+	ERR_remove_thread_state(NULL);
 	ERR_free_strings();
 	CRYPTO_mem_leaks(out);
 	if (out != NULL)

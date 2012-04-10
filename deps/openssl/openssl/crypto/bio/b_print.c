@@ -115,8 +115,8 @@
 #define LDOUBLE double
 #endif
 
-#if HAVE_LONG_LONG
-# if defined(OPENSSL_SYS_WIN32) && !defined(__GNUC__)
+#ifdef HAVE_LONG_LONG
+# if defined(_WIN32) && !defined(__GNUC__)
 # define LLONG __int64
 # else
 # define LLONG long long

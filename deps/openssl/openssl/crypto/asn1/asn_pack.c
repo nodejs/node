@@ -66,10 +66,10 @@
 
 /* Turn an ASN1 encoded SEQUENCE OF into a STACK of structures */
 
-STACK *ASN1_seq_unpack(const unsigned char *buf, int len,
-		       d2i_of_void *d2i,void (*free_func)(void *))
+STACK_OF(OPENSSL_BLOCK) *ASN1_seq_unpack(const unsigned char *buf, int len,
+			 d2i_of_void *d2i, void (*free_func)(OPENSSL_BLOCK))
 {
-    STACK *sk;
+    STACK_OF(OPENSSL_BLOCK) *sk;
     const unsigned char *pbuf;
     pbuf =  buf;
     if (!(sk = d2i_ASN1_SET(NULL, &pbuf, len, d2i, free_func,
@@ -82,7 +82,7 @@ STACK *ASN1_seq_unpack(const unsigned char *buf, int len,
  * OPENSSL_malloc'ed buffer
  */
 
-unsigned char *ASN1_seq_pack(STACK *safes, i2d_of_void *i2d,
+unsigned char *ASN1_seq_pack(STACK_OF(OPENSSL_BLOCK) *safes, i2d_of_void *i2d,
 			     unsigned char **buf, int *len)
 {
 	int safelen;

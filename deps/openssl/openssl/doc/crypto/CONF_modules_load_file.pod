@@ -1,0 +1,60 @@
+=pod
+
+=head1 NAME
+
+ CONF_modules_load_file, CONF_modules_load - OpenSSL configuration functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/conf.h>
+
+ int CONF_modules_load_file(const char *filename, const char *appname,
+			   unsigned long flags);
+ int CONF_modules_load(const CONF *cnf, const char *appname,
+		      unsigned long flags);
+
+=head1 DESCRIPTION
+
+The function CONF_modules_load_file() configures OpenSSL using file
+B<filename> and application name B<appname>. If B<filename> is NULL
+the standard OpenSSL configuration file is used. If B<appname> is
+NULL the standard OpenSSL application name B<openssl_conf> is used.
+The behaviour can be cutomized using B<flags>.
+
+CONF_modules_load() is idential to CONF_modules_load_file() except it
+read configuration information from B<cnf>. 
+
+=head1 NOTES
+
+The following B<flags> are currently recognized:
+
+B<CONF_MFLAGS_IGNORE_ERRORS> if set errors returned by individual
+configuration modules are ignored. If not set the first module error is
+considered fatal and no further modules are loads.
+
+Normally any modules errors will add error information to the error queue. If
+B<CONF_MFLAGS_SILENT> is set no error information is added.
+
+If B<CONF_MFLAGS_NO_DSO> is set configuration module loading from DSOs is
+disabled.
+
+B<CONF_MFLAGS_IGNORE_MISSING_FILE> if set will make CONF_load_modules_file()
+ignore missing configuration files. Normally a missing configuration file
+return an error.
+
+=head1 RETURN VALUE
+
+These functions return 1 for success and a zero or negative value for
+failure. If module errors are not ignored the return code will reflect the
+return value of the failing module (this will always be zero or negative).
+
+=head1 SEE ALSO
+
+L<conf(5)|conf(5)>, L<OPENSSL_config(3)|OPENSSL_config(3)>,
+L<CONF_free(3), CONF_free(3)>, L<err(3),err(3)>
+
+=head1 HISTORY
+
+CONF_modules_load_file and CONF_modules_load first appeared in OpenSSL 0.9.7.
+
+=cut

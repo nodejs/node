@@ -34,7 +34,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -88,27 +88,26 @@ ech_key.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 ech_key.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
 ech_key.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
 ech_key.o: ../../include/openssl/engine.h ../../include/openssl/evp.h
-ech_key.o: ../../include/openssl/fips.h ../../include/openssl/lhash.h
-ech_key.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
-ech_key.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
-ech_key.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pkcs7.h
-ech_key.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
-ech_key.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
-ech_key.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
-ech_key.o: ech_key.c ech_locl.h
+ech_key.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
+ech_key.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
+ech_key.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+ech_key.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
+ech_key.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
+ech_key.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
+ech_key.o: ../../include/openssl/x509_vfy.h ech_key.c ech_locl.h
 ech_lib.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 ech_lib.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 ech_lib.o: ../../include/openssl/e_os2.h ../../include/openssl/ec.h
 ech_lib.o: ../../include/openssl/ecdh.h ../../include/openssl/ecdsa.h
 ech_lib.o: ../../include/openssl/engine.h ../../include/openssl/err.h
-ech_lib.o: ../../include/openssl/evp.h ../../include/openssl/fips.h
-ech_lib.o: ../../include/openssl/lhash.h ../../include/openssl/obj_mac.h
-ech_lib.o: ../../include/openssl/objects.h ../../include/openssl/opensslconf.h
-ech_lib.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-ech_lib.o: ../../include/openssl/pkcs7.h ../../include/openssl/safestack.h
-ech_lib.o: ../../include/openssl/sha.h ../../include/openssl/stack.h
-ech_lib.o: ../../include/openssl/symhacks.h ../../include/openssl/x509.h
-ech_lib.o: ../../include/openssl/x509_vfy.h ech_lib.c ech_locl.h
+ech_lib.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
+ech_lib.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+ech_lib.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+ech_lib.o: ../../include/openssl/ossl_typ.h ../../include/openssl/pkcs7.h
+ech_lib.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
+ech_lib.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+ech_lib.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
+ech_lib.o: ech_lib.c ech_locl.h
 ech_ossl.o: ../../e_os.h ../../include/openssl/asn1.h
 ech_ossl.o: ../../include/openssl/bio.h ../../include/openssl/bn.h
 ech_ossl.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h

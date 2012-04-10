@@ -154,16 +154,5 @@
 #define	MD(a,b,c)		EVP_Digest(a,b,c,NULL,EVP_md2(), NULL)
 #endif
 
-#ifndef OPENSSL_NO_ENGINE
-void int_RAND_set_callbacks(
-	int (*set_rand_func)(const RAND_METHOD *meth,
-						const RAND_METHOD **pmeth),
-	const RAND_METHOD *(*get_rand_func)
-						(const RAND_METHOD **pmeth));
-int eng_RAND_set_rand_method(const RAND_METHOD *meth,
-				const RAND_METHOD **pmeth);
-const RAND_METHOD *eng_RAND_get_rand_method(const RAND_METHOD **pmeth);
-#endif
-
 
 #endif

@@ -115,7 +115,7 @@
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
 
-#if !defined(RSA_NULL) && !defined(OPENSSL_FIPS)
+#ifndef RSA_NULL
 
 static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
@@ -256,6 +256,7 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 {
 	BN_BLINDING *ret;
 	int got_write_lock = 0;
+	CRYPTO_THREADID cur;
 
 	CRYPTO_r_lock(CRYPTO_LOCK_RSA);
 
@@ -273,7 +274,8 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 	if (ret == NULL)
 		goto err;
 
-	if (BN_BLINDING_get_thread_id(ret) == CRYPTO_thread_id())
+	CRYPTO_THREADID_current(&cur);
+	if (!CRYPTO_THREADID_cmp(&cur, BN_BLINDING_thread_id(ret)))
 		{
 		/* rsa->blinding is ours! */
 
@@ -312,51 +314,56 @@ static BN_BLINDING *rsa_get_blinding(RSA *rsa, int *local, BN_CTX *ctx)
 	return ret;
 }
 
-static int rsa_blinding_convert(BN_BLINDING *b, int local, BIGNUM *f,
-	BIGNUM *r, BN_CTX *ctx)
-{
-	if (local)
+static int rsa_blinding_convert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
+	BN_CTX *ctx)
+	{
+	if (unblind == NULL)
+		/* Local blinding: store the unblinding factor
+		 * in BN_BLINDING. */
 		return BN_BLINDING_convert_ex(f, NULL, b, ctx);
 	else
 		{
-		int ret;
-		CRYPTO_r_lock(CRYPTO_LOCK_RSA_BLINDING);
-		ret = BN_BLINDING_convert_ex(f, r, b, ctx);
-		CRYPTO_r_unlock(CRYPTO_LOCK_RSA_BLINDING);
-		return ret;
-		}
-}
-
-static int rsa_blinding_invert(BN_BLINDING *b, int local, BIGNUM *f,
-	BIGNUM *r, BN_CTX *ctx)
-{
-	if (local)
-		return BN_BLINDING_invert_ex(f, NULL, b, ctx);
-	else
-		{
+		/* Shared blinding: store the unblinding factor
+		 * outside BN_BLINDING. */
 		int ret;
 		CRYPTO_w_lock(CRYPTO_LOCK_RSA_BLINDING);
-		ret = BN_BLINDING_invert_ex(f, r, b, ctx);
+		ret = BN_BLINDING_convert_ex(f, unblind, b, ctx);
 		CRYPTO_w_unlock(CRYPTO_LOCK_RSA_BLINDING);
 		return ret;
 		}
-}
+	}
+
+static int rsa_blinding_invert(BN_BLINDING *b, BIGNUM *f, BIGNUM *unblind,
+	BN_CTX *ctx)
+	{
+	/* For local blinding, unblind is set to NULL, and BN_BLINDING_invert_ex
+	 * will use the unblinding factor stored in BN_BLINDING.
+	 * If BN_BLINDING is shared between threads, unblind must be non-null:
+	 * BN_BLINDING_invert_ex will then use the local unblinding factor,
+	 * and will only read the modulus from BN_BLINDING.
+	 * In both cases it's safe to access the blinding without a lock.
+	 */
+	return BN_BLINDING_invert_ex(f, unblind, b, ctx);
+	}
 
 /* signing */
 static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
 	{
-	BIGNUM *f, *ret, *br, *res;
+	BIGNUM *f, *ret, *res;
 	int i,j,k,num=0,r= -1;
 	unsigned char *buf=NULL;
 	BN_CTX *ctx=NULL;
 	int local_blinding = 0;
+	/* Used only if the blinding structure is shared. A non-NULL unblind
+	 * instructs rsa_blinding_convert() and rsa_blinding_invert() to store
+	 * the unblinding factor outside the blinding structure. */
+	BIGNUM *unblind = NULL;
 	BN_BLINDING *blinding = NULL;
 
 	if ((ctx=BN_CTX_new()) == NULL) goto err;
 	BN_CTX_start(ctx);
 	f   = BN_CTX_get(ctx);
-	br  = BN_CTX_get(ctx);
 	ret = BN_CTX_get(ctx);
 	num = BN_num_bytes(rsa->n);
 	buf = OPENSSL_malloc(num);
@@ -404,8 +411,15 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 		}
 	
 	if (blinding != NULL)
-		if (!rsa_blinding_convert(blinding, local_blinding, f, br, ctx))
+		{
+		if (!local_blinding && ((unblind = BN_CTX_get(ctx)) == NULL))
+			{
+			RSAerr(RSA_F_RSA_EAY_PRIVATE_ENCRYPT,ERR_R_MALLOC_FAILURE);
 			goto err;
+			}
+		if (!rsa_blinding_convert(blinding, f, unblind, ctx))
+			goto err;
+		}
 
 	if ( (rsa->flags & RSA_FLAG_EXT_PKEY) ||
 		((rsa->p != NULL) &&
@@ -439,7 +453,7 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 		}
 
 	if (blinding)
-		if (!rsa_blinding_invert(blinding, local_blinding, ret, br, ctx))
+		if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
 			goto err;
 
 	if (padding == RSA_X931_PADDING)
@@ -478,18 +492,21 @@ err:
 static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
 	{
-	BIGNUM *f, *ret, *br;
+	BIGNUM *f, *ret;
 	int j,num=0,r= -1;
 	unsigned char *p;
 	unsigned char *buf=NULL;
 	BN_CTX *ctx=NULL;
 	int local_blinding = 0;
+	/* Used only if the blinding structure is shared. A non-NULL unblind
+	 * instructs rsa_blinding_convert() and rsa_blinding_invert() to store
+	 * the unblinding factor outside the blinding structure. */
+	BIGNUM *unblind = NULL;
 	BN_BLINDING *blinding = NULL;
 
 	if((ctx = BN_CTX_new()) == NULL) goto err;
 	BN_CTX_start(ctx);
 	f   = BN_CTX_get(ctx);
-	br  = BN_CTX_get(ctx);
 	ret = BN_CTX_get(ctx);
 	num = BN_num_bytes(rsa->n);
 	buf = OPENSSL_malloc(num);
@@ -527,8 +544,15 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 		}
 	
 	if (blinding != NULL)
-		if (!rsa_blinding_convert(blinding, local_blinding, f, br, ctx))
+		{
+		if (!local_blinding && ((unblind = BN_CTX_get(ctx)) == NULL))
+			{
+			RSAerr(RSA_F_RSA_EAY_PRIVATE_DECRYPT,ERR_R_MALLOC_FAILURE);
 			goto err;
+			}
+		if (!rsa_blinding_convert(blinding, f, unblind, ctx))
+			goto err;
+		}
 
 	/* do the decrypt */
 	if ( (rsa->flags & RSA_FLAG_EXT_PKEY) ||
@@ -562,7 +586,7 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 		}
 
 	if (blinding)
-		if (!rsa_blinding_invert(blinding, local_blinding, ret, br, ctx))
+		if (!rsa_blinding_invert(blinding, ret, unblind, ctx))
 			goto err;
 
 	p=buf;

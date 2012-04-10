@@ -69,12 +69,6 @@ extern BIO *bio_err;
 void h__dump (unsigned char *p, int len);
 #endif
 
-#ifdef OPENSSL_SYS_NETWARE
-/* Rename these functions to avoid name clashes on NetWare OS */
-#define uni2asc OPENSSL_uni2asc
-#define asc2uni OPENSSL_asc2uni
-#endif
-
 /* PKCS12 compatible key/IV generation */
 #ifndef min
 #define min(a,b) ((a) < (b) ? (a) : (b))
@@ -87,15 +81,18 @@ int PKCS12_key_gen_asc(const char *pass, int passlen, unsigned char *salt,
 	int ret;
 	unsigned char *unipass;
 	int uniplen;
+
 	if(!pass) {
 		unipass = NULL;
 		uniplen = 0;
-	} else if (!asc2uni(pass, passlen, &unipass, &uniplen)) {
+	} else if (!OPENSSL_asc2uni(pass, passlen, &unipass, &uniplen)) {
 		PKCS12err(PKCS12_F_PKCS12_KEY_GEN_ASC,ERR_R_MALLOC_FAILURE);
 		return 0;
 	}
 	ret = PKCS12_key_gen_uni(unipass, uniplen, salt, saltlen,
 						 id, iter, n, out, md_type);
+	if (ret <= 0)
+	    return 0;
 	if(unipass) {
 		OPENSSL_cleanse(unipass, uniplen);	/* Clear password from memory */
 		OPENSSL_free(unipass);
@@ -136,6 +133,8 @@ int PKCS12_key_gen_uni(unsigned char *pass, int passlen, unsigned char *salt,
 #endif
 	v = EVP_MD_block_size (md_type);
 	u = EVP_MD_size (md_type);
+	if (u < 0)
+	    return 0;
 	D = OPENSSL_malloc (v);
 	Ai = OPENSSL_malloc (u);
 	B = OPENSSL_malloc (v + 1);

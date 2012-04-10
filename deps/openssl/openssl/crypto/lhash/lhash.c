@@ -107,18 +107,18 @@ const char lh_version[]="lhash" OPENSSL_VERSION_PTEXT;
 #define UP_LOAD		(2*LH_LOAD_MULT) /* load times 256  (default 2) */
 #define DOWN_LOAD	(LH_LOAD_MULT)   /* load times 256  (default 1) */
 
-static void expand(LHASH *lh);
-static void contract(LHASH *lh);
-static LHASH_NODE **getrn(LHASH *lh, const void *data, unsigned long *rhash);
+static void expand(_LHASH *lh);
+static void contract(_LHASH *lh);
+static LHASH_NODE **getrn(_LHASH *lh, const void *data, unsigned long *rhash);
 
-LHASH *lh_new(LHASH_HASH_FN_TYPE h, LHASH_COMP_FN_TYPE c)
+_LHASH *lh_new(LHASH_HASH_FN_TYPE h, LHASH_COMP_FN_TYPE c)
 	{
-	LHASH *ret;
+	_LHASH *ret;
 	int i;
 
-	if ((ret=(LHASH *)OPENSSL_malloc(sizeof(LHASH))) == NULL)
+	if ((ret=OPENSSL_malloc(sizeof(_LHASH))) == NULL)
 		goto err0;
-	if ((ret->b=(LHASH_NODE **)OPENSSL_malloc(sizeof(LHASH_NODE *)*MIN_NODES)) == NULL)
+	if ((ret->b=OPENSSL_malloc(sizeof(LHASH_NODE *)*MIN_NODES)) == NULL)
 		goto err1;
 	for (i=0; i<MIN_NODES; i++)
 		ret->b[i]=NULL;
@@ -154,7 +154,7 @@ err0:
 	return(NULL);
 	}
 
-void lh_free(LHASH *lh)
+void lh_free(_LHASH *lh)
 	{
 	unsigned int i;
 	LHASH_NODE *n,*nn;
@@ -176,7 +176,7 @@ void lh_free(LHASH *lh)
 	OPENSSL_free(lh);
 	}
 
-void *lh_insert(LHASH *lh, void *data)
+void *lh_insert(_LHASH *lh, void *data)
 	{
 	unsigned long hash;
 	LHASH_NODE *nn,**rn;
@@ -214,7 +214,7 @@ void *lh_insert(LHASH *lh, void *data)
 	return(ret);
 	}
 
-void *lh_delete(LHASH *lh, const void *data)
+void *lh_delete(_LHASH *lh, const void *data)
 	{
 	unsigned long hash;
 	LHASH_NODE *nn,**rn;
@@ -245,7 +245,7 @@ void *lh_delete(LHASH *lh, const void *data)
 	return(ret);
 	}
 
-void *lh_retrieve(LHASH *lh, const void *data)
+void *lh_retrieve(_LHASH *lh, const void *data)
 	{
 	unsigned long hash;
 	LHASH_NODE **rn;
@@ -267,11 +267,14 @@ void *lh_retrieve(LHASH *lh, const void *data)
 	return(ret);
 	}
 
-static void doall_util_fn(LHASH *lh, int use_arg, LHASH_DOALL_FN_TYPE func,
+static void doall_util_fn(_LHASH *lh, int use_arg, LHASH_DOALL_FN_TYPE func,
 			  LHASH_DOALL_ARG_FN_TYPE func_arg, void *arg)
 	{
 	int i;
 	LHASH_NODE *a,*n;
+
+	if (lh == NULL)
+		return;
 
 	/* reverse the order so we search from 'top to bottom'
 	 * We were having memory leaks otherwise */
@@ -282,6 +285,8 @@ static void doall_util_fn(LHASH *lh, int use_arg, LHASH_DOALL_FN_TYPE func,
 			{
 			/* 28/05/91 - eay - n added so items can be deleted
 			 * via lh_doall */
+			/* 22/05/08 - ben - eh? since a is not passed,
+			 * this should not be needed */
 			n=a->next;
 			if(use_arg)
 				func_arg(a->data,arg);
@@ -292,53 +297,29 @@ static void doall_util_fn(LHASH *lh, int use_arg, LHASH_DOALL_FN_TYPE func,
 		}
 	}
 
-void lh_doall(LHASH *lh, LHASH_DOALL_FN_TYPE func)
+void lh_doall(_LHASH *lh, LHASH_DOALL_FN_TYPE func)
 	{
 	doall_util_fn(lh, 0, func, (LHASH_DOALL_ARG_FN_TYPE)0, NULL);
 	}
 
-void lh_doall_arg(LHASH *lh, LHASH_DOALL_ARG_FN_TYPE func, void *arg)
+void lh_doall_arg(_LHASH *lh, LHASH_DOALL_ARG_FN_TYPE func, void *arg)
 	{
 	doall_util_fn(lh, 1, (LHASH_DOALL_FN_TYPE)0, func, arg);
 	}
 
-static void expand(LHASH *lh)
+static void expand(_LHASH *lh)
 	{
 	LHASH_NODE **n,**n1,**n2,*np;
-	unsigned int p,i,j,pmax;
+	unsigned int p,i,j;
 	unsigned long hash,nni;
-
-	p=(int)lh->p++;
-	nni=lh->num_alloc_nodes;
-	pmax=lh->pmax;
-
-	if ((lh->p) >= lh->pmax)
-		{
-		j=(int)lh->num_alloc_nodes*2;
-		n=(LHASH_NODE **)OPENSSL_realloc(lh->b,
-			(int)sizeof(LHASH_NODE *)*j);
-		if (n == NULL)
-			{
-/*			fputs("realloc error in lhash",stderr); */
-			lh->error++;
-			lh->p=0;
-			return;
-			}
-		/* else */
-		for (i=(int)lh->num_alloc_nodes; i<j; i++)/* 26/02/92 eay */
-			n[i]=NULL;			  /* 02/03/92 eay */
-		lh->pmax=lh->num_alloc_nodes;
-		lh->num_alloc_nodes=j;
-		lh->num_expand_reallocs++;
-		lh->p=0;
-		lh->b=n;
-		}
 
 	lh->num_nodes++;
 	lh->num_expands++;
+	p=(int)lh->p++;
 	n1= &(lh->b[p]);
-	n2= &(lh->b[p+pmax]);
+	n2= &(lh->b[p+(int)lh->pmax]);
 	*n2=NULL;        /* 27/07/92 - eay - undefined pointer bug */
+	nni=lh->num_alloc_nodes;
 	
 	for (np= *n1; np != NULL; )
 		{
@@ -359,14 +340,35 @@ static void expand(LHASH *lh)
 		np= *n1;
 		}
 
+	if ((lh->p) >= lh->pmax)
+		{
+		j=(int)lh->num_alloc_nodes*2;
+		n=(LHASH_NODE **)OPENSSL_realloc(lh->b,
+			(int)(sizeof(LHASH_NODE *)*j));
+		if (n == NULL)
+			{
+/*			fputs("realloc error in lhash",stderr); */
+			lh->error++;
+			lh->p=0;
+			return;
+			}
+		/* else */
+		for (i=(int)lh->num_alloc_nodes; i<j; i++)/* 26/02/92 eay */
+			n[i]=NULL;			  /* 02/03/92 eay */
+		lh->pmax=lh->num_alloc_nodes;
+		lh->num_alloc_nodes=j;
+		lh->num_expand_reallocs++;
+		lh->p=0;
+		lh->b=n;
+		}
 	}
 
-static void contract(LHASH *lh)
+static void contract(_LHASH *lh)
 	{
 	LHASH_NODE **n,*n1,*np;
-	int idx = lh->p+lh->pmax-1;
 
-	np=lh->b[idx];
+	np=lh->b[lh->p+lh->pmax-1];
+	lh->b[lh->p+lh->pmax-1]=NULL; /* 24/07-92 - eay - weird but :-( */
 	if (lh->p == 0)
 		{
 		n=(LHASH_NODE **)OPENSSL_realloc(lh->b,
@@ -386,7 +388,6 @@ static void contract(LHASH *lh)
 	else
 		lh->p--;
 
-	lh->b[idx] = NULL;
 	lh->num_nodes--;
 	lh->num_contracts++;
 
@@ -401,7 +402,7 @@ static void contract(LHASH *lh)
 		}
 	}
 
-static LHASH_NODE **getrn(LHASH *lh, const void *data, unsigned long *rhash)
+static LHASH_NODE **getrn(_LHASH *lh, const void *data, unsigned long *rhash)
 	{
 	LHASH_NODE **ret,*n1;
 	unsigned long hash,nn;
@@ -468,7 +469,7 @@ unsigned long lh_strhash(const char *c)
 	return((ret>>16)^ret);
 	}
 
-unsigned long lh_num_items(const LHASH *lh)
+unsigned long lh_num_items(const _LHASH *lh)
 	{
 	return lh ? lh->num_items : 0;
 	}

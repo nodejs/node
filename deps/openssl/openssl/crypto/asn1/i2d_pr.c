@@ -58,41 +58,22 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
-#include <openssl/bn.h>
 #include <openssl/evp.h>
-#include <openssl/objects.h>
-#ifndef OPENSSL_NO_RSA
-#include <openssl/rsa.h>
-#endif
-#ifndef OPENSSL_NO_DSA
-#include <openssl/dsa.h>
-#endif
-#ifndef OPENSSL_NO_EC
-#include <openssl/ec.h>
-#endif
+#include <openssl/x509.h>
+#include "asn1_locl.h"
 
 int i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp)
 	{
-#ifndef OPENSSL_NO_RSA
-	if (a->type == EVP_PKEY_RSA)
+	if (a->ameth && a->ameth->old_priv_encode)
 		{
-		return(i2d_RSAPrivateKey(a->pkey.rsa,pp));
+		return a->ameth->old_priv_encode(a, pp);
 		}
-	else
-#endif
-#ifndef OPENSSL_NO_DSA
-	if (a->type == EVP_PKEY_DSA)
-		{
-		return(i2d_DSAPrivateKey(a->pkey.dsa,pp));
-		}
-#endif
-#ifndef OPENSSL_NO_EC
-	if (a->type == EVP_PKEY_EC)
-		{
-		return(i2d_ECPrivateKey(a->pkey.ec, pp));
-		}
-#endif
-
+	if (a->ameth && a->ameth->priv_encode) {
+		PKCS8_PRIV_KEY_INFO *p8 = EVP_PKEY2PKCS8(a);
+		int ret = i2d_PKCS8_PRIV_KEY_INFO(p8,pp);
+		PKCS8_PRIV_KEY_INFO_free(p8);
+		return ret;
+	}	
 	ASN1err(ASN1_F_I2D_PRIVATEKEY,ASN1_R_UNSUPPORTED_PUBLIC_KEY_TYPE);
 	return(-1);
 	}

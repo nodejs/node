@@ -2,11 +2,12 @@
 #
 # ====================================================================
 # Written by Andy Polyakov <appro@fy.chalmers.se> for the OpenSSL
-# project. Rights for redistribution and usage in source and binary
-# forms are granted according to the OpenSSL license.
+# project. The module is, however, dual licensed under OpenSSL and
+# CRYPTOGAMS licenses depending on where you obtain it. For further
+# details see http://www.openssl.org/~appro/cryptogams/.
 # ====================================================================
 #
-# Version 1.2.
+# Version 2.1.
 #
 # aes-*-cbc benchmarks are improved by >70% [compared to gcc 3.3.2 on
 # Opteron 240 CPU] plus all the bells-n-whistles from 32-bit version
@@ -17,17 +18,29 @@
 #
 # Performance in number of cycles per processed byte for 128-bit key:
 #
-#		ECB		CBC encrypt
-# AMD64		13.7		13.0(*)
-# EM64T		20.2		18.6(*)
+#		ECB encrypt	ECB decrypt	CBC large chunk
+# AMD64		33		41		13.0
+# EM64T		38		59		18.6(*)
+# Core 2	30		43		14.5(*)
 #
-# (*)	CBC benchmarks are better than ECB thanks to custom ABI used
-#	by the private block encryption function.
+# (*) with hyper-threading off
+
+$flavour = shift;
+$output  = shift;
+if ($flavour =~ /\./) { $output = $flavour; undef $flavour; }
+
+$win64=0; $win64=1 if ($flavour =~ /[nm]asm|mingw64/ || $output =~ /\.asm$/);
+
+$0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
+( $xlate="${dir}x86_64-xlate.pl" and -f $xlate ) or
+( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
+die "can't locate x86_64-xlate.pl";
+
+open STDOUT,"| $^X $xlate $flavour $output";
 
 $verticalspin=1;	# unlike 32-bit version $verticalspin performs
 			# ~15% better on both AMD and Intel cores
-$output=shift;
-open STDOUT,"| $^X ../perlasm/x86_64-xlate.pl $output";
+$speed_limit=512;	# see aes-586.pl for details
 
 $code=".text\n";
 
@@ -35,9 +48,9 @@ $s0="%eax";
 $s1="%ebx";
 $s2="%ecx";
 $s3="%edx";
-$acc0="%esi";
-$acc1="%edi";
-$acc2="%ebp";
+$acc0="%esi";	$mask80="%rsi";
+$acc1="%edi";	$maskfe="%rdi";
+$acc2="%ebp";	$mask1b="%rbp";
 $inp="%r8";
 $out="%r9";
 $t0="%r10d";
@@ -51,6 +64,8 @@ sub hi() { my $r=shift;	$r =~ s/%[er]([a-d])x/%\1h/;	$r; }
 sub lo() { my $r=shift;	$r =~ s/%[er]([a-d])x/%\1l/;
 			$r =~ s/%[er]([sd]i)/%\1l/;
 			$r =~ s/%(r[0-9]+)[d]?/%\1b/;	$r; }
+sub LO() { my $r=shift; $r =~ s/%r([a-z]+)/%e\1/;
+			$r =~ s/%r([0-9]+)/%r\1d/;	$r; }
 sub _data_word()
 { my $i;
     while(defined($i=shift)) { $code.=sprintf".long\t0x%08x,0x%08x\n",$i,$i; }
@@ -138,22 +153,17 @@ $code.=<<___;
 	movzb	`&lo("$s0")`,$acc0
 	movzb	`&lo("$s1")`,$acc1
 	movzb	`&lo("$s2")`,$acc2
-	mov	2($sbox,$acc0,8),$t0
-	mov	2($sbox,$acc1,8),$t1
-	mov	2($sbox,$acc2,8),$t2
-
-	and	\$0x000000ff,$t0
-	and	\$0x000000ff,$t1
-	and	\$0x000000ff,$t2
+	movzb	2($sbox,$acc0,8),$t0
+	movzb	2($sbox,$acc1,8),$t1
+	movzb	2($sbox,$acc2,8),$t2
 
 	movzb	`&lo("$s3")`,$acc0
 	movzb	`&hi("$s1")`,$acc1
 	movzb	`&hi("$s2")`,$acc2
-	mov	2($sbox,$acc0,8),$t3
+	movzb	2($sbox,$acc0,8),$t3
 	mov	0($sbox,$acc1,8),$acc1	#$t0
 	mov	0($sbox,$acc2,8),$acc2	#$t1
 
-	and	\$0x000000ff,$t3
 	and	\$0x0000ff00,$acc1
 	and	\$0x0000ff00,$acc2
 
@@ -345,6 +355,234 @@ $code.=<<___;
 .size	_x86_64_AES_encrypt,.-_x86_64_AES_encrypt
 ___
 
+# it's possible to implement this by shifting tN by 8, filling least
+# significant byte with byte load and finally bswap-ing at the end,
+# but such partial register load kills Core 2...
+sub enccompactvert()
+{ my ($t3,$t4,$t5)=("%r8d","%r9d","%r13d");
+
+$code.=<<___;
+	movzb	`&lo("$s0")`,$t0
+	movzb	`&lo("$s1")`,$t1
+	movzb	`&lo("$s2")`,$t2
+	movzb	($sbox,$t0,1),$t0
+	movzb	($sbox,$t1,1),$t1
+	movzb	($sbox,$t2,1),$t2
+
+	movzb	`&lo("$s3")`,$t3
+	movzb	`&hi("$s1")`,$acc0
+	movzb	`&hi("$s2")`,$acc1
+	movzb	($sbox,$t3,1),$t3
+	movzb	($sbox,$acc0,1),$t4	#$t0
+	movzb	($sbox,$acc1,1),$t5	#$t1
+
+	movzb	`&hi("$s3")`,$acc2
+	movzb	`&hi("$s0")`,$acc0
+	shr	\$16,$s2
+	movzb	($sbox,$acc2,1),$acc2	#$t2
+	movzb	($sbox,$acc0,1),$acc0	#$t3
+	shr	\$16,$s3
+
+	movzb	`&lo("$s2")`,$acc1
+	shl	\$8,$t4
+	shl	\$8,$t5
+	movzb	($sbox,$acc1,1),$acc1	#$t0
+	xor	$t4,$t0
+	xor	$t5,$t1
+
+	movzb	`&lo("$s3")`,$t4
+	shr	\$16,$s0
+	shr	\$16,$s1
+	movzb	`&lo("$s0")`,$t5
+	shl	\$8,$acc2
+	shl	\$8,$acc0
+	movzb	($sbox,$t4,1),$t4	#$t1
+	movzb	($sbox,$t5,1),$t5	#$t2
+	xor	$acc2,$t2
+	xor	$acc0,$t3
+
+	movzb	`&lo("$s1")`,$acc2
+	movzb	`&hi("$s3")`,$acc0
+	shl	\$16,$acc1
+	movzb	($sbox,$acc2,1),$acc2	#$t3
+	movzb	($sbox,$acc0,1),$acc0	#$t0
+	xor	$acc1,$t0
+
+	movzb	`&hi("$s0")`,$acc1
+	shr	\$8,$s2
+	shr	\$8,$s1
+	movzb	($sbox,$acc1,1),$acc1	#$t1
+	movzb	($sbox,$s2,1),$s3	#$t3
+	movzb	($sbox,$s1,1),$s2	#$t2
+	shl	\$16,$t4
+	shl	\$16,$t5
+	shl	\$16,$acc2
+	xor	$t4,$t1
+	xor	$t5,$t2
+	xor	$acc2,$t3
+
+	shl	\$24,$acc0
+	shl	\$24,$acc1
+	shl	\$24,$s3
+	xor	$acc0,$t0
+	shl	\$24,$s2
+	xor	$acc1,$t1
+	mov	$t0,$s0
+	mov	$t1,$s1
+	xor	$t2,$s2
+	xor	$t3,$s3
+___
+}
+
+sub enctransform_ref()
+{ my $sn = shift;
+  my ($acc,$r2,$tmp)=("%r8d","%r9d","%r13d");
+
+$code.=<<___;
+	mov	$sn,$acc
+	and	\$0x80808080,$acc
+	mov	$acc,$tmp
+	shr	\$7,$tmp
+	lea	($sn,$sn),$r2
+	sub	$tmp,$acc
+	and	\$0xfefefefe,$r2
+	and	\$0x1b1b1b1b,$acc
+	mov	$sn,$tmp
+	xor	$acc,$r2
+
+	xor	$r2,$sn
+	rol	\$24,$sn
+	xor	$r2,$sn
+	ror	\$16,$tmp
+	xor	$tmp,$sn
+	ror	\$8,$tmp
+	xor	$tmp,$sn
+___
+}
+
+# unlike decrypt case it does not pay off to parallelize enctransform
+sub enctransform()
+{ my ($t3,$r20,$r21)=($acc2,"%r8d","%r9d");
+
+$code.=<<___;
+	mov	$s0,$acc0
+	mov	$s1,$acc1
+	and	\$0x80808080,$acc0
+	and	\$0x80808080,$acc1
+	mov	$acc0,$t0
+	mov	$acc1,$t1
+	shr	\$7,$t0
+	lea	($s0,$s0),$r20
+	shr	\$7,$t1
+	lea	($s1,$s1),$r21
+	sub	$t0,$acc0
+	sub	$t1,$acc1
+	and	\$0xfefefefe,$r20
+	and	\$0xfefefefe,$r21
+	and	\$0x1b1b1b1b,$acc0
+	and	\$0x1b1b1b1b,$acc1
+	mov	$s0,$t0
+	mov	$s1,$t1
+	xor	$acc0,$r20
+	xor	$acc1,$r21
+
+	xor	$r20,$s0
+	xor	$r21,$s1
+	 mov	$s2,$acc0
+	 mov	$s3,$acc1
+	rol	\$24,$s0
+	rol	\$24,$s1
+	 and	\$0x80808080,$acc0
+	 and	\$0x80808080,$acc1
+	xor	$r20,$s0
+	xor	$r21,$s1
+	 mov	$acc0,$t2
+	 mov	$acc1,$t3
+	ror	\$16,$t0
+	ror	\$16,$t1
+	 shr	\$7,$t2
+	 lea	($s2,$s2),$r20
+	xor	$t0,$s0
+	xor	$t1,$s1
+	 shr	\$7,$t3
+	 lea	($s3,$s3),$r21
+	ror	\$8,$t0
+	ror	\$8,$t1
+	 sub	$t2,$acc0
+	 sub	$t3,$acc1
+	xor	$t0,$s0
+	xor	$t1,$s1
+
+	and	\$0xfefefefe,$r20
+	and	\$0xfefefefe,$r21
+	and	\$0x1b1b1b1b,$acc0
+	and	\$0x1b1b1b1b,$acc1
+	mov	$s2,$t2
+	mov	$s3,$t3
+	xor	$acc0,$r20
+	xor	$acc1,$r21
+
+	xor	$r20,$s2
+	xor	$r21,$s3
+	rol	\$24,$s2
+	rol	\$24,$s3
+	xor	$r20,$s2
+	xor	$r21,$s3
+	mov	0($sbox),$acc0			# prefetch Te4
+	ror	\$16,$t2
+	ror	\$16,$t3
+	mov	64($sbox),$acc1
+	xor	$t2,$s2
+	xor	$t3,$s3
+	mov	128($sbox),$r20
+	ror	\$8,$t2
+	ror	\$8,$t3
+	mov	192($sbox),$r21
+	xor	$t2,$s2
+	xor	$t3,$s3
+___
+}
+
+$code.=<<___;
+.type	_x86_64_AES_encrypt_compact,\@abi-omnipotent
+.align	16
+_x86_64_AES_encrypt_compact:
+	lea	128($sbox),$inp			# size optimization
+	mov	0-128($inp),$acc1		# prefetch Te4
+	mov	32-128($inp),$acc2
+	mov	64-128($inp),$t0
+	mov	96-128($inp),$t1
+	mov	128-128($inp),$acc1
+	mov	160-128($inp),$acc2
+	mov	192-128($inp),$t0
+	mov	224-128($inp),$t1
+	jmp	.Lenc_loop_compact
+.align	16
+.Lenc_loop_compact:
+		xor	0($key),$s0		# xor with key
+		xor	4($key),$s1
+		xor	8($key),$s2
+		xor	12($key),$s3
+		lea	16($key),$key
+___
+		&enccompactvert();
+$code.=<<___;
+		cmp	16(%rsp),$key
+		je	.Lenc_compact_done
+___
+		&enctransform();
+$code.=<<___;
+	jmp	.Lenc_loop_compact
+.align	16
+.Lenc_compact_done:
+	xor	0($key),$s0
+	xor	4($key),$s1
+	xor	8($key),$s2
+	xor	12($key),$s3
+	.byte	0xf3,0xc3			# rep ret
+.size	_x86_64_AES_encrypt_compact,.-_x86_64_AES_encrypt_compact
+___
+
 # void AES_encrypt (const void *inp,void *out,const AES_KEY *key);
 $code.=<<___;
 .globl	AES_encrypt
@@ -358,31 +596,57 @@ AES_encrypt:
 	push	%r14
 	push	%r15
 
+	# allocate frame "above" key schedule
+	mov	%rsp,%r10
+	lea	-63(%rdx),%rcx	# %rdx is key argument
+	and	\$-64,%rsp
+	sub	%rsp,%rcx
+	neg	%rcx
+	and	\$0x3c0,%rcx
+	sub	%rcx,%rsp
+	sub	\$32,%rsp
+
+	mov	%rsi,16(%rsp)	# save out
+	mov	%r10,24(%rsp)	# save real stack pointer
+.Lenc_prologue:
+
 	mov	%rdx,$key
-	mov	%rdi,$inp
-	mov	%rsi,$out
+	mov	240($key),$rnds	# load rounds
 
-	.picmeup	$sbox
-	lea	AES_Te-.($sbox),$sbox
+	mov	0(%rdi),$s0	# load input vector
+	mov	4(%rdi),$s1
+	mov	8(%rdi),$s2
+	mov	12(%rdi),$s3
 
-	mov	0($inp),$s0
-	mov	4($inp),$s1
-	mov	8($inp),$s2
-	mov	12($inp),$s3
+	shl	\$4,$rnds
+	lea	($key,$rnds),%rbp
+	mov	$key,(%rsp)	# key schedule
+	mov	%rbp,8(%rsp)	# end of key schedule
 
-	call	_x86_64_AES_encrypt
+	# pick Te4 copy which can't "overlap" with stack frame or key schedule
+	lea	.LAES_Te+2048(%rip),$sbox
+	lea	768(%rsp),%rbp
+	sub	$sbox,%rbp
+	and	\$0x300,%rbp
+	lea	($sbox,%rbp),$sbox
 
-	mov	$s0,0($out)
+	call	_x86_64_AES_encrypt_compact
+
+	mov	16(%rsp),$out	# restore out
+	mov	24(%rsp),%rsi	# restore saved stack pointer
+	mov	$s0,0($out)	# write output vector
 	mov	$s1,4($out)
 	mov	$s2,8($out)
 	mov	$s3,12($out)
 
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
+	mov	(%rsi),%r15
+	mov	8(%rsi),%r14
+	mov	16(%rsi),%r13
+	mov	24(%rsi),%r12
+	mov	32(%rsi),%rbp
+	mov	40(%rsi),%rbx
+	lea	48(%rsi),%rsp
+.Lenc_epilogue:
 	ret
 .size	AES_encrypt,.-AES_encrypt
 ___
@@ -453,19 +717,20 @@ sub declastvert()
 { my $t3="%r8d";	# zaps $inp!
 
 $code.=<<___;
+	lea	2048($sbox),$sbox	# size optimization
 	movzb	`&lo("$s0")`,$acc0
 	movzb	`&lo("$s1")`,$acc1
 	movzb	`&lo("$s2")`,$acc2
-	movzb	2048($sbox,$acc0,1),$t0
-	movzb	2048($sbox,$acc1,1),$t1
-	movzb	2048($sbox,$acc2,1),$t2
+	movzb	($sbox,$acc0,1),$t0
+	movzb	($sbox,$acc1,1),$t1
+	movzb	($sbox,$acc2,1),$t2
 
 	movzb	`&lo("$s3")`,$acc0
 	movzb	`&hi("$s3")`,$acc1
 	movzb	`&hi("$s0")`,$acc2
-	movzb	2048($sbox,$acc0,1),$t3
-	movzb	2048($sbox,$acc1,1),$acc1	#$t0
-	movzb	2048($sbox,$acc2,1),$acc2	#$t1
+	movzb	($sbox,$acc0,1),$t3
+	movzb	($sbox,$acc1,1),$acc1	#$t0
+	movzb	($sbox,$acc2,1),$acc2	#$t1
 
 	shl	\$8,$acc1
 	shl	\$8,$acc2
@@ -477,8 +742,8 @@ $code.=<<___;
 	movzb	`&hi("$s1")`,$acc0
 	movzb	`&hi("$s2")`,$acc1
 	shr	\$16,$s0
-	movzb	2048($sbox,$acc0,1),$acc0	#$t2
-	movzb	2048($sbox,$acc1,1),$acc1	#$t3
+	movzb	($sbox,$acc0,1),$acc0	#$t2
+	movzb	($sbox,$acc1,1),$acc1	#$t3
 
 	shl	\$8,$acc0
 	shl	\$8,$acc1
@@ -490,9 +755,9 @@ $code.=<<___;
 	movzb	`&lo("$s2")`,$acc0
 	movzb	`&lo("$s3")`,$acc1
 	movzb	`&lo("$s0")`,$acc2
-	movzb	2048($sbox,$acc0,1),$acc0	#$t0
-	movzb	2048($sbox,$acc1,1),$acc1	#$t1
-	movzb	2048($sbox,$acc2,1),$acc2	#$t2
+	movzb	($sbox,$acc0,1),$acc0	#$t0
+	movzb	($sbox,$acc1,1),$acc1	#$t1
+	movzb	($sbox,$acc2,1),$acc2	#$t2
 
 	shl	\$16,$acc0
 	shl	\$16,$acc1
@@ -505,9 +770,9 @@ $code.=<<___;
 	movzb	`&lo("$s1")`,$acc0
 	movzb	`&hi("$s1")`,$acc1
 	movzb	`&hi("$s2")`,$acc2
-	movzb	2048($sbox,$acc0,1),$acc0	#$t3
-	movzb	2048($sbox,$acc1,1),$acc1	#$t0
-	movzb	2048($sbox,$acc2,1),$acc2	#$t1
+	movzb	($sbox,$acc0,1),$acc0	#$t3
+	movzb	($sbox,$acc1,1),$acc1	#$t0
+	movzb	($sbox,$acc2,1),$acc2	#$t1
 
 	shl	\$16,$acc0
 	shl	\$24,$acc1
@@ -520,8 +785,8 @@ $code.=<<___;
 	movzb	`&hi("$s3")`,$acc0
 	movzb	`&hi("$s0")`,$acc1
 	mov	16+12($key),$s3
-	movzb	2048($sbox,$acc0,1),$acc0	#$t2
-	movzb	2048($sbox,$acc1,1),$acc1	#$t3
+	movzb	($sbox,$acc0,1),$acc0	#$t2
+	movzb	($sbox,$acc1,1),$acc1	#$t3
 	mov	16+0($key),$s0
 
 	shl	\$24,$acc0
@@ -532,6 +797,7 @@ $code.=<<___;
 
 	mov	16+4($key),$s1
 	mov	16+8($key),$s2
+	lea	-2048($sbox),$sbox
 	xor	$t0,$s0
 	xor	$t1,$s1
 	xor	$t2,$s2
@@ -659,6 +925,260 @@ $code.=<<___;
 .size	_x86_64_AES_decrypt,.-_x86_64_AES_decrypt
 ___
 
+sub deccompactvert()
+{ my ($t3,$t4,$t5)=("%r8d","%r9d","%r13d");
+
+$code.=<<___;
+	movzb	`&lo("$s0")`,$t0
+	movzb	`&lo("$s1")`,$t1
+	movzb	`&lo("$s2")`,$t2
+	movzb	($sbox,$t0,1),$t0
+	movzb	($sbox,$t1,1),$t1
+	movzb	($sbox,$t2,1),$t2
+
+	movzb	`&lo("$s3")`,$t3
+	movzb	`&hi("$s3")`,$acc0
+	movzb	`&hi("$s0")`,$acc1
+	movzb	($sbox,$t3,1),$t3
+	movzb	($sbox,$acc0,1),$t4	#$t0
+	movzb	($sbox,$acc1,1),$t5	#$t1
+
+	movzb	`&hi("$s1")`,$acc2
+	movzb	`&hi("$s2")`,$acc0
+	shr	\$16,$s2
+	movzb	($sbox,$acc2,1),$acc2	#$t2
+	movzb	($sbox,$acc0,1),$acc0	#$t3
+	shr	\$16,$s3
+
+	movzb	`&lo("$s2")`,$acc1
+	shl	\$8,$t4
+	shl	\$8,$t5
+	movzb	($sbox,$acc1,1),$acc1	#$t0
+	xor	$t4,$t0
+	xor	$t5,$t1
+
+	movzb	`&lo("$s3")`,$t4
+	shr	\$16,$s0
+	shr	\$16,$s1
+	movzb	`&lo("$s0")`,$t5
+	shl	\$8,$acc2
+	shl	\$8,$acc0
+	movzb	($sbox,$t4,1),$t4	#$t1
+	movzb	($sbox,$t5,1),$t5	#$t2
+	xor	$acc2,$t2
+	xor	$acc0,$t3
+
+	movzb	`&lo("$s1")`,$acc2
+	movzb	`&hi("$s1")`,$acc0
+	shl	\$16,$acc1
+	movzb	($sbox,$acc2,1),$acc2	#$t3
+	movzb	($sbox,$acc0,1),$acc0	#$t0
+	xor	$acc1,$t0
+
+	movzb	`&hi("$s2")`,$acc1
+	shl	\$16,$t4
+	shl	\$16,$t5
+	movzb	($sbox,$acc1,1),$s1	#$t1
+	xor	$t4,$t1
+	xor	$t5,$t2
+
+	movzb	`&hi("$s3")`,$acc1
+	shr	\$8,$s0
+	shl	\$16,$acc2
+	movzb	($sbox,$acc1,1),$s2	#$t2
+	movzb	($sbox,$s0,1),$s3	#$t3
+	xor	$acc2,$t3
+
+	shl	\$24,$acc0
+	shl	\$24,$s1
+	shl	\$24,$s2
+	xor	$acc0,$t0
+	shl	\$24,$s3
+	xor	$t1,$s1
+	mov	$t0,$s0
+	xor	$t2,$s2
+	xor	$t3,$s3
+___
+}
+
+# parallelized version! input is pair of 64-bit values: %rax=s1.s0
+# and %rcx=s3.s2, output is four 32-bit values in %eax=s0, %ebx=s1,
+# %ecx=s2 and %edx=s3.
+sub dectransform()
+{ my ($tp10,$tp20,$tp40,$tp80,$acc0)=("%rax","%r8", "%r9", "%r10","%rbx");
+  my ($tp18,$tp28,$tp48,$tp88,$acc8)=("%rcx","%r11","%r12","%r13","%rdx");
+  my $prefetch = shift;
+
+$code.=<<___;
+	mov	$tp10,$acc0
+	mov	$tp18,$acc8
+	and	$mask80,$acc0
+	and	$mask80,$acc8
+	mov	$acc0,$tp40
+	mov	$acc8,$tp48
+	shr	\$7,$tp40
+	lea	($tp10,$tp10),$tp20
+	shr	\$7,$tp48
+	lea	($tp18,$tp18),$tp28
+	sub	$tp40,$acc0
+	sub	$tp48,$acc8
+	and	$maskfe,$tp20
+	and	$maskfe,$tp28
+	and	$mask1b,$acc0
+	and	$mask1b,$acc8
+	xor	$tp20,$acc0
+	xor	$tp28,$acc8
+	mov	$acc0,$tp20
+	mov	$acc8,$tp28
+
+	and	$mask80,$acc0
+	and	$mask80,$acc8
+	mov	$acc0,$tp80
+	mov	$acc8,$tp88
+	shr	\$7,$tp80
+	lea	($tp20,$tp20),$tp40
+	shr	\$7,$tp88
+	lea	($tp28,$tp28),$tp48
+	sub	$tp80,$acc0
+	sub	$tp88,$acc8
+	and	$maskfe,$tp40
+	and	$maskfe,$tp48
+	and	$mask1b,$acc0
+	and	$mask1b,$acc8
+	xor	$tp40,$acc0
+	xor	$tp48,$acc8
+	mov	$acc0,$tp40
+	mov	$acc8,$tp48
+
+	and	$mask80,$acc0
+	and	$mask80,$acc8
+	mov	$acc0,$tp80
+	mov	$acc8,$tp88
+	shr	\$7,$tp80
+	 xor	$tp10,$tp20		# tp2^=tp1
+	shr	\$7,$tp88
+	 xor	$tp18,$tp28		# tp2^=tp1
+	sub	$tp80,$acc0
+	sub	$tp88,$acc8
+	lea	($tp40,$tp40),$tp80
+	lea	($tp48,$tp48),$tp88
+	 xor	$tp10,$tp40		# tp4^=tp1
+	 xor	$tp18,$tp48		# tp4^=tp1
+	and	$maskfe,$tp80
+	and	$maskfe,$tp88
+	and	$mask1b,$acc0
+	and	$mask1b,$acc8
+	xor	$acc0,$tp80
+	xor	$acc8,$tp88
+
+	xor	$tp80,$tp10		# tp1^=tp8
+	xor	$tp88,$tp18		# tp1^=tp8
+	xor	$tp80,$tp20		# tp2^tp1^=tp8
+	xor	$tp88,$tp28		# tp2^tp1^=tp8
+	mov	$tp10,$acc0
+	mov	$tp18,$acc8
+	xor	$tp80,$tp40		# tp4^tp1^=tp8
+	xor	$tp88,$tp48		# tp4^tp1^=tp8
+	shr	\$32,$acc0
+	shr	\$32,$acc8
+	xor	$tp20,$tp80		# tp8^=tp8^tp2^tp1=tp2^tp1
+	xor	$tp28,$tp88		# tp8^=tp8^tp2^tp1=tp2^tp1
+	rol	\$8,`&LO("$tp10")`	# ROTATE(tp1^tp8,8)
+	rol	\$8,`&LO("$tp18")`	# ROTATE(tp1^tp8,8)
+	xor	$tp40,$tp80		# tp2^tp1^=tp8^tp4^tp1=tp8^tp4^tp2
+	xor	$tp48,$tp88		# tp2^tp1^=tp8^tp4^tp1=tp8^tp4^tp2
+
+	rol	\$8,`&LO("$acc0")`	# ROTATE(tp1^tp8,8)
+	rol	\$8,`&LO("$acc8")`	# ROTATE(tp1^tp8,8)
+	xor	`&LO("$tp80")`,`&LO("$tp10")`
+	xor	`&LO("$tp88")`,`&LO("$tp18")`
+	shr	\$32,$tp80
+	shr	\$32,$tp88
+	xor	`&LO("$tp80")`,`&LO("$acc0")`
+	xor	`&LO("$tp88")`,`&LO("$acc8")`
+
+	mov	$tp20,$tp80
+	mov	$tp28,$tp88
+	shr	\$32,$tp80
+	shr	\$32,$tp88
+	rol	\$24,`&LO("$tp20")`	# ROTATE(tp2^tp1^tp8,24)
+	rol	\$24,`&LO("$tp28")`	# ROTATE(tp2^tp1^tp8,24)
+	rol	\$24,`&LO("$tp80")`	# ROTATE(tp2^tp1^tp8,24)
+	rol	\$24,`&LO("$tp88")`	# ROTATE(tp2^tp1^tp8,24)
+	xor	`&LO("$tp20")`,`&LO("$tp10")`
+	xor	`&LO("$tp28")`,`&LO("$tp18")`
+	mov	$tp40,$tp20
+	mov	$tp48,$tp28
+	xor	`&LO("$tp80")`,`&LO("$acc0")`
+	xor	`&LO("$tp88")`,`&LO("$acc8")`
+
+	`"mov	0($sbox),$mask80"	if ($prefetch)`
+	shr	\$32,$tp20
+	shr	\$32,$tp28
+	`"mov	64($sbox),$maskfe"	if ($prefetch)`
+	rol	\$16,`&LO("$tp40")`	# ROTATE(tp4^tp1^tp8,16)
+	rol	\$16,`&LO("$tp48")`	# ROTATE(tp4^tp1^tp8,16)
+	`"mov	128($sbox),$mask1b"	if ($prefetch)`
+	rol	\$16,`&LO("$tp20")`	# ROTATE(tp4^tp1^tp8,16)
+	rol	\$16,`&LO("$tp28")`	# ROTATE(tp4^tp1^tp8,16)
+	`"mov	192($sbox),$tp80"	if ($prefetch)`
+	xor	`&LO("$tp40")`,`&LO("$tp10")`
+	xor	`&LO("$tp48")`,`&LO("$tp18")`
+	`"mov	256($sbox),$tp88"	if ($prefetch)`
+	xor	`&LO("$tp20")`,`&LO("$acc0")`
+	xor	`&LO("$tp28")`,`&LO("$acc8")`
+___
+}
+
+$code.=<<___;
+.type	_x86_64_AES_decrypt_compact,\@abi-omnipotent
+.align	16
+_x86_64_AES_decrypt_compact:
+	lea	128($sbox),$inp			# size optimization
+	mov	0-128($inp),$acc1		# prefetch Td4
+	mov	32-128($inp),$acc2
+	mov	64-128($inp),$t0
+	mov	96-128($inp),$t1
+	mov	128-128($inp),$acc1
+	mov	160-128($inp),$acc2
+	mov	192-128($inp),$t0
+	mov	224-128($inp),$t1
+	jmp	.Ldec_loop_compact
+
+.align	16
+.Ldec_loop_compact:
+		xor	0($key),$s0		# xor with key
+		xor	4($key),$s1
+		xor	8($key),$s2
+		xor	12($key),$s3
+		lea	16($key),$key
+___
+		&deccompactvert();
+$code.=<<___;
+		cmp	16(%rsp),$key
+		je	.Ldec_compact_done
+
+		mov	256+0($sbox),$mask80
+		shl	\$32,%rbx
+		shl	\$32,%rdx
+		mov	256+8($sbox),$maskfe
+		or	%rbx,%rax
+		or	%rdx,%rcx
+		mov	256+16($sbox),$mask1b
+___
+		&dectransform(1);
+$code.=<<___;
+	jmp	.Ldec_loop_compact
+.align	16
+.Ldec_compact_done:
+	xor	0($key),$s0
+	xor	4($key),$s1
+	xor	8($key),$s2
+	xor	12($key),$s3
+	.byte	0xf3,0xc3			# rep ret
+.size	_x86_64_AES_decrypt_compact,.-_x86_64_AES_decrypt_compact
+___
+
 # void AES_decrypt (const void *inp,void *out,const AES_KEY *key);
 $code.=<<___;
 .globl	AES_decrypt
@@ -672,43 +1192,59 @@ AES_decrypt:
 	push	%r14
 	push	%r15
 
+	# allocate frame "above" key schedule
+	mov	%rsp,%r10
+	lea	-63(%rdx),%rcx	# %rdx is key argument
+	and	\$-64,%rsp
+	sub	%rsp,%rcx
+	neg	%rcx
+	and	\$0x3c0,%rcx
+	sub	%rcx,%rsp
+	sub	\$32,%rsp
+
+	mov	%rsi,16(%rsp)	# save out
+	mov	%r10,24(%rsp)	# save real stack pointer
+.Ldec_prologue:
+
 	mov	%rdx,$key
-	mov	%rdi,$inp
-	mov	%rsi,$out
+	mov	240($key),$rnds	# load rounds
 
-	.picmeup	$sbox
-	lea	AES_Td-.($sbox),$sbox
+	mov	0(%rdi),$s0	# load input vector
+	mov	4(%rdi),$s1
+	mov	8(%rdi),$s2
+	mov	12(%rdi),$s3
 
-	# prefetch Td4
-	lea	2048+128($sbox),$sbox;
-	mov	0-128($sbox),$s0
-	mov	32-128($sbox),$s1
-	mov	64-128($sbox),$s2
-	mov	96-128($sbox),$s3
-	mov	128-128($sbox),$s0
-	mov	160-128($sbox),$s1
-	mov	192-128($sbox),$s2
-	mov	224-128($sbox),$s3
-	lea	-2048-128($sbox),$sbox;
+	shl	\$4,$rnds
+	lea	($key,$rnds),%rbp
+	mov	$key,(%rsp)	# key schedule
+	mov	%rbp,8(%rsp)	# end of key schedule
 
-	mov	0($inp),$s0
-	mov	4($inp),$s1
-	mov	8($inp),$s2
-	mov	12($inp),$s3
+	# pick Td4 copy which can't "overlap" with stack frame or key schedule
+	lea	.LAES_Td+2048(%rip),$sbox
+	lea	768(%rsp),%rbp
+	sub	$sbox,%rbp
+	and	\$0x300,%rbp
+	lea	($sbox,%rbp),$sbox
+	shr	\$3,%rbp	# recall "magic" constants!
+	add	%rbp,$sbox
 
-	call	_x86_64_AES_decrypt
+	call	_x86_64_AES_decrypt_compact
 
-	mov	$s0,0($out)
+	mov	16(%rsp),$out	# restore out
+	mov	24(%rsp),%rsi	# restore saved stack pointer
+	mov	$s0,0($out)	# write output vector
 	mov	$s1,4($out)
 	mov	$s2,8($out)
 	mov	$s3,12($out)
 
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
+	mov	(%rsi),%r15
+	mov	8(%rsi),%r14
+	mov	16(%rsi),%r13
+	mov	24(%rsi),%r12
+	mov	32(%rsi),%rbp
+	mov	40(%rsi),%rbx
+	lea	48(%rsi),%rsp
+.Ldec_epilogue:
 	ret
 .size	AES_decrypt,.-AES_decrypt
 ___
@@ -718,27 +1254,26 @@ sub enckey()
 {
 $code.=<<___;
 	movz	%dl,%esi		# rk[i]>>0
-	mov	2(%rbp,%rsi,8),%ebx
+	movzb	-128(%rbp,%rsi),%ebx
 	movz	%dh,%esi		# rk[i]>>8
-	and	\$0xFF000000,%ebx
+	shl	\$24,%ebx
 	xor	%ebx,%eax
 
-	mov	2(%rbp,%rsi,8),%ebx
+	movzb	-128(%rbp,%rsi),%ebx
 	shr	\$16,%edx
-	and	\$0x000000FF,%ebx
 	movz	%dl,%esi		# rk[i]>>16
 	xor	%ebx,%eax
 
-	mov	0(%rbp,%rsi,8),%ebx
+	movzb	-128(%rbp,%rsi),%ebx
 	movz	%dh,%esi		# rk[i]>>24
-	and	\$0x0000FF00,%ebx
+	shl	\$8,%ebx
 	xor	%ebx,%eax
 
-	mov	0(%rbp,%rsi,8),%ebx
-	and	\$0x00FF0000,%ebx
+	movzb	-128(%rbp,%rsi),%ebx
+	shl	\$16,%ebx
 	xor	%ebx,%eax
 
-	xor	2048(%rbp,%rcx,4),%eax		# rcon
+	xor	1024-128(%rbp,%rcx,4),%eax		# rcon
 ___
 }
 
@@ -751,13 +1286,23 @@ $code.=<<___;
 AES_set_encrypt_key:
 	push	%rbx
 	push	%rbp
+	push	%r12			# redundant, but allows to share 
+	push	%r13			# exception handler...
+	push	%r14
+	push	%r15
 	sub	\$8,%rsp
+.Lenc_key_prologue:
 
 	call	_x86_64_AES_set_encrypt_key
 
-	mov	8(%rsp),%rbp
-	mov	16(%rsp),%rbx
-	add	\$24,%rsp
+	mov	8(%rsp),%r15
+	mov	16(%rsp),%r14
+	mov	24(%rsp),%r13
+	mov	32(%rsp),%r12
+	mov	40(%rsp),%rbp
+	mov	48(%rsp),%rbx
+	add	\$56,%rsp
+.Lenc_key_epilogue:
 	ret
 .size	AES_set_encrypt_key,.-AES_set_encrypt_key
 
@@ -773,8 +1318,18 @@ _x86_64_AES_set_encrypt_key:
 	test	\$-1,%rdi
 	jz	.Lbadpointer
 
-	.picmeup %rbp
-	lea	AES_Te-.(%rbp),%rbp
+	lea	.LAES_Te(%rip),%rbp
+	lea	2048+128(%rbp),%rbp
+
+	# prefetch Te4
+	mov	0-128(%rbp),%eax
+	mov	32-128(%rbp),%ebx
+	mov	64-128(%rbp),%r8d
+	mov	96-128(%rbp),%edx
+	mov	128-128(%rbp),%eax
+	mov	160-128(%rbp),%ebx
+	mov	192-128(%rbp),%r8d
+	mov	224-128(%rbp),%edx
 
 	cmp	\$128,%ecx
 	je	.L10rounds
@@ -786,15 +1341,12 @@ _x86_64_AES_set_encrypt_key:
 	jmp	.Lexit
 
 .L10rounds:
-	mov	0(%rsi),%eax			# copy first 4 dwords
-	mov	4(%rsi),%ebx
-	mov	8(%rsi),%ecx
-	mov	12(%rsi),%edx
-	mov	%eax,0(%rdi)
-	mov	%ebx,4(%rdi)
-	mov	%ecx,8(%rdi)
-	mov	%edx,12(%rdi)
+	mov	0(%rsi),%rax			# copy first 4 dwords
+	mov	8(%rsi),%rdx
+	mov	%rax,0(%rdi)
+	mov	%rdx,8(%rdi)
 
+	shr	\$32,%rdx
 	xor	%ecx,%ecx
 	jmp	.L10shortcut
 .align	4
@@ -822,19 +1374,14 @@ $code.=<<___;
 	jmp	.Lexit
 
 .L12rounds:
-	mov	0(%rsi),%eax			# copy first 6 dwords
-	mov	4(%rsi),%ebx
-	mov	8(%rsi),%ecx
-	mov	12(%rsi),%edx
-	mov	%eax,0(%rdi)
-	mov	%ebx,4(%rdi)
-	mov	%ecx,8(%rdi)
-	mov	%edx,12(%rdi)
-	mov	16(%rsi),%ecx
-	mov	20(%rsi),%edx
-	mov	%ecx,16(%rdi)
-	mov	%edx,20(%rdi)
+	mov	0(%rsi),%rax			# copy first 6 dwords
+	mov	8(%rsi),%rbx
+	mov	16(%rsi),%rdx
+	mov	%rax,0(%rdi)
+	mov	%rbx,8(%rdi)
+	mov	%rdx,16(%rdi)
 
+	shr	\$32,%rdx
 	xor	%ecx,%ecx
 	jmp	.L12shortcut
 .align	4
@@ -870,30 +1417,23 @@ $code.=<<___;
 	jmp	.Lexit
 
 .L14rounds:		
-	mov	0(%rsi),%eax			# copy first 8 dwords
-	mov	4(%rsi),%ebx
-	mov	8(%rsi),%ecx
-	mov	12(%rsi),%edx
-	mov	%eax,0(%rdi)
-	mov	%ebx,4(%rdi)
-	mov	%ecx,8(%rdi)
-	mov	%edx,12(%rdi)
-	mov	16(%rsi),%eax
-	mov	20(%rsi),%ebx
-	mov	24(%rsi),%ecx
-	mov	28(%rsi),%edx
-	mov	%eax,16(%rdi)
-	mov	%ebx,20(%rdi)
-	mov	%ecx,24(%rdi)
-	mov	%edx,28(%rdi)
+	mov	0(%rsi),%rax			# copy first 8 dwords
+	mov	8(%rsi),%rbx
+	mov	16(%rsi),%rcx
+	mov	24(%rsi),%rdx
+	mov	%rax,0(%rdi)
+	mov	%rbx,8(%rdi)
+	mov	%rcx,16(%rdi)
+	mov	%rdx,24(%rdi)
 
+	shr	\$32,%rdx
 	xor	%ecx,%ecx
 	jmp	.L14shortcut
 .align	4
 .L14loop:
+		mov	0(%rdi),%eax			# rk[0]
 		mov	28(%rdi),%edx			# rk[4]
 .L14shortcut:
-		mov	0(%rdi),%eax			# rk[0]
 ___
 		&enckey	();
 $code.=<<___;
@@ -912,24 +1452,23 @@ $code.=<<___;
 		mov	%eax,%edx
 		mov	16(%rdi),%eax			# rk[4]
 		movz	%dl,%esi			# rk[11]>>0
-		mov	2(%rbp,%rsi,8),%ebx
+		movzb	-128(%rbp,%rsi),%ebx
 		movz	%dh,%esi			# rk[11]>>8
-		and	\$0x000000FF,%ebx
 		xor	%ebx,%eax
 
-		mov	0(%rbp,%rsi,8),%ebx
+		movzb	-128(%rbp,%rsi),%ebx
 		shr	\$16,%edx
-		and	\$0x0000FF00,%ebx
+		shl	\$8,%ebx
 		movz	%dl,%esi			# rk[11]>>16
 		xor	%ebx,%eax
 
-		mov	0(%rbp,%rsi,8),%ebx
+		movzb	-128(%rbp,%rsi),%ebx
 		movz	%dh,%esi			# rk[11]>>24
-		and	\$0x00FF0000,%ebx
+		shl	\$16,%ebx
 		xor	%ebx,%eax
 
-		mov	2(%rbp,%rsi,8),%ebx
-		and	\$0xFF000000,%ebx
+		movzb	-128(%rbp,%rsi),%ebx
+		shl	\$24,%ebx
 		xor	%ebx,%eax
 
 		mov	%eax,48(%rdi)			# rk[12]
@@ -950,29 +1489,61 @@ $code.=<<___;
 .Lbadpointer:
 	mov	\$-1,%rax
 .Lexit:
-	.byte	0xf3,0xc3		# rep ret
+	.byte	0xf3,0xc3			# rep ret
 .size	_x86_64_AES_set_encrypt_key,.-_x86_64_AES_set_encrypt_key
 ___
 
-sub deckey()
+sub deckey_ref()
 { my ($i,$ptr,$te,$td) = @_;
+  my ($tp1,$tp2,$tp4,$tp8,$acc)=("%eax","%ebx","%edi","%edx","%r8d");
 $code.=<<___;
-	mov	$i($ptr),%eax
-	mov	%eax,%edx
-	movz	%ah,%ebx
-	shr	\$16,%edx
-	and	\$0xFF,%eax
-	movzb	2($te,%rax,8),%rax
-	movzb	2($te,%rbx,8),%rbx
-	mov	0($td,%rax,8),%eax
-	xor	3($td,%rbx,8),%eax
-	movzb	%dh,%ebx
-	and	\$0xFF,%edx
-	movzb	2($te,%rdx,8),%rdx
-	movzb	2($te,%rbx,8),%rbx
-	xor	2($td,%rdx,8),%eax
-	xor	1($td,%rbx,8),%eax
-	mov	%eax,$i($ptr)
+	mov	$i($ptr),$tp1
+	mov	$tp1,$acc
+	and	\$0x80808080,$acc
+	mov	$acc,$tp4
+	shr	\$7,$tp4
+	lea	0($tp1,$tp1),$tp2
+	sub	$tp4,$acc
+	and	\$0xfefefefe,$tp2
+	and	\$0x1b1b1b1b,$acc
+	xor	$tp2,$acc
+	mov	$acc,$tp2
+
+	and	\$0x80808080,$acc
+	mov	$acc,$tp8
+	shr	\$7,$tp8
+	lea	0($tp2,$tp2),$tp4
+	sub	$tp8,$acc
+	and	\$0xfefefefe,$tp4
+	and	\$0x1b1b1b1b,$acc
+	 xor	$tp1,$tp2		# tp2^tp1
+	xor	$tp4,$acc
+	mov	$acc,$tp4
+
+	and	\$0x80808080,$acc
+	mov	$acc,$tp8
+	shr	\$7,$tp8
+	sub	$tp8,$acc
+	lea	0($tp4,$tp4),$tp8
+	 xor	$tp1,$tp4		# tp4^tp1
+	and	\$0xfefefefe,$tp8
+	and	\$0x1b1b1b1b,$acc
+	xor	$acc,$tp8
+
+	xor	$tp8,$tp1		# tp1^tp8
+	rol	\$8,$tp1		# ROTATE(tp1^tp8,8)
+	xor	$tp8,$tp2		# tp2^tp1^tp8
+	xor	$tp8,$tp4		# tp4^tp1^tp8
+	xor	$tp2,$tp8
+	xor	$tp4,$tp8		# tp8^(tp8^tp4^tp1)^(tp8^tp2^tp1)=tp8^tp4^tp2
+
+	xor	$tp8,$tp1
+	rol	\$24,$tp2		# ROTATE(tp2^tp1^tp8,24)
+	xor	$tp2,$tp1
+	rol	\$16,$tp4		# ROTATE(tp4^tp1^tp8,16)
+	xor	$tp4,$tp1
+
+	mov	$tp1,$i($ptr)
 ___
 }
 
@@ -985,16 +1556,21 @@ $code.=<<___;
 AES_set_decrypt_key:
 	push	%rbx
 	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
 	push	%rdx			# save key schedule
+.Ldec_key_prologue:
 
 	call	_x86_64_AES_set_encrypt_key
 	mov	(%rsp),%r8		# restore key schedule
 	cmp	\$0,%eax
 	jne	.Labort
 
-	mov	240(%r8),%ecx		# pull number of rounds
+	mov	240(%r8),%r14d		# pull number of rounds
 	xor	%rdi,%rdi
-	lea	(%rdi,%rcx,4),%rcx
+	lea	(%rdi,%r14d,4),%rcx
 	mov	%r8,%rsi
 	lea	(%r8,%rcx,4),%rdi	# pointer to last chunk
 .align	4
@@ -1012,30 +1588,39 @@ AES_set_decrypt_key:
 		cmp	%rsi,%rdi
 	jne	.Linvert
 
-	.picmeup %r9
-	lea	AES_Td-.(%r9),%rdi
-	lea	AES_Te-AES_Td(%rdi),%r9
+	lea	.LAES_Te+2048+1024(%rip),%rax	# rcon
 
-	mov	%r8,%rsi
-	mov	240(%r8),%ecx		# pull number of rounds
-	sub	\$1,%ecx
+	mov	40(%rax),$mask80
+	mov	48(%rax),$maskfe
+	mov	56(%rax),$mask1b
+
+	mov	%r8,$key
+	sub	\$1,%r14d
 .align	4
 .Lpermute:
-		lea	16(%rsi),%rsi
+		lea	16($key),$key
+		mov	0($key),%rax
+		mov	8($key),%rcx
 ___
-		&deckey	(0,"%rsi","%r9","%rdi");
-		&deckey	(4,"%rsi","%r9","%rdi");
-		&deckey	(8,"%rsi","%r9","%rdi");
-		&deckey	(12,"%rsi","%r9","%rdi");
+		&dectransform ();
 $code.=<<___;
-		sub	\$1,%ecx
+		mov	%eax,0($key)
+		mov	%ebx,4($key)
+		mov	%ecx,8($key)
+		mov	%edx,12($key)
+		sub	\$1,%r14d
 	jnz	.Lpermute
 
 	xor	%rax,%rax
 .Labort:
-	mov	8(%rsp),%rbp
-	mov	16(%rsp),%rbx
-	add	\$24,%rsp
+	mov	8(%rsp),%r15
+	mov	16(%rsp),%r14
+	mov	24(%rsp),%r13
+	mov	32(%rsp),%r12
+	mov	40(%rsp),%rbp
+	mov	48(%rsp),%rbx
+	add	\$56,%rsp
+.Ldec_key_epilogue:
 	ret
 .size	AES_set_decrypt_key,.-AES_set_decrypt_key
 ___
@@ -1046,47 +1631,59 @@ ___
 {
 # stack frame layout
 # -8(%rsp)		return address
-my $_rsp="0(%rsp)";		# saved %rsp
-my $_len="8(%rsp)";		# copy of 3rd parameter, length
-my $_key="16(%rsp)";		# copy of 4th parameter, key
-my $_ivp="24(%rsp)";		# copy of 5th parameter, ivp
-my $keyp="32(%rsp)";		# one to pass as $key
-my $ivec="40(%rsp)";		# ivec[16]
-my $aes_key="56(%rsp)";		# copy of aes_key
-my $mark="56+240(%rsp)";	# copy of aes_key->rounds
+my $keyp="0(%rsp)";		# one to pass as $key
+my $keyend="8(%rsp)";		# &(keyp->rd_key[4*keyp->rounds])
+my $_rsp="16(%rsp)";		# saved %rsp
+my $_inp="24(%rsp)";		# copy of 1st parameter, inp
+my $_out="32(%rsp)";		# copy of 2nd parameter, out
+my $_len="40(%rsp)";		# copy of 3rd parameter, length
+my $_key="48(%rsp)";		# copy of 4th parameter, key
+my $_ivp="56(%rsp)";		# copy of 5th parameter, ivp
+my $ivec="64(%rsp)";		# ivec[16]
+my $aes_key="80(%rsp)";		# copy of aes_key
+my $mark="80+240(%rsp)";	# copy of aes_key->rounds
 
 $code.=<<___;
 .globl	AES_cbc_encrypt
 .type	AES_cbc_encrypt,\@function,6
 .align	16
+.extern	OPENSSL_ia32cap_P
 AES_cbc_encrypt:
 	cmp	\$0,%rdx	# check length
-	je	.Lcbc_just_ret
+	je	.Lcbc_epilogue
+	pushfq
 	push	%rbx
 	push	%rbp
 	push	%r12
 	push	%r13
 	push	%r14
 	push	%r15
-	pushfq
+.Lcbc_prologue:
+
 	cld
 	mov	%r9d,%r9d	# clear upper half of enc
 
-	.picmeup $sbox
-.Lcbc_pic_point:
-
+	lea	.LAES_Te(%rip),$sbox
 	cmp	\$0,%r9
-	je	.LDECRYPT
+	jne	.Lcbc_picked_te
+	lea	.LAES_Td(%rip),$sbox
+.Lcbc_picked_te:
 
-	lea	AES_Te-.Lcbc_pic_point($sbox),$sbox
+	mov	OPENSSL_ia32cap_P(%rip),%r10d
+	cmp	\$$speed_limit,%rdx
+	jb	.Lcbc_slow_prologue
+	test	\$15,%rdx
+	jnz	.Lcbc_slow_prologue
+	bt	\$28,%r10d
+	jc	.Lcbc_slow_prologue
 
 	# allocate aligned stack frame...
-	lea	-64-248(%rsp),$key
+	lea	-88-248(%rsp),$key
 	and	\$-64,$key
 
-	# ... and make it doesn't alias with AES_Te modulo 4096
+	# ... and make sure it doesn't alias with AES_T[ed] modulo 4096
 	mov	$sbox,%r10
-	lea	2048($sbox),%r11
+	lea	2304($sbox),%r11
 	mov	$key,%r12
 	and	\$0xFFF,%r10	# s = $sbox&0xfff
 	and	\$0xFFF,%r11	# e = ($sbox+2048)&0xfff
@@ -1106,22 +1703,27 @@ AES_cbc_encrypt:
 .Lcbc_te_ok:
 
 	xchg	%rsp,$key
-	add	\$8,%rsp	# reserve for return address!
+	#add	\$8,%rsp	# reserve for return address!
 	mov	$key,$_rsp	# save %rsp
+.Lcbc_fast_body:
+	mov	%rdi,$_inp	# save copy of inp
+	mov	%rsi,$_out	# save copy of out
 	mov	%rdx,$_len	# save copy of len
 	mov	%rcx,$_key	# save copy of key
 	mov	%r8,$_ivp	# save copy of ivp
 	movl	\$0,$mark	# copy of aes_key->rounds = 0;
 	mov	%r8,%rbp	# rearrange input arguments
+	mov	%r9,%rbx
 	mov	%rsi,$out
 	mov	%rdi,$inp
 	mov	%rcx,$key
 
+	mov	240($key),%eax		# key->rounds
 	# do we copy key schedule to stack?
 	mov	$key,%r10
 	sub	$sbox,%r10
 	and	\$0xfff,%r10
-	cmp	\$2048,%r10
+	cmp	\$2304,%r10
 	jb	.Lcbc_do_ecopy
 	cmp	\$4096-248,%r10
 	jb	.Lcbc_skip_ecopy
@@ -1132,12 +1734,11 @@ AES_cbc_encrypt:
 		lea	$aes_key,$key
 		mov	\$240/8,%ecx
 		.long	0x90A548F3	# rep movsq
-		mov	(%rsi),%eax	# copy aes_key->rounds
-		mov	%eax,(%rdi)
+		mov	%eax,(%rdi)	# copy aes_key->rounds
 .Lcbc_skip_ecopy:
 	mov	$key,$keyp	# save key pointer
 
-	mov	\$16,%ecx
+	mov	\$18,%ecx
 .align	4
 .Lcbc_prefetch_te:
 		mov	0($sbox),%r10
@@ -1147,184 +1748,77 @@ AES_cbc_encrypt:
 		lea	128($sbox),$sbox
 		sub	\$1,%ecx
 	jnz	.Lcbc_prefetch_te
-	sub	\$2048,$sbox
+	lea	-2304($sbox),$sbox
 
-	test	\$-16,%rdx		# check upon length
-	mov	%rdx,%r10
+	cmp	\$0,%rbx
+	je	.LFAST_DECRYPT
+
+#----------------------------- ENCRYPT -----------------------------#
 	mov	0(%rbp),$s0		# load iv
 	mov	4(%rbp),$s1
 	mov	8(%rbp),$s2
 	mov	12(%rbp),$s3
-	jz	.Lcbc_enc_tail		# short input...
 
 .align	4
-.Lcbc_enc_loop:
+.Lcbc_fast_enc_loop:
 		xor	0($inp),$s0
 		xor	4($inp),$s1
 		xor	8($inp),$s2
 		xor	12($inp),$s3
-		mov	$inp,$ivec	# if ($verticalspin) save inp
-
 		mov	$keyp,$key	# restore key
+		mov	$inp,$_inp	# if ($verticalspin) save inp
+
 		call	_x86_64_AES_encrypt
 
-		mov	$ivec,$inp	# if ($verticalspin) restore inp
+		mov	$_inp,$inp	# if ($verticalspin) restore inp
+		mov	$_len,%r10
 		mov	$s0,0($out)
 		mov	$s1,4($out)
 		mov	$s2,8($out)
 		mov	$s3,12($out)
 
-		mov	$_len,%r10
 		lea	16($inp),$inp
 		lea	16($out),$out
 		sub	\$16,%r10
 		test	\$-16,%r10
 		mov	%r10,$_len
-	jnz	.Lcbc_enc_loop
-	test	\$15,%r10
-	jnz	.Lcbc_enc_tail
+	jnz	.Lcbc_fast_enc_loop
 	mov	$_ivp,%rbp	# restore ivp
 	mov	$s0,0(%rbp)	# save ivec
 	mov	$s1,4(%rbp)
 	mov	$s2,8(%rbp)
 	mov	$s3,12(%rbp)
 
-.align	4
-.Lcbc_cleanup:
-	cmpl	\$0,$mark	# was the key schedule copied?
-	lea	$aes_key,%rdi
-	je	.Lcbc_exit
-		mov	\$240/8,%ecx
-		xor	%rax,%rax
-		.long	0x90AB48F3	# rep stosq
-.Lcbc_exit:
-	mov	$_rsp,%rsp
-	popfq
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-.Lcbc_just_ret:
-	ret
-.align	4
-.Lcbc_enc_tail:
-	mov	%rax,%r11
-	mov	%rcx,%r12
-	mov	%r10,%rcx
-	mov	$inp,%rsi
-	mov	$out,%rdi
-	.long	0xF689A4F3		# rep movsb
-	mov	\$16,%rcx		# zero tail
-	sub	%r10,%rcx
-	xor	%rax,%rax
-	.long	0xF689AAF3		# rep stosb
-	mov	$out,$inp		# this is not a mistake!
-	movq	\$16,$_len		# len=16
-	mov	%r11,%rax
-	mov	%r12,%rcx
-	jmp	.Lcbc_enc_loop		# one more spin...
+	jmp	.Lcbc_fast_cleanup
+
 #----------------------------- DECRYPT -----------------------------#
 .align	16
-.LDECRYPT:
-	lea	AES_Td-.Lcbc_pic_point($sbox),$sbox
-
-	# allocate aligned stack frame...
-	lea	-64-248(%rsp),$key
-	and	\$-64,$key
-
-	# ... and make it doesn't alias with AES_Td modulo 4096
-	mov	$sbox,%r10
-	lea	2304($sbox),%r11
-	mov	$key,%r12
-	and	\$0xFFF,%r10	# s = $sbox&0xfff
-	and	\$0xFFF,%r11	# e = ($sbox+2048+256)&0xfff
-	and	\$0xFFF,%r12	# p = %rsp&0xfff
-
-	cmp	%r11,%r12	# if (p=>e) %rsp =- (p-e);
-	jb	.Lcbc_td_break_out
-	sub	%r11,%r12
-	sub	%r12,$key
-	jmp	.Lcbc_td_ok
-.Lcbc_td_break_out:		# else %rsp -= (p-s)&0xfff + framesz
-	sub	%r10,%r12
-	and	\$0xFFF,%r12
-	add	\$320,%r12
-	sub	%r12,$key
-.align	4
-.Lcbc_td_ok:
-
-	xchg	%rsp,$key
-	add	\$8,%rsp	# reserve for return address!
-	mov	$key,$_rsp	# save %rsp
-	mov	%rdx,$_len	# save copy of len
-	mov	%rcx,$_key	# save copy of key
-	mov	%r8,$_ivp	# save copy of ivp
-	movl	\$0,$mark	# copy of aes_key->rounds = 0;
-	mov	%r8,%rbp	# rearrange input arguments
-	mov	%rsi,$out
-	mov	%rdi,$inp
-	mov	%rcx,$key
-
-	# do we copy key schedule to stack?
-	mov	$key,%r10
-	sub	$sbox,%r10
-	and	\$0xfff,%r10
-	cmp	\$2304,%r10
-	jb	.Lcbc_do_dcopy
-	cmp	\$4096-248,%r10
-	jb	.Lcbc_skip_dcopy
-.align	4
-.Lcbc_do_dcopy:
-		mov	$key,%rsi
-		lea	$aes_key,%rdi
-		lea	$aes_key,$key
-		mov	\$240/8,%ecx
-		.long	0x90A548F3	# rep movsq
-		mov	(%rsi),%eax	# copy aes_key->rounds
-		mov	%eax,(%rdi)
-.Lcbc_skip_dcopy:
-	mov	$key,$keyp	# save key pointer
-
-	mov	\$18,%ecx
-.align	4
-.Lcbc_prefetch_td:
-		mov	0($sbox),%r10
-		mov	32($sbox),%r11
-		mov	64($sbox),%r12
-		mov	96($sbox),%r13
-		lea	128($sbox),$sbox
-		sub	\$1,%ecx
-	jnz	.Lcbc_prefetch_td
-	sub	\$2304,$sbox
-
+.LFAST_DECRYPT:
 	cmp	$inp,$out
-	je	.Lcbc_dec_in_place
+	je	.Lcbc_fast_dec_in_place
 
 	mov	%rbp,$ivec
 .align	4
-.Lcbc_dec_loop:
-		mov	0($inp),$s0		# read input
+.Lcbc_fast_dec_loop:
+		mov	0($inp),$s0	# read input
 		mov	4($inp),$s1
 		mov	8($inp),$s2
 		mov	12($inp),$s3
-		mov	$inp,8+$ivec	# if ($verticalspin) save inp
-
 		mov	$keyp,$key	# restore key
+		mov	$inp,$_inp	# if ($verticalspin) save inp
+
 		call	_x86_64_AES_decrypt
 
 		mov	$ivec,%rbp	# load ivp
-		mov	8+$ivec,$inp	# if ($verticalspin) restore inp
+		mov	$_inp,$inp	# if ($verticalspin) restore inp
+		mov	$_len,%r10	# load len
 		xor	0(%rbp),$s0	# xor iv
 		xor	4(%rbp),$s1
 		xor	8(%rbp),$s2
 		xor	12(%rbp),$s3
 		mov	$inp,%rbp	# current input, next iv
 
-		mov	$_len,%r10	# load len
 		sub	\$16,%r10
-		jc	.Lcbc_dec_partial
 		mov	%r10,$_len	# update len
 		mov	%rbp,$ivec	# update ivp
 
@@ -1335,81 +1829,281 @@ AES_cbc_encrypt:
 
 		lea	16($inp),$inp
 		lea	16($out),$out
-	jnz	.Lcbc_dec_loop
-.Lcbc_dec_end:
+	jnz	.Lcbc_fast_dec_loop
 	mov	$_ivp,%r12		# load user ivp
 	mov	0(%rbp),%r10		# load iv
 	mov	8(%rbp),%r11
 	mov	%r10,0(%r12)		# copy back to user
 	mov	%r11,8(%r12)
-	jmp	.Lcbc_cleanup
-
-.align	4
-.Lcbc_dec_partial:
-	mov	$s0,0+$ivec		# dump output to stack
-	mov	$s1,4+$ivec
-	mov	$s2,8+$ivec
-	mov	$s3,12+$ivec
-	mov	$out,%rdi
-	lea	$ivec,%rsi
-	mov	\$16,%rcx
-	add	%r10,%rcx		# number of bytes to copy
-	.long	0xF689A4F3		# rep movsb
-	jmp	.Lcbc_dec_end
+	jmp	.Lcbc_fast_cleanup
 
 .align	16
-.Lcbc_dec_in_place:
+.Lcbc_fast_dec_in_place:
+	mov	0(%rbp),%r10		# copy iv to stack
+	mov	8(%rbp),%r11
+	mov	%r10,0+$ivec
+	mov	%r11,8+$ivec
+.align	4
+.Lcbc_fast_dec_in_place_loop:
 		mov	0($inp),$s0	# load input
 		mov	4($inp),$s1
 		mov	8($inp),$s2
 		mov	12($inp),$s3
+		mov	$keyp,$key	# restore key
+		mov	$inp,$_inp	# if ($verticalspin) save inp
 
-		mov	$inp,$ivec	# if ($verticalspin) save inp
-		mov	$keyp,$key
 		call	_x86_64_AES_decrypt
 
-		mov	$ivec,$inp	# if ($verticalspin) restore inp
-		mov	$_ivp,%rbp
-		xor	0(%rbp),$s0
-		xor	4(%rbp),$s1
-		xor	8(%rbp),$s2
-		xor	12(%rbp),$s3
+		mov	$_inp,$inp	# if ($verticalspin) restore inp
+		mov	$_len,%r10
+		xor	0+$ivec,$s0
+		xor	4+$ivec,$s1
+		xor	8+$ivec,$s2
+		xor	12+$ivec,$s3
 
-		mov	0($inp),%r10	# copy input to iv
-		mov	8($inp),%r11
-		mov	%r10,0(%rbp)
-		mov	%r11,8(%rbp)
+		mov	0($inp),%r11	# load input
+		mov	8($inp),%r12
+		sub	\$16,%r10
+		jz	.Lcbc_fast_dec_in_place_done
+
+		mov	%r11,0+$ivec	# copy input to iv
+		mov	%r12,8+$ivec
 
 		mov	$s0,0($out)	# save output [zaps input]
 		mov	$s1,4($out)
 		mov	$s2,8($out)
 		mov	$s3,12($out)
 
-		mov	$_len,%rcx
 		lea	16($inp),$inp
 		lea	16($out),$out
-		sub	\$16,%rcx
-		jc	.Lcbc_dec_in_place_partial
-		mov	%rcx,$_len
-	jnz	.Lcbc_dec_in_place
-	jmp	.Lcbc_cleanup
+		mov	%r10,$_len
+	jmp	.Lcbc_fast_dec_in_place_loop
+.Lcbc_fast_dec_in_place_done:
+	mov	$_ivp,%rdi
+	mov	%r11,0(%rdi)	# copy iv back to user
+	mov	%r12,8(%rdi)
+
+	mov	$s0,0($out)	# save output [zaps input]
+	mov	$s1,4($out)
+	mov	$s2,8($out)
+	mov	$s3,12($out)
 
 .align	4
-.Lcbc_dec_in_place_partial:
-	# one can argue if this is actually required
-	lea	($out,%rcx),%rdi
-	lea	(%rbp,%rcx),%rsi
-	neg	%rcx
-	.long	0xF689A4F3	# rep movsb	# restore tail
-	jmp	.Lcbc_cleanup
+.Lcbc_fast_cleanup:
+	cmpl	\$0,$mark	# was the key schedule copied?
+	lea	$aes_key,%rdi
+	je	.Lcbc_exit
+		mov	\$240/8,%ecx
+		xor	%rax,%rax
+		.long	0x90AB48F3	# rep stosq
+
+	jmp	.Lcbc_exit
+
+#--------------------------- SLOW ROUTINE ---------------------------#
+.align	16
+.Lcbc_slow_prologue:
+	# allocate aligned stack frame...
+	lea	-88(%rsp),%rbp
+	and	\$-64,%rbp
+	# ... just "above" key schedule
+	lea	-88-63(%rcx),%r10
+	sub	%rbp,%r10
+	neg	%r10
+	and	\$0x3c0,%r10
+	sub	%r10,%rbp
+
+	xchg	%rsp,%rbp
+	#add	\$8,%rsp	# reserve for return address!
+	mov	%rbp,$_rsp	# save %rsp
+.Lcbc_slow_body:
+	#mov	%rdi,$_inp	# save copy of inp
+	#mov	%rsi,$_out	# save copy of out
+	#mov	%rdx,$_len	# save copy of len
+	#mov	%rcx,$_key	# save copy of key
+	mov	%r8,$_ivp	# save copy of ivp
+	mov	%r8,%rbp	# rearrange input arguments
+	mov	%r9,%rbx
+	mov	%rsi,$out
+	mov	%rdi,$inp
+	mov	%rcx,$key
+	mov	%rdx,%r10
+
+	mov	240($key),%eax
+	mov	$key,$keyp	# save key pointer
+	shl	\$4,%eax
+	lea	($key,%rax),%rax
+	mov	%rax,$keyend
+
+	# pick Te4 copy which can't "overlap" with stack frame or key scdedule
+	lea	2048($sbox),$sbox
+	lea	768-8(%rsp),%rax
+	sub	$sbox,%rax
+	and	\$0x300,%rax
+	lea	($sbox,%rax),$sbox
+
+	cmp	\$0,%rbx
+	je	.LSLOW_DECRYPT
+
+#--------------------------- SLOW ENCRYPT ---------------------------#
+	test	\$-16,%r10		# check upon length
+	mov	0(%rbp),$s0		# load iv
+	mov	4(%rbp),$s1
+	mov	8(%rbp),$s2
+	mov	12(%rbp),$s3
+	jz	.Lcbc_slow_enc_tail	# short input...
+
+.align	4
+.Lcbc_slow_enc_loop:
+		xor	0($inp),$s0
+		xor	4($inp),$s1
+		xor	8($inp),$s2
+		xor	12($inp),$s3
+		mov	$keyp,$key	# restore key
+		mov	$inp,$_inp	# save inp
+		mov	$out,$_out	# save out
+		mov	%r10,$_len	# save len
+
+		call	_x86_64_AES_encrypt_compact
+
+		mov	$_inp,$inp	# restore inp
+		mov	$_out,$out	# restore out
+		mov	$_len,%r10	# restore len
+		mov	$s0,0($out)
+		mov	$s1,4($out)
+		mov	$s2,8($out)
+		mov	$s3,12($out)
+
+		lea	16($inp),$inp
+		lea	16($out),$out
+		sub	\$16,%r10
+		test	\$-16,%r10
+	jnz	.Lcbc_slow_enc_loop
+	test	\$15,%r10
+	jnz	.Lcbc_slow_enc_tail
+	mov	$_ivp,%rbp	# restore ivp
+	mov	$s0,0(%rbp)	# save ivec
+	mov	$s1,4(%rbp)
+	mov	$s2,8(%rbp)
+	mov	$s3,12(%rbp)
+
+	jmp	.Lcbc_exit
+
+.align	4
+.Lcbc_slow_enc_tail:
+	mov	%rax,%r11
+	mov	%rcx,%r12
+	mov	%r10,%rcx
+	mov	$inp,%rsi
+	mov	$out,%rdi
+	.long	0x9066A4F3		# rep movsb
+	mov	\$16,%rcx		# zero tail
+	sub	%r10,%rcx
+	xor	%rax,%rax
+	.long	0x9066AAF3		# rep stosb
+	mov	$out,$inp		# this is not a mistake!
+	mov	\$16,%r10		# len=16
+	mov	%r11,%rax
+	mov	%r12,%rcx
+	jmp	.Lcbc_slow_enc_loop	# one more spin...
+#--------------------------- SLOW DECRYPT ---------------------------#
+.align	16
+.LSLOW_DECRYPT:
+	shr	\$3,%rax
+	add	%rax,$sbox		# recall "magic" constants!
+
+	mov	0(%rbp),%r11		# copy iv to stack
+	mov	8(%rbp),%r12
+	mov	%r11,0+$ivec
+	mov	%r12,8+$ivec
+
+.align	4
+.Lcbc_slow_dec_loop:
+		mov	0($inp),$s0	# load input
+		mov	4($inp),$s1
+		mov	8($inp),$s2
+		mov	12($inp),$s3
+		mov	$keyp,$key	# restore key
+		mov	$inp,$_inp	# save inp
+		mov	$out,$_out	# save out
+		mov	%r10,$_len	# save len
+
+		call	_x86_64_AES_decrypt_compact
+
+		mov	$_inp,$inp	# restore inp
+		mov	$_out,$out	# restore out
+		mov	$_len,%r10
+		xor	0+$ivec,$s0
+		xor	4+$ivec,$s1
+		xor	8+$ivec,$s2
+		xor	12+$ivec,$s3
+
+		mov	0($inp),%r11	# load input
+		mov	8($inp),%r12
+		sub	\$16,%r10
+		jc	.Lcbc_slow_dec_partial
+		jz	.Lcbc_slow_dec_done
+
+		mov	%r11,0+$ivec	# copy input to iv
+		mov	%r12,8+$ivec
+
+		mov	$s0,0($out)	# save output [can zap input]
+		mov	$s1,4($out)
+		mov	$s2,8($out)
+		mov	$s3,12($out)
+
+		lea	16($inp),$inp
+		lea	16($out),$out
+	jmp	.Lcbc_slow_dec_loop
+.Lcbc_slow_dec_done:
+	mov	$_ivp,%rdi
+	mov	%r11,0(%rdi)		# copy iv back to user
+	mov	%r12,8(%rdi)
+
+	mov	$s0,0($out)		# save output [can zap input]
+	mov	$s1,4($out)
+	mov	$s2,8($out)
+	mov	$s3,12($out)
+
+	jmp	.Lcbc_exit
+
+.align	4
+.Lcbc_slow_dec_partial:
+	mov	$_ivp,%rdi
+	mov	%r11,0(%rdi)		# copy iv back to user
+	mov	%r12,8(%rdi)
+
+	mov	$s0,0+$ivec		# save output to stack
+	mov	$s1,4+$ivec
+	mov	$s2,8+$ivec
+	mov	$s3,12+$ivec
+
+	mov	$out,%rdi
+	lea	$ivec,%rsi
+	lea	16(%r10),%rcx
+	.long	0x9066A4F3	# rep movsb
+	jmp	.Lcbc_exit
+
+.align	16
+.Lcbc_exit:
+	mov	$_rsp,%rsi
+	mov	(%rsi),%r15
+	mov	8(%rsi),%r14
+	mov	16(%rsi),%r13
+	mov	24(%rsi),%r12
+	mov	32(%rsi),%rbp
+	mov	40(%rsi),%rbx
+	lea	48(%rsi),%rsp
+.Lcbc_popfq:
+	popfq
+.Lcbc_epilogue:
+	ret
 .size	AES_cbc_encrypt,.-AES_cbc_encrypt
 ___
 }
 
 $code.=<<___;
-.globl	AES_Te
 .align	64
-AES_Te:
+.LAES_Te:
 ___
 	&_data_word(0xa56363c6, 0x847c7cf8, 0x997777ee, 0x8d7b7bf6);
 	&_data_word(0x0df2f2ff, 0xbd6b6bd6, 0xb16f6fde, 0x54c5c591);
@@ -1475,16 +2169,149 @@ ___
 	&_data_word(0xdabfbf65, 0x31e6e6d7, 0xc6424284, 0xb86868d0);
 	&_data_word(0xc3414182, 0xb0999929, 0x772d2d5a, 0x110f0f1e);
 	&_data_word(0xcbb0b07b, 0xfc5454a8, 0xd6bbbb6d, 0x3a16162c);
+
+#Te4	# four copies of Te4 to choose from to avoid L1 aliasing
+	&data_byte(0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5);
+	&data_byte(0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76);
+	&data_byte(0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0);
+	&data_byte(0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0);
+	&data_byte(0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc);
+	&data_byte(0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15);
+	&data_byte(0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a);
+	&data_byte(0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75);
+	&data_byte(0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0);
+	&data_byte(0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84);
+	&data_byte(0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b);
+	&data_byte(0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf);
+	&data_byte(0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85);
+	&data_byte(0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8);
+	&data_byte(0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5);
+	&data_byte(0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2);
+	&data_byte(0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17);
+	&data_byte(0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73);
+	&data_byte(0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88);
+	&data_byte(0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb);
+	&data_byte(0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c);
+	&data_byte(0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79);
+	&data_byte(0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9);
+	&data_byte(0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08);
+	&data_byte(0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6);
+	&data_byte(0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a);
+	&data_byte(0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e);
+	&data_byte(0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e);
+	&data_byte(0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94);
+	&data_byte(0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf);
+	&data_byte(0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68);
+	&data_byte(0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16);
+
+	&data_byte(0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5);
+	&data_byte(0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76);
+	&data_byte(0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0);
+	&data_byte(0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0);
+	&data_byte(0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc);
+	&data_byte(0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15);
+	&data_byte(0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a);
+	&data_byte(0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75);
+	&data_byte(0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0);
+	&data_byte(0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84);
+	&data_byte(0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b);
+	&data_byte(0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf);
+	&data_byte(0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85);
+	&data_byte(0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8);
+	&data_byte(0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5);
+	&data_byte(0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2);
+	&data_byte(0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17);
+	&data_byte(0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73);
+	&data_byte(0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88);
+	&data_byte(0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb);
+	&data_byte(0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c);
+	&data_byte(0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79);
+	&data_byte(0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9);
+	&data_byte(0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08);
+	&data_byte(0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6);
+	&data_byte(0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a);
+	&data_byte(0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e);
+	&data_byte(0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e);
+	&data_byte(0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94);
+	&data_byte(0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf);
+	&data_byte(0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68);
+	&data_byte(0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16);
+
+	&data_byte(0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5);
+	&data_byte(0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76);
+	&data_byte(0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0);
+	&data_byte(0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0);
+	&data_byte(0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc);
+	&data_byte(0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15);
+	&data_byte(0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a);
+	&data_byte(0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75);
+	&data_byte(0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0);
+	&data_byte(0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84);
+	&data_byte(0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b);
+	&data_byte(0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf);
+	&data_byte(0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85);
+	&data_byte(0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8);
+	&data_byte(0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5);
+	&data_byte(0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2);
+	&data_byte(0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17);
+	&data_byte(0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73);
+	&data_byte(0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88);
+	&data_byte(0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb);
+	&data_byte(0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c);
+	&data_byte(0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79);
+	&data_byte(0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9);
+	&data_byte(0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08);
+	&data_byte(0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6);
+	&data_byte(0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a);
+	&data_byte(0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e);
+	&data_byte(0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e);
+	&data_byte(0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94);
+	&data_byte(0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf);
+	&data_byte(0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68);
+	&data_byte(0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16);
+
+	&data_byte(0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5);
+	&data_byte(0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76);
+	&data_byte(0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0);
+	&data_byte(0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0);
+	&data_byte(0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc);
+	&data_byte(0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15);
+	&data_byte(0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a);
+	&data_byte(0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75);
+	&data_byte(0x09, 0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0);
+	&data_byte(0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3, 0x2f, 0x84);
+	&data_byte(0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b);
+	&data_byte(0x6a, 0xcb, 0xbe, 0x39, 0x4a, 0x4c, 0x58, 0xcf);
+	&data_byte(0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85);
+	&data_byte(0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8);
+	&data_byte(0x51, 0xa3, 0x40, 0x8f, 0x92, 0x9d, 0x38, 0xf5);
+	&data_byte(0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2);
+	&data_byte(0xcd, 0x0c, 0x13, 0xec, 0x5f, 0x97, 0x44, 0x17);
+	&data_byte(0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19, 0x73);
+	&data_byte(0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88);
+	&data_byte(0x46, 0xee, 0xb8, 0x14, 0xde, 0x5e, 0x0b, 0xdb);
+	&data_byte(0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c);
+	&data_byte(0xc2, 0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79);
+	&data_byte(0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5, 0x4e, 0xa9);
+	&data_byte(0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08);
+	&data_byte(0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6);
+	&data_byte(0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a);
+	&data_byte(0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e);
+	&data_byte(0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e);
+	&data_byte(0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94);
+	&data_byte(0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf);
+	&data_byte(0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68);
+	&data_byte(0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16);
 #rcon:
 $code.=<<___;
 	.long	0x00000001, 0x00000002, 0x00000004, 0x00000008
 	.long	0x00000010, 0x00000020, 0x00000040, 0x00000080
-	.long	0x0000001b, 0x00000036, 0, 0, 0, 0, 0, 0
+	.long	0x0000001b, 0x00000036, 0x80808080, 0x80808080
+	.long	0xfefefefe, 0xfefefefe, 0x1b1b1b1b, 0x1b1b1b1b
 ___
 $code.=<<___;
-.globl	AES_Td
 .align	64
-AES_Td:
+.LAES_Td:
 ___
 	&_data_word(0x50a7f451, 0x5365417e, 0xc3a4171a, 0x965e273a);
 	&_data_word(0xcb6bab3b, 0xf1459d1f, 0xab58faac, 0x9303e34b);
@@ -1550,7 +2377,8 @@ ___
 	&_data_word(0x72c31d16, 0x0c25e2bc, 0x8b493c28, 0x41950dff);
 	&_data_word(0x7101a839, 0xdeb30c08, 0x9ce4b4d8, 0x90c15664);
 	&_data_word(0x6184cb7b, 0x70b632d5, 0x745c6c48, 0x4257b8d0);
-#Td4:
+
+#Td4:	# four copies of Td4 to choose from to avoid L1 aliasing
 	&data_byte(0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38);
 	&data_byte(0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb);
 	&data_byte(0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87);
@@ -1583,6 +2411,396 @@ ___
 	&data_byte(0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61);
 	&data_byte(0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26);
 	&data_byte(0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d);
+$code.=<<___;
+	.long	0x80808080, 0x80808080, 0xfefefefe, 0xfefefefe
+	.long	0x1b1b1b1b, 0x1b1b1b1b, 0, 0
+___
+	&data_byte(0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38);
+	&data_byte(0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb);
+	&data_byte(0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87);
+	&data_byte(0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb);
+	&data_byte(0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d);
+	&data_byte(0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e);
+	&data_byte(0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2);
+	&data_byte(0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25);
+	&data_byte(0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16);
+	&data_byte(0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92);
+	&data_byte(0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda);
+	&data_byte(0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84);
+	&data_byte(0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a);
+	&data_byte(0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06);
+	&data_byte(0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02);
+	&data_byte(0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b);
+	&data_byte(0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea);
+	&data_byte(0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73);
+	&data_byte(0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85);
+	&data_byte(0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e);
+	&data_byte(0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89);
+	&data_byte(0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b);
+	&data_byte(0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20);
+	&data_byte(0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4);
+	&data_byte(0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31);
+	&data_byte(0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f);
+	&data_byte(0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d);
+	&data_byte(0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef);
+	&data_byte(0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0);
+	&data_byte(0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61);
+	&data_byte(0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26);
+	&data_byte(0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d);
+$code.=<<___;
+	.long	0x80808080, 0x80808080, 0xfefefefe, 0xfefefefe
+	.long	0x1b1b1b1b, 0x1b1b1b1b, 0, 0
+___
+	&data_byte(0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38);
+	&data_byte(0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb);
+	&data_byte(0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87);
+	&data_byte(0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb);
+	&data_byte(0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d);
+	&data_byte(0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e);
+	&data_byte(0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2);
+	&data_byte(0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25);
+	&data_byte(0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16);
+	&data_byte(0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92);
+	&data_byte(0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda);
+	&data_byte(0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84);
+	&data_byte(0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a);
+	&data_byte(0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06);
+	&data_byte(0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02);
+	&data_byte(0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b);
+	&data_byte(0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea);
+	&data_byte(0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73);
+	&data_byte(0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85);
+	&data_byte(0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e);
+	&data_byte(0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89);
+	&data_byte(0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b);
+	&data_byte(0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20);
+	&data_byte(0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4);
+	&data_byte(0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31);
+	&data_byte(0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f);
+	&data_byte(0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d);
+	&data_byte(0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef);
+	&data_byte(0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0);
+	&data_byte(0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61);
+	&data_byte(0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26);
+	&data_byte(0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d);
+$code.=<<___;
+	.long	0x80808080, 0x80808080, 0xfefefefe, 0xfefefefe
+	.long	0x1b1b1b1b, 0x1b1b1b1b, 0, 0
+___
+	&data_byte(0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38);
+	&data_byte(0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb);
+	&data_byte(0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87);
+	&data_byte(0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb);
+	&data_byte(0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d);
+	&data_byte(0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e);
+	&data_byte(0x08, 0x2e, 0xa1, 0x66, 0x28, 0xd9, 0x24, 0xb2);
+	&data_byte(0x76, 0x5b, 0xa2, 0x49, 0x6d, 0x8b, 0xd1, 0x25);
+	&data_byte(0x72, 0xf8, 0xf6, 0x64, 0x86, 0x68, 0x98, 0x16);
+	&data_byte(0xd4, 0xa4, 0x5c, 0xcc, 0x5d, 0x65, 0xb6, 0x92);
+	&data_byte(0x6c, 0x70, 0x48, 0x50, 0xfd, 0xed, 0xb9, 0xda);
+	&data_byte(0x5e, 0x15, 0x46, 0x57, 0xa7, 0x8d, 0x9d, 0x84);
+	&data_byte(0x90, 0xd8, 0xab, 0x00, 0x8c, 0xbc, 0xd3, 0x0a);
+	&data_byte(0xf7, 0xe4, 0x58, 0x05, 0xb8, 0xb3, 0x45, 0x06);
+	&data_byte(0xd0, 0x2c, 0x1e, 0x8f, 0xca, 0x3f, 0x0f, 0x02);
+	&data_byte(0xc1, 0xaf, 0xbd, 0x03, 0x01, 0x13, 0x8a, 0x6b);
+	&data_byte(0x3a, 0x91, 0x11, 0x41, 0x4f, 0x67, 0xdc, 0xea);
+	&data_byte(0x97, 0xf2, 0xcf, 0xce, 0xf0, 0xb4, 0xe6, 0x73);
+	&data_byte(0x96, 0xac, 0x74, 0x22, 0xe7, 0xad, 0x35, 0x85);
+	&data_byte(0xe2, 0xf9, 0x37, 0xe8, 0x1c, 0x75, 0xdf, 0x6e);
+	&data_byte(0x47, 0xf1, 0x1a, 0x71, 0x1d, 0x29, 0xc5, 0x89);
+	&data_byte(0x6f, 0xb7, 0x62, 0x0e, 0xaa, 0x18, 0xbe, 0x1b);
+	&data_byte(0xfc, 0x56, 0x3e, 0x4b, 0xc6, 0xd2, 0x79, 0x20);
+	&data_byte(0x9a, 0xdb, 0xc0, 0xfe, 0x78, 0xcd, 0x5a, 0xf4);
+	&data_byte(0x1f, 0xdd, 0xa8, 0x33, 0x88, 0x07, 0xc7, 0x31);
+	&data_byte(0xb1, 0x12, 0x10, 0x59, 0x27, 0x80, 0xec, 0x5f);
+	&data_byte(0x60, 0x51, 0x7f, 0xa9, 0x19, 0xb5, 0x4a, 0x0d);
+	&data_byte(0x2d, 0xe5, 0x7a, 0x9f, 0x93, 0xc9, 0x9c, 0xef);
+	&data_byte(0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0);
+	&data_byte(0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61);
+	&data_byte(0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26);
+	&data_byte(0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d);
+$code.=<<___;
+	.long	0x80808080, 0x80808080, 0xfefefefe, 0xfefefefe
+	.long	0x1b1b1b1b, 0x1b1b1b1b, 0, 0
+.asciz  "AES for x86_64, CRYPTOGAMS by <appro\@openssl.org>"
+.align	64
+___
+
+# EXCEPTION_DISPOSITION handler (EXCEPTION_RECORD *rec,ULONG64 frame,
+#		CONTEXT *context,DISPATCHER_CONTEXT *disp)
+if ($win64) {
+$rec="%rcx";
+$frame="%rdx";
+$context="%r8";
+$disp="%r9";
+
+$code.=<<___;
+.extern	__imp_RtlVirtualUnwind
+.type	block_se_handler,\@abi-omnipotent
+.align	16
+block_se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	mov	8($disp),%rsi		# disp->ImageBase
+	mov	56($disp),%r11		# disp->HandlerData
+
+	mov	0(%r11),%r10d		# HandlerData[0]
+	lea	(%rsi,%r10),%r10	# prologue label
+	cmp	%r10,%rbx		# context->Rip<prologue label
+	jb	.Lin_block_prologue
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	mov	4(%r11),%r10d		# HandlerData[1]
+	lea	(%rsi,%r10),%r10	# epilogue label
+	cmp	%r10,%rbx		# context->Rip>=epilogue label
+	jae	.Lin_block_prologue
+
+	mov	24(%rax),%rax		# pull saved real stack pointer
+	lea	48(%rax),%rax		# adjust...
+
+	mov	-8(%rax),%rbx
+	mov	-16(%rax),%rbp
+	mov	-24(%rax),%r12
+	mov	-32(%rax),%r13
+	mov	-40(%rax),%r14
+	mov	-48(%rax),%r15
+	mov	%rbx,144($context)	# restore context->Rbx
+	mov	%rbp,160($context)	# restore context->Rbp
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
+
+.Lin_block_prologue:
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rax,152($context)	# restore context->Rsp
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+	jmp	.Lcommon_seh_exit
+.size	block_se_handler,.-block_se_handler
+
+.type	key_se_handler,\@abi-omnipotent
+.align	16
+key_se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	mov	8($disp),%rsi		# disp->ImageBase
+	mov	56($disp),%r11		# disp->HandlerData
+
+	mov	0(%r11),%r10d		# HandlerData[0]
+	lea	(%rsi,%r10),%r10	# prologue label
+	cmp	%r10,%rbx		# context->Rip<prologue label
+	jb	.Lin_key_prologue
+
+	mov	152($context),%rax	# pull context->Rsp
+
+	mov	4(%r11),%r10d		# HandlerData[1]
+	lea	(%rsi,%r10),%r10	# epilogue label
+	cmp	%r10,%rbx		# context->Rip>=epilogue label
+	jae	.Lin_key_prologue
+
+	lea	56(%rax),%rax
+
+	mov	-8(%rax),%rbx
+	mov	-16(%rax),%rbp
+	mov	-24(%rax),%r12
+	mov	-32(%rax),%r13
+	mov	-40(%rax),%r14
+	mov	-48(%rax),%r15
+	mov	%rbx,144($context)	# restore context->Rbx
+	mov	%rbp,160($context)	# restore context->Rbp
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
+
+.Lin_key_prologue:
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rax,152($context)	# restore context->Rsp
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+	jmp	.Lcommon_seh_exit
+.size	key_se_handler,.-key_se_handler
+
+.type	cbc_se_handler,\@abi-omnipotent
+.align	16
+cbc_se_handler:
+	push	%rsi
+	push	%rdi
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	pushfq
+	sub	\$64,%rsp
+
+	mov	120($context),%rax	# pull context->Rax
+	mov	248($context),%rbx	# pull context->Rip
+
+	lea	.Lcbc_prologue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip<.Lcbc_prologue
+	jb	.Lin_cbc_prologue
+
+	lea	.Lcbc_fast_body(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip<.Lcbc_fast_body
+	jb	.Lin_cbc_frame_setup
+
+	lea	.Lcbc_slow_prologue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip<.Lcbc_slow_prologue
+	jb	.Lin_cbc_body
+
+	lea	.Lcbc_slow_body(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip<.Lcbc_slow_body
+	jb	.Lin_cbc_frame_setup
+
+.Lin_cbc_body:
+	mov	152($context),%rax	# pull context->Rsp
+
+	lea	.Lcbc_epilogue(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip>=.Lcbc_epilogue
+	jae	.Lin_cbc_prologue
+
+	lea	8(%rax),%rax
+
+	lea	.Lcbc_popfq(%rip),%r10
+	cmp	%r10,%rbx		# context->Rip>=.Lcbc_popfq
+	jae	.Lin_cbc_prologue
+
+	mov	`16-8`(%rax),%rax	# biased $_rsp
+	lea	56(%rax),%rax
+
+.Lin_cbc_frame_setup:
+	mov	-16(%rax),%rbx
+	mov	-24(%rax),%rbp
+	mov	-32(%rax),%r12
+	mov	-40(%rax),%r13
+	mov	-48(%rax),%r14
+	mov	-56(%rax),%r15
+	mov	%rbx,144($context)	# restore context->Rbx
+	mov	%rbp,160($context)	# restore context->Rbp
+	mov	%r12,216($context)	# restore context->R12
+	mov	%r13,224($context)	# restore context->R13
+	mov	%r14,232($context)	# restore context->R14
+	mov	%r15,240($context)	# restore context->R15
+
+.Lin_cbc_prologue:
+	mov	8(%rax),%rdi
+	mov	16(%rax),%rsi
+	mov	%rax,152($context)	# restore context->Rsp
+	mov	%rsi,168($context)	# restore context->Rsi
+	mov	%rdi,176($context)	# restore context->Rdi
+
+.Lcommon_seh_exit:
+
+	mov	40($disp),%rdi		# disp->ContextRecord
+	mov	$context,%rsi		# context
+	mov	\$`1232/8`,%ecx		# sizeof(CONTEXT)
+	.long	0xa548f3fc		# cld; rep movsq
+
+	mov	$disp,%rsi
+	xor	%rcx,%rcx		# arg1, UNW_FLAG_NHANDLER
+	mov	8(%rsi),%rdx		# arg2, disp->ImageBase
+	mov	0(%rsi),%r8		# arg3, disp->ControlPc
+	mov	16(%rsi),%r9		# arg4, disp->FunctionEntry
+	mov	40(%rsi),%r10		# disp->ContextRecord
+	lea	56(%rsi),%r11		# &disp->HandlerData
+	lea	24(%rsi),%r12		# &disp->EstablisherFrame
+	mov	%r10,32(%rsp)		# arg5
+	mov	%r11,40(%rsp)		# arg6
+	mov	%r12,48(%rsp)		# arg7
+	mov	%rcx,56(%rsp)		# arg8, (NULL)
+	call	*__imp_RtlVirtualUnwind(%rip)
+
+	mov	\$1,%eax		# ExceptionContinueSearch
+	add	\$64,%rsp
+	popfq
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	pop	%rdi
+	pop	%rsi
+	ret
+.size	cbc_se_handler,.-cbc_se_handler
+
+.section	.pdata
+.align	4
+	.rva	.LSEH_begin_AES_encrypt
+	.rva	.LSEH_end_AES_encrypt
+	.rva	.LSEH_info_AES_encrypt
+
+	.rva	.LSEH_begin_AES_decrypt
+	.rva	.LSEH_end_AES_decrypt
+	.rva	.LSEH_info_AES_decrypt
+
+	.rva	.LSEH_begin_AES_set_encrypt_key
+	.rva	.LSEH_end_AES_set_encrypt_key
+	.rva	.LSEH_info_AES_set_encrypt_key
+
+	.rva	.LSEH_begin_AES_set_decrypt_key
+	.rva	.LSEH_end_AES_set_decrypt_key
+	.rva	.LSEH_info_AES_set_decrypt_key
+
+	.rva	.LSEH_begin_AES_cbc_encrypt
+	.rva	.LSEH_end_AES_cbc_encrypt
+	.rva	.LSEH_info_AES_cbc_encrypt
+
+.section	.xdata
+.align	8
+.LSEH_info_AES_encrypt:
+	.byte	9,0,0,0
+	.rva	block_se_handler
+	.rva	.Lenc_prologue,.Lenc_epilogue	# HandlerData[]
+.LSEH_info_AES_decrypt:
+	.byte	9,0,0,0
+	.rva	block_se_handler
+	.rva	.Ldec_prologue,.Ldec_epilogue	# HandlerData[]
+.LSEH_info_AES_set_encrypt_key:
+	.byte	9,0,0,0
+	.rva	key_se_handler
+	.rva	.Lenc_key_prologue,.Lenc_key_epilogue	# HandlerData[]
+.LSEH_info_AES_set_decrypt_key:
+	.byte	9,0,0,0
+	.rva	key_se_handler
+	.rva	.Ldec_key_prologue,.Ldec_key_epilogue	# HandlerData[]
+.LSEH_info_AES_cbc_encrypt:
+	.byte	9,0,0,0
+	.rva	cbc_se_handler
+___
+}
 
 $code =~ s/\`([^\`]*)\`/eval($1)/gem;
 

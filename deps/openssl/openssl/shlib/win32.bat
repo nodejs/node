@@ -14,5 +14,5 @@ cl /Focrypto.obj -DWIN32 %OPTIONS% -c crypto\crypto.c
 cl /Fossl.obj -DWIN32 %OPTIONS% -c ssl\ssl.c
 cl /Foeay.obj -DWIN32 %OPTIONS% -c apps\eay.c
 
-cl /Fessleay.exe %OPTIONS% eay.obj ssl.obj crypto.obj crypto\bf\asm\b-win32.obj crypto\des\asm\c-win32.obj crypto\des\asm\d-win32.obj crypto\bn\asm\x86nt32.obj user32.lib gdi32.lib wsock32.lib
+cl /Fessleay.exe %OPTIONS% eay.obj ssl.obj crypto.obj crypto\bf\asm\b-win32.obj crypto\des\asm\c-win32.obj crypto\des\asm\d-win32.obj crypto\bn\asm\x86nt32.obj user32.lib gdi32.lib ws2_32.lib
 

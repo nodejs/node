@@ -70,12 +70,20 @@
 
 #if defined(OPENSSL_SYS_WINCE)
 #elif defined(OPENSSL_SYS_WIN32)
-#  include <process.h>
 #elif defined(OPENSSL_SYS_VMS)
 #  include <opcdef.h>
 #  include <descrip.h>
 #  include <lib$routines.h>
 #  include <starlet.h>
+/* Some compiler options may mask the declaration of "_malloc32". */
+#  if __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE
+#    if __INITIAL_POINTER_SIZE == 64
+#      pragma pointer_size save
+#      pragma pointer_size 32
+    void * _malloc32  (__size_t);
+#      pragma pointer_size restore
+#    endif /* __INITIAL_POINTER_SIZE == 64 */
+#  endif /* __INITIAL_POINTER_SIZE && defined _ANSI_C_SOURCE */
 #elif defined(__ultrix)
 #  include <sys/syslog.h>
 #elif defined(OPENSSL_SYS_NETWARE)
@@ -122,18 +130,6 @@ static int MS_CALLBACK slg_free(BIO *data);
 static void xopenlog(BIO* bp, char* name, int level);
 static void xsyslog(BIO* bp, int priority, const char* string);
 static void xcloselog(BIO* bp);
-#ifdef OPENSSL_SYS_WIN32
-LONG	(WINAPI *go_for_advapi)()	= RegOpenKeyEx;
-HANDLE	(WINAPI *register_event_source)()	= NULL;
-BOOL	(WINAPI *deregister_event_source)()	= NULL;
-BOOL	(WINAPI *report_event)()	= NULL;
-#define DL_PROC(m,f)	(GetProcAddress( m, f ))
-#ifdef UNICODE
-#define DL_PROC_X(m,f) DL_PROC( m, f "W" )
-#else
-#define DL_PROC_X(m,f) DL_PROC( m, f "A" )
-#endif
-#endif
 
 static BIO_METHOD methods_slg=
 	{
@@ -175,7 +171,7 @@ static int MS_CALLBACK slg_write(BIO *b, const char *in, int inl)
 	char* buf;
 	char* pp;
 	int priority, i;
-	static struct
+	static const struct
 		{
 		int strl;
 		char str[10];
@@ -249,35 +245,20 @@ static int MS_CALLBACK slg_puts(BIO *bp, const char *str)
 
 static void xopenlog(BIO* bp, char* name, int level)
 {
-	if ( !register_event_source )
-		{
-		HANDLE	advapi;
-		if ( !(advapi = GetModuleHandle("advapi32")) )
-			return;
-		register_event_source = (HANDLE (WINAPI *)())DL_PROC_X(advapi,
-			"RegisterEventSource" );
-		deregister_event_source = (BOOL (WINAPI *)())DL_PROC(advapi,
-			"DeregisterEventSource");
-		report_event = (BOOL (WINAPI *)())DL_PROC_X(advapi,
-			"ReportEvent" );
-		if ( !(register_event_source && deregister_event_source &&
-				report_event) )
-			{
-			register_event_source = NULL;
-			deregister_event_source = NULL;
-			report_event = NULL;
-			return;
-			}
-		}
-	bp->ptr= (char *)register_event_source(NULL, name);
+	if (GetVersion() < 0x80000000)
+		bp->ptr = RegisterEventSourceA(NULL,name);
+	else
+		bp->ptr = NULL;
 }
 
 static void xsyslog(BIO *bp, int priority, const char *string)
 {
 	LPCSTR lpszStrings[2];
 	WORD evtype= EVENTLOG_ERROR_TYPE;
-	int pid = _getpid();
-	char pidbuf[DECIMAL_SIZE(pid)+4];
+	char pidbuf[DECIMAL_SIZE(DWORD)+4];
+
+	if (bp->ptr == NULL)
+		return;
 
 	switch (priority)
 		{
@@ -301,19 +282,18 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 		break;
 		}
 
-	sprintf(pidbuf, "[%d] ", pid);
+	sprintf(pidbuf, "[%u] ", GetCurrentProcessId());
 	lpszStrings[0] = pidbuf;
 	lpszStrings[1] = string;
 
-	if(report_event && bp->ptr)
-		report_event(bp->ptr, evtype, 0, 1024, NULL, 2, 0,
+	ReportEventA(bp->ptr, evtype, 0, 1024, NULL, 2, 0,
 				lpszStrings, NULL);
 }
 	
 static void xcloselog(BIO* bp)
 {
-	if(deregister_event_source && bp->ptr)
-		deregister_event_source((HANDLE)(bp->ptr));
+	if(bp->ptr)
+		DeregisterEventSource((HANDLE)(bp->ptr));
 	bp->ptr= NULL;
 }
 
@@ -329,7 +309,24 @@ static void xopenlog(BIO* bp, char* name, int level)
 static void xsyslog(BIO *bp, int priority, const char *string)
 {
 	struct dsc$descriptor_s opc_dsc;
+
+/* Arrange 32-bit pointer to opcdef buffer and malloc(), if needed. */
+#if __INITIAL_POINTER_SIZE == 64
+# pragma pointer_size save
+# pragma pointer_size 32
+# define OPCDEF_TYPE __char_ptr32
+# define OPCDEF_MALLOC _malloc32
+#else /* __INITIAL_POINTER_SIZE == 64 */
+# define OPCDEF_TYPE char *
+# define OPCDEF_MALLOC OPENSSL_malloc
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
+
 	struct opcdef *opcdef_p;
+
+#if __INITIAL_POINTER_SIZE == 64
+# pragma pointer_size restore
+#endif /* __INITIAL_POINTER_SIZE == 64 */
+
 	char buf[10240];
 	unsigned int len;
         struct dsc$descriptor_s buf_dsc;
@@ -355,8 +352,8 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 
 	lib$sys_fao(&fao_cmd, &len, &buf_dsc, priority_tag, string);
 
-	/* we know there's an 8 byte header.  That's documented */
-	opcdef_p = (struct opcdef *) OPENSSL_malloc(8 + len);
+	/* We know there's an 8-byte header.  That's documented. */
+	opcdef_p = OPCDEF_MALLOC( 8+ len);
 	opcdef_p->opc$b_ms_type = OPC$_RQ_RQST;
 	memcpy(opcdef_p->opc$z_ms_target_classes, &VMS_OPC_target, 3);
 	opcdef_p->opc$l_ms_rqstid = 0;
@@ -364,7 +361,7 @@ static void xsyslog(BIO *bp, int priority, const char *string)
 
 	opc_dsc.dsc$b_dtype = DSC$K_DTYPE_T;
 	opc_dsc.dsc$b_class = DSC$K_CLASS_S;
-	opc_dsc.dsc$a_pointer = (char *)opcdef_p;
+	opc_dsc.dsc$a_pointer = (OPCDEF_TYPE) opcdef_p;
 	opc_dsc.dsc$w_length = len + 8;
 
 	sys$sndopr(opc_dsc, 0);

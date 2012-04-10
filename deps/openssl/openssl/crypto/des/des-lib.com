@@ -659,13 +659,13 @@ $! Else...
 $!
 $ ELSE
 $!
-$!  Else, Check To See If P1 Has A Valid Arguement.
+$!  Else, Check To See If P1 Has A Valid Argument.
 $!
 $   IF (P1.EQS."LIBRARY").OR.(P1.EQS."DESTEST").OR.(P1.EQS."SPEED") -
        .OR.(P1.EQS."RPW").OR.(P1.EQS."DES").OR.(P1.EQS."DES_OPTS")
 $   THEN
 $!
-$!    A Valid Arguement.
+$!    A Valid Argument.
 $!
 $     BUILDALL = P1
 $!
@@ -678,7 +678,7 @@ $!
 $     WRITE SYS$OUTPUT ""
 $     WRITE SYS$OUTPUT "The Option ",P1," Is Invalid.  The Valid Options Are:"
 $     WRITE SYS$OUTPUT ""
-$     WRITE SYS$OUTPUT "    ALL      :  Just Build Everything.
+$     WRITE SYS$OUTPUT "    ALL      :  Just Build Everything."
 $     WRITE SYS$OUTPUT "    LIBRARY  :  To Compile Just The [.xxx.EXE.CRYPTO.DES]LIBDES.OLB Library."
 $     WRITE SYS$OUTPUT "    DESTEST  :  To Compile Just The [.xxx.EXE.CRYPTO.DES]DESTEST.EXE Program."
 $     WRITE SYS$OUTPUT "    SPEED    :  To Compile Just The [.xxx.EXE.CRYPTO.DES]SPEED.EXE Program."
@@ -697,7 +697,7 @@ $!    Time To EXIT.
 $!
 $     EXIT
 $!
-$!  End The Valid Arguement Check.
+$!  End The Valid Argument Check.
 $!
 $   ENDIF
 $!
@@ -754,7 +754,7 @@ $!    Time To EXIT.
 $!
 $     EXIT
 $!
-$!  End The Valid Arguement Check.
+$!  End The Valid Argument Check.
 $!
 $   ENDIF
 $!
@@ -978,7 +978,7 @@ $!  Show user the result
 $!
 $   WRITE SYS$OUTPUT "Main Compiling Command: ",CC
 $!
-$!  Else The User Entered An Invalid Arguement.
+$!  Else The User Entered An Invalid Argument.
 $!
 $ ELSE
 $!

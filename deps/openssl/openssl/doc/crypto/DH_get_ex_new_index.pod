@@ -1,0 +1,36 @@
+=pod
+
+=head1 NAME
+
+DH_get_ex_new_index, DH_set_ex_data, DH_get_ex_data - add application specific data to DH structures
+
+=head1 SYNOPSIS
+
+ #include <openssl/dh.h>
+
+ int DH_get_ex_new_index(long argl, void *argp,
+		CRYPTO_EX_new *new_func,
+		CRYPTO_EX_dup *dup_func,
+		CRYPTO_EX_free *free_func);
+
+ int DH_set_ex_data(DH *d, int idx, void *arg);
+
+ char *DH_get_ex_data(DH *d, int idx);
+
+=head1 DESCRIPTION
+
+These functions handle application specific data in DH
+structures. Their usage is identical to that of
+RSA_get_ex_new_index(), RSA_set_ex_data() and RSA_get_ex_data()
+as described in L<RSA_get_ex_new_index(3)>.
+
+=head1 SEE ALSO
+
+L<RSA_get_ex_new_index(3)|RSA_get_ex_new_index(3)>, L<dh(3)|dh(3)>
+
+=head1 HISTORY
+
+DH_get_ex_new_index(), DH_set_ex_data() and DH_get_ex_data() are
+available since OpenSSL 0.9.5.
+
+=cut

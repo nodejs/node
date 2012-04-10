@@ -1,0 +1,102 @@
+=pod
+
+=head1 NAME
+
+BN_generate_prime, BN_is_prime, BN_is_prime_fasttest - generate primes and test for primality
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ BIGNUM *BN_generate_prime(BIGNUM *ret, int num, int safe, BIGNUM *add,
+     BIGNUM *rem, void (*callback)(int, int, void *), void *cb_arg);
+
+ int BN_is_prime(const BIGNUM *a, int checks, void (*callback)(int, int, 
+     void *), BN_CTX *ctx, void *cb_arg);
+
+ int BN_is_prime_fasttest(const BIGNUM *a, int checks,
+     void (*callback)(int, int, void *), BN_CTX *ctx, void *cb_arg,
+     int do_trial_division);
+
+=head1 DESCRIPTION
+
+BN_generate_prime() generates a pseudo-random prime number of B<num>
+bits.
+If B<ret> is not B<NULL>, it will be used to store the number.
+
+If B<callback> is not B<NULL>, it is called as follows:
+
+=over 4
+
+=item *
+
+B<callback(0, i, cb_arg)> is called after generating the i-th
+potential prime number.
+
+=item *
+
+While the number is being tested for primality, B<callback(1, j,
+cb_arg)> is called as described below.
+
+=item *
+
+When a prime has been found, B<callback(2, i, cb_arg)> is called.
+
+=back
+
+The prime may have to fulfill additional requirements for use in
+Diffie-Hellman key exchange:
+
+If B<add> is not B<NULL>, the prime will fulfill the condition p % B<add>
+== B<rem> (p % B<add> == 1 if B<rem> == B<NULL>) in order to suit a given
+generator.
+
+If B<safe> is true, it will be a safe prime (i.e. a prime p so
+that (p-1)/2 is also prime).
+
+The PRNG must be seeded prior to calling BN_generate_prime().
+The prime number generation has a negligible error probability.
+
+BN_is_prime() and BN_is_prime_fasttest() test if the number B<a> is
+prime.  The following tests are performed until one of them shows that
+B<a> is composite; if B<a> passes all these tests, it is considered
+prime.
+
+BN_is_prime_fasttest(), when called with B<do_trial_division == 1>,
+first attempts trial division by a number of small primes;
+if no divisors are found by this test and B<callback> is not B<NULL>,
+B<callback(1, -1, cb_arg)> is called.
+If B<do_trial_division == 0>, this test is skipped.
+
+Both BN_is_prime() and BN_is_prime_fasttest() perform a Miller-Rabin
+probabilistic primality test with B<checks> iterations. If
+B<checks == BN_prime_checks>, a number of iterations is used that
+yields a false positive rate of at most 2^-80 for random input.
+
+If B<callback> is not B<NULL>, B<callback(1, j, cb_arg)> is called
+after the j-th iteration (j = 0, 1, ...). B<ctx> is a
+pre-allocated B<BN_CTX> (to save the overhead of allocating and
+freeing the structure in a loop), or B<NULL>.
+
+=head1 RETURN VALUES
+
+BN_generate_prime() returns the prime number on success, B<NULL> otherwise.
+
+BN_is_prime() returns 0 if the number is composite, 1 if it is
+prime with an error probability of less than 0.25^B<checks>, and
+-1 on error.
+
+The error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<bn(3)|bn(3)>, L<ERR_get_error(3)|ERR_get_error(3)>, L<rand(3)|rand(3)>
+
+=head1 HISTORY
+
+The B<cb_arg> arguments to BN_generate_prime() and to BN_is_prime()
+were added in SSLeay 0.9.0. The B<ret> argument to BN_generate_prime()
+was added in SSLeay 0.9.1.
+BN_is_prime_fasttest() was added in OpenSSL 0.9.5.
+
+=cut

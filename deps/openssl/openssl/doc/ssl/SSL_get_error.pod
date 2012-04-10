@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+SSL_get_error - obtain result code for TLS/SSL I/O operation
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_get_error(const SSL *ssl, int ret);
+
+=head1 DESCRIPTION
+
+SSL_get_error() returns a result code (suitable for the C "switch"
+statement) for a preceding call to SSL_connect(), SSL_accept(), SSL_do_handshake(),
+SSL_read(), SSL_peek(), or SSL_write() on B<ssl>.  The value returned by
+that TLS/SSL I/O function must be passed to SSL_get_error() in parameter
+B<ret>.
+
+In addition to B<ssl> and B<ret>, SSL_get_error() inspects the
+current thread's OpenSSL error queue.  Thus, SSL_get_error() must be
+used in the same thread that performed the TLS/SSL I/O operation, and no
+other OpenSSL function calls should appear in between.  The current
+thread's error queue must be empty before the TLS/SSL I/O operation is
+attempted, or SSL_get_error() will not work reliably.
+
+=head1 RETURN VALUES
+
+The following return values can currently occur:
+
+=over 4
+
+=item SSL_ERROR_NONE
+
+The TLS/SSL I/O operation completed.  This result code is returned
+if and only if B<ret E<gt> 0>.
+
+=item SSL_ERROR_ZERO_RETURN
+
+The TLS/SSL connection has been closed.  If the protocol version is SSL 3.0
+or TLS 1.0, this result code is returned only if a closure
+alert has occurred in the protocol, i.e. if the connection has been
+closed cleanly. Note that in this case B<SSL_ERROR_ZERO_RETURN>
+does not necessarily indicate that the underlying transport
+has been closed.
+
+=item SSL_ERROR_WANT_READ, SSL_ERROR_WANT_WRITE
+
+The operation did not complete; the same TLS/SSL I/O function should be
+called again later.  If, by then, the underlying B<BIO> has data
+available for reading (if the result code is B<SSL_ERROR_WANT_READ>)
+or allows writing data (B<SSL_ERROR_WANT_WRITE>), then some TLS/SSL
+protocol progress will take place, i.e. at least part of an TLS/SSL
+record will be read or written.  Note that the retry may again lead to
+a B<SSL_ERROR_WANT_READ> or B<SSL_ERROR_WANT_WRITE> condition.
+There is no fixed upper limit for the number of iterations that
+may be necessary until progress becomes visible at application
+protocol level.
+
+For socket B<BIO>s (e.g. when SSL_set_fd() was used), select() or
+poll() on the underlying socket can be used to find out when the
+TLS/SSL I/O function should be retried.
+
+Caveat: Any TLS/SSL I/O function can lead to either of
+B<SSL_ERROR_WANT_READ> and B<SSL_ERROR_WANT_WRITE>.  In particular,
+SSL_read() or SSL_peek() may want to write data and SSL_write() may want
+to read data.  This is mainly because TLS/SSL handshakes may occur at any
+time during the protocol (initiated by either the client or the server);
+SSL_read(), SSL_peek(), and SSL_write() will handle any pending handshakes.
+
+=item SSL_ERROR_WANT_CONNECT, SSL_ERROR_WANT_ACCEPT
+
+The operation did not complete; the same TLS/SSL I/O function should be
+called again later. The underlying BIO was not connected yet to the peer
+and the call would block in connect()/accept(). The SSL function should be
+called again when the connection is established. These messages can only
+appear with a BIO_s_connect() or BIO_s_accept() BIO, respectively.
+In order to find out, when the connection has been successfully established,
+on many platforms select() or poll() for writing on the socket file descriptor
+can be used.
+
+=item SSL_ERROR_WANT_X509_LOOKUP
+
+The operation did not complete because an application callback set by
+SSL_CTX_set_client_cert_cb() has asked to be called again.
+The TLS/SSL I/O function should be called again later.
+Details depend on the application.
+
+=item SSL_ERROR_SYSCALL
+
+Some I/O error occurred.  The OpenSSL error queue may contain more
+information on the error.  If the error queue is empty
+(i.e. ERR_get_error() returns 0), B<ret> can be used to find out more
+about the error: If B<ret == 0>, an EOF was observed that violates
+the protocol.  If B<ret == -1>, the underlying B<BIO> reported an
+I/O error (for socket I/O on Unix systems, consult B<errno> for details).
+
+=item SSL_ERROR_SSL
+
+A failure in the SSL library occurred, usually a protocol error.  The
+OpenSSL error queue contains more information on the error.
+
+=back
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<err(3)|err(3)>
+
+=head1 HISTORY
+
+SSL_get_error() was added in SSLeay 0.8.
+
+=cut

@@ -1,0 +1,34 @@
+=pod
+
+=head1 NAME
+
+ERR_remove_state - free a thread's error queue
+
+=head1 SYNOPSIS
+
+ #include <openssl/err.h>
+
+ void ERR_remove_state(unsigned long pid);
+
+=head1 DESCRIPTION
+
+ERR_remove_state() frees the error queue associated with thread B<pid>.
+If B<pid> == 0, the current thread will have its error queue removed.
+
+Since error queue data structures are allocated automatically for new
+threads, they must be freed when threads are terminated in order to
+avoid memory leaks.
+
+=head1 RETURN VALUE
+
+ERR_remove_state() returns no value.
+
+=head1 SEE ALSO
+
+L<err(3)|err(3)>
+
+=head1 HISTORY
+
+ERR_remove_state() is available in all versions of SSLeay and OpenSSL.
+
+=cut

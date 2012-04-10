@@ -1,0 +1,33 @@
+=pod
+
+=head1 NAME
+
+DSA_size - get DSA signature size
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+
+ int DSA_size(const DSA *dsa);
+
+=head1 DESCRIPTION
+
+This function returns the size of an ASN.1 encoded DSA signature in
+bytes. It can be used to determine how much memory must be allocated
+for a DSA signature.
+
+B<dsa-E<gt>q> must not be B<NULL>.
+
+=head1 RETURN VALUE
+
+The size in bytes.
+
+=head1 SEE ALSO
+
+L<dsa(3)|dsa(3)>, L<DSA_sign(3)|DSA_sign(3)>
+
+=head1 HISTORY
+
+DSA_size() is available in all versions of SSLeay and OpenSSL.
+
+=cut

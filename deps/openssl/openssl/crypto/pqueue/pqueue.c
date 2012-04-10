@@ -68,13 +68,12 @@ typedef struct _pqueue
 	} pqueue_s;
 
 pitem *
-pitem_new(PQ_64BIT priority, void *data)
+pitem_new(unsigned char *prio64be, void *data)
 	{
 	pitem *item = (pitem *) OPENSSL_malloc(sizeof(pitem));
 	if (item == NULL) return NULL;
 
-	pq_64bit_init(&(item->priority));
-	pq_64bit_assign(&item->priority, &priority);
+	memcpy(item->priority,prio64be,sizeof(item->priority));
 
 	item->data = data;
 	item->next = NULL;
@@ -87,7 +86,6 @@ pitem_free(pitem *item)
 	{
 	if (item == NULL) return;
 
-	pq_64bit_free(&(item->priority));
 	OPENSSL_free(item);
 	}
 
@@ -124,7 +122,10 @@ pqueue_insert(pqueue_s *pq, pitem *item)
 		next != NULL;
 		curr = next, next = next->next)
 		{
-		if (pq_64bit_gt(&(next->priority), &(item->priority)))
+		/* we can compare 64-bit value in big-endian encoding
+		 * with memcmp:-) */
+		int cmp = memcmp(next->priority, item->priority,8);
+		if (cmp > 0)		/* next > item */
 			{
 			item->next = next;
 
@@ -135,8 +136,8 @@ pqueue_insert(pqueue_s *pq, pitem *item)
 
 			return item;
 			}
-		/* duplicates not allowed */
-		if (pq_64bit_eq(&(item->priority), &(next->priority)))
+		
+		else if (cmp == 0)	/* duplicates not allowed */
 			return NULL;
 		}
 
@@ -164,7 +165,7 @@ pqueue_pop(pqueue_s *pq)
 	}
 
 pitem *
-pqueue_find(pqueue_s *pq, PQ_64BIT priority)
+pqueue_find(pqueue_s *pq, unsigned char *prio64be)
 	{
 	pitem *next;
 	pitem *found = NULL;
@@ -174,7 +175,7 @@ pqueue_find(pqueue_s *pq, PQ_64BIT priority)
 
 	for ( next = pq->items; next->next != NULL; next = next->next)
 		{
-		if ( pq_64bit_eq(&(next->priority), &priority))
+		if ( memcmp(next->priority, prio64be,8) == 0)
 			{
 			found = next;
 			break;
@@ -182,16 +183,22 @@ pqueue_find(pqueue_s *pq, PQ_64BIT priority)
 		}
 	
 	/* check the one last node */
-	if ( pq_64bit_eq(&(next->priority), &priority))
+	if ( memcmp(next->priority, prio64be,8) ==0)
 		found = next;
 
 	if ( ! found)
 		return NULL;
 
+#if 0 /* find works in peek mode */
+	if ( prev == NULL)
+		pq->items = next->next;
+	else
+		prev->next = next->next;
+#endif
+
 	return found;
 	}
 
-#if PQ_64BIT_IS_INTEGER
 void
 pqueue_print(pqueue_s *pq)
 	{
@@ -199,11 +206,14 @@ pqueue_print(pqueue_s *pq)
 
 	while(item != NULL)
 		{
-		printf("item\t" PQ_64BIT_PRINT "\n", item->priority);
+		printf("item\t%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			item->priority[0],item->priority[1],
+			item->priority[2],item->priority[3],
+			item->priority[4],item->priority[5],
+			item->priority[6],item->priority[7]);
 		item = item->next;
 		}
 	}
-#endif
 
 pitem *
 pqueue_iterator(pqueue_s *pq)

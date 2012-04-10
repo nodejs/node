@@ -72,7 +72,7 @@ extern "C" {
 #define CAST_ENCRYPT	1
 #define CAST_DECRYPT	0
 
-#define CAST_LONG unsigned long
+#define CAST_LONG unsigned int
 
 #define CAST_BLOCK	8
 #define CAST_KEY_LENGTH	16
@@ -83,9 +83,7 @@ typedef struct cast_key_st
 	int short_key;	/* Use reduced rounds for short key */
 	} CAST_KEY;
 
-#ifdef OPENSSL_FIPS 
-void private_CAST_set_key(CAST_KEY *key, int len, const unsigned char *data);
-#endif
+ 
 void CAST_set_key(CAST_KEY *key, int len, const unsigned char *data);
 void CAST_ecb_encrypt(const unsigned char *in, unsigned char *out, const CAST_KEY *key,
 		      int enc);

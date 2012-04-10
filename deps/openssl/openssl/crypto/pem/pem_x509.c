@@ -57,7 +57,6 @@
  */
 
 #include <stdio.h>
-#undef SSLEAY_MACROS
 #include "cryptlib.h"
 #include <openssl/bio.h>
 #include <openssl/evp.h>

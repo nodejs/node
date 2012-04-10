@@ -134,8 +134,27 @@ RSA *cb_generate_tmp_rsa(SSL *s, int is_export, int keylength)
 	/* TODO: Perhaps make it so our global key can be generated on-the-fly
 	 * after certain intervals? */
 	static RSA *rsa_tmp = NULL;
-	if(!rsa_tmp)
-		rsa_tmp = RSA_generate_key(keylength, RSA_F4, NULL, NULL);
+	BIGNUM *bn = NULL;
+	int ok = 1;
+	if(!rsa_tmp) {
+		ok = 0;
+		if(!(bn = BN_new()))
+			goto end;
+		if(!BN_set_word(bn, RSA_F4))
+			goto end;
+		if(!(rsa_tmp = RSA_new()))
+			goto end;
+		if(!RSA_generate_key_ex(rsa_tmp, keylength, bn, NULL))
+			goto end;
+		ok = 1;
+	}
+end:
+	if(bn)
+		BN_free(bn);
+	if(!ok) {
+		RSA_free(rsa_tmp);
+		rsa_tmp = NULL;
+	}
 	return rsa_tmp;
 }
 

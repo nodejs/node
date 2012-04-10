@@ -1,455 +1,166 @@
-#!/usr/local/bin/perl
+#!/usr/bin/env perl
 
 package x86nasm;
 
-$label="L000";
-$under=($main'netware)?'':'_';
+*out=\@::out;
 
-%lb=(	'eax',	'al',
-	'ebx',	'bl',
-	'ecx',	'cl',
-	'edx',	'dl',
-	'ax',	'al',
-	'bx',	'bl',
-	'cx',	'cl',
-	'dx',	'dl',
-	);
+$::lbdecor="L\$";		# local label decoration
+$nmdecor=$::netware?"":"_";	# external name decoration
+$drdecor=$::mwerks?".":"";	# directive decoration
 
-%hb=(	'eax',	'ah',
-	'ebx',	'bh',
-	'ecx',	'ch',
-	'edx',	'dh',
-	'ax',	'ah',
-	'bx',	'bh',
-	'cx',	'ch',
-	'dx',	'dh',
-	);
+$initseg="";
 
-sub main'asm_init_output { @out=(); }
-sub main'asm_get_output { return(@out); }
-sub main'get_labels { return(@labels); }
+sub ::generic
+{ my $opcode=shift;
+  my $tmp;
 
-sub main'external_label
-{
-	push(@labels,@_);
-	foreach (@_) {
-		push(@out,".") if ($main'mwerks);
-		push(@out, "extern\t${under}$_\n");
-	}
+    if (!$::mwerks)
+    {   if    ($opcode =~ m/^j/o && $#_==0) # optimize jumps
+	{   $_[0] = "NEAR $_[0]";   	}
+	elsif ($opcode eq "lea" && $#_==1)  # wipe storage qualifier from lea
+	{   $_[1] =~ s/^[^\[]*\[/\[/o;	}
+    }
+    &::emit($opcode,@_);
+  1;
 }
-
-sub main'LB
-	{
-	(defined($lb{$_[0]})) || die "$_[0] does not have a 'low byte'\n";
-	return($lb{$_[0]});
-	}
-
-sub main'HB
-	{
-	(defined($hb{$_[0]})) || die "$_[0] does not have a 'high byte'\n";
-	return($hb{$_[0]});
-	}
-
-sub main'BP
-	{
-	&get_mem("BYTE",@_);
-	}
-
-sub main'DWP
-	{
-	&get_mem("DWORD",@_);
-	}
-
-sub main'QWP
-	{
-	&get_mem("",@_);
-	}
-
-sub main'BC
-	{
-	return (($main'mwerks)?"":"BYTE ")."@_";
-	}
-
-sub main'DWC
-	{
-	return (($main'mwerks)?"":"DWORD ")."@_";
-	}
-
-sub main'stack_push
-	{
-	my($num)=@_;
-	$stack+=$num*4;
-	&main'sub("esp",$num*4);
-	}
-
-sub main'stack_pop
-	{
-	my($num)=@_;
-	$stack-=$num*4;
-	&main'add("esp",$num*4);
-	}
+#
+# opcodes not covered by ::generic above, mostly inconsistent namings...
+#
+sub ::call	{ &::emit("call",(&::islabel($_[0]) or "$nmdecor$_[0]")); }
+sub ::call_ptr	{ &::emit("call",@_);	}
+sub ::jmp_ptr	{ &::emit("jmp",@_);	}
 
 sub get_mem
-	{
-	my($size,$addr,$reg1,$reg2,$idx)=@_;
-	my($t,$post);
-	my($ret)=$size;
-	if ($ret ne "")
-		{
-		$ret .= " PTR" if ($main'mwerks);
-		$ret .= " ";
-		}
-	$ret .= "[";
-	$addr =~ s/^\s+//;
-	if ($addr =~ /^(.+)\+(.+)$/)
-		{
-		$reg2=&conv($1);
-		$addr="$under$2";
-		}
-	elsif ($addr =~ /^[_a-z][_a-z0-9]*$/i)
-		{
-		$addr="$under$addr";
-		}
+{ my($size,$addr,$reg1,$reg2,$idx)=@_;
+  my($post,$ret);
 
-	if ($addr =~ /^.+\-.+$/) { $addr="($addr)"; }
+    if ($size ne "")
+    {	$ret .= "$size";
+	$ret .= " PTR" if ($::mwerks);
+	$ret .= " ";
+    }
+    $ret .= "[";
 
-	$reg1="$regs{$reg1}" if defined($regs{$reg1});
-	$reg2="$regs{$reg2}" if defined($regs{$reg2});
-	if (($addr ne "") && ($addr ne 0))
-		{
-		if ($addr !~ /^-/)
-			{ $ret.="${addr}+"; }
-		else	{ $post=$addr; }
-		}
-	if ($reg2 ne "")
-		{
-		$t="";
-		$t="*$idx" if ($idx != 0);
-		$reg1="+".$reg1 if ("$reg1$post" ne "");
-		$ret.="$reg2$t$reg1$post]";
-		}
-	else
-		{
-		$ret.="$reg1$post]"
-		}
-	$ret =~ s/\+\]/]/; # in case $addr was the only argument
-	return($ret);
-	}
+    $addr =~ s/^\s+//;
+    # prepend global references with optional underscore
+    $addr =~ s/^([^\+\-0-9][^\+\-]*)/::islabel($1) or "$nmdecor$1"/ige;
+    # put address arithmetic expression in parenthesis
+    $addr="($addr)" if ($addr =~ /^.+[\-\+].+$/);
 
-sub main'mov	{ &out2("mov",@_); }
-sub main'movb	{ &out2("mov",@_); }
-sub main'and	{ &out2("and",@_); }
-sub main'or	{ &out2("or",@_); }
-sub main'shl	{ &out2("shl",@_); }
-sub main'shr	{ &out2("shr",@_); }
-sub main'xor	{ &out2("xor",@_); }
-sub main'xorb	{ &out2("xor",@_); }
-sub main'add	{ &out2("add",@_); }
-sub main'adc	{ &out2("adc",@_); }
-sub main'sub	{ &out2("sub",@_); }
-sub main'sbb	{ &out2("sbb",@_); }
-sub main'rotl	{ &out2("rol",@_); }
-sub main'rotr	{ &out2("ror",@_); }
-sub main'exch	{ &out2("xchg",@_); }
-sub main'cmp	{ &out2("cmp",@_); }
-sub main'lea	{ &out2("lea",@_); }
-sub main'mul	{ &out1("mul",@_); }
-sub main'imul	{ &out2("imul",@_); }
-sub main'div	{ &out1("div",@_); }
-sub main'dec	{ &out1("dec",@_); }
-sub main'inc	{ &out1("inc",@_); }
-sub main'jmp	{ &out1("jmp",@_); }
-sub main'jmp_ptr { &out1p("jmp",@_); }
+    if (($addr ne "") && ($addr ne 0))
+    {	if ($addr !~ /^-/)	{ $ret .= "$addr+"; }
+	else			{ $post=$addr;      }
+    }
 
-# This is a bit of a kludge: declare all branches as NEAR.
-$near=($main'mwerks)?'':'NEAR';
-sub main'je	{ &out1("je $near",@_); }
-sub main'jle	{ &out1("jle $near",@_); }
-sub main'jz	{ &out1("jz $near",@_); }
-sub main'jge	{ &out1("jge $near",@_); }
-sub main'jl	{ &out1("jl $near",@_); }
-sub main'ja	{ &out1("ja $near",@_); }
-sub main'jae	{ &out1("jae $near",@_); }
-sub main'jb	{ &out1("jb $near",@_); }
-sub main'jbe	{ &out1("jbe $near",@_); }
-sub main'jc	{ &out1("jc $near",@_); }
-sub main'jnc	{ &out1("jnc $near",@_); }
-sub main'jnz	{ &out1("jnz $near",@_); }
-sub main'jne	{ &out1("jne $near",@_); }
-sub main'jno	{ &out1("jno $near",@_); }
+    if ($reg2 ne "")
+    {	$idx!=0 or $idx=1;
+	$ret .= "$reg2*$idx";
+	$ret .= "+$reg1" if ($reg1 ne "");
+    }
+    else
+    {	$ret .= "$reg1";   }
 
-sub main'push	{ &out1("push",@_); $stack+=4; }
-sub main'pop	{ &out1("pop",@_); $stack-=4; }
-sub main'pushf	{ &out0("pushfd"); $stack+=4; }
-sub main'popf	{ &out0("popfd"); $stack-=4; }
-sub main'bswap	{ &out1("bswap",@_); &using486(); }
-sub main'not	{ &out1("not",@_); }
-sub main'call	{ &out1("call",($_[0]=~/^\@L/?'':$under).$_[0]); }
-sub main'call_ptr { &out1p("call",@_); }
-sub main'ret	{ &out0("ret"); }
-sub main'nop	{ &out0("nop"); }
-sub main'test	{ &out2("test",@_); }
-sub main'bt	{ &out2("bt",@_); }
-sub main'leave	{ &out0("leave"); }
-sub main'cpuid	{ &out0("cpuid"); }
-sub main'rdtsc	{ &out0("rdtsc"); }
-sub main'halt	{ &out0("hlt"); }
-sub main'movz	{ &out2("movzx",@_); }
-sub main'neg	{ &out1("neg",@_); }
-sub main'cld	{ &out0("cld"); }
+    $ret .= "$post]";
+    $ret =~ s/\+\]/]/; # in case $addr was the only argument
 
-# SSE2
-sub main'emms	{ &out0("emms"); }
-sub main'movd	{ &out2("movd",@_); }
-sub main'movq	{ &out2("movq",@_); }
-sub main'movdqu	{ &out2("movdqu",@_); }
-sub main'movdqa	{ &out2("movdqa",@_); }
-sub main'movdq2q{ &out2("movdq2q",@_); }
-sub main'movq2dq{ &out2("movq2dq",@_); }
-sub main'paddq	{ &out2("paddq",@_); }
-sub main'pmuludq{ &out2("pmuludq",@_); }
-sub main'psrlq	{ &out2("psrlq",@_); }
-sub main'psllq	{ &out2("psllq",@_); }
-sub main'pxor	{ &out2("pxor",@_); }
-sub main'por	{ &out2("por",@_); }
-sub main'pand	{ &out2("pand",@_); }
+  $ret;
+}
+sub ::BP	{ &get_mem("BYTE",@_);  }
+sub ::DWP	{ &get_mem("DWORD",@_); }
+sub ::QWP	{ &get_mem("",@_);      }
+sub ::BC	{ (($::mwerks)?"":"BYTE ")."@_";  }
+sub ::DWC	{ (($::mwerks)?"":"DWORD ")."@_"; }
 
-sub out2
-	{
-	my($name,$p1,$p2)=@_;
-	my($l,$t);
-
-	push(@out,"\t$name\t");
-	if (!$main'mwerks and $name eq "lea")
-		{
-		$p1 =~ s/^[^\[]*\[/\[/;
-		$p2 =~ s/^[^\[]*\[/\[/;
-		}
-	$t=&conv($p1).",";
-	$l=length($t);
-	push(@out,$t);
-	$l=4-($l+9)/8;
-	push(@out,"\t" x $l);
-	push(@out,&conv($p2));
-	push(@out,"\n");
-	}
-
-sub out0
-	{
-	my($name)=@_;
-
-	push(@out,"\t$name\n");
-	}
-
-sub out1
-	{
-	my($name,$p1)=@_;
-	my($l,$t);
-	push(@out,"\t$name\t".&conv($p1)."\n");
-	}
-
-sub conv
-	{
-	my($p)=@_;
-	$p =~ s/0x([0-9A-Fa-f]+)/0$1h/;
-	return $p;
-	}
-
-sub using486
-	{
-	return if $using486;
-	$using486++;
-	grep(s/\.386/\.486/,@out);
-	}
-
-sub main'file
-	{
-	if ($main'mwerks)	{ push(@out,".section\t.text\n"); }
-	else	{
-		local $tmp=<<___;
-%ifdef __omf__
-section	code	use32 class=code
+sub ::file
+{   if ($::mwerks)	{ push(@out,".section\t.text,64\n"); }
+    else
+    { my $tmp=<<___;
+%ifidn __OUTPUT_FORMAT__,obj
+section	code	use32 class=code align=64
+%elifidn __OUTPUT_FORMAT__,win32
+\$\@feat.00 equ 1
+section	.text	code align=64
 %else
-section	.text
+section	.text	code
 %endif
 ___
-		push(@out,$tmp);
-		}
-	}
-
-sub main'function_begin
-	{
-	my($func,$extra)=@_;
-
-	push(@labels,$func);
-	push(@out,".") if ($main'mwerks);
-	my($tmp)=<<"EOF";
-global	$under$func
-$under$func:
-	push	ebp
-	push	ebx
-	push	esi
-	push	edi
-EOF
 	push(@out,$tmp);
-	$stack=20;
-	}
+    }
+}
 
-sub main'function_begin_B
-	{
-	my($func,$extra)=@_;
-	push(@out,".") if ($main'mwerks);
-	my($tmp)=<<"EOF";
-global	$under$func
-$under$func:
-EOF
-	push(@out,$tmp);
-	$stack=4;
-	}
+sub ::function_begin_B
+{ my $func=shift;
+  my $global=($func !~ /^_/);
+  my $begin="${::lbdecor}_${func}_begin";
 
-sub main'function_end
-	{
-	my($func)=@_;
+    $begin =~ s/^\@/./ if ($::mwerks);	# the torture never stops
 
-	my($tmp)=<<"EOF";
-	pop	edi
-	pop	esi
-	pop	ebx
-	pop	ebp
-	ret
-EOF
-	push(@out,$tmp);
-	$stack=0;
-	%label=();
-	}
+    &::LABEL($func,$global?"$begin":"$nmdecor$func");
+    $func=$nmdecor.$func;
 
-sub main'function_end_B
-	{
-	$stack=0;
-	%label=();
-	}
+    push(@out,"${drdecor}global	$func\n")	if ($global);
+    push(@out,"${drdecor}align	16\n");
+    push(@out,"$func:\n");
+    push(@out,"$begin:\n")			if ($global);
+    $::stack=4;
+}
 
-sub main'function_end_A
-	{
-	my($func)=@_;
+sub ::function_end_B
+{   $::stack=0;
+    &::wipe_labels();
+}
 
-	my($tmp)=<<"EOF";
-	pop	edi
-	pop	esi
-	pop	ebx
-	pop	ebp
-	ret
-EOF
-	push(@out,$tmp);
-	}
-
-sub main'file_end
-	{
-	}
-
-sub main'wparam
-	{
-	my($num)=@_;
-
-	return(&main'DWP($stack+$num*4,"esp","",0));
-	}
-
-sub main'swtmp
-	{
-	return(&main'DWP($_[0]*4,"esp","",0));
-	}
-
-# Should use swtmp, which is above esp.  Linix can trash the stack above esp
-#sub main'wtmp
-#	{
-#	my($num)=@_;
-#
-#	return(&main'DWP(-(($num+1)*4),"esp","",0));
-#	}
-
-sub main'comment
-	{
-	foreach (@_)
-		{
-		push(@out,"\t; $_\n");
-		}
-	}
-
-sub main'public_label
-	{
-	$label{$_[0]}="${under}${_[0]}"	if (!defined($label{$_[0]}));
-	push(@out,".") if ($main'mwerks);
-	push(@out,"global\t$label{$_[0]}\n");
-	}
-
-sub main'label
-	{
-	if (!defined($label{$_[0]}))
-		{
-		$label{$_[0]}="\@${label}${_[0]}";
-		$label++;
-		}
-	return($label{$_[0]});
-	}
-
-sub main'set_label
-	{
-	if (!defined($label{$_[0]}))
-		{
-		$label{$_[0]}="\@${label}${_[0]}";
-		$label++;
-		}
-	if ($_[1]!=0 && $_[1]>1)
-		{
-		main'align($_[1]);
-		}
-	push(@out,"$label{$_[0]}:\n");
-	}
-
-sub main'data_byte
-	{
-	push(@out,(($main'mwerks)?".byte\t":"DB\t").join(',',@_)."\n");
-	}
-
-sub main'data_word
-	{
-	push(@out,(($main'mwerks)?".long\t":"DD\t").join(',',@_)."\n");
-	}
-
-sub main'align
-	{
-	push(@out,".") if ($main'mwerks);
-	push(@out,"align\t$_[0]\n");
-	}
-
-sub out1p
-	{
-	my($name,$p1)=@_;
-	my($l,$t);
-
-	push(@out,"\t$name\t".&conv($p1)."\n");
-	}
-
-sub main'picmeup
-	{
-	local($dst,$sym)=@_;
-	&main'lea($dst,&main'DWP($sym));
-	}
-
-sub main'blindpop { &out1("pop",@_); }
-
-sub main'initseg
-	{
-	local($f)=@_;
-	if ($main'win32)
-		{
-		local($tmp)=<<___;
-segment	.CRT\$XCU data
-extern	$under$f
-DD	$under$f
+sub ::file_end
+{   if (grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out)
+    {	my $comm=<<___;
+${drdecor}segment	.bss
+${drdecor}common	${nmdecor}OPENSSL_ia32cap_P 4
 ___
-		push(@out,$tmp);
-		}
-	}
+	# comment out OPENSSL_ia32cap_P declarations
+	grep {s/(^extern\s+${nmdecor}OPENSSL_ia32cap_P)/\;$1/} @out;
+	push (@out,$comm)
+    }
+    push (@out,$initseg) if ($initseg);		
+}
+
+sub ::comment {   foreach (@_) { push(@out,"\t; $_\n"); }   }
+
+sub ::external_label
+{   foreach(@_)
+    {	push(@out,"${drdecor}extern\t".&::LABEL($_,$nmdecor.$_)."\n");   }
+}
+
+sub ::public_label
+{   push(@out,"${drdecor}global\t".&::LABEL($_[0],$nmdecor.$_[0])."\n");  }
+
+sub ::data_byte
+{   push(@out,(($::mwerks)?".byte\t":"db\t").join(',',@_)."\n");	}
+
+sub ::data_word
+{   push(@out,(($::mwerks)?".long\t":"dd\t").join(',',@_)."\n");	}
+
+sub ::align
+{   push(@out,"${drdecor}align\t$_[0]\n");	}
+
+sub ::picmeup
+{ my($dst,$sym)=@_;
+    &::lea($dst,&::DWP($sym));
+}
+
+sub ::initseg
+{ my $f=$nmdecor.shift;
+    if ($::win32)
+    {	$initseg=<<___;
+segment	.CRT\$XCU data align=4
+extern	$f
+dd	$f
+___
+    }
+}
+
+sub ::dataseg
+{   if ($mwerks)	{ push(@out,".section\t.data,4\n");   }
+    else		{ push(@out,"section\t.data align=4\n"); }
+}
 
 1;

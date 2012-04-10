@@ -193,13 +193,30 @@ extern "C" {
 #endif
 
 /* --------------------------------- VOS ----------------------------------- */
-#ifdef OPENSSL_SYSNAME_VOS
+#if defined(__VOS__) || defined(OPENSSL_SYSNAME_VOS)
 # define OPENSSL_SYS_VOS
+#ifdef __HPPA__
+# define OPENSSL_SYS_VOS_HPPA
+#endif
+#ifdef __IA32__
+# define OPENSSL_SYS_VOS_IA32
+#endif
 #endif
 
 /* ------------------------------- VxWorks --------------------------------- */
 #ifdef OPENSSL_SYSNAME_VXWORKS
 # define OPENSSL_SYS_VXWORKS
+#endif
+
+/* --------------------------------- BeOS ---------------------------------- */
+#if defined(__BEOS__)
+# define OPENSSL_SYS_BEOS
+# include <sys/socket.h>
+# if defined(BONE_VERSION)
+#  define OPENSSL_SYS_BEOS_BONE
+# else
+#  define OPENSSL_SYS_BEOS_R5
+# endif
 #endif
 
 /**
@@ -251,24 +268,23 @@ extern "C" {
 #define OPENSSL_EXTERN OPENSSL_IMPORT
 
 /* Macros to allow global variables to be reached through function calls when
-   required (if a shared library version requvres it, for example.
+   required (if a shared library version requires it, for example.
    The way it's done allows definitions like this:
 
 	// in foobar.c
-	OPENSSL_IMPLEMENT_GLOBAL(int,foobar) = 0;
+	OPENSSL_IMPLEMENT_GLOBAL(int,foobar,0)
 	// in foobar.h
 	OPENSSL_DECLARE_GLOBAL(int,foobar);
 	#define foobar OPENSSL_GLOBAL_REF(foobar)
 */
 #ifdef OPENSSL_EXPORT_VAR_AS_FUNCTION
-# define OPENSSL_IMPLEMENT_GLOBAL(type,name)			     \
-	extern type _hide_##name;				     \
-	type *_shadow_##name(void) { return &_hide_##name; }	     \
-	static type _hide_##name
+# define OPENSSL_IMPLEMENT_GLOBAL(type,name,value)			\
+	type *_shadow_##name(void)					\
+	{ static type _hide_##name=value; return &_hide_##name; }
 # define OPENSSL_DECLARE_GLOBAL(type,name) type *_shadow_##name(void)
 # define OPENSSL_GLOBAL_REF(name) (*(_shadow_##name()))
 #else
-# define OPENSSL_IMPLEMENT_GLOBAL(type,name) OPENSSL_GLOBAL type _shadow_##name
+# define OPENSSL_IMPLEMENT_GLOBAL(type,name,value) OPENSSL_GLOBAL type _shadow_##name=value;
 # define OPENSSL_DECLARE_GLOBAL(type,name) OPENSSL_EXPORT type _shadow_##name
 # define OPENSSL_GLOBAL_REF(name) _shadow_##name
 #endif

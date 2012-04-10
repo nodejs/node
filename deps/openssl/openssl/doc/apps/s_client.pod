@@ -1,0 +1,306 @@
+
+=pod
+
+=head1 NAME
+
+s_client - SSL/TLS client program
+
+=head1 SYNOPSIS
+
+B<openssl> B<s_client>
+[B<-connect host:port>]
+[B<-verify depth>]
+[B<-cert filename>]
+[B<-certform DER|PEM>]
+[B<-key filename>]
+[B<-keyform DER|PEM>]
+[B<-pass arg>]
+[B<-CApath directory>]
+[B<-CAfile filename>]
+[B<-reconnect>]
+[B<-pause>]
+[B<-showcerts>]
+[B<-debug>]
+[B<-msg>]
+[B<-nbio_test>]
+[B<-state>]
+[B<-nbio>]
+[B<-crlf>]
+[B<-ign_eof>]
+[B<-quiet>]
+[B<-ssl2>]
+[B<-ssl3>]
+[B<-tls1>]
+[B<-no_ssl2>]
+[B<-no_ssl3>]
+[B<-no_tls1>]
+[B<-bugs>]
+[B<-cipher cipherlist>]
+[B<-starttls protocol>]
+[B<-engine id>]
+[B<-tlsextdebug>]
+[B<-no_ticket>]
+[B<-sess_out filename>]
+[B<-sess_in filename>]
+[B<-rand file(s)>]
+
+=head1 DESCRIPTION
+
+The B<s_client> command implements a generic SSL/TLS client which connects
+to a remote host using SSL/TLS. It is a I<very> useful diagnostic tool for
+SSL servers.
+
+=head1 OPTIONS
+
+=over 4
+
+=item B<-connect host:port>
+
+This specifies the host and optional port to connect to. If not specified
+then an attempt is made to connect to the local host on port 4433.
+
+=item B<-cert certname>
+
+The certificate to use, if one is requested by the server. The default is
+not to use a certificate.
+
+=item B<-certform format>
+
+The certificate format to use: DER or PEM. PEM is the default.
+
+=item B<-key keyfile>
+
+The private key to use. If not specified then the certificate file will
+be used.
+
+=item B<-keyform format>
+
+The private format to use: DER or PEM. PEM is the default.
+
+=item B<-pass arg>
+
+the private key password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
+=item B<-verify depth>
+
+The verify depth to use. This specifies the maximum length of the
+server certificate chain and turns on server certificate verification.
+Currently the verify operation continues after errors so all the problems
+with a certificate chain can be seen. As a side effect the connection
+will never fail due to a server certificate verify failure.
+
+=item B<-CApath directory>
+
+The directory to use for server certificate verification. This directory
+must be in "hash format", see B<verify> for more information. These are
+also used when building the client certificate chain.
+
+=item B<-CAfile file>
+
+A file containing trusted certificates to use during server authentication
+and to use when attempting to build the client certificate chain.
+
+=item B<-purpose, -ignore_critical, -issuer_checks, -crl_check, -crl_check_all, -policy_check, -extended_crl, -x509_strict, -policy -check_ss_sig>
+
+Set various certificate chain valiadition option. See the
+L<B<verify>|verify(1)> manual page for details.
+
+=item B<-reconnect>
+
+reconnects to the same server 5 times using the same session ID, this can
+be used as a test that session caching is working.
+
+=item B<-pause>
+
+pauses 1 second between each read and write call.
+
+=item B<-showcerts>
+
+display the whole server certificate chain: normally only the server
+certificate itself is displayed.
+
+=item B<-prexit>
+
+print session information when the program exits. This will always attempt
+to print out information even if the connection fails. Normally information
+will only be printed out once if the connection succeeds. This option is useful
+because the cipher in use may be renegotiated or the connection may fail
+because a client certificate is required or is requested only after an
+attempt is made to access a certain URL. Note: the output produced by this
+option is not always accurate because a connection might never have been
+established.
+
+=item B<-state>
+
+prints out the SSL session states.
+
+=item B<-debug>
+
+print extensive debugging information including a hex dump of all traffic.
+
+=item B<-msg>
+
+show all protocol messages with hex dump.
+
+=item B<-nbio_test>
+
+tests non-blocking I/O
+
+=item B<-nbio>
+
+turns on non-blocking I/O
+
+=item B<-crlf>
+
+this option translated a line feed from the terminal into CR+LF as required
+by some servers.
+
+=item B<-ign_eof>
+
+inhibit shutting down the connection when end of file is reached in the
+input.
+
+=item B<-quiet>
+
+inhibit printing of session and certificate information.  This implicitly
+turns on B<-ign_eof> as well.
+
+=item B<-psk_identity identity>
+
+Use the PSK identity B<identity> when using a PSK cipher suite.
+
+=item B<-psk key>
+
+Use the PSK key B<key> when using a PSK cipher suite. The key is
+given as a hexadecimal number without leading 0x, for example -psk
+1a2b3c4d.
+
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>
+
+these options disable the use of certain SSL or TLS protocols. By default
+the initial handshake uses a method which should be compatible with all
+servers and permit them to use SSL v3, SSL v2 or TLS as appropriate.
+
+Unfortunately there are a lot of ancient and broken servers in use which
+cannot handle this technique and will fail to connect. Some servers only
+work if TLS is turned off with the B<-no_tls> option others will only
+support SSL v2 and may need the B<-ssl2> option.
+
+=item B<-bugs>
+
+there are several known bug in SSL and TLS implementations. Adding this
+option enables various workarounds.
+
+=item B<-cipher cipherlist>
+
+this allows the cipher list sent by the client to be modified. Although
+the server determines which cipher suite is used it should take the first
+supported cipher in the list sent by the client. See the B<ciphers>
+command for more information.
+
+=item B<-starttls protocol>
+
+send the protocol-specific message(s) to switch to TLS for communication.
+B<protocol> is a keyword for the intended protocol.  Currently, the only
+supported keywords are "smtp", "pop3", "imap", and "ftp".
+
+=item B<-tlsextdebug>
+
+print out a hex dump of any TLS extensions received from the server.
+
+=item B<-no_ticket>
+
+disable RFC4507bis session ticket support. 
+
+=item B<-sess_out filename>
+
+output SSL session to B<filename>
+
+=item B<-sess_in sess.pem>
+
+load SSL session from B<filename>. The client will attempt to resume a
+connection from this session.
+
+=item B<-engine id>
+
+specifying an engine (by its unique B<id> string) will cause B<s_client>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=item B<-rand file(s)>
+
+a file or files containing random data used to seed the random number
+generator, or an EGD socket (see L<RAND_egd(3)|RAND_egd(3)>).
+Multiple files can be specified separated by a OS-dependent character.
+The separator is B<;> for MS-Windows, B<,> for OpenVMS, and B<:> for
+all others.
+
+=back
+
+=head1 CONNECTED COMMANDS
+
+If a connection is established with an SSL server then any data received
+from the server is displayed and any key presses will be sent to the
+server. When used interactively (which means neither B<-quiet> nor B<-ign_eof>
+have been given), the session will be renegotiated if the line begins with an
+B<R>, and if the line begins with a B<Q> or if end of file is reached, the
+connection will be closed down.
+
+=head1 NOTES
+
+B<s_client> can be used to debug SSL servers. To connect to an SSL HTTP
+server the command:
+
+ openssl s_client -connect servername:443
+
+would typically be used (https uses port 443). If the connection succeeds
+then an HTTP command can be given such as "GET /" to retrieve a web page.
+
+If the handshake fails then there are several possible causes, if it is
+nothing obvious like no client certificate then the B<-bugs>, B<-ssl2>,
+B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1> options can be tried
+in case it is a buggy server. In particular you should play with these
+options B<before> submitting a bug report to an OpenSSL mailing list.
+
+A frequent problem when attempting to get client certificates working
+is that a web client complains it has no certificates or gives an empty
+list to choose from. This is normally because the server is not sending
+the clients certificate authority in its "acceptable CA list" when it
+requests a certificate. By using B<s_client> the CA list can be viewed
+and checked. However some servers only request client authentication
+after a specific URL is requested. To obtain the list in this case it
+is necessary to use the B<-prexit> option and send an HTTP request
+for an appropriate page.
+
+If a certificate is specified on the command line using the B<-cert>
+option it will not be used unless the server specifically requests
+a client certificate. Therefor merely including a client certificate
+on the command line is no guarantee that the certificate works.
+
+If there are problems verifying a server certificate then the
+B<-showcerts> option can be used to show the whole chain.
+
+Since the SSLv23 client hello cannot include compression methods or extensions
+these will only be supported if its use is disabled, for example by using the
+B<-no_sslv2> option.
+
+=head1 BUGS
+
+Because this program has a lot of options and also because some of
+the techniques used are rather old, the C source of s_client is rather
+hard to read and not a model of how things should be done. A typical
+SSL client program would be much simpler.
+
+The B<-verify> option should really exit if the server verification
+fails.
+
+The B<-prexit> option is a bit of a hack. We should really report
+information whenever a session is renegotiated.
+
+=head1 SEE ALSO
+
+L<sess_id(1)|sess_id(1)>, L<s_server(1)|s_server(1)>, L<ciphers(1)|ciphers(1)>
+
+=cut

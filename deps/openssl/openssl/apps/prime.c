@@ -62,6 +62,9 @@ int MAIN(int argc, char **argv)
     {
     int hex=0;
     int checks=20;
+    int generate=0;
+    int bits=0;
+    int safe=0;
     BIGNUM *bn=NULL;
     BIO *bio_out;
 
@@ -77,6 +80,15 @@ int MAIN(int argc, char **argv)
 	{
 	if(!strcmp(*argv,"-hex"))
 	    hex=1;
+	else if(!strcmp(*argv,"-generate"))
+	    generate=1;
+	else if(!strcmp(*argv,"-bits"))
+	    if(--argc < 1)
+		goto bad;
+	    else
+		bits=atoi(*++argv);
+	else if(!strcmp(*argv,"-safe"))
+	    safe=1;
 	else if(!strcmp(*argv,"-checks"))
 	    if(--argc < 1)
 		goto bad;
@@ -91,13 +103,13 @@ int MAIN(int argc, char **argv)
 	++argv;
 	}
 
-    if (argv[0] == NULL)
+    if (argv[0] == NULL && !generate)
 	{
 	BIO_printf(bio_err,"No prime specified\n");
 	goto bad;
 	}
 
-   if ((bio_out=BIO_new(BIO_s_file())) != NULL)
+    if ((bio_out=BIO_new(BIO_s_file())) != NULL)
 	{
 	BIO_set_fp(bio_out,stdout,BIO_NOCLOSE);
 #ifdef OPENSSL_SYS_VMS
@@ -108,14 +120,32 @@ int MAIN(int argc, char **argv)
 #endif
 	}
 
-    if(hex)
-	BN_hex2bn(&bn,argv[0]);
-    else
-	BN_dec2bn(&bn,argv[0]);
+    if(generate)
+	{
+	char *s;
 
-    BN_print(bio_out,bn);
-    BIO_printf(bio_out," is %sprime\n",
-	       BN_is_prime_ex(bn,checks,NULL,NULL) ? "" : "not ");
+	if(!bits)
+	    {
+	    BIO_printf(bio_err,"Specifiy the number of bits.\n");
+	    return 1;
+	    }
+	bn=BN_new();
+	BN_generate_prime_ex(bn,bits,safe,NULL,NULL,NULL);
+	s=hex ? BN_bn2hex(bn) : BN_bn2dec(bn);
+	BIO_printf(bio_out,"%s\n",s);
+	OPENSSL_free(s);
+	}
+    else
+	{
+	if(hex)
+	    BN_hex2bn(&bn,argv[0]);
+	else
+	    BN_dec2bn(&bn,argv[0]);
+
+	BN_print(bio_out,bn);
+	BIO_printf(bio_out," is %sprime\n",
+		   BN_is_prime_ex(bn,checks,NULL,NULL) ? "" : "not ");
+	}
 
     BN_free(bn);
     BIO_free_all(bio_out);

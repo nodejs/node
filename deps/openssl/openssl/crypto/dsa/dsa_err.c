@@ -1,6 +1,6 @@
 /* crypto/dsa/dsa_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2006 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,23 +71,26 @@
 static ERR_STRING_DATA DSA_str_functs[]=
 	{
 {ERR_FUNC(DSA_F_D2I_DSA_SIG),	"d2i_DSA_SIG"},
+{ERR_FUNC(DSA_F_DO_DSA_PRINT),	"DO_DSA_PRINT"},
 {ERR_FUNC(DSA_F_DSAPARAMS_PRINT),	"DSAparams_print"},
 {ERR_FUNC(DSA_F_DSAPARAMS_PRINT_FP),	"DSAparams_print_fp"},
-{ERR_FUNC(DSA_F_DSA_BUILTIN_KEYGEN),	"DSA_BUILTIN_KEYGEN"},
-{ERR_FUNC(DSA_F_DSA_BUILTIN_PARAMGEN),	"DSA_BUILTIN_PARAMGEN"},
 {ERR_FUNC(DSA_F_DSA_DO_SIGN),	"DSA_do_sign"},
 {ERR_FUNC(DSA_F_DSA_DO_VERIFY),	"DSA_do_verify"},
-{ERR_FUNC(DSA_F_DSA_GENERATE_PARAMETERS),	"DSA_generate_parameters"},
 {ERR_FUNC(DSA_F_DSA_NEW_METHOD),	"DSA_new_method"},
-{ERR_FUNC(DSA_F_DSA_PRINT),	"DSA_print"},
+{ERR_FUNC(DSA_F_DSA_PARAM_DECODE),	"DSA_PARAM_DECODE"},
 {ERR_FUNC(DSA_F_DSA_PRINT_FP),	"DSA_print_fp"},
-{ERR_FUNC(DSA_F_DSA_SET_DEFAULT_METHOD),	"DSA_set_default_method"},
-{ERR_FUNC(DSA_F_DSA_SET_METHOD),	"DSA_set_method"},
+{ERR_FUNC(DSA_F_DSA_PRIV_DECODE),	"DSA_PRIV_DECODE"},
+{ERR_FUNC(DSA_F_DSA_PRIV_ENCODE),	"DSA_PRIV_ENCODE"},
+{ERR_FUNC(DSA_F_DSA_PUB_DECODE),	"DSA_PUB_DECODE"},
+{ERR_FUNC(DSA_F_DSA_PUB_ENCODE),	"DSA_PUB_ENCODE"},
 {ERR_FUNC(DSA_F_DSA_SIGN),	"DSA_sign"},
 {ERR_FUNC(DSA_F_DSA_SIGN_SETUP),	"DSA_sign_setup"},
 {ERR_FUNC(DSA_F_DSA_SIG_NEW),	"DSA_SIG_new"},
 {ERR_FUNC(DSA_F_DSA_VERIFY),	"DSA_verify"},
 {ERR_FUNC(DSA_F_I2D_DSA_SIG),	"i2d_DSA_SIG"},
+{ERR_FUNC(DSA_F_OLD_DSA_PRIV_DECODE),	"OLD_DSA_PRIV_DECODE"},
+{ERR_FUNC(DSA_F_PKEY_DSA_CTRL),	"PKEY_DSA_CTRL"},
+{ERR_FUNC(DSA_F_PKEY_DSA_KEYGEN),	"PKEY_DSA_KEYGEN"},
 {ERR_FUNC(DSA_F_SIG_CB),	"SIG_CB"},
 {0,NULL}
 	};
@@ -95,12 +98,15 @@ static ERR_STRING_DATA DSA_str_functs[]=
 static ERR_STRING_DATA DSA_str_reasons[]=
 	{
 {ERR_REASON(DSA_R_BAD_Q_VALUE)           ,"bad q value"},
+{ERR_REASON(DSA_R_BN_DECODE_ERROR)       ,"bn decode error"},
+{ERR_REASON(DSA_R_BN_ERROR)              ,"bn error"},
 {ERR_REASON(DSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE),"data too large for key size"},
-{ERR_REASON(DSA_R_KEY_SIZE_TOO_SMALL)    ,"key size too small"},
+{ERR_REASON(DSA_R_DECODE_ERROR)          ,"decode error"},
+{ERR_REASON(DSA_R_INVALID_DIGEST_TYPE)   ,"invalid digest type"},
 {ERR_REASON(DSA_R_MISSING_PARAMETERS)    ,"missing parameters"},
 {ERR_REASON(DSA_R_MODULUS_TOO_LARGE)     ,"modulus too large"},
-{ERR_REASON(DSA_R_NON_FIPS_METHOD)       ,"non fips method"},
-{ERR_REASON(DSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE),"operation not allowed in fips mode"},
+{ERR_REASON(DSA_R_NO_PARAMETERS_SET)     ,"no parameters set"},
+{ERR_REASON(DSA_R_PARAMETER_ENCODING_ERROR),"parameter encoding error"},
 {0,NULL}
 	};
 

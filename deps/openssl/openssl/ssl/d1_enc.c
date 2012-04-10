@@ -131,11 +131,17 @@ int dtls1_enc(SSL *s, int send)
 	SSL3_RECORD *rec;
 	EVP_CIPHER_CTX *ds;
 	unsigned long l;
-	int bs,i,ii,j,k;
+	int bs,i,ii,j,k,n=0;
 	const EVP_CIPHER *enc;
 
 	if (send)
 		{
+		if (EVP_MD_CTX_md(s->write_hash))
+			{
+			n=EVP_MD_CTX_size(s->write_hash);
+			if (n < 0)
+				return -1;
+			}
 		ds=s->enc_write_ctx;
 		rec= &(s->s3->wrec);
 		if (s->enc_write_ctx == NULL)
@@ -156,6 +162,12 @@ int dtls1_enc(SSL *s, int send)
 		}
 	else
 		{
+		if (EVP_MD_CTX_md(s->read_hash))
+			{
+			n=EVP_MD_CTX_size(s->read_hash);
+			if (n < 0)
+				return -1;
+			}
 		ds=s->enc_read_ctx;
 		rec= &(s->s3->rrec);
 		if (s->enc_read_ctx == NULL)
@@ -202,11 +214,10 @@ int dtls1_enc(SSL *s, int send)
 		{
                 unsigned long ui;
 		printf("EVP_Cipher(ds=%p,rec->data=%p,rec->input=%p,l=%ld) ==>\n",
-                        (void *)ds,rec->data,rec->input,l);
-		printf("\tEVP_CIPHER_CTX: %d buf_len, %d key_len [%ld %ld], %d iv_len\n",
+                        ds,rec->data,rec->input,l);
+		printf("\tEVP_CIPHER_CTX: %d buf_len, %d key_len [%d %d], %d iv_len\n",
                         ds->buf_len, ds->cipher->key_len,
-                        (unsigned long)DES_KEY_SZ,
-			(unsigned long)DES_SCHEDULE_SZ,
+                        DES_KEY_SZ, DES_SCHEDULE_SZ,
                         ds->cipher->iv_len);
 		printf("\t\tIV: ");
 		for (i=0; i<ds->cipher->iv_len; i++) printf("%02X", ds->iv[i]);
@@ -227,10 +238,10 @@ int dtls1_enc(SSL *s, int send)
 
 #ifdef KSSL_DEBUG
 		{
-                unsigned long ki;
+                unsigned long i;
                 printf("\trec->data=");
-		for (ki=0; ki<l; ki++)
-                        printf(" %02x", rec->data[ki]);  printf("\n");
+		for (i=0; i<l; i++)
+                        printf(" %02x", rec->data[i]);  printf("\n");
                 }
 #endif	/* KSSL_DEBUG */
 

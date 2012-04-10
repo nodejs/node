@@ -148,7 +148,7 @@ eric (about to go bushwalking for the 4 day easter break :-)
       This would tend to cause memory overwrites since SSLv3 has
       a maximum packet size of 16k.  If your program uses
       buffers <= 16k, you would probably never see this problem.
-    - Fixed a new errors that were cause by malloc() not returning
+    - Fixed a few errors that were cause by malloc() not returning
       0 initialised memory..
     - SSL_OP_NETSCAPE_CA_DN_BUG was being switched on when using
       SSL_CTX_set_options(ssl_ctx,SSL_OP_ALL); which was a bad thing

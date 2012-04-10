@@ -107,7 +107,7 @@ DSO *DSO_new_method(DSO_METHOD *meth)
 		return(NULL);
 		}
 	memset(ret, 0, sizeof(DSO));
-	ret->meth_data = sk_new_null();
+	ret->meth_data = sk_void_new_null();
 	if(ret->meth_data == NULL)
 		{
 		/* sk_new doesn't generate any errors so we do */
@@ -163,7 +163,7 @@ int DSO_free(DSO *dso)
 		return(0);
 		}
 	
-	sk_free(dso->meth_data);
+	sk_void_free(dso->meth_data);
 	if(dso->filename != NULL)
 		OPENSSL_free(dso->filename);
 	if(dso->loaded_filename != NULL)
@@ -399,13 +399,6 @@ char *DSO_merge(DSO *dso, const char *filespec1, const char *filespec2)
 		DSOerr(DSO_F_DSO_MERGE,ERR_R_PASSED_NULL_PARAMETER);
 		return(NULL);
 		}
-	if(filespec1 == NULL)
-		filespec1 = dso->filename;
-	if(filespec1 == NULL)
-		{
-		DSOerr(DSO_F_DSO_MERGE,DSO_R_NO_FILE_SPECIFICATION);
-		return(NULL);
-		}
 	if((dso->flags & DSO_FLAG_NO_NAME_TRANSLATION) == 0)
 		{
 		if(dso->merger != NULL)
@@ -463,4 +456,28 @@ const char *DSO_get_loaded_filename(DSO *dso)
 		return(NULL);
 		}
 	return(dso->loaded_filename);
+	}
+
+int DSO_pathbyaddr(void *addr,char *path,int sz)
+	{
+	DSO_METHOD *meth = default_DSO_meth;
+	if (meth == NULL) meth = DSO_METHOD_openssl();
+	if (meth->pathbyaddr == NULL)
+		{
+		DSOerr(DSO_F_DSO_PATHBYADDR,DSO_R_UNSUPPORTED);
+		return -1;
+		}
+	return (*meth->pathbyaddr)(addr,path,sz);
+	}
+
+void *DSO_global_lookup(const char *name)
+	{
+	DSO_METHOD *meth = default_DSO_meth;
+	if (meth == NULL) meth = DSO_METHOD_openssl();
+	if (meth->globallookup == NULL)
+		{
+		DSOerr(DSO_F_DSO_GLOBAL_LOOKUP,DSO_R_UNSUPPORTED);
+		return NULL;
+		}
+	return (*meth->globallookup)(name);
 	}

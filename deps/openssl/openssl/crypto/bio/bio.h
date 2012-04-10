@@ -95,6 +95,7 @@ extern "C" {
 #define BIO_TYPE_BIO		(19|0x0400)		/* (half a) BIO pair */
 #define BIO_TYPE_LINEBUFFER	(20|0x0200)		/* filter */
 #define BIO_TYPE_DGRAM		(21|0x0400|0x0100)
+#define BIO_TYPE_ASN1 		(22|0x0200)		/* filter */
 #define BIO_TYPE_COMP 		(23|0x0200)		/* filter */
 
 #define BIO_TYPE_DESCRIPTOR	0x0100	/* socket, fd, connect or accept */
@@ -265,7 +266,6 @@ int BIO_method_type(const BIO *b);
 
 typedef void bio_info_cb(struct bio_st *, int, const char *, int, long, long);
 
-#ifndef OPENSSL_SYS_WIN16
 typedef struct bio_method_st
 	{
 	int type;
@@ -279,21 +279,6 @@ typedef struct bio_method_st
 	int (*destroy)(BIO *);
         long (*callback_ctrl)(BIO *, int, bio_info_cb *);
 	} BIO_METHOD;
-#else
-typedef struct bio_method_st
-	{
-	int type;
-	const char *name;
-	int (_far *bwrite)();
-	int (_far *bread)();
-	int (_far *bputs)();
-	int (_far *bgets)();
-	long (_far *ctrl)();
-	int (_far *create)();
-	int (_far *destroy)();
-	long (_far *callback_ctrl)();
-	} BIO_METHOD;
-#endif
 
 struct bio_st
 	{
@@ -321,6 +306,15 @@ DECLARE_STACK_OF(BIO)
 
 typedef struct bio_f_buffer_ctx_struct
 	{
+	/* Buffers are setup like this:
+	 *
+	 * <---------------------- size ----------------------->
+	 * +---------------------------------------------------+
+	 * | consumed | remaining          | free space        |
+	 * +---------------------------------------------------+
+	 * <-- off --><------- len ------->
+	 */
+
 	/* BIO *bio; */ /* this is now in the BIO struct */
 	int ibuf_size;	/* how big is the input buffer */
 	int obuf_size;	/* how big is the output buffer */
@@ -333,6 +327,9 @@ typedef struct bio_f_buffer_ctx_struct
 	int obuf_len;		/* how many bytes are in it */
 	int obuf_off;		/* write/read offset */
 	} BIO_F_BUFFER_CTX;
+
+/* Prefix and suffix callback in ASN1 BIO */
+typedef int asn1_ps_func(BIO *b, unsigned char **pbuf, int *plen, void *parg);
 
 /* connect BIO stuff */
 #define BIO_CONN_S_BEFORE		1
@@ -396,6 +393,13 @@ typedef struct bio_f_buffer_ctx_struct
 #define BIO_C_RESET_READ_REQUEST		147
 #define BIO_C_SET_MD_CTX			148
 
+#define BIO_C_SET_PREFIX			149
+#define BIO_C_GET_PREFIX			150
+#define BIO_C_SET_SUFFIX			151
+#define BIO_C_GET_SUFFIX			152
+
+#define BIO_C_SET_EX_ARG			153
+#define BIO_C_GET_EX_ARG			154
 
 #define BIO_set_app_data(s,arg)		BIO_set_ex_data(s,0,arg)
 #define BIO_get_app_data(s)		BIO_get_ex_data(s,0)
@@ -559,22 +563,21 @@ int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 unsigned long BIO_number_read(BIO *bio);
 unsigned long BIO_number_written(BIO *bio);
 
+/* For BIO_f_asn1() */
+int BIO_asn1_set_prefix(BIO *b, asn1_ps_func *prefix,
+					asn1_ps_func *prefix_free);
+int BIO_asn1_get_prefix(BIO *b, asn1_ps_func **pprefix,
+					asn1_ps_func **pprefix_free);
+int BIO_asn1_set_suffix(BIO *b, asn1_ps_func *suffix,
+					asn1_ps_func *suffix_free);
+int BIO_asn1_get_suffix(BIO *b, asn1_ps_func **psuffix,
+					asn1_ps_func **psuffix_free);
+
 # ifndef OPENSSL_NO_FP_API
-#  if defined(OPENSSL_SYS_WIN16) && defined(_WINDLL)
-BIO_METHOD *BIO_s_file_internal(void);
-BIO *BIO_new_file_internal(char *filename, char *mode);
-BIO *BIO_new_fp_internal(FILE *stream, int close_flag);
-#    define BIO_s_file	BIO_s_file_internal
-#    define BIO_new_file	BIO_new_file_internal
-#    define BIO_new_fp	BIO_new_fp_internal
-#  else /* FP_API */
 BIO_METHOD *BIO_s_file(void );
 BIO *BIO_new_file(const char *filename, const char *mode);
 BIO *BIO_new_fp(FILE *stream, int close_flag);
-#    define BIO_s_file_internal		BIO_s_file
-#    define BIO_new_file_internal	BIO_new_file
-#    define BIO_new_fp_internal		BIO_s_file
-#  endif /* FP_API */
+# define BIO_s_file_internal	BIO_s_file
 # endif
 BIO *	BIO_new(BIO_METHOD *type);
 int	BIO_set(BIO *a,BIO_METHOD *type);
@@ -603,13 +606,8 @@ int BIO_nread(BIO *bio, char **buf, int num);
 int BIO_nwrite0(BIO *bio, char **buf);
 int BIO_nwrite(BIO *bio, char **buf, int num);
 
-#ifndef OPENSSL_SYS_WIN16
 long BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
 	long argl,long ret);
-#else
-long _far _loadds BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
-	long argl,long ret);
-#endif
 
 BIO_METHOD *BIO_s_mem(void);
 BIO *BIO_new_mem_buf(void *buf, int len);

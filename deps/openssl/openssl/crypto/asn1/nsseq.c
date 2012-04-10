@@ -3,7 +3,7 @@
  * project 1999.
  */
 /* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -62,7 +62,8 @@
 #include <openssl/x509.h>
 #include <openssl/objects.h>
 
-static int nsseq_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int nsseq_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+							void *exarg)
 {
 	if(operation == ASN1_OP_NEW_POST) {
 		NETSCAPE_CERT_SEQUENCE *nsseq;

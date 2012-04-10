@@ -38,19 +38,12 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
-# ELF
-cx86-elf.s: asm/cast-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) cast-586.pl elf $(CLAGS) $(PROCESSOR) > ../$@)
-# COFF
-cx86-cof.s: asm/cast-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) cast-586.pl coff $(CLAGS) $(PROCESSOR) > ../$@)
-# a.out
-cx86-out.s: asm/cast-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
-	(cd asm; $(PERL) cast-586.pl a.out $(CLAGS) $(PROCESSOR) > ../$@)
+cast-586.s:	asm/cast-586.pl ../perlasm/x86asm.pl ../perlasm/cbc.pl
+	$(PERL)	asm/cast-586.pl $(PERLASM_SCHEME) $(CLAGS) $(PROCESSOR) > $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -102,8 +95,5 @@ c_ofb64.o: ../../e_os.h ../../include/openssl/cast.h
 c_ofb64.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
 c_ofb64.o: c_ofb64.c cast_lcl.h
 c_skey.o: ../../e_os.h ../../include/openssl/cast.h
-c_skey.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
-c_skey.o: ../../include/openssl/fips.h ../../include/openssl/opensslconf.h
-c_skey.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-c_skey.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-c_skey.o: ../../include/openssl/symhacks.h c_skey.c cast_lcl.h cast_s.h
+c_skey.o: ../../include/openssl/e_os2.h ../../include/openssl/opensslconf.h
+c_skey.o: c_skey.c cast_lcl.h cast_s.h

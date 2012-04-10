@@ -116,7 +116,7 @@
 #define USE_SOCKETS
 
 static int read_n(SSL *s,unsigned int n,unsigned int max,unsigned int extend);
-static int do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len);
+static int n_do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len);
 static int write_pending(SSL *s, const unsigned char *buf, unsigned int len);
 static int ssl_mt_error(int n);
 
@@ -130,7 +130,7 @@ static int ssl2_read_internal(SSL *s, void *buf, int len, int peek)
 	unsigned char mac[MAX_MAC_SIZE];
 	unsigned char *p;
 	int i;
-	unsigned int mac_size;
+	int mac_size;
 
  ssl2_read_again:
 	if (SSL_in_init(s) && !s->in_handshake)
@@ -246,7 +246,9 @@ static int ssl2_read_internal(SSL *s, void *buf, int len, int peek)
 			}
 		else
 			{
-			mac_size=EVP_MD_size(s->read_hash);
+			mac_size=EVP_MD_CTX_size(s->read_hash);
+			if (mac_size < 0)
+				return -1;
 			OPENSSL_assert(mac_size <= MAX_MAC_SIZE);
 			s->s2->mac_data=p;
 			s->s2->ract_data= &p[mac_size];
@@ -261,7 +263,7 @@ static int ssl2_read_internal(SSL *s, void *buf, int len, int peek)
 		/* added a check for length > max_size in case
 		 * encryption was not turned on yet due to an error */
 		if ((!s->s2->clear_text) &&
-			(s->s2->rlength >= mac_size))
+			(s->s2->rlength >= (unsigned int)mac_size))
 			{
 			ssl2_enc(s,0);
 			s->s2->ract_data_length-=mac_size;
@@ -447,7 +449,7 @@ int ssl2_write(SSL *s, const void *_buf, int len)
 	n=(len-tot);
 	for (;;)
 		{
-		i=do_ssl_write(s,&(buf[tot]),n);
+		i=n_do_ssl_write(s,&(buf[tot]),n);
 		if (i <= 0)
 			{
 			s->s2->wnum=tot;
@@ -511,9 +513,10 @@ static int write_pending(SSL *s, const unsigned char *buf, unsigned int len)
 		}
 	}
 
-static int do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len)
+static int n_do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len)
 	{
-	unsigned int j,k,olen,p,mac_size,bs;
+	unsigned int j,k,olen,p,bs;
+	int mac_size;
 	register unsigned char *pp;
 
 	olen=len;
@@ -529,7 +532,11 @@ static int do_ssl_write(SSL *s, const unsigned char *buf, unsigned int len)
 	if (s->s2->clear_text)
 		mac_size=0;
 	else
-		mac_size=EVP_MD_size(s->write_hash);
+		{
+		mac_size=EVP_MD_CTX_size(s->write_hash);
+		if (mac_size < 0)
+			return -1;
+		}
 
 	/* lets set the pad p */
 	if (s->s2->clear_text)

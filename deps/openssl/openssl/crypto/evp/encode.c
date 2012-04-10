@@ -85,7 +85,7 @@
 #define CHUNKS_PER_LINE (64/4)
 #define CHAR_PER_LINE   (64+1)
 
-static unsigned char data_bin2ascii[65]="ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+static const unsigned char data_bin2ascii[65]="ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 abcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /* 0xF0 is a EOLN
@@ -102,7 +102,7 @@ abcdefghijklmnopqrstuvwxyz0123456789+/";
 #define B64_ERROR       	0xFF
 #define B64_NOT_BASE64(a)	(((a)|0x13) == 0xF3)
 
-static unsigned char data_ascii2bin[128]={
+static const unsigned char data_ascii2bin[128]={
 	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
 	0xFF,0xE0,0xF0,0xFF,0xFF,0xF1,0xFF,0xFF,
 	0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,

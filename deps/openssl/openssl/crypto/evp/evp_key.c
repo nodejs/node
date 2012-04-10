@@ -90,6 +90,11 @@ char *EVP_get_pw_prompt(void)
  * this function will fail */
 int EVP_read_pw_string(char *buf, int len, const char *prompt, int verify)
 	{
+	return EVP_read_pw_string_min(buf, 0, len, prompt, verify);
+	}
+
+int EVP_read_pw_string_min(char *buf, int min, int len, const char *prompt, int verify)
+	{
 	int ret;
 	char buff[BUFSIZ];
 	UI *ui;
@@ -97,10 +102,10 @@ int EVP_read_pw_string(char *buf, int len, const char *prompt, int verify)
 	if ((prompt == NULL) && (prompt_string[0] != '\0'))
 		prompt=prompt_string;
 	ui = UI_new();
-	UI_add_input_string(ui,prompt,0,buf,0,(len>=BUFSIZ)?BUFSIZ-1:len);
+	UI_add_input_string(ui,prompt,0,buf,min,(len>=BUFSIZ)?BUFSIZ-1:len);
 	if (verify)
 		UI_add_verify_string(ui,prompt,0,
-			buff,0,(len>=BUFSIZ)?BUFSIZ-1:len,buf);
+			buff,min,(len>=BUFSIZ)?BUFSIZ-1:len,buf);
 	ret = UI_process(ui);
 	UI_free(ui);
 	OPENSSL_cleanse(buff,BUFSIZ);

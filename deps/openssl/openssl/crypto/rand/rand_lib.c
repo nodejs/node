@@ -60,82 +60,15 @@
 #include <time.h>
 #include "cryptlib.h"
 #include <openssl/rand.h>
-#include "rand_lcl.h"
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#include <openssl/fips_rand.h>
-#endif
-
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif
-
-static const RAND_METHOD *default_RAND_meth = NULL;
-
-#ifdef OPENSSL_FIPS
-
-static int fips_RAND_set_rand_method(const RAND_METHOD *meth,
-					const RAND_METHOD **pmeth)
-	{
-	*pmeth = meth;
-	return 1;
-	}
-
-static const RAND_METHOD *fips_RAND_get_rand_method(const RAND_METHOD **pmeth)
-	{
-	if (!*pmeth)
-		{
-		if(FIPS_mode())
-			*pmeth=FIPS_rand_method();
-		else
-			*pmeth = RAND_SSLeay();
-		}
-
-	if(FIPS_mode()
-		&& *pmeth != FIPS_rand_check())
-	    {
-	    RANDerr(RAND_F_FIPS_RAND_GET_RAND_METHOD,RAND_R_NON_FIPS_METHOD);
-	    return 0;
-	    }
-
-	return *pmeth;
-	}
-
-static int (*RAND_set_rand_method_func)(const RAND_METHOD *meth,
-						const RAND_METHOD **pmeth)
-	= fips_RAND_set_rand_method;
-static const RAND_METHOD *(*RAND_get_rand_method_func)
-						(const RAND_METHOD **pmeth)
-	= fips_RAND_get_rand_method;
-
-#ifndef OPENSSL_NO_ENGINE
-void int_RAND_set_callbacks(
-	int (*set_rand_func)(const RAND_METHOD *meth,
-						const RAND_METHOD **pmeth),
-	const RAND_METHOD *(*get_rand_func)
-						(const RAND_METHOD **pmeth))
-	{
-	RAND_set_rand_method_func = set_rand_func;
-	RAND_get_rand_method_func = get_rand_func;
-	}
-#endif
-
-int RAND_set_rand_method(const RAND_METHOD *meth)
-	{
-	return RAND_set_rand_method_func(meth, &default_RAND_meth);
-	}
-
-const RAND_METHOD *RAND_get_rand_method(void)
-	{
-	return RAND_get_rand_method_func(&default_RAND_meth);
-	}
-
-#else
 
 #ifndef OPENSSL_NO_ENGINE
 /* non-NULL if default_RAND_meth is ENGINE-provided */
 static ENGINE *funct_ref =NULL;
 #endif
+static const RAND_METHOD *default_RAND_meth = NULL;
 
 int RAND_set_rand_method(const RAND_METHOD *meth)
 	{
@@ -194,8 +127,6 @@ int RAND_set_rand_engine(ENGINE *engine)
 	funct_ref = engine;
 	return 1;
 	}
-#endif
-
 #endif
 
 void RAND_cleanup(void)

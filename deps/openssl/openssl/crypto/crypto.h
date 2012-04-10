@@ -1,6 +1,6 @@
 /* crypto/crypto.h */
 /* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -219,13 +219,9 @@ typedef struct openssl_item_st
 #define CRYPTO_LOCK_EC_PRE_COMP		36
 #define CRYPTO_LOCK_STORE		37
 #define CRYPTO_LOCK_COMP		38
-#ifndef OPENSSL_FIPS
-#define CRYPTO_NUM_LOCKS		39
-#else
 #define CRYPTO_LOCK_FIPS		39
 #define CRYPTO_LOCK_FIPS2		40
 #define CRYPTO_NUM_LOCKS		41
-#endif
 
 #define CRYPTO_LOCK		1
 #define CRYPTO_UNLOCK		2
@@ -288,9 +284,10 @@ typedef struct bio_st BIO_dummy;
 
 struct crypto_ex_data_st
 	{
-	STACK *sk;
+	STACK_OF(void) *sk;
 	int dummy; /* gcc is screwing up this data structure :-( */
 	};
+DECLARE_STACK_OF(void)
 
 /* This stuff is basically class callback functions
  * The current classes are SSL_CTX, SSL, SSL_SESSION, and a few more */
@@ -347,7 +344,14 @@ DECLARE_STACK_OF(CRYPTO_EX_DATA_FUNCS)
 
 /* Set standard debugging functions (not done by default
  * unless CRYPTO_MDEBUG is defined) */
-void CRYPTO_malloc_debug_init(void);
+#define CRYPTO_malloc_debug_init()	do {\
+	CRYPTO_set_mem_debug_functions(\
+		CRYPTO_dbg_malloc,\
+		CRYPTO_dbg_realloc,\
+		CRYPTO_dbg_free,\
+		CRYPTO_dbg_set_options,\
+		CRYPTO_dbg_get_options);\
+	} while(0)
 
 int CRYPTO_mem_ctrl(int mode);
 int CRYPTO_is_mem_check_on(void);
@@ -420,15 +424,31 @@ void CRYPTO_set_add_lock_callback(int (*func)(int *num,int mount,int type,
 					      const char *file, int line));
 int (*CRYPTO_get_add_lock_callback(void))(int *num,int mount,int type,
 					  const char *file,int line);
+
+/* Don't use this structure directly. */
+typedef struct crypto_threadid_st
+	{
+	void *ptr;
+	unsigned long val;
+	} CRYPTO_THREADID;
+/* Only use CRYPTO_THREADID_set_[numeric|pointer]() within callbacks */
+void CRYPTO_THREADID_set_numeric(CRYPTO_THREADID *id, unsigned long val);
+void CRYPTO_THREADID_set_pointer(CRYPTO_THREADID *id, void *ptr);
+int CRYPTO_THREADID_set_callback(void (*threadid_func)(CRYPTO_THREADID *));
+void (*CRYPTO_THREADID_get_callback(void))(CRYPTO_THREADID *);
+void CRYPTO_THREADID_current(CRYPTO_THREADID *id);
+int CRYPTO_THREADID_cmp(const CRYPTO_THREADID *a, const CRYPTO_THREADID *b);
+void CRYPTO_THREADID_cpy(CRYPTO_THREADID *dest, const CRYPTO_THREADID *src);
+unsigned long CRYPTO_THREADID_hash(const CRYPTO_THREADID *id);
+#ifndef OPENSSL_NO_DEPRECATED
 void CRYPTO_set_id_callback(unsigned long (*func)(void));
 unsigned long (*CRYPTO_get_id_callback(void))(void);
 unsigned long CRYPTO_thread_id(void);
+#endif
+
 const char *CRYPTO_get_lock_name(int type);
 int CRYPTO_add_lock(int *pointer,int amount,int type, const char *file,
 		    int line);
-
-void int_CRYPTO_set_do_dynlock_callback(
-	void (*do_dynlock_cb)(int mode, int type, const char *file, int line));
 
 int CRYPTO_get_new_dynlockid(void);
 void CRYPTO_destroy_dynlockid(int i);
@@ -454,10 +474,6 @@ int CRYPTO_set_mem_debug_functions(void (*m)(void *,int,const char *,int,int),
 				   void (*f)(void *,int),
 				   void (*so)(long),
 				   long (*go)(void));
-void CRYPTO_set_mem_info_functions(
-	int  (*push_info_fn)(const char *info, const char *file, int line),
-	int  (*pop_info_fn)(void),
-	int (*remove_all_info_fn)(void));
 void CRYPTO_get_mem_functions(void *(**m)(size_t),void *(**r)(void *, size_t), void (**f)(void *));
 void CRYPTO_get_locked_mem_functions(void *(**m)(size_t), void (**f)(void *));
 void CRYPTO_get_mem_ex_functions(void *(**m)(size_t,const char *,int),
@@ -514,9 +530,6 @@ void CRYPTO_dbg_free(void *addr,int before_p);
 void CRYPTO_dbg_set_options(long bits);
 long CRYPTO_dbg_get_options(void);
 
-int CRYPTO_dbg_push_info(const char *info, const char *file, int line);
-int CRYPTO_dbg_pop_info(void);
-int CRYPTO_dbg_remove_all_info(void);
 
 #ifndef OPENSSL_NO_FP_API
 void CRYPTO_mem_leaks_fp(FILE *);
@@ -534,68 +547,11 @@ unsigned long *OPENSSL_ia32cap_loc(void);
 #define OPENSSL_ia32cap (*(OPENSSL_ia32cap_loc()))
 int OPENSSL_isservice(void);
 
-#ifdef OPENSSL_FIPS
-#define FIPS_ERROR_IGNORED(alg) OpenSSLDie(__FILE__, __LINE__, \
-		alg " previous FIPS forbidden algorithm error ignored");
-
-#define FIPS_BAD_ABORT(alg) OpenSSLDie(__FILE__, __LINE__, \
-		#alg " Algorithm forbidden in FIPS mode");
-
-#ifdef OPENSSL_FIPS_STRICT
-#define FIPS_BAD_ALGORITHM(alg) FIPS_BAD_ABORT(alg)
-#else
-#define FIPS_BAD_ALGORITHM(alg) \
-	{ \
-	FIPSerr(FIPS_F_HASH_FINAL,FIPS_R_NON_FIPS_METHOD); \
-	ERR_add_error_data(2, "Algorithm=", #alg); \
-	return 0; \
-	}
-#endif
-
-/* Low level digest API blocking macro */
-
-#define FIPS_NON_FIPS_MD_Init(alg) \
-	int alg##_Init(alg##_CTX *c) \
-		{ \
-		if (FIPS_mode()) \
-			FIPS_BAD_ALGORITHM(alg) \
-		return private_##alg##_Init(c); \
-		} \
-	int private_##alg##_Init(alg##_CTX *c)
-
-/* For ciphers the API often varies from cipher to cipher and each needs to
- * be treated as a special case. Variable key length ciphers (Blowfish, RC4,
- * CAST) however are very similar and can use a blocking macro.
- */
-
-#define FIPS_NON_FIPS_VCIPHER_Init(alg) \
-	void alg##_set_key(alg##_KEY *key, int len, const unsigned char *data) \
-		{ \
-		if (FIPS_mode()) \
-			FIPS_BAD_ABORT(alg) \
-		private_##alg##_set_key(key, len, data); \
-		} \
-	void private_##alg##_set_key(alg##_KEY *key, int len, \
-					const unsigned char *data)
-
-#else
-
-#define FIPS_NON_FIPS_VCIPHER_Init(alg) \
-	void alg##_set_key(alg##_KEY *key, int len, const unsigned char *data)
-
-#define FIPS_NON_FIPS_MD_Init(alg) \
-	int alg##_Init(alg##_CTX *c) 
-
-#endif /* def OPENSSL_FIPS */
-
 /* BEGIN ERROR CODES */
 /* The following lines are auto generated by the script mkerr.pl. Any changes
  * made after this point may be overwritten when the script is next run.
  */
 void ERR_load_CRYPTO_strings(void);
-
-#define OPENSSL_HAVE_INIT	1
-void OPENSSL_init(void);
 
 /* Error codes for the CRYPTO functions. */
 

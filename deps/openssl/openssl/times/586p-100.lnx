@@ -1,0 +1,26 @@
+Pentium 100 - Linux 1.2.13 - gcc 2.7.2p
+This is the pentium specific version of gcc
+
+SSLeay 0.6.4 20-Aug-1996
+built on Thu Aug 22 08:27:58 EST 1996
+options:bn(64,32) md2(char) rc4(idx,int) des(idx,long) idea(int)
+C flags:gcc -DL_ENDIAN -DTERMIO -O6 -fomit-frame-pointer -mpentium -Wall
+The 'numbers' are in 1000s of bytes per second processed.
+type           8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2             74.90k      208.43k      282.11k      309.59k      318.43k
+md5            807.08k     4205.67k     7801.51k     9958.06k    10810.71k
+sha            405.98k     1821.55k     3119.10k     3799.04k     4052.31k
+sha1           389.13k     1699.50k     2852.78k     3437.57k     3656.36k
+rc4           3621.15k     4130.07k     4212.74k     4228.44k     4213.42k
+des cfb        794.39k      828.37k      831.74k      832.51k      832.85k
+des cbc        817.68k      886.17k      894.72k      896.00k      892.93k
+des ede3       308.83k      323.29k      324.61k      324.95k      324.95k
+idea cfb       690.41k      715.39k      718.51k      719.19k      718.17k
+idea cbc       696.80k      760.60k      767.32k      768.68k      770.05k
+rc2 cfb        619.91k      639.74k      642.30k      642.73k      641.71k
+rc2 cbc        631.99k      671.42k      676.35k      676.18k      677.21k
+rsa  512 bits   0.025s
+rsa 1024 bits   0.123s
+rsa 2048 bits   0.756s
+rsa 4096 bits   5.365s
+

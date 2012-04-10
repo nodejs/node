@@ -1,0 +1,83 @@
+=pod
+
+=head1 NAME
+
+d2i_DSAPublicKey, i2d_DSAPublicKey, d2i_DSAPrivateKey, i2d_DSAPrivateKey,
+d2i_DSA_PUBKEY, i2d_DSA_PUBKEY, d2i_DSA_SIG, i2d_DSA_SIG - DSA key encoding
+and parsing functions.
+
+=head1 SYNOPSIS
+
+ #include <openssl/dsa.h>
+ #include <openssl/x509.h>
+
+ DSA * d2i_DSAPublicKey(DSA **a, const unsigned char **pp, long length);
+
+ int i2d_DSAPublicKey(const DSA *a, unsigned char **pp);
+
+ DSA * d2i_DSA_PUBKEY(DSA **a, const unsigned char **pp, long length);
+
+ int i2d_DSA_PUBKEY(const DSA *a, unsigned char **pp);
+
+ DSA * d2i_DSAPrivateKey(DSA **a, const unsigned char **pp, long length);
+
+ int i2d_DSAPrivateKey(const DSA *a, unsigned char **pp);
+
+ DSA * d2i_DSAparams(DSA **a, const unsigned char **pp, long length);
+
+ int i2d_DSAparams(const DSA *a, unsigned char **pp);
+
+ DSA * d2i_DSA_SIG(DSA_SIG **a, const unsigned char **pp, long length);
+
+ int i2d_DSA_SIG(const DSA_SIG *a, unsigned char **pp);
+
+=head1 DESCRIPTION
+
+d2i_DSAPublicKey() and i2d_DSAPublicKey() decode and encode the DSA public key
+components structure.
+
+d2i_DSA_PUBKEY() and i2d_DSA_PUBKEY() decode and encode an DSA public key using
+a SubjectPublicKeyInfo (certificate public key) structure.
+
+d2i_DSAPrivateKey(), i2d_DSAPrivateKey() decode and encode the DSA private key
+components.
+
+d2i_DSAparams(), i2d_DSAparams() decode and encode the DSA parameters using
+a B<Dss-Parms> structure as defined in RFC2459.
+
+d2i_DSA_SIG(), i2d_DSA_SIG() decode and encode a DSA signature using a
+B<Dss-Sig-Value> structure as defined in RFC2459.
+
+The usage of all of these functions is similar to the d2i_X509() and
+i2d_X509() described in the L<d2i_X509(3)|d2i_X509(3)> manual page.
+
+=head1 NOTES
+
+The B<DSA> structure passed to the private key encoding functions should have
+all the private key components present.
+
+The data encoded by the private key functions is unencrypted and therefore 
+offers no private key security.
+
+The B<DSA_PUBKEY> functions should be used in preference to the B<DSAPublicKey>
+functions when encoding public keys because they use a standard format.
+
+The B<DSAPublicKey> functions use an non standard format the actual data encoded
+depends on the value of the B<write_params> field of the B<a> key parameter.
+If B<write_params> is zero then only the B<pub_key> field is encoded as an
+B<INTEGER>. If B<write_params> is 1 then a B<SEQUENCE> consisting of the
+B<p>, B<q>, B<g> and B<pub_key> respectively fields are encoded.
+
+The B<DSAPrivateKey> functions also use a non standard structure consiting
+consisting of a SEQUENCE containing the B<p>, B<q>, B<g> and B<pub_key> and
+B<priv_key> fields respectively.
+
+=head1 SEE ALSO
+
+L<d2i_X509(3)|d2i_X509(3)>
+
+=head1 HISTORY
+
+TBA
+
+=cut

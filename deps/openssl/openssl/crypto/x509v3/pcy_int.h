@@ -56,12 +56,10 @@
  *
  */
 
-DECLARE_STACK_OF(X509_POLICY_DATA)
-DECLARE_STACK_OF(X509_POLICY_REF)
-DECLARE_STACK_OF(X509_POLICY_NODE)
 
 typedef struct X509_POLICY_DATA_st X509_POLICY_DATA;
-typedef struct X509_POLICY_REF_st X509_POLICY_REF;
+
+DECLARE_STACK_OF(X509_POLICY_DATA)
 
 /* Internal structures */
 
@@ -110,16 +108,6 @@ struct X509_POLICY_DATA_st
 
 #define POLICY_DATA_FLAG_CRITICAL		0x10
 
-/* This structure is an entry from a table of mapped policies which
- * cross reference the policy it refers to.
- */
-
-struct X509_POLICY_REF_st
-	{
-	ASN1_OBJECT *subjectDomainPolicy;
-	const X509_POLICY_DATA *data;
-	};
-
 /* This structure is cached with a certificate */
 
 struct X509_POLICY_CACHE_st {
@@ -127,8 +115,6 @@ struct X509_POLICY_CACHE_st {
 	X509_POLICY_DATA *anyPolicy;
 	/* other policy data */
 	STACK_OF(X509_POLICY_DATA) *data;
-	/* If policyMappings extension present a table of mapped policies */
-	STACK_OF(X509_POLICY_REF) *maps;
 	/* If InhibitAnyPolicy present this is its value or -1 if absent. */
 	long any_skip;
 	/* If policyConstraints and requireExplicitPolicy present this is its
@@ -193,7 +179,7 @@ struct X509_POLICY_TREE_st
 
 /* Internal functions */
 
-X509_POLICY_DATA *policy_data_new(POLICYINFO *policy, ASN1_OBJECT *id,
+X509_POLICY_DATA *policy_data_new(POLICYINFO *policy, const ASN1_OBJECT *id,
 								int crit);
 void policy_data_free(X509_POLICY_DATA *data);
 
@@ -209,15 +195,18 @@ void policy_cache_init(void);
 void policy_cache_free(X509_POLICY_CACHE *cache);
 
 X509_POLICY_NODE *level_find_node(const X509_POLICY_LEVEL *level,
+					const X509_POLICY_NODE *parent,	
 					const ASN1_OBJECT *id);
 
 X509_POLICY_NODE *tree_find_sk(STACK_OF(X509_POLICY_NODE) *sk,
 						const ASN1_OBJECT *id);
 
 X509_POLICY_NODE *level_add_node(X509_POLICY_LEVEL *level,
-			X509_POLICY_DATA *data,
+			const X509_POLICY_DATA *data,
 			X509_POLICY_NODE *parent,
 			X509_POLICY_TREE *tree);
 void policy_node_free(X509_POLICY_NODE *node);
+int policy_node_match(const X509_POLICY_LEVEL *lvl,
+		      const X509_POLICY_NODE *node, const ASN1_OBJECT *oid);
 
 const X509_POLICY_CACHE *policy_cache_set(X509 *x);

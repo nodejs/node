@@ -58,7 +58,6 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
-#include "evp_locl.h"
 
 #ifndef OPENSSL_NO_MDC2
 
@@ -66,7 +65,9 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 #include <openssl/mdc2.h>
+#ifndef OPENSSL_NO_RSA
 #include <openssl/rsa.h>
+#endif
 
 static int init(EVP_MD_CTX *ctx)
 	{ return MDC2_Init(ctx->md_data); }

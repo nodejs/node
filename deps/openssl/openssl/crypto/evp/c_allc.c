@@ -221,7 +221,4 @@ void OpenSSL_add_all_ciphers(void)
 	EVP_add_cipher_alias(SN_camellia_256_cbc,"CAMELLIA256");
 	EVP_add_cipher_alias(SN_camellia_256_cbc,"camellia256");
 #endif
-
-	PKCS12_PBE_add();
-	PKCS5_PBE_add();
 	}

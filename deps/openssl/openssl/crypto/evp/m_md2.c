@@ -58,7 +58,6 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
-#include "evp_locl.h"
 
 #ifndef OPENSSL_NO_MD2
 

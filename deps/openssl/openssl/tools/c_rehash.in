@@ -16,13 +16,23 @@ if(defined $ENV{OPENSSL}) {
 	$ENV{OPENSSL} = $openssl;
 }
 
-$ENV{PATH} .= ":$dir/bin";
+my $pwd;
+eval "require Cwd";
+if (defined(&Cwd::getcwd)) {
+	$pwd=Cwd::getcwd();
+} else {
+	$pwd=`pwd`; chomp($pwd);
+}
+my $path_delim = ($pwd =~ /^[a-z]\:/i) ? ';' : ':'; # DOS/Win32 or Unix delimiter?
+
+$ENV{PATH} = "$prefix/bin" . ($ENV{PATH} ? $path_delim . $ENV{PATH} : ""); # prefix our path
 
 if(! -x $openssl) {
 	my $found = 0;
-	foreach (split /:/, $ENV{PATH}) {
+	foreach (split /$path_delim/, $ENV{PATH}) {
 		if(-x "$_/$openssl") {
 			$found = 1;
+			$openssl = "$_/$openssl";
 			last;
 		}	
 	}
@@ -35,11 +45,16 @@ if(! -x $openssl) {
 if(@ARGV) {
 	@dirlist = @ARGV;
 } elsif($ENV{SSL_CERT_DIR}) {
-	@dirlist = split /:/, $ENV{SSL_CERT_DIR};
+	@dirlist = split /$path_delim/, $ENV{SSL_CERT_DIR};
 } else {
 	$dirlist[0] = "$dir/certs";
 }
 
+if (-d $dirlist[0]) {
+	chdir $dirlist[0];
+	$openssl="$pwd/$openssl" if (!-x $openssl);
+	chdir $pwd;
+}
 
 foreach (@dirlist) {
 	if(-d $_ and -w $_) {
@@ -102,7 +117,7 @@ sub check_file {
 sub link_hash_cert {
 		my $fname = $_[0];
 		$fname =~ s/'/'\\''/g;
-		my ($hash, $fprint) = `"$openssl" x509 -hash -fingerprint -noout -in '$fname'`;
+		my ($hash, $fprint) = `"$openssl" x509 -hash -fingerprint -noout -in "$fname"`;
 		chomp $hash;
 		chomp $fprint;
 		$fprint =~ s/^.*=//;
@@ -123,7 +138,11 @@ sub link_hash_cert {
 		if ($symlink_exists) {
 			symlink $fname, $hash;
 		} else {
-			system ("cp", $fname, $hash);
+			open IN,"<$fname" or die "can't open $fname for read";
+			open OUT,">$hash" or die "can't open $hash for write";
+			print OUT <IN>;	# does the job for small text files
+			close OUT;
+			close IN;
 		}
 		$hashlist{$hash} = $fprint;
 }

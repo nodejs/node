@@ -154,14 +154,14 @@
 #  define ROTATE_l32(a,n)	({ register unsigned int ret;	\
 					asm ("roll %%cl,%0"	\
 						: "=r"(ret)	\
-						: "c"(n),"0"(a)	\
+						: "c"(n),"0"((unsigned int)(a))	\
 						: "cc");	\
 					ret;			\
 				})
 #  define ROTATE_r32(a,n)	({ register unsigned int ret;	\
 					asm ("rorl %%cl,%0"	\
 						: "=r"(ret)	\
-						: "c"(n),"0"(a)	\
+						: "c"(n),"0"((unsigned int)(a))	\
 						: "cc");	\
 					ret;			\
 				})

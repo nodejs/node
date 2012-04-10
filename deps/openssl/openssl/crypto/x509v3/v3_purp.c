@@ -71,6 +71,7 @@ static int purpose_smime(const X509 *x, int ca);
 static int check_purpose_smime_sign(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int check_purpose_smime_encrypt(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int check_purpose_crl_sign(const X509_PURPOSE *xp, const X509 *x, int ca);
+static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int ocsp_helper(const X509_PURPOSE *xp, const X509 *x, int ca);
 
@@ -87,6 +88,7 @@ static X509_PURPOSE xstandard[] = {
 	{X509_PURPOSE_CRL_SIGN, X509_TRUST_COMPAT, 0, check_purpose_crl_sign, "CRL signing", "crlsign", NULL},
 	{X509_PURPOSE_ANY, X509_TRUST_DEFAULT, 0, no_check, "Any Purpose", "any", NULL},
 	{X509_PURPOSE_OCSP_HELPER, X509_TRUST_COMPAT, 0, ocsp_helper, "OCSP helper", "ocsphelper", NULL},
+	{X509_PURPOSE_TIMESTAMP_SIGN, X509_TRUST_TSA, 0, check_purpose_timestamp_sign, "Time Stamp signing", "timestampsign", NULL},
 };
 
 #define X509_PURPOSE_COUNT (sizeof(xstandard)/sizeof(X509_PURPOSE))
@@ -265,10 +267,13 @@ int X509_PURPOSE_get_trust(X509_PURPOSE *xp)
 	return xp->trust;
 }
 
-static int nid_cmp(int *a, int *b)
+static int nid_cmp(const int *a, const int *b)
 	{
 	return *a - *b;
 	}
+
+DECLARE_OBJ_BSEARCH_CMP_FN(int, int, nid);
+IMPLEMENT_OBJ_BSEARCH_CMP_FN(int, int, nid);
 
 int X509_supported_extension(X509_EXTENSION *ex)
 	{
@@ -280,7 +285,7 @@ int X509_supported_extension(X509_EXTENSION *ex)
 	 * searched using bsearch.
 	 */
 
-	static int supported_nids[] = {
+	static const int supported_nids[] = {
 		NID_netscape_cert_type, /* 71 */
         	NID_key_usage,		/* 83 */
 		NID_subject_alt_name,	/* 85 */
@@ -292,24 +297,62 @@ int X509_supported_extension(X509_EXTENSION *ex)
 		NID_sbgp_autonomousSysNum, /* 291 */
 #endif
 		NID_policy_constraints,	/* 401 */
-		NID_proxyCertInfo,	/* 661 */
+		NID_proxyCertInfo,	/* 663 */
+		NID_name_constraints,	/* 666 */
+		NID_policy_mappings,	/* 747 */
 		NID_inhibit_any_policy	/* 748 */
 	};
 
-	int ex_nid;
-
-	ex_nid = OBJ_obj2nid(X509_EXTENSION_get_object(ex));
+	int ex_nid = OBJ_obj2nid(X509_EXTENSION_get_object(ex));
 
 	if (ex_nid == NID_undef) 
 		return 0;
 
-	if (OBJ_bsearch((char *)&ex_nid, (char *)supported_nids,
-		sizeof(supported_nids)/sizeof(int), sizeof(int),
-		(int (*)(const void *, const void *))nid_cmp))
+	if (OBJ_bsearch_nid(&ex_nid, supported_nids,
+			sizeof(supported_nids)/sizeof(int)))
 		return 1;
 	return 0;
 	}
- 
+
+static void setup_dp(X509 *x, DIST_POINT *dp)
+	{
+	X509_NAME *iname = NULL;
+	int i;
+	if (dp->reasons)
+		{
+		if (dp->reasons->length > 0)
+			dp->dp_reasons = dp->reasons->data[0];
+		if (dp->reasons->length > 1)
+			dp->dp_reasons |= (dp->reasons->data[1] << 8);
+		dp->dp_reasons &= CRLDP_ALL_REASONS;
+		}
+	else
+		dp->dp_reasons = CRLDP_ALL_REASONS;
+	if (!dp->distpoint || (dp->distpoint->type != 1))
+		return;
+	for (i = 0; i < sk_GENERAL_NAME_num(dp->CRLissuer); i++)
+		{
+		GENERAL_NAME *gen = sk_GENERAL_NAME_value(dp->CRLissuer, i);
+		if (gen->type == GEN_DIRNAME)
+			{
+			iname = gen->d.directoryName;
+			break;
+			}
+		}
+	if (!iname)
+		iname = X509_get_issuer_name(x);
+
+	DIST_POINT_set_dpname(dp->distpoint, iname);
+
+	}
+
+static void setup_crldp(X509 *x)
+	{
+	int i;
+	x->crldp = X509_get_ext_d2i(x, NID_crl_distribution_points, NULL, NULL);
+	for (i = 0; i < sk_DIST_POINT_num(x->crldp); i++)
+		setup_dp(x, sk_DIST_POINT_value(x->crldp, i));
+	}
 
 static void x509v3_cache_extensions(X509 *x)
 {
@@ -417,16 +460,25 @@ static void x509v3_cache_extensions(X509 *x)
 	}
 	x->skid =X509_get_ext_d2i(x, NID_subject_key_identifier, NULL, NULL);
 	x->akid =X509_get_ext_d2i(x, NID_authority_key_identifier, NULL, NULL);
+	x->altname = X509_get_ext_d2i(x, NID_subject_alt_name, NULL, NULL);
+	x->nc = X509_get_ext_d2i(x, NID_name_constraints, &i, NULL);
+	if (!x->nc && (i != -1))
+		x->ex_flags |= EXFLAG_INVALID;
+	setup_crldp(x);
+
 #ifndef OPENSSL_NO_RFC3779
-	x->rfc3779_addr =X509_get_ext_d2i(x, NID_sbgp_ipAddrBlock, NULL, NULL);
-	x->rfc3779_asid =X509_get_ext_d2i(x, NID_sbgp_autonomousSysNum,
-					  NULL, NULL);
+ 	x->rfc3779_addr =X509_get_ext_d2i(x, NID_sbgp_ipAddrBlock, NULL, NULL);
+ 	x->rfc3779_asid =X509_get_ext_d2i(x, NID_sbgp_autonomousSysNum,
+ 					  NULL, NULL);
 #endif
 	for (i = 0; i < X509_get_ext_count(x); i++)
 		{
 		ex = X509_get_ext(x, i);
 		if (!X509_EXTENSION_get_critical(ex))
 			continue;
+		if (OBJ_obj2nid(X509_EXTENSION_get_object(ex))
+					== NID_freshest_crl)
+			x->ex_flags |= EXFLAG_FRESHEST;
 		if (!X509_supported_extension(ex))
 			{
 			x->ex_flags |= EXFLAG_CRITICAL;
@@ -594,6 +646,41 @@ static int ocsp_helper(const X509_PURPOSE *xp, const X509 *x, int ca)
 	return 1;
 }
 
+static int check_purpose_timestamp_sign(const X509_PURPOSE *xp, const X509 *x,
+					int ca)
+{
+	int i_ext;
+
+	/* If ca is true we must return if this is a valid CA certificate. */
+	if (ca) return check_ca(x);
+
+	/* 
+	 * Check the optional key usage field:
+	 * if Key Usage is present, it must be one of digitalSignature 
+	 * and/or nonRepudiation (other values are not consistent and shall
+	 * be rejected).
+	 */
+	if ((x->ex_flags & EXFLAG_KUSAGE)
+	    && ((x->ex_kusage & ~(KU_NON_REPUDIATION | KU_DIGITAL_SIGNATURE)) ||
+		!(x->ex_kusage & (KU_NON_REPUDIATION | KU_DIGITAL_SIGNATURE))))
+		return 0;
+
+	/* Only time stamp key usage is permitted and it's required. */
+	if (!(x->ex_flags & EXFLAG_XKUSAGE) || x->ex_xkusage != XKU_TIMESTAMP)
+		return 0;
+
+	/* Extended Key Usage MUST be critical */
+	i_ext = X509_get_ext_by_NID((X509 *) x, NID_ext_key_usage, 0);
+	if (i_ext >= 0)
+		{
+		X509_EXTENSION *ext = X509_get_ext((X509 *) x, i_ext);
+		if (!X509_EXTENSION_get_critical(ext))
+			return 0;
+		}
+
+	return 1;
+}
+
 static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca)
 {
 	return 1;
@@ -618,39 +705,14 @@ int X509_check_issued(X509 *issuer, X509 *subject)
 				return X509_V_ERR_SUBJECT_ISSUER_MISMATCH;
 	x509v3_cache_extensions(issuer);
 	x509v3_cache_extensions(subject);
-	if(subject->akid) {
-		/* Check key ids (if present) */
-		if(subject->akid->keyid && issuer->skid &&
-		 ASN1_OCTET_STRING_cmp(subject->akid->keyid, issuer->skid) )
-				return X509_V_ERR_AKID_SKID_MISMATCH;
-		/* Check serial number */
-		if(subject->akid->serial &&
-			ASN1_INTEGER_cmp(X509_get_serialNumber(issuer),
-						subject->akid->serial))
-				return X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
-		/* Check issuer name */
-		if(subject->akid->issuer) {
-			/* Ugh, for some peculiar reason AKID includes
-			 * SEQUENCE OF GeneralName. So look for a DirName.
-			 * There may be more than one but we only take any
-			 * notice of the first.
-			 */
-			GENERAL_NAMES *gens;
-			GENERAL_NAME *gen;
-			X509_NAME *nm = NULL;
-			int i;
-			gens = subject->akid->issuer;
-			for(i = 0; i < sk_GENERAL_NAME_num(gens); i++) {
-				gen = sk_GENERAL_NAME_value(gens, i);
-				if(gen->type == GEN_DIRNAME) {
-					nm = gen->d.dirn;
-					break;
-				}
-			}
-			if(nm && X509_NAME_cmp(nm, X509_get_issuer_name(issuer)))
-				return X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
+
+	if(subject->akid)
+		{
+		int ret = X509_check_akid(issuer, subject->akid);
+		if (ret != X509_V_OK)
+			return ret;
 		}
-	}
+
 	if(subject->ex_flags & EXFLAG_PROXY)
 		{
 		if(ku_reject(issuer, KU_DIGITAL_SIGNATURE))
@@ -660,4 +722,46 @@ int X509_check_issued(X509 *issuer, X509 *subject)
 		return X509_V_ERR_KEYUSAGE_NO_CERTSIGN;
 	return X509_V_OK;
 }
+
+int X509_check_akid(X509 *issuer, AUTHORITY_KEYID *akid)
+	{
+
+	if(!akid)
+		return X509_V_OK;
+
+	/* Check key ids (if present) */
+	if(akid->keyid && issuer->skid &&
+		 ASN1_OCTET_STRING_cmp(akid->keyid, issuer->skid) )
+				return X509_V_ERR_AKID_SKID_MISMATCH;
+	/* Check serial number */
+	if(akid->serial &&
+		ASN1_INTEGER_cmp(X509_get_serialNumber(issuer), akid->serial))
+				return X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
+	/* Check issuer name */
+	if(akid->issuer)
+		{
+		/* Ugh, for some peculiar reason AKID includes
+		 * SEQUENCE OF GeneralName. So look for a DirName.
+		 * There may be more than one but we only take any
+		 * notice of the first.
+		 */
+		GENERAL_NAMES *gens;
+		GENERAL_NAME *gen;
+		X509_NAME *nm = NULL;
+		int i;
+		gens = akid->issuer;
+		for(i = 0; i < sk_GENERAL_NAME_num(gens); i++)
+			{
+			gen = sk_GENERAL_NAME_value(gens, i);
+			if(gen->type == GEN_DIRNAME)
+				{
+				nm = gen->d.dirn;
+				break;
+				}
+			}
+		if(nm && X509_NAME_cmp(nm, X509_get_issuer_name(issuer)))
+			return X509_V_ERR_AKID_ISSUER_SERIAL_MISMATCH;
+		}
+	return X509_V_OK;
+	}
 

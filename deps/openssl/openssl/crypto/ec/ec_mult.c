@@ -226,6 +226,12 @@ static signed char *compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
 		sign = -1;
 		}
 
+	if (scalar->d == NULL || scalar->top == 0)
+		{
+		ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
+		goto err;
+		}
+
 	len = BN_num_bits(scalar);
 	r = OPENSSL_malloc(len + 1); /* modified wNAF may be one digit longer than binary representation
 	                              * (*ret_len will be set to the actual length, i.e. at most
@@ -233,12 +239,6 @@ static signed char *compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
 	if (r == NULL)
 		{
 		ECerr(EC_F_COMPUTE_WNAF, ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-
-	if (scalar->d == NULL || scalar->top == 0)
-		{
-		ECerr(EC_F_COMPUTE_WNAF, ERR_R_INTERNAL_ERROR);
 		goto err;
 		}
 	window_val = scalar->d[0] & mask;
@@ -421,7 +421,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 			if (numblocks > pre_comp->numblocks)
 				numblocks = pre_comp->numblocks;
 
-			pre_points_per_block = 1u << (pre_comp->w - 1);
+			pre_points_per_block = (size_t)1 << (pre_comp->w - 1);
 
 			/* check that pre_comp looks sane */
 			if (pre_comp->num != (pre_comp->numblocks * pre_points_per_block))
@@ -463,7 +463,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 
 		bits = i < num ? BN_num_bits(scalars[i]) : BN_num_bits(scalar);
 		wsize[i] = EC_window_bits_for_scalar_size(bits);
-		num_val += 1u << (wsize[i] - 1);
+		num_val += (size_t)1 << (wsize[i] - 1);
 		wNAF[i + 1] = NULL; /* make sure we always have a pivot */
 		wNAF[i] = compute_wNAF((i < num ? scalars[i] : scalar), wsize[i], &wNAF_len[i]);
 		if (wNAF[i] == NULL)
@@ -602,7 +602,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 	for (i = 0; i < num + num_scalar; i++)
 		{
 		val_sub[i] = v;
-		for (j = 0; j < (1u << (wsize[i] - 1)); j++)
+		for (j = 0; j < ((size_t)1 << (wsize[i] - 1)); j++)
 			{
 			*v = EC_POINT_new(group);
 			if (*v == NULL) goto err;
@@ -638,7 +638,7 @@ int ec_wNAF_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 		if (wsize[i] > 1)
 			{
 			if (!EC_POINT_dbl(group, tmp, val_sub[i][0], ctx)) goto err;
-			for (j = 1; j < (1u << (wsize[i] - 1)); j++)
+			for (j = 1; j < ((size_t)1 << (wsize[i] - 1)); j++)
 				{
 				if (!EC_POINT_add(group, val_sub[i][j], val_sub[i][j - 1], tmp, ctx)) goto err;
 				}
@@ -822,7 +822,7 @@ int ec_wNAF_precompute_mult(EC_GROUP *group, BN_CTX *ctx)
 
 	numblocks = (bits + blocksize - 1) / blocksize; /* max. number of blocks to use for wNAF splitting */
 	
-	pre_points_per_block = 1u << (w - 1);
+	pre_points_per_block = (size_t)1 << (w - 1);
 	num = pre_points_per_block * numblocks; /* number of points to compute and store */
 
 	points = OPENSSL_malloc(sizeof (EC_POINT*)*(num + 1));

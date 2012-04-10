@@ -70,8 +70,9 @@
 #define PROG	verify_main
 
 static int MS_CALLBACK cb(int ok, X509_STORE_CTX *ctx);
-static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X509) *tchain, int purpose, ENGINE *e);
-static STACK_OF(X509) *load_untrusted(char *file);
+static int check(X509_STORE *ctx, char *file,
+		STACK_OF(X509) *uchain, STACK_OF(X509) *tchain,
+		STACK_OF(X509_CRL) *crls, ENGINE *e);
 static int v_verbose=0, vflags = 0;
 
 int MAIN(int, char **);
@@ -80,10 +81,10 @@ int MAIN(int argc, char **argv)
 	{
 	ENGINE *e = NULL;
 	int i,ret=1, badarg = 0;
-	int purpose = -1;
 	char *CApath=NULL,*CAfile=NULL;
-	char *untfile = NULL, *trustfile = NULL;
+	char *untfile = NULL, *trustfile = NULL, *crlfile = NULL;
 	STACK_OF(X509) *untrusted = NULL, *trusted = NULL;
+	STACK_OF(X509_CRL) *crls = NULL;
 	X509_STORE *cert_ctx=NULL;
 	X509_LOOKUP *lookup=NULL;
 	X509_VERIFY_PARAM *vpm = NULL;
@@ -93,7 +94,7 @@ int MAIN(int argc, char **argv)
 
 	cert_ctx=X509_STORE_new();
 	if (cert_ctx == NULL) goto end;
-	X509_STORE_set_verify_cb_func(cert_ctx,cb);
+	X509_STORE_set_verify_cb(cert_ctx,cb);
 
 	ERR_load_crypto_strings();
 
@@ -138,6 +139,11 @@ int MAIN(int argc, char **argv)
 				{
 				if (argc-- < 1) goto end;
 				trustfile= *(++argv);
+				}
+			else if (strcmp(*argv,"-CRLfile") == 0)
+				{
+				if (argc-- < 1) goto end;
+				crlfile= *(++argv);
 				}
 #ifndef OPENSSL_NO_ENGINE
 			else if (strcmp(*argv,"-engine") == 0)
@@ -192,26 +198,34 @@ int MAIN(int argc, char **argv)
 
 	ERR_clear_error();
 
-	if(untfile) {
-		if(!(untrusted = load_untrusted(untfile))) {
-			BIO_printf(bio_err, "Error loading untrusted file %s\n", untfile);
-			ERR_print_errors(bio_err);
+	if(untfile)
+		{
+		untrusted = load_certs(bio_err, untfile, FORMAT_PEM,
+					NULL, e, "untrusted certificates");
+		if(!untrusted)
 			goto end;
 		}
-	}
 
-	if(trustfile) {
-		if(!(trusted = load_untrusted(trustfile))) {
-			BIO_printf(bio_err, "Error loading untrusted file %s\n", trustfile);
-			ERR_print_errors(bio_err);
+	if(trustfile)
+		{
+		trusted = load_certs(bio_err, trustfile, FORMAT_PEM,
+					NULL, e, "trusted certificates");
+		if(!trusted)
 			goto end;
 		}
-	}
 
-	if (argc < 1) check(cert_ctx, NULL, untrusted, trusted, purpose, e);
+	if(crlfile)
+		{
+		crls = load_crls(bio_err, crlfile, FORMAT_PEM,
+					NULL, e, "other CRLs");
+		if(!crls)
+			goto end;
+		}
+
+	if (argc < 1) check(cert_ctx, NULL, untrusted, trusted, crls, e);
 	else
 		for (i=0; i<argc; i++)
-			check(cert_ctx,argv[i], untrusted, trusted, purpose, e);
+			check(cert_ctx,argv[i], untrusted, trusted, crls, e);
 	ret=0;
 end:
 	if (ret == 1) {
@@ -232,11 +246,14 @@ end:
 	if (cert_ctx != NULL) X509_STORE_free(cert_ctx);
 	sk_X509_pop_free(untrusted, X509_free);
 	sk_X509_pop_free(trusted, X509_free);
+	sk_X509_CRL_pop_free(crls, X509_CRL_free);
 	apps_shutdown();
 	OPENSSL_EXIT(ret);
 	}
 
-static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X509) *tchain, int purpose, ENGINE *e)
+static int check(X509_STORE *ctx, char *file,
+		STACK_OF(X509) *uchain, STACK_OF(X509) *tchain,
+		STACK_OF(X509_CRL) *crls, ENGINE *e)
 	{
 	X509 *x=NULL;
 	int i=0,ret=0;
@@ -260,7 +277,8 @@ static int check(X509_STORE *ctx, char *file, STACK_OF(X509) *uchain, STACK_OF(X
 		goto end;
 		}
 	if(tchain) X509_STORE_CTX_trusted_stack(csc, tchain);
-	if(purpose >= 0) X509_STORE_CTX_set_purpose(csc, purpose);
+	if (crls)
+		X509_STORE_CTX_set0_crls(csc, crls);
 	i=X509_verify_cert(csc);
 	X509_STORE_CTX_free(csc);
 
@@ -278,90 +296,53 @@ end:
 	return(ret);
 	}
 
-static STACK_OF(X509) *load_untrusted(char *certfile)
-{
-	STACK_OF(X509_INFO) *sk=NULL;
-	STACK_OF(X509) *stack=NULL, *ret=NULL;
-	BIO *in=NULL;
-	X509_INFO *xi;
-
-	if(!(stack = sk_X509_new_null())) {
-		BIO_printf(bio_err,"memory allocation failure\n");
-		goto end;
-	}
-
-	if(!(in=BIO_new_file(certfile, "r"))) {
-		BIO_printf(bio_err,"error opening the file, %s\n",certfile);
-		goto end;
-	}
-
-	/* This loads from a file, a stack of x509/crl/pkey sets */
-	if(!(sk=PEM_X509_INFO_read_bio(in,NULL,NULL,NULL))) {
-		BIO_printf(bio_err,"error reading the file, %s\n",certfile);
-		goto end;
-	}
-
-	/* scan over it and pull out the certs */
-	while (sk_X509_INFO_num(sk))
-		{
-		xi=sk_X509_INFO_shift(sk);
-		if (xi->x509 != NULL)
-			{
-			sk_X509_push(stack,xi->x509);
-			xi->x509=NULL;
-			}
-		X509_INFO_free(xi);
-		}
-	if(!sk_X509_num(stack)) {
-		BIO_printf(bio_err,"no certificates in file, %s\n",certfile);
-		sk_X509_free(stack);
-		goto end;
-	}
-	ret=stack;
-end:
-	BIO_free(in);
-	sk_X509_INFO_free(sk);
-	return(ret);
-	}
-
 static int MS_CALLBACK cb(int ok, X509_STORE_CTX *ctx)
 	{
-	char buf[256];
+	int cert_error = X509_STORE_CTX_get_error(ctx);
+	X509 *current_cert = X509_STORE_CTX_get_current_cert(ctx);
 
 	if (!ok)
 		{
-		if (ctx->current_cert)
+		if (current_cert)
 			{
-			X509_NAME_oneline(
-				X509_get_subject_name(ctx->current_cert),buf,
-				sizeof buf);
-			printf("%s\n",buf);
+			X509_NAME_print_ex_fp(stdout,
+				X509_get_subject_name(current_cert),
+				0, XN_FLAG_ONELINE);
+			printf("\n");
 			}
-		printf("error %d at %d depth lookup:%s\n",ctx->error,
-			ctx->error_depth,
-			X509_verify_cert_error_string(ctx->error));
-		if (ctx->error == X509_V_ERR_CERT_HAS_EXPIRED) ok=1;
-		/* since we are just checking the certificates, it is
-		 * ok if they are self signed. But we should still warn
-		 * the user.
- 		 */
-		if (ctx->error == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ok=1;
-		/* Continue after extension errors too */
-		if (ctx->error == X509_V_ERR_INVALID_CA) ok=1;
-		if (ctx->error == X509_V_ERR_INVALID_NON_CA) ok=1;
-		if (ctx->error == X509_V_ERR_PATH_LENGTH_EXCEEDED) ok=1;
-		if (ctx->error == X509_V_ERR_INVALID_PURPOSE) ok=1;
-		if (ctx->error == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ok=1;
-		if (ctx->error == X509_V_ERR_CRL_HAS_EXPIRED) ok=1;
-		if (ctx->error == X509_V_ERR_CRL_NOT_YET_VALID) ok=1;
-		if (ctx->error == X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION) ok=1;
+		printf("%serror %d at %d depth lookup:%s\n",
+			X509_STORE_CTX_get0_parent_ctx(ctx) ? "[CRL path]" : "",
+			cert_error,
+			X509_STORE_CTX_get_error_depth(ctx),
+			X509_verify_cert_error_string(cert_error));
+		switch(cert_error)
+			{
+			case X509_V_ERR_NO_EXPLICIT_POLICY:
+				policies_print(NULL, ctx);
+			case X509_V_ERR_CERT_HAS_EXPIRED:
 
-		if (ctx->error == X509_V_ERR_NO_EXPLICIT_POLICY)
-			policies_print(NULL, ctx);
+			/* since we are just checking the certificates, it is
+			 * ok if they are self signed. But we should still warn
+			 * the user.
+			 */
+
+			case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
+			/* Continue after extension errors too */
+			case X509_V_ERR_INVALID_CA:
+			case X509_V_ERR_INVALID_NON_CA:
+			case X509_V_ERR_PATH_LENGTH_EXCEEDED:
+			case X509_V_ERR_INVALID_PURPOSE:
+			case X509_V_ERR_CRL_HAS_EXPIRED:
+			case X509_V_ERR_CRL_NOT_YET_VALID:
+			case X509_V_ERR_UNHANDLED_CRITICAL_EXTENSION:
+			ok = 1;
+
+			}
+
 		return ok;
 
 		}
-	if ((ctx->error == X509_V_OK) && (ok == 2))
+	if (cert_error == X509_V_OK && ok == 2)
 		policies_print(NULL, ctx);
 	if (!v_verbose)
 		ERR_clear_error();

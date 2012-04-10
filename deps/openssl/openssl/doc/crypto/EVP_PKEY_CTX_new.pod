@@ -1,0 +1,52 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY_CTX_new, EVP_PKEY_CTX_new_id, EVP_PKEY_CTX_dup, EVP_PKEY_CTX_free - public key algorithm context functions.
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ EVP_PKEY_CTX *EVP_PKEY_CTX_new(EVP_PKEY *pkey, ENGINE *e);
+ EVP_PKEY_CTX *EVP_PKEY_CTX_new_id(int id, ENGINE *e);
+ EVP_PKEY_CTX *EVP_PKEY_CTX_dup(EVP_PKEY_CTX *ctx);
+ void EVP_PKEY_CTX_free(EVP_PKEY_CTX *ctx);
+
+=head1 DESCRIPTION
+
+The EVP_PKEY_CTX_new() function allocates public key algorithm context using
+the algorithm specified in B<pkey> and ENGINE B<e>.
+
+The EVP_PKEY_CTX_new_id() function allocates public key algorithm context
+using the algorithm specified by B<id> and ENGINE B<e>. It is normally used
+when no B<EVP_PKEY> structure is associated with the operations, for example
+during parameter generation of key genration for some algorithms.
+
+EVP_PKEY_CTX_dup() duplicates the context B<ctx>.
+
+EVP_PKEY_CTX_free() frees up the context B<ctx>.
+
+=head1 NOTES
+
+The B<EVP_PKEY_CTX> structure is an opaque public key algorithm context used
+by the OpenSSL high level public key API. Contexts B<MUST NOT> be shared between
+threads: that is it is not permissible to use the same context simultaneously
+in two threads.
+
+=head1 RETURN VALUES
+
+EVP_PKEY_CTX_new(), EVP_PKEY_CTX_new_id(), EVP_PKEY_CTX_dup() returns either
+the newly allocated B<EVP_PKEY_CTX> structure of B<NULL> if an error occurred.
+
+EVP_PKEY_CTX_free() does not return a value.
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_new(3)|EVP_PKEY_new(3)>
+
+=head1 HISTORY
+
+These functions were first added to OpenSSL 1.0.0.
+
+=cut

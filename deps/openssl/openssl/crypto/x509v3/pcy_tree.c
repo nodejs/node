@@ -62,6 +62,75 @@
 
 #include "pcy_int.h"
 
+/* Enable this to print out the complete policy tree at various point during
+ * evaluation.
+ */
+
+/*#define OPENSSL_POLICY_DEBUG*/
+
+#ifdef OPENSSL_POLICY_DEBUG
+
+static void expected_print(BIO *err, X509_POLICY_LEVEL *lev,
+				X509_POLICY_NODE *node, int indent)
+	{
+	if (	    (lev->flags & X509_V_FLAG_INHIBIT_MAP)
+		|| !(node->data->flags & POLICY_DATA_FLAG_MAP_MASK))
+		BIO_puts(err, "  Not Mapped\n");
+	else
+		{
+		int i;
+		STACK_OF(ASN1_OBJECT) *pset = node->data->expected_policy_set;
+		ASN1_OBJECT *oid;
+		BIO_puts(err, "  Expected: ");
+		for (i = 0; i < sk_ASN1_OBJECT_num(pset); i++)
+			{
+			oid = sk_ASN1_OBJECT_value(pset, i);
+			if (i)
+				BIO_puts(err, ", ");
+			i2a_ASN1_OBJECT(err, oid);
+			}
+		BIO_puts(err, "\n");
+		}
+	}
+
+static void tree_print(char *str, X509_POLICY_TREE *tree,
+			X509_POLICY_LEVEL *curr)
+	{
+	X509_POLICY_LEVEL *plev;
+	X509_POLICY_NODE *node;
+	int i;
+	BIO *err;
+	err = BIO_new_fp(stderr, BIO_NOCLOSE);
+	if (!curr)
+		curr = tree->levels + tree->nlevel;
+	else
+		curr++;
+	BIO_printf(err, "Level print after %s\n", str);
+	BIO_printf(err, "Printing Up to Level %ld\n", curr - tree->levels);
+	for (plev = tree->levels; plev != curr; plev++)
+		{
+		BIO_printf(err, "Level %ld, flags = %x\n",
+				plev - tree->levels, plev->flags);
+		for (i = 0; i < sk_X509_POLICY_NODE_num(plev->nodes); i++)
+			{
+			node = sk_X509_POLICY_NODE_value(plev->nodes, i);
+			X509_POLICY_NODE_print(err, node, 2);
+			expected_print(err, plev, node, 2);
+			BIO_printf(err, "  Flags: %x\n", node->data->flags);
+			}
+		if (plev->anyPolicy)
+			X509_POLICY_NODE_print(err, plev->anyPolicy, 2);
+		}
+
+	BIO_free(err);
+
+	}
+#else
+
+#define tree_print(a,b,c) /* */
+
+#endif
+
 /* Initialize policy tree. Return values:
  *  0 Some internal error occured.
  * -1 Inconsistent or invalid extensions in certificates.
@@ -87,8 +156,10 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 	*ptree = NULL;
 	n = sk_X509_num(certs);
 
+#if 0
 	/* Disable policy mapping for now... */
 	flags |= X509_V_FLAG_INHIBIT_MAP;
+#endif
 
 	if (flags & X509_V_FLAG_EXPLICIT_POLICY)
 		explicit_policy = 0;
@@ -184,7 +255,6 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 		level++;
 		x = sk_X509_value(certs, i);
 		cache = policy_cache_set(x);
-
 		CRYPTO_add(&x->references, 1, CRYPTO_LOCK_X509);
 		level->cert = x;
 
@@ -213,12 +283,12 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 			level->flags |= X509_V_FLAG_INHIBIT_MAP;
 		else
 			{
-			map_skip--;
+			if (!(x->ex_flags & EXFLAG_SI))
+				map_skip--;
 			if ((cache->map_skip >= 0)
 				&& (cache->map_skip < map_skip))
 				map_skip = cache->map_skip;
 			}
-
 
 		}
 
@@ -237,7 +307,32 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 
 	}
 
-/* This corresponds to RFC3280 XXXX XXXXX:
+static int tree_link_matching_nodes(X509_POLICY_LEVEL *curr,
+				const X509_POLICY_DATA *data)
+	{
+	X509_POLICY_LEVEL *last = curr - 1;
+	X509_POLICY_NODE *node;
+	int i, matched = 0;
+	/* Iterate through all in nodes linking matches */
+	for (i = 0; i < sk_X509_POLICY_NODE_num(last->nodes); i++)
+		{
+		node = sk_X509_POLICY_NODE_value(last->nodes, i);
+		if (policy_node_match(last, node, data->valid_policy))
+			{
+			if (!level_add_node(curr, data, node, NULL))
+				return 0;
+			matched = 1;
+			}
+		}
+	if (!matched && last->anyPolicy)
+		{
+		if (!level_add_node(curr, data, last->anyPolicy, NULL))
+			return 0;
+		}
+	return 1;
+	}
+
+/* This corresponds to RFC3280 6.1.3(d)(1):
  * link any data from CertificatePolicies onto matching parent
  * or anyPolicy if no match.
  */
@@ -246,10 +341,8 @@ static int tree_link_nodes(X509_POLICY_LEVEL *curr,
 				const X509_POLICY_CACHE *cache)
 	{
 	int i;
-	X509_POLICY_LEVEL *last;
 	X509_POLICY_DATA *data;
-	X509_POLICY_NODE *parent;
-	last = curr - 1;
+
 	for (i = 0; i < sk_X509_POLICY_DATA_num(cache->data); i++)
 		{
 		data = sk_X509_POLICY_DATA_value(cache->data, i);
@@ -261,39 +354,108 @@ static int tree_link_nodes(X509_POLICY_LEVEL *curr,
 		 * link because then it will have the mapping flags
 		 * right and we can prune it later.
 		 */
+#if 0
 		if ((data->flags & POLICY_DATA_FLAG_MAPPED_ANY)
 			&& !(curr->flags & X509_V_FLAG_INHIBIT_ANY))
 			continue;
-		/* Look for matching node in parent */
-		parent = level_find_node(last, data->valid_policy);
-		/* If no match link to anyPolicy */
-		if (!parent)
-			parent = last->anyPolicy;
-		if (parent && !level_add_node(curr, data, parent, NULL))
+#endif
+		/* Look for matching nodes in previous level */
+		if (!tree_link_matching_nodes(curr, data))
 				return 0;
 		}
 	return 1;
 	}
 
-/* This corresponds to RFC3280 XXXX XXXXX:
+/* This corresponds to RFC3280 6.1.3(d)(2):
  * Create new data for any unmatched policies in the parent and link
  * to anyPolicy.
  */
+
+static int tree_add_unmatched(X509_POLICY_LEVEL *curr,
+			const X509_POLICY_CACHE *cache,
+			const ASN1_OBJECT *id,
+			X509_POLICY_NODE *node,
+			X509_POLICY_TREE *tree)
+	{
+	X509_POLICY_DATA *data;
+	if (id == NULL)
+		id = node->data->valid_policy;
+	/* Create a new node with qualifiers from anyPolicy and
+	 * id from unmatched node.
+	 */
+	data = policy_data_new(NULL, id, node_critical(node));
+
+	if (data == NULL)
+		return 0;
+	/* Curr may not have anyPolicy */
+	data->qualifier_set = cache->anyPolicy->qualifier_set;
+	data->flags |= POLICY_DATA_FLAG_SHARED_QUALIFIERS;
+	if (!level_add_node(curr, data, node, tree))
+		{
+		policy_data_free(data);
+		return 0;
+		}
+
+	return 1;
+	}
+
+static int tree_link_unmatched(X509_POLICY_LEVEL *curr,
+			const X509_POLICY_CACHE *cache,
+			X509_POLICY_NODE *node,
+			X509_POLICY_TREE *tree)
+	{
+	const X509_POLICY_LEVEL *last = curr - 1;
+	int i;
+
+	if (	    (last->flags & X509_V_FLAG_INHIBIT_MAP)
+		|| !(node->data->flags & POLICY_DATA_FLAG_MAPPED))
+		{
+		/* If no policy mapping: matched if one child present */
+		if (node->nchild)
+			return 1;
+		if (!tree_add_unmatched(curr, cache, NULL, node, tree))
+			return 0;
+		/* Add it */
+		}
+	else
+		{
+		/* If mapping: matched if one child per expected policy set */
+		STACK_OF(ASN1_OBJECT) *expset = node->data->expected_policy_set;
+		if (node->nchild == sk_ASN1_OBJECT_num(expset))
+			return 1;
+		/* Locate unmatched nodes */
+		for (i = 0; i < sk_ASN1_OBJECT_num(expset); i++)
+			{
+			ASN1_OBJECT *oid = sk_ASN1_OBJECT_value(expset, i);
+			if (level_find_node(curr, node, oid))
+				continue;
+			if (!tree_add_unmatched(curr, cache, oid, node, tree))
+				return 0;
+			}
+
+		}
+
+	return 1;
+
+	}
 
 static int tree_link_any(X509_POLICY_LEVEL *curr,
 			const X509_POLICY_CACHE *cache,
 			X509_POLICY_TREE *tree)
 	{
 	int i;
-	X509_POLICY_DATA *data;
+	/*X509_POLICY_DATA *data;*/
 	X509_POLICY_NODE *node;
-	X509_POLICY_LEVEL *last;
-
-	last = curr - 1;
+	X509_POLICY_LEVEL *last = curr - 1;
 
 	for (i = 0; i < sk_X509_POLICY_NODE_num(last->nodes); i++)
 		{
 		node = sk_X509_POLICY_NODE_value(last->nodes, i);
+
+		if (!tree_link_unmatched(curr, cache, node, tree))
+			return 0;
+
+#if 0
 
 		/* Skip any node with any children: we only want unmathced
 		 * nodes.
@@ -303,6 +465,7 @@ static int tree_link_any(X509_POLICY_LEVEL *curr,
 		 */
 		if (node->nchild)
 			continue;
+
 		/* Create a new node with qualifiers from anyPolicy and
 		 * id from unmatched node.
 		 */
@@ -319,6 +482,9 @@ static int tree_link_any(X509_POLICY_LEVEL *curr,
 			policy_data_free(data);
 			return 0;
 			}
+
+#endif
+
 		}
 	/* Finally add link to anyPolicy */
 	if (last->anyPolicy)
@@ -337,30 +503,36 @@ static int tree_link_any(X509_POLICY_LEVEL *curr,
 
 static int tree_prune(X509_POLICY_TREE *tree, X509_POLICY_LEVEL *curr)
 	{
+	STACK_OF(X509_POLICY_NODE) *nodes;
 	X509_POLICY_NODE *node;
 	int i;
-	for (i = sk_X509_POLICY_NODE_num(curr->nodes) - 1; i >= 0; i--)
+	nodes = curr->nodes;
+	if (curr->flags & X509_V_FLAG_INHIBIT_MAP)
 		{
-		node = sk_X509_POLICY_NODE_value(curr->nodes, i);
-		/* Delete any mapped data: see RFC3280 XXXX */
-		if (node->data->flags & POLICY_DATA_FLAG_MAP_MASK)
+		for (i = sk_X509_POLICY_NODE_num(nodes) - 1; i >= 0; i--)
 			{
-			node->parent->nchild--;
-			OPENSSL_free(node);
-			(void)sk_X509_POLICY_NODE_delete(curr->nodes, i);
+			node = sk_X509_POLICY_NODE_value(nodes, i);
+			/* Delete any mapped data: see RFC3280 XXXX */
+			if (node->data->flags & POLICY_DATA_FLAG_MAP_MASK)
+				{
+				node->parent->nchild--;
+				OPENSSL_free(node);
+				(void)sk_X509_POLICY_NODE_delete(nodes,i);
+				}
 			}
 		}
 
 	for(;;)	{
 		--curr;
-		for (i = sk_X509_POLICY_NODE_num(curr->nodes) - 1; i >= 0; i--)
+		nodes = curr->nodes;
+		for (i = sk_X509_POLICY_NODE_num(nodes) - 1; i >= 0; i--)
 			{
-			node = sk_X509_POLICY_NODE_value(curr->nodes, i);
+			node = sk_X509_POLICY_NODE_value(nodes, i);
 			if (node->nchild == 0)
 				{
 				node->parent->nchild--;
 				OPENSSL_free(node);
-				(void)sk_X509_POLICY_NODE_delete(curr->nodes, i);
+				(void)sk_X509_POLICY_NODE_delete(nodes, i);
 				}
 			}
 		if (curr->anyPolicy && !curr->anyPolicy->nchild)
@@ -536,6 +708,7 @@ static int tree_evaluate(X509_POLICY_TREE *tree)
 		if (!(curr->flags & X509_V_FLAG_INHIBIT_ANY)
 			&& !tree_link_any(curr, cache, tree))
 			return 0;
+	tree_print("before tree_prune()", tree, curr);
 		ret = tree_prune(tree, curr);
 		if (ret != 1)
 			return ret;
@@ -604,13 +777,16 @@ int X509_policy_check(X509_POLICY_TREE **ptree, int *pexplicit_policy,
 	*pexplicit_policy = 0;
 	ret = tree_init(&tree, certs, flags);
 
-
 	switch (ret)
 		{
 
 		/* Tree empty requireExplicit False: OK */
 		case 2:
 		return 1;
+
+		/* Some internal error */
+		case -1:
+		return -1;
 
 		/* Some internal error */
 		case 0:
@@ -645,6 +821,8 @@ int X509_policy_check(X509_POLICY_TREE **ptree, int *pexplicit_policy,
 
 	if (!tree) goto error;
 	ret = tree_evaluate(tree);
+
+	tree_print("tree_evaluate()", tree, NULL);
 
 	if (ret <= 0)
 		goto error;

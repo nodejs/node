@@ -125,6 +125,9 @@ int engine_free_util(ENGINE *e, int locked)
 		abort();
 		}
 #endif
+	/* Free up any dynamically allocated public key methods */
+	engine_pkey_meths_free(e);
+	engine_pkey_asn1_meths_free(e);
 	/* Give the ENGINE a chance to do any structural cleanup corresponding
 	 * to allocation it did in its constructor (eg. unload error strings) */
 	if(e->destroy)

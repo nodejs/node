@@ -3,7 +3,7 @@
  * project 2000.
  */
 /* ====================================================================
- * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -64,7 +64,8 @@
 #include <openssl/asn1t.h>
 
 /* Override the default free and new methods */
-static int dh_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int dh_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+						void *exarg)
 {
 	if(operation == ASN1_OP_NEW_PRE) {
 		*pval = (ASN1_VALUE *)DH_new();
@@ -85,3 +86,8 @@ ASN1_SEQUENCE_cb(DHparams, dh_cb) = {
 } ASN1_SEQUENCE_END_cb(DH, DHparams)
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(DH, DHparams, DHparams)
+
+DH *DHparams_dup(DH *dh)
+	{
+	return ASN1_item_dup(ASN1_ITEM_rptr(DHparams), dh);
+	}

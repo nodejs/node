@@ -54,11 +54,11 @@
  */
 
 #include <openssl/opensslconf.h>
+#ifndef OPENSSL_NO_SEED
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <string.h>
 #include <assert.h>
-#ifndef OPENSSL_NO_SEED
 #include <openssl/seed.h>
 #include "evp_locl.h"
 

@@ -158,7 +158,6 @@ sub cbc
 	&jmp_ptr($count);
 
 &set_label("ej7");
-	&xor("edx",		"edx") if $ppro; # ppro friendly
 	&movb(&HB("edx"),	&BP(6,$in,"",0));
 	&shl("edx",8);
 &set_label("ej6");
@@ -170,7 +169,6 @@ sub cbc
 	&jmp(&label("ejend"));
 &set_label("ej3");
 	&movb(&HB("ecx"),	&BP(2,$in,"",0));
-	&xor("ecx",		"ecx") if $ppro; # ppro friendly
 	&shl("ecx",8);
 &set_label("ej2");
 	&movb(&HB("ecx"),	&BP(1,$in,"",0));

@@ -35,7 +35,7 @@
 #include <openssl/seed.h>
 #include "seed_locl.h"
 
-static seed_word SS[4][256] = {	{
+static const seed_word SS[4][256] = {	{
 	0x2989a1a8, 0x05858184, 0x16c6d2d4, 0x13c3d3d0, 0x14445054, 0x1d0d111c, 0x2c8ca0ac, 0x25052124,
 	0x1d4d515c, 0x03434340, 0x18081018, 0x1e0e121c, 0x11415150, 0x3cccf0fc, 0x0acac2c8, 0x23436360,
 	0x28082028, 0x04444044, 0x20002020, 0x1d8d919c, 0x20c0e0e0, 0x22c2e2e0, 0x08c8c0c8, 0x17071314,
@@ -187,6 +187,11 @@ static seed_word SS[4][256] = {	{
 #define KC14    0xde6e678d
 #define KC15    0xbcdccf1b
 
+#if defined(OPENSSL_SMALL_FOOTPRINT)
+static const seed_word KC[] = {
+	KC0,	KC1,	KC2,	KC3,	KC4,	KC5,	KC6,	KC7,
+	KC8,	KC9,	KC10,	KC11,	KC12,	KC13,	KC14,	KC15	};
+#endif
 
 void SEED_set_key(const unsigned char rawkey[SEED_KEY_LENGTH], SEED_KEY_SCHEDULE *ks)
 {
@@ -201,6 +206,8 @@ void SEED_set_key(const unsigned char rawkey[SEED_KEY_LENGTH], SEED_KEY_SCHEDULE
 	t0 = (x1 + x3 - KC0) & 0xffffffff;
 	t1 = (x2 - x4 + KC0) & 0xffffffff;                     KEYUPDATE_TEMP(t0, t1, &ks->data[0]);
 	KEYSCHEDULE_UPDATE1(t0, t1, x1, x2, x3, x4, KC1);      KEYUPDATE_TEMP(t0, t1, &ks->data[2]);
+
+#if !defined(OPENSSL_SMALL_FOOTPRINT)
 	KEYSCHEDULE_UPDATE0(t0, t1, x1, x2, x3, x4, KC2);      KEYUPDATE_TEMP(t0, t1, &ks->data[4]);
 	KEYSCHEDULE_UPDATE1(t0, t1, x1, x2, x3, x4, KC3);      KEYUPDATE_TEMP(t0, t1, &ks->data[6]);
 	KEYSCHEDULE_UPDATE0(t0, t1, x1, x2, x3, x4, KC4);      KEYUPDATE_TEMP(t0, t1, &ks->data[8]);
@@ -215,6 +222,17 @@ void SEED_set_key(const unsigned char rawkey[SEED_KEY_LENGTH], SEED_KEY_SCHEDULE
 	KEYSCHEDULE_UPDATE1(t0, t1, x1, x2, x3, x4, KC13);     KEYUPDATE_TEMP(t0, t1, &ks->data[26]);
 	KEYSCHEDULE_UPDATE0(t0, t1, x1, x2, x3, x4, KC14);     KEYUPDATE_TEMP(t0, t1, &ks->data[28]);
 	KEYSCHEDULE_UPDATE1(t0, t1, x1, x2, x3, x4, KC15);     KEYUPDATE_TEMP(t0, t1, &ks->data[30]);
+#else
+	{
+	    int i;
+	    for (i=2; i<16; i+=2) {
+		KEYSCHEDULE_UPDATE0(t0, t1, x1, x2, x3, x4, KC[i]);
+		KEYUPDATE_TEMP(t0, t1, &ks->data[i*2]);
+		KEYSCHEDULE_UPDATE1(t0, t1, x1, x2, x3, x4, KC[i+1]);
+		KEYUPDATE_TEMP(t0, t1, &ks->data[i*2+2]);
+	    }
+	}
+#endif
 }
 
 void SEED_encrypt(const unsigned char s[SEED_BLOCK_SIZE], unsigned char d[SEED_BLOCK_SIZE], const SEED_KEY_SCHEDULE *ks)
@@ -226,7 +244,8 @@ void SEED_encrypt(const unsigned char s[SEED_BLOCK_SIZE], unsigned char d[SEED_B
 	char2word(s+4,  x2);
 	char2word(s+8,  x3);
 	char2word(s+12, x4);
-	
+
+#if !defined(OPENSSL_SMALL_FOOTPRINT)	
 	E_SEED(t0, t1, x1, x2, x3, x4, 0);
 	E_SEED(t0, t1, x3, x4, x1, x2, 2);
 	E_SEED(t0, t1, x1, x2, x3, x4, 4);
@@ -243,6 +262,15 @@ void SEED_encrypt(const unsigned char s[SEED_BLOCK_SIZE], unsigned char d[SEED_B
 	E_SEED(t0, t1, x3, x4, x1, x2, 26);
 	E_SEED(t0, t1, x1, x2, x3, x4, 28);
 	E_SEED(t0, t1, x3, x4, x1, x2, 30);
+#else
+	{
+	    int i;
+	    for (i=0;i<30;i+=4) {
+		E_SEED(t0,t1,x1,x2,x3,x4,i);
+		E_SEED(t0,t1,x3,x4,x1,x2,i+2);
+	    }
+	}
+#endif
 
 	word2char(x3, d);
 	word2char(x4, d+4);
@@ -259,7 +287,8 @@ void SEED_decrypt(const unsigned char s[SEED_BLOCK_SIZE], unsigned char d[SEED_B
 	char2word(s+4,  x2);
 	char2word(s+8,  x3);
 	char2word(s+12, x4);
-	
+
+#if !defined(OPENSSL_SMALL_FOOTPRINT)
 	E_SEED(t0, t1, x1, x2, x3, x4, 30);
 	E_SEED(t0, t1, x3, x4, x1, x2, 28);
 	E_SEED(t0, t1, x1, x2, x3, x4, 26);
@@ -276,6 +305,16 @@ void SEED_decrypt(const unsigned char s[SEED_BLOCK_SIZE], unsigned char d[SEED_B
 	E_SEED(t0, t1, x3, x4, x1, x2, 4);
 	E_SEED(t0, t1, x1, x2, x3, x4, 2);
 	E_SEED(t0, t1, x3, x4, x1, x2, 0);
+#else
+	{
+	    int i;
+	    for (i=30; i>0; i-=4) {
+		E_SEED(t0, t1, x1, x2, x3, x4, i);
+		E_SEED(t0, t1, x3, x4, x1, x2, i-2);
+
+	    }
+	}
+#endif
 
 	word2char(x3, d);
 	word2char(x4, d+4);

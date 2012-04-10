@@ -73,7 +73,7 @@ static int idea_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
  */
 
 static int idea_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-			   const unsigned char *in, unsigned int inl)
+			   const unsigned char *in, size_t inl)
 {
 	BLOCK_CIPHER_ecb_loop()
 		idea_ecb_encrypt(in + i, out + i, ctx->cipher_data);

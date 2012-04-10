@@ -1,0 +1,189 @@
+
+=pod
+
+=head1 NAME
+
+rsa - RSA key processing tool
+
+=head1 SYNOPSIS
+
+B<openssl> B<rsa>
+[B<-inform PEM|NET|DER>]
+[B<-outform PEM|NET|DER>]
+[B<-in filename>]
+[B<-passin arg>]
+[B<-out filename>]
+[B<-passout arg>]
+[B<-sgckey>]
+[B<-des>]
+[B<-des3>]
+[B<-idea>]
+[B<-text>]
+[B<-noout>]
+[B<-modulus>]
+[B<-check>]
+[B<-pubin>]
+[B<-pubout>]
+[B<-engine id>]
+
+=head1 DESCRIPTION
+
+The B<rsa> command processes RSA keys. They can be converted between various
+forms and their components printed out. B<Note> this command uses the
+traditional SSLeay compatible format for private key encryption: newer
+applications should use the more secure PKCS#8 format using the B<pkcs8>
+utility.
+
+=head1 COMMAND OPTIONS
+
+=over 4
+
+=item B<-inform DER|NET|PEM>
+
+This specifies the input format. The B<DER> option uses an ASN1 DER encoded
+form compatible with the PKCS#1 RSAPrivateKey or SubjectPublicKeyInfo format.
+The B<PEM> form is the default format: it consists of the B<DER> format base64
+encoded with additional header and footer lines. On input PKCS#8 format private
+keys are also accepted. The B<NET> form is a format is described in the B<NOTES>
+section.
+
+=item B<-outform DER|NET|PEM>
+
+This specifies the output format, the options have the same meaning as the 
+B<-inform> option.
+
+=item B<-in filename>
+
+This specifies the input filename to read a key from or standard input if this
+option is not specified. If the key is encrypted a pass phrase will be
+prompted for.
+
+=item B<-passin arg>
+
+the input file password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
+=item B<-out filename>
+
+This specifies the output filename to write a key to or standard output if this
+option is not specified. If any encryption options are set then a pass phrase
+will be prompted for. The output filename should B<not> be the same as the input
+filename.
+
+=item B<-passout password>
+
+the output file password source. For more information about the format of B<arg>
+see the B<PASS PHRASE ARGUMENTS> section in L<openssl(1)|openssl(1)>.
+
+=item B<-sgckey>
+
+use the modified NET algorithm used with some versions of Microsoft IIS and SGC
+keys.
+
+=item B<-des|-des3|-idea>
+
+These options encrypt the private key with the DES, triple DES, or the 
+IDEA ciphers respectively before outputting it. A pass phrase is prompted for.
+If none of these options is specified the key is written in plain text. This
+means that using the B<rsa> utility to read in an encrypted key with no
+encryption option can be used to remove the pass phrase from a key, or by
+setting the encryption options it can be use to add or change the pass phrase.
+These options can only be used with PEM format output files.
+
+=item B<-text>
+
+prints out the various public or private key components in
+plain text in addition to the encoded version. 
+
+=item B<-noout>
+
+this option prevents output of the encoded version of the key.
+
+=item B<-modulus>
+
+this option prints out the value of the modulus of the key.
+
+=item B<-check>
+
+this option checks the consistency of an RSA private key.
+
+=item B<-pubin>
+
+by default a private key is read from the input file: with this
+option a public key is read instead.
+
+=item B<-pubout>
+
+by default a private key is output: with this option a public
+key will be output instead. This option is automatically set if
+the input is a public key.
+
+=item B<-engine id>
+
+specifying an engine (by its unique B<id> string) will cause B<rsa>
+to attempt to obtain a functional reference to the specified engine,
+thus initialising it if needed. The engine will then be set as the default
+for all available algorithms.
+
+=back
+
+=head1 NOTES
+
+The PEM private key format uses the header and footer lines:
+
+ -----BEGIN RSA PRIVATE KEY-----
+ -----END RSA PRIVATE KEY-----
+
+The PEM public key format uses the header and footer lines:
+
+ -----BEGIN PUBLIC KEY-----
+ -----END PUBLIC KEY-----
+
+The B<NET> form is a format compatible with older Netscape servers
+and Microsoft IIS .key files, this uses unsalted RC4 for its encryption.
+It is not very secure and so should only be used when necessary.
+
+Some newer version of IIS have additional data in the exported .key
+files. To use these with the utility, view the file with a binary editor
+and look for the string "private-key", then trace back to the byte
+sequence 0x30, 0x82 (this is an ASN1 SEQUENCE). Copy all the data
+from this point onwards to another file and use that as the input
+to the B<rsa> utility with the B<-inform NET> option. If you get
+an error after entering the password try the B<-sgckey> option.
+
+=head1 EXAMPLES
+
+To remove the pass phrase on an RSA private key:
+
+ openssl rsa -in key.pem -out keyout.pem
+
+To encrypt a private key using triple DES:
+
+ openssl rsa -in key.pem -des3 -out keyout.pem
+
+To convert a private key from PEM to DER format: 
+
+ openssl rsa -in key.pem -outform DER -out keyout.der
+
+To print out the components of a private key to standard output:
+
+ openssl rsa -in key.pem -text -noout
+
+To just output the public part of a private key:
+
+ openssl rsa -in key.pem -pubout -out pubkey.pem
+
+=head1 BUGS
+
+The command line password arguments don't currently work with
+B<NET> format.
+
+There should be an option that automatically handles .key files,
+without having to manually edit them.
+
+=head1 SEE ALSO
+
+L<pkcs8(1)|pkcs8(1)>, L<dsa(1)|dsa(1)>, L<genrsa(1)|genrsa(1)>,
+L<gendsa(1)|gendsa(1)> 
+
+=cut

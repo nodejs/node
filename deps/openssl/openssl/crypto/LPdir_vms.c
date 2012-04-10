@@ -40,22 +40,18 @@
 #ifndef LPDIR_H
 #include "LPdir.h"
 #endif
+#include "vms_rms.h"
 
-/* Because some compiler options hide this macor */
+/* Some compiler options hide EVMSERR. */
 #ifndef EVMSERR
-#define EVMSERR		65535  /* error for non-translatable VMS errors */
+# define EVMSERR	65535  /* error for non-translatable VMS errors */
 #endif
 
 struct LP_dir_context_st
 {
   unsigned long VMS_context;
-#ifdef NAML$C_MAXRSS
-  char filespec[NAML$C_MAXRSS+1];
-  char result[NAML$C_MAXRSS+1];
-#else
-  char filespec[256];
-  char result[256];
-#endif
+  char filespec[ NAMX_MAXRSS+ 1];
+  char result[ NAMX_MAXRSS+ 1];
   struct dsc$descriptor_d filespec_dsc;
   struct dsc$descriptor_d result_dsc;
 };
@@ -66,6 +62,16 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
   char *p, *r;
   size_t l;
   unsigned long flags = 0;
+
+/* Arrange 32-bit pointer to (copied) string storage, if needed. */
+#if __INITIAL_POINTER_SIZE == 64
+# pragma pointer_size save
+# pragma pointer_size 32
+        char *ctx_filespec_32p;
+# pragma pointer_size restore
+        char ctx_filespec_32[ NAMX_MAXRSS+ 1];
+#endif /* __INITIAL_POINTER_SIZE == 64 */
+
 #ifdef NAML$C_MAXRSS
   flags |= LIB$M_FIL_LONG_NAMES;
 #endif
@@ -93,13 +99,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 
       filespeclen += 4;		/* "*.*;" */
 
-      if (filespeclen >
-#ifdef NAML$C_MAXRSS
-	  NAML$C_MAXRSS
-#else
-	  255
-#endif
-	  )
+      if (filespeclen > NAMX_MAXRSS)
 	{
 	  errno = ENAMETOOLONG;
 	  return 0;
@@ -115,14 +115,21 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 
       strcpy((*ctx)->filespec,directory);
       strcat((*ctx)->filespec,"*.*;");
+
+/* Arrange 32-bit pointer to (copied) string storage, if needed. */
+#if __INITIAL_POINTER_SIZE == 64
+# define CTX_FILESPEC ctx_filespec_32p
+        /* Copy the file name to storage with a 32-bit pointer. */
+        ctx_filespec_32p = ctx_filespec_32;
+        strcpy( ctx_filespec_32p, (*ctx)->filespec);
+#else /* __INITIAL_POINTER_SIZE == 64 */
+# define CTX_FILESPEC (*ctx)->filespec
+#endif /* __INITIAL_POINTER_SIZE == 64 [else] */
+
       (*ctx)->filespec_dsc.dsc$w_length = filespeclen;
       (*ctx)->filespec_dsc.dsc$b_dtype = DSC$K_DTYPE_T;
       (*ctx)->filespec_dsc.dsc$b_class = DSC$K_CLASS_S;
-      (*ctx)->filespec_dsc.dsc$a_pointer = (*ctx)->filespec;
-      (*ctx)->result_dsc.dsc$w_length = 0;
-      (*ctx)->result_dsc.dsc$b_dtype = DSC$K_DTYPE_T;
-      (*ctx)->result_dsc.dsc$b_class = DSC$K_CLASS_D;
-      (*ctx)->result_dsc.dsc$a_pointer = 0;
+      (*ctx)->filespec_dsc.dsc$a_pointer = CTX_FILESPEC;
     }
 
   (*ctx)->result_dsc.dsc$w_length = 0;

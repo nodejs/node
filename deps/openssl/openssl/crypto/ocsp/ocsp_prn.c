@@ -85,21 +85,21 @@ static int ocsp_certid_print(BIO *bp, OCSP_CERTID* a, int indent)
 typedef struct
 	{
 	long t;
-	char *m;
+	const char *m;
 	} OCSP_TBLSTR;
 
-static char *table2string(long s, OCSP_TBLSTR *ts, int len)
+static const char *table2string(long s, const OCSP_TBLSTR *ts, int len)
 {
-	OCSP_TBLSTR *p;
+	const OCSP_TBLSTR *p;
 	for (p=ts; p < ts + len; p++)
 	        if (p->t == s)
 		         return p->m;
 	return "(UNKNOWN)";
 }
 
-char *OCSP_response_status_str(long s)
+const char *OCSP_response_status_str(long s)
         {
-	static OCSP_TBLSTR rstat_tbl[] = {
+	static const OCSP_TBLSTR rstat_tbl[] = {
 	        { OCSP_RESPONSE_STATUS_SUCCESSFUL, "successful" },
 	        { OCSP_RESPONSE_STATUS_MALFORMEDREQUEST, "malformedrequest" },
 	        { OCSP_RESPONSE_STATUS_INTERNALERROR, "internalerror" },
@@ -109,18 +109,18 @@ char *OCSP_response_status_str(long s)
 	return table2string(s, rstat_tbl, 6);
 	} 
 
-char *OCSP_cert_status_str(long s)
+const char *OCSP_cert_status_str(long s)
         {
-	static OCSP_TBLSTR cstat_tbl[] = {
+	static const OCSP_TBLSTR cstat_tbl[] = {
 	        { V_OCSP_CERTSTATUS_GOOD, "good" },
 	        { V_OCSP_CERTSTATUS_REVOKED, "revoked" },
 	        { V_OCSP_CERTSTATUS_UNKNOWN, "unknown" } };
 	return table2string(s, cstat_tbl, 3);
 	} 
 
-char *OCSP_crl_reason_str(long s)
+const char *OCSP_crl_reason_str(long s)
         {
-	OCSP_TBLSTR reason_tbl[] = {
+	static const OCSP_TBLSTR reason_tbl[] = {
 	  { OCSP_REVOKED_STATUS_UNSPECIFIED, "unspecified" },
           { OCSP_REVOKED_STATUS_KEYCOMPROMISE, "keyCompromise" },
           { OCSP_REVOKED_STATUS_CACOMPROMISE, "cACompromise" },

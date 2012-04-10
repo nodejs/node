@@ -67,6 +67,7 @@
 #include <openssl/x509.h>
 #include <openssl/rand.h>
 #include <openssl/pem.h>
+#include <openssl/comp.h>
 #include <ctype.h>
 
 int set_hex(char *in,unsigned char *out,int size);
@@ -113,6 +114,10 @@ int MAIN(int argc, char **argv)
 	char *hkey=NULL,*hiv=NULL,*hsalt = NULL;
 	char *md=NULL;
 	int enc=1,printkey=0,i,base64=0;
+#ifdef ZLIB
+	int do_zlib=0;
+	BIO *bzl = NULL;
+#endif
 	int debug=0,olb64=0,nosalt=0;
 	const EVP_CIPHER *cipher=NULL,*c;
 	EVP_CIPHER_CTX *ctx = NULL;
@@ -124,7 +129,6 @@ int MAIN(int argc, char **argv)
 	char *engine = NULL;
 #endif
 	const EVP_MD *dgst=NULL;
-	int non_fips_allow = 0;
 
 	apps_startup();
 
@@ -139,9 +143,18 @@ int MAIN(int argc, char **argv)
 	program_name(argv[0],pname,sizeof pname);
 	if (strcmp(pname,"base64") == 0)
 		base64=1;
+#ifdef ZLIB
+	if (strcmp(pname,"zlib") == 0)
+		do_zlib=1;
+#endif
 
 	cipher=EVP_get_cipherbyname(pname);
+#ifdef ZLIB
+	if (!do_zlib && !base64 && (cipher == NULL)
+				&& (strcmp(pname,"enc") != 0))
+#else
 	if (!base64 && (cipher == NULL) && (strcmp(pname,"enc") != 0))
+#endif
 		{
 		BIO_printf(bio_err,"%s is an unknown cipher\n",pname);
 		goto bad;
@@ -197,6 +210,10 @@ int MAIN(int argc, char **argv)
 			base64=1;
 		else if	(strcmp(*argv,"-base64") == 0)
 			base64=1;
+#ifdef ZLIB
+		else if	(strcmp(*argv,"-z") == 0)
+			do_zlib=1;
+#endif
 		else if (strcmp(*argv,"-bufsize") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -264,8 +281,6 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			md= *(++argv);
 			}
-		else if (strcmp(*argv,"-non-fips-allow") == 0)
-			non_fips_allow = 1;
 		else if	((argv[0][0] == '-') &&
 			((c=EVP_get_cipherbyname(&(argv[0][1]))) != NULL))
 			{
@@ -288,9 +303,11 @@ bad:
 			BIO_printf(bio_err,"%-14s passphrase is the first line of the file argument\n","-kfile");
 			BIO_printf(bio_err,"%-14s the next argument is the md to use to create a key\n","-md");
 			BIO_printf(bio_err,"%-14s   from a passphrase.  One of md2, md5, sha or sha1\n","");
+			BIO_printf(bio_err,"%-14s salt in hex is the next argument\n","-S");
 			BIO_printf(bio_err,"%-14s key/iv in hex is the next argument\n","-K/-iv");
 			BIO_printf(bio_err,"%-14s print the iv/key (then exit if -P)\n","-[pP]");
 			BIO_printf(bio_err,"%-14s buffer size\n","-bufsize <n>");
+			BIO_printf(bio_err,"%-14s disable standard block padding\n","-nopad");
 #ifndef OPENSSL_NO_ENGINE
 			BIO_printf(bio_err,"%-14s use engine e, possibly a hardware device.\n","-engine e");
 #endif
@@ -319,10 +336,7 @@ bad:
 
 	if (dgst == NULL)
 		{
-		if (in_FIPS_mode)
-			dgst = EVP_sha1();
-		else
-			dgst = EVP_md5();
+		dgst = EVP_md5();
 		}
 
 	if (bufsize != NULL)
@@ -379,8 +393,10 @@ bad:
 
 	if (inf == NULL)
 	        {
+#ifndef OPENSSL_NO_SETVBUF_IONBF
 		if (bufsize != NULL)
 			setvbuf(stdin, (char *)NULL, _IONBF, 0);
+#endif /* ndef OPENSSL_NO_SETVBUF_IONBF */
 		BIO_set_fp(in,stdin,BIO_NOCLOSE);
 	        }
 	else
@@ -433,8 +449,10 @@ bad:
 	if (outf == NULL)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifndef OPENSSL_NO_SETVBUF_IONBF
 		if (bufsize != NULL)
 			setvbuf(stdout, (char *)NULL, _IONBF, 0);
+#endif /* ndef OPENSSL_NO_SETVBUF_IONBF */
 #ifdef OPENSSL_SYS_VMS
 		{
 		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
@@ -453,6 +471,19 @@ bad:
 
 	rbio=in;
 	wbio=out;
+
+#ifdef ZLIB
+
+	if (do_zlib)
+		{
+		if ((bzl=BIO_new(BIO_f_zlib())) == NULL)
+			goto end;
+		if (enc)
+			wbio=BIO_push(bzl,wbio);
+		else
+			rbio=BIO_push(bzl,rbio);
+		}
+#endif
 
 	if (base64)
 		{
@@ -558,11 +589,6 @@ bad:
 		 */
 
 		BIO_get_cipher_ctx(benc, &ctx);
-
-		if (non_fips_allow)
-			EVP_CIPHER_CTX_set_flags(ctx,
-				EVP_CIPH_FLAG_NON_FIPS_ALLOW);
-
 		if (!EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, enc))
 			{
 			BIO_printf(bio_err, "Error setting cipher %s\n",
@@ -653,6 +679,9 @@ end:
 	if (out != NULL) BIO_free_all(out);
 	if (benc != NULL) BIO_free(benc);
 	if (b64 != NULL) BIO_free(b64);
+#ifdef ZLIB
+	if (bzl != NULL) BIO_free(bzl);
+#endif
 	if(pass) OPENSSL_free(pass);
 	apps_shutdown();
 	OPENSSL_EXIT(ret);

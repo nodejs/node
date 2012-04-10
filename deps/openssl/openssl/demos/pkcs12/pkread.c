@@ -20,7 +20,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: pkread p12file password opfile\n");
 		exit (1);
 	}
-	SSLeay_add_all_algorithms();
+	OpenSSL_add_all_algorithms();
 	ERR_load_crypto_strings();
 	if (!(fp = fopen(argv[1], "rb"))) {
 		fprintf(stderr, "Error opening file %s\n", argv[1]);
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 		fprintf(fp, "***User Certificate***\n");
 		PEM_write_X509_AUX(fp, cert);
 	}
-	if (ca && sk_num(ca)) {
+	if (ca && sk_X509_num(ca)) {
 		fprintf(fp, "***Other Certificates***\n");
 		for (i = 0; i < sk_X509_num(ca); i++) 
 		    PEM_write_X509_AUX(fp, sk_X509_value(ca, i));

@@ -155,7 +155,6 @@ int OCSP_request_sign(OCSP_REQUEST   *req,
 			goto err;
 
 	if (!(req->optionalSignature = sig = OCSP_SIGNATURE_new())) goto err;
-	if (!dgst) dgst = EVP_sha1();
 	if (key)
 		{
 		if (!X509_check_private_key(signer, key))

@@ -61,8 +61,8 @@
 #include <stdio.h>
 #include <openssl/objects.h>
 
-static SSL_METHOD *ssl2_get_method(int ver);
-static SSL_METHOD *ssl2_get_method(int ver)
+static const SSL_METHOD *ssl2_get_method(int ver);
+static const SSL_METHOD *ssl2_get_method(int ver)
 	{
 	if (ver == SSL2_VERSION)
 		return(SSLv2_method());
@@ -71,9 +71,9 @@ static SSL_METHOD *ssl2_get_method(int ver)
 	}
 
 IMPLEMENT_ssl2_meth_func(SSLv2_method,
-			ssl2_accept,
-			ssl2_connect,
-			ssl2_get_method)
+			 ssl2_accept,
+			 ssl2_connect,
+			 ssl2_get_method)
 
 #else /* !OPENSSL_NO_SSL2 */
 

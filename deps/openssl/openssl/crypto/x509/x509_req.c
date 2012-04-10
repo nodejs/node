@@ -61,6 +61,7 @@
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/asn1.h>
+#include <openssl/asn1t.h>
 #include <openssl/x509.h>
 #include <openssl/objects.h>
 #include <openssl/buffer.h>
@@ -205,10 +206,9 @@ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req)
 	if(!ext || (ext->type != V_ASN1_SEQUENCE))
 		return NULL;
 	p = ext->value.sequence->data;
-	return d2i_ASN1_SET_OF_X509_EXTENSION(NULL, &p,
-			ext->value.sequence->length,
-			d2i_X509_EXTENSION, X509_EXTENSION_free,
-			V_ASN1_SEQUENCE, V_ASN1_UNIVERSAL);
+	return (STACK_OF(X509_EXTENSION) *)
+		ASN1_item_d2i(NULL, &p, ext->value.sequence->length,
+				ASN1_ITEM_rptr(X509_EXTENSIONS));
 }
 
 /* Add a STACK_OF extensions to a certificate request: allow alternative OIDs
@@ -218,8 +218,6 @@ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req)
 int X509_REQ_add_extensions_nid(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts,
 				int nid)
 {
-	unsigned char *p = NULL, *q;
-	long len;
 	ASN1_TYPE *at = NULL;
 	X509_ATTRIBUTE *attr = NULL;
 	if(!(at = ASN1_TYPE_new()) ||
@@ -227,15 +225,10 @@ int X509_REQ_add_extensions_nid(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts,
 
 	at->type = V_ASN1_SEQUENCE;
 	/* Generate encoding of extensions */
-	len = i2d_ASN1_SET_OF_X509_EXTENSION(exts, NULL, i2d_X509_EXTENSION,
-			V_ASN1_SEQUENCE, V_ASN1_UNIVERSAL, IS_SEQUENCE);
-	if(!(p = OPENSSL_malloc(len))) goto err;
-	q = p;
-	i2d_ASN1_SET_OF_X509_EXTENSION(exts, &q, i2d_X509_EXTENSION,
-			V_ASN1_SEQUENCE, V_ASN1_UNIVERSAL, IS_SEQUENCE);
-	at->value.sequence->data = p;
-	p = NULL;
-	at->value.sequence->length = len;
+	at->value.sequence->length = 
+			ASN1_item_i2d((ASN1_VALUE *)exts,
+				&at->value.sequence->data,
+				ASN1_ITEM_rptr(X509_EXTENSIONS));
 	if(!(attr = X509_ATTRIBUTE_new())) goto err;
 	if(!(attr->value.set = sk_ASN1_TYPE_new_null())) goto err;
 	if(!sk_ASN1_TYPE_push(attr->value.set, at)) goto err;
@@ -250,7 +243,6 @@ int X509_REQ_add_extensions_nid(X509_REQ *req, STACK_OF(X509_EXTENSION) *exts,
 	if(!sk_X509_ATTRIBUTE_push(req->req_info->attributes, attr)) goto err;
 	return 1;
 	err:
-	if(p) OPENSSL_free(p);
 	X509_ATTRIBUTE_free(attr);
 	ASN1_TYPE_free(at);
 	return 0;

@@ -722,4 +722,10 @@ static int ecparam_print_var(BIO *out, BIGNUM *in, const char *var,
 	BIO_printf(out, "\n\t};\n\n");
 	return 1;
 	}
+#else /* !OPENSSL_NO_EC */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif

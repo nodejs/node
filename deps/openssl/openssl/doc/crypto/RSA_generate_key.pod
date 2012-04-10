@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+RSA_generate_key - generate RSA key pair
+
+=head1 SYNOPSIS
+
+ #include <openssl/rsa.h>
+
+ RSA *RSA_generate_key(int num, unsigned long e,
+    void (*callback)(int,int,void *), void *cb_arg);
+
+=head1 DESCRIPTION
+
+RSA_generate_key() generates a key pair and returns it in a newly
+allocated B<RSA> structure. The pseudo-random number generator must
+be seeded prior to calling RSA_generate_key().
+
+The modulus size will be B<num> bits, and the public exponent will be
+B<e>. Key sizes with B<num> E<lt> 1024 should be considered insecure.
+The exponent is an odd number, typically 3, 17 or 65537.
+
+A callback function may be used to provide feedback about the
+progress of the key generation. If B<callback> is not B<NULL>, it
+will be called as follows:
+
+=over 4
+
+=item *
+
+While a random prime number is generated, it is called as
+described in L<BN_generate_prime(3)|BN_generate_prime(3)>.
+
+=item *
+
+When the n-th randomly generated prime is rejected as not
+suitable for the key, B<callback(2, n, cb_arg)> is called.
+
+=item *
+
+When a random p has been found with p-1 relatively prime to B<e>,
+it is called as B<callback(3, 0, cb_arg)>.
+
+=back
+
+The process is then repeated for prime q with B<callback(3, 1, cb_arg)>.
+
+=head1 RETURN VALUE
+
+If key generation fails, RSA_generate_key() returns B<NULL>; the
+error codes can be obtained by L<ERR_get_error(3)|ERR_get_error(3)>.
+
+=head1 BUGS
+
+B<callback(2, x, cb_arg)> is used with two different meanings.
+
+RSA_generate_key() goes into an infinite loop for illegal input values.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)|ERR_get_error(3)>, L<rand(3)|rand(3)>, L<rsa(3)|rsa(3)>,
+L<RSA_free(3)|RSA_free(3)>
+
+=head1 HISTORY
+
+The B<cb_arg> argument was added in SSLeay 0.9.0.
+
+=cut

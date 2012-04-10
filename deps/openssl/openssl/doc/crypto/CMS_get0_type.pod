@@ -1,0 +1,63 @@
+=pod
+
+=head1 NAME
+
+ CMS_get0_type, CMS_set1_eContentType, CMS_get0_eContentType - get and set CMS content types
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
+ int CMS_set1_eContentType(CMS_ContentInfo *cms, const ASN1_OBJECT *oid);
+ const ASN1_OBJECT *CMS_get0_eContentType(CMS_ContentInfo *cms);
+
+=head1 DESCRIPTION
+
+CMS_get0_type() returns the content type of a CMS_ContentInfo structure as
+and ASN1_OBJECT pointer. An application can then decide how to process the
+CMS_ContentInfo structure based on this value.
+
+CMS_set1_eContentType() sets the embedded content type of a CMS_ContentInfo
+structure. It should be called with CMS functions with the B<CMS_PARTIAL>
+flag and B<before> the structure is finalised, otherwise the results are
+undefined.
+
+ASN1_OBJECT *CMS_get0_eContentType() returns a pointer to the embedded
+content type.
+
+=head1 NOTES
+
+As the B<0> implies CMS_get0_type() and CMS_get0_eContentType() return internal
+pointers which should B<not> be freed up. CMS_set1_eContentType() copies the
+supplied OID and it B<should> be freed up after use.
+
+The B<ASN1_OBJECT> values returned can be converted to an integer B<NID> value
+using OBJ_obj2nid(). For the currently supported content types the following
+values are returned:
+
+ NID_pkcs7_data
+ NID_pkcs7_signed
+ NID_pkcs7_digest
+ NID_id_smime_ct_compressedData:
+ NID_pkcs7_encrypted
+ NID_pkcs7_enveloped
+
+
+=head1 RETURN VALUES
+
+CMS_get0_type() and CMS_get0_eContentType() return and ASN1_OBJECT structure.
+
+CMS_set1_eContentType() returns 1 for success or 0 if an error occurred.  The
+error can be obtained from ERR_get_error(3).
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)|ERR_get_error(3)>
+
+=head1 HISTORY
+
+CMS_get0_type(), CMS_set1_eContentType() and CMS_get0_eContentType() were all
+first added to OpenSSL 0.9.8
+
+=cut

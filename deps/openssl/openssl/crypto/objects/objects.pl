@@ -14,6 +14,8 @@ while(<NUMIN>)
 	$Cname =~ s/^X//;
 	if (defined($nidn{$mynum}))
 		{ die "$ARGV[1]:$o:There's already an object with NID ",$mynum," on line ",$order{$mynum},"\n"; }
+	if (defined($nid{$Cname}))
+		{ die "$ARGV[1]:$o:There's already an object with name ",$Cname," on line ",$order{$nid{$Cname}},"\n"; }
 	$nid{$Cname} = $mynum;
 	$nidn{$mynum} = $Cname;
 	$order{$mynum} = $o;
@@ -102,6 +104,7 @@ while (<IN>)
 		$max_nid++;
 		$nid{$Cname} = $max_nid;
 		$nidn{$max_nid} = $Cname;
+print STDERR "Added OID $Cname\n";
 		}
 	$Cname="";
 	}

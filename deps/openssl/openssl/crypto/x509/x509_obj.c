@@ -72,7 +72,7 @@ int i;
 	char *p;
 	unsigned char *q;
 	BUF_MEM *b=NULL;
-	static char hex[17]="0123456789ABCDEF";
+	static const char hex[17]="0123456789ABCDEF";
 	int gs_doit[4];
 	char tmp_buf[80];
 #ifdef CHARSET_EBCDIC

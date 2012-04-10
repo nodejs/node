@@ -697,6 +697,42 @@ int SSL_CTX_use_PrivateKey_ASN1(int type, SSL_CTX *ctx, const unsigned char *d,
 	}
 
 
+int SSL_use_certificate_chain(SSL *ssl, STACK_OF(X509) *cert_chain)
+	{
+	if (ssl == NULL)
+		{
+		SSLerr(SSL_F_SSL_USE_CERTIFICATE_CHAIN,ERR_R_PASSED_NULL_PARAMETER);
+		return(0);
+		}
+	if (ssl->cert == NULL)
+		{
+		SSLerr(SSL_F_SSL_USE_CERTIFICATE_CHAIN,SSL_R_NO_CERTIFICATE_ASSIGNED);
+		return(0);
+		}
+	if (ssl->cert->key == NULL)
+		{
+		SSLerr(SSL_F_SSL_USE_CERTIFICATE_CHAIN,SSL_R_NO_CERTIFICATE_ASSIGNED);
+		return(0);
+		}
+	ssl->cert->key->cert_chain = cert_chain;
+	return(1);
+	}
+
+STACK_OF(X509) *SSL_get_certificate_chain(SSL *ssl, X509 *x)
+	{
+	int i;
+	if (x == NULL)
+		return NULL;
+	if (ssl == NULL)
+		return NULL;
+	if (ssl->cert == NULL)
+		return NULL;
+	for (i = 0; i < SSL_PKEY_NUM; i++)
+		if (ssl->cert->pkeys[i].x509 == x)
+			return ssl->cert->pkeys[i].cert_chain;
+	return NULL;
+	}
+
 #ifndef OPENSSL_NO_STDIO
 /* Read a file that contains our certificate in "PEM" format,
  * possibly followed by a sequence of CA certificates that should be

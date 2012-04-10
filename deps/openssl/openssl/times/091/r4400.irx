@@ -1,0 +1,32 @@
+R4400 16kI+16kD 200mhz, Irix 5.3
+
+SSLeay 0.9.0e 27-Apr-1998
+built on Sun Apr 26 07:26:05 PDT 1998
+options:bn(64,32) md2(int) rc4(ptr,int) des(ptr,risc2,16,long) idea(int) blowfish(ptr) 
+C flags:cc -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                 79.80k      220.59k      298.01k      327.06k      338.60k
+mdc2               262.74k      285.30k      289.16k      288.36k      288.49k
+md5                930.35k     4167.13k     7167.91k     8678.23k     9235.86k
+hmac(md5)          399.44k     2367.57k     5370.74k     7884.28k     9076.98k
+sha1               550.96k     2488.17k     4342.76k     5362.50k     5745.40k
+rmd160             424.58k     1752.83k     2909.67k     3486.08k     3702.89k
+rc4               6687.79k     7834.63k     7962.61k     8035.65k     7915.28k
+des cbc           1544.20k     1725.94k     1748.35k     1758.17k     1745.61k
+des ede3           587.29k      637.75k      645.93k      643.17k      646.01k
+idea cbc          1575.52k     1719.75k     1732.41k     1736.69k     1740.11k
+rc2 cbc           1496.21k     1629.90k     1643.19k     1652.14k     1646.62k
+rc5-32/12 cbc     3452.48k     4276.47k     4390.74k     4405.25k     4400.12k
+blowfish cbc      2354.58k     3242.36k     3401.11k     3433.65k     3383.65k
+cast cbc          1942.22k     2152.28k     2187.51k     2185.67k     2177.20k
+                  sign    verify    sign/s verify/s
+rsa  512 bits   0.0130s   0.0014s     76.9    729.8
+rsa 1024 bits   0.0697s   0.0043s     14.4    233.9
+rsa 2048 bits   0.4664s   0.0156s      2.1     64.0
+rsa 4096 bits   3.4067s   0.0586s      0.3     17.1
+                  sign    verify    sign/s verify/s
+dsa  512 bits   0.0140s   0.0261s     71.4     38.4
+dsa 1024 bits   0.0417s   0.0794s     24.0     12.6
+dsa 2048 bits   0.1478s   0.2929s      6.8      3.4
+

@@ -1,0 +1,32 @@
+Pentium 100mhz, linux
+
+SSLeay 0.9.0a 14-Apr-1998
+built on Fri Apr 17 08:47:07 EST 1998
+options:bn(64,32) md2(int) rc4(idx,int) des(ptr,risc1,16,long) idea(int) blowfish(ptr2)
+C flags:gcc -DL_ENDIAN -DTERMIO -DBN_ASM -O3 -fomit-frame-pointer -m486 -Wall -Wuninitialized -DSHA1_ASM -DMD5_ASM -DRMD160_ASM
+The 'numbers' are in 1000s of bytes per second processed.
+type              8 bytes     64 bytes    256 bytes   1024 bytes   8192 bytes
+md2                 56.65k      153.88k      208.47k      229.03k      237.57k
+mdc2               189.59k      204.95k      206.93k      208.90k      209.56k
+md5               1019.48k     5882.41k    12085.42k    16376.49k    18295.47k
+hmac(md5)          415.86k     2887.85k     7891.29k    13894.66k    17446.23k
+sha1               540.68k     2791.96k     5289.30k     6813.01k     7432.87k
+rmd160             298.37k     1846.87k     3869.10k     5273.94k     5892.78k
+rc4               7870.87k    10438.10k    10857.13k    10729.47k    10788.86k
+des cbc           1960.60k     2226.37k     2241.88k     2054.83k     2181.80k
+des ede3           734.44k      739.69k      779.43k      750.25k      772.78k
+idea cbc           654.07k      711.00k      716.89k      718.51k      720.90k
+rc2 cbc            648.83k      701.91k      708.61k      708.95k      709.97k
+rc5-32/12 cbc     3504.71k     4054.76k     4131.41k     4105.56k     4134.23k
+blowfish cbc      3762.25k     4313.79k     4460.54k     4356.78k     4317.18k
+cast cbc          2755.01k     3038.91k     3076.44k     3027.63k     2998.27k
+                  sign    verify    sign/s verify/s
+rsa  512 bits   0.0195s   0.0019s     51.4    519.9
+rsa 1024 bits   0.1000s   0.0059s     10.0    168.2
+rsa 2048 bits   0.6406s   0.0209s      1.6     47.8
+rsa 4096 bits   4.6100s   0.0787s      0.2     12.7
+                  sign    verify    sign/s verify/s
+dsa  512 bits   0.0188s   0.0360s     53.1     27.8
+dsa 1024 bits   0.0570s   0.1126s     17.5      8.9
+dsa 2048 bits   0.1990s   0.3954s      5.0      2.5
+

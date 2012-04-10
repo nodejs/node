@@ -60,6 +60,13 @@
 #include <errno.h>
 #define USE_SOCKETS
 #include "cryptlib.h"
+
+#if defined(OPENSSL_NO_POSIX_IO)
+/*
+ * One can argue that one should implement dummy placeholder for
+ * BIO_s_fd here...
+ */
+#else
 /*
  * As for unconditional usage of "UPLINK" interface in this module.
  * Trouble is that unlike Unix file descriptors [which are indexes
@@ -77,6 +84,7 @@
 static int fd_write(BIO *h, const char *buf, int num);
 static int fd_read(BIO *h, char *buf, int size);
 static int fd_puts(BIO *h, const char *str);
+static int fd_gets(BIO *h, char *buf, int size);
 static long fd_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int fd_new(BIO *h);
 static int fd_free(BIO *data);
@@ -88,7 +96,7 @@ static BIO_METHOD methods_fdp=
 	fd_write,
 	fd_read,
 	fd_puts,
-	NULL, /* fd_gets, */
+	fd_gets,
 	fd_ctrl,
 	fd_new,
 	fd_free,
@@ -227,6 +235,22 @@ static int fd_puts(BIO *bp, const char *str)
 	return(ret);
 	}
 
+static int fd_gets(BIO *bp, char *buf, int size)
+        {
+	int ret=0;
+	char *ptr=buf;
+	char *end=buf+size-1;
+
+	while ( (ptr < end) && (fd_read(bp, ptr, 1) > 0) && (ptr[0] != '\n') )
+		ptr++;
+
+	ptr[0]='\0';
+
+	if (buf[0] != '\0')
+		ret=strlen(buf);
+	return(ret);
+        }
+
 int BIO_fd_should_retry(int i)
 	{
 	int err;
@@ -292,3 +316,4 @@ int BIO_fd_non_fatal_error(int err)
 		}
 	return(0);
 	}
+#endif

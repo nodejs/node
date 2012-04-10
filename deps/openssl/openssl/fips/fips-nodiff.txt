@@ -1,7 +1,0 @@
-KeyPair.rsp
-PQGGen.rsp
-SigGen.rsp
-SigGen15.rsp
-SigGenPSS.rsp
-SigGenRSA.rsp
-SigGenPSS.rsp

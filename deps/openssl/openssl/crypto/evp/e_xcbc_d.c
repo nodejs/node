@@ -63,12 +63,13 @@
 
 #include <openssl/evp.h>
 #include <openssl/objects.h>
+#include "evp_locl.h"
 #include <openssl/des.h>
 
 static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			     const unsigned char *iv,int enc);
 static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-			   const unsigned char *in, unsigned int inl);
+			   const unsigned char *in, size_t inl);
 
 
 typedef struct
@@ -113,13 +114,25 @@ static int desx_cbc_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 	}
 
 static int desx_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
-			   const unsigned char *in, unsigned int inl)
+			   const unsigned char *in, size_t inl)
 	{
-	DES_xcbc_encrypt(in,out,inl,&data(ctx)->ks,
+	while (inl>=EVP_MAXCHUNK)
+		{
+		DES_xcbc_encrypt(in,out,(long)EVP_MAXCHUNK,&data(ctx)->ks,
 			 (DES_cblock *)&(ctx->iv[0]),
 			 &data(ctx)->inw,
 			 &data(ctx)->outw,
 			 ctx->encrypt);
+		inl-=EVP_MAXCHUNK;
+		in +=EVP_MAXCHUNK;
+		out+=EVP_MAXCHUNK;
+		}
+	if (inl)
+		DES_xcbc_encrypt(in,out,(long)inl,&data(ctx)->ks,
+			(DES_cblock *)&(ctx->iv[0]),
+			&data(ctx)->inw,
+			&data(ctx)->outw,
+			ctx->encrypt);
 	return 1;
 	}
 #endif

@@ -5,9 +5,9 @@
 DIR=		crypto
 TOP=		..
 CC=		cc
-INCLUDE=	-I. -I$(TOP) -I../include
+INCLUDE=	-I. -I$(TOP) -I../include $(ZLIB_INCLUDE)
 # INCLUDES targets sudbirs!
-INCLUDES=	-I.. -I../.. -I../../include
+INCLUDES=	-I.. -I../.. -I../asn1 -I../evp -I../../include $(ZLIB_INCLUDE)
 CFLAG=		-g
 MAKEDEPPROG=	makedepend
 MAKEDEPEND=	$(TOP)/util/domd $(TOP) -MD $(MAKEDEPPROG)
@@ -17,7 +17,7 @@ AR=		ar r
 
 RECURSIVE_MAKE=	[ -n "$(SDIRS)" ] && for i in $(SDIRS) ; do \
 		    (cd $$i && echo "making $$target in $(DIR)/$$i..." && \
-		    $(MAKE) -e TOP=../.. DIR=$$i INCLUDES='${INCLUDES}' $$target ) || exit 1; \
+		    $(MAKE) -e TOP=../.. DIR=$$i INCLUDES='$(INCLUDES)' $$target ) || exit 1; \
 		done;
 
 PEX_LIBS=
@@ -26,6 +26,7 @@ EX_LIBS=
 CFLAGS= $(INCLUDE) $(CFLAG)
 ASFLAGS= $(INCLUDE) $(ASFLAG)
 AFLAGS=$(ASFLAGS)
+CPUID_OBJ=mem_clr.o
 
 LIBS=
 
@@ -33,12 +34,12 @@ GENERAL=Makefile README crypto-lib.com install.com
 
 LIB= $(TOP)/libcrypto.a
 SHARED_LIB= libcrypto$(SHLIB_EXT)
-LIBSRC=	cryptlib.c dyn_lck.c mem.c mem_clr.c mem_dbg.c cversion.c ex_data.c tmdiff.c cpt_err.c ebcdic.c uid.c o_time.c o_str.c o_dir.c o_init.c fips_err.c
-LIBOBJ= cryptlib.o dyn_lck.o mem.o mem_clr.o mem_dbg.o cversion.o ex_data.o tmdiff.o cpt_err.o ebcdic.o uid.o o_time.o o_str.o o_dir.o o_init.o fips_err.o $(CPUID_OBJ)
+LIBSRC=	cryptlib.c mem.c mem_clr.c mem_dbg.c cversion.c ex_data.c cpt_err.c ebcdic.c uid.c o_time.c o_str.c o_dir.c
+LIBOBJ= cryptlib.o mem.o mem_dbg.o cversion.o ex_data.o cpt_err.o ebcdic.o uid.o o_time.o o_str.o o_dir.o $(CPUID_OBJ)
 
 SRC= $(LIBSRC)
 
-EXHEADER= crypto.h tmdiff.h opensslv.h opensslconf.h ebcdic.h symhacks.h \
+EXHEADER= crypto.h opensslv.h opensslconf.h ebcdic.h symhacks.h \
 	ossl_typ.h
 HEADER=	cryptlib.h buildinf.h md32_common.h o_time.h o_str.h o_dir.h $(EXHEADER)
 
@@ -47,7 +48,7 @@ ALL=    $(GENERAL) $(SRC) $(HEADER)
 top:
 	@(cd ..; $(MAKE) DIRS=$(DIR) all)
 
-all: lib
+all: shared
 
 buildinf.h: ../Makefile
 	( echo "#ifndef MK1MF_BUILD"; \
@@ -57,26 +58,28 @@ buildinf.h: ../Makefile
 	echo "  #define DATE \"`LC_ALL=C LC_TIME=C date`\""; \
 	echo '#endif' ) >buildinf.h
 
-x86cpuid-elf.s:	x86cpuid.pl perlasm/x86asm.pl
-	$(PERL) x86cpuid.pl elf $(CFLAGS) $(PROCESSOR) > $@
-x86cpuid-cof.s: x86cpuid.pl perlasm/x86asm.pl
-	$(PERL) x86cpuid.pl coff $(CFLAGS) $(PROCESSOR) > $@
-x86cpuid-out.s: x86cpuid.pl perlasm/x86asm.pl
-	$(PERL) x86cpuid.pl a.out $(CFLAGS) $(PROCESSOR) > $@
+x86cpuid.s:	x86cpuid.pl perlasm/x86asm.pl
+	$(PERL) x86cpuid.pl $(PERLASM_SCHEME) $(CFLAGS) $(PROCESSOR) > $@
 
-uplink.o:	../ms/uplink.c
-	$(CC) $(CFLAGS) -c -o $@ ../ms/uplink.c
+applink.o:	$(TOP)/ms/applink.c
+	$(CC) $(CFLAGS) -c -o $@ $(TOP)/ms/applink.c
 
-uplink-cof.s:	../ms/uplink.pl
-	$(PERL) ../ms/uplink.pl coff > $@
+uplink.o:	$(TOP)/ms/uplink.c applink.o
+	$(CC) $(CFLAGS) -c -o $@ $(TOP)/ms/uplink.c
+
+uplink-cof.s:	$(TOP)/ms/uplink.pl
+	$(PERL) $(TOP)/ms/uplink.pl coff > $@
 
 x86_64cpuid.s: x86_64cpuid.pl
-	$(PERL) x86_64cpuid.pl $@
+	$(PERL) x86_64cpuid.pl $(PERLASM_SCHEME) > $@
 ia64cpuid.s: ia64cpuid.S
 	$(CC) $(CFLAGS) -E ia64cpuid.S > $@
+ppccpuid.s:	ppccpuid.pl;	$(PERL) ppccpuid.pl $(PERLASM_SCHEME) $@
+alphacpuid.s:	alphacpuid.pl
+	$(PERL) $< | $(CC) -E - | tee $@ > /dev/null
 
 testapps:
-	[ -z "$(THIS)" ] || (	if echo ${SDIRS} | fgrep ' des '; \
+	[ -z "$(THIS)" ] || (	if echo $(SDIRS) | fgrep ' des '; \
 				then cd des && $(MAKE) -e des; fi )
 	[ -z "$(THIS)" ] || ( cd pkcs7 && $(MAKE) -e testapps );
 	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
@@ -94,11 +97,11 @@ links:
 	@$(PERL) $(TOP)/util/mklink.pl ../apps $(APPS)
 	@target=links; $(RECURSIVE_MAKE)
 
-# lib: and $(LIB): are splitted to avoid end-less loop
-lib:	buildinf.h $(LIB) subdirs
+# lib: $(LIB): are splitted to avoid end-less loop
+lib:	$(LIB)
 	@touch lib
 $(LIB):	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 
 shared: buildinf.h lib subdirs
@@ -135,6 +138,7 @@ clean:
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
 	mv -f Makefile.new $(MAKEFILE)
+	rm -f opensslconf.h
 	@target=dclean; $(RECURSIVE_MAKE)
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
@@ -159,13 +163,6 @@ cversion.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 cversion.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
 cversion.o: ../include/openssl/stack.h ../include/openssl/symhacks.h buildinf.h
 cversion.o: cryptlib.h cversion.c
-dyn_lck.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/buffer.h
-dyn_lck.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
-dyn_lck.o: ../include/openssl/err.h ../include/openssl/lhash.h
-dyn_lck.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-dyn_lck.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
-dyn_lck.o: ../include/openssl/stack.h ../include/openssl/symhacks.h cryptlib.h
-dyn_lck.o: dyn_lck.c
 ebcdic.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h ebcdic.c
 ex_data.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/buffer.h
 ex_data.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
@@ -174,13 +171,6 @@ ex_data.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 ex_data.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
 ex_data.o: ../include/openssl/stack.h ../include/openssl/symhacks.h cryptlib.h
 ex_data.o: ex_data.c
-fips_err.o: ../include/openssl/bio.h ../include/openssl/crypto.h
-fips_err.o: ../include/openssl/e_os2.h ../include/openssl/err.h
-fips_err.o: ../include/openssl/fips.h ../include/openssl/lhash.h
-fips_err.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-fips_err.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
-fips_err.o: ../include/openssl/stack.h ../include/openssl/symhacks.h fips_err.c
-fips_err.o: fips_err.h
 mem.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/buffer.h
 mem.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
 mem.o: ../include/openssl/err.h ../include/openssl/lhash.h
@@ -201,23 +191,10 @@ mem_dbg.o: ../include/openssl/stack.h ../include/openssl/symhacks.h cryptlib.h
 mem_dbg.o: mem_dbg.c
 o_dir.o: ../e_os.h ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 o_dir.o: LPdir_unix.c o_dir.c o_dir.h
-o_init.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/crypto.h
-o_init.o: ../include/openssl/e_os2.h ../include/openssl/err.h
-o_init.o: ../include/openssl/lhash.h ../include/openssl/opensslconf.h
-o_init.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
-o_init.o: ../include/openssl/safestack.h ../include/openssl/stack.h
-o_init.o: ../include/openssl/symhacks.h o_init.c
 o_str.o: ../e_os.h ../include/openssl/e_os2.h ../include/openssl/opensslconf.h
 o_str.o: o_str.c o_str.h
 o_time.o: ../include/openssl/e_os2.h ../include/openssl/opensslconf.h o_time.c
 o_time.o: o_time.h
-tmdiff.o: ../e_os.h ../include/openssl/bio.h ../include/openssl/buffer.h
-tmdiff.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
-tmdiff.o: ../include/openssl/err.h ../include/openssl/lhash.h
-tmdiff.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-tmdiff.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h
-tmdiff.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
-tmdiff.o: ../include/openssl/tmdiff.h cryptlib.h tmdiff.c
 uid.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
 uid.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
 uid.o: ../include/openssl/ossl_typ.h ../include/openssl/safestack.h

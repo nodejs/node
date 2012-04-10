@@ -87,9 +87,13 @@ EVP_PKEY *d2i_PublicKey(int type, EVP_PKEY **a, const unsigned char **pp,
 		}
 	else	ret= *a;
 
-	ret->save_type=type;
-	ret->type=EVP_PKEY_type(type);
-	switch (ret->type)
+	if (!EVP_PKEY_set_type(ret, type))
+		{
+		ASN1err(ASN1_F_D2I_PUBLICKEY,ERR_R_EVP_LIB);
+		goto err;
+		}
+
+	switch (EVP_PKEY_id(ret))
 		{
 #ifndef OPENSSL_NO_RSA
 	case EVP_PKEY_RSA:

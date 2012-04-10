@@ -76,8 +76,9 @@ typedef struct CMS_Receipt_st CMS_Receipt;
 
 DECLARE_STACK_OF(CMS_SignerInfo)
 DECLARE_STACK_OF(GENERAL_NAMES)
-DECLARE_ASN1_FUNCTIONS_const(CMS_ContentInfo)
-DECLARE_ASN1_FUNCTIONS_const(CMS_ReceiptRequest)
+DECLARE_ASN1_FUNCTIONS(CMS_ContentInfo)
+DECLARE_ASN1_FUNCTIONS(CMS_ReceiptRequest)
+DECLARE_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 
 #define CMS_SIGNERINFO_ISSUER_SERIAL	0
 #define CMS_SIGNERINFO_KEYIDENTIFIER	1
@@ -124,9 +125,13 @@ int CMS_set_detached(CMS_ContentInfo *cms, int detached);
 DECLARE_PEM_rw_const(CMS, CMS_ContentInfo)
 #endif
 
+int CMS_stream(unsigned char ***boundary, CMS_ContentInfo *cms);
 CMS_ContentInfo *d2i_CMS_bio(BIO *bp, CMS_ContentInfo **cms);
 int i2d_CMS_bio(BIO *bp, CMS_ContentInfo *cms);
 
+BIO *BIO_new_CMS(BIO *out, CMS_ContentInfo *cms);
+int i2d_CMS_bio_stream(BIO *out, CMS_ContentInfo *cms, BIO *in, int flags);
+int PEM_write_bio_CMS_stream(BIO *out, CMS_ContentInfo *cms, BIO *in, int flags);
 CMS_ContentInfo *SMIME_read_CMS(BIO *bio, BIO **bcont);
 int SMIME_write_CMS(BIO *bio, CMS_ContentInfo *cms, BIO *data, int flags);
 
@@ -230,6 +235,7 @@ STACK_OF(X509) *CMS_get1_certs(CMS_ContentInfo *cms);
 
 CMS_RevocationInfoChoice *CMS_add0_RevocationInfoChoice(CMS_ContentInfo *cms);
 int CMS_add0_crl(CMS_ContentInfo *cms, X509_CRL *crl);
+int CMS_add1_crl(CMS_ContentInfo *cms, X509_CRL *crl);
 STACK_OF(X509_CRL) *CMS_get1_crls(CMS_ContentInfo *cms);
 
 int CMS_SignedData_init(CMS_ContentInfo *cms);

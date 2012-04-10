@@ -57,6 +57,7 @@
  */
 
 #include "des_locl.h"
+#include "spr.h"
 
 void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
 	{
@@ -107,12 +108,10 @@ void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
 		D_ENCRYPT(l,r,28); /*  15 */
 		D_ENCRYPT(r,l,30); /*  16 */
 #else
-		for (i=0; i<32; i+=8)
+		for (i=0; i<32; i+=4)
 			{
 			D_ENCRYPT(l,r,i+0); /*  1 */
 			D_ENCRYPT(r,l,i+2); /*  2 */
-			D_ENCRYPT(l,r,i+4); /*  3 */
-			D_ENCRYPT(r,l,i+6); /*  4 */
 			}
 #endif
 		}
@@ -136,12 +135,10 @@ void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
 		D_ENCRYPT(l,r, 2); /*  2 */
 		D_ENCRYPT(r,l, 0); /*  1 */
 #else
-		for (i=30; i>0; i-=8)
+		for (i=30; i>0; i-=4)
 			{
 			D_ENCRYPT(l,r,i-0); /* 16 */
 			D_ENCRYPT(r,l,i-2); /* 15 */
-			D_ENCRYPT(l,r,i-4); /* 14 */
-			D_ENCRYPT(r,l,i-6); /* 13 */
 			}
 #endif
 		}
@@ -203,12 +200,10 @@ void DES_encrypt2(DES_LONG *data, DES_key_schedule *ks, int enc)
 		D_ENCRYPT(l,r,28); /*  15 */
 		D_ENCRYPT(r,l,30); /*  16 */
 #else
-		for (i=0; i<32; i+=8)
+		for (i=0; i<32; i+=4)
 			{
 			D_ENCRYPT(l,r,i+0); /*  1 */
 			D_ENCRYPT(r,l,i+2); /*  2 */
-			D_ENCRYPT(l,r,i+4); /*  3 */
-			D_ENCRYPT(r,l,i+6); /*  4 */
 			}
 #endif
 		}
@@ -232,12 +227,10 @@ void DES_encrypt2(DES_LONG *data, DES_key_schedule *ks, int enc)
 		D_ENCRYPT(l,r, 2); /*  2 */
 		D_ENCRYPT(r,l, 0); /*  1 */
 #else
-		for (i=30; i>0; i-=8)
+		for (i=30; i>0; i-=4)
 			{
 			D_ENCRYPT(l,r,i-0); /* 16 */
 			D_ENCRYPT(r,l,i-2); /* 15 */
-			D_ENCRYPT(l,r,i-4); /* 14 */
-			D_ENCRYPT(r,l,i-6); /* 13 */
 			}
 #endif
 		}
@@ -288,8 +281,6 @@ void DES_decrypt3(DES_LONG *data, DES_key_schedule *ks1,
 	}
 
 #ifndef DES_DEFAULT_OPTIONS
-
-#if !defined(OPENSSL_FIPS_DES_ASM)
 
 #undef CBC_ENC_C__DONT_UPDATE_IV
 #include "ncbc_enc.c" /* DES_ncbc_encrypt */
@@ -405,7 +396,5 @@ void DES_ede3_cbc_encrypt(const unsigned char *input, unsigned char *output,
 	tin0=tin1=tout0=tout1=xor0=xor1=0;
 	tin[0]=tin[1]=0;
 	}
-
-#endif
 
 #endif /* DES_DEFAULT_OPTIONS */

@@ -54,8 +54,6 @@ struct LP_dir_context_st
 
 const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
 {
-  struct dirent *direntry = NULL;
-
   if (ctx == NULL || directory == NULL)
     {
       errno = EINVAL;

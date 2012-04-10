@@ -12,39 +12,29 @@
 
 #include <openssl/crypto.h>
 #include <openssl/sha.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 #include <openssl/opensslv.h>
 
 const char SHA256_version[]="SHA-256" OPENSSL_VERSION_PTEXT;
 
 int SHA224_Init (SHA256_CTX *c)
 	{
-#ifdef OPENSSL_FIPS
-	FIPS_selftest_check();
-#endif
+	memset (c,0,sizeof(*c));
 	c->h[0]=0xc1059ed8UL;	c->h[1]=0x367cd507UL;
 	c->h[2]=0x3070dd17UL;	c->h[3]=0xf70e5939UL;
 	c->h[4]=0xffc00b31UL;	c->h[5]=0x68581511UL;
 	c->h[6]=0x64f98fa7UL;	c->h[7]=0xbefa4fa4UL;
-	c->Nl=0;	c->Nh=0;
-	c->num=0;	c->md_len=SHA224_DIGEST_LENGTH;
+	c->md_len=SHA224_DIGEST_LENGTH;
 	return 1;
 	}
 
 int SHA256_Init (SHA256_CTX *c)
 	{
-#ifdef OPENSSL_FIPS
-	FIPS_selftest_check();
-#endif
+	memset (c,0,sizeof(*c));
 	c->h[0]=0x6a09e667UL;	c->h[1]=0xbb67ae85UL;
 	c->h[2]=0x3c6ef372UL;	c->h[3]=0xa54ff53aUL;
 	c->h[4]=0x510e527fUL;	c->h[5]=0x9b05688cUL;
 	c->h[6]=0x1f83d9abUL;	c->h[7]=0x5be0cd19UL;
-	c->Nl=0;	c->Nh=0;
-	c->num=0;	c->md_len=SHA256_DIGEST_LENGTH;
+	c->md_len=SHA256_DIGEST_LENGTH;
 	return 1;
 	}
 
@@ -94,21 +84,21 @@ int SHA224_Final (unsigned char *md, SHA256_CTX *c)
  */
 #define	HASH_MAKE_STRING(c,s)	do {	\
 	unsigned long ll;		\
-	unsigned int  xn;		\
+	unsigned int  nn;		\
 	switch ((c)->md_len)		\
 	{   case SHA224_DIGEST_LENGTH:	\
-		for (xn=0;xn<SHA224_DIGEST_LENGTH/4;xn++)	\
-		{   ll=(c)->h[xn]; HOST_l2c(ll,(s));   }	\
+		for (nn=0;nn<SHA224_DIGEST_LENGTH/4;nn++)	\
+		{   ll=(c)->h[nn]; HOST_l2c(ll,(s));   }	\
 		break;			\
 	    case SHA256_DIGEST_LENGTH:	\
-		for (xn=0;xn<SHA256_DIGEST_LENGTH/4;xn++)	\
-		{   ll=(c)->h[xn]; HOST_l2c(ll,(s));   }	\
+		for (nn=0;nn<SHA256_DIGEST_LENGTH/4;nn++)	\
+		{   ll=(c)->h[nn]; HOST_l2c(ll,(s));   }	\
 		break;			\
 	    default:			\
 		if ((c)->md_len > SHA256_DIGEST_LENGTH)	\
 		    return 0;				\
-		for (xn=0;xn<(c)->md_len/4;xn++)		\
-		{   ll=(c)->h[xn]; HOST_l2c(ll,(s));   }	\
+		for (nn=0;nn<(c)->md_len/4;nn++)		\
+		{   ll=(c)->h[nn]; HOST_l2c(ll,(s));   }	\
 		break;			\
 	}				\
 	} while (0)

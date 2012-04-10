@@ -1,0 +1,43 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_ia32cap - finding the IA-32 processor capabilities
+
+=head1 SYNOPSIS
+
+ unsigned long *OPENSSL_ia32cap_loc(void);
+ #define OPENSSL_ia32cap (*(OPENSSL_ia32cap_loc()))
+
+=head1 DESCRIPTION
+
+Value returned by OPENSSL_ia32cap_loc() is address of a variable
+containing IA-32 processor capabilities bit vector as it appears in EDX
+register after executing CPUID instruction with EAX=1 input value (see
+Intel Application Note #241618). Naturally it's meaningful on IA-32[E]
+platforms only. The variable is normally set up automatically upon
+toolkit initialization, but can be manipulated afterwards to modify
+crypto library behaviour. For the moment of this writing six bits are
+significant, namely:
+
+1. bit #28 denoting Hyperthreading, which is used to distiguish
+   cores with shared cache;
+2. bit #26 denoting SSE2 support;
+3. bit #25 denoting SSE support;
+4. bit #23 denoting MMX support;
+5. bit #20, reserved by Intel, is used to choose between RC4 code
+   pathes;
+6. bit #4 denoting presence of Time-Stamp Counter.
+
+For example, clearing bit #26 at run-time disables high-performance
+SSE2 code present in the crypto library. You might have to do this if
+target OpenSSL application is executed on SSE2 capable CPU, but under
+control of OS which does not support SSE2 extentions. Even though you
+can manipulate the value programmatically, you most likely will find it
+more appropriate to set up an environment variable with the same name
+prior starting target application, e.g. on Intel P4 processor 'env
+OPENSSL_ia32cap=0x12900010 apps/openssl', to achieve same effect
+without modifying the application source code. Alternatively you can
+reconfigure the toolkit with no-sse2 option and recompile.
+
+=cut

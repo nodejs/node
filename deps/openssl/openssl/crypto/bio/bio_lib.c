@@ -429,7 +429,7 @@ BIO *BIO_push(BIO *b, BIO *bio)
 	if (bio != NULL)
 		bio->prev_bio=lb;
 	/* called to do internal processing */
-	BIO_ctrl(b,BIO_CTRL_PUSH,0,NULL);
+	BIO_ctrl(b,BIO_CTRL_PUSH,0,lb);
 	return(b);
 	}
 
@@ -441,7 +441,7 @@ BIO *BIO_pop(BIO *b)
 	if (b == NULL) return(NULL);
 	ret=b->next_bio;
 
-	BIO_ctrl(b,BIO_CTRL_POP,0,NULL);
+	BIO_ctrl(b,BIO_CTRL_POP,0,b);
 
 	if (b->prev_bio != NULL)
 		b->prev_bio->next_bio=b->next_bio;

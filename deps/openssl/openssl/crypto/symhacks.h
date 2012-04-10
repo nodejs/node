@@ -67,10 +67,6 @@
    incompatibilities. */
 #ifdef OPENSSL_SYS_VMS
 
-/* Hack a long name in crypto/cryptlib.c */
-#undef int_CRYPTO_set_do_dynlock_callback
-#define int_CRYPTO_set_do_dynlock_callback	int_CRYPTO_set_do_dynlock_cb
-
 /* Hack a long name in crypto/ex_data.c */
 #undef CRYPTO_get_ex_data_implementation
 #define CRYPTO_get_ex_data_implementation	CRYPTO_get_ex_data_impl
@@ -151,9 +147,9 @@
 #undef CRYPTO_set_dynlock_create_callback
 #define CRYPTO_set_dynlock_create_callback      CRYPTO_set_dynlock_create_cb
 #undef CRYPTO_set_dynlock_lock_callback
-#define CRYPTO_set_dynlock_lock_callback        CRYPTO_set_dynlock_lock_cb
+#define CRYPTO_set_dynlock_lock_callback	CRYPTO_set_dynlock_lock_cb
 #undef CRYPTO_get_dynlock_lock_callback
-#define CRYPTO_get_dynlock_lock_callback        CRYPTO_get_dynlock_lock_cb
+#define CRYPTO_get_dynlock_lock_callback	CRYPTO_get_dynlock_lock_cb
 #undef CRYPTO_get_dynlock_destroy_callback
 #define CRYPTO_get_dynlock_destroy_callback     CRYPTO_get_dynlock_destroy_cb
 #undef CRYPTO_get_dynlock_create_callback
@@ -165,7 +161,7 @@
 
 /* Hack some long SSL names */
 #undef SSL_CTX_set_default_verify_paths
-#define SSL_CTX_set_default_verify_paths        SSL_CTX_set_def_verify_paths
+#define SSL_CTX_set_default_verify_paths	SSL_CTX_set_def_verify_paths
 #undef SSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data_X509_STORE_CTX_idx      SSL_get_ex_d_X509_STORE_CTX_idx
 #undef SSL_add_file_cert_subjects_to_stack
@@ -175,7 +171,7 @@
 #undef SSL_CTX_use_certificate_chain_file
 #define SSL_CTX_use_certificate_chain_file      SSL_CTX_use_cert_chain_file
 #undef SSL_CTX_set_cert_verify_callback
-#define SSL_CTX_set_cert_verify_callback        SSL_CTX_set_cert_verify_cb
+#define SSL_CTX_set_cert_verify_callback	SSL_CTX_set_cert_verify_cb
 #undef SSL_CTX_set_default_passwd_cb_userdata
 #define SSL_CTX_set_default_passwd_cb_userdata  SSL_CTX_set_def_passwd_cb_ud
 #undef SSL_COMP_get_compression_methods
@@ -196,9 +192,17 @@
 #undef ENGINE_set_default_BN_mod_exp_crt
 #define ENGINE_set_default_BN_mod_exp_crt	ENGINE_set_def_BN_mod_exp_crt
 #undef ENGINE_set_load_privkey_function
-#define ENGINE_set_load_privkey_function        ENGINE_set_load_privkey_fn
+#define ENGINE_set_load_privkey_function	ENGINE_set_load_privkey_fn
 #undef ENGINE_get_load_privkey_function
-#define ENGINE_get_load_privkey_function        ENGINE_get_load_privkey_fn
+#define ENGINE_get_load_privkey_function	ENGINE_get_load_privkey_fn
+#undef ENGINE_unregister_pkey_asn1_meths
+#define ENGINE_unregister_pkey_asn1_meths	ENGINE_unreg_pkey_asn1_meths
+#undef ENGINE_register_all_pkey_asn1_meths
+#define ENGINE_register_all_pkey_asn1_meths	ENGINE_reg_all_pkey_asn1_meths
+#undef ENGINE_set_default_pkey_asn1_meths
+#define ENGINE_set_default_pkey_asn1_meths	ENGINE_set_def_pkey_asn1_meths
+#undef ENGINE_get_pkey_asn1_meth_engine
+#define ENGINE_get_pkey_asn1_meth_engine	ENGINE_get_pkey_asn1_meth_eng
 #undef ENGINE_set_load_ssl_client_cert_function
 #define ENGINE_set_load_ssl_client_cert_function \
 						ENGINE_set_ld_ssl_clnt_cert_fn
@@ -207,7 +211,7 @@
 
 /* Hack some long OCSP names */
 #undef OCSP_REQUEST_get_ext_by_critical
-#define OCSP_REQUEST_get_ext_by_critical        OCSP_REQUEST_get_ext_by_crit
+#define OCSP_REQUEST_get_ext_by_critical	OCSP_REQUEST_get_ext_by_crit
 #undef OCSP_BASICRESP_get_ext_by_critical
 #define OCSP_BASICRESP_get_ext_by_critical      OCSP_BASICRESP_get_ext_by_crit
 #undef OCSP_SINGLERESP_get_ext_by_critical
@@ -224,6 +228,8 @@
 #define OPENSSL_add_all_algorithms_noconf	OPENSSL_add_all_algo_noconf
 #undef OPENSSL_add_all_algorithms_conf
 #define OPENSSL_add_all_algorithms_conf		OPENSSL_add_all_algo_conf
+#undef EVP_PKEY_meth_set_verify_recover
+#define EVP_PKEY_meth_set_verify_recover	EVP_PKEY_meth_set_vrfy_recover
 
 /* Hack some long EC names */
 #undef EC_GROUP_set_point_conversion_form
@@ -252,15 +258,15 @@
 #define EC_POINT_set_compressed_coordinates_GF2m \
                                                 EC_POINT_set_compr_coords_GF2m
 #undef ec_GF2m_simple_group_clear_finish
-#define ec_GF2m_simple_group_clear_finish        ec_GF2m_simple_grp_clr_finish
+#define ec_GF2m_simple_group_clear_finish	ec_GF2m_simple_grp_clr_finish
 #undef ec_GF2m_simple_group_check_discriminant
 #define ec_GF2m_simple_group_check_discriminant	ec_GF2m_simple_grp_chk_discrim
 #undef ec_GF2m_simple_point_clear_finish
-#define ec_GF2m_simple_point_clear_finish        ec_GF2m_simple_pt_clr_finish
+#define ec_GF2m_simple_point_clear_finish	ec_GF2m_simple_pt_clr_finish
 #undef ec_GF2m_simple_point_set_to_infinity
-#define ec_GF2m_simple_point_set_to_infinity     ec_GF2m_simple_pt_set_to_inf
+#define ec_GF2m_simple_point_set_to_infinity	ec_GF2m_simple_pt_set_to_inf
 #undef ec_GF2m_simple_points_make_affine
-#define ec_GF2m_simple_points_make_affine        ec_GF2m_simple_pts_make_affine
+#define ec_GF2m_simple_points_make_affine	ec_GF2m_simple_pts_make_affine
 #undef ec_GF2m_simple_point_set_affine_coordinates
 #define ec_GF2m_simple_point_set_affine_coordinates \
                                                 ec_GF2m_smp_pt_set_af_coords
@@ -275,19 +281,19 @@
 #undef ec_GFp_simple_group_get_curve_GFp
 #define ec_GFp_simple_group_get_curve_GFp       ec_GFp_simple_grp_get_curve_GFp
 #undef ec_GFp_simple_group_clear_finish
-#define ec_GFp_simple_group_clear_finish        ec_GFp_simple_grp_clear_finish
+#define ec_GFp_simple_group_clear_finish	ec_GFp_simple_grp_clear_finish
 #undef ec_GFp_simple_group_set_generator
 #define ec_GFp_simple_group_set_generator       ec_GFp_simple_grp_set_generator
 #undef ec_GFp_simple_group_get0_generator
 #define ec_GFp_simple_group_get0_generator      ec_GFp_simple_grp_gt0_generator
 #undef ec_GFp_simple_group_get_cofactor
-#define ec_GFp_simple_group_get_cofactor        ec_GFp_simple_grp_get_cofactor
+#define ec_GFp_simple_group_get_cofactor	ec_GFp_simple_grp_get_cofactor
 #undef ec_GFp_simple_point_clear_finish
-#define ec_GFp_simple_point_clear_finish        ec_GFp_simple_pt_clear_finish
+#define ec_GFp_simple_point_clear_finish	ec_GFp_simple_pt_clear_finish
 #undef ec_GFp_simple_point_set_to_infinity
 #define ec_GFp_simple_point_set_to_infinity     ec_GFp_simple_pt_set_to_inf
 #undef ec_GFp_simple_points_make_affine
-#define ec_GFp_simple_points_make_affine        ec_GFp_simple_pts_make_affine
+#define ec_GFp_simple_points_make_affine	ec_GFp_simple_pts_make_affine
 #undef ec_GFp_simple_group_get_curve_GFp
 #define ec_GFp_simple_group_get_curve_GFp       ec_GFp_simple_grp_get_curve_GFp
 #undef ec_GFp_simple_set_Jprojective_coordinates_GFp
@@ -367,6 +373,14 @@
 #undef STORE_method_get_unlock_store_function
 #define STORE_method_get_unlock_store_function	STORE_meth_get_unlock_store_fn
 
+/* Hack some long TS names */
+#undef TS_RESP_CTX_set_status_info_cond
+#define TS_RESP_CTX_set_status_info_cond	TS_RESP_CTX_set_stat_info_cond
+#undef TS_RESP_CTX_set_clock_precision_digits
+#define TS_RESP_CTX_set_clock_precision_digits	TS_RESP_CTX_set_clk_prec_digits
+#undef TS_CONF_set_clock_precision_digits
+#define TS_CONF_set_clock_precision_digits	TS_CONF_set_clk_prec_digits
+
 /* Hack some long CMS names */
 #undef CMS_RecipientInfo_ktri_get0_algs
 #define CMS_RecipientInfo_ktri_get0_algs	CMS_RecipInfo_ktri_get0_algs
@@ -385,24 +399,30 @@
 #undef dtls1_retransmit_buffered_messages
 #define dtls1_retransmit_buffered_messages	dtls1_retransmit_buffered_msgs
 
+/* Hack some long UI names */
+#undef UI_method_get_prompt_constructor
+#define UI_method_get_prompt_constructor	UI_method_get_prompt_constructr
+#undef UI_method_set_prompt_constructor
+#define UI_method_set_prompt_constructor	UI_method_set_prompt_constructr
+
 #endif /* defined OPENSSL_SYS_VMS */
 
 
-/* Case insensiteve linking causes problems.... */
-#if defined(OPENSSL_SYS_WIN16) || defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_OS2)
+/* Case insensitive linking causes problems.... */
+#if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_OS2)
 #undef ERR_load_CRYPTO_strings
 #define ERR_load_CRYPTO_strings			ERR_load_CRYPTOlib_strings
 #undef OCSP_crlID_new
-#define OCSP_crlID_new                          OCSP_crlID2_new
+#define OCSP_crlID_new				OCSP_crlID2_new
 
 #undef d2i_ECPARAMETERS
-#define d2i_ECPARAMETERS                        d2i_UC_ECPARAMETERS
+#define d2i_ECPARAMETERS			d2i_UC_ECPARAMETERS
 #undef i2d_ECPARAMETERS
-#define i2d_ECPARAMETERS                        i2d_UC_ECPARAMETERS
+#define i2d_ECPARAMETERS			i2d_UC_ECPARAMETERS
 #undef d2i_ECPKPARAMETERS
-#define d2i_ECPKPARAMETERS                      d2i_UC_ECPKPARAMETERS
+#define d2i_ECPKPARAMETERS			d2i_UC_ECPKPARAMETERS
 #undef i2d_ECPKPARAMETERS
-#define i2d_ECPKPARAMETERS                      i2d_UC_ECPKPARAMETERS
+#define i2d_ECPKPARAMETERS			i2d_UC_ECPKPARAMETERS
 
 /* These functions do not seem to exist!  However, I'm paranoid...
    Original command in x509v3.h:
@@ -411,19 +431,19 @@
    hide them a little, by giving them an extra 'o' at the
    beginning of the name... */
 #undef X509v3_cleanup_extensions
-#define X509v3_cleanup_extensions               oX509v3_cleanup_extensions
+#define X509v3_cleanup_extensions		oX509v3_cleanup_extensions
 #undef X509v3_add_extension
-#define X509v3_add_extension                    oX509v3_add_extension
+#define X509v3_add_extension			oX509v3_add_extension
 #undef X509v3_add_netscape_extensions
-#define X509v3_add_netscape_extensions          oX509v3_add_netscape_extensions
+#define X509v3_add_netscape_extensions		oX509v3_add_netscape_extensions
 #undef X509v3_add_standard_extensions
-#define X509v3_add_standard_extensions          oX509v3_add_standard_extensions
+#define X509v3_add_standard_extensions		oX509v3_add_standard_extensions
 
+/* This one clashes with CMS_data_create */
+#undef cms_Data_create
+#define cms_Data_create				priv_cms_Data_create
 
 #endif
 
 
 #endif /* ! defined HEADER_VMS_IDHACKS_H */
-/* This one clashes with CMS_data_create */
-#undef cms_Data_create
-#define cms_Data_create				priv_cms_Data_create

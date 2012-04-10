@@ -22,6 +22,7 @@ extern int ecparam_main(int argc,char *argv[]);
 extern int x509_main(int argc,char *argv[]);
 extern int genrsa_main(int argc,char *argv[]);
 extern int gendsa_main(int argc,char *argv[]);
+extern int genpkey_main(int argc,char *argv[]);
 extern int s_server_main(int argc,char *argv[]);
 extern int s_client_main(int argc,char *argv[]);
 extern int speed_main(int argc,char *argv[]);
@@ -35,22 +36,30 @@ extern int ciphers_main(int argc,char *argv[]);
 extern int nseq_main(int argc,char *argv[]);
 extern int pkcs12_main(int argc,char *argv[]);
 extern int pkcs8_main(int argc,char *argv[]);
+extern int pkey_main(int argc,char *argv[]);
+extern int pkeyparam_main(int argc,char *argv[]);
+extern int pkeyutl_main(int argc,char *argv[]);
 extern int spkac_main(int argc,char *argv[]);
 extern int smime_main(int argc,char *argv[]);
 extern int rand_main(int argc,char *argv[]);
 extern int engine_main(int argc,char *argv[]);
 extern int ocsp_main(int argc,char *argv[]);
 extern int prime_main(int argc,char *argv[]);
+extern int ts_main(int argc,char *argv[]);
 
 #define FUNC_TYPE_GENERAL	1
 #define FUNC_TYPE_MD		2
 #define FUNC_TYPE_CIPHER	3
+#define FUNC_TYPE_PKEY		4
+#define FUNC_TYPE_MD_ALG	5
+#define FUNC_TYPE_CIPHER_ALG	6
 
 typedef struct {
 	int type;
 	const char *name;
 	int (*func)(int argc,char *argv[]);
 	} FUNCTION;
+DECLARE_LHASH_OF(FUNCTION);
 
 FUNCTION functions[] = {
 	{FUNC_TYPE_GENERAL,"verify",verify_main},
@@ -96,6 +105,7 @@ FUNCTION functions[] = {
 #ifndef OPENSSL_NO_DSA
 	{FUNC_TYPE_GENERAL,"gendsa",gendsa_main},
 #endif
+	{FUNC_TYPE_GENERAL,"genpkey",genpkey_main},
 #if !defined(OPENSSL_NO_SOCK) && !(defined(OPENSSL_NO_SSL2) && defined(OPENSSL_NO_SSL3))
 	{FUNC_TYPE_GENERAL,"s_server",s_server_main},
 #endif
@@ -123,14 +133,22 @@ FUNCTION functions[] = {
 	{FUNC_TYPE_GENERAL,"pkcs12",pkcs12_main},
 #endif
 	{FUNC_TYPE_GENERAL,"pkcs8",pkcs8_main},
+	{FUNC_TYPE_GENERAL,"pkey",pkey_main},
+	{FUNC_TYPE_GENERAL,"pkeyparam",pkeyparam_main},
+	{FUNC_TYPE_GENERAL,"pkeyutl",pkeyutl_main},
 	{FUNC_TYPE_GENERAL,"spkac",spkac_main},
 	{FUNC_TYPE_GENERAL,"smime",smime_main},
 	{FUNC_TYPE_GENERAL,"rand",rand_main},
 #ifndef OPENSSL_NO_ENGINE
 	{FUNC_TYPE_GENERAL,"engine",engine_main},
 #endif
+#ifndef OPENSSL_NO_OCSP
 	{FUNC_TYPE_GENERAL,"ocsp",ocsp_main},
+#endif
 	{FUNC_TYPE_GENERAL,"prime",prime_main},
+#if 0 /* ANDROID */
+	{FUNC_TYPE_GENERAL,"ts",ts_main},
+#endif
 #ifndef OPENSSL_NO_MD2
 	{FUNC_TYPE_MD,"md2",dgst_main},
 #endif
@@ -189,6 +207,9 @@ FUNCTION functions[] = {
 	{FUNC_TYPE_CIPHER,"camellia-256-ecb",enc_main},
 #endif
 	{FUNC_TYPE_CIPHER,"base64",enc_main},
+#ifdef ZLIB
+	{FUNC_TYPE_CIPHER,"zlib",enc_main},
+#endif
 #ifndef OPENSSL_NO_DES
 	{FUNC_TYPE_CIPHER,"des",enc_main},
 #endif

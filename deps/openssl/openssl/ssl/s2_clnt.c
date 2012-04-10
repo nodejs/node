@@ -117,7 +117,7 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 
-static SSL_METHOD *ssl2_get_client_method(int ver);
+static const SSL_METHOD *ssl2_get_client_method(int ver);
 static int get_server_finished(SSL *s);
 static int get_server_verify(SSL *s);
 static int get_server_hello(SSL *s);
@@ -129,7 +129,7 @@ static int ssl_rsa_public_encrypt(SESS_CERT *sc, int len, unsigned char *from,
 	unsigned char *to,int padding);
 #define BREAK	break
 
-static SSL_METHOD *ssl2_get_client_method(int ver)
+static const SSL_METHOD *ssl2_get_client_method(int ver)
 	{
 	if (ver == SSL2_VERSION)
 		return(SSLv2_client_method());
@@ -621,7 +621,7 @@ static int client_master_key(SSL *s)
 	if (s->state == SSL2_ST_SEND_CLIENT_MASTER_KEY_A)
 		{
 
-		if (!ssl_cipher_get_evp(s->session,&c,&md,NULL))
+		if (!ssl_cipher_get_evp(s->session,&c,&md,NULL,NULL,NULL))
 			{
 			ssl2_return_error(s,SSL2_PE_NO_CIPHER);
 			SSLerr(SSL_F_CLIENT_MASTER_KEY,SSL_R_PROBLEMS_MAPPING_CIPHER_FUNCTIONS);
@@ -863,8 +863,10 @@ static int client_certificate(SSL *s)
 		EVP_SignUpdate(&ctx,s->s2->key_material,
 			       s->s2->key_material_length);
 		EVP_SignUpdate(&ctx,cert_ch,(unsigned int)cert_ch_len);
-		n=i2d_X509(s->session->sess_cert->peer_key->x509,&p);
-		EVP_SignUpdate(&ctx,buf,(unsigned int)n);
+		i=i2d_X509(s->session->sess_cert->peer_key->x509,&p);
+		/* Don't update the signature if it fails - FIXME: probably should handle this better */
+		if(i > 0)
+			EVP_SignUpdate(&ctx,buf,(unsigned int)i);
 
 		p=buf;
 		d=p+6;

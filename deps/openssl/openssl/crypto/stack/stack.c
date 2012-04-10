@@ -77,10 +77,10 @@ const char STACK_version[]="Stack" OPENSSL_VERSION_PTEXT;
 
 #include <errno.h>
 
-int (*sk_set_cmp_func(STACK *sk, int (*c)(const char * const *,const char * const *)))
-		(const char * const *, const char * const *)
+int (*sk_set_cmp_func(_STACK *sk, int (*c)(const void *, const void *)))
+		(const void *, const void *)
 	{
-	int (*old)(const char * const *,const char * const *)=sk->comp;
+	int (*old)(const void *,const void *)=sk->comp;
 
 	if (sk->comp != c)
 		sk->sorted=0;
@@ -89,9 +89,9 @@ int (*sk_set_cmp_func(STACK *sk, int (*c)(const char * const *,const char * cons
 	return old;
 	}
 
-STACK *sk_dup(STACK *sk)
+_STACK *sk_dup(_STACK *sk)
 	{
-	STACK *ret;
+	_STACK *ret;
 	char **s;
 
 	if ((ret=sk_new(sk->comp)) == NULL) goto err;
@@ -112,19 +112,19 @@ err:
 	return(NULL);
 	}
 
-STACK *sk_new_null(void)
+_STACK *sk_new_null(void)
 	{
-	return sk_new((int (*)(const char * const *, const char * const *))0);
+	return sk_new((int (*)(const void *, const void *))0);
 	}
 
-STACK *sk_new(int (*c)(const char * const *, const char * const *))
+_STACK *sk_new(int (*c)(const void *, const void *))
 	{
-	STACK *ret;
+	_STACK *ret;
 	int i;
 
-	if ((ret=(STACK *)OPENSSL_malloc(sizeof(STACK))) == NULL)
+	if ((ret=OPENSSL_malloc(sizeof(_STACK))) == NULL)
 		goto err;
-	if ((ret->data=(char **)OPENSSL_malloc(sizeof(char *)*MIN_NODES)) == NULL)
+	if ((ret->data=OPENSSL_malloc(sizeof(char *)*MIN_NODES)) == NULL)
 		goto err;
 	for (i=0; i<MIN_NODES; i++)
 		ret->data[i]=NULL;
@@ -139,14 +139,14 @@ err:
 	return(NULL);
 	}
 
-int sk_insert(STACK *st, char *data, int loc)
+int sk_insert(_STACK *st, void *data, int loc)
 	{
 	char **s;
 
 	if(st == NULL) return 0;
 	if (st->num_alloc <= st->num+1)
 		{
-		s=(char **)OPENSSL_realloc((char *)st->data,
+		s=OPENSSL_realloc((char *)st->data,
 			(unsigned int)sizeof(char *)*st->num_alloc*2);
 		if (s == NULL)
 			return(0);
@@ -160,14 +160,14 @@ int sk_insert(STACK *st, char *data, int loc)
 		int i;
 		char **f,**t;
 
-		f=(char **)st->data;
-		t=(char **)&(st->data[1]);
+		f=st->data;
+		t=&(st->data[1]);
 		for (i=st->num; i>=loc; i--)
 			t[i]=f[i];
 			
 #ifdef undef /* no memmove on sunos :-( */
-		memmove( (char *)&(st->data[loc+1]),
-			(char *)&(st->data[loc]),
+		memmove(&(st->data[loc+1]),
+			&(st->data[loc]),
 			sizeof(char *)*(st->num-loc));
 #endif
 		st->data[loc]=data;
@@ -177,7 +177,7 @@ int sk_insert(STACK *st, char *data, int loc)
 	return(st->num);
 	}
 
-char *sk_delete_ptr(STACK *st, char *p)
+void *sk_delete_ptr(_STACK *st, void *p)
 	{
 	int i;
 
@@ -187,7 +187,7 @@ char *sk_delete_ptr(STACK *st, char *p)
 	return(NULL);
 	}
 
-char *sk_delete(STACK *st, int loc)
+void *sk_delete(_STACK *st, int loc)
 	{
 	char *ret;
 	int i,j;
@@ -210,11 +210,11 @@ char *sk_delete(STACK *st, int loc)
 	return(ret);
 	}
 
-static int internal_find(STACK *st, char *data, int ret_val_options)
+static int internal_find(_STACK *st, void *data, int ret_val_options)
 	{
-	char **r;
+	const void * const *r;
 	int i;
-	int (*comp_func)(const void *,const void *);
+
 	if(st == NULL) return -1;
 
 	if (st->comp == NULL)
@@ -226,53 +226,46 @@ static int internal_find(STACK *st, char *data, int ret_val_options)
 		}
 	sk_sort(st);
 	if (data == NULL) return(-1);
-	/* This (and the "qsort" below) are the two places in OpenSSL
-	 * where we need to convert from our standard (type **,type **)
-	 * compare callback type to the (void *,void *) type required by
-	 * bsearch. However, the "data" it is being called(back) with are
-	 * not (type *) pointers, but the *pointers* to (type *) pointers,
-	 * so we get our extra level of pointer dereferencing that way. */
-	comp_func=(int (*)(const void *,const void *))(st->comp);
-	r=(char **)OBJ_bsearch_ex((char *)&data,(char *)st->data,
-		st->num,sizeof(char *),comp_func,ret_val_options);
+	r=OBJ_bsearch_ex_(&data,st->data,st->num,sizeof(void *),st->comp,
+			  ret_val_options);
 	if (r == NULL) return(-1);
-	return((int)(r-st->data));
+	return (int)((char **)r-st->data);
 	}
 
-int sk_find(STACK *st, char *data)
+int sk_find(_STACK *st, void *data)
 	{
 	return internal_find(st, data, OBJ_BSEARCH_FIRST_VALUE_ON_MATCH);
 	}
-int sk_find_ex(STACK *st, char *data)
+int sk_find_ex(_STACK *st, void *data)
 	{
 	return internal_find(st, data, OBJ_BSEARCH_VALUE_ON_NOMATCH);
 	}
 
-int sk_push(STACK *st, char *data)
+int sk_push(_STACK *st, void *data)
 	{
 	return(sk_insert(st,data,st->num));
 	}
 
-int sk_unshift(STACK *st, char *data)
+int sk_unshift(_STACK *st, void *data)
 	{
 	return(sk_insert(st,data,0));
 	}
 
-char *sk_shift(STACK *st)
+void *sk_shift(_STACK *st)
 	{
 	if (st == NULL) return(NULL);
 	if (st->num <= 0) return(NULL);
 	return(sk_delete(st,0));
 	}
 
-char *sk_pop(STACK *st)
+void *sk_pop(_STACK *st)
 	{
 	if (st == NULL) return(NULL);
 	if (st->num <= 0) return(NULL);
 	return(sk_delete(st,st->num-1));
 	}
 
-void sk_zero(STACK *st)
+void sk_zero(_STACK *st)
 	{
 	if (st == NULL) return;
 	if (st->num <= 0) return;
@@ -280,7 +273,7 @@ void sk_zero(STACK *st)
 	st->num=0;
 	}
 
-void sk_pop_free(STACK *st, void (*func)(void *))
+void sk_pop_free(_STACK *st, void (*func)(void *))
 	{
 	int i;
 
@@ -291,32 +284,32 @@ void sk_pop_free(STACK *st, void (*func)(void *))
 	sk_free(st);
 	}
 
-void sk_free(STACK *st)
+void sk_free(_STACK *st)
 	{
 	if (st == NULL) return;
 	if (st->data != NULL) OPENSSL_free(st->data);
 	OPENSSL_free(st);
 	}
 
-int sk_num(const STACK *st)
+int sk_num(const _STACK *st)
 {
 	if(st == NULL) return -1;
 	return st->num;
 }
 
-char *sk_value(const STACK *st, int i)
+void *sk_value(const _STACK *st, int i)
 {
 	if(!st || (i < 0) || (i >= st->num)) return NULL;
 	return st->data[i];
 }
 
-char *sk_set(STACK *st, int i, char *value)
+void *sk_set(_STACK *st, int i, void *value)
 {
 	if(!st || (i < 0) || (i >= st->num)) return NULL;
 	return (st->data[i] = value);
 }
 
-void sk_sort(STACK *st)
+void sk_sort(_STACK *st)
 	{
 	if (st && !st->sorted)
 		{
@@ -333,7 +326,7 @@ void sk_sort(STACK *st)
 		}
 	}
 
-int sk_is_sorted(const STACK *st)
+int sk_is_sorted(const _STACK *st)
 	{
 	if (!st)
 		return 1;

@@ -95,7 +95,7 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
 		goto err;
 		}
 
-	i=EVP_PKEY_decrypt(key,ek,ekl,priv);
+	i=EVP_PKEY_decrypt_old(key,ek,ekl,priv);
 	if ((i <= 0) || !EVP_CIPHER_CTX_set_key_length(ctx, i))
 		{
 		/* ERROR */

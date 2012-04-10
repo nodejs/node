@@ -71,6 +71,7 @@ int PKCS12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 	HMAC_CTX hmac;
 	unsigned char key[EVP_MAX_MD_SIZE], *salt;
 	int saltlen, iter;
+	int md_size;
 
 	if (!PKCS7_type_is_data(p12->authsafes))
 		{
@@ -87,13 +88,16 @@ int PKCS12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
 		PKCS12err(PKCS12_F_PKCS12_GEN_MAC,PKCS12_R_UNKNOWN_DIGEST_ALGORITHM);
 		return 0;
 	}
+	md_size = EVP_MD_size(md_type);
+	if (md_size < 0)
+	    return 0;
 	if(!PKCS12_key_gen (pass, passlen, salt, saltlen, PKCS12_MAC_ID, iter,
-				 EVP_MD_size(md_type), key, md_type)) {
+				 md_size, key, md_type)) {
 		PKCS12err(PKCS12_F_PKCS12_GEN_MAC,PKCS12_R_KEY_GEN_ERROR);
 		return 0;
 	}
 	HMAC_CTX_init(&hmac);
-	HMAC_Init_ex(&hmac, key, EVP_MD_size(md_type), md_type, NULL);
+	HMAC_Init_ex(&hmac, key, md_size, md_type, NULL);
     	HMAC_Update(&hmac, p12->authsafes->d.data->data,
 					 p12->authsafes->d.data->length);
     	HMAC_Final(&hmac, mac, maclen);

@@ -1,5 +1,5 @@
 #include "../bn_lcl.h"
-#ifdef __SUNPRO_C
+#if !(defined(__GNUC__) && __GNUC__>=2)
 # include "../bn_asm.c"	/* kind of dirty hack for Sun Studio */
 #else
 /*
@@ -55,7 +55,11 @@
  *    machine.
  */
 
+#ifdef _WIN64
+#define BN_ULONG unsigned long long
+#else
 #define BN_ULONG unsigned long
+#endif
 
 #undef mul
 #undef mul_add
@@ -187,7 +191,7 @@ BN_ULONG bn_add_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int 
 
 	asm (
 	"	subq	%2,%2		\n"
-	".align 16			\n"
+	".p2align 4			\n"
 	"1:	movq	(%4,%2,8),%0	\n"
 	"	adcq	(%5,%2,8),%0	\n"
 	"	movq	%0,(%3,%2,8)	\n"
@@ -210,7 +214,7 @@ BN_ULONG bn_sub_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int 
 
 	asm (
 	"	subq	%2,%2		\n"
-	".align 16			\n"
+	".p2align 4			\n"
 	"1:	movq	(%4,%2,8),%0	\n"
 	"	sbbq	(%5,%2,8),%0	\n"
 	"	movq	%0,(%3,%2,8)	\n"

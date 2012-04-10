@@ -71,6 +71,7 @@ static void long_free(ASN1_VALUE **pval, const ASN1_ITEM *it);
 
 static int long_i2c(ASN1_VALUE **pval, unsigned char *cont, int *putype, const ASN1_ITEM *it);
 static int long_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len, int utype, char *free_cont, const ASN1_ITEM *it);
+static int long_print(BIO *out, ASN1_VALUE **pval, const ASN1_ITEM *it, int indent, const ASN1_PCTX *pctx);
 
 static ASN1_PRIMITIVE_FUNCS long_pf = {
 	NULL, 0,
@@ -78,7 +79,8 @@ static ASN1_PRIMITIVE_FUNCS long_pf = {
 	long_free,
 	long_free,	/* Clear should set to initial value */
 	long_c2i,
-	long_i2c
+	long_i2c,
+	long_print
 };
 
 ASN1_ITEM_start(LONG)
@@ -169,3 +171,9 @@ static int long_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
 	memcpy(cp, &ltmp, sizeof(long));
 	return 1;
 }
+
+static int long_print(BIO *out, ASN1_VALUE **pval, const ASN1_ITEM *it,
+			int indent, const ASN1_PCTX *pctx)
+	{
+	return BIO_printf(out, "%ld\n", *(long *)pval);
+	}

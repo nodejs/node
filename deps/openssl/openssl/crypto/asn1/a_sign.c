@@ -123,6 +123,7 @@
 #include <openssl/x509.h>
 #include <openssl/objects.h>
 #include <openssl/buffer.h>
+#include "asn1_locl.h"
 
 #ifndef NO_ASN1_OLD
 
@@ -218,45 +219,47 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 	{
 	EVP_MD_CTX ctx;
 	unsigned char *buf_in=NULL,*buf_out=NULL;
-	int i,inl=0,outl=0,outll=0;
-	X509_ALGOR *a;
+	int inl=0,outl=0,outll=0;
+	int signid, paramtype;
 
-	EVP_MD_CTX_init(&ctx);
-	for (i=0; i<2; i++)
+	if (type == NULL)
 		{
-		if (i == 0)
-			a=algor1;
-		else
-			a=algor2;
-		if (a == NULL) continue;
-                if (type->pkey_type == NID_dsaWithSHA1 ||
-			type->pkey_type == NID_ecdsa_with_SHA1)
+		int def_nid;
+		if (EVP_PKEY_get_default_digest_nid(pkey, &def_nid) > 0)
+			type = EVP_get_digestbynid(def_nid);
+		}
+
+	if (type == NULL)
+		{
+		ASN1err(ASN1_F_ASN1_ITEM_SIGN, ASN1_R_NO_DEFAULT_DIGEST);
+		return 0;
+		}
+
+	if (type->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE)
+		{
+		if (!pkey->ameth ||
+			!OBJ_find_sigid_by_algs(&signid, EVP_MD_nid(type),
+						pkey->ameth->pkey_id))
 			{
-			/* special case: RFC 3279 tells us to omit 'parameters'
-			 * with id-dsa-with-sha1 and ecdsa-with-SHA1 */
-			ASN1_TYPE_free(a->parameter);
-			a->parameter = NULL;
-			}
-		else if ((a->parameter == NULL) || 
-			(a->parameter->type != V_ASN1_NULL))
-			{
-			ASN1_TYPE_free(a->parameter);
-			if ((a->parameter=ASN1_TYPE_new()) == NULL) goto err;
-			a->parameter->type=V_ASN1_NULL;
-			}
-		ASN1_OBJECT_free(a->algorithm);
-		a->algorithm=OBJ_nid2obj(type->pkey_type);
-		if (a->algorithm == NULL)
-			{
-			ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_UNKNOWN_OBJECT_TYPE);
-			goto err;
-			}
-		if (a->algorithm->length == 0)
-			{
-			ASN1err(ASN1_F_ASN1_ITEM_SIGN,ASN1_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD);
-			goto err;
+			ASN1err(ASN1_F_ASN1_ITEM_SIGN,
+				ASN1_R_DIGEST_AND_KEY_TYPE_NOT_SUPPORTED);
+			return 0;
 			}
 		}
+	else
+		signid = type->pkey_type;
+
+	if (pkey->ameth->pkey_flags & ASN1_PKEY_SIGPARAM_NULL)
+		paramtype = V_ASN1_NULL;
+	else
+		paramtype = V_ASN1_UNDEF;
+
+	if (algor1)
+		X509_ALGOR_set0(algor1, OBJ_nid2obj(signid), paramtype, NULL);
+	if (algor2)
+		X509_ALGOR_set0(algor2, OBJ_nid2obj(signid), paramtype, NULL);
+
+	EVP_MD_CTX_init(&ctx);
 	inl=ASN1_item_i2d(asn,&buf_in, it);
 	outll=outl=EVP_PKEY_size(pkey);
 	buf_out=(unsigned char *)OPENSSL_malloc((unsigned int)outl);
@@ -267,12 +270,7 @@ int ASN1_item_sign(const ASN1_ITEM *it, X509_ALGOR *algor1, X509_ALGOR *algor2,
 		goto err;
 		}
 
-	if (!EVP_SignInit_ex(&ctx,type, NULL))
-		{
-		outl=0;
-		ASN1err(ASN1_F_ASN1_ITEM_SIGN,ERR_R_EVP_LIB);
-		goto err;
-		}
+	EVP_SignInit_ex(&ctx,type, NULL);
 	EVP_SignUpdate(&ctx,(unsigned char *)buf_in,inl);
 	if (!EVP_SignFinal(&ctx,(unsigned char *)buf_out,
 			(unsigned int *)&outl,pkey))

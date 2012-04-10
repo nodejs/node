@@ -29,7 +29,7 @@ EXE=""
 for i
 do
 case "$i" in 
--d) PREFIX="debug-";;
+-d*) PREFIX="debug-";;
 -t*) TEST="true";;
 -h*) TEST="true"; cat <<EOF
 Usage: config [options]
@@ -120,6 +120,14 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 
     AIX:*)
 	echo "${MACHINE}-ibm-aix3"; exit 0
+	;;
+
+    BeOS:*:BePC)
+    if [ -e /boot/develop/headers/be/bone ]; then
+		echo "beos-x86-bone"; exit 0
+	else
+		echo "beos-x86-r5"; exit 0
+	fi
 	;;
 
     dgux:*)
@@ -270,7 +278,7 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 		echo "ppc-apple-darwin${VERSION}"
 		;;
 	    *)
-		echo "i386-apple-darwin${VERSION}"
+		echo "i686-apple-darwin${VERSION}"
 		;;
 	esac
 	exit 0
@@ -488,6 +496,12 @@ echo Operating system: $GUESSOS
 # script above so we end up with values in vars but that would take
 # more time that I want to waste at the moment
 case "$GUESSOS" in
+  uClinux*64*)
+    OUT=uClinux-dist64
+	;;
+  uClinux*)
+    OUT=uClinux-dist
+	;;
   mips2-sgi-irix)
 	CPU=`(hinv -t cpu) 2>/dev/null | head -1 | sed 's/^CPU:[^R]*R\([0-9]*\).*/\1/'`
 	CPU=${CPU:-0}
@@ -523,8 +537,28 @@ case "$GUESSOS" in
 	OUT="irix-mips3-$CC"
 	;;
   ppc-apple-rhapsody) OUT="rhapsody-ppc-cc" ;;
-  ppc-apple-darwin*) OUT="darwin-ppc-cc" ;;
-  i386-apple-darwin*) OUT="darwin-i386-cc" ;;
+  ppc-apple-darwin*)
+	ISA64=`(sysctl -n hw.optional.64bitops) 2>/dev/null`
+	if [ "$ISA64" = "1" ]; then
+	    echo "WARNING! If you wish to build 64-bit library, then you have to"
+	    echo "         invoke './Configure darwin64-ppc-cc' *manually*."
+	    if [ "$TEST" = "false" -a -t 1 ]; then
+	      echo "         You have about 5 seconds to press Ctrl-C to abort."
+	      (trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	    fi
+	fi
+	OUT="darwin-ppc-cc" ;;
+  i?86-apple-darwin*)
+	ISA64=`(sysctl -n hw.optional.x86_64) 2>/dev/null`
+	if [ "$ISA64" = "1" ]; then
+	    echo "WARNING! If you wish to build 64-bit library, then you have to"
+	    echo "         invoke './Configure darwin64-x86_64-cc' *manually*."
+	    if [ "$TEST" = "false" -a -t 1 ]; then
+	      echo "         You have about 5 seconds to press Ctrl-C to abort."
+	      (trap "stty `stty -g`" 2 0; stty -icanon min 0 time 50; read waste) <&1
+	    fi
+	fi
+	OUT="darwin-i386-cc" ;;
   alpha-*-linux2)
         ISA=`awk '/cpu model/{print$4;exit(0);}' /proc/cpuinfo`
 	case ${ISA:-generic} in
@@ -589,13 +623,13 @@ case "$GUESSOS" in
 
 	options="$options -DB_ENDIAN -mschedule=$CPUSCHEDULE -march=$CPUARCH"
 	OUT="linux-generic32" ;;
-  arm*b-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
-  arm*l-*-linux2) OUT="linux-generic32"; options="$options -DL_ENDIAN" ;;
+  armv[1-3]*-*-linux2) OUT="linux-generic32" ;;
+  arm*-*-linux2) OUT="linux-armv4" ;;
   sh*b-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
   sh*-*-linux2)  OUT="linux-generic32"; options="$options -DL_ENDIAN" ;;
   m68k*-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
-  s390-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN -DNO_ASM" ;;
-  s390x-*-linux2) OUT="linux-generic64"; options="$options -DB_ENDIAN" ;;
+  s390-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
+  s390x-*-linux2) OUT="linux-s390x" ;;
   x86_64-*-linux?) OUT="linux-x86_64" ;;
   *86-*-linux2) OUT="linux-elf"
 	if [ "$GCCVER" -gt 28 ]; then
@@ -773,6 +807,7 @@ case "$GUESSOS" in
   t3e-cray-unicosmk) OUT="cray-t3e" ;;
   j90-cray-unicos) OUT="cray-j90" ;;
   nsr-tandem-nsk) OUT="tandem-c89" ;;
+  beos-*) OUT="$GUESSOS" ;;
   x86pc-*-qnx6) OUT="QNX6-i386" ;;
   *-*-qnx6) OUT="QNX6" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
@@ -789,6 +824,10 @@ esac
 #then
 #  options="$options -DATALLA"
 #fi
+
+($CC -Wa,--help -c -o /dev/null -x assembler /dev/null 2>&1 | \
+ grep \\--noexecstack) 2>&1 > /dev/null && \
+  options="$options -Wa,--noexecstack"
 
 # gcc < 2.8 does not support -march=ultrasparc
 if [ "$OUT" = solaris-sparcv9-gcc -a $GCCVER -lt 28 ]

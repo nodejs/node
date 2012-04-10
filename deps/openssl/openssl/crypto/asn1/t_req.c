@@ -149,34 +149,10 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags, unsigned long
 			ERR_print_errors(bp);
 			}
 		else
-#ifndef OPENSSL_NO_RSA
-		if (pkey->type == EVP_PKEY_RSA)
 			{
-			BIO_printf(bp,"%12sRSA Public Key: (%d bit)\n","",
-			BN_num_bits(pkey->pkey.rsa->n));
-			RSA_print(bp,pkey->pkey.rsa,16);
+			EVP_PKEY_print_public(bp, pkey, 16, NULL);
+			EVP_PKEY_free(pkey);
 			}
-		else
-#endif
-#ifndef OPENSSL_NO_DSA
-		if (pkey->type == EVP_PKEY_DSA)
-			{
-			BIO_printf(bp,"%12sDSA Public Key:\n","");
-			DSA_print(bp,pkey->pkey.dsa,16);
-			}
-		else
-#endif
-#ifndef OPENSSL_NO_EC
-		if (pkey->type == EVP_PKEY_EC)
-		{
-			BIO_printf(bp, "%12sEC Public Key: \n","");
-			EC_KEY_print(bp, pkey->pkey.ec, 16);
-		}
-	else
-#endif
-			BIO_printf(bp,"%12sUnknown Public Key:\n","");
-
-		EVP_PKEY_free(pkey);
 		}
 
 	if(!(cflag & X509_FLAG_NO_ATTRIBUTES))

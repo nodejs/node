@@ -60,6 +60,7 @@
 #include "cryptlib.h"
 #include <openssl/asn1t.h>
 #include <openssl/x509.h>
+#include "asn1_locl.h"
 #ifndef OPENSSL_NO_RSA
 #include <openssl/rsa.h>
 #endif
@@ -68,7 +69,8 @@
 #endif
 
 /* Minor tweak to operation: free up EVP_PKEY */
-static int pubkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int pubkey_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+			void *exarg)
 	{
 	if (operation == ASN1_OP_FREE_POST)
 		{
@@ -88,161 +90,34 @@ IMPLEMENT_ASN1_FUNCTIONS(X509_PUBKEY)
 int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
 	{
 	X509_PUBKEY *pk=NULL;
-	X509_ALGOR *a;
-	ASN1_OBJECT *o;
-	unsigned char *s,*p = NULL;
-	int i;
 
 	if (x == NULL) return(0);
 
-	if ((pk=X509_PUBKEY_new()) == NULL) goto err;
-	a=pk->algor;
+	if ((pk=X509_PUBKEY_new()) == NULL) goto error;
 
-	/* set the algorithm id */
-	if ((o=OBJ_nid2obj(pkey->type)) == NULL) goto err;
-	ASN1_OBJECT_free(a->algorithm);
-	a->algorithm=o;
-
-	/* Set the parameter list */
-	if (!pkey->save_parameters || (pkey->type == EVP_PKEY_RSA))
+	if (pkey->ameth)
 		{
-		if ((a->parameter == NULL) ||
-			(a->parameter->type != V_ASN1_NULL))
+		if (pkey->ameth->pub_encode)
 			{
-			ASN1_TYPE_free(a->parameter);
-			if (!(a->parameter=ASN1_TYPE_new()))
+			if (!pkey->ameth->pub_encode(pk, pkey))
 				{
-				X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-				goto err;
+				X509err(X509_F_X509_PUBKEY_SET,
+					X509_R_PUBLIC_KEY_ENCODE_ERROR);
+				goto error;
 				}
-			a->parameter->type=V_ASN1_NULL;
+			}
+		else
+			{
+			X509err(X509_F_X509_PUBKEY_SET,
+				X509_R_METHOD_NOT_SUPPORTED);
+			goto error;
 			}
 		}
-#ifndef OPENSSL_NO_DSA
-	else if (pkey->type == EVP_PKEY_DSA)
-		{
-		unsigned char *pp;
-		DSA *dsa;
-		
-		dsa=pkey->pkey.dsa;
-		dsa->write_params=0;
-		ASN1_TYPE_free(a->parameter);
-		if ((i=i2d_DSAparams(dsa,NULL)) <= 0)
-			goto err;
-		if (!(p=(unsigned char *)OPENSSL_malloc(i)))
-			{
-			X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-			goto err;
-			}
-		pp=p;
-		i2d_DSAparams(dsa,&pp);
-		if (!(a->parameter=ASN1_TYPE_new()))
-			{
-			OPENSSL_free(p);
-			X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-			goto err;
-			}
-		a->parameter->type=V_ASN1_SEQUENCE;
-		if (!(a->parameter->value.sequence=ASN1_STRING_new()))
-			{
-			OPENSSL_free(p);
-			X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-			goto err;
-			}
-		if (!ASN1_STRING_set(a->parameter->value.sequence,p,i))
-			{
-			OPENSSL_free(p);
-			X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-			goto err;
-			}
-		OPENSSL_free(p);
-		}
-#endif
-#ifndef OPENSSL_NO_EC
-	else if (pkey->type == EVP_PKEY_EC)
-		{
-		int nid=0;
-		unsigned char *pp;
-		EC_KEY *ec_key;
-		const EC_GROUP *group;
-		
-		ec_key = pkey->pkey.ec;
-		ASN1_TYPE_free(a->parameter);
-
-		if ((a->parameter = ASN1_TYPE_new()) == NULL)
-			{
-			X509err(X509_F_X509_PUBKEY_SET, ERR_R_ASN1_LIB);
-			goto err;
-			}
-
-		group = EC_KEY_get0_group(ec_key);
-		if (EC_GROUP_get_asn1_flag(group)
-                     && (nid = EC_GROUP_get_curve_name(group)))
-			{
-			/* just set the OID */
-			a->parameter->type = V_ASN1_OBJECT;
-			a->parameter->value.object = OBJ_nid2obj(nid);
-			}
-		else /* explicit parameters */
-			{
-			if ((i = i2d_ECParameters(ec_key, NULL)) == 0)
-				{
-				X509err(X509_F_X509_PUBKEY_SET, ERR_R_EC_LIB);
-				goto err;
-				}
-			if ((p = (unsigned char *) OPENSSL_malloc(i)) == NULL)
-				{
-				X509err(X509_F_X509_PUBKEY_SET, ERR_R_MALLOC_FAILURE);
-				goto err;
-				}	
-			pp = p;
-			if (!i2d_ECParameters(ec_key, &pp))
-				{
-				X509err(X509_F_X509_PUBKEY_SET, ERR_R_EC_LIB);
-				OPENSSL_free(p);
-				goto err;
-				}
-			a->parameter->type = V_ASN1_SEQUENCE;
-			if ((a->parameter->value.sequence = ASN1_STRING_new()) == NULL)
-				{
-				X509err(X509_F_X509_PUBKEY_SET, ERR_R_ASN1_LIB);
-				OPENSSL_free(p);
-				goto err;
-				}
-			ASN1_STRING_set(a->parameter->value.sequence, p, i);
-			OPENSSL_free(p);
-			}
-		}
-#endif
-	else if (1)
+	else
 		{
 		X509err(X509_F_X509_PUBKEY_SET,X509_R_UNSUPPORTED_ALGORITHM);
-		goto err;
+		goto error;
 		}
-
-	if ((i=i2d_PublicKey(pkey,NULL)) <= 0) goto err;
-	if ((s=(unsigned char *)OPENSSL_malloc(i+1)) == NULL)
-		{
-		X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-	p=s;
-	i2d_PublicKey(pkey,&p);
-	if (!M_ASN1_BIT_STRING_set(pk->public_key,s,i))
-		{
-		X509err(X509_F_X509_PUBKEY_SET,ERR_R_MALLOC_FAILURE);
-		goto err;
-		}
-  	/* Set number of unused bits to zero */
-	pk->public_key->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);
-	pk->public_key->flags|=ASN1_STRING_FLAG_BITS_LEFT;
-
-	OPENSSL_free(s);
-
-#if 0
-	CRYPTO_add(&pkey->references,1,CRYPTO_LOCK_EVP_PKEY);
-	pk->pkey=pkey;
-#endif
 
 	if (*x != NULL)
 		X509_PUBKEY_free(*x);
@@ -250,7 +125,7 @@ int X509_PUBKEY_set(X509_PUBKEY **x, EVP_PKEY *pkey)
 	*x=pk;
 
 	return 1;
-err:
+error:
 	if (pk != NULL) X509_PUBKEY_free(pk);
 	return 0;
 	}
@@ -258,119 +133,50 @@ err:
 EVP_PKEY *X509_PUBKEY_get(X509_PUBKEY *key)
 	{
 	EVP_PKEY *ret=NULL;
-	long j;
-	int type;
-	const unsigned char *p;
-#if !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_ECDSA)
-	const unsigned char *cp;
-	X509_ALGOR *a;
-#endif
 
-	if (key == NULL) goto err;
+	if (key == NULL) goto error;
 
 	if (key->pkey != NULL)
 		{
 		CRYPTO_add(&key->pkey->references, 1, CRYPTO_LOCK_EVP_PKEY);
-		return(key->pkey);
+		return key->pkey;
 		}
 
-	if (key->public_key == NULL) goto err;
+	if (key->public_key == NULL) goto error;
 
-	type=OBJ_obj2nid(key->algor->algorithm);
 	if ((ret = EVP_PKEY_new()) == NULL)
 		{
 		X509err(X509_F_X509_PUBKEY_GET, ERR_R_MALLOC_FAILURE);
-		goto err;
+		goto error;
 		}
-	ret->type = EVP_PKEY_type(type);
 
-	/* the parameters must be extracted before the public key (ECDSA!) */
-	
-#if !defined(OPENSSL_NO_DSA) || !defined(OPENSSL_NO_ECDSA)
-	a=key->algor;
-#endif
-
-	if (0)
-		;
-#ifndef OPENSSL_NO_DSA
-	else if (ret->type == EVP_PKEY_DSA)
+	if (!EVP_PKEY_set_type(ret, OBJ_obj2nid(key->algor->algorithm)))
 		{
-		if (a->parameter && (a->parameter->type == V_ASN1_SEQUENCE))
-			{
-			if ((ret->pkey.dsa = DSA_new()) == NULL)
-				{
-				X509err(X509_F_X509_PUBKEY_GET, ERR_R_MALLOC_FAILURE);
-				goto err;
-				}
-			ret->pkey.dsa->write_params=0;
-			cp=p=a->parameter->value.sequence->data;
-			j=a->parameter->value.sequence->length;
-			if (!d2i_DSAparams(&ret->pkey.dsa, &cp, (long)j))
-				goto err;
-			}
-		ret->save_parameters=1;
+		X509err(X509_F_X509_PUBKEY_GET,X509_R_UNSUPPORTED_ALGORITHM);
+		goto error;
 		}
-#endif
-#ifndef OPENSSL_NO_EC
-	else if (ret->type == EVP_PKEY_EC)
-		{
-		if (a->parameter && (a->parameter->type == V_ASN1_SEQUENCE))
-			{
-			/* type == V_ASN1_SEQUENCE => we have explicit parameters
-                         * (e.g. parameters in the X9_62_EC_PARAMETERS-structure )
-			 */
-			if ((ret->pkey.ec= EC_KEY_new()) == NULL)
-				{
-				X509err(X509_F_X509_PUBKEY_GET, 
-					ERR_R_MALLOC_FAILURE);
-				goto err;
-				}
-			cp = p = a->parameter->value.sequence->data;
-			j = a->parameter->value.sequence->length;
-			if (!d2i_ECParameters(&ret->pkey.ec, &cp, (long)j))
-				{
-				X509err(X509_F_X509_PUBKEY_GET, ERR_R_EC_LIB);
-				goto err;
-				}
-			}
-		else if (a->parameter && (a->parameter->type == V_ASN1_OBJECT))
-			{
-			/* type == V_ASN1_OBJECT => the parameters are given
-			 * by an asn1 OID
-			 */
-			EC_KEY   *ec_key;
-			EC_GROUP *group;
 
-			if (ret->pkey.ec == NULL)
-				ret->pkey.ec = EC_KEY_new();
-			ec_key = ret->pkey.ec;
-			if (ec_key == NULL)
-				goto err;
-			group = EC_GROUP_new_by_curve_name(OBJ_obj2nid(a->parameter->value.object));
-			if (group == NULL)
-				goto err;
-			EC_GROUP_set_asn1_flag(group, OPENSSL_EC_NAMED_CURVE);
-			if (EC_KEY_set_group(ec_key, group) == 0)
-				goto err;
-			EC_GROUP_free(group);
+	if (ret->ameth->pub_decode)
+		{
+		if (!ret->ameth->pub_decode(ret, key))
+			{
+			X509err(X509_F_X509_PUBKEY_GET,
+						X509_R_PUBLIC_KEY_DECODE_ERROR);
+			goto error;
 			}
-			/* the case implicitlyCA is currently not implemented */
-		ret->save_parameters = 1;
 		}
-#endif
-
-	p=key->public_key->data;
-        j=key->public_key->length;
-        if (!d2i_PublicKey(type, &ret, &p, (long)j))
+	else
 		{
-		X509err(X509_F_X509_PUBKEY_GET, X509_R_ERR_ASN1_LIB);
-		goto err;
+		X509err(X509_F_X509_PUBKEY_GET, X509_R_METHOD_NOT_SUPPORTED);
+		goto error;
 		}
 
 	key->pkey = ret;
 	CRYPTO_add(&ret->references, 1, CRYPTO_LOCK_EVP_PKEY);
-	return(ret);
-err:
+
+	return ret;
+
+	error:
 	if (ret != NULL)
 		EVP_PKEY_free(ret);
 	return(NULL);
@@ -529,3 +335,39 @@ int i2d_EC_PUBKEY(EC_KEY *a, unsigned char **pp)
 	return(ret);
 	}
 #endif
+
+int X509_PUBKEY_set0_param(X509_PUBKEY *pub, ASN1_OBJECT *aobj,
+					int ptype, void *pval,
+					unsigned char *penc, int penclen)
+	{
+	if (!X509_ALGOR_set0(pub->algor, aobj, ptype, pval))
+		return 0;
+	if (penc)
+		{
+		if (pub->public_key->data)
+			OPENSSL_free(pub->public_key->data);
+		pub->public_key->data = penc;
+		pub->public_key->length = penclen;
+  		/* Set number of unused bits to zero */
+		pub->public_key->flags&= ~(ASN1_STRING_FLAG_BITS_LEFT|0x07);
+		pub->public_key->flags|=ASN1_STRING_FLAG_BITS_LEFT;
+		}
+	return 1;
+	}
+
+int X509_PUBKEY_get0_param(ASN1_OBJECT **ppkalg,
+		const unsigned char **pk, int *ppklen,
+		X509_ALGOR **pa,
+		X509_PUBKEY *pub)
+	{
+	if (ppkalg)
+		*ppkalg = pub->algor->algorithm;
+	if (pk)
+		{
+		*pk = pub->public_key->data;
+		*ppklen = pub->public_key->length;
+		}
+	if (pa)
+		*pa = pub->algor;
+	return 1;
+	}

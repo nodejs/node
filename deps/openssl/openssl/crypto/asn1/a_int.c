@@ -61,10 +61,10 @@
 #include <openssl/asn1.h>
 #include <openssl/bn.h>
 
-ASN1_INTEGER *ASN1_INTEGER_dup(ASN1_INTEGER *x)
+ASN1_INTEGER *ASN1_INTEGER_dup(const ASN1_INTEGER *x)
 { return M_ASN1_INTEGER_dup(x);}
 
-int ASN1_INTEGER_cmp(ASN1_INTEGER *x, ASN1_INTEGER *y)
+int ASN1_INTEGER_cmp(const ASN1_INTEGER *x, const ASN1_INTEGER *y)
 	{ 
 	int neg, ret;
 	/* Compare signs */
@@ -372,7 +372,7 @@ int ASN1_INTEGER_set(ASN1_INTEGER *a, long v)
 	return(1);
 	}
 
-long ASN1_INTEGER_get(ASN1_INTEGER *a)
+long ASN1_INTEGER_get(const ASN1_INTEGER *a)
 	{
 	int neg=0,i;
 	long r=0;
@@ -401,7 +401,7 @@ long ASN1_INTEGER_get(ASN1_INTEGER *a)
 	return(r);
 	}
 
-ASN1_INTEGER *BN_to_ASN1_INTEGER(BIGNUM *bn, ASN1_INTEGER *ai)
+ASN1_INTEGER *BN_to_ASN1_INTEGER(const BIGNUM *bn, ASN1_INTEGER *ai)
 	{
 	ASN1_INTEGER *ret;
 	int len,j;
@@ -443,7 +443,7 @@ err:
 	return(NULL);
 	}
 
-BIGNUM *ASN1_INTEGER_to_BN(ASN1_INTEGER *ai, BIGNUM *bn)
+BIGNUM *ASN1_INTEGER_to_BN(const ASN1_INTEGER *ai, BIGNUM *bn)
 	{
 	BIGNUM *ret;
 

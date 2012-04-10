@@ -1,0 +1,112 @@
+=pod
+
+=head1 NAME
+
+SSL_CIPHER_get_name, SSL_CIPHER_get_bits, SSL_CIPHER_get_version, SSL_CIPHER_description - get SSL_CIPHER properties
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ const char *SSL_CIPHER_get_name(const SSL_CIPHER *cipher);
+ int SSL_CIPHER_get_bits(const SSL_CIPHER *cipher, int *alg_bits);
+ char *SSL_CIPHER_get_version(const SSL_CIPHER *cipher);
+ char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int size);
+
+=head1 DESCRIPTION
+
+SSL_CIPHER_get_name() returns a pointer to the name of B<cipher>. If the
+argument is the NULL pointer, a pointer to the constant value "NONE" is
+returned.
+
+SSL_CIPHER_get_bits() returns the number of secret bits used for B<cipher>. If
+B<alg_bits> is not NULL, it contains the number of bits processed by the
+chosen algorithm. If B<cipher> is NULL, 0 is returned.
+
+SSL_CIPHER_get_version() returns the protocol version for B<cipher>, currently
+"SSLv2", "SSLv3", or "TLSv1". If B<cipher> is NULL, "(NONE)" is returned.
+
+SSL_CIPHER_description() returns a textual description of the cipher used
+into the buffer B<buf> of length B<len> provided. B<len> must be at least
+128 bytes, otherwise a pointer to the string "Buffer too small" is
+returned. If B<buf> is NULL, a buffer of 128 bytes is allocated using
+OPENSSL_malloc(). If the allocation fails, a pointer to the string
+"OPENSSL_malloc Error" is returned.
+
+=head1 NOTES
+
+The number of bits processed can be different from the secret bits. An
+export cipher like e.g. EXP-RC4-MD5 has only 40 secret bits. The algorithm
+does use the full 128 bits (which would be returned for B<alg_bits>), of
+which however 88bits are fixed. The search space is hence only 40 bits.
+
+The string returned by SSL_CIPHER_description() in case of success consists
+of cleartext information separated by one or more blanks in the following
+sequence:
+
+=over 4
+
+=item <ciphername>
+
+Textual representation of the cipher name.
+
+=item <protocol version>
+
+Protocol version: B<SSLv2>, B<SSLv3>. The TLSv1 ciphers are flagged with SSLv3.
+
+=item Kx=<key exchange>
+
+Key exchange method: B<RSA> (for export ciphers as B<RSA(512)> or
+B<RSA(1024)>), B<DH> (for export ciphers as B<DH(512)> or B<DH(1024)>),
+B<DH/RSA>, B<DH/DSS>, B<Fortezza>.
+
+=item Au=<authentication>
+
+Authentication method: B<RSA>, B<DSS>, B<DH>, B<None>. None is the
+representation of anonymous ciphers.
+
+=item Enc=<symmetric encryption method>
+
+Encryption method with number of secret bits: B<DES(40)>, B<DES(56)>,
+B<3DES(168)>, B<RC4(40)>, B<RC4(56)>, B<RC4(64)>, B<RC4(128)>,
+B<RC2(40)>, B<RC2(56)>, B<RC2(128)>, B<IDEA(128)>, B<Fortezza>, B<None>.
+
+=item Mac=<message authentication code>
+
+Message digest: B<MD5>, B<SHA1>.
+
+=item <export flag>
+
+If the cipher is flagged exportable with respect to old US crypto
+regulations, the word "B<export>" is printed.
+
+=back
+
+=head1 EXAMPLES
+
+Some examples for the output of SSL_CIPHER_description():
+
+ EDH-RSA-DES-CBC3-SHA    SSLv3 Kx=DH       Au=RSA  Enc=3DES(168) Mac=SHA1
+ EDH-DSS-DES-CBC3-SHA    SSLv3 Kx=DH       Au=DSS  Enc=3DES(168) Mac=SHA1
+ RC4-MD5                 SSLv3 Kx=RSA      Au=RSA  Enc=RC4(128)  Mac=MD5
+ EXP-RC4-MD5             SSLv3 Kx=RSA(512) Au=RSA  Enc=RC4(40)   Mac=MD5  export
+
+=head1 BUGS
+
+If SSL_CIPHER_description() is called with B<cipher> being NULL, the
+library crashes.
+
+If SSL_CIPHER_description() cannot handle a built-in cipher, the according
+description of the cipher property is B<unknown>. This case should not
+occur.
+
+=head1 RETURN VALUES
+
+See DESCRIPTION
+
+=head1 SEE ALSO
+
+L<ssl(3)|ssl(3)>, L<SSL_get_current_cipher(3)|SSL_get_current_cipher(3)>,
+L<SSL_get_ciphers(3)|SSL_get_ciphers(3)>, L<ciphers(1)|ciphers(1)>
+
+=cut

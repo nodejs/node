@@ -57,11 +57,6 @@
  */
 
 #include <openssl/cast.h>
-#include <openssl/crypto.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 #include "cast_lcl.h"
 #include "cast_s.h"
 
@@ -77,7 +72,7 @@
 #define S6 CAST_S_table6
 #define S7 CAST_S_table7
 
-FIPS_NON_FIPS_VCIPHER_Init(CAST)
+void CAST_set_key(CAST_KEY *key, int len, const unsigned char *data)
 	{
 	CAST_LONG x[16];
 	CAST_LONG z[16];

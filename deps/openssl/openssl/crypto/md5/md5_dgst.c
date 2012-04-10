@@ -59,11 +59,6 @@
 #include <stdio.h>
 #include "md5_locl.h"
 #include <openssl/opensslv.h>
-#include <openssl/err.h>
-#ifdef OPENSSL_FIPS
-#include <openssl/fips.h>
-#endif
-
 
 const char MD5_version[]="MD5" OPENSSL_VERSION_PTEXT;
 
@@ -75,15 +70,13 @@ const char MD5_version[]="MD5" OPENSSL_VERSION_PTEXT;
 #define INIT_DATA_C (unsigned long)0x98badcfeL
 #define INIT_DATA_D (unsigned long)0x10325476L
 
-FIPS_NON_FIPS_MD_Init(MD5)
+int MD5_Init(MD5_CTX *c)
 	{
+	memset (c,0,sizeof(*c));
 	c->A=INIT_DATA_A;
 	c->B=INIT_DATA_B;
 	c->C=INIT_DATA_C;
 	c->D=INIT_DATA_D;
-	c->Nl=0;
-	c->Nh=0;
-	c->num=0;
 	return 1;
 	}
 

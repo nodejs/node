@@ -45,7 +45,7 @@ top:
 all:	lib
 
 lib:	$(LIBOBJ)
-	$(ARX) $(LIB) $(LIBOBJ)
+	$(AR) $(LIB) $(LIBOBJ)
 	$(RANLIB) $(LIB) || echo Never mind.
 	@touch lib
 
@@ -102,11 +102,12 @@ b_print.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
 b_print.o: ../../include/openssl/symhacks.h ../cryptlib.h b_print.c
 b_sock.o: ../../e_os.h ../../include/openssl/bio.h
 b_sock.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
-b_sock.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h
-b_sock.o: ../../include/openssl/lhash.h ../../include/openssl/opensslconf.h
-b_sock.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
-b_sock.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
-b_sock.o: ../../include/openssl/symhacks.h ../cryptlib.h b_sock.c
+b_sock.o: ../../include/openssl/dso.h ../../include/openssl/e_os2.h
+b_sock.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
+b_sock.o: ../../include/openssl/opensslconf.h ../../include/openssl/opensslv.h
+b_sock.o: ../../include/openssl/ossl_typ.h ../../include/openssl/safestack.h
+b_sock.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+b_sock.o: ../cryptlib.h b_sock.c
 bf_buff.o: ../../e_os.h ../../include/openssl/bio.h
 bf_buff.o: ../../include/openssl/buffer.h ../../include/openssl/crypto.h
 bf_buff.o: ../../include/openssl/e_os2.h ../../include/openssl/err.h

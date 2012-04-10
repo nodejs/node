@@ -2,9 +2,1007 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.0e and 1.0.0f [4 Jan 2012]
+
+  *) Nadhem Alfardan and Kenny Paterson have discovered an extension
+     of the Vaudenay padding oracle attack on CBC mode encryption
+     which enables an efficient plaintext recovery attack against
+     the OpenSSL implementation of DTLS. Their attack exploits timing
+     differences arising during decryption processing. A research
+     paper describing this attack can be found at:
+                  http://www.isg.rhul.ac.uk/~kp/dtls.pdf
+     Thanks go to Nadhem Alfardan and Kenny Paterson of the Information
+     Security Group at Royal Holloway, University of London
+     (www.isg.rhul.ac.uk) for discovering this flaw and to Robin Seggelmann
+     <seggelmann@fh-muenster.de> and Michael Tuexen <tuexen@fh-muenster.de>
+     for preparing the fix. (CVE-2011-4108)
+     [Robin Seggelmann, Michael Tuexen]
+
+  *) Clear bytes used for block padding of SSL 3.0 records.
+     (CVE-2011-4576)
+     [Adam Langley (Google)]
+
+  *) Only allow one SGC handshake restart for SSL/TLS. (CVE-2011-4619)
+     [Adam Langley (Google)]
+
+  *) Check parameters are not NULL in GOST ENGINE. (CVE-2012-0027)
+     [Andrey Kulikov <amdeich@gmail.com>]
+
+  *) Prevent malformed RFC3779 data triggering an assertion failure.
+     Thanks to Andrew Chi, BBN Technologies, for discovering the flaw
+     and Rob Austein <sra@hactrn.net> for fixing it. (CVE-2011-4577)
+     [Rob Austein <sra@hactrn.net>]
+
+  *) Improved PRNG seeding for VOS.
+     [Paul Green <Paul.Green@stratus.com>]
+
+  *) Fix ssl_ciph.c set-up race.
+     [Adam Langley (Google)]
+
+  *) Fix spurious failures in ecdsatest.c.
+     [Emilia Käsper (Google)]
+
+  *) Fix the BIO_f_buffer() implementation (which was mixing different
+     interpretations of the '..._len' fields).
+     [Adam Langley (Google)]
+
+  *) Fix handling of BN_BLINDING: now BN_BLINDING_invert_ex (rather than
+     BN_BLINDING_invert_ex) calls BN_BLINDING_update, ensuring that concurrent
+     threads won't reuse the same blinding coefficients.
+
+     This also avoids the need to obtain the CRYPTO_LOCK_RSA_BLINDING
+     lock to call BN_BLINDING_invert_ex, and avoids one use of
+     BN_BLINDING_update for each BN_BLINDING structure (previously,
+     the last update always remained unused).
+     [Emilia Käsper (Google)]
+
+  *) In ssl3_clear, preserve s3->init_extra along with s3->rbuf.
+     [Bob Buckholz (Google)]
+
+ Changes between 1.0.0d and 1.0.0e [6 Sep 2011]
+
+  *) Fix bug where CRLs with nextUpdate in the past are sometimes accepted
+     by initialising X509_STORE_CTX properly. (CVE-2011-3207)
+     [Kaspar Brand <ossl@velox.ch>]
+
+  *) Fix SSL memory handling for (EC)DH ciphersuites, in particular
+     for multi-threaded use of ECDH. (CVE-2011-3210)
+     [Adam Langley (Google)]
+
+  *) Fix x509_name_ex_d2i memory leak on bad inputs.
+     [Bodo Moeller]
+
+  *) Remove hard coded ecdsaWithSHA1 signature tests in ssl code and check
+     signature public key algorithm by using OID xref utilities instead.
+     Before this you could only use some ECC ciphersuites with SHA1 only.
+     [Steve Henson]
+
+  *) Add protection against ECDSA timing attacks as mentioned in the paper
+     by Billy Bob Brumley and Nicola Tuveri, see:
+
+	http://eprint.iacr.org/2011/232.pdf
+
+     [Billy Bob Brumley and Nicola Tuveri]
+
+ Changes between 1.0.0c and 1.0.0d [8 Feb 2011]
+
+  *) Fix parsing of OCSP stapling ClientHello extension. CVE-2011-0014
+     [Neel Mehta, Adam Langley, Bodo Moeller (Google)]
+
+  *) Fix bug in string printing code: if *any* escaping is enabled we must
+     escape the escape character (backslash) or the resulting string is
+     ambiguous.
+     [Steve Henson]
+
+ Changes between 1.0.0b and 1.0.0c  [2 Dec 2010]
+
+  *) Disable code workaround for ancient and obsolete Netscape browsers
+     and servers: an attacker can use it in a ciphersuite downgrade attack.
+     Thanks to Martin Rex for discovering this bug. CVE-2010-4180
+     [Steve Henson]
+
+  *) Fixed J-PAKE implementation error, originally discovered by
+     Sebastien Martini, further info and confirmation from Stefan
+     Arentz and Feng Hao. Note that this fix is a security fix. CVE-2010-4252
+     [Ben Laurie]
+
+ Changes between 1.0.0a and 1.0.0b  [16 Nov 2010]
+
+  *) Fix extension code to avoid race conditions which can result in a buffer
+     overrun vulnerability: resumed sessions must not be modified as they can
+     be shared by multiple threads. CVE-2010-3864
+     [Steve Henson]
+
+  *) Fix WIN32 build system to correctly link an ENGINE directory into
+     a DLL. 
+     [Steve Henson]
+
+ Changes between 1.0.0 and 1.0.0a  [01 Jun 2010]
+
+  *) Check return value of int_rsa_verify in pkey_rsa_verifyrecover 
+     (CVE-2010-1633)
+     [Steve Henson, Peter-Michael Hager <hager@dortmund.net>]
+
+ Changes between 0.9.8n and 1.0.0  [29 Mar 2010]
+
+  *) Add "missing" function EVP_CIPHER_CTX_copy(). This copies a cipher
+     context. The operation can be customised via the ctrl mechanism in
+     case ENGINEs want to include additional functionality.
+     [Steve Henson]
+
+  *) Tolerate yet another broken PKCS#8 key format: private key value negative.
+     [Steve Henson]
+
+  *) Add new -subject_hash_old and -issuer_hash_old options to x509 utility to
+     output hashes compatible with older versions of OpenSSL.
+     [Willy Weisz <weisz@vcpc.univie.ac.at>]
+
+  *) Fix compression algorithm handling: if resuming a session use the
+     compression algorithm of the resumed session instead of determining
+     it from client hello again. Don't allow server to change algorithm.
+     [Steve Henson]
+
+  *) Add load_crls() function to apps tidying load_certs() too. Add option
+     to verify utility to allow additional CRLs to be included.
+     [Steve Henson]
+
+  *) Update OCSP request code to permit adding custom headers to the request:
+     some responders need this.
+     [Steve Henson]
+
+  *) The function EVP_PKEY_sign() returns <=0 on error: check return code
+     correctly.
+     [Julia Lawall <julia@diku.dk>]
+
+  *) Update verify callback code in apps/s_cb.c and apps/verify.c, it
+     needlessly dereferenced structures, used obsolete functions and
+     didn't handle all updated verify codes correctly.
+     [Steve Henson]
+
+  *) Disable MD2 in the default configuration.
+     [Steve Henson]
+
+  *) In BIO_pop() and BIO_push() use the ctrl argument (which was NULL) to
+     indicate the initial BIO being pushed or popped. This makes it possible
+     to determine whether the BIO is the one explicitly called or as a result
+     of the ctrl being passed down the chain. Fix BIO_pop() and SSL BIOs so
+     it handles reference counts correctly and doesn't zero out the I/O bio
+     when it is not being explicitly popped. WARNING: applications which
+     included workarounds for the old buggy behaviour will need to be modified
+     or they could free up already freed BIOs.
+     [Steve Henson]
+
+  *) Extend the uni2asc/asc2uni => OPENSSL_uni2asc/OPENSSL_asc2uni
+     renaming to all platforms (within the 0.9.8 branch, this was
+     done conditionally on Netware platforms to avoid a name clash).
+     [Guenter <lists@gknw.net>]
+
+  *) Add ECDHE and PSK support to DTLS.
+     [Michael Tuexen <tuexen@fh-muenster.de>]
+
+  *) Add CHECKED_STACK_OF macro to safestack.h, otherwise safestack can't
+     be used on C++.
+     [Steve Henson]
+
+  *) Add "missing" function EVP_MD_flags() (without this the only way to
+     retrieve a digest flags is by accessing the structure directly. Update
+     EVP_MD_do_all*() and EVP_CIPHER_do_all*() to include the name a digest
+     or cipher is registered as in the "from" argument. Print out all
+     registered digests in the dgst usage message instead of manually 
+     attempting to work them out.
+     [Steve Henson]
+
+  *) If no SSLv2 ciphers are used don't use an SSLv2 compatible client hello:
+     this allows the use of compression and extensions. Change default cipher
+     string to remove SSLv2 ciphersuites. This effectively avoids ancient SSLv2
+     by default unless an application cipher string requests it.
+     [Steve Henson]
+
+  *) Alter match criteria in PKCS12_parse(). It used to try to use local
+     key ids to find matching certificates and keys but some PKCS#12 files
+     don't follow the (somewhat unwritten) rules and this strategy fails.
+     Now just gather all certificates together and the first private key
+     then look for the first certificate that matches the key.
+     [Steve Henson]
+
+  *) Support use of registered digest and cipher names for dgst and cipher
+     commands instead of having to add each one as a special case. So now
+     you can do:
+
+        openssl sha256 foo
+
+     as well as:
+
+        openssl dgst -sha256 foo
+
+     and this works for ENGINE based algorithms too.
+
+     [Steve Henson]
+
+  *) Update Gost ENGINE to support parameter files.
+     [Victor B. Wagner <vitus@cryptocom.ru>]
+
+  *) Support GeneralizedTime in ca utility. 
+     [Oliver Martin <oliver@volatilevoid.net>, Steve Henson]
+
+  *) Enhance the hash format used for certificate directory links. The new
+     form uses the canonical encoding (meaning equivalent names will work
+     even if they aren't identical) and uses SHA1 instead of MD5. This form
+     is incompatible with the older format and as a result c_rehash should
+     be used to rebuild symbolic links.
+     [Steve Henson]
+
+  *) Make PKCS#8 the default write format for private keys, replacing the
+     traditional format. This form is standardised, more secure and doesn't
+     include an implicit MD5 dependency.
+     [Steve Henson]
+
+  *) Add a $gcc_devteam_warn option to Configure. The idea is that any code
+     committed to OpenSSL should pass this lot as a minimum.
+     [Steve Henson]
+
+  *) Add session ticket override functionality for use by EAP-FAST.
+     [Jouni Malinen <j@w1.fi>]
+
+  *) Modify HMAC functions to return a value. Since these can be implemented
+     in an ENGINE errors can occur.
+     [Steve Henson]
+
+  *) Type-checked OBJ_bsearch_ex.
+     [Ben Laurie]
+
+  *) Type-checked OBJ_bsearch. Also some constification necessitated
+     by type-checking.  Still to come: TXT_DB, bsearch(?),
+     OBJ_bsearch_ex, qsort, CRYPTO_EX_DATA, ASN1_VALUE, ASN1_STRING,
+     CONF_VALUE.
+     [Ben Laurie]
+
+  *) New function OPENSSL_gmtime_adj() to add a specific number of days and
+     seconds to a tm structure directly, instead of going through OS
+     specific date routines. This avoids any issues with OS routines such
+     as the year 2038 bug. New *_adj() functions for ASN1 time structures
+     and X509_time_adj_ex() to cover the extended range. The existing
+     X509_time_adj() is still usable and will no longer have any date issues.
+     [Steve Henson]
+
+  *) Delta CRL support. New use deltas option which will attempt to locate
+     and search any appropriate delta CRLs available.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Support for CRLs partitioned by reason code. Reorganise CRL processing
+     code and add additional score elements. Validate alternate CRL paths
+     as part of the CRL checking and indicate a new error "CRL path validation
+     error" in this case. Applications wanting additional details can use
+     the verify callback and check the new "parent" field. If this is not
+     NULL CRL path validation is taking place. Existing applications wont
+     see this because it requires extended CRL support which is off by
+     default.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Support for freshest CRL extension.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Initial indirect CRL support. Currently only supported in the CRLs
+     passed directly and not via lookup. Process certificate issuer
+     CRL entry extension and lookup CRL entries by bother issuer name
+     and serial number. Check and process CRL issuer entry in IDP extension.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Add support for distinct certificate and CRL paths. The CRL issuer
+     certificate is validated separately in this case. Only enabled if
+     an extended CRL support flag is set: this flag will enable additional
+     CRL functionality in future.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Add support for policy mappings extension.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Fixes to pathlength constraint, self issued certificate handling,
+     policy processing to align with RFC3280 and PKITS tests.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Support for name constraints certificate extension. DN, email, DNS
+     and URI types are currently supported.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) To cater for systems that provide a pointer-based thread ID rather
+     than numeric, deprecate the current numeric thread ID mechanism and
+     replace it with a structure and associated callback type. This
+     mechanism allows a numeric "hash" to be extracted from a thread ID in
+     either case, and on platforms where pointers are larger than 'long',
+     mixing is done to help ensure the numeric 'hash' is usable even if it
+     can't be guaranteed unique. The default mechanism is to use "&errno"
+     as a pointer-based thread ID to distinguish between threads.
+
+     Applications that want to provide their own thread IDs should now use
+     CRYPTO_THREADID_set_callback() to register a callback that will call
+     either CRYPTO_THREADID_set_numeric() or CRYPTO_THREADID_set_pointer().
+
+     Note that ERR_remove_state() is now deprecated, because it is tied
+     to the assumption that thread IDs are numeric.  ERR_remove_state(0)
+     to free the current thread's error state should be replaced by
+     ERR_remove_thread_state(NULL).
+
+     (This new approach replaces the functions CRYPTO_set_idptr_callback(),
+     CRYPTO_get_idptr_callback(), and CRYPTO_thread_idptr() that existed in
+     OpenSSL 0.9.9-dev between June 2006 and August 2008. Also, if an
+     application was previously providing a numeric thread callback that
+     was inappropriate for distinguishing threads, then uniqueness might
+     have been obtained with &errno that happened immediately in the
+     intermediate development versions of OpenSSL; this is no longer the
+     case, the numeric thread callback will now override the automatic use
+     of &errno.)
+     [Geoff Thorpe, with help from Bodo Moeller]
+
+  *) Initial support for different CRL issuing certificates. This covers a
+     simple case where the self issued certificates in the chain exist and
+     the real CRL issuer is higher in the existing chain.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Removed effectively defunct crypto/store from the build.
+     [Ben Laurie]
+
+  *) Revamp of STACK to provide stronger type-checking. Still to come:
+     TXT_DB, bsearch(?), OBJ_bsearch, qsort, CRYPTO_EX_DATA, ASN1_VALUE,
+     ASN1_STRING, CONF_VALUE.
+     [Ben Laurie]
+
+  *) Add a new SSL_MODE_RELEASE_BUFFERS mode flag to release unused buffer
+     RAM on SSL connections.  This option can save about 34k per idle SSL.
+     [Nick Mathewson]
+
+  *) Revamp of LHASH to provide stronger type-checking. Still to come:
+     STACK, TXT_DB, bsearch, qsort.
+     [Ben Laurie]
+
+  *) Initial support for Cryptographic Message Syntax (aka CMS) based
+     on RFC3850, RFC3851 and RFC3852. New cms directory and cms utility,
+     support for data, signedData, compressedData, digestedData and
+     encryptedData, envelopedData types included. Scripts to check against
+     RFC4134 examples draft and interop and consistency checks of many
+     content types and variants.
+     [Steve Henson]
+
+  *) Add options to enc utility to support use of zlib compression BIO.
+     [Steve Henson]
+
+  *) Extend mk1mf to support importing of options and assembly language
+     files from Configure script, currently only included in VC-WIN32.
+     The assembly language rules can now optionally generate the source
+     files from the associated perl scripts.
+     [Steve Henson]
+
+  *) Implement remaining functionality needed to support GOST ciphersuites.
+     Interop testing has been performed using CryptoPro implementations.
+     [Victor B. Wagner <vitus@cryptocom.ru>]
+
+  *) s390x assembler pack.
+     [Andy Polyakov]
+
+  *) ARMv4 assembler pack. ARMv4 refers to v4 and later ISA, not CPU
+     "family."
+     [Andy Polyakov]
+
+  *) Implement Opaque PRF Input TLS extension as specified in
+     draft-rescorla-tls-opaque-prf-input-00.txt.  Since this is not an
+     official specification yet and no extension type assignment by
+     IANA exists, this extension (for now) will have to be explicitly
+     enabled when building OpenSSL by providing the extension number
+     to use.  For example, specify an option
+
+         -DTLSEXT_TYPE_opaque_prf_input=0x9527
+
+     to the "config" or "Configure" script to enable the extension,
+     assuming extension number 0x9527 (which is a completely arbitrary
+     and unofficial assignment based on the MD5 hash of the Internet
+     Draft).  Note that by doing so, you potentially lose
+     interoperability with other TLS implementations since these might
+     be using the same extension number for other purposes.
+
+     SSL_set_tlsext_opaque_prf_input(ssl, src, len) is used to set the
+     opaque PRF input value to use in the handshake.  This will create
+     an interal copy of the length-'len' string at 'src', and will
+     return non-zero for success.
+
+     To get more control and flexibility, provide a callback function
+     by using
+
+          SSL_CTX_set_tlsext_opaque_prf_input_callback(ctx, cb)
+          SSL_CTX_set_tlsext_opaque_prf_input_callback_arg(ctx, arg)
+
+     where
+
+          int (*cb)(SSL *, void *peerinput, size_t len, void *arg);
+          void *arg;
+
+     Callback function 'cb' will be called in handshakes, and is
+     expected to use SSL_set_tlsext_opaque_prf_input() as appropriate.
+     Argument 'arg' is for application purposes (the value as given to
+     SSL_CTX_set_tlsext_opaque_prf_input_callback_arg() will directly
+     be provided to the callback function).  The callback function
+     has to return non-zero to report success: usually 1 to use opaque
+     PRF input just if possible, or 2 to enforce use of the opaque PRF
+     input.  In the latter case, the library will abort the handshake
+     if opaque PRF input is not successfully negotiated.
+
+     Arguments 'peerinput' and 'len' given to the callback function
+     will always be NULL and 0 in the case of a client.  A server will
+     see the client's opaque PRF input through these variables if
+     available (NULL and 0 otherwise).  Note that if the server
+     provides an opaque PRF input, the length must be the same as the
+     length of the client's opaque PRF input.
+
+     Note that the callback function will only be called when creating
+     a new session (session resumption can resume whatever was
+     previously negotiated), and will not be called in SSL 2.0
+     handshakes; thus, SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) or
+     SSL_set_options(ssl, SSL_OP_NO_SSLv2) is especially recommended
+     for applications that need to enforce opaque PRF input.
+
+     [Bodo Moeller]
+
+  *) Update ssl code to support digests other than SHA1+MD5 for handshake
+     MAC. 
+
+     [Victor B. Wagner <vitus@cryptocom.ru>]
+
+  *) Add RFC4507 support to OpenSSL. This includes the corrections in
+     RFC4507bis. The encrypted ticket format is an encrypted encoded
+     SSL_SESSION structure, that way new session features are automatically
+     supported.
+
+     If a client application caches session in an SSL_SESSION structure
+     support is transparent because tickets are now stored in the encoded
+     SSL_SESSION.
+     
+     The SSL_CTX structure automatically generates keys for ticket
+     protection in servers so again support should be possible
+     with no application modification.
+
+     If a client or server wishes to disable RFC4507 support then the option
+     SSL_OP_NO_TICKET can be set.
+
+     Add a TLS extension debugging callback to allow the contents of any client
+     or server extensions to be examined.
+
+     This work was sponsored by Google.
+     [Steve Henson]
+
+  *) Final changes to avoid use of pointer pointer casts in OpenSSL.
+     OpenSSL should now compile cleanly on gcc 4.2
+     [Peter Hartley <pdh@utter.chaos.org.uk>, Steve Henson]
+
+  *) Update SSL library to use new EVP_PKEY MAC API. Include generic MAC
+     support including streaming MAC support: this is required for GOST
+     ciphersuite support.
+     [Victor B. Wagner <vitus@cryptocom.ru>, Steve Henson]
+
+  *) Add option -stream to use PKCS#7 streaming in smime utility. New
+     function i2d_PKCS7_bio_stream() and PEM_write_PKCS7_bio_stream()
+     to output in BER and PEM format.
+     [Steve Henson]
+
+  *) Experimental support for use of HMAC via EVP_PKEY interface. This
+     allows HMAC to be handled via the EVP_DigestSign*() interface. The
+     EVP_PKEY "key" in this case is the HMAC key, potentially allowing
+     ENGINE support for HMAC keys which are unextractable. New -mac and
+     -macopt options to dgst utility.
+     [Steve Henson]
+
+  *) New option -sigopt to dgst utility. Update dgst to use
+     EVP_Digest{Sign,Verify}*. These two changes make it possible to use
+     alternative signing paramaters such as X9.31 or PSS in the dgst 
+     utility.
+     [Steve Henson]
+
+  *) Change ssl_cipher_apply_rule(), the internal function that does
+     the work each time a ciphersuite string requests enabling
+     ("foo+bar"), moving ("+foo+bar"), disabling ("-foo+bar", or
+     removing ("!foo+bar") a class of ciphersuites: Now it maintains
+     the order of disabled ciphersuites such that those ciphersuites
+     that most recently went from enabled to disabled not only stay
+     in order with respect to each other, but also have higher priority
+     than other disabled ciphersuites the next time ciphersuites are
+     enabled again.
+
+     This means that you can now say, e.g., "PSK:-PSK:HIGH" to enable
+     the same ciphersuites as with "HIGH" alone, but in a specific
+     order where the PSK ciphersuites come first (since they are the
+     most recently disabled ciphersuites when "HIGH" is parsed).
+
+     Also, change ssl_create_cipher_list() (using this new
+     funcionality) such that between otherwise identical
+     cihpersuites, ephemeral ECDH is preferred over ephemeral DH in
+     the default order.
+     [Bodo Moeller]
+
+  *) Change ssl_create_cipher_list() so that it automatically
+     arranges the ciphersuites in reasonable order before starting
+     to process the rule string.  Thus, the definition for "DEFAULT"
+     (SSL_DEFAULT_CIPHER_LIST) now is just "ALL:!aNULL:!eNULL", but
+     remains equivalent to "AES:ALL:!aNULL:!eNULL:+aECDH:+kRSA:+RC4:@STRENGTH".
+     This makes it much easier to arrive at a reasonable default order
+     in applications for which anonymous ciphers are OK (meaning
+     that you can't actually use DEFAULT).
+     [Bodo Moeller; suggested by Victor Duchovni]
+
+  *) Split the SSL/TLS algorithm mask (as used for ciphersuite string
+     processing) into multiple integers instead of setting
+     "SSL_MKEY_MASK" bits, "SSL_AUTH_MASK" bits, "SSL_ENC_MASK",
+     "SSL_MAC_MASK", and "SSL_SSL_MASK" bits all in a single integer.
+     (These masks as well as the individual bit definitions are hidden
+     away into the non-exported interface ssl/ssl_locl.h, so this
+     change to the definition of the SSL_CIPHER structure shouldn't
+     affect applications.)  This give us more bits for each of these
+     categories, so there is no longer a need to coagulate AES128 and
+     AES256 into a single algorithm bit, and to coagulate Camellia128
+     and Camellia256 into a single algorithm bit, which has led to all
+     kinds of kludges.
+
+     Thus, among other things, the kludge introduced in 0.9.7m and
+     0.9.8e for masking out AES256 independently of AES128 or masking
+     out Camellia256 independently of AES256 is not needed here in 0.9.9.
+
+     With the change, we also introduce new ciphersuite aliases that
+     so far were missing: "AES128", "AES256", "CAMELLIA128", and
+     "CAMELLIA256".
+     [Bodo Moeller]
+
+  *) Add support for dsa-with-SHA224 and dsa-with-SHA256.
+     Use the leftmost N bytes of the signature input if the input is
+     larger than the prime q (with N being the size in bytes of q).
+     [Nils Larsch]
+
+  *) Very *very* experimental PKCS#7 streaming encoder support. Nothing uses
+     it yet and it is largely untested.
+     [Steve Henson]
+
+  *) Add support for the ecdsa-with-SHA224/256/384/512 signature types.
+     [Nils Larsch]
+
+  *) Initial incomplete changes to avoid need for function casts in OpenSSL
+     some compilers (gcc 4.2 and later) reject their use. Safestack is
+     reimplemented.  Update ASN1 to avoid use of legacy functions. 
+     [Steve Henson]
+
+  *) Win32/64 targets are linked with Winsock2.
+     [Andy Polyakov]
+
+  *) Add an X509_CRL_METHOD structure to allow CRL processing to be redirected
+     to external functions. This can be used to increase CRL handling 
+     efficiency especially when CRLs are very large by (for example) storing
+     the CRL revoked certificates in a database.
+     [Steve Henson]
+
+  *) Overhaul of by_dir code. Add support for dynamic loading of CRLs so
+     new CRLs added to a directory can be used. New command line option
+     -verify_return_error to s_client and s_server. This causes real errors
+     to be returned by the verify callback instead of carrying on no matter
+     what. This reflects the way a "real world" verify callback would behave.
+     [Steve Henson]
+
+  *) GOST engine, supporting several GOST algorithms and public key formats.
+     Kindly donated by Cryptocom.
+     [Cryptocom]
+
+  *) Partial support for Issuing Distribution Point CRL extension. CRLs
+     partitioned by DP are handled but no indirect CRL or reason partitioning
+     (yet). Complete overhaul of CRL handling: now the most suitable CRL is
+     selected via a scoring technique which handles IDP and AKID in CRLs.
+     [Steve Henson]
+
+  *) New X509_STORE_CTX callbacks lookup_crls() and lookup_certs() which
+     will ultimately be used for all verify operations: this will remove the
+     X509_STORE dependency on certificate verification and allow alternative
+     lookup methods.  X509_STORE based implementations of these two callbacks.
+     [Steve Henson]
+
+  *) Allow multiple CRLs to exist in an X509_STORE with matching issuer names.
+     Modify get_crl() to find a valid (unexpired) CRL if possible.
+     [Steve Henson]
+
+  *) New function X509_CRL_match() to check if two CRLs are identical. Normally
+     this would be called X509_CRL_cmp() but that name is already used by
+     a function that just compares CRL issuer names. Cache several CRL 
+     extensions in X509_CRL structure and cache CRLDP in X509.
+     [Steve Henson]
+
+  *) Store a "canonical" representation of X509_NAME structure (ASN1 Name)
+     this maps equivalent X509_NAME structures into a consistent structure.
+     Name comparison can then be performed rapidly using memcmp().
+     [Steve Henson]
+
+  *) Non-blocking OCSP request processing. Add -timeout option to ocsp 
+     utility.
+     [Steve Henson]
+
+  *) Allow digests to supply their own micalg string for S/MIME type using
+     the ctrl EVP_MD_CTRL_MICALG.
+     [Steve Henson]
+
+  *) During PKCS7 signing pass the PKCS7 SignerInfo structure to the
+     EVP_PKEY_METHOD before and after signing via the EVP_PKEY_CTRL_PKCS7_SIGN
+     ctrl. It can then customise the structure before and/or after signing
+     if necessary.
+     [Steve Henson]
+
+  *) New function OBJ_add_sigid() to allow application defined signature OIDs
+     to be added to OpenSSLs internal tables. New function OBJ_sigid_free()
+     to free up any added signature OIDs.
+     [Steve Henson]
+
+  *) New functions EVP_CIPHER_do_all(), EVP_CIPHER_do_all_sorted(),
+     EVP_MD_do_all() and EVP_MD_do_all_sorted() to enumerate internal
+     digest and cipher tables. New options added to openssl utility:
+     list-message-digest-algorithms and list-cipher-algorithms.
+     [Steve Henson]
+
+  *) Change the array representation of binary polynomials: the list
+     of degrees of non-zero coefficients is now terminated with -1.
+     Previously it was terminated with 0, which was also part of the
+     value; thus, the array representation was not applicable to
+     polynomials where t^0 has coefficient zero.  This change makes
+     the array representation useful in a more general context.
+     [Douglas Stebila]
+
+  *) Various modifications and fixes to SSL/TLS cipher string
+     handling.  For ECC, the code now distinguishes between fixed ECDH
+     with RSA certificates on the one hand and with ECDSA certificates
+     on the other hand, since these are separate ciphersuites.  The
+     unused code for Fortezza ciphersuites has been removed.
+
+     For consistency with EDH, ephemeral ECDH is now called "EECDH"
+     (not "ECDHE").  For consistency with the code for DH
+     certificates, use of ECDH certificates is now considered ECDH
+     authentication, not RSA or ECDSA authentication (the latter is
+     merely the CA's signing algorithm and not actively used in the
+     protocol).
+
+     The temporary ciphersuite alias "ECCdraft" is no longer
+     available, and ECC ciphersuites are no longer excluded from "ALL"
+     and "DEFAULT".  The following aliases now exist for RFC 4492
+     ciphersuites, most of these by analogy with the DH case:
+
+         kECDHr   - ECDH cert, signed with RSA
+         kECDHe   - ECDH cert, signed with ECDSA
+         kECDH    - ECDH cert (signed with either RSA or ECDSA)
+         kEECDH   - ephemeral ECDH
+         ECDH     - ECDH cert or ephemeral ECDH
+
+         aECDH    - ECDH cert
+         aECDSA   - ECDSA cert
+         ECDSA    - ECDSA cert
+
+         AECDH    - anonymous ECDH
+         EECDH    - non-anonymous ephemeral ECDH (equivalent to "kEECDH:-AECDH")
+
+     [Bodo Moeller]
+
+  *) Add additional S/MIME capabilities for AES and GOST ciphers if supported.
+     Use correct micalg parameters depending on digest(s) in signed message.
+     [Steve Henson]
+
+  *) Add engine support for EVP_PKEY_ASN1_METHOD. Add functions to process
+     an ENGINE asn1 method. Support ENGINE lookups in the ASN1 code.
+     [Steve Henson]
+
+  *) Initial engine support for EVP_PKEY_METHOD. New functions to permit
+     an engine to register a method. Add ENGINE lookups for methods and
+     functional reference processing.
+     [Steve Henson]
+
+  *) New functions EVP_Digest{Sign,Verify)*. These are enchance versions of
+     EVP_{Sign,Verify}* which allow an application to customise the signature
+     process.
+     [Steve Henson]
+
+  *) New -resign option to smime utility. This adds one or more signers
+     to an existing PKCS#7 signedData structure. Also -md option to use an
+     alternative message digest algorithm for signing.
+     [Steve Henson]
+
+  *) Tidy up PKCS#7 routines and add new functions to make it easier to
+     create PKCS7 structures containing multiple signers. Update smime
+     application to support multiple signers.
+     [Steve Henson]
+
+  *) New -macalg option to pkcs12 utility to allow setting of an alternative
+     digest MAC.
+     [Steve Henson]
+
+  *) Initial support for PKCS#5 v2.0 PRFs other than default SHA1 HMAC.
+     Reorganize PBE internals to lookup from a static table using NIDs,
+     add support for HMAC PBE OID translation. Add a EVP_CIPHER ctrl:
+     EVP_CTRL_PBE_PRF_NID this allows a cipher to specify an alternative
+     PRF which will be automatically used with PBES2.
+     [Steve Henson]
+
+  *) Replace the algorithm specific calls to generate keys in "req" with the
+     new API.
+     [Steve Henson]
+
+  *) Update PKCS#7 enveloped data routines to use new API. This is now
+     supported by any public key method supporting the encrypt operation. A
+     ctrl is added to allow the public key algorithm to examine or modify
+     the PKCS#7 RecipientInfo structure if it needs to: for RSA this is
+     a no op.
+     [Steve Henson]
+
+  *) Add a ctrl to asn1 method to allow a public key algorithm to express
+     a default digest type to use. In most cases this will be SHA1 but some
+     algorithms (such as GOST) need to specify an alternative digest. The
+     return value indicates how strong the prefernce is 1 means optional and
+     2 is mandatory (that is it is the only supported type). Modify
+     ASN1_item_sign() to accept a NULL digest argument to indicate it should
+     use the default md. Update openssl utilities to use the default digest
+     type for signing if it is not explicitly indicated.
+     [Steve Henson]
+
+  *) Use OID cross reference table in ASN1_sign() and ASN1_verify(). New 
+     EVP_MD flag EVP_MD_FLAG_PKEY_METHOD_SIGNATURE. This uses the relevant
+     signing method from the key type. This effectively removes the link
+     between digests and public key types.
+     [Steve Henson]
+
+  *) Add an OID cross reference table and utility functions. Its purpose is to
+     translate between signature OIDs such as SHA1WithrsaEncryption and SHA1,
+     rsaEncryption. This will allow some of the algorithm specific hackery
+     needed to use the correct OID to be removed. 
+     [Steve Henson]
+
+  *) Remove algorithm specific dependencies when setting PKCS7_SIGNER_INFO
+     structures for PKCS7_sign(). They are now set up by the relevant public
+     key ASN1 method.
+     [Steve Henson]
+
+  *) Add provisional EC pkey method with support for ECDSA and ECDH.
+     [Steve Henson]
+
+  *) Add support for key derivation (agreement) in the API, DH method and
+     pkeyutl.
+     [Steve Henson]
+
+  *) Add DSA pkey method and DH pkey methods, extend DH ASN1 method to support
+     public and private key formats. As a side effect these add additional 
+     command line functionality not previously available: DSA signatures can be
+     generated and verified using pkeyutl and DH key support and generation in
+     pkey, genpkey.
+     [Steve Henson]
+
+  *) BeOS support.
+     [Oliver Tappe <zooey@hirschkaefer.de>]
+
+  *) New make target "install_html_docs" installs HTML renditions of the
+     manual pages.
+     [Oliver Tappe <zooey@hirschkaefer.de>]
+
+  *) New utility "genpkey" this is analagous to "genrsa" etc except it can
+     generate keys for any algorithm. Extend and update EVP_PKEY_METHOD to
+     support key and parameter generation and add initial key generation
+     functionality for RSA.
+     [Steve Henson]
+
+  *) Add functions for main EVP_PKEY_method operations. The undocumented
+     functions EVP_PKEY_{encrypt,decrypt} have been renamed to
+     EVP_PKEY_{encrypt,decrypt}_old. 
+     [Steve Henson]
+
+  *) Initial definitions for EVP_PKEY_METHOD. This will be a high level public
+     key API, doesn't do much yet.
+     [Steve Henson]
+
+  *) New function EVP_PKEY_asn1_get0_info() to retrieve information about
+     public key algorithms. New option to openssl utility:
+     "list-public-key-algorithms" to print out info.
+     [Steve Henson]
+
+  *) Implement the Supported Elliptic Curves Extension for
+     ECC ciphersuites from draft-ietf-tls-ecc-12.txt.
+     [Douglas Stebila]
+
+  *) Don't free up OIDs in OBJ_cleanup() if they are in use by EVP_MD or
+     EVP_CIPHER structures to avoid later problems in EVP_cleanup().
+     [Steve Henson]
+
+  *) New utilities pkey and pkeyparam. These are similar to algorithm specific
+     utilities such as rsa, dsa, dsaparam etc except they process any key
+     type.
+     [Steve Henson]
+
+  *) Transfer public key printing routines to EVP_PKEY_ASN1_METHOD. New 
+     functions EVP_PKEY_print_public(), EVP_PKEY_print_private(),
+     EVP_PKEY_print_param() to print public key data from an EVP_PKEY
+     structure.
+     [Steve Henson]
+
+  *) Initial support for pluggable public key ASN1.
+     De-spaghettify the public key ASN1 handling. Move public and private
+     key ASN1 handling to a new EVP_PKEY_ASN1_METHOD structure. Relocate
+     algorithm specific handling to a single module within the relevant
+     algorithm directory. Add functions to allow (near) opaque processing
+     of public and private key structures.
+     [Steve Henson]
+
+  *) Implement the Supported Point Formats Extension for
+     ECC ciphersuites from draft-ietf-tls-ecc-12.txt.
+     [Douglas Stebila]
+
+  *) Add initial support for RFC 4279 PSK TLS ciphersuites. Add members
+     for the psk identity [hint] and the psk callback functions to the
+     SSL_SESSION, SSL and SSL_CTX structure.
+     
+     New ciphersuites:
+         PSK-RC4-SHA, PSK-3DES-EDE-CBC-SHA, PSK-AES128-CBC-SHA,
+         PSK-AES256-CBC-SHA
+ 
+     New functions:
+         SSL_CTX_use_psk_identity_hint
+         SSL_get_psk_identity_hint
+         SSL_get_psk_identity
+         SSL_use_psk_identity_hint
+
+     [Mika Kousa and Pasi Eronen of Nokia Corporation]
+
+  *) Add RFC 3161 compliant time stamp request creation, response generation
+     and response verification functionality.
+     [Zoltán Glózik <zglozik@opentsa.org>, The OpenTSA Project]
+
+  *) Add initial support for TLS extensions, specifically for the server_name
+     extension so far.  The SSL_SESSION, SSL_CTX, and SSL data structures now
+     have new members for a host name.  The SSL data structure has an
+     additional member SSL_CTX *initial_ctx so that new sessions can be
+     stored in that context to allow for session resumption, even after the
+     SSL has been switched to a new SSL_CTX in reaction to a client's
+     server_name extension.
+
+     New functions (subject to change):
+
+         SSL_get_servername()
+         SSL_get_servername_type()
+         SSL_set_SSL_CTX()
+
+     New CTRL codes and macros (subject to change):
+
+         SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+                                 - SSL_CTX_set_tlsext_servername_callback()
+         SSL_CTRL_SET_TLSEXT_SERVERNAME_ARG
+                                      - SSL_CTX_set_tlsext_servername_arg()
+         SSL_CTRL_SET_TLSEXT_HOSTNAME           - SSL_set_tlsext_host_name()
+
+     openssl s_client has a new '-servername ...' option.
+
+     openssl s_server has new options '-servername_host ...', '-cert2 ...',
+     '-key2 ...', '-servername_fatal' (subject to change).  This allows
+     testing the HostName extension for a specific single host name ('-cert'
+     and '-key' remain fallbacks for handshakes without HostName
+     negotiation).  If the unrecogninzed_name alert has to be sent, this by
+     default is a warning; it becomes fatal with the '-servername_fatal'
+     option.
+
+     [Peter Sylvester,  Remy Allais, Christophe Renou]
+
+  *) Whirlpool hash implementation is added.
+     [Andy Polyakov]
+
+  *) BIGNUM code on 64-bit SPARCv9 targets is switched from bn(64,64) to
+     bn(64,32). Because of instruction set limitations it doesn't have
+     any negative impact on performance. This was done mostly in order
+     to make it possible to share assembler modules, such as bn_mul_mont
+     implementations, between 32- and 64-bit builds without hassle.
+     [Andy Polyakov]
+
+  *) Move code previously exiled into file crypto/ec/ec2_smpt.c
+     to ec2_smpl.c, and no longer require the OPENSSL_EC_BIN_PT_COMP
+     macro.
+     [Bodo Moeller]
+
+  *) New candidate for BIGNUM assembler implementation, bn_mul_mont,
+     dedicated Montgomery multiplication procedure, is introduced.
+     BN_MONT_CTX is modified to allow bn_mul_mont to reach for higher
+     "64-bit" performance on certain 32-bit targets.
+     [Andy Polyakov]
+
+  *) New option SSL_OP_NO_COMP to disable use of compression selectively
+     in SSL structures. New SSL ctrl to set maximum send fragment size. 
+     Save memory by seeting the I/O buffer sizes dynamically instead of
+     using the maximum available value.
+     [Steve Henson]
+
+  *) New option -V for 'openssl ciphers'. This prints the ciphersuite code
+     in addition to the text details.
+     [Bodo Moeller]
+
+  *) Very, very preliminary EXPERIMENTAL support for printing of general
+     ASN1 structures. This currently produces rather ugly output and doesn't
+     handle several customised structures at all.
+     [Steve Henson]
+
+  *) Integrated support for PVK file format and some related formats such
+     as MS PUBLICKEYBLOB and PRIVATEKEYBLOB. Command line switches to support
+     these in the 'rsa' and 'dsa' utilities.
+     [Steve Henson]
+
+  *) Support for PKCS#1 RSAPublicKey format on rsa utility command line.
+     [Steve Henson]
+
+  *) Remove the ancient ASN1_METHOD code. This was only ever used in one
+     place for the (very old) "NETSCAPE" format certificates which are now
+     handled using new ASN1 code equivalents.
+     [Steve Henson]
+
+  *) Let the TLSv1_method() etc. functions return a 'const' SSL_METHOD
+     pointer and make the SSL_METHOD parameter in SSL_CTX_new,
+     SSL_CTX_set_ssl_version and SSL_set_ssl_method 'const'.
+     [Nils Larsch]
+
+  *) Modify CRL distribution points extension code to print out previously
+     unsupported fields. Enhance extension setting code to allow setting of
+     all fields.
+     [Steve Henson]
+
+  *) Add print and set support for Issuing Distribution Point CRL extension.
+     [Steve Henson]
+
+  *) Change 'Configure' script to enable Camellia by default.
+     [NTT]
+  
+ Changes between 0.9.8r and 0.9.8s [xx XXX xxxx]
+
+  *) Fix ssl_ciph.c set-up race.
+     [Adam Langley (Google)]
+
+  *) Fix spurious failures in ecdsatest.c.
+     [Emilia Käsper (Google)]
+
+  *) Fix the BIO_f_buffer() implementation (which was mixing different
+     interpretations of the '..._len' fields).
+     [Adam Langley (Google)]
+
+  *) Fix handling of BN_BLINDING: now BN_BLINDING_invert_ex (rather than
+     BN_BLINDING_invert_ex) calls BN_BLINDING_update, ensuring that concurrent
+     threads won't reuse the same blinding coefficients.
+
+     This also avoids the need to obtain the CRYPTO_LOCK_RSA_BLINDING
+     lock to call BN_BLINDING_invert_ex, and avoids one use of
+     BN_BLINDING_update for each BN_BLINDING structure (previously,
+     the last update always remained unused).
+     [Emilia Käsper (Google)]
+
+  *) Fix SSL memory handling for (EC)DH ciphersuites, in particular
+     for multi-threaded use of ECDH.
+     [Adam Langley (Google)]
+
+  *) Fix x509_name_ex_d2i memory leak on bad inputs.
+     [Bodo Moeller]
+
+  *) Add protection against ECDSA timing attacks as mentioned in the paper
+     by Billy Bob Brumley and Nicola Tuveri, see:
+
+	http://eprint.iacr.org/2011/232.pdf
+
+     [Billy Bob Brumley and Nicola Tuveri]
+
  Changes between 0.9.8q and 0.9.8r [8 Feb 2011]
 
-  *) Fix parsing of OCSP stapling ClientHello extension.  CVE-2011-0014
+  *) Fix parsing of OCSP stapling ClientHello extension. CVE-2011-0014
      [Neel Mehta, Adam Langley, Bodo Moeller (Google)]
 
   *) Fix bug in string printing code: if *any* escaping is enabled we must

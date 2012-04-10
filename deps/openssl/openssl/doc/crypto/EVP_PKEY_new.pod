@@ -1,0 +1,47 @@
+=pod
+
+=head1 NAME
+
+EVP_PKEY_new, EVP_PKEY_free - private key allocation functions.
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ EVP_PKEY *EVP_PKEY_new(void);
+ void EVP_PKEY_free(EVP_PKEY *key);
+
+
+=head1 DESCRIPTION
+
+The EVP_PKEY_new() function allocates an empty B<EVP_PKEY> 
+structure which is used by OpenSSL to store private keys.
+
+EVP_PKEY_free() frees up the private key B<key>.
+
+=head1 NOTES
+
+The B<EVP_PKEY> structure is used by various OpenSSL functions
+which require a general private key without reference to any
+particular algorithm.
+
+The structure returned by EVP_PKEY_new() is empty. To add a
+private key to this empty structure the functions described in
+L<EVP_PKEY_set1_RSA(3)|EVP_PKEY_set1_RSA(3)> should be used.
+
+=head1 RETURN VALUES
+
+EVP_PKEY_new() returns either the newly allocated B<EVP_PKEY>
+structure of B<NULL> if an error occurred.
+
+EVP_PKEY_free() does not return a value.
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_set1_RSA(3)|EVP_PKEY_set1_RSA(3)>
+
+=head1 HISTORY
+
+TBA
+
+=cut

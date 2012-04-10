@@ -1,6 +1,6 @@
 /* crypto/cryptlib.c */
 /* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2006 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -121,16 +121,278 @@
 static double SSLeay_MSVC5_hack=0.0; /* and for VC1.5 */
 #endif
 
+DECLARE_STACK_OF(CRYPTO_dynlock)
+
+/* real #defines in crypto.h, keep these upto date */
+static const char* const lock_names[CRYPTO_NUM_LOCKS] =
+	{
+	"<<ERROR>>",
+	"err",
+	"ex_data",
+	"x509",
+	"x509_info",
+	"x509_pkey",
+	"x509_crl",
+	"x509_req",
+	"dsa",
+	"rsa",
+	"evp_pkey",
+	"x509_store",
+	"ssl_ctx",
+	"ssl_cert",
+	"ssl_session",
+	"ssl_sess_cert",
+	"ssl",
+	"ssl_method",
+	"rand",
+	"rand2",
+	"debug_malloc",
+	"BIO",
+	"gethostbyname",
+	"getservbyname",
+	"readdir",
+	"RSA_blinding",
+	"dh",
+	"debug_malloc2",
+	"dso",
+	"dynlock",
+	"engine",
+	"ui",
+	"ecdsa",
+	"ec",
+	"ecdh",
+	"bn",
+	"ec_pre_comp",
+	"store",
+	"comp",
+	"fips",
+	"fips2",
+#if CRYPTO_NUM_LOCKS != 41
+# error "Inconsistency between crypto.h and cryptlib.c"
+#endif
+	};
+
+/* This is for applications to allocate new type names in the non-dynamic
+   array of lock names.  These are numbered with positive numbers.  */
+static STACK_OF(OPENSSL_STRING) *app_locks=NULL;
+
+/* For applications that want a more dynamic way of handling threads, the
+   following stack is used.  These are externally numbered with negative
+   numbers.  */
+static STACK_OF(CRYPTO_dynlock) *dyn_locks=NULL;
+
+
 static void (MS_FAR *locking_callback)(int mode,int type,
-	const char *file,int line)=NULL;
+	const char *file,int line)=0;
 static int (MS_FAR *add_lock_callback)(int *pointer,int amount,
-	int type,const char *file,int line)=NULL;
-static unsigned long (MS_FAR *id_callback)(void)=NULL;
+	int type,const char *file,int line)=0;
+#ifndef OPENSSL_NO_DEPRECATED
+static unsigned long (MS_FAR *id_callback)(void)=0;
+#endif
+static void (MS_FAR *threadid_callback)(CRYPTO_THREADID *)=0;
+static struct CRYPTO_dynlock_value *(MS_FAR *dynlock_create_callback)
+	(const char *file,int line)=0;
+static void (MS_FAR *dynlock_lock_callback)(int mode,
+	struct CRYPTO_dynlock_value *l, const char *file,int line)=0;
+static void (MS_FAR *dynlock_destroy_callback)(struct CRYPTO_dynlock_value *l,
+	const char *file,int line)=0;
+
+int CRYPTO_get_new_lockid(char *name)
+	{
+	char *str;
+	int i;
+
+#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
+	/* A hack to make Visual C++ 5.0 work correctly when linking as
+	 * a DLL using /MT. Without this, the application cannot use
+	 * any floating point printf's.
+	 * It also seems to be needed for Visual C 1.5 (win16) */
+	SSLeay_MSVC5_hack=(double)name[0]*(double)name[1];
+#endif
+
+	if ((app_locks == NULL) && ((app_locks=sk_OPENSSL_STRING_new_null()) == NULL))
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_LOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	if ((str=BUF_strdup(name)) == NULL)
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_LOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	i=sk_OPENSSL_STRING_push(app_locks,str);
+	if (!i)
+		OPENSSL_free(str);
+	else
+		i+=CRYPTO_NUM_LOCKS; /* gap of one :-) */
+	return(i);
+	}
 
 int CRYPTO_num_locks(void)
 	{
 	return CRYPTO_NUM_LOCKS;
 	}
+
+int CRYPTO_get_new_dynlockid(void)
+	{
+	int i = 0;
+	CRYPTO_dynlock *pointer = NULL;
+
+	if (dynlock_create_callback == NULL)
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,CRYPTO_R_NO_DYNLOCK_CREATE_CALLBACK);
+		return(0);
+		}
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+	if ((dyn_locks == NULL)
+		&& ((dyn_locks=sk_CRYPTO_dynlock_new_null()) == NULL))
+		{
+		CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	pointer = (CRYPTO_dynlock *)OPENSSL_malloc(sizeof(CRYPTO_dynlock));
+	if (pointer == NULL)
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	pointer->references = 1;
+	pointer->data = dynlock_create_callback(__FILE__,__LINE__);
+	if (pointer->data == NULL)
+		{
+		OPENSSL_free(pointer);
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+	/* First, try to find an existing empty slot */
+	i=sk_CRYPTO_dynlock_find(dyn_locks,NULL);
+	/* If there was none, push, thereby creating a new one */
+	if (i == -1)
+		/* Since sk_push() returns the number of items on the
+		   stack, not the location of the pushed item, we need
+		   to transform the returned number into a position,
+		   by decreasing it.  */
+		i=sk_CRYPTO_dynlock_push(dyn_locks,pointer) - 1;
+	else
+		/* If we found a place with a NULL pointer, put our pointer
+		   in it.  */
+		(void)sk_CRYPTO_dynlock_set(dyn_locks,i,pointer);
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	if (i == -1)
+		{
+		dynlock_destroy_callback(pointer->data,__FILE__,__LINE__);
+		OPENSSL_free(pointer);
+		}
+	else
+		i += 1; /* to avoid 0 */
+	return -i;
+	}
+
+void CRYPTO_destroy_dynlockid(int i)
+	{
+	CRYPTO_dynlock *pointer = NULL;
+	if (i)
+		i = -i-1;
+	if (dynlock_destroy_callback == NULL)
+		return;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+
+	if (dyn_locks == NULL || i >= sk_CRYPTO_dynlock_num(dyn_locks))
+		{
+		CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+		return;
+		}
+	pointer = sk_CRYPTO_dynlock_value(dyn_locks, i);
+	if (pointer != NULL)
+		{
+		--pointer->references;
+#ifdef REF_CHECK
+		if (pointer->references < 0)
+			{
+			fprintf(stderr,"CRYPTO_destroy_dynlockid, bad reference count\n");
+			abort();
+			}
+		else
+#endif
+			if (pointer->references <= 0)
+				{
+				(void)sk_CRYPTO_dynlock_set(dyn_locks, i, NULL);
+				}
+			else
+				pointer = NULL;
+		}
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	if (pointer)
+		{
+		dynlock_destroy_callback(pointer->data,__FILE__,__LINE__);
+		OPENSSL_free(pointer);
+		}
+	}
+
+struct CRYPTO_dynlock_value *CRYPTO_get_dynlock_value(int i)
+	{
+	CRYPTO_dynlock *pointer = NULL;
+	if (i)
+		i = -i-1;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+
+	if (dyn_locks != NULL && i < sk_CRYPTO_dynlock_num(dyn_locks))
+		pointer = sk_CRYPTO_dynlock_value(dyn_locks, i);
+	if (pointer)
+		pointer->references++;
+
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	if (pointer)
+		return pointer->data;
+	return NULL;
+	}
+
+struct CRYPTO_dynlock_value *(*CRYPTO_get_dynlock_create_callback(void))
+	(const char *file,int line)
+	{
+	return(dynlock_create_callback);
+	}
+
+void (*CRYPTO_get_dynlock_lock_callback(void))(int mode,
+	struct CRYPTO_dynlock_value *l, const char *file,int line)
+	{
+	return(dynlock_lock_callback);
+	}
+
+void (*CRYPTO_get_dynlock_destroy_callback(void))
+	(struct CRYPTO_dynlock_value *l, const char *file,int line)
+	{
+	return(dynlock_destroy_callback);
+	}
+
+void CRYPTO_set_dynlock_create_callback(struct CRYPTO_dynlock_value *(*func)
+	(const char *file, int line))
+	{
+	dynlock_create_callback=func;
+	}
+
+void CRYPTO_set_dynlock_lock_callback(void (*func)(int mode,
+	struct CRYPTO_dynlock_value *l, const char *file, int line))
+	{
+	dynlock_lock_callback=func;
+	}
+
+void CRYPTO_set_dynlock_destroy_callback(void (*func)
+	(struct CRYPTO_dynlock_value *l, const char *file, int line))
+	{
+	dynlock_destroy_callback=func;
+	}
+
 
 void (*CRYPTO_get_locking_callback(void))(int mode,int type,const char *file,
 		int line)
@@ -156,6 +418,108 @@ void CRYPTO_set_add_lock_callback(int (*func)(int *num,int mount,int type,
 	add_lock_callback=func;
 	}
 
+/* the memset() here and in set_pointer() seem overkill, but for the sake of
+ * CRYPTO_THREADID_cmp() this avoids any platform silliness that might cause two
+ * "equal" THREADID structs to not be memcmp()-identical. */
+void CRYPTO_THREADID_set_numeric(CRYPTO_THREADID *id, unsigned long val)
+	{
+	memset(id, 0, sizeof(*id));
+	id->val = val;
+	}
+
+static const unsigned char hash_coeffs[] = { 3, 5, 7, 11, 13, 17, 19, 23 };
+void CRYPTO_THREADID_set_pointer(CRYPTO_THREADID *id, void *ptr)
+	{
+	unsigned char *dest = (void *)&id->val;
+	unsigned int accum = 0;
+	unsigned char dnum = sizeof(id->val);
+
+	memset(id, 0, sizeof(*id));
+	id->ptr = ptr;
+	if (sizeof(id->val) >= sizeof(id->ptr))
+		{
+		/* 'ptr' can be embedded in 'val' without loss of uniqueness */
+		id->val = (unsigned long)id->ptr;
+		return;
+		}
+	/* hash ptr ==> val. Each byte of 'val' gets the mod-256 total of a
+	 * linear function over the bytes in 'ptr', the co-efficients of which
+	 * are a sequence of low-primes (hash_coeffs is an 8-element cycle) -
+	 * the starting prime for the sequence varies for each byte of 'val'
+	 * (unique polynomials unless pointers are >64-bit). For added spice,
+	 * the totals accumulate rather than restarting from zero, and the index
+	 * of the 'val' byte is added each time (position dependence). If I was
+	 * a black-belt, I'd scan big-endian pointers in reverse to give
+	 * low-order bits more play, but this isn't crypto and I'd prefer nobody
+	 * mistake it as such. Plus I'm lazy. */
+	while (dnum--)
+		{
+		const unsigned char *src = (void *)&id->ptr;
+		unsigned char snum = sizeof(id->ptr);
+		while (snum--)
+			accum += *(src++) * hash_coeffs[(snum + dnum) & 7];
+		accum += dnum;
+		*(dest++) = accum & 255;
+		}
+	}
+
+int CRYPTO_THREADID_set_callback(void (*func)(CRYPTO_THREADID *))
+	{
+	if (threadid_callback)
+		return 0;
+	threadid_callback = func;
+	return 1;
+	}
+
+void (*CRYPTO_THREADID_get_callback(void))(CRYPTO_THREADID *)
+	{
+	return threadid_callback;
+	}
+
+void CRYPTO_THREADID_current(CRYPTO_THREADID *id)
+	{
+	if (threadid_callback)
+		{
+		threadid_callback(id);
+		return;
+		}
+#ifndef OPENSSL_NO_DEPRECATED
+	/* If the deprecated callback was set, fall back to that */
+	if (id_callback)
+		{
+		CRYPTO_THREADID_set_numeric(id, id_callback());
+		return;
+		}
+#endif
+	/* Else pick a backup */
+#ifdef OPENSSL_SYS_WIN16
+	CRYPTO_THREADID_set_numeric(id, (unsigned long)GetCurrentTask());
+#elif defined(OPENSSL_SYS_WIN32)
+	CRYPTO_THREADID_set_numeric(id, (unsigned long)GetCurrentThreadId());
+#elif defined(OPENSSL_SYS_BEOS)
+	CRYPTO_THREADID_set_numeric(id, (unsigned long)find_thread(NULL));
+#else
+	/* For everything else, default to using the address of 'errno' */
+	CRYPTO_THREADID_set_pointer(id, &errno);
+#endif
+	}
+
+int CRYPTO_THREADID_cmp(const CRYPTO_THREADID *a, const CRYPTO_THREADID *b)
+	{
+	return memcmp(a, b, sizeof(*a));
+	}
+
+void CRYPTO_THREADID_cpy(CRYPTO_THREADID *dest, const CRYPTO_THREADID *src)
+	{
+	memcpy(dest, src, sizeof(*src));
+	}
+
+unsigned long CRYPTO_THREADID_hash(const CRYPTO_THREADID *id)
+	{
+	return id->val;
+	}
+
+#ifndef OPENSSL_NO_DEPRECATED
 unsigned long (*CRYPTO_get_id_callback(void))(void)
 	{
 	return(id_callback);
@@ -178,6 +542,8 @@ unsigned long CRYPTO_thread_id(void)
 		ret=(unsigned long)GetCurrentThreadId();
 #elif defined(GETPID_IS_MEANINGLESS)
 		ret=1L;
+#elif defined(OPENSSL_SYS_BEOS)
+		ret=(unsigned long)find_thread(NULL);
 #else
 		ret=(unsigned long)getpid();
 #endif
@@ -186,19 +552,13 @@ unsigned long CRYPTO_thread_id(void)
 		ret=id_callback();
 	return(ret);
 	}
-
-static void (*do_dynlock_cb)(int mode, int type, const char *file, int line);
-
-void int_CRYPTO_set_do_dynlock_callback(
-	void (*dyn_cb)(int mode, int type, const char *file, int line))
-	{
-	do_dynlock_cb = dyn_cb;
-	}
+#endif
 
 void CRYPTO_lock(int mode, int type, const char *file, int line)
 	{
 #ifdef LOCK_DEBUG
 		{
+		CRYPTO_THREADID id;
 		char *rw_text,*operation_text;
 
 		if (mode & CRYPTO_LOCK)
@@ -215,15 +575,25 @@ void CRYPTO_lock(int mode, int type, const char *file, int line)
 		else
 			rw_text="ERROR";
 
+		CRYPTO_THREADID_current(&id);
 		fprintf(stderr,"lock:%08lx:(%s)%s %-18s %s:%d\n",
-			CRYPTO_thread_id(), rw_text, operation_text,
+			CRYPTO_THREADID_hash(&id), rw_text, operation_text,
 			CRYPTO_get_lock_name(type), file, line);
 		}
 #endif
 	if (type < 0)
 		{
-		if (do_dynlock_cb)
-			do_dynlock_cb(mode, type, file, line);
+		if (dynlock_lock_callback != NULL)
+			{
+			struct CRYPTO_dynlock_value *pointer
+				= CRYPTO_get_dynlock_value(type);
+
+			OPENSSL_assert(pointer != NULL);
+
+			dynlock_lock_callback(mode, pointer, file, line);
+
+			CRYPTO_destroy_dynlockid(type);
+			}
 		}
 	else
 		if (locking_callback != NULL)
@@ -243,11 +613,14 @@ int CRYPTO_add_lock(int *pointer, int amount, int type, const char *file,
 
 		ret=add_lock_callback(pointer,amount,type,file,line);
 #ifdef LOCK_DEBUG
+		{
+		CRYPTO_THREADID id;
+		CRYPTO_THREADID_current(&id);
 		fprintf(stderr,"ladd:%08lx:%2d+%2d->%2d %-18s %s:%d\n",
-			CRYPTO_thread_id(),
-			before,amount,ret,
+			CRYPTO_THREADID_hash(&id), before,amount,ret,
 			CRYPTO_get_lock_name(type),
 			file,line);
+		}
 #endif
 		}
 	else
@@ -256,16 +629,32 @@ int CRYPTO_add_lock(int *pointer, int amount, int type, const char *file,
 
 		ret= *pointer+amount;
 #ifdef LOCK_DEBUG
+		{
+		CRYPTO_THREADID id;
+		CRYPTO_THREADID_current(&id);
 		fprintf(stderr,"ladd:%08lx:%2d+%2d->%2d %-18s %s:%d\n",
-			CRYPTO_thread_id(),
+			CRYPTO_THREADID_hash(&id),
 			*pointer,amount,ret,
 			CRYPTO_get_lock_name(type),
 			file,line);
+		}
 #endif
 		*pointer=ret;
 		CRYPTO_lock(CRYPTO_UNLOCK|CRYPTO_WRITE,type,file,line);
 		}
 	return(ret);
+	}
+
+const char *CRYPTO_get_lock_name(int type)
+	{
+	if (type < 0)
+		return("dynamic");
+	else if (type < CRYPTO_NUM_LOCKS)
+		return(lock_names[type]);
+	else if (type-CRYPTO_NUM_LOCKS > sk_OPENSSL_STRING_num(app_locks))
+		return("ERROR");
+	else
+		return(sk_OPENSSL_STRING_value(app_locks,type-CRYPTO_NUM_LOCKS));
 	}
 
 #if	defined(__i386)   || defined(__i386__)   || defined(_M_IX86) || \
@@ -306,65 +695,11 @@ void OPENSSL_cpuid_setup(void) {}
 #endif
 
 #if (defined(_WIN32) || defined(__CYGWIN__)) && defined(_WINDLL)
-
-#ifdef OPENSSL_FIPS
-
-#include <tlhelp32.h>
-#if defined(__GNUC__) && __GNUC__>=2
-static int DllInit(void) __attribute__((constructor));
-#elif defined(_MSC_VER)
-static int DllInit(void);
-# ifdef _WIN64
-# pragma section(".CRT$XCU",read)
-  __declspec(allocate(".CRT$XCU"))
-# else
-# pragma data_seg(".CRT$XCU")
-# endif
-  static int (*p)(void) = DllInit;
-# pragma data_seg()
-#endif
-
-static int DllInit(void)
-{
-#if defined(_WIN32_WINNT)
-	union	{ int(*f)(void); BYTE *p; } t = { DllInit };
-        HANDLE	hModuleSnap = INVALID_HANDLE_VALUE;
-	IMAGE_DOS_HEADER *dos_header;
-	IMAGE_NT_HEADERS *nt_headers;
-	MODULEENTRY32 me32 = {sizeof(me32)};
-
-	hModuleSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE,0);
-	if (hModuleSnap != INVALID_HANDLE_VALUE &&
-	    Module32First(hModuleSnap,&me32)) do
-		{
-		if (t.p >= me32.modBaseAddr &&
-		    t.p <  me32.modBaseAddr+me32.modBaseSize)
-			{
-			dos_header=(IMAGE_DOS_HEADER *)me32.modBaseAddr;
-			if (dos_header->e_magic==IMAGE_DOS_SIGNATURE)
-				{
-				nt_headers=(IMAGE_NT_HEADERS *)
-					((BYTE *)dos_header+dos_header->e_lfanew);
-				if (nt_headers->Signature==IMAGE_NT_SIGNATURE &&
-				    me32.modBaseAddr!=(BYTE*)nt_headers->OptionalHeader.ImageBase)
-					OPENSSL_NONPIC_relocated=1;
-				}
-			break;
-			}
-		} while (Module32Next(hModuleSnap,&me32));
-
-	if (hModuleSnap != INVALID_HANDLE_VALUE)
-		CloseHandle(hModuleSnap);
-#endif
-	OPENSSL_cpuid_setup();
-	return 0;
-}
-
-#else
-
 #ifdef __CYGWIN__
 /* pick DLL_[PROCESS|THREAD]_[ATTACH|DETACH] definitions */
 #include <windows.h>
+/* this has side-effect of _WIN32 getting defined, which otherwise
+ * is mutually exclusive with __CYGWIN__... */
 #endif
 
 /* All we really need to do is remove the 'error' state when a thread
@@ -396,7 +731,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
 	case DLL_THREAD_ATTACH:
 		break;
 	case DLL_THREAD_DETACH:
-		ERR_remove_state(0);
 		break;
 	case DLL_PROCESS_DETACH:
 		break;
@@ -405,16 +739,37 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason,
 	}
 #endif
 
-#endif
-
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <tchar.h>
+#include <signal.h>
+#ifdef __WATCOMC__
+#if defined(_UNICODE) || defined(__UNICODE__)
+#define _vsntprintf _vsnwprintf
+#else
+#define _vsntprintf _vsnprintf
+#endif
+#endif
+#ifdef _MSC_VER
+#define alloca _alloca
+#endif
 
 #if defined(_WIN32_WINNT) && _WIN32_WINNT>=0x0333
 int OPENSSL_isservice(void)
 { HWINSTA h;
   DWORD len;
   WCHAR *name;
+  static union { void *p; int (*f)(void); } _OPENSSL_isservice = { NULL };
+
+    if (_OPENSSL_isservice.p == NULL) {
+	HANDLE h = GetModuleHandle(NULL);
+	if (h != NULL)
+	    _OPENSSL_isservice.p = GetProcAddress(h,"_OPENSSL_isservice");
+	if (_OPENSSL_isservice.p == NULL)
+	    _OPENSSL_isservice.p = (void *)-1;
+    }
+
+    if (_OPENSSL_isservice.p != (void *)-1)
+	return (*_OPENSSL_isservice.f)();
 
     (void)GetDesktopWindow(); /* return value is ignored */
 
@@ -427,11 +782,7 @@ int OPENSSL_isservice(void)
 
     if (len>512) return -1;		/* paranoia */
     len++,len&=~1;			/* paranoia */
-#ifdef _MSC_VER
-    name=(WCHAR *)_alloca(len+sizeof(WCHAR));
-#else
     name=(WCHAR *)alloca(len+sizeof(WCHAR));
-#endif
     if (!GetUserObjectInformationW (h,UOI_NAME,name,len,&len))
 	return -1;
 
@@ -476,11 +827,7 @@ void OPENSSL_showfatal (const char *fmta,...)
       size_t len_0=strlen(fmta)+1,i;
       WCHAR *fmtw;
 
-#ifdef _MSC_VER
-	fmtw = (WCHAR *)_alloca (len_0*sizeof(WCHAR));
-#else
-	fmtw = (WCHAR *)alloca (len_0*sizeof(WCHAR));
-#endif
+	fmtw = (WCHAR *)alloca(len_0*sizeof(WCHAR));
 	if (fmtw == NULL) { fmt=(const TCHAR *)L"no stack?"; break; }
 
 #ifndef OPENSSL_NO_MULTIBYTE
@@ -539,7 +886,13 @@ void OpenSSLDie(const char *file,int line,const char *assertion)
 	OPENSSL_showfatal(
 		"%s(%d): OpenSSL internal error, assertion failed: %s\n",
 		file,line,assertion);
+#if !defined(_WIN32) || defined(__CYGWIN__)
 	abort();
+#else
+	/* Win32 abort() customarily shows a dialog, but we just did that... */
+	raise(SIGABRT);
+	_exit(3);
+#endif
 	}
 
 void *OPENSSL_stderr(void)	{ return stderr; }
