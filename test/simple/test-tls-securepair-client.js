@@ -34,7 +34,7 @@ var tls = require('tls');
 var exec = require('child_process').exec;
 var spawn = require('child_process').spawn;
 
-maybe(test);
+maybe(test1);
 
 // There is a bug with 'openssl s_server' which makes it not flush certain
 // important events to stdout when done over a pipe. Therefore we skip this
@@ -50,7 +50,23 @@ function maybe(cb) {
   });
 }
 
-function test() {
+// simple/test-tls-securepair-client
+function test1() {
+  test('agent.key', 'agent.crt', null, test2);
+}
+
+// simple/test-tls-ext-key-usage
+function test2() {
+  function check(pair) {
+    // "TLS Web Client Authentication"
+    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage.length, 1);
+    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0],
+                 '1.3.6.1.5.5.7.3.2');
+  }
+  test('keys/agent4-key.pem', 'keys/agent4-cert.pem', check);
+}
+
+function test(keyfn, certfn, check, next) {
   // FIXME: Avoid the common PORT as this test currently hits a C-level
   // assertion error with node_g. The program aborts without HUPing
   // the openssl s_server thus causing many tests to fail with
@@ -59,10 +75,10 @@ function test() {
 
   var connections = 0;
 
-  var keyfn = join(common.fixturesDir, 'agent.key');
+  keyfn = join(common.fixturesDir, keyfn);
   var key = fs.readFileSync(keyfn).toString();
 
-  var certfn = join(common.fixturesDir, 'agent.crt');
+  certfn = join(common.fixturesDir, certfn);
   var cert = fs.readFileSync(certfn).toString();
 
   var server = spawn('openssl', ['s_server',
@@ -117,6 +133,7 @@ function test() {
   server.on('exit', function(code) {
     serverExitCode = code;
     clearTimeout(timeout);
+    if (next) next();
   });
 
 
@@ -146,6 +163,7 @@ function test() {
                   pair.cleartext.getPeerCertificate());
       console.log('client pair.cleartext.getCipher(): %j',
                   pair.cleartext.getCipher());
+      if (check) check(pair);
       setTimeout(function() {
         pair.cleartext.write('hello\r\n', function() {
           gotWriteCallback = true;
