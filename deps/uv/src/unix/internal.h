@@ -37,79 +37,9 @@
 #undef HAVE_KQUEUE
 #undef HAVE_PORTS_FS
 
-#if defined(__linux__)
-
-# undef HAVE_SYS_UTIMESAT
-# undef HAVE_SYS_PIPE2
-# undef HAVE_SYS_ACCEPT4
-
-# undef _GNU_SOURCE
-# define _GNU_SOURCE
-
-# include <linux/version.h>
-# include <sys/syscall.h>
-# include <features.h>
-# include <unistd.h>
-
-# if __NR_utimensat
-#  define HAVE_SYS_UTIMESAT 1
-# endif
-# if __NR_pipe2
-#  define HAVE_SYS_PIPE2 1
-# endif
-# if __NR_accept4
-#  define HAVE_SYS_ACCEPT4 1
-# endif
-
-# ifndef O_CLOEXEC
-#  define O_CLOEXEC 02000000
-# endif
-
-# ifndef SOCK_CLOEXEC
-#  define SOCK_CLOEXEC O_CLOEXEC
-# endif
-
-# ifndef SOCK_NONBLOCK
-#  define SOCK_NONBLOCK O_NONBLOCK
-# endif
-
-# if HAVE_SYS_UTIMESAT
-inline static int sys_utimesat(int dirfd,
-                               const char* path,
-                               const struct timespec times[2],
-                               int flags)
-{
-  return syscall(__NR_utimensat, dirfd, path, times, flags);
-}
-inline static int sys_futimes(int fd, const struct timeval times[2])
-{
-  struct timespec ts[2];
-  ts[0].tv_sec = times[0].tv_sec, ts[0].tv_nsec = times[0].tv_usec * 1000;
-  ts[1].tv_sec = times[1].tv_sec, ts[1].tv_nsec = times[1].tv_usec * 1000;
-  return sys_utimesat(fd, NULL, ts, 0);
-}
-#  undef HAVE_FUTIMES
-#  define HAVE_FUTIMES 1
-#  define futimes(fd, times) sys_futimes(fd, times)
-# endif /* HAVE_SYS_FUTIMESAT */
-
-# if HAVE_SYS_PIPE2
-inline static int sys_pipe2(int pipefd[2], int flags)
-{
-  return syscall(__NR_pipe2, pipefd, flags);
-}
-# endif /* HAVE_SYS_PIPE2 */
-
-# if HAVE_SYS_ACCEPT4
-inline static int sys_accept4(int fd,
-                              struct sockaddr* addr,
-                              socklen_t* addrlen,
-                              int flags)
-{
-  return syscall(__NR_accept4, fd, addr, addrlen, flags);
-}
-# endif /* HAVE_SYS_ACCEPT4 */
-
+#if __linux__
+# include "linux/syscalls.h"
+# define HAVE_FUTIMES 1 /* emulated with utimesat() */
 #endif /* __linux__ */
 
 #if defined(__sun)
@@ -118,6 +48,8 @@ inline static int sys_accept4(int fd,
 # ifdef PORT_SOURCE_FILE
 #  define HAVE_PORTS_FS 1
 # endif
+# define HAVE_FUTIMES 1
+# define futimes(fd, tv) futimesat(fd, (void*)0, tv)
 #endif /* __sun */
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__sun)
@@ -125,7 +57,7 @@ inline static int sys_accept4(int fd,
 #endif
 
 /* FIXME exact copy of the #ifdef guard in uv-unix.h */
-#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060) \
+#if defined(__APPLE__)  \
   || defined(__FreeBSD__) \
   || defined(__OpenBSD__) \
   || defined(__NetBSD__)
@@ -172,6 +104,10 @@ int uv__cloexec(int fd, int set) __attribute__((unused));
 int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
 
+/* loop */
+int uv__loop_init(uv_loop_t* loop, int default_loop);
+void uv__loop_delete(uv_loop_t* loop);
+
 /* error */
 uv_err_code uv_translate_sys_error(int sys_errno);
 void uv_fatal_error(const int errorno, const char* syscall);
@@ -198,28 +134,28 @@ int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay);
 /* pipe */
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 void uv__pipe_accept(EV_P_ ev_io* watcher, int revents);
-int uv_pipe_cleanup(uv_pipe_t* handle);
 
-/* udp */
-void uv__udp_start_close(uv_udp_t* handle);
+/* various */
+int uv__check_active(const uv_check_t* handle);
+int uv__idle_active(const uv_idle_t* handle);
+int uv__prepare_active(const uv_prepare_t* handle);
+int uv__timer_active(const uv_timer_t* handle);
+
+void uv__async_close(uv_async_t* handle);
+void uv__check_close(uv_check_t* handle);
+void uv__fs_event_close(uv_fs_event_t* handle);
+void uv__idle_close(uv_idle_t* handle);
+void uv__pipe_close(uv_pipe_t* handle);
+void uv__prepare_close(uv_prepare_t* handle);
+void uv__process_close(uv_process_t* handle);
+void uv__stream_close(uv_stream_t* handle);
+void uv__timer_close(uv_timer_t* handle);
+void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
-
-/* fs */
-void uv__fs_event_destroy(uv_fs_event_t* handle);
 
 #define UV__F_IPC        (1 << 0)
 #define UV__F_NONBLOCK   (1 << 1)
 int uv__make_socketpair(int fds[2], int flags);
 int uv__make_pipe(int fds[2], int flags);
-
-#if __linux__
-void uv__inotify_loop_init(uv_loop_t* loop);
-void uv__inotify_loop_delete(uv_loop_t* loop);
-# define uv__loop_platform_init(loop)   uv__inotify_loop_init(loop)
-# define uv__loop_platform_delete(loop) uv__inotify_loop_delete(loop)
-#else
-# define uv__loop_platform_init(loop)
-# define uv__loop_platform_delete(loop)
-#endif
 
 #endif /* UV_UNIX_INTERNAL_H_ */

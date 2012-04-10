@@ -1005,3 +1005,20 @@ int uv_is_readable(uv_stream_t* stream) {
 int uv_is_writable(uv_stream_t* stream) {
   return stream->flags & UV_WRITABLE;
 }
+
+
+void uv__stream_close(uv_stream_t* handle) {
+  uv_read_stop(handle);
+  ev_io_stop(handle->loop->ev, &handle->write_watcher);
+
+  close(handle->fd);
+  handle->fd = -1;
+
+  if (handle->accepted_fd >= 0) {
+    close(handle->accepted_fd);
+    handle->accepted_fd = -1;
+  }
+
+  assert(!ev_is_active(&handle->read_watcher));
+  assert(!ev_is_active(&handle->write_watcher));
+}

@@ -1,0 +1,230 @@
+/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+#include "syscalls.h"
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <errno.h>
+
+#if __i386__
+# ifndef __NR_socketcall
+#  define __NR_socketcall 102
+# endif
+#endif
+
+#if __arm__
+# if __thumb__ || __ARM_EABI__
+#  define UV_SYSCALL_BASE 0
+# else
+#  define UV_SYSCALL_BASE 0x900000
+# endif
+#endif /* __arm__ */
+
+#ifndef __NR_accept4
+# if __x86_64__
+#  define __NR_accept4 288
+# elif __i386__
+   /* Nothing. Handled through socketcall(). */
+# elif __arm__
+#  define __NR_accept4 (UV_SYSCALL_BASE + 366)
+# endif
+#endif /* __NR_accept4 */
+
+#ifndef __NR_inotify_init
+# if __x86_64__
+#  define __NR_inotify_init 253
+# elif __i386__
+#  define __NR_inotify_init 291
+# elif __arm__
+#  define __NR_inotify_init (UV_SYSCALL_BASE + 316)
+# endif
+#endif /* __NR_inotify_init */
+
+#ifndef __NR_inotify_init1
+# if __x86_64__
+#  define __NR_inotify_init1 294
+# elif __i386__
+#  define __NR_inotify_init1 332
+# elif __arm__
+#  define __NR_inotify_init1 (UV_SYSCALL_BASE + 360)
+# endif
+#endif /* __NR_inotify_init1 */
+
+#ifndef __NR_inotify_add_watch
+# if __x86_64__
+#  define __NR_inotify_add_watch 254
+# elif __i386__
+#  define __NR_inotify_add_watch 292
+# elif __arm__
+#  define __NR_inotify_add_watch (UV_SYSCALL_BASE + 317)
+# endif
+#endif /* __NR_inotify_add_watch */
+
+#ifndef __NR_inotify_rm_watch
+# if __x86_64__
+#  define __NR_inotify_rm_watch 255
+# elif __i386__
+#  define __NR_inotify_rm_watch 293
+# elif __arm__
+#  define __NR_inotify_rm_watch (UV_SYSCALL_BASE + 318)
+# endif
+#endif /* __NR_inotify_rm_watch */
+
+#ifndef __NR_pipe2
+# if __x86_64__
+#  define __NR_pipe2 293
+# elif __i386__
+#  define __NR_pipe2 331
+# elif __arm__
+#  define __NR_pipe2 (UV_SYSCALL_BASE + 359)
+# endif
+#endif /* __NR_pipe2 */
+
+#ifndef __NR_recvmmsg
+# if __x86_64__
+#  define __NR_recvmmsg 299
+# elif __i386__
+#  define __NR_recvmmsg 337
+# elif __arm__
+#  define __NR_recvmmsg (UV_SYSCALL_BASE + 365)
+# endif
+#endif /* __NR_recvmsg */
+
+#ifndef __NR_sendmmsg
+# if __x86_64__
+#  define __NR_sendmmsg 307
+# elif __i386__
+#  define __NR_sendmmsg 345
+# elif __arm__
+#  define __NR_recvmmsg (UV_SYSCALL_BASE + 374)
+# endif
+#endif /* __NR_sendmmsg */
+
+#ifndef __NR_utimensat
+# if __x86_64__
+#  define __NR_utimensat 280
+# elif __i386__
+#  define __NR_utimensat 320
+# elif __arm__
+#  define __NR_utimensat (UV_SYSCALL_BASE + 348)
+# endif
+#endif /* __NR_utimensat */
+
+
+int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
+#if __i386__
+  unsigned long args[] = {
+    (unsigned long) fd,
+    (unsigned long) addr,
+    (unsigned long) addrlen,
+    (unsigned long) flags
+  };
+  return syscall(__NR_socketcall, 18 /* SYS_ACCEPT4 */, args);
+#elif __NR_accept4
+  return syscall(__NR_accept4, fd, addr, addrlen, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__inotify_init(void) {
+#if __NR_inotify_init
+  return syscall(__NR_inotify_init);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__inotify_init1(int flags) {
+#if __NR_inotify_init1
+  return syscall(__NR_inotify_init1, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__inotify_add_watch(int fd, const char* path, __u32 mask) {
+#if __NR_inotify_add_watch
+  return syscall(__NR_inotify_add_watch, fd, path, mask);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__inotify_rm_watch(int fd, __s32 wd) {
+#if __NR_inotify_rm_watch
+  return syscall(__NR_inotify_rm_watch, fd, wd);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__pipe2(int pipefd[2], int flags) {
+#if __NR_pipe2
+  return syscall(__NR_pipe2, pipefd, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__sendmmsg(int fd,
+                 struct uv__mmsghdr* mmsg,
+                 unsigned int vlen,
+                 unsigned int flags) {
+#if __NR_sendmmsg
+  return syscall(__NR_sendmmsg, fd, mmsg, vlen, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__recvmmsg(int fd,
+                 struct uv__mmsghdr* mmsg,
+                 unsigned int vlen,
+                 unsigned int flags,
+                 struct timespec* timeout) {
+#if __NR_recvmmsg
+  return syscall(__NR_recvmmsg, fd, mmsg, vlen, flags, timeout);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__utimesat(int dirfd,
+                 const char* path,
+                 const struct timespec times[2],
+                 int flags)
+{
+#if __NR_utimensat
+  return syscall(__NR_utimensat, dirfd, path, times, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
