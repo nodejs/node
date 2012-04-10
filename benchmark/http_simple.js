@@ -14,7 +14,27 @@ for (var i = 0; i < 20*1024; i++) {
 stored = {};
 storedBuffer = {};
 
+var useDomains = process.env.NODE_USE_DOMAINS;
+
+// set up one global domain.
+if (useDomains) {
+  var domain = require('domain');
+  var gdom = domain.create();
+  gdom.on('error', function(er) {
+    console.log('Error on global domain', er);
+    throw er;
+  });
+  gdom.enter();
+}
+
 var server = http.createServer(function (req, res) {
+
+  if (useDomains) {
+    var dom = domain.create();
+    dom.add(req);
+    dom.add(res);
+  }
+
   var commands = req.url.split("/");
   var command = commands[1];
   var body = "";
