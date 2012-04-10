@@ -11,10 +11,14 @@
         'L_ENDIAN',
         'OPENSSL_THREADS',
         'PURIFY',
-        'TERMIO',
         '_REENTRANT',
         # We do not use TLS over UDP on Chromium so far.
         'OPENSSL_NO_DTLS1',
+        'OPENSSL_NO_SOCK',
+        'OPENSSL_NO_DGRAM',
+        # Work around brain dead SunOS linker.
+        'OPENSSL_NO_GOST',
+        'OPENSSL_NO_HW_PADLOCK',
       ],
       'sources': [
         'openssl/ssl/bio_ssl.c',
@@ -618,55 +622,35 @@
         'openssl/engines/e_sureware.c',
         'openssl/engines/e_ubsec.c',
       ],
+      'sources/': [
+        ['exclude', 'camellia/.*$'],
+        ['exclude', 'cms/.*$'],
+        ['exclude', 'mdc2/.*$'],
+      ],
       'conditions': [
-        ['os_posix==1 and OS!="android"', {
+        ['OS=="win"', {
+          'defines': [
+            'MK1MF_BUILD',
+            'WIN32_LEAN_AND_MEAN',
+          ]
+        }, {
           'defines': [
             # ENGINESDIR must be defined if OPENSSLDIR is.
             'ENGINESDIR="/dev/null"',
             # Set to ubuntu default path for convenience. If necessary, override
             # this at runtime with the SSL_CERT_DIR environment variable.
             'OPENSSLDIR="/etc/ssl"',
+            'TERMIOS',
           ],
-          'variables': {
-            'conditions': [
-              ['target_arch=="ia32"', {
-                'openssl_config_path': 'config/piii',
-              }, {
-                'openssl_config_path': 'config/k8',
-              }],
-            ],
-          },
         }],
-        ['OS=="android"', {
-          'variables': {
-            'openssl_config_path': 'config/android',
-          },
-          'sources/': [
-            ['exclude', 'cast/.*$'],
-            ['exclude', 'crypto/md2/.*$'],
-            ['exclude', 'crypto/store/.*$'],
-            ['exclude', 'crypto/whrlpool/.$'],
-          ],
+        ['OS=="solaris"', {
+          'defines': ['__EXTENSIONS__'],
+        }],
+        ['target_arch=="ia32"', {
+          'variables': {'openssl_config_path': 'config/piii'},
         }, {
-          'sources/': [
-            ['exclude', 'camellia/.*$'],
-            ['exclude', 'cms/.*$'],
-            ['exclude', 'mdc2/.*$'],
-          ],
+          'variables': {'openssl_config_path': 'config/k8'},
         }],
-        ['clang==1', {
-          'cflags': [
-            # OpenSSL has a few |if ((foo == NULL))| checks.
-            '-Wno-parentheses-equality',
-            # OpenSSL uses several function-style macros and then ignores the
-            # returned value.
-            '-Wno-unused-value',
-          ],
-        }, { # Not clang. Disable all warnings.
-          'cflags': [
-            '-w',
-          ],
-        }]
       ],
       'include_dirs': [
         '.',

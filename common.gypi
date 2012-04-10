@@ -146,7 +146,6 @@
             'ldflags': [ '-m32' ],
           }],
           [ 'OS=="linux"', {
-            'cflags': [ '-ansi' ],
             'ldflags': [ '-rdynamic' ],
           }],
           [ 'OS=="solaris"', {
