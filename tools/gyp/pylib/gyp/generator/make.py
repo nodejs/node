@@ -525,9 +525,9 @@ d_files := $(wildcard $(foreach f,$(all_deps),$(depsdir)/$(f).d))
 ifneq ($(d_files),)
   # Rather than include each individual .d file, concatenate them into a
   # single file which make is able to load faster.  We split this into
-  # commands that take 1000 files at a time to avoid overflowing the
+  # commands that take 512 files at a time to avoid overflowing the
   # command line.
-  $(shell cat $(wordlist 1,1000,$(d_files)) > $(depsdir)/all.deps)
+  $(shell cat $(wordlist 1,512,$(d_files)) > $(depsdir)/all.deps)
 %(generate_all_deps)s
   # make looks for ways to re-generate included makefiles, but in our case, we
   # don't have a direct way. Explicitly telling make that it has nothing to do
