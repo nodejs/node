@@ -19,6 +19,7 @@
         # Work around brain dead SunOS linker.
         'OPENSSL_NO_GOST',
         'OPENSSL_NO_HW_PADLOCK',
+        'OPENSSL_NO_TTY',
       ],
       'sources': [
         'openssl/ssl/bio_ssl.c',
@@ -546,6 +547,7 @@
         'openssl/crypto/ui/ui_compat.c',
         'openssl/crypto/ui/ui_err.c',
         'openssl/crypto/ui/ui_lib.c',
+        'openssl/crypto/ui/ui_dummy.c',
         'openssl/crypto/ui/ui_openssl.c',
         'openssl/crypto/ui/ui_util.c',
         'openssl/crypto/uid.c',

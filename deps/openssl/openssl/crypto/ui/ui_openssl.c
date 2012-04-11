@@ -114,6 +114,7 @@
  * [including the GNU Public Licence.]
  */
 
+#ifndef OPENSSL_NO_TTY
 
 #include <openssl/e_os2.h>
 
@@ -709,4 +710,6 @@ static int noecho_fgets(char *buf, int size, FILE *tty)
 #endif
 	return(strlen(buf));
 	}
+#endif
+
 #endif
