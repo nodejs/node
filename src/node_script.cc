@@ -348,12 +348,18 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     display_error = true;
   }
 
-  Persistent<Context> context;
+  Handle<Context> context = Context::GetCurrent();
 
   Local<Array> keys;
   if (context_flag == newContext) {
     // Create the new context
-    context = Context::New();
+    // Context::New returns a Persistent<Context>, but we only need it for this
+    // function. Here we grab a temporary handle to the new context, assign it
+    // to a local handle, and then dispose the persistent handle. This ensures
+    // that when this function exits the context will be disposed.
+    Persistent<Context> tmp = Context::New();
+    context = Local<Context>::New(tmp);
+    tmp.Dispose();
 
   } else if (context_flag == userContext) {
     // Use the passed in context
@@ -361,11 +367,10 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     context = nContext->GetV8Context();
   }
 
+  Context::Scope context_scope(context);
+
   // New and user context share code. DRY it up.
   if (context_flag == userContext || context_flag == newContext) {
-    // Enter the context
-    context->Enter();
-
     // Copy everything from the passed in sandbox (either the persistent
     // context for runInContext(), or the sandbox arg to runInNewContext()).
     CloneObject(args.This(), sandbox, context->Global()->GetPrototype());
@@ -407,11 +412,6 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   if (output_flag == returnResult) {
     result = script->Run();
     if (result.IsEmpty()) {
-      if (context_flag == newContext) {
-        context->DetachGlobal();
-        context->Exit();
-        context.Dispose();
-      }
       return try_catch.ReThrow();
     }
   } else {
@@ -427,16 +427,6 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   if (context_flag == userContext || context_flag == newContext) {
     // success! copy changes back onto the sandbox object.
     CloneObject(args.This(), context->Global()->GetPrototype(), sandbox);
-  }
-
-  if (context_flag == newContext) {
-    // Clean up, clean up, everybody everywhere!
-    context->DetachGlobal();
-    context->Exit();
-    context.Dispose();
-  } else if (context_flag == userContext) {
-    // Exit the passed in context.
-    context->Exit();
   }
 
   return result == args.This() ? result : scope.Close(result);
