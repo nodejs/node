@@ -162,15 +162,22 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
   // uv_close() on the handle.
   assert(wrap->object_.IsEmpty() == false);
 
-  Local<Object> slab = slab_allocator.Shrink(wrap->object_,
-                                             buf.base,
-                                             nread < 0 ? 0 : nread);
-
   if (nread < 0)  {
+    // If libuv reports an error or EOF it *may* give us a buffer back. In that
+    // case, return the space to the slab.
+    if (buf.base != NULL) {
+      slab_allocator.Shrink(wrap->object_, buf.base, 0);
+    }
+
     SetErrno(uv_last_error(uv_default_loop()));
     MakeCallback(wrap->object_, "onread", 0, NULL);
     return;
   }
+
+  assert(buf.base != NULL);
+  Local<Object> slab = slab_allocator.Shrink(wrap->object_,
+                                             buf.base,
+                                             nread);
 
   if (nread == 0) return;
   assert(static_cast<size_t>(nread) <= buf.len);

@@ -116,7 +116,8 @@ Local<Object> SlabAllocator::Shrink(Handle<Object> obj,
   assert(!slab_v.IsEmpty());
   assert(slab_v->IsObject());
   Local<Object> slab = slab_v->ToObject();
-  if (ptr && ptr == last_ptr_) {
+  assert(ptr != NULL);
+  if (ptr == last_ptr_) {
     last_ptr_ = NULL;
     offset_ = ptr - Buffer::Data(slab) + ROUND_UP(size, 16);
   }
