@@ -154,11 +154,6 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
 }
 
 
-int uv_is_closing(uv_handle_t* handle) {
-  return handle->flags & (UV_HANDLE_CLOSING | UV_HANDLE_CLOSED);
-}
-
-
 void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle) {
   if (!(handle->flags & UV_HANDLE_ENDGAME_QUEUED)) {
     handle->flags |= UV_HANDLE_ENDGAME_QUEUED;

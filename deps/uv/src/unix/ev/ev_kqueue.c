@@ -43,30 +43,6 @@
 #include <string.h>
 #include <errno.h>
 
-/* These are the same on OS X and the BSDs. */
-#ifndef NOTE_DELETE
-# define NOTE_DELETE  0x01
-#endif
-#ifndef NOTE_WRITE
-# define NOTE_WRITE 	0x02
-#endif
-#ifndef NOTE_EXTEND
-# define NOTE_EXTEND  0x04
-#endif
-#ifndef NOTE_ATTRIB
-# define NOTE_ATTRIB  0x08
-#endif
-#ifndef NOTE_LINK
-# define NOTE_LINK    0x10
-#endif
-#ifndef NOTE_RENAME
-# define NOTE_RENAME  0x20
-#endif
-#ifndef NOTE_REVOKE
-# define NOTE_REVOKE  0x40
-#endif
-
-
 extern void
 uv__kqueue_hack (EV_P_ int fflags, ev_io *w);
 

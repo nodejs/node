@@ -497,27 +497,23 @@ int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
 
 
 #if HAVE_FUTIMES
-static int _futime(const uv_file fd, double atime, double mtime) {
-#if __linux__
-  /* utimesat() has nanosecond resolution but we stick to microseconds
-   * for the sake of consistency with other platforms.
-   */
-  struct timespec ts[2];
-  ts[0].tv_sec = atime;
-  ts[0].tv_nsec = (unsigned long)(atime * 1000000) % 1000000 * 1000;
-  ts[1].tv_sec = mtime;
-  ts[1].tv_nsec = (unsigned long)(mtime * 1000000) % 1000000 * 1000;
-  return uv__utimesat(fd, NULL, ts, 0);
-#else
+static int _futime(const uv_file file, double atime, double mtime) {
   struct timeval tv[2];
+
+  /* FIXME possible loss of precision in floating-point arithmetic? */
   tv[0].tv_sec = atime;
   tv[0].tv_usec = (unsigned long)(atime * 1000000) % 1000000;
+
   tv[1].tv_sec = mtime;
   tv[1].tv_usec = (unsigned long)(mtime * 1000000) % 1000000;
-  return futimes(fd, tv);
-#endif /* __linux__ */
+
+#ifdef __sun
+  return futimesat(file, NULL, tv);
+#else
+  return futimes(file, tv);
+#endif
 }
-#endif /* HAVE_FUTIMES */
+#endif
 
 
 int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime,

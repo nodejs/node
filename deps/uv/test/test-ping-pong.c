@@ -140,7 +140,6 @@ static void pinger_on_connect(uv_connect_t *req, int status) {
 
   ASSERT(uv_is_readable(req->handle));
   ASSERT(uv_is_writable(req->handle));
-  ASSERT(!uv_is_closing((uv_handle_t *)req->handle));
 
   pinger_write_ping(pinger);
 

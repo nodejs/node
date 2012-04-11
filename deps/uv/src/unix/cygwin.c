@@ -79,6 +79,6 @@ int uv_fs_event_init(uv_loop_t* loop,
 }
 
 
-void uv__fs_event_close(uv_fs_event_t* handle) {
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
   assert(0 && "implement me");
 }

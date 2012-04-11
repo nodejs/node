@@ -44,7 +44,6 @@ TEST_IMPL(platform_output) {
 
   err = uv_uptime(&uptime);
   ASSERT(UV_OK == err.code);
-  ASSERT(uptime > 0);
   fprintf(stderr, "uv_uptime: %f\n", uptime);
 
   err = uv_cpu_info(&cpus, &count);

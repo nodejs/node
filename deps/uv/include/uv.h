@@ -132,46 +132,37 @@ typedef enum {
 } uv_err_code;
 #undef UV_ERRNO_GEN
 
-#define UV_HANDLE_TYPE_MAP(XX)  \
-  XX(ARES_TASK, ares_task)      \
-  XX(ASYNC, async)              \
-  XX(CHECK, check)              \
-  XX(FS_EVENT, fs_event)        \
-  XX(IDLE, idle)                \
-  XX(NAMED_PIPE, pipe)          \
-  XX(PREPARE, prepare)          \
-  XX(PROCESS, process)          \
-  XX(TCP, tcp)                  \
-  XX(TIMER, timer)              \
-  XX(TTY, tty)                  \
-  XX(UDP, udp)                  \
-
-#define UV_REQ_TYPE_MAP(XX)     \
-  XX(CONNECT, connect)          \
-  XX(WRITE, write)              \
-  XX(SHUTDOWN, shutdown)        \
-  XX(UDP_SEND, udp_send)        \
-  XX(FS, fs)                    \
-  XX(WORK, work)                \
-  XX(GETADDRINFO, getaddrinfo)  \
-
 typedef enum {
   UV_UNKNOWN_HANDLE = 0,
-#define XX(uc, lc) UV_##uc,
-  UV_HANDLE_TYPE_MAP(XX)
-#undef XX
+  UV_TCP,
+  UV_UDP,
+  UV_NAMED_PIPE,
+  UV_TTY,
   UV_FILE,
-  UV_HANDLE_TYPE_PRIVATE
-  UV_HANDLE_TYPE_MAX
+  UV_TIMER,
+  UV_PREPARE,
+  UV_CHECK,
+  UV_IDLE,
+  UV_ASYNC,
+  UV_ARES_TASK,
+  UV_ARES_EVENT,
+  UV_PROCESS,
+  UV_FS_EVENT
 } uv_handle_type;
 
 typedef enum {
   UV_UNKNOWN_REQ = 0,
-#define XX(uc, lc) UV_##uc,
-  UV_REQ_TYPE_MAP(XX)
-#undef XX
+  UV_CONNECT,
+  UV_ACCEPT,
+  UV_READ,
+  UV_WRITE,
+  UV_SHUTDOWN,
+  UV_WAKEUP,
+  UV_UDP_SEND,
+  UV_FS,
+  UV_WORK,
+  UV_GETADDRINFO,
   UV_REQ_TYPE_PRIVATE
-  UV_REQ_TYPE_MAX
 } uv_req_type;
 
 
@@ -383,18 +374,6 @@ struct uv_handle_s {
 };
 
 /*
- * Returns size of various handle types, useful for FFI
- * bindings to allocate correct memory without copying struct
- * definitions
- */
-UV_EXTERN size_t uv_handle_size(uv_handle_type type);
-
-/*
- * Returns size of request types, useful for dynamic lookup with FFI
- */
-UV_EXTERN size_t uv_req_size(uv_req_type type);
-
-/*
  * Returns 1 if the prepare/check/idle/timer handle has been started, 0
  * otherwise. For other handle types this always returns 1.
  */
@@ -541,16 +520,6 @@ struct uv_write_s {
  */
 UV_EXTERN int uv_is_readable(uv_stream_t* handle);
 UV_EXTERN int uv_is_writable(uv_stream_t* handle);
-
-
-/*
- * Used to determine whether a stream is closing or closed.
- *
- * N.B. is only valid between the initialization of the handle
- *      and the arrival of the close callback, and cannot be used
- *      to validate the handle.
- */
-UV_EXTERN int uv_is_closing(uv_handle_t* handle);
 
 
 /*
@@ -1532,7 +1501,6 @@ struct uv_loop_s {
 
 
 /* Don't export the private CPP symbols. */
-#undef UV_HANDLE_TYPE_PRIVATE
 #undef UV_REQ_TYPE_PRIVATE
 #undef UV_REQ_PRIVATE_FIELDS
 #undef UV_STREAM_PRIVATE_FIELDS

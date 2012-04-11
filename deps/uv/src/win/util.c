@@ -385,70 +385,8 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
 
 
 uv_err_t uv_uptime(double* uptime) {
-  uv_err_t err;
-  PERF_DATA_BLOCK *dataBlock = NULL;
-  PERF_OBJECT_TYPE *objType;
-  PERF_COUNTER_DEFINITION *counterDef;
-  PERF_COUNTER_DEFINITION *counterDefUptime = NULL;
-  DWORD dataSize = 4096;
-  DWORD getSize;
-  LONG lError = ERROR_MORE_DATA;
-  uint64_t upsec;
-  unsigned int i;
-  BYTE *counterData;
-
-  *uptime = 0;
-  
-  while (lError == ERROR_MORE_DATA) {
-    if (dataBlock) {
-      free(dataBlock);
-    }
-    dataBlock = (PERF_DATA_BLOCK*)malloc(dataSize);
-    if (!dataBlock) {
-      uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-    }
-    getSize = dataSize;
-
-    lError = RegQueryValueExW(HKEY_PERFORMANCE_DATA, "2", NULL, NULL,
-                             (BYTE*)dataBlock, &getSize);
-    if (lError != ERROR_SUCCESS && getSize > 0) {
-      if (wcsncmp(dataBlock->Signature, "PERF", 4) == 0) {
-        break;
-      }
-    } else if (lError != ERROR_SUCCESS && lError != ERROR_MORE_DATA) {
-      err = uv__new_sys_error(GetLastError());
-      goto done;
-    }
-
-    dataSize += 1024;
-  }
-
-  RegCloseKey(HKEY_PERFORMANCE_DATA);
-
-  objType = (PERF_OBJECT_TYPE*)((BYTE*)dataBlock + dataBlock->HeaderLength);
-  counterDef = (PERF_COUNTER_DEFINITION*)((BYTE*)objType + objType->HeaderLength);
-
-  for (i = 0; i < objType->NumCounters; ++i) {
-    if (counterDef->CounterNameTitleIndex == 674) {
-      counterDefUptime = counterDef;
-      break;
-    }
-    counterDef = (PERF_COUNTER_DEFINITION*)((BYTE*)counterDef + counterDef->ByteLength);
-  }
-
-  counterData = (BYTE*)objType + objType->DefinitionLength;
-  counterData += counterDefUptime->CounterOffset;
-
-  upsec = *((uint64_t*)counterData);
-  *uptime = ((objType->PerfTime.QuadPart - upsec) / objType->PerfFreq.QuadPart);
-  err = uv_ok_;
-
-done:
-  if (dataBlock) {
-    free(dataBlock);
-  }
-
-  return err;
+  *uptime = (double)GetTickCount()/1000.0;
+  return uv_ok_;
 }
 
 

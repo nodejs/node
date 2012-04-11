@@ -163,6 +163,7 @@ static int uv__bind(uv_udp_t* handle,
                     int addrsize,
                     unsigned int flags) {
   int r;
+  SOCKET sock;
   DWORD no = 0, yes = 1;
 
   if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
@@ -172,7 +173,7 @@ static int uv__bind(uv_udp_t* handle,
   }
 
   if (handle->socket == INVALID_SOCKET) {
-    SOCKET sock = socket(domain, SOCK_DGRAM, 0);
+    sock = socket(domain, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET) {
       uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;
@@ -191,14 +192,14 @@ static int uv__bind(uv_udp_t* handle,
     /* TODO: how to handle errors? This may fail if there is no ipv4 stack */
     /* available, or when run on XP/2003 which have no support for dualstack */
     /* sockets. For now we're silently ignoring the error. */
-    setsockopt(handle->socket,
+    setsockopt(sock,
                IPPROTO_IPV6,
                IPV6_V6ONLY,
                (char*) &no,
                sizeof no);
   }
 
-  r = setsockopt(handle->socket,
+  r = setsockopt(sock,
                  SOL_SOCKET,
                  SO_REUSEADDR,
                  (char*) &yes,

@@ -21,7 +21,6 @@
 #include "uv.h"
 #include "tree.h"
 #include "../internal.h"
-#include "syscalls.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -32,6 +31,91 @@
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <fcntl.h>
+
+#undef HAVE_INOTIFY_INIT
+#undef HAVE_INOTIFY_INIT1
+#undef HAVE_INOTIFY_ADD_WATCH
+#undef HAVE_INOTIFY_RM_WATCH
+
+#if __NR_inotify_init
+# define HAVE_INOTIFY_INIT 1
+#endif
+#if __NR_inotify_init1
+# define HAVE_INOTIFY_INIT1 1
+#endif
+#if __NR_inotify_add_watch
+# define HAVE_INOTIFY_ADD_WATCH 1
+#endif
+#if __NR_inotify_rm_watch
+# define HAVE_INOTIFY_RM_WATCH 1
+#endif
+
+#if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
+# undef IN_ACCESS
+# undef IN_MODIFY
+# undef IN_ATTRIB
+# undef IN_CLOSE_WRITE
+# undef IN_CLOSE_NOWRITE
+# undef IN_OPEN
+# undef IN_MOVED_FROM
+# undef IN_MOVED_TO
+# undef IN_CREATE
+# undef IN_DELETE
+# undef IN_DELETE_SELF
+# undef IN_MOVE_SELF
+# define IN_ACCESS         0x001
+# define IN_MODIFY         0x002
+# define IN_ATTRIB         0x004
+# define IN_CLOSE_WRITE    0x008
+# define IN_CLOSE_NOWRITE  0x010
+# define IN_OPEN           0x020
+# define IN_MOVED_FROM     0x040
+# define IN_MOVED_TO       0x080
+# define IN_CREATE         0x100
+# define IN_DELETE         0x200
+# define IN_DELETE_SELF    0x400
+# define IN_MOVE_SELF      0x800
+struct inotify_event {
+  int32_t wd;
+  uint32_t mask;
+  uint32_t cookie;
+  uint32_t len;
+  /* char name[0]; */
+};
+#endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
+
+#undef IN_CLOEXEC
+#undef IN_NONBLOCK
+
+#if HAVE_INOTIFY_INIT1
+# define IN_CLOEXEC O_CLOEXEC
+# define IN_NONBLOCK O_NONBLOCK
+#endif /* HAVE_INOTIFY_INIT1 */
+
+#if HAVE_INOTIFY_INIT
+inline static int inotify_init(void) {
+  return syscall(__NR_inotify_init);
+}
+#endif /* HAVE_INOTIFY_INIT */
+
+#if HAVE_INOTIFY_INIT1
+inline static int inotify_init1(int flags) {
+  return syscall(__NR_inotify_init1, flags);
+}
+#endif /* HAVE_INOTIFY_INIT1 */
+
+#if HAVE_INOTIFY_ADD_WATCH
+inline static int inotify_add_watch(int fd, const char* path, uint32_t mask) {
+  return syscall(__NR_inotify_add_watch, fd, path, mask);
+}
+#endif /* HAVE_INOTIFY_ADD_WATCH */
+
+#if HAVE_INOTIFY_RM_WATCH
+inline static int inotify_rm_watch(int fd, uint32_t wd) {
+  return syscall(__NR_inotify_rm_watch, fd, wd);
+}
+#endif /* HAVE_INOTIFY_RM_WATCH */
 
 
 /* Don't look aghast, this is exactly how glibc's basename() works. */
@@ -51,19 +135,37 @@ static int compare_watchers(const uv_fs_event_t* a, const uv_fs_event_t* b) {
 RB_GENERATE_STATIC(uv__inotify_watchers, uv_fs_event_s, node, compare_watchers)
 
 
+void uv__inotify_loop_init(uv_loop_t* loop) {
+  RB_INIT(&loop->inotify_watchers);
+  loop->inotify_fd = -1;
+}
+
+
+void uv__inotify_loop_delete(uv_loop_t* loop) {
+  if (loop->inotify_fd == -1) return;
+  ev_io_stop(loop->ev, &loop->inotify_read_watcher);
+  close(loop->inotify_fd);
+  loop->inotify_fd = -1;
+}
+
+
+#if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
+
 static void uv__inotify_read(EV_P_ ev_io* w, int revents);
 
 
 static int new_inotify_fd(void) {
   int fd;
 
-  fd = uv__inotify_init1(UV__IN_NONBLOCK | UV__IN_CLOEXEC);
+#if HAVE_INOTIFY_INIT1
+  fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
   if (fd != -1)
     return fd;
   if (errno != ENOSYS)
     return -1;
+#endif
 
-  if ((fd = uv__inotify_init()) == -1)
+  if ((fd = inotify_init()) == -1)
     return -1;
 
   if (uv__cloexec(fd, 1) || uv__nonblock(fd, 1)) {
@@ -114,7 +216,7 @@ static void remove_watcher(uv_fs_event_t* handle) {
 
 
 static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
-  const struct uv__inotify_event* e;
+  const struct inotify_event* e;
   uv_fs_event_t* handle;
   uv_loop_t* uv_loop;
   const char* filename;
@@ -141,12 +243,12 @@ static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
 
     /* Now we have one or more inotify_event structs. */
     for (p = buf; p < buf + size; p += sizeof(*e) + e->len) {
-      e = (const struct uv__inotify_event*)p;
+      e = (const struct inotify_event*)p;
 
       events = 0;
-      if (e->mask & (UV__IN_ATTRIB|UV__IN_MODIFY))
+      if (e->mask & (IN_ATTRIB|IN_MODIFY))
         events |= UV_CHANGE;
-      if (e->mask & ~(UV__IN_ATTRIB|UV__IN_MODIFY))
+      if (e->mask & ~(IN_ATTRIB|IN_MODIFY))
         events |= UV_RENAME;
 
       handle = find_watcher(uv_loop, e->wd);
@@ -180,15 +282,15 @@ int uv_fs_event_init(uv_loop_t* loop,
 
   if (init_inotify(loop)) return -1;
 
-  events = UV__IN_ATTRIB
-         | UV__IN_CREATE
-         | UV__IN_MODIFY
-         | UV__IN_DELETE
-         | UV__IN_DELETE_SELF
-         | UV__IN_MOVED_FROM
-         | UV__IN_MOVED_TO;
+  events = IN_ATTRIB
+         | IN_CREATE
+         | IN_MODIFY
+         | IN_DELETE
+         | IN_DELETE_SELF
+         | IN_MOVED_FROM
+         | IN_MOVED_TO;
 
-  wd = uv__inotify_add_watch(loop->inotify_fd, filename, events);
+  wd = inotify_add_watch(loop->inotify_fd, filename, events);
   if (wd == -1) return uv__set_sys_error(loop, errno);
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
@@ -201,11 +303,30 @@ int uv_fs_event_init(uv_loop_t* loop,
 }
 
 
-void uv__fs_event_close(uv_fs_event_t* handle) {
-  uv__inotify_rm_watch(handle->loop->inotify_fd, handle->fd);
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  inotify_rm_watch(handle->loop->inotify_fd, handle->fd);
   remove_watcher(handle);
   handle->fd = -1;
 
   free(handle->filename);
   handle->filename = NULL;
 }
+
+#else /* !HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
+
+int uv_fs_event_init(uv_loop_t* loop,
+                     uv_fs_event_t* handle,
+                     const char* filename,
+                     uv_fs_event_cb cb,
+                     int flags) {
+  loop->counters.fs_event_init++;
+  uv__set_sys_error(loop, ENOSYS);
+  return -1;
+}
+
+
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  UNREACHABLE();
+}
+
+#endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */

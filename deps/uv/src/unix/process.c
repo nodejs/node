@@ -105,7 +105,7 @@ int uv__make_socketpair(int fds[2], int flags) {
 
 
 int uv__make_pipe(int fds[2], int flags) {
-#if __linux__
+#if HAVE_SYS_PIPE2
   int fl;
 
   fl = O_CLOEXEC;
@@ -113,11 +113,17 @@ int uv__make_pipe(int fds[2], int flags) {
   if (flags & UV__F_NONBLOCK)
     fl |= O_NONBLOCK;
 
-  if (uv__pipe2(fds, fl) == 0)
+  if (sys_pipe2(fds, fl) == 0)
     return 0;
 
   if (errno != ENOSYS)
     return -1;
+
+  /* errno == ENOSYS so maybe the kernel headers lied about
+   * the availability of pipe2(). This can happen if people
+   * build libuv against newer kernel headers than the kernel
+   * they actually run the software on.
+   */
 #endif
 
   if (pipe(fds))
@@ -361,9 +367,4 @@ uv_err_t uv_kill(int pid, int signum) {
   } else {
     return uv_ok_;
   }
-}
-
-
-void uv__process_close(uv_process_t* handle) {
-  ev_child_stop(handle->loop->ev, &handle->child_watcher);
 }

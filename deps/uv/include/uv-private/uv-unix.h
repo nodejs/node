@@ -55,9 +55,6 @@ typedef pthread_rwlock_t uv_rwlock_t;
 typedef void* uv_lib_t;
 #define UV_DYNAMIC /* empty */
 
-#define UV_HANDLE_TYPE_PRIVATE /* empty */
-#define UV_REQ_TYPE_PRIVATE /* empty */
-
 #if __linux__
 # define UV_LOOP_PRIVATE_PLATFORM_FIELDS              \
   /* RB_HEAD(uv__inotify_watchers, uv_fs_event_s) */  \
@@ -77,7 +74,7 @@ typedef void* uv_lib_t;
    * sure that we're always calling ares_process. See the warning above the \
    * definition of ares_timeout(). \
    */ \
-  uv_timer_t timer; \
+  ev_timer timer; \
   /* Poll result queue */ \
   eio_channel uv_eio_channel; \
   struct ev_loop* ev; \
@@ -85,7 +82,6 @@ typedef void* uv_lib_t;
   uv_async_t uv_eio_want_poll_notifier; \
   uv_async_t uv_eio_done_poll_notifier; \
   uv_idle_t uv_eio_poller; \
-  uv_handle_t* endgame_handles; \
   UV_LOOP_PRIVATE_PLATFORM_FIELDS
 
 #define UV_REQ_BUFSML_SIZE (4)
@@ -122,7 +118,7 @@ typedef void* uv_lib_t;
 #define UV_HANDLE_PRIVATE_FIELDS \
   int fd; \
   int flags; \
-  uv_handle_t* endgame_next; /* that's what uv-win calls it */ \
+  ev_idle next_watcher;
 
 
 #define UV_STREAM_PRIVATE_FIELDS \
@@ -186,6 +182,11 @@ typedef void* uv_lib_t;
   ev_timer timer_watcher; \
   uv_timer_cb timer_cb;
 
+#define UV_ARES_TASK_PRIVATE_FIELDS \
+  int sock; \
+  ev_io read_watcher; \
+  ev_io write_watcher;
+
 #define UV_GETADDRINFO_PRIVATE_FIELDS \
   uv_getaddrinfo_cb cb; \
   struct addrinfo* hints; \
@@ -222,7 +223,7 @@ typedef void* uv_lib_t;
   ev_io read_watcher;                 \
   uv_fs_event_cb cb;
 
-#elif defined(__APPLE__)  \
+#elif (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060) \
   || defined(__FreeBSD__) \
   || defined(__OpenBSD__) \
   || defined(__NetBSD__)

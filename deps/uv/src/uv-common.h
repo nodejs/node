@@ -35,17 +35,7 @@
 
 struct uv_ares_task_s {
   UV_HANDLE_FIELDS
-#if _WIN32
-  struct uv_req_s ares_req;
-  SOCKET sock;
-  HANDLE h_wait;
-  WSAEVENT h_event;
-  HANDLE h_close_event;
-#else
-  int sock;
-  ev_io read_watcher;
-  ev_io write_watcher;
-#endif
+  UV_ARES_TASK_PRIVATE_FIELDS
   RB_ENTRY(uv_ares_task_s) node;
 };
 

@@ -32,25 +32,6 @@
 #include "ares/inet_net_pton.h"
 #include "ares/inet_ntop.h"
 
-#define XX(uc, lc) case UV_##uc: return sizeof(uv_##lc##_t);
-
-size_t uv_handle_size(uv_handle_type type) {
-  switch (type) {
-    UV_HANDLE_TYPE_MAP(XX)
-    default:
-      return -1;
-  }
-}
-
-size_t uv_req_size(uv_req_type type) {
-  switch(type) {
-    UV_REQ_TYPE_MAP(XX)
-    default:
-      return -1;
-  }
-}
-
-#undef XX
 
 size_t uv_strlcpy(char* dst, const char* src, size_t size) {
   size_t n;

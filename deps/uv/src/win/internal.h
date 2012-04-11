@@ -150,8 +150,6 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info,
 int uv_tcp_duplicate_socket(uv_tcp_t* handle, int pid,
     LPWSAPROTOCOL_INFOW protocol_info);
 
-void uv_tcp_close(uv_tcp_t* tcp);
-
 
 /*
  * UDP
