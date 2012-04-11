@@ -127,7 +127,7 @@ email.md: ChangeLog tools/email-footer.md
 	cat tools/email-footer.md | sed -e 's|__VERSION__|'$(VERSION)'|g' >> $@
 
 blog.html: email.md
-	cat $< | node tools/doc/node_modules/.bin/marked > $@
+	cat $< | ./node tools/doc/node_modules/.bin/marked > $@
 
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
