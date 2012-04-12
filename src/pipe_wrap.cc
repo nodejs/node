@@ -57,6 +57,9 @@ using v8::Boolean;
 
 Persistent<Function> pipeConstructor;
 
+static Persistent<String> onconnection_sym;
+static Persistent<String> oncomplete_sym;
+
 
 // TODO share with TCPWrap?
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
@@ -215,7 +218,10 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
 
   // Successful accept. Call the onconnection callback in JavaScript land.
   Local<Value> argv[1] = { client_obj };
-  MakeCallback(wrap->object_, "onconnection", 1, argv);
+  if (onconnection_sym.IsEmpty()) {
+    onconnection_sym = NODE_PSYMBOL("onconnection");
+  }
+  MakeCallback(wrap->object_, onconnection_sym, ARRAY_SIZE(argv), argv);
 }
 
 // TODO Maybe share this with TCPWrap?
@@ -247,7 +253,10 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
     Local<Value>::New(Boolean::New(writable))
   };
 
-  MakeCallback(req_wrap->object_, "oncomplete", 5, argv);
+  if (oncomplete_sym.IsEmpty()) {
+    oncomplete_sym = NODE_PSYMBOL("oncomplete");
+  }
+  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }

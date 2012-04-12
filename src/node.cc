@@ -231,8 +231,7 @@ static void Tick(void) {
 
   if (tick_callback_sym.IsEmpty()) {
     // Lazily set the symbol
-    tick_callback_sym =
-      Persistent<String>::New(String::NewSymbol("_tickCallback"));
+    tick_callback_sym = NODE_PSYMBOL("_tickCallback");
   }
 
   Local<Value> cb_v = process->Get(tick_callback_sym);
@@ -978,7 +977,11 @@ MakeCallback(const Handle<Object> object,
              int argc,
              Handle<Value> argv[]) {
   HandleScope scope;
-  return scope.Close(MakeCallback(object, String::NewSymbol(method), argc, argv));
+
+  Handle<Value> ret =
+    MakeCallback(object, String::NewSymbol(method), argc, argv);
+
+  return scope.Close(ret);
 }
 
 Handle<Value>

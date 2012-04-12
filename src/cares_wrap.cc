@@ -218,13 +218,13 @@ class QueryWrap {
   void CallOnComplete(Local<Value> answer) {
     HandleScope scope;
     Local<Value> argv[2] = { Integer::New(0), answer };
-    MakeCallback(object_, "oncomplete", 2, argv);
+    MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
     HandleScope scope;
     Local<Value> argv[3] = { Integer::New(0), answer, family };
-    MakeCallback(object_, "oncomplete", 3, argv);
+    MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   void ParseError(int status) {
@@ -233,7 +233,7 @@ class QueryWrap {
 
     HandleScope scope;
     Local<Value> argv[1] = { Integer::New(-1) };
-    MakeCallback(object_, "oncomplete", 1, argv);
+    MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   // Subclasses should implement the appropriate Parse method.
@@ -679,7 +679,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   uv_freeaddrinfo(res);
 
   // Make the callback into JavaScript
-  MakeCallback(req_wrap->object_, "oncomplete", 1, argv);
+  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }
@@ -755,7 +755,7 @@ static void Initialize(Handle<Object> target) {
   target->Set(String::NewSymbol("AF_INET6"), Integer::New(AF_INET6));
   target->Set(String::NewSymbol("AF_UNSPEC"), Integer::New(AF_UNSPEC));
 
-  oncomplete_sym = Persistent<String>::New(String::NewSymbol("oncomplete"));
+  oncomplete_sym = NODE_PSYMBOL("oncomplete");
 }
 
 

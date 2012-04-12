@@ -193,7 +193,10 @@ static void After(uv_fs_t *req) {
     }
   }
 
-  MakeCallback(req_wrap->object_, "oncomplete", argc, argv);
+  if (oncomplete_sym.IsEmpty()) {
+    oncomplete_sym = NODE_PSYMBOL("oncomplete");
+  }
+  MakeCallback(req_wrap->object_, oncomplete_sym, argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
   delete req_wrap;

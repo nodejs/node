@@ -68,6 +68,8 @@ Local<Object> AddressToJS(const sockaddr* addr);
 static Persistent<String> address_symbol;
 static Persistent<String> port_symbol;
 static Persistent<String> buffer_sym;
+static Persistent<String> oncomplete_sym;
+static Persistent<String> onmessage_sym;
 static SlabAllocator slab_allocator(SLAB_SIZE);
 
 
@@ -130,6 +132,8 @@ void UDPWrap::Initialize(Handle<Object> target) {
   buffer_sym = NODE_PSYMBOL("buffer");
   port_symbol = NODE_PSYMBOL("port");
   address_symbol = NODE_PSYMBOL("address");
+  oncomplete_sym = NODE_PSYMBOL("oncomplete");
+  onmessage_sym = NODE_PSYMBOL("onmessage");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -394,7 +398,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
     req_wrap->object_->GetHiddenValue(buffer_sym),
   };
 
-  MakeCallback(req_wrap->object_, "oncomplete", 4, argv);
+  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   delete req_wrap;
 }
 
@@ -422,7 +426,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   if (nread < 0) {
     Local<Value> argv[] = { Local<Object>::New(wrap->object_) };
     SetErrno(uv_last_error(uv_default_loop()));
-    MakeCallback(wrap->object_, "onmessage", ARRAY_SIZE(argv), argv);
+    MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
@@ -433,7 +437,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     Integer::NewFromUnsigned(nread),
     AddressToJS(addr)
   };
-  MakeCallback(wrap->object_, "onmessage", ARRAY_SIZE(argv), argv);
+  MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
 }
 
 

@@ -77,6 +77,8 @@ static Persistent<Function> tcpConstructor;
 static Persistent<String> family_symbol;
 static Persistent<String> address_symbol;
 static Persistent<String> port_symbol;
+static Persistent<String> oncomplete_sym;
+static Persistent<String> onconnection_sym;
 
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
@@ -131,6 +133,8 @@ void TCPWrap::Initialize(Handle<Object> target) {
   family_symbol = NODE_PSYMBOL("family");
   address_symbol = NODE_PSYMBOL("address");
   port_symbol = NODE_PSYMBOL("port");
+  onconnection_sym = NODE_PSYMBOL("onconnection");
+  oncomplete_sym = NODE_PSYMBOL("oncomplete");
 
   target->Set(String::NewSymbol("TCP"), tcpConstructor);
 }
@@ -380,7 +384,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     argv[0] = Local<Value>::New(Null());
   }
 
-  MakeCallback(wrap->object_, "onconnection", 1, argv);
+  MakeCallback(wrap->object_, onconnection_sym, ARRAY_SIZE(argv), argv);
 }
 
 
@@ -406,7 +410,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
     Local<Value>::New(v8::True())
   };
 
-  MakeCallback(req_wrap->object_, "oncomplete", 5, argv);
+  MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
 
   delete req_wrap;
 }

@@ -30,6 +30,8 @@ namespace node {
 using namespace v8;
 
 Persistent<FunctionTemplate> StatWatcher::constructor_template;
+static Persistent<String> onchange_sym;
+static Persistent<String> onstop_sym;
 
 void StatWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -54,7 +56,10 @@ void StatWatcher::Callback(EV_P_ ev_stat *watcher, int revents) {
   Local<Value> argv[2];
   argv[0] = BuildStatsObject(&watcher->attr);
   argv[1] = BuildStatsObject(&watcher->prev);
-  MakeCallback(handler->handle_, "onchange", 2, argv);
+  if (onchange_sym.IsEmpty()) {
+    onchange_sym = NODE_PSYMBOL("onchange");
+  }
+  MakeCallback(handler->handle_, onchange_sym, ARRAY_SIZE(argv), argv);
 }
 
 
@@ -106,7 +111,10 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
 Handle<Value> StatWatcher::Stop(const Arguments& args) {
   HandleScope scope;
   StatWatcher *handler = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
-  MakeCallback(handler->handle_, "onstop", 0, NULL);
+  if (onstop_sym.IsEmpty()) {
+    onstop_sym = NODE_PSYMBOL("onstop");
+  }
+  MakeCallback(handler->handle_, onstop_sym, 0, NULL);
   handler->Stop();
   return Undefined();
 }

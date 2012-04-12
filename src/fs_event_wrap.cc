@@ -28,6 +28,8 @@ using namespace v8;
 
 namespace node {
 
+static Persistent<String> onchange_sym;
+
 #define UNWRAP                                                              \
   assert(!args.Holder().IsEmpty());                                         \
   assert(args.Holder()->InternalFieldCount() > 0);                          \
@@ -165,7 +167,11 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     filename ? (Local<Value>)String::New(filename) : Local<Value>::New(v8::Null())
   };
 
-  MakeCallback(wrap->object_, "onchange", 3, argv);
+  if (onchange_sym.IsEmpty()) {
+    onchange_sym = NODE_PSYMBOL("onchange");
+  }
+
+  MakeCallback(wrap->object_, onchange_sym, ARRAY_SIZE(argv), argv);
 }
 
 

@@ -82,6 +82,8 @@ static Persistent<String> fingerprint_symbol;
 static Persistent<String> name_symbol;
 static Persistent<String> version_symbol;
 static Persistent<String> ext_key_usage_symbol;
+static Persistent<String> onhandshakestart_sym;
+static Persistent<String> onhandshakedone_sym;
 
 static Persistent<FunctionTemplate> secure_context_constructor;
 
@@ -864,7 +866,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       // Call it
       Local<Value> ret;
       ret = Local<Value>::New(MakeCallback(Context::GetCurrent()->Global(),
-                                           callback, 1, argv));
+                                           callback, ARRAY_SIZE(argv), argv));
 
       // If ret is SecureContext
       if (secure_context_constructor->HasInstance(ret)) {
@@ -971,12 +973,18 @@ void Connection::SSLInfoCallback(const SSL *ssl, int where, int ret) {
   if (where & SSL_CB_HANDSHAKE_START) {
     HandleScope scope;
     Connection* c = static_cast<Connection*>(SSL_get_app_data(ssl));
-    MakeCallback(c->handle_, "onhandshakestart", 0, NULL);
+    if (onhandshakestart_sym.IsEmpty()) {
+      onhandshakestart_sym = NODE_PSYMBOL("onhandshakestart");
+    }
+    MakeCallback(c->handle_, onhandshakestart_sym, 0, NULL);
   }
   if (where & SSL_CB_HANDSHAKE_DONE) {
     HandleScope scope;
     Connection* c = static_cast<Connection*>(SSL_get_app_data(ssl));
-    MakeCallback(c->handle_, "onhandshakedone", 0, NULL);
+    if (onhandshakedone_sym.IsEmpty()) {
+      onhandshakedone_sym = NODE_PSYMBOL("onhandshakedone");
+    }
+    MakeCallback(c->handle_, onhandshakedone_sym, 0, NULL);
   }
 }
 
@@ -4117,7 +4125,7 @@ EIO_PBKDF2After(uv_work_t* req) {
 
   MakeCallback(Context::GetCurrent()->Global(),
                request->callback,
-               2, argv);
+               ARRAY_SIZE(argv), argv);
 
   delete[] request->pass;
   delete[] request->salt;
@@ -4307,7 +4315,7 @@ void RandomBytesAfter(uv_work_t* work_req) {
 
   MakeCallback(Context::GetCurrent()->Global(),
                req->callback_,
-               2, argv);
+               ARRAY_SIZE(argv), argv);
 
   delete req;
 }

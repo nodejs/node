@@ -50,6 +50,7 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 
+static Persistent<String> ontimeout_sym;
 
 class TimerWrap : public HandleWrap {
  public:
@@ -69,6 +70,8 @@ class TimerWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "setRepeat", SetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "getRepeat", GetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "again", Again);
+
+    ontimeout_sym = NODE_PSYMBOL("ontimeout");
 
     target->Set(String::NewSymbol("Timer"), constructor->GetFunction());
   }
@@ -200,7 +203,7 @@ class TimerWrap : public HandleWrap {
     wrap->StateChange();
 
     Local<Value> argv[1] = { Integer::New(status) };
-    MakeCallback(wrap->object_, "ontimeout", 1, argv);
+    MakeCallback(wrap->object_, ontimeout_sym, ARRAY_SIZE(argv), argv);
   }
 
   uv_timer_t handle_;

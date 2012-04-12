@@ -69,7 +69,7 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
   argv[0] = Local<Value>::New(revents & EV_READ ? True() : False());
   argv[1] = Local<Value>::New(revents & EV_WRITE ? True() : False());
 
-  MakeCallback(io->handle_, callback, 2, argv);
+  MakeCallback(io->handle_, callback, ARRAY_SIZE(argv), argv);
 }
 
 
