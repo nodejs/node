@@ -861,16 +861,10 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       Local<Value> argv[1] = {*p->servername_};
       Local<Function> callback = *p->sniCallback_;
 
-      TryCatch try_catch;
-
       // Call it
-      Local<Value> ret = callback->Call(Context::GetCurrent()->Global(),
-                                        1,
-                                        argv);
-
-      if (try_catch.HasCaught()) {
-        FatalException(try_catch);
-      }
+      Local<Value> ret;
+      ret = Local<Value>::New(MakeCallback(Context::GetCurrent()->Global(),
+                                           callback, 1, argv));
 
       // If ret is SecureContext
       if (secure_context_constructor->HasInstance(ret)) {
@@ -4121,12 +4115,9 @@ EIO_PBKDF2After(uv_work_t* req) {
     argv[1] = Local<Value>::New(Undefined());
   }
 
-  TryCatch try_catch;
-
-  request->callback->Call(Context::GetCurrent()->Global(), 2, argv);
-
-  if (try_catch.HasCaught())
-    FatalException(try_catch);
+  MakeCallback(Context::GetCurrent()->Global(),
+               request->callback,
+               2, argv);
 
   delete[] request->pass;
   delete[] request->salt;
@@ -4314,11 +4305,9 @@ void RandomBytesAfter(uv_work_t* work_req) {
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
 
-  TryCatch tc;
-  req->callback_->Call(Context::GetCurrent()->Global(), 2, argv);
-
-  if (tc.HasCaught())
-    FatalException(tc);
+  MakeCallback(Context::GetCurrent()->Global(),
+               req->callback_,
+               2, argv);
 
   delete req;
 }
