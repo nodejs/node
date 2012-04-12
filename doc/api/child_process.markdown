@@ -52,6 +52,14 @@ in the child. After disconnecting it is no longer possible to send messages.
 An alternative way to check if you can send messages is to see if the
 `child.connected` property is `true`.
 
+### Event: 'message'
+
+* `message` {Object} a parsed JSON object or primitive value
+* `sendHandle` {Handle object} a handle object
+
+Messages send by `.send(message, [sendHandle])` are obtained using the
+`message` event.
+
 ### child.stdin
 
 * {Stream object}
@@ -116,15 +124,56 @@ process may not actually kill it.  `kill` really just sends a signal to a proces
 
 See `kill(2)`
 
-
 ### child.send(message, [sendHandle])
 
 * `message` {Object}
 * `sendHandle` {Handle object}
 
-Send a message (and, optionally, a handle object) to a child process.
+When useing `child_process.fork()` an you can write to the child using
+`child.send(message, [sendHandle])` and messages are received by
+a `'message'` event on the child.
 
-See `child_process.fork()` for details.
+For example:
+
+    var cp = require('child_process');
+
+    var n = cp.fork(__dirname + '/sub.js');
+
+    n.on('message', function(m) {
+      console.log('PARENT got message:', m);
+    });
+
+    n.send({ hello: 'world' });
+
+And then the child script, `'sub.js'` might look like this:
+
+    process.on('message', function(m) {
+      console.log('CHILD got message:', m);
+    });
+
+    process.send({ foo: 'bar' });
+
+In the child the `process` object will have a `send()` method, and `process`
+will emit objects each time it receives a message on its channel.
+
+There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
+containing a `NODE_` prefix in its `cmd` property will not be emitted in
+the `message` event, since they are internal messages used by node core.
+Messages containing the prefix are emitted in the `internalMessage` event, you
+should by all means avoid using this feature, it is subject to change without notice.
+
+The `sendHandle` option to `child.send()` is for sending a handle object to
+another process. The child will receive the object as its second argument to
+the `message` event.
+
+### child.disconnect()
+
+To close the IPC connection between parent and child use the
+`child.disconnect()` method. This allows the child to exit gracefully since
+there is no IPC channel keeping it alive. When calling this method the
+`disconnect` event will be emitted in both parent and child, and the
+`connected` flag will be set to `false`. Please note that you can also call
+`process.disconnect()` in the child process.
 
 ## child_process.spawn(command, [args], [options])
 
@@ -333,38 +382,8 @@ leaner than `child_process.exec`. It has the same options.
 
 This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
-instance, the returned object has a communication channel built-in. The
-channel is written to with `child.send(message, [sendHandle])` and messages
-are received by a `'message'` event on the child.
-
-For example:
-
-    var cp = require('child_process');
-
-    var n = cp.fork(__dirname + '/sub.js');
-
-    n.on('message', function(m) {
-      console.log('PARENT got message:', m);
-    });
-
-    n.send({ hello: 'world' });
-
-And then the child script, `'sub.js'` might look like this:
-
-    process.on('message', function(m) {
-      console.log('CHILD got message:', m);
-    });
-
-    process.send({ foo: 'bar' });
-
-In the child the `process` object will have a `send()` method, and `process`
-will emit objects each time it receives a message on its channel.
-
-There is a special case when sending a `{cmd: 'NODE_foo'}` message. All messages
-containing a `NODE_` prefix in its `cmd` property will not be emitted in
-the `message` event, since they are internal messages used by node core.
-Messages containing the prefix are emitted in the `internalMessage` event, you
-should by all means avoid using this feature, it may change without warranty.
+instance, the returned object has a communication channel built-in. Se
+`child.send(message, [sendHandle])` for details.
 
 By default the spawned Node process will have the stdout, stderr associated
 with the parent's. To change this behavior set the `silent` property in the
@@ -373,31 +392,3 @@ with the parent's. To change this behavior set the `silent` property in the
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many
 thousands of them.
-
-The `sendHandle` option to `child.send()` is for sending a handle object to
-another process. Child will receive the handle as as second argument to the
-`message` event. Here is an example of sending a handle:
-
-    var server = require('net').createServer();
-    var child = require('child_process').fork(__dirname + '/child.js');
-    // Open up the server object and send the handle.
-    server.listen(1337, function() {
-      child.send({ server: true }, server._handle);
-    });
-
-Here is an example of receiving the server handle and sharing it between
-processes:
-
-    process.on('message', function(m, serverHandle) {
-      if (serverHandle) {
-        var server = require('net').createServer();
-        server.listen(serverHandle);
-      }
-    });
-
-To close the IPC connection between parent and child use the
-`child.disconnect()` method. This allows the child to exit gracefully since
-there is no IPC channel keeping it alive. When calling this method the
-`disconnect` event will be emitted in both parent and child, and the
-`connected` flag will be set to `false`. Please note that you can also call
-`process.disconnect()` in the child process.
