@@ -253,7 +253,8 @@ Handle<Value> TCPWrap::SetNoDelay(const Arguments& args) {
 
   UNWRAP
 
-  int r = uv_tcp_nodelay(&wrap->handle_, 1);
+  int enable = static_cast<int>(args[0]->BooleanValue());
+  int r = uv_tcp_nodelay(&wrap->handle_, enable);
   if (r)
     SetErrno(uv_last_error(uv_default_loop()));
 
