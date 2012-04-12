@@ -864,6 +864,9 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       Local<Function> callback = *p->sniCallback_;
 
       // Call it
+      //
+      // XXX There should be an object connected to this that
+      // we can attach a domain onto.
       Local<Value> ret;
       ret = Local<Value>::New(MakeCallback(Context::GetCurrent()->Global(),
                                            callback, ARRAY_SIZE(argv), argv));
@@ -4123,6 +4126,8 @@ EIO_PBKDF2After(uv_work_t* req) {
     argv[1] = Local<Value>::New(Undefined());
   }
 
+  // XXX There should be an object connected to this that
+  // we can attach a domain onto.
   MakeCallback(Context::GetCurrent()->Global(),
                request->callback,
                ARRAY_SIZE(argv), argv);
@@ -4313,6 +4318,8 @@ void RandomBytesAfter(uv_work_t* work_req) {
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
 
+  // XXX There should be an object connected to this that
+  // we can attach a domain onto.
   MakeCallback(Context::GetCurrent()->Global(),
                req->callback_,
                ARRAY_SIZE(argv), argv);
