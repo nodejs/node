@@ -62,13 +62,7 @@ void SignalWatcher::Callback(EV_P_ ev_signal *watcher, int revents) {
 
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
-  TryCatch try_catch;
-
-  callback->Call(w->handle_, 0, NULL);
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-  }
+  MakeCallback(w->handle_, callback, 0, NULL);
 }
 
 Handle<Value> SignalWatcher::New(const Arguments& args) {
