@@ -65,17 +65,11 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
-  TryCatch try_catch;
-
   Local<Value> argv[2];
   argv[0] = Local<Value>::New(revents & EV_READ ? True() : False());
   argv[1] = Local<Value>::New(revents & EV_WRITE ? True() : False());
 
-  callback->Call(io->handle_, 2, argv);
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-  }
+  MakeCallback(io->handle_, callback, 2, argv);
 }
 
 
