@@ -79,3 +79,6 @@ switch (platform) {
     assert.deepEqual(actual, expected);
     break;
 }
+
+var EOL = os.EOL;
+assert.ok(EOL.length > 0);
