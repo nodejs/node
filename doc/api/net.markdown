@@ -198,10 +198,14 @@ Don't call `server.address()` until the `'listening'` event has been emitted.
 Set this property to reject connections when the server's connection count gets
 high.
 
+It is not recommended to use this option once a socket has been sent to a child
+with `child_process.fork()`.
+
 ### server.connections
 
 The number of concurrent connections on the server.
 
+This becomes `null` when sending a socket to a child with `child_process.fork()`.
 
 `net.Server` is an `EventEmitter` with the following events:
 

@@ -55,7 +55,7 @@ An alternative way to check if you can send messages is to see if the
 ### Event: 'message'
 
 * `message` {Object} a parsed JSON object or primitive value
-* `sendHandle` {Handle object} a handle object
+* `sendHandle` {Handle object} a Socket or Server object
 
 Messages send by `.send(message, [sendHandle])` are obtained using the
 `message` event.
@@ -129,7 +129,7 @@ See `kill(2)`
 * `message` {Object}
 * `sendHandle` {Handle object}
 
-When useing `child_process.fork()` an you can write to the child using
+When using `child_process.fork()` you can write to the child using
 `child.send(message, [sendHandle])` and messages are received by
 a `'message'` event on the child.
 
@@ -162,9 +162,73 @@ the `message` event, since they are internal messages used by node core.
 Messages containing the prefix are emitted in the `internalMessage` event, you
 should by all means avoid using this feature, it is subject to change without notice.
 
-The `sendHandle` option to `child.send()` is for sending a handle object to
-another process. The child will receive the object as its second argument to
-the `message` event.
+The `sendHandle` option to `child.send()` is for sending a TCP server or
+socket object to another process. The child will receive the object as its
+second argument to the `message` event.
+
+**send server object**
+
+Here is an example of sending a server:
+
+    var child = require('child_process').fork('child.js');
+
+    // Open up the server object and send the handle.
+    var server = require('net').createServer();
+    server.on('connection', function (socket) {
+      socket.end('handled by parent');
+    });
+    server.listen(1337, function() {
+      child.send('server', server);
+    });
+
+And the child would the recive the server object as:
+
+    process.on('message', function(m, server) {
+      if (m === 'server') {
+        server.on('connection', function (socket) {
+          socket.end('handled by child');
+        });
+      }
+    });
+
+Note that the server is now shared between the parent and child, this means
+that some connections will be handled by the parent and some by the child.
+
+**send socket object**
+
+Here is an example of sending a socket. It will spawn two childs and handle
+connections with the remote address `74.125.127.100` as VIP by sending the
+socket to a "special" child process. Other sockets will go to a "normal" process.
+
+    var normal = require('child_process').fork('child.js', ['normal']);
+    var special = require('child_process').fork('child.js', ['special']);
+
+    // Open up the server and send sockets to child
+    var server = require('net').createServer();
+    server.on('connection', function (socket) {
+
+      // if this is a VIP
+      if (socket.remoteAddress === '74.125.127.100') {
+        special.send('socket', socket);
+        return;
+      }
+      // just the usual dudes
+      normal.send('socket', socket);
+    });
+    server.listen(1337);
+
+The `child.js` could look like this:
+
+    process.on('message', function(m, socket) {
+      if (m === 'socket') {
+        socket.end('You where handled as a ' + process.argv[2] + ' person');
+      }
+    });
+
+Note that once a single socket has been sent to a child the parent can no
+longer keep track of when the socket is destroyed. To indicate this condition
+the `.connections` property becomes `null`.
+It is also recomended not to use `.maxConnections` in this condition.
 
 ### child.disconnect()
 
@@ -382,7 +446,7 @@ leaner than `child_process.exec`. It has the same options.
 
 This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
-instance, the returned object has a communication channel built-in. Se
+instance, the returned object has a communication channel built-in. See
 `child.send(message, [sendHandle])` for details.
 
 By default the spawned Node process will have the stdout, stderr associated
