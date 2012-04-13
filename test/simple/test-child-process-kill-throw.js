@@ -31,7 +31,10 @@ if (process.argv[2] === 'child') {
   var error = {};
   child.on('exit', function() {
     child._internal = {
-      kill: function() { return -1; }
+      kill: function() {
+        global.errno = 42;
+        return -1;
+      }
     };
     child.once('error', function(err) {
       error = err;
