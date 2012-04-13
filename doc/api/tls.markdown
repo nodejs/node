@@ -323,8 +323,8 @@ event.
 
 ### server.address()
 
-Returns the bound address and port of the server as reported by the operating
-system.
+Returns the bound address, the address family name and port of the
+server as reported by the operating system.
 See [net.Server.address()](net.html#server.address) for more information.
 
 ### server.addContext(hostname, credentials)
@@ -414,9 +414,10 @@ information.
 
 ### cleartextStream.address()
 
-Returns the bound address and port of the underlying socket as reported by the
-operating system. Returns an object with two properties, e.g.
-`{"address":"192.168.57.1", "port":62053}`
+Returns the bound address, the address family name and port of the
+underlying socket as reported by the operating system. Returns an
+object with three properties, e.g.
+`{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
 ### cleartextStream.remoteAddress
 

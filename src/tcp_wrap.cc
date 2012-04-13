@@ -170,6 +170,7 @@ Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
   int family;
   int port;
   char ip[INET6_ADDRSTRLEN];
+  const char *family_name;
 
   UNWRAP
 
@@ -188,17 +189,19 @@ Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
       struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
       uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
       port = ntohs(addrin->sin_port);
+      family_name = "IPv4";
     } else if (family == AF_INET6) {
       struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
       uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
       port = ntohs(addrin6->sin6_port);
+      family_name = "IPv6";
     } else {
       assert(0 && "bad address family");
       abort();
     }
 
     sockname->Set(port_symbol, Integer::New(port));
-    sockname->Set(family_symbol, Integer::New(family));
+    sockname->Set(family_symbol, String::New(family_name));
     sockname->Set(address_symbol, String::New(ip));
   }
 
