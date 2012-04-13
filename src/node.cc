@@ -972,7 +972,7 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate>& t,
 //
 // Maybe make this a method of a node::Handle super class
 //
-void
+Handle<Value>
 MakeCallback(const Handle<Object> object,
              const char* method,
              int argc,
@@ -981,7 +981,7 @@ MakeCallback(const Handle<Object> object,
   return scope.Close(MakeCallback(object, String::NewSymbol(method), argc, argv));
 }
 
-void
+Handle<Value>
 MakeCallback(const Handle<Object> object,
              const Handle<String> symbol,
              int argc,
@@ -996,9 +996,10 @@ MakeCallback(const Handle<Object> object,
   assert(callback_v->IsFunction());
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
+  return scope.Close(MakeCallback(object, callback, argc, argv));
 }
 
-void
+Handle<Value>
 MakeCallback(const Handle<Object> object,
              const Handle<Function> callback,
              int argc,
@@ -1009,11 +1010,13 @@ MakeCallback(const Handle<Object> object,
 
   TryCatch try_catch;
 
-  callback->Call(object, argc, argv);
+  Local<Value> ret = callback->Call(object, argc, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
   }
+
+  return scope.Close(ret);
 }
 
 

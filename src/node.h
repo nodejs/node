@@ -243,19 +243,22 @@ node_module_struct* get_builtin_module(const char *name);
   extern "C" node::node_module_struct modname ## _module;
 
 NODE_EXTERN void SetErrno(uv_err_t err);
-NODE_EXTERN void MakeCallback(const v8::Handle<v8::Object> object,
-                              const char* method,
-                              int argc,
-                              v8::Handle<v8::Value> argv[]);
+NODE_EXTERN v8::Handle<v8::Value>
+MakeCallback(const v8::Handle<v8::Object> object,
+             const char* method,
+             int argc,
+             v8::Handle<v8::Value> argv[]);
 
-NODE_EXTERN void MakeCallback(const v8::Handle<v8::Object> object,
-                              const v8::Handle<v8::String> symbol,
-                              int argc,
-                              v8::Handle<v8::Value> argv[]);
+NODE_EXTERN v8::Handle<v8::Value>
+MakeCallback(const v8::Handle<v8::Object> object,
+             const v8::Handle<v8::String> symbol,
+             int argc,
+             v8::Handle<v8::Value> argv[]);
 
-NODE_EXTERN void MakeCallback(const v8::Handle<v8::Object> object,
-                              const v8::Handle<v8::Function> callback,
-                              int argc,
-                              v8::Handle<v8::Value> argv[]);
+NODE_EXTERN v8::Handle<v8::Value>
+MakeCallback(const v8::Handle<v8::Object> object,
+             const v8::Handle<v8::Function> callback,
+             int argc,
+             v8::Handle<v8::Value> argv[]);
 }  // namespace node
 #endif  // SRC_NODE_H_
