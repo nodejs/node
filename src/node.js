@@ -238,7 +238,10 @@
         for (var i = 0; i < l; i++) {
           var tock = q[i];
           var callback = tock.callback;
-          if (tock.domain) tock.domain.enter();
+          if (tock.domain) {
+            if (tock.domain._disposed) continue;
+            tock.domain.enter();
+          }
           callback();
           if (tock.domain) tock.domain.exit();
         }
