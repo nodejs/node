@@ -60,40 +60,38 @@ The `module_name` needs to match the filename of the final binary (minus the
 .node suffix).
 
 The source code needs to be built into `hello.node`, the binary Addon. To
-do this we create a file called `wscript` which is python code and looks
-like this:
+do this we create a file called `binding.gyp` which describes the configuration
+to build your module in a JSON-like format. This file gets compiled by
+[node-gyp](https://github.com/TooTallNate/node-gyp).
 
-    srcdir = '.'
-    blddir = 'build'
-    VERSION = '0.0.1'
+    {
+      "targets": [
+        {
+          "target_name": "hello",
+          "sources": [ "hello.cc" ]
+        }
+      ]
+    }
 
-    def set_options(opt):
-      opt.tool_options('compiler_cxx')
+The next step is to generate the appropriate project build files for the
+current platform. Use `node-gyp configure` for that.
 
-    def configure(conf):
-      conf.check_tool('compiler_cxx')
-      conf.check_tool('node_addon')
+Now you will have either a `Makefile` (on Unix platforms) or a `vcxproj` file
+(on Windows) in the `build/` directory. Next invoke the `node-gyp build`
+command.
 
-    def build(bld):
-      obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
-      obj.target = 'hello'
-      obj.source = 'hello.cc'
-
-Running `node-waf configure build` will create a file
-`build/default/hello.node` which is our Addon.
-
-`node-waf` is just [WAF](http://code.google.com/p/waf), the python-based build system. `node-waf` is
-provided for the ease of users.
+Now you have your compiled `.node` bindings file! The compiled bindings end up
+in `build/Release/`.
 
 You can now use the binary addon in a Node project `hello.js` by pointing `require` to
-the recently built module:
+the recently built `hello.node` module:
 
     var addon = require('./build/Release/hello');
 
     console.log(addon.hello()); // 'world'
 
 Please see patterns below for further information or
-<https://github.com/pietern/hiredis-node> for an example in production.
+<https://github.com/arturadib/node-qt> for an example in production.
 
 
 ## Addon patterns
@@ -104,29 +102,27 @@ calls, and v8's [Embedder's Guide](http://code.google.com/apis/v8/embed.html)
 for an explanation of several concepts used such as handles, scopes,
 function templates, etc.
 
-To compile these examples, create the `wscript` file below and run
-`node-waf configure build`:
+In order to use these examples you need to compile them using `node-gyp`.
+Create the following `binding.gyp` file:
 
-    srcdir = '.'
-    blddir = 'build'
-    VERSION = '0.0.1'
-
-    def set_options(opt):
-      opt.tool_options('compiler_cxx')
-
-    def configure(conf):
-      conf.check_tool('compiler_cxx')
-      conf.check_tool('node_addon')
-
-    def build(bld):
-      obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
-      obj.target = 'addon'
-      obj.source = ['addon.cc']
+    {
+      "targets": [
+        {
+          "target_name": "addon",
+          "sources": [ "addon.cc" ]
+        }
+      ]
+    }
 
 In cases where there is more than one `.cc` file, simply add the file name to the
-`obj.source` array, e.g.:
+`sources` array, e.g.:
 
-    obj.source = ['addon.cc', 'myexample.cc']
+    "sources": ["addon.cc", "myexample.cc"]
+
+Now that you have your `binding.gyp` ready, you can configure and build the
+addon:
+
+    $ node-gyp configure build
 
 
 ### Function arguments
