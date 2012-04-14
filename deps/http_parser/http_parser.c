@@ -433,6 +433,9 @@ size_t http_parser_execute (http_parser *parser,
         /* this state is used after a 'Connection: close' message
          * the parser will error out if it reads another message
          */
+        if (ch == CR || ch == LF)
+          break;
+
         SET_ERRNO(HPE_CLOSED_CONNECTION);
         goto error;
 

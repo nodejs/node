@@ -680,6 +680,56 @@ const struct message requests[] =
   ,.body= ""
   }
 
+/* see https://github.com/ry/http-parser/issues/47 */
+#define EAT_TRAILING_CRLF_NO_CONNECTION_CLOSE 28
+, {.name = "eat CRLF between requests, no \"Connection: close\" header"
+  ,.raw= "POST / HTTP/1.1\r\n"
+         "Host: www.example.com\r\n"
+         "Content-Type: application/x-www-form-urlencoded\r\n"
+         "Content-Length: 4\r\n"
+         "\r\n"
+         "q=42\r\n" /* note the trailing CRLF */
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_POST
+  ,.request_url= "/"
+  ,.num_headers= 3
+  ,.upgrade= 0
+  ,.headers= { { "Host", "www.example.com" }
+             , { "Content-Type", "application/x-www-form-urlencoded" }
+             , { "Content-Length", "4" }
+             }
+  ,.body= "q=42"
+  }
+
+/* see https://github.com/ry/http-parser/issues/47 */
+#define EAT_TRAILING_CRLF_WITH_CONNECTION_CLOSE 29
+, {.name = "eat CRLF between requests even if \"Connection: close\" is set"
+  ,.raw= "POST / HTTP/1.1\r\n"
+         "Host: www.example.com\r\n"
+         "Content-Type: application/x-www-form-urlencoded\r\n"
+         "Content-Length: 4\r\n"
+         "Connection: close\r\n"
+         "\r\n"
+         "q=42\r\n" /* note the trailing CRLF */
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE /* input buffer isn't empty when on_message_complete is called */
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_POST
+  ,.request_url= "/"
+  ,.num_headers= 4
+  ,.upgrade= 0
+  ,.headers= { { "Host", "www.example.com" }
+             , { "Content-Type", "application/x-www-form-urlencoded" }
+             , { "Content-Length", "4" }
+             , { "Connection", "close" }
+             }
+  ,.body= "q=42"
+  }
+
 , {.name= NULL } /* sentinel */
 };
 
