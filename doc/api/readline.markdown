@@ -49,6 +49,15 @@ is supposed to return an Array with 2 entries:
 Which ends up looking something like:
 `[[substr1, substr2, ...], originalsubstring]`.
 
+Example:
+
+    function completer(line) {
+      var completions = '.help .error .exit .quit .q'.split(' ')
+      var hits = completions.filter(function(c) { return c.indexOf(line) == 0 })
+      // show all completions if none found
+      return [hits.length ? hits : completions, line]
+    }
+
 Also `completer` can be run in async mode if it accepts two arguments:
 
     function completer(linePartial, callback) {
