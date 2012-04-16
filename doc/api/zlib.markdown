@@ -47,7 +47,7 @@ header on responses.
 
 **Note: these examples are drastically simplified to show
 the basic concept.**  Zlib encoding can be expensive, and the results
-ought to be cached.  See [Memory Usage Tuning](#memory_Usage_Tuning)
+ought to be cached.  See [Memory Usage Tuning](#zlib_memory_usage_tuning)
 below for more information on the speed/memory/compression
 tradeoffs involved in zlib usage.
 
@@ -114,31 +114,38 @@ for more details.
 
 ## zlib.createGzip([options])
 
-Returns a new [Gzip](#zlib.Gzip) object with an [options](#options).
+Returns a new [Gzip](#zlib_class_zlib_gzip) object with an
+[options](#zlib_options).
 
 ## zlib.createGunzip([options])
 
-Returns a new [Gunzip](#zlib.Gunzip) object with an [options](#options).
+Returns a new [Gunzip](#zlib_class_zlib_gunzip) object with an
+[options](#zlib_options).
 
 ## zlib.createDeflate([options])
 
-Returns a new [Deflate](#zlib.Deflate) object with an [options](#options).
+Returns a new [Deflate](#zlib_class_zlib_deflate) object with an
+[options](#zlib_options).
 
 ## zlib.createInflate([options])
 
-Returns a new [Inflate](#zlib.Inflate) object with an [options](#options).
+Returns a new [Inflate](#zlib_class_zlib_inflate) object with an
+[options](#zlib_options).
 
 ## zlib.createDeflateRaw([options])
 
-Returns a new [DeflateRaw](#zlib.DeflateRaw) object with an [options](#options).
+Returns a new [DeflateRaw](#zlib_class_zlib_deflateraw) object with an
+[options](#zlib_options).
 
 ## zlib.createInflateRaw([options])
 
-Returns a new [InflateRaw](#zlib.InflateRaw) object with an [options](#options).
+Returns a new [InflateRaw](#zlib_class_zlib_inflateraw) object with an
+[options](#zlib_options).
 
 ## zlib.createUnzip([options])
 
-Returns a new [Unzip](#zlib.Unzip) object with an [options](#options).
+Returns a new [Unzip](#zlib_class_zlib_unzip) object with an
+[options](#zlib_options).
 
 
 ## Class: zlib.Gzip
