@@ -358,7 +358,8 @@ function RegExpGetRightContext() {
   } else {
     var override = lastMatchInfoOverride;
     subject = override[override.length - 1];
-    start_index = override[override.length - 2] + subject.length;
+    var pattern = override[override.length - 3];
+    start_index = override[override.length - 2] + pattern.length;
   }
   return SubString(subject, start_index, subject.length);
 }
