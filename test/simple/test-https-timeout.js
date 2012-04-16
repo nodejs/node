@@ -26,10 +26,8 @@ if (!process.versions.openssl) {
 
 var common = require('../common');
 var assert = require('assert');
-
 var fs = require('fs');
 var exec = require('child_process').exec;
-
 var https = require('https');
 
 var options = {
@@ -40,36 +38,36 @@ var options = {
 // a server that never replies
 var server = https.createServer(options, function() {
   console.log('Got request.  Doing nothing.');
-}).listen(common.PORT);
+}).listen(common.PORT, function() {
+  var req = https.request({
+    host: 'localhost',
+    port: common.PORT,
+    path: '/',
+    method: 'GET'
+  });
+  req.setTimeout(10);
+  req.end();
 
-var req = https.request({
-  host: 'localhost',
-  port: common.PORT,
-  path: '/',
-  method: 'GET'
-});
-req.end();
-req.on('response', function(res) {
-  console.log('got response');
-});
-
-req.on('socket', function() {
-  console.log('got a socket');
-
-  req.socket.on('connect', function() {
-    console.log('socket connected');
+  req.on('response', function(res) {
+    console.log('got response');
   });
 
-  setTimeout(function() {
-    throw new Error('Did not get timeout event');
-  }, 200);
-});
+  req.on('socket', function() {
+    console.log('got a socket');
 
-req.setTimeout(10);
+    req.socket.on('connect', function() {
+      console.log('socket connected');
+    });
 
-req.on('timeout', function() {
-  console.log('timeout occurred outside');
-  req.destroy();
-  server.close();
-  process.exit(0);
+    setTimeout(function() {
+      throw new Error('Did not get timeout event');
+    }, 200);
+  });
+
+  req.on('timeout', function() {
+    console.log('timeout occurred outside');
+    req.destroy();
+    server.close();
+    process.exit(0);
+  });
 });
