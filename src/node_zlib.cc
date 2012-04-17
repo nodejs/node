@@ -211,7 +211,7 @@ class ZCtx : public ObjectWrap {
     assert(ctx->handle_->Get(callback_sym)->IsFunction() &&
            "Invalid callback");
     Local<Value> args[2] = { avail_in, avail_out };
-    MakeCallback(ctx->handle_, "callback", 2, args);
+    MakeCallback(ctx->handle_, callback_sym, ARRAY_SIZE(args), args);
 
     ctx->Unref();
   }
@@ -229,7 +229,7 @@ class ZCtx : public ObjectWrap {
     HandleScope scope;
     Local<Value> args[2] = { String::New(msg),
                              Local<Value>::New(Number::New(ctx->err_)) };
-    MakeCallback(ctx->handle_, "onerror", ARRAY_SIZE(args), args);
+    MakeCallback(ctx->handle_, onerror_sym, ARRAY_SIZE(args), args);
 
     // no hope of rescue.
     ctx->Unref();

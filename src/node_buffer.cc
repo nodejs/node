@@ -741,8 +741,8 @@ void Buffer::Initialize(Handle<Object> target) {
   assert(unbase64('\n') == -2);
   assert(unbase64('\r') == -2);
 
-  length_symbol = Persistent<String>::New(String::NewSymbol("length"));
-  chars_written_sym = Persistent<String>::New(String::NewSymbol("_charsWritten"));
+  length_symbol = NODE_PSYMBOL("length");
+  chars_written_sym = NODE_PSYMBOL("_charsWritten");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Buffer::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);

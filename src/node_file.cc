@@ -82,9 +82,6 @@ static void After(uv_fs_t *req) {
 
   FSReqWrap* req_wrap = (FSReqWrap*) req->data;
   assert(&req_wrap->req_ == req);
-  Local<Value> callback_v = req_wrap->object_->Get(oncomplete_sym);
-  assert(callback_v->IsFunction());
-  Local<Function> callback = Local<Function>::Cast(callback_v);
 
   // there is always at least one argument. "error"
   int argc = 1;
@@ -196,13 +193,10 @@ static void After(uv_fs_t *req) {
     }
   }
 
-  TryCatch try_catch;
-
-  callback->Call(req_wrap->object_, argc, argv);
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
+  if (oncomplete_sym.IsEmpty()) {
+    oncomplete_sym = NODE_PSYMBOL("oncomplete");
   }
+  MakeCallback(req_wrap->object_, oncomplete_sym, argc, argv);
 
   uv_fs_req_cleanup(&req_wrap->req_);
   delete req_wrap;

@@ -8,6 +8,7 @@
 * [Process](process.html)
 * [Utilities](util.html)
 * [Events](events.html)
+* [Domain](domain.html)
 * [Buffer](buffer.html)
 * [Stream](stream.html)
 * [Crypto](crypto.html)
