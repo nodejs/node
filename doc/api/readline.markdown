@@ -35,9 +35,9 @@ the following values:
  - `completer` - an optional function that is used for Tab autocompletion. See
    below for an example of using this.
 
- - `terminal` - pass `true` if the `input` and `output` streams should be treated
-   like a TTY, and have ANSI/VT100 escape codes written to it. Defaults to
-   checking `isTTY` on the `output` stream upon instantiation.
+ - `terminal` - pass `true` if the `input` and `output` streams should be
+   treated like a TTY, and have ANSI/VT100 escape codes written to it.
+   Defaults to checking `isTTY` on the `output` stream upon instantiation.
 
 The `completer` function is given a the current line entered by the user, and
 is supposed to return an Array with 2 entries:
@@ -64,10 +64,11 @@ Also `completer` can be run in async mode if it accepts two arguments:
       output: process.stdout
     });
 
-Once you have a readline instance, you most commonly listen for the `"line"` event.
+Once you have a readline instance, you most commonly listen for the
+`"line"` event.
 
-If `terminal` is `true` for this instance then the `output` stream will get the
-best compatability if it defines an `output.columns` property, and fires
+If `terminal` is `true` for this instance then the `output` stream will get
+the best compatability if it defines an `output.columns` property, and fires
 a `"resize"` event on the `output` if/when the columns ever change
 (`process.stdout` does this automatically when it is a TTY).
 
@@ -86,17 +87,17 @@ Sets the prompt, for example when you run `node` on the command line, you see
 Readies readline for input from the user, putting the current `setPrompt`
 options on a new line, giving the user a new spot to write.
 
-This will also resume the `in` stream used with `createInterface` if it has
+This will also resume the `input` stream used with `createInterface` if it has
 been paused.
 
 ### rl.question(query, callback)
 
 Prepends the prompt with `query` and invokes `callback` with the user's
-response. Displays the query to the user, and then invokes `callback` with the
-user's response after it has been typed.
+response. Displays the query to the user, and then invokes `callback`
+with the user's response after it has been typed.
 
-This will also resume the `in` stream used with `createInterface` if it has
-been paused.
+This will also resume the `input` stream used with `createInterface` if
+it has been paused.
 
 Example usage:
 
@@ -122,7 +123,7 @@ This will also resume the `input` stream if it has been paused.
 
 `function (line) {}`
 
-Emitted whenever the `in` stream receives a `\n`, usually received when the
+Emitted whenever the `input` stream receives a `\n`, usually received when the
 user hits enter, or return. This is a good hook to listen for user input.
 
 Example of listening for `line`:
@@ -135,12 +136,13 @@ Example of listening for `line`:
 
 `function () {}`
 
-Emitted whenever the `in` stream is paused or receives `^D`, respectively known
-as `EOT`. This event is also called if there is no `SIGINT` event listener
-present when the `in` stream receives a `^C`, respectively known as `SIGINT`.
+Emitted whenever the `input` stream is paused or receives `^D`, respectively
+known as `EOT`. This event is also called if there is no `SIGINT` event
+listener present when the `input` stream receives a `^C`, respectively known
+as `SIGINT`.
 
-Also emitted whenever the `in` stream is not paused and receives the `SIGCONT`
-event. (See events `SIGTSTP` and `SIGCONT`)
+Also emitted whenever the `input` stream is not paused and receives the
+`SIGCONT` event. (See events `SIGTSTP` and `SIGCONT`)
 
 Example of listening for `pause`:
 
@@ -152,7 +154,7 @@ Example of listening for `pause`:
 
 `function () {}`
 
-Emitted whenever the `in` stream is resumed.
+Emitted whenever the `input` stream is resumed.
 
 Example of listening for `resume`:
 
@@ -172,9 +174,9 @@ instance as completed after this is emitted.
 
 `function () {}`
 
-Emitted whenever the `in` stream receives a `^C`, respectively known as
-`SIGINT`. If there is no `SIGINT` event listener present when the `in` stream
-receives a `SIGINT`, `pause` will be triggered.
+Emitted whenever the `input` stream receives a `^C`, respectively known as
+`SIGINT`. If there is no `SIGINT` event listener present when the `input`
+stream receives a `SIGINT`, `pause` will be triggered.
 
 Example of listening for `SIGINT`:
 
@@ -190,9 +192,9 @@ Example of listening for `SIGINT`:
 
 **This does not work on Windows.**
 
-Emitted whenever the `in` stream receives a `^Z`, respectively known as
-`SIGTSTP`. If there is no `SIGTSTP` event listener present when the `in` stream
-receives a `SIGTSTP`, the program will be sent to the background.
+Emitted whenever the `input` stream receives a `^Z`, respectively known as
+`SIGTSTP`. If there is no `SIGTSTP` event listener present when the `input`
+stream receives a `SIGTSTP`, the program will be sent to the background.
 
 When the program is resumed with `fg`, the `pause` and `SIGCONT` events will be
 emitted. You can use either to resume the stream.
@@ -214,9 +216,9 @@ Example of listening for `SIGTSTP`:
 
 **This does not work on Windows.**
 
-Emitted whenever the `in` stream is sent to the background with `^Z`,
-respectively known as `SIGTSTP`, and then continued with `fg`. This event only
-emits if the stream was not paused before sending the program to the
+Emitted whenever the `input` stream is sent to the background with `^Z`,
+respectively known as `SIGTSTP`, and then continued with `fg(1)`. This event
+only emits if the stream was not paused before sending the program to the
 background.
 
 Example of listening for `SIGCONT`:
