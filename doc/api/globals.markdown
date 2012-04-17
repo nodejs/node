@@ -61,6 +61,24 @@ but rather than loading the module, just return the resolved filename.
 Modules are cached in this object when they are required. By deleting a key
 value from this object, the next `require` will reload the module.
 
+### require.extensions
+
+* {Array}
+
+Instruct `require` on how to handle certain file extensions.
+
+Process files with the extension `.sjs` as `.js`:
+
+    require.extensions['.sjs'] = require.extensions['.js'];
+
+Write your own extension handler:
+
+    require.extensions['.sjs'] = function(module, filename) {
+      var content = fs.readFileSync(filename, 'utf8');
+      // Parse the file content and give to module.exports
+      module.exports = content;
+    };
+
 ## __filename
 
 <!-- type=var -->
