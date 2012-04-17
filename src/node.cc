@@ -991,9 +991,13 @@ MakeCallback(const Handle<Object> object,
   Local<Value> callback_v = object->Get(symbol);
   if (!callback_v->IsFunction()) {
     String::Utf8Value method(symbol);
-    fprintf(stderr, "method = %s", *method);
+    // XXX: If the object has a domain attached, handle it there?
+    // At least, would be good to get *some* sort of indication
+    // of how we got here, even if it's not catchable.
+    fprintf(stderr, "Non-function in MakeCallback. method = %s\n", *method);
+    abort();
   }
-  assert(callback_v->IsFunction());
+
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
   return scope.Close(MakeCallback(object, callback, argc, argv));
