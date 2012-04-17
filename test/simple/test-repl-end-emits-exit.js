@@ -23,8 +23,8 @@ var common = require('../common'),
     assert = require('assert'),
     Stream = require('stream'),
     repl = require('repl'),
-    gotTerminalExit = false,
-    gotRegularExit = false;
+    terminalExit = 0,
+    regularExit = 0;
 
 // create a dummy stream that does nothing
 var stream = new Stream();
@@ -45,7 +45,7 @@ function testTerminalMode() {
 
   r1.on('exit', function() {
     // should be fired from the simulated ^D keypress
-    gotTerminalExit = true;
+    terminalExit++;
     testRegularMode();
   });
 }
@@ -63,13 +63,13 @@ function testRegularMode() {
 
   r2.on('exit', function() {
     // should be fired from the simulated 'end' event
-    gotRegularExit = true;
+    regularExit++;
   });
 }
 
 process.on('exit', function() {
-  assert(gotTerminalExit);
-  assert(gotRegularExit);
+  assert.equal(terminalExit, 1);
+  assert.equal(regularExit, 1);
 });
 
 
