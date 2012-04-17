@@ -125,7 +125,7 @@ inline static int sys_accept4(int fd,
 #endif
 
 /* FIXME exact copy of the #ifdef guard in uv-unix.h */
-#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060) \
+#if defined(__APPLE__)  \
   || defined(__FreeBSD__) \
   || defined(__OpenBSD__) \
   || defined(__NetBSD__)
