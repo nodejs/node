@@ -310,7 +310,7 @@
       'target_name': 'node_dtrace_ustack',
       'type': 'none',
       'conditions': [
-        [ 'node_use_dtrace=="true"', {
+        [ 'node_use_dtrace=="true" and target_arch=="ia32"', {
           'actions': [
             {
               'action_name': 'node_dtrace_ustack_constants',
