@@ -6,8 +6,8 @@ To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as `process.stdin`) on a line-by-line basis.
 
 Note that once you've invoked this module, your node program will not
-terminate until you've paused the interface. Here's how to allow your
-program to gracefully pause:
+terminate until you've closed the interface. Here's how to allow your
+program to gracefully exit:
 
     var rl = require('readline');
 
@@ -20,7 +20,7 @@ program to gracefully pause:
       // TODO: Log the answer in a database
       console.log("Thank you for your valuable feedback:", answer);
 
-      i.pause();
+      i.close();
     });
 
 ## rl.createInterface(options)
@@ -113,6 +113,11 @@ Pauses the readline `input` stream, allowing it to be resumed later if needed.
 
 Resumes the readline `input` stream.
 
+### rl.close()
+
+Closes the `Interface` instance, relinquishing control on the `input` and
+`output` streams. The "close" event will also be emitted.
+
 ### rl.write()
 
 Writes to `output` stream.
@@ -136,10 +141,7 @@ Example of listening for `line`:
 
 `function () {}`
 
-Emitted whenever the `input` stream is paused or receives `^D`, respectively
-known as `EOT`. This event is also called if there is no `SIGINT` event
-listener present when the `input` stream receives a `^C`, respectively known
-as `SIGINT`.
+Emitted whenever the `input` stream is paused.
 
 Also emitted whenever the `input` stream is not paused and receives the
 `SIGCONT` event. (See events `SIGTSTP` and `SIGCONT`)
@@ -162,13 +164,18 @@ Example of listening for `resume`:
       console.log('Readline resumed.');
     });
 
-### Event: 'end'
+### Event: 'close'
 
 `function () {}`
 
-Emitted when the `input` stream receives its "end" event, or when `^D` is
-pressed by the user. It's generally a good idea to consider this `Interface`
-instance as completed after this is emitted.
+Emitted when `close()` is called.
+
+Also emitted when the `input` stream receives its "end" event. The `Interface`
+instance should be considered "finished" once this is emitted. For example, when
+the `input` stream receives `^D`, respectively known as `EOT`.
+
+This event is also called if there is no `SIGINT` event listener present when
+the `input` stream receives a `^C`, respectively known as `SIGINT`.
 
 ### Event: 'SIGINT'
 
@@ -248,7 +255,7 @@ line interface:
           break;
       }
       rl.prompt();
-    }).on('pause', function() {
+    }).on('close', function() {
       console.log('Have a great day!');
       process.exit(0);
     });
