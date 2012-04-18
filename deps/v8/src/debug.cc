@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -767,15 +767,22 @@ bool Debug::CompileDebuggerScript(int index) {
   Handle<JSFunction> function =
       factory->NewFunctionFromSharedFunctionInfo(function_info, context);
 
-  Execution::TryCall(function, Handle<Object>(context->global()),
-                     0, NULL, &caught_exception);
+  Handle<Object> exception =
+      Execution::TryCall(function, Handle<Object>(context->global()),
+                         0, NULL, &caught_exception);
 
   // Check for caught exceptions.
   if (caught_exception) {
+    ASSERT(!isolate->has_pending_exception());
+    MessageLocation computed_location;
+    isolate->ComputeLocation(&computed_location);
     Handle<Object> message = MessageHandler::MakeMessageObject(
-        "error_loading_debugger", NULL, Vector<Handle<Object> >::empty(),
-        Handle<String>(), Handle<JSArray>());
+        "error_loading_debugger", &computed_location,
+        Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
+    ASSERT(!isolate->has_pending_exception());
+    isolate->set_pending_exception(*exception);
     MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
+    isolate->clear_pending_exception();
     return false;
   }
 
@@ -812,6 +819,9 @@ bool Debug::Load() {
           Handle<Object>::null(),
           v8::Handle<ObjectTemplate>(),
           NULL);
+
+  // Fail if no context could be created.
+  if (context.is_null()) return false;
 
   // Use the debugger context.
   SaveContext save(isolate_);
@@ -3239,7 +3249,7 @@ EnterDebugger::~EnterDebugger() {
   debug->SetBreak(break_frame_id_, break_id_);
 
   // Check for leaving the debugger.
-  if (prev_ == NULL) {
+  if (!load_failed_ && prev_ == NULL) {
     // Clear mirror cache when leaving the debugger. Skip this if there is a
     // pending exception as clearing the mirror cache calls back into
     // JavaScript. This can happen if the v8::Debug::Call is used in which
