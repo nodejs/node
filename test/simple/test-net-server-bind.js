@@ -62,9 +62,34 @@ server2.listen(common.PORT + 1, function() {
 });
 
 
+// Backlog argument
+
+var address3;
+var server3 = net.createServer(function(socket) { });
+
+server3.listen(common.PORT + 2, '0.0.0.0', 127, function() {
+  address3 = server3.address();
+  console.log('address3 %j', address3);
+  server3.close();
+});
+
+
+// Backlog argument without host argument
+
+var address4;
+var server4 = net.createServer(function(socket) { });
+
+server4.listen(common.PORT + 3, 127, function() {
+  address4 = server4.address();
+  console.log('address4 %j', address4);
+  server4.close();
+});
+
 
 process.on('exit', function() {
   assert.ok(address0.port > 100);
   assert.equal(common.PORT, address1.port);
   assert.equal(common.PORT + 1, address2.port);
+  assert.equal(common.PORT + 2, address3.port);
+  assert.equal(common.PORT + 3, address4.port);
 });
