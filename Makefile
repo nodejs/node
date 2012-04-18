@@ -150,6 +150,13 @@ blog.html: email.md
 
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
+	ssh node@nodejs.org '\
+    rm -f ~/web/nodejs.org/dist/latest &&\
+    ln -s $(VERSION) ~/web/nodejs.org/dist/latest &&\
+    rm -f ~/web/nodejs.org/docs/latest &&\
+    ln -s $(VERSION) ~/web/nodejs.org/docs/latest &&\
+    rm -f ~/web/nodejs.org/dist/node-latest.tar.gz &&\
+    ln -s $(VERSION)/node-$(VERSION).tar.gz ~/web/nodejs.org/dist/node-latest.tar.gz'
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html

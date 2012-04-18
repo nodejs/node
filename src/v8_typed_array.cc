@@ -471,6 +471,8 @@ class TypedArray {
       case v8::kExternalPixelArray: return "Uint8ClampedArray";
     }
     abort();
+    // Please the compiler
+    return "";
   }
 };
 
@@ -567,7 +569,7 @@ int valueToCType(v8::Handle<v8::Value> value) {
 
 template <>
 float valueToCType(v8::Handle<v8::Value> value) {
-  return value->NumberValue();
+  return static_cast<float>(value->NumberValue());
 }
 
 template <>

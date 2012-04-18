@@ -19,33 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+
+
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
 
-var gotError = false;
-var gotWriteCB = false;
+var fs = require('fs');
 
-process.on('exit', function() {
-  assert(gotError);
-  assert(gotWriteCB);
-});
+var files = [];
 
-var server = net.createServer(function(socket) {
-  socket.on('error', function(error) {
-    server.close();
-    gotError = true;
-  });
+while (files.length < 256)
+  files.push(fs.openSync(__filename, 'r'));
 
-  setTimeout(function() {
-    socket.write('test', function(e) {
-      gotWriteCB = true;
-    });
-  }, 250);
-});
-
-server.listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
-    client.end();
-  });
-});
+var r = process.memoryUsage();
+console.log(common.inspect(r));
+assert.equal(true, r['rss'] > 0);

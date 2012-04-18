@@ -255,6 +255,52 @@
 * Bug fixes
 
 
+2012.04.09 Version 0.6.15 (stable)
+
+* Update npm to 1.1.16
+
+* Show licenses in binary installers.
+
+* unix: add uv_fs_read64, uv_fs_write64 and uv_fs_ftruncate64 (Ben Noordhuis)
+
+* add 64bit offset fs functions (Igor Zinkovsky)
+
+* windows: don't report ENOTSOCK when attempting to bind an udp handle twice (Bert Belder)
+
+* windows: backport pipe-connect-to-file fixes from master (Bert Belder)
+
+* windows: never call fs event callbacks after closing the watcher (Bert Belder)
+
+* fs.readFile: don't make the callback before the fd is closed (Bert Belder)
+
+* windows: use 64bit offsets for uv_fs apis (Igor Zinkovsky)
+
+* Fix #2061: segmentation fault on OS X due to stat size mismatch (Ben Noordhuis)
+
+
+2012.03.22 Version 0.6.14 (stable), e513ffef7549a56a5af728e1f0c2c0c8f290518a
+
+* net: don't crash when queued write fails (Igor Zinkovsky)
+
+* sunos: fix EMFILE on process.memoryUsage() (Bryan Cantrill)
+
+* crypto: fix compile-time error with openssl 0.9.7e (Ben Noordhuis)
+
+* unix: ignore ECONNABORTED errors from accept() (Ben Noordhuis)
+
+* Add UV_ENOSPC and mappings to it (Bert Belder)
+
+* http-parser: Fix response body is not read (koichik)
+
+* Upgrade npm to 1.1.12
+  - upgrade node-gyp to 0.3.7
+  - work around AV-locked directories on Windows
+  - Fix isaacs/npm#2293 Don't try to 'uninstall' /
+  - Exclude symbolic links from packages.
+  - Fix isaacs/npm#2275 Spurious 'unresolvable cycle' error.
+  - Exclude/include dot files as if they were normal files
+
+
 2012.03.15 Version 0.6.13 (stable), 9f7f86b534f8556290eb8cad915984ff4ca54996
 
 * Windows: Many libuv test fixes (Bert Belder)

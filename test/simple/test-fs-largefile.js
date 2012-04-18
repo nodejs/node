@@ -19,33 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+
+
 var common = require('../common');
 var assert = require('assert');
-var net = require('net');
+var path = require('path'),
+    fs = require('fs'),
+    filepath = path.join(common.tmpDir, 'large.txt'),
+    fd = fs.openSync(filepath, 'w+'),
+    offset = 5 * 1024 * 1024 * 1024, // 5GB
+    message = 'Large File';
 
-var gotError = false;
-var gotWriteCB = false;
+fs.truncateSync(fd, offset);
+assert.equal(fs.statSync(filepath).size, offset);
+var writeBuf = new Buffer(message);
+fs.writeSync(fd, writeBuf, 0, writeBuf.length, offset);
+var readBuf = new Buffer(writeBuf.length);
+fs.readSync(fd, readBuf, 0, readBuf.length, offset);
+assert.equal(readBuf.toString(), message);
+fs.readSync(fd, readBuf, 0, 1, 0);
+assert.equal(readBuf[0], 0);
+
+var exceptionRaised = false;
+try {
+  fs.writeSync(fd, writeBuf, 0, writeBuf.length, 42.000001);
+} catch (err) {
+  console.log(err);
+  exceptionRaised = true;
+  assert.equal(err.message, 'Not an integer');
+}
+assert.ok(exceptionRaised);
+fs.close(fd);
 
 process.on('exit', function() {
-  assert(gotError);
-  assert(gotWriteCB);
+  fs.unlinkSync(filepath);
 });
 
-var server = net.createServer(function(socket) {
-  socket.on('error', function(error) {
-    server.close();
-    gotError = true;
-  });
-
-  setTimeout(function() {
-    socket.write('test', function(e) {
-      gotWriteCB = true;
-    });
-  }, 250);
-});
-
-server.listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
-    client.end();
-  });
-});

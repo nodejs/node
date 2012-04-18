@@ -22,30 +22,25 @@
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
+var http = require('http');
 
-var gotError = false;
-var gotWriteCB = false;
-
-process.on('exit', function() {
-  assert(gotError);
-  assert(gotWriteCB);
-});
+var body = '';
 
 var server = net.createServer(function(socket) {
-  socket.on('error', function(error) {
-    server.close();
-    gotError = true;
-  });
-
-  setTimeout(function() {
-    socket.write('test', function(e) {
-      gotWriteCB = true;
+  // Neither Content-Length nor Connection
+  socket.end('HTTP/1.1 200 ok\r\n\r\nHello');
+}).listen(common.PORT, function() {
+  var req = http.get({port: common.PORT}, function(res) {
+    res.setEncoding('utf8');
+    res.on('data', function(chunk) {
+      body += chunk;
     });
-  }, 250);
+    res.on('end', function() {
+      server.close();
+    });
+  });
 });
 
-server.listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
-    client.end();
-  });
+process.on('exit', function() {
+  assert.equal(body, 'Hello');
 });

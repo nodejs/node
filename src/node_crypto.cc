@@ -972,7 +972,10 @@ Handle<Value> Connection::New(const Arguments& args) {
 }
 
 
-void Connection::SSLInfoCallback(const SSL *ssl, int where, int ret) {
+void Connection::SSLInfoCallback(const SSL *ssl_, int where, int ret) {
+  // Be compatible with older versions of OpenSSL. SSL_get_app_data() wants
+  // a non-const SSL* in OpenSSL <= 0.9.7e.
+  SSL* ssl = const_cast<SSL*>(ssl_);
   if (where & SSL_CB_HANDSHAKE_START) {
     HandleScope scope;
     Connection* c = static_cast<Connection*>(SSL_get_app_data(ssl));

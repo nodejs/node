@@ -150,16 +150,7 @@ h1 a, h2 a, h3 a, h4 a
     font-size: 11px;
 }
 
-#quotes ul li.ebay {
-    margin-top: -10px;
-}
-
-#quotes ul li.linkedin {
-    margin-top: -4px;
-}
-
-#quotes ul li.yahoo {
-    margin-top: -4px;
+#quotes ul li:last-child {
     padding-right: 0;
 }
 

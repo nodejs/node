@@ -75,6 +75,14 @@
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
 
+#ifndef STATIC_ASSERT
+#if defined(_MSC_VER)
+#  define STATIC_ASSERT(expr) static_assert(expr, "")
+# else
+#  define STATIC_ASSERT(expr) static_cast<void>((sizeof(char[-1 + !!(expr)])))
+# endif
+#endif
+
 namespace node {
 
 int Start(int argc, char *argv[]);

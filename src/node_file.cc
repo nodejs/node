@@ -39,7 +39,6 @@
 # include <io.h>
 #endif
 
-
 namespace node {
 
 using namespace v8;
@@ -70,10 +69,41 @@ static Persistent<String> buf_symbol;
 static Persistent<String> oncomplete_sym;
 
 
-#ifdef _LARGEFILE_SOURCE
-static inline int IsInt64(double x) {
-  return x == static_cast<double>(static_cast<int64_t>(x));
-}
+#ifndef _LARGEFILE_SOURCE
+  typedef off_t node_off_t;
+# define ASSERT_OFFSET(a) \
+   STATIC_ASSERT(sizeof(node_off_t) * CHAR_BIT >= 32); \
+   if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsInt32()) { \
+     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+   }
+# define ASSERT_TRUNCATE_LENGTH(a) \
+   if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUint32()) { \
+     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+   }
+# define GET_OFFSET(a) ((a)->IsNumber() ? (a)->Int32Value() : -1)
+# define GET_TRUNCATE_LENGTH(a) ((a)->Uint32Value())
+#else
+# ifdef _WIN32
+#   define NODE_USE_64BIT_UV_FS_API
+    typedef int64_t node_off_t;
+# else
+    typedef off_t node_off_t;
+# endif
+# define ASSERT_OFFSET(a) \
+   STATIC_ASSERT(sizeof(node_off_t) * CHAR_BIT >= 64); \
+   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
+     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+   }
+# define ASSERT_TRUNCATE_LENGTH(a) \
+   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
+     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+   }
+# define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+# define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
+
+  static inline int IsInt64(double x) {
+    return x == static_cast<double>(static_cast<int64_t>(x));
+  }
 #endif
 
 
@@ -475,20 +505,6 @@ static Handle<Value> Rename(const Arguments& args) {
   }
 }
 
-#ifndef _LARGEFILE_SOURCE
-#define ASSERT_TRUNCATE_LENGTH(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUint32()) { \
-    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-  }
-#define GET_TRUNCATE_LENGTH(a) ((a)->Uint32Value())
-#else
-#define ASSERT_TRUNCATE_LENGTH(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-  }
-#define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
-#endif
-
 static Handle<Value> Truncate(const Arguments& args) {
   HandleScope scope;
 
@@ -499,12 +515,20 @@ static Handle<Value> Truncate(const Arguments& args) {
   int fd = args[0]->Int32Value();
 
   ASSERT_TRUNCATE_LENGTH(args[1]);
-  off_t len = GET_TRUNCATE_LENGTH(args[1]);
+  node_off_t len = GET_TRUNCATE_LENGTH(args[1]);
 
   if (args[2]->IsFunction()) {
+#ifdef NODE_USE_64BIT_UV_FS_API
+    ASYNC_CALL(ftruncate64, args[2], fd, len)
+#else
     ASYNC_CALL(ftruncate, args[2], fd, len)
+#endif
   } else {
+#ifdef NODE_USE_64BIT_UV_FS_API
+    SYNC_CALL(ftruncate64, 0, fd, len)
+#else
     SYNC_CALL(ftruncate, 0, fd, len)
+#endif
     return Undefined();
   }
 }
@@ -674,20 +698,6 @@ static Handle<Value> Open(const Arguments& args) {
   }
 }
 
-#ifndef _LARGEFILE_SOURCE
-#define ASSERT_OFFSET(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsInt32()) { \
-    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-  }
-#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->Int32Value() : -1)
-#else
-#define ASSERT_OFFSET(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-  }
-#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
-#endif
-
 // bytesWritten = write(fd, data, position, enc, callback)
 // Wrapper for write(2).
 //
@@ -728,15 +738,23 @@ static Handle<Value> Write(const Arguments& args) {
   }
 
   ASSERT_OFFSET(args[4]);
-  off_t pos = GET_OFFSET(args[4]);
+  node_off_t pos = GET_OFFSET(args[4]);
 
   char * buf = (char*)buffer_data + off;
   Local<Value> cb = args[5];
 
   if (cb->IsFunction()) {
+#ifdef NODE_USE_64BIT_UV_FS_API
+    ASYNC_CALL(write64, cb, fd, buf, len, pos)
+#else
     ASYNC_CALL(write, cb, fd, buf, len, pos)
+#endif
   } else {
+#ifdef NODE_USE_64BIT_UV_FS_API
+    SYNC_CALL(write64, 0, fd, buf, len, pos)
+#else
     SYNC_CALL(write, 0, fd, buf, len, pos)
+#endif
     return scope.Close(Integer::New(SYNC_RESULT));
   }
 }
@@ -765,7 +783,7 @@ static Handle<Value> Read(const Arguments& args) {
   Local<Value> cb;
 
   size_t len;
-  off_t pos;
+  node_off_t pos;
 
   char * buf = NULL;
 
@@ -797,9 +815,17 @@ static Handle<Value> Read(const Arguments& args) {
   cb = args[5];
 
   if (cb->IsFunction()) {
+#ifdef NODE_USE_64BIT_UV_FS_API
+    ASYNC_CALL(read64, cb, fd, buf, len, pos);
+#else
     ASYNC_CALL(read, cb, fd, buf, len, pos);
+#endif
   } else {
+#ifdef NODE_USE_64BIT_UV_FS_API
+    SYNC_CALL(read64, 0, fd, buf, len, pos)
+#else
     SYNC_CALL(read, 0, fd, buf, len, pos)
+#endif
     Local<Integer> bytesRead = Integer::New(SYNC_RESULT);
     return scope.Close(bytesRead);
   }
