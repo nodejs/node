@@ -23,12 +23,10 @@ resolves the IP addresses which are returned.
       addresses.forEach(function (a) {
         dns.reverse(a, function (err, domains) {
           if (err) {
-            console.log('reverse for ' + a + ' failed: ' +
-              err.message);
-          } else {
-            console.log('reverse for ' + a + ': ' +
-              JSON.stringify(domains));
+            throw err;
           }
+
+          console.log('reverse for ' + a + ': ' + JSON.stringify(domains));
         });
       });
     });
@@ -45,6 +43,11 @@ is a string representation of a IP v4 or v6 address. The `family` argument
 is either the integer 4 or 6 and denotes the family of `address` (not
 necessarily the value initially passed to `lookup`).
 
+On error, `err` is an `Error` object, where `err.code` is the error code.
+Keep in mind that `err.code` will be set to `'ENOENT'` not only when
+the domain does not exist but also when the lookup fails in other ways
+such as no available file descriptors.
+
 
 ## dns.resolve(domain, [rrtype], callback)
 
@@ -58,9 +61,8 @@ The callback has arguments `(err, addresses)`.  The type of each item
 in `addresses` is determined by the record type, and described in the
 documentation for the corresponding lookup methods below.
 
-On error, `err` would be an instanceof `Error` object, where `err.errno` is
-one of the error codes listed below and `err.message` is a string describing
-the error in English.
+On error, `err` is an `Error` object, where `err.code` is
+one of the error codes listed below.
 
 
 ## dns.resolve4(domain, callback)
@@ -94,12 +96,6 @@ The same as `dns.resolve()`, but only for service records (`SRV` records).
 of SRV records are priority, weight, port, and name (e.g.,
 `[{'priority': 10, {'weight': 5, 'port': 21223, 'name': 'service.example.com'}, ...]`).
 
-## dns.reverse(ip, callback)
-
-Reverse resolves an ip address to an array of domain names.
-
-The callback has arguments `(err, domains)`.
-
 ## dns.resolveNs(domain, callback)
 
 The same as `dns.resolve()`, but only for name server records (`NS` records).
@@ -112,14 +108,41 @@ The same as `dns.resolve()`, but only for canonical name records (`CNAME`
 records). `addresses` is an array of the canonical name records available for
 `domain` (e.g., `['bar.example.com']`).
 
-If there an an error, `err` will be non-null and an instanceof the Error
-object.
+## dns.reverse(ip, callback)
 
-Each DNS query can return an error code.
+Reverse resolves an ip address to an array of domain names.
 
-- `dns.TEMPFAIL`: timeout, SERVFAIL or similar.
-- `dns.PROTOCOL`: got garbled reply.
-- `dns.NXDOMAIN`: domain does not exists.
-- `dns.NODATA`: domain exists but no data of reqd type.
-- `dns.NOMEM`: out of memory while processing.
-- `dns.BADQUERY`: the query is malformed.
+The callback has arguments `(err, domains)`.
+
+On error, `err` is an `Error` object, where `err.code` is
+one of the error codes listed below.
+
+## Error codes
+
+Each DNS query can return one of the following error codes:
+
+- `dns.NODATA`: DNS server returned answer with no data.
+- `dns.FORMERR`: DNS server claims query was misformatted.
+- `dns.SERVFAIL`: DNS server returned general failure.
+- `dns.NOTFOUND`: Domain name not found.
+- `dns.NOTIMP`: DNS server does not implement requested operation.
+- `dns.REFUSED`: DNS server refused query.
+- `dns.BADQUERY`: Misformatted DNS query.
+- `dns.BADNAME`: Misformatted domain name.
+- `dns.BADFAMILY`: Unsupported address family.
+- `dns.BADRESP`: Misformatted DNS reply.
+- `dns.CONNREFUSED`: Could not contact DNS servers.
+- `dns.TIMEOUT`: Timeout while contacting DNS servers.
+- `dns.EOF`: End of file.
+- `dns.FILE`: Error reading file.
+- `dns.NOMEM`: Out of memory.
+- `dns.DESTRUCTION`: Channel is being destroyed.
+- `dns.BADSTR`: Misformatted string.
+- `dns.BADFLAGS`: Illegal flags specified.
+- `dns.NONAME`: Given hostname is not numeric.
+- `dns.BADHINTS`: Illegal hints flags specified.
+- `dns.NOTINITIALIZED`: c-ares library initialization not yet performed.
+- `dns.LOADIPHLPAPI`: Error loading iphlpapi.dll.
+- `dns.ADDRGETNETWORKPARAMS`: Could not find GetNetworkParams function.
+- `dns.CANCELLED`: DNS query cancelled.
+
