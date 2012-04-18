@@ -16,10 +16,7 @@ process.on('message', function(m, serverHandle) {
     process.send({ childConnections: connections });
   });
 
-  // TODO need better API for this.
-  server._backlog = 9;
-
-  server.listen(serverHandle, function() {
+  server.listen(serverHandle, /* backlog */ 9, function() {
     process.send({ gotHandle: true });
   });
 });

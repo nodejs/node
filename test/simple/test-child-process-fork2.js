@@ -36,10 +36,7 @@ var server = new net.Server(function(c) {
   c.destroy();
 });
 
-// TODO need better API for this.
-server._backlog = 9;
-
-server.listen(common.PORT, function() {
+server.listen(common.PORT, /* backlog */ 9, function() {
   console.log('PARENT send child server handle');
   n.send({ hello: 'world' }, server._handle);
 });
