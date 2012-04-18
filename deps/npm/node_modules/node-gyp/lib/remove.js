@@ -14,10 +14,7 @@ var fs = require('fs')
 
 function remove (gyp, argv, callback) {
 
-  // TODO: Make ~/.node-gyp configurable
-  var nodeGypDir = path.resolve(process.env.HOME, '.node-gyp')
-
-  gyp.verbose('using node-gyp dir', nodeGypDir)
+  gyp.verbose('using node-gyp dir', gyp.devDir)
 
   // get the user-specified version to remove
   var v = argv[0] || gyp.opts.target
@@ -36,7 +33,7 @@ function remove (gyp, argv, callback) {
   // flatten the version Array into a String
   version = version.slice(1, 4).join('.')
 
-  var versionPath = path.resolve(nodeGypDir, version)
+  var versionPath = path.resolve(gyp.devDir, version)
   gyp.verbose('removing development files for version', version)
 
   // first check if its even installed
