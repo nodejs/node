@@ -28,7 +28,7 @@ function bugs (args, cb) {
     }
     if (repo) {
       if (Array.isArray(repo)) repo = repo.shift()
-      if (repo.url) repo = repo.url
+      if (repo.hasOwnProperty("url")) repo = repo.url
       log.verbose(repo, "repository")
       if (repo && repo.match(/^(https?:\/\/|git(:\/\/|@))github.com/)) {
         return open(repo.replace(/^git(@|:\/\/)/, "http://")

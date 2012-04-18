@@ -5,6 +5,14 @@ var buffer = ""
   , tty = require("tty")
   , StringDecoder = require("string_decoder").StringDecoder
 
+function raw (mode) {
+  try {
+    process.stdin.setRawMode(mode)
+  } catch (e) {
+    tty.setRawMode(mode)
+  }
+}
+
 function read (opts, cb) {
   if (!cb) cb = opts, opts = {}
 
@@ -25,7 +33,7 @@ function read (opts, cb) {
     cb = (function (cb) {
       var called = false
       var t = setTimeout(function () {
-        tty.setRawMode(false)
+        raw(false)
         process.stdout.write("\n")
         if (def) done(null, def)
         else done(new Error("timeout"))
@@ -109,7 +117,7 @@ function rawRead (def, timeout, delim, silent, num, cb) {
     , val = ""
     , decoder = new StringDecoder
 
-  tty.setRawMode(true)
+  raw(true)
   stdin.resume()
   stdin.on("error", cb)
   stdin.on("data", function D (c) {
@@ -122,7 +130,7 @@ function rawRead (def, timeout, delim, silent, num, cb) {
 
       case "\u0004": // EOF
       case delim:
-        tty.setRawMode(false)
+        raw(false)
         stdin.removeListener("data", D)
         stdin.removeListener("error", cb)
         val = val.trim() || def
@@ -131,7 +139,7 @@ function rawRead (def, timeout, delim, silent, num, cb) {
         return cb(null, val)
 
       case "\u0003": case "\0": // ^C or other signal abort
-        tty.setRawMode(false)
+        raw(false)
         stdin.removeListener("data", D)
         stdin.removeListener("error", cb)
         stdin.pause()

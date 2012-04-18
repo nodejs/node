@@ -9,6 +9,7 @@ var path = require("path")
   , os = require("os")
   , nopt = require("nopt")
   , log = require("./log.js")
+  , npm = require("../npm.js")
 
 function Octal () {}
 function validateOctal (data, k, val) {
@@ -183,10 +184,13 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
                       process.env.HTTP_PROXY || process.env.http_proxy || null
+    , "user-agent" : "npm/" + npm.version + " node/" + process.version
     , "rebuild-bundle" : true
     , registry : "http" + (httpsOk ? "s" : "") + "://registry.npmjs.org/"
     , rollback : true
     , save : false
+    , "save-dev" : false
+    , "save-optional" : false
     , searchopts: ""
     , searchexclude: null
     , searchsort: "name"
@@ -239,6 +243,7 @@ exports.types =
   , globalignorefile: path
   , group : [Number, String]
   , "https-proxy" : [null, url]
+  , "user-agent" : String
   , ignore : String
   , "init.version" : [null, semver]
   , "init.author.name" : String
@@ -266,6 +271,8 @@ exports.types =
   , registry : [null, url]
   , rollback : Boolean
   , save : Boolean
+  , "save-dev" : Boolean
+  , "save-optional" : Boolean
   , searchopts : String
   , searchexclude: [null, String]
   , searchsort: [ "name", "-name"
@@ -321,6 +328,8 @@ exports.shorthands =
   , porcelain : ["--parseable"]
   , g : ["--global"]
   , S : ["--save"]
+  , D : ["--save-dev"]
+  , O : ["--save-optional"]
   , y : ["--yes"]
   , n : ["--no-yes"]
   }

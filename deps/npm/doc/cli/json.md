@@ -485,7 +485,7 @@ to publish it.
 
 This is a way to prevent accidental publication of private repositories.
 If you would like to ensure that a given package is only ever published
-to a speciic registry (for example, an internal registry),
+to a specific registry (for example, an internal registry),
 then use the `publishConfig` hash described below
 to override the `registry` config param at publish-time.
 

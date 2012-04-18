@@ -223,7 +223,7 @@ typedef void* uv_lib_t;
   ev_io read_watcher;                 \
   uv_fs_event_cb cb;
 
-#elif (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060) \
+#elif defined(__APPLE__)  \
   || defined(__FreeBSD__) \
   || defined(__OpenBSD__) \
   || defined(__NetBSD__)

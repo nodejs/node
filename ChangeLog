@@ -1,4 +1,45 @@
-2012.03.30, Version 0.7.7 (unstable)
+2012.04.18, Version 0.7.8, (unstable)
+
+* Upgrade V8 to 3.9.24.9
+
+* Upgrade OpenSSL to 1.0.0f
+
+* Upgrade npm to 1.1.18
+
+* Show licenses in Binary installers
+
+* Domains (isaacs)
+
+* readline: rename "end" to "close" (Nathan Rajlich)
+
+* tcp: make getsockname() return address family as string (Shigeki Ohtsu)
+
+* http, https: fix .setTimeout() (ssuda)
+
+* os: add cross platform EOL character (Mustansir Golawala)
+
+* typed arrays: unexport SizeOfArrayElementForType() (Aaron Jacobs)
+
+* net: honor 'enable' flag in .setNoDelay() (Ben Noordhuis)
+
+* child_process: emit error when .kill fails (Andreas Madsen)
+
+* gyp: fix 'argument list too long' build error (Ben Noordhuis)
+
+* fs.WriteStream: Handle modifications to fs.open (isaacs)
+
+* repl, readline: Handle newlines better (Nathan Rajlich, Nathan Friedly)
+
+* build: target OSX 10.5 when building on darwin (Nathan Rajlich)
+
+* Fix #3052 Handle errors properly in zlib (isaacs)
+
+* build: add support for DTrace and postmortem (Dave Pacheco)
+
+* core: add reusable Slab allocator (Ben Noordhuis)
+
+
+2012.03.30, Version 0.7.7 (unstable), 5cda2542fdb086f9fe5de889bea435a65e377dea
 
 * Upgrade V8 to 3.9.24.7
 

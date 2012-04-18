@@ -12,6 +12,7 @@ fs.readdir(api, done("api"))
 
 function done (which) { return function (er, docs) {
   if (er) throw er
+  docs.sort()
   if (which === "api") apidocs = docs
   else clidocs = docs
 

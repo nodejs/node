@@ -2454,6 +2454,10 @@ HGraph* HGraphBuilder::CreateGraph() {
       Bailout("function with illegal redeclaration");
       return NULL;
     }
+    if (scope->calls_eval()) {
+      Bailout("function calls eval");
+      return NULL;
+    }
     SetUpScope(scope);
 
     // Add an edge to the body entry.  This is warty: the graph's start
@@ -5864,6 +5868,10 @@ void HGraphBuilder::VisitCall(Call* expr) {
     expr->RecordTypeFeedback(oracle(), CALL_AS_FUNCTION);
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
     bool global_call = proxy != NULL && proxy->var()->IsUnallocated();
+
+    if (proxy != NULL && proxy->var()->is_possibly_eval()) {
+      return Bailout("possible direct call to eval");
+    }
 
     if (global_call) {
       Variable* var = proxy->var();

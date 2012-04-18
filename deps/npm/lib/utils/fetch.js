@@ -59,6 +59,7 @@ function makeRequest (remote, fstr, headers) {
           , proxy: proxy
           , strictSSL: npm.config.get("strict-ssl")
           , ca: remote.host === regHost ? npm.config.get("ca") : undefined
+          , headers: { "user-agent": npm.config.get("user-agent") }
           , onResponse: onResponse }).pipe(fstr)
   function onResponse (er, res) {
     if (er) return fstr.emit("error", er)
