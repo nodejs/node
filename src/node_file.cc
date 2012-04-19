@@ -69,42 +69,20 @@ static Persistent<String> buf_symbol;
 static Persistent<String> oncomplete_sym;
 
 
-#ifndef _LARGEFILE_SOURCE
-  typedef off_t node_off_t;
-# define ASSERT_OFFSET(a) \
-   STATIC_ASSERT(sizeof(node_off_t) * CHAR_BIT >= 32); \
-   if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsInt32()) { \
-     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-   }
-# define ASSERT_TRUNCATE_LENGTH(a) \
-   if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUint32()) { \
-     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-   }
-# define GET_OFFSET(a) ((a)->IsNumber() ? (a)->Int32Value() : -1)
-# define GET_TRUNCATE_LENGTH(a) ((a)->Uint32Value())
-#else
-# ifdef _WIN32
-#   define NODE_USE_64BIT_UV_FS_API
-    typedef int64_t node_off_t;
-# else
-    typedef off_t node_off_t;
-# endif
-# define ASSERT_OFFSET(a) \
-   STATIC_ASSERT(sizeof(node_off_t) * CHAR_BIT >= 64); \
-   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-   }
-# define ASSERT_TRUNCATE_LENGTH(a) \
-   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
-     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
-   }
-# define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
-# define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
-
-  static inline int IsInt64(double x) {
-    return x == static_cast<double>(static_cast<int64_t>(x));
+#define ASSERT_OFFSET(a) \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
+    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
   }
-#endif
+#define ASSERT_TRUNCATE_LENGTH(a) \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
+    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+  }
+#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+#define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
+
+static inline int IsInt64(double x) {
+  return x == static_cast<double>(static_cast<int64_t>(x));
+}
 
 
 static void After(uv_fs_t *req) {
@@ -515,7 +493,7 @@ static Handle<Value> Truncate(const Arguments& args) {
   int fd = args[0]->Int32Value();
 
   ASSERT_TRUNCATE_LENGTH(args[1]);
-  node_off_t len = GET_TRUNCATE_LENGTH(args[1]);
+  int64_t len = GET_TRUNCATE_LENGTH(args[1]);
 
   if (args[2]->IsFunction()) {
 #ifdef NODE_USE_64BIT_UV_FS_API
@@ -738,7 +716,7 @@ static Handle<Value> Write(const Arguments& args) {
   }
 
   ASSERT_OFFSET(args[4]);
-  node_off_t pos = GET_OFFSET(args[4]);
+  int64_t pos = GET_OFFSET(args[4]);
 
   char * buf = (char*)buffer_data + off;
   Local<Value> cb = args[5];
@@ -783,7 +761,7 @@ static Handle<Value> Read(const Arguments& args) {
   Local<Value> cb;
 
   size_t len;
-  node_off_t pos;
+  int64_t pos;
 
   char * buf = NULL;
 
