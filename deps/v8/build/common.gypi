@@ -271,6 +271,14 @@
           }],
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
+          }, {
+            # gcc 4.4.6 has a regression in non-strict aliasing mode that
+            # makes a lookup in CodeStub::FindCodeInCache() abort with a
+            # "pure virtual method called" runtime error.
+            #
+            # This bites node.js because it sets -fno-strict-aliasing in its
+            # cflags, which then leak into our cflags.
+            'cflags!': [ '-fno-strict-aliasing' ],
           }],
         ],  # conditions
       }],
