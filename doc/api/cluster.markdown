@@ -299,7 +299,7 @@ and accidental exit.
     worker.destroy();
 
 
-## Worker.disconnect()
+### worker.disconnect()
 
 When calling this function the worker will no longer accept new connections, but
 they will be handled by any other listening worker. Existing connection will be
