@@ -313,10 +313,6 @@ leaner than `child_process.exec`. It has the same options.
   * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
-* `callback` {Function} called with the output when process terminates
-  * `code` {Integer} Exit code
-  * `stdout` {Buffer}
-  * `stderr` {Buffer}
 * Return: ChildProcess object
 
 This is a special case of the `spawn()` functionality for spawning Node
