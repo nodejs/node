@@ -282,11 +282,6 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-### socket.write(data, [encoding], [callback])
-
-Write data with the optional encoding. The callback will be made when the
-data is flushed to the kernel.
-
 ### socket.end([data], [encoding])
 
 Half-closes the socket. i.e., it sends a FIN packet. It is possible the
