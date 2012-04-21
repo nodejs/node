@@ -60,6 +60,54 @@ Domain's `error` event, but does not register the EventEmitter on the
 Domain, so `domain.dispose()` will not shut down the EventEmitter.
 Implicit binding only takes care of thrown errors and `'error'` events.
 
+## Explicit Binding
+
+<!--type=misc-->
+
+Sometimes, the domain in use is not the one that ought to be used for a
+specific event emitter.  Or, the event emitter could have been created
+in the context of one domain, but ought to instead be bound to some
+other domain.
+
+For example, there could be one domain in use for an HTTP server, but
+perhaps we would like to have a separate domain to use for each request.
+
+That is possible via explicit binding.
+
+For example:
+
+```
+// create a top-level domain for the server
+var serverDomain = domain.create();
+
+serverDomain.run(function() {
+  // server is created in the scope of serverDomain
+  http.createServer(function(req, res) {
+    // req and res are also created in the scope of serverDomain
+    // however, we'd prefer to have a separate domain for each request.
+    // create it first thing, and add req and res to it.
+    var reqd = domain.create();
+    reqd.add(req);
+    reqd.add(res);
+    reqd.on('error', function(er) {
+      console.error('Error', er, req.url);
+      try {
+        res.writeHead(500);
+        res.end('Error occurred, sorry.');
+        res.on('close', function() {
+          // forcibly shut down any other things added to this domain
+          reqd.dispose();
+        });
+      } catch (er) {
+        console.error('Error sending 500', er, req.url);
+        // tried our best.  clean up anything remaining.
+        reqd.dispose();
+      }
+    });
+  }).listen(1337);
+});
+```
+
 ## domain.create()
 
 * return: {Domain}
@@ -73,6 +121,38 @@ uncaught exceptions to the active Domain object.
 
 Domain is a child class of EventEmitter.  To handle the errors that it
 catches, listen to its `error` event.
+
+### domain.run(fn)
+
+* `fn` {Function}
+
+Run the supplied function in the context of the domain, implicitly
+binding all event emitters, timers, and lowlevel requests that are
+created in that context.
+
+This is the most basic way to use a domain.
+
+Example:
+
+```
+var d = domain.create();
+d.on('error', function(er) {
+  console.error('Caught error!', er);
+});
+d.run(function() {
+  process.nextTick(function() {
+    setTimeout(function() { // simulating some various async stuff
+      fs.open('non-existent file', 'r', function(er, fd) {
+        if (er) throw er;
+        // proceed...
+      });
+    }, 100);
+  });
+});
+```
+
+In this example, the `d.on('error')` handler will be triggered, rather
+than crashing the program.
 
 ### domain.members
 
