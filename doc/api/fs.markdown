@@ -370,8 +370,8 @@ Synchronous version of buffer-based `fs.read`. Returns the number of
 
 ## fs.readSync(fd, length, position, encoding)
 
-Synchronous version of string-based `fs.read`. Returns the number of
-`bytesRead`.
+Legacy synchronous version of string-based `fs.read`. Returns an array with the
+data from the file specified and number of bytes read, `[string, bytesRead]`.
 
 ## fs.readFile(filename, [encoding], [callback])
 
