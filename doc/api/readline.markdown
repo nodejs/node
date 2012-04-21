@@ -91,10 +91,11 @@ stream.
 Sets the prompt, for example when you run `node` on the command line, you see
 `> `, which is node's prompt.
 
-### rl.prompt()
+### rl.prompt([preserveCursor])
 
 Readies readline for input from the user, putting the current `setPrompt`
-options on a new line, giving the user a new spot to write.
+options on a new line, giving the user a new spot to write. Set `preserveCursor`
+to `true` to prevent the cursor placement being reset to `0`.
 
 This will also resume the `input` stream used with `createInterface` if it has
 been paused.
@@ -127,11 +128,18 @@ Resumes the readline `input` stream.
 Closes the `Interface` instance, relinquishing control on the `input` and
 `output` streams. The "close" event will also be emitted.
 
-### rl.write()
+### rl.write(data, [key])
 
-Writes to `output` stream.
+Writes `data` to `output` stream. `key` is an object literal to represent a key
+sequence; available if the terminal is a TTY.
 
 This will also resume the `input` stream if it has been paused.
+
+Example:
+
+    rl.write('Delete me!');
+    // Simulate ctrl+u to delete the line written previously
+    rl.write(null, {ctrl: true, name: 'u'});
 
 ## Events
 
