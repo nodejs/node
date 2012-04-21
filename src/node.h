@@ -250,6 +250,11 @@ node_module_struct* get_builtin_module(const char *name);
 #define NODE_MODULE_DECL(modname) \
   extern "C" node::node_module_struct modname ## _module;
 
+/* Called after the event loop exits but before the VM is disposed.
+ * Callbacks are run in reverse order of registration, i.e. newest first.
+ */
+NODE_EXTERN void AtExit(void (*cb)(void* arg), void* arg = 0);
+
 NODE_EXTERN void SetErrno(uv_err_t err);
 NODE_EXTERN v8::Handle<v8::Value>
 MakeCallback(const v8::Handle<v8::Object> object,
