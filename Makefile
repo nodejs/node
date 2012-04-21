@@ -2,6 +2,7 @@
 
 BUILDTYPE ?= Release
 PYTHON ?= python
+DESTDIR ?=
 
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
@@ -33,7 +34,7 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/z
 	tools/gyp_node -f make
 
 install: all
-	out/Release/node tools/installer.js install
+	out/Release/node tools/installer.js install $(DESTDIR)
 
 uninstall:
 	out/Release/node tools/installer.js uninstall
