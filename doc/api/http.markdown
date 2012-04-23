@@ -32,6 +32,12 @@ Returns a new web server object.
 The `requestListener` is a function which is automatically
 added to the `'request'` event.
 
+## http.createClient([port], [host])
+
+This function is **deprecated**; please use
+[http.request()](#http_http_request_options_callback) instead. Constructs a new
+HTTP client. `port` and `host` refer to the server to be connected to.
+
 ## Class: http.Server
 
 This is an `EventEmitter` with the following events:
