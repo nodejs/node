@@ -472,13 +472,22 @@ bool POSIXSocket::Shutdown() {
 
 
 int POSIXSocket::Send(const char* data, int len) const {
-  int status;
+  int written;
 
-  do
-    status = send(socket_, data, len, 0);
-  while (status == -1 && errno == EINTR);
+  for (written = 0; written < len; /* empty */) {
+    int status = send(socket_, data + written, len - written, 0);
+    if (status == 0) {
+      break;
+    } else if (status > 0) {
+      written += status;
+    } else if (errno == EINTR) {
+      /* interrupted by signal, retry */
+    } else {
+      return -1;
+    }
+  }
 
-  return status;
+  return written;
 }
 
 
