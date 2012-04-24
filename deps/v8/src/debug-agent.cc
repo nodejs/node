@@ -323,41 +323,41 @@ bool DebuggerAgentUtil::SendConnectMessage(const Socket* conn,
                                            const char* embedding_host) {
   static const int kBufferSize = 80;
   char buffer[kBufferSize];  // Sending buffer.
-  bool ok;
   int len;
+  int r;
 
   // Send the header.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "Type: connect\r\n");
-  ok = conn->Send(buffer, len);
-  if (!ok) return false;
+  r = conn->Send(buffer, len);
+  if (r != len) return false;
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "V8-Version: %s\r\n", v8::V8::GetVersion());
-  ok = conn->Send(buffer, len);
-  if (!ok) return false;
+  r = conn->Send(buffer, len);
+  if (r != len) return false;
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "Protocol-Version: 1\r\n");
-  ok = conn->Send(buffer, len);
-  if (!ok) return false;
+  r = conn->Send(buffer, len);
+  if (r != len) return false;
 
   if (embedding_host != NULL) {
     len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                        "Embedding-Host: %s\r\n", embedding_host);
-    ok = conn->Send(buffer, len);
-    if (!ok) return false;
+    r = conn->Send(buffer, len);
+    if (r != len) return false;
   }
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "%s: 0\r\n", kContentLength);
-  ok = conn->Send(buffer, len);
-  if (!ok) return false;
+  r = conn->Send(buffer, len);
+  if (r != len) return false;
 
   // Terminate header with empty line.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
-  ok = conn->Send(buffer, len);
-  if (!ok) return false;
+  r = conn->Send(buffer, len);
+  if (r != len) return false;
 
   // No body for connect message.
 
