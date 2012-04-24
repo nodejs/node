@@ -67,15 +67,7 @@
 
     } else if (process._eval != null) {
       // User passed '-e' or '--eval' arguments to Node.
-      var Module = NativeModule.require('module');
-      var path = NativeModule.require('path');
-      var cwd = process.cwd();
-
-      var module = new Module('eval');
-      module.filename = path.join(cwd, 'eval');
-      module.paths = Module._nodeModulePaths(cwd);
-      var result = module._compile('return eval(process._eval)', 'eval');
-      if (process._print_eval) console.log(result);
+      evalScript('eval');
     } else if (process.argv[1]) {
       // make process.argv[1] into a full path
       var path = NativeModule.require('path');
@@ -147,7 +139,8 @@
         });
 
         process.stdin.on('end', function() {
-          new Module()._compile(code, '[stdin]');
+          process._eval = code;
+          evalScript('[stdin]');
         });
       }
     }
@@ -264,6 +257,18 @@
       process._needTickCallback();
     };
   };
+
+  function evalScript(name) {
+    var Module = NativeModule.require('module');
+    var path = NativeModule.require('path');
+    var cwd = process.cwd();
+
+    var module = new Module(name);
+    module.filename = path.join(cwd, name);
+    module.paths = Module._nodeModulePaths(cwd);
+    var result = module._compile('return eval(process._eval)',  name);
+    if (process._print_eval) console.log(result);
+  }
 
   function errnoException(errorno, syscall) {
     // TODO make this more compatible with ErrnoException from src/node.cc
