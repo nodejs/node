@@ -1,6 +1,6 @@
 # Executing JavaScript
 
-    Stability: 3 - Stable
+    Stability: 2 - Unstable. See Caveats, below.
 
 <!--name=vm-->
 
@@ -10,6 +10,44 @@ You can access this module with:
 
 JavaScript code can be compiled and run immediately or compiled, saved, and run later.
 
+## Caveats
+
+The `vm` module has many known issues and edge cases. If you run into
+issues or unexpected behavior, please consult
+[the open issues on GitHub](https://github.com/joyent/node/issues/search?q=vm).
+Some of the biggest problems are described below.
+
+### Sandboxes
+
+The `sandbox` argument to `vm.runInNewContext` and `vm.createContext`,
+along with the `initSandbox` argument to `vm.createContext`, do not
+behave as one might normally expect and their behavior varies
+between different versions of Node.
+
+The key issue to be aware of is that V8 provides no way to directly
+control the global object used within a context. As a result, while
+properties of your `sandbox` object will be available in the context,
+any properties from the `prototype`s of the `sandbox` may not be
+available. Furthermore, the `this` expression within the global scope
+of the context evaluates to the empty object (`{}`) instead of to
+your sandbox.
+
+Your sandbox's properties are also not shared directly with the script.
+Instead, the properties of the sandbox are copied into the context at
+the beginning of execution, and then after execution, the properties
+are copied back out in an attempt to propagate any changes.
+
+### Globals
+
+Properties of the global object, like `Array` and `String`, have
+different values inside of a context. This means that common
+expressions like `[] instanceof Array` or
+`Object.getPrototypeOf([]) === Array.prototype` may not produce
+expected results when used inside of scripts evaluated via the `vm` module.
+
+Some of these problems have known workarounds listed in the issues for
+`vm` on GitHub. for example, `Array.isArray` works around
+the example problem with `Array`.
 
 ## vm.runInThisContext(code, [filename])
 
