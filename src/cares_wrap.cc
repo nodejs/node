@@ -485,6 +485,61 @@ class QuerySrvWrap: public QueryWrap {
   }
 };
 
+class QueryNaptrWrap: public QueryWrap {
+ public:
+  int Send(const char* name) {
+    ares_query(ares_channel,
+               name,
+               ns_c_in,
+               ns_t_naptr,
+               Callback,
+               GetQueryArg());
+    return 0;
+  }
+
+ protected:
+  void Parse(unsigned char* buf, int len) {
+    HandleScope scope;
+
+    ares_naptr_reply* naptr_start;
+    int status = ares_parse_naptr_reply(buf, len, &naptr_start);
+
+    if (status != ARES_SUCCESS) {
+      this->ParseError(status);
+      return;
+    }
+
+    Local<Array> naptr_records = Array::New();
+    Local<String> flags_symbol = String::NewSymbol("flags");
+    Local<String> service_symbol = String::NewSymbol("service");
+    Local<String> regexp_symbol = String::NewSymbol("regexp");
+    Local<String> replacement_symbol = String::NewSymbol("replacement");
+    Local<String> order_symbol = String::NewSymbol("order");
+    Local<String> preference_symbol = String::NewSymbol("preference");
+
+    int i = 0;
+    for (ares_naptr_reply* naptr_current = naptr_start;
+         naptr_current;
+         naptr_current = naptr_current->next) {
+
+      Local<Object> naptr_record = Object::New();
+
+      naptr_record->Set(flags_symbol, String::New(naptr_current->flags));
+      naptr_record->Set(service_symbol, String::New(naptr_current->service));
+      naptr_record->Set(regexp_symbol, String::New(naptr_current->regexp));
+      naptr_record->Set(replacement_symbol, String::New(naptr_current->replacement));
+      naptr_record->Set(order_symbol, Integer::New(naptr_current->order));
+      naptr_record->Set(preference_symbol, Integer::New(naptr_current->preference));
+
+      naptr_records->Set(Integer::New(i++), naptr_record);
+    }
+
+    ares_free_data(naptr_start);
+
+    this->CallOnComplete(naptr_records);
+  }
+};
+
 
 class GetHostByAddrWrap: public QueryWrap {
  public:
@@ -746,6 +801,7 @@ static void Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "queryNs", Query<QueryNsWrap>);
   NODE_SET_METHOD(target, "queryTxt", Query<QueryTxtWrap>);
   NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
+  NODE_SET_METHOD(target, "queryNaptr", Query<QueryNaptrWrap>);
   NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
   NODE_SET_METHOD(target, "getHostByName", QueryWithFamily<GetHostByNameWrap>);
 
