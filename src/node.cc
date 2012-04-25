@@ -1280,7 +1280,6 @@ void DisplayExceptionLine (TryCatch &try_catch) {
 
 static void ReportException(TryCatch &try_catch, bool show_line) {
   HandleScope scope;
-  Handle<Message> message = try_catch.Message();
 
   if (show_line) DisplayExceptionLine(try_catch);
 
