@@ -202,3 +202,9 @@ testMe.complete(' ', function(error, data) {
   assert.deepEqual(data, [[],undefined]);
   clearTimeout(spaceTimeout);
 });
+
+// tab completion should pick up the global "toString" object, and
+// any other properties up the "global" object's prototype chain
+testMe.complete('toSt', function(error, data) {
+  assert.deepEqual(data, [['toString'], 'toSt']);
+});
