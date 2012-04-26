@@ -266,7 +266,7 @@
     var module = new Module(name);
     module.filename = path.join(cwd, name);
     module.paths = Module._nodeModulePaths(cwd);
-    var result = module._compile('return eval(process._eval)',  name);
+    var result = module._compile('return eval(process._eval)', name);
     if (process._print_eval) console.log(result);
   }
 
