@@ -189,6 +189,8 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , registry : "http" + (httpsOk ? "s" : "") + "://registry.npmjs.org/"
     , rollback : true
     , save : false
+    , "save-dev" : false
+    , "save-optional" : false
     , searchopts: ""
     , searchexclude: null
     , searchsort: "name"
@@ -269,6 +271,8 @@ exports.types =
   , registry : [null, url]
   , rollback : Boolean
   , save : Boolean
+  , "save-dev" : Boolean
+  , "save-optional" : Boolean
   , searchopts : String
   , searchexclude: [null, String]
   , searchsort: [ "name", "-name"
@@ -324,6 +328,8 @@ exports.shorthands =
   , porcelain : ["--parseable"]
   , g : ["--global"]
   , S : ["--save"]
+  , D : ["--save-dev"]
+  , O : ["--save-optional"]
   , y : ["--yes"]
   , n : ["--no-yes"]
   }

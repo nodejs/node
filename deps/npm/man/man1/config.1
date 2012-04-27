@@ -171,6 +171,12 @@ The following shorthands are parsed on the command\-line:
 \fB\-S\fR: \fB\-\-save\fR
 .
 .IP "\(bu" 4
+\fB\-D\fR: \fB\-\-save\-dev\fR
+.
+.IP "\(bu" 4
+\fB\-O\fR: \fB\-\-save\-optional\fR
+.
+.IP "\(bu" 4
 \fB\-y\fR: \fB\-\-yes\fR
 .
 .IP "\(bu" 4
@@ -1003,6 +1009,38 @@ Type: Boolean
 .
 .P
 Save installed packages to a package\.json file as dependencies\.
+.
+.P
+Only works if there is already a package\.json file present\.
+.
+.SS "save\-dev"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Save installed packages to a package\.json file as devDependencies\.
+.
+.P
+Only works if there is already a package\.json file present\.
+.
+.SS "save\-optional"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Save installed packages to a package\.json file as optionalDependencies\.
 .
 .P
 Only works if there is already a package\.json file present\.

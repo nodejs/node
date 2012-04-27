@@ -105,7 +105,7 @@ global config.</p>
 
 <p>The following shorthands are parsed on the command-line:</p>
 
-<ul><li><code>-v</code>: <code>--version</code></li><li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li><li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li><li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li><li><code>-d</code>: <code>--loglevel info</code></li><li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li><li><code>-ddd</code>: <code>--loglevel silly</code></li><li><code>-g</code>: <code>--global</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-m</code>: <code>--message</code></li><li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li><li><code>-reg</code>: <code>--registry</code></li><li><code>-v</code>: <code>--version</code></li><li><code>-f</code>: <code>--force</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-desc</code>: <code>--description</code></li><li><code>-S</code>: <code>--save</code></li><li><code>-y</code>: <code>--yes</code></li><li><code>-n</code>: <code>--yes false</code></li><li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li></ul>
+<ul><li><code>-v</code>: <code>--version</code></li><li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li><li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li><li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li><li><code>-d</code>: <code>--loglevel info</code></li><li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li><li><code>-ddd</code>: <code>--loglevel silly</code></li><li><code>-g</code>: <code>--global</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-m</code>: <code>--message</code></li><li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li><li><code>-reg</code>: <code>--registry</code></li><li><code>-v</code>: <code>--version</code></li><li><code>-f</code>: <code>--force</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-desc</code>: <code>--description</code></li><li><code>-S</code>: <code>--save</code></li><li><code>-D</code>: <code>--save-dev</code></li><li><code>-O</code>: <code>--save-optional</code></li><li><code>-y</code>: <code>--yes</code></li><li><code>-n</code>: <code>--yes false</code></li><li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li></ul>
 
 <p>If the specified configuration param resolves unambiguously to a known
 configuration parameter, then it is expanded to that configuration
@@ -516,6 +516,22 @@ this as true.</p>
 
 <p>Only works if there is already a package.json file present.</p>
 
+<h3 id="save-dev">save-dev</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>Save installed packages to a package.json file as devDependencies.</p>
+
+<p>Only works if there is already a package.json file present.</p>
+
+<h3 id="save-optional">save-optional</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>Save installed packages to a package.json file as optionalDependencies.</p>
+
+<p>Only works if there is already a package.json file present.</p>
+
 <h3 id="searchopts">searchopts</h3>
 
 <ul><li>Default: ""</li><li>Type: String</li></ul>
@@ -668,7 +684,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.16</p>
+<p id="footer">config &mdash; npm@1.1.19</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
