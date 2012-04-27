@@ -53,6 +53,8 @@ using v8::TryCatch;
 using v8::Context;
 using v8::Arguments;
 using v8::Integer;
+using v8::Exception;
+using v8::ThrowException;
 
 
 class ProcessWrap : public HandleWrap {
@@ -98,7 +100,7 @@ class ProcessWrap : public HandleWrap {
 
     Local<Object> js_options = args[0]->ToObject();
 
-    uv_process_options_t options;
+    uv_process_options2_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
 
     options.exit_cb = OnExit;
@@ -106,14 +108,16 @@ class ProcessWrap : public HandleWrap {
     // TODO is this possible to do without mallocing ?
 
     // options.file
-    Local<Value> file_v = js_options->Get(String::New("file"));
+    Local<Value> file_v = js_options->Get(String::NewSymbol("file"));
     if (!file_v.IsEmpty() && file_v->IsString()) {
       String::Utf8Value file(file_v->ToString());
       options.file = strdup(*file);
+    } else {
+      return ThrowException(Exception::TypeError(String::New("Bad argument")));
     }
 
     // options.args
-    Local<Value> argv_v = js_options->Get(String::New("args"));
+    Local<Value> argv_v = js_options->Get(String::NewSymbol("args"));
     if (!argv_v.IsEmpty() && argv_v->IsArray()) {
       Local<Array> js_argv = Local<Array>::Cast(argv_v);
       int argc = js_argv->Length();
@@ -127,7 +131,7 @@ class ProcessWrap : public HandleWrap {
     }
 
     // options.cwd
-    Local<Value> cwd_v = js_options->Get(String::New("cwd"));
+    Local<Value> cwd_v = js_options->Get(String::NewSymbol("cwd"));
     if (!cwd_v.IsEmpty() && cwd_v->IsString()) {
       String::Utf8Value cwd(cwd_v->ToString());
       if (cwd.length() > 0) {
@@ -136,7 +140,7 @@ class ProcessWrap : public HandleWrap {
     }
 
     // options.env
-    Local<Value> env_v = js_options->Get(String::New("envPairs"));
+    Local<Value> env_v = js_options->Get(String::NewSymbol("envPairs"));
     if (!env_v.IsEmpty() && env_v->IsArray()) {
       Local<Array> env = Local<Array>::Cast(env_v);
       int envc = env->Length();
@@ -149,33 +153,66 @@ class ProcessWrap : public HandleWrap {
     }
 
     // options.stdin_stream
-    Local<Value> stdin_stream_v = js_options->Get(String::New("stdinStream"));
+    Local<Value> stdin_stream_v = js_options->Get(
+        String::NewSymbol("stdinStream"));
     if (!stdin_stream_v.IsEmpty() && stdin_stream_v->IsObject()) {
       PipeWrap* stdin_wrap = PipeWrap::Unwrap(stdin_stream_v->ToObject());
       options.stdin_stream = stdin_wrap->UVHandle();
     }
 
     // options.stdout_stream
-    Local<Value> stdout_stream_v = js_options->Get(String::New("stdoutStream"));
+    Local<Value> stdout_stream_v = js_options->Get(
+        String::NewSymbol("stdoutStream"));
     if (!stdout_stream_v.IsEmpty() && stdout_stream_v->IsObject()) {
       PipeWrap* stdout_wrap = PipeWrap::Unwrap(stdout_stream_v->ToObject());
       options.stdout_stream = stdout_wrap->UVHandle();
     }
 
     // options.stderr_stream
-    Local<Value> stderr_stream_v = js_options->Get(String::New("stderrStream"));
+    Local<Value> stderr_stream_v = js_options->Get(
+        String::NewSymbol("stderrStream"));
     if (!stderr_stream_v.IsEmpty() && stderr_stream_v->IsObject()) {
       PipeWrap* stderr_wrap = PipeWrap::Unwrap(stderr_stream_v->ToObject());
       options.stderr_stream = stderr_wrap->UVHandle();
     }
 
     // options.windows_verbatim_arguments
-#if defined(_WIN32)
-    options.windows_verbatim_arguments = js_options->
-        Get(String::NewSymbol("windowsVerbatimArguments"))->IsTrue();
-#endif
+    if (js_options->Get(String::NewSymbol("windowsVerbatimArguments"))->
+          IsTrue()) {
+      options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+    }
 
-    int r = uv_spawn(uv_default_loop(), &wrap->process_, options);
+    // options.uid
+    Local<Value> uid_v = js_options->Get(String::NewSymbol("uid"));
+    if (uid_v->IsInt32()) {
+      int32_t uid = uid_v->Int32Value();
+      if (uid & ~((uv_uid_t) ~0)) {
+        return ThrowException(Exception::RangeError(
+            String::New("options.uid is out of range")));
+      }
+      options.flags |= UV_PROCESS_SETUID;
+      options.uid = (uv_uid_t) uid;
+    } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
+      return ThrowException(Exception::TypeError(
+          String::New("options.uid should be a number")));
+    }
+
+    // options.gid
+    Local<Value> gid_v = js_options->Get(String::NewSymbol("gid"));
+    if (gid_v->IsInt32()) {
+      int32_t gid = gid_v->Int32Value();
+      if (gid & ~((uv_gid_t) ~0)) {
+        return ThrowException(Exception::RangeError(
+           String::New("options.gid is out of range")));
+      }
+      options.flags |= UV_PROCESS_SETGID;
+      options.gid = (uv_gid_t) gid;
+    } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
+      return ThrowException(Exception::TypeError(
+          String::New("options.gid should be a number")));
+    }
+
+    int r = uv_spawn2(uv_default_loop(), &wrap->process_, options);
 
     if (r) {
       SetErrno(uv_last_error(uv_default_loop()));
