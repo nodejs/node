@@ -105,5 +105,24 @@ server.listen(port, function () {
   cp.stderr.pipe(process.stderr);
   cp.on('exit', function() {
     server.close();
+    process.nextTick(dump_mm_stats);
   });
 });
+
+function dump_mm_stats() {
+  if (typeof gc != 'function') return;
+
+  var before = process.memoryUsage();
+  for (var i = 0; i < 10; ++i) gc();
+  var after = process.memoryUsage();
+  setTimeout(print_stats, 250); // give GC time to settle
+
+  function print_stats() {
+    console.log('\nBEFORE / AFTER GC');
+    ['rss', 'heapTotal', 'heapUsed'].forEach(function(key) {
+      var a = before[key] / (1024 * 1024);
+      var b = after[key] / (1024 * 1024);
+      console.log('%sM / %sM %s', a.toFixed(2), b.toFixed(2), key);
+    });
+  }
+}
