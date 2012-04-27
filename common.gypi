@@ -27,7 +27,7 @@
               }],
             ],
             'Optimization': 0, # /Od, no optimization
-            'MinimalRebuild': 'true',
+            'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
           },
