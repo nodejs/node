@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "handle_wrap.h" // HandleWrap::GetActiveHandles()
 
 #include "uv.h"
 
@@ -90,6 +91,9 @@ extern char **environ;
 
 namespace node {
 
+// declared in req_wrap.h
+Persistent<String> process_symbol;
+Persistent<String> domain_symbol;
 
 static Persistent<Object> process;
 
@@ -106,7 +110,6 @@ static Persistent<String> listeners_symbol;
 static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
-static Persistent<String> domain_symbol;
 static Persistent<String> enter_symbol;
 static Persistent<String> exit_symbol;
 static Persistent<String> disposed_symbol;
@@ -1019,8 +1022,7 @@ MakeCallback(const Handle<Object> object,
 
   TryCatch try_catch;
 
-  if (domain_symbol.IsEmpty()) {
-    domain_symbol = NODE_PSYMBOL("domain");
+  if (enter_symbol.IsEmpty()) {
     enter_symbol = NODE_PSYMBOL("enter");
     exit_symbol = NODE_PSYMBOL("exit");
     disposed_symbol = NODE_PSYMBOL("_disposed");
@@ -2865,6 +2867,9 @@ int Start(int argc, char *argv[]) {
     // Create the one and only Context.
     Persistent<Context> context = Context::New();
     Context::Scope context_scope(context);
+
+    process_symbol = NODE_PSYMBOL("process");
+    domain_symbol = NODE_PSYMBOL("domain");
 
     // Use original argv, as we're just copying values out of it.
     Handle<Object> process_l = SetupProcessObject(argc, argv);

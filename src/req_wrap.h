@@ -24,8 +24,9 @@
 
 namespace node {
 
-static v8::Persistent<v8::String> process_symbol;
-static v8::Persistent<v8::String> domain_symbol;
+// defined in node.cc
+extern v8::Persistent<v8::String> process_symbol;
+extern v8::Persistent<v8::String> domain_symbol;
 
 template <typename T>
 class ReqWrap {
@@ -33,12 +34,6 @@ class ReqWrap {
   ReqWrap() {
     v8::HandleScope scope;
     object_ = v8::Persistent<v8::Object>::New(v8::Object::New());
-
-    // TODO: grab a handle to the current process.domain
-    if (process_symbol.IsEmpty()) {
-      process_symbol = NODE_PSYMBOL("process");
-      domain_symbol = NODE_PSYMBOL("domain");
-    }
 
     v8::Local<v8::Value> domain = v8::Context::GetCurrent()
                                   ->Global()
