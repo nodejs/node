@@ -261,3 +261,29 @@ int uv_tcp_connect6(uv_connect_t* req,
 
   return uv__tcp_connect6(req, handle, address, cb);
 }
+
+
+/* Thunk that converts uv_process_options_t into uv_process_options2_t, */
+/* and then calls uv_spawn2. */
+int uv_spawn(uv_loop_t* loop, uv_process_t* process,
+    uv_process_options_t options) {
+  uv_process_options2_t options2;
+
+  options2.exit_cb = options.exit_cb;
+  options2.file = options.file;
+  options2.args = options.args;
+  options2.cwd = options.cwd;
+  options2.env = options.env;
+  options2.stdin_stream = options.stdin_stream;
+  options2.stdout_stream = options.stdout_stream;
+  options2.stderr_stream = options.stderr_stream;
+
+  options2.flags = 0;
+  if (options.windows_verbatim_arguments) {
+    options2.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+  }
+
+  /* No need to set gid and uid. */
+
+  return uv_spawn2(loop, process, options2);
+}

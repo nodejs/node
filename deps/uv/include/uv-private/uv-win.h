@@ -137,6 +137,10 @@ typedef struct uv_buf_t {
 
 typedef int uv_file;
 
+/* Platform-specific definitions for uv_spawn support. */
+typedef unsigned char uv_uid_t;
+typedef unsigned char uv_gid_t;
+
 /* Platform-specific definitions for uv_dlopen support. */
 typedef HMODULE uv_lib_t;
 #define UV_DYNAMIC FAR WINAPI

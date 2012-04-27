@@ -913,7 +913,7 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
       fs__fsync(req, (uv_file)req->arg0);
       break;
     case UV_FS_FTRUNCATE:
-      fs__ftruncate(req, (uv_file)req->arg0, (off_t)req->stat.st_atime);
+      fs__ftruncate(req, (uv_file)req->arg0, req->stat.st_atime);
       break;
     case UV_FS_SENDFILE:
       fs__sendfile(req,

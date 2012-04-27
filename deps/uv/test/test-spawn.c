@@ -30,6 +30,7 @@ static int exit_cb_called;
 static uv_process_t process;
 static uv_timer_t timer;
 static uv_process_options_t options;
+static uv_process_options2_t options2;
 static char exepath[1024];
 static size_t exepath_size = 1024;
 static char* args[3];
@@ -52,6 +53,22 @@ static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
   ASSERT(exit_status == 1);
   ASSERT(term_signal == 0);
   uv_close((uv_handle_t*)process, close_cb);
+}
+
+
+static void exit_cb_failure_expected(uv_process_t* process, int exit_status,
+    int term_signal) {
+  printf("exit_cb\n");
+  exit_cb_called++;
+  ASSERT(exit_status == 127);
+  ASSERT(term_signal == 0);
+  uv_close((uv_handle_t*)process, close_cb);
+}
+
+
+static void exit_cb_unexpected(uv_process_t* process, int exit_status,
+    int term_signal) {
+  ASSERT(0 && "should not have been called");
 }
 
 
@@ -116,6 +133,22 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
+  options.windows_verbatim_arguments = 0;
+}
+
+
+static void init_process_options2(char* test, uv_exit_cb exit_cb) {
+  /* Note spawn_helper1 defined in test/run-tests.c */
+  int r = uv_exepath(exepath, &exepath_size);
+  ASSERT(r == 0);
+  exepath[exepath_size] = '\0';
+  args[0] = exepath;
+  args[1] = test;
+  args[2] = NULL;
+  options2.file = exepath;
+  options2.args = args;
+  options2.exit_cb = exit_cb;
+  options2.flags = 0;
 }
 
 
@@ -463,6 +496,146 @@ TEST_IMPL(environment_creation) {
 
   ASSERT(wcscmp(expected, result) == 0);
  
+  return 0;
+}
+#endif
+
+#ifndef _WIN32
+TEST_IMPL(spawn_setuid_setgid) {
+  int r;
+
+  /* if not root, then this will fail. */
+  uv_uid_t uid = getuid();
+  if (uid != 0) {
+    fprintf(stderr, "spawn_setuid_setgid skipped: not root\n");
+    return 0;
+  }
+
+  init_process_options2("spawn_helper1", exit_cb);
+
+  // become the "nobody" user.
+  struct passwd* pw;
+  pw = getpwnam("nobody");
+  ASSERT(pw != NULL);
+  options2.uid = pw->pw_uid;
+  options2.gid = pw->pw_gid;
+  options2.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID;
+
+  r = uv_spawn2(uv_default_loop(), &process, options2);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+#endif
+
+
+#ifndef _WIN32
+TEST_IMPL(spawn_setuid_fails) {
+  int r;
+
+  /* if root, become nobody. */
+  uv_uid_t uid = getuid();
+  if (uid == 0) {
+    struct passwd* pw;
+    pw = getpwnam("nobody");
+    ASSERT(pw != NULL);
+    r = setuid(pw->pw_uid);
+    ASSERT(r == 0);
+  }
+
+  init_process_options2("spawn_helper1", exit_cb_failure_expected);
+
+  options2.flags |= UV_PROCESS_SETUID;
+  options2.uid = (uv_uid_t) -42424242;
+
+  r = uv_spawn2(uv_default_loop(), &process, options2);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_setgid_fails) {
+  int r;
+
+  /* if root, become nobody. */
+  uv_uid_t uid = getuid();
+  if (uid == 0) {
+    struct passwd* pw;
+    pw = getpwnam("nobody");
+    ASSERT(pw != NULL);
+    r = setuid(pw->pw_uid);
+    ASSERT(r == 0);
+  }
+
+  init_process_options2("spawn_helper1", exit_cb_failure_expected);
+
+  options2.flags |= UV_PROCESS_SETGID;
+  options2.gid = (uv_gid_t) -42424242;
+
+  r = uv_spawn2(uv_default_loop(), &process, options2);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+#endif
+
+
+#ifdef _WIN32
+TEST_IMPL(spawn_setuid_fails) {
+  int r;
+
+  init_process_options2("spawn_helper1", exit_cb_unexpected);
+
+  options2.flags |= UV_PROCESS_SETUID;
+  options2.uid = (uv_uid_t) -42424242;
+
+  r = uv_spawn2(uv_default_loop(), &process, options2);
+  ASSERT(r == -1);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(close_cb_called == 0);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_setgid_fails) {
+  int r;
+
+  init_process_options2("spawn_helper1", exit_cb_unexpected);
+
+  options2.flags |= UV_PROCESS_SETGID;
+  options2.gid = (uv_gid_t) -42424242;
+
+  r = uv_spawn2(uv_default_loop(), &process, options2);
+  ASSERT(r == -1);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(close_cb_called == 0);
+
   return 0;
 }
 #endif

@@ -254,16 +254,15 @@ void uv__pipe_accept(EV_P_ ev_io* watcher, int revents) {
 
   sockfd = uv__accept(pipe->fd, (struct sockaddr *)&saddr, sizeof saddr);
   if (sockfd == -1) {
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      assert(0 && "EAGAIN on uv__accept(pipefd)");
-    } else {
+    if (errno != EAGAIN && errno != EWOULDBLOCK) {
       uv__set_sys_error(pipe->loop, errno);
+      pipe->connection_cb((uv_stream_t*)pipe, -1);
     }
   } else {
     pipe->accepted_fd = sockfd;
     pipe->connection_cb((uv_stream_t*)pipe, 0);
     if (pipe->accepted_fd == sockfd) {
-      /* The user hasn't yet accepted called uv_accept() */
+      /* The user hasn't called uv_accept() yet */
       ev_io_stop(pipe->loop->ev, &pipe->read_watcher);
     }
   }

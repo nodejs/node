@@ -33,6 +33,7 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <termios.h>
 
 /* Note: May be cast to struct iovec. See writev(2). */
@@ -42,6 +43,10 @@ typedef struct {
 } uv_buf_t;
 
 typedef int uv_file;
+
+/* Platform-specific definitions for uv_spawn support. */
+typedef gid_t uv_gid_t;
+typedef uid_t uv_uid_t;
 
 /* Platform-specific definitions for uv_dlopen support. */
 typedef void* uv_lib_t;

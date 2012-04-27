@@ -161,8 +161,8 @@ static int uv__process_init_pipe(uv_pipe_t* handle, int fds[2], int flags) {
 # define SPAWN_WAIT_EXEC 1
 #endif
 
-int uv_spawn(uv_loop_t* loop, uv_process_t* process,
-    uv_process_options_t options) {
+int uv_spawn2(uv_loop_t* loop, uv_process_t* process,
+    uv_process_options2_t options) {
   /*
    * Save environ in the case that we get it clobbered
    * by the child process.
@@ -178,6 +178,12 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   int status;
   pid_t pid;
   int flags;
+
+  assert(options.file != NULL);
+  assert(!(options.flags & ~(UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
+                             UV_PROCESS_SETGID |
+                             UV_PROCESS_SETUID)));
+
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   loop->counters.process_init++;
@@ -265,6 +271,16 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
     if (options.cwd && chdir(options.cwd)) {
       perror("chdir()");
+      _exit(127);
+    }
+
+    if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {
+      perror("setgid()");
+      _exit(127);
+    }
+
+    if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {
+      perror("setuid()");
       _exit(127);
     }
 
