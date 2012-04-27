@@ -873,7 +873,7 @@ int uv_spawn2(uv_loop_t* loop, uv_process_t* process,
   PROCESS_INFORMATION info;
 
   if (options.flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
-    uv__set_sys_error(loop, UV_ENOTSUP);
+    uv__set_artificial_error(loop, UV_ENOTSUP);
     return -1;
   }
 

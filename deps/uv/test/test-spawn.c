@@ -610,6 +610,7 @@ TEST_IMPL(spawn_setuid_fails) {
 
   r = uv_spawn2(uv_default_loop(), &process, options2);
   ASSERT(r == -1);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSUP);
 
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
@@ -630,6 +631,7 @@ TEST_IMPL(spawn_setgid_fails) {
 
   r = uv_spawn2(uv_default_loop(), &process, options2);
   ASSERT(r == -1);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSUP);
 
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
