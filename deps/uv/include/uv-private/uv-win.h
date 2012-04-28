@@ -115,8 +115,7 @@ typedef int (WSAAPI* LPFN_WSARECV)
              LPDWORD bytes,
              LPDWORD flags,
              LPWSAOVERLAPPED overlapped,
-             LPWSAOVERLAPPED_COMPLETION_ROUTINE
-             completion_routine);
+             LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine);
 
 typedef int (WSAAPI* LPFN_WSARECVFROM)
             (SOCKET socket,
@@ -166,6 +165,10 @@ typedef struct uv_once_s {
   HANDLE padding;
 } uv_once_t;
 
+/* Platform-specific definitions for uv_spawn support. */
+typedef unsigned char uv_uid_t;
+typedef unsigned char uv_gid_t;
+
 /* Platform-specific definitions for uv_dlopen support. */
 typedef HMODULE uv_lib_t;
 #define UV_DYNAMIC FAR WINAPI
@@ -206,15 +209,21 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   /* Counter to keep track of active udp streams */                           \
   unsigned int active_udp_streams;
 
+#define UV_HANDLE_TYPE_PRIVATE            \
+  UV_ARES_EVENT,
+
 #define UV_REQ_TYPE_PRIVATE               \
   /* TODO: remove the req suffix */       \
+  UV_ACCEPT,                              \
   UV_ARES_EVENT_REQ,                      \
   UV_ARES_CLEANUP_REQ,                    \
+  UV_FS_EVENT_REQ,                        \
   UV_GETADDRINFO_REQ,                     \
   UV_PROCESS_EXIT,                        \
   UV_PROCESS_CLOSE,                       \
+  UV_READ,                                \
   UV_UDP_RECV,                            \
-  UV_FS_EVENT_REQ
+  UV_WAKEUP,
 
 #define UV_REQ_PRIVATE_FIELDS             \
   union {                                 \
@@ -390,13 +399,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   uv_handle_t* endgame_next;              \
   unsigned int flags;
 
-#define UV_ARES_TASK_PRIVATE_FIELDS       \
-  struct uv_req_s ares_req;               \
-  SOCKET sock;                            \
-  HANDLE h_wait;                          \
-  WSAEVENT h_event;                       \
-  HANDLE h_close_event;
-
 #define UV_GETADDRINFO_PRIVATE_FIELDS     \
   struct uv_req_s getadddrinfo_req;       \
   uv_getaddrinfo_cb getaddrinfo_cb;       \
@@ -422,20 +424,26 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   HANDLE close_handle;
 
 #define UV_FS_PRIVATE_FIELDS              \
-  wchar_t* pathw;                         \
   int flags;                              \
   DWORD sys_errno_;                       \
-  struct _stati64 stat;                   \
-  void* arg0;                             \
+  union {                                 \
+    wchar_t* pathw;                       \
+    int file;                             \
+  };                                      \
   union {                                 \
     struct {                              \
-      void* arg1;                         \
-      void* arg2;                         \
-      void* arg3;                         \
+      int mode;                           \
+      wchar_t* new_pathw;                 \
+      int file_flags;                     \
+      int file_out;                       \
+      void* buf;                          \
+      size_t length;                      \
+      int64_t offset;                     \
     };                                    \
+    struct _stati64 stat;                 \
     struct {                              \
-      ssize_t arg4;                       \
-      ssize_t arg5;                       \
+      double atime;                       \
+      double mtime;                       \
     };                                    \
   };
 

@@ -191,11 +191,11 @@ size_t uv_count_bufs(uv_buf_t bufs[], int count) {
 }
 
 
-int uv_is_readable(uv_stream_t* handle) {
+int uv_is_readable(const uv_stream_t* handle) {
   return !(handle->flags & UV_HANDLE_EOF);
 }
 
 
-int uv_is_writable(uv_stream_t* handle) {
+int uv_is_writable(const uv_stream_t* handle) {
   return !(handle->flags & UV_HANDLE_SHUTTING);
 }

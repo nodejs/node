@@ -20,19 +20,39 @@
  */
 
 #include "uv.h"
-#include "task.h"
+#include "tree.h"
+#include "internal.h"
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
-TEST_IMPL(get_memory) {
-  uint64_t free_mem = uv_get_free_memory();
-  uint64_t total_mem = uv_get_total_memory();
 
-  printf("free_mem=%llu, total_mem=%llu\n",
-         (unsigned long long) free_mem,
-         (unsigned long long) total_mem);
-
-  ASSERT(free_mem > 0);
-  ASSERT(total_mem > 0);
-  ASSERT(total_mem > free_mem);
-
+int uv__loop_init(uv_loop_t* loop, int default_loop) {
+#if HAVE_KQUEUE
+  int flags = EVBACKEND_KQUEUE;
+#else
+  int flags = EVFLAG_AUTO;
+#endif
+  RB_INIT(&loop->uv_ares_handles_);
+  loop->endgame_handles = NULL;
+  loop->ev = (default_loop ? ev_default_loop : ev_loop_new)(flags);
+  ev_set_userdata(loop->ev, loop);
+  eio_channel_init(&loop->uv_eio_channel, loop);
+#if __linux__
+  RB_INIT(&loop->inotify_watchers);
+  loop->inotify_fd = -1;
+#endif
   return 0;
+}
+
+
+void uv__loop_delete(uv_loop_t* loop) {
+  uv_ares_destroy(loop, loop->channel);
+  ev_loop_destroy(loop->ev);
+#if __linux__
+  if (loop->inotify_fd == -1) return;
+  ev_io_stop(loop->ev, &loop->inotify_read_watcher);
+  close(loop->inotify_fd);
+  loop->inotify_fd = -1;
+#endif
 }

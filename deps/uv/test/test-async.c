@@ -24,90 +24,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static uv_thread_t thread;
+static uv_mutex_t mutex;
 
-static uv_prepare_t prepare_handle;
+static uv_prepare_t prepare;
+static uv_async_t async;
 
-static uv_async_t async1_handle;
-/* static uv_handle_t async2_handle; */
-
-static int prepare_cb_called = 0;
-
-static volatile int async1_cb_called = 0;
-static int async1_closed = 0;
-/* static volatile int async2_cb_called = 0; */
-
-static int close_cb_called = 0;
-
-static uintptr_t thread1_id = 0;
-#if 0
-static uintptr_t thread2_id = 0;
-static uintptr_t thread3_id = 0;
-#endif
+static volatile int async_cb_called;
+static int prepare_cb_called;
+static int close_cb_called;
 
 
-/* Thread 1 makes sure that async1_cb_called reaches 3 before exiting. */
-void thread1_entry(void *arg) {
-  uv_sleep(50);
+void thread_cb(void *arg) {
+  int n;
+  int r;
 
-  while (1) {
-    switch (async1_cb_called) {
-      case 0:
-        uv_async_send(&async1_handle);
-        break;
+  for (;;) {
+    uv_mutex_lock(&mutex);
+    n = async_cb_called;
+    uv_mutex_unlock(&mutex);
 
-      case 1:
-        uv_async_send(&async1_handle);
-        break;
-
-      case 2:
-        uv_async_send(&async1_handle);
-        break;
-
-      default:
-        return;
+    if (n == 3) {
+      break;
     }
+
+    r = uv_async_send(&async);
+    ASSERT(r == 0);
   }
 }
-
-#if 0
-/* Thread 2 calls uv_async_send on async_handle_2 8 times. */
-void thread2_entry(void *arg) {
-  int i;
-
-  while (1) {
-    switch (async1_cb_called) {
-      case 0:
-        uv_async_send(&async2_handle);
-        break;
-
-      case 1:
-        uv_async_send(&async2_handle);
-        break;
-
-      case 2:
-        uv_async_send(&async2_handle);
-        break;
-    }
-    uv_sleep(5);
-  }
-
-  if (async1_cb_called == 20) {
-    uv_close(handle);
-  }
-}
-
-
-/* Thread 3 calls uv_async_send on async_handle_2 8 times
- * after waiting half a second first.
- */
-void thread3_entry(void *arg) {
-  int i;
-
-  for (i = 0; i < 8; i++) {
-    uv_async_send(&async2_handle);
-  }
-}
-#endif
 
 
 static void close_cb(uv_handle_t* handle) {
@@ -116,100 +60,58 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void async1_cb(uv_async_t* handle, int status) {
-  ASSERT(handle == &async1_handle);
+static void async_cb(uv_async_t* handle, int status) {
+  int n;
+
+  ASSERT(handle == &async);
   ASSERT(status == 0);
 
-  async1_cb_called++;
-  printf("async1_cb #%d\n", async1_cb_called);
+  uv_mutex_lock(&mutex);
+  n = ++async_cb_called;
+  uv_mutex_unlock(&mutex);
 
-  if (async1_cb_called > 2 && !async1_closed) {
-    async1_closed = 1;
-    uv_close((uv_handle_t*)handle, close_cb);
+  if (n == 3) {
+    uv_close((uv_handle_t*)&async, close_cb);
+    uv_close((uv_handle_t*)&prepare, close_cb);
   }
 }
-
-
-#if 0
-static void async2_cb(uv_handle_t* handle, int status) {
-  ASSERT(handle == &async2_handle);
-  ASSERT(status == 0);
-
-  async2_cb_called++;
-  printf("async2_cb #%d\n", async2_cb_called);
-
-  if (async2_cb_called == 16) {
-    uv_close(handle);
-  }
-}
-#endif
 
 
 static void prepare_cb(uv_prepare_t* handle, int status) {
-  ASSERT(handle == &prepare_handle);
+  int r;
+
+  ASSERT(handle == &prepare);
   ASSERT(status == 0);
 
-  switch (prepare_cb_called) {
-    case 0:
-      thread1_id = uv_create_thread(thread1_entry, NULL);
-      ASSERT(thread1_id != 0);
-      break;
+  if (prepare_cb_called++)
+    return;
 
-#if 0
-    case 1:
-      thread2_id = uv_create_thread(thread2_entry, NULL);
-      ASSERT(thread2_id != 0);
-      break;
-
-    case 2:
-      thread3_id = uv_create_thread(thread3_entry, NULL);
-      ASSERT(thread3_id != 0);
-      break;
-#endif
-
-    case 1:
-      uv_close((uv_handle_t*)handle, close_cb);
-      break;
-
-    default:
-      FATAL("Should never get here");
-  }
-
-  prepare_cb_called++;
+  r = uv_thread_create(&thread, thread_cb, NULL);
+  ASSERT(r == 0);
+  uv_mutex_unlock(&mutex);
 }
 
 
 TEST_IMPL(async) {
   int r;
 
-  r = uv_prepare_init(uv_default_loop(), &prepare_handle);
+  r = uv_mutex_init(&mutex);
   ASSERT(r == 0);
-  r = uv_prepare_start(&prepare_handle, prepare_cb);
+  uv_mutex_lock(&mutex);
+
+  r = uv_prepare_init(uv_default_loop(), &prepare);
+  ASSERT(r == 0);
+  r = uv_prepare_start(&prepare, prepare_cb);
   ASSERT(r == 0);
 
-  r = uv_async_init(uv_default_loop(), &async1_handle, async1_cb);
+  r = uv_async_init(uv_default_loop(), &async, async_cb);
   ASSERT(r == 0);
-
-#if 0
-  r = uv_async_init(&async2_handle, async2_cb, close_cb, NULL);
-  ASSERT(r == 0);
-#endif
 
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
-  r = uv_wait_thread(thread1_id);
-  ASSERT(r == 0);
-#if 0
-  r = uv_wait_thread(thread2_id);
-  ASSERT(r == 0);
-  r = uv_wait_thread(thread3_id);
-  ASSERT(r == 0);
-#endif
-
-  ASSERT(prepare_cb_called == 2);
-  ASSERT(async1_cb_called > 2);
-  /* ASSERT(async2_cb_called = 16); */
+  ASSERT(prepare_cb_called > 0);
+  ASSERT(async_cb_called == 3);
   ASSERT(close_cb_called == 2);
 
   return 0;

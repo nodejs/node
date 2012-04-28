@@ -24,7 +24,9 @@ TEST_DECLARE   (tty)
 TEST_DECLARE   (stdio_over_pipes)
 TEST_DECLARE   (ipc_listen_before_write)
 TEST_DECLARE   (ipc_listen_after_write)
+#ifndef _WIN32
 TEST_DECLARE   (ipc_send_recv_pipe)
+#endif
 TEST_DECLARE   (ipc_send_recv_tcp)
 TEST_DECLARE   (ipc_tcp_connection)
 TEST_DECLARE   (tcp_ping_pong)
@@ -116,6 +118,8 @@ TEST_DECLARE   (spawn_stdin)
 TEST_DECLARE   (spawn_and_kill)
 TEST_DECLARE   (spawn_and_kill_with_std)
 TEST_DECLARE   (spawn_and_ping)
+TEST_DECLARE   (spawn_setuid_fails)
+TEST_DECLARE   (spawn_setgid_fails)
 TEST_DECLARE   (kill)
 TEST_DECLARE   (fs_file_noent)
 TEST_DECLARE   (fs_file_nametoolong)
@@ -140,7 +144,7 @@ TEST_DECLARE   (fs_event_watch_file_current_dir)
 TEST_DECLARE   (fs_event_no_callback_on_close)
 TEST_DECLARE   (fs_event_immediate_close)
 TEST_DECLARE   (fs_event_close_with_pending_event)
-TEST_DECLARE   (fs_event_close_in_callback);
+TEST_DECLARE   (fs_event_close_in_callback)
 TEST_DECLARE   (fs_readdir_empty_dir)
 TEST_DECLARE   (fs_readdir_file)
 TEST_DECLARE   (fs_open_dir)
@@ -162,6 +166,8 @@ TEST_DECLARE   (environment_creation)
 TEST_DECLARE   (listen_with_simultaneous_accepts)
 TEST_DECLARE   (listen_no_simultaneous_accepts)
 TEST_DECLARE   (fs_stat_root)
+#else
+TEST_DECLARE   (spawn_setuid_setgid)
 #endif
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
@@ -179,7 +185,9 @@ TASK_LIST_START
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (ipc_listen_before_write)
   TEST_ENTRY  (ipc_listen_after_write)
+#ifndef _WIN32
   TEST_ENTRY  (ipc_send_recv_pipe)
+#endif
   TEST_ENTRY  (ipc_send_recv_tcp)
   TEST_ENTRY  (ipc_tcp_connection)
 
@@ -312,6 +320,8 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_and_kill)
   TEST_ENTRY  (spawn_and_kill_with_std)
   TEST_ENTRY  (spawn_and_ping)
+  TEST_ENTRY  (spawn_setuid_fails)
+  TEST_ENTRY  (spawn_setgid_fails)
   TEST_ENTRY  (kill)
 #ifdef _WIN32
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
@@ -320,6 +330,8 @@ TASK_LIST_START
   TEST_ENTRY  (listen_with_simultaneous_accepts)
   TEST_ENTRY  (listen_no_simultaneous_accepts)
   TEST_ENTRY  (fs_stat_root)
+#else
+  TEST_ENTRY  (spawn_setuid_setgid)
 #endif
 
   TEST_ENTRY  (fs_file_noent)

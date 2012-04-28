@@ -163,7 +163,6 @@ static int uv__bind(uv_udp_t* handle,
                     int addrsize,
                     unsigned int flags) {
   int r;
-  SOCKET sock;
   DWORD no = 0, yes = 1;
 
   if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
@@ -173,7 +172,7 @@ static int uv__bind(uv_udp_t* handle,
   }
 
   if (handle->socket == INVALID_SOCKET) {
-    sock = socket(domain, SOCK_DGRAM, 0);
+    SOCKET sock = socket(domain, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET) {
       uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;
@@ -192,14 +191,14 @@ static int uv__bind(uv_udp_t* handle,
     /* TODO: how to handle errors? This may fail if there is no ipv4 stack */
     /* available, or when run on XP/2003 which have no support for dualstack */
     /* sockets. For now we're silently ignoring the error. */
-    setsockopt(sock,
+    setsockopt(handle->socket,
                IPPROTO_IPV6,
                IPV6_V6ONLY,
                (char*) &no,
                sizeof no);
   }
 
-  r = setsockopt(sock,
+  r = setsockopt(handle->socket,
                  SOL_SOCKET,
                  SO_REUSEADDR,
                  (char*) &yes,
@@ -648,9 +647,14 @@ int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
 }
 
 
-#define SOCKOPT_SETTER(name, option4, option6)                                \
+#define SOCKOPT_SETTER(name, option4, option6, validate)                      \
   int uv_udp_set_##name(uv_udp_t* handle, int value) {                        \
     DWORD optval = (DWORD) value;                                             \
+                                                                              \
+    if (!(validate(value))) {                                                 \
+      uv__set_artificial_error(handle->loop, UV_EINVAL);                      \
+      return -1;                                                              \
+    }                                                                         \
                                                                               \
     /* If the socket is unbound, bind to inaddr_any. */                       \
     if (!(handle->flags & UV_HANDLE_BOUND) &&                                 \
@@ -682,8 +686,24 @@ int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
     return 0;                                                                 \
   }
 
-SOCKOPT_SETTER(multicast_loop, IP_MULTICAST_LOOP, IPV6_MULTICAST_LOOP)
-SOCKOPT_SETTER(multicast_ttl, IP_MULTICAST_TTL, IPV6_MULTICAST_HOPS)
-SOCKOPT_SETTER(ttl, IP_TTL, IPV6_HOPLIMIT)
+#define VALIDATE_TTL(value) ((value) >= 1 && (value) <= 255)
+#define VALIDATE_MULTICAST_TTL(value) ((value) >= -1 && (value) <= 255)
+#define VALIDATE_MULTICAST_LOOP(value) (1)
+
+SOCKOPT_SETTER(ttl,
+               IP_TTL,
+               IPV6_HOPLIMIT,
+               VALIDATE_TTL)
+SOCKOPT_SETTER(multicast_ttl,
+               IP_MULTICAST_TTL,
+               IPV6_MULTICAST_HOPS,
+               VALIDATE_MULTICAST_TTL)
+SOCKOPT_SETTER(multicast_loop,
+               IP_MULTICAST_LOOP,
+               IPV6_MULTICAST_LOOP,
+               VALIDATE_MULTICAST_LOOP)
 
 #undef SOCKOPT_SETTER
+#undef VALIDATE_TTL
+#undef VALIDATE_MULTICAST_TTL
+#undef VALIDATE_MULTICAST_LOOP

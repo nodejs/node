@@ -535,6 +535,7 @@ int ipc_helper(int listen_after_write) {
 
   ASSERT(uv_is_readable((uv_stream_t*) &channel));
   ASSERT(uv_is_writable((uv_stream_t*) &channel));
+  ASSERT(!uv_is_closing((uv_handle_t*) &channel));
 
   r = uv_tcp_init(uv_default_loop(), &tcp_server);
   ASSERT(r == 0);
@@ -583,6 +584,7 @@ int ipc_helper_tcp_connection() {
 
   ASSERT(uv_is_readable((uv_stream_t*)&channel));
   ASSERT(uv_is_writable((uv_stream_t*)&channel));
+  ASSERT(!uv_is_closing((uv_handle_t*)&channel));
 
   r = uv_tcp_init(uv_default_loop(), &tcp_server);
   ASSERT(r == 0);

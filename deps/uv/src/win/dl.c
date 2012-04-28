@@ -35,7 +35,7 @@ uv_err_t uv_dlopen(const char* filename, uv_lib_t* library) {
     return uv__new_sys_error(saved_errno);
   }
 
-  handle = LoadLibraryW(filename_w);
+  handle = LoadLibraryExW(filename_w, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
   if (handle == NULL) {
     saved_errno = GetLastError();
     return uv__new_sys_error(saved_errno);

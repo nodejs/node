@@ -31,17 +31,23 @@
  * This is called once per second by loop->timer. It is used to
  * constantly callback into c-ares for possibly processing timeouts.
  */
-static void uv__ares_timeout(struct ev_loop* ev, struct ev_timer* watcher,
-    int revents) {
-  uv_loop_t* loop = ev_userdata(ev);
+static void uv__ares_timeout(uv_timer_t* handle, int status) {
+  assert(!uv_ares_handles_empty(handle->loop));
+  ares_process_fd(handle->loop->channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+}
 
-  assert(ev == loop->ev);
-  assert((uv_loop_t*)watcher->data == loop);
-  assert(watcher == &loop->timer);
-  assert(revents == EV_TIMER);
-  assert(!uv_ares_handles_empty(loop));
 
-  ares_process_fd(loop->channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+static void uv__ares_timer_start(uv_loop_t* loop) {
+  if (uv_is_active((uv_handle_t*)&loop->timer)) return;
+  uv_timer_start(&loop->timer, uv__ares_timeout, 1000, 1000);
+  uv_ref(loop);
+}
+
+
+static void uv__ares_timer_stop(uv_loop_t* loop) {
+  if (!uv_is_active((uv_handle_t*)&loop->timer)) return;
+  uv_timer_stop(&loop->timer);
+  uv_unref(loop);
 }
 
 
@@ -52,7 +58,7 @@ static void uv__ares_io(struct ev_loop* ev, struct ev_io* watcher,
   assert(ev == loop->ev);
 
   /* Reset the idle timer */
-  ev_timer_again(ev, &loop->timer);
+  uv_timer_again(&loop->timer);
 
   /* Process DNS responses */
   ares_process_fd(loop->channel,
@@ -98,9 +104,9 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
       /* New socket */
 
       /* If this is the first socket then start the timer. */
-      if (!ev_is_active(&loop->timer)) {
+      if (!uv_is_active((uv_handle_t*)&loop->timer)) {
         assert(uv_ares_handles_empty(loop));
-        ev_timer_again(loop->ev, &loop->timer);
+        uv__ares_timer_start(loop);
       }
 
       h = uv__ares_task_create(loop, sock);
@@ -134,7 +140,7 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
     free(h);
 
     if (uv_ares_handles_empty(loop)) {
-      ev_timer_stop(loop->ev, &loop->timer);
+      uv__ares_timer_stop(loop);
     }
   }
 }
@@ -169,7 +175,8 @@ int uv_ares_init_options(uv_loop_t* loop, ares_channel *channelptr,
    * Initialize the timeout timer. The timer won't be started until the
    * first socket is opened.
    */
-  ev_timer_init(&loop->timer, uv__ares_timeout, 1., 1.);
+  uv_timer_init(loop, &loop->timer);
+  uv_unref(loop);
   loop->timer.data = loop;
 
   return rc;
@@ -180,7 +187,7 @@ int uv_ares_init_options(uv_loop_t* loop, ares_channel *channelptr,
 void uv_ares_destroy(uv_loop_t* loop, ares_channel channel) {
   /* only allow destroy if did init */
   if (loop->channel) {
-    ev_timer_stop(loop->ev, &loop->timer);
+    uv__ares_timer_stop(loop);
     ares_destroy(channel);
     loop->channel = NULL;
   }

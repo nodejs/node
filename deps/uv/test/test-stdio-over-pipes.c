@@ -41,12 +41,6 @@ static char output[OUTPUT_SIZE];
 static int output_used;
 
 
-typedef struct {
-  uv_write_t req;
-  uv_buf_t buf;
-} write_req_t;
-
-
 static void close_cb(uv_handle_t* handle) {
   printf("close_cb\n");
   close_cb_called++;
@@ -78,45 +72,38 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
 
 
 static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
-  uv_buf_t buf;
-  buf.base = output + output_used;
-  buf.len = OUTPUT_SIZE - output_used;
-  return buf;
+  return uv_buf_init(output + output_used, OUTPUT_SIZE - output_used);
 }
 
 
 static void after_write(uv_write_t* req, int status) {
-  write_req_t* wr;
-
   if (status) {
     uv_err_t err = uv_last_error(loop);
     fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
     ASSERT(0);
   }
 
-  wr = (write_req_t*) req;
-
   /* Free the read/write buffer and the request */
-  free(wr);
+  free(req);
 
   after_write_cb_called++;
 }
 
 
-static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
-  write_req_t* write_req;
+static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t rdbuf) {
+  uv_write_t* req;
+  uv_buf_t wrbuf;
   int r;
-  uv_err_t err = uv_last_error(uv_default_loop());
 
-  ASSERT(nread > 0 || err.code == UV_EOF);
+  ASSERT(nread > 0 || uv_last_error(uv_default_loop()).code == UV_EOF);
 
   if (nread > 0) {
     output_used += nread;
     if (output_used == 12) {
       ASSERT(memcmp("hello world\n", output, 12) == 0);
-      write_req = (write_req_t*)malloc(sizeof(*write_req));
-      write_req->buf = uv_buf_init(output, output_used);
-      r = uv_write(&write_req->req, (uv_stream_t*)&in, &write_req->buf, 1, after_write);
+      wrbuf = uv_buf_init(output, output_used);
+      req = malloc(sizeof(*req));
+      r = uv_write(req, (uv_stream_t*)&in, &wrbuf, 1, after_write);
       ASSERT(r == 0);
     }
   }
@@ -182,12 +169,8 @@ static void after_pipe_write(uv_write_t* req, int status) {
 }
 
 
-static uv_buf_t on_read_alloc(uv_handle_t* handle,
-    size_t suggested_size) {
-  uv_buf_t buf;
-  buf.base = (char*)malloc(suggested_size);
-  buf.len = suggested_size;
-  return buf;
+static uv_buf_t on_read_alloc(uv_handle_t* handle, size_t suggested_size) {
+  return uv_buf_init(malloc(suggested_size), suggested_size);
 }
 
 

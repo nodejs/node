@@ -152,6 +152,14 @@ void uv__stream_destroy(uv_stream_t* stream) {
       req->cb(req, req->error ? -1 : 0);
     }
   }
+
+  if (stream->flags & UV_SHUTTING) {
+    uv_shutdown_t* req = stream->shutdown_req;
+    if (req && req->cb) {
+      uv__set_artificial_error(stream->loop, UV_EINTR);
+      req->cb(req, -1);
+    }
+  }
 }
 
 
@@ -179,7 +187,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
     fd = uv__accept(stream->fd, (struct sockaddr*)&addr, sizeof addr);
 
     if (fd < 0) {
-      if (errno == EAGAIN) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* No problem. */
         return;
       } else if (errno == EMFILE) {
@@ -291,6 +299,7 @@ static void uv__drain(uv_stream_t* stream) {
     assert(stream->shutdown_req);
 
     req = stream->shutdown_req;
+    stream->shutdown_req = NULL;
 
     if (shutdown(stream->fd, SHUT_WR)) {
       /* Error. Report it. User should call uv_close(). */
@@ -419,7 +428,7 @@ start:
   }
 
   if (n < 0) {
-    if (errno != EAGAIN) {
+    if (errno != EAGAIN && errno != EWOULDBLOCK) {
       /* Error */
       req->error = errno;
       stream->write_queue_size -= uv__write_req_size(req);
@@ -587,7 +596,7 @@ static void uv__read(uv_stream_t* stream) {
 
     if (nread < 0) {
       /* Error */
-      if (errno == EAGAIN) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* Wait for the next one. */
         if (stream->flags & UV_READING) {
           ev_io_start(ev, &stream->read_watcher);
@@ -691,12 +700,10 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   }
 
   /* Initialize request */
-  uv__req_init(stream->loop, (uv_req_t*)req);
+  uv__req_init(stream->loop, req, UV_SHUTDOWN);
   req->handle = stream;
   req->cb = cb;
-
   stream->shutdown_req = req;
-  req->type = UV_SHUTDOWN;
 
   ((uv_handle_t*)stream)->flags |= UV_SHUTTING;
 
@@ -801,10 +808,9 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
     }
   }
 
-  uv__req_init(stream->loop, (uv_req_t*)req);
+  uv__req_init(stream->loop, req, UV_CONNECT);
   req->cb = cb;
   req->handle = stream;
-  req->type = UV_CONNECT;
   ngx_queue_init(&req->queue);
 
   if (stream->connect_req) {
@@ -878,12 +884,11 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
   empty_queue = (stream->write_queue_size == 0);
 
   /* Initialize the req */
-  uv__req_init(stream->loop, (uv_req_t*)req);
+  uv__req_init(stream->loop, req, UV_WRITE);
   req->cb = cb;
   req->handle = stream;
   req->error = 0;
   req->send_handle = send_handle;
-  req->type = UV_WRITE;
   ngx_queue_init(&req->queue);
 
   if (bufcnt <= UV_REQ_BUFSML_SIZE) {
@@ -997,11 +1002,28 @@ int uv_read_stop(uv_stream_t* stream) {
 }
 
 
-int uv_is_readable(uv_stream_t* stream) {
+int uv_is_readable(const uv_stream_t* stream) {
   return stream->flags & UV_READABLE;
 }
 
 
-int uv_is_writable(uv_stream_t* stream) {
+int uv_is_writable(const uv_stream_t* stream) {
   return stream->flags & UV_WRITABLE;
+}
+
+
+void uv__stream_close(uv_stream_t* handle) {
+  uv_read_stop(handle);
+  ev_io_stop(handle->loop->ev, &handle->write_watcher);
+
+  close(handle->fd);
+  handle->fd = -1;
+
+  if (handle->accepted_fd >= 0) {
+    close(handle->accepted_fd);
+    handle->accepted_fd = -1;
+  }
+
+  assert(!ev_is_active(&handle->read_watcher));
+  assert(!ev_is_active(&handle->write_watcher));
 }

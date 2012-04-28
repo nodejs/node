@@ -872,17 +872,22 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
 
-  if (!options.file) {
-    uv__set_artificial_error(loop, UV_EINVAL);
+  if (options.flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
+    uv__set_artificial_error(loop, UV_ENOTSUP);
     return -1;
   }
+
+  assert(options.file != NULL);
+  assert(!(options.flags & ~(UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
+                             UV_PROCESS_SETGID |
+                             UV_PROCESS_SETUID)));
 
   uv_process_init(loop, process);
 
   process->exit_cb = options.exit_cb;
   UTF8_TO_UTF16(options.file, application);
   arguments = options.args ? make_program_args(options.args,
-      options.windows_verbatim_arguments) : NULL;
+      options.flags & UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS) : NULL;
   env = options.env ? make_program_env(options.env) : NULL;
 
   if (options.cwd) {

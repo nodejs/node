@@ -4079,8 +4079,8 @@
         (FACILITY_NTWIN32 << 16) | ERROR_SEVERITY_WARNING)))
 
 /* from ntifs.h */
-/* MinGW already has it */
-#if defined(_MSC_VER) || defined(__MINGW64__)
+/* MinGW already has it, mingw-w64 does not. */
+#if defined(_MSC_VER) || defined(__MINGW64_VERSION_MAJOR)
   typedef struct _REPARSE_DATA_BUFFER {
     ULONG  ReparseTag;
     USHORT ReparseDataLength;
@@ -4335,7 +4335,7 @@ typedef NTSTATUS (NTAPI *sNtSetInformationFile)
 # define SYMBOLIC_LINK_FLAG_DIRECTORY 0x1
 #endif
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
   typedef struct _OVERLAPPED_ENTRY {
       ULONG_PTR lpCompletionKey;
       LPOVERLAPPED lpOverlapped;

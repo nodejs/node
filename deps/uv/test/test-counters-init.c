@@ -78,7 +78,7 @@ static void create_dir(uv_loop_t* loop, const char* name) {
   uv_fs_t req;
   r = uv_fs_rmdir(loop, &req, name, NULL);
   r = uv_fs_mkdir(loop, &req, name, 0755, NULL);
-  ASSERT(r == 0);
+  ASSERT(r == 0 || uv_last_error(loop).code == UV_EEXIST);
   uv_fs_req_cleanup(&req);
 }
 
@@ -208,8 +208,7 @@ TEST_IMPL(counters_init) {
   r = uv_fs_event_init(uv_default_loop(), &fs_event, "watch_dir", NULL, 0);
   ASSERT(r == 0);
   ASSERT(uv_default_loop()->counters.fs_event_init == ++fs_event_init_prev);
-  r = uv_fs_rmdir(uv_default_loop(), &fs_req, "watch_dir", NULL);
-  ASSERT(r == 0);
+  uv_fs_rmdir(uv_default_loop(), &fs_req, "watch_dir", NULL);
   uv_fs_req_cleanup(&fs_req);
 
   return 0;

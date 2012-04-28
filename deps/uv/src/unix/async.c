@@ -1,5 +1,4 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
- *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -20,19 +19,40 @@
  */
 
 #include "uv.h"
-#include "task.h"
+#include "internal.h"
 
-TEST_IMPL(get_memory) {
-  uint64_t free_mem = uv_get_free_memory();
-  uint64_t total_mem = uv_get_total_memory();
 
-  printf("free_mem=%llu, total_mem=%llu\n",
-         (unsigned long long) free_mem,
-         (unsigned long long) total_mem);
+static void uv__async(EV_P_ ev_async* w, int revents) {
+  uv_async_t* async = container_of(w, uv_async_t, async_watcher);
 
-  ASSERT(free_mem > 0);
-  ASSERT(total_mem > 0);
-  ASSERT(total_mem > free_mem);
+  if (async->async_cb) {
+    async->async_cb(async, 0);
+  }
+}
+
+
+int uv_async_init(uv_loop_t* loop, uv_async_t* async, uv_async_cb async_cb) {
+  uv__handle_init(loop, (uv_handle_t*)async, UV_ASYNC);
+  loop->counters.async_init++;
+
+  ev_async_init(&async->async_watcher, uv__async);
+  async->async_cb = async_cb;
+
+  /* Note: This does not have symmetry with the other libev wrappers. */
+  ev_async_start(loop->ev, &async->async_watcher);
+  ev_unref(loop->ev);
 
   return 0;
+}
+
+
+int uv_async_send(uv_async_t* async) {
+  ev_async_send(async->loop->ev, &async->async_watcher);
+  return 0;
+}
+
+
+void uv__async_close(uv_async_t* handle) {
+  ev_async_stop(handle->loop->ev, &handle->async_watcher);
+  ev_ref(handle->loop->ev);
 }

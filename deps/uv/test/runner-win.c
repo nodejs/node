@@ -274,69 +274,6 @@ void rewind_cursor() {
 }
 
 
-typedef struct {
-  void (*entry)(void* arg);
-  void* arg;
-} thread_info_t;
-
-
-static unsigned __stdcall create_thread_helper(void* info) {
-  /* Copy thread info locally, then free it */
-  void (*entry)(void* arg) = ((thread_info_t*) info)->entry;
-  void* arg = ((thread_info_t*) info)->arg;
-
-  free(info);
-
-  /* Run the actual thread proc */
-  entry(arg);
-
-  /* Finalize */
-  _endthreadex(0);
-  return 0;
-}
-
-
-/* Create a thread. Returns the thread identifier, or 0 on failure. */
-uintptr_t uv_create_thread(void (*entry)(void* arg), void* arg) {
-  uintptr_t result;
-  thread_info_t* info;
-
-  info = (thread_info_t*) malloc(sizeof *info);
-  if (info == NULL) {
-    return 0;
-  }
-
-  info->entry = entry;
-  info->arg = arg;
-
-  result = _beginthreadex(NULL,
-                          0,
-                          &create_thread_helper,
-                          (void*) info,
-                          0,
-                          NULL);
-
-  if (result == 0) {
-    free(info);
-    return 0;
-  }
-
-  return result;
-}
-
-
-/* Wait for a thread to terminate. Should return 0 if the thread ended, -1 on
- * error.
- */
-int uv_wait_thread(uintptr_t thread_id) {
-  if (WaitForSingleObject((HANDLE)thread_id, INFINITE) != WAIT_OBJECT_0) {
-    return -1;
-  }
-
-  return 0;
-}
-
-
 /* Pause the calling thread for a number of milliseconds. */
 void uv_sleep(int msec) {
   Sleep(msec);

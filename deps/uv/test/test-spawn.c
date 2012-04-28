@@ -25,6 +25,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+
 static int close_cb_called;
 static int exit_cb_called;
 static uv_process_t process;
@@ -52,6 +57,22 @@ static void exit_cb(uv_process_t* process, int exit_status, int term_signal) {
   ASSERT(exit_status == 1);
   ASSERT(term_signal == 0);
   uv_close((uv_handle_t*)process, close_cb);
+}
+
+
+static void exit_cb_failure_expected(uv_process_t* process, int exit_status,
+    int term_signal) {
+  printf("exit_cb\n");
+  exit_cb_called++;
+  ASSERT(exit_status == 127);
+  ASSERT(term_signal == 0);
+  uv_close((uv_handle_t*)process, close_cb);
+}
+
+
+static void exit_cb_unexpected(uv_process_t* process, int exit_status,
+    int term_signal) {
+  ASSERT(0 && "should not have been called");
 }
 
 
@@ -92,9 +113,8 @@ void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   if (nread > 0) {
     output_used += nread;
   } else if (nread < 0) {
-    if (err.code == UV_EOF) {
-      uv_close((uv_handle_t*)tcp, close_cb);
-    }
+    ASSERT(err.code == UV_EOF);
+    uv_close((uv_handle_t*)tcp, close_cb);
   }
 }
 
@@ -116,6 +136,7 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
+  options.flags = 0;
 }
 
 
@@ -233,17 +254,38 @@ TEST_IMPL(spawn_and_kill) {
 
 TEST_IMPL(spawn_and_kill_with_std) {
   int r;
-  uv_pipe_t out;
-  uv_pipe_t in;
+  uv_pipe_t in, out, err;
+  uv_write_t write;
+  char message[] = "Nancy's joining me because the message this evening is "
+                   "not my message but ours.";
+  uv_buf_t buf;
 
   init_process_options("spawn_helper4", kill_cb);
 
-  uv_pipe_init(uv_default_loop(), &out, 0);
-  uv_pipe_init(uv_default_loop(), &in, 0);
-  options.stdout_stream = &out;
+  r = uv_pipe_init(uv_default_loop(), &in, 0);
+  ASSERT(r == 0);
+
+  r = uv_pipe_init(uv_default_loop(), &out, 0);
+  ASSERT(r == 0);
+
+  r = uv_pipe_init(uv_default_loop(), &err, 0);
+  ASSERT(r == 0);
+
   options.stdin_stream = &in;
+  options.stdout_stream = &out;
+  options.stderr_stream = &err;
 
   r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  buf = uv_buf_init(message, sizeof message);
+  r = uv_write(&write, (uv_stream_t*) &in, &buf, 1, write_cb);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*) &err, on_alloc, on_read);
   ASSERT(r == 0);
 
   r = uv_timer_init(uv_default_loop(), &timer);
@@ -256,7 +298,7 @@ TEST_IMPL(spawn_and_kill_with_std) {
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 1);
-  ASSERT(close_cb_called == 2); /* Once for process and once for timer. */
+  ASSERT(close_cb_called == 5); /* process x 1, timer x 1, stdio x 3. */
 
   return 0;
 }
@@ -485,7 +527,7 @@ TEST_IMPL(environment_creation) {
   ptr += GetEnvironmentVariableW(L"SYSTEMDRIVE", ptr, expected + sizeof(expected) - ptr);
   ++ptr;
   *ptr = '\0';
-  
+
   result = make_program_env(environment);
 
   for (str = result; *str; str += wcslen(str) + 1) {
@@ -493,7 +535,149 @@ TEST_IMPL(environment_creation) {
   }
 
   ASSERT(wcscmp(expected, result) == 0);
- 
+
+  return 0;
+}
+#endif
+
+#ifndef _WIN32
+TEST_IMPL(spawn_setuid_setgid) {
+  int r;
+
+  /* if not root, then this will fail. */
+  uv_uid_t uid = getuid();
+  if (uid != 0) {
+    fprintf(stderr, "spawn_setuid_setgid skipped: not root\n");
+    return 0;
+  }
+
+  init_process_options("spawn_helper1", exit_cb);
+
+  /* become the "nobody" user. */
+  struct passwd* pw;
+  pw = getpwnam("nobody");
+  ASSERT(pw != NULL);
+  options.uid = pw->pw_uid;
+  options.gid = pw->pw_gid;
+  options.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+#endif
+
+
+#ifndef _WIN32
+TEST_IMPL(spawn_setuid_fails) {
+  int r;
+
+  /* if root, become nobody. */
+  uv_uid_t uid = getuid();
+  if (uid == 0) {
+    struct passwd* pw;
+    pw = getpwnam("nobody");
+    ASSERT(pw != NULL);
+    r = setuid(pw->pw_uid);
+    ASSERT(r == 0);
+  }
+
+  init_process_options("spawn_helper1", exit_cb_failure_expected);
+
+  options.flags |= UV_PROCESS_SETUID;
+  options.uid = (uv_uid_t) -42424242;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_setgid_fails) {
+  int r;
+
+  /* if root, become nobody. */
+  uv_uid_t uid = getuid();
+  if (uid == 0) {
+    struct passwd* pw;
+    pw = getpwnam("nobody");
+    ASSERT(pw != NULL);
+    r = setuid(pw->pw_uid);
+    ASSERT(r == 0);
+  }
+
+  init_process_options("spawn_helper1", exit_cb_failure_expected);
+
+  options.flags |= UV_PROCESS_SETGID;
+  options.gid = (uv_gid_t) -42424242;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+#endif
+
+
+#ifdef _WIN32
+TEST_IMPL(spawn_setuid_fails) {
+  int r;
+
+  init_process_options("spawn_helper1", exit_cb_unexpected);
+
+  options.flags |= UV_PROCESS_SETUID;
+  options.uid = (uv_uid_t) -42424242;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == -1);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSUP);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(close_cb_called == 0);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_setgid_fails) {
+  int r;
+
+  init_process_options("spawn_helper1", exit_cb_unexpected);
+
+  options.flags |= UV_PROCESS_SETGID;
+  options.gid = (uv_gid_t) -42424242;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == -1);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOTSUP);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(close_cb_called == 0);
+
   return 0;
 }
 #endif

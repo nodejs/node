@@ -27,18 +27,24 @@ LINKFLAGS=-lm
 CPPFLAGS += -D_LARGEFILE_SOURCE
 CPPFLAGS += -D_FILE_OFFSET_BITS=64
 
+OBJS += src/unix/async.o
+OBJS += src/unix/cares.o
+OBJS += src/unix/check.o
 OBJS += src/unix/core.o
 OBJS += src/unix/dl.o
-OBJS += src/unix/fs.o
-OBJS += src/unix/cares.o
-OBJS += src/unix/udp.o
 OBJS += src/unix/error.o
-OBJS += src/unix/thread.o
-OBJS += src/unix/process.o
-OBJS += src/unix/tcp.o
+OBJS += src/unix/fs.o
+OBJS += src/unix/idle.o
+OBJS += src/unix/loop.o
 OBJS += src/unix/pipe.o
-OBJS += src/unix/tty.o
+OBJS += src/unix/prepare.o
+OBJS += src/unix/process.o
 OBJS += src/unix/stream.o
+OBJS += src/unix/tcp.o
+OBJS += src/unix/thread.o
+OBJS += src/unix/timer.o
+OBJS += src/unix/tty.o
+OBJS += src/unix/udp.o
 
 ifeq (SunOS,$(uname_S))
 EV_CONFIG=config_sunos.h
@@ -51,7 +57,7 @@ endif
 ifeq (Darwin,$(uname_S))
 EV_CONFIG=config_darwin.h
 EIO_CONFIG=config_darwin.h
-CPPFLAGS += -Isrc/ares/config_darwin
+CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1 -Isrc/ares/config_darwin
 LINKFLAGS+=-framework CoreServices
 OBJS += src/unix/darwin.o
 OBJS += src/unix/kqueue.o
@@ -63,7 +69,7 @@ EIO_CONFIG=config_linux.h
 CSTDFLAG += -D_GNU_SOURCE
 CPPFLAGS += -Isrc/ares/config_linux
 LINKFLAGS+=-ldl -lrt
-OBJS += src/unix/linux/core.o src/unix/linux/inotify.o
+OBJS += src/unix/linux/core.o src/unix/linux/inotify.o src/unix/linux/syscalls.o
 endif
 
 ifeq (FreeBSD,$(uname_S))
@@ -97,7 +103,7 @@ ifeq (OpenBSD,$(uname_S))
 EV_CONFIG=config_openbsd.h
 EIO_CONFIG=config_openbsd.h
 CPPFLAGS += -Isrc/ares/config_openbsd
-LINKFLAGS+=
+LINKFLAGS+=-lkvm
 OBJS += src/unix/openbsd.o
 OBJS += src/unix/kqueue.o
 endif

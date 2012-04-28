@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <kstat.h>
+#include <fcntl.h>
 
 #if HAVE_PORTS_FS
 # include <sys/port.h>
@@ -190,7 +191,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 }
 
 
-void uv__fs_event_destroy(uv_fs_event_t* handle) {
+void uv__fs_event_close(uv_fs_event_t* handle) {
   ev_ref(handle->loop->ev);
   ev_io_stop(handle->loop->ev, &handle->event_watcher);
   close(handle->fd);
@@ -213,7 +214,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 }
 
 
-void uv__fs_event_destroy(uv_fs_event_t* handle) {
+void uv__fs_event_close(uv_fs_event_t* handle) {
   UNREACHABLE();
 }
 
@@ -239,28 +240,24 @@ uv_err_t uv_get_process_title(char* buffer, size_t size) {
 
 
 uv_err_t uv_resident_set_memory(size_t* rss) {
-  pid_t pid = getpid();
   psinfo_t psinfo;
-  char pidpath[1024];
-  FILE *f;
+  uv_err_t err;
+  int fd;
 
-  sprintf(pidpath, "/proc/%d/psinfo", (int)pid);
-
-  f = fopen(pidpath, "r");
-  if (!f) return uv__new_sys_error(errno);
-
-  if (fread(&psinfo, sizeof(psinfo_t), 1, f) != 1) {
-    fclose (f);
+  fd = open("/proc/self/psinfo", O_RDONLY);
+  if (fd == -1)
     return uv__new_sys_error(errno);
-  }
 
-  /* XXX correct? */
+  err = uv_ok_;
 
-  *rss = (size_t) psinfo.pr_rssize * 1024;
+  if (read(fd, &psinfo, sizeof(psinfo)) == sizeof(psinfo))
+    *rss = (size_t)psinfo.pr_rssize * 1024;
+  else
+    err = uv__new_sys_error(EINVAL);
 
-  fclose (f);
+  close(fd);
 
-  return uv_ok_;
+  return err;
 }
 
 

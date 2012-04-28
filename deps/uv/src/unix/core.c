@@ -59,102 +59,78 @@
 static uv_loop_t default_loop_struct;
 static uv_loop_t* default_loop_ptr;
 
-void uv__next(EV_P_ ev_idle* watcher, int revents);
 static void uv__finish_close(uv_handle_t* handle);
 
 
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
-  uv_async_t* async;
-  uv_stream_t* stream;
-  uv_process_t* process;
-
   handle->close_cb = close_cb;
 
   switch (handle->type) {
-    case UV_NAMED_PIPE:
-      uv_pipe_cleanup((uv_pipe_t*)handle);
-      /* Fall through. */
+  case UV_NAMED_PIPE:
+    uv__pipe_close((uv_pipe_t*)handle);
+    break;
 
-    case UV_TTY:
-    case UV_TCP:
-      stream = (uv_stream_t*)handle;
+  case UV_TTY:
+  case UV_TCP:
+    uv__stream_close((uv_stream_t*)handle);
+    break;
 
-      uv_read_stop(stream);
-      ev_io_stop(stream->loop->ev, &stream->write_watcher);
+  case UV_UDP:
+    uv__udp_close((uv_udp_t*)handle);
+    break;
 
-      close(stream->fd);
-      stream->fd = -1;
+  case UV_PREPARE:
+    uv__prepare_close((uv_prepare_t*)handle);
+    break;
 
-      if (stream->accepted_fd >= 0) {
-        close(stream->accepted_fd);
-        stream->accepted_fd = -1;
-      }
+  case UV_CHECK:
+    uv__check_close((uv_check_t*)handle);
+    break;
 
-      assert(!ev_is_active(&stream->read_watcher));
-      assert(!ev_is_active(&stream->write_watcher));
-      break;
+  case UV_IDLE:
+    uv__idle_close((uv_idle_t*)handle);
+    break;
 
-    case UV_UDP:
-      uv__udp_start_close((uv_udp_t*)handle);
-      break;
+  case UV_ASYNC:
+    uv__async_close((uv_async_t*)handle);
+    break;
 
-    case UV_PREPARE:
-      uv_prepare_stop((uv_prepare_t*) handle);
-      break;
+  case UV_TIMER:
+    uv__timer_close((uv_timer_t*)handle);
+    break;
 
-    case UV_CHECK:
-      uv_check_stop((uv_check_t*) handle);
-      break;
+  case UV_PROCESS:
+    uv__process_close((uv_process_t*)handle);
+    break;
 
-    case UV_IDLE:
-      uv_idle_stop((uv_idle_t*) handle);
-      break;
+  case UV_FS_EVENT:
+    uv__fs_event_close((uv_fs_event_t*)handle);
+    break;
 
-    case UV_ASYNC:
-      async = (uv_async_t*)handle;
-      ev_async_stop(async->loop->ev, &async->async_watcher);
-      ev_ref(async->loop->ev);
-      break;
-
-    case UV_TIMER:
-      uv_timer_stop((uv_timer_t*)handle);
-      break;
-
-    case UV_PROCESS:
-      process = (uv_process_t*)handle;
-      ev_child_stop(process->loop->ev, &process->child_watcher);
-      break;
-
-    case UV_FS_EVENT:
-      uv__fs_event_destroy((uv_fs_event_t*)handle);
-      break;
-
-    default:
-      assert(0);
+  default:
+    assert(0);
   }
 
   handle->flags |= UV_CLOSING;
-
-  /* This is used to call the on_close callback in the next loop. */
-  ev_idle_start(handle->loop->ev, &handle->next_watcher);
-  ev_feed_event(handle->loop->ev, &handle->next_watcher, EV_IDLE);
-  assert(ev_is_pending(&handle->next_watcher));
+  handle->endgame_next = handle->loop->endgame_handles;
+  handle->loop->endgame_handles = handle;
+  uv_unref(handle->loop);
 }
 
 
-static int uv__loop_init(uv_loop_t* loop,
-                         struct ev_loop *(ev_loop_new)(unsigned int flags)) {
-  memset(loop, 0, sizeof(*loop));
-  RB_INIT(&loop->uv_ares_handles_);
-#if HAVE_KQUEUE
-  loop->ev = ev_loop_new(EVBACKEND_KQUEUE);
-#else
-  loop->ev = ev_loop_new(EVFLAG_AUTO);
-#endif
-  ev_set_userdata(loop->ev, loop);
-  eio_channel_init(&loop->uv_eio_channel, loop);
-  uv__loop_platform_init(loop);
-  return 0;
+int uv_is_closing(const uv_handle_t* handle) {
+  return handle->flags & (UV_CLOSING | UV_CLOSED);
+}
+
+
+uv_loop_t* uv_default_loop(void) {
+  if (default_loop_ptr)
+    return default_loop_ptr;
+
+  if (uv__loop_init(&default_loop_struct, /* default_loop? */ 1))
+    return NULL;
+
+  return (default_loop_ptr = &default_loop_struct);
 }
 
 
@@ -164,7 +140,7 @@ uv_loop_t* uv_loop_new(void) {
   if ((loop = malloc(sizeof(*loop))) == NULL)
     return NULL;
 
-  if (uv__loop_init(loop, ev_loop_new)) {
+  if (uv__loop_init(loop, /* default_loop? */ 0)) {
     free(loop);
     return NULL;
   }
@@ -174,9 +150,7 @@ uv_loop_t* uv_loop_new(void) {
 
 
 void uv_loop_delete(uv_loop_t* loop) {
-  uv_ares_destroy(loop, loop->channel);
-  ev_loop_destroy(loop->ev);
-  uv__loop_platform_delete(loop);
+  uv__loop_delete(loop);
 #ifndef NDEBUG
   memset(loop, -1, sizeof *loop);
 #endif
@@ -192,26 +166,25 @@ int uv_loop_refcount(const uv_loop_t* loop) {
 }
 
 
-uv_loop_t* uv_default_loop(void) {
-  if (default_loop_ptr)
-    return default_loop_ptr;
+void uv__run(uv_loop_t* loop) {
+  ev_run(loop->ev, EVRUN_ONCE);
 
-  if (uv__loop_init(&default_loop_struct, ev_default_loop))
-    return NULL;
-
-  default_loop_ptr = &default_loop_struct;
-  return default_loop_ptr;
+  while (loop->endgame_handles)
+    uv__finish_close(loop->endgame_handles);
 }
 
 
 int uv_run(uv_loop_t* loop) {
-  ev_run(loop->ev, 0);
+  do
+    uv__run(loop);
+  while (uv_loop_refcount(loop) > 0);
+
   return 0;
 }
 
 
 int uv_run_once(uv_loop_t* loop) {
-  ev_run(loop->ev, EVRUN_ONCE);
+  uv__run(loop);
   return 0;
 }
 
@@ -223,11 +196,8 @@ void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle,
   handle->loop = loop;
   handle->type = type;
   handle->flags = 0;
-
-  ev_init(&handle->next_watcher, uv__next);
-
-  /* Ref the loop until this handle is closed. See uv__finish_close. */
-  ev_ref(loop->ev);
+  handle->endgame_next = NULL;
+  uv_ref(loop); /* unref'd in uv_close() */
 }
 
 
@@ -284,26 +254,12 @@ void uv__finish_close(uv_handle_t* handle) {
       break;
   }
 
-  ev_idle_stop(loop->ev, &handle->next_watcher);
+
+  loop->endgame_handles = handle->endgame_next;
 
   if (handle->close_cb) {
     handle->close_cb(handle);
   }
-
-  ev_unref(loop->ev);
-}
-
-
-void uv__next(EV_P_ ev_idle* w, int revents) {
-  uv_handle_t* handle = container_of(w, uv_handle_t, next_watcher);
-
-  assert(revents == EV_IDLE);
-
-  /* For now this function is only to handle the closing event, but we might
-   * put more stuff here later.
-   */
-  assert(handle->flags & UV_CLOSING);
-  uv__finish_close(handle);
 }
 
 
@@ -327,302 +283,19 @@ int64_t uv_now(uv_loop_t* loop) {
 }
 
 
-void uv__req_init(uv_loop_t* loop, uv_req_t* req) {
-  loop->counters.req_init++;
-  req->type = UV_UNKNOWN_REQ;
-}
-
-
-static void uv__prepare(EV_P_ ev_prepare* w, int revents) {
-  uv_prepare_t* prepare = container_of(w, uv_prepare_t, prepare_watcher);
-
-  if (prepare->prepare_cb) {
-    prepare->prepare_cb(prepare, 0);
-  }
-}
-
-
-int uv_prepare_init(uv_loop_t* loop, uv_prepare_t* prepare) {
-  uv__handle_init(loop, (uv_handle_t*)prepare, UV_PREPARE);
-  loop->counters.prepare_init++;
-
-  ev_prepare_init(&prepare->prepare_watcher, uv__prepare);
-  prepare->prepare_cb = NULL;
-
-  return 0;
-}
-
-
-int uv_prepare_start(uv_prepare_t* prepare, uv_prepare_cb cb) {
-  int was_active = ev_is_active(&prepare->prepare_watcher);
-
-  prepare->prepare_cb = cb;
-
-  ev_prepare_start(prepare->loop->ev, &prepare->prepare_watcher);
-
-  if (!was_active) {
-    ev_unref(prepare->loop->ev);
-  }
-
-  return 0;
-}
-
-
-int uv_prepare_stop(uv_prepare_t* prepare) {
-  int was_active = ev_is_active(&prepare->prepare_watcher);
-
-  ev_prepare_stop(prepare->loop->ev, &prepare->prepare_watcher);
-
-  if (was_active) {
-    ev_ref(prepare->loop->ev);
-  }
-  return 0;
-}
-
-
-
-static void uv__check(EV_P_ ev_check* w, int revents) {
-  uv_check_t* check = container_of(w, uv_check_t, check_watcher);
-
-  if (check->check_cb) {
-    check->check_cb(check, 0);
-  }
-}
-
-
-int uv_check_init(uv_loop_t* loop, uv_check_t* check) {
-  uv__handle_init(loop, (uv_handle_t*)check, UV_CHECK);
-  loop->counters.check_init++;
-
-  ev_check_init(&check->check_watcher, uv__check);
-  check->check_cb = NULL;
-
-  return 0;
-}
-
-
-int uv_check_start(uv_check_t* check, uv_check_cb cb) {
-  int was_active = ev_is_active(&check->check_watcher);
-
-  check->check_cb = cb;
-
-  ev_check_start(check->loop->ev, &check->check_watcher);
-
-  if (!was_active) {
-    ev_unref(check->loop->ev);
-  }
-
-  return 0;
-}
-
-
-int uv_check_stop(uv_check_t* check) {
-  int was_active = ev_is_active(&check->check_watcher);
-
-  ev_check_stop(check->loop->ev, &check->check_watcher);
-
-  if (was_active) {
-    ev_ref(check->loop->ev);
-  }
-
-  return 0;
-}
-
-
-static void uv__idle(EV_P_ ev_idle* w, int revents) {
-  uv_idle_t* idle = container_of(w, uv_idle_t, idle_watcher);
-
-  if (idle->idle_cb) {
-    idle->idle_cb(idle, 0);
-  }
-}
-
-
-
-int uv_idle_init(uv_loop_t* loop, uv_idle_t* idle) {
-  uv__handle_init(loop, (uv_handle_t*)idle, UV_IDLE);
-  loop->counters.idle_init++;
-
-  ev_idle_init(&idle->idle_watcher, uv__idle);
-  idle->idle_cb = NULL;
-
-  return 0;
-}
-
-
-int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb) {
-  int was_active = ev_is_active(&idle->idle_watcher);
-
-  idle->idle_cb = cb;
-  ev_idle_start(idle->loop->ev, &idle->idle_watcher);
-
-  if (!was_active) {
-    ev_unref(idle->loop->ev);
-  }
-
-  return 0;
-}
-
-
-int uv_idle_stop(uv_idle_t* idle) {
-  int was_active = ev_is_active(&idle->idle_watcher);
-
-  ev_idle_stop(idle->loop->ev, &idle->idle_watcher);
-
-  if (was_active) {
-    ev_ref(idle->loop->ev);
-  }
-
-  return 0;
-}
-
-
-int uv_is_active(uv_handle_t* handle) {
+int uv_is_active(const uv_handle_t* handle) {
   switch (handle->type) {
-    case UV_TIMER:
-      return ev_is_active(&((uv_timer_t*)handle)->timer_watcher);
-
-    case UV_PREPARE:
-      return ev_is_active(&((uv_prepare_t*)handle)->prepare_watcher);
-
-    case UV_CHECK:
-      return ev_is_active(&((uv_check_t*)handle)->check_watcher);
-
-    case UV_IDLE:
-      return ev_is_active(&((uv_idle_t*)handle)->idle_watcher);
-
-    default:
-      return 1;
+  case UV_CHECK:
+    return uv__check_active((const uv_check_t*)handle);
+  case UV_IDLE:
+    return uv__idle_active((const uv_idle_t*)handle);
+  case UV_PREPARE:
+    return uv__prepare_active((const uv_prepare_t*)handle);
+  case UV_TIMER:
+    return uv__timer_active((const uv_timer_t*)handle);
+  default:
+    return 1;
   }
-}
-
-
-static void uv__async(EV_P_ ev_async* w, int revents) {
-  uv_async_t* async = container_of(w, uv_async_t, async_watcher);
-
-  if (async->async_cb) {
-    async->async_cb(async, 0);
-  }
-}
-
-
-int uv_async_init(uv_loop_t* loop, uv_async_t* async, uv_async_cb async_cb) {
-  uv__handle_init(loop, (uv_handle_t*)async, UV_ASYNC);
-  loop->counters.async_init++;
-
-  ev_async_init(&async->async_watcher, uv__async);
-  async->async_cb = async_cb;
-
-  /* Note: This does not have symmetry with the other libev wrappers. */
-  ev_async_start(loop->ev, &async->async_watcher);
-  ev_unref(loop->ev);
-
-  return 0;
-}
-
-
-int uv_async_send(uv_async_t* async) {
-  ev_async_send(async->loop->ev, &async->async_watcher);
-  return 0;
-}
-
-
-static int uv__timer_active(const uv_timer_t* timer) {
-  return timer->flags & UV_TIMER_ACTIVE;
-}
-
-
-static int uv__timer_repeating(const uv_timer_t* timer) {
-  return timer->flags & UV_TIMER_REPEAT;
-}
-
-
-static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
-  uv_timer_t* timer = container_of(w, uv_timer_t, timer_watcher);
-
-  assert(uv__timer_active(timer));
-
-  if (!uv__timer_repeating(timer)) {
-    timer->flags &= ~UV_TIMER_ACTIVE;
-    ev_ref(EV_A);
-  }
-
-  if (timer->timer_cb) {
-    timer->timer_cb(timer, 0);
-  }
-}
-
-
-int uv_timer_init(uv_loop_t* loop, uv_timer_t* timer) {
-  uv__handle_init(loop, (uv_handle_t*)timer, UV_TIMER);
-  loop->counters.timer_init++;
-
-  ev_init(&timer->timer_watcher, uv__timer_cb);
-
-  return 0;
-}
-
-
-int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
-    int64_t repeat) {
-  if (uv__timer_active(timer)) {
-    return -1;
-  }
-
-  timer->timer_cb = cb;
-  timer->flags |= UV_TIMER_ACTIVE;
-
-  if (repeat)
-    timer->flags |= UV_TIMER_REPEAT;
-  else
-    timer->flags &= ~UV_TIMER_REPEAT;
-
-  ev_timer_set(&timer->timer_watcher, timeout / 1000.0, repeat / 1000.0);
-  ev_timer_start(timer->loop->ev, &timer->timer_watcher);
-  ev_unref(timer->loop->ev);
-
-  return 0;
-}
-
-
-int uv_timer_stop(uv_timer_t* timer) {
-  if (uv__timer_active(timer)) {
-    ev_ref(timer->loop->ev);
-  }
-
-  timer->flags &= ~(UV_TIMER_ACTIVE | UV_TIMER_REPEAT);
-  ev_timer_stop(timer->loop->ev, &timer->timer_watcher);
-
-  return 0;
-}
-
-
-int uv_timer_again(uv_timer_t* timer) {
-  if (!uv__timer_active(timer)) {
-    uv__set_sys_error(timer->loop, EINVAL);
-    return -1;
-  }
-
-  assert(uv__timer_repeating(timer));
-  ev_timer_again(timer->loop->ev, &timer->timer_watcher);
-  return 0;
-}
-
-
-void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat) {
-  assert(timer->type == UV_TIMER);
-  timer->timer_watcher.repeat = repeat / 1000.0;
-
-  if (repeat)
-    timer->flags |= UV_TIMER_REPEAT;
-  else
-    timer->flags &= ~UV_TIMER_REPEAT;
-}
-
-
-int64_t uv_timer_get_repeat(uv_timer_t* timer) {
-  assert(timer->type == UV_TIMER);
-  return (int64_t)(1000 * timer->timer_watcher.repeat);
 }
 
 
@@ -690,8 +363,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
     return -1;
   }
 
-  uv__req_init(loop, (uv_req_t*)handle);
-  handle->type = UV_GETADDRINFO;
+  uv__req_init(loop, handle, UV_GETADDRINFO);
   handle->loop = loop;
   handle->cb = cb;
 
@@ -767,9 +439,8 @@ int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
   assert(sockfd >= 0);
 
   while (1) {
-#if HAVE_SYS_ACCEPT4
-    peerfd = sys_accept4(sockfd, saddr, &slen, SOCK_NONBLOCK | SOCK_CLOEXEC);
-
+#if __linux__
+    peerfd = uv__accept4(sockfd, saddr, &slen, UV__SOCK_NONBLOCK|UV__SOCK_CLOEXEC);
     if (peerfd != -1)
       break;
 

@@ -103,14 +103,6 @@ typedef enum {
   int run_helper_##name()
 
 
-/* Create a thread. Returns the thread identifier, or 0 on failure. */
-uintptr_t uv_create_thread(void (*entry)(void* arg), void* arg);
-
-/* Wait for a thread to terminate. Should return 0 if the thread ended, -1 on
- * error.
- */
-int uv_wait_thread(uintptr_t thread_id);
-
 /* Pause the calling thread for a number of milliseconds. */
 void uv_sleep(int msec);
 

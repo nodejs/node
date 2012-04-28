@@ -8,7 +8,11 @@ script_dir = os.path.dirname(__file__)
 uv_root = os.path.normpath(script_dir)
 
 sys.path.insert(0, os.path.join(uv_root, 'build', 'gyp', 'pylib'))
-import gyp
+try:
+  import gyp
+except ImportError:
+  print('You need to install gyp in build/gyp first. See the README.')
+  sys.exit(42)
 
 # Directory within which we want all generated files (including Makefiles)
 # to be written.

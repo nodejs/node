@@ -66,8 +66,7 @@ static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req, uv_fs_type fs_type,
   /* Make sure the thread pool is initialized. */
   uv_eio_init(loop);
 
-  uv__req_init(loop, (uv_req_t*)req);
-  req->type = UV_FS;
+  uv__req_init(loop, req, UV_FS);
   req->loop = loop;
   req->fs_type = fs_type;
   req->cb = cb;
@@ -215,7 +214,7 @@ int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
 
 
 int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
-    size_t length, off_t offset, uv_fs_cb cb) {
+    size_t length, int64_t offset, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_READ, NULL, cb);
 
   if (cb) {
@@ -253,7 +252,7 @@ int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
 
 
 int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, void* buf,
-    size_t length, off_t offset, uv_fs_cb cb) {
+    size_t length, int64_t offset, uv_fs_cb cb) {
   uv_fs_req_init(loop, req, UV_FS_WRITE, NULL, cb);
 
   if (cb) {
@@ -461,7 +460,7 @@ int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 }
 
 
-int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, off_t offset,
+int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, int64_t offset,
     uv_fs_cb cb) {
   char* path = NULL;
   WRAP_EIO(UV_FS_FTRUNCATE, eio_ftruncate, ftruncate, ARGS2(file, offset))
@@ -469,7 +468,7 @@ int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, off_t offset,
 
 
 int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd,
-    off_t in_offset, size_t length, uv_fs_cb cb) {
+    int64_t in_offset, size_t length, uv_fs_cb cb) {
   char* path = NULL;
   WRAP_EIO(UV_FS_SENDFILE, eio_sendfile, eio_sendfile_sync,
       ARGS4(out_fd, in_fd, in_offset, length))
@@ -497,23 +496,27 @@ int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
 
 
 #if HAVE_FUTIMES
-static int _futime(const uv_file file, double atime, double mtime) {
+static int _futime(const uv_file fd, double atime, double mtime) {
+#if __linux__
+  /* utimesat() has nanosecond resolution but we stick to microseconds
+   * for the sake of consistency with other platforms.
+   */
+  struct timespec ts[2];
+  ts[0].tv_sec = atime;
+  ts[0].tv_nsec = (unsigned long)(atime * 1000000) % 1000000 * 1000;
+  ts[1].tv_sec = mtime;
+  ts[1].tv_nsec = (unsigned long)(mtime * 1000000) % 1000000 * 1000;
+  return uv__utimesat(fd, NULL, ts, 0);
+#else
   struct timeval tv[2];
-
-  /* FIXME possible loss of precision in floating-point arithmetic? */
   tv[0].tv_sec = atime;
   tv[0].tv_usec = (unsigned long)(atime * 1000000) % 1000000;
-
   tv[1].tv_sec = mtime;
   tv[1].tv_usec = (unsigned long)(mtime * 1000000) % 1000000;
-
-#ifdef __sun
-  return futimesat(file, NULL, tv);
-#else
-  return futimes(file, tv);
-#endif
+  return futimes(fd, tv);
+#endif /* __linux__ */
 }
-#endif
+#endif /* HAVE_FUTIMES */
 
 
 int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime,
@@ -685,7 +688,7 @@ int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb,
 
   uv_eio_init(loop);
 
-  uv__req_init(loop, (uv_req_t*)req);
+  uv__req_init(loop, req, UV_WORK);
   uv_ref(loop);
   req->loop = loop;
   req->data = data;

@@ -26,14 +26,14 @@
 #include <stdio.h>
 #include <string.h> /* strlen */
 
-ares_channel channel;
-struct ares_options options;
-int optmask;
+static ares_channel channel;
+static struct ares_options options;
+static int optmask;
 
-int ares_bynamecallbacks;
-int bynamecallbacksig;
-int ares_byaddrcallbacks;
-int byaddrcallbacksig;
+static int ares_bynamecallbacks;
+static int bynamecallbacksig;
+static int ares_byaddrcallbacks;
+static int byaddrcallbacksig;
 
 static void aresbynamecallback( void *arg,
                           int status,

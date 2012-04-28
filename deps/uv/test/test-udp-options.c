@@ -28,6 +28,7 @@
 
 
 TEST_IMPL(udp_options) {
+  static int invalid_ttls[] = { -1, 0, 256 };
   uv_loop_t* loop;
   uv_udp_t h;
   int i, r;
@@ -48,17 +49,17 @@ TEST_IMPL(udp_options) {
   r |= uv_udp_set_broadcast(&h, 0);
   ASSERT(r == 0);
 
-  /* values 0-255 should work */
-  for (i = 0; i <= 255; i++) {
+  /* values 1-255 should work */
+  for (i = 1; i <= 255; i++) {
     r = uv_udp_set_ttl(&h, i);
     ASSERT(r == 0);
   }
 
-  /* anything >255 should fail */
-  r = uv_udp_set_ttl(&h, 256);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(loop).code == UV_EINVAL);
-  /* don't test ttl=-1, it's a valid value on some platforms */
+  for (i = 0; i < (int) ARRAY_SIZE(invalid_ttls); i++) {
+    r = uv_udp_set_ttl(&h, invalid_ttls[i]);
+    ASSERT(r == -1);
+    ASSERT(uv_last_error(loop).code == UV_EINVAL);
+  }
 
   r = uv_udp_set_multicast_loop(&h, 1);
   r |= uv_udp_set_multicast_loop(&h, 1);

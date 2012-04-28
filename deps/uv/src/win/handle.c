@@ -56,7 +56,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
 }
 
 
-int uv_is_active(uv_handle_t* handle) {
+int uv_is_active(const uv_handle_t* handle) {
   switch (handle->type) {
     case UV_TIMER:
     case UV_IDLE:
@@ -151,6 +151,11 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
       /* Not supported */
       abort();
   }
+}
+
+
+int uv_is_closing(const uv_handle_t* handle) {
+  return handle->flags & (UV_HANDLE_CLOSING | UV_HANDLE_CLOSED);
 }
 
 

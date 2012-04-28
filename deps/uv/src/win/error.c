@@ -68,6 +68,8 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case ERROR_SUCCESS:                     return UV_OK;
     case ERROR_FILE_NOT_FOUND:              return UV_ENOENT;
+    case ERROR_INVALID_NAME:                return UV_ENOENT;
+    case ERROR_MOD_NOT_FOUND:               return UV_ENOENT;
     case ERROR_PATH_NOT_FOUND:              return UV_ENOENT;
     case ERROR_ACCESS_DENIED:               return UV_EPERM;
     case ERROR_NOACCESS:                    return UV_EACCES;
@@ -109,6 +111,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_EA_TABLE_FULL:               return UV_ENOSPC;
     case ERROR_END_OF_MEDIA:                return UV_ENOSPC;
     case ERROR_HANDLE_DISK_FULL:            return UV_ENOSPC;
+    case ERROR_WRITE_PROTECT:               return UV_EROFS;
     case ERROR_NOT_CONNECTED:               return UV_ENOTCONN;
     case WSAENOTCONN:                       return UV_ENOTCONN;
     case ERROR_DIR_NOT_EMPTY:               return UV_ENOTEMPTY;

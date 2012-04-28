@@ -161,7 +161,7 @@ static HANDLE open_named_pipe(WCHAR* name, DWORD* duplex_flags) {
 int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
     char* name, size_t nameSize) {
   HANDLE pipeHandle;
-  int errno;
+  int errorno;
   int err;
   char* ptr = (char*)handle;
 
@@ -178,9 +178,9 @@ int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
       break;
     }
 
-    errno = GetLastError();
-    if (errno != ERROR_PIPE_BUSY && errno != ERROR_ACCESS_DENIED) {
-      uv__set_sys_error(loop, errno);
+    errorno = GetLastError();
+    if (errorno != ERROR_PIPE_BUSY && errorno != ERROR_ACCESS_DENIED) {
+      uv__set_sys_error(loop, errorno);
       err = -1;
       goto done;
     }
@@ -259,7 +259,6 @@ static int uv_set_pipe_handle(uv_loop_t* loop, uv_pipe_t* handle,
 
 
 static DWORD WINAPI pipe_shutdown_thread_proc(void* parameter) {
-  int errno;
   uv_loop_t* loop;
   uv_pipe_t* handle;
   uv_shutdown_t* req;
@@ -407,7 +406,7 @@ void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
 /* Creates a pipe server. */
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   uv_loop_t* loop = handle->loop;
-  int i, errno, nameSize;
+  int i, errorno, nameSize;
   uv_pipe_accept_t* req;
 
   if (handle->flags & UV_HANDLE_BOUND) {
@@ -462,13 +461,13 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
       PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, NULL);
 
   if (handle->accept_reqs[0].pipeHandle == INVALID_HANDLE_VALUE) {
-    errno = GetLastError();
-    if (errno == ERROR_ACCESS_DENIED) {
-      uv__set_error(loop, UV_EADDRINUSE, errno);
-    } else if (errno == ERROR_PATH_NOT_FOUND || errno == ERROR_INVALID_NAME) {
-      uv__set_error(loop, UV_EACCES, errno);
+    errorno = GetLastError();
+    if (errorno == ERROR_ACCESS_DENIED) {
+      uv__set_error(loop, UV_EADDRINUSE, errorno);
+    } else if (errorno == ERROR_PATH_NOT_FOUND || errorno == ERROR_INVALID_NAME) {
+      uv__set_error(loop, UV_EACCES, errorno);
     } else {
-      uv__set_sys_error(loop, errno);
+      uv__set_sys_error(loop, errorno);
     }
     goto error;
   }
@@ -500,7 +499,6 @@ error:
 
 
 static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
-  int errno;
   uv_loop_t* loop;
   uv_pipe_t* handle;
   uv_connect_t* req;
@@ -543,7 +541,7 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
 void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
-  int errno, nameSize;
+  int errorno, nameSize;
   HANDLE pipeHandle = INVALID_HANDLE_VALUE;
   DWORD duplex_flags;
 
@@ -560,7 +558,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   }
 
   if (!uv_utf8_to_utf16(name, handle->name, nameSize / sizeof(wchar_t))) {
-    errno = GetLastError();
+    errorno = GetLastError();
     goto error;
   }
 
@@ -571,7 +569,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
       if (!QueueUserWorkItem(&pipe_connect_thread_proc,
                              req,
                              WT_EXECUTELONGFUNCTION)) {
-        errno = GetLastError();
+        errorno = GetLastError();
         goto error;
       }
 
@@ -581,7 +579,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
       return;
     }
 
-    errno = GetLastError();
+    errorno = GetLastError();
     goto error;
   }
 
@@ -591,7 +589,7 @@ void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
                          (uv_pipe_t*) req->handle,
                          pipeHandle,
                          duplex_flags)) {
-    errno = GetLastError();
+    errorno = GetLastError();
     goto error;
   }
 
@@ -612,7 +610,7 @@ error:
   }
 
   /* Make this req pending reporting an error. */
-  SET_REQ_ERROR(req, errno);
+  SET_REQ_ERROR(req, errorno);
   uv_insert_pending_req(loop, (uv_req_t*) req);
   handle->reqs_pending++;
   uv_ref(loop);
@@ -756,7 +754,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   uv_loop_t* loop = handle->loop;
 
-  int i, errno;
+  int i;
 
   if (!(handle->flags & UV_HANDLE_BOUND)) {
     uv__set_artificial_error(loop, UV_EINVAL);

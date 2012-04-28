@@ -25,6 +25,12 @@
 #include <string.h>
 #include <fcntl.h>
 
+#ifndef HAVE_KQUEUE
+# if __APPLE__ || __FreeBSD__ || __OpenBSD__ || __NetBSD__
+#  define HAVE_KQUEUE 1
+# endif
+#endif
+
 static uv_fs_event_t fs_event;
 static uv_timer_t timer;
 static int timer_cb_called = 0;
@@ -361,6 +367,18 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   return 0;
 }
 
+#if HAVE_KQUEUE
+
+/* kqueue doesn't register fs events if you don't have an active watcher.
+ * The file descriptor needs to be part of the kqueue set of interest and
+ * that's not the case until we actually enter the event loop.
+ */
+TEST_IMPL(fs_event_close_in_callback) {
+  fprintf(stderr, "Skipping test, doesn't work with kqueue.\n");
+  return 0;
+}
+
+#else /* !HAVE_KQUEUE */
 
 static void fs_event_cb_close(uv_fs_event_t* handle, const char* filename,
     int events, int status) {
@@ -420,3 +438,5 @@ TEST_IMPL(fs_event_close_in_callback) {
 
   return 0;
 }
+
+#endif /* HAVE_KQUEUE */

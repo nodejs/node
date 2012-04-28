@@ -105,7 +105,7 @@ int uv__make_socketpair(int fds[2], int flags) {
 
 
 int uv__make_pipe(int fds[2], int flags) {
-#if HAVE_SYS_PIPE2
+#if __linux__
   int fl;
 
   fl = O_CLOEXEC;
@@ -113,17 +113,11 @@ int uv__make_pipe(int fds[2], int flags) {
   if (flags & UV__F_NONBLOCK)
     fl |= O_NONBLOCK;
 
-  if (sys_pipe2(fds, fl) == 0)
+  if (uv__pipe2(fds, fl) == 0)
     return 0;
 
   if (errno != ENOSYS)
     return -1;
-
-  /* errno == ENOSYS so maybe the kernel headers lied about
-   * the availability of pipe2(). This can happen if people
-   * build libuv against newer kernel headers than the kernel
-   * they actually run the software on.
-   */
 #endif
 
   if (pipe(fds))
@@ -179,6 +173,12 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   int status;
   pid_t pid;
   int flags;
+
+  assert(options.file != NULL);
+  assert(!(options.flags & ~(UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
+                             UV_PROCESS_SETGID |
+                             UV_PROCESS_SETUID)));
+
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   loop->counters.process_init++;
@@ -266,6 +266,16 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
     if (options.cwd && chdir(options.cwd)) {
       perror("chdir()");
+      _exit(127);
+    }
+
+    if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {
+      perror("setgid()");
+      _exit(127);
+    }
+
+    if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {
+      perror("setuid()");
       _exit(127);
     }
 
@@ -367,4 +377,9 @@ uv_err_t uv_kill(int pid, int signum) {
   } else {
     return uv_ok_;
   }
+}
+
+
+void uv__process_close(uv_process_t* handle) {
+  ev_child_stop(handle->loop->ev, &handle->child_watcher);
 }

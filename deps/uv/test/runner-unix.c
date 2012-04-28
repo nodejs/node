@@ -100,13 +100,12 @@ typedef struct {
 static void* dowait(void* data) {
   dowait_args* args = data;
 
-  int i, status, r;
+  int i, r;
   process_info_t* p;
 
   for (i = 0; i < args->n; i++) {
     p = (process_info_t*)(args->vec + i * sizeof(process_info_t));
     if (p->terminated) continue;
-    status = 0;
     r = waitpid(p->pid, &p->status, 0);
     if (r < 0) {
       perror("waitpid");
@@ -282,30 +281,6 @@ void process_cleanup(process_info_t *p) {
 /* Move the console cursor one line up and back to the first column. */
 void rewind_cursor() {
   fprintf(stderr, "\033[2K\r");
-}
-
-
-typedef void* (*uv_thread_cb)(void* arg);
-
-
-uintptr_t uv_create_thread(void (*entry)(void* arg), void* arg) {
-  pthread_t t;
-  uv_thread_cb cb = (uv_thread_cb)entry;
-  int r = pthread_create(&t, NULL, cb, arg);
-
-  if (r) {
-    return 0;
-  }
-
-  return (uintptr_t)t;
-}
-
-
-/* Wait for a thread to terminate. Should return 0 if the thread ended, -1 on
- * error.
- */
-int uv_wait_thread(uintptr_t thread_id) {
-  return pthread_join((pthread_t)thread_id, NULL);
 }
 
 
