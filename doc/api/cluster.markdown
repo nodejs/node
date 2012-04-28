@@ -109,13 +109,19 @@ being executed.
 ## Event: 'listening'
 
 * `worker` {Worker object}
+* `address` {Object}
 
 When calling `listen()` from a worker, a 'listening' event is automatically assigned
 to the server instance. When the server is listening a message is send to the master
 where the 'listening' event is emitted.
 
-    cluster.on('listening', function (worker) {
-      console.log("We are now connected");
+The event handler is executed with two arguments, the `worker` contains the worker
+object and the `address` object contains the following connection properties:
+`address`, `port` and `addressType`. This is very useful if the worker is listening
+on more than one address.
+
+    cluster.on('listening', function (worker, address) {
+      console.log("A worker is now connected to " + address.address + ":" + address.port);
     });
 
 ## Event: 'disconnect'
@@ -408,11 +414,12 @@ on the specified worker.
 ### Event: 'listening'
 
 * `worker` {Worker object}
+* `address` {Object}
 
 Same as the `cluster.on('listening')` event, but emits only when the state change
 on the specified worker.
 
-    cluster.fork().on('listening', function (worker) {
+    cluster.fork().on('listening', function (worker, address) {
       // Worker is listening
     };
 
