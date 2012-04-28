@@ -105,6 +105,36 @@ class ProcessWrap : public HandleWrap {
 
     options.exit_cb = OnExit;
 
+    // options.uid
+    Local<Value> uid_v = js_options->Get(String::NewSymbol("uid"));
+    if (uid_v->IsInt32()) {
+      int32_t uid = uid_v->Int32Value();
+      if (uid & ~((uv_uid_t) ~0)) {
+        return ThrowException(Exception::RangeError(
+            String::New("options.uid is out of range")));
+      }
+      options.flags |= UV_PROCESS_SETUID;
+      options.uid = (uv_uid_t) uid;
+    } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
+      return ThrowException(Exception::TypeError(
+          String::New("options.uid should be a number")));
+    }
+
+    // options.gid
+    Local<Value> gid_v = js_options->Get(String::NewSymbol("gid"));
+    if (gid_v->IsInt32()) {
+      int32_t gid = gid_v->Int32Value();
+      if (gid & ~((uv_gid_t) ~0)) {
+        return ThrowException(Exception::RangeError(
+           String::New("options.gid is out of range")));
+      }
+      options.flags |= UV_PROCESS_SETGID;
+      options.gid = (uv_gid_t) gid;
+    } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
+      return ThrowException(Exception::TypeError(
+          String::New("options.gid should be a number")));
+    }
+
     // TODO is this possible to do without mallocing ?
 
     // options.file
@@ -180,36 +210,6 @@ class ProcessWrap : public HandleWrap {
     if (js_options->Get(String::NewSymbol("windowsVerbatimArguments"))->
           IsTrue()) {
       options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-    }
-
-    // options.uid
-    Local<Value> uid_v = js_options->Get(String::NewSymbol("uid"));
-    if (uid_v->IsInt32()) {
-      int32_t uid = uid_v->Int32Value();
-      if (uid & ~((uv_uid_t) ~0)) {
-        return ThrowException(Exception::RangeError(
-            String::New("options.uid is out of range")));
-      }
-      options.flags |= UV_PROCESS_SETUID;
-      options.uid = (uv_uid_t) uid;
-    } else if (!uid_v->IsUndefined() && !uid_v->IsNull()) {
-      return ThrowException(Exception::TypeError(
-          String::New("options.uid should be a number")));
-    }
-
-    // options.gid
-    Local<Value> gid_v = js_options->Get(String::NewSymbol("gid"));
-    if (gid_v->IsInt32()) {
-      int32_t gid = gid_v->Int32Value();
-      if (gid & ~((uv_gid_t) ~0)) {
-        return ThrowException(Exception::RangeError(
-           String::New("options.gid is out of range")));
-      }
-      options.flags |= UV_PROCESS_SETGID;
-      options.gid = (uv_gid_t) gid;
-    } else if (!gid_v->IsUndefined() && !gid_v->IsNull()) {
-      return ThrowException(Exception::TypeError(
-          String::New("options.gid should be a number")));
     }
 
     int r = uv_spawn2(uv_default_loop(), &wrap->process_, options);
