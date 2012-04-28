@@ -99,10 +99,19 @@ h1 a, h2 a, h3 a, h4 a
   border-radius: 4px;
   margin: 0 1px;
   color: #46483e;
+  background-color: #9a9f8b;
+}
+
+#intro .forkme {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border: 0;
 }
 
 #intro .button:hover {
   text-decoration: none;
+  background-color: #aab293;
 }
 
 #intro #downloadbutton {
@@ -111,14 +120,6 @@ h1 a, h2 a, h3 a, h4 a
 
 #intro #downloadbutton:hover {
   background-color: #73a53e;
-}
-
-#intro #docsbutton {
-  background-color: #9a9f8b;
-}
-
-#intro #docsbutton:hover {
-  background-color: #aab293;
 }
 
 #quotes {
