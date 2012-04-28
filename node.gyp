@@ -107,6 +107,7 @@
         'src/node_script.h',
         'src/node_string.h',
         'src/node_version.h',
+        'src/ngx-queue.h',
         'src/pipe_wrap.h',
         'src/req_wrap.h',
         'src/slab_allocator.h',

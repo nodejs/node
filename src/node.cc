@@ -20,7 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
-#include "handle_wrap.h" // HandleWrap::GetActiveHandles()
+#include "req_wrap.h"
+#include "handle_wrap.h"
 
 #include "uv.h"
 
@@ -90,6 +91,9 @@ extern char **environ;
 # endif
 
 namespace node {
+
+ngx_queue_t handle_wrap_queue = { &handle_wrap_queue, &handle_wrap_queue };
+ngx_queue_t req_wrap_queue = { &req_wrap_queue, &req_wrap_queue };
 
 // declared in req_wrap.h
 Persistent<String> process_symbol;
@@ -1332,6 +1336,42 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
 }
 
 
+static Handle<Value> GetActiveRequests(const Arguments& args) {
+  HandleScope scope;
+
+  Local<Array> ary = Array::New();
+  ngx_queue_t* q = NULL;
+  int i = 0;
+
+  ngx_queue_foreach(q, &req_wrap_queue) {
+    ReqWrap<uv_req_t>* w = container_of(q, ReqWrap<uv_req_t>, req_wrap_queue_);
+    if (w->object_.IsEmpty()) continue;
+    ary->Set(i++, w->object_);
+  }
+
+  return scope.Close(ary);
+}
+
+
+// Non-static, friend of HandleWrap. Could have been a HandleWrap method but
+// implemented here for consistency with GetActiveRequests().
+Handle<Value> GetActiveHandles(const Arguments& args) {
+  HandleScope scope;
+
+  Local<Array> ary = Array::New();
+  ngx_queue_t* q = NULL;
+  int i = 0;
+
+  ngx_queue_foreach(q, &handle_wrap_queue) {
+    HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
+    if (w->object_.IsEmpty() || w->unref) continue;
+    ary->Set(i++, w->object_);
+  }
+
+  return scope.Close(ary);
+}
+
+
 static Handle<Value> Abort(const Arguments& args) {
   abort();
   return Undefined();
@@ -2237,6 +2277,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
 
   // define various internal methods
+  NODE_SET_METHOD(process, "_getActiveRequests", GetActiveRequests);
+  NODE_SET_METHOD(process, "_getActiveHandles", GetActiveHandles);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "abort", Abort);
