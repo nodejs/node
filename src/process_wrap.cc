@@ -101,7 +101,7 @@ class ProcessWrap : public HandleWrap {
 
     Local<Object> js_options = args[0]->ToObject();
 
-    uv_process_options2_t options;
+    uv_process_options_t options;
     memset(&options, 0, sizeof(uv_process_options_t));
 
     options.exit_cb = OnExit;
@@ -211,7 +211,7 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
     }
 
-    int r = uv_spawn2(uv_default_loop(), &wrap->process_, options);
+    int r = uv_spawn(uv_default_loop(), &wrap->process_, options);
 
     if (r) {
       SetErrno(uv_last_error(uv_default_loop()));
