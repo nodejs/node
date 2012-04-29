@@ -120,13 +120,15 @@ ca2-crl.pem: ca2-key.pem ca2-cert.pem ca2.cnf
 	openssl ca -revoke agent4-cert.pem \
 		-keyfile ca2-key.pem \
 		-cert ca2-cert.pem \
-		-config ca2.cnf
+		-config ca2.cnf \
+		-passin 'pass:password'
 	openssl ca \
 		-keyfile ca2-key.pem \
 		-cert ca2-cert.pem \
 		-config ca2.cnf \
 		-gencrl \
-		-out ca2-crl.pem
+		-out ca2-crl.pem \
+		-passin 'pass:password'
 
 clean:
 	rm -f *.pem *.srl ca2-database.txt ca2-serial
