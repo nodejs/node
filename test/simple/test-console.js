@@ -50,3 +50,12 @@ assert.equal('foo bar hop\n', strings.shift());
 assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
 
 process.stderr.write('hello world');
+
+assert.throws(function () {
+  console.timeEnd('no such label');
+});
+
+assert.doesNotThrow(function () {
+  console.time('label');
+  console.timeEnd('label');
+});
