@@ -163,9 +163,9 @@ class ProcessWrap : public HandleWrap {
     // options.cwd
     Local<Value> cwd_v = js_options->Get(String::NewSymbol("cwd"));
     String::Utf8Value cwd(cwd_v->IsString() ? cwd_v : Local<Value>());
-      if (cwd.length() > 0) {
+    if (cwd.length() > 0) {
       options.cwd = *cwd;
-      }
+    }
 
     // options.env
     Local<Value> env_v = js_options->Get(String::NewSymbol("envPairs"));
