@@ -115,6 +115,8 @@ The following shorthands are parsed on the command-line:
 * `-l`: `--long`
 * `-desc`: `--description`
 * `-S`: `--save`
+* `-D`: `--save-dev`
+* `-O`: `--save-optional`
 * `-y`: `--yes`
 * `-n`: `--yes false`
 * `ll` and `la` commands: `ls --long`
@@ -581,6 +583,24 @@ Remove failed installs.
 * Type: Boolean
 
 Save installed packages to a package.json file as dependencies.
+
+Only works if there is already a package.json file present.
+
+### save-dev
+
+* Default: false
+* Type: Boolean
+
+Save installed packages to a package.json file as devDependencies.
+
+Only works if there is already a package.json file present.
+
+### save-optional
+
+* Default: false
+* Type: Boolean
+
+Save installed packages to a package.json file as optionalDependencies.
 
 Only works if there is already a package.json file present.
 

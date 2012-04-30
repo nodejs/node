@@ -13,37 +13,51 @@ string will not be in the parsed object. Examples are shown for the URL
 
 * `href`: The full URL that was originally parsed. Both the protocol and host are lowercased.
 
-  Example: `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
+    Example: `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
+
 * `protocol`: The request protocol, lowercased.
 
-  Example: `'http:'`
-* `host`: The full lowercased host portion of the URL, including port and authentication information.
+    Example: `'http:'`
 
-  Example: `'user:pass@host.com:8080'`
+* `host`: The full lowercased host portion of the URL, including port
+  information.
+
+    Example: `'host.com:8080'`
+
 * `auth`: The authentication information portion of a URL.
 
-  Example: `'user:pass'`
+    Example: `'user:pass'`
+
 * `hostname`: Just the lowercased hostname portion of the host.
 
-  Example: `'host.com'`
+    Example: `'host.com'`
+
 * `port`: The port number portion of the host.
 
-  Example: `'8080'`
-* `pathname`: The path section of the URL, that comes after the host and before the query, including the initial slash if present.
+    Example: `'8080'`
 
-  Example: `'/p/a/t/h'`
-* `search`: The 'query string' portion of the URL, including the leading question mark.
+* `pathname`: The path section of the URL, that comes after the host and
+  before the query, including the initial slash if present.
 
-  Example: `'?query=string'`
+    Example: `'/p/a/t/h'`
+
+* `search`: The 'query string' portion of the URL, including the leading
+  question mark.
+
+    Example: `'?query=string'`
+
 * `path`: Concatenation of `pathname` and `search`.
 
-  Example: `'/p/a/t/h?query=string'`
-* `query`: Either the 'params' portion of the query string, or a querystring-parsed object.
+    Example: `'/p/a/t/h?query=string'`
 
-  Example: `'query=string'` or `{'query':'string'}`
+* `query`: Either the 'params' portion of the query string, or a
+  querystring-parsed object.
+
+    Example: `'query=string'` or `{'query':'string'}`
+
 * `hash`: The 'fragment' portion of the URL including the pound-sign.
 
-  Example: `'#hash'`
+    Example: `'#hash'`
 
 The following methods are provided by the URL module:
 
@@ -65,9 +79,11 @@ Take a parsed URL object, and return a formatted URL string.
 
 * `href` will be ignored.
 * `protocol`is treated the same with or without the trailing `:` (colon).
-  * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be postfixed with `://` (colon-slash-slash).
-  * All other protocols `mailto`, `xmpp`, `aim`, `sftp`, `foo`, etc will be postfixed with `:` (colon)
-* `auth` will only be used if `host` is absent.
+  * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be
+    postfixed with `://` (colon-slash-slash).
+  * All other protocols `mailto`, `xmpp`, `aim`, `sftp`, `foo`, etc will
+    be postfixed with `:` (colon)
+* `auth` will be used if present.
 * `hostname` will only be used if `host` is absent.
 * `port` will only be used if `host` is absent.
 * `host` will be used in place of `auth`, `hostname`, and `port`
@@ -79,4 +95,5 @@ Take a parsed URL object, and return a formatted URL string.
 
 ## url.resolve(from, to)
 
-Take a base URL, and a href URL, and resolve them as a browser would for an anchor tag.
+Take a base URL, and a href URL, and resolve them as a browser would for
+an anchor tag.

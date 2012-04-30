@@ -211,7 +211,7 @@ function readDependencies (context, where, opts, cb) {
         rv[key] = data[key]
       })
       rv.dependencies = {}
-      Object.keys(newwrap.dependencies).forEach(function (key) {
+      Object.keys(newwrap.dependencies || {}).forEach(function (key) {
         var w = newwrap.dependencies[key]
         rv.dependencies[key] = w.from || w.version
       })
@@ -225,7 +225,10 @@ function readDependencies (context, where, opts, cb) {
 // as dependencies to a package.json file.
 // This is experimental.
 function save (where, installed, tree, pretty, cb) {
-  if (!npm.config.get("save") || npm.config.get("global")) {
+  if (!npm.config.get("save") &&
+      !npm.config.get("save-dev") &&
+      !npm.config.get("save-optional") ||
+      npm.config.get("global")) {
     return cb(null, installed, tree, pretty)
   }
 
@@ -257,13 +260,18 @@ function save (where, installed, tree, pretty, cb) {
     } catch (ex) {
       er = ex
     }
-    if (er) return cb(null, installed, tree, pretty)
+    if (er) {
+      return cb(null, installed, tree, pretty)
 
-    var deps = npm.config.get("dev") ? "devDependencies" : "dependencies"
-    deps = data[deps] = data[deps] || {}
+    }
 
+    var deps = npm.config.get("save-optional") ? "optionalDependencies"
+             : npm.config.get("save-dev") ? "devDependencies"
+             : "dependencies"
+
+    data[deps] = data[deps] || {}
     Object.keys(things).forEach(function (t) {
-      deps[t] = things[t]
+      data[deps][t] = things[t]
     })
     data = JSON.stringify(data, null, 2) + "\n"
     fs.writeFile(saveTarget, data, function (er) {

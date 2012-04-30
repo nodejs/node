@@ -94,6 +94,7 @@ var npm = require("../npm.js")
   , semver = require("semver")
   , readJson = require("./read-json.js")
   , log = require("./log.js")
+  , url = require("url")
 
 module.exports = readInstalled
 
@@ -254,6 +255,8 @@ function findUnmet (obj) {
           continue
         }
         if ( typeof deps[d] === "string"
+            // url deps presumed innocent.
+            && !url.parse(deps[d]).protocol
             && !semver.satisfies(found.version, deps[d])) {
           // the bad thing will happen
           log.warn(obj.path + " requires "+d+"@'"+deps[d]

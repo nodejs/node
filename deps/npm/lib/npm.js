@@ -26,9 +26,26 @@ var EventEmitter = require("events").EventEmitter
   , semver = require("semver")
   , findPrefix = require("./utils/find-prefix.js")
   , getUid = require("uid-number")
-  , mkdir = require("mkdirp")
+  , mkdirp = require("mkdirp")
   , slide = require("slide")
   , chain = slide.chain
+
+// /usr/local is often a read-only fs, which is not
+// well handled by node or mkdirp.  Just double-check
+// in the case of errors when making the prefix dirs.
+function mkdir (p, cb) {
+  mkdirp(p, function (er, made) {
+    // it could be that we couldn't create it, because it
+    // already exists, and is on a read-only fs.
+    if (er) {
+      return fs.stat(p, function (er2, st) {
+        if (er2 || !st.isDirectory()) return cb(er)
+        return cb(null, made)
+      })
+    }
+    return cb(er, made)
+  })
+}
 
 npm.commands = {}
 npm.ELIFECYCLE = {}
