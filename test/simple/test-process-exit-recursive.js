@@ -19,16 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
 var assert = require('assert');
 
-// calling .exit() from within "exit" should not overflow the call stack
+// recursively calling .exit() should not overflow the call stack
 var nexits = 0;
 
 process.on('exit', function(code) {
   assert.equal(nexits++, 0);
-  assert.equal(code, 0);
+  assert.equal(code, 1);
+
+  // now override the exit code of 1 with 0 so that the test passes
   process.exit();
 });
 
-// "exit" should be emitted unprovoked
+process.exit(1);
