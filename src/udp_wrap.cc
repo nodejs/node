@@ -65,9 +65,9 @@ typedef ReqWrap<uv_udp_send_t> SendWrap;
 
 Local<Object> AddressToJS(const sockaddr* addr);
 
-static Persistent<String> address_symbol;
-static Persistent<String> port_symbol;
-static Persistent<String> family_symbol;
+static Persistent<String> address_sym;
+static Persistent<String> port_sym;
+static Persistent<String> family_sym;
 static Persistent<String> buffer_sym;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> onmessage_sym;
@@ -131,11 +131,11 @@ void UDPWrap::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   buffer_sym = NODE_PSYMBOL("buffer");
-  port_symbol = NODE_PSYMBOL("port");
-  address_symbol = NODE_PSYMBOL("address");
+  port_sym = NODE_PSYMBOL("port");
+  address_sym = NODE_PSYMBOL("address");
   oncomplete_sym = NODE_PSYMBOL("oncomplete");
   onmessage_sym = NODE_PSYMBOL("onmessage");
-  family_symbol = NODE_PSYMBOL("family");
+  family_sym = NODE_PSYMBOL("family");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -459,9 +459,9 @@ Local<Object> AddressToJS(const sockaddr* addr) {
     uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
     family_name = "IPv6";
-    info->Set(address_symbol, String::New(ip));
-    info->Set(family_symbol, String::New(family_name));
-    info->Set(port_symbol, Integer::New(port));
+    info->Set(address_sym, String::New(ip));
+    info->Set(family_sym, String::New(family_name));
+    info->Set(port_sym, Integer::New(port));
     break;
 
   case AF_INET:
@@ -469,13 +469,13 @@ Local<Object> AddressToJS(const sockaddr* addr) {
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
     family_name = "IPv4";
-    info->Set(address_symbol, String::New(ip));
-    info->Set(family_symbol, String::New(family_name));
-    info->Set(port_symbol, Integer::New(port));
+    info->Set(address_sym, String::New(ip));
+    info->Set(family_sym, String::New(family_name));
+    info->Set(port_sym, Integer::New(port));
     break;
 
   default:
-    info->Set(address_symbol, String::Empty());
+    info->Set(address_sym, String::Empty());
   }
 
   return scope.Close(info);
