@@ -144,7 +144,7 @@ Close the underlying socket and stop listening for data on it.
 ### dgram.address()
 
 Returns an object containing the address information for a socket.  For UDP sockets,
-this object will contain `address` and `port`.
+this object will contain `address` , `family` and `port`.
 
 ### dgram.setBroadcast(flag)
 
