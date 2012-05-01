@@ -234,7 +234,7 @@ See also: `child_process.exec()` and `child_process.fork()`
   * `maxBuffer` {Number} (Default: 200*1024)
   * `killSignal` {String} (Default: 'SIGTERM')
 * `callback` {Function} called with the output when process terminates
-  * `code` {Integer} Exit code
+  * `error` {Error}
   * `stdout` {Buffer}
   * `stderr` {Buffer}
 * Return: ChildProcess object
@@ -291,7 +291,7 @@ the child process is killed.
   * `maxBuffer` {Number} (Default: 200*1024)
   * `killSignal` {String} (Default: 'SIGTERM')
 * `callback` {Function} called with the output when process terminates
-  * `code` {Integer} Exit code
+  * `error` {Error}
   * `stdout` {Buffer}
   * `stderr` {Buffer}
 * Return: ChildProcess object
