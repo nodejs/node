@@ -257,9 +257,14 @@ Handle<Value> WrappedScript::CreateContext(const Arguments& args) {
   Local<Object> context = WrappedContext::NewInstance();
 
   if (args.Length() > 0) {
-    Local<Object> sandbox = args[0]->ToObject();
+    if (args[0]->IsObject()) {
+      Local<Object> sandbox = args[0].As<Object>();
 
-    CloneObject(args.This(), sandbox, context);
+      CloneObject(args.This(), sandbox, context);
+    } else {
+      return ThrowException(Exception::TypeError(String::New(
+          "createContext() accept only object as first argument.")));
+    }
   }
 
 
