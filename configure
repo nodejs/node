@@ -224,18 +224,22 @@ def host_arch():
 def target_arch():
   return host_arch()
 
-
-def gcc_version():
+def cc_version():
   try:
     proc = subprocess.Popen([CC, '-v'], stderr=subprocess.PIPE)
   except OSError:
     return None
-  # TODO parse clang output
-  version = proc.communicate()[1].split('\n')[-2]
-  match = re.match('gcc version (\d+)\.(\d+)\.(\d+)', version)
-  if not match: return None
-  return ['LLVM' in version] + map(int, match.groups())
-
+  lines = proc.communicate()[1].split('\n')
+  version_line = None
+  for i, line in enumerate(lines):
+    if 'version' in line:
+      version_line = line
+  if not version_line:
+    return None
+  version = version_line.split("version")[1].strip().split()[0].split(".")
+  if not version:
+    return None
+  return ['LLVM' in version_line] + version
 
 def configure_node(o):
   # TODO add gdb
@@ -250,10 +254,10 @@ def configure_node(o):
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
   # see http://code.google.com/p/v8/issues/detail?id=884
   o['variables']['strict_aliasing'] = b(
-    'clang' in CC or gcc_version() >= [False, 4, 6, 0])
+    'clang' in CC or cc_version() >= [False, 4, 6, 0])
 
   # clang has always supported -fvisibility=hidden, right?
-  if 'clang' not in CC and gcc_version() < [False, 4, 0, 0]:
+  if 'clang' not in CC and cc_version() < [False, 4, 0, 0]:
     o['variables']['visibility'] = ''
 
   # By default, enable DTrace on SunOS systems. Don't allow it on other
