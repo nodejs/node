@@ -43,10 +43,9 @@ a.on('error', function(er) {
 
 var http = require('http');
 var server = http.createServer(function (req, res) {
-  // child domain.
-  // implicitly added to a, because we're in a when
-  // it is created.
+  // child domain of a.
   var b = domain.create();
+  a.add(b);
 
   // treat these EE objects as if they are a part of the b domain
   // so, an 'error' event on them propagates to the domain, rather
