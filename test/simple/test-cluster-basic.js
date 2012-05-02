@@ -122,7 +122,15 @@ else if (cluster.isMaster) {
       checks.worker.events[name] = true;
 
       //Check argument
-      checks.worker.equal[name] = worker === arguments[0];
+      if (name == 'exit') {
+        checks.worker.equal[name] = (
+          worker.process.exitCode === arguments[0] &&
+          worker.process.signalCode === arguments[1] &&
+          worker === this
+        );
+      } else {
+        checks.worker.equal[name] = worker === arguments[0];
+      }
     });
   });
 

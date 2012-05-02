@@ -148,7 +148,8 @@ When any of the workers die the cluster module will emit the 'exit' event.
 This can be used to restart the worker by calling `fork()` again.
 
     cluster.on('exit', function(worker) {
-      console.log('worker ' + worker.pid + ' died. restart...');
+      var exitCode = worker.process.exitCode;
+      console.log('worker ' + worker.pid + ' died ('+exitCode+'). restarting...');
       cluster.fork();
     });
 
@@ -436,11 +437,20 @@ on the specified worker.
 
 ### Event: 'exit'
 
-* `worker` {Worker object}
+* `code` {Number} the exit code, if it exited normally. 
+* `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
+  the process to be killed.
 
-Same as the `cluster.on('exit')` event, but emits only when the state change
-on the specified worker.
+Emitted by the individual worker instance, when the underlying child process
+is terminated.  See [child_process event: 'exit'](child_process.html#child_process_event_exit). 
 
-    cluster.fork().on('exit', function (worker) {
-      // Worker has died
+    var worker = cluster.fork();
+    worker.on('exit', function (code, signal) {
+      if( signal ) {
+        console.log("worker was killed by signal: "+signal);
+      } else if( code !== 0 ) {
+        console.log("worker exited with error code: "+code);
+      } else {
+        console.log("worker success!");
+      }
     };
