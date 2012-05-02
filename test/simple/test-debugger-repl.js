@@ -143,6 +143,19 @@ addTest('c', [
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 
+addTest('c', [
+  /break in .*breakpoints.js:\d+/,
+  /\d/, /\d/, /\d/, /\d/, /\d/
+]);
+
+addTest('repl', [
+  /Press Ctrl \+ C to leave debug repl/
+]);
+
+addTest('now', [
+  /\w* \w* \d* \d* \d*:\d*:\d* GMT[+-]\d* (\w*)/
+]);
+
 function finish() {
   process.exit(0);
 }

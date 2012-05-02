@@ -17,3 +17,7 @@ b();
 
 setInterval(function() {
 }, 5000);
+
+
+now = new Date();
+debugger;
