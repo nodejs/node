@@ -63,13 +63,9 @@ namespace node {
 
 typedef ReqWrap<uv_udp_send_t> SendWrap;
 
+// see tcp_wrap.cc
 Local<Object> AddressToJS(const sockaddr* addr);
 
-static Persistent<String> address_sym;
-static Persistent<String> port_sym;
-static Persistent<String> family_sym;
-static Persistent<String> ipv4_sym;
-static Persistent<String> ipv6_sym;
 static Persistent<String> buffer_sym;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> onmessage_sym;
@@ -133,13 +129,8 @@ void UDPWrap::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   buffer_sym = NODE_PSYMBOL("buffer");
-  port_sym = NODE_PSYMBOL("port");
-  address_sym = NODE_PSYMBOL("address");
   oncomplete_sym = NODE_PSYMBOL("oncomplete");
   onmessage_sym = NODE_PSYMBOL("onmessage");
-  family_sym = NODE_PSYMBOL("family");
-  ipv4_sym = NODE_PSYMBOL("IPv4");
-  ipv6_sym = NODE_PSYMBOL("IPv6");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -444,42 +435,6 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
     AddressToJS(addr)
   };
   MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
-}
-
-
-Local<Object> AddressToJS(const sockaddr* addr) {
-  HandleScope scope;
-  char ip[INET6_ADDRSTRLEN];
-  const sockaddr_in *a4;
-  const sockaddr_in6 *a6;
-  int port;
-
-  Local<Object> info = Object::New();
-
-  switch (addr->sa_family) {
-  case AF_INET6:
-    a6 = reinterpret_cast<const sockaddr_in6*>(addr);
-    uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
-    port = ntohs(a6->sin6_port);
-    info->Set(address_sym, String::New(ip));
-    info->Set(port_sym, Integer::New(port));
-    info->Set(family_sym, ipv6_sym);
-    break;
-
-  case AF_INET:
-    a4 = reinterpret_cast<const sockaddr_in*>(addr);
-    uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
-    port = ntohs(a4->sin_port);
-    info->Set(address_sym, String::New(ip));
-    info->Set(port_sym, Integer::New(port));
-    info->Set(family_sym, ipv4_sym);
-    break;
-
-  default:
-    info->Set(address_sym, String::Empty());
-  }
-
-  return scope.Close(info);
 }
 
 

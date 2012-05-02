@@ -74,14 +74,13 @@ using v8::Undefined;
 using v8::Value;
 
 static Persistent<Function> tcpConstructor;
-static Persistent<String> family_symbol;
-static Persistent<String> address_symbol;
-static Persistent<String> port_symbol;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> onconnection_sym;
 
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
+
+Local<Object> AddressToJS(const sockaddr* addr);
 
 
 Local<Object> TCPWrap::Instantiate() {
@@ -130,9 +129,6 @@ void TCPWrap::Initialize(Handle<Object> target) {
 
   tcpConstructor = Persistent<Function>::New(t->GetFunction());
 
-  family_symbol = NODE_PSYMBOL("family");
-  address_symbol = NODE_PSYMBOL("address");
-  port_symbol = NODE_PSYMBOL("port");
   onconnection_sym = NODE_PSYMBOL("onconnection");
   oncomplete_sym = NODE_PSYMBOL("oncomplete");
 
@@ -171,10 +167,6 @@ TCPWrap::~TCPWrap() {
 Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
   HandleScope scope;
   struct sockaddr_storage address;
-  int family;
-  int port;
-  char ip[INET6_ADDRSTRLEN];
-  const char *family_name;
 
   UNWRAP
 
@@ -183,42 +175,19 @@ Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
                              reinterpret_cast<sockaddr*>(&address),
                              &addrlen);
 
-  Local<Object> sockname = Object::New();
-  if (r != 0) {
+  if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
-  } else {
-    family = address.ss_family;
-
-    if (family == AF_INET) {
-      struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
-      uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
-      port = ntohs(addrin->sin_port);
-      family_name = "IPv4";
-    } else if (family == AF_INET6) {
-      struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
-      uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
-      port = ntohs(addrin6->sin6_port);
-      family_name = "IPv6";
-    } else {
-      assert(0 && "bad address family");
-      abort();
-    }
-
-    sockname->Set(port_symbol, Integer::New(port));
-    sockname->Set(family_symbol, String::New(family_name));
-    sockname->Set(address_symbol, String::New(ip));
+    return Null();
   }
 
-  return scope.Close(sockname);
+  const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
+  return scope.Close(AddressToJS(addr));
 }
 
 
 Handle<Value> TCPWrap::GetPeerName(const Arguments& args) {
   HandleScope scope;
   struct sockaddr_storage address;
-  int family;
-  int port;
-  char ip[INET6_ADDRSTRLEN];
 
   UNWRAP
 
@@ -227,31 +196,13 @@ Handle<Value> TCPWrap::GetPeerName(const Arguments& args) {
                              reinterpret_cast<sockaddr*>(&address),
                              &addrlen);
 
-  Local<Object> sockname = Object::New();
-  if (r != 0) {
+  if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
-  } else {
-    family = address.ss_family;
-
-    if (family == AF_INET) {
-      struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
-      uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
-      port = ntohs(addrin->sin_port);
-    } else if (family == AF_INET6) {
-      struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
-      uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
-      port = ntohs(addrin6->sin6_port);
-    } else {
-      assert(0 && "bad address family");
-      abort();
-    }
-
-    sockname->Set(port_symbol, Integer::New(port));
-    sockname->Set(family_symbol, Integer::New(family));
-    sockname->Set(address_symbol, String::New(ip));
+    return Null();
   }
 
-  return scope.Close(sockname);
+  const sockaddr* addr = reinterpret_cast<const sockaddr*>(&address);
+  return scope.Close(AddressToJS(addr));
 }
 
 
@@ -470,6 +421,57 @@ Handle<Value> TCPWrap::Connect6(const Arguments& args) {
   } else {
     return scope.Close(req_wrap->object_);
   }
+}
+
+
+// also used by udp_wrap.cc
+Local<Object> AddressToJS(const sockaddr* addr) {
+  static Persistent<String> address_sym;
+  static Persistent<String> family_sym;
+  static Persistent<String> port_sym;
+  static Persistent<String> ipv4_sym;
+  static Persistent<String> ipv6_sym;
+
+  HandleScope scope;
+  char ip[INET6_ADDRSTRLEN];
+  const sockaddr_in *a4;
+  const sockaddr_in6 *a6;
+  int port;
+
+  if (address_sym.IsEmpty()) {
+    address_sym = NODE_PSYMBOL("address");
+    family_sym = NODE_PSYMBOL("family");
+    port_sym = NODE_PSYMBOL("port");
+    ipv4_sym = NODE_PSYMBOL("IPv4");
+    ipv6_sym = NODE_PSYMBOL("IPv6");
+  }
+
+  Local<Object> info = Object::New();
+
+  switch (addr->sa_family) {
+  case AF_INET6:
+    a6 = reinterpret_cast<const sockaddr_in6*>(addr);
+    uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
+    port = ntohs(a6->sin6_port);
+    info->Set(address_sym, String::New(ip));
+    info->Set(family_sym, ipv6_sym);
+    info->Set(port_sym, Integer::New(port));
+    break;
+
+  case AF_INET:
+    a4 = reinterpret_cast<const sockaddr_in*>(addr);
+    uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
+    port = ntohs(a4->sin_port);
+    info->Set(address_sym, String::New(ip));
+    info->Set(family_sym, ipv4_sym);
+    info->Set(port_sym, Integer::New(port));
+    break;
+
+  default:
+    info->Set(address_sym, String::Empty());
+  }
+
+  return scope.Close(info);
 }
 
 
