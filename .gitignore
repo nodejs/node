@@ -40,3 +40,4 @@ ipch/
 email.md
 blog.html
 deps/v8-*
+node_modules
