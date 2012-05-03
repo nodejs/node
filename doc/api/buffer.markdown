@@ -23,10 +23,13 @@ encoding method.  Here are the different string encodings.
   `0x20` (character code of a space). If you want to convert a null character
   into `0x00`, you should use `'utf8'`.
 
-* `'utf8'` - Multi byte encoded Unicode characters.  Many web pages and other document formats use UTF-8.
+* `'utf8'` - Multibyte encoded Unicode characters. Many web pages and other
+  document formats use UTF-8.
 
-* `'ucs2'` - 2-bytes, little endian encoded Unicode characters. It can encode
-  only BMP(Basic Multilingual Plane, U+0000 - U+FFFF).
+* `'utf16le'` - 2 or 4 bytes, little endian encoded Unicode characters.
+  Surrogate pairs (U+10000 to U+10FFFF) are supported.
+
+* `'ucs2'` - Alias of `'utf16le'`.
 
 * `'base64'` - Base64 string encoding.
 
