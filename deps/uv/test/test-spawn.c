@@ -25,6 +25,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+
 static int close_cb_called;
 static int exit_cb_called;
 static uv_process_t process;
@@ -513,7 +518,7 @@ TEST_IMPL(spawn_setuid_setgid) {
 
   init_process_options2("spawn_helper1", exit_cb);
 
-  // become the "nobody" user.
+  /* become the "nobody" user. */
   struct passwd* pw;
   pw = getpwnam("nobody");
   ASSERT(pw != NULL);
