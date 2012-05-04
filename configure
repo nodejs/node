@@ -154,10 +154,20 @@ def pkg_config(pkg):
 def host_arch_cc():
   """Host architecture check using the CC command."""
 
-  p = subprocess.Popen(CC.split() + ['-dM', '-E', '-'],
-                       stdin=subprocess.PIPE,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
+  try:
+    p = subprocess.Popen(CC.split() + ['-dM', '-E', '-'],
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+  except OSError:
+    print '''Node.js configure error: No acceptable C compiler found!
+
+        Please make sure you have a C compiler installed on your system and/or
+        consider adjusting the CC environment variable if you installed
+        it in a non-standard prefix.
+        '''
+    sys.exit()
+
   p.stdin.write('\n')
   out = p.communicate()[0]
 
