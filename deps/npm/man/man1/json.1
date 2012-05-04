@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-JSON" "1" "April 2012" "" ""
+.TH "NPM\-JSON" "1" "January 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-json\fR \-\- Specifics of npm\'s package\.json handling
@@ -466,9 +466,6 @@ is a semver compatible version identifier\.
 .IP "\(bu" 4
 \fBrange1 || range2\fR Passes if either range1 or range2 are satisfied\.
 .
-.IP "\(bu" 4
-\fBgit\.\.\.\fR See \'Git URLs as Dependencies\' below
-.
 .IP "" 0
 .
 .P
@@ -557,25 +554,6 @@ of a version range\.
 This tarball will be downloaded and installed locally to your package at
 install time\.
 .
-.SS "Git URLs as Dependencies"
-Git urls can be of the form:
-.
-.IP "" 4
-.
-.nf
-git://github\.com/user/project\.git#commit\-ish
-git+ssh://user@hostname:project\.git#commit\-ish
-git+http://user@hostname/project/blah\.git#commit\-ish
-git+https://user@hostname/project/blah\.git#commit\-ish
-.
-.fi
-.
-.IP "" 0
-.
-.P
-The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
-an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
-.
 .SH "devDependencies"
 If someone is planning on downloading and using your module in their
 program, then they probably don\'t want or need to download and build
@@ -631,67 +609,6 @@ are capable of properly installing your program\.  For example:
 .
 .IP "" 0
 .
-.SH "os"
-You can specify which operating systems your
-module will run on:
-.
-.IP "" 4
-.
-.nf
-"os" : [ "darwin", "linux" ]
-.
-.fi
-.
-.IP "" 0
-.
-.P
-You can also blacklist instead of whitelist operating systems,
-just prepend the blacklisted os with a \'!\':
-.
-.IP "" 4
-.
-.nf
-"os" : [ "!win32" ]
-.
-.fi
-.
-.IP "" 0
-.
-.P
-The host operating system is determined by \fBprocess\.platform\fR
-.
-.P
-It is allowed to both blacklist, and whitelist, although there isn\'t any
-good reason to do this\.
-.
-.SH "cpu"
-If your code only runs on certain cpu architectures,
-you can specify which ones\.
-.
-.IP "" 4
-.
-.nf
-"cpu" : [ "x64", "ia32" ]
-.
-.fi
-.
-.IP "" 0
-.
-.P
-Like the \fBos\fR option, you can also blacklist architectures:
-.
-.IP "" 4
-.
-.nf
-"cpu" : [ "!arm", "!mips" ]
-.
-.fi
-.
-.IP "" 0
-.
-.P
-The host architecture is determined by \fBprocess\.arch\fR
-.
 .SH "preferGlobal"
 If your package is primarily a command\-line application that should be
 installed globally, then set this value to \fBtrue\fR to provide a warning
@@ -708,7 +625,7 @@ to publish it\.
 .P
 This is a way to prevent accidental publication of private repositories\.
 If you would like to ensure that a given package is only ever published
-to a specific registry (for example, an internal registry),
+to a speciic registry (for example, an internal registry),
 then use the \fBpublishConfig\fR hash described below
 to override the \fBregistry\fR config param at publish\-time\.
 .

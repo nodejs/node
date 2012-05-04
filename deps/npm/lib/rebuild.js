@@ -31,6 +31,7 @@ function rebuild (args, cb) {
 
 function cleanBuild (folders, set, cb) {
   // https://github.com/isaacs/npm/issues/1872
+  // If there's a makefile, try 'make clean'
   // If there's a wscript, try 'node-waf clean'
   // But don't die on either of those if they fail.
   // Just a best-effort kind of deal.
@@ -40,6 +41,8 @@ function cleanBuild (folders, set, cb) {
       if (er) return cb(er)
       if (files.indexOf("wscript") !== -1) {
         exec("node-waf", ["clean"], null, false, f, thenBuild)
+      } else if (files.indexOf("Makefile") !== -1) {
+        exec("make", ["clean"], null, false, f, thenBuild)
       } else thenBuild()
     })
     function thenBuild (er) {

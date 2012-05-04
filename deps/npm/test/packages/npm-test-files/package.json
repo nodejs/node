@@ -5,6 +5,5 @@
   , "sub/include"
   , "sub/include2"
   , "sub/include4"
-  , "test.sh"
-  , ".npmignore" ]
+  , "test.sh" ]
 , "scripts":{"test":"bash test.sh"}}

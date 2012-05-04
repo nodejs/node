@@ -28,12 +28,6 @@ like with any other command, such as <code>global</code> to list global packages
 <p>If the silent parameter is set to true, nothing will be output to the screen,
 but the data will still be returned.</p>
 
-<p>Callback is provided an error if one occurred, the full data about which
-packages are installed and which dependencies they will receive, and a
-"lite" data object which just shows which versions are installed where.
-Note that the full data object is a circular structure, so care must be
-taken if it is serialized to JSON.</p>
-
 <h2 id="CONFIGURATION">CONFIGURATION</h2>
 
 <h3 id="long">long</h3>
@@ -59,7 +53,7 @@ project.</p>
 This means that if a submodule a same dependency as a parent module, then the
 dependency will only be output once.</p>
 </div>
-<p id="footer">ls &mdash; npm@1.1.18</p>
+<p id="footer">ls &mdash; npm@1.1.0-2</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

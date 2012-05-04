@@ -16,6 +16,7 @@ var npm = require("../../npm.js")
   , stream = require("stream")
   , Stream = stream.Stream
   , request = require("request")
+  , getAgent = require("../get-agent.js")
 
 function regRequest (method, where, what, etag, nofollow, cb_) {
   if (typeof cb_ !== "function") cb_ = nofollow, nofollow = false
@@ -84,7 +85,7 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
 function makeRequest (method, remote, where, what, etag, nofollow, cb) {
   var opts = { url: remote
              , method: method
-             , ca: npm.config.get("ca")
+             , agent: getAgent(remote)
              , strictSSL: npm.config.get("strict-ssl") }
     , headers = opts.headers = {}
   if (etag) {
@@ -93,8 +94,6 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb) {
   }
 
   headers.accept = "application/json"
-
-  headers["user-agent"] = npm.config.get("user-agent")
 
   opts.proxy = npm.config.get( remote.protocol === "https:"
                              ? "https-proxy" : "proxy" )

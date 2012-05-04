@@ -137,8 +137,7 @@ function prettify (data, args) {
       , stdout = process.stdout
       , cols = !tty.isatty(stdout.fd) ? Infinity
              : stdout._handle ? stdout._handle.getWindowSize()[0]
-             : process.stdout.getWindowSize()[0]
-      cols = (cols == 0) ? Infinity : cols
+             : tty.getWindowSize()[1]
   } catch (ex) { cols = Infinity }
 
   // name, desc, author, keywords

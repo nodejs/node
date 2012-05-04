@@ -22,13 +22,6 @@ When run as `ll` or `la`, it shows extended information by default.
 
 ## CONFIGURATION
 
-### json
-
-* Default: false
-* Type: Boolean
-
-Show information in JSON format.
-
 ### long
 
 * Default: false

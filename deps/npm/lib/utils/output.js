@@ -58,7 +58,6 @@ function write (args, stream, lf, cb) {
     if (!npm.config.get("unicode")) {
       arg = arg.replace(/└/g, "`")
                .replace(/─/g, "-")
-               .replace(/│/g, "|")
                .replace(/├/g, "+")
                .replace(/┬/g, "-")
     }

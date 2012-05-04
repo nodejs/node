@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-SCRIPTS" "1" "April 2012" "" ""
+.TH "NPM\-SCRIPTS" "1" "January 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-scripts\fR \-\- How npm handles the "scripts" field
@@ -93,26 +93,6 @@ privileges\.
 Package scripts run in an environment where many pieces of information are
 made available regarding the setup of npm and the current state of the
 process\.
-.
-.SS "path"
-If you depend on modules that define executable scripts, like test suites,
-then those executables will be added to the \fBPATH\fR for executing the scripts\.
-So, if your package\.json has this:
-.
-.IP "" 4
-.
-.nf
-{ "name" : "foo"
-, "dependencies" : { "bar" : "0\.1\.x" }
-, "scripts": { "start" : "bar \./test" } }
-.
-.fi
-.
-.IP "" 0
-.
-.P
-then you could run \fBnpm start\fR to execute the \fBbar\fR script, which is exported
-into the \fBnode_modules/\.bin\fR directory on \fBnpm install\fR\|\.
 .
 .SS "package\.json vars"
 The package\.json fields are tacked onto the \fBnpm_package_\fR prefix\. So, for

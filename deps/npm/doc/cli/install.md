@@ -7,17 +7,14 @@ npm-install(1) -- Install a package
     npm install <tarball file>
     npm install <tarball url>
     npm install <folder>
-    npm install <name> [--save|--save-dev|--save-optional]
+    npm install <name>
     npm install <name>@<tag>
     npm install <name>@<version>
-    npm install <name>@<version range>
     npm install <name>@<version range>
 
 ## DESCRIPTION
 
-This command installs a package, and any packages that it depends on. If the
-package has a shrinkwrap file, the installation of dependencies will be driven
-by that. See npm-shrinkwrap(1).
+This command installs a package, and any packages that it depends on.
 
 A `package` is:
 
@@ -36,116 +33,88 @@ after packing it up into a tarball (b).
 
 
 * `npm install` (in package directory, no arguments):
+  Install the dependencies in the local node_modules folder.
 
-    Install the dependencies in the local node_modules folder.
-
-    In global mode (ie, with `-g` or `--global` appended to the command),
-    it installs the current package context (ie, the current working
-    directory) as a global package.
-
+  In global mode (ie, with `-g` or `--global` appended to the command),
+  it installs the current package context (ie, the current working
+  directory) as a global package.
 
 * `npm install <folder>`:
-
-    Install a package that is sitting in a folder on the filesystem.
+  Install a package that is sitting in a folder on the filesystem.
 
 * `npm install <tarball file>`:
+  Install a package that is sitting on the filesystem.  Note: if you just want
+  to link a dev directory into your npm root, you can do this more easily by
+  using `npm link`.
 
-    Install a package that is sitting on the filesystem.  Note: if you just want
-    to link a dev directory into your npm root, you can do this more easily by
-    using `npm link`.
+  Example:
 
-    Example:
-
-          npm install ./package.tgz
+        npm install ./package.tgz
 
 * `npm install <tarball url>`:
+  Fetch the tarball url, and then install it.  In order to distinguish between
+  this and other options, the argument must start with "http://" or "https://"
 
-    Fetch the tarball url, and then install it.  In order to distinguish between
-    this and other options, the argument must start with "http://" or "https://"
+  Example:
 
-    Example:
+        npm install https://github.com/indexzero/forever/tarball/v0.5.6
 
-          npm install https://github.com/indexzero/forever/tarball/v0.5.6
+* `npm install <name>`:
+  Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
+  `npm-config(1)`)
 
-* `npm install <name> [--save|--save-dev|--save-optional]`:
+  Example:
 
-    Do a `<name>@<tag>` install, where `<tag>` is the "tag" config. (See
-    `npm-config(1)`.)
+        npm install sax
 
-    In most cases, this will install the latest version
-    of the module published on npm.
-
-    Example:
-
-          npm install sax
-
-    `npm install` takes 3 exclusive, optional flags which save or update
-    the package version in your main package.json:
-
-    * `--save`: Package will appear in your `dependencies`.
-
-    * `--save-dev`: Package will appear in your `devDependencies`.
-
-    * `--save-optional`: Package will appear in your `optionalDependencies`.
-
-    Examples:
-
-          npm install sax --save
-          npm install node-tap --save-dev
-          npm install dtrace-provider --save-optional
-
-
-    **Note**: If there is a file or folder named `<name>` in the current
-    working directory, then it will try to install that, and only try to
-    fetch the package by name if it is not valid.
+  **Note**: If there is a file or folder named `<name>` in the current
+  working directory, then it will try to install that, and only try to
+  fetch the package by name if it is not valid.
 
 * `npm install <name>@<tag>`:
+  Install the version of the package that is referenced by the specified tag.
+  If the tag does not exist in the registry data for that package, then this
+  will fail.
 
-    Install the version of the package that is referenced by the specified tag.
-    If the tag does not exist in the registry data for that package, then this
-    will fail.
+  Example:
 
-    Example:
-
-          npm install sax@latest
+        npm install sax@latest
 
 * `npm install <name>@<version>`:
+  Install the specified version of the package.  This will fail if the version
+  has not been published to the registry.
 
-    Install the specified version of the package.  This will fail if the version
-    has not been published to the registry.
+  Example:
 
-    Example:
-
-          npm install sax@0.1.1
+        npm install sax@0.1.1
 
 * `npm install <name>@<version range>`:
+  Install a version of the package matching the specified version range.  This
+  will follow the same rules for resolving dependencies described in `npm-json(1)`.
 
-    Install a version of the package matching the specified version range.  This
-    will follow the same rules for resolving dependencies described in `npm-json(1)`.
+  Note that most version ranges must be put in quotes so that your shell will
+  treat it as a single argument.
 
-    Note that most version ranges must be put in quotes so that your shell will
-    treat it as a single argument.
+  Example:
 
-    Example:
-
-          npm install sax@">=0.1.0 <0.2.0"
+        npm install sax@">=0.1.0 <0.2.0"
 
 * `npm install <git remote url>`:
 
-    Install a package by cloning a git remote url.  The format of the git
-    url is:
+  Install a package by cloning a git remote url.  The format of the git
+  url is:
 
-          <protocol>://[<user>@]<hostname><separator><path>[#<commit-ish>]
+        <protocol>://[<user>@]<hostname><separator><path>[#<commit-ish>]
 
-    `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
-    `git+https`.  If no `<commit-ish>` is specified, then `master` is
-    used.
+  `<protocol>` is one of `git`, `git+ssh`, `git+http`, or
+  `git+https`.  If no `<commit-ish>` is specified, then `master` is
+  used.
 
-    Examples:
+  Examples:
 
-          git+ssh://git@github.com:isaacs/npm.git#v1.0.27
-          git+https://isaacs@github.com/isaacs/npm.git
-          git://github.com/isaacs/npm.git#v1.0.27
+        git+ssh://git@github.com:isaacs/npm.git#v1.0.27
+        git+https://isaacs@github.com/isaacs/npm.git
+        git://github.com/isaacs/npm.git#v1.0.27
 
 You may combine multiple arguments, and even multiple types of arguments.
 For example:
@@ -230,4 +199,3 @@ affects a real use-case, it will be investigated.
 * npm-folders(1)
 * npm-tag(1)
 * npm-rm(1)
-* npm-shrinkwrap(1)

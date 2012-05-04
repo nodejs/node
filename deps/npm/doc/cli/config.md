@@ -115,8 +115,6 @@ The following shorthands are parsed on the command-line:
 * `-l`: `--long`
 * `-desc`: `--description`
 * `-S`: `--save`
-* `-D`: `--save-dev`
-* `-O`: `--save-optional`
 * `-y`: `--yes`
 * `-n`: `--yes false`
 * `ll` and `la` commands: `ls --long`
@@ -219,28 +217,6 @@ See also the `strict-ssl` config.
 * Type: path
 
 The location of npm's cache directory.  See `npm-cache(1)`
-
-### cache-max
-
-* Default: Infinity
-* Type: Number
-
-The maximum time (in seconds) to keep items in the registry cache before
-re-checking against the registry.
-
-Note that no purging is done unless the `npm cache clean` command is
-explicitly used, and that only GET requests use the cache.
-
-### cache-min
-
-* Default: 0
-* Type: Number
-
-The minimum time (in seconds) to keep items in the registry cache before
-re-checking against the registry.
-
-Note that no purging is done unless the `npm cache clean` command is
-explicitly used, and that only GET requests use the cache.
 
 ### color
 
@@ -360,13 +336,6 @@ user.
 
 A proxy to use for outgoing https requests.
 
-### user-agent
-
-* Default: npm/{npm.version} node/{process.version}
-* Type: String
-
-Sets a User-Agent to the request header
-
 ### ignore
 
 * Default: ""
@@ -384,7 +353,7 @@ The value `npm init` should use by default for the package version.
 
 ### init.author.name
 
-* Default: ""
+* Default: "0.0.0"
 * Type: String
 
 The value `npm init` should use by default for the package author's name.
@@ -402,17 +371,6 @@ The value `npm init` should use by default for the package author's email.
 * Type: String
 
 The value `npm init` should use by default for the package author's homepage.
-
-### json
-
-* Default: false
-* Type: Boolean
-
-Whether or not to output JSON data, rather than the normal output.
-
-This feature is currently experimental, and the output data structures
-for many commands is either not implemented in JSON yet, or subject to
-change.  Only the output from `npm ls --json` is currently valid.
 
 ### link
 
@@ -586,24 +544,6 @@ Save installed packages to a package.json file as dependencies.
 
 Only works if there is already a package.json file present.
 
-### save-dev
-
-* Default: false
-* Type: Boolean
-
-Save installed packages to a package.json file as devDependencies.
-
-Only works if there is already a package.json file present.
-
-### save-optional
-
-* Default: false
-* Type: Boolean
-
-Save installed packages to a package.json file as optionalDependencies.
-
-Only works if there is already a package.json file present.
-
 ### searchopts
 
 * Default: ""
@@ -739,16 +679,6 @@ this value.  Thus, the defaults are `0755` and `0644` respectively.
 * Type: boolean
 
 If true, output the npm version and exit successfully.
-
-Only relevant when specified explicitly on the command line.
-
-### versions
-
-* Default: false
-* Type: boolean
-
-If true, output the npm version as well as node's `process.versions`
-hash, and exit successfully.
 
 Only relevant when specified explicitly on the command line.
 

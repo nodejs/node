@@ -34,33 +34,8 @@ function readJson (jsonFile, opts, cb) {
   var wscript = null
     , contributors = null
     , serverjs = null
-    , gypfile = null
 
-  if (opts.gypfile !== null && opts.gypfile !== undefined) {
-    gypfile = opts.gypfile
-    next()
-  } else {
-    var pkgdir = path.dirname(jsonFile)
-
-    function hasGyp (has) {
-      gypfile = opts.gypfile = has
-      next()
-    }
-
-    fs.readdir(pkgdir, function (er, gf) {
-      // this would be weird.
-      if (er) return hasGyp(false)
-
-      // see if there are any *.gyp files in there.
-      gf = gf.filter(function (f) {
-        return f.match(/\.gyp$/)
-      })
-      gf = gf[0]
-      return hasGyp(!!gf)
-    })
-  }
-
-  if (opts.wscript !== null && opts.wscript !== undefined) {
+  if (opts.wscript != null) {
     wscript = opts.wscript
     next()
   } else fs.readFile( path.join(path.dirname(jsonFile), "wscript")
@@ -72,7 +47,7 @@ function readJson (jsonFile, opts, cb) {
     next()
   })
 
-  if (opts.contributors !== null && opts.contributors !== undefined) {
+  if (opts.contributors != null) {
     contributors = opts.contributors
     next()
   } else fs.readFile( path.join(path.dirname(jsonFile), "AUTHORS")
@@ -89,7 +64,7 @@ function readJson (jsonFile, opts, cb) {
     next()
   })
 
-  if (opts.serverjs !== null && opts.serverjs !== undefined) {
+  if (opts.serverjs != null) {
     serverjs = opts.serverjs
     next()
   } else fs.stat( path.join(path.dirname(jsonFile), "server.js")
@@ -101,53 +76,20 @@ function readJson (jsonFile, opts, cb) {
   })
 
   function next () {
-    if (wscript === null ||
-        contributors === null ||
-        gypfile === null ||
-        serverjs === null) {
+    if (wscript === null
+        || contributors === null
+        || serverjs === null) {
       return
     }
 
-    // XXX this api here is insane.  being internal is no excuse.
-    // please refactor.
-    var thenLoad = processJson(opts, function (er, data) {
+    fs.readFile(jsonFile, processJson(opts, function (er, data) {
       if (er) return cb(er)
       var doLoad = !(jsonFile.indexOf(npm.cache) === 0 &&
                      path.basename(path.dirname(jsonFile)) !== "package")
       if (!doLoad) return cb(er, data)
       loadPackageDefaults(data, path.dirname(jsonFile), cb)
-    })
-
-    fs.readFile(jsonFile, function (er, data) {
-      if (er && er.code === "ENOENT") {
-        // single-file module, maybe?
-        // check index.js for a /**package { ... } **/ section.
-        var indexFile = path.resolve(path.dirname(jsonFile), "index.js")
-        return fs.readFile(indexFile, function (er2, data) {
-          // if this doesn't work, then die with the original error.
-          if (er2) return cb(er)
-          data = parseIndex(data)
-          if (!data) return cb(er)
-          thenLoad(null, data)
-        })
-      }
-      thenLoad(er, data)
-    })
+    }))
   }
-}
-
-// sync. no io.
-// /**package { "name": "foo", "version": "1.2.3", ... } **/
-function parseIndex (data) {
-  data = data.toString()
-  data = data.split(/^\/\*\*package(?:\s|$)/m)
-  if (data.length < 2) return null
-  data = data[1]
-  data = data.split(/\*\*\/$/m)
-  if (data.length < 2) return null
-  data = data[0]
-  data = data.replace(/^\s*\*/mg, "")
-  return data
 }
 
 function processJson (opts, cb) {
@@ -171,8 +113,8 @@ function processJson (opts, cb) {
 }
 
 function processJsonString (opts, cb) { return function (er, jsonString) {
-  if (er) return cb(er, jsonString)
   jsonString += ""
+  if (er) return cb(er, jsonString)
   var json
   try {
     json = JSON.parse(jsonString)
@@ -246,12 +188,11 @@ function typoWarn (json) {
                   }
 
   if (typeof json.bugs === "object") {
-    // just go ahead and correct these.
     Object.keys(bugsTypos).forEach(function (d) {
       if (json.bugs.hasOwnProperty(d)) {
-        json.bugs[ bugsTypos[d] ] = json.bugs[d]
-        delete json.bugs[d]
-      }
+        log.warn( "package.json: bugs['" + d + "'] should probably be "
+                + "bugs['" + bugsTypos[d] + "']", json._id)
+        }
     })
   }
 
@@ -359,15 +300,6 @@ function processObject (opts, cb) { return function (er, json) {
 
   var scripts = json.scripts || {}
 
-  // if it has a bindings.gyp, then build with node-gyp
-  if (opts.gypfile && !json.prebuilt) {
-    log.verbose([json.prebuilt, opts], "has bindings.gyp")
-    if (!scripts.install && !scripts.preinstall) {
-      scripts.install = "node-gyp rebuild"
-      json.scripts = scripts
-    }
-  }
-
   // if it has a wscript, then build it.
   if (opts.wscript && !json.prebuilt) {
     log.verbose([json.prebuilt, opts], "has wscript")
@@ -447,9 +379,11 @@ function processObject (opts, cb) { return function (er, json) {
   if (opts.dev
       || npm.config.get("dev")
       || npm.config.get("npat")) {
+    // log.warn(json._id, "Adding devdeps")
     Object.keys(json.devDependencies || {}).forEach(function (d) {
       json.dependencies[d] = json.devDependencies[d]
     })
+    // log.warn(json.dependencies, "Added devdeps")
   }
 
   typoWarn(json)
@@ -475,6 +409,13 @@ function processObject (opts, cb) { return function (er, json) {
 
 var depObjectifyWarn = {}
 function depObjectify (deps, d, id) {
+  if ((!deps || typeof deps !== "object" || Array.isArray(deps))
+      && !depObjectifyWarn[id+d]) {
+    log.warn( d + " field should be hash of <name>:<version-range> pairs"
+            , id )
+    depObjectifyWarn[id + d] = true
+  }
+
   if (!deps) return {}
   if (typeof deps === "string") {
     deps = deps.trim().split(/[\n\r\s\t ,]+/)

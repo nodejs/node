@@ -1,7 +1,7 @@
 module.exports = fileCompletion
 
 var find = require("../find.js")
-  , mkdir = require("mkdirp")
+  , mkdir = require("../mkdir-p.js")
   , path = require("path")
 
 function fileCompletion (root, req, depth, cb) {

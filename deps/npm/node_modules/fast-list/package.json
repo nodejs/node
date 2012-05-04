@@ -1,0 +1,20 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "name": "fast-list",
+  "description": "A fast linked list (good for queues, stacks, etc.)",
+  "version": "1.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/fast-list.git"
+  },
+  "main": "fast-list.js",
+  "dependencies": {},
+  "devDependencies": {
+    "bench": "~0.3.2",
+    "tap": "~0.1.0"
+  },
+  "scripts": {
+    "test": "tap test.js",
+    "bench": "node bench.js"
+  }
+}

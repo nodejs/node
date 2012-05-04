@@ -8,16 +8,16 @@ var request = require("request")
   , url = require("url")
   , log = require("./log.js")
   , path = require("path")
-  , mkdir = require("mkdirp")
-  , chownr = require("chownr")
+  , mkdir = require("./mkdir-p.js")
   , regHost
+  , getAgent = require("./get-agent.js")
 
 module.exports = fetch
 
 function fetch (remote, local, headers, cb) {
   if (typeof cb !== "function") cb = headers, headers = {}
   log.verbose(local, "fetch to")
-  mkdir(path.dirname(local), function (er, made) {
+  mkdir(path.dirname(local), function (er) {
     if (er) return cb(er)
     fetch_(remote, local, headers, cb)
   })
@@ -57,9 +57,8 @@ function makeRequest (remote, fstr, headers) {
 
   request({ url: remote
           , proxy: proxy
+          , agent: getAgent(remote)
           , strictSSL: npm.config.get("strict-ssl")
-          , ca: remote.host === regHost ? npm.config.get("ca") : undefined
-          , headers: { "user-agent": npm.config.get("user-agent") }
           , onResponse: onResponse }).pipe(fstr)
   function onResponse (er, res) {
     if (er) return fstr.emit("error", er)

@@ -141,7 +141,6 @@ function resultPrinter (pkg, src, dest, rp, cb) {
   var where = relativize(dest, path.resolve(process.cwd(),"x"))
   rp = (rp || "").trim()
   src = (src || "").trim()
-  // XXX If --json is set, then look up the data from the package.json
   if (npm.config.get("parseable")) {
     return parseableOutput(dest, rp || src, cb)
   }
@@ -151,9 +150,6 @@ function resultPrinter (pkg, src, dest, rp, cb) {
 }
 
 function parseableOutput (dest, rp, cb) {
-  // XXX this should match ls --parseable and install --parseable
-  // look up the data from package.json, format it the same way.
-  //
   // link is always effectively "long", since it doesn't help much to
   // *just* print the target folder.
   // However, we don't actually ever read the version number, so

@@ -48,10 +48,6 @@ function makePretty (p) {
     , dir = path.resolve(p[0], "node_modules", dep)
     , has = p[2]
     , want = p[3]
-
-  // XXX add --json support
-  // Should match (more or less) the output of ls --json
-
   if (parseable) {
     var str = dir
     if (npm.config.get("long")) {

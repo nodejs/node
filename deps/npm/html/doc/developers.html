@@ -28,22 +28,12 @@ topic, or <code>npm help thing</code> to see the same information.</p>
 
 <p>A package is:</p>
 
-<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li><li>g) a <code>git</code> url that, when cloned, results in (a).</li></ul>
+<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li></ul>
 
 <p>Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
 perhaps if you also want to be able to easily install it elsewhere
 after packing it up into a tarball (b).</p>
-
-<p>Git urls can be of the form:</p>
-
-<pre><code>git://github.com/user/project.git#commit-ish
-git+ssh://user@hostname:project.git#commit-ish
-git+http://user@hostname/project/blah.git#commit-ish
-git+https://user@hostname/project/blah.git#commit-ish</code></pre>
-
-<p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
-an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
 
 <h2 id="The-package-json-File">The package.json File</h2>
 
@@ -160,7 +150,7 @@ from a fresh checkout.</p>
 
 <ul><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/init.html">init(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/scripts.html">scripts(1)</a></li><li><a href="../doc/publish.html">publish(1)</a></li><li><a href="../doc/adduser.html">adduser(1)</a></li><li><a href="../doc/registry.html">registry(1)</a></li></ul>
 </div>
-<p id="footer">developers &mdash; npm@1.1.18</p>
+<p id="footer">developers &mdash; npm@1.1.0-2</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
