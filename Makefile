@@ -32,7 +32,7 @@ install:
 uninstall:
 	@$(WAF) uninstall
 
-test: all
+test: all node_modules/weak
 	$(PYTHON) tools/test.py --mode=release simple message
 
 test-http1: all
@@ -41,7 +41,16 @@ test-http1: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind simple message
 
-test-all: all
+node_modules/weak:
+	@if [ ! -f node ]; then make all; fi
+	@if [ ! -d node_modules ]; then mkdir -p node_modules; fi
+	./node deps/npm/bin/npm-cli.js install weak \
+		--prefix="$(shell pwd)" --unsafe-perm # go ahead and run as root.
+
+test-gc: all node_modules/weak
+	$(PYTHON) tools/test.py --mode=release gc
+
+test-all: all node_modules/weak
 	$(PYTHON) tools/test.py --mode=debug,release
 	make test-npm
 
@@ -153,6 +162,7 @@ clean:
 	$(WAF) clean
 	-find tools -name "*.pyc" | xargs rm -f
 	-rm -rf blog.html email.md
+	-rm -rf node_modules
 
 distclean: docclean
 	-find tools -name "*.pyc" | xargs rm -f

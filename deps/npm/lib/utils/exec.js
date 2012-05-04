@@ -1,4 +1,3 @@
-
 module.exports = exec
 exec.spawn = spawn
 exec.pipe = pipe
@@ -36,7 +35,7 @@ function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
     log.verbose(new Error().stack, "stack at uid setting")
   }
 
-  if (isNaN(uid) || isNaN(gid)) {
+  if (uid && gid && (isNaN(uid) || isNaN(gid))) {
     // get the numeric values
     return uidNumber(uid, gid, function (er, uid, gid) {
       if (er) return cb(er)
@@ -106,12 +105,8 @@ function spawn (c, a, env, takeOver, cwd, uid, gid) {
              , cwd : cwd || null }
     , cp
 
-  if (!isNaN(uid)) opts.uid = uid
-  if (!isNaN(gid)) opts.gid = gid
-
-  if (!isNaN(opts.uid)) opts.uid = +opts.uid
-
-  if (!isNaN(opts.gid)) opts.gid = +opts.gid
+  if (uid && !isNaN(uid)) opts.uid = +uid
+  if (gid && !isNaN(gid)) opts.gid = +gid
 
   var name = c +" "+ a.map(JSON.stringify).join(" ")
   log.silly([c, a, opts.cwd], "spawning")

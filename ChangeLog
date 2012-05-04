@@ -1,4 +1,21 @@
-2012.04.30 Version 0.6.16 (stable)
+2012.05.04 Version 0.6.17 (stable)
+
+* Upgrade npm to 1.1.21
+
+* uv: Add support for EROFS errors (Ben Noordhuis, Maciej Małecki)
+
+* uv: Add support for EIO and ENOSPC errors (Fedor Indutny)
+
+* windows: Add support for EXDEV errors (Bert Belder)
+
+* http: Fix client memory leaks (isaacs, Vincent Voyer)
+
+* fs: fix file descriptor leak in sync functions (Ben Noordhuis)
+
+* fs: fix ReadStream / WriteStream double close bug (Ben Noordhuis)
+
+
+2012.04.30 Version 0.6.16 (stable), a1d193963ddc80a27da5da01b59751e14e33d1d6
 
 * Upgrade V8 to 3.6.6.25
 
