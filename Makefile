@@ -44,7 +44,8 @@ test-valgrind: all
 node_modules/weak:
 	@if [ ! -f node ]; then make all; fi
 	@if [ ! -d node_modules ]; then mkdir -p node_modules; fi
-	./node deps/npm/bin/npm-cli.js install weak --prefix="$(shell pwd)"
+	./node deps/npm/bin/npm-cli.js install weak \
+		--prefix="$(shell pwd)" --unsafe-perm # go ahead and run as root.
 
 test-gc: all node_modules/weak
 	$(PYTHON) tools/test.py --mode=release gc
