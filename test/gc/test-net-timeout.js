@@ -13,7 +13,7 @@ var net  = require('net'),
     done    = 0,
     count   = 0,
     countGC = 0,
-    todo    = 18,
+    todo    = 500,
     common = require('../common.js'),
     assert = require('assert'),
     PORT = common.PORT;
@@ -36,7 +36,7 @@ function getall() {
 
       count++;
       weak(req, afterGC);
-    })()
+    })();
   }
 }
 
@@ -44,8 +44,11 @@ function afterGC(){
   countGC ++;
 }
 
+var timer;
 function statusLater() {
-  setTimeout(status, 1);
+  gc();
+  if (timer) clearTimeout(timer);
+  timer = setTimeout(status, 1);
 }
 
 function status() {
