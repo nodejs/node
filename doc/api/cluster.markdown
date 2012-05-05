@@ -19,7 +19,7 @@ all share server ports.
         cluster.fork();
       }
 
-      cluster.on('exit', function(worker) {
+      cluster.on('exit', function(worker, code, signal) {
         console.log('worker ' + worker.pid + ' died');
       });
     } else {
@@ -77,17 +77,17 @@ When a new worker is forked the cluster module will emit a 'fork' event.
 This can be used to log worker activity, and create you own timeout.
 
     var timeouts = [];
-    var errorMsg = function () {
+    function errorMsg() {
       console.error("Something must be wrong with the connection ...");
-    });
+    }
 
-    cluster.on('fork', function (worker) {
+    cluster.on('fork', function(worker) {
       timeouts[worker.uniqueID] = setTimeout(errorMsg, 2000);
     });
-    cluster.on('listening', function (worker) {
+    cluster.on('listening', function(worker, address) {
       clearTimeout(timeouts[worker.uniqueID]);
     });
-    cluster.on('exit', function (worker) {
+    cluster.on('exit', function(worker, code, signal) {
       clearTimeout(timeouts[worker.uniqueID]);
       errorMsg();
     });
@@ -102,7 +102,7 @@ The difference between 'fork' and 'online' is that fork is emitted when the
 master tries to fork a worker, and 'online' is emitted when the worker is
 being executed.
 
-    cluster.on('online', function (worker) {
+    cluster.on('online', function(worker) {
       console.log("Yay, the worker responded after it was forked");
     });
 
@@ -120,7 +120,7 @@ object and the `address` object contains the following connection properties:
 `address`, `port` and `addressType`. This is very useful if the worker is listening
 on more than one address.
 
-    cluster.on('listening', function (worker, address) {
+    cluster.on('listening', function(worker, address) {
       console.log("A worker is now connected to " + address.address + ":" + address.port);
     });
 
@@ -143,11 +143,14 @@ connections.
 ## Event: 'exit'
 
 * `worker` {Worker object}
+* `code` {Number} the exit code, if it exited normally. 
+* `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
+  the process to be killed.
 
 When any of the workers die the cluster module will emit the 'exit' event.
 This can be used to restart the worker by calling `fork()` again.
 
-    cluster.on('exit', function(worker) {
+    cluster.on('exit', function(worker, code, signal) {
       var exitCode = worker.process.exitCode;
       console.log('worker ' + worker.pid + ' died ('+exitCode+'). restarting...');
       cluster.fork();
@@ -225,14 +228,14 @@ In the cluster all living worker objects are stored in this object by there
         callback(cluster.workers[uniqueID]);
       }
     }
-    eachWorker(function (worker) {
+    eachWorker(function(worker) {
       worker.send('big announcement to all workers');
     });
 
 Should you wish to reference a worker over a communication channel, using
 the worker's uniqueID is the easiest way to find the worker.
 
-    socket.on('data', function (uniqueID) {
+    socket.on('data', function(uniqueID) {
       var worker = cluster.workers[uniqueID];
     });
 
@@ -285,7 +288,7 @@ This example will echo back all messages from the master:
       worker.send('hi there');
 
     } else if (cluster.isWorker) {
-      process.on('message', function (msg) {
+      process.on('message', function(msg) {
         process.send(msg);
       });
     }
@@ -296,7 +299,7 @@ This function will kill the worker, and inform the master to not spawn a
 new worker.  The boolean `suicide` lets you distinguish between voluntary
 and accidental exit.
 
-    cluster.on('exit', function (worker) {
+    cluster.on('exit', function(worker, code, signal) {
       if (worker.suicide === true) {
         console.log('Oh, it was just suicide\' – no need to worry').
       }
@@ -324,30 +327,30 @@ that would normally not allow the worker to do any cleanup if needed.
       var worker = cluser.fork();
       var timeout;
 
-      worker.on('listening', function () {
+      worker.on('listening', function(address) {
         worker.disconnect();
-        timeout = setTimeout(function () {
+        timeout = setTimeout(function() {
           worker.send('force kill');
         }, 2000);
       });
 
-      worker.on('disconnect', function () {
+      worker.on('disconnect', function() {
         clearTimeout(timeout);
       });
 
     } else if (cluster.isWorker) {
       var net = require('net');
-      var server = net.createServer(function (socket) {
+      var server = net.createServer(function(socket) {
         // connection never end
       });
 
       server.listen(8000);
 
-      server.on('close', function () {
+      server.on('close', function() {
         // cleanup
       });
 
-      process.on('message', function (msg) {
+      process.on('message', function(msg) {
         if (msg === 'force kill') {
           server.destroy();
         }
@@ -377,15 +380,15 @@ in the master process using the message system:
       }, 1000);
 
       // Count requestes
-      var messageHandler = function (msg) {
+      function messageHandler(msg) {
         if (msg.cmd && msg.cmd == 'notifyRequest') {
           numReqs += 1;
         }
-      };
+      }
 
       // Start workers and listen for messages containing notifyRequest
       cluster.autoFork();
-      Object.keys(cluster.workers).forEach(function (uniqueID) {
+      Object.keys(cluster.workers).forEach(function(uniqueID) {
         cluster.workers[uniqueID].on('message', messageHandler);
       });
 
@@ -403,35 +406,30 @@ in the master process using the message system:
 
 ### Event: 'online'
 
-* `worker` {Worker object}
-
 Same as the `cluster.on('online')` event, but emits only when the state change
 on the specified worker.
 
-    cluster.fork().on('online', function (worker) {
+    cluster.fork().on('online', function() {
       // Worker is online
     };
 
 ### Event: 'listening'
 
-* `worker` {Worker object}
 * `address` {Object}
 
 Same as the `cluster.on('listening')` event, but emits only when the state change
 on the specified worker.
 
-    cluster.fork().on('listening', function (worker, address) {
+    cluster.fork().on('listening', function(address) {
       // Worker is listening
     };
 
 ### Event: 'disconnect'
 
-* `worker` {Worker object}
-
 Same as the `cluster.on('disconnect')` event, but emits only when the state change
 on the specified worker.
 
-    cluster.fork().on('disconnect', function (worker) {
+    cluster.fork().on('disconnect', function() {
       // Worker has disconnected
     };
 
@@ -445,7 +443,7 @@ Emitted by the individual worker instance, when the underlying child process
 is terminated.  See [child_process event: 'exit'](child_process.html#child_process_event_exit). 
 
     var worker = cluster.fork();
-    worker.on('exit', function (code, signal) {
+    worker.on('exit', function(code, signal) {
       if( signal ) {
         console.log("worker was killed by signal: "+signal);
       } else if( code !== 0 ) {

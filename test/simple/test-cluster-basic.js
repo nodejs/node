@@ -122,14 +122,26 @@ else if (cluster.isMaster) {
       checks.worker.events[name] = true;
 
       //Check argument
-      if (name == 'exit') {
-        checks.worker.equal[name] = (
-          worker.process.exitCode === arguments[0] &&
-          worker.process.signalCode === arguments[1] &&
-          worker === this
-        );
-      } else {
-        checks.worker.equal[name] = worker === arguments[0];
+      checks.worker.equal[name] = (worker === this);
+
+      switch (name) {
+        case 'exit':
+          assert.equal(arguments[0], worker.process.exitCode);
+          assert.equal(arguments[1], worker.process.signalCode);
+          assert.equal(arguments.length, 2);
+          break;
+
+        case 'listening':
+          assert.equal(arguments.length, 1);
+          var expect = { address: '127.0.0.1',
+                         port: common.PORT,
+                         addressType: 4 };
+          assert.deepEqual(arguments[0], expect);
+          break;
+
+        default:
+          assert.equal(arguments.length, 0);
+          break;
       }
     });
   });
@@ -145,7 +157,7 @@ else if (cluster.isMaster) {
     //Check cluster event arguments
     forEach(checks.cluster.equal, function(check, name) {
       assert.ok(check, 'The cluster event "' + name + '" did not emit ' +
-                'with corrent argument');
+                'with correct argument');
     });
 
     //Check worker states
