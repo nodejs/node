@@ -292,8 +292,9 @@ Users who experience large or growing `bufferSize` should attempt to
 
 ### socket.setEncoding([encoding])
 
-Sets the encoding (either `'ascii'`, `'utf8'`, or `'base64'`) for data that is
-received. Defaults to `null`.
+Set the encoding for the socket as a Readable Stream. See
+[stream.setEncoding()](stream.html#stream_stream_setencoding_encoding)
+for more information.
 
 ### socket.write(data, [encoding], [callback])
 

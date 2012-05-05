@@ -258,9 +258,9 @@ Also `request.httpVersionMajor` is the first integer and
 
 ### request.setEncoding([encoding])
 
-Set the encoding for the request body. Either `'utf8'` or `'binary'`. Defaults
-to `null`, which means that the `'data'` event will emit a `Buffer` object..
-
+Set the encoding for the request body. See
+[stream.setEncoding()](stream.html#stream_stream_setencoding_encoding)
+for more information.
 
 ### request.pause()
 
@@ -873,9 +873,9 @@ The response trailers object. Only populated after the 'end' event.
 
 ### response.setEncoding([encoding])
 
-Set the encoding for the response body. Either `'utf8'`, `'ascii'`, or
-`'base64'`. Defaults to `null`, which means that the `'data'` event will emit
-a `Buffer` object.
+Set the encoding for the response body. See
+[stream.setEncoding()](stream.html#stream_stream_setencoding_encoding)
+for more information.
 
 ### response.pause()
 

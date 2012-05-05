@@ -51,9 +51,10 @@ will emit this.  (For example, an incoming HTTP request will not emit
 A boolean that is `true` by default, but turns `false` after an `'error'`
 occurred, the stream came to an `'end'`, or `destroy()` was called.
 
-### stream.setEncoding(encoding)
-Makes the data event emit a string instead of a `Buffer`. `encoding` can be
-`'utf8'`, `'ascii'`, or `'base64'`.
+### stream.setEncoding([encoding])
+
+Makes the `'data'` event emit a string instead of a `Buffer`. `encoding` can be
+`'utf8'`, `'utf16le'` (`'ucs2'`), `'ascii'`, or `'hex'`. Defaults to `'utf8'`.
 
 ### stream.pause()
 
