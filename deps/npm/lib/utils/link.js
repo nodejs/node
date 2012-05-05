@@ -4,8 +4,8 @@ link.ifExists = linkIfExists
 
 var fs = require("graceful-fs")
   , chain = require("slide").chain
-  , mkdir = require("mkdirp")
-  , rm = require("./gently-rm.js")
+  , mkdir = require("./mkdir-p.js")
+  , rm = require("rimraf")
   , log = require("./log.js")
   , path = require("path")
   , relativize = require("./relativize.js")
@@ -23,7 +23,7 @@ function link (from, to, gently, cb) {
   if (npm.config.get("force")) gently = false
   chain
     ( [ [fs, "stat", from]
-      , [rm, to, gently]
+      , [rm, to, { gently: gently }]
       , [mkdir, path.dirname(to)]
       , [fs, "symlink", relativize(from, to), to] ]
     , cb)

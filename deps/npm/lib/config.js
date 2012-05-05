@@ -2,12 +2,10 @@
 module.exports = config
 
 config.usage = "npm config set <key> <value>"
-             + "\nnpm config get [<key>]"
+             + "\nnpm config get <key>"
              + "\nnpm config delete <key>"
              + "\nnpm config list"
              + "\nnpm config edit"
-             + "\nnpm set <key> <value>"
-             + "\nnpm get [<key>]"
 
 var ini = require("./utils/ini.js")
   , log = require("./utils/log.js")
@@ -115,9 +113,6 @@ function del (key, cb) {
 }
 
 function set (key, val, cb) {
-  if (key === undefined) {
-    return unknown("", cb)
-  }
   if (val === undefined) {
     if (key.indexOf("=") !== -1) {
       var k = key.split("=")

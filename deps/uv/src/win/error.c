@@ -67,6 +67,21 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case ERROR_SUCCESS:                     return UV_OK;
+    case ERROR_BEGINNING_OF_MEDIA:          return UV_EIO;
+    case ERROR_BUS_RESET:                   return UV_EIO;
+    case ERROR_CRC:                         return UV_EIO;
+    case ERROR_DEVICE_DOOR_OPEN:            return UV_EIO;
+    case ERROR_DEVICE_REQUIRES_CLEANING:    return UV_EIO;
+    case ERROR_DISK_CORRUPT:                return UV_EIO;
+    case ERROR_EOM_OVERFLOW:                return UV_EIO;
+    case ERROR_FILEMARK_DETECTED:           return UV_EIO;
+    case ERROR_INVALID_BLOCK_LENGTH:        return UV_EIO;
+    case ERROR_IO_DEVICE:                   return UV_EIO;
+    case ERROR_NO_DATA_DETECTED:            return UV_EIO;
+    case ERROR_NO_SIGNAL_SENT:              return UV_EIO;
+    case ERROR_OPEN_FAILED:                 return UV_EIO;
+    case ERROR_SETMARK_DETECTED:            return UV_EIO;
+    case ERROR_SIGNAL_REFUSED:              return UV_EIO;
     case ERROR_FILE_NOT_FOUND:              return UV_ENOENT;
     case ERROR_INVALID_NAME:                return UV_ENOENT;
     case ERROR_MOD_NOT_FOUND:               return UV_ENOENT;
@@ -129,6 +144,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case WSAETIMEDOUT:                      return UV_ETIMEDOUT;
     case WSAHOST_NOT_FOUND:                 return UV_ENOENT;
     case WSAENOTSOCK:                       return UV_ENOTSOCK;
+    case ERROR_NOT_SAME_DEVICE:             return UV_EXDEV;
     default:                                return UV_UNKNOWN;
   }
 }

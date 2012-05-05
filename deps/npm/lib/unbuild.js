@@ -3,7 +3,6 @@ unbuild.usage = "npm unbuild <folder>\n(this is plumbing)"
 
 var readJson = require("./utils/read-json.js")
   , rm = require("rimraf")
-  , gentlyRm = require("./utils/gently-rm.js")
   , npm = require("./npm.js")
   , path = require("path")
   , fs = require("graceful-fs")
@@ -57,20 +56,15 @@ function rmBins (pkg, folder, parent, top, cb) {
     if (process.platform === "win32") {
       rm(path.resolve(binRoot, b) + ".cmd", cb)
     } else {
-      gentlyRm( path.resolve(binRoot, b)
-              , !npm.config.get("force") && folder
-              , cb )
+      rm( path.resolve(binRoot, b)
+        , { gently: !npm.config.get("force") && folder }
+        , cb )
     }
   }, cb)
 }
 
 function rmMans (pkg, folder, parent, top, cb) {
-  if (!pkg.man
-      || !top
-      || process.platform === "win32"
-      || !npm.config.get("global")) {
-    return cb()
-  }
+  if (!pkg.man || !top || process.platform === "win32") return cb()
   var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
   asyncMap(pkg.man, function (man, cb) {
     var parseMan = man.match(/(.*)\.([0-9]+)(\.gz)?$/)
@@ -84,8 +78,8 @@ function rmMans (pkg, folder, parent, top, cb) {
                              : pkg.name + "-" + bn)
                              + "." + sxn + gz
                            )
-    gentlyRm( manDest
-            , !npm.config.get("force") && folder
-            , cb )
+    rm( manDest
+      , { gently: !npm.config.get("force") && folder }
+      , cb )
   }, cb)
 }

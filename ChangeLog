@@ -255,7 +255,53 @@
 * Bug fixes
 
 
-2012.04.09 Version 0.6.15 (stable)
+2012.05.04 Version 0.6.17 (stable), 4ced23deaf36493f4303a18f6fdce768c58becc0
+
+* Upgrade npm to 1.1.21
+
+* uv: Add support for EROFS errors (Ben Noordhuis, Maciej Małecki)
+
+* uv: Add support for EIO and ENOSPC errors (Fedor Indutny)
+
+* windows: Add support for EXDEV errors (Bert Belder)
+
+* http: Fix client memory leaks (isaacs, Vincent Voyer)
+
+* fs: fix file descriptor leak in sync functions (Ben Noordhuis)
+
+* fs: fix ReadStream / WriteStream double close bug (Ben Noordhuis)
+
+
+2012.04.30 Version 0.6.16 (stable), a1d193963ddc80a27da5da01b59751e14e33d1d6
+
+* Upgrade V8 to 3.6.6.25
+
+* Upgrade npm to 1.1.19
+
+* Windows: add mappings for UV_ENOENT (Bert Belder)
+
+* linux: add IN_MOVE_SELF to inotify event mask (Ben Noordhuis)
+
+* unix: call pipe handle connection cb on accept() error (Ben Noordhuis)
+
+* unix: handle EWOULDBLOCK (Ben Noordhuis)
+
+* map EWOULDBLOCK to UV_EAGAIN (Ben Noordhuis)
+
+* Map ENOMEM to UV_ENOMEM (isaacs)
+
+* Child process: support the `gid` and `uid` options (Bert Belder)
+
+* test: cluster: add worker death event test (Ben Noordhuis)
+
+* typo in node_http_parser (isaacs)
+
+* http_parser: Eat CRLF between requests, even on connection:close. (Ben Noordhuis)
+
+* don't check return value of unsetenv (Ben Noordhuis)
+
+
+2012.04.09 Version 0.6.15 (stable), f160a45b254e591eb33716311c92be533c6d86c4
 
 * Update npm to 1.1.16
 

@@ -70,7 +70,6 @@ function view (args, silent, cb) {
     data.versions = Object.keys(data.versions).sort(semver.compare)
     if (!args.length) args = [""]
 
-    // remove readme unless we asked for it
     if (-1 === args.indexOf("readme")) {
       delete data.readme
     }
@@ -82,10 +81,6 @@ function view (args, silent, cb) {
         delete versions[v]
       }
       if (semver.satisfies(v, version)) args.forEach(function (args) {
-        // remove readme unless we asked for it
-        if (-1 === args.indexOf("readme")) {
-          delete versions[v].readme
-        }
         results.push(showFields(data, versions[v], args))
       })
     })

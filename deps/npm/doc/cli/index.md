@@ -170,10 +170,6 @@ npm-index(1) -- Index of all npm documentation
 
  The semantic versioner for npm
 
-## npm-shrinkwrap(1)
-
- Lock down dependency versions
-
 ## npm-star(1)
 
  Mark your favorite packages
@@ -326,10 +322,6 @@ npm-index(1) -- Index of all npm documentation
 ## npm-search(3)
 
  Search for packages
-
-## npm-shrinkwrap(3)
-
- programmatically generate package shrinkwrap file
 
 ## npm-start(3)
 

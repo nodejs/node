@@ -59,8 +59,8 @@ Don't use them except in four situations:
 * `for (;;)` loops.  They're actually required.
 * null loops like: `while (something) ;` (But you'd better have a good
   reason for doing that.)
-* `case "foo": doSomething(); break`
-* In front of a leading `(` or `[` at the start of the line.
+* case "foo": doSomething(); break
+* In front of a leading ( or [ at the start of the line.
   This prevents the expression from being interpreted
   as a function call or property access, respectively.
 

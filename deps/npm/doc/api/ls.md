@@ -21,12 +21,6 @@ It will print out extraneous, missing, and invalid packages.
 If the silent parameter is set to true, nothing will be output to the screen,
 but the data will still be returned.
 
-Callback is provided an error if one occurred, the full data about which
-packages are installed and which dependencies they will receive, and a
-"lite" data object which just shows which versions are installed where.
-Note that the full data object is a circular structure, so care must be
-taken if it is serialized to JSON.
-
 ## CONFIGURATION
 
 ### long

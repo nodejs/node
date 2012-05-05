@@ -42,14 +42,16 @@ uninstall:
 clean:
 	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node blog.html email.md
 	-find out/ -name '*.o' -o -name '*.a' | xargs rm -rf
+	-rm -rf node_modules
 
 distclean:
 	-rm -rf out
 	-rm -f config.gypi
 	-rm -f config.mk
 	-rm -rf node node_g blog.html email.md
+	-rm -rf node_modules
 
-test: all
+test: all node_modules/weak
 	$(PYTHON) tools/test.py --mode=release simple message
 	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 
@@ -59,9 +61,18 @@ test-http1: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind simple message
 
-test-all: all
-	python tools/test.py --mode=debug,release
-	$(MAKE) test-npm
+node_modules/weak:
+	@if [ ! -f node ]; then make all; fi
+	@if [ ! -d node_modules ]; then mkdir -p node_modules; fi
+	./node deps/npm/bin/npm-cli.js install weak \
+		--prefix="$(shell pwd)" --unsafe-perm # go ahead and run as root.
+
+test-gc: all node_modules/weak
+	$(PYTHON) tools/test.py --mode=release gc
+
+test-all: all node_modules/weak
+	$(PYTHON) tools/test.py --mode=debug,release
+	make test-npm
 
 test-all-http1: all
 	$(PYTHON) tools/test.py --mode=debug,release --use-http1

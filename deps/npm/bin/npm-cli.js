@@ -49,13 +49,6 @@ if (conf.version) {
   return
 }
 
-if (conf.versions) {
-  var v = process.versions
-  v.npm = npm.version
-  console.log(v)
-  return
-}
-
 log.info("npm@"+npm.version, "using")
 log.info("node@"+process.version, "using")
 

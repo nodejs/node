@@ -14,7 +14,7 @@ cmdShim.ifExists = cmdShimIfExists
 
 var fs = require("graceful-fs")
   , chain = require("slide").chain
-  , mkdir = require("mkdirp")
+  , mkdir = require("./mkdir-p.js")
   , rm = require("rimraf")
   , log = require("./log.js")
   , path = require("path")
@@ -73,16 +73,16 @@ function writeShim_ (from, to, prog, args, cb) {
     target = ""
     shTarget = ""
   } else {
-    longProg = "\"%~dp0\\" + prog + ".exe\""
+    longProg = "\"%~dp0\"\\\"" + prog + ".exe\""
     shLongProg = "\"`dirname \"$0\"`/" + prog + "\""
     target = "\"%~dp0\\" + target + "\""
     shTarget = "\"`dirname \"$0\"`/" + shTarget + "\""
   }
 
-  // @IF EXIST "%~dp0\node.exe" (
+  // @IF EXIST "%~dp0"\"node.exe" (
   //   "%~dp0\node.exe" "%~dp0\.\node_modules\npm\bin\npm-cli.js" %*
   // ) ELSE (
-  //   node "%~dp0\.\node_modules\npm\bin\npm-cli.js" %*
+  //   node  "%~dp0\.\node_modules\npm\bin\npm-cli.js" %*
   // )
   var cmd
   if (longProg) {

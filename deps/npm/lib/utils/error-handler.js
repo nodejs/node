@@ -159,17 +159,6 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
-  case npm.EBADPLATFORM:
-    er.code = "EBADPLATFORM"
-    log.error([er.message
-              ,"Not compatible with your operating system or architecture: "+er.pkgid
-              ,"Valid OS:    "+er.os.join(",")
-              ,"Valid Arch:  "+er.cpu.join(",")
-              ,"Actual OS:   "+process.platform
-              ,"Actual Arch: "+process.arch
-              ].join("\n"))
-    break
-
   case "EEXIST":
   case constants.EEXIST:
     log.error([er.message
