@@ -32,7 +32,7 @@ install:
 uninstall:
 	@$(WAF) uninstall
 
-test: all node_modules/weak
+test: all
 	$(PYTHON) tools/test.py --mode=release simple message
 
 test-http1: all
