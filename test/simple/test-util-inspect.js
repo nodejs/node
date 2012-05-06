@@ -97,6 +97,13 @@ assert.doesNotThrow(function() {
   util.inspect(r);
 });
 
+// bug with user-supplied inspect function returns non-string
+assert.doesNotThrow(function() {
+  util.inspect([{
+    inspect: function() { return 123; }
+  }]);
+});
+
 // GH-2225
 var x = { inspect: util.inspect };
 assert.ok(util.inspect(x).indexOf('inspect') != -1);
