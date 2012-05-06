@@ -9,21 +9,21 @@ Note that once you've invoked this module, your node program will not
 terminate until you've closed the interface. Here's how to allow your
 program to gracefully exit:
 
-    var rl = require('readline');
+    var readline = require('readline');
 
-    var i = rl.createInterface({
+    var rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });
 
-    i.question("What do you think of node.js? ", function(answer) {
+    rl.question("What do you think of node.js? ", function(answer) {
       // TODO: Log the answer in a database
       console.log("Thank you for your valuable feedback:", answer);
 
-      i.close();
+      rl.close();
     });
 
-## rl.createInterface(options)
+## readline.createInterface(options)
 
 Creates a readline `Interface` instance. Accepts an "options" Object that takes
 the following values:
