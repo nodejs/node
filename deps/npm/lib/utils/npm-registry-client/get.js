@@ -6,8 +6,9 @@ var GET = require("./request.js").GET
   , npm = require("../../npm.js")
   , path = require("path")
   , log = require("../log.js")
-  , mkdir = require("../mkdir-p.js")
+  , mkdir = require("mkdirp")
   , cacheStat = null
+  , chownr = require("chownr")
 
 function get (project, version, timeout, nofollow, staleOk, cb) {
   if (typeof cb !== "function") cb = staleOk, staleOk = false
@@ -18,6 +19,9 @@ function get (project, version, timeout, nofollow, staleOk, cb) {
   if (typeof cb !== "function") {
     throw new Error("No callback provided to registry.get")
   }
+
+  timeout = Math.min(timeout, npm.config.get("cache-max"))
+  timeout = Math.max(timeout, npm.config.get("cache-min"))
 
   if ( process.env.COMP_CWORD !== undefined
     && process.env.COMP_LINE !== undefined
@@ -136,7 +140,7 @@ function get_ (uri, timeout, cache, stat, data, nofollow, staleOk, cb) {
 
     data = remoteData
     if (!data) {
-      er = new Error("failed to fetch from registry: " + uri)
+      er = er || new Error("failed to fetch from registry: " + uri)
     }
 
     if (er) return cb(er, data, raw, response)
@@ -170,13 +174,13 @@ function saveToCache (cache, data, saved) {
 }
 
 function saveToCache_ (cache, data, uid, gid, saved) {
-  mkdir(path.dirname(cache), npm.modes.exec, uid, gid, function (er) {
+  mkdir(path.dirname(cache), function (er, made) {
     if (er) return saved()
     fs.writeFile(cache, JSON.stringify(data), function (er) {
       if (er || uid === null || gid === null) {
         return saved()
       }
-      fs.chown(cache, uid, gid, saved)
+      chownr(made || cache, uid, gid, saved)
     })
   })
 }

@@ -17,8 +17,6 @@ require("path").SPLIT_CHAR = process.platform === "win32" ? "\\" : "/"
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter
   , config = require("./config.js")
-  , set = require("./utils/set.js")
-  , get = require("./utils/get.js")
   , ini = require("./utils/ini.js")
   , log = require("./utils/log.js")
   , fs = require("graceful-fs")
@@ -27,10 +25,27 @@ var EventEmitter = require("events").EventEmitter
   , which = require("which")
   , semver = require("semver")
   , findPrefix = require("./utils/find-prefix.js")
-  , getUid = require("./utils/uid-number.js")
-  , mkdir = require("./utils/mkdir-p.js")
+  , getUid = require("uid-number")
+  , mkdirp = require("mkdirp")
   , slide = require("slide")
   , chain = slide.chain
+
+// /usr/local is often a read-only fs, which is not
+// well handled by node or mkdirp.  Just double-check
+// in the case of errors when making the prefix dirs.
+function mkdir (p, cb) {
+  mkdirp(p, function (er, made) {
+    // it could be that we couldn't create it, because it
+    // already exists, and is on a read-only fs.
+    if (er) {
+      return fs.stat(p, function (er2, st) {
+        if (er2 || !st.isDirectory()) return cb(er)
+        return cb(null, made)
+      })
+    }
+    return cb(er, made)
+  })
+}
 
 npm.commands = {}
 npm.ELIFECYCLE = {}
@@ -40,30 +55,7 @@ npm.EJSONPARSE = {}
 npm.EISGIT = {}
 npm.ECYCLE = {}
 npm.ENOTSUP = {}
-
-// HACK for windows
-if (process.platform === "win32") {
-  // stub in unavailable methods from process and fs binding
-  if (!process.getuid) process.getuid = function() {}
-  if (!process.getgid) process.getgid = function() {}
-  var fsBinding = process.binding("fs")
-  if (!fsBinding.chown) fsBinding.chown = function() {
-    var cb = arguments[arguments.length - 1]
-    if (typeof cb == "function") cb()
-  }
-
-  // patch rename/renameSync, but this should really be fixed in node
-  var _fsRename = fs.rename
-    , _fsPathPatch
-  _fsPathPatch = function(p) {
-    return p && p.replace(/\\/g, "/") || p;
-  }
-  fs.rename = function(p1, p2) {
-    arguments[0] = _fsPathPatch(p1)
-    arguments[1] = _fsPathPatch(p2)
-    return _fsRename.apply(fs, arguments);
-  }
-}
+npm.EBADPLATFORM = {}
 
 try {
   // startup, ok to do this synchronously
@@ -112,6 +104,7 @@ var commandCache = {}
               , "unstar": "star" // same function
               , "apihelp" : "help"
               , "login": "adduser"
+              , "add-user": "adduser"
               }
 
   , aliasNames = Object.keys(aliases)
@@ -138,6 +131,7 @@ var commandCache = {}
               , "unpublish"
               , "owner"
               , "deprecate"
+              , "shrinkwrap"
 
               , "help"
               , "help-search"
@@ -309,7 +303,7 @@ function loadPrefix (npm, conf, cb) {
       })
     // the prefix MUST exist, or else nothing works.
     if (!npm.config.get("global")) {
-      mkdir(p, npm.modes.exec, null, null, true, next)
+      mkdir(p, next)
     } else {
       next(er)
     }
@@ -322,7 +316,7 @@ function loadPrefix (npm, conf, cb) {
       , enumerable : true
       })
     // the prefix MUST exist, or else nothing works.
-    mkdir(gp, npm.modes.exec, null, null, true, next)
+    mkdir(gp, next)
   })
 
   var i = 2

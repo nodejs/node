@@ -1,5 +1,6 @@
 // from http://github.com/felixge/node-paperboy
 exports.types = {
+  "3gp":"video/3gpp",
   "aiff":"audio/x-aiff",
   "arj":"application/x-arj-compressed",
   "asf":"video/x-ms-asf",
@@ -50,17 +51,21 @@ exports.types = {
   "lzh":"application/octet-stream",
   "m":"text/plain",
   "m3u":"audio/x-mpegurl",
+  "m4v":"video/mp4",
   "man":"application/x-troff-man",
   "me":"application/x-troff-me",
   "midi":"audio/midi",
   "mif":"application/x-mif",
   "mime":"www/mime",
+  "mkv":"  video/x-matrosk",
   "movie":"video/x-sgi-movie",
-  "mustache":"text/plain",
   "mp4":"video/mp4",
+  "mp41":"video/mp4",
+  "mp42":"video/mp4",
   "mpg":"video/mpeg",
   "mpga":"audio/mpeg",
   "ms":"application/x-troff-ms",
+  "mustache":"text/plain",
   "nc":"application/x-netcdf",
   "oda":"application/oda",
   "ogm":"application/ogg",
@@ -123,6 +128,7 @@ exports.types = {
   "vrm":"x-world/x-vrml",
   "wav":"audio/x-wav",
   "wax":"audio/x-ms-wax",
+  "webm":"video/webm",
   "wma":"audio/x-ms-wma",
   "wmv":"video/x-ms-wmv",
   "wmx":"video/x-ms-wmx",
@@ -134,7 +140,7 @@ exports.types = {
   "xpm":"image/x-xpixmap",
   "xwd":"image/x-xwindowdump",
   "xyz":"chemical/x-pdb",
-  "zip":"application/zip",
+  "zip":"application/zip"
 };
 
 exports.lookup = function(ext, defaultType) {

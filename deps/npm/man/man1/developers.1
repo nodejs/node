@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-DEVELOPERS" "1" "January 2012" "" ""
+.TH "NPM\-DEVELOPERS" "1" "May 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-developers\fR \-\- Developer Guide
@@ -43,6 +43,9 @@ e) a \fB<name>@<tag>\fR that points to (d)
 .IP "\(bu" 4
 f) a \fB<name>\fR that has a "latest" tag satisfying (e)
 .
+.IP "\(bu" 4
+g) a \fBgit\fR url that, when cloned, results in (a)\.
+.
 .IP "" 0
 .
 .P
@@ -50,6 +53,25 @@ Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
 perhaps if you also want to be able to easily install it elsewhere
 after packing it up into a tarball (b)\.
+.
+.P
+Git urls can be of the form:
+.
+.IP "" 4
+.
+.nf
+git://github\.com/user/project\.git#commit\-ish
+git+ssh://user@hostname:project\.git#commit\-ish
+git+http://user@hostname/project/blah\.git#commit\-ish
+git+https://user@hostname/project/blah\.git#commit\-ish
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
+an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
 .
 .SH "The package\.json File"
 You need to have a \fBpackage\.json\fR file in the root of your project to do

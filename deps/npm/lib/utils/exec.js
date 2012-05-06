@@ -1,4 +1,3 @@
-
 module.exports = exec
 exec.spawn = spawn
 exec.pipe = pipe
@@ -11,6 +10,7 @@ var log = require("./log.js")
   , myGID = process.getgid ? process.getgid() : null
   , isRoot = process.getuid && myUID === 0
   , constants = require("constants")
+  , uidNumber = require("uid-number")
 
 function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
   if (typeof cb !== "function") cb = gid, gid = null
@@ -34,6 +34,15 @@ function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
     log.verbose(uid, "Setting uid from "+myUID)
     log.verbose(new Error().stack, "stack at uid setting")
   }
+
+  if (uid && gid && (isNaN(uid) || isNaN(gid))) {
+    // get the numeric values
+    return uidNumber(uid, gid, function (er, uid, gid) {
+      if (er) return cb(er)
+      exec(cmd, args, env, takeOver, cwd, uid, gid, cb)
+    })
+  }
+
   log.silly(cmd+" "+args.map(JSON.stringify).join(" "), "exec")
   var stdout = ""
     , stderr = ""
@@ -77,6 +86,7 @@ function pipe (cp1, cp2, cb) {
     cb(errState = new Error(
       "Failed "+(cp1.name || "<unknown>")+"\nexited with "+code))
   })
+
   cp2.on("exit", function (code) {
     cp2._exited = true
     if (errState) return
@@ -94,10 +104,10 @@ function spawn (c, a, env, takeOver, cwd, uid, gid) {
              , env : env || process.env
              , cwd : cwd || null }
     , cp
-  if (uid != null) opts.uid = uid
-  if (gid != null) opts.gid = gid
-  if (!isNaN(opts.uid)) opts.uid = +opts.uid
-  if (!isNaN(opts.gid)) opts.gid = +opts.gid
+
+  if (uid && !isNaN(uid)) opts.uid = +uid
+  if (gid && !isNaN(gid)) opts.gid = +gid
+
   var name = c +" "+ a.map(JSON.stringify).join(" ")
   log.silly([c, a, opts.cwd], "spawning")
   cp = child_process.spawn(c, a, opts)

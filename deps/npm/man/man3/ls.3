@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-LS" "3" "January 2012" "" ""
+.TH "NPM\-LS" "3" "May 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-ls\fR \-\- List installed packages
@@ -30,6 +30,13 @@ It will print out extraneous, missing, and invalid packages\.
 .P
 If the silent parameter is set to true, nothing will be output to the screen,
 but the data will still be returned\.
+.
+.P
+Callback is provided an error if one occurred, the full data about which
+packages are installed and which dependencies they will receive, and a
+"lite" data object which just shows which versions are installed where\.
+Note that the full data object is a circular structure, so care must be
+taken if it is serialized to JSON\.
 .
 .SH "CONFIGURATION"
 .

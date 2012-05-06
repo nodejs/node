@@ -4,7 +4,6 @@ module.exports = LinkWriter
 var fs = require("graceful-fs")
   , Writer = require("./writer.js")
   , inherits = require("inherits")
-  , collect = require("./collect.js")
   , path = require("path")
   , rimraf = require("rimraf")
 

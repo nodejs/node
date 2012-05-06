@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "1" "January 2012" "" ""
+.TH "NPM\-CONFIG" "1" "May 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- Manage the npm configuration file
@@ -169,6 +169,12 @@ The following shorthands are parsed on the command\-line:
 .
 .IP "\(bu" 4
 \fB\-S\fR: \fB\-\-save\fR
+.
+.IP "\(bu" 4
+\fB\-D\fR: \fB\-\-save\-dev\fR
+.
+.IP "\(bu" 4
+\fB\-O\fR: \fB\-\-save\-optional\fR
 .
 .IP "\(bu" 4
 \fB\-y\fR: \fB\-\-yes\fR
@@ -356,6 +362,42 @@ Type: path
 .
 .P
 The location of npm\'s cache directory\.  See \fBnpm help cache\fR
+.
+.SS "cache\-max"
+.
+.IP "\(bu" 4
+Default: Infinity
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The maximum time (in seconds) to keep items in the registry cache before
+re\-checking against the registry\.
+.
+.P
+Note that no purging is done unless the \fBnpm cache clean\fR command is
+explicitly used, and that only GET requests use the cache\.
+.
+.SS "cache\-min"
+.
+.IP "\(bu" 4
+Default: 0
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The minimum time (in seconds) to keep items in the registry cache before
+re\-checking against the registry\.
+.
+.P
+Note that no purging is done unless the \fBnpm cache clean\fR command is
+explicitly used, and that only GET requests use the cache\.
 .
 .SS "color"
 .
@@ -567,6 +609,19 @@ Type: url
 .P
 A proxy to use for outgoing https requests\.
 .
+.SS "user\-agent"
+.
+.IP "\(bu" 4
+Default: npm/{npm\.version} node/{process\.version}
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+Sets a User\-Agent to the request header
+.
 .SS "ignore"
 .
 .IP "\(bu" 4
@@ -597,7 +652,7 @@ The value \fBnpm init\fR should use by default for the package version\.
 .SS "init\.author\.name"
 .
 .IP "\(bu" 4
-Default: "0\.0\.0"
+Default: ""
 .
 .IP "\(bu" 4
 Type: String
@@ -632,6 +687,24 @@ Type: String
 .
 .P
 The value \fBnpm init\fR should use by default for the package author\'s homepage\.
+.
+.SS "json"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Whether or not to output JSON data, rather than the normal output\.
+.
+.P
+This feature is currently experimental, and the output data structures
+for many commands is either not implemented in JSON yet, or subject to
+change\.  Only the output from \fBnpm ls \-\-json\fR is currently valid\.
 .
 .SS "link"
 .
@@ -940,6 +1013,38 @@ Save installed packages to a package\.json file as dependencies\.
 .P
 Only works if there is already a package\.json file present\.
 .
+.SS "save\-dev"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Save installed packages to a package\.json file as devDependencies\.
+.
+.P
+Only works if there is already a package\.json file present\.
+.
+.SS "save\-optional"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Save installed packages to a package\.json file as optionalDependencies\.
+.
+.P
+Only works if there is already a package\.json file present\.
+.
 .SS "searchopts"
 .
 .IP "\(bu" 4
@@ -1177,6 +1282,23 @@ Type: boolean
 .
 .P
 If true, output the npm version and exit successfully\.
+.
+.P
+Only relevant when specified explicitly on the command line\.
+.
+.SS "versions"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: boolean
+.
+.IP "" 0
+.
+.P
+If true, output the npm version as well as node\'s \fBprocess\.versions\fR
+hash, and exit successfully\.
 .
 .P
 Only relevant when specified explicitly on the command line\.

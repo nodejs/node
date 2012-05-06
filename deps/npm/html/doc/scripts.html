@@ -52,6 +52,19 @@ privileges.</p>
 made available regarding the setup of npm and the current state of the
 process.</p>
 
+<h3 id="path">path</h3>
+
+<p>If you depend on modules that define executable scripts, like test suites,
+then those executables will be added to the <code>PATH</code> for executing the scripts.
+So, if your package.json has this:</p>
+
+<pre><code>{ "name" : "foo"
+, "dependencies" : { "bar" : "0.1.x" }
+, "scripts": { "start" : "bar ./test" } }</code></pre>
+
+<p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is exported
+into the <code>node_modules/.bin</code> directory on <code>npm install</code>.</p>
+
 <h3 id="package-json-vars">package.json vars</h3>
 
 <p>The package.json fields are tacked onto the <code>npm_package_</code> prefix. So, for
@@ -164,7 +177,7 @@ will sudo the npm command in question.</li></ul>
 
 <ul><li><a href="../doc/run-script.html">run-script(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/install.html">install(1)</a></li></ul>
 </div>
-<p id="footer">scripts &mdash; npm@1.1.0-2</p>
+<p id="footer">scripts &mdash; npm@1.1.21</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

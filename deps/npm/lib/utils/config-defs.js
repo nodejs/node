@@ -9,6 +9,7 @@ var path = require("path")
   , os = require("os")
   , nopt = require("nopt")
   , log = require("./log.js")
+  , npm = require("../npm.js")
 
 function Octal () {}
 function validateOctal (data, k, val) {
@@ -139,6 +140,8 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , cache : process.platform === "win32"
             ? path.resolve(process.env.APPDATA || home || temp, "npm-cache")
             : path.resolve( home || temp, ".npm")
+    , "cache-max": Infinity
+    , "cache-min": 0
 
     , color : process.platform !== "win32" || winColor
     , coverage: false
@@ -161,6 +164,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "init.author.name" : ""
     , "init.author.email" : ""
     , "init.author.url" : ""
+    , json: false
     , link: false
     , logfd : 2
     , loglevel : "http"
@@ -180,10 +184,13 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
                       process.env.HTTP_PROXY || process.env.http_proxy || null
+    , "user-agent" : "npm/" + npm.version + " node/" + process.version
     , "rebuild-bundle" : true
     , registry : "http" + (httpsOk ? "s" : "") + "://registry.npmjs.org/"
     , rollback : true
     , save : false
+    , "save-dev" : false
+    , "save-optional" : false
     , searchopts: ""
     , searchexclude: null
     , searchsort: "name"
@@ -206,6 +213,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , userignorefile : path.resolve(home, ".npmignore")
     , umask: 022
     , version : false
+    , versions : false
     , viewer: process.platform === "win32" ? "browser" : "man"
     , yes: null
 
@@ -220,6 +228,8 @@ exports.types =
   , browser : String
   , ca: [null, String]
   , cache : path
+  , "cache-max": Number
+  , "cache-min": Number
   , color : ["always", Boolean]
   , coverage: Boolean
   , depth : Number
@@ -233,11 +243,13 @@ exports.types =
   , globalignorefile: path
   , group : [Number, String]
   , "https-proxy" : [null, url]
+  , "user-agent" : String
   , ignore : String
   , "init.version" : [null, semver]
   , "init.author.name" : String
   , "init.author.email" : String
   , "init.author.url" : ["", url]
+  , json: Boolean
   , link: Boolean
   , logfd : [Number, Stream]
   , loglevel : ["silent","win","error","warn","http","info","verbose","silly"]
@@ -259,6 +271,8 @@ exports.types =
   , registry : [null, url]
   , rollback : Boolean
   , save : Boolean
+  , "save-dev" : Boolean
+  , "save-optional" : Boolean
   , searchopts : String
   , searchexclude: [null, String]
   , searchsort: [ "name", "-name"
@@ -279,6 +293,7 @@ exports.types =
   , userignorefile : path
   , umask: Octal
   , version : Boolean
+  , versions : Boolean
   , viewer: String
   , yes: [false, null, Boolean]
   , _exit : Boolean
@@ -313,6 +328,8 @@ exports.shorthands =
   , porcelain : ["--parseable"]
   , g : ["--global"]
   , S : ["--save"]
+  , D : ["--save-dev"]
+  , O : ["--save-optional"]
   , y : ["--yes"]
   , n : ["--no-yes"]
   }

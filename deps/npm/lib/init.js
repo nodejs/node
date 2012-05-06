@@ -99,7 +99,10 @@ function init_ (data, folder, cb) {
           , function (er, r) {
               if (er) return cb(er)
               if (r !== "none") {
-                data.repository = (data.repository || {}).url = r
+                data.repository = (data.repository || {})
+                data.repository.url = r
+              } else {
+                delete data.repository
               }
               cb()
             }
@@ -144,13 +147,6 @@ function init_ (data, folder, cb) {
     , function (t) {
         if (t === "none") return
         (data.scripts = data.scripts || {}).test = t
-      }
-    )
-    ( read
-    , [ { prompt: "What versions of node does it run on? "
-        , default: data.engines && data.engines.node || (eng) } ]
-    , function (nodever) {
-        (data.engines = data.engines || {}).node = nodever
       }
     )
     (cleanupPaths, [data, folder])

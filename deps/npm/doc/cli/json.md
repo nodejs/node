@@ -332,6 +332,7 @@ is a semver compatible version identifier.
 * `""` (just an empty string) Same as `*`
 * `version1 - version2` Same as `>=version1 <=version2`.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
+* `git...` See 'Git URLs as Dependencies' below
 
 For example, these are all valid:
 
@@ -387,6 +388,18 @@ of a version range.
 This tarball will be downloaded and installed locally to your package at
 install time.
 
+### Git URLs as Dependencies
+
+Git urls can be of the form:
+
+    git://github.com/user/project.git#commit-ish
+    git+ssh://user@hostname:project.git#commit-ish
+    git+http://user@hostname/project/blah.git#commit-ish
+    git+https://user@hostname/project/blah.git#commit-ish
+
+The `commit-ish` can be any tag, sha, or branch which can be supplied as
+an argument to `git checkout`.  The default is `master`.
+
 ## devDependencies
 
 If someone is planning on downloading and using your module in their
@@ -415,7 +428,7 @@ node that your stuff works on:
     { "engines" : { "node" : ">=0.1.27 <0.1.30" } }
 
 And, like with dependencies, if you don't specify the version (or if you
-specify "*" as the version), then any version of node will do.
+specify "\*" as the version), then any version of node will do.
 
 If you specify an "engines" field, then npm will require that "node" be
 somewhere on that list. If "engines" is omitted, then npm will just assume
@@ -425,6 +438,36 @@ You can also use the "engines" field to specify which versions of npm
 are capable of properly installing your program.  For example:
 
     { "engines" : { "npm" : "~1.0.20" } }
+
+## os
+
+You can specify which operating systems your
+module will run on:
+
+    "os" : [ "darwin", "linux" ]
+
+You can also blacklist instead of whitelist operating systems,
+just prepend the blacklisted os with a '!':
+
+    "os" : [ "!win32" ]
+
+The host operating system is determined by `process.platform`
+
+It is allowed to both blacklist, and whitelist, although there isn't any
+good reason to do this.
+
+## cpu
+
+If your code only runs on certain cpu architectures,
+you can specify which ones.
+
+    "cpu" : [ "x64", "ia32" ]
+
+Like the `os` option, you can also blacklist architectures:
+
+    "cpu" : [ "!arm", "!mips" ]
+
+The host architecture is determined by `process.arch`
 
 ## preferGlobal
 
@@ -442,7 +485,7 @@ to publish it.
 
 This is a way to prevent accidental publication of private repositories.
 If you would like to ensure that a given package is only ever published
-to a speciic registry (for example, an internal registry),
+to a specific registry (for example, an internal registry),
 then use the `publishConfig` hash described below
 to override the `registry` config param at publish-time.
 
