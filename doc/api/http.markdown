@@ -25,6 +25,14 @@ parsing only. It parses a message into headers and body but it does not
 parse the actual headers or the body.
 
 
+## http.STATUS_CODES
+
+* {Object}
+
+A collection of all the standard HTTP response status codes, and the
+short description of each.  For example, `http.STATUS_CODES[404] === 'Not
+Found'`.
+
 ## http.createServer([requestListener])
 
 Returns a new web server object.
