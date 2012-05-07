@@ -27,12 +27,46 @@ var common = require('../common.js'),
 
 var nonStringInputs = [1, true, {a: 1}, ['a']];
 
+console.error('Doing the non-strings');
 nonStringInputs.forEach(function(input) {
   // zlib.gunzip should not throw an error when called with bad input.
-  assert.doesNotThrow(function () {
-    zlib.gunzip(input, function (err, buffer) {
+  assert.doesNotThrow(function() {
+    zlib.gunzip(input, function(err, buffer) {
       // zlib.gunzip should pass the error to the callback.
       assert.ok(err);
     });
   });
+});
+
+console.error('Doing the unzips');
+// zlib.Unzip classes need to get valid data, or else they'll throw.
+var unzips = [ zlib.Unzip(),
+               zlib.Gunzip(),
+               zlib.Inflate(),
+               zlib.InflateRaw() ];
+var hadError = [];
+unzips.forEach(function (uz, i) {
+  console.error('Error for '+uz.constructor.name);
+  uz.on('error', function(er) {
+    console.error('Error event', er);
+    hadError[i] = true;
+
+    // to be friendly to the Stream API, zlib objects just return true and
+    // ignore data on the floor after an error.  It's up to the user to
+    // catch the 'error' event and do something intelligent.  They do not
+    // emit any more data, however.
+    assert.equal(uz.write('also invalid'), true);
+    assert.equal(uz.end(), true);
+  });
+
+  uz.on('end', function(er) {
+    throw new Error('end event should not be emitted '+uz.constructor.name);
+  });
+
+  // this will trigger error event
+  uz.write('this is not valid compressed data.');
+});
+
+process.on('exit', function() {
+  assert.deepEqual(hadError, [true, true, true, true], 'expect 4 errors');
 });
