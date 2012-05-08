@@ -6844,7 +6844,7 @@ class String: public HeapObject {
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  inline uint16_t Get(int index);
+  INLINE(uint16_t Get(int index));
 
   // Try to flatten the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
