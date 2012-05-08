@@ -345,6 +345,9 @@ F FUNCTION_CAST(Address addr) {
 #define INLINE(header) inline __attribute__((always_inline)) header
 #define NO_INLINE(header) __attribute__((noinline)) header
 #endif
+#elif defined(_MSC_VER) && !defined(DEBUG)
+#define INLINE(header) __forceinline header
+#define NO_INLINE(header) header
 #else
 #define INLINE(header) inline header
 #define NO_INLINE(header) header
