@@ -180,26 +180,18 @@
 
   startup.processNextTick = function() {
     var nextTickQueue = [];
+    var nextTickIndex = 0;
 
     process._tickCallback = function() {
-      var l = nextTickQueue.length;
-      if (l === 0) return;
+      var nextTickLength = nextTickQueue.length;
+      if (nextTickLength === 0) return;
 
-      var q = nextTickQueue;
-      nextTickQueue = [];
+      while (nextTickIndex < nextTickLength) {
+        nextTickQueue[nextTickIndex++]();
+      }
 
-      try {
-        for (var i = 0; i < l; i++) q[i]();
-      }
-      catch (e) {
-        if (i + 1 < l) {
-          nextTickQueue = q.slice(i + 1).concat(nextTickQueue);
-        }
-        if (nextTickQueue.length) {
-          process._needTickCallback();
-        }
-        throw e; // process.nextTick error, or 'error' event on first tick
-      }
+      nextTickQueue.splice(0, nextTickIndex);
+      nextTickIndex = 0;
     };
 
     process.nextTick = function(callback) {

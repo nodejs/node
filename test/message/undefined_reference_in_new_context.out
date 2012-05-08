@@ -1,8 +1,8 @@
 before
 
-node.js:*
-        throw e; // process.nextTick error, or 'error' event on first tick
-              ^
+module.js:311
+    throw err;
+          ^
 ReferenceError: foo is not defined
     at evalmachine.<anonymous>:*
     at Object.<anonymous> (*test*message*undefined_reference_in_new_context.js:*)

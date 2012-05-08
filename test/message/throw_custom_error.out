@@ -1,6 +1,6 @@
 before
 
-node.js:*
-        throw e; // process.nextTick error, or 'error' event on first tick
-              ^
+module.js:311
+    throw err;
+          ^
 MyCustomError: This is a custom message
