@@ -1,6 +1,6 @@
 before
 
-module.js:311
-    throw err;
-          ^
+*test*message*throw_custom_error.js:31
+throw { name: 'MyCustomError', message: 'This is a custom message' };
+^
 MyCustomError: This is a custom message

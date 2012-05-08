@@ -1,6 +1,6 @@
 before
 
-module.js:311
-    throw err;
-          ^
+*test*message*stack_overflow.js:31
+function stackOverflow() {
+                      ^
 RangeError: Maximum call stack size exceeded

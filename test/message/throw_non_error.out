@@ -1,6 +1,6 @@
 before
 
-module.js:311
-    throw err;
-          ^
+*/test/message/throw_non_error.js:31
+throw { foo: 'bar' };
+^
 [object Object]
