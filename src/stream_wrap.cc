@@ -249,22 +249,11 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
 
   UNWRAP
 
-  bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
-                  ((uv_pipe_t*)wrap->stream_)->ipc;
-
   // The first argument is a buffer.
-  assert(Buffer::HasInstance(args[0]));
+  assert(args.Length() >= 1 && Buffer::HasInstance(args[0]));
   Local<Object> buffer_obj = args[0]->ToObject();
   size_t offset = 0;
   size_t length = Buffer::Length(buffer_obj);
-
-  if (args.Length() > 1) {
-    offset = args[1]->IntegerValue();
-  }
-
-  if (args.Length() > 2) {
-    length = args[2]->IntegerValue();
-  }
 
   if (length > INT_MAX) {
     uv_err_t err;
@@ -282,28 +271,11 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
   buf.base = Buffer::Data(buffer_obj) + offset;
   buf.len = length;
 
-  int r;
-
-  if (!ipc_pipe) {
-    r = uv_write(&req_wrap->req_, wrap->stream_, &buf, 1, StreamWrap::AfterWrite);
-  } else {
-    uv_stream_t* send_stream = NULL;
-
-    if (args[3]->IsObject()) {
-      Local<Object> send_stream_obj = args[3]->ToObject();
-      assert(send_stream_obj->InternalFieldCount() > 0);
-      StreamWrap* send_stream_wrap = static_cast<StreamWrap*>(
-          send_stream_obj->GetPointerFromInternalField(0));
-      send_stream = send_stream_wrap->GetStream();
-    }
-
-    r = uv_write2(&req_wrap->req_,
-                  wrap->stream_,
-                  &buf,
-                  1,
-                  send_stream,
-                  StreamWrap::AfterWrite);
-  }
+  int r = uv_write(&req_wrap->req_,
+                   wrap->stream_,
+                   &buf,
+                   1,
+                   StreamWrap::AfterWrite);
 
   req_wrap->Dispatched();
   req_wrap->object_->Set(bytes_sym, Number::New((uint32_t) length));
