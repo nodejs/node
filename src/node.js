@@ -219,35 +219,27 @@
 
   startup.processNextTick = function() {
     var nextTickQueue = [];
+    var nextTickIndex = 0;
 
     process._tickCallback = function() {
-      var l = nextTickQueue.length;
-      if (l === 0) return;
+      var nextTickLength = nextTickQueue.length;
+      if (nextTickLength === 0) return;
 
-      var q = nextTickQueue;
-      nextTickQueue = [];
-
-      try {
-        for (var i = 0; i < l; i++) {
-          var tock = q[i];
-          var callback = tock.callback;
-          if (tock.domain) {
-            if (tock.domain._disposed) continue;
-            tock.domain.enter();
-          }
-          callback();
-          if (tock.domain) tock.domain.exit();
+      while (nextTickIndex < nextTickLength) {
+        var tock = nextTickQueue[nextTickIndex++];
+        var callback = tock.callback;
+        if (tock.domain) {
+          if (tock.domain._disposed) continue;
+          tock.domain.enter();
+        }
+        callback();
+        if (tock.domain) {
+          tock.domain.exit();
         }
       }
-      catch (e) {
-        if (i + 1 < l) {
-          nextTickQueue = q.slice(i + 1).concat(nextTickQueue);
-        }
-        if (nextTickQueue.length) {
-          process._needTickCallback();
-        }
-        throw e; // process.nextTick error, or 'error' event on first tick
-      }
+
+      nextTickQueue.splice(0, nextTickIndex);
+      nextTickIndex = 0;
     };
 
     process.nextTick = function(callback) {
