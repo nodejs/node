@@ -337,7 +337,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
       break;
 
     case kUcs2:
-      storage_size += string->Length() * sizeof(uint16_t);
+      storage_size = string->Length() * sizeof(uint16_t);
       break;
 
     default:
