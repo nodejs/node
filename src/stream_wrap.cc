@@ -29,6 +29,7 @@
 #include "req_wrap.h"
 
 #include <stdlib.h> // abort()
+#include <limits.h> // INT_MAX
 
 #define SLAB_SIZE (1024 * 1024)
 
@@ -292,12 +293,6 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
   }
 }
 
-
-enum WriteEncoding {
-  kAscii,
-  kUtf8,
-  kUcs2
-};
 
 template <WriteEncoding encoding>
 Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {

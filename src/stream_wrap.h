@@ -28,6 +28,14 @@
 
 namespace node {
 
+
+enum WriteEncoding {
+  kAscii,
+  kUtf8,
+  kUcs2
+};
+
+
 class StreamWrap : public HandleWrap {
  public:
   uv_stream_t* GetStream() { return stream_; }
