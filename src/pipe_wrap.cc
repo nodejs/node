@@ -191,8 +191,8 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status != 0) {
-    // TODO Handle server error (set errno and call onconnection with NULL)
-    assert(0);
+    SetErrno(uv_last_error(uv_default_loop()));
+    MakeCallback(wrap->object_, "onconnection", 0, NULL);
     return;
   }
 
