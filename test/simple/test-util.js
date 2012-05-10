@@ -69,3 +69,12 @@ assert.equal(false, util.isError({}));
 assert.equal(false, util.isError({ name: 'Error', message: '' }));
 assert.equal(false, util.isError([]));
 assert.equal(false, util.isError(Object.create(Error.prototype)));
+
+// _extend
+assert.deepEqual(util._extend({a:1}),             {a:1});
+assert.deepEqual(util._extend({a:1}, []),         {a:1});
+assert.deepEqual(util._extend({a:1}, null),       {a:1});
+assert.deepEqual(util._extend({a:1}, true),       {a:1});
+assert.deepEqual(util._extend({a:1}, false),      {a:1});
+assert.deepEqual(util._extend({a:1}, {b:2}),      {a:1, b:2});
+assert.deepEqual(util._extend({a:1, b:2}, {b:3}), {a:1, b:3});
