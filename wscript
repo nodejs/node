@@ -255,7 +255,19 @@ def get_node_version():
                            node_is_release == "0" and "-pre" or ""
                          )
 
+def arch_cflags(conf):
+  flags = []
 
+  if 'DEST_CPU' in conf.env:
+    arch = conf.env['DEST_CPU']
+    if arch == 'ia32':
+      flags += ['-m32']
+    elif arch == 'x64':
+      flags += ['-m64']
+    if sys.platform.startswith('darwin'):
+      flags += ['-arch', {'ia32':'i386', 'x64':'x86_64'}.get(arch, arch)]
+
+  return flags
 
 def configure(conf):
   conf.check_tool('compiler_cxx')
@@ -440,30 +452,15 @@ def configure(conf):
     conf.env.append_value ('CCFLAGS', threadflags)
     conf.env.append_value ('CXXFLAGS', threadflags)
     conf.env.append_value ('LINKFLAGS', threadflags)
-  if sys.platform.startswith("darwin"):
+
+  if sys.platform.startswith('darwin'):
     # used by platform_darwin_*.cc
     conf.env.append_value('LINKFLAGS', ['-framework','Carbon'])
-    # cross compile for architecture specified by DEST_CPU
-    if 'DEST_CPU' in conf.env:
-      arch = conf.env['DEST_CPU']
-      # map supported_archs to GCC names:
-      arch_mappings = {'ia32': 'i386', 'x64': 'x86_64'}
-      if arch in arch_mappings:
-        arch = arch_mappings[arch]
-      flags = ['-arch', arch]
-      conf.env.append_value('CCFLAGS', flags)
-      conf.env.append_value('CXXFLAGS', flags)
-      conf.env.append_value('LINKFLAGS', flags)
-  if 'DEST_CPU' in conf.env:
-    arch = conf.env['DEST_CPU']
-    # TODO: -m32 is only available on 64 bit machines, so check host type
-    flags = None
-    if arch == 'ia32':
-      flags = '-m32'
-    if flags:
-      conf.env.append_value('CCFLAGS', flags)
-      conf.env.append_value('CXXFLAGS', flags)
-      conf.env.append_value('LINKFLAGS', flags)
+
+  flags = arch_cflags(conf)
+  conf.env.append_value('CCFLAGS', flags)
+  conf.env.append_value('CXXFLAGS', flags)
+  conf.env.append_value('LINKFLAGS', flags)
 
   # LFS
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
@@ -647,6 +644,8 @@ def uv_cmd(bld, variant):
   if not sys.platform.startswith('win32'):
     make = ('if [ -z "$NODE_MAKE" ]; then NODE_MAKE=make; fi; '
             '$NODE_MAKE -C ' + sh_escape(blddir))
+    flags = arch_cflags(bld)
+    if flags: make += ' CFLAGS=\'%s\'' % ' '.join(flags) # don't escape
   else:
     make = 'make -C ' + sh_escape(blddir)
   return '%s && (%s clean) && (%s all)' % (cmd, make, make)
