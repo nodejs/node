@@ -35,6 +35,7 @@
 #include <openssl/x509v3.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
+#include <openssl/pkcs12.h>
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 #include <node_buffer.h>
@@ -68,6 +69,7 @@ class SecureContext : ObjectWrap {
   static v8::Handle<v8::Value> SetOptions(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetSessionIdContext(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+  static v8::Handle<v8::Value> LoadPKCS12(const v8::Arguments& args);
 
   SecureContext() : ObjectWrap() {
     ctx_ = NULL;
