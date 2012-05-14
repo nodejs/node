@@ -36,12 +36,13 @@ assert.equal(net.isIP('::1'), 6);
 assert.equal(net.isIP('::'), 6);
 assert.equal(net.isIP('0000:0000:0000:0000:0000:0000:12345:0000'), 0);
 assert.equal(net.isIP('0'), 0);
+assert.equal(net.isIP(), 0);
+assert.equal(net.isIP(""), 0);
 
 assert.equal(net.isIPv4('127.0.0.1'), true);
 assert.equal(net.isIPv4('example.com'), false);
 assert.equal(net.isIPv4('2001:252:0:1::2008:6'), false);
 
 assert.equal(net.isIPv6('127.0.0.1'), false);
-assert.equal(net.isIPv4('example.com'), false);
+assert.equal(net.isIPv6('example.com'), false);
 assert.equal(net.isIPv6('2001:252:0:1::2008:6'), true);
-
