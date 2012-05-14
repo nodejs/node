@@ -248,10 +248,8 @@ void fs__open(uv_fs_t* req, const wchar_t* path, int flags, int mode) {
     goto end;
   }
 
-  /* Figure out whether path is a file or a directory. */
-  if (GetFileAttributesW(path) & FILE_ATTRIBUTE_DIRECTORY) {
-    attributes |= FILE_FLAG_BACKUP_SEMANTICS;
-  }
+  /* Setting this flag makes it possible to open a directory. */
+  attributes |= FILE_FLAG_BACKUP_SEMANTICS;
 
   file = CreateFileW(path,
                      access,

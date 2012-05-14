@@ -19,7 +19,7 @@
  */
 
 #include "uv.h"
-#include "unix/internal.h"
+#include "internal.h"
 
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* printf */
@@ -151,6 +151,9 @@ uv_loop_t* uv_loop_new(void) {
   uv_loop_t* loop = calloc(1, sizeof(uv_loop_t));
   loop->ev = ev_loop_new(0);
   ev_set_userdata(loop->ev, loop);
+#if HAVE_PORTS_FS
+  loop->fs_fd = -1;
+#endif
   return loop;
 }
 
@@ -161,6 +164,12 @@ void uv_loop_delete(uv_loop_t* loop) {
 
 #ifndef NDEBUG
   memset(loop, 0, sizeof *loop);
+#endif
+
+#if HAVE_PORTS_FS
+  if (loop->fs_fd != -1) {
+    uv__close(loop->fs_fd);
+  }
 #endif
 
   if (loop == default_loop_ptr)
@@ -182,6 +191,9 @@ uv_loop_t* uv_default_loop(void) {
     default_loop_struct.ev = ev_default_loop(EVBACKEND_KQUEUE);
 #else
     default_loop_struct.ev = ev_default_loop(EVFLAG_AUTO);
+#endif
+#if HAVE_PORTS_FS
+    default_loop_struct.fs_fd = -1;
 #endif
     ev_set_userdata(default_loop_struct.ev, default_loop_ptr);
   }

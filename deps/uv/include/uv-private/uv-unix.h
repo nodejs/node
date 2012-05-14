@@ -36,6 +36,11 @@
 #include <pwd.h>
 #include <termios.h>
 
+#if __sun
+# include <sys/port.h>
+# include <port.h>
+#endif
+
 /* Note: May be cast to struct iovec. See writev(2). */
 typedef struct {
   char* base;
@@ -52,6 +57,14 @@ typedef uid_t uv_uid_t;
 typedef void* uv_lib_t;
 #define UV_DYNAMIC /* empty */
 
+#if defined(PORT_SOURCE_FILE)
+# define UV_LOOP_PRIVATE_PLATFORM_FIELDS              \
+  ev_io fs_event_watcher;                             \
+  int fs_fd;
+#else
+# define UV_LOOP_PRIVATE_PLATFORM_FIELDS
+#endif
+
 #define UV_LOOP_PRIVATE_FIELDS \
   ares_channel channel; \
   /* \
@@ -60,7 +73,8 @@ typedef void* uv_lib_t;
    * definition of ares_timeout(). \
    */ \
   ev_timer timer; \
-  struct ev_loop* ev;
+  struct ev_loop* ev; \
+  UV_LOOP_PRIVATE_PLATFORM_FIELDS
 
 #define UV_REQ_BUFSML_SIZE (4)
 
@@ -206,12 +220,8 @@ typedef void* uv_lib_t;
 
 #elif defined(__sun)
 
-#include <sys/port.h>
-#include <port.h>
-
 #ifdef PORT_SOURCE_FILE
 # define UV_FS_EVENT_PRIVATE_FIELDS \
-  ev_io event_watcher; \
   uv_fs_event_cb cb; \
   file_obj_t fo;
 #else /* !PORT_SOURCE_FILE */
