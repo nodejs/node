@@ -415,6 +415,10 @@
     // start parsing data from that stream.
     if (process.env.NODE_CHANNEL_FD) {
       assert(parseInt(process.env.NODE_CHANNEL_FD) >= 0);
+
+      // Make sure it's not accidentally inherited by child processes.
+      delete process.env.NODE_CHANNEL_FD;
+
       var cp = NativeModule.require('child_process');
 
       // Load tcp_wrap to avoid situation where we might immediately receive
