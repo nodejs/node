@@ -41,11 +41,19 @@ fs.open(__filename, 'r', function(err, fd) {
   if (err) {
     throw err;
   }
-
   openFd = fd;
+});
+
+var openFd2;
+fs.open(__filename, 'rs', function(err, fd) {
+  if (err) {
+    throw err;
+  }
+  openFd2 = fd;
 });
 
 process.on('exit', function() {
   assert.ok(openFd);
+  assert.ok(openFd2);
 });
 
