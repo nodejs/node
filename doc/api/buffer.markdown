@@ -70,7 +70,7 @@ Allocates a new buffer containing the given `str`.
 
 * `string` String - data to be written to buffer
 * `offset` Number, Optional, Default: 0
-* `length` Number, Optional
+* `length` Number, Optional, Default: `buffer.length - offset`
 * `encoding` String, Optional, Default: 'utf8'
 
 Writes `string` to the buffer at `offset` using the given encoding.
@@ -93,7 +93,7 @@ next time `buf.write()` is called.
 
 * `encoding` String, Optional, Default: 'utf8'
 * `start` Number, Optional, Default: 0
-* `end` Number, Optional
+* `end` Number, Optional, Default: `buffer.length`
 
 Decodes and returns a string from buffer data encoded with `encoding`
 (defaults to `'utf8'`) beginning at `start` (defaults to `0`) and ending at
@@ -171,7 +171,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
 * `targetBuffer` Buffer object - Buffer to copy into
 * `targetStart` Number, Optional, Default: 0
 * `sourceStart` Number, Optional, Default: 0
-* `sourceEnd` Number, Optional, Default: 0
+* `sourceEnd` Number, Optional, Default: `buffer.length`
 
 Does copy between buffers. The source and target regions can be overlapped.
 `targetStart` and `sourceStart` default to `0`.
@@ -197,7 +197,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
 ### buf.slice([start], [end])
 
 * `start` Number, Optional, Default: 0
-* `end` Number, Optional, Default: 0
+* `end` Number, Optional, Default: `buffer.length`
 
 Returns a new buffer which references the same memory as the old, but offset
 and cropped by the `start` (defaults to `0`) and `end` (defaults to

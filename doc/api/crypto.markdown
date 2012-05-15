@@ -14,8 +14,9 @@ It also offers a set of wrappers for OpenSSL's hash, hmac, cipher, decipher, sig
 
 Creates a credentials object, with the optional details being a dictionary with keys:
 
+* `pfx` : A string or buffer holding the PFX or PKCS12 encoded private key, certificate and CA certificates
 * `key` : A string holding the PEM encoded private key
-* `passphrase` : A string of passphrase for the private key
+* `passphrase` : A string of passphrase for the private key or pfx
 * `cert` : A string holding the PEM encoded certificate
 * `ca` : Either a string or list of strings of PEM encoded CA certificates to trust.
 * `crl` : Either a string or list of strings of PEM encoded CRLs (Certificate Revocation List)

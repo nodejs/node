@@ -38,6 +38,7 @@ var path = require('path');
 // Test Certificates
 var caPem = fs.readFileSync(common.fixturesDir + '/test_ca.pem', 'ascii');
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
+var certPfx = fs.readFileSync(common.fixturesDir + '/test_cert.pfx');
 var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
     'ascii');
@@ -54,8 +55,24 @@ try {
   process.exit();
 }
 
-// Test HMAC
+// PFX tests
+assert.doesNotThrow(function() {
+  crypto.createCredentials({pfx:certPfx, passphrase:'sample'});
+});
 
+assert.throws(function() {
+  crypto.createCredentials({pfx:certPfx});
+}, 'mac verify failure');
+
+assert.throws(function() {
+  crypto.createCredentials({pfx:certPfx, passphrase:'test'});
+}, 'mac verify failure');
+
+assert.throws(function() {
+  crypto.createCredentials({pfx:'sample', passphrase:'test'});
+}, 'not enough data');
+
+// Test HMAC
 var h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac')

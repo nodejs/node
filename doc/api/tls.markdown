@@ -28,6 +28,17 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 (TODO: docs on creating a CA, for now interested users should just look at
 `test/fixtures/keys/Makefile` in the Node source code)
 
+To create .pfx or .p12, do this:
+
+    openssl pkcs12 -export -in agent5-cert.pem -inkey agent5-key.pem \
+        -certfile ca-cert.pem -out agent5.pfx
+
+  - `in`:  certificate
+  - `inkey`: private key
+  - `certfile`: all CA certs concatenated in one file like
+    `cat ca1-cert.pem ca2-cert.pem > ca-cert.pem`
+
+
 ## Client-initiated renegotiation attack mitigation
 
 <!-- type=misc -->
@@ -72,10 +83,14 @@ The `connectionListener` argument is automatically set as a listener for the
 [secureConnection](#event_secureConnection_) event.
 The `options` object has these possibilities:
 
+  - `pfx`: A string or `Buffer` containing the private key, certificate and
+    CA certs of the server in PFX or PKCS12 format. (Mutually exclusive with
+    the `key`, `cert` and `ca` options.)
+
   - `key`: A string or `Buffer` containing the private key of the server in
     PEM format. (Required)
 
-  - `passphrase`: A string of passphrase for the private key.
+  - `passphrase`: A string of passphrase for the private key or pfx.
 
   - `cert`: A string or `Buffer` containing the certificate key of the server in
     PEM format. (Required)
@@ -155,7 +170,29 @@ Here is a simple example echo server:
       console.log('server bound');
     });
 
+Or
 
+    var tls = require('tls');
+    var fs = require('fs');
+
+    var options = {
+      pfx: fs.readFileSync('server.pfx'),
+
+      // This is necessary only if using the client certificate authentication.
+      requestCert: true,
+
+    };
+
+    var server = tls.createServer(options, function(cleartextStream) {
+      console.log('server connected',
+                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
+      cleartextStream.write("welcome!\n");
+      cleartextStream.setEncoding('utf8');
+      cleartextStream.pipe(cleartextStream);
+    });
+    server.listen(8000, function() {
+      console.log('server bound');
+    });
 You can test this server by connecting to it with `openssl s_client`:
 
 
@@ -177,10 +214,13 @@ Creates a new client connection to the given `port` and `host` (old API) or
     creating a new socket. If this option is specified, `host` and `port`
     are ignored.
 
+  - `pfx`: A string or `Buffer` containing the private key, certificate and
+    CA certs of the server in PFX or PKCS12 format.
+
   - `key`: A string or `Buffer` containing the private key of the client in
     PEM format.
 
-  - `passphrase`: A string of passphrase for the private key.
+  - `passphrase`: A string of passphrase for the private key or pfx.
 
   - `cert`: A string or `Buffer` containing the certificate key of the client in
     PEM format.
@@ -233,6 +273,28 @@ Here is an example of a client of echo server as described previously:
       server.close();
     });
 
+Or
+
+    var tls = require('tls');
+    var fs = require('fs');
+
+    var options = {
+      pfx: fs.readFileSync('client.pfx')
+    };
+
+    var cleartextStream = tls.connect(8000, options, function() {
+      console.log('client connected',
+                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
+      process.stdin.pipe(cleartextStream);
+      process.stdin.resume();
+    });
+    cleartextStream.setEncoding('utf8');
+    cleartextStream.on('data', function(data) {
+      console.log(data);
+    });
+    cleartextStream.on('end', function() {
+      server.close();
+    });
 
 ## tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
 

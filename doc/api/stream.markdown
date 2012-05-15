@@ -74,11 +74,6 @@ Resumes the incoming `'data'` events after a `pause()`.
 
 Closes the underlying file descriptor. Stream will not emit any more events.
 
-
-### stream.destroySoon()
-
-After the write queue is drained, close the file descriptor.
-
 ### stream.pipe(destination, [options])
 
 This is a `Stream.prototype` method available on all `Stream`s.
