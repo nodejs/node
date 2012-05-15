@@ -20,6 +20,8 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "req_wrap.h"
+#include "handle_wrap.h"
 
 #include "uv.h"
 
@@ -90,6 +92,13 @@ extern char **environ;
 
 namespace node {
 
+ngx_queue_t handle_wrap_queue = { &handle_wrap_queue, &handle_wrap_queue };
+ngx_queue_t req_wrap_queue = { &req_wrap_queue, &req_wrap_queue };
+
+// declared in req_wrap.h
+Persistent<String> process_symbol;
+Persistent<String> domain_symbol;
+
 static Persistent<Object> process;
 
 static Persistent<String> errno_symbol;
@@ -105,7 +114,6 @@ static Persistent<String> listeners_symbol;
 static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
-static Persistent<String> domain_symbol;
 static Persistent<String> enter_symbol;
 static Persistent<String> exit_symbol;
 static Persistent<String> disposed_symbol;
@@ -1019,8 +1027,7 @@ MakeCallback(const Handle<Object> object,
 
   TryCatch try_catch;
 
-  if (domain_symbol.IsEmpty()) {
-    domain_symbol = NODE_PSYMBOL("domain");
+  if (enter_symbol.IsEmpty()) {
     enter_symbol = NODE_PSYMBOL("enter");
     exit_symbol = NODE_PSYMBOL("exit");
     disposed_symbol = NODE_PSYMBOL("_disposed");
@@ -1327,6 +1334,46 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
   }
 
   return scope.Close(result);
+}
+
+
+static Handle<Value> GetActiveRequests(const Arguments& args) {
+  HandleScope scope;
+
+  Local<Array> ary = Array::New();
+  ngx_queue_t* q = NULL;
+  int i = 0;
+
+  ngx_queue_foreach(q, &req_wrap_queue) {
+    ReqWrap<uv_req_t>* w = container_of(q, ReqWrap<uv_req_t>, req_wrap_queue_);
+    if (w->object_.IsEmpty()) continue;
+    ary->Set(i++, w->object_);
+  }
+
+  return scope.Close(ary);
+}
+
+
+// Non-static, friend of HandleWrap. Could have been a HandleWrap method but
+// implemented here for consistency with GetActiveRequests().
+Handle<Value> GetActiveHandles(const Arguments& args) {
+  HandleScope scope;
+
+  Local<Array> ary = Array::New();
+  ngx_queue_t* q = NULL;
+  int i = 0;
+
+  Local<String> owner_sym = String::New("owner");
+
+  ngx_queue_foreach(q, &handle_wrap_queue) {
+    HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
+    if (w->object_.IsEmpty() || w->unref) continue;
+    Local<Value> obj = w->object_->Get(owner_sym);
+    if (obj->IsUndefined()) obj = *w->object_;
+    ary->Set(i++, obj);
+  }
+
+  return scope.Close(ary);
 }
 
 
@@ -2239,6 +2286,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
 
   // define various internal methods
+  NODE_SET_METHOD(process, "_getActiveRequests", GetActiveRequests);
+  NODE_SET_METHOD(process, "_getActiveHandles", GetActiveHandles);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "abort", Abort);
@@ -2868,6 +2917,9 @@ int Start(int argc, char *argv[]) {
     // Create the one and only Context.
     Persistent<Context> context = Context::New();
     Context::Scope context_scope(context);
+
+    process_symbol = NODE_PSYMBOL("process");
+    domain_symbol = NODE_PSYMBOL("domain");
 
     // Use original argv, as we're just copying values out of it.
     Handle<Object> process_l = SetupProcessObject(argc, argv);

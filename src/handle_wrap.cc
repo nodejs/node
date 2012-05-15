@@ -20,10 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "ngx-queue.h"
 #include "handle_wrap.h"
 
 namespace node {
 
+using v8::Array;
 using v8::Object;
 using v8::Handle;
 using v8::Local;
@@ -50,6 +52,10 @@ using v8::Integer;
     SetErrno(err); \
     return scope.Close(Integer::New(-1)); \
   }
+
+
+// defined in node.cc
+extern ngx_queue_t handle_wrap_queue;
 
 
 void HandleWrap::Initialize(Handle<Object> target) {
@@ -125,6 +131,7 @@ HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   assert(object->InternalFieldCount() > 0);
   object_ = v8::Persistent<v8::Object>::New(object);
   object_->SetPointerInInternalField(0, this);
+  ngx_queue_insert_tail(&handle_wrap_queue, &handle_wrap_queue_);
 }
 
 
@@ -136,6 +143,7 @@ void HandleWrap::SetHandle(uv_handle_t* h) {
 
 HandleWrap::~HandleWrap() {
   assert(object_.IsEmpty());
+  ngx_queue_remove(&handle_wrap_queue_);
 }
 
 

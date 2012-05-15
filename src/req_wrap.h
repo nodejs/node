@@ -22,10 +22,14 @@
 #ifndef REQ_WRAP_H_
 #define REQ_WRAP_H_
 
+#include "ngx-queue.h"
+
 namespace node {
 
-static v8::Persistent<v8::String> process_symbol;
-static v8::Persistent<v8::String> domain_symbol;
+// defined in node.cc
+extern v8::Persistent<v8::String> process_symbol;
+extern v8::Persistent<v8::String> domain_symbol;
+extern ngx_queue_t req_wrap_queue;
 
 template <typename T>
 class ReqWrap {
@@ -33,12 +37,6 @@ class ReqWrap {
   ReqWrap() {
     v8::HandleScope scope;
     object_ = v8::Persistent<v8::Object>::New(v8::Object::New());
-
-    // TODO: grab a handle to the current process.domain
-    if (process_symbol.IsEmpty()) {
-      process_symbol = NODE_PSYMBOL("process");
-      domain_symbol = NODE_PSYMBOL("domain");
-    }
 
     v8::Local<v8::Value> domain = v8::Context::GetCurrent()
                                   ->Global()
@@ -50,10 +48,13 @@ class ReqWrap {
       // fprintf(stderr, "setting domain on ReqWrap\n");
       object_->Set(domain_symbol, domain);
     }
+
+    ngx_queue_insert_tail(&req_wrap_queue, &req_wrap_queue_);
   }
 
 
   ~ReqWrap() {
+    ngx_queue_remove(&req_wrap_queue_);
     // Assert that someone has called Dispatched()
     assert(req_.data == this);
     assert(!object_.IsEmpty());
@@ -67,8 +68,9 @@ class ReqWrap {
   }
 
   v8::Persistent<v8::Object> object_;
-  T req_;
+  ngx_queue_t req_wrap_queue_;
   void* data_;
+  T req_; // *must* be last, GetActiveRequests() in node.cc depends on it
 };
 
 
