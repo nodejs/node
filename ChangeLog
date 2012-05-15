@@ -1,4 +1,33 @@
-2012.05.04 Version 0.6.17 (stable)
+2012.05.15 Version 0.6.18 (stable)
+
+* windows: skip GetFileAttributes call when opening a file (Bert Belder)
+
+* crypto: add PKCS12/PFX support (Sambasiva Suda)
+
+* #3240: child_process: delete NODE_CHANNEL_FD from env in spawn (Ben Noordhuis)
+
+* windows: add test for path.normalize with UNC paths (Bert Belder)
+
+* windows: make path.normalize convert all slashes to backslashes (Bert Belder)
+
+* fs: Automatically close FSWatcher on error (Bert Belder)
+
+* #3258: fs.ReadStream.pause() emits duplicate data event (koichik)
+
+* pipe_wrap: don't assert() on pipe accept errors (Ben Noordhuis)
+
+* Better exception output for module load and process.nextTick (Felix Geisendörfer)
+
+* zlib: fix error reporting (Ben Noordhuis)
+
+* http: Don't destroy on timeout (isaacs)
+
+* #3231: http: Don't try to emit error on a null'ed req object (isaacs)
+
+* #3236: http: Refactor ClientRequest.onSocket (isaacs)
+
+
+2012.05.04 Version 0.6.17 (stable), 4ced23deaf36493f4303a18f6fdce768c58becc0
 
 * Upgrade npm to 1.1.21
 
