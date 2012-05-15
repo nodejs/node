@@ -1362,10 +1362,14 @@ Handle<Value> GetActiveHandles(const Arguments& args) {
   ngx_queue_t* q = NULL;
   int i = 0;
 
+  Local<String> owner_sym = String::New("owner");
+
   ngx_queue_foreach(q, &handle_wrap_queue) {
     HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
     if (w->object_.IsEmpty() || w->unref) continue;
-    ary->Set(i++, w->object_);
+    Local<Value> obj = w->object_->Get(owner_sym);
+    if (obj->IsUndefined()) obj = *w->object_;
+    ary->Set(i++, obj);
   }
 
   return scope.Close(ary);
