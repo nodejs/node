@@ -277,6 +277,10 @@ this doesn't turn `fs.open()` into a synchronous blocking call, if that's what
 you want then you should be using `fs.openSync()`
 An exception occurs if the file does not exist.
 
+* `'rs+'` - Open file for reading and writing, telling the OS to open it
+synchronously.
+See notes for `'rs'` about using this with caution.
+
 * `'w'` - Open file for writing.
 The file is created (if it does not exist) or truncated (if it exists).
 
