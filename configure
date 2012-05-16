@@ -265,6 +265,8 @@ def configure_node(o):
   # SunOS, and we haven't implemented it.)
   if sys.platform.startswith('sunos'):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace);
+    # Strict aliasing causes problems with the V8 snapshots on SunOS
+    o['variables']['strict_aliasing'] = b(False);
   elif b(options.with_dtrace) == 'true':
     raise Exception('DTrace is currently only supported on SunOS systems.')
   else:
