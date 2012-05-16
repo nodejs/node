@@ -245,6 +245,7 @@ there is no IPC channel keeping it alive. When calling this method the
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
+  * `stdio` {Array|String} Child's stdio configuration. (See below)
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
     for stdio.  (See below)
   * `env` {Object} Environment key-value pairs
@@ -336,6 +337,47 @@ spawning the process with an empty environment rather than using
 `process.env`. This due to backwards compatibility issues with a deprecated
 API.
 
+The 'stdio' option to `child_process.spawn()` is an array where each
+index corresponds to a fd in the child.  The value is one of the following:
+
+1. `null`, `undefined` - Use default value. For 0,1,2 stdios this is the same
+   as `'pipe'`. For any higher value, `'ignore'`
+2. `'ignore'` - Open the fd in the child, but do not expose it to the parent
+3. `'pipe'` - Open the fd and expose as a `Stream` object to parent.
+4. `'ipc'` - Create IPC channel for passing messages/file descriptors between
+   parent and child.
+
+     Note: A ChildProcess may have at most *one* IPC stdio file descriptor.
+     Setting this option enables the ChildProcess.send() method.  If the
+     child writes JSON messages to this file descriptor, then this will trigger
+     ChildProcess.on('message').  If the child is a Node.js program, then
+     the presence of an IPC channel will enable process.send() and
+     process.on('message')
+5. positive integer - Share corresponding fd with child
+6. Any TTY, TCP, File stream (or any object with `fd` property) - Share
+   corresponding stream with child.
+
+As a shorthand, the `stdio` argument may also be one of the following
+strings, rather than an array:
+
+* `ignore` - `['ignore', 'ignore', 'ignore']`
+* `pipe` - `['pipe', 'pipe', 'pipe']`
+* `inherit` - `[process.stdin, process.stdout, process.stderr]` or `[0,1,2]`
+
+Example:
+
+    var spawn = require('child_process').spawn;
+
+    // Child will use parent's stdios
+    spawn('prg', [], { stdio: 'inherit' });
+
+    // Spawn child sharing only stderr
+    spawn('prg', [], { stdio: ['pipe', 'pipe', process.stderr] });
+
+    // Open an extra fd=4, to interact with programs present a
+    // startd-style interface.
+    spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
+
 There is a deprecated option called `customFds` which allows one to specify
 specific file descriptors for the stdio of the child process. This API was
 not portable to all platforms and therefore removed.
@@ -354,8 +396,9 @@ See also: `child_process.exec()` and `child_process.fork()`
 * `command` {String} The command to run, with space-separated arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
+  * `stdio` {Array|String} Child's stdio configuration. (See above)
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
-    for stdio.  (See below)
+    for stdio.  (See above)
   * `env` {Object} Environment key-value pairs
   * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
@@ -411,8 +454,9 @@ the child process is killed.
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
+  * `stdio` {Array|String} Child's stdio configuration. (See above)
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
-    for stdio.  (See below)
+    for stdio.  (See above)
   * `env` {Object} Environment key-value pairs
   * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
@@ -436,8 +480,6 @@ leaner than `child_process.exec`. It has the same options.
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `customFds` {Array} **Deprecated** File descriptors for the child to use
-    for stdio.  (See below)
   * `env` {Object} Environment key-value pairs
   * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
