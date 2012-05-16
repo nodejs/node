@@ -38,6 +38,10 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
+fs.fstatSync = function() {
+  throw new Error('BAM');
+};
+
 ensureThrows(function() {
   fs.readFileSync('dummy');
 });
