@@ -1,6 +1,6 @@
 before
 
-*test*message*stack_overflow.js:0
-(function (exports, require, module, __filename, __dirname) { // Copyright Joy
-^
+*test*message*stack_overflow.js:31
+function stackOverflow() {
+                      ^
 RangeError: Maximum call stack size exceeded
