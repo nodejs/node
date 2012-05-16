@@ -19,55 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifndef TTY_WRAP_H_
+#define TTY_WRAP_H_
+
+#include "handle_wrap.h"
+#include "stream_wrap.h"
+
+namespace node {
+
+using v8::Object;
+using v8::Handle;
+using v8::Local;
+using v8::Value;
+using v8::Arguments;
 
 
+class TTYWrap : StreamWrap {
+ public:
+  static void Initialize(Handle<Object> target);
+  static TTYWrap* Unwrap(Local<Object> obj);
 
-var common = require('../common');
-var assert = require('assert');
-var Process = process.binding('process_wrap').Process;
-var Pipe = process.binding('pipe_wrap').Pipe;
-var pipe = new Pipe();
-var p = new Process();
+  uv_tty_t* UVHandle();
 
-var processExited = false;
-var gotPipeEOF = false;
-var gotPipeData = false;
+ private:
+  TTYWrap(Handle<Object> object, int fd, bool readable);
 
-p.onexit = function(exitCode, signal) {
-  console.log('exit');
-  p.close();
-  pipe.readStart();
+  static Handle<Value> GuessHandleType(const Arguments& args);
+  static Handle<Value> IsTTY(const Arguments& args);
+  static Handle<Value> GetWindowSize(const Arguments& args);
+  static Handle<Value> SetRawMode(const Arguments& args);
+  static Handle<Value> New(const Arguments& args);
 
-  assert.equal(0, exitCode);
-  assert.equal(0, signal);
-
-  processExited = true;
+  uv_tty_t handle_;
 };
 
-pipe.onread = function(b, off, len) {
-  assert.ok(processExited);
-  if (b) {
-    gotPipeData = true;
-    console.log('read %d', len);
-  } else {
-    gotPipeEOF = true;
-    pipe.close();
-  }
-};
+} // namespace node
 
-p.spawn({
-  file: process.execPath,
-  args: [process.execPath, '-v'],
-  stdio: [
-    { type: 'ignore' },
-    { type: 'pipe', handle: pipe },
-    { type: 'ignore' }
-  ]
-});
-
-
-process.on('exit', function() {
-  assert.ok(processExited);
-  assert.ok(gotPipeEOF);
-  assert.ok(gotPipeData);
-});
+#endif // TTY_WRAP_H_

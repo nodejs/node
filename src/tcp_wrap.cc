@@ -128,6 +128,18 @@ void TCPWrap::Initialize(Handle<Object> target) {
 }
 
 
+TCPWrap* TCPWrap::Unwrap(Local<Object> obj) {
+  assert(!obj.IsEmpty());
+  assert(obj->InternalFieldCount() > 0);
+  return static_cast<TCPWrap*>(obj->GetPointerFromInternalField(0));
+}
+
+
+uv_tcp_t* TCPWrap::UVHandle() {
+  return &handle_;
+}
+
+
 Handle<Value> TCPWrap::New(const Arguments& args) {
   // This constructor should not be exposed to public javascript.
   // Therefore we assert that we are not trying to call this as a
