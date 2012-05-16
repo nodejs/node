@@ -33,13 +33,12 @@ encoding method.  Here are the different string encodings.
 
 * `'base64'` - Base64 string encoding.
 
-* `'hex'` - Encode each byte as two hexadecimal characters.
+* `'binary'` - A way of encoding raw binary data into strings by using only
+  the first 8 bits of each character. This encoding method is deprecated and
+  should be avoided in favor of `Buffer` objects where possible. This encoding
+  will be removed in future versions of Node.
 
-If you need direct access to the bytes, then the best way is to use a
-Buffer object directly, rather than any string encoding.  In the past,
-there were options for `'binary'`, `'raw'`, and others, but these all
-involve unnecessary copying.  Just use Buffers directly if you need
-access to the actual bytes.
+* `'hex'` - Encode each byte as two hexadecimal characters.
 
 ## Class: Buffer
 

@@ -1111,18 +1111,16 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   } else if (strcasecmp(*encoding, "ucs-2") == 0) {
     return UCS2;
   } else if (strcasecmp(*encoding, "binary") == 0) {
-    fprintf(stderr, "The 'binary' buffer encoding is deprecated. "
-                    "Use a Buffer object directly.\n");
     return BINARY;
   } else if (strcasecmp(*encoding, "hex") == 0) {
     return HEX;
   } else if (strcasecmp(*encoding, "raw") == 0) {
     fprintf(stderr, "'raw' (array of integers) has been removed. "
-                    "Use a Buffer object directly.\n");
+                    "Use 'binary'.\n");
     return BINARY;
   } else if (strcasecmp(*encoding, "raws") == 0) {
-    fprintf(stderr, "'raws' (array of integers) has been removed. "
-                    "Use a Buffer object directly.\n");
+    fprintf(stderr, "'raws' encoding has been renamed to 'binary'. "
+                    "Please update your code.\n");
     return BINARY;
   } else {
     return _default;
@@ -1156,8 +1154,8 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
   HandleScope scope;
 
   if (val->IsArray()) {
-    fprintf(stderr, "'raw' (array of integers) has been removed. "
-                    "Use a Buffer object directly.\n");
+    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
+                    "Use 'binary'.\n");
     assert(0);
     return -1;
   }
@@ -1193,8 +1191,8 @@ ssize_t DecodeWrite(char *buf,
   // http://groups.google.com/group/v8-users/browse_thread/thread/1f83b0ba1f0a611
 
   if (val->IsArray()) {
-    fprintf(stderr, "'raw' (array of integers) has been removed. "
-                    "Use a Buffer object directly.\n");
+    fprintf(stderr, "'raw' encoding (array of integers) has been removed. "
+                    "Use 'binary'.\n");
     assert(0);
     return -1;
   }
