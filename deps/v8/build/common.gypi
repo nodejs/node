@@ -339,7 +339,7 @@
             'cflags': [ '-I/usr/pkg/include' ],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
-            'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
         ],
@@ -386,7 +386,6 @@
           }],  # OS=="mac"
           ['OS=="win"', {
             'msvs_configuration_attributes': {
-              'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
               'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
               'CharacterSet': '1',
             },
