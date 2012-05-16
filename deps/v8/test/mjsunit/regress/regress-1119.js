@@ -28,17 +28,19 @@
 // Test runtime declaration of properties with var which are intercepted
 // by JS accessors.
 
-__proto__.__defineSetter__("x", function() { hasBeenInvoked = true; });
-__proto__.__defineSetter__("y", function() { throw 'exception'; });
+// Flags: --es52_globals
+
+this.__defineSetter__("x", function() { hasBeenInvoked = true; });
+this.__defineSetter__("y", function() { throw 'exception'; });
 
 var hasBeenInvoked = false;
 eval("try { } catch (e) { var x = false; }");
 assertTrue(hasBeenInvoked);
 
-var exception;
+// This has to run in global scope, so cannot use assertThrows...
 try {
   eval("try { } catch (e) { var y = false; }");
+  assertUnreachable();
 } catch (e) {
-  exception = e;
+  assertEquals('exception', e);
 }
-assertEquals('exception', exception);

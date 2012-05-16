@@ -31,19 +31,25 @@
 # Note that the project must be built with SCons before running this script.
 
 # Allow:
-#  - _GLOBAL__I__ZN2v88internal32AtomicOps_Internalx86CPUFeaturesE
 #  - _GLOBAL__I__ZN2v810LineEditor6first_E
-expected_static_init_count=2
+#  - _GLOBAL__I__ZN2v88internal32AtomicOps_Internalx86CPUFeaturesE
+#  - _GLOBAL__I__ZN2v88internal8ThreadId18highest_thread_id_E
+expected_static_init_count=3
 
 v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
-d8="${v8_root}/d8"
+
+if [ -n "$1" ] ; then
+  d8="${v8_root}/$1"
+else
+  d8="${v8_root}/d8"
+fi
 
 if [ ! -f "$d8" ]; then
-  echo "Please build the project with SCons."
+  echo "d8 binary not found: $d8"
   exit 1
 fi
 
-static_inits=$(nm "$d8" | grep _GLOBAL__I | awk '{ print $NF; }')
+static_inits=$(nm "$d8" | grep _GLOBAL_ | grep _I_ | awk '{ print $NF; }')
 
 static_init_count=$(echo "$static_inits" | wc -l)
 
@@ -51,4 +57,7 @@ if [ $static_init_count -gt $expected_static_init_count ]; then
   echo "Too many static initializers."
   echo "$static_inits"
   exit 1
+else
+  echo "Static initializer check passed ($static_init_count initializers)."
+  exit 0
 fi

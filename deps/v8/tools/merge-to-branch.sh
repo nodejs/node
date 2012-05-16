@@ -49,6 +49,8 @@ OPTIONS:
   -h    Show this message
   -s    Specify the step where to start work. Default: 0.
   -p    Specify a patch file to apply as part of the merge
+  -m    Specify a commit message for the patch
+  -r    Reverse specified patches
 EOF
 }
 
@@ -68,7 +70,7 @@ restore_patch_commit_hashes_if_unset() {
 
 ########## Option parsing
 
-while getopts ":hs:fp:" OPTION ; do
+while getopts ":hs:fp:rm:" OPTION ; do
   case $OPTION in
     h)  usage
         exit 0
@@ -76,6 +78,10 @@ while getopts ":hs:fp:" OPTION ; do
     p)  EXTRA_PATCH=$OPTARG
         ;;
     f)  rm -f "$ALREADY_MERGING_SENTINEL_FILE"
+        ;;
+    r)  REVERSE_PATCH="--reverse"
+        ;;
+    m)  NEW_COMMIT_MSG=$OPTARG
         ;;
     s)  START_STEP=$OPTARG
         ;;
@@ -98,8 +104,13 @@ touch "$ALREADY_MERGING_SENTINEL_FILE"
 initial_environment_checks
 
 if [ $START_STEP -le $CURRENT_STEP ] ; then
-  if [ ${#@} -lt 2 ] && [ -z "$EXTRA_PATCH" ] ; then
-    die "Either a patch file or revision numbers must be specified"
+  if [ ${#@} -lt 2 ] ; then
+    if [ -z "$EXTRA_PATCH" ] ; then
+      die "Either a patch file or revision numbers must be specified"
+    fi
+    if [ -z "$NEW_COMMIT_MSG" ] ; then
+      die "You must specify a merge comment if no patches are specified"
+    fi
   fi
   echo ">>> Step $CURRENT_STEP: Preparation"
   MERGE_TO_BRANCH=$1
@@ -131,10 +142,12 @@ revisions associated with the patches."
     REVISION_LIST="$REVISION_LIST r$REVISION"
     let current+=1
   done
-  if [ -z "$REVISION_LIST" ] ; then
-    NEW_COMMIT_MSG="Applied patch to $MERGE_TO_BRANCH branch."
-  else
-    NEW_COMMIT_MSG="Merged$REVISION_LIST into $MERGE_TO_BRANCH branch."
+  if [ -n "$REVISION_LIST" ] ; then
+    if [ -n "$REVERSE_PATCH" ] ; then
+      NEW_COMMIT_MSG="Rollback of$REVISION_LIST in $MERGE_TO_BRANCH branch."
+    else
+      NEW_COMMIT_MSG="Merged$REVISION_LIST into $MERGE_TO_BRANCH branch."
+    fi;
   fi;
 
   echo "$NEW_COMMIT_MSG" > $COMMITMSG_FILE

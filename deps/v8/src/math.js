@@ -30,7 +30,6 @@
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
 var $floor = MathFloor;
-var $random = MathRandom;
 var $abs = MathAbs;
 
 // Instance class name can only be set on functions. That is the only

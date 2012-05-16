@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import cmd
 import ctypes
 import mmap
 import optparse
@@ -36,6 +37,7 @@ import sys
 import types
 import codecs
 import re
+import struct
 
 
 USAGE="""usage: %prog [OPTION]...
@@ -105,6 +107,24 @@ class Descriptor(object):
                                for field, _ in Raw._fields_) + "}"
     return Raw
 
+
+def do_dump(reader, heap):
+  """Dump all available memory regions."""
+  def dump_region(reader, start, size, location):
+    print "%s - %s" % (reader.FormatIntPtr(start),
+                       reader.FormatIntPtr(start + size))
+    for slot in xrange(start,
+                       start + size,
+                       reader.PointerSize()):
+      maybe_address = reader.ReadUIntPtr(slot)
+      heap_object = heap.FindObject(maybe_address)
+      print "%s: %s" % (reader.FormatIntPtr(slot),
+                        reader.FormatIntPtr(maybe_address))
+      if heap_object:
+        heap_object.Print(Printer())
+        print
+
+  reader.ForEachMemoryRegion(dump_region)
 
 # Set of structures and constants that describe the layout of minidump
 # files. Based on MSDN and Google Breakpad.
@@ -444,6 +464,33 @@ class MinidumpReader(object):
     location = self.FindLocation(address)
     return self.minidump[location:location + size]
 
+  def _ReadWord(self, location):
+    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+      return ctypes.c_uint64.from_buffer(self.minidump, location).value
+    elif self.arch == MD_CPU_ARCHITECTURE_X86:
+      return ctypes.c_uint32.from_buffer(self.minidump, location).value
+
+  def ForEachMemoryRegion(self, cb):
+    if self.memory_list64 is not None:
+      for r in self.memory_list64.ranges:
+        location = self.memory_list64.base_rva + offset
+        cb(self, r.start, r.size, location)
+        offset += r.size
+
+    if self.memory_list is not None:
+      for r in self.memory_list.ranges:
+        cb(self, r.start, r.memory.data_size, r.memory.rva)
+
+  def FindWord(self, word):
+    def search_inside_region(reader, start, size, location):
+      for loc in xrange(location, location + size):
+        if reader._ReadWord(loc) == word:
+          slot = start + (loc - location)
+          print "%s: %s" % (reader.FormatIntPtr(slot),
+                            reader.FormatIntPtr(word))
+
+    self.ForEachMemoryRegion(search_inside_region)
+
   def FindLocation(self, address):
     offset = 0
     if self.memory_list64 is not None:
@@ -745,7 +792,10 @@ class ConsString(String):
     self.right = self.ObjectField(self.RightOffset())
 
   def GetChars(self):
-    return self.left.GetChars() + self.right.GetChars()
+    try:
+      return self.left.GetChars() + self.right.GetChars()
+    except:
+      return "***CAUGHT EXCEPTION IN GROKDUMP***"
 
 
 class Oddball(HeapObject):
@@ -1011,6 +1061,42 @@ CONTEXT_FOR_ARCH = {
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
 
+class InspectionShell(cmd.Cmd):
+  def __init__(self, reader, heap):
+    cmd.Cmd.__init__(self)
+    self.reader = reader
+    self.heap = heap
+    self.prompt = "(grok) "
+
+  def do_dd(self, address):
+    "Interpret memory at the given address (if available)"\
+    " as a sequence of words."
+    start = int(address, 16)
+    for slot in xrange(start,
+                       start + self.reader.PointerSize() * 10,
+                       self.reader.PointerSize()):
+      maybe_address = self.reader.ReadUIntPtr(slot)
+      heap_object = self.heap.FindObject(maybe_address)
+      print "%s: %s" % (self.reader.FormatIntPtr(slot),
+                        self.reader.FormatIntPtr(maybe_address))
+      if heap_object:
+        heap_object.Print(Printer())
+        print
+
+  def do_s(self, word):
+    "Search for a given word in available memory regions"
+    word = int(word, 0)
+    print "searching for word", word
+    self.reader.FindWord(word)
+
+  def do_list(self, smth):
+    """List all available memory regions."""
+    def print_region(reader, start, size, location):
+      print "%s - %s" % (reader.FormatIntPtr(start),
+                         reader.FormatIntPtr(start + size))
+
+    self.reader.ForEachMemoryRegion(print_region)
+
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
   DebugPrint("========================================")
@@ -1045,21 +1131,29 @@ def AnalyzeMinidump(options, minidump_name):
     print FormatDisasmLine(start, heap, line)
   print
 
-  print "Annotated stack (from exception.esp to bottom):"
-  for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-    maybe_address = reader.ReadUIntPtr(slot)
-    heap_object = heap.FindObject(maybe_address)
-    print "%s: %s" % (reader.FormatIntPtr(slot),
-                      reader.FormatIntPtr(maybe_address))
-    if heap_object:
-      heap_object.Print(Printer())
-      print
+  if options.full:
+    do_dump(reader, heap)
+
+  if options.shell:
+    InspectionShell(reader, heap).cmdloop("type help to get help")
+  else:
+    print "Annotated stack (from exception.esp to bottom):"
+    for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+      maybe_address = reader.ReadUIntPtr(slot)
+      heap_object = heap.FindObject(maybe_address)
+      print "%s: %s" % (reader.FormatIntPtr(slot),
+                        reader.FormatIntPtr(maybe_address))
+      if heap_object:
+        heap_object.Print(Printer())
+        print
 
   reader.Dispose()
 
 
 if __name__ == "__main__":
   parser = optparse.OptionParser(USAGE)
+  parser.add_option("-s", "--shell", dest="shell", action="store_true")
+  parser.add_option("-f", "--full", dest="full", action="store_true")
   options, args = parser.parse_args()
   if len(args) != 1:
     parser.print_help()

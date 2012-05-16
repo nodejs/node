@@ -62,6 +62,10 @@ class AssemblerBase: public Malloced {
   Isolate* isolate() const { return isolate_; }
   int jit_cookie() { return jit_cookie_; }
 
+  // Overwrite a host NaN with a quiet target NaN.  Used by mksnapshot for
+  // cross-snapshotting.
+  static void QuietNaN(HeapObject* nan) { }
+
  private:
   Isolate* isolate_;
   int jit_cookie_;
@@ -534,6 +538,8 @@ class ExternalReference BASE_EMBEDDED {
     // Handle<value> f(Local<String> property, AccessorInfo& info)
     DIRECT_GETTER_CALL
   };
+
+  static void SetUp();
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);
 

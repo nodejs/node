@@ -93,6 +93,13 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  virtual void CheckCharacterInRange(uc16 from,
+                                     uc16 to,
+                                     Label* on_in_range);
+  virtual void CheckCharacterNotInRange(uc16 from,
+                                        uc16 to,
+                                        Label* on_not_in_range);
+  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
@@ -114,6 +121,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   inline void EmitOrLink(Label* label);
   inline void Emit32(uint32_t x);
   inline void Emit16(uint32_t x);
+  inline void Emit8(uint32_t x);
   inline void Emit(uint32_t bc, uint32_t arg);
   // Bytecode buffer.
   int length();

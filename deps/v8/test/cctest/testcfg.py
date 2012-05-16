@@ -53,6 +53,8 @@ class CcTestCase(test.TestCase):
       serialization_file = join('obj', 'test', self.mode, 'serdes')
     else:
       serialization_file = join('obj', 'serdes')
+      if not exists(join(self.context.buildspace, 'obj')):
+        os.makedirs(join(self.context.buildspace, 'obj'))
     serialization_file += '_' + self.GetName()
     serialization_file = join(self.context.buildspace, serialization_file)
     serialization_file += ''.join(self.variant_flags).replace('-', '_')

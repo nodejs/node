@@ -52,36 +52,14 @@ S15.10.2.11_A1_T3: FAIL
 
 # We are more lenient in which string character escapes we allow than
 # the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
+S7.8.4_A4.3_T1: FAIL_OK
 S7.8.4_A4.3_T2: FAIL_OK
-S7.8.4_A4.3_T2: FAIL_OK
-S7.8.4_A6.2_T2: FAIL_OK
-S7.8.4_A6.1_T4: FAIL_OK
+S7.8.4_A4.3_T3: FAIL_OK
 S7.8.4_A4.3_T4: FAIL_OK
-S7.8.4_A7.2_T2: FAIL_OK
-S7.8.4_A7.1_T4: FAIL_OK
+S7.8.4_A6.4_T1: FAIL_OK
 S7.8.4_A6.4_T2: FAIL_OK
+S7.8.4_A7.4_T1: FAIL_OK
 S7.8.4_A7.4_T2: FAIL_OK
-S7.8.4_A7.2_T4: FAIL_OK
-S7.8.4_A4.3_T6: FAIL_OK
-S7.8.4_A7.2_T6: FAIL_OK
-S7.8.4_A4.3_T1: FAIL_OK
-S7.8.4_A6.2_T1: FAIL_OK
-S7.8.4_A4.3_T3: FAIL_OK
-S7.8.4_A7.2_T1: FAIL_OK
-S7.8.4_A6.4_T1: FAIL_OK
-S7.8.4_A7.2_T3: FAIL_OK
-S7.8.4_A7.4_T1: FAIL_OK
-S7.8.4_A4.3_T5: FAIL_OK
-S7.8.4_A7.2_T5: FAIL_OK
-S7.8.4_A4.3_T1: FAIL_OK
-S7.8.4_A6.2_T1: FAIL_OK
-S7.8.4_A4.3_T3: FAIL_OK
-S7.8.4_A7.2_T1: FAIL_OK
-S7.8.4_A6.4_T1: FAIL_OK
-S7.8.4_A7.2_T3: FAIL_OK
-S7.8.4_A7.4_T1: FAIL_OK
-S7.8.4_A4.3_T5: FAIL_OK
-S7.8.4_A7.2_T5: FAIL_OK
 
 # Sputnik expects unicode escape sequences in RegExp flags to be interpreted.
 # The specification requires them to be passed uninterpreted to the RegExp
@@ -145,6 +123,16 @@ S15.3.4.2_A1_T1: FAIL_OK
 # We follow the other major JS engines by keeping this default.
 S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
 S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
+
+# The source field of RegExp objects is properly escaped. We match JSC.
+S15.10.4.1_A3_T1: FAIL_OK
+S15.10.4.1_A3_T2: FAIL_OK
+S15.10.4.1_A3_T3: FAIL_OK
+S15.10.4.1_A3_T4: FAIL_OK
+S15.10.4.1_A3_T5: FAIL_OK
+S15.10.4.1_A4_T2: FAIL_OK
+S15.10.4.1_A4_T3: FAIL_OK
+S15.10.4.1_A4_T5: FAIL_OK
 
 ##################### ES3 TESTS #########################
 # These tests check for ES3 semantics, and differ from ES5.

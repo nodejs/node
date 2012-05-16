@@ -27,11 +27,13 @@
 
 #include "v8.h"
 
+#include "assembler.h"
 #include "isolate.h"
 #include "elements.h"
 #include "bootstrapper.h"
 #include "debug.h"
 #include "deoptimizer.h"
+#include "frames.h"
 #include "heap-profiler.h"
 #include "hydrogen.h"
 #include "lithium-allocator.h"
@@ -103,13 +105,21 @@ void V8::TearDown() {
   ASSERT(isolate->IsDefaultIsolate());
 
   if (!has_been_set_up_ || has_been_disposed_) return;
+
+  ElementsAccessor::TearDown();
+  LOperand::TearDownCaches();
+  RegisteredExtension::UnregisterAll();
+
   isolate->TearDown();
+  delete isolate;
 
   is_running_ = false;
   has_been_disposed_ = true;
 
   delete call_completed_callbacks_;
   call_completed_callbacks_ = NULL;
+
+  OS::TearDown();
 }
 
 
@@ -240,7 +250,6 @@ Object* V8::FillHeapNumberWithRandom(Object* heap_number,
 }
 
 void V8::InitializeOncePerProcessImpl() {
-  // Set up the platform OS support.
   OS::SetUp();
 
   use_crankshaft_ = FLAG_crankshaft;
@@ -254,7 +263,9 @@ void V8::InitializeOncePerProcessImpl() {
     use_crankshaft_ = false;
   }
 
-  RuntimeProfiler::GlobalSetup();
+  OS::PostSetUp();
+
+  RuntimeProfiler::GlobalSetUp();
 
   ElementsAccessor::InitializeOncePerProcess();
 
@@ -265,6 +276,9 @@ void V8::InitializeOncePerProcessImpl() {
   }
 
   LOperand::SetUpCaches();
+  SetUpJSCallerSavedCodeData();
+  SamplerRegistry::SetUp();
+  ExternalReference::SetUp();
 }
 
 void V8::InitializeOncePerProcess() {

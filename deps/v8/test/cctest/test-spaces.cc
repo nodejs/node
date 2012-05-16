@@ -140,8 +140,8 @@ TEST(MemoryAllocator) {
                        heap->MaxReserved(),
                        OLD_POINTER_SPACE,
                        NOT_EXECUTABLE);
-  Page* first_page =
-      memory_allocator->AllocatePage(&faked_space, NOT_EXECUTABLE);
+  Page* first_page = memory_allocator->AllocatePage(
+      faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
 
   first_page->InsertAfter(faked_space.anchor()->prev_page());
   CHECK(first_page->is_valid());
@@ -153,8 +153,8 @@ TEST(MemoryAllocator) {
   }
 
   // Again, we should get n or n - 1 pages.
-  Page* other =
-      memory_allocator->AllocatePage(&faked_space, NOT_EXECUTABLE);
+  Page* other = memory_allocator->AllocatePage(
+      faked_space.AreaSize(), &faked_space, NOT_EXECUTABLE);
   CHECK(other->is_valid());
   total_pages++;
   other->InsertAfter(first_page);

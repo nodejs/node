@@ -126,15 +126,9 @@ class Scope: public ZoneObject {
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
-  template<class Visitor>
-  Variable* DeclareFunctionVar(Handle<String> name,
-                               VariableMode mode,
-                               AstNodeFactory<Visitor>* factory) {
-    ASSERT(is_function_scope() && function_ == NULL);
-    Variable* function_var = new Variable(
-        this, name, mode, true, Variable::NORMAL, kCreatedInitialized);
-    function_ = factory->NewVariableProxy(function_var);
-    return function_var;
+  void DeclareFunctionVar(VariableDeclaration* declaration) {
+    ASSERT(is_function_scope());
+    function_ = declaration;
   }
 
   // Declare a parameter in this scope.  When there are duplicated
@@ -312,9 +306,8 @@ class Scope: public ZoneObject {
   Variable* receiver() { return receiver_; }
 
   // The variable holding the function literal for named function
-  // literals, or NULL.
-  // Only valid for function scopes.
-  VariableProxy* function() const {
+  // literals, or NULL.  Only valid for function scopes.
+  VariableDeclaration* function() const {
     ASSERT(is_function_scope());
     return function_;
   }
@@ -446,7 +439,7 @@ class Scope: public ZoneObject {
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
-  VariableProxy* function_;
+  VariableDeclaration* function_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
   // Interface; module scopes only.

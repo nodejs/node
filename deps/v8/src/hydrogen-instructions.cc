@@ -416,6 +416,7 @@ void HValue::Kill() {
   SetFlag(kIsDead);
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* operand = OperandAt(i);
+    if (operand == NULL) continue;
     HUseListNode* first = operand->use_list_;
     if (first != NULL && first->value() == this && first->index() == i) {
       operand->use_list_ = first->tail();
@@ -462,7 +463,8 @@ void HValue::PrintChangesTo(StringStream* stream) {
       add_comma = true;                           \
       stream->Add(#type);                         \
     }
-    GVN_FLAG_LIST(PRINT_DO);
+    GVN_TRACKED_FLAG_LIST(PRINT_DO);
+    GVN_UNTRACKED_FLAG_LIST(PRINT_DO);
 #undef PRINT_DO
   }
   stream->Add("]");
@@ -599,6 +601,9 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   SetBlock(block);
   previous->next_ = this;
   if (next != NULL) next->previous_ = this;
+  if (block->last() == previous) {
+    block->set_last(this);
+  }
 }
 
 
@@ -608,6 +613,7 @@ void HInstruction::Verify() {
   HBasicBlock* cur_block = block();
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* other_operand = OperandAt(i);
+    if (other_operand == NULL) continue;
     HBasicBlock* other_block = other_operand->block();
     if (cur_block == other_block) {
       if (!other_operand->IsPhi()) {
@@ -866,6 +872,17 @@ HValue* HBitwise::Canonicalize() {
 }
 
 
+HValue* HBitNot::Canonicalize() {
+  // Optimize ~~x, a common pattern used for ToInt32(x).
+  if (value()->IsBitNot()) {
+    HValue* result = HBitNot::cast(value())->value();
+    ASSERT(result->representation().IsInteger32());
+    return result;
+  }
+  return this;
+}
+
+
 HValue* HAdd::Canonicalize() {
   if (!representation().IsInteger32()) return this;
   if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
@@ -913,6 +930,62 @@ void HJSArrayLength::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
   typecheck()->PrintNameTo(stream);
+}
+
+
+HValue* HUnaryMathOperation::Canonicalize() {
+  if (op() == kMathFloor) {
+    // If the input is integer32 then we replace the floor instruction
+    // with its input. This happens before the representation changes are
+    // introduced.
+    if (value()->representation().IsInteger32()) return value();
+
+#ifdef V8_TARGET_ARCH_ARM
+    if (value()->IsDiv() && (value()->UseCount() == 1)) {
+      // TODO(2038): Implement this optimization for non ARM architectures.
+      HDiv* hdiv = HDiv::cast(value());
+      HValue* left = hdiv->left();
+      HValue* right = hdiv->right();
+      // Try to simplify left and right values of the division.
+      HValue* new_left =
+        LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(left);
+      HValue* new_right =
+        LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+
+      // Return if left or right are not optimizable.
+      if ((new_left == NULL) || (new_right == NULL)) return this;
+
+      // Insert the new values in the graph.
+      if (new_left->IsInstruction() &&
+          !HInstruction::cast(new_left)->IsLinked()) {
+        HInstruction::cast(new_left)->InsertBefore(this);
+      }
+      if (new_right->IsInstruction() &&
+          !HInstruction::cast(new_right)->IsLinked()) {
+        HInstruction::cast(new_right)->InsertBefore(this);
+      }
+      HMathFloorOfDiv* instr =  new HMathFloorOfDiv(context(),
+          new_left,
+          new_right);
+      // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
+      instr->InsertBefore(this);
+      ReplaceAllUsesWith(instr);
+      Kill();
+      // We know the division had no other uses than this HMathFloor. Delete it.
+      // Also delete the arguments of the division if they are not used any
+      // more.
+      hdiv->DeleteAndReplaceWith(NULL);
+      ASSERT(left->IsChange() || left->IsConstant());
+      ASSERT(right->IsChange() || right->IsConstant());
+      if (left->HasNoUses())  left->DeleteAndReplaceWith(NULL);
+      if (right->HasNoUses())  right->DeleteAndReplaceWith(NULL);
+
+      // Return NULL to remove this instruction from the graph.
+      return NULL;
+    }
+#endif  // V8_TARGET_ARCH_ARM
+  }
+  return this;
 }
 
 
@@ -965,16 +1038,13 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMap::PrintDataTo(StringStream* stream) {
+void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" %p", *map());
-  if (mode() == REQUIRE_EXACT_MAP) {
-    stream->Add(" [EXACT]");
-  } else if (!has_element_transitions_) {
-    stream->Add(" [EXACT*]");
-  } else {
-    stream->Add(" [MATCH ELEMENTS]");
+  stream->Add(" [%p", *map_set()->first());
+  for (int i = 1; i < map_set()->length(); ++i) {
+    stream->Add(",%p", *map_set()->at(i));
   }
+  stream->Add("]");
 }
 
 
@@ -1533,6 +1603,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
   SetOperandAt(1, object);
   set_representation(Representation::Tagged());
   SetGVNFlag(kDependsOnMaps);
+  int map_transitions = 0;
   for (int i = 0;
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
@@ -1554,13 +1625,20 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
         case CONSTANT_FUNCTION:
           types_.Add(types->at(i));
           break;
+        case MAP_TRANSITION:
+          // We should just ignore these since they are not relevant to a load
+          // operation.  This means we will deopt if we actually see this map
+          // from optimized code.
+          map_transitions++;
+          break;
         default:
           break;
       }
     }
   }
 
-  if (types_.length() == types->length() && FLAG_deoptimize_uncommon_cases) {
+  if (types_.length() + map_transitions == types->length() &&
+      FLAG_deoptimize_uncommon_cases) {
     SetFlag(kUseGVN);
   } else {
     SetAllSideEffects();
@@ -1736,6 +1814,9 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
   stream->Add(" = ");
   value()->PrintNameTo(stream);
   stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
+  if (NeedsWriteBarrier()) {
+    stream->Add(" (write-barrier)");
+  }
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }
@@ -1879,7 +1960,7 @@ HType HValue::CalculateInferredType() {
 }
 
 
-HType HCheckMap::CalculateInferredType() {
+HType HCheckMaps::CalculateInferredType() {
   return value()->type();
 }
 
@@ -2089,6 +2170,17 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
+bool HStoreKeyedFastDoubleElement::NeedsCanonicalization() {
+  // If value was loaded from unboxed double backing store or
+  // converted from an integer then we don't have to canonicalize it.
+  if (value()->IsLoadKeyedFastDoubleElement() ||
+      (value()->IsChange() && HChange::cast(value())->from().IsInteger32())) {
+    return false;
+  }
+  return true;
+}
+
+
 #define H_CONSTANT_INT32(val)                                                  \
 new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
                     Representation::Integer32())
@@ -2254,6 +2346,13 @@ void HIn::PrintDataTo(StringStream* stream) {
   key()->PrintNameTo(stream);
   stream->Add(" ");
   object()->PrintNameTo(stream);
+}
+
+
+void HBitwise::PrintDataTo(StringStream* stream) {
+  stream->Add(Token::Name(op_));
+  stream->Add(" ");
+  HBitwiseBinaryOperation::PrintDataTo(stream);
 }
 
 

@@ -958,7 +958,7 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        if (instr->IsMarkedAsCall() || instr->IsMarkedAsSaveDoubles()) {
+        if (instr->IsMarkedAsCall()) {
           for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; ++i) {
             if (output == NULL || !output->IsDoubleRegister() ||
                 output->index() != i) {

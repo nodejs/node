@@ -289,6 +289,23 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   }
 
  private:
+  static inline int VisitJSFunction(Map* map, HeapObject* object) {
+    Heap* heap = map->GetHeap();
+    VisitPointers(heap,
+                  HeapObject::RawField(object, JSFunction::kPropertiesOffset),
+                  HeapObject::RawField(object, JSFunction::kCodeEntryOffset));
+
+    // Don't visit code entry. We are using this visitor only during scavenges.
+
+    VisitPointers(
+        heap,
+        HeapObject::RawField(object,
+                             JSFunction::kCodeEntryOffset + kPointerSize),
+        HeapObject::RawField(object,
+                             JSFunction::kNonWeakFieldsEndOffset));
+    return JSFunction::kSize;
+  }
+
   static inline int VisitByteArray(Map* map, HeapObject* object) {
     return reinterpret_cast<ByteArray*>(object)->ByteArraySize();
   }

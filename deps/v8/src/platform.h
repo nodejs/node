@@ -119,6 +119,13 @@ class OS {
   // Initializes the platform OS support. Called once at VM startup.
   static void SetUp();
 
+  // Initializes the platform OS support that depend on CPU features. This is
+  // called after CPU initialization.
+  static void PostSetUp();
+
+  // Clean up platform-OS-related things. Called once at VM shutdown.
+  static void TearDown();
+
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable
@@ -545,7 +552,8 @@ struct CreateMutexTrait {
 //     // Do something.
 //   }
 //
-typedef LazyDynamicInstance<Mutex, CreateMutexTrait>::type LazyMutex;
+typedef LazyDynamicInstance<
+    Mutex, CreateMutexTrait, ThreadSafeInitOnceTrait>::type LazyMutex;
 
 #define LAZY_MUTEX_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER
 
@@ -616,7 +624,8 @@ struct CreateSemaphoreTrait {
 template <int InitialValue>
 struct LazySemaphore {
   typedef typename LazyDynamicInstance<
-      Semaphore, CreateSemaphoreTrait<InitialValue> >::type type;
+      Semaphore, CreateSemaphoreTrait<InitialValue>,
+      ThreadSafeInitOnceTrait>::type type;
 };
 
 #define LAZY_SEMAPHORE_INITIALIZER LAZY_DYNAMIC_INSTANCE_INITIALIZER

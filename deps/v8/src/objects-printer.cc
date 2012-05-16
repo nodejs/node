@@ -135,6 +135,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case ODDBALL_TYPE:
       Oddball::cast(this)->to_string()->Print(out);
       break;
+    case JS_MODULE_TYPE:
+      JSModule::cast(this)->JSModulePrint(out);
+      break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionPrint(out);
       break;
@@ -152,7 +155,7 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       JSValue::cast(this)->value()->Print(out);
       break;
     case JS_DATE_TYPE:
-      JSDate::cast(this)->value()->Print(out);
+      JSDate::cast(this)->JSDatePrint(out);
       break;
     case CODE_TYPE:
       Code::cast(this)->CodePrint(out);
@@ -328,14 +331,16 @@ void JSObject::PrintElements(FILE* out) {
     }
     case FAST_DOUBLE_ELEMENTS: {
       // Print in array notation for non-sparse arrays.
-      FixedDoubleArray* p = FixedDoubleArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        if (p->is_the_hole(i)) {
-          PrintF(out, "   %d: <the hole>", i);
-        } else {
-          PrintF(out, "   %d: %g", i, p->get_scalar(i));
+      if (elements()->length() > 0) {
+        FixedDoubleArray* p = FixedDoubleArray::cast(elements());
+        for (int i = 0; i < p->length(); i++) {
+          if (p->is_the_hole(i)) {
+            PrintF(out, "   %d: <the hole>", i);
+          } else {
+            PrintF(out, "   %d: %g", i, p->get_scalar(i));
+          }
+          PrintF(out, "\n");
         }
-        PrintF(out, "\n");
       }
       break;
     }
@@ -437,6 +442,19 @@ void JSObject::JSObjectPrint(FILE* out) {
 }
 
 
+void JSModule::JSModulePrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSModule");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - context = ");
+  context()->Print(out);
+  PrintElementsKind(out, this->map()->elements_kind());
+  PrintF(out, " {\n");
+  PrintProperties(out);
+  PrintElements(out);
+  PrintF(out, " }\n");
+}
+
+
 static const char* TypeToString(InstanceType type) {
   switch (type) {
     case INVALID_TYPE: return "INVALID";
@@ -483,6 +501,7 @@ static const char* TypeToString(InstanceType type) {
     case ODDBALL_TYPE: return "ODDBALL";
     case JS_GLOBAL_PROPERTY_CELL_TYPE: return "JS_GLOBAL_PROPERTY_CELL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
+    case JS_MODULE_TYPE: return "JS_MODULE";
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
@@ -559,8 +578,8 @@ void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
 
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
-  PrintF(out, "\n - ic_total_count: %d, ic_with_typeinfo_count: %d",
-         ic_total_count(), ic_with_typeinfo_count());
+  PrintF(out, "\n - ic_total_count: %d, ic_with_type_info_count: %d",
+         ic_total_count(), ic_with_type_info_count());
   PrintF(out, "\n - type_feedback_cells: ");
   type_feedback_cells()->FixedArrayPrint(out);
 }

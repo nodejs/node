@@ -199,10 +199,13 @@ static void CopyDictionaryToObjectElements(SeededNumberDictionary* from,
     }
 #endif
   }
-  ASSERT((copy_size + static_cast<int>(to_start)) <= to->length());
   ASSERT(to != from);
   ASSERT(to_kind == FAST_ELEMENTS || to_kind == FAST_SMI_ONLY_ELEMENTS);
   if (copy_size == 0) return;
+  uint32_t to_length = to->length();
+  if (to_start + copy_size > to_length) {
+    copy_size = to_length - to_start;
+  }
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
@@ -356,8 +359,11 @@ static void CopyDictionaryToDoubleElements(SeededNumberDictionary* from,
       }
     }
   }
-  ASSERT(copy_size + static_cast<int>(to_start) <= to->length());
   if (copy_size == 0) return;
+  uint32_t to_length = to->length();
+  if (to_start + copy_size > to_length) {
+    copy_size = to_length - to_start;
+  }
   for (int i = 0; i < copy_size; i++) {
     int entry = from->FindEntry(i + from_start);
     if (entry != SeededNumberDictionary::kNotFound) {
@@ -418,10 +424,10 @@ class ElementsAccessorBase : public ElementsAccessor {
         receiver, holder, key, BackingStore::cast(backing_store));
   }
 
-  virtual MaybeObject* Get(Object* receiver,
-                           JSObject* holder,
-                           uint32_t key,
-                           FixedArrayBase* backing_store) {
+  MUST_USE_RESULT virtual MaybeObject* Get(Object* receiver,
+                                           JSObject* holder,
+                                           uint32_t key,
+                                           FixedArrayBase* backing_store) {
     if (backing_store == NULL) {
       backing_store = holder->elements();
     }
@@ -429,62 +435,64 @@ class ElementsAccessorBase : public ElementsAccessor {
         receiver, holder, key, BackingStore::cast(backing_store));
   }
 
-  static MaybeObject* GetImpl(Object* receiver,
-                              JSObject* obj,
-                              uint32_t key,
-                              BackingStore* backing_store) {
+  MUST_USE_RESULT static MaybeObject* GetImpl(Object* receiver,
+                                              JSObject* obj,
+                                              uint32_t key,
+                                              BackingStore* backing_store) {
     return (key < ElementsAccessorSubclass::GetCapacityImpl(backing_store))
            ? backing_store->get(key)
            : backing_store->GetHeap()->the_hole_value();
   }
 
-  virtual MaybeObject* SetLength(JSArray* array,
-                                 Object* length) {
+  MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* array,
+                                                 Object* length) {
     return ElementsAccessorSubclass::SetLengthImpl(
         array, length, BackingStore::cast(array->elements()));
   }
 
-  static MaybeObject* SetLengthImpl(JSObject* obj,
-                                    Object* length,
-                                    BackingStore* backing_store);
+  MUST_USE_RESULT static MaybeObject* SetLengthImpl(
+      JSObject* obj,
+      Object* length,
+      BackingStore* backing_store);
 
-  virtual MaybeObject* SetCapacityAndLength(JSArray* array,
-                                            int capacity,
-                                            int length) {
+  MUST_USE_RESULT virtual MaybeObject* SetCapacityAndLength(JSArray* array,
+                                                            int capacity,
+                                                            int length) {
     return ElementsAccessorSubclass::SetFastElementsCapacityAndLength(
         array,
         capacity,
         length);
   }
 
-  static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
-                                                       int capacity,
-                                                       int length) {
+  MUST_USE_RESULT static MaybeObject* SetFastElementsCapacityAndLength(
+      JSObject* obj,
+      int capacity,
+      int length) {
     UNIMPLEMENTED();
     return obj;
   }
 
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t key,
-                              JSReceiver::DeleteMode mode) = 0;
+  MUST_USE_RESULT virtual MaybeObject* Delete(JSObject* obj,
+                                              uint32_t key,
+                                              JSReceiver::DeleteMode mode) = 0;
 
-  static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
-                                       uint32_t from_start,
-                                       FixedArrayBase* to,
-                                       ElementsKind to_kind,
-                                       uint32_t to_start,
-                                       int copy_size) {
+  MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
+                                                       uint32_t from_start,
+                                                       FixedArrayBase* to,
+                                                       ElementsKind to_kind,
+                                                       uint32_t to_start,
+                                                       int copy_size) {
     UNREACHABLE();
     return NULL;
   }
 
-  virtual MaybeObject* CopyElements(JSObject* from_holder,
-                                    uint32_t from_start,
-                                    FixedArrayBase* to,
-                                    ElementsKind to_kind,
-                                    uint32_t to_start,
-                                    int copy_size,
-                                    FixedArrayBase* from) {
+  MUST_USE_RESULT virtual MaybeObject* CopyElements(JSObject* from_holder,
+                                                    uint32_t from_start,
+                                                    FixedArrayBase* to,
+                                                    ElementsKind to_kind,
+                                                    uint32_t to_start,
+                                                    int copy_size,
+                                                    FixedArrayBase* from) {
     if (from == NULL) {
       from = from_holder->elements();
     }
@@ -495,10 +503,11 @@ class ElementsAccessorBase : public ElementsAccessor {
         from, from_start, to, to_kind, to_start, copy_size);
   }
 
-  virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
-                                               JSObject* holder,
-                                               FixedArray* to,
-                                               FixedArrayBase* from) {
+  MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(
+      Object* receiver,
+      JSObject* holder,
+      FixedArray* to,
+      FixedArrayBase* from) {
     int len0 = to->length();
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
@@ -860,27 +869,28 @@ class ExternalElementsAccessor
   friend class ElementsAccessorBase<ExternalElementsAccessorSubclass,
                                     ElementsKindTraits<Kind> >;
 
-  static MaybeObject* GetImpl(Object* receiver,
-                              JSObject* obj,
-                              uint32_t key,
-                              BackingStore* backing_store) {
+  MUST_USE_RESULT static MaybeObject* GetImpl(Object* receiver,
+                                              JSObject* obj,
+                                              uint32_t key,
+                                              BackingStore* backing_store) {
     return
         key < ExternalElementsAccessorSubclass::GetCapacityImpl(backing_store)
         ? backing_store->get(key)
         : backing_store->GetHeap()->undefined_value();
   }
 
-  static MaybeObject* SetLengthImpl(JSObject* obj,
-                                    Object* length,
-                                    BackingStore* backing_store) {
+  MUST_USE_RESULT static MaybeObject* SetLengthImpl(
+      JSObject* obj,
+      Object* length,
+      BackingStore* backing_store) {
     // External arrays do not support changing their length.
     UNREACHABLE();
     return obj;
   }
 
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t key,
-                              JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT virtual MaybeObject* Delete(JSObject* obj,
+                                              uint32_t key,
+                                              JSReceiver::DeleteMode mode) {
     // External arrays always ignore deletes.
     return obj->GetHeap()->true_value();
   }
@@ -996,10 +1006,11 @@ class DictionaryElementsAccessor
 
   // Adjusts the length of the dictionary backing store and returns the new
   // length according to ES5 section 15.4.5.2 behavior.
-  static MaybeObject* SetLengthWithoutNormalize(SeededNumberDictionary* dict,
-                                                JSArray* array,
-                                                Object* length_object,
-                                                uint32_t length) {
+  MUST_USE_RESULT static MaybeObject* SetLengthWithoutNormalize(
+      SeededNumberDictionary* dict,
+      JSArray* array,
+      Object* length_object,
+      uint32_t length) {
     if (length == 0) {
       // If the length of a slow array is reset to zero, we clear
       // the array and flush backing storage. This has the added
@@ -1051,9 +1062,10 @@ class DictionaryElementsAccessor
     return length_object;
   }
 
-  static MaybeObject* DeleteCommon(JSObject* obj,
-                                   uint32_t key,
-                                   JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT static MaybeObject* DeleteCommon(
+      JSObject* obj,
+      uint32_t key,
+      JSReceiver::DeleteMode mode) {
     Isolate* isolate = obj->GetIsolate();
     Heap* heap = isolate->heap();
     FixedArray* backing_store = FixedArray::cast(obj->elements());
@@ -1096,12 +1108,12 @@ class DictionaryElementsAccessor
     return heap->true_value();
   }
 
-  static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
-                                       uint32_t from_start,
-                                       FixedArrayBase* to,
-                                       ElementsKind to_kind,
-                                       uint32_t to_start,
-                                       int copy_size) {
+  MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
+                                                       uint32_t from_start,
+                                                       FixedArrayBase* to,
+                                                       ElementsKind to_kind,
+                                                       uint32_t to_start,
+                                                       int copy_size) {
     switch (to_kind) {
       case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
@@ -1125,16 +1137,17 @@ class DictionaryElementsAccessor
   friend class ElementsAccessorBase<DictionaryElementsAccessor,
                                     ElementsKindTraits<DICTIONARY_ELEMENTS> >;
 
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t key,
-                              JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT virtual MaybeObject* Delete(JSObject* obj,
+                                              uint32_t key,
+                                              JSReceiver::DeleteMode mode) {
     return DeleteCommon(obj, key, mode);
   }
 
-  static MaybeObject* GetImpl(Object* receiver,
-                              JSObject* obj,
-                              uint32_t key,
-                              SeededNumberDictionary* backing_store) {
+  MUST_USE_RESULT static MaybeObject* GetImpl(
+      Object* receiver,
+      JSObject* obj,
+      uint32_t key,
+      SeededNumberDictionary* backing_store) {
     int entry = backing_store->FindEntry(key);
     if (entry != SeededNumberDictionary::kNotFound) {
       Object* element = backing_store->ValueAt(entry);
@@ -1180,10 +1193,10 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
       NonStrictArgumentsElementsAccessor,
       ElementsKindTraits<NON_STRICT_ARGUMENTS_ELEMENTS> >;
 
-  static MaybeObject* GetImpl(Object* receiver,
-                              JSObject* obj,
-                              uint32_t key,
-                              FixedArray* parameter_map) {
+  MUST_USE_RESULT static MaybeObject* GetImpl(Object* receiver,
+                                              JSObject* obj,
+                                              uint32_t key,
+                                              FixedArray* parameter_map) {
     Object* probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
       Context* context = Context::cast(parameter_map->get(0));
@@ -1210,18 +1223,19 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
     }
   }
 
-  static MaybeObject* SetLengthImpl(JSObject* obj,
-                                    Object* length,
-                                    FixedArray* parameter_map) {
+  MUST_USE_RESULT static MaybeObject* SetLengthImpl(
+      JSObject* obj,
+      Object* length,
+      FixedArray* parameter_map) {
     // TODO(mstarzinger): This was never implemented but will be used once we
     // correctly implement [[DefineOwnProperty]] on arrays.
     UNIMPLEMENTED();
     return obj;
   }
 
-  virtual MaybeObject* Delete(JSObject* obj,
-                              uint32_t key,
-                              JSReceiver::DeleteMode mode) {
+  MUST_USE_RESULT virtual MaybeObject* Delete(JSObject* obj,
+                                              uint32_t key,
+                                              JSReceiver::DeleteMode mode) {
     FixedArray* parameter_map = FixedArray::cast(obj->elements());
     Object* probe = GetParameterMapArg(obj, parameter_map, key);
     if (!probe->IsTheHole()) {
@@ -1240,12 +1254,12 @@ class NonStrictArgumentsElementsAccessor : public ElementsAccessorBase<
     return obj->GetHeap()->true_value();
   }
 
-  static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
-                                       uint32_t from_start,
-                                       FixedArrayBase* to,
-                                       ElementsKind to_kind,
-                                       uint32_t to_start,
-                                       int copy_size) {
+  MUST_USE_RESULT static MaybeObject* CopyElementsImpl(FixedArrayBase* from,
+                                                       uint32_t from_start,
+                                                       FixedArrayBase* to,
+                                                       ElementsKind to_kind,
+                                                       uint32_t to_start,
+                                                       int copy_size) {
     FixedArray* parameter_map = FixedArray::cast(from);
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
     ElementsAccessor* accessor = ElementsAccessor::ForArray(arguments);
@@ -1326,18 +1340,8 @@ ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
 
 
 void ElementsAccessor::InitializeOncePerProcess() {
-  static struct ConcreteElementsAccessors {
-#define ACCESSOR_STRUCT(Class, Kind, Store) Class* Kind##_handler;
-    ELEMENTS_LIST(ACCESSOR_STRUCT)
-#undef ACCESSOR_STRUCT
-  } element_accessors = {
-#define ACCESSOR_INIT(Class, Kind, Store) new Class(#Kind),
-    ELEMENTS_LIST(ACCESSOR_INIT)
-#undef ACCESSOR_INIT
-  };
-
   static ElementsAccessor* accessor_array[] = {
-#define ACCESSOR_ARRAY(Class, Kind, Store) element_accessors.Kind##_handler,
+#define ACCESSOR_ARRAY(Class, Kind, Store) new Class(#Kind),
     ELEMENTS_LIST(ACCESSOR_ARRAY)
 #undef ACCESSOR_ARRAY
   };
@@ -1349,9 +1353,17 @@ void ElementsAccessor::InitializeOncePerProcess() {
 }
 
 
+void ElementsAccessor::TearDown() {
+#define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
+  ELEMENTS_LIST(ACCESSOR_DELETE)
+#undef ACCESSOR_DELETE
+  elements_accessors_ = NULL;
+}
+
+
 template <typename ElementsAccessorSubclass, typename ElementsKindTraits>
-MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
-                                  ElementsKindTraits>::
+MUST_USE_RESULT MaybeObject* ElementsAccessorBase<ElementsAccessorSubclass,
+                                                  ElementsKindTraits>::
     SetLengthImpl(JSObject* obj,
                   Object* length,
                   typename ElementsKindTraits::BackingStore* backing_store) {

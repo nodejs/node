@@ -214,13 +214,6 @@ class LookupResult BASE_EMBEDDED {
     number_ = number;
   }
 
-  void DescriptorResult(JSObject* holder, Smi* details, int number) {
-    lookup_type_ = DESCRIPTOR_TYPE;
-    holder_ = holder;
-    details_ = PropertyDetails(details);
-    number_ = number;
-  }
-
   void ConstantResult(JSObject* holder) {
     lookup_type_ = CONSTANT_TYPE;
     holder_ = holder;

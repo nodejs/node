@@ -452,8 +452,12 @@ void RegExpMacroAssemblerARM::CheckNotCharacter(unsigned c,
 void RegExpMacroAssemblerARM::CheckCharacterAfterAnd(uint32_t c,
                                                      uint32_t mask,
                                                      Label* on_equal) {
-  __ and_(r0, current_character(), Operand(mask));
-  __ cmp(r0, Operand(c));
+  if (c == 0) {
+    __ tst(current_character(), Operand(mask));
+  } else {
+    __ and_(r0, current_character(), Operand(mask));
+    __ cmp(r0, Operand(c));
+  }
   BranchOrBacktrack(eq, on_equal);
 }
 
@@ -461,8 +465,12 @@ void RegExpMacroAssemblerARM::CheckCharacterAfterAnd(uint32_t c,
 void RegExpMacroAssemblerARM::CheckNotCharacterAfterAnd(unsigned c,
                                                         unsigned mask,
                                                         Label* on_not_equal) {
-  __ and_(r0, current_character(), Operand(mask));
-  __ cmp(r0, Operand(c));
+  if (c == 0) {
+    __ tst(current_character(), Operand(mask));
+  } else {
+    __ and_(r0, current_character(), Operand(mask));
+    __ cmp(r0, Operand(c));
+  }
   BranchOrBacktrack(ne, on_not_equal);
 }
 
@@ -477,6 +485,44 @@ void RegExpMacroAssemblerARM::CheckNotCharacterAfterMinusAnd(
   __ and_(r0, r0, Operand(mask));
   __ cmp(r0, Operand(c));
   BranchOrBacktrack(ne, on_not_equal);
+}
+
+
+void RegExpMacroAssemblerARM::CheckCharacterInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_in_range) {
+  __ sub(r0, current_character(), Operand(from));
+  __ cmp(r0, Operand(to - from));
+  BranchOrBacktrack(ls, on_in_range);  // Unsigned lower-or-same condition.
+}
+
+
+void RegExpMacroAssemblerARM::CheckCharacterNotInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_not_in_range) {
+  __ sub(r0, current_character(), Operand(from));
+  __ cmp(r0, Operand(to - from));
+  BranchOrBacktrack(hi, on_not_in_range);  // Unsigned higher condition.
+}
+
+
+void RegExpMacroAssemblerARM::CheckBitInTable(
+    Handle<ByteArray> table,
+    Label* on_bit_set) {
+  __ mov(r0, Operand(table));
+  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+    __ and_(r1, current_character(), Operand(kTableSize - 1));
+    __ add(r1, r1, Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+  } else {
+    __ add(r1,
+           current_character(),
+           Operand(ByteArray::kHeaderSize - kHeapObjectTag));
+  }
+  __ ldrb(r0, MemOperand(r0, r1));
+  __ cmp(r0, Operand(0));
+  BranchOrBacktrack(ne, on_bit_set);
 }
 
 

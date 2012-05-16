@@ -150,6 +150,20 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
 }
 
 
+void MacroAssembler::PushAddress(ExternalReference source) {
+  int64_t address = reinterpret_cast<int64_t>(source.address());
+  if (is_int32(address) && !Serializer::enabled()) {
+    if (emit_debug_code()) {
+      movq(kScratchRegister, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    }
+    push(Immediate(static_cast<int32_t>(address)));
+    return;
+  }
+  LoadAddress(kScratchRegister, source);
+  push(kScratchRegister);
+}
+
+
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   ASSERT(root_array_available_);
   movq(destination, Operand(kRootRegister,
@@ -657,7 +671,7 @@ static int Offset(ExternalReference ref0, ExternalReference ref1) {
 
 
 void MacroAssembler::PrepareCallApiFunction(int arg_stack_space) {
-#ifdef _WIN64
+#if defined(_WIN64) && !defined(__MINGW64__)
   // We need to prepare a slot for result handle on stack and put
   // a pointer to it into 1st arg register.
   EnterApiExitFrame(arg_stack_space + 1);
@@ -705,7 +719,7 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
        RelocInfo::RUNTIME_ENTRY);
   call(rax);
 
-#ifdef _WIN64
+#if defined(_WIN64) && !defined(__MINGW64__)
   // rax keeps a pointer to v8::Handle, unpack it.
   movq(rax, Operand(rax, 0));
 #endif
@@ -4174,7 +4188,7 @@ bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address),
       size_(size),
-      masm_(Isolate::Current(), address, size + Assembler::kGap) {
+      masm_(NULL, address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.

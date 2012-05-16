@@ -831,7 +831,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    __ mov(eax, Operand(ebp, kIndexOffset));
+    __ mov(ecx, Operand(ebp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
     __ mov(edx, Operand(ebp, kArgumentsOffset));  // load arguments
@@ -848,16 +848,17 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ push(eax);
 
     // Update the index on the stack and in register eax.
-    __ mov(eax, Operand(ebp, kIndexOffset));
-    __ add(eax, Immediate(1 << kSmiTagSize));
-    __ mov(Operand(ebp, kIndexOffset), eax);
+    __ mov(ecx, Operand(ebp, kIndexOffset));
+    __ add(ecx, Immediate(1 << kSmiTagSize));
+    __ mov(Operand(ebp, kIndexOffset), ecx);
 
     __ bind(&entry);
-    __ cmp(eax, Operand(ebp, kLimitOffset));
+    __ cmp(ecx, Operand(ebp, kLimitOffset));
     __ j(not_equal, &loop);
 
     // Invoke the function.
     Label call_proxy;
+    __ mov(eax, ecx);
     ParameterCount actual(eax);
     __ SmiUntag(eax);
     __ mov(edi, Operand(ebp, kFunctionOffset));

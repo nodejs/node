@@ -531,6 +531,10 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);
     }
+  } else {
+    if (result->ic_age() != HEAP->global_ic_age()) {
+      result->ResetForNewContext(HEAP->global_ic_age());
+    }
   }
 
   if (result.is_null()) isolate->ReportPendingMessages();
@@ -585,6 +589,10 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
              result->is_extended_mode());
       compilation_cache->PutEval(
           source, context, is_global, result, scope_position);
+    }
+  } else {
+    if (result->ic_age() != HEAP->global_ic_age()) {
+      result->ResetForNewContext(HEAP->global_ic_age());
     }
   }
 

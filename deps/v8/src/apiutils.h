@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,14 +40,17 @@ class ImplementationUtilities {
   }
 
   // Packs additional parameters for the NewArguments function. |implicit_args|
-  // is a pointer to the last element of 3-elements array controlled by GC.
+  // is a pointer to the last element of 4-elements array controlled by GC.
   static void PrepareArgumentsData(internal::Object** implicit_args,
+                                   internal::Isolate* isolate,
                                    internal::Object* data,
                                    internal::JSFunction* callee,
                                    internal::Object* holder) {
     implicit_args[v8::Arguments::kDataIndex] = data;
     implicit_args[v8::Arguments::kCalleeIndex] = callee;
     implicit_args[v8::Arguments::kHolderIndex] = holder;
+    implicit_args[v8::Arguments::kIsolateIndex] =
+        reinterpret_cast<internal::Object*>(isolate);
   }
 
   static v8::Arguments NewArguments(internal::Object** implicit_args,
@@ -55,6 +58,8 @@ class ImplementationUtilities {
                                     bool is_construct_call) {
     ASSERT(implicit_args[v8::Arguments::kCalleeIndex]->IsJSFunction());
     ASSERT(implicit_args[v8::Arguments::kHolderIndex]->IsHeapObject());
+    // The implicit isolate argument is not tagged and looks like a SMI.
+    ASSERT(implicit_args[v8::Arguments::kIsolateIndex]->IsSmi());
 
     return v8::Arguments(implicit_args, argv, argc, is_construct_call);
   }

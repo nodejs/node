@@ -33,8 +33,9 @@
 #include "utils.h"
 #include "ast.h"
 #include "bytecodes-irregexp.h"
-#include "jsregexp.h"
 #include "interpreter-irregexp.h"
+#include "jsregexp.h"
+#include "regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -449,6 +450,37 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
         }
         break;
       }
+      BYTECODE(CHECK_CHAR_IN_RANGE) {
+        uint32_t from = Load16Aligned(pc + 4);
+        uint32_t to = Load16Aligned(pc + 6);
+        if (from <= current_char && current_char <= to) {
+          pc = code_base + Load32Aligned(pc + 8);
+        } else {
+          pc += BC_CHECK_CHAR_IN_RANGE_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(CHECK_CHAR_NOT_IN_RANGE) {
+        uint32_t from = Load16Aligned(pc + 4);
+        uint32_t to = Load16Aligned(pc + 6);
+        if (from > current_char || current_char > to) {
+          pc = code_base + Load32Aligned(pc + 8);
+        } else {
+          pc += BC_CHECK_CHAR_NOT_IN_RANGE_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(CHECK_BIT_IN_TABLE) {
+        int mask = RegExpMacroAssembler::kTableMask;
+        byte b = pc[8 + ((current_char & mask) >> kBitsPerByteLog2)];
+        int bit = (current_char & (kBitsPerByte - 1));
+        if ((b & (1 << bit)) != 0) {
+          pc = code_base + Load32Aligned(pc + 4);
+        } else {
+          pc += BC_CHECK_BIT_IN_TABLE_LENGTH;
+        }
+        break;
+      }
       BYTECODE(CHECK_LT) {
         uint32_t limit = (insn >> BYTECODE_SHIFT);
         if (current_char < limit) {
@@ -488,59 +520,6 @@ static RegExpImpl::IrregexpResult RawMatch(Isolate* isolate,
           pc += BC_CHECK_REGISTER_EQ_POS_LENGTH;
         }
         break;
-      BYTECODE(LOOKUP_MAP1) {
-        // Look up character in a bitmap.  If we find a 0, then jump to the
-        // location at pc + 8.  Otherwise fall through!
-        int index = current_char - (insn >> BYTECODE_SHIFT);
-        byte map = code_base[Load32Aligned(pc + 4) + (index >> 3)];
-        map = ((map >> (index & 7)) & 1);
-        if (map == 0) {
-          pc = code_base + Load32Aligned(pc + 8);
-        } else {
-          pc += BC_LOOKUP_MAP1_LENGTH;
-        }
-        break;
-      }
-      BYTECODE(LOOKUP_MAP2) {
-        // Look up character in a half-nibble map.  If we find 00, then jump to
-        // the location at pc + 8.   If we find 01 then jump to location at
-        // pc + 11, etc.
-        int index = (current_char - (insn >> BYTECODE_SHIFT)) << 1;
-        byte map = code_base[Load32Aligned(pc + 3) + (index >> 3)];
-        map = ((map >> (index & 7)) & 3);
-        if (map < 2) {
-          if (map == 0) {
-            pc = code_base + Load32Aligned(pc + 8);
-          } else {
-            pc = code_base + Load32Aligned(pc + 12);
-          }
-        } else {
-          if (map == 2) {
-            pc = code_base + Load32Aligned(pc + 16);
-          } else {
-            pc = code_base + Load32Aligned(pc + 20);
-          }
-        }
-        break;
-      }
-      BYTECODE(LOOKUP_MAP8) {
-        // Look up character in a byte map.  Use the byte as an index into a
-        // table that follows this instruction immediately.
-        int index = current_char - (insn >> BYTECODE_SHIFT);
-        byte map = code_base[Load32Aligned(pc + 4) + index];
-        const byte* new_pc = code_base + Load32Aligned(pc + 8) + (map << 2);
-        pc = code_base + Load32Aligned(new_pc);
-        break;
-      }
-      BYTECODE(LOOKUP_HI_MAP8) {
-        // Look up high byte of this character in a byte map.  Use the byte as
-        // an index into a table that follows this instruction immediately.
-        int index = (current_char >> 8) - (insn >> BYTECODE_SHIFT);
-        byte map = code_base[Load32Aligned(pc + 4) + index];
-        const byte* new_pc = code_base + Load32Aligned(pc + 8) + (map << 2);
-        pc = code_base + Load32Aligned(new_pc);
-        break;
-      }
       BYTECODE(CHECK_NOT_REGS_EQUAL)
         if (registers[insn >> BYTECODE_SHIFT] ==
             registers[Load32Aligned(pc + 4)]) {

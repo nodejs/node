@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -729,9 +729,9 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
         Handle<DescriptorArray>(object->map()->instance_descriptors(), isolate);
 
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      if (descs->IsProperty(i) && !descs->IsDontEnum(i)) {
+      if (descs->IsProperty(i) && !descs->GetDetails(i).IsDontEnum()) {
         storage->set(index, descs->GetKey(i));
-        PropertyDetails details(descs->GetDetails(i));
+        PropertyDetails details = descs->GetDetails(i);
         sort_array->set(index, Smi::FromInt(details.index()));
         if (!indices.is_null()) {
           if (details.type() != FIELD) {

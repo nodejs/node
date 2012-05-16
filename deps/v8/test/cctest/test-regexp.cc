@@ -504,7 +504,10 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
     return NULL;
   Handle<String> pattern = isolate->factory()->
       NewStringFromUtf8(CStrVector(input));
-  RegExpEngine::Compile(&compile_data, false, multiline, pattern, is_ascii);
+  Handle<String> sample_subject =
+      isolate->factory()->NewStringFromUtf8(CStrVector(""));
+  RegExpEngine::Compile(
+      &compile_data, false, multiline, pattern, sample_subject, is_ascii);
   return compile_data.node;
 }
 
@@ -1587,7 +1590,7 @@ TEST(CharClassDifference) {
   ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
   ZoneList<CharacterRange>* base = new ZoneList<CharacterRange>(1);
   base->Add(CharacterRange::Everything());
-  Vector<const uc16> overlay = CharacterRange::GetWordBounds();
+  Vector<const int> overlay = CharacterRange::GetWordBounds();
   ZoneList<CharacterRange>* included = NULL;
   ZoneList<CharacterRange>* excluded = NULL;
   CharacterRange::Split(base, overlay, &included, &excluded);
@@ -1596,7 +1599,7 @@ TEST(CharClassDifference) {
     if (in_base) {
       bool in_overlay = false;
       for (int j = 0; !in_overlay && j < overlay.length(); j += 2) {
-        if (overlay[j] <= i && i <= overlay[j+1])
+        if (overlay[j] <= i && i < overlay[j+1])
           in_overlay = true;
       }
       CHECK_EQ(in_overlay, InClass(i, included));
@@ -1669,16 +1672,6 @@ TEST(CanonicalizeCharacterSets) {
   ASSERT_EQ(30, list->at(0).to());
 }
 
-// Checks whether a character is in the set represented by a list of ranges.
-static bool CharacterInSet(ZoneList<CharacterRange>* set, uc16 value) {
-  for (int i = 0; i < set->length(); i++) {
-    CharacterRange range = set->at(i);
-    if (range.from() <= value && value <= range.to()) {
-      return true;
-    }
-  }
-  return false;
-}
 
 TEST(CharacterRangeMerge) {
   v8::internal::V8::Initialize(NULL);
@@ -1765,67 +1758,6 @@ TEST(CharacterRangeMerge) {
   ZoneList<CharacterRange> first_only(4);
   ZoneList<CharacterRange> second_only(4);
   ZoneList<CharacterRange> both(4);
-
-  // Merge one direction.
-  CharacterRange::Merge(&l1, &l2, &first_only, &second_only, &both);
-
-  CHECK(CharacterRange::IsCanonical(&first_only));
-  CHECK(CharacterRange::IsCanonical(&second_only));
-  CHECK(CharacterRange::IsCanonical(&both));
-
-  for (uc16 i = 0; i < offset; i++) {
-    bool in_first = CharacterInSet(&l1, i);
-    bool in_second = CharacterInSet(&l2, i);
-    CHECK((in_first && !in_second) == CharacterInSet(&first_only, i));
-    CHECK((!in_first && in_second) == CharacterInSet(&second_only, i));
-    CHECK((in_first && in_second) == CharacterInSet(&both, i));
-  }
-
-  first_only.Clear();
-  second_only.Clear();
-  both.Clear();
-
-  // Merge other direction.
-  CharacterRange::Merge(&l2, &l1, &second_only, &first_only, &both);
-
-  CHECK(CharacterRange::IsCanonical(&first_only));
-  CHECK(CharacterRange::IsCanonical(&second_only));
-  CHECK(CharacterRange::IsCanonical(&both));
-
-  for (uc16 i = 0; i < offset; i++) {
-    bool in_first = CharacterInSet(&l1, i);
-    bool in_second = CharacterInSet(&l2, i);
-    CHECK((in_first && !in_second) == CharacterInSet(&first_only, i));
-    CHECK((!in_first && in_second) == CharacterInSet(&second_only, i));
-    CHECK((in_first && in_second) == CharacterInSet(&both, i));
-  }
-
-  first_only.Clear();
-  second_only.Clear();
-  both.Clear();
-
-  // Merge but don't record all combinations.
-  CharacterRange::Merge(&l1, &l2, NULL, NULL, &both);
-
-  CHECK(CharacterRange::IsCanonical(&both));
-
-  for (uc16 i = 0; i < offset; i++) {
-    bool in_first = CharacterInSet(&l1, i);
-    bool in_second = CharacterInSet(&l2, i);
-    CHECK((in_first && in_second) == CharacterInSet(&both, i));
-  }
-
-  // Merge into same set.
-  ZoneList<CharacterRange> all(4);
-  CharacterRange::Merge(&l1, &l2, &all, &all, &all);
-
-  CHECK(CharacterRange::IsCanonical(&all));
-
-  for (uc16 i = 0; i < offset; i++) {
-    bool in_first = CharacterInSet(&l1, i);
-    bool in_second = CharacterInSet(&l2, i);
-    CHECK((in_first || in_second) == CharacterInSet(&all, i));
-  }
 }
 
 

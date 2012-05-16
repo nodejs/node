@@ -130,6 +130,18 @@ TEST(RemoveLast) {
 }
 
 
+TEST(Allocate) {
+  List<int> list(4);
+  list.Add(1);
+  CHECK_EQ(1, list.length());
+  list.Allocate(100);
+  CHECK_EQ(100, list.length());
+  CHECK_LE(100, list.capacity());
+  list[99] = 123;
+  CHECK_EQ(123, list[99]);
+}
+
+
 TEST(Clear) {
   List<int> list(4);
   CHECK_EQ(0, list.length());

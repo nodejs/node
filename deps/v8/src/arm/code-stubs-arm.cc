@@ -5169,9 +5169,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
     __ CompareRoot(r4, Heap::kTheHoleValueRootIndex);
     __ b(ne, &call);
     // Patch the receiver on the stack with the global receiver object.
-    __ ldr(r2, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
-    __ str(r2, MemOperand(sp, argc_ * kPointerSize));
+    __ ldr(r3, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    __ ldr(r3, FieldMemOperand(r3, GlobalObject::kGlobalReceiverOffset));
+    __ str(r3, MemOperand(sp, argc_ * kPointerSize));
     __ bind(&call);
   }
 
@@ -5179,8 +5179,12 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // r1: pushed function (to be verified)
   __ JumpIfSmi(r1, &non_function);
   // Get the map of the function object.
-  __ CompareObjectType(r1, r2, r2, JS_FUNCTION_TYPE);
+  __ CompareObjectType(r1, r3, r3, JS_FUNCTION_TYPE);
   __ b(ne, &slow);
+
+  if (RecordCallTarget()) {
+    GenerateRecordCallTarget(masm);
+  }
 
   // Fast-case: Invoke the function now.
   // r1: pushed function
@@ -5205,8 +5209,17 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  if (RecordCallTarget()) {
+    // If there is a call target cache, mark it megamorphic in the
+    // non-function case.  MegamorphicSentinel is an immortal immovable
+    // object (undefined) so no write barrier is needed.
+    ASSERT_EQ(*TypeFeedbackCells::MegamorphicSentinel(masm->isolate()),
+              masm->isolate()->heap()->undefined_value());
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ str(ip, FieldMemOperand(r2, JSGlobalPropertyCell::kValueOffset));
+  }
   // Check for function proxy.
-  __ cmp(r2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ cmp(r3, Operand(JS_FUNCTION_PROXY_TYPE));
   __ b(ne, &non_function);
   __ push(r1);  // put proxy as additional argument
   __ mov(r0, Operand(argc_ + 1, RelocInfo::NONE));
@@ -5873,36 +5886,12 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: result string length
   __ ldr(r4, FieldMemOperand(r0, String::kLengthOffset));
   __ cmp(r2, Operand(r4, ASR, 1));
+  // Return original string.
   __ b(eq, &return_r0);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ b(hi, &runtime);
+  // Shorter than original string's length: an actual substring.
 
-  Label result_longer_than_two;
-  // Check for special case of two character ASCII string, in which case
-  // we do a lookup in the symbol table first.
-  __ cmp(r2, Operand(2));
-  __ b(gt, &result_longer_than_two);
-  __ b(lt, &runtime);
-
-  __ JumpIfInstanceTypeIsNotSequentialAscii(r1, r1, &runtime);
-
-  // Get the two characters forming the sub string.
-  __ add(r0, r0, Operand(r3));
-  __ ldrb(r3, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
-  __ ldrb(r4, FieldMemOperand(r0, SeqAsciiString::kHeaderSize + 1));
-
-  // Try to lookup two character string in symbol table.
-  Label make_two_character_string;
-  StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, r3, r4, r1, r5, r6, r7, r9, &make_two_character_string);
-  __ jmp(&return_r0);
-
-  // r2: result string length.
-  // r3: two characters combined into halfword in little endian byte order.
-  __ bind(&make_two_character_string);
-  __ AllocateAsciiString(r0, r2, r4, r5, r9, &runtime);
-  __ strh(r3, FieldMemOperand(r0, SeqAsciiString::kHeaderSize));
-  __ jmp(&return_r0);
-
-  __ bind(&result_longer_than_two);
   // Deal with different string types: update the index if necessary
   // and put the underlying string into r5.
   // r0: original string

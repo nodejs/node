@@ -69,6 +69,12 @@ class SmallPointerList {
     data_ = kEmptyTag;
   }
 
+  void Sort() {
+    if ((data_ & kTagMask) == kListTag) {
+      list()->Sort(compare_value);
+    }
+  }
+
   bool is_empty() const { return length() == 0; }
 
   int length() const {
@@ -158,6 +164,10 @@ class SmallPointerList {
 
  private:
   typedef ZoneList<T*> PointerList;
+
+  static int compare_value(T* const* a, T* const* b) {
+    return Compare<T>(**a, **b);
+  }
 
   static const intptr_t kEmptyTag = 1;
   static const intptr_t kSingletonTag = 0;

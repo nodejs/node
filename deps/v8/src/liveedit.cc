@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,6 +30,7 @@
 
 #include "liveedit.h"
 
+#include "code-stubs.h"
 #include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
@@ -1475,26 +1476,36 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   // Check the nature of the top frame.
   Isolate* isolate = Isolate::Current();
   Code* pre_top_frame_code = pre_top_frame->LookupCode();
+  bool frame_has_padding;
   if (pre_top_frame_code->is_inline_cache_stub() &&
       pre_top_frame_code->ic_state() == DEBUG_BREAK) {
     // OK, we can drop inline cache calls.
     *mode = Debug::FRAME_DROPPED_IN_IC_CALL;
+    frame_has_padding = Debug::FramePaddingLayout::kIsSupported;
   } else if (pre_top_frame_code ==
              isolate->debug()->debug_break_slot()) {
     // OK, we can drop debug break slot.
     *mode = Debug::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
+    frame_has_padding = Debug::FramePaddingLayout::kIsSupported;
   } else if (pre_top_frame_code ==
       isolate->builtins()->builtin(
           Builtins::kFrameDropper_LiveEdit)) {
     // OK, we can drop our own code.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
+    frame_has_padding = false;
   } else if (pre_top_frame_code ==
       isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
     *mode = Debug::FRAME_DROPPED_IN_RETURN_CALL;
+    frame_has_padding = Debug::FramePaddingLayout::kIsSupported;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
-      pre_top_frame_code->major_key()) {
-    // Entry from our unit tests, it's fine, we support this case.
+      pre_top_frame_code->major_key() == CodeStub::CEntry) {
+    // Entry from our unit tests on 'debugger' statement.
+    // It's fine, we support this case.
     *mode = Debug::FRAME_DROPPED_IN_DIRECT_CALL;
+    // We don't have a padding from 'debugger' statement call.
+    // Here the stub is CEntry, it's not debug-only and can't be padded.
+    // If anyone would complain, a proxy padded stub could be added.
+    frame_has_padding = false;
   } else {
     return "Unknown structure of stack above changing function";
   }
@@ -1504,8 +1515,49 @@ static const char* DropFrames(Vector<StackFrame*> frames,
       - Debug::kFrameDropperFrameSize * kPointerSize  // Size of the new frame.
       + kPointerSize;  // Bigger address end is exclusive.
 
+  Address* top_frame_pc_address = top_frame->pc_address();
+
+  // top_frame may be damaged below this point. Do not used it.
+  ASSERT(!(top_frame = NULL));
+
   if (unused_stack_top > unused_stack_bottom) {
-    return "Not enough space for frame dropper frame";
+    if (frame_has_padding) {
+      int shortage_bytes =
+          static_cast<int>(unused_stack_top - unused_stack_bottom);
+
+      Address padding_start = pre_top_frame->fp() -
+          Debug::FramePaddingLayout::kFrameBaseSize * kPointerSize;
+
+      Address padding_pointer = padding_start;
+      Smi* padding_object =
+          Smi::FromInt(Debug::FramePaddingLayout::kPaddingValue);
+      while (Memory::Object_at(padding_pointer) == padding_object) {
+        padding_pointer -= kPointerSize;
+      }
+      int padding_counter =
+          Smi::cast(Memory::Object_at(padding_pointer))->value();
+      if (padding_counter * kPointerSize < shortage_bytes) {
+        return "Not enough space for frame dropper frame "
+            "(even with padding frame)";
+      }
+      Memory::Object_at(padding_pointer) =
+          Smi::FromInt(padding_counter - shortage_bytes / kPointerSize);
+
+      StackFrame* pre_pre_frame = frames[top_frame_index - 2];
+
+      memmove(padding_start + kPointerSize - shortage_bytes,
+          padding_start + kPointerSize,
+          Debug::FramePaddingLayout::kFrameBaseSize * kPointerSize);
+
+      pre_top_frame->UpdateFp(pre_top_frame->fp() - shortage_bytes);
+      pre_pre_frame->SetCallerFp(pre_top_frame->fp());
+      unused_stack_top -= shortage_bytes;
+
+      STATIC_ASSERT(sizeof(Address) == kPointerSize);
+      top_frame_pc_address -= shortage_bytes / kPointerSize;
+    } else {
+      return "Not enough space for frame dropper frame";
+    }
   }
 
   // Committing now. After this point we should return only NULL value.
@@ -1515,7 +1567,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   ASSERT(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
 
   Handle<Code> code = Isolate::Current()->builtins()->FrameDropper_LiveEdit();
-  top_frame->set_pc(code->entry());
+  *top_frame_pc_address = code->entry();
   pre_top_frame->SetCallerFp(bottom_js_frame->fp());
 
   *restarter_frame_function_pointer =

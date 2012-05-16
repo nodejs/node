@@ -1125,13 +1125,7 @@ function SetUpError() {
     }
     %FunctionSetInstanceClassName(f, 'Error');
     %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
-    // The name property on the prototype of error objects is not
-    // specified as being read-one and dont-delete. However, allowing
-    // overwriting allows leaks of error objects between script blocks
-    // in the same context in a browser setting. Therefore we fix the
-    // name.
-    %SetProperty(f.prototype, "name", name,
-                 DONT_ENUM | DONT_DELETE | READ_ONLY)  ;
+    %SetProperty(f.prototype, "name", name, DONT_ENUM);
     %SetCode(f, function(m) {
       if (%_IsConstructCall()) {
         // Define all the expected properties directly on the error
@@ -1147,10 +1141,8 @@ function SetUpError() {
               return FormatMessage(%NewMessageObject(obj.type, obj.arguments));
           });
         } else if (!IS_UNDEFINED(m)) {
-          %IgnoreAttributesAndSetProperty(this,
-                                          'message',
-                                          ToString(m),
-                                          DONT_ENUM);
+          %IgnoreAttributesAndSetProperty(
+            this, 'message', ToString(m), DONT_ENUM);
         }
         captureStackTrace(this, f);
       } else {
@@ -1180,16 +1172,41 @@ $Error.captureStackTrace = captureStackTrace;
 var visited_errors = new InternalArray();
 var cyclic_error_marker = new $Object();
 
+function GetPropertyWithoutInvokingMonkeyGetters(error, name) {
+  // Climb the prototype chain until we find the holder.
+  while (error && !%HasLocalProperty(error, name)) {
+    error = error.__proto__;
+  }
+  if (error === null) return void 0;
+  if (!IS_OBJECT(error)) return error[name];
+  // If the property is an accessor on one of the predefined errors that can be
+  // generated statically by the compiler, don't touch it. This is to address
+  // http://code.google.com/p/chromium/issues/detail?id=69187
+  var desc = %GetOwnProperty(error, name);
+  if (desc && desc[IS_ACCESSOR_INDEX]) {
+    var isName = name === "name";
+    if (error === $ReferenceError.prototype)
+      return isName ? "ReferenceError" : void 0;
+    if (error === $SyntaxError.prototype)
+      return isName ? "SyntaxError" : void 0;
+    if (error === $TypeError.prototype)
+      return isName ? "TypeError" : void 0;
+  }
+  // Otherwise, read normally.
+  return error[name];
+}
+
 function ErrorToStringDetectCycle(error) {
   if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
   try {
-    var type = error.type;
-    var name = error.name;
+    var type = GetPropertyWithoutInvokingMonkeyGetters(error, "type");
+    var name = GetPropertyWithoutInvokingMonkeyGetters(error, "name");
     name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
-    var message = error.message;
+    var message = GetPropertyWithoutInvokingMonkeyGetters(error, "message");
     var hasMessage = %_CallFunction(error, "message", ObjectHasOwnProperty);
     if (type && !hasMessage) {
-      message = FormatMessage(%NewMessageObject(type, error.arguments));
+      var args = GetPropertyWithoutInvokingMonkeyGetters(error, "arguments");
+      message = FormatMessage(%NewMessageObject(type, args));
     }
     message = IS_UNDEFINED(message) ? "" : TO_STRING_INLINE(message);
     if (name === "") return message;

@@ -45,6 +45,11 @@ class RegExpMacroAssembler {
   static const int kMaxRegister = (1 << 16) - 1;
   static const int kMaxCPOffset = (1 << 15) - 1;
   static const int kMinCPOffset = -(1 << 15);
+
+  static const int kTableSizeBits = 7;
+  static const int kTableSize = 1 << kTableSizeBits;
+  static const int kTableMask = kTableSize - 1;
+
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
@@ -106,12 +111,23 @@ class RegExpMacroAssembler {
   virtual void CheckNotCharacterAfterAnd(unsigned c,
                                          unsigned and_with,
                                          Label* on_not_equal) = 0;
-  // Subtract a constant from the current character, then or with the given
+  // Subtract a constant from the current character, then and with the given
   // constant and then check for a match with c.
   virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
                                               uc16 minus,
                                               uc16 and_with,
                                               Label* on_not_equal) = 0;
+  virtual void CheckCharacterInRange(uc16 from,
+                                     uc16 to,  // Both inclusive.
+                                     Label* on_in_range) = 0;
+  virtual void CheckCharacterNotInRange(uc16 from,
+                                        uc16 to,  // Both inclusive.
+                                        Label* on_not_in_range) = 0;
+
+  // The current character (modulus the kTableSize) is looked up in the byte
+  // array, and if the found byte is non-zero, we jump to the on_bit_set label.
+  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) = 0;
+
   virtual void CheckNotRegistersEqual(int reg1,
                                       int reg2,
                                       Label* on_not_equal) = 0;

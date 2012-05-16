@@ -62,6 +62,16 @@ void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
 }
 
 
+void RegExpMacroAssemblerIrregexp::Emit8(uint32_t word) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ == buffer_.length()) {
+    Expand();
+  }
+  *reinterpret_cast<unsigned char*>(buffer_.start() + pc_) = word;
+  pc_ += 1;
+}
+
+
 void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
   ASSERT(pc_ <= buffer_.length());
   if (pc_ + 3 >= buffer_.length()) {

@@ -56,7 +56,6 @@ enum BuiltinExtraArguments {
   V(ArrayConcat, NO_EXTRA_ARGUMENTS)                                \
                                                                     \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                           \
-  V(FastHandleApiCall, NO_EXTRA_ARGUMENTS)                          \
   V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)                  \
   V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)                    \
   V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)                 \

@@ -767,7 +767,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   __ Branch(slow_case, lt, scratch2, Operand(FIRST_JS_RECEIVER_TYPE));
 
   // Check that the key is a positive smi.
-  __ And(scratch1, key, Operand(0x8000001));
+  __ And(scratch1, key, Operand(0x80000001));
   __ Branch(slow_case, ne, scratch1, Operand(zero_reg));
 
   // Load the elements into scratch1 and check its map.
@@ -1688,12 +1688,12 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
   // Activate inlined smi code.
   if (previous_state == UNINITIALIZED) {
-    PatchInlinedSmiCode(address());
+    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
   }
 }
 
 
-void PatchInlinedSmiCode(Address address) {
+void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Address andi_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
 
@@ -1727,33 +1727,30 @@ void PatchInlinedSmiCode(Address address) {
   Instr instr_at_patch = Assembler::instr_at(patch_address);
   Instr branch_instr =
       Assembler::instr_at(patch_address + Instruction::kInstrSize);
-  ASSERT(Assembler::IsAndImmediate(instr_at_patch));
-  ASSERT_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+  // This is patching a conditional "jump if not smi/jump if smi" site.
+  // Enabling by changing from
+  //   andi at, rx, 0
+  //   Branch <target>, eq, at, Operand(zero_reg)
+  // to:
+  //   andi at, rx, #kSmiTagMask
+  //   Branch <target>, ne, at, Operand(zero_reg)
+  // and vice-versa to be disabled again.
+  CodePatcher patcher(patch_address, 2);
+  Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
+  if (check == ENABLE_INLINED_SMI_CHECK) {
+    ASSERT(Assembler::IsAndImmediate(instr_at_patch));
+    ASSERT_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+    patcher.masm()->andi(at, reg, kSmiTagMask);
+  } else {
+    ASSERT(check == DISABLE_INLINED_SMI_CHECK);
+    ASSERT(Assembler::IsAndImmediate(instr_at_patch));
+    patcher.masm()->andi(at, reg, 0);
+  }
   ASSERT(Assembler::IsBranch(branch_instr));
   if (Assembler::IsBeq(branch_instr)) {
-    // This is patching a "jump if not smi" site to be active.
-    // Changing:
-    //   andi at, rx, 0
-    //   Branch <target>, eq, at, Operand(zero_reg)
-    // to:
-    //   andi at, rx, #kSmiTagMask
-    //   Branch <target>, ne, at, Operand(zero_reg)
-    CodePatcher patcher(patch_address, 2);
-    Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
-    patcher.masm()->andi(at, reg, kSmiTagMask);
     patcher.ChangeBranchCondition(ne);
   } else {
     ASSERT(Assembler::IsBne(branch_instr));
-    // This is patching a "jump if smi" site to be active.
-    // Changing:
-    //   andi at, rx, 0
-    //   Branch <target>, ne, at, Operand(zero_reg)
-    // to:
-    //   andi at, rx, #kSmiTagMask
-    //   Branch <target>, eq, at, Operand(zero_reg)
-    CodePatcher patcher(patch_address, 2);
-    Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
-    patcher.masm()->andi(at, reg, kSmiTagMask);
     patcher.ChangeBranchCondition(eq);
   }
 }

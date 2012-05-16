@@ -135,6 +135,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
+    case JS_MODULE_TYPE:
+      JSModule::cast(this)->JSModuleVerify();
+      break;
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValueVerify();
       break;
@@ -300,6 +303,8 @@ void Map::MapVerify() {
           instance_size() < HEAP->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
+  SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
+  SLOW_ASSERT(instance_descriptors()->IsConsistentWithBackPointers(this));
 }
 
 
@@ -363,6 +368,15 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
              ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
+}
+
+
+void JSModule::JSModuleVerify() {
+  Object* v = context();
+  if (v->IsHeapObject()) {
+    VerifyHeapPointer(v);
+  }
+  CHECK(v->IsUndefined() || v->IsModuleContext());
 }
 
 
@@ -877,6 +891,61 @@ bool DescriptorArray::IsSortedNoDuplicates() {
       return false;
     }
     current = hash;
+  }
+  return true;
+}
+
+
+static bool CheckOneBackPointer(Map* current_map, Object* target) {
+  return !target->IsMap() || Map::cast(target)->GetBackPointer() == current_map;
+}
+
+
+bool DescriptorArray::IsConsistentWithBackPointers(Map* current_map) {
+  for (int i = 0; i < number_of_descriptors(); ++i) {
+    switch (GetType(i)) {
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+        if (!CheckOneBackPointer(current_map, GetValue(i))) {
+          return false;
+        }
+        break;
+      case ELEMENTS_TRANSITION: {
+        Object* object = GetValue(i);
+        if (!CheckOneBackPointer(current_map, object)) {
+          return false;
+        }
+        if (object->IsFixedArray()) {
+          FixedArray* array = FixedArray::cast(object);
+          for (int i = 0; i < array->length(); ++i) {
+            if (!CheckOneBackPointer(current_map, array->get(i))) {
+              return false;
+            }
+          }
+        }
+        break;
+      }
+      case CALLBACKS: {
+        Object* object = GetValue(i);
+        if (object->IsAccessorPair()) {
+          AccessorPair* accessors = AccessorPair::cast(object);
+          if (!CheckOneBackPointer(current_map, accessors->getter())) {
+            return false;
+          }
+          if (!CheckOneBackPointer(current_map, accessors->setter())) {
+            return false;
+          }
+        }
+        break;
+      }
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION:
+      case HANDLER:
+      case INTERCEPTOR:
+      case NULL_DESCRIPTOR:
+        break;
+    }
   }
   return true;
 }

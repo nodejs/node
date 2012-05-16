@@ -117,6 +117,9 @@ class List {
   // pointer type. Returns the removed element.
   INLINE(T RemoveLast()) { return Remove(length_ - 1); }
 
+  // Deletes current list contents and allocates space for 'length' elements.
+  INLINE(void Allocate(int length));
+
   // Clears the list by setting the length to zero. Even if T is a
   // pointer type, clearing the list doesn't delete the entries.
   INLINE(void Clear());
@@ -173,9 +176,11 @@ typedef List<Handle<Code> > CodeHandleList;
 
 // Perform binary search for an element in an already sorted
 // list. Returns the index of the element of -1 if it was not found.
-template <typename T>
-int SortedListBSearch(
-    const List<T>& list, T elem, int (*cmp)(const T* x, const T* y));
+// |cmp| is a predicate that takes a pointer to an element of the List
+// and returns +1 if it is greater, -1 if it is less than the element
+// being searched.
+template <typename T, class P>
+int SortedListBSearch(const List<T>& list, P cmp);
 template <typename T>
 int SortedListBSearch(const List<T>& list, T elem);
 

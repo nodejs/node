@@ -86,6 +86,12 @@ class Interface : public ZoneObject {
     if (*ok) Chase()->flags_ |= MODULE;
   }
 
+  // Set associated instance object.
+  void MakeSingleton(Handle<JSModule> instance, bool* ok) {
+    *ok = IsModule() && Chase()->instance_.is_null();
+    if (*ok) Chase()->instance_ = instance;
+  }
+
   // Do not allow any further refinements, directly or through unification.
   void Freeze(bool* ok) {
     *ok = IsValue() || IsModule();
@@ -94,9 +100,6 @@ class Interface : public ZoneObject {
 
   // ---------------------------------------------------------------------------
   // Accessors.
-
-  // Look up an exported name. Returns NULL if not (yet) defined.
-  Interface* Lookup(Handle<String> name);
 
   // Check whether this is still a fully undetermined type.
   bool IsUnknown() { return Chase()->flags_ == NONE; }
@@ -109,6 +112,42 @@ class Interface : public ZoneObject {
 
   // Check whether this is closed (i.e. fully determined).
   bool IsFrozen() { return Chase()->flags_ & FROZEN; }
+
+  Handle<JSModule> Instance() { return Chase()->instance_; }
+
+  // Look up an exported name. Returns NULL if not (yet) defined.
+  Interface* Lookup(Handle<String> name);
+
+  // ---------------------------------------------------------------------------
+  // Iterators.
+
+  // Use like:
+  //   for (auto it = interface->iterator(); !it.done(); it.Advance()) {
+  //     ... it.name() ... it.interface() ...
+  //   }
+  class Iterator {
+   public:
+    bool done() const { return entry_ == NULL; }
+    Handle<String> name() const {
+      ASSERT(!done());
+      return Handle<String>(*static_cast<String**>(entry_->key));
+    }
+    Interface* interface() const {
+      ASSERT(!done());
+      return static_cast<Interface*>(entry_->value);
+    }
+    void Advance() { entry_ = exports_->Next(entry_); }
+
+   private:
+    friend class Interface;
+    explicit Iterator(const ZoneHashMap* exports)
+        : exports_(exports), entry_(exports ? exports->Start() : NULL) {}
+
+    const ZoneHashMap* exports_;
+    ZoneHashMap::Entry* entry_;
+  };
+
+  Iterator iterator() const { return Iterator(this->exports_); }
 
   // ---------------------------------------------------------------------------
   // Debugging.
@@ -129,6 +168,7 @@ class Interface : public ZoneObject {
   int flags_;
   Interface* forward_;     // Unification link
   ZoneHashMap* exports_;   // Module exports and their types (allocated lazily)
+  Handle<JSModule> instance_;
 
   explicit Interface(int flags)
     : flags_(flags),

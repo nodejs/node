@@ -1681,6 +1681,11 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
 }
 
 
+// Input:
+//    edx: left operand (tagged)
+//    eax: right operand (tagged)
+// Output:
+//    eax: result (tagged)
 void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
   Label call_runtime;
   ASSERT(operands_type_ == BinaryOpIC::INT32);
@@ -1690,31 +1695,37 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     case Token::ADD:
     case Token::SUB:
     case Token::MUL:
-    case Token::DIV: {
+    case Token::DIV:
+    case Token::MOD: {
       Label not_floats;
       Label not_int32;
       if (CpuFeatures::IsSupported(SSE2)) {
         CpuFeatures::Scope use_sse2(SSE2);
         FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
         FloatingPointHelper::CheckSSE2OperandsAreInt32(masm, &not_int32, ecx);
-        switch (op_) {
-          case Token::ADD: __ addsd(xmm0, xmm1); break;
-          case Token::SUB: __ subsd(xmm0, xmm1); break;
-          case Token::MUL: __ mulsd(xmm0, xmm1); break;
-          case Token::DIV: __ divsd(xmm0, xmm1); break;
-          default: UNREACHABLE();
+        if (op_ == Token::MOD) {
+          GenerateRegisterArgsPush(masm);
+          __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+        } else {
+          switch (op_) {
+            case Token::ADD: __ addsd(xmm0, xmm1); break;
+            case Token::SUB: __ subsd(xmm0, xmm1); break;
+            case Token::MUL: __ mulsd(xmm0, xmm1); break;
+            case Token::DIV: __ divsd(xmm0, xmm1); break;
+            default: UNREACHABLE();
+          }
+          // Check result type if it is currently Int32.
+          if (result_type_ <= BinaryOpIC::INT32) {
+            __ cvttsd2si(ecx, Operand(xmm0));
+            __ cvtsi2sd(xmm2, ecx);
+            __ ucomisd(xmm0, xmm2);
+            __ j(not_zero, &not_int32);
+            __ j(carry, &not_int32);
+          }
+          GenerateHeapResultAllocation(masm, &call_runtime);
+          __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
+          __ ret(0);
         }
-        // Check result type if it is currently Int32.
-        if (result_type_ <= BinaryOpIC::INT32) {
-          __ cvttsd2si(ecx, Operand(xmm0));
-          __ cvtsi2sd(xmm2, ecx);
-          __ ucomisd(xmm0, xmm2);
-          __ j(not_zero, &not_int32);
-          __ j(carry, &not_int32);
-        }
-        GenerateHeapResultAllocation(masm, &call_runtime);
-        __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
-        __ ret(0);
       } else {  // SSE2 not available, use FPU.
         FloatingPointHelper::CheckFloatOperands(masm, &not_floats, ebx);
         FloatingPointHelper::LoadFloatOperands(
@@ -1722,20 +1733,28 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
             ecx,
             FloatingPointHelper::ARGS_IN_REGISTERS);
         FloatingPointHelper::CheckFloatOperandsAreInt32(masm, &not_int32);
-        switch (op_) {
-          case Token::ADD: __ faddp(1); break;
-          case Token::SUB: __ fsubp(1); break;
-          case Token::MUL: __ fmulp(1); break;
-          case Token::DIV: __ fdivp(1); break;
-          default: UNREACHABLE();
+        if (op_ == Token::MOD) {
+          // The operands are now on the FPU stack, but we don't need them.
+          __ fstp(0);
+          __ fstp(0);
+          GenerateRegisterArgsPush(masm);
+          __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+        } else {
+          switch (op_) {
+            case Token::ADD: __ faddp(1); break;
+            case Token::SUB: __ fsubp(1); break;
+            case Token::MUL: __ fmulp(1); break;
+            case Token::DIV: __ fdivp(1); break;
+            default: UNREACHABLE();
+          }
+          Label after_alloc_failure;
+          GenerateHeapResultAllocation(masm, &after_alloc_failure);
+          __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
+          __ ret(0);
+          __ bind(&after_alloc_failure);
+          __ fstp(0);  // Pop FPU stack before calling runtime.
+          __ jmp(&call_runtime);
         }
-        Label after_alloc_failure;
-        GenerateHeapResultAllocation(masm, &after_alloc_failure);
-        __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-        __ ret(0);
-        __ bind(&after_alloc_failure);
-        __ ffree();
-        __ jmp(&call_runtime);
       }
 
       __ bind(&not_floats);
@@ -1744,10 +1763,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       break;
     }
 
-    case Token::MOD: {
-      // For MOD we go directly to runtime in the non-smi case.
-      break;
-    }
     case Token::BIT_OR:
     case Token::BIT_AND:
     case Token::BIT_XOR:
@@ -1758,11 +1773,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       Label not_floats;
       Label not_int32;
       Label non_smi_result;
-      /*  {
-        CpuFeatures::Scope use_sse2(SSE2);
-        FloatingPointHelper::LoadSSE2Operands(masm, &not_floats);
-        FloatingPointHelper::CheckSSE2OperandsAreInt32(masm, &not_int32, ecx);
-        }*/
       FloatingPointHelper::LoadUnknownsAsIntegers(masm,
                                                   use_sse3_,
                                                   &not_floats);
@@ -1833,8 +1843,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
     default: UNREACHABLE(); break;
   }
 
-  // If an allocation fails, or SHR or MOD hit a hard case,
-  // use the runtime system to get the correct result.
+  // If an allocation fails, or SHR hits a hard case, use the runtime system to
+  // get the correct result.
   __ bind(&call_runtime);
 
   switch (op_) {
@@ -1855,8 +1865,6 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
       break;
     case Token::MOD:
-      GenerateRegisterArgsPush(masm);
-      __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
       break;
     case Token::BIT_OR:
       __ InvokeBuiltin(Builtins::BIT_OR, JUMP_FUNCTION);
@@ -1957,7 +1965,7 @@ void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(0);
         __ bind(&after_alloc_failure);
-        __ ffree();
+        __ fstp(0);  // Pop FPU stack before calling runtime.
         __ jmp(&call_runtime);
       }
 
@@ -2161,8 +2169,8 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(0);
         __ bind(&after_alloc_failure);
-          __ ffree();
-          __ jmp(&call_runtime);
+        __ fstp(0);  // Pop FPU stack before calling runtime.
+        __ jmp(&call_runtime);
       }
         __ bind(&not_floats);
         break;
@@ -5006,11 +5014,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ j(not_equal, &not_outermost_js, Label::kNear);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
   __ push(Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-  Label cont;
-  __ jmp(&cont, Label::kNear);
+  __ jmp(&invoke, Label::kNear);
   __ bind(&not_outermost_js);
   __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
-  __ bind(&cont);
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -6162,7 +6168,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ sub(ecx, edx);
   __ cmp(ecx, FieldOperand(eax, String::kLengthOffset));
   Label not_original_string;
-  __ j(not_equal, &not_original_string, Label::kNear);
+  // Shorter than original string's length: an actual substring.
+  __ j(below, &not_original_string, Label::kNear);
+  // Longer than original string's length or negative: unsafe arguments.
+  __ j(above, &runtime);
+  // Return original string.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);

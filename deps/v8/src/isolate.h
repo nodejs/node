@@ -422,7 +422,7 @@ class Isolate {
   enum AddressId {
 #define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
     FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
-#undef C
+#undef DECLARE_ENUM
     kIsolateAddressCount
   };
 
@@ -430,25 +430,19 @@ class Isolate {
   // not currently set).
   static PerIsolateThreadData* CurrentPerIsolateThreadData() {
     return reinterpret_cast<PerIsolateThreadData*>(
-        Thread::GetThreadLocal(per_isolate_thread_data_key()));
+        Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
-    const Thread::LocalStorageKey key = isolate_key();
     Isolate* isolate = reinterpret_cast<Isolate*>(
-        Thread::GetExistingThreadLocal(key));
-    if (!isolate) {
-      EnsureDefaultIsolate();
-      isolate = reinterpret_cast<Isolate*>(
-          Thread::GetExistingThreadLocal(key));
-    }
+        Thread::GetExistingThreadLocal(isolate_key_));
     ASSERT(isolate != NULL);
     return isolate;
   }
 
   INLINE(static Isolate* UncheckedCurrent()) {
-    return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key()));
+    return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
   }
 
   // Usually called by Init(), but can be called early e.g. to allow
@@ -470,7 +464,7 @@ class Isolate {
   // for legacy API reasons.
   void TearDown();
 
-  bool IsDefaultIsolate() const;
+  bool IsDefaultIsolate() const { return this == default_isolate_; }
 
   // Ensures that process-wide resources and the default isolate have been
   // allocated. It is only necessary to call this method in rare cases, for
@@ -495,10 +489,14 @@ class Isolate {
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).
-  static Thread::LocalStorageKey isolate_key();
+  static Thread::LocalStorageKey isolate_key() {
+    return isolate_key_;
+  }
 
   // Returns the key used to store process-wide thread IDs.
-  static Thread::LocalStorageKey thread_id_key();
+  static Thread::LocalStorageKey thread_id_key() {
+    return thread_id_key_;
+  }
 
   static Thread::LocalStorageKey per_isolate_thread_data_key();
 
@@ -1040,6 +1038,18 @@ class Isolate {
   friend struct GlobalState;
   friend struct InitializeGlobalState;
 
+  enum State {
+    UNINITIALIZED,    // Some components may not have been allocated.
+    INITIALIZED       // All components are fully initialized.
+  };
+
+  // These fields are accessed through the API, offsets must be kept in sync
+  // with v8::internal::Internals (in include/v8.h) constants. This is also
+  // verified in Isolate::Init() using runtime checks.
+  State state_;  // Will be padded to kApiPointerSize.
+  void* embedder_data_;
+  Heap heap_;
+
   // The per-process lock should be acquired before the ThreadDataTable is
   // modified.
   class ThreadDataTable {
@@ -1082,18 +1092,20 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
+  // This mutex protects highest_thread_id_, thread_data_table_ and
+  // default_isolate_.
+  static Mutex* process_wide_mutex_;
+
+  static Thread::LocalStorageKey per_isolate_thread_data_key_;
+  static Thread::LocalStorageKey isolate_key_;
+  static Thread::LocalStorageKey thread_id_key_;
+  static Isolate* default_isolate_;
+  static ThreadDataTable* thread_data_table_;
+
   void Deinit();
 
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
-
-  enum State {
-    UNINITIALIZED,    // Some components may not have been allocated.
-    INITIALIZED       // All components are fully initialized.
-  };
-
-  State state_;
-  EntryStackItem* entry_stack_;
 
   // Allocate and insert PerIsolateThreadData into the ThreadDataTable
   // (regardless of whether such data already exists).
@@ -1138,13 +1150,13 @@ class Isolate {
   // the Error object.
   bool IsErrorObject(Handle<Object> obj);
 
+  EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;
   // The preallocated memory thread singleton.
   PreallocatedMemoryThread* preallocated_memory_thread_;
   Address isolate_addresses_[kIsolateAddressCount + 1];  // NOLINT
   NoAllocationStringAllocator* preallocated_message_space_;
-
   Bootstrapper* bootstrapper_;
   RuntimeProfiler* runtime_profiler_;
   CompilationCache* compilation_cache_;
@@ -1153,7 +1165,6 @@ class Isolate {
   Mutex* break_access_;
   Atomic32 debugger_initialized_;
   Mutex* debugger_access_;
-  Heap heap_;
   Logger* logger_;
   StackGuard stack_guard_;
   StatsTable* stats_table_;
@@ -1194,11 +1205,8 @@ class Isolate {
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
-
   DateCache* date_cache_;
-
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
-  void* embedder_data_;
 
   // The garbage collector should be a little more aggressive when it knows
   // that a context was recently exited.

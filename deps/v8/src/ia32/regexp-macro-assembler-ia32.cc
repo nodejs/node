@@ -501,9 +501,13 @@ void RegExpMacroAssemblerIA32::CheckNotCharacter(uint32_t c,
 void RegExpMacroAssemblerIA32::CheckCharacterAfterAnd(uint32_t c,
                                                       uint32_t mask,
                                                       Label* on_equal) {
-  __ mov(eax, current_character());
-  __ and_(eax, mask);
-  __ cmp(eax, c);
+  if (c == 0) {
+    __ test(current_character(), Immediate(mask));
+  } else {
+    __ mov(eax, mask);
+    __ and_(eax, current_character());
+    __ cmp(eax, c);
+  }
   BranchOrBacktrack(equal, on_equal);
 }
 
@@ -511,9 +515,13 @@ void RegExpMacroAssemblerIA32::CheckCharacterAfterAnd(uint32_t c,
 void RegExpMacroAssemblerIA32::CheckNotCharacterAfterAnd(uint32_t c,
                                                          uint32_t mask,
                                                          Label* on_not_equal) {
-  __ mov(eax, current_character());
-  __ and_(eax, mask);
-  __ cmp(eax, c);
+  if (c == 0) {
+    __ test(current_character(), Immediate(mask));
+  } else {
+    __ mov(eax, mask);
+    __ and_(eax, current_character());
+    __ cmp(eax, c);
+  }
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
@@ -525,9 +533,48 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
     Label* on_not_equal) {
   ASSERT(minus < String::kMaxUtf16CodeUnit);
   __ lea(eax, Operand(current_character(), -minus));
-  __ and_(eax, mask);
-  __ cmp(eax, c);
+  if (c == 0) {
+    __ test(eax, Immediate(mask));
+  } else {
+    __ and_(eax, mask);
+    __ cmp(eax, c);
+  }
   BranchOrBacktrack(not_equal, on_not_equal);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckCharacterInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_in_range) {
+  __ lea(eax, Operand(current_character(), -from));
+  __ cmp(eax, to - from);
+  BranchOrBacktrack(below_equal, on_in_range);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckCharacterNotInRange(
+    uc16 from,
+    uc16 to,
+    Label* on_not_in_range) {
+  __ lea(eax, Operand(current_character(), -from));
+  __ cmp(eax, to - from);
+  BranchOrBacktrack(above, on_not_in_range);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckBitInTable(
+    Handle<ByteArray> table,
+    Label* on_bit_set) {
+  __ mov(eax, Immediate(table));
+  Register index = current_character();
+  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+    __ mov(ebx, kTableSize - 1);
+    __ and_(ebx, current_character());
+    index = ebx;
+  }
+  __ cmpb(FieldOperand(eax, index, times_1, ByteArray::kHeaderSize), 0);
+  BranchOrBacktrack(not_equal, on_bit_set);
 }
 
 

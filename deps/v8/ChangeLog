@@ -1,3 +1,208 @@
+2012-05-15: Version 3.11.1
+
+        Added a readbuffer function to d8 that reads a file into an ArrayBuffer.
+
+        Fix freebsd build. (V8 issue 2126)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-05-11: Version 3.11.0
+
+        Fixed compose-discard crasher from r11524 (issue 2123).
+
+        Activated new global semantics by default. Global variables can
+        now shadow properties of the global object (ES5.1 erratum).
+
+        Properly set ElementsKind of empty FAST_DOUBLE_ELEMENTS arrays when
+        transitioning (Chromium issue 117409).
+
+        Made Error.prototype.name writable again, as required by the spec and
+        the web (Chromium issue 69187).
+
+        Implemented map collection with incremental marking (issue 1465).
+
+        Regexp: Fixed overflow in min-match-length calculation
+        (Chromium issue 126412).
+
+        MIPS: Fixed illegal instruction use on Loongson in code for
+        Math.random() (issue 2115).
+
+        Fixed crash bug in VisitChoice (Chromium issue 126272).
+
+        Fixed unsigned-Smi check in MappedArgumentsLookup
+        (Chromium issue 126414).
+
+        Fixed LiveEdit for function with no locals (issue 825).
+
+        Fixed register clobbering in LoadIC for interceptors
+        (Chromium issue 125988).
+
+        Implemented clearing of CompareICs (issue 2102).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-05-03: Version 3.10.8
+
+        Enabled MIPS cross-compilation.
+
+        Ensured reload of elements pointer in StoreFastDoubleElement stub.
+        (Chromium issue 125515)
+
+        Fixed corner cases in truncation behavior when storing to
+        TypedArrays. (issue 2110)
+
+        Fixed failure to properly recognize and report out-of-memory
+        conditions when allocating code space pages. (Chromium issue
+        118625)
+
+        Fixed idle notifications to perform a round of incremental GCs
+        after context disposal. (issue 2107)
+
+        Fixed preparser for try statement. (issue 2109)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-30: Version 3.10.7
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-26: Version 3.10.6
+
+        Fixed some bugs in accessing details of the last regexp match.
+
+        Fixed source property of empty RegExp objects. (issue 1982)
+
+        Enabled inlining some V8 API functions.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-23: Version 3.10.5
+
+        Put new global var semantics behind a flag until WebKit tests are
+        cleaned up.
+
+        Enabled stepping into callback passed to builtins.
+        (Chromium issue 109564)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-19: Version 3.10.4
+
+        Fixed issues when stressing compaction with WeakMaps.
+
+        Fixed missing GVN flag for new-space promotion. (Chromium issue 123919)
+
+        Simplify invocation sequence at monomorphic function invocation sites.
+        (issue 2079)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-17: Version 3.10.3
+
+        Fixed several bugs in heap profiles (including issue 2078).
+
+        Throw syntax errors on illegal escape sequences.
+
+        Implemented rudimentary module linking (behind --harmony flag)
+
+        Implemented ES5 erratum: Global declarations should shadow
+        inherited properties.
+
+        Made handling of const more consistent when combined with 'eval'
+        and 'with'.
+
+        Fixed V8 on MinGW-x64 (issue 2026).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-13: Version 3.10.2
+
+        Fixed native ARM build (issues 1744, 539)
+
+        Return LOOKUP variable instead of CONTEXT for non-context allocated
+        outer scope parameters (Chromium issue 119609).
+
+        Fixed regular and ElementsKind transitions interfering with each other
+        (Chromium issue 122271).
+
+        Improved performance of keyed loads/stores which have a HeapNumber
+        index (issues 1388, 1295).
+
+        Fixed WeakMap processing for evacuation candidates (issue 2060).
+
+        Bailout on possible direct eval calls (Chromium issue 122681).
+
+        Do not assume that names of function expressions are context-allocated
+        (issue 2051).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-04-10: Version 3.10.1
+
+        Fixed bug with arguments object in inlined functions (issue 2045).
+
+        Fixed performance bug with lazy initialization (Chromium issue
+        118686).
+
+        Added suppport for Mac OS X 64bit builds with GYP.
+        (Patch contributed by Filipe David Manana <fdmanana@gmail.com>)
+
+        Fixed bug with hidden properties (issue 2034).
+
+        Fixed a performance bug when reloading pages (Chromium issue 117767,
+        V8 issue 1902).
+
+        Fixed bug when optimizing throw in top-level code (issue 2054).
+
+        Fixed two bugs with array literals (issue 2055, Chromium issue 121407).
+
+        Fixed bug with Math.min/Math.max with NaN inputs (issue 2056).
+
+        Fixed a bug with the new runtime profiler (Chromium issue 121147).
+
+        Fixed compilation of V8 using uClibc.
+
+        Optimized boot-up memory use.
+
+        Optimized regular expressions.
+
+
+2012-03-30: Version 3.10.0
+
+        Fixed store IC writability check in strict mode
+        (Chromium issue 120099).
+
+        Resynchronize timers if the Windows system time was changed.
+        (Chromium issue 119815)
+
+        Removed "-mfloat-abi=hard" from host compiler cflags when building for
+        hardfp ARM
+        (https://code.google.com/p/chrome-os-partner/issues/detail?id=8539)
+
+        Fixed edge case for case independent regexp character classes
+        (issue 2032).
+
+        Reset function info counters after context disposal.
+        (Chromium issue 117767, V8 issue 1902)
+
+        Fixed missing write barrier in CopyObjectToObjectElements.
+        (Chromium issue 119926)
+
+        Fixed missing bounds check in HasElementImpl.
+        (Chromium issue 119925)
+
+        Performance and stability improvements on all platforms.
+
+
 2012-03-23: Version 3.9.24
 
         Activated count-based profiler for ARM.

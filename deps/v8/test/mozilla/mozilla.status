@@ -592,6 +592,20 @@ js1_5/Regress/regress-416737-01: FAIL_OK
 js1_5/Regress/regress-416737-02: FAIL_OK
 
 
+# Illegal escape-sequences in string literals. Has already been fixed
+# by most engines (i.e. V8, JSC, Opera and FF).
+ecma/Array/15.4.5.1-1: FAIL_OK
+ecma/LexicalConventions/7.7.4: FAIL_OK
+ecma_2/RegExp/hex-001: FAIL_OK
+js1_2/regexp/hexadecimal: FAIL_OK
+
+
+# The source field of RegExp objects is properly escaped. We match JSC.
+ecma_2/RegExp/constructor-001: FAIL_OK
+ecma_2/RegExp/function-001: FAIL_OK
+ecma_2/RegExp/properties-001: FAIL_OK
+
+
 ##################### FAILING TESTS #####################
 
 # This section is for tests that fail in V8 and pass in JSC.

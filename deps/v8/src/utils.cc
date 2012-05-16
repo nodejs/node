@@ -89,4 +89,19 @@ char* SimpleStringBuilder::Finalize() {
   return buffer_.start();
 }
 
+
+const DivMagicNumbers DivMagicNumberFor(int32_t divisor) {
+  switch (divisor) {
+    case 3:    return DivMagicNumberFor3;
+    case 5:    return DivMagicNumberFor5;
+    case 7:    return DivMagicNumberFor7;
+    case 9:    return DivMagicNumberFor9;
+    case 11:   return DivMagicNumberFor11;
+    case 25:   return DivMagicNumberFor25;
+    case 125:  return DivMagicNumberFor125;
+    case 625:  return DivMagicNumberFor625;
+    default:   return InvalidDivMagicNumber;
+  }
+}
+
 } }  // namespace v8::internal

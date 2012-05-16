@@ -581,7 +581,8 @@ bool Object::IsContext() {
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
             map == heap->global_context_map() ||
-            map == heap->block_context_map());
+            map == heap->block_context_map() ||
+            map == heap->module_context_map());
   }
   return false;
 }
@@ -591,6 +592,13 @@ bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->global_context_map();
+}
+
+
+bool Object::IsModuleContext() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->module_context_map();
 }
 
 
@@ -613,6 +621,7 @@ TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
@@ -1383,7 +1392,9 @@ void JSObject::initialize_properties() {
 
 
 void JSObject::initialize_elements() {
-  ASSERT(map()->has_fast_elements() || map()->has_fast_smi_only_elements());
+  ASSERT(map()->has_fast_elements() ||
+         map()->has_fast_smi_only_elements() ||
+         map()->has_fast_double_elements());
   ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
   WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
 }
@@ -1436,6 +1447,8 @@ int JSObject::GetHeaderSize() {
   // field operations considerably on average.
   if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
   switch (type) {
+    case JS_MODULE_TYPE:
+      return JSModule::kSize;
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1922,15 +1935,15 @@ Object* DescriptorArray::GetValue(int descriptor_number) {
 }
 
 
-Smi* DescriptorArray::GetDetails(int descriptor_number) {
+PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return Smi::cast(GetContentArray()->get(ToDetailsIndex(descriptor_number)));
+  Object* details = GetContentArray()->get(ToDetailsIndex(descriptor_number));
+  return PropertyDetails(Smi::cast(details));
 }
 
 
 PropertyType DescriptorArray::GetType(int descriptor_number) {
-  ASSERT(descriptor_number < number_of_descriptors());
-  return PropertyDetails(GetDetails(descriptor_number)).type();
+  return GetDetails(descriptor_number).type();
 }
 
 
@@ -1993,15 +2006,10 @@ bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
 }
 
 
-bool DescriptorArray::IsDontEnum(int descriptor_number) {
-  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
-}
-
-
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             PropertyDetails(GetDetails(descriptor_number)));
+             GetDetails(descriptor_number));
 }
 
 
@@ -3004,26 +3012,26 @@ void Code::set_is_pregenerated(bool value) {
 
 
 bool Code::optimizable() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
 }
 
 
 void Code::set_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   WRITE_BYTE_FIELD(this, kOptimizableOffset, value ? 1 : 0);
 }
 
 
 bool Code::has_deoptimization_support() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3031,14 +3039,14 @@ void Code::set_has_deoptimization_support(bool value) {
 
 
 bool Code::has_debug_break_slots() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
 }
 
 
 void Code::set_has_debug_break_slots(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3046,45 +3054,43 @@ void Code::set_has_debug_break_slots(bool value) {
 
 
 bool Code::is_compiled_optimizable() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsIsCompiledOptimizable::decode(flags);
 }
 
 
 void Code::set_compiled_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
 }
 
 
-bool Code::has_self_optimization_header() {
-  ASSERT(kind() == FUNCTION);
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsHasSelfOptimizationHeader::decode(flags);
-}
-
-
-void Code::set_self_optimization_header(bool value) {
-  ASSERT(kind() == FUNCTION);
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsHasSelfOptimizationHeader::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
-}
-
-
 int Code::allow_osr_at_loop_nesting_level() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
 }
 
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
   WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
+}
+
+
+int Code::profiler_ticks() {
+  ASSERT_EQ(FUNCTION, kind());
+  return READ_BYTE_FIELD(this, kProfilerTicksOffset);
+}
+
+
+void Code::set_profiler_ticks(int ticks) {
+  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(ticks < 256);
+  WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
 }
 
 
@@ -3114,13 +3120,13 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 
 
 unsigned Code::stack_check_table_offset() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_UINT32_FIELD(this, kStackCheckTableOffsetOffset);
 }
 
 
 void Code::set_stack_check_table_offset(unsigned offset) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   WRITE_UINT32_FIELD(this, kStackCheckTableOffsetOffset, offset);
 }
@@ -3184,6 +3190,18 @@ byte Code::compare_state() {
 void Code::set_compare_state(byte value) {
   ASSERT(is_compare_ic_stub());
   WRITE_BYTE_FIELD(this, kCompareStateOffset, value);
+}
+
+
+byte Code::compare_operation() {
+  ASSERT(is_compare_ic_stub());
+  return READ_BYTE_FIELD(this, kCompareOperationOffset);
+}
+
+
+void Code::set_compare_operation(byte value) {
+  ASSERT(is_compare_ic_stub());
+  WRITE_BYTE_FIELD(this, kCompareOperationOffset, value);
 }
 
 
@@ -3389,14 +3407,66 @@ void Map::set_bit_field3(int value) {
 }
 
 
-FixedArray* Map::unchecked_prototype_transitions() {
-  return reinterpret_cast<FixedArray*>(
-      READ_FIELD(this, kPrototypeTransitionsOffset));
+Object* Map::GetBackPointer() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object)->get(kProtoTransitionBackPointerOffset);
+  } else {
+    return object;
+  }
+}
+
+
+void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
+  ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
+         (value->IsMap() && GetBackPointer()->IsUndefined()));
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    FixedArray::cast(object)->set(
+        kProtoTransitionBackPointerOffset, value, mode);
+  } else {
+    WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+    CONDITIONAL_WRITE_BARRIER(
+        heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+  }
+}
+
+
+FixedArray* Map::prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object);
+  } else {
+    return GetHeap()->empty_fixed_array();
+  }
+}
+
+
+void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(value != heap->empty_fixed_array());
+  value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+}
+
+
+void Map::init_prototype_transitions(Object* undefined) {
+  ASSERT(undefined->IsUndefined());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, undefined);
+}
+
+
+HeapObject* Map::unchecked_prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  return reinterpret_cast<HeapObject*>(object);
 }
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
-ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
@@ -3507,8 +3577,8 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
 
-SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
@@ -3651,6 +3721,12 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   if ((code()->kind() == Code::FUNCTION) && disable) {
     code()->set_optimizable(false);
   }
+}
+
+
+int SharedFunctionInfo::profiler_ticks() {
+  if (code()->kind() != Code::FUNCTION) return 0;
+  return code()->profiler_ticks();
 }
 
 
@@ -4077,6 +4153,16 @@ Address Foreign::foreign_address() {
 
 void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
+}
+
+
+ACCESSORS(JSModule, context, Object, kContextOffset)
+
+
+JSModule* JSModule::cast(Object* obj) {
+  ASSERT(obj->IsJSModule());
+  ASSERT(HeapObject::cast(obj)->Size() == JSModule::kSize);
+  return reinterpret_cast<JSModule*>(obj);
 }
 
 
@@ -4814,7 +4900,7 @@ Object* TypeFeedbackCells::RawUninitializedSentinel(Heap* heap) {
 
 
 SMI_ACCESSORS(TypeFeedbackInfo, ic_total_count, kIcTotalCountOffset)
-SMI_ACCESSORS(TypeFeedbackInfo, ic_with_typeinfo_count,
+SMI_ACCESSORS(TypeFeedbackInfo, ic_with_type_info_count,
               kIcWithTypeinfoCountOffset)
 ACCESSORS(TypeFeedbackInfo, type_feedback_cells, TypeFeedbackCells,
           kTypeFeedbackCellsOffset)

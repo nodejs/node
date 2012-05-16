@@ -47,7 +47,7 @@ var $String = global.String;
 var $Number = global.Number;
 var $Function = global.Function;
 var $Boolean = global.Boolean;
-var $NaN = 0/0;
+var $NaN = %GetRootNaN();
 var builtins = this;
 
 // ECMA-262 Section 11.9.3.

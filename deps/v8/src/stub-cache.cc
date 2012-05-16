@@ -939,7 +939,8 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
-  AccessorInfo* callback = AccessorInfo::cast(args[3]);
+  ASSERT(args[3]->IsSmi());
+  AccessorInfo* callback = AccessorInfo::cast(args[4]);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
@@ -950,7 +951,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
     // Leaving JavaScript.
     VMState state(isolate, EXTERNAL);
     ExternalCallbackScope call_scope(isolate, getter_address);
-    result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
+    result = fun(v8::Utils::ToLocal(args.at<String>(5)), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (result.IsEmpty()) return HEAP->undefined_value();
@@ -997,7 +998,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
   ASSERT(args[2]->IsJSObject());  // Receiver.
   ASSERT(args[3]->IsJSObject());  // Holder.
-  ASSERT(args.length() == 5);  // Last arg is data object.
+  ASSERT(args[5]->IsSmi());  // Isolate.
+  ASSERT(args.length() == 6);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
@@ -1050,7 +1052,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
   Handle<JSObject> receiver_handle = args->at<JSObject>(2);
   Handle<JSObject> holder_handle = args->at<JSObject>(3);
-  ASSERT(args->length() == 5);  // Last arg is data object.
+  ASSERT(args->length() == 6);
 
   Isolate* isolate = receiver_handle->GetIsolate();
 

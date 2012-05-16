@@ -143,7 +143,7 @@ int ToNumber(Register reg) {
     27,   // k1
     28,   // gp
     29,   // sp
-    30,   // s8_fp
+    30,   // fp
     31,   // ra
   };
   return kNumbers[reg.code()];
@@ -163,7 +163,7 @@ Register ToRegister(int num) {
     k0, k1,
     gp,
     sp,
-    s8_fp,
+    fp,
     ra
   };
   return kRegisters[num];
@@ -237,28 +237,28 @@ MemOperand::MemOperand(Register rm, int32_t offset) : Operand(rm) {
 static const int kNegOffset = 0x00008000;
 // addiu(sp, sp, 4) aka Pop() operation or part of Pop(r)
 // operations as post-increment of sp.
-const Instr kPopInstruction = ADDIU | (sp.code() << kRsShift)
-      | (sp.code() << kRtShift) | (kPointerSize & kImm16Mask);
+const Instr kPopInstruction = ADDIU | (kRegister_sp_Code << kRsShift)
+      | (kRegister_sp_Code << kRtShift) | (kPointerSize & kImm16Mask);
 // addiu(sp, sp, -4) part of Push(r) operation as pre-decrement of sp.
-const Instr kPushInstruction = ADDIU | (sp.code() << kRsShift)
-      | (sp.code() << kRtShift) | (-kPointerSize & kImm16Mask);
+const Instr kPushInstruction = ADDIU | (kRegister_sp_Code << kRsShift)
+      | (kRegister_sp_Code << kRtShift) | (-kPointerSize & kImm16Mask);
 // sw(r, MemOperand(sp, 0))
-const Instr kPushRegPattern = SW | (sp.code() << kRsShift)
+const Instr kPushRegPattern = SW | (kRegister_sp_Code << kRsShift)
       |  (0 & kImm16Mask);
 //  lw(r, MemOperand(sp, 0))
-const Instr kPopRegPattern = LW | (sp.code() << kRsShift)
+const Instr kPopRegPattern = LW | (kRegister_sp_Code << kRsShift)
       |  (0 & kImm16Mask);
 
-const Instr kLwRegFpOffsetPattern = LW | (s8_fp.code() << kRsShift)
+const Instr kLwRegFpOffsetPattern = LW | (kRegister_fp_Code << kRsShift)
       |  (0 & kImm16Mask);
 
-const Instr kSwRegFpOffsetPattern = SW | (s8_fp.code() << kRsShift)
+const Instr kSwRegFpOffsetPattern = SW | (kRegister_fp_Code << kRsShift)
       |  (0 & kImm16Mask);
 
-const Instr kLwRegFpNegOffsetPattern = LW | (s8_fp.code() << kRsShift)
+const Instr kLwRegFpNegOffsetPattern = LW | (kRegister_fp_Code << kRsShift)
       |  (kNegOffset & kImm16Mask);
 
-const Instr kSwRegFpNegOffsetPattern = SW | (s8_fp.code() << kRsShift)
+const Instr kSwRegFpNegOffsetPattern = SW | (kRegister_fp_Code << kRsShift)
       |  (kNegOffset & kImm16Mask);
 // A mask for the Rt register for push, pop, lw, sw instructions.
 const Instr kRtMask = kRtFieldMask;
@@ -2134,6 +2134,15 @@ Address Assembler::target_address_at(Address pc) {
   // We should never get here, force a bad address if we do.
   UNREACHABLE();
   return (Address)0x0;
+}
+
+
+// MIPS and ia32 use opposite encoding for qNaN and sNaN, such that ia32
+// qNaN is a MIPS sNaN, and ia32 sNaN is MIPS qNaN. If running from a heap
+// snapshot generated on ia32, the resulting MIPS sNaN must be quieted.
+// OS::nan_value() returns a qNaN.
+void Assembler::QuietNaN(HeapObject* object) {
+  HeapNumber::cast(object)->set_value(OS::nan_value());
 }
 
 

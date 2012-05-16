@@ -125,40 +125,59 @@ struct Register {
   int code_;
 };
 
-const Register no_reg = { -1 };
+#define REGISTER(N, C) \
+  const int kRegister_ ## N ## _Code = C; \
+  const Register N = { C }
 
-const Register zero_reg = { 0 };  // Always zero.
-const Register at = { 1 };   // at: Reserved for synthetic instructions.
-const Register v0 = { 2 };   // v0, v1: Used when returning multiple values
-const Register v1 = { 3 };   //   from subroutines.
-const Register a0 = { 4 };   // a0 - a4: Used to pass non-FP parameters.
-const Register a1 = { 5 };
-const Register a2 = { 6 };
-const Register a3 = { 7 };
-const Register t0 = { 8 };   // t0 - t9: Can be used without reservation, act
-const Register t1 = { 9 };   //   as temporary registers and are allowed to
-const Register t2 = { 10 };  //   be destroyed by subroutines.
-const Register t3 = { 11 };
-const Register t4 = { 12 };
-const Register t5 = { 13 };
-const Register t6 = { 14 };
-const Register t7 = { 15 };
-const Register s0 = { 16 };  // s0 - s7: Subroutine register variables.
-const Register s1 = { 17 };  //   Subroutines that write to these registers
-const Register s2 = { 18 };  //   must restore their values before exiting so
-const Register s3 = { 19 };  //   that the caller can expect the values to be
-const Register s4 = { 20 };  //   preserved.
-const Register s5 = { 21 };
-const Register s6 = { 22 };
-const Register s7 = { 23 };
-const Register t8 = { 24 };
-const Register t9 = { 25 };
-const Register k0 = { 26 };  // k0, k1: Reserved for system calls and
-const Register k1 = { 27 };  // interrupt handlers.
-const Register gp = { 28 };  // gp: Reserved.
-const Register sp = { 29 };  // sp: Stack pointer.
-const Register s8_fp = { 30 };  // fp: Frame pointer.
-const Register ra = { 31 };  // ra: Return address pointer.
+REGISTER(no_reg, -1);
+// Always zero.
+REGISTER(zero_reg, 0);
+// at: Reserved for synthetic instructions.
+REGISTER(at, 1);
+// v0, v1: Used when returning multiple values from subroutines.
+REGISTER(v0, 2);
+REGISTER(v1, 3);
+// a0 - a4: Used to pass non-FP parameters.
+REGISTER(a0, 4);
+REGISTER(a1, 5);
+REGISTER(a2, 6);
+REGISTER(a3, 7);
+// t0 - t9: Can be used without reservation, act as temporary registers and are
+// allowed to be destroyed by subroutines.
+REGISTER(t0, 8);
+REGISTER(t1, 9);
+REGISTER(t2, 10);
+REGISTER(t3, 11);
+REGISTER(t4, 12);
+REGISTER(t5, 13);
+REGISTER(t6, 14);
+REGISTER(t7, 15);
+// s0 - s7: Subroutine register variables. Subroutines that write to these
+// registers must restore their values before exiting so that the caller can
+// expect the values to be preserved.
+REGISTER(s0, 16);
+REGISTER(s1, 17);
+REGISTER(s2, 18);
+REGISTER(s3, 19);
+REGISTER(s4, 20);
+REGISTER(s5, 21);
+REGISTER(s6, 22);
+REGISTER(s7, 23);
+REGISTER(t8, 24);
+REGISTER(t9, 25);
+// k0, k1: Reserved for system calls and interrupt handlers.
+REGISTER(k0, 26);
+REGISTER(k1, 27);
+// gp: Reserved.
+REGISTER(gp, 28);
+// sp: Stack pointer.
+REGISTER(sp, 29);
+// fp: Frame pointer.
+REGISTER(fp, 30);
+// ra: Return address pointer.
+REGISTER(ra, 31);
+
+#undef REGISTER
 
 
 int ToNumber(Register reg);
@@ -303,7 +322,6 @@ static const Register& kLithiumScratchReg = s3;  // Scratch register.
 static const Register& kLithiumScratchReg2 = s4;  // Scratch register.
 static const Register& kRootRegister = s6;  // Roots array pointer.
 static const Register& cp = s7;     // JavaScript context pointer.
-static const Register& fp = s8_fp;  // Alias for fp.
 static const DoubleRegister& kLithiumScratchDouble = f30;
 static const FPURegister& kDoubleRegZero = f28;
 
@@ -551,6 +569,8 @@ class Assembler : public AssemblerBase {
   static void set_target_address_at(Address pc, Address target);
 
   static void JumpLabelToJumpRegister(Address pc);
+
+  static void QuietNaN(HeapObject* nan);
 
   // This sets the branch destination (which gets loaded at the call address).
   // This is for calls and branches within generated code.  The serializer

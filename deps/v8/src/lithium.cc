@@ -95,30 +95,36 @@ void LOperand::PrintTo(StringStream* stream) {
 }
 
 #define DEFINE_OPERAND_CACHE(name, type)                      \
-  name* name::cache = NULL;                                   \
-  void name::SetUpCache() {                                   \
+  L##name* L##name::cache = NULL;                             \
+                                                              \
+  void L##name::SetUpCache() {                                \
     if (cache) return;                                        \
-    cache = new name[kNumCachedOperands];                     \
+    cache = new L##name[kNumCachedOperands];                  \
     for (int i = 0; i < kNumCachedOperands; i++) {            \
       cache[i].ConvertTo(type, i);                            \
     }                                                         \
   }                                                           \
+                                                              \
+  void L##name::TearDownCache() {                             \
+    delete[] cache;                                           \
+  }
 
-DEFINE_OPERAND_CACHE(LConstantOperand, CONSTANT_OPERAND)
-DEFINE_OPERAND_CACHE(LStackSlot,       STACK_SLOT)
-DEFINE_OPERAND_CACHE(LDoubleStackSlot, DOUBLE_STACK_SLOT)
-DEFINE_OPERAND_CACHE(LRegister,        REGISTER)
-DEFINE_OPERAND_CACHE(LDoubleRegister,  DOUBLE_REGISTER)
-
+LITHIUM_OPERAND_LIST(DEFINE_OPERAND_CACHE)
 #undef DEFINE_OPERAND_CACHE
 
 void LOperand::SetUpCaches() {
-  LConstantOperand::SetUpCache();
-  LStackSlot::SetUpCache();
-  LDoubleStackSlot::SetUpCache();
-  LRegister::SetUpCache();
-  LDoubleRegister::SetUpCache();
+#define LITHIUM_OPERAND_SETUP(name, type) L##name::SetUpCache();
+  LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_SETUP)
+#undef LITHIUM_OPERAND_SETUP
 }
+
+
+void LOperand::TearDownCaches() {
+#define LITHIUM_OPERAND_TEARDOWN(name, type) L##name::TearDownCache();
+  LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_TEARDOWN)
+#undef LITHIUM_OPERAND_TEARDOWN
+}
+
 
 bool LParallelMove::IsRedundant() const {
   for (int i = 0; i < move_operands_.length(); ++i) {

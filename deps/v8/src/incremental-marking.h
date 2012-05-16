@@ -46,6 +46,11 @@ class IncrementalMarking {
     COMPLETE
   };
 
+  enum CompletionAction {
+    GC_VIA_STACK_GUARD,
+    NO_GC_VIA_STACK_GUARD
+  };
+
   explicit IncrementalMarking(Heap* heap);
 
   void TearDown();
@@ -82,7 +87,7 @@ class IncrementalMarking {
 
   void Abort();
 
-  void MarkingComplete();
+  void MarkingComplete(CompletionAction action);
 
   // It's hard to know how much work the incremental marker should do to make
   // progress in the face of the mutator creating new work for it.  We start
@@ -102,10 +107,11 @@ class IncrementalMarking {
   static const intptr_t kMaxAllocationMarkingFactor = 1000;
 
   void OldSpaceStep(intptr_t allocated) {
-    Step(allocated * kFastMarking / kInitialAllocationMarkingFactor);
+    Step(allocated * kFastMarking / kInitialAllocationMarkingFactor,
+         GC_VIA_STACK_GUARD);
   }
 
-  void Step(intptr_t allocated);
+  void Step(intptr_t allocated, CompletionAction action);
 
   inline void RestartIfNotMarking() {
     if (state_ == COMPLETE) {

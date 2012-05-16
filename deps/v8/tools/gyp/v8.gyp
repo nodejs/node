@@ -59,6 +59,11 @@
                 '../../src/v8dll-main.cc',
               ],
               'conditions': [
+                ['OS=="mac"', {
+                  'xcode_settings': {
+                    'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
+                  },
+                }],
                 ['OS=="win"', {
                   'defines': [
                     'BUILDING_V8_SHARED',
@@ -360,7 +365,7 @@
             '../../src/jsregexp.h',
             '../../src/isolate.cc',
             '../../src/isolate.h',
-            '../../src/lazy-instance.h'
+            '../../src/lazy-instance.h',
             '../../src/list-inl.h',
             '../../src/list.h',
             '../../src/lithium.cc',
@@ -395,6 +400,7 @@
             '../../src/once.h',
             '../../src/parser.cc',
             '../../src/parser.h',
+            '../../src/platform-posix.h',
             '../../src/platform-tls-mac.h',
             '../../src/platform-tls-win32.h',
             '../../src/platform-tls.h',

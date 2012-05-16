@@ -412,12 +412,19 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
-    if (args == NULL || !array->HasFastSmiOnlyElements()) {
+    if (array->HasFastElements()) return elms;
+    if (args == NULL) {
+      if (array->HasFastDoubleElements()) {
+        ASSERT(elms == heap->empty_fixed_array());
+        MaybeObject* maybe_transition =
+            array->TransitionElementsKind(FAST_ELEMENTS);
+        if (maybe_transition->IsFailure()) return maybe_transition;
+      }
       return elms;
     }
   } else if (map == heap->fixed_cow_array_map()) {
     MaybeObject* maybe_writable_result = array->EnsureWritableFastElements();
-    if (args == NULL || !array->HasFastSmiOnlyElements() ||
+    if (args == NULL || array->HasFastElements() ||
         maybe_writable_result->IsFailure()) {
       return maybe_writable_result;
     }
@@ -1098,7 +1105,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallHelper(
 
     CustomArguments custom(isolate);
     v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
-        data_obj, *function, raw_holder);
+        isolate, data_obj, *function, raw_holder);
 
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
         custom.end(),
@@ -1135,68 +1142,6 @@ BUILTIN(HandleApiCall) {
 
 BUILTIN(HandleApiCallConstruct) {
   return HandleApiCallHelper<true>(args, isolate);
-}
-
-
-#ifdef DEBUG
-
-static void VerifyTypeCheck(Handle<JSObject> object,
-                            Handle<JSFunction> function) {
-  ASSERT(function->shared()->IsApiFunction());
-  FunctionTemplateInfo* info = function->shared()->get_api_func_data();
-  if (info->signature()->IsUndefined()) return;
-  SignatureInfo* signature = SignatureInfo::cast(info->signature());
-  Object* receiver_type = signature->receiver();
-  if (receiver_type->IsUndefined()) return;
-  FunctionTemplateInfo* type = FunctionTemplateInfo::cast(receiver_type);
-  ASSERT(object->IsInstanceOf(type));
-}
-
-#endif
-
-
-BUILTIN(FastHandleApiCall) {
-  ASSERT(!CalledAsConstructor(isolate));
-  Heap* heap = isolate->heap();
-  const bool is_construct = false;
-
-  // We expect four more arguments: callback, function, call data, and holder.
-  const int args_length = args.length() - 4;
-  ASSERT(args_length >= 0);
-
-  Object* callback_obj = args[args_length];
-
-  v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
-      &args[args_length + 1],
-      &args[0] - 1,
-      args_length - 1,
-      is_construct);
-
-#ifdef DEBUG
-  VerifyTypeCheck(Utils::OpenHandle(*new_args.Holder()),
-                  Utils::OpenHandle(*new_args.Callee()));
-#endif
-  HandleScope scope(isolate);
-  Object* result;
-  v8::Handle<v8::Value> value;
-  {
-    // Leaving JavaScript.
-    VMState state(isolate, EXTERNAL);
-    ExternalCallbackScope call_scope(isolate,
-                                     v8::ToCData<Address>(callback_obj));
-    v8::InvocationCallback callback =
-        v8::ToCData<v8::InvocationCallback>(callback_obj);
-
-    value = callback(new_args);
-  }
-  if (value.IsEmpty()) {
-    result = heap->undefined_value();
-  } else {
-    result = *reinterpret_cast<Object**>(*value);
-  }
-
-  RETURN_IF_SCHEDULED_EXCEPTION(isolate);
-  return result;
 }
 
 
@@ -1238,7 +1183,7 @@ MUST_USE_RESULT static MaybeObject* HandleApiCallAsFunctionOrConstructor(
 
     CustomArguments custom(isolate);
     v8::ImplementationUtilities::PrepareArgumentsData(custom.end(),
-        call_data->data(), constructor, obj);
+        isolate, call_data->data(), constructor, obj);
     v8::Arguments new_args = v8::ImplementationUtilities::NewArguments(
         custom.end(),
         &args[0] - 1,

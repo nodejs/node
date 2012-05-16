@@ -437,6 +437,8 @@ class SamplerRegistry : public AllStatic {
     HAS_CPU_PROFILING_SAMPLERS
   };
 
+  static void SetUp();
+
   typedef void (*VisitSampler)(Sampler*, void*);
 
   static State GetState();

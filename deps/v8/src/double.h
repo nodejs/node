@@ -130,12 +130,6 @@ class Double {
     return (d64 & kExponentMask) == kExponentMask;
   }
 
-  bool IsNan() const {
-    uint64_t d64 = AsUint64();
-    return ((d64 & kExponentMask) == kExponentMask) &&
-        ((d64 & kSignificandMask) != 0);
-  }
-
   bool IsInfinite() const {
     uint64_t d64 = AsUint64();
     return ((d64 & kExponentMask) == kExponentMask) &&

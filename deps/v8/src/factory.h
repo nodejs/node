@@ -162,9 +162,12 @@ class Factory {
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewGlobalContext();
 
+  // Create a module context.
+  Handle<Context> NewModuleContext(Handle<Context> previous,
+                                   Handle<ScopeInfo> scope_info);
+
   // Create a function context.
-  Handle<Context> NewFunctionContext(int length,
-                                     Handle<JSFunction> function);
+  Handle<Context> NewFunctionContext(int length, Handle<JSFunction> function);
 
   // Create a catch context.
   Handle<Context> NewCatchContext(Handle<JSFunction> function,
@@ -177,7 +180,7 @@ class Factory {
                                  Handle<Context> previous,
                                  Handle<JSObject> extension);
 
-  // Create a 'block' context.
+  // Create a block context.
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
@@ -261,6 +264,9 @@ class Factory {
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
   Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
+
+  // JS modules are pretenured.
+  Handle<JSModule> NewJSModule();
 
   // JS arrays are pretenured when allocated by the parser.
   Handle<JSArray> NewJSArray(int capacity,

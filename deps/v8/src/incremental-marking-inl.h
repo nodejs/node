@@ -100,7 +100,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
   int64_t old_bytes_rescanned = bytes_rescanned_;
   bytes_rescanned_ = old_bytes_rescanned + obj_size;
   if ((bytes_rescanned_ >> 20) != (old_bytes_rescanned >> 20)) {
-    if (bytes_rescanned_ > 2 * heap_->PromotedSpaceSize()) {
+    if (bytes_rescanned_ > 2 * heap_->PromotedSpaceSizeOfObjects()) {
       // If we have queued twice the heap size for rescanning then we are
       // going around in circles, scanning the same objects again and again
       // as the program mutates the heap faster than we can incrementally

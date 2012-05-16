@@ -79,7 +79,7 @@ void Interface::DoAdd(
     PrintF("%*sthis = ", Nesting::current(), "");
     this->Print(Nesting::current());
     PrintF("%*s%s : ", Nesting::current(), "",
-           (*reinterpret_cast<String**>(name))->ToAsciiArray());
+           (*static_cast<String**>(name))->ToAsciiArray());
     interface->Print(Nesting::current());
   }
 #endif
@@ -97,7 +97,7 @@ void Interface::DoAdd(
 #ifdef DEBUG
     Nesting nested;
 #endif
-    reinterpret_cast<Interface*>(p->value)->Unify(interface, ok);
+    static_cast<Interface*>(p->value)->Unify(interface, ok);
   }
 
 #ifdef DEBUG
@@ -178,6 +178,15 @@ void Interface::DoUnify(Interface* that, bool* ok) {
   if (that->IsFrozen() && this_size > that_size) {
     *ok = false;
     return;
+  }
+
+  // Merge instance.
+  if (!that->instance_.is_null()) {
+    if (!this->instance_.is_null() && *this->instance_ != *that->instance_) {
+      *ok = false;
+      return;
+    }
+    this->instance_ = that->instance_;
   }
 
   // Merge interfaces.

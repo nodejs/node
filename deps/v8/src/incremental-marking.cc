@@ -205,6 +205,12 @@ class IncrementalMarkingMarkingVisitor : public ObjectVisitor {
     MarkObject(target);
   }
 
+  void VisitSharedFunctionInfo(SharedFunctionInfo* shared) {
+    if (shared->ic_age() != heap_->global_ic_age()) {
+      shared->ResetForNewContext(heap_->global_ic_age());
+    }
+  }
+
   void VisitPointer(Object** p) {
     Object* obj = *p;
     if (obj->NonFailureIsHeapObject()) {
@@ -743,7 +749,7 @@ void IncrementalMarking::Finalize() {
 }
 
 
-void IncrementalMarking::MarkingComplete() {
+void IncrementalMarking::MarkingComplete(CompletionAction action) {
   state_ = COMPLETE;
   // We will set the stack guard to request a GC now.  This will mean the rest
   // of the GC gets performed as soon as possible (we can't do a GC here in a
@@ -754,13 +760,14 @@ void IncrementalMarking::MarkingComplete() {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Complete (normal).\n");
   }
-  if (!heap_->idle_notification_will_schedule_next_gc()) {
+  if (action == GC_VIA_STACK_GUARD) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
 
 
-void IncrementalMarking::Step(intptr_t allocated_bytes) {
+void IncrementalMarking::Step(intptr_t allocated_bytes,
+                              CompletionAction action) {
   if (heap_->gc_state() != Heap::NOT_IN_GC ||
       !FLAG_incremental_marking ||
       !FLAG_incremental_marking_steps ||
@@ -823,6 +830,19 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
         MarkObjectGreyDoNotEnqueue(ctx->normalized_map_cache());
 
         VisitGlobalContext(ctx, &marking_visitor);
+      } else if (map->instance_type() == JS_FUNCTION_TYPE) {
+        marking_visitor.VisitPointers(
+            HeapObject::RawField(obj, JSFunction::kPropertiesOffset),
+            HeapObject::RawField(obj, JSFunction::kCodeEntryOffset));
+
+        marking_visitor.VisitCodeEntry(
+            obj->address() + JSFunction::kCodeEntryOffset);
+
+        marking_visitor.VisitPointers(
+            HeapObject::RawField(obj,
+                                 JSFunction::kCodeEntryOffset + kPointerSize),
+            HeapObject::RawField(obj,
+                                 JSFunction::kNonWeakFieldsEndOffset));
       } else {
         obj->IterateBody(map->instance_type(), size, &marking_visitor);
       }
@@ -833,7 +853,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       Marking::MarkBlack(obj_mark_bit);
       MemoryChunk::IncrementLiveBytesFromGC(obj->address(), size);
     }
-    if (marking_deque_.IsEmpty()) MarkingComplete();
+    if (marking_deque_.IsEmpty()) MarkingComplete(action);
   }
 
   allocated_ = 0;
@@ -931,7 +951,7 @@ void IncrementalMarking::ResetStepCounters() {
 
 
 int64_t IncrementalMarking::SpaceLeftInOldSpace() {
-  return heap_->MaxOldGenerationSize() - heap_->PromotedSpaceSize();
+  return heap_->MaxOldGenerationSize() - heap_->PromotedSpaceSizeOfObjects();
 }
 
 } }  // namespace v8::internal

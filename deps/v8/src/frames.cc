@@ -1359,34 +1359,28 @@ InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
 // -------------------------------------------------------------------------
 
 int NumRegs(RegList reglist) {
-  int n = 0;
-  while (reglist != 0) {
-    n++;
-    reglist &= reglist - 1;  // clear one bit
-  }
-  return n;
+  return CompilerIntrinsics::CountSetBits(reglist);
 }
 
 
 struct JSCallerSavedCodeData {
-  JSCallerSavedCodeData() {
-    int i = 0;
-    for (int r = 0; r < kNumRegs; r++)
-      if ((kJSCallerSaved & (1 << r)) != 0)
-        reg_code[i++] = r;
-
-    ASSERT(i == kNumJSCallerSaved);
-  }
   int reg_code[kNumJSCallerSaved];
 };
 
+JSCallerSavedCodeData caller_saved_code_data;
 
-static LazyInstance<JSCallerSavedCodeData>::type caller_saved_code_data =
-    LAZY_INSTANCE_INITIALIZER;
+void SetUpJSCallerSavedCodeData() {
+  int i = 0;
+  for (int r = 0; r < kNumRegs; r++)
+    if ((kJSCallerSaved & (1 << r)) != 0)
+      caller_saved_code_data.reg_code[i++] = r;
+
+  ASSERT(i == kNumJSCallerSaved);
+}
 
 int JSCallerSavedCode(int n) {
   ASSERT(0 <= n && n < kNumJSCallerSaved);
-  return caller_saved_code_data.Get().reg_code[n];
+  return caller_saved_code_data.reg_code[n];
 }
 
 

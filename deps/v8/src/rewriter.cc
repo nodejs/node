@@ -111,7 +111,7 @@ void Processor::VisitBlock(Block* node) {
 
 void Processor::VisitExpressionStatement(ExpressionStatement* node) {
   // Rewrite : <x>; -> .result = <x>;
-  if (!is_set_) {
+  if (!is_set_ && !node->expression()->IsThrow()) {
     node->set_expression(SetResult(node->expression()));
     if (!in_try_) is_set_ = true;
   }

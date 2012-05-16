@@ -73,21 +73,12 @@ SmartArrayPointer<const char> CodeStub::GetName() {
 
 
 void CodeStub::RecordCodeGeneration(Code* code, MacroAssembler* masm) {
-  code->set_major_key(MajorKey());
-
   Isolate* isolate = masm->isolate();
   SmartArrayPointer<const char> name = GetName();
   PROFILE(isolate, CodeCreateEvent(Logger::STUB_TAG, code, *name));
   GDBJIT(AddCode(GDBJITInterface::STUB, *name, code));
   Counters* counters = isolate->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
-
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code_stubs) {
-    code->Disassemble(*name);
-    PrintF("\n");
-  }
-#endif
 }
 
 
@@ -125,8 +116,16 @@ Handle<Code> CodeStub::GetCode() {
         GetICState());
     Handle<Code> new_object = factory->NewCode(
         desc, flags, masm.CodeObject(), NeedsImmovableCode());
-    RecordCodeGeneration(*new_object, &masm);
+    new_object->set_major_key(MajorKey());
     FinishCode(new_object);
+    RecordCodeGeneration(*new_object, &masm);
+
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_code_stubs) {
+      new_object->Disassemble(*GetName());
+      PrintF("\n");
+    }
+#endif
 
     if (UseSpecialCache()) {
       AddToSpecialCache(new_object);

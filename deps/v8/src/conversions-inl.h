@@ -228,9 +228,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
   }
 
   ASSERT(number != 0);
-  // The double could be constructed faster from number (mantissa), exponent
-  // and sign. Assuming it's a rare case more simple code is used.
-  return static_cast<double>(negative ? -number : number) * pow(2.0, exponent);
+  return ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
 

@@ -379,6 +379,7 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ push(receiver);
   __ push(holder);
   __ push(FieldOperand(kScratchRegister, InterceptorInfo::kDataOffset));
+  __ PushAddress(ExternalReference::isolate_address());
 }
 
 
@@ -393,7 +394,7 @@ static void CompileCallLoadPropertyWithInterceptor(
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
                         masm->isolate());
-  __ Set(rax, 5);
+  __ Set(rax, 6);
   __ LoadAddress(rbx, ref);
 
   CEntryStub stub(1);
@@ -402,7 +403,7 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 // Number of pointers to be reserved on stack for fast API call.
-static const int kFastApiCallArguments = 3;
+static const int kFastApiCallArguments = 4;
 
 
 // Reserves space for the extra arguments to API function in the
@@ -452,10 +453,11 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   //  -- rsp[16]             : api function
   //                           (first fast api call extra argument)
   //  -- rsp[24]             : api call data
-  //  -- rsp[32]             : last argument
+  //  -- rsp[32]             : isolate
+  //  -- rsp[40]             : last argument
   //  -- ...
-  //  -- rsp[(argc + 3) * 8] : first argument
-  //  -- rsp[(argc + 4) * 8] : receiver
+  //  -- rsp[(argc + 4) * 8] : first argument
+  //  -- rsp[(argc + 5) * 8] : receiver
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
@@ -473,11 +475,15 @@ static void GenerateFastApiCall(MacroAssembler* masm,
   } else {
     __ Move(Operand(rsp, 3 * kPointerSize), call_data);
   }
+  __ movq(kScratchRegister, ExternalReference::isolate_address());
+  __ movq(Operand(rsp, 4 * kPointerSize), kScratchRegister);
 
   // Prepare arguments.
-  __ lea(rbx, Operand(rsp, 3 * kPointerSize));
+  __ lea(rbx, Operand(rsp, 4 * kPointerSize));
 
-#ifdef _WIN64
+#if defined(__MINGW64__)
+  Register arguments_arg = rcx;
+#elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register arguments_arg = rdx;
 #else
@@ -663,7 +669,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
     __ CallExternalReference(
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
                           masm->isolate()),
-        5);
+        6);
 
     // Restore the name_ register.
     __ pop(name_);
@@ -730,8 +736,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Register scratch,
                                       Label* miss_label) {
   // Check that the map of the object hasn't changed.
+  CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
+                                             : REQUIRE_EXACT_MAP;
   __ CheckMap(receiver_reg, Handle<Map>(object->map()),
-              miss_label, DO_SMI_CHECK, ALLOW_ELEMENT_TRANSITION_MAPS);
+              miss_label, DO_SMI_CHECK, mode);
 
   // Perform global security token check if needed.
   if (object->IsJSGlobalProxy()) {
@@ -1003,11 +1011,15 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ Push(Handle<Object>(callback->data()));
   }
+  __ PushAddress(ExternalReference::isolate_address());  // isolate
   __ push(name_reg);  // name
   // Save a pointer to where we pushed the arguments pointer.
   // This will be passed as the const AccessorInfo& to the C++ callback.
 
-#ifdef _WIN64
+#if defined(__MINGW64__)
+  Register accessor_info_arg = rdx;
+  Register name_arg = rcx;
+#elif defined(_WIN64)
   // Win64 uses first register--rcx--for returned value.
   Register accessor_info_arg = r8;
   Register name_arg = rdx;
@@ -1020,14 +1032,14 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   __ movq(name_arg, rsp);
   __ push(scratch2);  // Restore return address.
 
-  // 3 elements array for v8::Arguments::values_ and handler for name.
-  const int kStackSpace = 4;
+  // 4 elements array for v8::Arguments::values_ and handler for name.
+  const int kStackSpace = 5;
 
   // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
   __ PrepareCallApiFunction(kArgStackSpace);
-  __ lea(rax, Operand(name_arg, 3 * kPointerSize));
+  __ lea(rax, Operand(name_arg, 4 * kPointerSize));
 
   // v8::AccessorInfo::args_.
   __ movq(StackSpaceOperand(0), rax);
@@ -1102,13 +1114,20 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
                                           name, miss);
     ASSERT(holder_reg.is(receiver) || holder_reg.is(scratch1));
 
+    // Preserve the receiver register explicitly whenever it is different from
+    // the holder and it is needed should the interceptor return without any
+    // result. The CALLBACKS case needs the receiver to be passed into C++ code,
+    // the FIELD case might cause a miss during the prototype check.
+    bool must_perfrom_prototype_check = *interceptor_holder != lookup->holder();
+    bool must_preserve_receiver_reg = !receiver.is(holder_reg) &&
+        (lookup->type() == CALLBACKS || must_perfrom_prototype_check);
+
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
     {
       FrameScope frame_scope(masm(), StackFrame::INTERNAL);
 
-      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-        // CALLBACKS case needs a receiver to be passed into C++ callback.
+      if (must_preserve_receiver_reg) {
         __ push(receiver);
       }
       __ push(holder_reg);
@@ -1134,7 +1153,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ bind(&interceptor_failed);
       __ pop(name_reg);
       __ pop(holder_reg);
-      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      if (must_preserve_receiver_reg) {
         __ pop(receiver);
       }
 
@@ -1143,7 +1162,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
     // Check that the maps from interceptor's holder to lookup's holder
     // haven't changed.  And load lookup's holder into |holder| register.
-    if (*interceptor_holder != lookup->holder()) {
+    if (must_perfrom_prototype_check) {
       holder_reg = CheckPrototypes(interceptor_holder,
                                    holder_reg,
                                    Handle<JSObject>(lookup->holder()),
@@ -1177,6 +1196,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ push(holder_reg);
       __ Move(holder_reg, callback);
       __ push(FieldOperand(holder_reg, AccessorInfo::kDataOffset));
+      __ PushAddress(ExternalReference::isolate_address());
       __ push(holder_reg);
       __ push(name_reg);
       __ push(scratch2);  // restore return address
@@ -1184,7 +1204,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
                             isolate());
-      __ TailCallExternalReference(ref, 5, 1);
+      __ TailCallExternalReference(ref, 6, 1);
     }
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
@@ -1199,7 +1219,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad), isolate());
-    __ TailCallExternalReference(ref, 5, 1);
+    __ TailCallExternalReference(ref, 6, 1);
   }
 }
 
@@ -1991,7 +2011,7 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ movq(rax, Operand(rsp, 3 * kPointerSize));
+  __ movq(rax, Operand(rsp, 4 * kPointerSize));
   __ movq(Operand(rsp, 0 * kPointerSize), rax);
 
   GenerateFastApiCall(masm(), optimization, argc);
@@ -3112,6 +3132,32 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
   __ jmp(miss_ic, RelocInfo::CODE_TARGET);
 }
 
+
+static void GenerateSmiKeyCheck(MacroAssembler* masm,
+                                Register key,
+                                Register scratch,
+                                XMMRegister xmm_scratch0,
+                                XMMRegister xmm_scratch1,
+                                Label* fail) {
+  // Check that key is a smi or a heap number containing a smi and branch
+  // if the check fails.
+  Label key_ok;
+  __ JumpIfSmi(key, &key_ok);
+  __ CheckMap(key,
+              masm->isolate()->factory()->heap_number_map(),
+              fail,
+              DONT_DO_SMI_CHECK);
+  __ movsd(xmm_scratch0, FieldOperand(key, HeapNumber::kValueOffset));
+  __ cvttsd2si(scratch, xmm_scratch0);
+  __ cvtlsi2sd(xmm_scratch1, scratch);
+  __ ucomisd(xmm_scratch1, xmm_scratch0);
+  __ j(not_equal, fail);
+  __ j(parity_even, fail);  // NaN.
+  __ Integer32ToSmi(key, scratch);
+  __ bind(&key_ok);
+}
+
+
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
@@ -3125,8 +3171,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rax, rcx, xmm0, xmm1, &miss_force_generic);
 
   // Check that the index is in range.
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3260,8 +3306,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rcx, rbx, xmm0, xmm1, &miss_force_generic);
 
   // Check that the index is in range.
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3362,30 +3408,28 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     } else {
       // Perform float-to-int conversion with truncation (round-to-zero)
       // behavior.
+      // Fast path: use machine instruction to convert to int64. If that
+      // fails (out-of-range), go into the runtime.
+      __ cvttsd2siq(r8, xmm0);
+      __ Set(kScratchRegister, V8_UINT64_C(0x8000000000000000));
+      __ cmpq(r8, kScratchRegister);
+      __ j(equal, &slow);
 
-      // Convert to int32 and store the low byte/word.
-      // If the value is NaN or +/-infinity, the result is 0x80000000,
-      // which is automatically zero when taken mod 2^n, n < 32.
       // rdx: value (converted to an untagged integer)
       // rdi: untagged index
       // rbx: base pointer of external storage
       switch (elements_kind) {
         case EXTERNAL_BYTE_ELEMENTS:
         case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-          __ cvttsd2si(rdx, xmm0);
-          __ movb(Operand(rbx, rdi, times_1, 0), rdx);
+          __ movb(Operand(rbx, rdi, times_1, 0), r8);
           break;
         case EXTERNAL_SHORT_ELEMENTS:
         case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-          __ cvttsd2si(rdx, xmm0);
-          __ movw(Operand(rbx, rdi, times_2, 0), rdx);
+          __ movw(Operand(rbx, rdi, times_2, 0), r8);
           break;
         case EXTERNAL_INT_ELEMENTS:
         case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-          // Convert to int64, so that NaN and infinities become
-          // 0x8000000000000000, which is zero mod 2^32.
-          __ cvttsd2siq(rdx, xmm0);
-          __ movl(Operand(rbx, rdi, times_4, 0), rdx);
+          __ movl(Operand(rbx, rdi, times_4, 0), r8);
           break;
         case EXTERNAL_PIXEL_ELEMENTS:
         case EXTERNAL_FLOAT_ELEMENTS:
@@ -3442,8 +3486,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rax, rcx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3484,8 +3528,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rax, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rax, rcx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3540,8 +3584,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rcx, rbx, xmm0, xmm1, &miss_force_generic);
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(rax, &transition_elements_kind);
@@ -3682,8 +3726,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi.
-  __ JumpIfNotSmi(rcx, &miss_force_generic);
+  // Check that the key is a smi or a heap number convertible to a smi.
+  GenerateSmiKeyCheck(masm, rcx, rbx, xmm0, xmm1, &miss_force_generic);
 
   // Get the elements array.
   __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -3765,6 +3809,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
     // Increment the length of the array.
     __ Move(FieldOperand(rdx, JSArray::kLengthOffset), Smi::FromInt(1));
+    __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
     __ jmp(&finish_store);
 
     __ bind(&check_capacity);

@@ -397,7 +397,7 @@ class Context: public FixedArray {
   GLOBAL_CONTEXT_FIELDS(GLOBAL_CONTEXT_FIELD_ACCESSORS)
 #undef GLOBAL_CONTEXT_FIELD_ACCESSORS
 
-  // Lookup the the slot called name, starting with the current context.
+  // Lookup the slot called name, starting with the current context.
   // There are three possibilities:
   //
   // 1) result->IsContext():

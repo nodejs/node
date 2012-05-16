@@ -35,6 +35,14 @@
 namespace v8 {
 namespace internal {
 
+#define LITHIUM_OPERAND_LIST(V)         \
+  V(ConstantOperand, CONSTANT_OPERAND)  \
+  V(StackSlot,       STACK_SLOT)        \
+  V(DoubleStackSlot, DOUBLE_STACK_SLOT) \
+  V(Register,        REGISTER)          \
+  V(DoubleRegister,  DOUBLE_REGISTER)
+
+
 class LOperand: public ZoneObject {
  public:
   enum Kind {
@@ -52,14 +60,13 @@ class LOperand: public ZoneObject {
 
   Kind kind() const { return KindField::decode(value_); }
   int index() const { return static_cast<int>(value_) >> kKindFieldWidth; }
-  bool IsConstantOperand() const { return kind() == CONSTANT_OPERAND; }
-  bool IsStackSlot() const { return kind() == STACK_SLOT; }
-  bool IsDoubleStackSlot() const { return kind() == DOUBLE_STACK_SLOT; }
-  bool IsRegister() const { return kind() == REGISTER; }
-  bool IsDoubleRegister() const { return kind() == DOUBLE_REGISTER; }
-  bool IsArgument() const { return kind() == ARGUMENT; }
-  bool IsUnallocated() const { return kind() == UNALLOCATED; }
-  bool IsIgnored() const { return kind() == INVALID; }
+#define LITHIUM_OPERAND_PREDICATE(name, type) \
+  bool Is##name() const { return kind() == type; }
+  LITHIUM_OPERAND_LIST(LITHIUM_OPERAND_PREDICATE)
+  LITHIUM_OPERAND_PREDICATE(Argument, ARGUMENT)
+  LITHIUM_OPERAND_PREDICATE(Unallocated, UNALLOCATED)
+  LITHIUM_OPERAND_PREDICATE(Ignored, INVALID)
+#undef LITHIUM_OPERAND_PREDICATE
   bool Equals(LOperand* other) const { return value_ == other->value_; }
 
   void PrintTo(StringStream* stream);
@@ -69,9 +76,9 @@ class LOperand: public ZoneObject {
     ASSERT(this->index() == index);
   }
 
-  // Calls SetUpCache() for each subclass. Don't forget to update this method
-  // if you add a new LOperand subclass.
+  // Calls SetUpCache()/TearDownCache() for each subclass.
   static void SetUpCaches();
+  static void TearDownCaches();
 
  protected:
   static const int kKindFieldWidth = 3;
@@ -265,6 +272,7 @@ class LConstantOperand: public LOperand {
   }
 
   static void SetUpCache();
+  static void TearDownCache();
 
  private:
   static const int kNumCachedOperands = 128;
@@ -300,6 +308,7 @@ class LStackSlot: public LOperand {
   }
 
   static void SetUpCache();
+  static void TearDownCache();
 
  private:
   static const int kNumCachedOperands = 128;
@@ -324,6 +333,7 @@ class LDoubleStackSlot: public LOperand {
   }
 
   static void SetUpCache();
+  static void TearDownCache();
 
  private:
   static const int kNumCachedOperands = 128;
@@ -348,6 +358,7 @@ class LRegister: public LOperand {
   }
 
   static void SetUpCache();
+  static void TearDownCache();
 
  private:
   static const int kNumCachedOperands = 16;
@@ -372,6 +383,7 @@ class LDoubleRegister: public LOperand {
   }
 
   static void SetUpCache();
+  static void TearDownCache();
 
  private:
   static const int kNumCachedOperands = 16;

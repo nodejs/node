@@ -239,13 +239,13 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   // ok:
 
   if (FLAG_count_based_interrupts) {
-    ASSERT_EQ(*(call_target_address - 3), kJnsInstruction);
-    ASSERT_EQ(*(call_target_address - 2), kJnsOffset);
+    ASSERT_EQ(kJnsInstruction, *(call_target_address - 3));
+    ASSERT_EQ(kJnsOffset,      *(call_target_address - 2));
   } else {
-    ASSERT_EQ(*(call_target_address - 3), kJaeInstruction);
-    ASSERT_EQ(*(call_target_address - 2), kJaeOffset);
+    ASSERT_EQ(kJaeInstruction, *(call_target_address - 3));
+    ASSERT_EQ(kJaeOffset,      *(call_target_address - 2));
   }
-  ASSERT_EQ(*(call_target_address - 1), kCallInstruction);
+  ASSERT_EQ(kCallInstruction,  *(call_target_address - 1));
   *(call_target_address - 3) = kNopByteOne;
   *(call_target_address - 2) = kNopByteTwo;
   Assembler::set_target_address_at(call_target_address,
@@ -266,9 +266,9 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 
   // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
   // restore the conditional branch.
-  ASSERT_EQ(*(call_target_address - 3), kNopByteOne);
-  ASSERT_EQ(*(call_target_address - 2), kNopByteTwo);
-  ASSERT_EQ(*(call_target_address - 1), kCallInstruction);
+  ASSERT_EQ(kNopByteOne,      *(call_target_address - 3));
+  ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
+  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
   if (FLAG_count_based_interrupts) {
     *(call_target_address - 3) = kJnsInstruction;
     *(call_target_address - 2) = kJnsOffset;
@@ -548,6 +548,8 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
 
 void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
                                               int frame_index) {
+  Builtins* builtins = isolate_->builtins();
+  Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   JSFunction* function = JSFunction::cast(ComputeLiteral(iterator->Next()));
   unsigned height = iterator->Next();
   unsigned height_in_bytes = height * kPointerSize;
@@ -555,7 +557,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
     PrintF("  translating construct stub => height=%d\n", height_in_bytes);
   }
 
-  unsigned fixed_frame_size = 6 * kPointerSize;
+  unsigned fixed_frame_size = 7 * kPointerSize;
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
@@ -620,6 +622,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
            top_address + output_offset, output_offset, value);
   }
 
+  // The output frame reflects a JSConstructStubGeneric frame.
+  output_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(construct_stub);
+  output_frame->SetFrameSlot(output_offset, value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08x: [top + %d] <- 0x%08x ; code object\n",
+           top_address + output_offset, output_offset, value);
+  }
+
   // Number of incoming arguments.
   output_offset -= kPointerSize;
   value = reinterpret_cast<uint32_t>(Smi::FromInt(height - 1));
@@ -641,8 +652,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
 
   ASSERT(0 == output_offset);
 
-  Builtins* builtins = isolate_->builtins();
-  Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
   uint32_t pc = reinterpret_cast<uint32_t>(
       construct_stub->instruction_start() +
       isolate_->heap()->construct_stub_deopt_pc_offset()->value());

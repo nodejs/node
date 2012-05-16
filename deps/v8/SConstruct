@@ -1601,4 +1601,17 @@ except:
   pass
 
 
+def WarnAboutDeprecation():
+  print """
+#######################################################
+#  WARNING: Building V8 with SCons is deprecated and  #
+#  will not work much longer. Please switch to using  #
+#  the GYP-based build now. Instructions are at       #
+#  http://code.google.com/p/v8/wiki/BuildingWithGYP.  #
+#######################################################
+  """
+
+WarnAboutDeprecation()
+import atexit
+atexit.register(WarnAboutDeprecation)
 Build()

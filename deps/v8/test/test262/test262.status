@@ -33,7 +33,18 @@ def FAIL_OK = FAIL, OKAY
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
+# Sequencing of getter side effects on receiver and argument properties
+# is wrong. The receiver callback should be called before any arguments
+# are evaluated.
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
+11.2.3-3_3: FAIL
+
+# Prototypal inheritance of properties does not maintain accessibility.
+# The [[CanPut]] operation should traverse the prototype chain to
+# determine whether given property is writable or not.
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
+8.14.4-8-b_1: FAIL
+8.14.4-8-b_2: FAIL
 15.2.3.6-4-405: FAIL
 15.2.3.6-4-410: FAIL
 15.2.3.6-4-415: FAIL
@@ -52,23 +63,12 @@ S15.1.2.2_A5.1_T1: FAIL_OK
 S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
 
-# We are more lenient in which string character escapes we allow than
-# the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
-S7.8.4_A6.1_T4: FAIL_OK
-S7.8.4_A6.2_T1: FAIL_OK
-S7.8.4_A6.2_T2: FAIL_OK
-S7.8.4_A7.1_T4: FAIL_OK
-S7.8.4_A7.2_T1: FAIL_OK
-S7.8.4_A7.2_T2: FAIL_OK
-S7.8.4_A7.2_T3: FAIL_OK
-S7.8.4_A7.2_T4: FAIL_OK
-S7.8.4_A7.2_T5: FAIL_OK
-S7.8.4_A7.2_T6: FAIL_OK
-
-# Linux and Mac defaults to extended 80 bit floating point format in the FPU.
+# Linux for ia32 (and therefore simulators) default to extended 80 bit floating
+# point formats, so these tests checking 64-bit FP precision fail. The other
+# platforms/arch's pass these tests.
 # We follow the other major JS engines by keeping this default.
-S8.5_A2.2: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
-S8.5_A2.1: PASS if ($system != linux || $arch == x64), FAIL_OK if ($system == linux && $arch != x64)
+S8.5_A2.1: PASS || FAIL_OK
+S8.5_A2.2: PASS || FAIL_OK
 
 ############################ INVALID TESTS #############################
 

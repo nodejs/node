@@ -1333,11 +1333,19 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
 
   Expect(Token::RBRACE, CHECK_OK);
   scope->set_end_position(scanner().location().end_pos);
-  body->set_block_scope(scope);
+  body->set_scope(scope);
 
-  scope->interface()->Freeze(ok);
+  // Instance objects have to be created ahead of time (before code generation
+  // linking them) because of potentially cyclic references between them.
+  // We create them here, to avoid another pass over the AST.
+  Interface* interface = scope->interface();
+  interface->MakeModule(ok);
   ASSERT(ok);
-  return factory()->NewModuleLiteral(body, scope->interface());
+  interface->MakeSingleton(Isolate::Current()->factory()->NewJSModule(), ok);
+  ASSERT(ok);
+  interface->Freeze(ok);
+  ASSERT(ok);
+  return factory()->NewModuleLiteral(body, interface);
 }
 
 
@@ -1403,7 +1411,14 @@ Module* Parser::ParseModuleUrl(bool* ok) {
 #ifdef DEBUG
   if (FLAG_print_interface_details) PrintF("# Url ");
 #endif
-  return factory()->NewModuleUrl(symbol);
+
+  Module* result = factory()->NewModuleUrl(symbol);
+  Interface* interface = result->interface();
+  interface->MakeSingleton(Isolate::Current()->factory()->NewJSModule(), ok);
+  ASSERT(ok);
+  interface->Freeze(ok);
+  ASSERT(ok);
+  return result;
 }
 
 
@@ -2015,7 +2030,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
   block_scope->set_end_position(scanner().location().end_pos);
   block_scope = block_scope->FinalizeBlockScope();
-  body->set_block_scope(block_scope);
+  body->set_scope(block_scope);
   return body;
 }
 
@@ -2254,7 +2269,7 @@ Block* Parser::ParseVariableDeclarations(
     // Global variable declarations must be compiled in a specific
     // way. When the script containing the global variable declaration
     // is entered, the global variable must be declared, so that if it
-    // doesn't exist (not even in a prototype of the global object) it
+    // doesn't exist (on the global object itself, see ES5 errata) it
     // gets created with an initial undefined value. This is handled
     // by the declarations part of the function representing the
     // top-level global code; see Runtime::DeclareGlobalVariable. If
@@ -2917,7 +2932,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         top_scope_ = saved_scope;
         for_scope->set_end_position(scanner().location().end_pos);
         for_scope = for_scope->FinalizeBlockScope();
-        body_block->set_block_scope(for_scope);
+        body_block->set_scope(for_scope);
         // Parsed for-in loop w/ let declaration.
         return loop;
 
@@ -2997,7 +3012,7 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
     Block* result = factory()->NewBlock(NULL, 2, false);
     result->AddStatement(init);
     result->AddStatement(loop);
-    result->set_block_scope(for_scope);
+    result->set_scope(for_scope);
     if (loop) loop->Initialize(NULL, cond, next, body);
     return result;
   } else {
@@ -4460,15 +4475,15 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     Variable* fvar = NULL;
     Token::Value fvar_init_op = Token::INIT_CONST;
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
-      VariableMode fvar_mode;
-      if (is_extended_mode()) {
-        fvar_mode = CONST_HARMONY;
-        fvar_init_op = Token::INIT_CONST_HARMONY;
-      } else {
-        fvar_mode = CONST;
-      }
-      fvar =
-          top_scope_->DeclareFunctionVar(function_name, fvar_mode, factory());
+      if (is_extended_mode()) fvar_init_op = Token::INIT_CONST_HARMONY;
+      VariableMode fvar_mode = is_extended_mode() ? CONST_HARMONY : CONST;
+      fvar = new(zone()) Variable(top_scope_,
+         function_name, fvar_mode, true /* is valid LHS */,
+         Variable::NORMAL, kCreatedInitialized);
+      VariableProxy* proxy = factory()->NewVariableProxy(fvar);
+      VariableDeclaration* fvar_declaration =
+          factory()->NewVariableDeclaration(proxy, fvar_mode, top_scope_);
+      top_scope_->DeclareFunctionVar(fvar_declaration);
     }
 
     // Determine whether the function will be lazily compiled.

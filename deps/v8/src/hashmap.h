@@ -63,7 +63,9 @@ class TemplateHashMapImpl {
   Entry* Lookup(void* key, uint32_t hash, bool insert);
 
   // Removes the entry with matching key.
-  void Remove(void* key, uint32_t hash);
+  // It returns the value of the deleted entry
+  // or null if there is no value for such key.
+  void* Remove(void* key, uint32_t hash);
 
   // Empties the hash map (occupancy() == 0).
   void Clear();
@@ -146,14 +148,15 @@ typename TemplateHashMapImpl<P>::Entry* TemplateHashMapImpl<P>::Lookup(
 
 
 template<class P>
-void TemplateHashMapImpl<P>::Remove(void* key, uint32_t hash) {
+void* TemplateHashMapImpl<P>::Remove(void* key, uint32_t hash) {
   // Lookup the entry for the key to remove.
   Entry* p = Probe(key, hash);
   if (p->key == NULL) {
     // Key not found nothing to remove.
-    return;
+    return NULL;
   }
 
+  void* value = p->value;
   // To remove an entry we need to ensure that it does not create an empty
   // entry that will cause the search for another entry to stop too soon. If all
   // the entries between the entry to remove and the next empty slot have their
@@ -202,6 +205,7 @@ void TemplateHashMapImpl<P>::Remove(void* key, uint32_t hash) {
   // Clear the entry which is allowed to en emptied.
   p->key = NULL;
   occupancy_--;
+  return value;
 }
 
 
