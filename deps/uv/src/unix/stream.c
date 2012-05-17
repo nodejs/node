@@ -62,6 +62,7 @@ void uv__stream_init(uv_loop_t* loop,
   stream->close_cb = NULL;
   stream->connection_cb = NULL;
   stream->connect_req = NULL;
+  stream->shutdown_req = NULL;
   stream->accepted_fd = -1;
   stream->fd = -1;
   stream->delayed_error = 0;
@@ -128,11 +129,20 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
   assert(stream->flags & UV_CLOSED);
 
+  if (stream->connect_req) {
+    uv__req_unregister(stream->loop, stream->connect_req);
+    uv__set_artificial_error(stream->loop, UV_EINTR);
+    stream->connect_req->cb(stream->connect_req, -1);
+    stream->connect_req = NULL;
+  }
+
   while (!ngx_queue_empty(&stream->write_queue)) {
     q = ngx_queue_head(&stream->write_queue);
     ngx_queue_remove(q);
 
     req = ngx_queue_data(q, uv_write_t, queue);
+    uv__req_unregister(stream->loop, req);
+
     if (req->bufs != req->bufsml)
       free(req->bufs);
 
@@ -147,18 +157,19 @@ void uv__stream_destroy(uv_stream_t* stream) {
     ngx_queue_remove(q);
 
     req = ngx_queue_data(q, uv_write_t, queue);
+    uv__req_unregister(stream->loop, req);
+
     if (req->cb) {
       uv__set_sys_error(stream->loop, req->error);
       req->cb(req, req->error ? -1 : 0);
     }
   }
 
-  if (stream->flags & UV_SHUTTING) {
-    uv_shutdown_t* req = stream->shutdown_req;
-    if (req && req->cb) {
-      uv__set_artificial_error(stream->loop, UV_EINTR);
-      req->cb(req, -1);
-    }
+  if (stream->shutdown_req) {
+    uv__req_unregister(stream->loop, stream->shutdown_req);
+    uv__set_artificial_error(stream->loop, UV_EINTR);
+    stream->shutdown_req->cb(stream->shutdown_req, -1);
+    stream->shutdown_req = NULL;
   }
 }
 
@@ -234,7 +245,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   }
 
   if (uv__stream_open(streamClient, streamServer->accepted_fd,
-        UV_READABLE | UV_WRITABLE)) {
+        UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
     /* TODO handle error */
     close(streamServer->accepted_fd);
     streamServer->accepted_fd = -1;
@@ -252,15 +263,26 @@ out:
 
 
 int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb) {
+  int r;
+
   switch (stream->type) {
     case UV_TCP:
-      return uv_tcp_listen((uv_tcp_t*)stream, backlog, cb);
+      r = uv_tcp_listen((uv_tcp_t*)stream, backlog, cb);
+      break;
+
     case UV_NAMED_PIPE:
-      return uv_pipe_listen((uv_pipe_t*)stream, backlog, cb);
+      r = uv_pipe_listen((uv_pipe_t*)stream, backlog, cb);
+      break;
+
     default:
       assert(0);
       return -1;
   }
+
+  if (r == 0)
+    uv__handle_start(stream);
+
+  return r;
 }
 
 
@@ -293,13 +315,14 @@ static void uv__drain(uv_stream_t* stream) {
   ev_io_stop(stream->loop->ev, &stream->write_watcher);
 
   /* Shutdown? */
-  if ((stream->flags & UV_SHUTTING) &&
+  if ((stream->flags & UV_STREAM_SHUTTING) &&
       !(stream->flags & UV_CLOSING) &&
-      !(stream->flags & UV_SHUT)) {
+      !(stream->flags & UV_STREAM_SHUT)) {
     assert(stream->shutdown_req);
 
     req = stream->shutdown_req;
     stream->shutdown_req = NULL;
+    uv__req_unregister(stream->loop, req);
 
     if (shutdown(stream->fd, SHUT_WR)) {
       /* Error. Report it. User should call uv_close(). */
@@ -309,7 +332,7 @@ static void uv__drain(uv_stream_t* stream) {
       }
     } else {
       uv__set_sys_error(stream->loop, 0);
-      ((uv_handle_t*) stream)->flags |= UV_SHUT;
+      ((uv_handle_t*) stream)->flags |= UV_STREAM_SHUT;
       if (req->cb) {
         req->cb(req, 0);
       }
@@ -499,24 +522,21 @@ start:
 
 
 static void uv__write_callbacks(uv_stream_t* stream) {
-  int callbacks_made = 0;
-  ngx_queue_t* q;
   uv_write_t* req;
+  ngx_queue_t* q;
 
   while (!ngx_queue_empty(&stream->write_completed_queue)) {
     /* Pop a req off write_completed_queue. */
     q = ngx_queue_head(&stream->write_completed_queue);
-    assert(q);
-    req = ngx_queue_data(q, struct uv_write_s, queue);
+    req = ngx_queue_data(q, uv_write_t, queue);
     ngx_queue_remove(q);
+    uv__req_unregister(stream->loop, req);
 
     /* NOTE: call callback AFTER freeing the request data. */
     if (req->cb) {
       uv__set_sys_error(stream->loop, req->error);
       req->cb(req, req->error ? -1 : 0);
     }
-
-    callbacks_made++;
   }
 
   assert(ngx_queue_empty(&stream->write_completed_queue));
@@ -558,11 +578,11 @@ static void uv__read(uv_stream_t* stream) {
   char cmsg_space[64];
   struct ev_loop* ev = stream->loop->ev;
 
-  /* XXX: Maybe instead of having UV_READING we just test if
+  /* XXX: Maybe instead of having UV_STREAM_READING we just test if
    * tcp->read_cb is NULL or not?
    */
   while ((stream->read_cb || stream->read2_cb) &&
-         stream->flags & UV_READING) {
+         stream->flags & UV_STREAM_READING) {
     assert(stream->alloc_cb);
     buf = stream->alloc_cb((uv_handle_t*)stream, 64 * 1024);
 
@@ -598,7 +618,7 @@ static void uv__read(uv_stream_t* stream) {
       /* Error */
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* Wait for the next one. */
-        if (stream->flags & UV_READING) {
+        if (stream->flags & UV_STREAM_READING) {
           ev_io_start(ev, &stream->read_watcher);
         }
         uv__set_sys_error(stream->loop, EAGAIN);
@@ -628,6 +648,8 @@ static void uv__read(uv_stream_t* stream) {
       /* EOF */
       uv__set_artificial_error(stream->loop, UV_EOF);
       ev_io_stop(ev, &stream->read_watcher);
+      if (!ev_is_active(&stream->write_watcher))
+        uv__handle_stop(stream);
 
       if (stream->read_cb) {
         stream->read_cb(stream, -1, buf);
@@ -691,8 +713,8 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
          "uv_shutdown (unix) only supports uv_handle_t right now");
   assert(stream->fd >= 0);
 
-  if (!(stream->flags & UV_WRITABLE) ||
-      stream->flags & UV_SHUT ||
+  if (!(stream->flags & UV_STREAM_WRITABLE) ||
+      stream->flags & UV_STREAM_SHUT ||
       stream->flags & UV_CLOSED ||
       stream->flags & UV_CLOSING) {
     uv__set_sys_error(stream->loop, EINVAL);
@@ -704,13 +726,16 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   req->handle = stream;
   req->cb = cb;
   stream->shutdown_req = req;
-
-  ((uv_handle_t*)stream)->flags |= UV_SHUTTING;
-
+  stream->flags |= UV_STREAM_SHUTTING;
 
   ev_io_start(stream->loop->ev, &stream->write_watcher);
 
   return 0;
+}
+
+
+void uv__stream_pending(uv_stream_t* handle) {
+  uv__stream_io(handle->loop->ev, &handle->write_watcher, EV_WRITE);
 }
 
 
@@ -767,32 +792,24 @@ static void uv__stream_connect(uv_stream_t* stream) {
     getsockopt(stream->fd, SOL_SOCKET, SO_ERROR, &error, &errorsize);
   }
 
-  if (!error) {
+  if (error == EINPROGRESS)
+    return;
+
+  if (error == 0)
     ev_io_start(stream->loop->ev, &stream->read_watcher);
 
-    /* Successful connection */
-    stream->connect_req = NULL;
-    if (req->cb) {
-      req->cb(req, 0);
-    }
+  stream->connect_req = NULL;
+  uv__req_unregister(stream->loop, req);
 
-  } else if (error == EINPROGRESS) {
-    /* Still connecting. */
-    return;
-  } else {
-    /* Error */
+  if (req->cb) {
     uv__set_sys_error(stream->loop, error);
-
-    stream->connect_req = NULL;
-    if (req->cb) {
-      req->cb(req, -1);
-    }
+    req->cb(req, error ? -1 : 0);
   }
 }
 
 
 int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
-    socklen_t addrlen, uv_connect_cb cb) { 
+    socklen_t addrlen, uv_connect_cb cb) {
   int sockfd;
   int r;
 
@@ -802,7 +819,9 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
       return -1;
     }
 
-    if (uv__stream_open(stream, sockfd, UV_READABLE | UV_WRITABLE)) {
+    if (uv__stream_open(stream,
+                        sockfd,
+                        UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
       close(sockfd);
       return -2;
     }
@@ -853,9 +872,8 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
   assert(stream->write_watcher.data == stream);
   ev_io_start(stream->loop->ev, &stream->write_watcher);
 
-  if (stream->delayed_error) {
-    ev_feed_event(stream->loop->ev, &stream->write_watcher, EV_WRITE);
-  }
+  if (stream->delayed_error)
+    uv__make_pending(stream);
 
   return 0;
 }
@@ -956,10 +974,10 @@ int uv__read_start_common(uv_stream_t* stream, uv_alloc_cb alloc_cb,
     return -1;
   }
 
-  /* The UV_READING flag is irrelevant of the state of the tcp - it just
+  /* The UV_STREAM_READING flag is irrelevant of the state of the tcp - it just
    * expresses the desired state of the user.
    */
-  ((uv_handle_t*)stream)->flags |= UV_READING;
+  stream->flags |= UV_STREAM_READING;
 
   /* TODO: try to do the read inline? */
   /* TODO: keep track of tcp state. If we've gotten a EOF then we should
@@ -976,6 +994,8 @@ int uv__read_start_common(uv_stream_t* stream, uv_alloc_cb alloc_cb,
   assert(stream->read_watcher.cb == uv__stream_io);
 
   ev_io_start(stream->loop->ev, &stream->read_watcher);
+  uv__handle_start(stream);
+
   return 0;
 }
 
@@ -994,7 +1014,8 @@ int uv_read2_start(uv_stream_t* stream, uv_alloc_cb alloc_cb,
 
 int uv_read_stop(uv_stream_t* stream) {
   ev_io_stop(stream->loop->ev, &stream->read_watcher);
-  stream->flags &= ~UV_READING;
+  uv__handle_stop(stream);
+  stream->flags &= ~UV_STREAM_READING;
   stream->read_cb = NULL;
   stream->read2_cb = NULL;
   stream->alloc_cb = NULL;
@@ -1003,12 +1024,12 @@ int uv_read_stop(uv_stream_t* stream) {
 
 
 int uv_is_readable(const uv_stream_t* stream) {
-  return stream->flags & UV_READABLE;
+  return stream->flags & UV_STREAM_READABLE;
 }
 
 
 int uv_is_writable(const uv_stream_t* stream) {
-  return stream->flags & UV_WRITABLE;
+  return stream->flags & UV_STREAM_WRITABLE;
 }
 
 

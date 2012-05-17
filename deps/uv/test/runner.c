@@ -28,6 +28,9 @@ char executable_path[PATHMAX] = { '\0' };
 
 
 static void log_progress(int total, int passed, int failed, const char* name) {
+  if (total == 0)
+    total = 1;
+
   LOGF("[%% %3d|+ %3d|- %3d]: %s", (passed + failed) / total * 100,
       passed, failed, name);
 }

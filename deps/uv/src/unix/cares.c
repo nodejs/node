@@ -37,20 +37,6 @@ static void uv__ares_timeout(uv_timer_t* handle, int status) {
 }
 
 
-static void uv__ares_timer_start(uv_loop_t* loop) {
-  if (uv_is_active((uv_handle_t*)&loop->timer)) return;
-  uv_timer_start(&loop->timer, uv__ares_timeout, 1000, 1000);
-  uv_ref(loop);
-}
-
-
-static void uv__ares_timer_stop(uv_loop_t* loop) {
-  if (!uv_is_active((uv_handle_t*)&loop->timer)) return;
-  uv_timer_stop(&loop->timer);
-  uv_unref(loop);
-}
-
-
 static void uv__ares_io(struct ev_loop* ev, struct ev_io* watcher,
     int revents) {
   uv_loop_t* loop = ev_userdata(ev);
@@ -104,9 +90,9 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
       /* New socket */
 
       /* If this is the first socket then start the timer. */
-      if (!uv_is_active((uv_handle_t*)&loop->timer)) {
+      if (!uv__is_active(&loop->timer)) {
         assert(uv_ares_handles_empty(loop));
-        uv__ares_timer_start(loop);
+        uv_timer_start(&loop->timer, uv__ares_timeout, 1000, 1000);
       }
 
       h = uv__ares_task_create(loop, sock);
@@ -140,7 +126,7 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
     free(h);
 
     if (uv_ares_handles_empty(loop)) {
-      uv__ares_timer_stop(loop);
+      uv_timer_stop(&loop->timer);
     }
   }
 }
@@ -176,7 +162,6 @@ int uv_ares_init_options(uv_loop_t* loop, ares_channel *channelptr,
    * first socket is opened.
    */
   uv_timer_init(loop, &loop->timer);
-  uv_unref(loop);
   loop->timer.data = loop;
 
   return rc;
@@ -187,7 +172,7 @@ int uv_ares_init_options(uv_loop_t* loop, ares_channel *channelptr,
 void uv_ares_destroy(uv_loop_t* loop, ares_channel channel) {
   /* only allow destroy if did init */
   if (loop->channel) {
-    uv__ares_timer_stop(loop);
+    uv_timer_stop(&loop->timer);
     ares_destroy(channel);
     loop->channel = NULL;
   }

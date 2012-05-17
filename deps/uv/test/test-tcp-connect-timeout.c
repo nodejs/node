@@ -21,65 +21,64 @@
 
 #include "uv.h"
 #include "task.h"
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 
-TEST_IMPL(udp_options) {
-  static int invalid_ttls[] = { -1, 0, 256 };
-  uv_loop_t* loop;
-  uv_udp_t h;
-  int i, r;
+static int connect_cb_called;
+static int close_cb_called;
 
-  loop = uv_default_loop();
+static uv_connect_t connect_req;
+static uv_timer_t timer;
+static uv_tcp_t conn;
 
-  r = uv_udp_init(loop, &h);
+static void connect_cb(uv_connect_t* req, int status);
+static void timer_cb(uv_timer_t* handle, int status);
+static void close_cb(uv_handle_t* handle);
+
+
+static void connect_cb(uv_connect_t* req, int status) {
+  ASSERT(req == &connect_req);
+  ASSERT(status == -1);
+  connect_cb_called++;
+}
+
+
+static void timer_cb(uv_timer_t* handle, int status) {
+  ASSERT(handle == &timer);
+  uv_close((uv_handle_t*)&conn, close_cb);
+  uv_close((uv_handle_t*)&timer, close_cb);
+}
+
+
+static void close_cb(uv_handle_t* handle) {
+  ASSERT(handle == (uv_handle_t*)&conn || handle == (uv_handle_t*)&timer);
+  close_cb_called++;
+}
+
+
+/* Verify that connecting to an unreachable address or port doesn't hang
+ * the event loop.
+ */
+TEST_IMPL(tcp_connect_timeout) {
+  struct sockaddr_in addr;
+  int r;
+
+  addr = uv_ip4_addr("8.8.8.8", 9999);
+
+  r = uv_timer_init(uv_default_loop(), &timer);
   ASSERT(r == 0);
 
-  uv_unref((uv_handle_t*)&h); /* don't keep the loop alive */
-
-  r = uv_udp_bind(&h, uv_ip4_addr("0.0.0.0", TEST_PORT), 0);
+  r = uv_timer_start(&timer, timer_cb, 50, 0);
   ASSERT(r == 0);
 
-  r = uv_udp_set_broadcast(&h, 1);
-  r |= uv_udp_set_broadcast(&h, 1);
-  r |= uv_udp_set_broadcast(&h, 0);
-  r |= uv_udp_set_broadcast(&h, 0);
+  r = uv_tcp_init(uv_default_loop(), &conn);
   ASSERT(r == 0);
 
-  /* values 1-255 should work */
-  for (i = 1; i <= 255; i++) {
-    r = uv_udp_set_ttl(&h, i);
-    ASSERT(r == 0);
-  }
-
-  for (i = 0; i < (int) ARRAY_SIZE(invalid_ttls); i++) {
-    r = uv_udp_set_ttl(&h, invalid_ttls[i]);
-    ASSERT(r == -1);
-    ASSERT(uv_last_error(loop).code == UV_EINVAL);
-  }
-
-  r = uv_udp_set_multicast_loop(&h, 1);
-  r |= uv_udp_set_multicast_loop(&h, 1);
-  r |= uv_udp_set_multicast_loop(&h, 0);
-  r |= uv_udp_set_multicast_loop(&h, 0);
+  r = uv_tcp_connect(&connect_req, &conn, addr, connect_cb);
   ASSERT(r == 0);
 
-  /* values 0-255 should work */
-  for (i = 0; i <= 255; i++) {
-    r = uv_udp_set_multicast_ttl(&h, i);
-    ASSERT(r == 0);
-  }
-
-  /* anything >255 should fail */
-  r = uv_udp_set_multicast_ttl(&h, 256);
-  ASSERT(r == -1);
-  ASSERT(uv_last_error(loop).code == UV_EINVAL);
-  /* don't test ttl=-1, it's a valid value on some platforms */
-
-  r = uv_run(loop);
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   return 0;

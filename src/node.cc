@@ -229,12 +229,9 @@ static void Check(uv_check_t* watcher, int status) {
 static void Tick(void) {
   // Avoid entering a V8 scope.
   if (!need_tick_cb) return;
-
   need_tick_cb = false;
-  if (uv_is_active((uv_handle_t*) &tick_spinner)) {
-    uv_idle_stop(&tick_spinner);
-    uv_unref(uv_default_loop());
-  }
+
+  uv_idle_stop(&tick_spinner);
 
   HandleScope scope;
 
@@ -270,10 +267,7 @@ static void StartTickSpinner() {
   // there is nothing left to do in the event loop and libev will exit. The
   // ev_prepare callback isn't called before exiting. Thus we start this
   // tick_spinner to keep the event loop alive long enough to handle it.
-  if (!uv_is_active((uv_handle_t*) &tick_spinner)) {
-    uv_idle_start(&tick_spinner, Spin);
-    uv_ref(uv_default_loop());
-  }
+  uv_idle_start(&tick_spinner, Spin);
 }
 
 static Handle<Value> NeedTickCallback(const Arguments& args) {
@@ -825,20 +819,6 @@ static const char* get_uv_errno_message(int errorno) {
 }
 
 
-static bool get_uv_dlerror_message(uv_lib_t lib, char* error_msg, int size) {
-  int r;
-  const char *msg;
-  if ((msg = uv_dlerror(lib)) == NULL) {
-    r = snprintf(error_msg, size, "%s", "Unable to load shared library ");
-  } else {
-    r = snprintf(error_msg, size, "%s", msg);
-    uv_dlerror_free(lib, msg);
-  }
-  // return bool if the error message be written correctly
-  return (0 < r && r < size);
-}
-
-
 // hack alert! copy of ErrnoException, tuned for uv errors
 Local<Value> UVException(int errorno,
                          const char *syscall,
@@ -1365,7 +1345,7 @@ Handle<Value> GetActiveHandles(const Arguments& args) {
 
   ngx_queue_foreach(q, &handle_wrap_queue) {
     HandleWrap* w = container_of(q, HandleWrap, handle_wrap_queue_);
-    if (w->object_.IsEmpty() || w->unref) continue;
+    if (w->object_.IsEmpty() || w->unref_) continue;
     Local<Value> obj = w->object_->Get(owner_sym);
     if (obj->IsUndefined()) obj = *w->object_;
     ary->Set(i++, obj);
@@ -1726,7 +1706,6 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   char symbol[1024], *base, *pos;
   uv_lib_t lib;
   node_module_struct compat_mod;
-  uv_err_t err;
   int r;
 
   if (args.Length() < 2) {
@@ -1738,22 +1717,13 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   String::Utf8Value filename(args[0]); // Cast
   Local<Object> target = args[1]->ToObject(); // Cast
 
-  err = uv_dlopen(*filename, &lib);
-  if (err.code != UV_OK) {
-    // Retrieve uv_dlerror() message and throw exception with it
-    char dlerror_msg[1024];
-    if (!get_uv_dlerror_message(lib, dlerror_msg, sizeof dlerror_msg)) {
-      Local<Value> exception = Exception::Error(
-          String::New("Cannot retrieve an error message in process.dlopen"));
-      return ThrowException(exception);
-    }
-#ifdef __POSIX__
-    Local<Value> exception = Exception::Error(String::New(dlerror_msg));
-#else  // Windows needs to add the filename into the error message
-    Local<Value> exception = Exception::Error(
-        String::Concat(String::New(dlerror_msg), args[0]->ToString()));
+  if (uv_dlopen(*filename, &lib)) {
+    Local<String> errmsg = String::New(uv_dlerror(&lib));
+#ifdef _WIN32
+    // Windows needs to add the filename into the error message
+    errmsg = String::Concat(errmsg, args[0]->ToString());
 #endif
-    return ThrowException(exception);
+    return ThrowException(Exception::Error(errmsg));
   }
 
   String::Utf8Value path(args[0]);
@@ -1791,26 +1761,17 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 
   // Get the init() function from the dynamically shared object.
   node_module_struct *mod;
-  err = uv_dlsym(lib, symbol, reinterpret_cast<void**>(&mod));
-
-  if (err.code != UV_OK) {
+  if (uv_dlsym(&lib, symbol, reinterpret_cast<void**>(&mod))) {
     /* Start Compatibility hack: Remove once everyone is using NODE_MODULE macro */
     memset(&compat_mod, 0, sizeof compat_mod);
 
     mod = &compat_mod;
     mod->version = NODE_MODULE_VERSION;
 
-    err = uv_dlsym(lib, "init", reinterpret_cast<void**>(&mod->register_func));
-    if (err.code != UV_OK) {
-      uv_dlclose(lib);
-
-      const char* message;
-      if (err.code == UV_ENOENT)
-        message = "Module entry point not found.";
-      else
-        message = uv_strerror(err);
-
-      return ThrowException(Exception::Error(String::New(message)));
+    if (uv_dlsym(&lib, "init", reinterpret_cast<void**>(&mod->register_func))) {
+      Local<String> errmsg = String::New(uv_dlerror(&lib));
+      uv_dlclose(&lib);
+      return ThrowException(Exception::Error(errmsg));
     }
     /* End Compatibility hack */
   }
@@ -2779,24 +2740,23 @@ char** Init(int argc, char *argv[]) {
 
   uv_prepare_init(uv_default_loop(), &prepare_tick_watcher);
   uv_prepare_start(&prepare_tick_watcher, PrepareTick);
-  uv_unref(uv_default_loop());
+  uv_unref(reinterpret_cast<uv_handle_t*>(&prepare_tick_watcher));
 
   uv_check_init(uv_default_loop(), &check_tick_watcher);
   uv_check_start(&check_tick_watcher, node::CheckTick);
-  uv_unref(uv_default_loop());
+  uv_unref(reinterpret_cast<uv_handle_t*>(&check_tick_watcher));
 
   uv_idle_init(uv_default_loop(), &tick_spinner);
-  uv_unref(uv_default_loop());
 
   uv_check_init(uv_default_loop(), &gc_check);
   uv_check_start(&gc_check, node::Check);
-  uv_unref(uv_default_loop());
+  uv_unref(reinterpret_cast<uv_handle_t*>(&gc_check));
 
   uv_idle_init(uv_default_loop(), &gc_idle);
-  uv_unref(uv_default_loop());
+  uv_unref(reinterpret_cast<uv_handle_t*>(&gc_idle));
 
   uv_timer_init(uv_default_loop(), &gc_timer);
-  uv_unref(uv_default_loop());
+  uv_unref(reinterpret_cast<uv_handle_t*>(&gc_timer));
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 

@@ -22,61 +22,65 @@
 #include "uv.h"
 #include "internal.h"
 
-__declspec( thread ) DWORD saved_errno = 0;
+static int uv__dlerror(uv_lib_t* lib, int errorno);
 
-uv_err_t uv_dlopen(const char* filename, uv_lib_t* library) {
+
+int uv_dlopen(const char* filename, uv_lib_t* lib) {
   wchar_t filename_w[32768];
-  HMODULE handle;
 
-  if (!uv_utf8_to_utf16(filename,
-                        filename_w,
-                        sizeof(filename_w) / sizeof(wchar_t))) {
-    saved_errno = GetLastError();
-    return uv__new_sys_error(saved_errno);
+  lib->handle = NULL;
+  lib->errmsg = NULL;
+
+  if (!uv_utf8_to_utf16(filename, filename_w, ARRAY_SIZE(filename_w))) {
+    return uv__dlerror(lib, GetLastError());
   }
 
-  handle = LoadLibraryExW(filename_w, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-  if (handle == NULL) {
-    saved_errno = GetLastError();
-    return uv__new_sys_error(saved_errno);
+  lib->handle = LoadLibraryExW(filename_w, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+  if (lib->handle == NULL) {
+    return uv__dlerror(lib, GetLastError());
   }
 
-  *library = handle;
-  return uv_ok_;
+  return 0;
 }
 
 
-uv_err_t uv_dlclose(uv_lib_t library) {
-  if (!FreeLibrary(library)) {
-    saved_errno = GetLastError();
-    return uv__new_sys_error(saved_errno);
+void uv_dlclose(uv_lib_t* lib) {
+  if (lib->errmsg) {
+    LocalFree((void*)lib->errmsg);
+    lib->errmsg = NULL;
   }
 
-  return uv_ok_;
+  if (lib->handle) {
+    /* Ignore errors. No good way to signal them without leaking memory. */
+    FreeLibrary(lib->handle);
+    lib->handle = NULL;
+  }
 }
 
 
-uv_err_t uv_dlsym(uv_lib_t library, const char* name, void** ptr) {
-  FARPROC proc = GetProcAddress(library, name);
-  if (proc == NULL) {
-    saved_errno = GetLastError();
-    return uv__new_sys_error(saved_errno);
+int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr) {
+  *ptr = (void*) GetProcAddress(lib->handle, name);
+  return uv__dlerror(lib, *ptr ? 0 : GetLastError());
+}
+
+
+const char* uv_dlerror(uv_lib_t* lib) {
+  return lib->errmsg ? lib->errmsg : "no error";
+}
+
+
+static int uv__dlerror(uv_lib_t* lib, int errorno) {
+  if (lib->errmsg) {
+    LocalFree((void*)lib->errmsg);
+    lib->errmsg = NULL;
   }
 
-  *ptr = (void*) proc;
-  return uv_ok_;
-}
+  if (errorno) {
+    FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+                   FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
+                   MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
+                   (LPSTR)&lib->errmsg, 0, NULL);
+  }
 
-
-const char *uv_dlerror(uv_lib_t library) {
-  char* buf = NULL;
-  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-                 FORMAT_MESSAGE_IGNORE_INSERTS, NULL, saved_errno,
-                 MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPSTR)&buf, 0, NULL);
-  return buf;
-}
-
-
-void uv_dlerror_free(uv_lib_t library, const char *msg) {
-  LocalFree((LPVOID)msg);
+  return errorno ? -1 : 0;
 }

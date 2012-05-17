@@ -1,4 +1,5 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -19,61 +20,57 @@
  */
 
 #include "uv.h"
-#include "internal.h"
+#include "task.h"
+
+static int idle_cb_called;
+static int timer_cb_called;
+
+static uv_idle_t idle_handle;
+static uv_timer_t timer_handle;
 
 
-static void uv__idle(EV_P_ ev_idle* w, int revents) {
-  uv_idle_t* idle = container_of(w, uv_idle_t, idle_watcher);
-
-  if (idle->idle_cb) {
-    idle->idle_cb(idle, 0);
-  }
-}
-
-
-int uv_idle_init(uv_loop_t* loop, uv_idle_t* idle) {
-  uv__handle_init(loop, (uv_handle_t*)idle, UV_IDLE);
-  loop->counters.idle_init++;
-
-  ev_idle_init(&idle->idle_watcher, uv__idle);
-  idle->idle_cb = NULL;
-
-  return 0;
-}
-
-
-int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb) {
-  int was_active = ev_is_active(&idle->idle_watcher);
-
-  idle->idle_cb = cb;
-  ev_idle_start(idle->loop->ev, &idle->idle_watcher);
-
-  if (!was_active) {
-    ev_unref(idle->loop->ev);
-  }
-
-  return 0;
-}
-
-
-int uv_idle_stop(uv_idle_t* idle) {
-  int was_active = ev_is_active(&idle->idle_watcher);
-
-  ev_idle_stop(idle->loop->ev, &idle->idle_watcher);
-
-  if (was_active) {
-    ev_ref(idle->loop->ev);
-  }
-
-  return 0;
-}
-
-
-int uv__idle_active(const uv_idle_t* handle) {
-  return ev_is_active(&handle->idle_watcher);
-}
-
-
-void uv__idle_close(uv_idle_t* handle) {
+/* idle_cb should run before timer_cb */
+static void idle_cb(uv_idle_t* handle, int status) {
+  ASSERT(idle_cb_called == 0);
+  ASSERT(timer_cb_called == 0);
   uv_idle_stop(handle);
+  idle_cb_called++;
+}
+
+
+static void timer_cb(uv_timer_t* handle, int status) {
+  ASSERT(idle_cb_called == 1);
+  ASSERT(timer_cb_called == 0);
+  uv_timer_stop(handle);
+  timer_cb_called++;
+}
+
+
+static void next_tick(uv_idle_t* handle, int status) {
+  uv_loop_t* loop = handle->loop;
+  uv_idle_stop(handle);
+  uv_idle_init(loop, &idle_handle);
+  uv_idle_start(&idle_handle, idle_cb);
+  uv_timer_init(loop, &timer_handle);
+  uv_timer_start(&timer_handle, timer_cb, 0, 0);
+}
+
+
+TEST_IMPL(callback_order) {
+  uv_loop_t* loop;
+  uv_idle_t idle;
+
+  loop = uv_default_loop();
+  uv_idle_init(loop, &idle);
+  uv_idle_start(&idle, next_tick);
+
+  ASSERT(idle_cb_called == 0);
+  ASSERT(timer_cb_called == 0);
+
+  uv_run(loop);
+
+  ASSERT(idle_cb_called == 1);
+  ASSERT(timer_cb_called == 1);
+
+  return 0;
 }

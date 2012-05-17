@@ -114,7 +114,7 @@ TEST_IMPL(timer) {
   ASSERT(r == 0);
   r = uv_timer_stop(&never);
   ASSERT(r == 0);
-  uv_unref(uv_default_loop());
+  uv_unref((uv_handle_t*)&never);
 
   uv_run(uv_default_loop());
 

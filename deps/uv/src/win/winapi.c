@@ -22,7 +22,6 @@
 #include <assert.h>
 
 #include "uv.h"
-#include "../uv-common.h"
 #include "internal.h"
 
 
@@ -33,6 +32,7 @@ sNtSetInformationFile pNtSetInformationFile;
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 sCreateSymbolicLinkW pCreateSymbolicLinkW;
+sCancelIoEx pCancelIoEx;
 sInitializeSRWLock pInitializeSRWLock;
 sAcquireSRWLockShared pAcquireSRWLockShared;
 sAcquireSRWLockExclusive pAcquireSRWLockExclusive;
@@ -93,6 +93,9 @@ void uv_winapi_init() {
 
   pCreateSymbolicLinkW = (sCreateSymbolicLinkW)
     GetProcAddress(kernel32_module, "CreateSymbolicLinkW");
+
+  pCancelIoEx = (sCancelIoEx)
+    GetProcAddress(kernel32_module, "CancelIoEx");
 
   pInitializeSRWLock = (sInitializeSRWLock)
     GetProcAddress(kernel32_module, "InitializeSRWLock");

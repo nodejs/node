@@ -42,6 +42,11 @@
 #if HAVE_PORTS_FS
 # include <sys/port.h>
 # include <port.h>
+
+# define PORT_FIRED 0x69
+# define PORT_UNUSED 0x0
+# define PORT_LOADED 0x99
+# define PORT_DELETED -1
 #endif
 
 #if (!defined(_LP64)) && (_FILE_OFFSET_BITS - 0 == 64)
@@ -109,36 +114,41 @@ void uv_loadavg(double avg[3]) {
 
 #if HAVE_PORTS_FS
 static void uv__fs_event_rearm(uv_fs_event_t *handle) {
-  if (port_associate(handle->fd,
+  if (handle->fd == -1)
+    return;
+
+  if (port_associate(handle->loop->fs_fd,
                      PORT_SOURCE_FILE,
                      (uintptr_t) &handle->fo,
                      FILE_ATTRIB | FILE_MODIFIED,
-                     NULL) == -1) {
+                     handle) == -1) {
     uv__set_sys_error(handle->loop, errno);
   }
+  handle->fd = PORT_LOADED;
 }
 
 
 static void uv__fs_event_read(EV_P_ ev_io* w, int revents) {
   uv_fs_event_t *handle;
+  uv_loop_t *loop_;
   timespec_t timeout;
   port_event_t pe;
   int events;
   int r;
 
-  handle = container_of(w, uv_fs_event_t, event_watcher);
+  loop_ = container_of(w, uv_loop_t, fs_event_watcher);
 
   do {
     /* TODO use port_getn() */
     do {
       memset(&timeout, 0, sizeof timeout);
-      r = port_get(handle->fd, &pe, &timeout);
+      r = port_get(loop_->fs_fd, &pe, &timeout);
     }
     while (r == -1 && errno == EINTR);
 
     if (r == -1 && errno == ETIME)
       break;
-
+    handle = (uv_fs_event_t *)pe.portev_user;
     assert((r == 0) && "unexpected port_get() error");
 
     events = 0;
@@ -147,12 +157,12 @@ static void uv__fs_event_read(EV_P_ ev_io* w, int revents) {
     if (pe.portev_events & ~(FILE_ATTRIB | FILE_MODIFIED))
       events |= UV_RENAME;
     assert(events != 0);
-
+    handle->fd = PORT_FIRED;
     handle->cb(handle, NULL, events, 0);
   }
-  while (handle->fd != -1);
+  while (handle->fd != PORT_DELETED);
 
-  if (handle->fd != -1)
+  if (handle->fd != PORT_DELETED)
     uv__fs_event_rearm(handle);
 }
 
@@ -163,39 +173,45 @@ int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_cb cb,
                      int flags) {
   int portfd;
+  int first_run = 0;
 
   loop->counters.fs_event_init++;
 
   /* We don't support any flags yet. */
   assert(!flags);
-
+  if (loop->fs_fd == -1) {
   if ((portfd = port_create()) == -1) {
     uv__set_sys_error(loop, errno);
     return -1;
   }
+    loop->fs_fd = portfd;
+    first_run = 1;
+  }
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  uv__handle_start(handle); /* FIXME shouldn't start automatically */
   handle->filename = strdup(filename);
-  handle->fd = portfd;
+  handle->fd = PORT_UNUSED;
   handle->cb = cb;
 
   memset(&handle->fo, 0, sizeof handle->fo);
   handle->fo.fo_name = handle->filename;
   uv__fs_event_rearm(handle);
 
-  ev_io_init(&handle->event_watcher, uv__fs_event_read, portfd, EV_READ);
-  ev_io_start(loop->ev, &handle->event_watcher);
-  ev_unref(loop->ev);
+  if (first_run) {
+    ev_io_init(&loop->fs_event_watcher, uv__fs_event_read, portfd, EV_READ);
+    ev_io_start(loop->ev, &loop->fs_event_watcher);
+  }
 
   return 0;
 }
 
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
-  ev_ref(handle->loop->ev);
-  ev_io_stop(handle->loop->ev, &handle->event_watcher);
-  close(handle->fd);
-  handle->fd = -1;
+  if (handle->fd == PORT_FIRED) {
+    port_dissociate(handle->loop->fs_fd, PORT_SOURCE_FILE, (uintptr_t)&handle->fo);
+  }
+  handle->fd = PORT_DELETED;
   free(handle->filename);
   handle->filename = NULL;
   handle->fo.fo_name = NULL;

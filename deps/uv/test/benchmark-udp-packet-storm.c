@@ -144,7 +144,7 @@ static int do_packet_storm(int n_senders, int n_receivers) {
   ASSERT(r == 0);
 
   /* Timer should not keep loop alive. */
-  uv_unref(loop);
+  uv_unref((uv_handle_t*)&timeout);
 
   for (i = 0; i < n_receivers; i++) {
     struct sockaddr_in addr;

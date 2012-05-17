@@ -22,7 +22,6 @@
 #include <assert.h>
 
 #include "uv.h"
-#include "../uv-common.h"
 #include "internal.h"
 
 
@@ -121,11 +120,12 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
 
 
 int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
+  uv_handle_init(loop, (uv_handle_t*) handle);
+
   handle->type = UV_UDP;
   handle->socket = INVALID_SOCKET;
   handle->reqs_pending = 0;
-  handle->loop = loop;
-  handle->flags = 0;
+  handle->activecnt = 0;
   handle->func_wsarecv = WSARecv;
   handle->func_wsarecvfrom = WSARecvFrom;
 
@@ -133,12 +133,21 @@ int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
   handle->recv_req.type = UV_UDP_RECV;
   handle->recv_req.data = handle;
 
-  uv_ref(loop);
-
-  loop->counters.handle_init++;
   loop->counters.udp_init++;
 
   return 0;
+}
+
+
+void uv_udp_close(uv_loop_t* loop, uv_udp_t* handle) {
+  uv_udp_recv_stop(handle);
+  closesocket(handle->socket);
+
+  uv__handle_start(handle);
+
+  if (handle->reqs_pending == 0) {
+    uv_want_endgame(loop, (uv_handle_t*) handle);
+  }
 }
 
 
@@ -147,12 +156,11 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
+    uv__handle_stop(handle);
 
     if (handle->close_cb) {
       handle->close_cb((uv_handle_t*)handle);
     }
-
-    uv_unref(loop);
   }
 }
 
@@ -350,6 +358,7 @@ int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
   }
 
   handle->flags |= UV_HANDLE_READING;
+  INCREASE_ACTIVE_COUNT(loop, handle);
   loop->active_udp_streams++;
 
   handle->recv_cb = recv_cb;
@@ -368,6 +377,7 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
   if (handle->flags & UV_HANDLE_READING) {
     handle->flags &= ~UV_HANDLE_READING;
     handle->loop->active_udp_streams--;
+    DECREASE_ACTIVE_COUNT(loop, handle);
   }
 
   return 0;
@@ -399,13 +409,13 @@ static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     /* Request completed immediately. */
     req->queued_bytes = 0;
     handle->reqs_pending++;
-    uv_ref(loop);
+    REGISTER_HANDLE_REQ(loop, handle, req);
     uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
     /* Request queued by the kernel. */
     req->queued_bytes = uv_count_bufs(bufs, bufcnt);
     handle->reqs_pending++;
-    uv_ref(loop);
+    REGISTER_HANDLE_REQ(loop, handle, req);
   } else {
     /* Send failed due to an error. */
     uv__set_sys_error(loop, WSAGetLastError());
@@ -561,6 +571,8 @@ void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
     uv_udp_send_t* req) {
   assert(handle->type == UV_UDP);
 
+  UNREGISTER_HANDLE_REQ(loop, handle, req);
+
   if (req->cb) {
     if (REQ_SUCCESS(req)) {
       req->cb(req, 0);
@@ -570,7 +582,6 @@ void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
     }
   }
 
-  uv_unref(loop);
   DECREASE_PENDING_REQ_COUNT(handle);
 }
 

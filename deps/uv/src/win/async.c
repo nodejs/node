@@ -59,12 +59,11 @@ void uv_async_endgame(uv_loop_t* loop, uv_async_t* handle) {
       !handle->async_sent) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
+    uv__handle_stop(handle);
 
     if (handle->close_cb) {
       handle->close_cb((uv_handle_t*)handle);
     }
-
-    uv_unref(loop);
   }
 }
 
@@ -72,12 +71,8 @@ void uv_async_endgame(uv_loop_t* loop, uv_async_t* handle) {
 int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
   uv_req_t* req;
 
-  loop->counters.handle_init++;
-  loop->counters.async_init++;
-
+  uv_handle_init(loop, (uv_handle_t*) handle);
   handle->type = UV_ASYNC;
-  handle->loop = loop;
-  handle->flags = 0;
   handle->async_sent = 0;
   handle->async_cb = async_cb;
 
@@ -86,9 +81,20 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
   req->type = UV_WAKEUP;
   req->data = handle;
 
-  uv_ref(loop);
+  loop->counters.async_init++;
+
+  uv__handle_start(handle);
 
   return 0;
+}
+
+
+void uv_async_close(uv_loop_t* loop, uv_async_t* handle) {
+  if (!((uv_async_t*)handle)->async_sent) {
+    uv_want_endgame(loop, (uv_handle_t*) handle);
+  }
+
+  uv__handle_start(handle);
 }
 
 

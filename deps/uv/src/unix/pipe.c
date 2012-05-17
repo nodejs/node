@@ -33,6 +33,8 @@
 int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   uv__stream_init(loop, (uv_stream_t*)handle, UV_NAMED_PIPE);
   loop->counters.pipe_init++;
+  handle->shutdown_req = NULL;
+  handle->connect_req = NULL;
   handle->pipe_fname = NULL;
   handle->ipc = ipc;
   return 0;
@@ -163,7 +165,9 @@ void uv__pipe_close(uv_pipe_t* handle) {
 
 
 void uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
-  uv__stream_open((uv_stream_t*)handle, fd, UV_READABLE | UV_WRITABLE);
+  uv__stream_open((uv_stream_t*)handle,
+                  fd,
+                  UV_STREAM_READABLE | UV_STREAM_WRITABLE);
 }
 
 
@@ -204,24 +208,24 @@ void uv_pipe_connect(uv_connect_t* req,
     goto out;
   }
 
-  uv__stream_open((uv_stream_t*)handle, sockfd, UV_READABLE | UV_WRITABLE);
-
+  uv__stream_open((uv_stream_t*)handle,
+                  sockfd,
+                  UV_STREAM_READABLE | UV_STREAM_WRITABLE);
   ev_io_start(handle->loop->ev, &handle->read_watcher);
   ev_io_start(handle->loop->ev, &handle->write_watcher);
-
   status = 0;
 
 out:
   handle->delayed_error = status; /* Passed to callback. */
   handle->connect_req = req;
+
+  uv__req_init(handle->loop, req, UV_CONNECT);
   req->handle = (uv_stream_t*)handle;
-  req->type = UV_CONNECT;
   req->cb = cb;
   ngx_queue_init(&req->queue);
 
   /* Run callback on next tick. */
-  ev_feed_event(handle->loop->ev, &handle->read_watcher, EV_CUSTOM);
-  assert(ev_is_pending(&handle->read_watcher));
+  uv__make_pending(handle);
 
   /* Mimic the Windows pipe implementation, always
    * return 0 and let the callback handle errors.

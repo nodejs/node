@@ -31,16 +31,14 @@ static int uv__timer_repeating(const uv_timer_t* timer) {
 static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
   uv_timer_t* timer = container_of(w, uv_timer_t, timer_watcher);
 
-  assert(uv__timer_active(timer));
+  if (!uv__is_active(timer))
+    return;
 
-  if (!uv__timer_repeating(timer)) {
-    timer->flags &= ~UV_TIMER_ACTIVE;
-    ev_ref(EV_A);
-  }
+  if (!uv__timer_repeating(timer))
+    uv__handle_stop(timer);
 
-  if (timer->timer_cb) {
+  if (timer->timer_cb)
     timer->timer_cb(timer, 0);
-  }
 }
 
 
@@ -56,12 +54,11 @@ int uv_timer_init(uv_loop_t* loop, uv_timer_t* timer) {
 
 int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
     int64_t repeat) {
-  if (uv__timer_active(timer)) {
+  if (uv__is_active(timer)) {
     return -1;
   }
 
   timer->timer_cb = cb;
-  timer->flags |= UV_TIMER_ACTIVE;
 
   if (repeat)
     timer->flags |= UV_TIMER_REPEAT;
@@ -70,26 +67,22 @@ int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
 
   ev_timer_set(&timer->timer_watcher, timeout / 1000.0, repeat / 1000.0);
   ev_timer_start(timer->loop->ev, &timer->timer_watcher);
-  ev_unref(timer->loop->ev);
+  uv__handle_start(timer);
 
   return 0;
 }
 
 
 int uv_timer_stop(uv_timer_t* timer) {
-  if (uv__timer_active(timer)) {
-    ev_ref(timer->loop->ev);
-  }
-
-  timer->flags &= ~(UV_TIMER_ACTIVE | UV_TIMER_REPEAT);
+  timer->flags &= ~UV_TIMER_REPEAT;
   ev_timer_stop(timer->loop->ev, &timer->timer_watcher);
-
+  uv__handle_stop(timer);
   return 0;
 }
 
 
 int uv_timer_again(uv_timer_t* timer) {
-  if (!uv__timer_active(timer)) {
+  if (!uv__is_active(timer)) {
     uv__set_artificial_error(timer->loop, UV_EINVAL);
     return -1;
   }
@@ -114,11 +107,6 @@ void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat) {
 int64_t uv_timer_get_repeat(uv_timer_t* timer) {
   assert(timer->type == UV_TIMER);
   return (int64_t)(1000 * timer->timer_watcher.repeat);
-}
-
-
-int uv__timer_active(const uv_timer_t* timer) {
-  return timer->flags & UV_TIMER_ACTIVE;
 }
 
 

@@ -80,36 +80,12 @@ class TimerWrap : public HandleWrap {
 
   TimerWrap(Handle<Object> object)
       : HandleWrap(object, (uv_handle_t*) &handle_) {
-    active_ = false;
-
     int r = uv_timer_init(uv_default_loop(), &handle_);
     assert(r == 0);
-
     handle_.data = this;
-
-    // uv_timer_init adds a loop reference. (That is, it calls uv_ref.) This
-    // is not the behavior we want in Node. Timers should not increase the
-    // ref count of the loop except when active.
-    uv_unref(uv_default_loop());
   }
 
   ~TimerWrap() {
-    if (!active_) uv_ref(uv_default_loop());
-  }
-
-  void StateChange() {
-    bool was_active = active_;
-    active_ = uv_is_active((uv_handle_t*) &handle_);
-
-    if (!was_active && active_) {
-      // If our state is changing from inactive to active, we
-      // increase the loop's reference count.
-      uv_ref(uv_default_loop());
-    } else if (was_active && !active_) {
-      // If our state is changing from active to inactive, we
-      // decrease the loop's reference count.
-      uv_unref(uv_default_loop());
-    }
   }
 
   static Handle<Value> Start(const Arguments& args) {
@@ -122,10 +98,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
 
-    // Error starting the timer.
     if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-    wrap->StateChange();
 
     return scope.Close(Integer::New(r));
   }
@@ -139,8 +112,6 @@ class TimerWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    wrap->StateChange();
-
     return scope.Close(Integer::New(r));
   }
 
@@ -152,8 +123,6 @@ class TimerWrap : public HandleWrap {
     int r = uv_timer_again(&wrap->handle_);
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
-
-    wrap->StateChange();
 
     return scope.Close(Integer::New(r));
   }
@@ -188,17 +157,11 @@ class TimerWrap : public HandleWrap {
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     assert(wrap);
 
-    wrap->StateChange();
-
     Local<Value> argv[1] = { Integer::New(status) };
     MakeCallback(wrap->object_, ontimeout_sym, ARRAY_SIZE(argv), argv);
   }
 
   uv_timer_t handle_;
-  // This member is set false initially. When the timer is turned
-  // on uv_ref is called. When the timer is turned off uv_unref is
-  // called. Used to mirror libev semantics.
-  bool active_;
 };
 
 

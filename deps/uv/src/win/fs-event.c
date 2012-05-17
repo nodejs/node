@@ -19,13 +19,14 @@
  * IN THE SOFTWARE.
  */
 
+#include "uv.h"
+#include "internal.h"
+
 #include <assert.h>
 #include <malloc.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#include "uv.h"
-#include "internal.h"
 
 
 const unsigned int uv_directory_watcher_buffer_size = 4096;
@@ -33,9 +34,8 @@ const unsigned int uv_directory_watcher_buffer_size = 4096;
 
 static void uv_fs_event_init_handle(uv_loop_t* loop, uv_fs_event_t* handle,
     const char* filename, uv_fs_event_cb cb) {
+  uv_handle_init(loop, (uv_handle_t*) handle);
   handle->type = UV_FS_EVENT;
-  handle->loop = loop;
-  handle->flags = 0;
   handle->cb = cb;
   handle->dir_handle = INVALID_HANDLE_VALUE;
   handle->buffer = NULL;
@@ -53,10 +53,9 @@ static void uv_fs_event_init_handle(uv_loop_t* loop, uv_fs_event_t* handle,
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
-  loop->counters.handle_init++;
-  loop->counters.fs_event_init++;
+  uv__handle_start(handle);
 
-  uv_ref(loop);
+  loop->counters.fs_event_init++;
 }
 
 
@@ -109,7 +108,7 @@ static int uv_split_path(const wchar_t* filename, wchar_t** dir,
         return -1;
       }
     }
-    
+
     *file = wcsdup(filename);
   } else {
     if (dir) {
@@ -152,7 +151,7 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
-  if (!uv_utf8_to_utf16(filename, filenamew, 
+  if (!uv_utf8_to_utf16(filename, filenamew,
       name_size / sizeof(wchar_t))) {
     uv__set_sys_error(loop, GetLastError());
     return -1;
@@ -172,11 +171,11 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     handle->dirw = filenamew;
     dir_to_watch = filenamew;
   } else {
-    /* 
+    /*
      * filename is a file.  So we split filename into dir & file parts, and
      * watch the dir directory.
      */
-    
+
     /* Convert to short path. */
     if (!GetShortPathNameW(filenamew, short_path, ARRAY_SIZE(short_path))) {
       last_error = GetLastError();
@@ -226,7 +225,7 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     goto error;
   }
 
-  handle->buffer = (char*)_aligned_malloc(uv_directory_watcher_buffer_size, 
+  handle->buffer = (char*)_aligned_malloc(uv_directory_watcher_buffer_size,
     sizeof(DWORD));
   if (!handle->buffer) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
@@ -317,7 +316,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
         assert(!filename);
         assert(!long_filenamew);
 
-        /* 
+        /*
          * Fire the event only if we were asked to watch a directory,
          * or if the filename filter matches.
          */
@@ -328,8 +327,8 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
             file_info->FileNameLength / sizeof(wchar_t)) == 0) {
 
           if (handle->dirw) {
-            /* 
-             * We attempt to convert the file name to its long form for 
+            /*
+             * We attempt to convert the file name to its long form for
              * events that still point to valid files on disk.
              * For removed and renamed events, we do not provide the file name.
              */
@@ -382,7 +381,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
                 }
               }
 
-              /* 
+              /*
                * If we couldn't get the long name - just use the name
                * provided by ReadDirectoryChangesW.
                */
@@ -471,6 +470,8 @@ void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
   if (!handle->req_pending) {
     uv_want_endgame(loop, (uv_handle_t*)handle);
   }
+
+  uv__handle_start(handle);
 }
 
 
@@ -479,6 +480,7 @@ void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
       !handle->req_pending) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
+    uv__handle_stop(handle);
 
     if (handle->buffer) {
       _aligned_free(handle->buffer);
@@ -508,7 +510,5 @@ void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
     if (handle->close_cb) {
       handle->close_cb((uv_handle_t*)handle);
     }
-
-    uv_unref(loop);
   }
 }

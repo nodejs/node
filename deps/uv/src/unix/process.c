@@ -25,7 +25,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <sys/wait.h>
-#include <fcntl.h> /* O_CLOEXEC, O_NONBLOCK */
 #include <poll.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -108,10 +107,10 @@ int uv__make_pipe(int fds[2], int flags) {
 #if __linux__
   int fl;
 
-  fl = O_CLOEXEC;
+  fl = UV__O_CLOEXEC;
 
   if (flags & UV__F_NONBLOCK)
-    fl |= O_NONBLOCK;
+    fl |= UV__O_NONBLOCK;
 
   if (uv__pipe2(fds, fl) == 0)
     return 0;
@@ -182,6 +181,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   loop->counters.process_init++;
+  uv__handle_start(process);
 
   process->exit_cb = options.exit_cb;
 
@@ -318,7 +318,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     assert(stdin_pipe[0] >= 0);
     close(stdin_pipe[0]);
     uv__nonblock(stdin_pipe[1], 1);
-    flags = UV_WRITABLE | (options.stdin_stream->ipc ? UV_READABLE : 0);
+    flags = UV_STREAM_WRITABLE |
+            (options.stdin_stream->ipc ? UV_STREAM_READABLE : 0);
     uv__stream_open((uv_stream_t*)options.stdin_stream, stdin_pipe[1],
         flags);
   }
@@ -328,7 +329,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     assert(stdout_pipe[1] >= 0);
     close(stdout_pipe[1]);
     uv__nonblock(stdout_pipe[0], 1);
-    flags = UV_READABLE | (options.stdout_stream->ipc ? UV_WRITABLE : 0);
+    flags = UV_STREAM_READABLE |
+            (options.stdout_stream->ipc ? UV_STREAM_WRITABLE : 0);
     uv__stream_open((uv_stream_t*)options.stdout_stream, stdout_pipe[0],
         flags);
   }
@@ -338,7 +340,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     assert(stderr_pipe[1] >= 0);
     close(stderr_pipe[1]);
     uv__nonblock(stderr_pipe[0], 1);
-    flags = UV_READABLE | (options.stderr_stream->ipc ? UV_WRITABLE : 0);
+    flags = UV_STREAM_READABLE |
+            (options.stderr_stream->ipc ? UV_STREAM_WRITABLE : 0);
     uv__stream_open((uv_stream_t*)options.stderr_stream, stderr_pipe[0],
         flags);
   }
@@ -382,4 +385,5 @@ uv_err_t uv_kill(int pid, int signum) {
 
 void uv__process_close(uv_process_t* handle) {
   ev_child_stop(handle->loop->ev, &handle->child_watcher);
+  uv__handle_stop(handle);
 }

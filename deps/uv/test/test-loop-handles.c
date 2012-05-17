@@ -323,7 +323,7 @@ TEST_IMPL(loop_handles) {
   ASSERT(r == 0);
   r = uv_timer_start(&timer_handle, timer_cb, TIMEOUT, TIMEOUT);
   ASSERT(r == 0);
-  uv_unref(uv_default_loop());
+  uv_unref((uv_handle_t*)&timer_handle);
 
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);

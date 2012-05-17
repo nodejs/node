@@ -20,7 +20,6 @@
  */
 
 #include "uv.h"
-#include "../uv-common.h"
 #include "internal.h"
 
 #include <stdio.h>
@@ -55,9 +54,8 @@ typedef struct env_var {
 
 
 static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
+  uv_handle_init(loop, (uv_handle_t*) handle);
   handle->type = UV_PROCESS;
-  handle->loop = loop;
-  handle->flags = 0;
   handle->exit_cb = NULL;
   handle->pid = 0;
   handle->exit_signal = 0;
@@ -77,8 +75,6 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
 
   loop->counters.handle_init++;
   loop->counters.process_init++;
-
-  uv_ref(loop);
 }
 
 
@@ -689,29 +685,27 @@ static void close_child_stdio(uv_process_t* process) {
 void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
   DWORD exit_code;
 
+  /* FIXME: race condition. */
+  if (handle->flags & UV_HANDLE_CLOSING) {
+    return;
+  }
+
   /* Unregister from process notification. */
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
     UnregisterWait(handle->wait_handle);
     handle->wait_handle = INVALID_HANDLE_VALUE;
   }
 
-  if (handle->process_handle != INVALID_HANDLE_VALUE) {
-    /* Get the exit code. */
-    if (!GetExitCodeProcess(handle->process_handle, &exit_code)) {
-      exit_code = 127;
-    }
-
-    /* Clean-up the process handle. */
-    CloseHandle(handle->process_handle);
-    handle->process_handle = INVALID_HANDLE_VALUE;
-  } else {
-    /* We probably left the child stdio handles open to report the error */
-    /* asynchronously, so close them now. */
-    close_child_stdio(handle);
-
-    /* The process never even started in the first place. */
+  if (handle->process_handle == INVALID_HANDLE_VALUE ||
+      !GetExitCodeProcess(handle->process_handle, &exit_code)) {
+    /* The process never even started in the first place, or we were unable */
+    /* to obtain the exit code. */
     exit_code = 127;
   }
+
+  /* Set the handle to inactive: no callbacks will be made after the exit */
+  /* callback.*/
+  uv__handle_stop(handle);
 
   /* Fire the exit callback. */
   if (handle->exit_cb) {
@@ -726,21 +720,9 @@ void uv_process_proc_close(uv_loop_t* loop, uv_process_t* handle) {
 }
 
 
-void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
-  if (handle->flags & UV_HANDLE_CLOSING) {
-    assert(!(handle->flags & UV_HANDLE_CLOSED));
-    handle->flags |= UV_HANDLE_CLOSED;
-
-    if (handle->close_cb) {
-      handle->close_cb((uv_handle_t*)handle);
-    }
-
-    uv_unref(loop);
-  }
-}
-
-
 void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
+  uv__handle_start(handle);
+
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
     handle->close_handle = CreateEvent(NULL, FALSE, FALSE, NULL);
     UnregisterWaitEx(handle->wait_handle, handle->close_handle);
@@ -751,6 +733,25 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
         WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE);
   } else {
     uv_want_endgame(loop, (uv_handle_t*)handle);
+  }
+}
+
+
+void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
+  if (handle->flags & UV_HANDLE_CLOSING) {
+    assert(!(handle->flags & UV_HANDLE_CLOSED));
+    handle->flags |= UV_HANDLE_CLOSED;
+    uv__handle_stop(handle);
+
+    /* Clean-up the process handle. */
+    CloseHandle(handle->process_handle);
+
+    /* Clean up the child stdio ends that may have been left open. */
+    close_child_stdio(handle);
+
+    if (handle->close_cb) {
+      handle->close_cb((uv_handle_t*)handle);
+    }
   }
 }
 
@@ -816,7 +817,7 @@ static int uv_create_stdio_pipe_pair(uv_loop_t* loop, uv_pipe_t* server_pipe,
 done:
   if (err) {
     if (server_pipe->handle != INVALID_HANDLE_VALUE) {
-      close_pipe(server_pipe, NULL, NULL);
+      uv_pipe_cleanup(loop, server_pipe);
     }
 
     if (*child_pipe != INVALID_HANDLE_VALUE) {
@@ -1058,7 +1059,12 @@ done:
     }
   }
 
-  if (err) {
+  if (err == 0) {
+    /* Spawn was succesful. The handle will be active until the exit */
+    /* is made or the handle is closed, whichever happens first. */
+    uv__handle_start(process);
+  } else {
+    /* Spawn was not successful. Clean up. */
     if (process->wait_handle != INVALID_HANDLE_VALUE) {
       UnregisterWait(process->wait_handle);
       process->wait_handle = INVALID_HANDLE_VALUE;

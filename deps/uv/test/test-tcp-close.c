@@ -88,7 +88,7 @@ static void start_server(uv_loop_t* loop, uv_tcp_t* handle) {
   r = uv_listen((uv_stream_t*)handle, 128, connection_cb);
   ASSERT(r == 0);
 
-  uv_unref(loop);
+  uv_unref((uv_handle_t*)handle);
 }
 
 

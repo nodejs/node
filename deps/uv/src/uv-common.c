@@ -352,3 +352,13 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
 
   return 0;
 }
+
+
+void uv_ref(uv_handle_t* handle) {
+  uv__handle_ref(handle);
+}
+
+
+void uv_unref(uv_handle_t* handle) {
+  uv__handle_unref(handle);
+}

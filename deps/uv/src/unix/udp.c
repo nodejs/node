@@ -46,16 +46,20 @@ static void uv__udp_start_watcher(uv_udp_t* handle,
   ev_set_cb(w, cb);
   ev_io_set(w, handle->fd, flags);
   ev_io_start(handle->loop->ev, w);
-  ev_unref(handle->loop->ev);
+  uv__handle_start(handle);
 }
 
 
 static void uv__udp_stop_watcher(uv_udp_t* handle, ev_io* w) {
   if (!ev_is_active(w)) return;
-  ev_ref(handle->loop->ev);
   ev_io_stop(handle->loop->ev, w);
   ev_io_set(w, -1, 0);
   ev_set_cb(w, NULL);
+
+  if (!ev_is_active(&handle->read_watcher) &&
+      !ev_is_active(&handle->write_watcher)) {
+    uv__handle_stop(handle);
+  }
 }
 
 
@@ -108,6 +112,8 @@ void uv__udp_finish_close(uv_udp_t* handle) {
     ngx_queue_remove(q);
 
     req = ngx_queue_data(q, uv_udp_send_t, queue);
+    uv__req_unregister(handle->loop, req);
+
     if (req->send_cb) {
       /* FIXME proper error code like UV_EABORTED */
       uv__set_artificial_error(handle->loop, UV_EINTR);
@@ -185,12 +191,10 @@ static void uv__udp_run_completed(uv_udp_t* handle) {
 
   while (!ngx_queue_empty(&handle->write_completed_queue)) {
     q = ngx_queue_head(&handle->write_completed_queue);
-    assert(q != NULL);
-
     ngx_queue_remove(q);
 
     req = ngx_queue_data(q, uv_udp_send_t, queue);
-    assert(req != NULL);
+    uv__req_unregister(handle->loop, req);
 
     if (req->bufs != req->bufsml)
       free(req->bufs);

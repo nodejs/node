@@ -4141,6 +4141,10 @@ typedef struct _FILE_MODE_INFORMATION {
   ULONG Mode;
 } FILE_MODE_INFORMATION, *PFILE_MODE_INFORMATION;
 
+typedef struct _FILE_END_OF_FILE_INFORMATION {
+  LARGE_INTEGER  EndOfFile;
+} FILE_END_OF_FILE_INFORMATION, *PFILE_END_OF_FILE_INFORMATION;
+
 #define FILE_SYNCHRONOUS_IO_ALERT               0x00000010
 #define FILE_SYNCHRONOUS_IO_NONALERT            0x00000020
 
@@ -4374,6 +4378,10 @@ typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
                  LPCWSTR lpTargetFileName,
                  DWORD dwFlags);
 
+typedef BOOL (WINAPI* sCancelIoEx)
+             (HANDLE hFile,
+              LPOVERLAPPED lpOverlapped);
+
 typedef VOID (WINAPI* sInitializeSRWLock)
              (PSRWLOCK SRWLock);
 
@@ -4408,6 +4416,7 @@ extern sNtSetInformationFile pNtSetInformationFile;
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
+extern sCancelIoEx pCancelIoEx;
 extern sInitializeSRWLock pInitializeSRWLock;
 extern sAcquireSRWLockShared pAcquireSRWLockShared;
 extern sAcquireSRWLockExclusive pAcquireSRWLockExclusive;

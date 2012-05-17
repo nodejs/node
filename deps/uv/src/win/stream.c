@@ -22,19 +22,15 @@
 #include <assert.h>
 
 #include "uv.h"
-#include "../uv-common.h"
 #include "internal.h"
 
 
 void uv_stream_init(uv_loop_t* loop, uv_stream_t* handle) {
+  uv_handle_init(loop, (uv_handle_t*) handle);
   handle->write_queue_size = 0;
-  handle->loop = loop;
-  handle->flags = 0;
+  handle->activecnt = 0;
 
-  loop->counters.handle_init++;
   loop->counters.stream_init++;
-
-  uv_ref(loop);
 }
 
 
@@ -109,8 +105,11 @@ int uv_read2_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
 int uv_read_stop(uv_stream_t* handle) {
   if (handle->type == UV_TTY) {
     return uv_tty_read_stop((uv_tty_t*) handle);
-  } else {
+  } else if (handle->flags & UV_HANDLE_READING) {
     handle->flags &= ~UV_HANDLE_READING;
+    DECREASE_ACTIVE_COUNT(handle->loop, handle);
+    return 0;
+  } else {
     return 0;
   }
 }
@@ -171,7 +170,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   handle->flags |= UV_HANDLE_SHUTTING;
   handle->shutdown_req = req;
   handle->reqs_pending++;
-  uv_ref(loop);
+  REGISTER_HANDLE_REQ(loop, handle, req);
 
   uv_want_endgame(loop, (uv_handle_t*)handle);
 

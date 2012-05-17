@@ -22,7 +22,6 @@
 #include <assert.h>
 
 #include "uv.h"
-#include "../uv-common.h"
 #include "internal.h"
 
 
@@ -108,8 +107,6 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read,
   uv_loop_t* loop = (uv_loop_t*) data;
   uv_ares_task_t* uv_handle_ares = uv_find_ares_handle(loop, sock);
 
-  int timeoutms = 0;
-
   if (read == 0 && write == 0) {
     /* if read and write are 0, cleanup existing data */
     /* The code assumes that c-ares does a callback with read = 0 and */
@@ -134,6 +131,7 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read,
       }
       /* remove handle from list */
       uv_remove_ares_handle(uv_handle_ares);
+      uv__handle_stop(uv_handle_ares);
 
       /* Post request to cleanup the Task */
       uv_ares_req = &uv_handle_ares->ares_req;
@@ -180,7 +178,7 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read,
 
       /* add handle to list */
       uv_add_ares_handle(loop, uv_handle_ares);
-      uv_ref(loop);
+      uv__handle_start(uv_handle_ares);
 
       /*
        * we have a single polling timer for all ares sockets.
@@ -231,7 +229,7 @@ void uv_process_ares_cleanup_req(uv_loop_t* loop, uv_ares_task_t* handle,
   unsigned int signaled = WaitForSingleObject(handle->h_close_event, 0);
 
   if (signaled != WAIT_TIMEOUT) {
-    uv_unref(loop);
+    uv__handle_stop(loop);
 
     /* close event handle and free uv handle memory */
     CloseHandle(handle->h_close_event);

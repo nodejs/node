@@ -203,8 +203,8 @@ int stdio_over_pipes_helper() {
   uv_pipe_open(&stdout_pipe, 1);
 
   /* Unref both stdio handles to make sure that all writes complete. */
-  uv_unref(loop);
-  uv_unref(loop);
+  uv_unref((uv_handle_t*)&stdin_pipe);
+  uv_unref((uv_handle_t*)&stdout_pipe);
 
   for (i = 0; i < ARRAY_SIZE(buffers); i++) {
     buf[i] = uv_buf_init((char*)buffers[i], strlen(buffers[i]));
@@ -222,8 +222,8 @@ int stdio_over_pipes_helper() {
   ASSERT(on_pipe_read_called == 0);
   ASSERT(close_cb_called == 0);
 
-  uv_ref(loop);
-  uv_ref(loop);
+  uv_ref((uv_handle_t*)&stdout_pipe);
+  uv_ref((uv_handle_t*)&stdin_pipe);
 
   r = uv_read_start((uv_stream_t*)&stdin_pipe, on_read_alloc,
     on_pipe_read);

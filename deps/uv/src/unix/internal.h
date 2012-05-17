@@ -86,22 +86,39 @@
 enum {
   UV_CLOSING       = 0x01,   /* uv_close() called but not finished. */
   UV_CLOSED        = 0x02,   /* close(2) finished. */
-  UV_READING       = 0x04,   /* uv_read_start() called. */
-  UV_SHUTTING      = 0x08,   /* uv_shutdown() called but not complete. */
-  UV_SHUT          = 0x10,   /* Write side closed. */
-  UV_READABLE      = 0x20,   /* The stream is readable */
-  UV_WRITABLE      = 0x40,   /* The stream is writable */
+  UV_STREAM_READING   = 0x04,   /* uv_read_start() called. */
+  UV_STREAM_SHUTTING  = 0x08,   /* uv_shutdown() called but not complete. */
+  UV_STREAM_SHUT      = 0x10,   /* Write side closed. */
+  UV_STREAM_READABLE  = 0x20,   /* The stream is readable */
+  UV_STREAM_WRITABLE  = 0x40,   /* The stream is writable */
   UV_TCP_NODELAY   = 0x080,  /* Disable Nagle. */
   UV_TCP_KEEPALIVE = 0x100,  /* Turn on keep-alive. */
-  UV_TIMER_ACTIVE  = 0x080,
-  UV_TIMER_REPEAT  = 0x100
+  UV_TIMER_REPEAT  = 0x100,
+  UV__PENDING      = 0x800
 };
+
+inline static int uv__has_pending_handles(const uv_loop_t* loop) {
+  return loop->pending_handles != NULL;
+}
+
+inline static void uv__make_pending(uv_handle_t* h) {
+  if (h->flags & UV__PENDING) return;
+  h->next_pending = h->loop->pending_handles;
+  h->loop->pending_handles = h;
+  h->flags |= UV__PENDING;
+}
+#define uv__make_pending(h) uv__make_pending((uv_handle_t*)(h))
 
 inline static void uv__req_init(uv_loop_t* loop,
                                 uv_req_t* req,
                                 uv_req_type type) {
   loop->counters.req_init++;
   req->type = type;
+#ifndef UV_LEAN_AND_MEAN
+  ngx_queue_insert_tail(&loop->active_reqs, &req->active_queue);
+#else
+  loop->active_reqs++;
+#endif
 }
 #define uv__req_init(loop, req, type) \
   uv__req_init((loop), (uv_req_t*)(req), (type))
@@ -112,10 +129,14 @@ int uv__nonblock(int fd, int set) __attribute__((unused));
 int uv__cloexec(int fd, int set) __attribute__((unused));
 int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
+int uv_async_stop(uv_async_t* handle);
 
 /* loop */
 int uv__loop_init(uv_loop_t* loop, int default_loop);
 void uv__loop_delete(uv_loop_t* loop);
+void uv__run_idle(uv_loop_t* loop);
+void uv__run_check(uv_loop_t* loop);
+void uv__run_prepare(uv_loop_t* loop);
 
 /* error */
 uv_err_code uv_translate_sys_error(int sys_errno);
@@ -141,12 +162,11 @@ int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay);
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 void uv__pipe_accept(EV_P_ ev_io* watcher, int revents);
 
-/* various */
-int uv__check_active(const uv_check_t* handle);
-int uv__idle_active(const uv_idle_t* handle);
-int uv__prepare_active(const uv_prepare_t* handle);
-int uv__timer_active(const uv_timer_t* handle);
+/* poll */
+void uv__poll_close(uv_poll_t* handle);
+int uv__poll_active(const uv_poll_t* handle);
 
+/* various */
 void uv__async_close(uv_async_t* handle);
 void uv__check_close(uv_check_t* handle);
 void uv__fs_event_close(uv_fs_event_t* handle);
@@ -158,6 +178,8 @@ void uv__stream_close(uv_stream_t* handle);
 void uv__timer_close(uv_timer_t* handle);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
+
+void uv__stream_pending(uv_stream_t* handle);
 
 #define UV__F_IPC        (1 << 0)
 #define UV__F_NONBLOCK   (1 << 1)

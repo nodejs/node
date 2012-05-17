@@ -38,10 +38,10 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
 
   if (readable) {
     uv__nonblock(fd, 1);
-    uv__stream_open((uv_stream_t*)tty, fd, UV_READABLE);
+    uv__stream_open((uv_stream_t*)tty, fd, UV_STREAM_READABLE);
   } else {
     /* Note: writable tty we set to blocking mode. */
-    uv__stream_open((uv_stream_t*)tty, fd, UV_WRITABLE);
+    uv__stream_open((uv_stream_t*)tty, fd, UV_STREAM_WRITABLE);
     tty->blocking = 1;
   }
 

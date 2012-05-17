@@ -19,7 +19,7 @@
  */
 
 #include "uv.h"
-#include "unix/internal.h"
+#include "internal.h"
 
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* printf */
@@ -107,14 +107,16 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
     uv__fs_event_close((uv_fs_event_t*)handle);
     break;
 
+  case UV_POLL:
+    uv__poll_close((uv_poll_t*)handle);
+    break;
+
   default:
     assert(0);
   }
 
   handle->flags |= UV_CLOSING;
-  handle->endgame_next = handle->loop->endgame_handles;
-  handle->loop->endgame_handles = handle;
-  uv_unref(handle->loop);
+  uv__make_pending(handle);
 }
 
 
@@ -161,24 +163,73 @@ void uv_loop_delete(uv_loop_t* loop) {
 }
 
 
-int uv_loop_refcount(const uv_loop_t* loop) {
-  return ev_loop_refcount(loop->ev);
+static void uv__run_pending(uv_loop_t* loop) {
+  uv_handle_t* p;
+  uv_handle_t* q;
+
+  if (!loop->pending_handles)
+    return;
+
+  for (p = loop->pending_handles, loop->pending_handles = NULL; p; p = q) {
+    q = p->next_pending;
+    p->next_pending = NULL;
+    p->flags &= ~UV__PENDING;
+
+    if (p->flags & UV_CLOSING) {
+      uv__finish_close(p);
+      continue;
+    }
+
+    switch (p->type) {
+    case UV_NAMED_PIPE:
+    case UV_TCP:
+    case UV_TTY:
+      uv__stream_pending((uv_stream_t*)p);
+      break;
+    default:
+      abort();
+    }
+  }
 }
 
 
-void uv__run(uv_loop_t* loop) {
-  ev_run(loop->ev, EVRUN_ONCE);
+static void uv__poll(uv_loop_t* loop, int block) {
+  /* bump the loop's refcount, otherwise libev does
+   * a zero timeout poll and we end up busy looping
+   */
+  ev_ref(loop->ev);
+  ev_run(loop->ev, block ? EVRUN_ONCE : EVRUN_NOWAIT);
+  ev_unref(loop->ev);
+}
 
-  while (loop->endgame_handles)
-    uv__finish_close(loop->endgame_handles);
+
+static int uv__should_block(uv_loop_t* loop) {
+  return ngx_queue_empty(&loop->idle_handles)
+      && !ngx_queue_empty(&loop->active_handles);
+}
+
+
+static int uv__run(uv_loop_t* loop) {
+  uv__run_idle(loop);
+  uv__run_pending(loop);
+
+  if (uv__has_active_handles(loop) || uv__has_active_reqs(loop)) {
+    uv__run_prepare(loop);
+    /* Need to poll even if there are no active handles left, otherwise
+     * uv_work_t reqs won't complete...
+     */
+    uv__poll(loop, uv__should_block(loop));
+    uv__run_check(loop);
+  }
+
+  return uv__has_pending_handles(loop)
+      || uv__has_active_handles(loop)
+      || uv__has_active_reqs(loop);
 }
 
 
 int uv_run(uv_loop_t* loop) {
-  do
-    uv__run(loop);
-  while (uv_loop_refcount(loop) > 0);
-
+  while (uv__run(loop));
   return 0;
 }
 
@@ -195,38 +246,24 @@ void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle,
 
   handle->loop = loop;
   handle->type = type;
-  handle->flags = 0;
-  handle->endgame_next = NULL;
-  uv_ref(loop); /* unref'd in uv_close() */
+  handle->flags = UV__REF; /* ref the loop when active */
+  handle->next_pending = NULL;
 }
 
 
 void uv__finish_close(uv_handle_t* handle) {
-  uv_loop_t* loop = handle->loop;
-
+  assert(!uv__is_active(handle));
   assert(handle->flags & UV_CLOSING);
   assert(!(handle->flags & UV_CLOSED));
   handle->flags |= UV_CLOSED;
 
   switch (handle->type) {
     case UV_PREPARE:
-      assert(!ev_is_active(&((uv_prepare_t*)handle)->prepare_watcher));
-      break;
-
     case UV_CHECK:
-      assert(!ev_is_active(&((uv_check_t*)handle)->check_watcher));
-      break;
-
     case UV_IDLE:
-      assert(!ev_is_active(&((uv_idle_t*)handle)->idle_watcher));
-      break;
-
     case UV_ASYNC:
-      assert(!ev_is_active(&((uv_async_t*)handle)->async_watcher));
-      break;
-
     case UV_TIMER:
-      assert(!ev_is_active(&((uv_timer_t*)handle)->timer_watcher));
+    case UV_PROCESS:
       break;
 
     case UV_NAMED_PIPE:
@@ -242,11 +279,10 @@ void uv__finish_close(uv_handle_t* handle) {
       uv__udp_finish_close((uv_udp_t*)handle);
       break;
 
-    case UV_PROCESS:
-      assert(!ev_is_active(&((uv_process_t*)handle)->child_watcher));
+    case UV_FS_EVENT:
       break;
 
-    case UV_FS_EVENT:
+    case UV_POLL:
       break;
 
     default:
@@ -255,21 +291,11 @@ void uv__finish_close(uv_handle_t* handle) {
   }
 
 
-  loop->endgame_handles = handle->endgame_next;
-
   if (handle->close_cb) {
     handle->close_cb(handle);
   }
-}
 
-
-void uv_ref(uv_loop_t* loop) {
-  ev_ref(loop->ev);
-}
-
-
-void uv_unref(uv_loop_t* loop) {
-  ev_unref(loop->ev);
+  uv__handle_unref(handle);
 }
 
 
@@ -284,54 +310,43 @@ int64_t uv_now(uv_loop_t* loop) {
 
 
 int uv_is_active(const uv_handle_t* handle) {
-  switch (handle->type) {
-  case UV_CHECK:
-    return uv__check_active((const uv_check_t*)handle);
-  case UV_IDLE:
-    return uv__idle_active((const uv_idle_t*)handle);
-  case UV_PREPARE:
-    return uv__prepare_active((const uv_prepare_t*)handle);
-  case UV_TIMER:
-    return uv__timer_active((const uv_timer_t*)handle);
-  default:
-    return 1;
-  }
+  return uv__is_active(handle);
 }
 
 
-static int uv_getaddrinfo_done(eio_req* req) {
-  uv_getaddrinfo_t* handle = req->data;
-  struct addrinfo *res = handle->res;
+static int uv_getaddrinfo_done(eio_req* req_) {
+  uv_getaddrinfo_t* req = req_->data;
+  struct addrinfo *res = req->res;
 #if __sun
   size_t hostlen = strlen(handle->hostname);
 #endif
 
-  handle->res = NULL;
+  req->res = NULL;
 
-  uv_unref(handle->loop);
+  uv__req_unregister(req->loop, req);
 
-  free(handle->hints);
-  free(handle->service);
-  free(handle->hostname);
+  free(req->hints);
+  free(req->service);
+  free(req->hostname);
 
-  if (handle->retcode == 0) {
+  if (req->retcode == 0) {
     /* OK */
 #if EAI_NODATA /* FreeBSD deprecated EAI_NODATA */
-  } else if (handle->retcode == EAI_NONAME || handle->retcode == EAI_NODATA) {
+  } else if (req->retcode == EAI_NONAME || req->retcode == EAI_NODATA) {
 #else
-  } else if (handle->retcode == EAI_NONAME) {
+  } else if (req->retcode == EAI_NONAME) {
 #endif
-    uv__set_sys_error(handle->loop, ENOENT); /* FIXME compatibility hack */
+    uv__set_sys_error(req->loop, ENOENT); /* FIXME compatibility hack */
 #if __sun
-  } else if (handle->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
-    uv__set_sys_error(handle->loop, ENOENT);
+  } else if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
+    uv__set_sys_error(req->loop, ENOENT);
 #endif
   } else {
-    handle->loop->last_err.code = UV_EADDRINFO;
-    handle->loop->last_err.sys_errno_ = handle->retcode;
+    req->loop->last_err.code = UV_EADDRINFO;
+    req->loop->last_err.sys_errno_ = req->retcode;
   }
 
-  handle->cb(handle, handle->retcode, res);
+  req->cb(req, req->retcode, res);
 
   return 0;
 }
@@ -386,8 +401,6 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   /* TODO check handle->hostname == NULL */
   /* TODO check handle->service == NULL */
-
-  uv_ref(loop);
 
   req = eio_custom(getaddrinfo_thread_proc, EIO_PRI_DEFAULT,
       uv_getaddrinfo_done, handle, &loop->uv_eio_channel);

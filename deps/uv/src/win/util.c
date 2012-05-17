@@ -29,9 +29,10 @@
 
 #include "uv.h"
 #include "internal.h"
-#include "tlhelp32.h"
-#include "psapi.h"
-#include "iphlpapi.h"
+
+#include <iphlpapi.h>
+#include <psapi.h>
+#include <tlhelp32.h>
 
 
 /*

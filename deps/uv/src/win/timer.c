@@ -26,12 +26,12 @@
 #include "internal.h"
 #include "tree.h"
 
+
 #undef NANOSEC
 #define NANOSEC 1000000000
 
 
 /* The resolution of the high-resolution clock. */
-static int64_t uv_ticks_per_msec_ = 0;
 static uint64_t uv_hrtime_frequency_ = 0;
 static uv_once_t uv_hrtime_init_guard_ = UV_ONCE_INIT;
 
@@ -112,16 +112,12 @@ RB_GENERATE_STATIC(uv_timer_tree_s, uv_timer_s, tree_entry, uv_timer_compare);
 
 
 int uv_timer_init(uv_loop_t* loop, uv_timer_t* handle) {
-  loop->counters.handle_init++;
-  loop->counters.timer_init++;
-
+  uv_handle_init(loop, (uv_handle_t*) handle);
   handle->type = UV_TIMER;
-  handle->loop = loop;
-  handle->flags = 0;
   handle->timer_cb = NULL;
   handle->repeat = 0;
 
-  uv_ref(loop);
+  loop->counters.timer_init++;
 
   return 0;
 }
@@ -131,12 +127,11 @@ void uv_timer_endgame(uv_loop_t* loop, uv_timer_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
+    uv__handle_stop(handle);
 
     if (handle->close_cb) {
       handle->close_cb((uv_handle_t*)handle);
     }
-
-    uv_unref(loop);
   }
 }
 
@@ -153,6 +148,7 @@ int uv_timer_start(uv_timer_t* handle, uv_timer_cb timer_cb, int64_t timeout,
   handle->due = loop->time + timeout;
   handle->repeat = repeat;
   handle->flags |= UV_HANDLE_ACTIVE;
+  uv__handle_start(handle);
 
   if (RB_INSERT(uv_timer_tree_s, &loop->timers, handle) != NULL) {
     uv_fatal_error(ERROR_INVALID_DATA, "RB_INSERT");
@@ -171,6 +167,7 @@ int uv_timer_stop(uv_timer_t* handle) {
   RB_REMOVE(uv_timer_tree_s, &loop->timers, handle);
 
   handle->flags &= ~UV_HANDLE_ACTIVE;
+  uv__handle_stop(handle);
 
   return 0;
 }
@@ -188,6 +185,7 @@ int uv_timer_again(uv_timer_t* handle) {
   if (handle->flags & UV_HANDLE_ACTIVE) {
     RB_REMOVE(uv_timer_tree_s, &loop->timers, handle);
     handle->flags &= ~UV_HANDLE_ACTIVE;
+    uv__handle_stop(handle);
   }
 
   if (handle->repeat) {
@@ -198,6 +196,7 @@ int uv_timer_again(uv_timer_t* handle) {
     }
 
     handle->flags |= UV_HANDLE_ACTIVE;
+    uv__handle_start(handle);
   }
 
   return 0;
@@ -269,6 +268,7 @@ void uv_process_timers(uv_loop_t* loop) {
     } else {
       /* If non-repeating, mark the timer as inactive. */
       timer->flags &= ~UV_HANDLE_ACTIVE;
+      uv__handle_stop(timer);
     }
 
     timer->timer_cb((uv_timer_t*) timer, 0);

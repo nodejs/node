@@ -100,7 +100,7 @@ static void connect_cb(uv_connect_t* req, int status) {
     r = uv_write(&(wr->req), req->handle, &wr->buf, 1, write_cb);
     ASSERT(r == 0);
  
-    if (req->handle->write_queue_size > 0) {
+    if (req->handle->write_queue_size >= size * 2) {
       break;
     }
   }
@@ -161,7 +161,7 @@ TEST_IMPL(tcp_write_error) {
   ASSERT(r == 0);
 
   ASSERT(write_cb_called > 0);
-  ASSERT(write_cb_error_called == 1);
+  ASSERT(write_cb_error_called >= 1);
   ASSERT(tcp_client.write_queue_size == 0);
 
   return 0;

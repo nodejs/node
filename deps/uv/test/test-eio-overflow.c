@@ -68,7 +68,6 @@ void idle_cb(uv_idle_t* idle, int status) {
     int r;
 
     r = uv_idle_stop(idle);
-    uv_unref(uv_default_loop());
     ASSERT(r == 0);
   }
 }

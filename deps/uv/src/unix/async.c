@@ -40,7 +40,8 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* async, uv_async_cb async_cb) {
 
   /* Note: This does not have symmetry with the other libev wrappers. */
   ev_async_start(loop->ev, &async->async_watcher);
-  ev_unref(loop->ev);
+  uv__handle_unref(async);
+  uv__handle_start(async);
 
   return 0;
 }
@@ -54,5 +55,6 @@ int uv_async_send(uv_async_t* async) {
 
 void uv__async_close(uv_async_t* handle) {
   ev_async_stop(handle->loop->ev, &handle->async_watcher);
-  ev_ref(handle->loop->ev);
+  uv__handle_ref(handle);
+  uv__handle_stop(handle);
 }

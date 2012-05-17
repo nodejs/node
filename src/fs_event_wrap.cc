@@ -103,7 +103,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
   if (r == 0) {
     // Check for persistent argument
     if (!args[1]->IsTrue()) {
-      uv_unref(uv_default_loop());
+      uv_unref(reinterpret_cast<uv_handle_t*>(&wrap->handle_));
     }
     wrap->initialized_ = true;
   } else {
