@@ -46,7 +46,7 @@ child.exec(nodejs + ' --eval "console.error(42)"',
       assert.equal(stderr, '42\n');
     });
 
-// assert that nothing is written to stdout
+// assert that the expected output is written to stdout
 ['--print --eval', '-p -e', '-pe'].forEach(function(s) {
   var cmd = nodejs + ' ' + s + ' ';
 
