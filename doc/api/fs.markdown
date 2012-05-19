@@ -477,7 +477,7 @@ you need to compare `curr.mtime` and `prev.mtime`.
 
 Stop watching for changes on `filename`.
 
-## fs.watch(filename, [options], listener)
+## fs.watch(filename, [options], [listener])
 
     Stability: 2 - Unstable.  Not available on all platforms.
 
