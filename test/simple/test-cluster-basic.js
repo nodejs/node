@@ -24,6 +24,9 @@ var common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 
+assert.equal('NODE_UNIQUE_ID' in process.env, false,
+      'NODE_UNIQUE_ID should be removed on startup');
+
 function forEach(obj, fn) {
   Object.keys(obj).forEach(function(name, index) {
     fn(obj[name], name, index);
@@ -39,9 +42,6 @@ if (cluster.isWorker) {
 }
 
 else if (cluster.isMaster) {
-
-  assert.equal('NODE_UNIQUE_ID' in process.env, false,
-      'cluster.isMaster should not be true when NODE_UNIQUE_ID is set');
 
   var checks = {
     cluster: {
