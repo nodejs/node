@@ -43,7 +43,7 @@ child.stderr.on('data', function(c) {
   output += c;
 });
 
-child.on('exit', function(code) {
+child.on('close', function(code) {
   try {
     output = JSON.parse(output);
   } catch (er) {
