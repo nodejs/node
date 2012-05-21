@@ -49,18 +49,6 @@ using namespace v8;
 
 namespace node {
 
-#define UNWRAP                                                              \
-  assert(!args.Holder().IsEmpty());                                         \
-  assert(args.Holder()->InternalFieldCount() > 0);                          \
-  UDPWrap* wrap =                                                           \
-      static_cast<UDPWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
-  if (!wrap) {                                                              \
-    uv_err_t err;                                                           \
-    err.code = UV_EBADF;                                                    \
-    SetErrno(err);                                                          \
-    return scope.Close(Integer::New(-1));                                   \
-  }
-
 typedef ReqWrap<uv_udp_send_t> SendWrap;
 
 // see tcp_wrap.cc
@@ -169,7 +157,7 @@ Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
   HandleScope scope;
   int r;
 
-  UNWRAP
+  UNWRAP(UDPWrap)
 
   // bind(ip, port, flags)
   assert(args.Length() == 3);
@@ -210,7 +198,7 @@ Handle<Value> UDPWrap::Bind6(const Arguments& args) {
 #define X(name, fn)                                                           \
   Handle<Value> UDPWrap::name(const Arguments& args) {                        \
     HandleScope scope;                                                        \
-    UNWRAP                                                                    \
+    UNWRAP(UDPWrap)                                                                    \
     assert(args.Length() == 1);                                               \
     int flag = args[0]->Int32Value();                                         \
     int r = fn(&wrap->handle_, flag);                                         \
@@ -229,7 +217,7 @@ X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 Handle<Value> UDPWrap::SetMembership(const Arguments& args,
                                      uv_membership membership) {
   HandleScope scope;
-  UNWRAP
+  UNWRAP(UDPWrap)
 
   assert(args.Length() == 2);
 
@@ -268,7 +256,7 @@ Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   // send(buffer, offset, length, port, address)
   assert(args.Length() == 5);
 
-  UNWRAP
+  UNWRAP(UDPWrap)
 
   assert(Buffer::HasInstance(args[0]));
   Local<Object> buffer_obj = args[0]->ToObject();
@@ -327,7 +315,7 @@ Handle<Value> UDPWrap::Send6(const Arguments& args) {
 Handle<Value> UDPWrap::RecvStart(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(UDPWrap)
 
   // UV_EALREADY means that the socket is already bound but that's okay
   int r = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
@@ -343,7 +331,7 @@ Handle<Value> UDPWrap::RecvStart(const Arguments& args) {
 Handle<Value> UDPWrap::RecvStop(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(UDPWrap)
 
   int r = uv_udp_recv_stop(&wrap->handle_);
 
@@ -355,7 +343,7 @@ Handle<Value> UDPWrap::GetSockName(const Arguments& args) {
   HandleScope scope;
   struct sockaddr_storage address;
 
-  UNWRAP
+  UNWRAP(UDPWrap)
 
   int addrlen = sizeof(address);
   int r = uv_udp_getsockname(&wrap->handle_,

@@ -25,18 +25,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define UNWRAP \
-  assert(!args.Holder().IsEmpty()); \
-  assert(args.Holder()->InternalFieldCount() > 0); \
-  ProcessWrap* wrap =  \
-      static_cast<ProcessWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
-  if (!wrap) { \
-    uv_err_t err; \
-    err.code = UV_EBADF; \
-    SetErrno(err); \
-    return scope.Close(Integer::New(-1)); \
-  }
-
 namespace node {
 
 using v8::Object;
@@ -97,7 +85,7 @@ class ProcessWrap : public HandleWrap {
   static Handle<Value> Spawn(const Arguments& args) {
     HandleScope scope;
 
-    UNWRAP
+    UNWRAP(ProcessWrap)
 
     Local<Object> js_options = args[0]->ToObject();
 
@@ -238,7 +226,7 @@ class ProcessWrap : public HandleWrap {
   static Handle<Value> Kill(const Arguments& args) {
     HandleScope scope;
 
-    UNWRAP
+    UNWRAP(ProcessWrap)
 
     int signal = args[0]->Int32Value();
 

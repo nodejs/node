@@ -53,19 +53,6 @@ using v8::Number;
 using v8::Exception;
 
 
-#define UNWRAP \
-  assert(!args.Holder().IsEmpty()); \
-  assert(args.Holder()->InternalFieldCount() > 0); \
-  StreamWrap* wrap =  \
-      static_cast<StreamWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
-  if (!wrap) { \
-    uv_err_t err; \
-    err.code = UV_EBADF; \
-    SetErrno(err); \
-    return scope.Close(Integer::New(-1)); \
-  }
-
-
 typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 
 class WriteWrap: public ReqWrap<uv_write_t> {
@@ -134,7 +121,7 @@ void StreamWrap::UpdateWriteQueueSize() {
 Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(StreamWrap)
 
   bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
                   ((uv_pipe_t*)wrap->stream_)->ipc;
@@ -155,7 +142,7 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
 Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(StreamWrap)
 
   int r = uv_read_stop(wrap->stream_);
 
@@ -248,7 +235,7 @@ void StreamWrap::OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
 Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(StreamWrap)
 
   // The first argument is a buffer.
   assert(args.Length() >= 1 && Buffer::HasInstance(args[0]));
@@ -299,7 +286,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   HandleScope scope;
   int r;
 
-  UNWRAP
+  UNWRAP(StreamWrap)
 
   if (args.Length() < 1)
     return ThrowTypeError("Not enough arguments");
@@ -474,7 +461,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 Handle<Value> StreamWrap::Shutdown(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(StreamWrap)
 
   ShutdownWrap* req_wrap = new ShutdownWrap();
 

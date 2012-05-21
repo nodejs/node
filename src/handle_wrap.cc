@@ -41,19 +41,6 @@ using v8::Arguments;
 using v8::Integer;
 
 
-#define UNWRAP \
-  assert(!args.Holder().IsEmpty()); \
-  assert(args.Holder()->InternalFieldCount() > 0); \
-  HandleWrap* wrap =  \
-      static_cast<HandleWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
-  if (!wrap) { \
-    uv_err_t err; \
-    err.code = UV_EBADF; \
-    SetErrno(err); \
-    return scope.Close(Integer::New(-1)); \
-  }
-
-
 // defined in node.cc
 extern ngx_queue_t handle_wrap_queue;
 
@@ -68,7 +55,7 @@ void HandleWrap::Initialize(Handle<Object> target) {
 Handle<Value> HandleWrap::Unref(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(HandleWrap)
 
   // Calling unnecessarily is a no-op
   if (wrap->unref) {
@@ -86,7 +73,7 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
 Handle<Value> HandleWrap::Ref(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(HandleWrap)
 
   // Calling multiple times is a no-op
   if (!wrap->unref) {
@@ -103,17 +90,20 @@ Handle<Value> HandleWrap::Ref(const Arguments& args) {
 Handle<Value> HandleWrap::Close(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  HandleWrap *wrap = static_cast<HandleWrap*>(
+      args.Holder()->GetPointerFromInternalField(0));
 
-  // guard against uninitialized handle or double close
-  if (wrap->handle__ == NULL) return v8::Null();
-  assert(!wrap->object_.IsEmpty());
-  uv_close(wrap->handle__, OnClose);
-  wrap->handle__ = NULL;
+  if (wrap) {
+    // guard against uninitialized handle or double close
+    if (wrap->handle__ == NULL) return v8::Null();
+    assert(!wrap->object_.IsEmpty());
+    uv_close(wrap->handle__, OnClose);
+    wrap->handle__ = NULL;
 
-  HandleWrap::Ref(args);
+    HandleWrap::Ref(args);
 
-  wrap->StateChange();
+    wrap->StateChange();
+  }
 
   return v8::Null();
 }

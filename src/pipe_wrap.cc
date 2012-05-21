@@ -26,18 +26,6 @@
 #include "stream_wrap.h"
 #include "pipe_wrap.h"
 
-#define UNWRAP \
-  assert(!args.Holder().IsEmpty()); \
-  assert(args.Holder()->InternalFieldCount() > 0); \
-  PipeWrap* wrap =  \
-      static_cast<PipeWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
-  if (!wrap) { \
-    uv_err_t err; \
-    err.code = UV_EBADF; \
-    SetErrno(err); \
-    return scope.Close(Integer::New(-1)); \
-  }
-
 namespace node {
 
 using v8::Object;
@@ -149,7 +137,7 @@ PipeWrap::PipeWrap(Handle<Object> object, bool ipc)
 Handle<Value> PipeWrap::Bind(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(PipeWrap)
 
   String::AsciiValue name(args[0]);
 
@@ -166,7 +154,7 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
 Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(PipeWrap)
 
   int instances = args[0]->Int32Value();
 
@@ -180,7 +168,7 @@ Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
 Handle<Value> PipeWrap::Listen(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(PipeWrap)
 
   int backlog = args[0]->Int32Value();
 
@@ -269,7 +257,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
 Handle<Value> PipeWrap::Open(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(PipeWrap)
 
   int fd = args[0]->IntegerValue();
 
@@ -282,7 +270,7 @@ Handle<Value> PipeWrap::Open(const Arguments& args) {
 Handle<Value> PipeWrap::Connect(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP
+  UNWRAP(PipeWrap)
 
   String::AsciiValue name(args[0]);
 
