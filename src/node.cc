@@ -1271,13 +1271,13 @@ void DisplayExceptionLine (TryCatch &try_catch) {
     // Print wavy underline (GetUnderline is deprecated).
     int start = message->GetStartColumn();
     for (int i = offset; i < start; i++) {
-      fprintf(stderr, " ");
+      fputc((sourceline_string[i] == '\t') ? '\t' : ' ', stderr);
     }
     int end = message->GetEndColumn();
     for (int i = start; i < end; i++) {
-      fprintf(stderr, "^");
+      fputc('^', stderr);
     }
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
   }
 }
 
