@@ -48,7 +48,9 @@ function expect(activeHandles, activeRequests) {
 
 process.nextTick(function() {
   process.nextTick(function() {
-    // the handles should be gone but the connect req could still be alive
-    assert.equal(process._getActiveHandles().length, 0);
+    process.nextTick(function() {
+      // the handles should be gone but the connect req could still be alive
+      assert.equal(process._getActiveHandles().length, 0);
+    });
   });
 });
