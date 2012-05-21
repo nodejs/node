@@ -190,49 +190,65 @@ The shell that executed node should see the exit code as 1.
 
 ## process.getgid()
 
+Note: this function is only available on POSIX platforms (i.e. not Windows)
+
 Gets the group identity of the process. (See getgid(2).)
 This is the numerical group id, not the group name.
 
-    console.log('Current gid: ' + process.getgid());
+    if (process.getgid) {
+      console.log('Current gid: ' + process.getgid());
+    }
 
 
 ## process.setgid(id)
+
+Note: this function is only available on POSIX platforms (i.e. not Windows)
 
 Sets the group identity of the process. (See setgid(2).)  This accepts either
 a numerical ID or a groupname string. If a groupname is specified, this method
 blocks while resolving it to a numerical ID.
 
-    console.log('Current gid: ' + process.getgid());
-    try {
-      process.setgid(501);
-      console.log('New gid: ' + process.getgid());
-    }
-    catch (err) {
-      console.log('Failed to set gid: ' + err);
+    if (process.getgid && process.setgid) {
+      console.log('Current gid: ' + process.getgid());
+      try {
+        process.setgid(501);
+        console.log('New gid: ' + process.getgid());
+      }
+      catch (err) {
+        console.log('Failed to set gid: ' + err);
+      }
     }
 
 
 ## process.getuid()
 
+Note: this function is only available on POSIX platforms (i.e. not Windows)
+
 Gets the user identity of the process. (See getuid(2).)
 This is the numerical userid, not the username.
 
-    console.log('Current uid: ' + process.getuid());
+    if (process.getuid) {
+      console.log('Current uid: ' + process.getuid());
+    }
 
 
 ## process.setuid(id)
+
+Note: this function is only available on POSIX platforms (i.e. not Windows)
 
 Sets the user identity of the process. (See setuid(2).)  This accepts either
 a numerical ID or a username string.  If a username is specified, this method
 blocks while resolving it to a numerical ID.
 
-    console.log('Current uid: ' + process.getuid());
-    try {
-      process.setuid(501);
-      console.log('New uid: ' + process.getuid());
-    }
-    catch (err) {
-      console.log('Failed to set uid: ' + err);
+    if (process.getuid && process.setuid) {
+      console.log('Current uid: ' + process.getuid());
+      try {
+        process.setuid(501);
+        console.log('New uid: ' + process.getuid());
+      }
+      catch (err) {
+        console.log('Failed to set uid: ' + err);
+      }
     }
 
 
