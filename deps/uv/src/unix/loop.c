@@ -41,7 +41,7 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   ngx_queue_init(&loop->active_reqs);
 #endif
 
-  RB_INIT(&loop->uv_ares_handles_);
+  RB_INIT(&loop->ares_handles);
   ngx_queue_init(&loop->idle_handles);
   ngx_queue_init(&loop->check_handles);
   ngx_queue_init(&loop->prepare_handles);

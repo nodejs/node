@@ -138,14 +138,6 @@ void uv_process_reqs(uv_loop_t* loop) {
         uv_process_poll_req(loop, (uv_poll_t*) req->data, req);
         break;
 
-      case UV_ARES_EVENT_REQ:
-        uv_process_ares_event_req(loop, (uv_ares_action_t*) req->data, req);
-        break;
-
-      case UV_ARES_CLEANUP_REQ:
-        uv_process_ares_cleanup_req(loop, (uv_ares_task_t*) req->data, req);
-        break;
-
       case UV_GETADDRINFO:
         uv_process_getaddrinfo_req(loop, (uv_getaddrinfo_t*) req);
         break;

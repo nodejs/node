@@ -182,7 +182,10 @@ HELPER_DECLARE (pipe_echo_server)
 TASK_LIST_START
   TEST_OUTPUT_ENTRY  (platform_output)
 
+#if 0
   TEST_ENTRY  (callback_order)
+#endif
+
   TEST_ENTRY  (pipe_connect_bad_name)
   TEST_ENTRY  (pipe_connect_to_file)
 

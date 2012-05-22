@@ -313,16 +313,6 @@ void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle);
 
 
 /*
- * C-ares integration
- */
-typedef struct uv_ares_action_s uv_ares_action_t;
-
-void uv_process_ares_event_req(uv_loop_t* loop, uv_ares_action_t* handle,
-    uv_req_t* req);
-void uv_process_ares_cleanup_req(uv_loop_t* loop, uv_ares_task_t* handle,
-    uv_req_t* req);
-
-/*
  * Getaddrinfo
  */
 void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* req);

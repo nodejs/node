@@ -27,7 +27,6 @@
 
 #include <assert.h>
 #include <stdlib.h> /* abort */
-#include <stddef.h> /* offsetof */
 
 #if __STRICT_ANSI__
 # define inline __inline
@@ -63,9 +62,6 @@
   || defined(__NetBSD__)
 # define HAVE_KQUEUE 1
 #endif
-
-#define container_of(ptr, type, member) \
-  ((type *) ((char *) (ptr) - offsetof(type, member)))
 
 #define UNREACHABLE()                                                         \
   do {                                                                        \

@@ -137,7 +137,6 @@ typedef enum {
 #undef UV_ERRNO_GEN
 
 #define UV_HANDLE_TYPE_MAP(XX)  \
-  XX(ARES_TASK, ares_task)      \
   XX(ASYNC, async)              \
   XX(CHECK, check)              \
   XX(FS_EVENT, fs_event)        \
@@ -165,8 +164,8 @@ typedef enum {
 #define XX(uc, lc) UV_##uc,
   UV_HANDLE_TYPE_MAP(XX)
 #undef XX
+  UV_ARES_TASK,
   UV_FILE,
-  UV_HANDLE_TYPE_PRIVATE
   UV_HANDLE_TYPE_MAX
 } uv_handle_type;
 
@@ -1645,8 +1644,13 @@ struct uv_counters_s {
 
 struct uv_loop_s {
   UV_LOOP_PRIVATE_FIELDS
+  ares_channel channel;
+  /* While the channel is active this timer is called once per second to be */
+  /* sure that we're always calling ares_process. See the warning above the */
+  /* definition of ares_timeout(). */
+  uv_timer_t ares_timer; \
   /* RB_HEAD(uv__ares_tasks, uv_ares_task_t) */
-  struct uv__ares_tasks { uv_ares_task_t* rbh_root; } uv_ares_handles_;
+  struct uv__ares_tasks { uv_ares_task_t* rbh_root; } ares_handles;
   /* Diagnostic counters */
   uv_counters_t counters;
   /* The last error */

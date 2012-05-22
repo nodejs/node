@@ -855,7 +855,7 @@ void fs__create_junction(uv_fs_t* req, const wchar_t* path, const wchar_t* new_p
 
   if (!is_absolute) {
     /* Not supporting relative paths */
-    SET_REQ_UV_ERROR(req, EINVAL, ERROR_NOT_SUPPORTED);
+    SET_REQ_UV_ERROR(req, UV_EINVAL, ERROR_NOT_SUPPORTED);
     return;
   }
 
@@ -1445,6 +1445,7 @@ int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
   if (cb) {
     uv_fs_req_init_async(loop, req, UV_FS_SYMLINK, path, pathw, cb);
     req->new_pathw = new_pathw;
+    req->file_flags = flags;
     req->flags |= UV_FS_FREE_NEW_PATH;
     QUEUE_FS_TP_JOB(loop, req);
   } else {

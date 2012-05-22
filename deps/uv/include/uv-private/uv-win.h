@@ -231,23 +231,14 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   uv_idle_t* next_idle_handle;                                                \
   /* This handle holds the peer sockets for the fast variant of uv_poll_t */  \
   SOCKET poll_peer_sockets[UV_MSAFD_PROVIDER_COUNT];                          \
-  /* State used by uv_ares. */                                                \
-  ares_channel ares_chan;                                                     \
-  int ares_active_sockets;                                                    \
-  uv_timer_t ares_polling_timer;                                              \
   /* Counter to keep track of active tcp streams */                           \
   unsigned int active_tcp_streams;                                            \
   /* Counter to keep track of active udp streams */                           \
   unsigned int active_udp_streams;
 
-#define UV_HANDLE_TYPE_PRIVATE            \
-  UV_ARES_EVENT,
-
 #define UV_REQ_TYPE_PRIVATE               \
   /* TODO: remove the req suffix */       \
   UV_ACCEPT,                              \
-  UV_ARES_EVENT_REQ,                      \
-  UV_ARES_CLEANUP_REQ,                    \
   UV_FS_EVENT_REQ,                        \
   UV_POLL_REQ,                            \
   UV_PROCESS_EXIT,                        \

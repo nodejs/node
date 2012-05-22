@@ -79,7 +79,6 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->endgame_handles = NULL;
 
   RB_INIT(&loop->timers);
-  RB_INIT(&loop->uv_ares_handles_);
 
   loop->check_handles = NULL;
   loop->prepare_handles = NULL;
@@ -91,8 +90,8 @@ static void uv_loop_init(uv_loop_t* loop) {
 
   memset(&loop->poll_peer_sockets, 0, sizeof loop->poll_peer_sockets);
 
-  loop->ares_active_sockets = 0;
-  loop->ares_chan = NULL;
+  loop->channel = NULL;
+  RB_INIT(&loop->ares_handles);
 
   loop->active_tcp_streams = 0;
   loop->active_udp_streams = 0;
