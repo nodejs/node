@@ -25,8 +25,9 @@ var spawn = child_process.spawn;
 var fork = child_process.fork;
 
 if (process.argv[2] === 'fork') {
-  process.stdout.write(JSON.stringify(process.execArgv));
-  process.exit();
+  process.stdout.write(JSON.stringify(process.execArgv), function() {
+    process.exit();
+  });
 } else if (process.argv[2] === 'child') {
   fork(__filename, ['fork']);
 } else {
