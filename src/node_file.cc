@@ -414,8 +414,13 @@ static Handle<Value> Symlink(const Arguments& args) {
 
   if (args[2]->IsString()) {
     String::Utf8Value mode(args[2]);
-    if (memcmp(*mode, "dir\0", 4) == 0) {
+    if (strcmp(*mode, "dir") == 0) {
       flags |= UV_FS_SYMLINK_DIR;
+    } else if (strcmp(*mode, "junction") == 0) {
+      flags |= UV_FS_SYMLINK_JUNCTION;
+    } else if (strcmp(*mode, "file") != 0) {
+      return ThrowException(Exception::Error(
+        String::New("Unknown symlink type")));
     }
   }
 
