@@ -70,6 +70,16 @@ typedef struct {
   char* errmsg;
 } uv_lib_t;
 
+struct uv__io_s;
+struct uv_loop_s;
+
+typedef struct uv__io_s uv__io_t;
+typedef void (*uv__io_cb)(struct uv_loop_s* loop, uv__io_t* handle, int events);
+
+struct uv__io_s {
+  ev_io io_watcher;
+};
+
 #define UV_REQ_TYPE_PRIVATE /* empty */
 
 #if __linux__
@@ -78,7 +88,7 @@ typedef struct {
   struct uv__inotify_watchers {                       \
     struct uv_fs_event_s* rbh_root;                   \
   } inotify_watchers;                                 \
-  ev_io inotify_read_watcher;                         \
+  uv__io_t inotify_read_watcher;                      \
   int inotify_fd;
 #elif defined(PORT_SOURCE_FILE)
 # define UV_LOOP_PRIVATE_PLATFORM_FIELDS              \
@@ -142,8 +152,8 @@ typedef struct {
 #define UV_STREAM_PRIVATE_FIELDS \
   uv_connect_t *connect_req; \
   uv_shutdown_t *shutdown_req; \
-  ev_io read_watcher; \
-  ev_io write_watcher; \
+  uv__io_t read_watcher; \
+  uv__io_t write_watcher; \
   ngx_queue_t write_queue; \
   ngx_queue_t write_completed_queue; \
   int delayed_error; \
@@ -160,8 +170,8 @@ typedef struct {
 #define UV_UDP_PRIVATE_FIELDS         \
   uv_alloc_cb alloc_cb;               \
   uv_udp_recv_cb recv_cb;             \
-  ev_io read_watcher;                 \
-  ev_io write_watcher;                \
+  uv__io_t read_watcher;              \
+  uv__io_t write_watcher;             \
   ngx_queue_t write_queue;            \
   ngx_queue_t write_completed_queue;  \
 
@@ -173,7 +183,7 @@ typedef struct {
 
 /* UV_POLL */
 #define UV_POLL_PRIVATE_FIELDS        \
-  ev_io io_watcher;
+  uv__io_t io_watcher;
 
 
 /* UV_PREPARE */ \
@@ -238,7 +248,6 @@ typedef struct {
     struct uv_fs_event_s* rbe_parent; \
     int rbe_color;                    \
   } node;                             \
-  ev_io read_watcher;                 \
   uv_fs_event_cb cb;
 
 #elif defined(__APPLE__)  \

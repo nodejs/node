@@ -38,6 +38,7 @@
 static void uv__stream_connect(uv_stream_t*);
 static void uv__write(uv_stream_t* stream);
 static void uv__read(uv_stream_t* stream);
+static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, int events);
 
 
 static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
@@ -71,15 +72,8 @@ void uv__stream_init(uv_loop_t* loop,
   ngx_queue_init(&stream->write_completed_queue);
   stream->write_queue_size = 0;
 
-  ev_init(&stream->read_watcher, uv__stream_io);
-  stream->read_watcher.data = stream;
-
-  ev_init(&stream->write_watcher, uv__stream_io);
-  stream->write_watcher.data = stream;
-
-  assert(ngx_queue_empty(&stream->write_queue));
-  assert(ngx_queue_empty(&stream->write_completed_queue));
-  assert(stream->write_queue_size == 0);
+  uv__io_init(&stream->read_watcher, uv__stream_io, -1, 0);
+  uv__io_init(&stream->write_watcher, uv__stream_io, -1, 0);
 }
 
 
@@ -111,13 +105,9 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
     }
   }
 
-  /* Associate the fd with each ev_io watcher. */
-  ev_io_set(&stream->read_watcher, fd, EV_READ);
-  ev_io_set(&stream->write_watcher, fd, EV_WRITE);
-
-  /* These should have been set up by uv_tcp_init or uv_pipe_init. */
-  assert(stream->read_watcher.cb == uv__stream_io);
-  assert(stream->write_watcher.cb == uv__stream_io);
+  /* Associate the fd with each watcher. */
+  uv__io_set(&stream->read_watcher, uv__stream_io, fd, UV__IO_READ);
+  uv__io_set(&stream->write_watcher, uv__stream_io, fd, UV__IO_WRITE);
 
   return 0;
 }
@@ -174,19 +164,16 @@ void uv__stream_destroy(uv_stream_t* stream) {
 }
 
 
-void uv__server_io(EV_P_ ev_io* watcher, int revents) {
+void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
   int fd;
   struct sockaddr_storage addr;
-  uv_stream_t* stream = watcher->data;
+  uv_stream_t* stream = container_of(w, uv_stream_t, read_watcher);
 
-  assert(watcher == &stream->read_watcher ||
-         watcher == &stream->write_watcher);
-  assert(revents == EV_READ);
-
+  assert(events == UV__IO_READ);
   assert(!(stream->flags & UV_CLOSING));
 
   if (stream->accepted_fd >= 0) {
-    ev_io_stop(EV_A, &stream->read_watcher);
+    uv__io_stop(loop, &stream->read_watcher);
     return;
   }
 
@@ -216,7 +203,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
       stream->connection_cb((uv_stream_t*)stream, 0);
       if (stream->accepted_fd >= 0) {
         /* The user hasn't yet accepted called uv_accept() */
-        ev_io_stop(stream->loop->ev, &stream->read_watcher);
+        uv__io_stop(stream->loop, &stream->read_watcher);
         return;
       }
     }
@@ -252,7 +239,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     goto out;
   }
 
-  ev_io_start(streamServer->loop->ev, &streamServer->read_watcher);
+  uv__io_start(streamServer->loop, &streamServer->read_watcher);
   streamServer->accepted_fd = -1;
   status = 0;
 
@@ -312,7 +299,7 @@ static void uv__drain(uv_stream_t* stream) {
   assert(!uv_write_queue_head(stream));
   assert(stream->write_queue_size == 0);
 
-  ev_io_stop(stream->loop->ev, &stream->write_watcher);
+  uv__io_stop(stream->loop, &stream->write_watcher);
 
   /* Shutdown? */
   if ((stream->flags & UV_STREAM_SHUTTING) &&
@@ -366,7 +353,7 @@ static void uv__write_req_finish(uv_write_t* req) {
    * callback called in the near future.
    */
   ngx_queue_insert_tail(&stream->write_completed_queue, &req->queue);
-  ev_feed_event(stream->loop->ev, &stream->write_watcher, EV_WRITE);
+  uv__io_feed(stream->loop, &stream->write_watcher, UV__IO_WRITE);
 }
 
 
@@ -517,7 +504,7 @@ start:
   assert(!stream->blocking);
 
   /* We're not done. */
-  ev_io_start(stream->loop->ev, &stream->write_watcher);
+  uv__io_start(stream->loop, &stream->write_watcher);
 }
 
 
@@ -576,7 +563,6 @@ static void uv__read(uv_stream_t* stream) {
   struct msghdr msg;
   struct cmsghdr* cmsg;
   char cmsg_space[64];
-  struct ev_loop* ev = stream->loop->ev;
 
   /* XXX: Maybe instead of having UV_STREAM_READING we just test if
    * tcp->read_cb is NULL or not?
@@ -619,7 +605,7 @@ static void uv__read(uv_stream_t* stream) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* Wait for the next one. */
         if (stream->flags & UV_STREAM_READING) {
-          ev_io_start(ev, &stream->read_watcher);
+          uv__io_start(stream->loop, &stream->read_watcher);
         }
         uv__set_sys_error(stream->loop, EAGAIN);
 
@@ -647,7 +633,7 @@ static void uv__read(uv_stream_t* stream) {
     } else if (nread == 0) {
       /* EOF */
       uv__set_artificial_error(stream->loop, UV_EOF);
-      ev_io_stop(ev, &stream->read_watcher);
+      uv__io_stop(stream->loop, &stream->read_watcher);
       if (!ev_is_active(&stream->write_watcher))
         uv__handle_stop(stream);
 
@@ -728,40 +714,43 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   stream->shutdown_req = req;
   stream->flags |= UV_STREAM_SHUTTING;
 
-  ev_io_start(stream->loop->ev, &stream->write_watcher);
+  uv__io_start(stream->loop, &stream->write_watcher);
 
   return 0;
 }
 
 
 void uv__stream_pending(uv_stream_t* handle) {
-  uv__stream_io(handle->loop->ev, &handle->write_watcher, EV_WRITE);
+  uv__stream_io(handle->loop, &handle->write_watcher, UV__IO_WRITE);
 }
 
 
-void uv__stream_io(EV_P_ ev_io* watcher, int revents) {
-  uv_stream_t* stream = watcher->data;
+static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, int events) {
+  uv_stream_t* stream;
 
-  assert(stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
-      stream->type == UV_TTY);
-  assert(watcher == &stream->read_watcher ||
-         watcher == &stream->write_watcher);
+  /* either UV__IO_READ or UV__IO_WRITE but not both */
+  assert(!!(events & UV__IO_READ) ^ !!(events & UV__IO_WRITE));
+
+  if (events & UV__IO_READ)
+    stream = container_of(w, uv_stream_t, read_watcher);
+  else
+    stream = container_of(w, uv_stream_t, write_watcher);
+
+  assert(stream->type == UV_TCP ||
+         stream->type == UV_NAMED_PIPE ||
+         stream->type == UV_TTY);
   assert(!(stream->flags & UV_CLOSING));
 
-  if (stream->connect_req) {
+  if (stream->connect_req)
     uv__stream_connect(stream);
-  } else {
-    assert(revents & (EV_READ | EV_WRITE));
+  else if (events & UV__IO_READ) {
     assert(stream->fd >= 0);
-
-    if (revents & EV_READ) {
-      uv__read((uv_stream_t*)stream);
-    }
-
-    if (revents & EV_WRITE) {
-      uv__write(stream);
-      uv__write_callbacks(stream);
-    }
+    uv__read(stream);
+  }
+  else {
+    assert(stream->fd >= 0);
+    uv__write(stream);
+    uv__write_callbacks(stream);
   }
 }
 
@@ -796,7 +785,7 @@ static void uv__stream_connect(uv_stream_t* stream) {
     return;
 
   if (error == 0)
-    ev_io_start(stream->loop->ev, &stream->read_watcher);
+    uv__io_start(stream->loop, &stream->read_watcher);
 
   stream->connect_req = NULL;
   uv__req_unregister(stream->loop, req);
@@ -869,8 +858,7 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
     }
   }
 
-  assert(stream->write_watcher.data == stream);
-  ev_io_start(stream->loop->ev, &stream->write_watcher);
+  uv__io_start(stream->loop, &stream->write_watcher);
 
   if (stream->delayed_error)
     uv__make_pending(stream);
@@ -930,9 +918,6 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
   ngx_queue_insert_tail(&stream->write_queue, &req->queue);
 
   assert(!ngx_queue_empty(&stream->write_queue));
-  assert(stream->write_watcher.cb == uv__stream_io);
-  assert(stream->write_watcher.data == stream);
-  assert(stream->write_watcher.fd == stream->fd);
 
   /* If the queue was empty when this function began, we should attempt to
    * do the write immediately. Otherwise start the write_watcher and wait
@@ -948,7 +933,7 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
      */
     assert(!stream->blocking);
 
-    ev_io_start(stream->loop->ev, &stream->write_watcher);
+    uv__io_start(stream->loop, &stream->write_watcher);
   }
 
   return 0;
@@ -990,10 +975,7 @@ int uv__read_start_common(uv_stream_t* stream, uv_alloc_cb alloc_cb,
   stream->read2_cb = read2_cb;
   stream->alloc_cb = alloc_cb;
 
-  /* These should have been set by uv_tcp_init. */
-  assert(stream->read_watcher.cb == uv__stream_io);
-
-  ev_io_start(stream->loop->ev, &stream->read_watcher);
+  uv__io_start(stream->loop, &stream->read_watcher);
   uv__handle_start(stream);
 
   return 0;
@@ -1013,7 +995,7 @@ int uv_read2_start(uv_stream_t* stream, uv_alloc_cb alloc_cb,
 
 
 int uv_read_stop(uv_stream_t* stream) {
-  ev_io_stop(stream->loop->ev, &stream->read_watcher);
+  uv__io_stop(stream->loop, &stream->read_watcher);
   uv__handle_stop(stream);
   stream->flags &= ~UV_STREAM_READING;
   stream->read_cb = NULL;
@@ -1035,7 +1017,7 @@ int uv_is_writable(const uv_stream_t* stream) {
 
 void uv__stream_close(uv_stream_t* handle) {
   uv_read_stop(handle);
-  ev_io_stop(handle->loop->ev, &handle->write_watcher);
+  uv__io_stop(handle->loop, &handle->write_watcher);
 
   close(handle->fd);
   handle->fd = -1;

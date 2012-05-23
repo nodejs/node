@@ -66,10 +66,11 @@ void uv__loop_delete(uv_loop_t* loop) {
   uv_ares_destroy(loop, loop->channel);
   ev_loop_destroy(loop->ev);
 #if __linux__
-  if (loop->inotify_fd == -1) return;
-  ev_io_stop(loop->ev, &loop->inotify_read_watcher);
-  close(loop->inotify_fd);
-  loop->inotify_fd = -1;
+  if (loop->inotify_fd != -1) {
+    uv__io_stop(loop, &loop->inotify_read_watcher);
+    close(loop->inotify_fd);
+    loop->inotify_fd = -1;
+  }
 #endif
 #if HAVE_PORTS_FS
   if (loop->fs_fd != -1)

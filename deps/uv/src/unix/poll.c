@@ -27,11 +27,13 @@
 #include <errno.h>
 
 
-static void uv__poll_io(EV_P_ ev_io* watcher, int ev_events) {
-  uv_poll_t* handle = watcher->data;
-  int events;
+static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, int events) {
+  uv_poll_t* handle;
+  int pevents;
 
-  if (ev_events & EV_ERROR) {
+  handle = container_of(w, uv_poll_t, io_watcher);
+
+  if (events & UV__IO_ERROR) {
     /* An error happened. Libev has implicitly stopped the watcher, but we */
     /* need to fix the refcount. */
     uv__handle_stop(handle);
@@ -40,16 +42,13 @@ static void uv__poll_io(EV_P_ ev_io* watcher, int ev_events) {
     return;
   }
 
-  assert(ev_events & (EV_READ | EV_WRITE));
-  assert((ev_events & ~(EV_READ | EV_WRITE)) == 0);
+  pevents = 0;
+  if (events & UV__IO_READ)
+    pevents |= UV_READABLE;
+  if (events & UV__IO_WRITE)
+    pevents |= UV_WRITABLE;
 
-  events = 0;
-  if (ev_events & EV_READ)
-    events |= UV_READABLE;
-  if (ev_events & EV_WRITE)
-    events |= UV_WRITABLE;
-
-  handle->poll_cb(handle, 0, events);
+  handle->poll_cb(handle, 0, pevents);
 }
 
 
@@ -59,9 +58,7 @@ int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
 
   handle->fd = fd;
   handle->poll_cb = NULL;
-
-  ev_init(&handle->io_watcher, uv__poll_io);
-  handle->io_watcher.data = handle;
+  uv__io_init(&handle->io_watcher, uv__poll_io, fd, 0);
 
   return 0;
 }
@@ -74,7 +71,7 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
 
 
 static void uv__poll_stop(uv_poll_t* handle) {
-  ev_io_stop(handle->loop->ev, &handle->io_watcher);
+  uv__io_stop(handle->loop, &handle->io_watcher);
   uv__handle_stop(handle);
 }
 
@@ -86,25 +83,25 @@ int uv_poll_stop(uv_poll_t* handle) {
 }
 
 
-int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb poll_cb) {
-  int ev_events;
+int uv_poll_start(uv_poll_t* handle, int pevents, uv_poll_cb poll_cb) {
+  int events;
 
-  assert((events & ~(UV_READABLE | UV_WRITABLE)) == 0);
+  assert((pevents & ~(UV_READABLE | UV_WRITABLE)) == 0);
   assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
 
-  if (events == 0) {
+  if (pevents == 0) {
     uv__poll_stop(handle);
     return 0;
   }
 
-  ev_events = 0;
-  if (events & UV_READABLE)
-    ev_events |= EV_READ;
-  if (events & UV_WRITABLE)
-    ev_events |= EV_WRITE;
+  events = 0;
+  if (pevents & UV_READABLE)
+    events |= UV__IO_READ;
+  if (pevents & UV_WRITABLE)
+    events |= UV__IO_WRITE;
 
-  ev_io_set(&handle->io_watcher, handle->fd, ev_events);
-  ev_io_start(handle->loop->ev, &handle->io_watcher);
+  uv__io_set(&handle->io_watcher, uv__poll_io, handle->fd, events);
+  uv__io_start(handle->loop, &handle->io_watcher);
 
   handle->poll_cb = poll_cb;
   uv__handle_start(handle);
@@ -115,9 +112,4 @@ int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb poll_cb) {
 
 void uv__poll_close(uv_poll_t* handle) {
   uv__poll_stop(handle);
-}
-
-
-int uv__poll_active(const uv_poll_t* handle) {
-  return ev_is_active(&handle->io_watcher);
 }

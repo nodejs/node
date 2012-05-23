@@ -201,9 +201,8 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   tcp->connection_cb = cb;
 
   /* Start listening for connections. */
-  ev_io_set(&tcp->read_watcher, tcp->fd, EV_READ);
-  ev_set_cb(&tcp->read_watcher, uv__server_io);
-  ev_io_start(tcp->loop->ev, &tcp->read_watcher);
+  uv__io_set(&tcp->read_watcher, uv__server_io, tcp->fd, UV__IO_READ);
+  uv__io_start(tcp->loop, &tcp->read_watcher);
 
   return 0;
 }

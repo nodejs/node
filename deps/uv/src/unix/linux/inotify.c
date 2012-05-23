@@ -51,7 +51,7 @@ static int compare_watchers(const uv_fs_event_t* a, const uv_fs_event_t* b) {
 RB_GENERATE_STATIC(uv__inotify_watchers, uv_fs_event_s, node, compare_watchers)
 
 
-static void uv__inotify_read(EV_P_ ev_io* w, int revents);
+static void uv__inotify_read(uv_loop_t* loop, uv__io_t* w, int revents);
 
 
 static int new_inotify_fd(void) {
@@ -85,11 +85,11 @@ static int init_inotify(uv_loop_t* loop) {
     return -1;
   }
 
-  ev_io_init(&loop->inotify_read_watcher,
-             uv__inotify_read,
-             loop->inotify_fd,
-             EV_READ);
-  ev_io_start(loop->ev, &loop->inotify_read_watcher);
+  uv__io_init(&loop->inotify_read_watcher,
+              uv__inotify_read,
+              loop->inotify_fd,
+              UV__IO_READ);
+  uv__io_start(loop, &loop->inotify_read_watcher);
 
   return 0;
 }
@@ -112,22 +112,18 @@ static void remove_watcher(uv_fs_event_t* handle) {
 }
 
 
-static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
+static void uv__inotify_read(uv_loop_t* loop, uv__io_t* w, int events) {
   const struct uv__inotify_event* e;
   uv_fs_event_t* handle;
-  uv_loop_t* uv_loop;
   const char* filename;
   ssize_t size;
-  int events;
   const char *p;
   /* needs to be large enough for sizeof(inotify_event) + strlen(filename) */
   char buf[4096];
 
-  uv_loop = container_of(w, uv_loop_t, inotify_read_watcher);
-
   while (1) {
     do {
-      size = read(uv_loop->inotify_fd, buf, sizeof buf);
+      size = read(loop->inotify_fd, buf, sizeof buf);
     }
     while (size == -1 && errno == EINTR);
 
@@ -148,7 +144,7 @@ static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
       if (e->mask & ~(UV__IN_ATTRIB|UV__IN_MODIFY))
         events |= UV_RENAME;
 
-      handle = find_watcher(uv_loop, e->wd);
+      handle = find_watcher(loop, e->wd);
       if (handle == NULL)
         continue; /* Handle has already been closed. */
 

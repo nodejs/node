@@ -78,6 +78,10 @@
   }                                                                           \
   while (0)
 
+#define UV__IO_READ  EV_READ
+#define UV__IO_WRITE EV_WRITE
+#define UV__IO_ERROR EV_ERROR
+
 /* flags */
 enum {
   UV_CLOSING       = 0x01,   /* uv_close() called but not finished. */
@@ -127,6 +131,13 @@ int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
 int uv_async_stop(uv_async_t* handle);
 
+void uv__io_init(uv__io_t* handle, uv__io_cb cb, int fd, int events);
+void uv__io_set(uv__io_t* handle, uv__io_cb cb, int fd, int events);
+void uv__io_start(uv_loop_t* loop, uv__io_t* handle);
+void uv__io_stop(uv_loop_t* loop, uv__io_t* handle);
+void uv__io_feed(uv_loop_t* loop, uv__io_t* handle, int event);
+int uv__io_active(uv__io_t* handle);
+
 /* loop */
 int uv__loop_init(uv_loop_t* loop, int default_loop);
 void uv__loop_delete(uv_loop_t* loop);
@@ -143,8 +154,7 @@ void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,
     uv_handle_type type);
 int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_destroy(uv_stream_t* stream);
-void uv__stream_io(EV_P_ ev_io* watcher, int revents);
-void uv__server_io(EV_P_ ev_io* watcher, int revents);
+void uv__server_io(uv_loop_t* loop, uv__io_t* watcher, int events);
 int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t len);
 int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
     socklen_t addrlen, uv_connect_cb cb);
@@ -156,11 +166,9 @@ int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay);
 
 /* pipe */
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
-void uv__pipe_accept(EV_P_ ev_io* watcher, int revents);
 
 /* poll */
 void uv__poll_close(uv_poll_t* handle);
-int uv__poll_active(const uv_poll_t* handle);
 
 /* various */
 void uv__async_close(uv_async_t* handle);

@@ -592,3 +592,51 @@ uv_err_t uv_chdir(const char* dir) {
     return uv__new_sys_error(errno);
   }
 }
+
+
+static void uv__io_set_cb(uv__io_t* handle, uv__io_cb cb) {
+  union { void* data; uv__io_cb cb; } u;
+  u.cb = cb;
+  handle->io_watcher.data = u.data;
+}
+
+
+static void uv__io_rw(struct ev_loop* ev, ev_io* w, int events) {
+  union { void* data; uv__io_cb cb; } u;
+  uv_loop_t* loop = ev_userdata(ev);
+  uv__io_t* handle = container_of(w, uv__io_t, io_watcher);
+  u.data = handle->io_watcher.data;
+  u.cb(loop, handle, events & (EV_READ|EV_WRITE|EV_ERROR));
+}
+
+
+void uv__io_init(uv__io_t* handle, uv__io_cb cb, int fd, int events) {
+  ev_io_init(&handle->io_watcher, uv__io_rw, fd, events & (EV_READ|EV_WRITE));
+  uv__io_set_cb(handle, cb);
+}
+
+
+void uv__io_set(uv__io_t* handle, uv__io_cb cb, int fd, int events) {
+  ev_io_set(&handle->io_watcher, fd, events);
+  uv__io_set_cb(handle, cb);
+}
+
+
+void uv__io_start(uv_loop_t* loop, uv__io_t* handle) {
+  ev_io_start(loop->ev, &handle->io_watcher);
+}
+
+
+void uv__io_stop(uv_loop_t* loop, uv__io_t* handle) {
+  ev_io_stop(loop->ev, &handle->io_watcher);
+}
+
+
+void uv__io_feed(uv_loop_t* loop, uv__io_t* handle, int event) {
+  ev_feed_event(loop->ev, &handle->io_watcher, event);
+}
+
+
+int uv__io_active(uv__io_t* handle) {
+  return ev_is_active(&handle->io_watcher);
+}
