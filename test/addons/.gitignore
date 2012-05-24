@@ -2,4 +2,4 @@ Makefile
 *.Makefile
 *.mk
 gyp-mac-tool
-/*/out
+/*/build
