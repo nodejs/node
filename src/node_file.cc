@@ -501,17 +501,9 @@ static Handle<Value> Truncate(const Arguments& args) {
   int64_t len = GET_TRUNCATE_LENGTH(args[1]);
 
   if (args[2]->IsFunction()) {
-#ifdef NODE_USE_64BIT_UV_FS_API
-    ASYNC_CALL(ftruncate64, args[2], fd, len)
-#else
     ASYNC_CALL(ftruncate, args[2], fd, len)
-#endif
   } else {
-#ifdef NODE_USE_64BIT_UV_FS_API
-    SYNC_CALL(ftruncate64, 0, fd, len)
-#else
     SYNC_CALL(ftruncate, 0, fd, len)
-#endif
     return Undefined();
   }
 }
@@ -727,17 +719,9 @@ static Handle<Value> Write(const Arguments& args) {
   Local<Value> cb = args[5];
 
   if (cb->IsFunction()) {
-#ifdef NODE_USE_64BIT_UV_FS_API
-    ASYNC_CALL(write64, cb, fd, buf, len, pos)
-#else
     ASYNC_CALL(write, cb, fd, buf, len, pos)
-#endif
   } else {
-#ifdef NODE_USE_64BIT_UV_FS_API
-    SYNC_CALL(write64, 0, fd, buf, len, pos)
-#else
     SYNC_CALL(write, 0, fd, buf, len, pos)
-#endif
     return scope.Close(Integer::New(SYNC_RESULT));
   }
 }
@@ -798,17 +782,9 @@ static Handle<Value> Read(const Arguments& args) {
   cb = args[5];
 
   if (cb->IsFunction()) {
-#ifdef NODE_USE_64BIT_UV_FS_API
-    ASYNC_CALL(read64, cb, fd, buf, len, pos);
-#else
     ASYNC_CALL(read, cb, fd, buf, len, pos);
-#endif
   } else {
-#ifdef NODE_USE_64BIT_UV_FS_API
-    SYNC_CALL(read64, 0, fd, buf, len, pos)
-#else
     SYNC_CALL(read, 0, fd, buf, len, pos)
-#endif
     Local<Integer> bytesRead = Integer::New(SYNC_RESULT);
     return scope.Close(bytesRead);
   }
