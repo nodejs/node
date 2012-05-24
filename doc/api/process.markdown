@@ -352,7 +352,8 @@ What processor architecture you're running on: `'arm'`, `'ia32'`, or `'x64'`.
 
 ## process.platform
 
-What platform you're running on. `'linux2'`, `'darwin'`, etc.
+What platform you're running on:
+`'darwin'`, `'freebsd'`, `'linux'`, `'solaris'` or `'win32'`
 
     console.log('This platform is ' + process.platform);
 
