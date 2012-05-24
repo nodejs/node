@@ -67,7 +67,6 @@ void uv__stream_init(uv_loop_t* loop,
   stream->accepted_fd = -1;
   stream->fd = -1;
   stream->delayed_error = 0;
-  stream->blocking = 0;
   ngx_queue_init(&stream->write_queue);
   ngx_queue_init(&stream->write_completed_queue);
   stream->write_queue_size = 0;
@@ -166,7 +165,6 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
 void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
   int fd;
-  struct sockaddr_storage addr;
   uv_stream_t* stream = container_of(w, uv_stream_t, read_watcher);
 
   assert(events == UV__IO_READ);
@@ -182,7 +180,7 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
    */
   while (stream->fd != -1) {
     assert(stream->accepted_fd < 0);
-    fd = uv__accept(stream->fd, (struct sockaddr*)&addr, sizeof addr);
+    fd = uv__accept(stream->fd);
 
     if (fd < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -444,7 +442,7 @@ start:
       stream->write_queue_size -= uv__write_req_size(req);
       uv__write_req_finish(req);
       return;
-    } else if (stream->blocking) {
+    } else if (stream->flags & UV_STREAM_BLOCKING) {
       /* If this is a blocking stream, try again. */
       goto start;
     }
@@ -465,7 +463,7 @@ start:
         n = 0;
 
         /* There is more to write. */
-        if (stream->blocking) {
+        if (stream->flags & UV_STREAM_BLOCKING) {
           /*
            * If we're blocking then we should not be enabling the write
            * watcher - instead we need to try again.
@@ -501,7 +499,7 @@ start:
   assert(n == 0 || n == -1);
 
   /* Only non-blocking streams should use the write_watcher. */
-  assert(!stream->blocking);
+  assert(!(stream->flags & UV_STREAM_BLOCKING));
 
   /* We're not done. */
   uv__io_start(stream->loop, &stream->write_watcher);
@@ -626,7 +624,7 @@ static void uv__read(uv_stream_t* stream) {
           stream->read2_cb((uv_pipe_t*)stream, -1, buf, UV_UNKNOWN_HANDLE);
         }
 
-        assert(!ev_is_active(&stream->read_watcher));
+        assert(!uv__io_active(&stream->read_watcher));
         return;
       }
 
@@ -634,7 +632,7 @@ static void uv__read(uv_stream_t* stream) {
       /* EOF */
       uv__set_artificial_error(stream->loop, UV_EOF);
       uv__io_stop(stream->loop, &stream->read_watcher);
-      if (!ev_is_active(&stream->write_watcher))
+      if (!uv__io_active(&stream->write_watcher))
         uv__handle_stop(stream);
 
       if (stream->read_cb) {
@@ -931,7 +929,7 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
      * if this assert fires then somehow the blocking stream isn't being
      * sufficently flushed in uv__write.
      */
-    assert(!stream->blocking);
+    assert(!(stream->flags & UV_STREAM_BLOCKING));
 
     uv__io_start(stream->loop, &stream->write_watcher);
   }
@@ -1027,6 +1025,6 @@ void uv__stream_close(uv_stream_t* handle) {
     handle->accepted_fd = -1;
   }
 
-  assert(!ev_is_active(&handle->read_watcher));
-  assert(!ev_is_active(&handle->write_watcher));
+  assert(!uv__io_active(&handle->read_watcher));
+  assert(!uv__io_active(&handle->write_watcher));
 }

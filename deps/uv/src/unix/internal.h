@@ -84,17 +84,18 @@
 
 /* flags */
 enum {
-  UV_CLOSING       = 0x01,   /* uv_close() called but not finished. */
-  UV_CLOSED        = 0x02,   /* close(2) finished. */
+  UV_CLOSING          = 0x01,   /* uv_close() called but not finished. */
+  UV_CLOSED           = 0x02,   /* close(2) finished. */
   UV_STREAM_READING   = 0x04,   /* uv_read_start() called. */
   UV_STREAM_SHUTTING  = 0x08,   /* uv_shutdown() called but not complete. */
   UV_STREAM_SHUT      = 0x10,   /* Write side closed. */
   UV_STREAM_READABLE  = 0x20,   /* The stream is readable */
   UV_STREAM_WRITABLE  = 0x40,   /* The stream is writable */
-  UV_TCP_NODELAY   = 0x080,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE = 0x100,  /* Turn on keep-alive. */
-  UV_TIMER_REPEAT  = 0x100,
-  UV__PENDING      = 0x800
+  UV_STREAM_BLOCKING  = 0x80,   /* Synchronous writes. */
+  UV_TCP_NODELAY      = 0x100,  /* Disable Nagle. */
+  UV_TCP_KEEPALIVE    = 0x200,  /* Turn on keep-alive. */
+  UV_TIMER_REPEAT     = 0x100,
+  UV__PENDING         = 0x800
 };
 
 inline static int uv__has_pending_handles(const uv_loop_t* loop) {
@@ -155,7 +156,7 @@ void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,
 int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_destroy(uv_stream_t* stream);
 void uv__server_io(uv_loop_t* loop, uv__io_t* watcher, int events);
-int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t len);
+int uv__accept(int sockfd);
 int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
     socklen_t addrlen, uv_connect_cb cb);
 

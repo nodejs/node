@@ -100,6 +100,7 @@ int uv_poll_start(uv_poll_t* handle, int pevents, uv_poll_cb poll_cb) {
   if (pevents & UV_WRITABLE)
     events |= UV__IO_WRITE;
 
+  uv__io_stop(handle->loop, &handle->io_watcher);
   uv__io_set(&handle->io_watcher, uv__poll_io, handle->fd, events);
   uv__io_start(handle->loop, &handle->io_watcher);
 

@@ -268,7 +268,7 @@ int uv_run_once(uv_loop_t* loop) {
   } else {
     UV_LOOP_ONCE(loop, uv_poll);
   }
-  return 0;
+  return UV_LOOP_ALIVE(loop);
 }
 
 

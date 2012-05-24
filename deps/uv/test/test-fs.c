@@ -1305,7 +1305,6 @@ TEST_IMPL(fs_symlink) {
 TEST_IMPL(fs_symlink_dir) {
   uv_fs_t req;
   int r;
-  char src_path_buf[PATHMAX];
   char* test_dir;
 
   /* set-up */
@@ -1320,10 +1319,13 @@ TEST_IMPL(fs_symlink_dir) {
   uv_fs_req_cleanup(&req);
 
 #ifdef _WIN32
-  strcpy(src_path_buf, "\\\\?\\");
-  uv_cwd(src_path_buf + 4, sizeof(src_path_buf)/sizeof(src_path_buf[0]));
-  strcat(src_path_buf, "\\test_dir\\");
-  test_dir = src_path_buf;
+  {
+    static char src_path_buf[PATHMAX];
+    strcpy(src_path_buf, "\\\\?\\");
+    uv_cwd(src_path_buf + 4, sizeof(src_path_buf));
+    strcat(src_path_buf, "\\test_dir\\");
+    test_dir = src_path_buf;
+  }
 #else
   test_dir = "test_dir";
 #endif

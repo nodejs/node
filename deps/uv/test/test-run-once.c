@@ -22,23 +22,27 @@
 #include "uv.h"
 #include "task.h"
 
-static idle_counter = 0;
+#define NUM_TICKS 64
+
+static uv_idle_t idle_handle;
+static int idle_counter;
+
 
 static void idle_cb(uv_idle_t* handle, int status) {
-  ASSERT(handle != NULL);
+  ASSERT(handle == &idle_handle);
   ASSERT(status == 0);
-  idle_counter ++;
+
+  if (++idle_counter == NUM_TICKS)
+    uv_idle_stop(handle);
 }
 
 
 TEST_IMPL(run_once) {
-  int n;
-  uv_idle_t h;
-  uv_idle_init(uv_default_loop(), &h);
-  uv_idle_start(&h, idle_cb);
-  for (n = 0; n < 500; n++) {
-    uv_run_once(uv_default_loop());
-  }
-  ASSERT(n == 500);
+  uv_idle_init(uv_default_loop(), &idle_handle);
+  uv_idle_start(&idle_handle, idle_cb);
+
+  while (uv_run_once(uv_default_loop()));
+  ASSERT(idle_counter == NUM_TICKS);
+
   return 0;
 }

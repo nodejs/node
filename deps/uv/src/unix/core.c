@@ -235,8 +235,7 @@ int uv_run(uv_loop_t* loop) {
 
 
 int uv_run_once(uv_loop_t* loop) {
-  uv__run(loop);
-  return 0;
+  return uv__run(loop);
 }
 
 
@@ -269,8 +268,8 @@ void uv__finish_close(uv_handle_t* handle) {
     case UV_NAMED_PIPE:
     case UV_TCP:
     case UV_TTY:
-      assert(!ev_is_active(&((uv_stream_t*)handle)->read_watcher));
-      assert(!ev_is_active(&((uv_stream_t*)handle)->write_watcher));
+      assert(!uv__io_active(&((uv_stream_t*)handle)->read_watcher));
+      assert(!uv__io_active(&((uv_stream_t*)handle)->write_watcher));
       assert(((uv_stream_t*)handle)->fd == -1);
       uv__stream_destroy((uv_stream_t*)handle);
       break;
@@ -318,6 +317,7 @@ static int uv_getaddrinfo_done(eio_req* req_) {
   uv_getaddrinfo_t* req = req_->data;
   struct addrinfo *res = req->res;
 #if __sun
+  uv_getaddrinfo_t* handle = req->data;
   size_t hostlen = strlen(handle->hostname);
 #endif
 
@@ -446,14 +446,18 @@ out:
 }
 
 
-int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
+int uv__accept(int sockfd) {
   int peerfd;
 
   assert(sockfd >= 0);
 
   while (1) {
 #if __linux__
-    peerfd = uv__accept4(sockfd, saddr, &slen, UV__SOCK_NONBLOCK|UV__SOCK_CLOEXEC);
+    peerfd = uv__accept4(sockfd,
+                         NULL,
+                         NULL,
+                         UV__SOCK_NONBLOCK|UV__SOCK_CLOEXEC);
+
     if (peerfd != -1)
       break;
 
@@ -464,7 +468,9 @@ int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
       break;
 #endif
 
-    if ((peerfd = accept(sockfd, saddr, &slen)) == -1) {
+    peerfd = accept(sockfd, NULL, NULL);
+
+    if (peerfd == -1) {
       if (errno == EINTR)
         continue;
       else
