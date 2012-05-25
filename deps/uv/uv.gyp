@@ -305,7 +305,6 @@
         'test/test-connection-fail.c',
         'test/test-cwd-and-chdir.c',
         'test/test-delayed-accept.c',
-        'test/test-eio-overflow.c',
         'test/test-fail-always.c',
         'test/test-fs.c',
         'test/test-fs-event.c',

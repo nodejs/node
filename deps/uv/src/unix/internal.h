@@ -126,8 +126,8 @@ inline static void uv__req_init(uv_loop_t* loop,
 
 /* core */
 void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle, uv_handle_type type);
-int uv__nonblock(int fd, int set) __attribute__((unused));
-int uv__cloexec(int fd, int set) __attribute__((unused));
+int uv__nonblock(int fd, int set);
+int uv__cloexec(int fd, int set);
 int uv__socket(int domain, int type, int protocol);
 int uv__dup(int fd);
 int uv_async_stop(uv_async_t* handle);

@@ -19,71 +19,40 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
 #include "task.h"
+#include "uv.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
-
-static uv_idle_t idle;
-
-static const int max_opened = 10000;
-static const int max_delta = 4000;
-
-static int opened = 0;
-static int closed = 0;
+static unsigned long ticks;
+static uv_idle_t idle_handle;
+static uv_timer_t timer_handle;
 
 
-void work_cb(uv_work_t* work) {
-  /* continue as fast as possible */
+static void idle_cb(uv_idle_t* handle, int status) {
+  ticks++;
 }
 
 
-void after_work_cb(uv_work_t* work) {
-  free(work);
-  closed++;
+static void timer_cb(uv_timer_t* handle, int status) {
+  uv_idle_stop(&idle_handle);
+  uv_timer_stop(&timer_handle);
 }
 
 
-void make_eio_req(void) {
-  uv_work_t* w;
+BENCHMARK_IMPL(loop_count) {
+  uv_loop_t* loop = uv_default_loop();
 
-  opened++;
+  uv_timer_init(loop, &timer_handle);
+  uv_timer_start(&timer_handle, timer_cb, 5000, 0);
 
-  w = (uv_work_t*) malloc(sizeof(*w));
-  ASSERT(w != NULL);
+  uv_idle_init(loop, &idle_handle);
+  uv_idle_start(&idle_handle, idle_cb);
 
-  uv_queue_work(uv_default_loop(), w, work_cb, after_work_cb);
-}
+  uv_run(loop);
 
-
-void idle_cb(uv_idle_t* idle, int status) {
-  ASSERT(opened - closed < max_delta);
-  if (opened <= max_opened) {
-    int i;
-    for (i = 0; i < 30; i++) {
-      make_eio_req();
-    }
-  } else {
-    int r;
-
-    r = uv_idle_stop(idle);
-    ASSERT(r == 0);
-  }
-}
-
-
-TEST_IMPL(eio_overflow) {
-  int r;
-
-  r = uv_idle_init(uv_default_loop(), &idle);
-  ASSERT(r == 0);
-
-  r = uv_idle_start(&idle, idle_cb);
-  ASSERT(r == 0);
-
-  r = uv_run(uv_default_loop());
-  ASSERT(r == 0);
+  LOGF("loop_count: %lu ticks (%.0f ticks/s)\n", ticks, ticks / 5.0);
 
   return 0;
 }
