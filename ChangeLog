@@ -1,4 +1,47 @@
-2012.04.18, Version 0.7.8, (unstable)
+2012.05.28, Version 0.7.9 (unstable)
+
+* Upgrade V8 to 3.11.1
+
+* Upgrade npm to 1.1.23
+
+* uv: rework reference counting scheme (Ben Noordhuis)
+
+* uv: add interface for joining external event loops (Bert Belder)
+
+* repl, readline: Handle Ctrl+Z and SIGCONT better (Nathan Rajlich)
+
+* fs: 64bit offsets for fs calls (Igor Zinkovsky)
+
+* fs: add sync open flags 'rs' and 'rs+' (Kevin Bowman)
+
+* windows: enable creating directory junctions with fs.symlink (Igor Zinkovsky, Bert Belder)
+
+* windows: fix fs.lstat to properly detect symlinks. (Igor Zinkovsky)
+
+* Fix #3270 Escape url.parse delims (isaacs)
+
+* http: make http.get() accept a URL (Adam Malcontenti-Wilson)
+
+* Cleanup vm module memory leakage (Marcel Laverdet)
+
+* Optimize writing strings with Socket.write (Bert Belder)
+
+* add support for CESU-8 and UTF-16LE encodings (koichik)
+
+* path: add path.sep to get the path separator. (Yi, EungJun)
+
+* net, http: add backlog parameter to .listen() (Erik Dubbelboer)
+
+* debugger: support mirroring Date objects (Fedor Indutny)
+
+* addon: add AtExit() function (Ben Noordhuis)
+
+* net: signal localAddress bind failure in connect (Brian Schroeder)
+
+* util: handle non-string return value in .inspect() (Alex Kocharin)
+
+
+2012.04.18, Version 0.7.8 (unstable), c2b47097c0b483552efc1947c6766fa1128600b6
 
 * Upgrade V8 to 3.9.24.9
 
