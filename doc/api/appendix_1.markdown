@@ -4,6 +4,8 @@ There are many third party modules for Node. At the time of writing, August
 2010, the master repository of modules is
 [the wiki page](https://github.com/joyent/node/wiki/modules).
 
+You can also find third party modules via [npm search](http://search.npmjs.org).
+
 This appendix is intended as a SMALL guide to new-comers to help them
 quickly find what are considered to be quality modules. It is not intended
 to be a complete list.  There may be better more complete modules found
