@@ -27,7 +27,7 @@ libraries.
 ## Hello world
 
 To get started let's make a small Addon which is the C++ equivalent of
-the following Javascript code:
+the following JavaScript code:
 
     exports.hello = function() { return 'world'; };
 
