@@ -298,7 +298,6 @@ function addRemoteGit (u, parsed, name, cb_) {
   var co = parsed.hash && parsed.hash.substr(1) || "master"
   u = u.replace(/^git\+/, "")
        .replace(/#.*$/, "")
-       .replace(/^ssh:\/\//, "") // ssh is the default anyway
   log.verbose([u, co], "addRemoteGit")
 
   var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random())
