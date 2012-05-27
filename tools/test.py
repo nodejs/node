@@ -1437,10 +1437,4 @@ def Main():
 
 
 if __name__ == '__main__':
-  ret = 0
-  try:
-    ret = Main()
-    sys.exit(ret)
-  finally:
-    if ret and not utils.IsWindows():
-      os.killpg(0, signal.SIGKILL)
+  sys.exit(Main())
