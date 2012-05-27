@@ -155,16 +155,14 @@ UNUSED static int uv__is_active(const uv_handle_t* h) {
 
 UNUSED static void uv__handle_start(uv_handle_t* h) {
   if (h->flags & UV__ACTIVE) return;
-  if (!(h->flags & UV__REF)) return;
+  if (h->flags & UV__REF) uv__active_handle_add(h);
   h->flags |= UV__ACTIVE;
-  uv__active_handle_add(h);
 }
 #define uv__handle_start(h) uv__handle_start((uv_handle_t*)(h))
 
 UNUSED static void uv__handle_stop(uv_handle_t* h) {
   if (!(h->flags & UV__ACTIVE)) return;
-  if (!(h->flags & UV__REF)) return;
-  uv__active_handle_rm(h);
+  if (h->flags & UV__REF) uv__active_handle_rm(h);
   h->flags &= ~UV__ACTIVE;
 }
 #define uv__handle_stop(h) uv__handle_stop((uv_handle_t*)(h))

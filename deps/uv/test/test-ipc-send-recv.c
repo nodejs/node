@@ -120,11 +120,6 @@ TEST_IMPL(ipc_send_recv_pipe) {
   r = uv_pipe_init(uv_default_loop(), &ctx.send.pipe, 1);
   ASSERT(r == 0);
 
-#ifndef _WIN32
-  /* Clean up stale socket from previous test run. */
-  remove(TEST_PIPENAME);
-#endif
-
   r = uv_pipe_bind(&ctx.send.pipe, TEST_PIPENAME);
   ASSERT(r == 0);
 

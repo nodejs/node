@@ -52,11 +52,12 @@ int uv_timer_init(uv_loop_t* loop, uv_timer_t* timer) {
 }
 
 
-int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
-    int64_t repeat) {
-  if (uv__is_active(timer)) {
-    return -1;
-  }
+int uv_timer_start(uv_timer_t* timer,
+                   uv_timer_cb cb,
+                   int64_t timeout,
+                   int64_t repeat) {
+  if (uv__is_active(timer))
+    uv_timer_stop(timer);
 
   timer->timer_cb = cb;
 

@@ -27,10 +27,8 @@
 
 #ifdef _WIN32
 # define BAD_PIPENAME "bad-pipe"
-# define UNLINK_PIPE(name)
 #else
 # define BAD_PIPENAME "/path/to/unix/socket/that/really/should/not/be/there"
-# define UNLINK_PIPE(name) remove(name)
 #endif
 
 
@@ -46,8 +44,6 @@ static void close_cb(uv_handle_t* handle) {
 TEST_IMPL(pipe_bind_error_addrinuse) {
   uv_pipe_t server1, server2;
   int r;
-
-  UNLINK_PIPE(TEST_PIPENAME);
 
   r = uv_pipe_init(uv_default_loop(), &server1, 0);
   ASSERT(r == 0);
