@@ -21,6 +21,7 @@
 
 #include "uv.h"
 #include "task.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,11 +168,16 @@ TEST_IMPL(spawn_exit_code) {
 TEST_IMPL(spawn_stdout) {
   int r;
   uv_pipe_t out;
+  uv_stdio_container_t stdio[2];
 
   init_process_options("spawn_helper2", exit_cb);
 
   uv_pipe_init(uv_default_loop(), &out, 0);
-  options.stdout_stream = &out;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
@@ -185,7 +191,59 @@ TEST_IMPL(spawn_stdout) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2); /* Once for process once for the pipe. */
   printf("output is: %s", output);
-  ASSERT(strcmp("hello world\n", output) == 0 || strcmp("hello world\r\n", output) == 0);
+  ASSERT(strcmp("hello world\n", output) == 0);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_stdout_to_file) {
+  int r;
+  uv_file file;
+  uv_fs_t fs_req;
+  uv_stdio_container_t stdio[2];
+
+  /* Setup. */
+  unlink("stdout_file");
+
+  init_process_options("spawn_helper2", exit_cb);
+
+  r = uv_fs_open(uv_default_loop(), &fs_req, "stdout_file", O_CREAT | O_RDWR,
+      S_IREAD | S_IWRITE, NULL);
+  ASSERT(r != -1);
+  uv_fs_req_cleanup(&fs_req);
+
+  file = r;
+
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_RAW_FD;
+  options.stdio[1].data.fd = file;
+  options.stdio_count = 2;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  r = uv_fs_read(uv_default_loop(), &fs_req, file, output, sizeof(output),
+      0, NULL);
+  ASSERT(r == 12);
+  uv_fs_req_cleanup(&fs_req);
+
+  r = uv_fs_close(uv_default_loop(), &fs_req, file, NULL);
+  ASSERT(r == 0);
+  uv_fs_req_cleanup(&fs_req);
+
+  printf("output is: %s", output);
+  ASSERT(strcmp("hello world\n", output) == 0);
+
+  /* Cleanup. */
+  unlink("stdout_file");
 
   return 0;
 }
@@ -197,14 +255,19 @@ TEST_IMPL(spawn_stdin) {
   uv_pipe_t in;
   uv_write_t write_req;
   uv_buf_t buf;
+  uv_stdio_container_t stdio[2];
   char buffer[] = "hello-from-spawn_stdin";
 
   init_process_options("spawn_helper3", exit_cb);
 
   uv_pipe_init(uv_default_loop(), &out, 0);
   uv_pipe_init(uv_default_loop(), &in, 0);
-  options.stdout_stream = &out;
-  options.stdin_stream = &in;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
@@ -259,6 +322,7 @@ TEST_IMPL(spawn_and_kill_with_std) {
   char message[] = "Nancy's joining me because the message this evening is "
                    "not my message but ours.";
   uv_buf_t buf;
+  uv_stdio_container_t stdio[3];
 
   init_process_options("spawn_helper4", kill_cb);
 
@@ -271,9 +335,14 @@ TEST_IMPL(spawn_and_kill_with_std) {
   r = uv_pipe_init(uv_default_loop(), &err, 0);
   ASSERT(r == 0);
 
-  options.stdin_stream = &in;
-  options.stdout_stream = &out;
-  options.stderr_stream = &err;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio[2].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[2].data.stream = (uv_stream_t*)&err;
+  options.stdio_count = 3;
 
   r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
@@ -308,6 +377,7 @@ TEST_IMPL(spawn_and_ping) {
   uv_write_t write_req;
   uv_pipe_t in, out;
   uv_buf_t buf;
+  uv_stdio_container_t stdio[2];
   int r;
 
   init_process_options("spawn_helper3", exit_cb);
@@ -315,8 +385,12 @@ TEST_IMPL(spawn_and_ping) {
 
   uv_pipe_init(uv_default_loop(), &out, 0);
   uv_pipe_init(uv_default_loop(), &in, 0);
-  options.stdout_stream = &out;
-  options.stdin_stream = &in;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
 
   r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
@@ -384,11 +458,16 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   uv_pipe_t out;
   char name[64];
   HANDLE pipe_handle;
+  uv_stdio_container_t stdio[2];
 
   init_process_options("spawn_helper2", exit_cb);
 
   uv_pipe_init(uv_default_loop(), &out, 0);
-  options.stdout_stream = &out;
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
 
   /* Create a pipe that'll cause a collision. */
   _snprintf(name, sizeof(name), "\\\\.\\pipe\\uv\\%p-%d", &out, GetCurrentProcessId());
@@ -414,7 +493,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2); /* Once for process once for the pipe. */
   printf("output is: %s", output);
-  ASSERT(strcmp("hello world\n", output) == 0 || strcmp("hello world\r\n", output) == 0);
+  ASSERT(strcmp("hello world\n", output) == 0);
 
   return 0;
 }

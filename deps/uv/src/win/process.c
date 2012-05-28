@@ -22,6 +22,7 @@
 #include "uv.h"
 #include "internal.h"
 
+#include <io.h>
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -639,26 +640,28 @@ static DWORD WINAPI spawn_failure(void* data) {
   char* buf = NULL;
   DWORD count, written;
 
-  WriteFile(child_stderr, syscall, sizeof(syscall) - 1, &written, NULL);
+  if (child_stderr != INVALID_HANDLE_VALUE) {
+    WriteFile(child_stderr, syscall, sizeof(syscall) - 1, &written, NULL);
 
-  count = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-                         FORMAT_MESSAGE_FROM_SYSTEM |
-                         FORMAT_MESSAGE_IGNORE_INSERTS,
-                         NULL,
-                         process->spawn_errno,
-                         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                         (LPSTR) &buf,
-                         0,
-                         NULL);
+    count = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                           FORMAT_MESSAGE_FROM_SYSTEM |
+                           FORMAT_MESSAGE_IGNORE_INSERTS,
+                           NULL,
+                           process->spawn_errno,
+                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                           (LPSTR) &buf,
+                           0,
+                           NULL);
 
-  if (buf != NULL && count > 0) {
-    WriteFile(child_stderr, buf, count, &written, NULL);
-    LocalFree(buf);
-  } else {
-    WriteFile(child_stderr, unknown, sizeof(unknown) - 1, &written, NULL);
+    if (buf != NULL && count > 0) {
+      WriteFile(child_stderr, buf, count, &written, NULL);
+      LocalFree(buf);
+    } else {
+      WriteFile(child_stderr, unknown, sizeof(unknown) - 1, &written, NULL);
+    }
+
+    FlushFileBuffers(child_stderr);
   }
-
-  FlushFileBuffers(child_stderr);
 
   /* Post completed */
   POST_COMPLETION_FOR_REQ(loop, &process->exit_req);
@@ -673,7 +676,7 @@ static void close_child_stdio(uv_process_t* process) {
 
   for (i = 0; i < ARRAY_SIZE(process->child_stdio); i++) {
     handle = process->child_stdio[i];
-    if (handle != NULL && handle != INVALID_HANDLE_VALUE) {
+    if (handle != INVALID_HANDLE_VALUE) {
       CloseHandle(handle);
       process->child_stdio[i] = INVALID_HANDLE_VALUE;
     }
@@ -830,20 +833,10 @@ done:
 }
 
 
-static int duplicate_std_handle(uv_loop_t* loop, DWORD id, HANDLE* dup) {
-  HANDLE handle;
-  HANDLE current_process = GetCurrentProcess();
+static int duplicate_handle(uv_loop_t* loop, HANDLE handle, HANDLE* dup) {
+  HANDLE current_process;
 
-  handle = GetStdHandle(id);
-
-  if (handle == NULL) {
-    *dup = NULL;
-    return 0;
-  } else if (handle == INVALID_HANDLE_VALUE) {
-    *dup = INVALID_HANDLE_VALUE;
-    uv__set_sys_error(loop, GetLastError());
-    return -1;
-  }
+  current_process = GetCurrentProcess();
 
   if (!DuplicateHandle(current_process,
                        handle,
@@ -861,19 +854,41 @@ static int duplicate_std_handle(uv_loop_t* loop, DWORD id, HANDLE* dup) {
 }
 
 
+static int duplicate_fd(uv_loop_t* loop, int fd, HANDLE* dup) {
+  HANDLE handle;
+
+  if (fd == -1) {
+    *dup = INVALID_HANDLE_VALUE;
+    uv__set_artificial_error(loop, UV_EBADF);
+    return -1;
+  }
+
+  handle = (HANDLE)_get_osfhandle(fd);
+  return duplicate_handle(loop, handle, dup);
+}
+
+
 int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     uv_process_options_t options) {
   int err = 0, keep_child_stdio_open = 0;
   wchar_t* path = NULL;
-  int size;
+  int size, i, overlapped;
+  DWORD server_access, child_access;
   BOOL result;
   wchar_t* application_path = NULL, *application = NULL, *arguments = NULL,
     *env = NULL, *cwd = NULL;
   HANDLE* child_stdio = process->child_stdio;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
+  uv_pipe_t* pipe;
 
   if (options.flags & (UV_PROCESS_SETGID | UV_PROCESS_SETUID)) {
+    uv__set_artificial_error(loop, UV_ENOTSUP);
+    return -1;
+  }
+
+  /* Only support FDs 0-2 */
+  if (options.stdio_count > 3) {
     uv__set_artificial_error(loop, UV_ENOTSUP);
     return -1;
   }
@@ -927,59 +942,60 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     application_path = application;
   }
 
-  /* Create stdio pipes. */
-  if (options.stdin_stream) {
-    if (options.stdin_stream->ipc) {
-      err = uv_create_stdio_pipe_pair(
-          loop,
-          options.stdin_stream,
-          &child_stdio[0],
-          PIPE_ACCESS_DUPLEX,
-          GENERIC_READ | FILE_WRITE_ATTRIBUTES | GENERIC_WRITE,
-          1);
-    } else {
-      err = uv_create_stdio_pipe_pair(
-          loop,
-          options.stdin_stream,
-          &child_stdio[0],
-          PIPE_ACCESS_OUTBOUND,
-          GENERIC_READ | FILE_WRITE_ATTRIBUTES,
-          0);
+  for (i = 0; i < options.stdio_count || i < 3; i++) {
+    if (i >= options.stdio_count ||
+        options.stdio[i].flags == UV_IGNORE) {
+      child_stdio[i] = INVALID_HANDLE_VALUE;
+      continue;
     }
-  } else {
-    err = duplicate_std_handle(loop, STD_INPUT_HANDLE, &child_stdio[0]);
-  }
-  if (err) {
-    goto done;
-  }
 
-  if (options.stdout_stream) {
-    err = uv_create_stdio_pipe_pair(
-        loop, options.stdout_stream,
-        &child_stdio[1],
-        PIPE_ACCESS_INBOUND,
-        GENERIC_WRITE,
-        0);
-  } else {
-    err = duplicate_std_handle(loop, STD_OUTPUT_HANDLE, &child_stdio[1]);
-  }
-  if (err) {
-    goto done;
-  }
+    if (options.stdio[i].flags & UV_RAW_FD) {
+      err = duplicate_fd(loop, options.stdio[i].data.fd, &child_stdio[i]);
+    } else if (options.stdio[i].data.stream->type == UV_NAMED_PIPE) {
+      pipe = (uv_pipe_t*)options.stdio[i].data.stream;
 
-  if (options.stderr_stream) {
-    err = uv_create_stdio_pipe_pair(
-        loop,
-        options.stderr_stream,
-        &child_stdio[2],
-        PIPE_ACCESS_INBOUND,
-        GENERIC_WRITE,
-        0);
-  } else {
-    err = duplicate_std_handle(loop, STD_ERROR_HANDLE, &child_stdio[2]);
-  }
-  if (err) {
-    goto done;
+      if (options.stdio[i].flags & UV_CREATE_PIPE) {
+        server_access = 0;
+        child_access = 0;
+        if (pipe->ipc) {
+          server_access = PIPE_ACCESS_DUPLEX;
+          child_access = GENERIC_READ | FILE_WRITE_ATTRIBUTES | GENERIC_WRITE;
+          overlapped = 1;
+        } else {
+          overlapped = 0;
+
+          if (options.stdio[i].flags & UV_READABLE_PIPE) {
+            server_access |= PIPE_ACCESS_OUTBOUND;
+            child_access |= GENERIC_READ | FILE_WRITE_ATTRIBUTES;
+          }
+
+          if (options.stdio[i].flags & UV_WRITABLE_PIPE) {
+            server_access |= PIPE_ACCESS_INBOUND;
+            child_access |= GENERIC_WRITE;
+          }
+        }
+
+        err = uv_create_stdio_pipe_pair(
+            loop,
+            pipe,
+            &child_stdio[i],
+            server_access,
+            child_access,
+            overlapped);
+      } else {
+        err = duplicate_handle(loop, pipe->handle, &child_stdio[i]);
+      }
+    } else if(options.stdio[i].data.stream->type == UV_TTY) {
+      err = duplicate_handle(loop, 
+        ((uv_tty_t*)options.stdio[i].data.stream)->handle, &child_stdio[i]);
+    } else {
+      err = -1;
+      uv__set_artificial_error(loop, UV_ENOTSUP);
+    }
+
+    if (err) {
+      goto done;
+    }
   }
 
   startup.cb = sizeof(startup);
@@ -1007,9 +1023,11 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     process->process_handle = info.hProcess;
     process->pid = info.dwProcessId;
 
-    if (options.stdin_stream &&
-        options.stdin_stream->ipc) {
-      options.stdin_stream->ipc_pid = info.dwProcessId;
+    if (options.stdio_count > 0 &&
+        options.stdio[0].flags & UV_CREATE_PIPE &&
+        options.stdio[0].data.stream->type == UV_NAMED_PIPE &&
+        ((uv_pipe_t*)options.stdio[0].data.stream)->ipc) {
+      ((uv_pipe_t*)options.stdio[0].data.stream)->ipc_pid = info.dwProcessId;
     }
 
     /* Setup notifications for when the child process exits. */

@@ -36,12 +36,8 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
 
   memset(loop, 0, sizeof(*loop));
 
-#ifndef UV_LEAN_AND_MEAN
-  ngx_queue_init(&loop->active_handles);
-  ngx_queue_init(&loop->active_reqs);
-#endif
-
   RB_INIT(&loop->ares_handles);
+  ngx_queue_init(&loop->active_reqs);
   ngx_queue_init(&loop->idle_handles);
   ngx_queue_init(&loop->check_handles);
   ngx_queue_init(&loop->prepare_handles);

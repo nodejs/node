@@ -101,6 +101,7 @@ void on_read(uv_stream_t* pipe, ssize_t nread, uv_buf_t buf) {
 
 
 static void spawn() {
+  uv_stdio_container_t stdio[2];
   int r;
 
   ASSERT(process_open == 0);
@@ -114,7 +115,12 @@ static void spawn() {
   options.exit_cb = exit_cb;
 
   uv_pipe_init(loop, &out, 0);
-  options.stdout_stream = &out;
+
+  options.stdio = stdio;
+  options.stdio_count = 2;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
 
   r = uv_spawn(loop, &process, options);
   ASSERT(r == 0);

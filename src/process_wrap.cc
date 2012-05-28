@@ -169,12 +169,24 @@ class ProcessWrap : public HandleWrap {
       options.env[envc] = NULL;
     }
 
+    uv_stdio_container_t stdio[3];
+    memset(stdio, 0, sizeof(stdio));
+
+    options.stdio = stdio;
+    options.stdio_count = 3;
+    options.stdio[0].flags = UV_IGNORE;
+    options.stdio[1].flags = UV_IGNORE;
+    options.stdio[2].flags = UV_IGNORE;
+
     // options.stdin_stream
     Local<Value> stdin_stream_v = js_options->Get(
         String::NewSymbol("stdinStream"));
     if (!stdin_stream_v.IsEmpty() && stdin_stream_v->IsObject()) {
       PipeWrap* stdin_wrap = PipeWrap::Unwrap(stdin_stream_v->ToObject());
-      options.stdin_stream = stdin_wrap->UVHandle();
+      options.stdio[0].flags = static_cast<uv_stdio_flags>(
+          UV_CREATE_PIPE | UV_WRITABLE_PIPE);
+      options.stdio[0].data.stream = reinterpret_cast<uv_stream_t*>(
+          stdin_wrap->UVHandle());
     }
 
     // options.stdout_stream
@@ -182,7 +194,10 @@ class ProcessWrap : public HandleWrap {
         String::NewSymbol("stdoutStream"));
     if (!stdout_stream_v.IsEmpty() && stdout_stream_v->IsObject()) {
       PipeWrap* stdout_wrap = PipeWrap::Unwrap(stdout_stream_v->ToObject());
-      options.stdout_stream = stdout_wrap->UVHandle();
+      options.stdio[1].flags = static_cast<uv_stdio_flags>(
+          UV_CREATE_PIPE | UV_READABLE_PIPE);
+      options.stdio[1].data.stream = reinterpret_cast<uv_stream_t*>(
+          stdout_wrap->UVHandle());
     }
 
     // options.stderr_stream
@@ -190,7 +205,10 @@ class ProcessWrap : public HandleWrap {
         String::NewSymbol("stderrStream"));
     if (!stderr_stream_v.IsEmpty() && stderr_stream_v->IsObject()) {
       PipeWrap* stderr_wrap = PipeWrap::Unwrap(stderr_stream_v->ToObject());
-      options.stderr_stream = stderr_wrap->UVHandle();
+      options.stdio[2].flags = static_cast<uv_stdio_flags>(
+          UV_CREATE_PIPE | UV_READABLE_PIPE);
+      options.stdio[2].data.stream = reinterpret_cast<uv_stream_t*>(
+          stderr_wrap->UVHandle());
     }
 
     // options.windows_verbatim_arguments

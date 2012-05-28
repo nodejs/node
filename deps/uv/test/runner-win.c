@@ -19,6 +19,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
 #include <stdio.h>
@@ -43,6 +44,10 @@ void platform_init(int argc, char **argv) {
   /* Disable the "application crashed" popup. */
   SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
       SEM_NOOPENFILEERRORBOX);
+
+  _setmode(0, _O_BINARY);
+  _setmode(1, _O_BINARY);
+  _setmode(2, _O_BINARY);
 
   /* Disable stdio output buffering. */
   setvbuf(stdout, NULL, _IONBF, 0);

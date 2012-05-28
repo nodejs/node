@@ -180,10 +180,10 @@ int uv_fs_event_init(uv_loop_t* loop,
   /* We don't support any flags yet. */
   assert(!flags);
   if (loop->fs_fd == -1) {
-  if ((portfd = port_create()) == -1) {
-    uv__set_sys_error(loop, errno);
-    return -1;
-  }
+    if ((portfd = port_create()) == -1) {
+      uv__set_sys_error(loop, errno);
+      return -1;
+    }
     loop->fs_fd = portfd;
     first_run = 1;
   }

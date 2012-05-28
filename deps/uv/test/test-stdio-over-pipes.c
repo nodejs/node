@@ -115,14 +115,21 @@ static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t rdbuf) {
 TEST_IMPL(stdio_over_pipes) {
   int r;
   uv_process_t process;
+  uv_stdio_container_t stdio[2];
+
   loop = uv_default_loop();
 
   init_process_options("stdio_over_pipes_helper", exit_cb);
 
   uv_pipe_init(loop, &out, 0);
-  options.stdout_stream = &out;
   uv_pipe_init(loop, &in, 0);
-  options.stdin_stream = &in;
+
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_CREATE_PIPE | UV_READABLE_PIPE;
+  options.stdio[0].data.stream = (uv_stream_t*)&in;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*)&out;
+  options.stdio_count = 2;
 
   r = uv_spawn(loop, &process, options);
   ASSERT(r == 0);

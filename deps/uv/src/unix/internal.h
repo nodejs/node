@@ -115,11 +115,7 @@ inline static void uv__req_init(uv_loop_t* loop,
                                 uv_req_type type) {
   loop->counters.req_init++;
   req->type = type;
-#ifndef UV_LEAN_AND_MEAN
-  ngx_queue_insert_tail(&loop->active_reqs, &req->active_queue);
-#else
-  loop->active_reqs++;
-#endif
+  uv__req_register(loop, req);
 }
 #define uv__req_init(loop, req, type) \
   uv__req_init((loop), (uv_req_t*)(req), (type))

@@ -66,13 +66,8 @@ static void uv_loop_init(uv_loop_t* loop) {
 
   uv_update_time(loop);
 
-#ifndef UV_LEAN_AND_MEAN
-  ngx_queue_init(&loop->active_handles);
   ngx_queue_init(&loop->active_reqs);
-#else
   loop->active_handles = 0;
-  loop->active_reqs = 0;
-#endif
 
   loop->pending_reqs_tail = NULL;
 
@@ -215,18 +210,10 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
   }
 }
 
-#ifndef UV_LEAN_AND_MEAN
-# define UV_LOOP_ALIVE(loop)                                                  \
-      (!ngx_queue_empty(&(loop)->active_handles) ||                           \
-       !ngx_queue_empty(&(loop)->active_reqs) ||                              \
-       (loop)->endgame_handles != NULL)
-#else
-# define UV_LOOP_ALIVE(loop)                                                  \
-      ((loop)->active_handles > 0 &&                                          \
-       (loop)->active_reqs > 0 &&                                             \
-       (loop)->endgame_handles != NULL)
-#endif
-
+#define UV_LOOP_ALIVE(loop)                                                   \
+    ((loop)->active_handles > 0 ||                                            \
+     !ngx_queue_empty(&(loop)->active_reqs) ||                                \
+     (loop)->endgame_handles != NULL)
 
 #define UV_LOOP_ONCE(loop, poll)                                              \
   do {                                                                        \

@@ -204,8 +204,7 @@ static void uv__poll(uv_loop_t* loop, int block) {
 
 
 static int uv__should_block(uv_loop_t* loop) {
-  return ngx_queue_empty(&loop->idle_handles)
-      && !ngx_queue_empty(&loop->active_handles);
+  return loop->active_handles && ngx_queue_empty(&loop->idle_handles);
 }
 
 

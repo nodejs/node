@@ -334,17 +334,12 @@ UV_EXTERN uv_err_t uv_last_error(uv_loop_t*);
 UV_EXTERN const char* uv_strerror(uv_err_t err);
 UV_EXTERN const char* uv_err_name(uv_err_t err);
 
-#ifndef UV_LEAN_AND_MEAN
-# define UV_REQ_EXTRA_FIELDS ngx_queue_t active_queue;
-#else
-# define UV_REQ_EXTRA_FIELDS
-#endif
 
 #define UV_REQ_FIELDS \
   /* public */ \
   void* data; \
-  UV_REQ_EXTRA_FIELDS \
   /* private */ \
+  ngx_queue_t active_queue; \
   UV_REQ_PRIVATE_FIELDS \
   /* read-only */ \
   uv_req_type type; \
@@ -378,12 +373,6 @@ struct uv_shutdown_s {
 };
 
 
-#ifndef UV_LEAN_AND_MEAN
-# define UV_HANDLE_EXTRA_FIELDS ngx_queue_t active_queue;
-#else
-# define UV_HANDLE_EXTRA_FIELDS
-#endif
-
 #define UV_HANDLE_FIELDS                                                      \
   /* read-only */                                                             \
   uv_loop_t* loop;                                                            \
@@ -394,7 +383,6 @@ struct uv_shutdown_s {
   uv_handle_type type;                                                        \
   /* private */                                                               \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
-  UV_HANDLE_EXTRA_FIELDS                                                      \
 
 /* The abstract base class of all handles.  */
 struct uv_handle_s {
@@ -1168,6 +1156,27 @@ UV_EXTERN int uv_getaddrinfo(uv_loop_t*, uv_getaddrinfo_t* handle,
 UV_EXTERN void uv_freeaddrinfo(struct addrinfo* ai);
 
 /* uv_spawn() options */
+typedef enum {
+  UV_IGNORE        = 0x00,
+  UV_CREATE_PIPE   = 0x01,
+  /*
+   * UV_READABLE_PIPE and UV_WRITABLE_PIPE flags are set from
+   * the child process perspective.
+   */
+  UV_READABLE_PIPE = 0x02,
+  UV_WRITABLE_PIPE = 0x04,
+  UV_RAW_FD        = 0x08
+} uv_stdio_flags;
+
+typedef struct uv_stdio_container_s {
+  uv_stdio_flags flags;
+
+  union {
+    uv_stream_t* stream;
+    int fd;
+  } data;
+} uv_stdio_container_t;
+
 typedef struct uv_process_options_s {
   uv_exit_cb exit_cb; /* Called after the process exits. */
   const char* file; /* Path to program to execute. */
@@ -1200,14 +1209,12 @@ typedef struct uv_process_options_s {
    */
   uv_uid_t uid;
   uv_gid_t gid;
+
   /*
-   * The user should supply pointers to initialized uv_pipe_t structs for
-   * stdio. This is used to to send or receive input from the subprocess.
-   * The user is responsible for calling uv_close on them.
+   * A container of stdio streams (stdin/stdout/stderr)
    */
-  uv_pipe_t* stdin_stream;
-  uv_pipe_t* stdout_stream;
-  uv_pipe_t* stderr_stream;
+  uv_stdio_container_t* stdio;
+  int stdio_count;
 } uv_process_options_t;
 
 /*
@@ -1659,15 +1666,11 @@ struct uv_loop_s {
   uv_counters_t counters;
   /* The last error */
   uv_err_t last_err;
+  /* Loop reference counting */
+  unsigned int active_handles;
+  ngx_queue_t active_reqs;
   /* User data - use this for whatever. */
   void* data;
-#ifndef UV_LEAN_AND_MEAN
-  ngx_queue_t active_reqs;
-  ngx_queue_t active_handles;
-#else
-  unsigned int active_reqs;
-  unsigned int active_handles;
-#endif
 };
 
 
