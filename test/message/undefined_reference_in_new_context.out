@@ -7,8 +7,8 @@ ReferenceError: foo is not defined
     at evalmachine.<anonymous>:*
     at Object.<anonymous> (*test*message*undefined_reference_in_new_context.js:*)
     at Module._compile (module.js:*)
-    at Object..js (module.js:*)
+    at *..js (module.js:*)
     at Module.load (module.js:*)
-    at Function._load (module.js:*)
-    at module.js:*
-    at EventEmitter._tickCallback (node.js:*)
+    at *._load (module.js:*)
+    at Module.runMain (module.js:*)
+    at *._tickCallback (node.js:*)
