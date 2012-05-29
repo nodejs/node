@@ -2083,28 +2083,21 @@ class HCheckMaps: public HTemplateInstruction<2> {
     HCheckMaps* check_map = new HCheckMaps(object, map);
     SmallMapList* map_set = check_map->map_set();
 
-    // If the map to check has the untransitioned elements, it can be hoisted
-    // above TransitionElements instructions.
-    if (map->has_fast_smi_only_elements()) {
-      check_map->ClearGVNFlag(kDependsOnElementsKind);
-    }
+    // Since transitioned elements maps of the initial map don't fail the map
+    // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
+    check_map->ClearGVNFlag(kDependsOnElementsKind);
 
-    Map* transitioned_fast_element_map =
-        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL);
-    ASSERT(transitioned_fast_element_map == NULL ||
-           map->elements_kind() != FAST_ELEMENTS);
-    if (transitioned_fast_element_map != NULL) {
-      map_set->Add(Handle<Map>(transitioned_fast_element_map));
-    }
-    Map* transitioned_double_map =
-        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL);
-    ASSERT(transitioned_double_map == NULL ||
-           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
-    if (transitioned_double_map != NULL) {
-      map_set->Add(Handle<Map>(transitioned_double_map));
-    }
+    ElementsKind kind = map->elements_kind();
+    bool packed = IsFastPackedElementsKind(kind);
+    while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+      kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+      Map* transitioned_map =
+          map->LookupElementsTransitionMap(kind, NULL);
+      if (transitioned_map) {
+        map_set->Add(Handle<Map>(transitioned_map));
+      }
+    };
     map_set->Sort();
-
     return check_map;
   }
 
@@ -3946,15 +3939,28 @@ class HLoadFunctionPrototype: public HUnaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 };
 
-
-class HLoadKeyedFastElement: public HTemplateInstruction<2> {
+class ArrayInstructionInterface {
  public:
-  enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
+  virtual HValue* GetKey() = 0;
+  virtual void SetKey(HValue* key) = 0;
+  virtual void SetIndexOffset(uint32_t index_offset) = 0;
+  virtual bool IsDehoisted() = 0;
+  virtual void SetDehoisted(bool is_dehoisted) = 0;
+  virtual ~ArrayInstructionInterface() { };
+};
 
+
+enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
+
+class HLoadKeyedFastElement
+    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
+ public:
   HLoadKeyedFastElement(HValue* obj,
                         HValue* key,
                         HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
-      : hole_check_mode_(hole_check_mode) {
+      : hole_check_mode_(hole_check_mode),
+        index_offset_(0),
+        is_dehoisted_(false) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     set_representation(Representation::Tagged());
@@ -3964,6 +3970,12 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
 
   HValue* object() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
@@ -3982,26 +3994,43 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
   virtual bool DataEquals(HValue* other) {
     if (!other->IsLoadKeyedFastElement()) return false;
     HLoadKeyedFastElement* other_load = HLoadKeyedFastElement::cast(other);
+    if (is_dehoisted_ && index_offset_ != other_load->index_offset_)
+      return false;
     return hole_check_mode_ == other_load->hole_check_mode_;
   }
 
  private:
   HoleCheckMode hole_check_mode_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
-class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
+class HLoadKeyedFastDoubleElement
+    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
-  HLoadKeyedFastDoubleElement(HValue* elements, HValue* key) {
-    SetOperandAt(0, elements);
-    SetOperandAt(1, key);
-    set_representation(Representation::Double());
+  HLoadKeyedFastDoubleElement(
+    HValue* elements,
+    HValue* key,
+    HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
+    : index_offset_(0),
+      is_dehoisted_(false),
+      hole_check_mode_(hole_check_mode) {
+        SetOperandAt(0, elements);
+        SetOperandAt(1, key);
+        set_representation(Representation::Double());
     SetGVNFlag(kDependsOnDoubleArrayElements);
     SetFlag(kUseGVN);
-  }
+      }
 
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
@@ -4010,21 +4039,38 @@ class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
       : Representation::Integer32();
   }
 
+  bool RequiresHoleCheck() {
+    return hole_check_mode_ == PERFORM_HOLE_CHECK;
+  }
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    if (!other->IsLoadKeyedFastDoubleElement()) return false;
+    HLoadKeyedFastDoubleElement* other_load =
+        HLoadKeyedFastDoubleElement::cast(other);
+    return hole_check_mode_ == other_load->hole_check_mode_;
+  }
+
+ private:
+  uint32_t index_offset_;
+  bool is_dehoisted_;
+  HoleCheckMode hole_check_mode_;
 };
 
 
-class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
+class HLoadKeyedSpecializedArrayElement
+    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
                                     ElementsKind elements_kind)
-      :  elements_kind_(elements_kind) {
+      :  elements_kind_(elements_kind),
+         index_offset_(0),
+         is_dehoisted_(false) {
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
@@ -4052,6 +4098,12 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   ElementsKind elements_kind() const { return elements_kind_; }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   virtual Range* InferRange(Zone* zone);
 
@@ -4067,6 +4119,8 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
 
  private:
   ElementsKind elements_kind_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
@@ -4188,11 +4242,12 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
 };
 
 
-class HStoreKeyedFastElement: public HTemplateInstruction<3> {
+class HStoreKeyedFastElement
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HStoreKeyedFastElement(HValue* obj, HValue* key, HValue* val,
                          ElementsKind elements_kind = FAST_ELEMENTS)
-      : elements_kind_(elements_kind) {
+      : elements_kind_(elements_kind), index_offset_(0), is_dehoisted_(false) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -4210,8 +4265,14 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   bool value_is_smi() {
-    return elements_kind_ == FAST_SMI_ONLY_ELEMENTS;
+    return IsFastSmiElementsKind(elements_kind_);
   }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   bool NeedsWriteBarrier() {
     if (value_is_smi()) {
@@ -4227,14 +4288,18 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
 
  private:
   ElementsKind elements_kind_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
-class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
+class HStoreKeyedFastDoubleElement
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HStoreKeyedFastDoubleElement(HValue* elements,
                                HValue* key,
-                               HValue* val) {
+                               HValue* val)
+      : index_offset_(0), is_dehoisted_(false) {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -4254,6 +4319,12 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
@@ -4264,16 +4335,21 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement)
+
+ private:
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
-class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
+class HStoreKeyedSpecializedArrayElement
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HStoreKeyedSpecializedArrayElement(HValue* external_elements,
                                      HValue* key,
                                      HValue* val,
                                      ElementsKind elements_kind)
-      : elements_kind_(elements_kind) {
+      : elements_kind_(elements_kind), index_offset_(0), is_dehoisted_(false) {
     SetGVNFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
@@ -4301,11 +4377,19 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   ElementsKind elements_kind() const { return elements_kind_; }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement)
 
  private:
   ElementsKind elements_kind_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
@@ -4352,9 +4436,19 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
+    // Don't set GVN DependOn flags here. That would defeat GVN's detection of
+    // congruent HTransitionElementsKind instructions. Instruction hoisting
+    // handles HTransitionElementsKind instruction specially, explicitly adding
+    // DependsOn flags during its dependency calculations.
     SetGVNFlag(kChangesElementsKind);
-    SetGVNFlag(kChangesElementsPointer);
-    SetGVNFlag(kChangesNewSpacePromotion);
+    if (original_map->has_fast_double_elements()) {
+      SetGVNFlag(kChangesElementsPointer);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
+    if (transitioned_map->has_fast_double_elements()) {
+      SetGVNFlag(kChangesElementsPointer);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
     set_representation(Representation::Tagged());
   }
 
@@ -4592,7 +4686,7 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
   HValue* context() { return OperandAt(0); }
   ElementsKind boilerplate_elements_kind() const {
     if (!boilerplate_object_->IsJSObject()) {
-      return FAST_ELEMENTS;
+      return TERMINAL_FAST_ELEMENTS_KIND;
     }
     return Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind();
   }

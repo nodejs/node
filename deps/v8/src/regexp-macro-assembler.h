@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -174,7 +174,8 @@ class RegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg) = 0;
   virtual void SetCurrentPositionFromEnd(int by) = 0;
   virtual void SetRegister(int register_index, int to) = 0;
-  virtual void Succeed() = 0;
+  // Return whether the matching (with a global regexp) will be restarted.
+  virtual bool Succeed() = 0;
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
@@ -183,8 +184,14 @@ class RegExpMacroAssembler {
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
 
+  // Set whether the regular expression has the global flag.  Exiting due to
+  // a failure in a global regexp may still mean success overall.
+  void set_global(bool global) { global_ = global; }
+  bool global() { return global_; }
+
  private:
   bool slow_safe_compiler_;
+  bool global_;
 };
 
 
@@ -249,6 +256,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                         const byte* input_start,
                         const byte* input_end,
                         int* output,
+                        int output_size,
                         Isolate* isolate);
 };
 

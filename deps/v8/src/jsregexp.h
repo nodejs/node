@@ -109,16 +109,22 @@ class RegExpImpl {
   static int IrregexpPrepare(Handle<JSRegExp> regexp,
                              Handle<String> subject);
 
-  // Execute a regular expression once on the subject, starting from
-  // character "index".
-  // If successful, returns RE_SUCCESS and set the capture positions
-  // in the first registers.
+  // Calculate the size of offsets vector for the case of global regexp
+  // and the number of matches this vector is able to store.
+  static int GlobalOffsetsVectorSize(Handle<JSRegExp> regexp,
+                                     int registers_per_match,
+                                     int* max_matches);
+
+  // Execute a regular expression on the subject, starting from index.
+  // If matching succeeds, return the number of matches.  This can be larger
+  // than one in the case of global regular expressions.
+  // The captures and subcaptures are stored into the registers vector.
   // If matching fails, returns RE_FAILURE.
   // If execution fails, sets a pending exception and returns RE_EXCEPTION.
-  static IrregexpResult IrregexpExecOnce(Handle<JSRegExp> regexp,
-                                         Handle<String> subject,
-                                         int index,
-                                         Vector<int> registers);
+  static int IrregexpExecRaw(Handle<JSRegExp> regexp,
+                             Handle<String> subject,
+                             int index,
+                             Vector<int> registers);
 
   // Execute an Irregexp bytecode pattern.
   // On a successful match, the result is a JSArray containing
@@ -1545,6 +1551,7 @@ class RegExpEngine: public AllStatic {
 
   static CompilationResult Compile(RegExpCompileData* input,
                                    bool ignore_case,
+                                   bool global,
                                    bool multiline,
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
@@ -1573,7 +1580,8 @@ class OffsetsVector {
   inline int* vector() { return vector_; }
   inline int length() { return offsets_vector_length_; }
 
-  static const int kStaticOffsetsVectorSize = 50;
+  static const int kStaticOffsetsVectorSize =
+      Isolate::kJSRegexpStaticOffsetsVectorSize;
 
  private:
   static Address static_offsets_vector_address(Isolate* isolate) {

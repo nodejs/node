@@ -208,8 +208,10 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
   // Pixel elements cannot be created using an object literal.
   ASSERT(!copy->HasExternalArrayElements());
   switch (copy->GetElementsKind()) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case FAST_SMI_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
       FixedArray* elements = FixedArray::cast(copy->elements());
       if (elements->map() == heap->fixed_cow_array_map()) {
         isolate->counters()->cow_arrays_created_runtime()->Increment();
@@ -223,7 +225,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
           Object* value = elements->get(i);
           ASSERT(value->IsSmi() ||
                  value->IsTheHole() ||
-                 (copy->GetElementsKind() == FAST_ELEMENTS));
+                 (IsFastObjectElementsKind(copy->GetElementsKind())));
           if (value->IsJSObject()) {
             JSObject* js_object = JSObject::cast(value);
             { MaybeObject* maybe_result = DeepCopyBoilerplate(isolate,
@@ -268,6 +270,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
       // No contained objects, nothing to do.
       break;
   }
@@ -452,7 +455,7 @@ MaybeObject* TransitionElements(Handle<Object> object,
 }
 
 
-static const int kSmiOnlyLiteralMinimumLength = 1024;
+static const int kSmiLiteralMinimumLength = 1024;
 
 
 Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
@@ -470,23 +473,22 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(elements->get(1)));
 
+  ASSERT(IsFastElementsKind(constant_elements_kind));
   Context* global_context = isolate->context()->global_context();
-  if (constant_elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-    object->set_map(Map::cast(global_context->smi_js_array_map()));
-  } else if (constant_elements_kind == FAST_DOUBLE_ELEMENTS) {
-    object->set_map(Map::cast(global_context->double_js_array_map()));
-  } else {
-    object->set_map(Map::cast(global_context->object_js_array_map()));
-  }
+  Object* maybe_maps_array = global_context->js_array_maps();
+  ASSERT(!maybe_maps_array->IsUndefined());
+  Object* maybe_map = FixedArray::cast(maybe_maps_array)->get(
+      constant_elements_kind);
+  ASSERT(maybe_map->IsMap());
+  object->set_map(Map::cast(maybe_map));
 
   Handle<FixedArrayBase> copied_elements_values;
-  if (constant_elements_kind == FAST_DOUBLE_ELEMENTS) {
+  if (IsFastDoubleElementsKind(constant_elements_kind)) {
     ASSERT(FLAG_smi_only_arrays);
     copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
         Handle<FixedDoubleArray>::cast(constant_elements_values));
   } else {
-    ASSERT(constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
-           constant_elements_kind == FAST_ELEMENTS);
+    ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind));
     const bool is_cow =
         (constant_elements_values->map() ==
          isolate->heap()->fixed_cow_array_map());
@@ -522,15 +524,22 @@ Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
   object->set_elements(*copied_elements_values);
   object->set_length(Smi::FromInt(copied_elements_values->length()));
 
-  //  Ensure that the boilerplate object has FAST_ELEMENTS, unless the flag is
+  //  Ensure that the boilerplate object has FAST_*_ELEMENTS, unless the flag is
   //  on or the object is larger than the threshold.
   if (!FLAG_smi_only_arrays &&
-      constant_elements_values->length() < kSmiOnlyLiteralMinimumLength) {
-    if (object->GetElementsKind() != FAST_ELEMENTS) {
-      CHECK(!TransitionElements(object, FAST_ELEMENTS, isolate)->IsFailure());
+      constant_elements_values->length() < kSmiLiteralMinimumLength) {
+    ElementsKind elements_kind = object->GetElementsKind();
+    if (!IsFastObjectElementsKind(elements_kind)) {
+      if (IsFastHoleyElementsKind(elements_kind)) {
+        CHECK(!TransitionElements(object, FAST_HOLEY_ELEMENTS,
+                                  isolate)->IsFailure());
+      } else {
+        CHECK(!TransitionElements(object, FAST_ELEMENTS, isolate)->IsFailure());
+      }
     }
   }
 
+  object->ValidateElements();
   return object;
 }
 
@@ -1730,7 +1739,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
   CONVERT_SMI_ARG_CHECKED(index, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
-  RUNTIME_ASSERT(last_match_info->HasFastElements());
+  RUNTIME_ASSERT(last_match_info->HasFastObjectElements());
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
   isolate->counters()->regexp_entry_runtime()->Increment();
@@ -3104,7 +3113,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   const int parts_added_per_loop = 2 * (compiled_replacement.parts() + 2);
   bool matched = true;
   do {
-    ASSERT(last_match_info_handle->HasFastElements());
+    ASSERT(last_match_info_handle->HasFastObjectElements());
     // Increase the capacity of the builder before entering local handle-scope,
     // so its internal buffer can safely allocate a new handle if it grows.
     builder.EnsureCapacity(parts_added_per_loop);
@@ -3201,7 +3210,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   if (match.is_null()) return Failure::Exception();
   if (match->IsNull()) return *subject_handle;
 
-  ASSERT(last_match_info_handle->HasFastElements());
+  ASSERT(last_match_info_handle->HasFastObjectElements());
 
   int start, end;
   {
@@ -3275,7 +3284,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     if (match.is_null()) return Failure::Exception();
     if (match->IsNull()) break;
 
-    ASSERT(last_match_info_handle->HasFastElements());
+    ASSERT(last_match_info_handle->HasFastObjectElements());
     HandleScope loop_scope(isolate);
     {
       AssertNoAllocation match_info_array_is_not_in_a_handle;
@@ -3345,7 +3354,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_CHECKED(JSArray, last_match_info, 3);
 
-  ASSERT(last_match_info->HasFastElements());
+  ASSERT(last_match_info->HasFastObjectElements());
 
   if (replacement->length() == 0) {
     if (subject->HasOnlyAsciiChars()) {
@@ -3795,62 +3804,73 @@ static bool SearchStringMultiple(Isolate* isolate,
 }
 
 
-static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
+static int SearchRegExpNoCaptureMultiple(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
     Handle<JSArray> last_match_array,
     FixedArrayBuilder* builder) {
   ASSERT(subject->IsFlat());
+  ASSERT(regexp->CaptureCount() == 0);
   int match_start = -1;
   int match_end = 0;
   int pos = 0;
-  int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
-  if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
+  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
+  if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers, isolate);
+  int max_matches;
+  int num_registers = RegExpImpl::GlobalOffsetsVectorSize(regexp,
+                                                          registers_per_match,
+                                                          &max_matches);
+  OffsetsVector registers(num_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
   int subject_length = subject->length();
   bool first = true;
-
   for (;;) {  // Break on failure, return on exception.
-    RegExpImpl::IrregexpResult result =
-        RegExpImpl::IrregexpExecOnce(regexp,
-                                     subject,
-                                     pos,
-                                     register_vector);
-    if (result == RegExpImpl::RE_SUCCESS) {
-      match_start = register_vector[0];
-      builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-      if (match_end < match_start) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                  match_end,
-                                                  match_start);
+    int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
+                                                  subject,
+                                                  pos,
+                                                  register_vector);
+    if (num_matches > 0) {
+      for (int match_index = 0; match_index < num_matches; match_index++) {
+        int32_t* current_match = &register_vector[match_index * 2];
+        match_start = current_match[0];
+        builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+        if (match_end < match_start) {
+          ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                    match_end,
+                                                    match_start);
+        }
+        match_end = current_match[1];
+        HandleScope loop_scope(isolate);
+        if (!first) {
+          builder->Add(*isolate->factory()->NewProperSubString(subject,
+                                                               match_start,
+                                                               match_end));
+        } else {
+          builder->Add(*isolate->factory()->NewSubString(subject,
+                                                         match_start,
+                                                         match_end));
+          first = false;
+        }
       }
-      match_end = register_vector[1];
-      HandleScope loop_scope(isolate);
-      if (!first) {
-        builder->Add(*isolate->factory()->NewProperSubString(subject,
-                                                             match_start,
-                                                             match_end));
-      } else {
-        builder->Add(*isolate->factory()->NewSubString(subject,
-                                                       match_start,
-                                                       match_end));
-      }
+
+      // If we did not get the maximum number of matches, we can stop here
+      // since there are no matches left.
+      if (num_matches < max_matches) break;
+
       if (match_start != match_end) {
         pos = match_end;
       } else {
         pos = match_end + 1;
         if (pos > subject_length) break;
       }
-    } else if (result == RegExpImpl::RE_FAILURE) {
+    } else if (num_matches == 0) {
       break;
     } else {
-      ASSERT_EQ(result, RegExpImpl::RE_EXCEPTION);
-      return result;
+      ASSERT_EQ(num_matches, RegExpImpl::RE_EXCEPTION);
+      return RegExpImpl::RE_EXCEPTION;
     }
-    first = false;
   }
 
   if (match_start >= 0) {
@@ -3872,7 +3892,7 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
 
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
-static RegExpImpl::IrregexpResult SearchRegExpMultiple(
+static int SearchRegExpMultiple(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> regexp,
@@ -3880,17 +3900,20 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     FixedArrayBuilder* builder) {
 
   ASSERT(subject->IsFlat());
-  int required_registers = RegExpImpl::IrregexpPrepare(regexp, subject);
-  if (required_registers < 0) return RegExpImpl::RE_EXCEPTION;
+  int registers_per_match = RegExpImpl::IrregexpPrepare(regexp, subject);
+  if (registers_per_match < 0) return RegExpImpl::RE_EXCEPTION;
 
-  OffsetsVector registers(required_registers, isolate);
+  int max_matches;
+  int num_registers = RegExpImpl::GlobalOffsetsVectorSize(regexp,
+                                                          registers_per_match,
+                                                          &max_matches);
+  OffsetsVector registers(num_registers, isolate);
   Vector<int32_t> register_vector(registers.vector(), registers.length());
 
-  RegExpImpl::IrregexpResult result =
-      RegExpImpl::IrregexpExecOnce(regexp,
-                                   subject,
-                                   0,
-                                   register_vector);
+  int num_matches = RegExpImpl::IrregexpExecRaw(regexp,
+                                                subject,
+                                                0,
+                                                register_vector);
 
   int capture_count = regexp->CaptureCount();
   int subject_length = subject->length();
@@ -3899,59 +3922,70 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   int pos = 0;
   // End of previous match. Differs from pos if match was empty.
   int match_end = 0;
-  if (result == RegExpImpl::RE_SUCCESS) {
-    bool first = true;
-    do {
-      int match_start = register_vector[0];
-      builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
-      if (match_end < match_start) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-                                                  match_end,
-                                                  match_start);
-      }
-      match_end = register_vector[1];
+  bool first = true;
 
-      {
-        // Avoid accumulating new handles inside loop.
-        HandleScope temp_scope(isolate);
-        // Arguments array to replace function is match, captures, index and
-        // subject, i.e., 3 + capture count in total.
-        Handle<FixedArray> elements =
-            isolate->factory()->NewFixedArray(3 + capture_count);
-        Handle<String> match;
-        if (!first) {
-          match = isolate->factory()->NewProperSubString(subject,
-                                                         match_start,
-                                                         match_end);
-        } else {
-          match = isolate->factory()->NewSubString(subject,
-                                                   match_start,
-                                                   match_end);
+  if (num_matches > 0) {
+    do {
+      int match_start = 0;
+      for (int match_index = 0; match_index < num_matches; match_index++) {
+        int32_t* current_match =
+            &register_vector[match_index * registers_per_match];
+        match_start = current_match[0];
+        builder->EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
+        if (match_end < match_start) {
+          ReplacementStringBuilder::AddSubjectSlice(builder,
+                                                    match_end,
+                                                    match_start);
         }
-        elements->set(0, *match);
-        for (int i = 1; i <= capture_count; i++) {
-          int start = register_vector[i * 2];
-          if (start >= 0) {
-            int end = register_vector[i * 2 + 1];
-            ASSERT(start <= end);
-            Handle<String> substring;
-            if (!first) {
-              substring = isolate->factory()->NewProperSubString(subject,
-                                                                 start,
-                                                                 end);
-            } else {
-              substring = isolate->factory()->NewSubString(subject, start, end);
-            }
-            elements->set(i, *substring);
+        match_end = current_match[1];
+
+        {
+          // Avoid accumulating new handles inside loop.
+          HandleScope temp_scope(isolate);
+          // Arguments array to replace function is match, captures, index and
+          // subject, i.e., 3 + capture count in total.
+          Handle<FixedArray> elements =
+              isolate->factory()->NewFixedArray(3 + capture_count);
+          Handle<String> match;
+          if (!first) {
+            match = isolate->factory()->NewProperSubString(subject,
+                                                           match_start,
+                                                           match_end);
           } else {
-            ASSERT(register_vector[i * 2 + 1] < 0);
-            elements->set(i, isolate->heap()->undefined_value());
+            match = isolate->factory()->NewSubString(subject,
+                                                     match_start,
+                                                     match_end);
           }
+          elements->set(0, *match);
+          for (int i = 1; i <= capture_count; i++) {
+            int start = current_match[i * 2];
+            if (start >= 0) {
+              int end = current_match[i * 2 + 1];
+              ASSERT(start <= end);
+              Handle<String> substring;
+              if (!first) {
+                substring =
+                    isolate->factory()->NewProperSubString(subject, start, end);
+              } else {
+                substring =
+                    isolate->factory()->NewSubString(subject, start, end);
+              }
+              elements->set(i, *substring);
+            } else {
+              ASSERT(current_match[i * 2 + 1] < 0);
+              elements->set(i, isolate->heap()->undefined_value());
+            }
+          }
+          elements->set(capture_count + 1, Smi::FromInt(match_start));
+          elements->set(capture_count + 2, *subject);
+          builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
         }
-        elements->set(capture_count + 1, Smi::FromInt(match_start));
-        elements->set(capture_count + 2, *subject);
-        builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
+        first = false;
       }
+
+      // If we did not get the maximum number of matches, we can stop here
+      // since there are no matches left.
+      if (num_matches < max_matches) break;
 
       if (match_end > match_start) {
         pos = match_end;
@@ -3962,14 +3996,13 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         }
       }
 
-      result = RegExpImpl::IrregexpExecOnce(regexp,
-                                            subject,
-                                            pos,
-                                            register_vector);
-      first = false;
-    } while (result == RegExpImpl::RE_SUCCESS);
+      num_matches = RegExpImpl::IrregexpExecRaw(regexp,
+                                                subject,
+                                                pos,
+                                                register_vector);
+    } while (num_matches > 0);
 
-    if (result != RegExpImpl::RE_EXCEPTION) {
+    if (num_matches != RegExpImpl::RE_EXCEPTION) {
       // Finished matching, with at least one match.
       if (match_end < subject_length) {
         ReplacementStringBuilder::AddSubjectSlice(builder,
@@ -3993,7 +4026,7 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     }
   }
   // No matches at all, return failure or exception result directly.
-  return result;
+  return num_matches;
 }
 
 
@@ -4010,10 +4043,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, result_array, 3);
 
-  ASSERT(last_match_info->HasFastElements());
+  ASSERT(last_match_info->HasFastObjectElements());
   ASSERT(regexp->GetFlags().is_global());
   Handle<FixedArray> result_elements;
-  if (result_array->HasFastElements()) {
+  if (result_array->HasFastObjectElements()) {
     result_elements =
         Handle<FixedArray>(FixedArray::cast(result_array->elements()));
   }
@@ -4035,7 +4068,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
 
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
-  RegExpImpl::IrregexpResult result;
+  int result;
   if (regexp->CaptureCount() == 0) {
     result = SearchRegExpNoCaptureMultiple(isolate,
                                            subject,
@@ -4315,17 +4348,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
       // JSObject without a string key. If the key is a Smi, check for a
       // definite out-of-bounds access to elements, which is a strong indicator
       // that subsequent accesses will also call the runtime. Proactively
-      // transition elements to FAST_ELEMENTS to avoid excessive boxing of
+      // transition elements to FAST_*_ELEMENTS to avoid excessive boxing of
       // doubles for those future calls in the case that the elements would
       // become FAST_DOUBLE_ELEMENTS.
       Handle<JSObject> js_object(args.at<JSObject>(0));
       ElementsKind elements_kind = js_object->GetElementsKind();
-      if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
-          elements_kind == FAST_DOUBLE_ELEMENTS) {
+      if (IsFastElementsKind(elements_kind) &&
+          !IsFastObjectElementsKind(elements_kind)) {
         FixedArrayBase* elements = js_object->elements();
         if (args.at<Smi>(1)->value() >= elements->length()) {
+          if (IsFastHoleyElementsKind(elements_kind)) {
+            elements_kind = FAST_HOLEY_ELEMENTS;
+          } else {
+            elements_kind = FAST_ELEMENTS;
+          }
           MaybeObject* maybe_object = TransitionElements(js_object,
-                                                         FAST_ELEMENTS,
+                                                         elements_kind,
                                                          isolate);
           if (maybe_object->IsFailure()) return maybe_object;
         }
@@ -4495,8 +4533,10 @@ MaybeObject* Runtime::SetObjectProperty(Isolate* isolate,
       return *value;
     }
 
+    js_object->ValidateElements();
     Handle<Object> result = JSObject::SetElement(
         js_object, index, value, attr, strict_mode, set_mode);
+    js_object->ValidateElements();
     if (result.is_null()) return Failure::Exception();
     return *value;
   }
@@ -4654,7 +4694,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsSmiToDouble) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
-  return TransitionElements(object, FAST_DOUBLE_ELEMENTS, isolate);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_object(Handle<JSObject>::cast(object));
+    ElementsKind new_kind = js_object->HasFastHoleyElements()
+        ? FAST_HOLEY_DOUBLE_ELEMENTS
+        : FAST_DOUBLE_ELEMENTS;
+    return TransitionElements(object, new_kind, isolate);
+  } else {
+    return *object;
+  }
 }
 
 
@@ -4662,7 +4710,15 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_TransitionElementsDoubleToObject) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 1);
   Handle<Object> object = args.at<Object>(0);
-  return TransitionElements(object, FAST_ELEMENTS, isolate);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_object(Handle<JSObject>::cast(object));
+    ElementsKind new_kind = js_object->HasFastHoleyElements()
+        ? FAST_HOLEY_ELEMENTS
+        : FAST_ELEMENTS;
+    return TransitionElements(object, new_kind, isolate);
+  } else {
+    return *object;
+  }
 }
 
 
@@ -4693,32 +4749,38 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   HandleScope scope;
 
   Object* raw_boilerplate_object = literals->get(literal_index);
-  Handle<JSArray> boilerplate(JSArray::cast(raw_boilerplate_object));
-#if DEBUG
+  Handle<JSArray> boilerplate_object(JSArray::cast(raw_boilerplate_object));
   ElementsKind elements_kind = object->GetElementsKind();
-#endif
-  ASSERT(elements_kind <= FAST_DOUBLE_ELEMENTS);
+  ASSERT(IsFastElementsKind(elements_kind));
   // Smis should never trigger transitions.
   ASSERT(!value->IsSmi());
 
   if (value->IsNumber()) {
-    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
-    JSObject::TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
-    if (IsMoreGeneralElementsKindTransition(boilerplate->GetElementsKind(),
-                                            FAST_DOUBLE_ELEMENTS)) {
-      JSObject::TransitionElementsKind(boilerplate, FAST_DOUBLE_ELEMENTS);
+    ASSERT(IsFastSmiElementsKind(elements_kind));
+    ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
+        ? FAST_HOLEY_DOUBLE_ELEMENTS
+        : FAST_DOUBLE_ELEMENTS;
+    if (IsMoreGeneralElementsKindTransition(
+            boilerplate_object->GetElementsKind(),
+            transitioned_kind)) {
+      JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
     }
-    ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
+    JSObject::TransitionElementsKind(object, transitioned_kind);
+    ASSERT(IsFastDoubleElementsKind(object->GetElementsKind()));
     FixedDoubleArray* double_array = FixedDoubleArray::cast(object->elements());
     HeapNumber* number = HeapNumber::cast(*value);
     double_array->set(store_index, number->Number());
   } else {
-    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
-           elements_kind == FAST_DOUBLE_ELEMENTS);
-    JSObject::TransitionElementsKind(object, FAST_ELEMENTS);
-    if (IsMoreGeneralElementsKindTransition(boilerplate->GetElementsKind(),
-                                            FAST_ELEMENTS)) {
-      JSObject::TransitionElementsKind(boilerplate, FAST_ELEMENTS);
+    ASSERT(IsFastSmiElementsKind(elements_kind) ||
+           IsFastDoubleElementsKind(elements_kind));
+    ElementsKind transitioned_kind = IsFastHoleyElementsKind(elements_kind)
+        ? FAST_HOLEY_ELEMENTS
+        : FAST_ELEMENTS;
+    JSObject::TransitionElementsKind(object, transitioned_kind);
+    if (IsMoreGeneralElementsKindTransition(
+            boilerplate_object->GetElementsKind(),
+            transitioned_kind)) {
+      JSObject::TransitionElementsKind(boilerplate_object, transitioned_kind);
     }
     FixedArray* object_array = FixedArray::cast(object->elements());
     object_array->set(store_index, *value);
@@ -5931,7 +5993,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_QuoteJSONStringArray) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSArray, array, 0);
 
-  if (!array->HasFastElements()) return isolate->heap()->undefined_value();
+  if (!array->HasFastObjectElements()) {
+    return isolate->heap()->undefined_value();
+  }
   FixedArray* elements = FixedArray::cast(array->elements());
   int n = elements->length();
   bool ascii = true;
@@ -6374,7 +6438,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   if (maybe_result->IsFailure()) return maybe_result;
   result->set_length(Smi::FromInt(part_count));
 
-  ASSERT(result->HasFastElements());
+  ASSERT(result->HasFastObjectElements());
 
   if (part_count == 1 && indices.at(0) == subject_length) {
     FixedArray::cast(result->elements())->set(0, *subject);
@@ -6393,7 +6457,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   }
 
   if (limit == 0xffffffffu) {
-    if (result->HasFastElements()) {
+    if (result->HasFastObjectElements()) {
       StringSplitCache::Enter(isolate->heap(),
                               isolate->heap()->string_split_cache(),
                               *subject,
@@ -6750,7 +6814,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   if (maybe_result->IsFailure()) return maybe_result;
 
   int special_length = special->length();
-  if (!array->HasFastElements()) {
+  if (!array->HasFastObjectElements()) {
     return isolate->Throw(isolate->heap()->illegal_argument_symbol());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
@@ -6860,7 +6924,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderJoin) {
   int array_length = args.smi_at(1);
   CONVERT_ARG_CHECKED(String, separator, 2);
 
-  if (!array->HasFastElements()) {
+  if (!array->HasFastObjectElements()) {
     return isolate->Throw(isolate->heap()->illegal_argument_symbol());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
@@ -6977,8 +7041,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(JSArray, elements_array, 0);
-  RUNTIME_ASSERT(elements_array->HasFastElements() ||
-                 elements_array->HasFastSmiOnlyElements());
+  RUNTIME_ASSERT(elements_array->HasFastSmiOrObjectElements());
   CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
   CONVERT_ARG_CHECKED(String, separator, 2);
   // elements_array is fast-mode JSarray of alternating positions
@@ -9139,7 +9202,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   MaybeObject* maybe_result_array =
       output->EnsureCanContainHeapObjectElements();
   if (maybe_result_array->IsFailure()) return maybe_result_array;
-  RUNTIME_ASSERT(output->HasFastElements());
+  RUNTIME_ASSERT(output->HasFastObjectElements());
 
   AssertNoAllocation no_allocation;
 
@@ -9371,7 +9434,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushIfAbsent) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSArray, array, 0);
   CONVERT_ARG_CHECKED(JSObject, element, 1);
-  RUNTIME_ASSERT(array->HasFastElements() || array->HasFastSmiOnlyElements());
+  RUNTIME_ASSERT(array->HasFastSmiOrObjectElements());
   int length = Smi::cast(array->length())->value();
   FixedArray* elements = FixedArray::cast(array->elements());
   for (int i = 0; i < length; i++) {
@@ -9456,7 +9519,7 @@ class ArrayConcatVisitor {
     Handle<Map> map;
     if (fast_elements_) {
       map = isolate_->factory()->GetElementsTransitionMap(array,
-                                                          FAST_ELEMENTS);
+                                                          FAST_HOLEY_ELEMENTS);
     } else {
       map = isolate_->factory()->GetElementsTransitionMap(array,
                                                           DICTIONARY_ELEMENTS);
@@ -9515,8 +9578,10 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
   uint32_t length = static_cast<uint32_t>(array->length()->Number());
   int element_count = 0;
   switch (array->GetElementsKind()) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case FAST_SMI_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
       // Fast elements can't have lengths that are not representable by
       // a 32-bit signed integer.
       ASSERT(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
@@ -9528,6 +9593,7 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       break;
     }
     case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
       // TODO(1810): Decide if it's worthwhile to implement this.
       UNREACHABLE();
       break;
@@ -9618,8 +9684,10 @@ static void CollectElementIndices(Handle<JSObject> object,
                                   List<uint32_t>* indices) {
   ElementsKind kind = object->GetElementsKind();
   switch (kind) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case FAST_SMI_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(object->elements()));
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
@@ -9630,6 +9698,7 @@ static void CollectElementIndices(Handle<JSObject> object,
       }
       break;
     }
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
       // TODO(1810): Decide if it's worthwhile to implement this.
       UNREACHABLE();
@@ -9744,8 +9813,10 @@ static bool IterateElements(Isolate* isolate,
                             ArrayConcatVisitor* visitor) {
   uint32_t length = static_cast<uint32_t>(receiver->length()->Number());
   switch (receiver->GetElementsKind()) {
-    case FAST_SMI_ONLY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case FAST_SMI_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
@@ -9766,6 +9837,7 @@ static bool IterateElements(Isolate* isolate,
       }
       break;
     }
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
       // TODO(1810): Decide if it's worthwhile to implement this.
       UNREACHABLE();
@@ -9863,7 +9935,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, arguments, 0);
   int argument_count = static_cast<int>(arguments->length()->Number());
-  RUNTIME_ASSERT(arguments->HasFastElements());
+  RUNTIME_ASSERT(arguments->HasFastObjectElements());
   Handle<FixedArray> elements(FixedArray::cast(arguments->elements()));
 
   // Pass 1: estimate the length and number of elements of the result.
@@ -9883,10 +9955,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
         Handle<JSArray> array(Handle<JSArray>::cast(obj));
         // TODO(1810): Find out if it's worthwhile to properly support
         // arbitrary ElementsKinds. For now, pessimistically transition to
-        // FAST_ELEMENTS.
+        // FAST_*_ELEMENTS.
         if (array->HasFastDoubleElements()) {
+          ElementsKind to_kind = FAST_ELEMENTS;
+          if (array->HasFastHoleyElements()) {
+            to_kind = FAST_HOLEY_ELEMENTS;
+          }
           array = Handle<JSArray>::cast(
-              JSObject::TransitionElementsKind(array, FAST_ELEMENTS));
+              JSObject::TransitionElementsKind(array, to_kind));
         }
         length_estimate =
             static_cast<uint32_t>(array->length()->Number());
@@ -9983,29 +10059,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(JSArray, from, 0);
   CONVERT_ARG_CHECKED(JSArray, to, 1);
+  from->ValidateElements();
+  to->ValidateElements();
   FixedArrayBase* new_elements = from->elements();
+  ElementsKind from_kind = from->GetElementsKind();
   MaybeObject* maybe_new_map;
-  ElementsKind elements_kind;
-  if (new_elements->map() == isolate->heap()->fixed_array_map() ||
-      new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
-    elements_kind = FAST_ELEMENTS;
-  } else if (new_elements->map() ==
-             isolate->heap()->fixed_double_array_map()) {
-    elements_kind = FAST_DOUBLE_ELEMENTS;
-  } else {
-    elements_kind = DICTIONARY_ELEMENTS;
-  }
-  maybe_new_map = to->GetElementsTransitionMap(isolate, elements_kind);
+  maybe_new_map = to->GetElementsTransitionMap(isolate, from_kind);
   Object* new_map;
   if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
-  to->set_map(Map::cast(new_map));
-  to->set_elements(new_elements);
+  to->set_map_and_elements(Map::cast(new_map), new_elements);
   to->set_length(from->length());
   Object* obj;
   { MaybeObject* maybe_obj = from->ResetElements();
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   from->set_length(Smi::FromInt(0));
+  to->ValidateElements();
   return to;
 }
 
@@ -10023,36 +10092,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_EstimateNumberOfElements) {
   } else {
     return Smi::FromInt(FixedArray::cast(elements)->length());
   }
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_SwapElements) {
-  HandleScope handle_scope(isolate);
-
-  ASSERT_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  Handle<Object> key1 = args.at<Object>(1);
-  Handle<Object> key2 = args.at<Object>(2);
-
-  uint32_t index1, index2;
-  if (!key1->ToArrayIndex(&index1)
-      || !key2->ToArrayIndex(&index2)) {
-    return isolate->ThrowIllegalOperation();
-  }
-
-  Handle<JSObject> jsobject = Handle<JSObject>::cast(object);
-  Handle<Object> tmp1 = Object::GetElement(jsobject, index1);
-  RETURN_IF_EMPTY_HANDLE(isolate, tmp1);
-  Handle<Object> tmp2 = Object::GetElement(jsobject, index2);
-  RETURN_IF_EMPTY_HANDLE(isolate, tmp2);
-
-  RETURN_IF_EMPTY_HANDLE(
-      isolate, JSObject::SetElement(jsobject, index1, tmp2, NONE, kStrictMode));
-  RETURN_IF_EMPTY_HANDLE(
-      isolate, JSObject::SetElement(jsobject, index2, tmp1, NONE, kStrictMode));
-
-  return isolate->heap()->undefined_value();
 }
 
 
@@ -10085,8 +10124,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
     }
     return *isolate->factory()->NewJSArrayWithElements(keys);
   } else {
-    ASSERT(array->HasFastElements() ||
-           array->HasFastSmiOnlyElements() ||
+    ASSERT(array->HasFastSmiOrObjectElements() ||
            array->HasFastDoubleElements());
     Handle<FixedArray> single_interval = isolate->factory()->NewFixedArray(2);
     // -1 means start of array.
@@ -13401,9 +13439,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IS_VAR) {
     return isolate->heap()->ToBoolean(obj->Has##Name());  \
   }
 
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastSmiOnlyElements)
-ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastSmiElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastObjectElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastSmiOrObjectElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastHoleyElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalPixelElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)

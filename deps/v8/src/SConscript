@@ -68,6 +68,7 @@ SOURCES = {
     diy-fp.cc
     dtoa.cc
     elements.cc
+    elements-kind.cc
     execution.cc
     factory.cc
     flags.cc

@@ -34,7 +34,7 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
-support_smi_only_arrays = %HasFastSmiOnlyElements(new Array(1,2,3,4,5,6,7,8));
+support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");
@@ -59,8 +59,8 @@ var elements_kind = {
 }
 
 function getKind(obj) {
-  if (%HasFastSmiOnlyElements(obj)) return elements_kind.fast_smi_only;
-  if (%HasFastElements(obj)) return elements_kind.fast;
+  if (%HasFastSmiElements(obj)) return elements_kind.fast_smi_only;
+  if (%HasFastObjectElements(obj)) return elements_kind.fast;
   if (%HasFastDoubleElements(obj)) return elements_kind.fast_double;
   if (%HasDictionaryElements(obj)) return elements_kind.dictionary;
   // Every external kind is also an external array.
@@ -116,7 +116,7 @@ if (support_smi_only_arrays) {
   assertKind(elements_kind.fast_smi_only, too);
 }
 
-// Make sure the element kind transitions from smionly when a non-smi is stored.
+// Make sure the element kind transitions from smi when a non-smi is stored.
 var you = new Array();
 assertKind(elements_kind.fast_smi_only, you);
 for (var i = 0; i < 1337; i++) {

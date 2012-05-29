@@ -286,12 +286,11 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
-  ASSERT_EQ((map()->has_fast_elements() ||
-             map()->has_fast_smi_only_elements() ||
+  ASSERT_EQ((map()->has_fast_smi_or_object_elements() ||
              (elements() == GetHeap()->empty_fixed_array())),
             (elements()->map() == GetHeap()->fixed_array_map() ||
              elements()->map() == GetHeap()->fixed_cow_array_map()));
-  ASSERT(map()->has_fast_elements() == HasFastElements());
+  ASSERT(map()->has_fast_object_elements() == HasFastObjectElements());
 }
 
 
@@ -458,7 +457,14 @@ void String::StringVerify() {
     ConsString::cast(this)->ConsStringVerify();
   } else if (IsSlicedString()) {
     SlicedString::cast(this)->SlicedStringVerify();
+  } else if (IsSeqAsciiString()) {
+    SeqAsciiString::cast(this)->SeqAsciiStringVerify();
   }
+}
+
+
+void SeqAsciiString::SeqAsciiStringVerify() {
+  CHECK(String::IsAscii(GetChars(), length()));
 }
 
 
@@ -510,7 +516,7 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   VerifyObjectField(JSGlobalProxy::kContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
-  CHECK(HasFastElements());
+  CHECK(HasFastObjectElements());
   CHECK_EQ(0, FixedArray::cast(elements())->length());
 }
 
@@ -805,6 +811,11 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
   }
   // Indexed properties
   switch (GetElementsKind()) {
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_SMI_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
@@ -818,6 +829,14 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       info->number_of_fast_unused_elements_ += holes;
       break;
     }
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
     case EXTERNAL_PIXEL_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       ExternalPixelArray* e = ExternalPixelArray::cast(elements());
@@ -831,8 +850,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
           dict->Capacity() - dict->NumberOfElements();
       break;
     }
-    default:
-      UNREACHABLE();
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       break;
   }
 }
@@ -989,6 +1007,28 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
       }
     }
   }
+}
+
+
+void Map::ZapInstanceDescriptors() {
+  DescriptorArray* descriptors = instance_descriptors();
+  if (descriptors == GetHeap()->empty_descriptor_array()) return;
+  FixedArray* contents = FixedArray::cast(
+      descriptors->get(DescriptorArray::kContentArrayIndex));
+  MemsetPointer(descriptors->data_start(),
+                GetHeap()->the_hole_value(),
+                descriptors->length());
+  MemsetPointer(contents->data_start(),
+                GetHeap()->the_hole_value(),
+                contents->length());
+}
+
+
+void Map::ZapPrototypeTransitions() {
+  FixedArray* proto_transitions = prototype_transitions();
+  MemsetPointer(proto_transitions->data_start(),
+                GetHeap()->the_hole_value(),
+                proto_transitions->length());
 }
 
 

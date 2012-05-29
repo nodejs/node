@@ -362,12 +362,15 @@ class Scope: public ZoneObject {
   bool AllowsLazyCompilation() const;
 
   // True if we can lazily recompile functions with this scope.
-  bool allows_lazy_recompilation() const {
-    return !force_eager_compilation_;
-  }
+  bool AllowsLazyRecompilation() const;
 
   // True if the outer context of this scope is always the global context.
   bool HasTrivialOuterContext() const;
+
+  // True if this scope is inside a with scope and all declaration scopes
+  // between them have empty contexts. Such declaration scopes become
+  // invisible during scope info deserialization.
+  bool TrivialDeclarationScopesBeforeWithScope() const;
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);

@@ -267,6 +267,7 @@ class HGraph: public ZoneObject {
   void AssignDominators();
   void ReplaceCheckedValues();
   void EliminateRedundantBoundsChecks();
+  void DehoistSimpleArrayIndexComputations();
   void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
@@ -1092,6 +1093,7 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
                                               HValue* val,
+                                              HValue* dependency,
                                               Handle<Map> map,
                                               bool is_store);
   HValue* HandlePolymorphicElementAccess(HValue* object,

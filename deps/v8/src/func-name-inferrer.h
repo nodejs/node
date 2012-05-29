@@ -88,6 +88,8 @@ class FuncNameInferrer : public ZoneObject {
   void Leave() {
     ASSERT(IsOpen());
     names_stack_.Rewind(entries_stack_.RemoveLast());
+    if (entries_stack_.is_empty())
+      funcs_to_infer_.Clear();
   }
 
  private:

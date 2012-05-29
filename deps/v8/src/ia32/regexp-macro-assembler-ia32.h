@@ -1,4 +1,4 @@
-// Copyright 2008-2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -111,7 +111,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetCurrentPositionFromEnd(int by);
   virtual void SetRegister(int register_index, int to);
-  virtual void Succeed();
+  virtual bool Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
@@ -135,7 +135,11 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   static const int kInputStart = kStartIndex + kPointerSize;
   static const int kInputEnd = kInputStart + kPointerSize;
   static const int kRegisterOutput = kInputEnd + kPointerSize;
-  static const int kStackHighEnd = kRegisterOutput + kPointerSize;
+  // For the case of global regular expression, we have room to store at least
+  // one set of capture results.  For the case of non-global regexp, we ignore
+  // this value.
+  static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
+  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
   // Below the frame pointer - local stack variables.
@@ -144,7 +148,8 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   static const int kBackup_esi = kFramePointer - kPointerSize;
   static const int kBackup_edi = kBackup_esi - kPointerSize;
   static const int kBackup_ebx = kBackup_edi - kPointerSize;
-  static const int kInputStartMinusOne = kBackup_ebx - kPointerSize;
+  static const int kSuccessfulCaptures = kBackup_ebx - kPointerSize;
+  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
   // First register address. Following registers are below it on the stack.
   static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
 

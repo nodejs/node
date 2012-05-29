@@ -203,8 +203,9 @@ void RegExpMacroAssemblerIrregexp::PushBacktrack(Label* l) {
 }
 
 
-void RegExpMacroAssemblerIrregexp::Succeed() {
+bool RegExpMacroAssemblerIrregexp::Succeed() {
   Emit(BC_SUCCEED, 0);
+  return false;  // Restart matching for global regexp not supported.
 }
 
 

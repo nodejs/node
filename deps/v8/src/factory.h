@@ -216,9 +216,10 @@ class Factory {
   Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
       Handle<Object> value);
 
-  Handle<Map> NewMap(InstanceType type,
-                     int instance_size,
-                     ElementsKind elements_kind = FAST_ELEMENTS);
+  Handle<Map> NewMap(
+      InstanceType type,
+      int instance_size,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
@@ -269,13 +270,14 @@ class Factory {
   Handle<JSModule> NewJSModule();
 
   // JS arrays are pretenured when allocated by the parser.
-  Handle<JSArray> NewJSArray(int capacity,
-                             ElementsKind elements_kind = FAST_ELEMENTS,
-                             PretenureFlag pretenure = NOT_TENURED);
+  Handle<JSArray> NewJSArray(
+      int capacity,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+      PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
-      ElementsKind elements_kind = FAST_ELEMENTS,
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
       PretenureFlag pretenure = NOT_TENURED);
 
   void SetElementsCapacityAndLength(Handle<JSArray> array,
@@ -287,6 +289,7 @@ class Factory {
   void EnsureCanContainHeapObjectElements(Handle<JSArray> array);
   void EnsureCanContainElements(Handle<JSArray> array,
                                 Handle<FixedArrayBase> elements,
+                                uint32_t length,
                                 EnsureElementsMode mode);
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);

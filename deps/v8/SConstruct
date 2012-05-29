@@ -101,14 +101,14 @@ LIBRARY_FLAGS = {
     'os:linux': {
       'CCFLAGS':      ['-ansi'] + GCC_EXTRA_CCFLAGS,
       'library:shared': {
-        'CPPDEFINES': ['V8_SHARED'],
+        'CPPDEFINES': ['V8_SHARED', 'BUILDING_V8_SHARED'],
         'LIBS': ['pthread']
       }
     },
     'os:macos': {
       'CCFLAGS':      ['-ansi', '-mmacosx-version-min=10.4'],
       'library:shared': {
-        'CPPDEFINES': ['V8_SHARED']
+        'CPPDEFINES': ['V8_SHARED', 'BUILDING_V8_SHARED'],
       }
     },
     'os:freebsd': {

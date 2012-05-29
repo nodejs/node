@@ -27,6 +27,7 @@
 
 prefix cctest
 
+# All tests prefixed with 'Bug' are expected to fail.
 test-api/Bug*: FAIL
 
 ##############################################################################

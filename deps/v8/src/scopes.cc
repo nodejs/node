@@ -658,6 +658,26 @@ bool Scope::HasTrivialOuterContext() const {
 }
 
 
+bool Scope::AllowsLazyRecompilation() const {
+  return !force_eager_compilation_ &&
+         !TrivialDeclarationScopesBeforeWithScope();
+}
+
+
+bool Scope::TrivialDeclarationScopesBeforeWithScope() const {
+  Scope* outer = outer_scope_;
+  if (outer == NULL) return false;
+  outer = outer->DeclarationScope();
+  while (outer != NULL) {
+    if (outer->is_with_scope()) return true;
+    if (outer->is_declaration_scope() && outer->num_heap_slots() > 0)
+      return false;
+    outer = outer->outer_scope_;
+  }
+  return false;
+}
+
+
 int Scope::ContextChainLength(Scope* scope) {
   int n = 0;
   for (Scope* s = this; s != scope; s = s->outer_scope_) {

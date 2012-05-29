@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -324,7 +324,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                index)));
     if (index == -1) return isolate->factory()->null_value();
   }
-  ASSERT(last_match_info->HasFastElements());
+  ASSERT(last_match_info->HasFastObjectElements());
 
   {
     NoHandleAllocation no_handles;
@@ -429,6 +429,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   RegExpEngine::CompilationResult result =
       RegExpEngine::Compile(&compile_data,
                             flags.is_ignore_case(),
+                            flags.is_global(),
                             flags.is_multiline(),
                             pattern,
                             sample_subject,
@@ -515,7 +516,23 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
 }
 
 
-RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
+int RegExpImpl::GlobalOffsetsVectorSize(Handle<JSRegExp> regexp,
+                                        int registers_per_match,
+                                        int* max_matches) {
+#ifdef V8_INTERPRETED_REGEXP
+  // Global loop in interpreted regexp is not implemented.  Therefore we choose
+  // the size of the offsets vector so that it can only store one match.
+  *max_matches = 1;
+  return registers_per_match;
+#else  // V8_INTERPRETED_REGEXP
+  int size = Max(registers_per_match, OffsetsVector::kStaticOffsetsVectorSize);
+  *max_matches = size / registers_per_match;
+  return size;
+#endif  // V8_INTERPRETED_REGEXP
+}
+
+
+int RegExpImpl::IrregexpExecRaw(
     Handle<JSRegExp> regexp,
     Handle<String> subject,
     int index,
@@ -617,7 +634,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   OffsetsVector registers(required_registers, isolate);
 
-  IrregexpResult res = RegExpImpl::IrregexpExecOnce(
+  int res = RegExpImpl::IrregexpExecRaw(
       jsregexp, subject, previous_index, Vector<int>(registers.vector(),
                                                      registers.length()));
   if (res == RE_SUCCESS) {
@@ -5780,6 +5797,7 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 RegExpEngine::CompilationResult RegExpEngine::Compile(
     RegExpCompileData* data,
     bool ignore_case,
+    bool is_global,
     bool is_multiline,
     Handle<String> pattern,
     Handle<String> sample_subject,
@@ -5882,6 +5900,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
       max_length < kMaxBacksearchLimit) {
     macro_assembler.SetCurrentPositionFromEnd(max_length);
   }
+
+  macro_assembler.set_global(is_global);
 
   return compiler.Assemble(&macro_assembler,
                            node,

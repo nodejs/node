@@ -1709,23 +1709,23 @@ void HGlobalValueNumberer::ProcessLoopBlock(
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (instr->IsTransitionElementsKind()) {
         // It's possible to hoist transitions out of a loop as long as the
-        // hoisting wouldn't move the transition past a DependsOn of one of it's
-        // changes or any instructions that might change an objects map or
-        // elements contents.
-        GVNFlagSet changes = instr->ChangesFlags();
+        // hoisting wouldn't move the transition past an instruction that has a
+        // DependsOn flag for anything it changes.
         GVNFlagSet hoist_depends_blockers =
-            HValue::ConvertChangesToDependsFlags(changes);
-        // In addition to not hoisting transitions above other instructions that
-        // change dependencies that the transition changes, it must not be
-        // hoisted above map changes and stores to an elements backing store
-        // that the transition might change.
-        GVNFlagSet hoist_change_blockers = changes;
-        hoist_change_blockers.Add(kChangesMaps);
+            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
+
+        // In addition, the transition must not be hoisted above elements kind
+        // changes, or if the transition is destructive to the elements buffer,
+        // changes to array pointer or array contents.
+        GVNFlagSet hoist_change_blockers;
+        hoist_change_blockers.Add(kChangesElementsKind);
         HTransitionElementsKind* trans = HTransitionElementsKind::cast(instr);
         if (trans->original_map()->has_fast_double_elements()) {
+          hoist_change_blockers.Add(kChangesElementsPointer);
           hoist_change_blockers.Add(kChangesDoubleArrayElements);
         }
         if (trans->transitioned_map()->has_fast_double_elements()) {
+          hoist_change_blockers.Add(kChangesElementsPointer);
           hoist_change_blockers.Add(kChangesArrayElements);
         }
         if (FLAG_trace_gvn) {
@@ -2758,6 +2758,7 @@ HGraph* HGraphBuilder::CreateGraph() {
   sce.Process();
 
   graph()->EliminateRedundantBoundsChecks();
+  graph()->DehoistSimpleArrayIndexComputations();
 
   return graph();
 }
@@ -3016,7 +3017,6 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     HBoundsCheck* check = HBoundsCheck::cast(i);
     check->ReplaceAllUsesWith(check->index());
 
-    isolate()->counters()->array_bounds_checks_seen()->Increment();
     if (!FLAG_array_bounds_checks_elimination) continue;
 
     int32_t offset;
@@ -3035,10 +3035,8 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
       check->DeleteAndReplaceWith(NULL);
-      isolate()->counters()->array_bounds_checks_removed()->Increment();
     } else if (data->BasicBlock() == bb) {
       data->CoverCheck(check, offset);
-      isolate()->counters()->array_bounds_checks_removed()->Increment();
     } else {
       int32_t new_lower_offset = offset < data->LowerOffset()
           ? offset
@@ -3079,6 +3077,93 @@ void HGraph::EliminateRedundantBoundsChecks() {
   AssertNoAllocation no_gc;
   BoundsCheckTable checks_table;
   EliminateRedundantBoundsChecks(entry_block(), &checks_table);
+}
+
+
+static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
+  HValue* index = array_operation->GetKey();
+
+  HConstant* constant;
+  HValue* subexpression;
+  int32_t sign;
+  if (index->IsAdd()) {
+    sign = 1;
+    HAdd* add = HAdd::cast(index);
+    if (add->left()->IsConstant()) {
+      subexpression = add->right();
+      constant = HConstant::cast(add->left());
+    } else if (add->right()->IsConstant()) {
+      subexpression = add->left();
+      constant = HConstant::cast(add->right());
+    } else {
+      return;
+    }
+  } else if (index->IsSub()) {
+    sign = -1;
+    HSub* sub = HSub::cast(index);
+    if (sub->left()->IsConstant()) {
+      subexpression = sub->right();
+      constant = HConstant::cast(sub->left());
+    } else if (sub->right()->IsConstant()) {
+      subexpression = sub->left();
+      constant = HConstant::cast(sub->right());
+    } return;
+  } else {
+    return;
+  }
+
+  if (!constant->HasInteger32Value()) return;
+  int32_t value = constant->Integer32Value() * sign;
+  // We limit offset values to 30 bits because we want to avoid the risk of
+  // overflows when the offset is added to the object header size.
+  if (value >= 1 << 30 || value < 0) return;
+  array_operation->SetKey(subexpression);
+  if (index->HasNoUses()) {
+    index->DeleteAndReplaceWith(NULL);
+  }
+  ASSERT(value >= 0);
+  array_operation->SetIndexOffset(static_cast<uint32_t>(value));
+  array_operation->SetDehoisted(true);
+}
+
+
+void HGraph::DehoistSimpleArrayIndexComputations() {
+  if (!FLAG_array_index_dehoisting) return;
+
+  HPhase phase("H_Dehoist index computations", this);
+  for (int i = 0; i < blocks()->length(); ++i) {
+    for (HInstruction* instr = blocks()->at(i)->first();
+        instr != NULL;
+        instr = instr->next()) {
+      ArrayInstructionInterface* array_instruction = NULL;
+      if (instr->IsLoadKeyedFastElement()) {
+        HLoadKeyedFastElement* op = HLoadKeyedFastElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsLoadKeyedFastDoubleElement()) {
+        HLoadKeyedFastDoubleElement* op =
+            HLoadKeyedFastDoubleElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsLoadKeyedSpecializedArrayElement()) {
+        HLoadKeyedSpecializedArrayElement* op =
+            HLoadKeyedSpecializedArrayElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsStoreKeyedFastElement()) {
+        HStoreKeyedFastElement* op = HStoreKeyedFastElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsStoreKeyedFastDoubleElement()) {
+        HStoreKeyedFastDoubleElement* op =
+            HStoreKeyedFastDoubleElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else if (instr->IsStoreKeyedSpecializedArrayElement()) {
+        HStoreKeyedSpecializedArrayElement* op =
+            HStoreKeyedSpecializedArrayElement::cast(instr);
+        array_instruction = static_cast<ArrayInstructionInterface*>(op);
+      } else {
+        continue;
+      }
+      DehoistArrayIndex(array_instruction);
+    }
+  }
 }
 
 
@@ -3881,7 +3966,7 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
       new(zone()) HLoadKeyedFastElement(
           environment()->ExpressionStackAt(2),  // Enum cache.
           environment()->ExpressionStackAt(0),  // Iteration index.
-          HLoadKeyedFastElement::OMIT_HOLE_CHECK));
+          OMIT_HOLE_CHECK));
 
   // Check if the expected map still matches that of the enumerable.
   // If not just deoptimize.
@@ -4172,7 +4257,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
       elements->map() != boilerplate->GetHeap()->fixed_cow_array_map()) {
     if (boilerplate->HasFastDoubleElements()) {
       *total_size += FixedDoubleArray::SizeFor(elements->length());
-    } else if (boilerplate->HasFastElements()) {
+    } else if (boilerplate->HasFastObjectElements()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
       for (int i = 0; i < length; i++) {
@@ -4379,11 +4464,13 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                               Representation::Integer32()));
 
     switch (boilerplate_elements_kind) {
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
         // Smi-only arrays need a smi check.
         AddInstruction(new(zone()) HCheckSmi(value));
         // Fall through.
       case FAST_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
         AddInstruction(new(zone()) HStoreKeyedFastElement(
             elements,
             key,
@@ -4391,6 +4478,7 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
             boilerplate_elements_kind));
         break;
       case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
         AddInstruction(new(zone()) HStoreKeyedFastDoubleElement(elements,
                                                                 key,
                                                                 value));
@@ -5148,9 +5236,12 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
         break;
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -5175,13 +5266,16 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
     ASSERT(val != NULL);
     switch (elements_kind) {
       case FAST_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
         return new(zone()) HStoreKeyedFastDoubleElement(
             elements, checked_key, val);
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
         // Smi-only arrays need a smi check.
         AddInstruction(new(zone()) HCheckSmi(val));
         // Fall through.
       case FAST_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
         return new(zone()) HStoreKeyedFastElement(
             elements, checked_key, val, elements_kind);
       default:
@@ -5190,10 +5284,13 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
     }
   }
   // It's an element load (!is_store).
-  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key);
-  } else {  // FAST_ELEMENTS or FAST_SMI_ONLY_ELEMENTS.
-    return new(zone()) HLoadKeyedFastElement(elements, checked_key);
+  HoleCheckMode mode = IsFastPackedElementsKind(elements_kind) ?
+      OMIT_HOLE_CHECK :
+      PERFORM_HOLE_CHECK;
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key, mode);
+  } else {  // Smi or Object elements.
+    return new(zone()) HLoadKeyedFastElement(elements, checked_key, mode);
   }
 }
 
@@ -5201,15 +5298,30 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
 HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            HValue* key,
                                                            HValue* val,
+                                                           HValue* dependency,
                                                            Handle<Map> map,
                                                            bool is_store) {
-  HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMaps(object, map));
-  bool fast_smi_only_elements = map->has_fast_smi_only_elements();
-  bool fast_elements = map->has_fast_elements();
+  HInstruction* mapcheck =
+      AddInstruction(new(zone()) HCheckMaps(object, map, dependency));
+  // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
+  // on a HElementsTransition instruction. The flag can also be removed if the
+  // map to check has FAST_HOLEY_ELEMENTS, since there can be no further
+  // ElementsKind transitions. Finally, the dependency can be removed for stores
+  // for FAST_ELEMENTS, since a transition to HOLEY elements won't change the
+  // generated store code.
+  if (dependency ||
+      (map->elements_kind() == FAST_HOLEY_ELEMENTS) ||
+      (map->elements_kind() == FAST_ELEMENTS && is_store)) {
+    mapcheck->ClearGVNFlag(kDependsOnElementsKind);
+  }
+  bool fast_smi_only_elements = map->has_fast_smi_elements();
+  bool fast_elements = map->has_fast_object_elements();
   HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
-    AddInstruction(new(zone()) HCheckMaps(
-        elements, isolate()->factory()->fixed_array_map()));
+    HCheckMaps* check_cow_map = new(zone()) HCheckMaps(
+        elements, isolate()->factory()->fixed_array_map());
+    check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
+    AddInstruction(check_cow_map);
   }
   HInstruction* length = NULL;
   HInstruction* checked_key = NULL;
@@ -5262,8 +5374,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     ElementsKind elements_kind = map->elements_kind();
-    if (elements_kind == FAST_DOUBLE_ELEMENTS ||
-        elements_kind == FAST_ELEMENTS) {
+    if (IsFastElementsKind(elements_kind) &&
+        elements_kind != GetInitialFastElementsKind()) {
       possible_transitioned_maps.Add(map);
     }
   }
@@ -5277,12 +5389,17 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
   int num_untransitionable_maps = 0;
   Handle<Map> untransitionable_map;
+  HTransitionElementsKind* transition = NULL;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     ASSERT(map->IsMap());
     if (!transition_target.at(i).is_null()) {
-      AddInstruction(new(zone()) HTransitionElementsKind(
-          object, map, transition_target.at(i)));
+      ASSERT(Map::IsValidElementsTransition(
+          map->elements_kind(),
+          transition_target.at(i)->elements_kind()));
+      transition = new(zone()) HTransitionElementsKind(
+          object, map, transition_target.at(i));
+      AddInstruction(transition);
     } else {
       type_todo[map->elements_kind()] = true;
       if (map->elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
@@ -5302,7 +5419,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
                                       : BuildLoadKeyedGeneric(object, key));
     } else {
       instr = AddInstruction(BuildMonomorphicElementAccess(
-          object, key, val, untransitionable_map, is_store));
+          object, key, val, transition, untransitionable_map, is_store));
     }
     *has_side_effects |= instr->HasObservableSideEffects();
     instr->set_position(position);
@@ -5319,20 +5436,18 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   HLoadExternalArrayPointer* external_elements = NULL;
   HInstruction* checked_key = NULL;
 
-  // Generated code assumes that FAST_SMI_ONLY_ELEMENTS, FAST_ELEMENTS,
-  // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS are handled before external
-  // arrays.
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-  STATIC_ASSERT(FAST_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  // Generated code assumes that FAST_* and DICTIONARY_ELEMENTS ElementsKinds
+  // are handled before external arrays.
+  STATIC_ASSERT(FAST_SMI_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
   STATIC_ASSERT(FAST_DOUBLE_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
   STATIC_ASSERT(DICTIONARY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
 
   for (ElementsKind elements_kind = FIRST_ELEMENTS_KIND;
        elements_kind <= LAST_ELEMENTS_KIND;
        elements_kind = ElementsKind(elements_kind + 1)) {
-    // After having handled FAST_ELEMENTS, FAST_SMI_ONLY_ELEMENTS,
-    // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS, we need to add some code
-    // that's executed for all external array cases.
+    // After having handled FAST_* and DICTIONARY_ELEMENTS, we need to add some
+    // code that's executed for all external array cases.
     STATIC_ASSERT(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
                   LAST_ELEMENTS_KIND);
     if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
@@ -5354,10 +5469,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
       set_current_block(if_true);
       HInstruction* access;
-      if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
-          elements_kind == FAST_ELEMENTS ||
-          elements_kind == FAST_DOUBLE_ELEMENTS) {
-        if (is_store && elements_kind != FAST_DOUBLE_ELEMENTS) {
+      if (IsFastElementsKind(elements_kind)) {
+        if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
           AddInstruction(new(zone()) HCheckMaps(
               elements, isolate()->factory()->fixed_array_map(),
               elements_kind_branch));
@@ -5444,7 +5557,7 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
                        : BuildLoadKeyedGeneric(obj, key);
     } else {
       AddInstruction(new(zone()) HCheckNonSmi(obj));
-      instr = BuildMonomorphicElementAccess(obj, key, val, map, is_store);
+      instr = BuildMonomorphicElementAccess(obj, key, val, NULL, map, is_store);
     }
   } else if (expr->GetReceiverTypes() != NULL &&
              !expr->GetReceiverTypes()->is_empty()) {
@@ -8132,14 +8245,6 @@ void HGraphBuilder::GenerateNumberToString(CallRuntime* call) {
       new(zone()) HCallStub(context, CodeStub::NumberToString, 1);
   Drop(1);
   return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
-// Fast swapping of elements. Takes three expressions, the object and two
-// indices. This should only be used if the indices are known to be
-// non-negative and within bounds of the elements array at the call site.
-void HGraphBuilder::GenerateSwapElements(CallRuntime* call) {
-  return Bailout("inlined runtime function: SwapElements");
 }
 
 

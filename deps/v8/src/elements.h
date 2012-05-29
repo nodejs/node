@@ -28,6 +28,7 @@
 #ifndef V8_ELEMENTS_H_
 #define V8_ELEMENTS_H_
 
+#include "elements-kind.h"
 #include "objects.h"
 #include "heap.h"
 #include "isolate.h"
@@ -44,6 +45,10 @@ class ElementsAccessor {
 
   virtual ElementsKind kind() const = 0;
   const char* name() const { return name_; }
+
+  // Checks the elements of an object for consistency, asserting when a problem
+  // is found.
+  virtual void Validate(JSObject* obj) = 0;
 
   // Returns true if a holder contains an element with the specified key
   // without iterating up the prototype chain.  The caller can optionally pass

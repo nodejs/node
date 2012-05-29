@@ -307,7 +307,6 @@ class Shell : public i::AllStatic {
   static Handle<Value> EnableProfiler(const Arguments& args);
   static Handle<Value> DisableProfiler(const Arguments& args);
   static Handle<Value> Read(const Arguments& args);
-  static Handle<Value> ReadBinary(const Arguments& args);
   static Handle<Value> ReadBuffer(const Arguments& args);
   static Handle<String> ReadFromStdin();
   static Handle<Value> ReadLine(const Arguments& args) {

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -40,12 +40,12 @@ namespace internal {
 
 
 typedef int (*regexp_matcher)(String*, int, const byte*,
-                              const byte*, int*, Address, int, Isolate*);
+                              const byte*, int*, int, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address should
 // expect eight int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
-  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7))
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
+  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address) \

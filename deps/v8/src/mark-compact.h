@@ -42,6 +42,7 @@ typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 // Forward declarations.
 class CodeFlusher;
 class GCTracer;
+class MarkCompactCollector;
 class MarkingVisitor;
 class RootMarkingVisitor;
 
@@ -166,7 +167,6 @@ class Marking {
 
 // ----------------------------------------------------------------------------
 // Marking deque for tracing live objects.
-
 class MarkingDeque {
  public:
   MarkingDeque()
@@ -383,6 +383,34 @@ class SlotsBuffer {
 };
 
 
+// -------------------------------------------------------------------------
+// Marker shared between incremental and non-incremental marking
+template<class BaseMarker> class Marker {
+ public:
+  Marker(BaseMarker* base_marker, MarkCompactCollector* mark_compact_collector)
+      : base_marker_(base_marker),
+        mark_compact_collector_(mark_compact_collector) {}
+
+  // Mark pointers in a Map and its DescriptorArray together, possibly
+  // treating transitions or back pointers weak.
+  void MarkMapContents(Map* map);
+  void MarkDescriptorArray(DescriptorArray* descriptors);
+  void MarkAccessorPairSlot(AccessorPair* accessors, int offset);
+
+ private:
+  BaseMarker* base_marker() {
+    return base_marker_;
+  }
+
+  MarkCompactCollector* mark_compact_collector() {
+    return mark_compact_collector_;
+  }
+
+  BaseMarker* base_marker_;
+  MarkCompactCollector* mark_compact_collector_;
+};
+
+
 // Defined in isolate.h.
 class ThreadLocalTop;
 
@@ -584,8 +612,6 @@ class MarkCompactCollector {
 
   bool was_marked_incrementally_;
 
-  bool collect_maps_;
-
   bool flush_monomorphic_ics_;
 
   // A pointer to the current stack-allocated GC tracer object during a full
@@ -608,12 +634,13 @@ class MarkCompactCollector {
   //
   //   After: Live objects are marked and non-live objects are unmarked.
 
-
   friend class RootMarkingVisitor;
   friend class MarkingVisitor;
   friend class StaticMarkingVisitor;
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
+  friend class Marker<IncrementalMarking>;
+  friend class Marker<MarkCompactCollector>;
 
   // Mark non-optimize code for functions inlined into the given optimized
   // code. This will prevent it from being flushed.
@@ -631,21 +658,24 @@ class MarkCompactCollector {
   void AfterMarking();
 
   // Marks the object black and pushes it on the marking stack.
-  // This is for non-incremental marking.
+  // Returns true if object needed marking and false otherwise.
+  // This is for non-incremental marking only.
+  INLINE(bool MarkObjectAndPush(HeapObject* obj));
+
+  // Marks the object black and pushes it on the marking stack.
+  // This is for non-incremental marking only.
   INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
 
-  INLINE(bool MarkObjectWithoutPush(HeapObject* object));
-  INLINE(void MarkObjectAndPush(HeapObject* value));
+  // Marks the object black without pushing it on the marking stack.
+  // Returns true if object needed marking and false otherwise.
+  // This is for non-incremental marking only.
+  INLINE(bool MarkObjectWithoutPush(HeapObject* obj));
 
-  // Marks the object black.  This is for non-incremental marking.
+  // Marks the object black assuming that it is not yet marked.
+  // This is for non-incremental marking only.
   INLINE(void SetMark(HeapObject* obj, MarkBit mark_bit));
 
   void ProcessNewlyMarkedObject(HeapObject* obj);
-
-  // Mark a Map and its DescriptorArray together, skipping transitions.
-  void MarkMapContents(Map* map);
-  void MarkAccessorPairSlot(HeapObject* accessors, int offset);
-  void MarkDescriptorArray(DescriptorArray* descriptors);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor* visitor);
@@ -749,6 +779,7 @@ class MarkCompactCollector {
   MarkingDeque marking_deque_;
   CodeFlusher* code_flusher_;
   Object* encountered_weak_maps_;
+  Marker<MarkCompactCollector> marker_;
 
   List<Page*> evacuation_candidates_;
   List<Code*> invalidated_code_;

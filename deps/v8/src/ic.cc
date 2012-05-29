@@ -1644,8 +1644,7 @@ Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
     return string_stub();
   } else {
     ASSERT(receiver_map->has_dictionary_elements() ||
-           receiver_map->has_fast_elements() ||
-           receiver_map->has_fast_smi_only_elements() ||
+           receiver_map->has_fast_smi_or_object_elements() ||
            receiver_map->has_fast_double_elements() ||
            receiver_map->has_external_array_elements());
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -1660,8 +1659,7 @@ Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<JSObject> receiver,
                                              StubKind stub_kind,
                                              StrictModeFlag strict_mode,
                                              Handle<Code> generic_stub) {
-  if (receiver->HasFastElements() ||
-      receiver->HasFastSmiOnlyElements() ||
+  if (receiver->HasFastSmiOrObjectElements() ||
       receiver->HasExternalArrayElements() ||
       receiver->HasFastDoubleElements() ||
       receiver->HasDictionaryElements()) {
@@ -1681,15 +1679,26 @@ Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
     case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
     case KeyedIC::STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
       return JSObject::GetElementsTransitionMap(receiver, FAST_ELEMENTS);
-      break;
     case KeyedIC::STORE_TRANSITION_SMI_TO_DOUBLE:
     case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
       return JSObject::GetElementsTransitionMap(receiver, FAST_DOUBLE_ELEMENTS);
-      break;
-    default:
+    case KeyedIC::STORE_TRANSITION_HOLEY_SMI_TO_OBJECT:
+    case KeyedIC::STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
+      return JSObject::GetElementsTransitionMap(receiver,
+                                                FAST_HOLEY_ELEMENTS);
+    case KeyedIC::STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
+      return JSObject::GetElementsTransitionMap(receiver,
+                                                FAST_HOLEY_DOUBLE_ELEMENTS);
+    case KeyedIC::LOAD:
+    case KeyedIC::STORE_NO_TRANSITION:
+    case KeyedIC::STORE_AND_GROW_NO_TRANSITION:
       UNREACHABLE();
-      return Handle<Map>::null();
+      break;
   }
+  return Handle<Map>::null();
 }
 
 
@@ -1749,30 +1758,54 @@ KeyedIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
 
   if (allow_growth) {
     // Handle growing array in stub if necessary.
-    if (receiver->HasFastSmiOnlyElements()) {
+    if (receiver->HasFastSmiElements()) {
       if (value->IsHeapNumber()) {
-        return STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE;
+        } else {
+          return STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE;
+        }
       }
       if (value->IsHeapObject()) {
-        return STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT;
+        } else {
+          return STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT;
+        }
       }
     } else if (receiver->HasFastDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
-        return STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+        } else {
+          return STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT;
+        }
       }
     }
     return STORE_AND_GROW_NO_TRANSITION;
   } else {
     // Handle only in-bounds elements accesses.
-    if (receiver->HasFastSmiOnlyElements()) {
+    if (receiver->HasFastSmiElements()) {
       if (value->IsHeapNumber()) {
-        return STORE_TRANSITION_SMI_TO_DOUBLE;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE;
+        } else {
+          return STORE_TRANSITION_SMI_TO_DOUBLE;
+        }
       } else if (value->IsHeapObject()) {
-        return STORE_TRANSITION_SMI_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_TRANSITION_HOLEY_SMI_TO_OBJECT;
+        } else {
+          return STORE_TRANSITION_SMI_TO_OBJECT;
+        }
       }
     } else if (receiver->HasFastDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
-        return STORE_TRANSITION_DOUBLE_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+        } else {
+          return STORE_TRANSITION_DOUBLE_TO_OBJECT;
+        }
       }
     }
     return STORE_NO_TRANSITION;

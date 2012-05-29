@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,6 +42,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       state_(STOPPED),
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(false),
+      marker_(this, heap->mark_compact_collector()),
       steps_count_(0),
       steps_took_(0),
       longest_step_(0.0),
@@ -663,6 +664,22 @@ void IncrementalMarking::Hurry() {
       } else if (map == global_context_map) {
         // Global contexts have weak fields.
         VisitGlobalContext(Context::cast(obj), &marking_visitor);
+      } else if (map->instance_type() == MAP_TYPE) {
+        Map* map = Map::cast(obj);
+        heap_->ClearCacheOnMap(map);
+
+        // When map collection is enabled we have to mark through map's
+        // transitions and back pointers in a special way to make these links
+        // weak.  Only maps for subclasses of JSReceiver can have transitions.
+        STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+        if (FLAG_collect_maps &&
+            map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
+          marker_.MarkMapContents(map);
+        } else {
+          marking_visitor.VisitPointers(
+              HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
+              HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
+        }
       } else {
         obj->Iterate(&marking_visitor);
       }
@@ -807,12 +824,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
       Map* map = obj->map();
       if (map == filler_map) continue;
 
-      if (obj->IsMap()) {
-        Map* map = Map::cast(obj);
-        heap_->ClearCacheOnMap(map);
-      }
-
-
       int size = obj->SizeFromMap(map);
       bytes_to_process -= size;
       MarkBit map_mark_bit = Marking::MarkBitFrom(map);
@@ -830,6 +841,22 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
         MarkObjectGreyDoNotEnqueue(ctx->normalized_map_cache());
 
         VisitGlobalContext(ctx, &marking_visitor);
+      } else if (map->instance_type() == MAP_TYPE) {
+        Map* map = Map::cast(obj);
+        heap_->ClearCacheOnMap(map);
+
+        // When map collection is enabled we have to mark through map's
+        // transitions and back pointers in a special way to make these links
+        // weak.  Only maps for subclasses of JSReceiver can have transitions.
+        STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+        if (FLAG_collect_maps &&
+            map->instance_type() >= FIRST_JS_RECEIVER_TYPE) {
+          marker_.MarkMapContents(map);
+        } else {
+          marking_visitor.VisitPointers(
+              HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
+              HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
+        }
       } else if (map->instance_type() == JS_FUNCTION_TYPE) {
         marking_visitor.VisitPointers(
             HeapObject::RawField(obj, JSFunction::kPropertiesOffset),

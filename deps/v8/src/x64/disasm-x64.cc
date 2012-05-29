@@ -1684,7 +1684,7 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
           default:
             UNREACHABLE();
         }
-        AppendToBuffer("test%c rax,0x%"V8_PTR_PREFIX"x",
+        AppendToBuffer("test%c rax,0x%" V8_PTR_PREFIX "x",
                        operand_size_code(),
                        value);
         break;

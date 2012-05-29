@@ -769,25 +769,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ CompareRoot(r9, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &non_double_value);
 
-  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
+  // Value is a double. Transition FAST_SMI_ELEMENTS ->
   // FAST_DOUBLE_ELEMENTS and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_DOUBLE_ELEMENTS,
                                          rbx,
                                          rdi,
                                          &slow);
-  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_ELEMENTS,
                                          rbx,
                                          rdi,
                                          &slow);
-  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 
@@ -1642,7 +1642,7 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
     __ movq(rax, rdx);
     __ Ret();
     __ bind(&fail);

@@ -3767,10 +3767,12 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   Handle<FixedArray> object_literals =
       isolate()->factory()->NewFixedArray(values->length(), TENURED);
   Handle<FixedDoubleArray> double_literals;
-  ElementsKind elements_kind = FAST_SMI_ONLY_ELEMENTS;
+  ElementsKind elements_kind = FAST_SMI_ELEMENTS;
   bool has_only_undefined_values = true;
+  bool has_hole_values = false;
 
   // Fill in the literals.
+  Heap* heap = isolate()->heap();
   bool is_simple = true;
   int depth = 1;
   for (int i = 0, n = values->length(); i < n; i++) {
@@ -3779,12 +3781,18 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       depth = m_literal->depth() + 1;
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
-    if (boilerplate_value->IsUndefined()) {
+    if (boilerplate_value->IsTheHole()) {
+      has_hole_values = true;
       object_literals->set_the_hole(i);
       if (elements_kind == FAST_DOUBLE_ELEMENTS) {
         double_literals->set_the_hole(i);
       }
+    } else if (boilerplate_value->IsUndefined()) {
       is_simple = false;
+      object_literals->set(i, Smi::FromInt(0));
+      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        double_literals->set(i, 0);
+      }
     } else {
       // Examine each literal element, and adjust the ElementsKind if the
       // literal element is not of a type that can be stored in the current
@@ -3794,7 +3802,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
       // ultimately end up in FAST_ELEMENTS.
       has_only_undefined_values = false;
       object_literals->set(i, *boilerplate_value);
-      if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+      if (elements_kind == FAST_SMI_ELEMENTS) {
         // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
         // FAST_ELEMENTS is required.
         if (!boilerplate_value->IsSmi()) {
@@ -3842,7 +3850,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   // elements array to a copy-on-write array.
   if (is_simple && depth == 1 && values->length() > 0 &&
       elements_kind != FAST_DOUBLE_ELEMENTS) {
-    object_literals->set_map(isolate()->heap()->fixed_cow_array_map());
+    object_literals->set_map(heap->fixed_cow_array_map());
   }
 
   Handle<FixedArrayBase> element_values = elements_kind == FAST_DOUBLE_ELEMENTS
@@ -3853,6 +3861,10 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   // in a 2-element FixedArray.
   Handle<FixedArray> literals =
       isolate()->factory()->NewFixedArray(2, TENURED);
+
+  if (has_hole_values || !FLAG_packed_arrays) {
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
 
   literals->set(0, Smi::FromInt(elements_kind));
   literals->set(1, *element_values);

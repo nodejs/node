@@ -775,7 +775,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
       instance_size != JSObject::kHeaderSize) {
     Handle<Map> initial_map = NewMap(type,
                                      instance_size,
-                                     FAST_SMI_ONLY_ELEMENTS);
+                                     GetInitialFastElementsKind());
     function->set_initial_map(*initial_map);
     initial_map->set_constructor(*function);
   }
@@ -1013,10 +1013,11 @@ void Factory::EnsureCanContainHeapObjectElements(Handle<JSArray> array) {
 
 void Factory::EnsureCanContainElements(Handle<JSArray> array,
                                        Handle<FixedArrayBase> elements,
+                                       uint32_t length,
                                        EnsureElementsMode mode) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
-      array->EnsureCanContainElements(*elements, mode));
+      array->EnsureCanContainElements(*elements, length, mode));
 }
 
 

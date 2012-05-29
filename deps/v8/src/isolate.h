@@ -965,7 +965,7 @@ class Isolate {
   // SerializerDeserializer state.
   static const int kPartialSnapshotCacheCapacity = 1400;
 
-  static const int kJSRegexpStaticOffsetsVectorSize = 50;
+  static const int kJSRegexpStaticOffsetsVectorSize = 128;
 
   Address external_callback() {
     return thread_local_top_.external_callback_;

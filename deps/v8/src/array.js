@@ -827,7 +827,8 @@ function ArraySort(comparefn) {
       var element = a[i];
       var order = %_CallFunction(receiver, element, pivot, comparefn);
       if (order < 0) {
-        %_SwapElements(a, i, low_end);
+        a[i] = a[low_end];
+        a[low_end] = element;
         low_end++;
       } else if (order > 0) {
         do {
@@ -836,9 +837,12 @@ function ArraySort(comparefn) {
           var top_elem = a[high_start];
           order = %_CallFunction(receiver, top_elem, pivot, comparefn);
         } while (order > 0);
-        %_SwapElements(a, i, high_start);
+        a[i] = a[high_start];
+        a[high_start] = element;
         if (order < 0) {
-          %_SwapElements(a, i, low_end);
+          element = a[i];
+          a[i] = a[low_end];
+          a[low_end] = element;
           low_end++;
         }
       }

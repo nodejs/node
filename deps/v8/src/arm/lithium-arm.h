@@ -1236,6 +1236,7 @@ class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 
@@ -1252,13 +1253,13 @@ class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 
 class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
  public:
-  LLoadKeyedSpecializedArrayElement(LOperand* external_pointer,
-                                    LOperand* key) {
+  LLoadKeyedSpecializedArrayElement(LOperand* external_pointer, LOperand* key) {
     inputs_[0] = external_pointer;
     inputs_[1] = key;
   }
@@ -1272,6 +1273,7 @@ class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 
@@ -1740,6 +1742,7 @@ class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* object() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 
@@ -1762,6 +1765,7 @@ class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 
   bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
@@ -1806,6 +1810,7 @@ class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 

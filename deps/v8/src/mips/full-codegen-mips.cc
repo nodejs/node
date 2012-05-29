@@ -1711,7 +1711,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT_EQ(2, constant_elements->length());
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
-  bool has_fast_elements = constant_elements_kind == FAST_ELEMENTS;
+  bool has_fast_elements =
+      IsFastObjectElementsKind(constant_elements_kind);
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
@@ -1733,8 +1734,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
-    ASSERT(constant_elements_kind == FAST_ELEMENTS ||
-           constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+    ASSERT(IsFastSmiOrObjectElementsKind(constant_elements_kind) ||
            FLAG_smi_only_arrays);
     FastCloneShallowArrayStub::Mode mode = has_fast_elements
       ? FastCloneShallowArrayStub::CLONE_ELEMENTS
@@ -1763,7 +1763,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     VisitForAccumulatorValue(subexpr);
 
-    if (constant_elements_kind == FAST_ELEMENTS) {
+    if (IsFastObjectElementsKind(constant_elements_kind)) {
       int offset = FixedArray::kHeaderSize + (i * kPointerSize);
       __ lw(t2, MemOperand(sp));  // Copy of array literal.
       __ lw(a1, FieldMemOperand(t2, JSObject::kElementsOffset));
@@ -3496,104 +3496,6 @@ void FullCodeGenerator::EmitRegExpConstructResult(CallRuntime* expr) {
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
   __ CallStub(&stub);
-  context()->Plug(v0);
-}
-
-
-void FullCodeGenerator::EmitSwapElements(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 3);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  VisitForStackValue(args->at(2));
-  Label done;
-  Label slow_case;
-  Register object = a0;
-  Register index1 = a1;
-  Register index2 = a2;
-  Register elements = a3;
-  Register scratch1 = t0;
-  Register scratch2 = t1;
-
-  __ lw(object, MemOperand(sp, 2 * kPointerSize));
-  // Fetch the map and check if array is in fast case.
-  // Check that object doesn't require security checks and
-  // has no indexed interceptor.
-  __ GetObjectType(object, scratch1, scratch2);
-  __ Branch(&slow_case, ne, scratch2, Operand(JS_ARRAY_TYPE));
-  // Map is now in scratch1.
-
-  __ lbu(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
-  __ And(scratch2, scratch2, Operand(KeyedLoadIC::kSlowCaseBitFieldMask));
-  __ Branch(&slow_case, ne, scratch2, Operand(zero_reg));
-
-  // Check the object's elements are in fast case and writable.
-  __ lw(elements, FieldMemOperand(object, JSObject::kElementsOffset));
-  __ lw(scratch1, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ LoadRoot(scratch2, Heap::kFixedArrayMapRootIndex);
-  __ Branch(&slow_case, ne, scratch1, Operand(scratch2));
-
-  // Check that both indices are smis.
-  __ lw(index1, MemOperand(sp, 1 * kPointerSize));
-  __ lw(index2, MemOperand(sp, 0));
-  __ JumpIfNotBothSmi(index1, index2, &slow_case);
-
-  // Check that both indices are valid.
-  Label not_hi;
-  __ lw(scratch1, FieldMemOperand(object, JSArray::kLengthOffset));
-  __ Branch(&slow_case, ls, scratch1, Operand(index1));
-  __ Branch(&not_hi, NegateCondition(hi), scratch1, Operand(index1));
-  __ Branch(&slow_case, ls, scratch1, Operand(index2));
-  __ bind(&not_hi);
-
-  // Bring the address of the elements into index1 and index2.
-  __ Addu(scratch1, elements,
-      Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(index1, index1, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(index1, scratch1, index1);
-  __ sll(index2, index2, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(index2, scratch1, index2);
-
-  // Swap elements.
-  __ lw(scratch1, MemOperand(index1, 0));
-  __ lw(scratch2, MemOperand(index2, 0));
-  __ sw(scratch1, MemOperand(index2, 0));
-  __ sw(scratch2, MemOperand(index1, 0));
-
-  Label no_remembered_set;
-  __ CheckPageFlag(elements,
-                   scratch1,
-                   1 << MemoryChunk::SCAN_ON_SCAVENGE,
-                   ne,
-                   &no_remembered_set);
-  // Possible optimization: do a check that both values are Smis
-  // (or them and test against Smi mask).
-
-  // We are swapping two objects in an array and the incremental marker never
-  // pauses in the middle of scanning a single object.  Therefore the
-  // incremental marker is not disturbed, so we don't need to call the
-  // RecordWrite stub that notifies the incremental marker.
-  __ RememberedSetHelper(elements,
-                         index1,
-                         scratch2,
-                         kDontSaveFPRegs,
-                         MacroAssembler::kFallThroughAtEnd);
-  __ RememberedSetHelper(elements,
-                         index2,
-                         scratch2,
-                         kDontSaveFPRegs,
-                         MacroAssembler::kFallThroughAtEnd);
-
-  __ bind(&no_remembered_set);
-  // We are done. Drop elements from the stack, and return undefined.
-  __ Drop(3);
-  __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
-  __ jmp(&done);
-
-  __ bind(&slow_case);
-  __ CallRuntime(Runtime::kSwapElements, 3);
-
-  __ bind(&done);
   context()->Plug(v0);
 }
 

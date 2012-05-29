@@ -200,9 +200,12 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
     array->set_elements(heap->empty_fixed_array());
     if (!FLAG_smi_only_arrays) {
       Context* global_context = isolate->context()->global_context();
-      if (array->GetElementsKind() == FAST_SMI_ONLY_ELEMENTS &&
-          !global_context->object_js_array_map()->IsUndefined()) {
-        array->set_map(Map::cast(global_context->object_js_array_map()));
+      if (array->GetElementsKind() == GetInitialFastElementsKind() &&
+          !global_context->js_array_maps()->IsUndefined()) {
+        FixedArray* map_array =
+            FixedArray::cast(global_context->js_array_maps());
+        array->set_map(Map::cast(map_array->
+                                 get(TERMINAL_FAST_ELEMENTS_KIND)));
       }
     }
   } else {
@@ -221,6 +224,13 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
         Object* fixed_array;
         { MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(len);
           if (!maybe_obj->ToObject(&fixed_array)) return maybe_obj;
+        }
+        ElementsKind elements_kind = array->GetElementsKind();
+        if (!IsFastHoleyElementsKind(elements_kind)) {
+          elements_kind = GetHoleyElementsKind(elements_kind);
+          MaybeObject* maybe_array =
+              array->TransitionElementsKind(elements_kind);
+          if (maybe_array->IsFailure()) return maybe_array;
         }
         // We do not use SetContent to skip the unnecessary elements type check.
         array->set_elements(FixedArray::cast(fixed_array));
@@ -250,7 +260,7 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
   // Allocate an appropriately typed elements array.
   MaybeObject* maybe_elms;
   ElementsKind elements_kind = array->GetElementsKind();
-  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+  if (IsFastDoubleElementsKind(elements_kind)) {
     maybe_elms = heap->AllocateUninitializedFixedDoubleArray(
         number_of_elements);
   } else {
@@ -261,13 +271,15 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
 
   // Fill in the content
   switch (array->GetElementsKind()) {
-    case FAST_SMI_ONLY_ELEMENTS: {
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_SMI_ELEMENTS: {
       FixedArray* smi_elms = FixedArray::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
         smi_elms->set(index, (*args)[index+1], SKIP_WRITE_BARRIER);
       }
       break;
     }
+    case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS: {
       AssertNoAllocation no_gc;
       WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
@@ -277,6 +289,7 @@ static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
       }
       break;
     }
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
       FixedDoubleArray* double_elms = FixedDoubleArray::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
@@ -412,19 +425,17 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   HeapObject* elms = array->elements();
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
-    if (array->HasFastElements()) return elms;
-    if (args == NULL) {
-      if (array->HasFastDoubleElements()) {
-        ASSERT(elms == heap->empty_fixed_array());
-        MaybeObject* maybe_transition =
-            array->TransitionElementsKind(FAST_ELEMENTS);
-        if (maybe_transition->IsFailure()) return maybe_transition;
-      }
+    if (args == NULL || array->HasFastObjectElements()) return elms;
+    if (array->HasFastDoubleElements()) {
+      ASSERT(elms == heap->empty_fixed_array());
+      MaybeObject* maybe_transition =
+          array->TransitionElementsKind(FAST_ELEMENTS);
+      if (maybe_transition->IsFailure()) return maybe_transition;
       return elms;
     }
   } else if (map == heap->fixed_cow_array_map()) {
     MaybeObject* maybe_writable_result = array->EnsureWritableFastElements();
-    if (args == NULL || array->HasFastElements() ||
+    if (args == NULL || array->HasFastObjectElements() ||
         maybe_writable_result->IsFailure()) {
       return maybe_writable_result;
     }
@@ -518,8 +529,8 @@ BUILTIN(ArrayPush) {
     }
     FixedArray* new_elms = FixedArray::cast(obj);
 
-    CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
-                               new_elms, FAST_ELEMENTS, 0, len);
+    ElementsKind kind = array->GetElementsKind();
+    CopyObjectToObjectElements(elms, kind, 0, new_elms, kind, 0, len);
     FillWithHoles(heap, new_elms, new_length, capacity);
 
     elms = new_elms;
@@ -590,7 +601,7 @@ BUILTIN(ArrayShift) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastTypeElements());
+  ASSERT(array->HasFastSmiOrObjectElements());
 
   int len = Smi::cast(array->length())->value();
   if (len == 0) return heap->undefined_value();
@@ -632,7 +643,7 @@ BUILTIN(ArrayUnshift) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastTypeElements());
+  ASSERT(array->HasFastSmiOrObjectElements());
 
   int len = Smi::cast(array->length())->value();
   int to_add = args.length() - 1;
@@ -654,8 +665,8 @@ BUILTIN(ArrayUnshift) {
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
     FixedArray* new_elms = FixedArray::cast(obj);
-    CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
-                               new_elms, FAST_ELEMENTS, to_add, len);
+    ElementsKind kind = array->GetElementsKind();
+    CopyObjectToObjectElements(elms, kind, 0, new_elms, kind, to_add, len);
     FillWithHoles(heap, new_elms, new_length, capacity);
     elms = new_elms;
     array->set_elements(elms);
@@ -684,7 +695,7 @@ BUILTIN(ArraySlice) {
   int len = -1;
   if (receiver->IsJSArray()) {
     JSArray* array = JSArray::cast(receiver);
-    if (!array->HasFastTypeElements() ||
+    if (!array->HasFastSmiOrObjectElements() ||
         !IsJSArrayFastElementMovingAllowed(heap, array)) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -700,7 +711,7 @@ BUILTIN(ArraySlice) {
     bool is_arguments_object_with_fast_elements =
         receiver->IsJSObject()
         && JSObject::cast(receiver)->map() == arguments_map
-        && JSObject::cast(receiver)->HasFastTypeElements();
+        && JSObject::cast(receiver)->HasFastSmiOrObjectElements();
     if (!is_arguments_object_with_fast_elements) {
       return CallJsBuiltin(isolate, "ArraySlice", args);
     }
@@ -765,9 +776,9 @@ BUILTIN(ArraySlice) {
   JSArray* result_array;
   if (!maybe_array->To(&result_array)) return maybe_array;
 
-  CopyObjectToObjectElements(elms, FAST_ELEMENTS, k,
+  CopyObjectToObjectElements(elms, elements_kind, k,
                              FixedArray::cast(result_array->elements()),
-                             FAST_ELEMENTS, 0, result_len);
+                             elements_kind, 0, result_len);
 
   return result_array;
 }
@@ -788,7 +799,7 @@ BUILTIN(ArraySplice) {
   }
   FixedArray* elms = FixedArray::cast(elms_obj);
   JSArray* array = JSArray::cast(receiver);
-  ASSERT(array->HasFastTypeElements());
+  ASSERT(array->HasFastSmiOrObjectElements());
 
   int len = Smi::cast(array->length())->value();
 
@@ -839,9 +850,9 @@ BUILTIN(ArraySplice) {
 
   {
     // Fill newly created array.
-    CopyObjectToObjectElements(elms, FAST_ELEMENTS, actual_start,
+    CopyObjectToObjectElements(elms, elements_kind, actual_start,
                                FixedArray::cast(result_array->elements()),
-                               FAST_ELEMENTS, 0, actual_delete_count);
+                               elements_kind, 0, actual_delete_count);
   }
 
   int item_count = (n_arguments > 1) ? (n_arguments - 2) : 0;
@@ -890,12 +901,13 @@ BUILTIN(ArraySplice) {
 
       {
         // Copy the part before actual_start as is.
-        CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
-                                   new_elms, FAST_ELEMENTS, 0, actual_start);
+        ElementsKind kind = array->GetElementsKind();
+        CopyObjectToObjectElements(elms, kind, 0,
+                                   new_elms, kind, 0, actual_start);
         const int to_copy = len - actual_delete_count - actual_start;
-        CopyObjectToObjectElements(elms, FAST_ELEMENTS,
+        CopyObjectToObjectElements(elms, kind,
                                    actual_start + actual_delete_count,
-                                   new_elms, FAST_ELEMENTS,
+                                   new_elms, kind,
                                    actual_start + item_count, to_copy);
       }
 
@@ -942,11 +954,12 @@ BUILTIN(ArrayConcat) {
   // and calculating total length.
   int n_arguments = args.length();
   int result_len = 0;
-  ElementsKind elements_kind = FAST_SMI_ONLY_ELEMENTS;
+  ElementsKind elements_kind = GetInitialFastElementsKind();
   for (int i = 0; i < n_arguments; i++) {
     Object* arg = args[i];
-    if (!arg->IsJSArray() || !JSArray::cast(arg)->HasFastTypeElements()
-        || JSArray::cast(arg)->GetPrototype() != array_proto) {
+    if (!arg->IsJSArray() ||
+        !JSArray::cast(arg)->HasFastSmiOrObjectElements() ||
+        JSArray::cast(arg)->GetPrototype() != array_proto) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
 
@@ -963,8 +976,18 @@ BUILTIN(ArrayConcat) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
 
-    if (!JSArray::cast(arg)->HasFastSmiOnlyElements()) {
-      elements_kind = FAST_ELEMENTS;
+    if (!JSArray::cast(arg)->HasFastSmiElements()) {
+      if (IsFastSmiElementsKind(elements_kind)) {
+        if (IsFastHoleyElementsKind(elements_kind)) {
+          elements_kind = FAST_HOLEY_ELEMENTS;
+        } else {
+          elements_kind = FAST_ELEMENTS;
+        }
+      }
+    }
+
+    if (JSArray::cast(arg)->HasFastHoleyElements()) {
+      elements_kind = GetHoleyElementsKind(elements_kind);
     }
   }
 
@@ -984,8 +1007,8 @@ BUILTIN(ArrayConcat) {
     JSArray* array = JSArray::cast(args[i]);
     int len = Smi::cast(array->length())->value();
     FixedArray* elms = FixedArray::cast(array->elements());
-    CopyObjectToObjectElements(elms, FAST_ELEMENTS, 0,
-                               result_elms, FAST_ELEMENTS,
+    CopyObjectToObjectElements(elms, elements_kind, 0,
+                               result_elms, elements_kind,
                                start_pos, len);
     start_pos += len;
   }

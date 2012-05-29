@@ -111,18 +111,56 @@ class Descriptor(object):
 def do_dump(reader, heap):
   """Dump all available memory regions."""
   def dump_region(reader, start, size, location):
-    print "%s - %s" % (reader.FormatIntPtr(start),
-                       reader.FormatIntPtr(start + size))
-    for slot in xrange(start,
-                       start + size,
-                       reader.PointerSize()):
-      maybe_address = reader.ReadUIntPtr(slot)
-      heap_object = heap.FindObject(maybe_address)
-      print "%s: %s" % (reader.FormatIntPtr(slot),
-                        reader.FormatIntPtr(maybe_address))
-      if heap_object:
-        heap_object.Print(Printer())
-        print
+    print
+    while start & 3 != 0:
+      start += 1
+      size -= 1
+      location += 1
+    is_executable = reader.IsProbableExecutableRegion(location, size)
+    is_ascii = reader.IsProbableASCIIRegion(location, size)
+
+    if is_executable is not False:
+      lines = reader.GetDisasmLines(start, size)
+      for line in lines:
+        print FormatDisasmLine(start, heap, line)
+      print
+
+    if is_ascii is not False:
+      # Output in the same format as the Unix hd command
+      addr = start
+      for slot in xrange(location, location + size, 16):
+        hex_line = ""
+        asc_line = ""
+        for i in xrange(0, 16):
+          if slot + i < location + size:
+            byte = ctypes.c_uint8.from_buffer(reader.minidump, slot + i).value
+            if byte >= 0x20 and byte < 0x7f:
+              asc_line += chr(byte)
+            else:
+              asc_line += "."
+            hex_line += " %02x" % (byte)
+          else:
+            hex_line += "   "
+          if i == 7:
+            hex_line += " "
+        print "%s  %s |%s|" % (reader.FormatIntPtr(addr),
+                               hex_line,
+                               asc_line)
+        addr += 16
+
+    if is_executable is not True and is_ascii is not True:
+      print "%s - %s" % (reader.FormatIntPtr(start),
+                         reader.FormatIntPtr(start + size))
+      for slot in xrange(start,
+                         start + size,
+                         reader.PointerSize()):
+        maybe_address = reader.ReadUIntPtr(slot)
+        heap_object = heap.FindObject(maybe_address)
+        print "%s: %s" % (reader.FormatIntPtr(slot),
+                          reader.FormatIntPtr(maybe_address))
+        if heap_object:
+          heap_object.Print(Printer())
+          print
 
   reader.ForEachMemoryRegion(dump_region)
 
@@ -469,6 +507,64 @@ class MinidumpReader(object):
       return ctypes.c_uint64.from_buffer(self.minidump, location).value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return ctypes.c_uint32.from_buffer(self.minidump, location).value
+
+  def IsProbableASCIIRegion(self, location, length):
+    ascii_bytes = 0
+    non_ascii_bytes = 0
+    for loc in xrange(location, location + length):
+      byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
+      if byte >= 0x7f:
+        non_ascii_bytes += 1
+      if byte < 0x20 and byte != 0:
+        non_ascii_bytes += 1
+      if byte < 0x7f and byte >= 0x20:
+        ascii_bytes += 1
+      if byte == 0xa:  # newline
+        ascii_bytes += 1
+    if ascii_bytes * 10 <= length:
+      return False
+    if length > 0 and ascii_bytes > non_ascii_bytes * 7:
+      return True
+    if ascii_bytes > non_ascii_bytes * 3:
+      return None  # Maybe
+    return False
+
+  def IsProbableExecutableRegion(self, location, length):
+    opcode_bytes = 0
+    sixty_four = self.arch == MD_CPU_ARCHITECTURE_AMD64
+    for loc in xrange(location, location + length):
+      byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
+      if (byte == 0x8b or           # mov
+          byte == 0x89 or           # mov reg-reg
+          (byte & 0xf0) == 0x50 or  # push/pop
+          (sixty_four and (byte & 0xf0) == 0x40) or  # rex prefix
+          byte == 0xc3 or           # return
+          byte == 0x74 or           # jeq
+          byte == 0x84 or           # jeq far
+          byte == 0x75 or           # jne
+          byte == 0x85 or           # jne far
+          byte == 0xe8 or           # call
+          byte == 0xe9 or           # jmp far
+          byte == 0xeb):            # jmp near
+        opcode_bytes += 1
+    opcode_percent = (opcode_bytes * 100) / length
+    threshold = 20
+    if opcode_percent > threshold + 2:
+      return True
+    if opcode_percent > threshold - 2:
+      return None  # Maybe
+    return False
+
+  def FindRegion(self, addr):
+    answer = [-1, -1]
+    def is_in(reader, start, size, location):
+      if addr >= start and addr < start + size:
+        answer[0] = start
+        answer[1] = size
+    self.ForEachMemoryRegion(is_in)
+    if answer[0] == -1:
+      return None
+    return answer
 
   def ForEachMemoryRegion(self, cb):
     if self.memory_list64 is not None:
@@ -1099,37 +1195,49 @@ class InspectionShell(cmd.Cmd):
 
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
+  heap = None
   DebugPrint("========================================")
   if reader.exception is None:
     print "Minidump has no exception info"
-    return
-  print "Exception info:"
-  exception_thread = reader.thread_map[reader.exception.thread_id]
-  print "  thread id: %d" % exception_thread.id
-  print "  code: %08X" % reader.exception.exception.code
-  print "  context:"
-  for r in CONTEXT_FOR_ARCH[reader.arch]:
-    print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
-  # TODO(vitalyr): decode eflags.
-  print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
-  print
+  else:
+    print "Exception info:"
+    exception_thread = reader.thread_map[reader.exception.thread_id]
+    print "  thread id: %d" % exception_thread.id
+    print "  code: %08X" % reader.exception.exception.code
+    print "  context:"
+    for r in CONTEXT_FOR_ARCH[reader.arch]:
+      print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
+    # TODO(vitalyr): decode eflags.
+    print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
+    print
 
-  stack_top = reader.ExceptionSP()
-  stack_bottom = exception_thread.stack.start + \
-      exception_thread.stack.memory.data_size
-  stack_map = {reader.ExceptionIP(): -1}
-  for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-    maybe_address = reader.ReadUIntPtr(slot)
-    if not maybe_address in stack_map:
-      stack_map[maybe_address] = slot
-  heap = V8Heap(reader, stack_map)
+    stack_top = reader.ExceptionSP()
+    stack_bottom = exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size
+    stack_map = {reader.ExceptionIP(): -1}
+    for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+      maybe_address = reader.ReadUIntPtr(slot)
+      if not maybe_address in stack_map:
+        stack_map[maybe_address] = slot
+    heap = V8Heap(reader, stack_map)
 
-  print "Disassembly around exception.eip:"
-  start = reader.ExceptionIP() - EIP_PROXIMITY
-  lines = reader.GetDisasmLines(start, 2 * EIP_PROXIMITY)
-  for line in lines:
-    print FormatDisasmLine(start, heap, line)
-  print
+    print "Disassembly around exception.eip:"
+    disasm_start = reader.ExceptionIP() - EIP_PROXIMITY
+    disasm_bytes = 2 * EIP_PROXIMITY
+    if (options.full):
+      full_range = reader.FindRegion(reader.ExceptionIP())
+      if full_range is not None:
+        disasm_start = full_range[0]
+        disasm_bytes = full_range[1]
+
+    lines = reader.GetDisasmLines(disasm_start, disasm_bytes)
+
+    for line in lines:
+      print FormatDisasmLine(disasm_start, heap, line)
+    print
+
+  if heap is None:
+    heap = V8Heap(reader, None)
 
   if options.full:
     do_dump(reader, heap)
@@ -1137,15 +1245,16 @@ def AnalyzeMinidump(options, minidump_name):
   if options.shell:
     InspectionShell(reader, heap).cmdloop("type help to get help")
   else:
-    print "Annotated stack (from exception.esp to bottom):"
-    for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-      maybe_address = reader.ReadUIntPtr(slot)
-      heap_object = heap.FindObject(maybe_address)
-      print "%s: %s" % (reader.FormatIntPtr(slot),
-                        reader.FormatIntPtr(maybe_address))
-      if heap_object:
-        heap_object.Print(Printer())
-        print
+    if reader.exception is not None:
+      print "Annotated stack (from exception.esp to bottom):"
+      for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+        maybe_address = reader.ReadUIntPtr(slot)
+        heap_object = heap.FindObject(maybe_address)
+        print "%s: %s" % (reader.FormatIntPtr(slot),
+                          reader.FormatIntPtr(maybe_address))
+        if heap_object:
+          heap_object.Print(Printer())
+          print
 
   reader.Dispose()
 

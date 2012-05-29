@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,28 +42,30 @@ namespace internal {
 #ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
- * - edx : current character. Must be loaded using LoadCurrentCharacter
- *         before using any of the dispatch methods.
- * - edi : current position in input, as negative offset from end of string.
+ * - edx : Current character.  Must be loaded using LoadCurrentCharacter
+ *         before using any of the dispatch methods.  Temporarily stores the
+ *         index of capture start after a matching pass for a global regexp.
+ * - edi : Current position in input, as negative offset from end of string.
  *         Please notice that this is the byte offset, not the character offset!
  * - esi : end of input (points to byte after last character in input).
- * - ebp : frame pointer. Used to access arguments, local variables and
+ * - ebp : Frame pointer.  Used to access arguments, local variables and
  *         RegExp registers.
- * - esp : points to tip of C stack.
- * - ecx : points to tip of backtrack stack
+ * - esp : Points to tip of C stack.
+ * - ecx : Points to tip of backtrack stack
  *
  * The registers eax and ebx are free to use for computations.
  *
  * Each call to a public method should retain this convention.
  * The stack will have the following structure:
- *       - Isolate* isolate     (Address of the current isolate)
+ *       - Isolate* isolate     (address of the current isolate)
  *       - direct_call          (if 1, direct call from JavaScript code, if 0
  *                               call through the runtime system)
- *       - stack_area_base      (High end of the memory area to use as
+ *       - stack_area_base      (high end of the memory area to use as
  *                               backtracking stack)
+ *       - capture array size   (may fit multiple sets of matches)
  *       - int* capture_array   (int[num_saved_registers_], for output).
- *       - end of input         (Address of end of string)
- *       - start of input       (Address of first character in string)
+ *       - end of input         (address of end of string)
+ *       - start of input       (address of first character in string)
  *       - start index          (character index of start)
  *       - String* input_string (location of a handle containing the string)
  *       --- frame alignment (if applicable) ---
@@ -72,9 +74,10 @@ namespace internal {
  *       - backup of caller esi
  *       - backup of caller edi
  *       - backup of caller ebx
+ *       - success counter      (only for global regexps to count matches).
  *       - Offset of location before start of input (effectively character
  *         position -1). Used to initialize capture registers to a non-position.
- *       - register 0  ebp[-4]  (Only positions must be stored in the first
+ *       - register 0  ebp[-4]  (only positions must be stored in the first
  *       - register 1  ebp[-8]   num_saved_registers_ registers)
  *       - ...
  *
@@ -706,13 +709,16 @@ bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
 
 
 void RegExpMacroAssemblerIA32::Fail() {
-  ASSERT(FAILURE == 0);  // Return value for failure is zero.
-  __ Set(eax, Immediate(0));
+  STATIC_ASSERT(FAILURE == 0);  // Return value for failure is zero.
+  if (!global()) {
+    __ Set(eax, Immediate(FAILURE));
+  }
   __ jmp(&exit_label_);
 }
 
 
 Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
+  Label return_eax;
   // Finalize code - write the entry point code now we know how many
   // registers we need.
 
@@ -731,6 +737,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
+  __ push(Immediate(0));  // Number of successful matches in a global regexp.
   __ push(Immediate(0));  // Make room for "input start - 1" constant.
 
   // Check if we have space on the stack for registers.
@@ -750,13 +757,13 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Exit with OutOfMemory exception. There is not enough space on the stack
   // for our working registers.
   __ mov(eax, EXCEPTION);
-  __ jmp(&exit_label_);
+  __ jmp(&return_eax);
 
   __ bind(&stack_limit_hit);
   CallCheckStackGuardState(ebx);
   __ or_(eax, eax);
   // If returned value is non-zero, we exit with the returned value as result.
-  __ j(not_zero, &exit_label_);
+  __ j(not_zero, &return_eax);
 
   __ bind(&stack_ok);
   // Load start index for later use.
@@ -783,19 +790,8 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // position registers.
   __ mov(Operand(ebp, kInputStartMinusOne), eax);
 
-  if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
-    // Fill saved registers with initial value = start offset - 1
-    // Fill in stack push order, to avoid accessing across an unwritten
-    // page (a problem on Windows).
-    __ mov(ecx, kRegisterZero);
-    Label init_loop;
-    __ bind(&init_loop);
-    __ mov(Operand(ebp, ecx, times_1, +0), eax);
-    __ sub(ecx, Immediate(kPointerSize));
-    __ cmp(ecx, kRegisterZero - num_saved_registers_ * kPointerSize);
-    __ j(greater, &init_loop);
-  }
-  // Ensure that we have written to each stack page, in order. Skipping a page
+#ifdef WIN32
+  // Ensure that we write to each stack page, in order. Skipping a page
   // on Windows can cause segmentation faults. Assuming page size is 4k.
   const int kPageSize = 4096;
   const int kRegistersPerPage = kPageSize / kPointerSize;
@@ -804,20 +800,45 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       i += kRegistersPerPage) {
     __ mov(register_location(i), eax);  // One write every page.
   }
+#endif  // WIN32
 
+  Label load_char_start_regexp, start_regexp;
+  // Load newline if index is at start, previous character otherwise.
+  __ cmp(Operand(ebp, kStartIndex), Immediate(0));
+  __ j(not_equal, &load_char_start_regexp, Label::kNear);
+  __ mov(current_character(), '\n');
+  __ jmp(&start_regexp, Label::kNear);
+
+  // Global regexp restarts matching here.
+  __ bind(&load_char_start_regexp);
+  // Load previous char as initial value of current character register.
+  LoadCurrentCharacterUnchecked(-1, 1);
+  __ bind(&start_regexp);
+
+  // Initialize on-stack registers.
+  if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
+    // Fill saved registers with initial value = start offset - 1
+    // Fill in stack push order, to avoid accessing across an unwritten
+    // page (a problem on Windows).
+    if (num_saved_registers_ > 8) {
+      __ mov(ecx, kRegisterZero);
+      Label init_loop;
+      __ bind(&init_loop);
+      __ mov(Operand(ebp, ecx, times_1, 0), eax);
+      __ sub(ecx, Immediate(kPointerSize));
+      __ cmp(ecx, kRegisterZero - num_saved_registers_ * kPointerSize);
+      __ j(greater, &init_loop);
+    } else {  // Unroll the loop.
+      for (int i = 0; i < num_saved_registers_; i++) {
+        __ mov(register_location(i), eax);
+      }
+    }
+  }
 
   // Initialize backtrack stack pointer.
   __ mov(backtrack_stackpointer(), Operand(ebp, kStackHighEnd));
-  // Load previous char as initial value of current-character.
-  Label at_start;
-  __ cmp(Operand(ebp, kStartIndex), Immediate(0));
-  __ j(equal, &at_start);
-  LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
-  __ jmp(&start_label_);
-  __ bind(&at_start);
-  __ mov(current_character(), '\n');
-  __ jmp(&start_label_);
 
+  __ jmp(&start_label_);
 
   // Exit code:
   if (success_label_.is_linked()) {
@@ -836,6 +857,10 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       }
       for (int i = 0; i < num_saved_registers_; i++) {
         __ mov(eax, register_location(i));
+        if (i == 0 && global()) {
+          // Keep capture start in edx for the zero-length check later.
+          __ mov(edx, eax);
+        }
         // Convert to index from start of string, not end.
         __ add(eax, ecx);
         if (mode_ == UC16) {
@@ -844,10 +869,54 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
         __ mov(Operand(ebx, i * kPointerSize), eax);
       }
     }
-    __ mov(eax, Immediate(SUCCESS));
+
+    if (global()) {
+    // Restart matching if the regular expression is flagged as global.
+      // Increment success counter.
+      __ inc(Operand(ebp, kSuccessfulCaptures));
+      // Capture results have been stored, so the number of remaining global
+      // output registers is reduced by the number of stored captures.
+      __ mov(ecx, Operand(ebp, kNumOutputRegisters));
+      __ sub(ecx, Immediate(num_saved_registers_));
+      // Check whether we have enough room for another set of capture results.
+      __ cmp(ecx, Immediate(num_saved_registers_));
+      __ j(less, &exit_label_);
+
+      __ mov(Operand(ebp, kNumOutputRegisters), ecx);
+      // Advance the location for output.
+      __ add(Operand(ebp, kRegisterOutput),
+             Immediate(num_saved_registers_ * kPointerSize));
+
+      // Prepare eax to initialize registers with its value in the next run.
+      __ mov(eax, Operand(ebp, kInputStartMinusOne));
+
+      // Special case for zero-length matches.
+      // edx: capture start index
+      __ cmp(edi, edx);
+      // Not a zero-length match, restart.
+      __ j(not_equal, &load_char_start_regexp);
+      // edi (offset from the end) is zero if we already reached the end.
+      __ test(edi, edi);
+      __ j(zero, &exit_label_, Label::kNear);
+      // Advance current position after a zero-length match.
+      if (mode_ == UC16) {
+        __ add(edi, Immediate(2));
+      } else {
+        __ inc(edi);
+      }
+      __ jmp(&load_char_start_regexp);
+    } else {
+      __ mov(eax, Immediate(SUCCESS));
+    }
   }
-  // Exit and return eax
+
   __ bind(&exit_label_);
+  if (global()) {
+    // Return the number of successful captures.
+    __ mov(eax, Operand(ebp, kSuccessfulCaptures));
+  }
+
+  __ bind(&return_eax);
   // Skip esp past regexp registers.
   __ lea(esp, Operand(ebp, kBackup_ebx));
   // Restore callee-save registers.
@@ -877,7 +946,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ or_(eax, eax);
     // If returning non-zero, we should end execution with the given
     // result as return value.
-    __ j(not_zero, &exit_label_);
+    __ j(not_zero, &return_eax);
 
     __ pop(edi);
     __ pop(backtrack_stackpointer());
@@ -924,7 +993,7 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ bind(&exit_with_exception);
     // Exit with Result EXCEPTION(-1) to signal thrown exception.
     __ mov(eax, EXCEPTION);
-    __ jmp(&exit_label_);
+    __ jmp(&return_eax);
   }
 
   CodeDesc code_desc;
@@ -1043,8 +1112,9 @@ void RegExpMacroAssemblerIA32::SetRegister(int register_index, int to) {
 }
 
 
-void RegExpMacroAssemblerIA32::Succeed() {
+bool RegExpMacroAssemblerIA32::Succeed() {
   __ jmp(&success_label_);
+  return global();
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -109,7 +109,7 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetCurrentPositionFromEnd(int by);
   virtual void SetRegister(int register_index, int to);
-  virtual void Succeed();
+  virtual bool Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
@@ -154,7 +154,12 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kInputStart = kStartIndex + kPointerSize;
   static const int kInputEnd = kInputStart + kPointerSize;
   static const int kRegisterOutput = kInputEnd + kPointerSize;
-  static const int kStackHighEnd = kRegisterOutput + kPointerSize;
+  // For the case of global regular expression, we have room to store at least
+  // one set of capture results.  For the case of non-global regexp, we ignore
+  // this value. NumOutputRegisters is passed as 32-bit value.  The upper
+  // 32 bit of this 64-bit stack slot may contain garbage.
+  static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
+  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
   // DirectCall is passed as 32 bit int (values 0 or 1).
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
@@ -167,8 +172,12 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   static const int kInputStart = kStartIndex - kPointerSize;
   static const int kInputEnd = kInputStart - kPointerSize;
   static const int kRegisterOutput = kInputEnd - kPointerSize;
-  static const int kStackHighEnd = kRegisterOutput - kPointerSize;
-  static const int kDirectCall = kFrameAlign;
+  // For the case of global regular expression, we have room to store at least
+  // one set of capture results.  For the case of non-global regexp, we ignore
+  // this value.
+  static const int kNumOutputRegisters = kRegisterOutput - kPointerSize;
+  static const int kStackHighEnd = kFrameAlign;
+  static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
 #endif
 
@@ -183,14 +192,14 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // AMD64 Calling Convention has only one callee-save register that
   // we use. We push this after the frame pointer (and after the
   // parameters).
-  static const int kBackup_rbx = kStackHighEnd - kPointerSize;
+  static const int kBackup_rbx = kNumOutputRegisters - kPointerSize;
   static const int kLastCalleeSaveRegister = kBackup_rbx;
 #endif
 
+  static const int kSuccessfulCaptures = kLastCalleeSaveRegister - kPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kInputStartMinusOne =
-      kLastCalleeSaveRegister - kPointerSize;
+  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
 
   // First register address. Following registers are below it on the stack.
   static const int kRegisterZero = kInputStartMinusOne - kPointerSize;

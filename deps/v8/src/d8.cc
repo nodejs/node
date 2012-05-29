@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#ifdef USING_V8_SHARED  // Defined when linking against shared lib on Windows.
+// Defined when linking against shared lib on Windows.
+#if defined(USING_V8_SHARED) && !defined(V8_SHARED)
 #define V8_SHARED
 #endif
 
@@ -833,8 +834,6 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   global_template->Set(String::New("print"), FunctionTemplate::New(Print));
   global_template->Set(String::New("write"), FunctionTemplate::New(Write));
   global_template->Set(String::New("read"), FunctionTemplate::New(Read));
-  global_template->Set(String::New("readbinary"),
-                       FunctionTemplate::New(ReadBinary));
   global_template->Set(String::New("readbuffer"),
                        FunctionTemplate::New(ReadBuffer));
   global_template->Set(String::New("readline"),
@@ -1052,23 +1051,6 @@ static char* ReadChars(const char* name, int* size_out) {
   fclose(file);
   *size_out = size;
   return chars;
-}
-
-
-Handle<Value> Shell::ReadBinary(const Arguments& args) {
-  String::Utf8Value filename(args[0]);
-  int size;
-  if (*filename == NULL) {
-    return ThrowException(String::New("Error loading file"));
-  }
-  char* chars = ReadChars(*filename, &size);
-  if (chars == NULL) {
-    return ThrowException(String::New("Error reading file"));
-  }
-  // We skip checking the string for UTF8 characters and use it raw as
-  // backing store for the external string with 8-bit characters.
-  BinaryResource* resource = new BinaryResource(chars, size);
-  return String::NewExternal(resource);
 }
 
 

@@ -621,7 +621,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateMap(
       InstanceType instance_type,
       int instance_size,
-      ElementsKind elements_kind = FAST_ELEMENTS);
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
 
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,7 @@
 // not hoisted) correctly, don't change the semantics programs and don't trigger
 // deopt through hoisting in important situations.
 
-support_smi_only_arrays = %HasFastSmiOnlyElements(new Array(1,2,3,4,5,6));
+support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6));
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");

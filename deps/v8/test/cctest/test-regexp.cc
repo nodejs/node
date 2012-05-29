@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -506,8 +506,13 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
       NewStringFromUtf8(CStrVector(input));
   Handle<String> sample_subject =
       isolate->factory()->NewStringFromUtf8(CStrVector(""));
-  RegExpEngine::Compile(
-      &compile_data, false, multiline, pattern, sample_subject, is_ascii);
+  RegExpEngine::Compile(&compile_data,
+                        false,
+                        false,
+                        multiline,
+                        pattern,
+                        sample_subject,
+                        is_ascii);
   return compile_data.node;
 }
 
@@ -720,6 +725,7 @@ static ArchRegExpMacroAssembler::Result Execute(Code* code,
       input_start,
       input_end,
       captures,
+      0,
       Isolate::Current());
 }
 
@@ -998,11 +1004,11 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   int output[4];
   NativeRegExpMacroAssembler::Result result =
       Execute(*code,
-                  *input,
-                  0,
-                  start_adr,
-                  start_adr + input->length() * 2,
-                  output);
+              *input,
+              0,
+              start_adr,
+              start_adr + input->length() * 2,
+              output);
 
   CHECK_EQ(NativeRegExpMacroAssembler::SUCCESS, result);
   CHECK_EQ(0, output[0]);

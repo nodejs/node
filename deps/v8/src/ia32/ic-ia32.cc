@@ -889,25 +889,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
               &non_double_value,
               DONT_DO_SMI_CHECK);
 
-  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
-  // FAST_DOUBLE_ELEMENTS and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  // Value is a double. Transition FAST_SMI_ELEMENTS -> FAST_DOUBLE_ELEMENTS
+  // and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_DOUBLE_ELEMENTS,
                                          ebx,
                                          edi,
                                          &slow);
-  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_ELEMENTS,
                                          ebx,
                                          edi,
                                          &slow);
-  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
   __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 
@@ -1622,7 +1622,7 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
     __ mov(eax, edx);
     __ Ret();
     __ bind(&fail);

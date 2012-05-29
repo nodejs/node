@@ -62,11 +62,13 @@
 
 #else  // _WIN32
 
-// Setup for Linux shared library export. There is no need to distinguish
-// between building or using the V8 shared library, but we should not
-// export symbols when we are building a static library.
+// Setup for Linux shared library export.
 #if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
+#ifdef BUILDING_V8_SHARED
 #define V8EXPORT __attribute__ ((visibility("default")))
+#else
+#define V8EXPORT
+#endif
 #else  // defined(__GNUC__) && (__GNUC__ >= 4)
 #define V8EXPORT
 #endif  // defined(__GNUC__) && (__GNUC__ >= 4)

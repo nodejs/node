@@ -224,7 +224,8 @@ def Main():
     print ">>> running presubmit tests"
     returncodes += subprocess.call([workspace + '/tools/presubmit.py'])
 
-  args_for_children = [workspace + '/tools/test.py'] + PassOnOptions(options)
+  args_for_children = ['python']
+  args_for_children += [workspace + '/tools/test.py'] + PassOnOptions(options)
   args_for_children += ['--no-build', '--build-system=gyp']
   for arg in args:
     args_for_children += [arg]
@@ -240,10 +241,14 @@ def Main():
         shellpath = workspace + '/' + options.outdir + '/' + arch + '.' + mode
       env['LD_LIBRARY_PATH'] = shellpath + '/lib.target'
       shell = shellpath + "/d8"
-      child = subprocess.Popen(' '.join(args_for_children +
-                                        ['--arch=' + arch] +
-                                        ['--mode=' + mode] +
-                                        ['--shell=' + shell]),
+      cmdline = ' '.join(args_for_children +
+                         ['--arch=' + arch] +
+                         ['--mode=' + mode] +
+                         ['--shell=' + shell])
+      # TODO(jkummerow): This print is temporary.
+      print "Executing: %s" % cmdline
+
+      child = subprocess.Popen(cmdline,
                                shell=True,
                                cwd=workspace,
                                env=env)

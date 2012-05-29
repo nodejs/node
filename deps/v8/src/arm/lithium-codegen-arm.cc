@@ -2696,8 +2696,10 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ ldr(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
     __ ubfx(scratch, scratch, Map::kElementsKindShift,
             Map::kElementsKindBitCount);
-    __ cmp(scratch, Operand(FAST_ELEMENTS));
-    __ b(eq, &done);
+    __ cmp(scratch, Operand(GetInitialFastElementsKind()));
+    __ b(lt, &fail);
+    __ cmp(scratch, Operand(TERMINAL_FAST_ELEMENTS_KIND));
+    __ b(le, &done);
     __ cmp(scratch, Operand(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
     __ b(lt, &fail);
     __ cmp(scratch, Operand(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
@@ -2744,7 +2746,9 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
   // Load the result.
   __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
-  __ ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  uint32_t offset = FixedArray::kHeaderSize +
+                    (instr->additional_index() << kPointerSizeLog2);
+  __ ldr(result, FieldMemOperand(scratch, offset));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2776,18 +2780,21 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
   }
 
   Operand operand = key_is_constant
-      ? Operand(constant_key * (1 << shift_size) +
+      ? Operand(((constant_key + instr->additional_index()) << shift_size) +
                 FixedDoubleArray::kHeaderSize - kHeapObjectTag)
       : Operand(key, LSL, shift_size);
   __ add(elements, elements, operand);
   if (!key_is_constant) {
     __ add(elements, elements,
-           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+           Operand((FixedDoubleArray::kHeaderSize - kHeapObjectTag) +
+                   (instr->additional_index() << shift_size)));
   }
 
-  __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
-  __ cmp(scratch, Operand(kHoleNanUpper32));
-  DeoptimizeIf(eq, instr->environment());
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+    __ cmp(scratch, Operand(kHoleNanUpper32));
+    DeoptimizeIf(eq, instr->environment());
+  }
 
   __ vldr(result, elements, 0);
 }
@@ -2809,26 +2816,33 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     key = ToRegister(instr->key());
   }
   int shift_size = ElementsKindToShiftSize(elements_kind);
+  int additional_offset = instr->additional_index() << shift_size;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister result = ToDoubleRegister(instr->result());
     Operand operand = key_is_constant
-        ? Operand(constant_key * (1 << shift_size))
+        ? Operand(constant_key << shift_size)
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
-      __ vldr(result.low(), scratch0(), 0);
+      __ vldr(result.low(), scratch0(), additional_offset);
       __ vcvt_f64_f32(result, result.low());
     } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ vldr(result, scratch0(), 0);
+      __ vldr(result, scratch0(), additional_offset);
     }
   } else {
     Register result = ToRegister(instr->result());
+    if (instr->additional_index() != 0 && !key_is_constant) {
+      __ add(scratch0(), key, Operand(instr->additional_index()));
+    }
     MemOperand mem_operand(key_is_constant
-        ? MemOperand(external_pointer, constant_key * (1 << shift_size))
-        : MemOperand(external_pointer, key, LSL, shift_size));
+        ? MemOperand(external_pointer,
+                     (constant_key << shift_size) + additional_offset)
+        : (instr->additional_index() == 0
+           ? MemOperand(external_pointer, key, LSL, shift_size)
+           : MemOperand(external_pointer, scratch0(), LSL, shift_size)));
     switch (elements_kind) {
       case EXTERNAL_BYTE_ELEMENTS:
         __ ldrsb(result, mem_operand);
@@ -2856,9 +2870,12 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         break;
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -3726,10 +3743,16 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
     LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
     int offset =
-        ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
+        (ToInteger32(const_operand) + instr->additional_index()) * kPointerSize
+        + FixedArray::kHeaderSize;
     __ str(value, FieldMemOperand(elements, offset));
   } else {
     __ add(scratch, elements, Operand(key, LSL, kPointerSizeLog2));
+    if (instr->additional_index() != 0) {
+      __ add(scratch,
+             scratch,
+             Operand(instr->additional_index() << kPointerSizeLog2));
+    }
     __ str(value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
   }
 
@@ -3771,7 +3794,7 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   }
   int shift_size = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   Operand operand = key_is_constant
-      ? Operand(constant_key * (1 << shift_size) +
+      ? Operand((constant_key << shift_size) +
                 FixedDoubleArray::kHeaderSize - kHeapObjectTag)
       : Operand(key, LSL, shift_size);
   __ add(scratch, elements, operand);
@@ -3789,7 +3812,7 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
             vs);
   }
 
-  __ vstr(value, scratch, 0);
+  __ vstr(value, scratch, instr->additional_index() << shift_size);
 }
 
 
@@ -3810,25 +3833,33 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     key = ToRegister(instr->key());
   }
   int shift_size = ElementsKindToShiftSize(elements_kind);
+  int additional_offset = instr->additional_index() << shift_size;
 
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
-    Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
+    Operand operand(key_is_constant ? Operand(constant_key << shift_size)
                                     : Operand(key, LSL, shift_size));
     __ add(scratch0(), external_pointer, operand);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
-      __ vstr(double_scratch0().low(), scratch0(), 0);
+      __ vstr(double_scratch0().low(), scratch0(), additional_offset);
     } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
-      __ vstr(value, scratch0(), 0);
+      __ vstr(value, scratch0(), additional_offset);
     }
   } else {
     Register value(ToRegister(instr->value()));
+    if (instr->additional_index() != 0 && !key_is_constant) {
+      __ add(scratch0(), key, Operand(instr->additional_index()));
+    }
     MemOperand mem_operand(key_is_constant
-        ? MemOperand(external_pointer, constant_key * (1 << shift_size))
-        : MemOperand(external_pointer, key, LSL, shift_size));
+        ? MemOperand(external_pointer,
+                     ((constant_key + instr->additional_index())
+                         << shift_size))
+        : (instr->additional_index() == 0
+            ? MemOperand(external_pointer, key, LSL, shift_size)
+            : MemOperand(external_pointer, scratch0(), LSL, shift_size)));
     switch (elements_kind) {
       case EXTERNAL_PIXEL_ELEMENTS:
       case EXTERNAL_BYTE_ELEMENTS:
@@ -3847,7 +3878,10 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
-      case FAST_SMI_ONLY_ELEMENTS:
+      case FAST_SMI_ELEMENTS:
+      case FAST_HOLEY_DOUBLE_ELEMENTS:
+      case FAST_HOLEY_ELEMENTS:
+      case FAST_HOLEY_SMI_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -3884,20 +3918,22 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ cmp(scratch, Operand(from_map));
   __ b(ne, &not_applicable);
   __ mov(new_map_reg, Operand(to_map));
-  if (from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) {
+
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     __ str(new_map_reg, FieldMemOperand(object_reg, HeapObject::kMapOffset));
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         scratch, kLRHasBeenSaved, kDontSaveFPRegs);
-  } else if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
-      to_kind == FAST_DOUBLE_ELEMENTS) {
+  } else if (IsFastSmiElementsKind(from_kind) &&
+             IsFastDoubleElementsKind(to_kind)) {
     Register fixed_object_reg = ToRegister(instr->temp_reg());
     ASSERT(fixed_object_reg.is(r2));
     ASSERT(new_map_reg.is(r3));
     __ mov(fixed_object_reg, object_reg);
     CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
              RelocInfo::CODE_TARGET, instr);
-  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
+  } else if (IsFastDoubleElementsKind(from_kind) &&
+             IsFastObjectElementsKind(to_kind)) {
     Register fixed_object_reg = ToRegister(instr->temp_reg());
     ASSERT(fixed_object_reg.is(r2));
     ASSERT(new_map_reg.is(r3));
@@ -4671,8 +4707,9 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 
   // Deopt if the array literal boilerplate ElementsKind is of a type different
   // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to FAST_ELEMENTS.
-  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
+  if (CanTransitionToMoreGeneralFastElementsKind(
+          boilerplate_elements_kind, true)) {
     __ LoadHeapObject(r1, instr->hydrogen()->boilerplate_object());
     // Load map into r2.
     __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -4823,10 +4860,11 @@ void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   ElementsKind boilerplate_elements_kind =
       instr->hydrogen()->boilerplate()->GetElementsKind();
 
-  // Deopt if the literal boilerplate ElementsKind is of a type different than
-  // the expected one. The check isn't necessary if the boilerplate has already
-  // been converted to FAST_ELEMENTS.
-  if (boilerplate_elements_kind != FAST_ELEMENTS) {
+  // Deopt if the array literal boilerplate ElementsKind is of a type different
+  // than the expected one. The check isn't necessary if the boilerplate has
+  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
+  if (CanTransitionToMoreGeneralFastElementsKind(
+          boilerplate_elements_kind, true)) {
     __ LoadHeapObject(r1, instr->hydrogen()->boilerplate());
     // Load map into r2.
     __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));

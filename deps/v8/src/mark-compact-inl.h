@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,6 +52,15 @@ void MarkCompactCollector::SetFlags(int flags) {
 }
 
 
+bool MarkCompactCollector::MarkObjectAndPush(HeapObject* obj) {
+  if (MarkObjectWithoutPush(obj)) {
+    marking_deque_.PushBlack(obj);
+    return true;
+  }
+  return false;
+}
+
+
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
@@ -62,16 +71,13 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 }
 
 
-bool MarkCompactCollector::MarkObjectWithoutPush(HeapObject* object) {
-  MarkBit mark = Marking::MarkBitFrom(object);
-  bool old_mark = mark.Get();
-  if (!old_mark) SetMark(object, mark);
-  return old_mark;
-}
-
-
-void MarkCompactCollector::MarkObjectAndPush(HeapObject* object) {
-  if (!MarkObjectWithoutPush(object)) marking_deque_.PushBlack(object);
+bool MarkCompactCollector::MarkObjectWithoutPush(HeapObject* obj) {
+  MarkBit mark_bit = Marking::MarkBitFrom(obj);
+  if (!mark_bit.Get()) {
+    SetMark(obj, mark_bit);
+    return true;
+  }
+  return false;
 }
 
 

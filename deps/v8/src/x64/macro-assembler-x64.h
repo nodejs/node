@@ -877,9 +877,9 @@ class MacroAssembler: public Assembler {
 
   // Check if a map for a JSObject indicates that the object has fast smi only
   // elements.  Jump to the specified label if it does not.
-  void CheckFastSmiOnlyElements(Register map,
-                                Label* fail,
-                                Label::Distance distance = Label::kFar);
+  void CheckFastSmiElements(Register map,
+                            Label* fail,
+                            Label::Distance distance = Label::kFar);
 
   // Check to see if maybe_number can be stored as a double in
   // FastDoubleElements. If it can, store it at the index specified by index in
@@ -1141,7 +1141,8 @@ class MacroAssembler: public Assembler {
   // Load the initial map for new Arrays from a JSFunction.
   void LoadInitialArrayMap(Register function_in,
                            Register scratch,
-                           Register map_out);
+                           Register map_out,
+                           bool can_have_holes);
 
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);

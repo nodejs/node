@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,7 +35,9 @@
 namespace v8 {
 namespace internal {
 
-RegExpMacroAssembler::RegExpMacroAssembler() : slow_safe_compiler_(false) {
+RegExpMacroAssembler::RegExpMacroAssembler()
+  : slow_safe_compiler_(false),
+    global_(false) {
 }
 
 
@@ -149,6 +151,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
                        input_start,
                        input_end,
                        offsets_vector,
+                       offsets_vector_length,
                        isolate);
   return res;
 }
@@ -161,6 +164,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     const byte* input_start,
     const byte* input_end,
     int* output,
+    int output_size,
     Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
   // Ensure that the minimum stack has been allocated.
@@ -174,10 +178,10 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
                                           input_start,
                                           input_end,
                                           output,
+                                          output_size,
                                           stack_base,
                                           direct_call,
                                           isolate);
-  ASSERT(result <= SUCCESS);
   ASSERT(result >= RETRY);
 
   if (result == EXCEPTION && !isolate->has_pending_exception()) {
