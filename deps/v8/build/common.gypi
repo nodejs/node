@@ -324,7 +324,7 @@
         },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
-            'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
         ],
