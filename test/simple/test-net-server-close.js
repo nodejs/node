@@ -19,22 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var server = net.createServer(function(socket) {
-  server.close(function() {
-    assert.equal(server.connections, 0);
+var events = [];
+var sockets = [];
+
+process.on('exit', function() {
+  assert.equal(server.connections, 0);
+  assert.deepEqual(events, 'client client server'.split(' '));
+});
+
+var server = net.createServer(function(c) {
+  c.on('close', function() {
+    events.push('client');
   });
-  process.nextTick(function() {
-    socket.destroy();
-  });
+
+  sockets.push(c);
+
+  if (sockets.length === 2) {
+    server.close();
+    sockets.forEach(function(c) { c.destroy() });
+  }
+});
+
+server.on('close', function() {
+  events.push('server');
 });
 
 server.listen(common.PORT, function() {
+  net.createConnection(common.PORT);
   net.createConnection(common.PORT);
 });
