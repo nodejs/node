@@ -128,13 +128,13 @@ This can be used to log worker activity, and create you own timeout.
     }
 
     cluster.on('fork', function(worker) {
-      timeouts[worker.uniqueID] = setTimeout(errorMsg, 2000);
+      timeouts[worker.id] = setTimeout(errorMsg, 2000);
     });
     cluster.on('listening', function(worker, address) {
-      clearTimeout(timeouts[worker.uniqueID]);
+      clearTimeout(timeouts[worker.id]);
     });
     cluster.on('exit', function(worker, code, signal) {
-      clearTimeout(timeouts[worker.uniqueID]);
+      clearTimeout(timeouts[worker.id]);
       errorMsg();
     });
 
@@ -183,13 +183,13 @@ the process is stuck in a cleanup or if there are long-living
 connections.
 
     cluster.on('disconnect', function(worker) {
-      console.log('The worker #' + worker.uniqueID + ' has disconnected');
+      console.log('The worker #' + worker.id + ' has disconnected');
     });
 
 ## Event: 'exit'
 
 * `worker` {Worker object}
-* `code` {Number} the exit code, if it exited normally. 
+* `code` {Number} the exit code, if it exited normally.
 * `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
   the process to be killed.
 
@@ -266,12 +266,12 @@ The method takes an optional callback argument which will be called when finishe
 * {Object}
 
 In the cluster all living worker objects are stored in this object by there
-`uniqueID` as the key. This makes it easy to loop through all living workers.
+`id` as the key. This makes it easy to loop through all living workers.
 
     // Go through all workers
     function eachWorker(callback) {
-      for (var uniqueID in cluster.workers) {
-        callback(cluster.workers[uniqueID]);
+      for (var id in cluster.workers) {
+        callback(cluster.workers[id]);
       }
     }
     eachWorker(function(worker) {
@@ -279,10 +279,10 @@ In the cluster all living worker objects are stored in this object by there
     });
 
 Should you wish to reference a worker over a communication channel, using
-the worker's uniqueID is the easiest way to find the worker.
+the worker's unique id is the easiest way to find the worker.
 
-    socket.on('data', function(uniqueID) {
-      var worker = cluster.workers[uniqueID];
+    socket.on('data', function(id) {
+      var worker = cluster.workers[id];
     });
 
 ## Class: Worker
@@ -291,12 +291,12 @@ A Worker object contains all public information and method about a worker.
 In the master it can be obtained using `cluster.workers`. In a worker
 it can be obtained using `cluster.worker`.
 
-### worker.uniqueID
+### worker.id
 
 * {String}
 
 Each new worker is given its own unique id, this id is stored in the
-`uniqueID`.
+`id`.
 
 While a worker is alive, this is the key that indexes it in
 cluster.workers
@@ -434,8 +434,8 @@ in the master process using the message system:
 
       // Start workers and listen for messages containing notifyRequest
       cluster.autoFork();
-      Object.keys(cluster.workers).forEach(function(uniqueID) {
-        cluster.workers[uniqueID].on('message', messageHandler);
+      Object.keys(cluster.workers).forEach(function(id) {
+        cluster.workers[id].on('message', messageHandler);
       });
 
     } else {
@@ -481,12 +481,12 @@ on the specified worker.
 
 ### Event: 'exit'
 
-* `code` {Number} the exit code, if it exited normally. 
+* `code` {Number} the exit code, if it exited normally.
 * `signal` {String} the name of the signal (eg. `'SIGHUP'`) that caused
   the process to be killed.
 
 Emitted by the individual worker instance, when the underlying child process
-is terminated.  See [child_process event: 'exit'](child_process.html#child_process_event_exit). 
+is terminated.  See [child_process event: 'exit'](child_process.html#child_process_event_exit).
 
     var worker = cluster.fork();
     worker.on('exit', function(code, signal) {

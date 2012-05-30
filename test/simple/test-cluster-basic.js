@@ -112,6 +112,7 @@ else if (cluster.isMaster) {
 
   //Create worker
   worker = cluster.fork();
+  assert.equal(worker.id, 1);
   assert.ok(worker instanceof cluster.Worker,
       'the worker is not a instance of the Worker constructor');
 
