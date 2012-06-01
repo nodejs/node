@@ -249,7 +249,7 @@ there is no IPC channel keeping it alive. When calling this method the
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
     for stdio.  (See below)
   * `env` {Object} Environment key-value pairs
-  * `setsid` {Boolean}
+  * `detached` {Boolean} The child will be a process group leader.  (See below)
 * return: {ChildProcess object}
 
 Launches a new process with the given `command`, with  command line arguments in `args`.
@@ -342,7 +342,7 @@ index corresponds to a fd in the child.  The value is one of the following:
 
 1. `'pipe'` - Create a pipe between the child process and the parent process.
    The parent end of the pipe is exposed to the parent as a property on the
-   child_process object as `ChildProcess.stdio[fd]`. Pipes created for
+   `child_process` object as `ChildProcess.stdio[fd]`. Pipes created for
    fds 0 - 2 are also available as ChildProcess.stdin, ChildProcess.stdout
    and ChildProcess.stderr, respectively.
 2. `'ipc'` - Create an IPC channel for passing messages/file descriptors
@@ -387,6 +387,34 @@ Example:
     // startd-style interface.
     spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
 
+If the `detached` option is set, the child process will be made the leader of a
+new process group.  This makes it possible for the child to continue running 
+after the parent exits.
+
+By default, the parent will wait for the detached child to exit.  To prevent
+the parent from waiting for a given `child`, use the `child.unref()` method,
+and the parent's event loop will not include the child in its reference count.
+
+Example of detaching a long-running process and redirecting its output to a
+file:
+
+     var fs = require('fs'),
+         spawn = require('child_process').spawn,
+         out = fs.openSync('./out.log', 'a'),
+         err = fs.openSync('./out.log', 'a');
+
+     var child = spawn('prg', [], {
+       detached: 'true',
+       stdio: [ 'ignore', out, err ]
+     });
+
+     child.unref();
+
+When using the `detached` option to start a long-running process, the process
+will not stay running in the background unless it is provided with a `stdio`
+configuration that is not connected to the parent.  If the parent's `stdio` is
+inherited, the child will remain attached to the controlling terminal.
+
 There is a deprecated option called `customFds` which allows one to specify
 specific file descriptors for the stdio of the child process. This API was
 not portable to all platforms and therefore removed.
@@ -409,7 +437,6 @@ See also: `child_process.exec()` and `child_process.fork()`
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
     for stdio.  (See above)
   * `env` {Object} Environment key-value pairs
-  * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
   * `maxBuffer` {Number} (Default: 200*1024)
@@ -467,7 +494,6 @@ the child process is killed.
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
     for stdio.  (See above)
   * `env` {Object} Environment key-value pairs
-  * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
   * `maxBuffer` {Number} (Default: 200*1024)
@@ -490,7 +516,6 @@ leaner than `child_process.exec`. It has the same options.
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `setsid` {Boolean}
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
 * Return: ChildProcess object

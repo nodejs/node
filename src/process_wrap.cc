@@ -236,6 +236,11 @@ class ProcessWrap : public HandleWrap {
       options.flags |= UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
     }
 
+    //options.detached
+    if (js_options->Get(String::NewSymbol("detached"))->IsTrue()) {
+      options.flags |= UV_PROCESS_DETACHED;
+    }
+
     int r = uv_spawn(uv_default_loop(), &wrap->process_, options);
 
     if (r) {
