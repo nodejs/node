@@ -94,7 +94,7 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
 }
 
 
-static int uv__fast_poll_cancel_poll_reqs(uv_loop_t* loop, uv_poll_t* handle) {
+static int uv__fast_poll_cancel_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
   AFD_POLL_INFO afd_poll_info;
   DWORD result;
   HANDLE event;
@@ -106,15 +106,15 @@ static int uv__fast_poll_cancel_poll_reqs(uv_loop_t* loop, uv_poll_t* handle) {
     return -1;
   }
 
-  afd_poll_info.Exclusive = TRUE;
+  afd_poll_info.Exclusive = FALSE;
   afd_poll_info.NumberOfHandles = 1;
-  afd_poll_info.Timeout.QuadPart = INT64_MAX;
+  afd_poll_info.Timeout.QuadPart = 0;
   afd_poll_info.Handles[0].Handle = (HANDLE) handle->socket;
   afd_poll_info.Handles[0].Status = 0;
   afd_poll_info.Handles[0].Events = AFD_POLL_ALL;
 
   memset(&overlapped, 0, sizeof overlapped);
-  overlapped.hEvent = (HANDLE) ((uintptr_t) event & 1);
+  overlapped.hEvent = (HANDLE) ((uintptr_t) event | 1);
 
   result = uv_msafd_poll(handle->socket,
                          &afd_poll_info,
@@ -127,6 +127,10 @@ static int uv__fast_poll_cancel_poll_reqs(uv_loop_t* loop, uv_poll_t* handle) {
       CloseHandle(event);
       return -1;
     }
+  }
+
+  if (WaitForSingleObject(event, INFINITE) != WAIT_OBJECT_0) {
+    uv_fatal_error(GetLastError(), "WaitForSingleObject");
   }
 
   CloseHandle(event);
@@ -234,7 +238,7 @@ static void uv__fast_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
         pCancelIoEx((HANDLE) handle->socket, &handle->poll_req_2.overlapped);
     } else if (handle->submitted_events_1 | handle->submitted_events_2) {
       /* Execute another unique poll to force the others to return. */
-      uv__fast_poll_cancel_poll_reqs(loop, handle);
+      uv__fast_poll_cancel_poll_req(loop, handle);
     }
   }
 }
@@ -611,10 +615,6 @@ void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle) {
   assert(handle->submitted_events_1 == 0);
   assert(handle->submitted_events_2 == 0);
 
-  handle->flags |= UV_HANDLE_CLOSED;
   uv__handle_stop(handle);
-
-  if (handle->close_cb) {
-    handle->close_cb((uv_handle_t*)handle);
-  }
+  uv__handle_close(handle);
 }

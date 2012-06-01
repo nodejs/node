@@ -21,6 +21,7 @@
 
 BENCHMARK_DECLARE (sizes)
 BENCHMARK_DECLARE (loop_count)
+BENCHMARK_DECLARE (loop_count_timed)
 BENCHMARK_DECLARE (ping_pongs)
 BENCHMARK_DECLARE (tcp_write_batch)
 BENCHMARK_DECLARE (tcp4_pound_100)
@@ -55,6 +56,7 @@ HELPER_DECLARE    (dns_server)
 TASK_LIST_START
   BENCHMARK_ENTRY  (sizes)
   BENCHMARK_ENTRY  (loop_count)
+  BENCHMARK_ENTRY  (loop_count_timed)
 
   BENCHMARK_ENTRY  (ping_pongs)
   BENCHMARK_HELPER (ping_pongs, tcp4_echo_server)

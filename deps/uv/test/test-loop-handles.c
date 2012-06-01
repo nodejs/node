@@ -148,7 +148,7 @@ static void idle_1_cb(uv_idle_t* handle, int status) {
   ASSERT(idles_1_active > 0);
 
   /* Init idle_2 and make it active */
-  if (!idle_2_is_active) {
+  if (!idle_2_is_active && !uv_is_closing((uv_handle_t*)&idle_2_handle)) {
     r = uv_idle_init(uv_default_loop(), &idle_2_handle);
     ASSERT(r == 0);
     r = uv_idle_start(&idle_2_handle, idle_2_cb);
@@ -208,11 +208,6 @@ static void check_cb(uv_check_t* handle, int status) {
   ASSERT(handle == &check_handle);
   ASSERT(status == 0);
 
-  /* XXX
-  ASSERT(idles_1_active == 0);
-  ASSERT(idle_2_is_active == 0);
-  */
-
   if (loop_iteration < ITERATIONS) {
     /* Make some idle watchers active */
     for (i = 0; i < 1 + (loop_iteration % IDLE_COUNT); i++) {
@@ -250,9 +245,6 @@ static void prepare_2_cb(uv_prepare_t* handle, int status) {
   ASSERT(handle == &prepare_2_handle);
   ASSERT(status == 0);
 
-  /* XXX ASSERT(idles_1_active == 0); */
-  /* XXX ASSERT(idle_2_is_active == 0); */
-
   /* prepare_2 gets started by prepare_1 when (loop_iteration % 2 == 0), */
   /* and it stops itself immediately. A started watcher is not queued */
   /* until the next round, so when this callback is made */
@@ -273,11 +265,6 @@ static void prepare_1_cb(uv_prepare_t* handle, int status) {
 
   ASSERT(handle == &prepare_1_handle);
   ASSERT(status == 0);
-
-  /* XXX
-  ASSERT(idles_1_active == 0);
-  ASSERT(idle_2_is_active == 0);
-  */
 
   if (loop_iteration % 2 == 0) {
     r = uv_prepare_start(&prepare_2_handle, prepare_2_cb);
@@ -340,12 +327,8 @@ TEST_IMPL(loop_handles) {
   ASSERT(check_close_cb_called == 1);
 
   /* idle_1_cb should be called a lot */
-  /* XXX ASSERT(idle_1_cb_called >= ITERATIONS * IDLE_COUNT * 2); */
   ASSERT(idle_1_close_cb_called == IDLE_COUNT);
-  /* XXX ASSERT(idles_1_active == 0); */
 
-  /* XXX ASSERT(idle_2_cb_started >= ITERATIONS); */
-  /* XXX ASSERT(idle_2_cb_called == idle_2_cb_started); */
   ASSERT(idle_2_close_cb_called == idle_2_cb_started);
   ASSERT(idle_2_is_active == 0);
 

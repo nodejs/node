@@ -197,7 +197,6 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    handle->flags |= UV_HANDLE_CLOSED;
     uv__handle_stop(handle);
 
     if (!(handle->flags & UV_HANDLE_TCP_SOCKET_CLOSED)) {
@@ -236,10 +235,7 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
       }
     }
 
-    if (handle->close_cb) {
-      handle->close_cb((uv_handle_t*)handle);
-    }
-
+    uv__handle_close(handle);
     loop->active_tcp_streams--;
   }
 }

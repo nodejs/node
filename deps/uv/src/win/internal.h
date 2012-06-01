@@ -40,9 +40,8 @@
 #define UV_HANDLE_ENDGAME_QUEUED                0x00000004
 #define UV_HANDLE_ACTIVE                        0x00000010
 
-/* Keep in sync with uv-common.h: */
-#define UV__REF                                 0x00000020
-#define UV__ACTIVE                              0x00000040
+/* uv-common.h: #define UV__HANDLE_ACTIVE       0x00000040 */
+/* uv-common.h: #define UV__HANDLE_REF          0x00000020 */
 /* reserved: #define UV_HANDLE_INTERNAL         0x00000080 */
 
 /* Used by streams and UDP handles. */
@@ -131,6 +130,14 @@ void uv_process_endgames(uv_loop_t* loop);
     uv__req_unregister((loop), (req));                                  \
   } while (0)
 
+#define uv__handle_close(handle)                                        \
+  do {                                                                  \
+    ngx_queue_remove(&(handle)->handle_queue);                          \
+    (handle)->flags |= UV_HANDLE_CLOSED;                                \
+    if ((handle)->close_cb) {                                           \
+      (handle)->close_cb((uv_handle_t*)(handle));                       \
+    }                                                                   \
+  } while (0)
 
 /*
  * Handles

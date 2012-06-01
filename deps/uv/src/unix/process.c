@@ -140,33 +140,39 @@ int uv__make_pipe(int fds[2], int flags) {
  */
 static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2],
                                   int writable) {
-  if (container->flags == UV_IGNORE) {
-    return 0;
-  } else if (container->flags & UV_CREATE_PIPE) {
-    assert(container->data.stream != NULL);
+  int fd = -1;
+  switch (container->flags & (UV_IGNORE | UV_CREATE_PIPE | UV_INHERIT_FD |
+                              UV_INHERIT_STREAM)) {
+    case UV_IGNORE:
+      return 0;
+    case UV_CREATE_PIPE:
+      assert(container->data.stream != NULL);
 
-    if (container->data.stream->type != UV_NAMED_PIPE) {
-      errno = EINVAL;
+      if (container->data.stream->type != UV_NAMED_PIPE) {
+        errno = EINVAL;
+        return -1;
+      }
+
+      return uv__make_socketpair(fds, 0);
+    case UV_INHERIT_FD:
+    case UV_INHERIT_STREAM:
+      if (container->flags & UV_INHERIT_FD) {
+        fd = container->data.fd;
+      } else {
+        fd = container->data.stream->fd;
+      }
+
+      if (fd == -1) {
+        errno = EINVAL;
+        return -1;
+      }
+
+      fds[writable ? 1 : 0] = fd;
+
+      return 0;
+    default:
+      assert(0 && "Unexpected flags");
       return -1;
-    }
-
-    return uv__make_socketpair(fds, 0);
-  } else if (container->flags & UV_RAW_FD) {
-    if (container->data.fd == -1) {
-      errno = EINVAL;
-      return -1;
-    }
-
-    if (writable) {
-      fds[1] = container->data.fd;
-    } else {
-      fds[0] = container->data.fd;
-    }
-
-    return 0;
-  } else {
-    assert(0 && "Unexpected flags");
-    return -1;
   }
 }
 
@@ -240,6 +246,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   assert(options.file != NULL);
   assert(!(options.flags & ~(UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
+                             UV_PROCESS_DETACHED |
                              UV_PROCESS_SETGID |
                              UV_PROCESS_SETUID)));
 
@@ -301,6 +308,9 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   if (pid == 0) {
     /* Child */
+    if (options.flags & UV_PROCESS_DETACHED) {
+      setsid();
+    }
 
     /* Dup fds */
     for (i = 0; i < options.stdio_count; i++) {

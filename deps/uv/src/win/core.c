@@ -66,6 +66,7 @@ static void uv_loop_init(uv_loop_t* loop) {
 
   uv_update_time(loop);
 
+  ngx_queue_init(&loop->handle_queue);
   ngx_queue_init(&loop->active_reqs);
   loop->active_handles = 0;
 

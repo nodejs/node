@@ -58,12 +58,8 @@ void uv_async_endgame(uv_loop_t* loop, uv_async_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       !handle->async_sent) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    handle->flags |= UV_HANDLE_CLOSED;
     uv__handle_stop(handle);
-
-    if (handle->close_cb) {
-      handle->close_cb((uv_handle_t*)handle);
-    }
+    uv__handle_close(handle);
   }
 }
 

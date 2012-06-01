@@ -99,6 +99,10 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
   ASSERT(err.code == UV_ESRCH);
 }
 
+static void detach_failure_cb(uv_process_t* process, int exit_status, int term_signal) {
+  printf("detach_cb\n");
+  exit_cb_called++;
+}
 
 static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
   uv_buf_t buf;
@@ -217,7 +221,7 @@ TEST_IMPL(spawn_stdout_to_file) {
 
   options.stdio = stdio;
   options.stdio[0].flags = UV_IGNORE;
-  options.stdio[1].flags = UV_RAW_FD;
+  options.stdio[1].flags = UV_INHERIT_FD;
   options.stdio[1].data.fd = file;
   options.stdio_count = 2;
 
@@ -291,6 +295,40 @@ TEST_IMPL(spawn_stdin) {
 }
 
 
+TEST_IMPL(spawn_stdio_greater_than_3) {
+  int r;
+  uv_pipe_t pipe;
+  uv_stdio_container_t stdio[4];
+
+  init_process_options("spawn_helper5", exit_cb);
+
+  uv_pipe_init(uv_default_loop(), &pipe, 0);
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_IGNORE;
+  options.stdio[2].flags = UV_IGNORE;
+  options.stdio[3].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[3].data.stream = (uv_stream_t*)&pipe;
+  options.stdio_count = 4;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*) &pipe, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 2); /* Once for process once for the pipe. */
+  printf("output from stdio[3] is: %s", output);
+  ASSERT(strcmp("fourth stdio!\n", output) == 0);
+
+  return 0;
+}
+
+
 TEST_IMPL(spawn_and_kill) {
   int r;
 
@@ -314,6 +352,32 @@ TEST_IMPL(spawn_and_kill) {
   return 0;
 }
 
+TEST_IMPL(spawn_detached) {
+  int r;
+  uv_err_t err;
+
+  init_process_options("spawn_helper4", detach_failure_cb);
+
+  options.flags |= UV_PROCESS_DETACHED;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  uv_unref((uv_handle_t*)&process);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 0);
+
+  err = uv_kill(process.pid, 0);
+  ASSERT(err.code == 0);
+
+  err = uv_kill(process.pid, 15);
+  ASSERT(err.code == 0);
+
+  return 0;
+}
 
 TEST_IMPL(spawn_and_kill_with_std) {
   int r;

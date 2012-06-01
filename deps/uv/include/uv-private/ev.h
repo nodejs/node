@@ -623,7 +623,7 @@ enum {
 };
 
 #if EV_PROTOTYPES
-void ev_run (EV_P_ int flags EV_CPP (= 0));
+void ev_run (EV_P_ ev_tstamp waittime);
 void ev_break (EV_P_ int how EV_CPP (= EVBREAK_ONE)); /* break out of the loop */
 
 /*

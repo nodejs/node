@@ -19,70 +19,59 @@
  * IN THE SOFTWARE.
  */
 
-#include "task.h"
 #include "uv.h"
+#include "task.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_TICKS (2 * 1000 * 1000)
-
-static unsigned long ticks;
-static uv_idle_t idle_handle;
-static uv_timer_t timer_handle;
+static char magic_cookie[] = "magic cookie";
+static int seen_timer_handle;
+static uv_timer_t timer;
 
 
-static void idle_cb(uv_idle_t* handle, int status) {
-  if (++ticks == NUM_TICKS)
-    uv_idle_stop(handle);
-}
+static void walk_cb(uv_handle_t* handle, void* arg) {
+  ASSERT(arg == (void*)magic_cookie);
 
-
-static void idle2_cb(uv_idle_t* handle, int status) {
-  ticks++;
+  if (handle == (uv_handle_t*)&timer) {
+    seen_timer_handle++;
+  } else {
+    ASSERT(0 && "unexpected handle");
+  }
 }
 
 
 static void timer_cb(uv_timer_t* handle, int status) {
-  uv_idle_stop(&idle_handle);
-  uv_timer_stop(&timer_handle);
+  ASSERT(handle == &timer);
+  ASSERT(status == 0);
+
+  uv_walk(handle->loop, walk_cb, magic_cookie);
+  uv_close((uv_handle_t*)handle, NULL);
 }
 
 
-BENCHMARK_IMPL(loop_count) {
-  uv_loop_t* loop = uv_default_loop();
-  uint64_t ns;
+TEST_IMPL(walk_handles) {
+  uv_loop_t* loop;
+  int r;
 
-  uv_idle_init(loop, &idle_handle);
-  uv_idle_start(&idle_handle, idle_cb);
+  loop = uv_default_loop();
 
-  ns = uv_hrtime();
-  uv_run(loop);
-  ns = uv_hrtime() - ns;
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
 
-  ASSERT(ticks == NUM_TICKS);
+  r = uv_timer_start(&timer, timer_cb, 1, 0);
+  ASSERT(r == 0);
 
-  LOGF("loop_count: %d ticks in %.2fs (%.0f/s)\n",
-       NUM_TICKS,
-       ns / 1e9,
-       NUM_TICKS / (ns / 1e9));
+  /* Start event loop, expect to see the timer handle in walk_cb. */
+  ASSERT(seen_timer_handle == 0);
+  r = uv_run(loop);
+  ASSERT(r == 0);
+  ASSERT(seen_timer_handle == 1);
 
-  return 0;
-}
-
-
-BENCHMARK_IMPL(loop_count_timed) {
-  uv_loop_t* loop = uv_default_loop();
-
-  uv_idle_init(loop, &idle_handle);
-  uv_idle_start(&idle_handle, idle2_cb);
-
-  uv_timer_init(loop, &timer_handle);
-  uv_timer_start(&timer_handle, timer_cb, 5000, 0);
-
-  uv_run(loop);
-
-  LOGF("loop_count: %lu ticks (%.0f ticks/s)\n", ticks, ticks / 5.0);
+  /* Loop is finished, walk_cb should not see our timer handle. */
+  seen_timer_handle = 0;
+  uv_walk(loop, walk_cb, magic_cookie);
+  ASSERT(seen_timer_handle == 0);
 
   return 0;
 }

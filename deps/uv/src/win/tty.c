@@ -1773,12 +1773,8 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
     assert(handle->read_raw_wait == NULL);
 
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    handle->flags |= UV_HANDLE_CLOSED;
     uv__handle_stop(handle);
-
-    if (handle->close_cb) {
-      handle->close_cb((uv_handle_t*)handle);
-    }
+    uv__handle_close(handle);
   }
 }
 

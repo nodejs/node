@@ -301,6 +301,7 @@ typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
 typedef void (*uv_fs_cb)(uv_fs_t* req);
 typedef void (*uv_work_cb)(uv_work_t* req);
 typedef void (*uv_after_work_cb)(uv_work_t* req);
+typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 
 /*
 * This will be called repeatedly after the uv_fs_event_t is initialized.
@@ -382,6 +383,7 @@ struct uv_shutdown_s {
   /* read-only */                                                             \
   uv_handle_type type;                                                        \
   /* private */                                                               \
+  ngx_queue_t handle_queue;                                                   \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
 
 /* The abstract base class of all handles.  */
@@ -406,6 +408,12 @@ UV_EXTERN size_t uv_req_size(uv_req_type type);
  * otherwise. For other handle types this always returns 1.
  */
 UV_EXTERN int uv_is_active(const uv_handle_t* handle);
+
+/*
+ * Walk the list of open handles.
+ */
+UV_EXTERN void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg);
+
 
 /*
  * Request handle to be closed. close_cb will be called asynchronously after
@@ -1157,15 +1165,17 @@ UV_EXTERN void uv_freeaddrinfo(struct addrinfo* ai);
 
 /* uv_spawn() options */
 typedef enum {
-  UV_IGNORE        = 0x00,
-  UV_CREATE_PIPE   = 0x01,
-  /*
-   * UV_READABLE_PIPE and UV_WRITABLE_PIPE flags are set from
-   * the child process perspective.
+  UV_IGNORE         = 0x00,
+  UV_CREATE_PIPE    = 0x01,
+  UV_INHERIT_FD     = 0x02,
+  UV_INHERIT_STREAM = 0x04,
+
+  /* When UV_CREATE_PIPE is specified, UV_READABLE_PIPE and UV_WRITABLE_PIPE
+   * determine the direction of flow, from the child process' perspective. Both
+   * flags may be specified to create a duplex data stream.
    */
-  UV_READABLE_PIPE = 0x02,
-  UV_WRITABLE_PIPE = 0x04,
-  UV_RAW_FD        = 0x08
+  UV_READABLE_PIPE  = 0x10,
+  UV_WRITABLE_PIPE  = 0x20
 } uv_stdio_flags;
 
 typedef struct uv_stdio_container_s {
@@ -1211,10 +1221,16 @@ typedef struct uv_process_options_s {
   uv_gid_t gid;
 
   /*
-   * A container of stdio streams (stdin/stdout/stderr)
+   * The `stdio` field points to an array of uv_stdio_container_t structs that
+   * describe the file descriptors that will be made available to the child
+   * process. The convention is that stdio[0] points to stdin, fd 1 is used for
+   * stdout, and fd 2 is stderr.
+   *
+   * Note that on windows file descriptors greater than 2 are available to the
+   * child process only if the child processes uses the MSVCRT runtime.
    */
-  uv_stdio_container_t* stdio;
   int stdio_count;
+  uv_stdio_container_t* stdio;
 } uv_process_options_t;
 
 /*
@@ -1238,7 +1254,15 @@ enum uv_process_flags {
    * converting the argument list into a command line string. This option is
    * only meaningful on Windows systems. On unix it is silently ignored.
    */
-  UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS = (1 << 2)
+  UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS = (1 << 2),
+  /*
+   * Spawn the child process in a detached state - this will make it a process
+   * group leader, and will effectively enable the child to keep running after
+   * the parent exits.  Note that the child process will still keep the
+   * parent's event loop alive unless the parent process calls uv_unref() on
+   * the child's process handle.
+   */
+  UV_PROCESS_DETACHED = (1 << 3)
 };
 
 /*
@@ -1668,6 +1692,7 @@ struct uv_loop_s {
   uv_err_t last_err;
   /* Loop reference counting */
   unsigned int active_handles;
+  ngx_queue_t handle_queue;
   ngx_queue_t active_reqs;
   /* User data - use this for whatever. */
   void* data;

@@ -57,13 +57,15 @@ uv_handle_type uv_guess_handle(uv_file file) {
 
 
 int uv_is_active(const uv_handle_t* handle) {
-  return (handle->flags & UV__ACTIVE) && !(handle->flags & UV_HANDLE_CLOSING);
+  return (handle->flags & UV__HANDLE_ACTIVE) &&
+        !(handle->flags & UV_HANDLE_CLOSING);
 }
 
 
 void uv_handle_init(uv_loop_t* loop, uv_handle_t* handle) {
   handle->loop = loop;
-  handle->flags = UV__REF;
+  handle->flags = UV__HANDLE_REF;
+  ngx_queue_insert_tail(&loop->handle_queue, &handle->handle_queue);
 
   loop->counters.handle_init++;
 }
