@@ -4,7 +4,7 @@
   <?define repoDir="$(var.ProjectDir)..\..\..\" ?>
   <?define sourcedir="$(var.repoDir)\$(var.Configuration)\" ?>
 
-  <Product Id="$(var.ProductId)"
+  <Product Id="*"
            Name="node.js"
            Language="1033"
            Version="$(var.ProductVersion)"

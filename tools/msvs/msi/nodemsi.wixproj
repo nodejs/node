@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
@@ -7,7 +7,7 @@
     <ProductVersion>3.5</ProductVersion>
     <ProjectGuid>{1d808ff0-b5a9-4be9-859d-b334b6f48be2}</ProjectGuid>
     <SchemaVersion>2.0</SchemaVersion>
-    <OutputName>node</OutputName>
+    <OutputName>node-v$(NodeVersion)-$(Platform)</OutputName>
     <OutputType>Package</OutputType>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
@@ -43,25 +43,9 @@
       <Name>WixUIExtension</Name>
     </WixExtension>
   </ItemGroup>
-  <UsingTask TaskName="GenerateProductId" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
-    <ParameterGroup>
-      <ProductId ParameterType="System.String" Output="true" />
-    </ParameterGroup>
-    <Task>
-      <Code Type="Fragment" Language="cs">
-        <![CDATA[
-          this.ProductId = System.Guid.NewGuid().ToString().ToUpper();
-        ]]>
-      </Code>
-    </Task>
-  </UsingTask>
   <Import Project="$(WixTargetsPath)" />
     <Target Name="BeforeBuild">
-      <GenerateProductId>
-        <Output PropertyName="NodeProductId" TaskParameter="ProductId"/>
-      </GenerateProductId>
-      <CreateProperty Value="$(DefineConstants);ProductId=$(NodeProductId)">
-        <Output TaskParameter="Value" PropertyName="DefineConstants" />
-      </CreateProperty>
+      <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\deps\npm" PreprocessorVariable="var.NPMSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NPMFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs">
+      </HeatDirectory>
     </Target>
 </Project>

@@ -116,12 +116,11 @@ if not defined msi goto run
 python "%~dp0tools\getnodeversion.py" > "%temp%\node_version.txt"
 if not errorlevel 0 echo Cannot determine current version of node.js & goto exit
 for /F "tokens=*" %%i in (%temp%\node_version.txt) do set NODE_VERSION=%%i
-heat dir deps\npm -var var.NPMSourceDir -dr NodeModulesFolder -cg NPMFiles -gg -template fragment -nologo -out npm.wxs
 msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto run
-signtool sign /a Release\node.msi
+signtool sign /a Release\node-v%NODE_VERSION%-%msiplatform%.msi
 
 :run
 @rem Run tests if requested.
