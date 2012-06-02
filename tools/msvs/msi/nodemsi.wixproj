@@ -42,6 +42,10 @@
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
     </WixExtension>
+    <WixExtension Include="WiXUtilExtension">
+      <HintPath>$(WixExtDir)\WiXUtilExtension.dll</HintPath>
+      <Name>WiXUtilExtension</Name>
+    </WixExtension>
   </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
     <Target Name="BeforeBuild">

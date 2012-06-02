@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <?define ProductName = "node.js" ?>
+  <?define ProductDescription = "Evented I/O for V8 javascript" ?>
+  <?define ProductAuthor = "Joyent, Inc. and other Node contributors" ?>
 
   <?define repoDir="$(var.ProjectDir)..\..\..\" ?>
   <?define sourcedir="$(var.repoDir)\$(var.Configuration)\" ?>
 
   <Product Id="*"
-           Name="node.js"
+           Name="$(var.ProductName)"
            Language="1033"
            Version="$(var.ProductVersion)"
-           Manufacturer="Joyent, Inc"
+           Manufacturer="$(var.ProductAuthor)"
            UpgradeCode="1d60944c-b9ce-4a71-a7c0-0384eb884baa">
 
     <Package InstallerVersion="200" Compressed="yes" />
@@ -19,8 +24,13 @@
                   DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit." />
     
     <Directory Id="TARGETDIR" Name="SourceDir">
+
+      <Directory Id="ProgramMenuFolder">
+          <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
+      </Directory>
+
       <Directory Id="$(var.ProgramFilesFolderId)">
-        <Directory Id="NodeRoot" Name="nodejs">
+        <Directory Id="APPLICATIONROOTDIRECTORY" Name="nodejs">
           <Directory Id="NodeModulesFolder" Name="node_modules">
             <Directory Id="NPMFolder" Name="npm">
               <Component Id="npmrc" Guid="55B2B03F-8F32-4D62-A54A-FA428615591D">
@@ -56,6 +66,7 @@
           <?endif?>
         </Directory>
       </Directory>
+
       <Directory Id="AppDataFolder">
         <Directory Id="NPMAppData" Name="npm">
           <Component Id="npmappdata_folder" Guid="994B1F7F-60CD-4792-A96D-63BC7FFF29BF" Permanent="yes">
@@ -69,6 +80,28 @@
       </Directory>
     </Directory>
 
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="9b1ab94a-8f54-4f19-a5c4-b890de474162">
+        <Shortcut Id="ApplicationStartMenuShortcut" Name="Node.js"
+                  Description="$(var.ProductDescription)" Target="[APPLICATIONROOTDIRECTORY]node.exe"
+                  WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+        <util:InternetShortcut Id="OnlineWebsiteShortcut"
+                  Name="Node.js website"
+                  Target="http://nodejs.org"/>
+        <util:InternetShortcut Id="OnlineDocumentationShortcut"
+                  Name="Node.js documentation"
+                  Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"/>
+        <Shortcut Id="UninstallProduct"
+                  Name="Uninstall Node.js"
+                  Target="[SystemFolder]msiexec.exe"
+                  Arguments="/x [ProductCode]"
+                  Description="Uninstalls $(var.ProductName)" />
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\$(var.ProductAuthor)\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>          
+      </Component>
+    </DirectoryRef>
+
+
     <ComponentGroup Id="allfiles">
       <ComponentRef Id="nodeexe"/>
       <ComponentRef Id="npmcmd"/>
@@ -79,9 +112,10 @@
       <?if $(var.Configuration) = Debug ?>
       <ComponentRef Id="nodepdb"/>
       <?endif?>
+      <ComponentRef Id="ApplicationShortcut" />
     </ComponentGroup>
 
-    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="evented I/O for V8 javascript">
+    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)">
       <ComponentGroupRef Id="allfiles" />
       <ComponentGroupRef Id="Product.Generated" />
     </Feature>
