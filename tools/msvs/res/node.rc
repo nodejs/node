@@ -22,6 +22,11 @@
 #include "winresrc.h"
 #include "node_version.h"
 
+
+// Application icon
+1 ICON node.ico
+
+
 // Version resource
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION NODE_MAJOR_VERSION,NODE_MINOR_VERSION,NODE_PATCH_VERSION,0
