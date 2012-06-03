@@ -51,7 +51,7 @@
                          Name="PATH" 
                          Part="last" 
                          System="yes" 
-                         Value="[NodeRoot]" />
+                         Value="[APPLICATIONROOTDIRECTORY]" />
           </Component>
           <Component Id="npmcmd" Guid="31e9986d-74cd-44e1-878c-194d3e997d32">
             <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm.cmd" />
