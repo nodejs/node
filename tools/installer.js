@@ -126,12 +126,23 @@ if (cmd === 'install') {
 
   // Install npm (eventually)
   if (variables.node_install_npm) {
-    copy('deps/npm', 'lib/node_modules/npm');
-    queue.push('ln -sf ../lib/node_modules/npm/bin/npm-cli.js ' +
-               path.join(dest_dir, node_prefix, 'bin/npm'));
-    queue.push([shebang, '#!' + path.join(node_prefix, 'bin/node'),
-               path.join(dest_dir, node_prefix,
-                         'lib/node_modules/npm/bin/npm-cli.js')]);
+    // Frequently, in development, the installed npm is a symbolic
+    // link to the development folder, and so installing this is
+    // a bit annoying.  If it's a symlink, skip it.
+    var isSymlink = false;
+    try {
+      var st = fs.lstatSync(path.resolve(node_prefix, 'lib/node_modules/npm'));
+      isSymlink = st.isSymbolicLink();
+    } catch (e) {}
+
+    if (!isSymlink) {
+      copy('deps/npm', 'lib/node_modules/npm');
+      queue.push('ln -sf ../lib/node_modules/npm/bin/npm-cli.js ' +
+                 path.join(dest_dir, node_prefix, 'bin/npm'));
+      queue.push([shebang, '#!' + path.join(node_prefix, 'bin/node'),
+                 path.join(dest_dir, node_prefix,
+                           'lib/node_modules/npm/bin/npm-cli.js')]);
+    }
   }
 } else {
   remove([
