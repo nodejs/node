@@ -64,6 +64,9 @@
             <File Id="filenodepdb" KeyPath="yes" Source="$(var.sourcedir)\node.pdb" />
           </Component>
           <?endif?>
+          <Component Id="nodejsvars" Guid="*">
+            <File Id="filenodejsvars" KeyPath="yes" Source="$(var.repoDir)\tools\msvs\nodejsvars.bat" />
+          </Component>
         </Directory>
       </Directory>
 
@@ -84,6 +87,11 @@
       <Component Id="ApplicationShortcut" Guid="9b1ab94a-8f54-4f19-a5c4-b890de474162">
         <Shortcut Id="ApplicationStartMenuShortcut" Name="Node.js"
                   Description="$(var.ProductDescription)" Target="[APPLICATIONROOTDIRECTORY]node.exe"
+                  WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+        <Shortcut Id="NodePromptStartMenuShortcut" Name="Node.js ($(var.Platform)) Command Prompt"
+                  Description="Node.js Command Prompt" Target="[%ComSpec]"
+                  Arguments='/k "[APPLICATIONROOTDIRECTORY]nodejsvars.bat" $(var.Platform)'
+                  Show="normal"
                   WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
         <util:InternetShortcut Id="OnlineWebsiteShortcut"
                   Name="Node.js website"
@@ -113,6 +121,7 @@
       <ComponentRef Id="nodepdb"/>
       <?endif?>
       <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="nodejsvars" />
     </ComponentGroup>
 
     <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)">
