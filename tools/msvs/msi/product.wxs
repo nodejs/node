@@ -2,12 +2,12 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
-  <?define ProductName = "node.js" ?>
-  <?define ProductDescription = "Evented I/O for V8 javascript" ?>
+  <?define ProductName = "Node.js" ?>
+  <?define ProductDescription = "Node.js" ?>
   <?define ProductAuthor = "Joyent, Inc. and other Node contributors" ?>
 
-  <?define repoDir="$(var.ProjectDir)..\..\..\" ?>
-  <?define sourcedir="$(var.repoDir)\$(var.Configuration)\" ?>
+  <?define RepoDir="$(var.ProjectDir)..\..\..\" ?>
+  <?define SourceDir="$(var.RepoDir)\$(var.Configuration)\" ?>
 
   <Product Id="*"
            Name="$(var.ProductName)"
@@ -20,13 +20,13 @@
 
     <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
 
-    <MajorUpgrade AllowSameVersionUpgrades="yes" 
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit." />
-    
+
     <Directory Id="TARGETDIR" Name="SourceDir">
 
       <Directory Id="ProgramMenuFolder">
-          <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
+          <Directory Id="ApplicationProgramsFolder" Name="Node.js ($(var.Platform))"/>
       </Directory>
 
       <Directory Id="$(var.ProgramFilesFolderId)">
@@ -34,23 +34,23 @@
           <Directory Id="NodeModulesFolder" Name="node_modules">
             <Directory Id="NPMFolder" Name="npm">
               <Component Id="npmrc" Guid="55B2B03F-8F32-4D62-A54A-FA428615591D">
-                 <File Id="filenpmrc" KeyPath="yes" Source="$(var.repoDir)\tools\msvs\npm\npmrc" />
+                 <File Id="filenpmrc" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\npm\npmrc" />
               </Component>
             </Directory>
           </Directory>
           <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
-            <File Id="filenodeexe" KeyPath="yes" Source="$(var.sourcedir)\node.exe" />
+            <File Id="filenodeexe" KeyPath="yes" Source="$(var.SourceDir)\node.exe" />
             <Environment Id="npm_env"
-                         Action="set"             
-                         Name="PATH" 
-                         Part="last" 
-                         System="yes" 
+                         Action="set"
+                         Name="PATH"
+                         Part="last"
+                         System="yes"
                          Value="[AppDataFolder]npm\" />
             <Environment Id="node_env"
-                         Action="set"             
-                         Name="PATH" 
-                         Part="last" 
-                         System="yes" 
+                         Action="set"
+                         Name="PATH"
+                         Part="last"
+                         System="yes"
                          Value="[APPLICATIONROOTDIRECTORY]" />
           </Component>
           <Component Id="npmcmd" Guid="31e9986d-74cd-44e1-878c-194d3e997d32">
@@ -61,11 +61,11 @@
           </Component>
           <?if $(var.Configuration) = Debug ?>
           <Component Id="nodepdb" Guid="BEC0F08E-89B3-4C35-A286-8DB8598597F2">
-            <File Id="filenodepdb" KeyPath="yes" Source="$(var.sourcedir)\node.pdb" />
+            <File Id="filenodepdb" KeyPath="yes" Source="$(var.SourceDir)\node.pdb" />
           </Component>
           <?endif?>
           <Component Id="nodejsvars" Guid="*">
-            <File Id="filenodejsvars" KeyPath="yes" Source="$(var.repoDir)\tools\msvs\nodejsvars.bat" />
+            <File Id="filenodejsvars" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodejsvars.bat" />
           </Component>
         </Directory>
       </Directory>
@@ -88,9 +88,9 @@
         <Shortcut Id="ApplicationStartMenuShortcut" Name="Node.js"
                   Description="$(var.ProductDescription)" Target="[APPLICATIONROOTDIRECTORY]node.exe"
                   WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
-        <Shortcut Id="NodePromptStartMenuShortcut" Name="Node.js ($(var.Platform)) Command Prompt"
+        <Shortcut Id="NodePromptStartMenuShortcut" Name="Node.js command prompt"
                   Description="Node.js Command Prompt" Target="[%ComSpec]"
-                  Arguments='/k "[APPLICATIONROOTDIRECTORY]nodejsvars.bat" $(var.Platform)'
+                  Arguments='/k "[APPLICATIONROOTDIRECTORY]nodejsvars.bat"'
                   Show="normal"
                   WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
         <util:InternetShortcut Id="OnlineWebsiteShortcut"
@@ -105,7 +105,7 @@
                   Arguments="/x [ProductCode]"
                   Description="Uninstalls $(var.ProductName)" />
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-        <RegistryValue Root="HKCU" Key="Software\$(var.ProductAuthor)\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>          
+        <RegistryValue Root="HKCU" Key="Software\Joyent\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
@@ -159,14 +159,14 @@
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
 
       <Property Id="ARPNOMODIFY" Value="1" />
-      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed.  To run Node.js open command prompt (cmd.exe), and run 'node'. See http://nodejs.org for information about the license." />
+      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed. To run Node.js open command prompt (cmd.exe), and run 'node'." />
 
     </UI>
 
     <UIRef Id="WixUI_Common" />
     <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.jpg" />
     <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.jpg" />
-    <WixVariable Id="WixUILicenseRtf" Value="$(var.sourcedir)\LICENSE.rtf" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf" />
   </Product>
 
 </Wix>
