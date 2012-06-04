@@ -290,7 +290,7 @@
           [ 'v8_target_arch!="x64"', {
             # Pass -m32 to the compiler iff it understands the flag.
             'variables': {
-              'm32flag': '<!((echo | $(echo ${CXX:-$(which g++)}) -m32 -E - > /dev/null 2>&1) && echo -n "-m32" || true)',
+              'm32flag': '<!((echo | $(echo ${CXX:-$(which g++)}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
             },
             'cflags': [ '<(m32flag)' ],
             'ldflags': [ '<(m32flag)' ],
