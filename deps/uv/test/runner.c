@@ -86,6 +86,7 @@ int run_test(const char* test, int timeout, int benchmark_output) {
   int i;
 
   status = 255;
+  main_proc = NULL;
   process_count = 0;
 
   /* If it's a helper the user asks for, start it directly. */

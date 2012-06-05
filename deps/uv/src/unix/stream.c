@@ -523,12 +523,19 @@ static void uv__read(uv_stream_t* stream) {
   struct cmsghdr* cmsg;
   char cmsg_space[64];
   struct ev_loop* ev = stream->loop->ev;
+  int count;
+
+  /* Prevent loop starvation when the data comes in as fast as (or faster than)
+   * we can read it. XXX Need to rearm fd if we switch to edge-triggered I/O.
+   */
+  count = 32;
 
   /* XXX: Maybe instead of having UV_READING we just test if
    * tcp->read_cb is NULL or not?
    */
-  while ((stream->read_cb || stream->read2_cb) &&
-         stream->flags & UV_READING) {
+  while ((stream->read_cb || stream->read2_cb)
+      && (stream->flags & UV_READING)
+      && (count-- > 0)) {
     assert(stream->alloc_cb);
     buf = stream->alloc_cb((uv_handle_t*)stream, 64 * 1024);
 
