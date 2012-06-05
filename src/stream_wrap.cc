@@ -76,13 +76,22 @@ static Persistent<String> bytes_sym;
 static Persistent<String> write_queue_size_sym;
 static Persistent<String> onread_sym;
 static Persistent<String> oncomplete_sym;
-static SlabAllocator slab_allocator(SLAB_SIZE);
+static SlabAllocator* slab_allocator;
 static bool initialized;
+
+
+static void DeleteSlabAllocator(void*) {
+  delete slab_allocator;
+  slab_allocator = NULL;
+}
 
 
 void StreamWrap::Initialize(Handle<Object> target) {
   if (initialized) return;
   initialized = true;
+
+  slab_allocator = new SlabAllocator(SLAB_SIZE);
+  AtExit(DeleteSlabAllocator, NULL);
 
   HandleScope scope;
 
@@ -156,7 +165,7 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
 uv_buf_t StreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
   assert(wrap->stream_ == reinterpret_cast<uv_stream_t*>(handle));
-  char* buf = slab_allocator.Allocate(wrap->object_, suggested_size);
+  char* buf = slab_allocator->Allocate(wrap->object_, suggested_size);
   return uv_buf_init(buf, suggested_size);
 }
 
@@ -175,7 +184,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
     // If libuv reports an error or EOF it *may* give us a buffer back. In that
     // case, return the space to the slab.
     if (buf.base != NULL) {
-      slab_allocator.Shrink(wrap->object_, buf.base, 0);
+      slab_allocator->Shrink(wrap->object_, buf.base, 0);
     }
 
     SetErrno(uv_last_error(uv_default_loop()));
@@ -184,9 +193,9 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
   }
 
   assert(buf.base != NULL);
-  Local<Object> slab = slab_allocator.Shrink(wrap->object_,
-                                             buf.base,
-                                             nread);
+  Local<Object> slab = slab_allocator->Shrink(wrap->object_,
+                                              buf.base,
+                                              nread);
 
   if (nread == 0) return;
   assert(static_cast<size_t>(nread) <= buf.len);

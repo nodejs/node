@@ -58,7 +58,13 @@ Local<Object> AddressToJS(const sockaddr* addr);
 static Persistent<String> buffer_sym;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> onmessage_sym;
-static SlabAllocator slab_allocator(SLAB_SIZE);
+static SlabAllocator* slab_allocator;
+
+
+static void DeleteSlabAllocator(void*) {
+  delete slab_allocator;
+  slab_allocator = NULL;
+}
 
 
 UDPWrap::UDPWrap(Handle<Object> object): HandleWrap(object,
@@ -75,6 +81,9 @@ UDPWrap::~UDPWrap() {
 
 void UDPWrap::Initialize(Handle<Object> target) {
   HandleWrap::Initialize(target);
+
+  slab_allocator = new SlabAllocator(SLAB_SIZE);
+  AtExit(DeleteSlabAllocator, NULL);
 
   HandleScope scope;
 
@@ -352,7 +361,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 
 uv_buf_t UDPWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
   UDPWrap* wrap = static_cast<UDPWrap*>(handle->data);
-  char* buf = slab_allocator.Allocate(wrap->object_, suggested_size);
+  char* buf = slab_allocator->Allocate(wrap->object_, suggested_size);
   return uv_buf_init(buf, suggested_size);
 }
 
@@ -365,9 +374,9 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   HandleScope scope;
 
   UDPWrap* wrap = reinterpret_cast<UDPWrap*>(handle->data);
-  Local<Object> slab = slab_allocator.Shrink(wrap->object_,
-                                             buf.base,
-                                             nread < 0 ? 0 : nread);
+  Local<Object> slab = slab_allocator->Shrink(wrap->object_,
+                                              buf.base,
+                                              nread < 0 ? 0 : nread);
   if (nread == 0) return;
 
   if (nread < 0) {
