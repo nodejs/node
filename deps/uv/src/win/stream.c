@@ -23,29 +23,8 @@
 
 #include "uv.h"
 #include "internal.h"
-
-
-void uv_stream_init(uv_loop_t* loop, uv_stream_t* handle) {
-  uv_handle_init(loop, (uv_handle_t*) handle);
-  handle->write_queue_size = 0;
-  handle->activecnt = 0;
-
-  loop->counters.stream_init++;
-}
-
-
-void uv_connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
-  handle->write_reqs_pending = 0;
-
-  uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
-  handle->read_req.event_handle = NULL;
-  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
-  handle->read_req.type = UV_READ;
-  handle->read_req.data = handle;
-
-  handle->shutdown_req = NULL;
-}
+#include "handle-inl.h"
+#include "req-inl.h"
 
 
 int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb) {
@@ -175,18 +154,6 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   uv_want_endgame(loop, (uv_handle_t*)handle);
 
   return 0;
-}
-
-
-size_t uv_count_bufs(uv_buf_t bufs[], int count) {
-  size_t bytes = 0;
-  int i;
-
-  for (i = 0; i < count; i++) {
-    bytes += (size_t)bufs[i].len;
-  }
-
-  return bytes;
 }
 
 

@@ -24,6 +24,8 @@
 
 #ifdef _WIN32
 # include <io.h>
+#else
+# include <unistd.h>
 #endif
 
 #include "uv.h"
@@ -117,6 +119,18 @@ static int maybe_run_test(int argc, char **argv) {
     write(3, out, strlen(out));
     fsync(3);
 #endif
+    return 1;
+  }
+
+  if (strcmp(argv[1], "spawn_helper6") == 0) {
+    int r;
+
+    r = fprintf(stdout, "hello world\n");
+    ASSERT(r > 0);
+
+    r = fprintf(stderr, "hello errworld\n");
+    ASSERT(r > 0);
+
     return 1;
   }
 

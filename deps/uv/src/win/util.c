@@ -47,10 +47,31 @@
  */
 #define MAX_TITLE_LENGTH 8192
 
+/* The number of nanoseconds in one second. */
+#undef NANOSEC
+#define NANOSEC 1000000000
 
+
+/* Cached copy of the process title, plus a mutex guarding it. */
 static char *process_title;
-static uv_once_t uv_process_title_init_guard_ = UV_ONCE_INIT;
 static CRITICAL_SECTION process_title_lock;
+
+/* The tick frequency of the high-resolution clock. */
+static uint64_t hrtime_frequency_ = 0;
+
+
+/*
+ * One-time intialization code for functionality defined in util.c.
+ */
+void uv__util_init() {
+  /* Initialize process title access mutex. */
+  InitializeCriticalSection(&process_title_lock);
+
+  /* Retrieve high-resolution timer frequency. */
+  if (!QueryPerformanceFrequency((LARGE_INTEGER*) &hrtime_frequency_))
+    hrtime_frequency_ = 0;
+}
+
 
 int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
     char* utf8Buffer, size_t utf8Size) {
@@ -76,90 +97,100 @@ int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer,
 }
 
 
-int uv_exepath(char* buffer, size_t* size) {
-  int retVal;
-  size_t utf16Size;
-  wchar_t* utf16Buffer;
+int uv_exepath(char* buffer, size_t* size_ptr) {
+  int utf8_len, utf16_buffer_len, utf16_len;
+  WCHAR* utf16_buffer;
 
-  if (!buffer || !size) {
+  if (buffer == NULL || size_ptr == NULL || *size_ptr == 0) {
     return -1;
   }
 
-  utf16Buffer = (wchar_t*)malloc(sizeof(wchar_t) * *size);
-  if (!utf16Buffer) {
-    retVal = -1;
-    goto done;
+  if (*size_ptr > 32768) {
+    /* Windows paths can never be longer than this. */
+    utf16_buffer_len = 32768;
+  } else {
+    utf16_buffer_len = (int) *size_ptr;
   }
 
-  /* Get the path as UTF-16 */
-  utf16Size = GetModuleFileNameW(NULL, utf16Buffer, *size - 1);
-  if (utf16Size <= 0) {
-    /* uv__set_sys_error(loop, GetLastError()); */
-    retVal = -1;
-    goto done;
+  utf16_buffer = (wchar_t*) malloc(sizeof(WCHAR) * utf16_buffer_len);
+  if (!utf16_buffer) {
+    return -1;
   }
 
-  utf16Buffer[utf16Size] = L'\0';
+  /* Get the path as UTF-16. */
+  utf16_len = GetModuleFileNameW(NULL, utf16_buffer, utf16_buffer_len);
+  if (utf16_len <= 0) {
+    goto error;
+  }
+
+  /* utf16_len contains the length, *not* including the terminating null. */
+  utf16_buffer[utf16_len] = L'\0';
 
   /* Convert to UTF-8 */
-  *size = uv_utf16_to_utf8(utf16Buffer, utf16Size, buffer, *size);
-  if (!*size) {
-    /* uv__set_sys_error(loop, GetLastError()); */
-    retVal = -1;
-    goto done;
+  utf8_len = WideCharToMultiByte(CP_UTF8,
+                                 0,
+                                 utf16_buffer,
+                                 -1,
+                                 buffer,
+                                 *size_ptr > INT_MAX ? INT_MAX : (int) *size_ptr,
+                                 NULL,
+                                 NULL);
+  if (utf8_len == 0) {
+    goto error;
   }
 
-  buffer[*size] = '\0';
-  retVal = 0;
+  free(utf16_buffer);
 
-done:
-  if (utf16Buffer) {
-    free(utf16Buffer);
-  }
+  /* utf8_len *does* include the terminating null at this point, but the */
+  /* returned size shouldn't. */
+  *size_ptr = utf8_len - 1;
+  return 0;
 
-  return retVal;
+ error:
+  free(utf16_buffer);
+  return -1;
 }
 
 
 uv_err_t uv_cwd(char* buffer, size_t size) {
-  uv_err_t err;
-  size_t utf8Size;
-  wchar_t* utf16Buffer = NULL;
+  DWORD utf16_len;
+  WCHAR utf16_buffer[MAX_PATH + 1];
+  int r;
 
-  if (!buffer || !size) {
-    err.code = UV_EINVAL;
-    goto done;
+  if (buffer == NULL || size == 0) {
+    return uv__new_artificial_error(UV_EINVAL);
   }
 
-  utf16Buffer = (wchar_t*)malloc(sizeof(wchar_t) * size);
-  if (!utf16Buffer) {
-    err.code = UV_ENOMEM;
-    goto done;
+  utf16_len = GetCurrentDirectoryW(MAX_PATH, utf16_buffer);
+  if (utf16_len == 0) {
+    return uv__new_sys_error(GetLastError());
   }
 
-  if (!_wgetcwd(utf16Buffer, size - 1)) {
-    err = uv__new_sys_error(_doserrno);
-    goto done;
-  }
+  /* utf16_len contains the length, *not* including the terminating null. */
+  utf16_buffer[utf16_len] = L'\0';
 
-  utf16Buffer[size - 1] = L'\0';
+  /* The returned directory should not have a trailing slash, unless it */
+  /* points at a drive root, like c:\. Remove it if needed.*/
+  if (utf16_buffer[utf16_len - 1] == L'\\' &&
+      !(utf16_len == 3 && utf16_buffer[1] == L':')) {
+    utf16_len--;
+    utf16_buffer[utf16_len] = L'\0';
+  }
 
   /* Convert to UTF-8 */
-  utf8Size = uv_utf16_to_utf8(utf16Buffer, -1, buffer, size);
-  if (utf8Size == 0) {
-    err = uv__new_sys_error(GetLastError());
-    goto done;
+  r = WideCharToMultiByte(CP_UTF8,
+                          0,
+                          utf16_buffer,
+                          -1,
+                          buffer,
+                          size > INT_MAX ? INT_MAX : (int) size,
+                          NULL,
+                          NULL);
+  if (r == 0) {
+    return uv__new_sys_error(GetLastError());
   }
 
-  buffer[utf8Size] = '\0';
-  err = uv_ok_;
-
-done:
-  if (utf16Buffer) {
-    free(utf16Buffer);
-  }
-
-  return err;
+  return uv_ok_;
 }
 
 
@@ -266,17 +297,12 @@ char** uv_setup_args(int argc, char** argv) {
 }
 
 
-static void uv_process_title_init(void) {
-  InitializeCriticalSection(&process_title_lock);
-}
-
-
 uv_err_t uv_set_process_title(const char* title) {
   uv_err_t err;
   int length;
   wchar_t* title_w = NULL;
 
-  uv_once(&uv_process_title_init_guard_, uv_process_title_init);
+  uv__once_init();
 
   /* Find out how big the buffer for the wide-char title must be */
   length = uv_utf8_to_utf16(title, NULL, 0);
@@ -351,7 +377,7 @@ static int uv__get_process_title() {
 
 
 uv_err_t uv_get_process_title(char* buffer, size_t size) {
-  uv_once(&uv_process_title_init_guard_, uv_process_title_init);
+  uv__once_init();
 
   EnterCriticalSection(&process_title_lock);
   /*
@@ -367,6 +393,31 @@ uv_err_t uv_get_process_title(char* buffer, size_t size) {
   LeaveCriticalSection(&process_title_lock);
 
   return uv_ok_;
+}
+
+
+uint64_t uv_hrtime(void) {
+  LARGE_INTEGER counter;
+
+  uv__once_init();
+
+  /* If the performance frequency is zero, there's no support. */
+  if (!hrtime_frequency_) {
+    /* uv__set_sys_error(loop, ERROR_NOT_SUPPORTED); */
+    return 0;
+  }
+
+  if (!QueryPerformanceCounter(&counter)) {
+    /* uv__set_sys_error(loop, GetLastError()); */
+    return 0;
+  }
+
+  /* Because we have no guarantee about the order of magnitude of the */
+  /* performance counter frequency, and there may not be much headroom to */
+  /* multiply by NANOSEC without overflowing, we use 128-bit math instead. */
+  return ((uint64_t) counter.LowPart * NANOSEC / hrtime_frequency_) +
+         (((uint64_t) counter.HighPart * NANOSEC / hrtime_frequency_)
+         << 32);
 }
 
 
@@ -488,81 +539,148 @@ uv_err_t uv_uptime(double* uptime) {
 
 
 uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
-  uv_err_t err;
-  char key[128];
-  HKEY processor_key = NULL;
-  DWORD cpu_speed = 0;
-  DWORD cpu_speed_length = sizeof(cpu_speed);
-  char cpu_brand[256];
-  DWORD cpu_brand_length = sizeof(cpu_brand);
+  SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION* sppi;
+  DWORD sppi_size;
   SYSTEM_INFO system_info;
+  DWORD cpu_count, i, r;
+  ULONG result_size;
+  size_t size;
+  uv_err_t err;
   uv_cpu_info_t* cpu_info;
-  unsigned int i;
+
+  *cpu_infos = NULL;
+  *count = 0;
+
+  uv__once_init();
 
   GetSystemInfo(&system_info);
+  cpu_count = system_info.dwNumberOfProcessors;
 
-  *cpu_infos = (uv_cpu_info_t*)malloc(system_info.dwNumberOfProcessors *
-    sizeof(uv_cpu_info_t));
-  if (!(*cpu_infos)) {
+  size = cpu_count * sizeof(uv_cpu_info_t);
+  *cpu_infos = (uv_cpu_info_t*) malloc(size);
+  if (*cpu_infos == NULL) {
+    err = uv__new_artificial_error(UV_ENOMEM);
+    goto out;
+  }
+  memset(*cpu_infos, 0, size);
+
+  sppi_size = sizeof(*sppi) * cpu_count;
+  sppi = (SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION*) malloc(sppi_size);
+  if (!sppi) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
-  *count = 0;
+  r = pNtQuerySystemInformation(SystemProcessorPerformanceInformation,
+                                sppi,
+                                sppi_size,
+                                &result_size);
+  if (r != ERROR_SUCCESS || result_size != sppi_size) {
+    err = uv__new_sys_error(GetLastError());
+    goto out;
+  }
 
-  for (i = 0; i < system_info.dwNumberOfProcessors; i++) {
-    _snprintf(key, sizeof(key), "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d", i);
+  for (i = 0; i < cpu_count; i++) {
+    WCHAR key_name[128];
+    HKEY processor_key;
+    DWORD cpu_speed;
+    DWORD cpu_speed_size = sizeof(cpu_speed);
+    WCHAR cpu_brand[256];
+    DWORD cpu_brand_size = sizeof(cpu_brand);
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_QUERY_VALUE,
-        &processor_key) != ERROR_SUCCESS) {
-      if (i == 0) {
-        err = uv__new_sys_error(GetLastError());
-        goto done;
-      }
+    _snwprintf(key_name,
+               ARRAY_SIZE(key_name),
+               L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d",
+               i);
 
-      continue;
+    r = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                      key_name,
+                      0,
+                      KEY_QUERY_VALUE,
+                      &processor_key);
+    if (r != ERROR_SUCCESS) {
+      err = uv__new_sys_error(GetLastError());
+      goto out;
     }
 
-    if (RegQueryValueEx(processor_key, "~MHz", NULL, NULL,
-                        (LPBYTE)&cpu_speed, &cpu_speed_length)
-                        != ERROR_SUCCESS) {
+    if (RegQueryValueExW(processor_key,
+                         L"~MHz",
+                         NULL, NULL,
+                         (BYTE*) &cpu_speed,
+                         &cpu_speed_size) != ERROR_SUCCESS) {
       err = uv__new_sys_error(GetLastError());
-      goto done;
+      RegCloseKey(processor_key);
+      goto out;
     }
 
-    if (RegQueryValueEx(processor_key, "ProcessorNameString", NULL, NULL,
-                        (LPBYTE)&cpu_brand, &cpu_brand_length)
-                        != ERROR_SUCCESS) {
+    if (RegQueryValueExW(processor_key,
+                         L"ProcessorNameString",
+                         NULL, NULL,
+                         (BYTE*) &cpu_brand,
+                         &cpu_brand_size) != ERROR_SUCCESS) {
       err = uv__new_sys_error(GetLastError());
-      goto done;
+      RegCloseKey(processor_key);
+      goto out;
     }
 
     RegCloseKey(processor_key);
-    processor_key = NULL;
 
     cpu_info = &(*cpu_infos)[i];
-
-    /* $TODO: find times on windows */
-    cpu_info->cpu_times.user = 0;
-    cpu_info->cpu_times.nice = 0;
-    cpu_info->cpu_times.sys = 0;
-    cpu_info->cpu_times.idle = 0;
-    cpu_info->cpu_times.irq = 0;
-
-    cpu_info->model = strdup(cpu_brand);
     cpu_info->speed = cpu_speed;
+    cpu_info->cpu_times.user = sppi[i].UserTime.QuadPart / 10000;
+    cpu_info->cpu_times.sys = (sppi[i].KernelTime.QuadPart -
+        sppi[i].IdleTime.QuadPart) / 10000;
+    cpu_info->cpu_times.idle = sppi[i].IdleTime.QuadPart / 10000;
+    cpu_info->cpu_times.irq = sppi[i].InterruptTime.QuadPart / 10000;
+    cpu_info->cpu_times.nice = 0;
+
+    size = uv_utf16_to_utf8(cpu_brand,
+                            cpu_brand_size / sizeof(WCHAR),
+                            NULL,
+                            0);
+    if (size == 0) {
+      err = uv__new_sys_error(GetLastError());
+      goto out;
+    }
+
+    /* Allocate 1 extra byte for the null terminator. */
+    cpu_info->model = (char*) malloc(size + 1);
+    if (cpu_info->model == NULL) {
+      err = uv__new_artificial_error(UV_ENOMEM);
+      goto out;
+    }
+
+    if (uv_utf16_to_utf8(cpu_brand,
+                         cpu_brand_size / sizeof(WCHAR),
+                         cpu_info->model,
+                         size) == 0) {
+      err = uv__new_sys_error(GetLastError());
+      goto out;
+    }
+
+    /* Ensure that cpu_info->model is null terminated. */
+    cpu_info->model[size] = '\0';
 
     (*count)++;
   }
 
   err = uv_ok_;
 
-done:
-  if (processor_key) {
-    RegCloseKey(processor_key);
+ out:
+  if (sppi) {
+    free(sppi);
   }
 
-  if (err.code != UV_OK) {
+  if (err.code != UV_OK &&
+      *cpu_infos != NULL) {
+    int i;
+
+    for (i = 0; i < *count; i++) {
+      /* This is safe because the cpu_infos memory area is zeroed out */
+      /* immediately after allocating it. */
+      free((*cpu_infos)[i].model);
+    }
     free(*cpu_infos);
+
     *cpu_infos = NULL;
     *count = 0;
   }

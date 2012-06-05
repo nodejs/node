@@ -19,7 +19,59 @@
  * IN THE SOFTWARE.
  */
 
-#include <assert.h>
+#include <errno.h>
+
+#ifndef _WIN32
+# include <fcntl.h>
+# include <sys/socket.h>
+# include <unistd.h>
+#endif
 
 #include "uv.h"
-#include "internal.h"
+#include "task.h"
+
+#define NUM_SOCKETS 64
+
+
+static int close_cb_called = 0;
+
+
+static void poll_cb_fail(uv_poll_t* handle, int status, int events) {
+  ASSERT(0 && "poll_fail_cb should never be called");
+}
+
+
+static void close_cb(uv_handle_t* handle) {
+  close_cb_called++;
+}
+
+
+TEST_IMPL(poll_close) {
+  uv_os_sock_t sockets[NUM_SOCKETS];
+  uv_poll_t poll_handles[NUM_SOCKETS];
+  int i;
+
+#ifdef _WIN32
+  {
+    struct WSAData wsa_data;
+    int r = WSAStartup(MAKEWORD(2, 2), &wsa_data);
+    ASSERT(r == 0);
+  }
+#endif
+
+  for (i = 0; i < NUM_SOCKETS; i++) {
+    sockets[i] = socket(AF_INET, SOCK_STREAM, 0);
+    uv_poll_init_socket(uv_default_loop(), &poll_handles[i], sockets[i]);
+    uv_poll_start(&poll_handles[i], UV_READABLE | UV_WRITABLE, NULL);
+  }
+  
+  for (i = 0; i < NUM_SOCKETS; i++) {
+    uv_close((uv_handle_t*) &poll_handles[i], close_cb);
+  }
+
+  uv_run(uv_default_loop());
+
+  ASSERT(close_cb_called == NUM_SOCKETS);
+
+  return 0;
+}

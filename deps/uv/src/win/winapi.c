@@ -29,6 +29,7 @@ sRtlNtStatusToDosError pRtlNtStatusToDosError;
 sNtDeviceIoControlFile pNtDeviceIoControlFile;
 sNtQueryInformationFile pNtQueryInformationFile;
 sNtSetInformationFile pNtSetInformationFile;
+sNtQuerySystemInformation pNtQuerySystemInformation;
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 sCreateSymbolicLinkW pCreateSymbolicLinkW;
@@ -76,6 +77,13 @@ void uv_winapi_init() {
       ntdll_module,
       "NtSetInformationFile");
   if (pNtSetInformationFile == NULL) {
+    uv_fatal_error(GetLastError(), "GetProcAddress");
+  }
+
+  pNtQuerySystemInformation = (sNtQuerySystemInformation) GetProcAddress(
+      ntdll_module,
+      "NtQuerySystemInformation");
+  if (pNtQuerySystemInformation == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
 

@@ -32,6 +32,7 @@
 
 /*
  * Handles
+ * (also see handle-inl.h)
  */
 
 /* Used by all handles. */
@@ -81,96 +82,14 @@
 #define UV_HANDLE_POLL_SLOW                     0x02000000
 
 
-void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle);
-void uv_process_endgames(uv_loop_t* loop);
-
-#define DECREASE_PENDING_REQ_COUNT(handle)    \
-  do {                                        \
-    assert(handle->reqs_pending > 0);         \
-    handle->reqs_pending--;                   \
-                                              \
-    if (handle->flags & UV_HANDLE_CLOSING &&  \
-        handle->reqs_pending == 0) {          \
-      uv_want_endgame(loop, (uv_handle_t*)handle);  \
-    }                                         \
-  } while (0)
-
-#define UV_SUCCEEDED_WITHOUT_IOCP(result)                     \
-  ((result) && (handle->flags & UV_HANDLE_SYNC_BYPASS_IOCP))
-
-#define UV_SUCCEEDED_WITH_IOCP(result)                        \
-  ((result) || (GetLastError() == ERROR_IO_PENDING))
-
-#define DECREASE_ACTIVE_COUNT(loop, handle)                             \
-  do {                                                                  \
-    if (--(handle)->activecnt == 0 &&                                   \
-        !((handle)->flags & UV_HANDLE_CLOSING)) {                       \
-      uv__handle_stop((handle));                                        \
-    }                                                                   \
-    assert((handle)->activecnt >= 0);                                   \
-  } while (0)
-
-#define INCREASE_ACTIVE_COUNT(loop, handle)                             \
-  do {                                                                  \
-    if ((handle)->activecnt++ == 0) {                                   \
-      uv__handle_start((handle));                                       \
-    }                                                                   \
-    assert((handle)->activecnt > 0);                                    \
-  } while (0)
-
-#define REGISTER_HANDLE_REQ(loop, handle, req)                          \
-  do {                                                                  \
-    INCREASE_ACTIVE_COUNT((loop), (handle));                            \
-    uv__req_register((loop), (req));                                    \
-  } while (0)
-
-#define UNREGISTER_HANDLE_REQ(loop, handle, req)                        \
-  do {                                                                  \
-    DECREASE_ACTIVE_COUNT((loop), (handle));                            \
-    uv__req_unregister((loop), (req));                                  \
-  } while (0)
-
-#define uv__handle_close(handle)                                        \
-  do {                                                                  \
-    ngx_queue_remove(&(handle)->handle_queue);                          \
-    (handle)->flags |= UV_HANDLE_CLOSED;                                \
-    if ((handle)->close_cb) {                                           \
-      (handle)->close_cb((uv_handle_t*)(handle));                       \
-    }                                                                   \
-  } while (0)
-
 /*
- * Handles
+ * Requests: see req-inl.h
  */
-void uv_handle_init(uv_loop_t* loop, uv_handle_t* handle);
 
 
 /*
- * Requests
+ * Streams: see stream-inl.h
  */
-void uv_req_init(uv_loop_t* loop, uv_req_t* req);
-
-uv_req_t* uv_overlapped_to_req(OVERLAPPED* overlapped);
-
-void uv_insert_pending_req(uv_loop_t* loop, uv_req_t* req);
-void uv_process_reqs(uv_loop_t* loop);
-
-#define POST_COMPLETION_FOR_REQ(loop, req)                              \
-  if (!PostQueuedCompletionStatus((loop)->iocp,                         \
-                                  0,                                    \
-                                  0,                                    \
-                                  &((req)->overlapped))) {              \
-    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");       \
-  }
-
-
-/*
- * Streams
- */
-void uv_stream_init(uv_loop_t* loop, uv_stream_t* handle);
-void uv_connection_init(uv_stream_t* handle);
-
-size_t uv_count_bufs(uv_buf_t bufs[], int count);
 
 
 /*
@@ -299,6 +218,8 @@ void uv_prepare_invoke(uv_loop_t* loop);
 void uv_check_invoke(uv_loop_t* loop);
 void uv_idle_invoke(uv_loop_t* loop);
 
+void uv__once_init();
+
 
 /*
  * Async watcher
@@ -347,32 +268,15 @@ void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle);
 void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle);
 
 
-/* Utils */
+/*
+ * Utilities.
+ */
+void uv__util_init();
+
 int uv_parent_pid();
 void uv_filetime_to_time_t(FILETIME* file_time,  time_t* stat_time);
 void uv_fatal_error(const int errorno, const char* syscall);
 uv_err_code uv_translate_sys_error(int sys_errno);
-
-#define SET_REQ_STATUS(req, status)                                     \
-   (req)->overlapped.Internal = (ULONG_PTR) (status)
-
-#define SET_REQ_ERROR(req, error)                                       \
-  SET_REQ_STATUS((req), NTSTATUS_FROM_WIN32((error)))
-
-#define SET_REQ_SUCCESS(req)                                            \
-  SET_REQ_STATUS((req), STATUS_SUCCESS)
-
-#define GET_REQ_STATUS(req)                                             \
-  ((req)->overlapped.Internal)
-
-#define REQ_SUCCESS(req)                                                \
-  (NT_SUCCESS(GET_REQ_STATUS((req))))
-
-#define GET_REQ_ERROR(req)                                              \
-  (pRtlNtStatusToDosError(GET_REQ_STATUS((req))))
-
-#define GET_REQ_SOCK_ERROR(req)                                         \
-  (uv_ntstatus_to_winsock_error(GET_REQ_STATUS((req))))
 
 
 /*

@@ -19,12 +19,13 @@
  * IN THE SOFTWARE.
  */
 
+#include <assert.h>
+#include <io.h>
 
 #include "uv.h"
 #include "internal.h"
-
-#include <assert.h>
-#include <io.h>
+#include "handle-inl.h"
+#include "req-inl.h"
 
 
 static const GUID uv_msafd_provider_ids[UV_MSAFD_PROVIDER_COUNT] = {
@@ -40,6 +41,28 @@ typedef struct uv_single_fd_set_s {
   unsigned int fd_count;
   SOCKET fd_array[1];
 } uv_single_fd_set_t;
+
+
+static OVERLAPPED overlapped_dummy_;
+static uv_once_t overlapped_dummy_init_guard_ = UV_ONCE_INIT;
+
+
+static void uv__init_overlapped_dummy(void) {
+  HANDLE event;
+
+  event = CreateEvent(NULL, TRUE, TRUE, NULL);
+  if (event == NULL)
+    uv_fatal_error(GetLastError(), "CreateEvent");
+
+  memset(&overlapped_dummy_, 0, sizeof overlapped_dummy_);
+  overlapped_dummy_.hEvent = (HANDLE) ((uintptr_t) event | 1);
+}
+
+
+static OVERLAPPED* uv__get_overlapped_dummy() {
+  uv_once(&overlapped_dummy_init_guard_, uv__init_overlapped_dummy);
+  return &overlapped_dummy_;
+}
 
 
 static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
@@ -97,43 +120,26 @@ static void uv__fast_poll_submit_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
 static int uv__fast_poll_cancel_poll_req(uv_loop_t* loop, uv_poll_t* handle) {
   AFD_POLL_INFO afd_poll_info;
   DWORD result;
-  HANDLE event;
-  OVERLAPPED overlapped;
 
-  event = CreateEvent(NULL, TRUE, FALSE, NULL);
-  if (event == NULL) {
-    uv__set_sys_error(loop, GetLastError());
-    return -1;
-  }
-
-  afd_poll_info.Exclusive = FALSE;
+  afd_poll_info.Exclusive = TRUE;
   afd_poll_info.NumberOfHandles = 1;
-  afd_poll_info.Timeout.QuadPart = 0;
+  afd_poll_info.Timeout.QuadPart = INT64_MAX;
   afd_poll_info.Handles[0].Handle = (HANDLE) handle->socket;
   afd_poll_info.Handles[0].Status = 0;
   afd_poll_info.Handles[0].Events = AFD_POLL_ALL;
 
-  memset(&overlapped, 0, sizeof overlapped);
-  overlapped.hEvent = (HANDLE) ((uintptr_t) event | 1);
-
   result = uv_msafd_poll(handle->socket,
                          &afd_poll_info,
-                         &overlapped);
+                         uv__get_overlapped_dummy());
 
   if (result == SOCKET_ERROR) {
     DWORD error = WSAGetLastError();
     if (error != WSA_IO_PENDING) {
       uv__set_sys_error(loop, WSAGetLastError());
-      CloseHandle(event);
       return -1;
     }
   }
 
-  if (WaitForSingleObject(event, INFINITE) != WAIT_OBJECT_0) {
-    uv_fatal_error(GetLastError(), "WaitForSingleObject");
-  }
-
-  CloseHandle(event);
   return 0;
 }
 
@@ -181,6 +187,7 @@ static void uv__fast_poll_process_poll_req(uv_loop_t* loop, uv_poll_t* handle,
     if (afd_poll_info->Handles[0].Events & AFD_POLL_LOCAL_CLOSE) {
       /* Stop polling. */
       handle->events = 0;
+      uv__handle_stop(handle);
     }
 
     if (events != 0) {
@@ -229,17 +236,9 @@ static void uv__fast_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
       handle->submitted_events_2 == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
   } else {
-    /* Try to cancel outstanding poll requests. */
-    if (pCancelIoEx) {
-      /* Use CancelIoEx to cancel poll requests if available. */
-      if (handle->submitted_events_1)
-        pCancelIoEx((HANDLE) handle->socket, &handle->poll_req_1.overlapped);
-      if (handle->submitted_events_2)
-        pCancelIoEx((HANDLE) handle->socket, &handle->poll_req_2.overlapped);
-    } else if (handle->submitted_events_1 | handle->submitted_events_2) {
-      /* Execute another unique poll to force the others to return. */
-      uv__fast_poll_cancel_poll_req(loop, handle);
-    }
+    /* Cancel outstanding poll requests by executing another, unique poll */
+    /* request that forces the outstanding ones to return. */
+    uv__fast_poll_cancel_poll_req(loop, handle);
   }
 }
 

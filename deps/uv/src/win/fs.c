@@ -32,6 +32,8 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "req-inl.h"
+
 
 #define UV_FS_ASYNC_QUEUED       0x0001
 #define UV_FS_FREE_PATH          0x0002

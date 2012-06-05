@@ -169,6 +169,8 @@ typedef SOCKET uv_os_sock_t;
 
 typedef HANDLE uv_thread_t;
 
+typedef HANDLE uv_sem_t;
+
 typedef CRITICAL_SECTION uv_mutex_t;
 
 typedef union {

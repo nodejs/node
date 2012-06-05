@@ -37,9 +37,9 @@ static int shutdown_cb_called = 0;
 static int connect_cb_called = 0;
 static int write_cb_called = 0;
 static int close_cb_called = 0;
-static int bytes_sent = 0;
-static int bytes_sent_done = 0;
-static int bytes_received_done = 0;
+static size_t bytes_sent = 0;
+static size_t bytes_sent_done = 0;
+static size_t bytes_received_done = 0;
 
 static uv_connect_t connect_req;
 static uv_shutdown_t shutdown_req;

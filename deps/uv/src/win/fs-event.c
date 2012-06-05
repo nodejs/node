@@ -19,14 +19,16 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
-#include "internal.h"
-
 #include <assert.h>
 #include <malloc.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "uv.h"
+#include "internal.h"
+#include "handle-inl.h"
+#include "req-inl.h"
 
 
 const unsigned int uv_directory_watcher_buffer_size = 4096;

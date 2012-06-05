@@ -329,6 +329,27 @@ TEST_IMPL(spawn_stdio_greater_than_3) {
 }
 
 
+TEST_IMPL(spawn_ignored_stdio) {
+  int r;
+
+  init_process_options("spawn_helper6", exit_cb);
+
+  options.stdio = NULL;
+  options.stdio_count = 0;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}
+
+
 TEST_IMPL(spawn_and_kill) {
   int r;
 

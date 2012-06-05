@@ -604,6 +604,13 @@ static void uv__io_rw(struct ev_loop* ev, ev_io* w, int events) {
   uv__io_t* handle = container_of(w, uv__io_t, io_watcher);
   u.data = handle->io_watcher.data;
   u.cb(loop, handle, events & (EV_READ|EV_WRITE|EV_ERROR));
+
+  /* The callback may have closed all active handles. Stop libev from entering
+   * the epoll_wait/kevent/port_getn/etc. syscall if that's the case, it would
+   * hang indefinitely.
+   */
+  if (loop->active_handles == 0)
+    ev_break(loop->ev, EVBREAK_ONE);
 }
 
 

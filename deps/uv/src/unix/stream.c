@@ -561,12 +561,19 @@ static void uv__read(uv_stream_t* stream) {
   struct msghdr msg;
   struct cmsghdr* cmsg;
   char cmsg_space[64];
+  int count;
+
+  /* Prevent loop starvation when the data comes in as fast as (or faster than)
+   * we can read it. XXX Need to rearm fd if we switch to edge-triggered I/O.
+   */
+  count = 32;
 
   /* XXX: Maybe instead of having UV_STREAM_READING we just test if
    * tcp->read_cb is NULL or not?
    */
-  while ((stream->read_cb || stream->read2_cb) &&
-         stream->flags & UV_STREAM_READING) {
+  while ((stream->read_cb || stream->read2_cb)
+      && (stream->flags & UV_STREAM_READING)
+      && (count-- > 0)) {
     assert(stream->alloc_cb);
     buf = stream->alloc_cb((uv_handle_t*)stream, 64 * 1024);
 
@@ -890,42 +897,36 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
   req->send_handle = send_handle;
   ngx_queue_init(&req->queue);
 
-  if (bufcnt <= UV_REQ_BUFSML_SIZE) {
+  if (bufcnt <= UV_REQ_BUFSML_SIZE)
     req->bufs = req->bufsml;
-  }
-  else {
+  else
     req->bufs = malloc(sizeof(uv_buf_t) * bufcnt);
-  }
 
   memcpy(req->bufs, bufs, bufcnt * sizeof(uv_buf_t));
   req->bufcnt = bufcnt;
-
-  /*
-   * fprintf(stderr, "cnt: %d bufs: %p bufsml: %p\n", bufcnt, req->bufs, req->bufsml);
-   */
-
   req->write_index = 0;
   stream->write_queue_size += uv__buf_count(bufs, bufcnt);
 
   /* Append the request to write_queue. */
   ngx_queue_insert_tail(&stream->write_queue, &req->queue);
 
-  assert(!ngx_queue_empty(&stream->write_queue));
-
   /* If the queue was empty when this function began, we should attempt to
    * do the write immediately. Otherwise start the write_watcher and wait
    * for the fd to become writable.
    */
-  if (empty_queue) {
+  if (stream->connect_req) {
+    /* Still connecting, do nothing. */
+  }
+  else if (empty_queue) {
     uv__write(stream);
-  } else {
+  }
+  else {
     /*
      * blocking streams should never have anything in the queue.
      * if this assert fires then somehow the blocking stream isn't being
-     * sufficently flushed in uv__write.
+     * sufficiently flushed in uv__write.
      */
     assert(!(stream->flags & UV_STREAM_BLOCKING));
-
     uv__io_start(stream->loop, &stream->write_watcher);
   }
 

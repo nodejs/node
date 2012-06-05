@@ -42,8 +42,10 @@
 
 #ifdef _MSC_VER
 # define UNUSED /* empty */
+# define INLINE __inline
 #else
 # define UNUSED __attribute__((unused))
+# define INLINE inline
 #endif
 
 

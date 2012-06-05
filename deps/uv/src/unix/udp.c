@@ -196,6 +196,7 @@ static void uv__udp_recvmsg(uv_loop_t* loop, uv__io_t* w, int revents) {
   ssize_t nread;
   uv_buf_t buf;
   int flags;
+  int count;
 
   handle = container_of(w, uv_udp_t, read_watcher);
   assert(handle->type == UV_UDP);
@@ -204,15 +205,20 @@ static void uv__udp_recvmsg(uv_loop_t* loop, uv__io_t* w, int revents) {
   assert(handle->recv_cb != NULL);
   assert(handle->alloc_cb != NULL);
 
+  /* Prevent loop starvation when the data comes in as fast as (or faster than)
+   * we can read it. XXX Need to rearm fd if we switch to edge-triggered I/O.
+   */
+  count = 32;
+
+  memset(&h, 0, sizeof(h));
+  h.msg_name = &peer;
+
   do {
-    /* FIXME: hoist alloc_cb out the loop but for now follow uv__read() */
     buf = handle->alloc_cb((uv_handle_t*)handle, 64 * 1024);
     assert(buf.len > 0);
     assert(buf.base != NULL);
 
-    memset(&h, 0, sizeof h);
-    h.msg_name = &peer;
-    h.msg_namelen = sizeof peer;
+    h.msg_namelen = sizeof(peer);
     h.msg_iov = (struct iovec*)&buf;
     h.msg_iovlen = 1;
 
@@ -246,6 +252,7 @@ static void uv__udp_recvmsg(uv_loop_t* loop, uv__io_t* w, int revents) {
   }
   /* recv_cb callback may decide to pause or close the handle */
   while (nread != -1
+      && count-- > 0
       && handle->fd != -1
       && handle->recv_cb != NULL);
 }

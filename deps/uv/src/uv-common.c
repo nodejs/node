@@ -87,7 +87,7 @@ size_t uv_strlcat(char* dst, const char* src, size_t size) {
 }
 
 
-uv_buf_t uv_buf_init(char* base, size_t len) {
+uv_buf_t uv_buf_init(char* base, unsigned int len) {
   uv_buf_t buf;
   buf.base = base;
   buf.len = len;
