@@ -30,6 +30,10 @@ var net = require('net'),
     prompt_unix = 'node via Unix socket> ',
     prompt_tcp = 'node via TCP socket> ',
     prompt_multiline = '... ',
+    prompt_npm = 'npm should be run outside of the ' +
+                 'node repl, in your normal shell.\n' +
+                 '(Press Control-D to exit.)\n',
+    expect_npm = prompt_npm + prompt_unix,
     server_tcp, server_unix, client_tcp, client_unix, timer;
 
 
@@ -76,8 +80,11 @@ function error_test() {
                   JSON.stringify(client_unix.expect)));
 
     if (read_buffer.indexOf(prompt_unix) !== -1) {
-      assert.ok(read_buffer.match(client_unix.expect));
-      common.error('match');
+      // if it's an exact match, then don't do the regexp
+      if (read_buffer !== client_unix.expect) {
+        assert.ok(read_buffer.match(client_unix.expect));
+        common.error('match');
+      }
       read_buffer = '';
       if (client_unix.list && client_unix.list.length > 0) {
         send_expect(client_unix.list);
@@ -140,7 +147,10 @@ function error_test() {
     { client: client_unix, send: 'return 1;',
       expect: prompt_multiline },
     { client: client_unix, send: '})()',
-      expect: '1' }
+      expect: '1' },
+    // npm prompt error message
+    { client: client_unix, send: 'npm install foobar',
+      expect: expect_npm }
   ]);
 }
 
