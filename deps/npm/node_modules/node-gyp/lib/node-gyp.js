@@ -112,6 +112,25 @@ proto.parseArgv = function parseOpts (argv) {
   }, this)
 
   this.todo = commands
+
+  // support for inheriting config env variables from npm
+  var npm_config_prefix = 'npm_config_'
+  Object.keys(process.env).forEach(function (name) {
+    if (name.indexOf(npm_config_prefix) !== 0) return
+    var val = process.env[name]
+    if (name === npm_config_prefix + 'loglevel') {
+      // "loglevel" is a special case; check for "verbose"
+      if (val === 'verbose') {
+        this.opts.verbose = true
+      }
+    } else {
+      // take the config name and check if it's one that node-gyp cares about
+      name = name.substring(npm_config_prefix.length)
+      if (name in this.configDefs) {
+        this.opts[name] = val
+      }
+    }
+  }, this)
 }
 
 /**

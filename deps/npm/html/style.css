@@ -1,3 +1,30 @@
+/* @license
+ * MyFonts Webfont Build ID 2303021, 2012-06-04T14:43:21-0400
+ *
+ * The fonts listed in this notice are subject to the End User License
+ * Agreement(s) entered into by the website owner. All other parties are 
+ * explicitly restricted from using the Licensed Webfonts(s).
+ *
+ * You may obtain a valid license at the URLs below.
+ *
+ * Webfont: Gubblebum Blocky by Jelloween
+ * URL: http://www.myfonts.com/fonts/jelloween/gubblebum/blocky/
+ * Licensed pageviews: unspecified
+ *
+ *
+ * License: http://www.myfonts.com/viewlicense?type=web&buildid=2303021
+ * Webfonts copyright: Copyright (c) 2007 by Tjarda Koster. All rights reserved.
+ *
+ * © 2012 Bitstream Inc
+*/
+
+@font-face {
+  font-family: gubblefont;
+  src: url('webfonts/23242D_3_0.eot');
+  src: url('webfonts/23242D_3_0.eot?#iefix') format('embedded-opentype'),
+       url('webfonts/23242D_3_0.woff') format('woff'),
+       url('webfonts/23242D_3_0.ttf') format('truetype');
+}
 
 /* reset */
 * {
@@ -149,7 +176,7 @@ h1 {
   background:#fff;
 }
 h1 a, h1 a:visited {
-  font-family:gubblefont, GubbleBum Blocky, GubbleBum, monospace;
+  font-family:gubblefont, Gubblebum-Blocky, GubbleBum Blocky, GubbleBum, monospace;
   font-size:60px;
   color:#900;
   display:block;
@@ -316,11 +343,6 @@ input.submit, input#submit, input.button, button, input[type=submit] {
   display:block;
 }
 
-@font-face {
-  font-family:gubblefont;
-  src: url(./GubbleBum-Blocky.ttf) format("truetype");
-}
-
 @media print {
     a[href] {
         color:inherit;
@@ -333,4 +355,3 @@ input.submit, input#submit, input.button, button, input[type=submit] {
         display:none;
     }
 }
-

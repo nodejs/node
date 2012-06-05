@@ -10,7 +10,7 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.23",
+  "version": "1.1.24",
   "preferGlobal": true,
   "config": {
     "publishtest": false
@@ -53,8 +53,8 @@
     "mkdirp": "0.3",
     "read": "0",
     "lru-cache": "1",
-    "node-gyp": "~0.4.1",
-    "fstream-npm": "0 >=0.0.5",
+    "node-gyp": "~0.4.5",
+    "fstream-npm": "0.1",
     "uid-number": "0",
     "archy": "0",
     "chownr": "0"

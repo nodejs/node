@@ -26,14 +26,20 @@ function Packer (props) {
   this.bundleLinks = props.bundleLinks
   this.package = props.package
 
+  // only do the magic bundling stuff for the node_modules folder that
+  // lives right next to a package.json file.
+  this.bundleMagic = this.parent &&
+                     this.parent.packageRoot &&
+                     this.basename === "node_modules"
+
   // in a node_modules folder, resolve symbolic links to
   // bundled dependencies when creating the package.
-  props.follow = this.follow = this.basename === "node_modules"
+  props.follow = this.follow = this.bundleMagic
   // console.error("follow?", this.path, props.follow)
 
   if (this === this.root ||
       this.parent &&
-      this.parent.basename === "node_modules" &&
+      this.parent.bundleMagic &&
       this.basename.charAt(0) !== ".") {
     this.readBundledLinks()
   }
@@ -85,7 +91,7 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
   if (entry === "package.json") return true
 
   // special rules.  see below.
-  if (entry === "node_modules") return true
+  if (entry === "node_modules" && this.packageRoot) return true
 
   // some files are *never* allowed under any circumstances
   if (entry === ".git" ||
@@ -110,7 +116,7 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
   // To prevent infinite cycles in the case of cyclic deps that are
   // linked with npm link, even in a bundle, deps are only bundled
   // if they're not already present at a higher level.
-  if (this.basename === "node_modules") {
+  if (this.bundleMagic) {
     // bubbling up.  stop here and allow anything the bundled pkg allows
     if (entry.indexOf("/") !== -1) return true
 
