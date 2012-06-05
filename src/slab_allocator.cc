@@ -37,6 +37,7 @@ using v8::Object;
 using v8::Persistent;
 using v8::String;
 using v8::Value;
+using v8::V8;
 
 
 namespace node {
@@ -49,6 +50,7 @@ SlabAllocator::SlabAllocator(unsigned int size) {
 
 SlabAllocator::~SlabAllocator() {
   if (!initialized_) return;
+  if (V8::IsDead()) return;
   slab_sym_.Dispose();
   slab_sym_.Clear();
   slab_.Dispose();
