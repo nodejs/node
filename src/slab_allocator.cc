@@ -49,10 +49,10 @@ SlabAllocator::SlabAllocator(unsigned int size) {
 
 SlabAllocator::~SlabAllocator() {
   if (!initialized_) return;
-  slab_sym_.Clear();
   slab_sym_.Dispose();
-  slab_.Clear();
+  slab_sym_.Clear();
   slab_.Dispose();
+  slab_.Clear();
 }
 
 
@@ -92,8 +92,8 @@ char* SlabAllocator::Allocate(Handle<Object> obj, unsigned int size) {
   }
 
   if (slab_.IsEmpty() || offset_ + size > size_) {
-    slab_.Clear();
     slab_.Dispose();
+    slab_.Clear();
     slab_ = Persistent<Object>::New(NewSlab(size_));
     offset_ = 0;
     last_ptr_ = NULL;
