@@ -226,16 +226,6 @@ void uv_loop_delete(uv_loop_t* loop) {
 }
 
 
-static void uv__poll(uv_loop_t* loop, unsigned int timeout) {
-  /* bump the loop's refcount, otherwise libev does
-   * a zero timeout poll and we end up busy looping
-   */
-  ev_ref(loop->ev);
-  ev_run(loop->ev, timeout / 1000.);
-  ev_unref(loop->ev);
-}
-
-
 static unsigned int uv__poll_timeout(uv_loop_t* loop) {
   if (!uv__has_active_handles(loop))
     return 0;
@@ -247,22 +237,22 @@ static unsigned int uv__poll_timeout(uv_loop_t* loop) {
 }
 
 
+static void uv__poll(uv_loop_t* loop) {
+  void ev__run(EV_P_ ev_tstamp waittime);
+  ev_invoke_pending(loop->ev);
+  ev__run(loop->ev, uv__poll_timeout(loop) / 1000.);
+  ev_invoke_pending(loop->ev);
+}
+
+
 static int uv__run(uv_loop_t* loop) {
   uv_update_time(loop);
   uv__run_timers(loop);
   uv__run_idle(loop);
-
-  if (uv__has_active_handles(loop) || uv__has_active_reqs(loop)) {
-    uv__run_prepare(loop);
-    /* Need to poll even if there are no active handles left, otherwise
-     * uv_work_t reqs won't complete...
-     */
-    uv__poll(loop, uv__poll_timeout(loop));
-    uv__run_check(loop);
-  }
-
+  uv__run_prepare(loop);
+  uv__poll(loop);
+  uv__run_check(loop);
   uv__run_closing_handles(loop);
-
   return uv__has_active_handles(loop) || uv__has_active_reqs(loop);
 }
 
@@ -604,13 +594,6 @@ static void uv__io_rw(struct ev_loop* ev, ev_io* w, int events) {
   uv__io_t* handle = container_of(w, uv__io_t, io_watcher);
   u.data = handle->io_watcher.data;
   u.cb(loop, handle, events & (EV_READ|EV_WRITE|EV_ERROR));
-
-  /* The callback may have closed all active handles. Stop libev from entering
-   * the epoll_wait/kevent/port_getn/etc. syscall if that's the case, it would
-   * hang indefinitely.
-   */
-  if (loop->active_handles == 0)
-    ev_break(loop->ev, EVBREAK_ONE);
 }
 
 

@@ -22,6 +22,7 @@
 #include "uv.h"
 #include "uv-common.h"
 
+#include <stdio.h>
 #include <assert.h>
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* malloc */
@@ -327,6 +328,50 @@ void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
     walk_cb(h, arg);
   }
 }
+
+
+#ifndef NDEBUG
+static void uv__print_handles(uv_loop_t* loop, int only_active) {
+  const char* type;
+  ngx_queue_t* q;
+  uv_handle_t* h;
+
+  if (loop == NULL)
+    loop = uv_default_loop();
+
+  ngx_queue_foreach(q, &loop->handle_queue) {
+    h = ngx_queue_data(q, uv_handle_t, handle_queue);
+
+    if (only_active && !uv__is_active(h))
+      continue;
+
+    switch (h->type) {
+#define X(uc, lc) case UV_##uc: type = #lc; break;
+      UV_HANDLE_TYPE_MAP(X)
+#undef X
+      default: type = "<unknown>";
+    }
+
+    fprintf(stderr,
+            "[%c%c%c] %-8s %p\n",
+            "R-"[!(h->flags & UV__HANDLE_REF)],
+            "A-"[!(h->flags & UV__HANDLE_ACTIVE)],
+            "I-"[!(h->flags & UV__HANDLE_INTERNAL)],
+            type,
+            (void*)h);
+  }
+}
+
+
+void uv_print_all_handles(uv_loop_t* loop) {
+  uv__print_handles(loop, 0);
+}
+
+
+void uv_print_active_handles(uv_loop_t* loop) {
+  uv__print_handles(loop, 1);
+}
+#endif
 
 
 void uv_ref(uv_handle_t* handle) {

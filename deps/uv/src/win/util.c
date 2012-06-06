@@ -154,7 +154,7 @@ int uv_exepath(char* buffer, size_t* size_ptr) {
 
 uv_err_t uv_cwd(char* buffer, size_t size) {
   DWORD utf16_len;
-  WCHAR utf16_buffer[MAX_PATH + 1];
+  WCHAR utf16_buffer[MAX_PATH];
   int r;
 
   if (buffer == NULL || size == 0) {
@@ -164,6 +164,10 @@ uv_err_t uv_cwd(char* buffer, size_t size) {
   utf16_len = GetCurrentDirectoryW(MAX_PATH, utf16_buffer);
   if (utf16_len == 0) {
     return uv__new_sys_error(GetLastError());
+  } else if (utf16_len > MAX_PATH) {
+    /* This should be impossible;  however the CRT has a code path to deal */
+    /* with this scenario, so I added a check anyway. */
+    return uv__new_artificial_error(UV_EIO);
   }
 
   /* utf16_len contains the length, *not* including the terminating null. */
@@ -195,45 +199,80 @@ uv_err_t uv_cwd(char* buffer, size_t size) {
 
 
 uv_err_t uv_chdir(const char* dir) {
-  uv_err_t err;
-  wchar_t* utf16Buffer = NULL;
-  size_t utf16Size;
+  WCHAR utf16_buffer[MAX_PATH];
+  size_t utf16_len;
+  WCHAR drive_letter, env_var[4];
 
-  if (!dir) {
-    err.code = UV_EINVAL;
-    goto done;
+  if (dir == NULL) {
+    return uv__new_artificial_error(UV_EINVAL);
   }
 
-  utf16Size = uv_utf8_to_utf16(dir, NULL, 0);
-  if (!utf16Size) {
-    err = uv__new_sys_error(GetLastError());
-    goto done;
+  if (MultiByteToWideChar(CP_UTF8,
+                          0,
+                          dir,
+                          -1,
+                          utf16_buffer,
+                          MAX_PATH) == 0) {
+    DWORD error = GetLastError();
+    /* The maximum length of the current working directory is 260 chars, */
+    /* including terminating null. If it doesn't fit, the path name must be */
+    /* too long. */
+    if (error == ERROR_INSUFFICIENT_BUFFER) {
+      return uv__new_artificial_error(UV_ENAMETOOLONG);
+    } else {
+      return uv__new_sys_error(error);
+    }
   }
 
-  utf16Buffer = (wchar_t*)malloc(sizeof(wchar_t) * utf16Size);
-  if (!utf16Buffer) {
-    err.code = UV_ENOMEM;
-    goto done;
+  if (!SetCurrentDirectoryW(utf16_buffer)) {
+    return uv__new_sys_error(GetLastError());
   }
 
-  if (!uv_utf8_to_utf16(dir, utf16Buffer, utf16Size)) {
-    err = uv__new_sys_error(GetLastError());
-    goto done;
+  /* Windows stores the drive-local path in an "hidden" environment variable, */
+  /* which has the form "=C:=C:\Windows". SetCurrentDirectory does not */
+  /* update this, so we'll have to do it. */
+  utf16_len = GetCurrentDirectoryW(MAX_PATH, utf16_buffer);
+  if (utf16_len == 0) {
+    return uv__new_sys_error(GetLastError());
+  } else if (utf16_len > MAX_PATH) {
+    return uv__new_artificial_error(UV_EIO);
   }
 
-  if (_wchdir(utf16Buffer) == -1) {
-    err = uv__new_sys_error(_doserrno);
-    goto done;
+  /* The returned directory should not have a trailing slash, unless it */
+  /* points at a drive root, like c:\. Remove it if needed. */
+  if (utf16_buffer[utf16_len - 1] == L'\\' &&
+      !(utf16_len == 3 && utf16_buffer[1] == L':')) {
+    utf16_len--;
+    utf16_buffer[utf16_len] = L'\0';
   }
 
-  err = uv_ok_;
-
-done:
-  if (utf16Buffer) {
-    free(utf16Buffer);
+  if (utf16_len < 2 || utf16_buffer[1] != L':') {
+    /* Doesn't look like a drive letter could be there - probably an UNC */
+    /* path. TODO: Need to handle win32 namespaces like \\?\C:\ ? */
+    drive_letter = 0;
+  } else if (utf16_buffer[0] >= L'A' && utf16_buffer[0] <= L'Z') {
+    drive_letter = utf16_buffer[0];
+  } else if (utf16_buffer[0] >= L'a' && utf16_buffer[0] <= L'z') {
+    /* Convert to uppercase. */
+    drive_letter = utf16_buffer[0] - L'a' + L'A';
+  } else {
+    /* Not valid. */
+    drive_letter = 0;
   }
 
-  return err;
+  if (drive_letter != 0) {
+    /* Construct the environment variable name and set it. */
+    env_var[0] = L'=';
+    env_var[1] = drive_letter;
+    env_var[2] = L':';
+    env_var[3] = L'\0';
+
+    if (!SetEnvironmentVariableW(env_var, utf16_buffer)) {
+      return uv__new_sys_error(GetLastError());
+    }
+  }
+
+  return uv_ok_;
 }
 
 

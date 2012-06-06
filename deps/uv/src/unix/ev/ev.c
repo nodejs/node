@@ -2389,7 +2389,7 @@ time_update (EV_P_ ev_tstamp max_block)
 }
 
 void
-ev_run (EV_P_ ev_tstamp waittime)
+ev_run (EV_P_ int flags)
 {
 #if EV_FEATURE_API
   ++loop_depth;
@@ -2426,6 +2426,15 @@ ev_run (EV_P_ ev_tstamp waittime)
           }
 #endif
 
+#if EV_PREPARE_ENABLE
+      /* queue prepare watchers (and execute them) */
+      if (expect_false (preparecnt))
+        {
+          queue_events (EV_A_ (W *)prepares, preparecnt, EV_PREPARE);
+          EV_INVOKE_PENDING;
+        }
+#endif
+
       if (expect_false (loop_done))
         break;
 
@@ -2436,16 +2445,90 @@ ev_run (EV_P_ ev_tstamp waittime)
       /* update fd-related kernel structures */
       fd_reify (EV_A);
 
-#if EV_FEATURE_API
-      ++loop_count;
+      /* calculate blocking time */
+      {
+        ev_tstamp waittime  = 0.;
+        ev_tstamp sleeptime = 0.;
+
+        /* remember old timestamp for io_blocktime calculation */
+        ev_tstamp prev_mn_now = mn_now;
+
+        /* update time to cancel out callback processing overhead */
+        time_update (EV_A_ 1e100);
+
+        if (expect_true (!(flags & EVRUN_NOWAIT || idleall || !activecnt)))
+          {
+            waittime = MAX_BLOCKTIME;
+
+            if (timercnt)
+              {
+                ev_tstamp to = ANHE_at (timers [HEAP0]) - mn_now + backend_fudge;
+                if (waittime > to) waittime = to;
+              }
+
+#if EV_PERIODIC_ENABLE
+            if (periodiccnt)
+              {
+                ev_tstamp to = ANHE_at (periodics [HEAP0]) - ev_rt_now + backend_fudge;
+                if (waittime > to) waittime = to;
+              }
 #endif
-      assert ((loop_done = EVBREAK_RECURSE, 1)); /* assert for side effect */
-      backend_poll (EV_A_ waittime);
-      assert ((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
+
+            /* don't let timeouts decrease the waittime below timeout_blocktime */
+            if (expect_false (waittime < timeout_blocktime))
+              waittime = timeout_blocktime;
+
+            /* extra check because io_blocktime is commonly 0 */
+            if (expect_false (io_blocktime))
+              {
+                sleeptime = io_blocktime - (mn_now - prev_mn_now);
+
+                if (sleeptime > waittime - backend_fudge)
+                  sleeptime = waittime - backend_fudge;
+
+                if (expect_true (sleeptime > 0.))
+                  {
+                    ev_sleep (sleeptime);
+                    waittime -= sleeptime;
+                  }
+              }
+          }
+
+#if EV_FEATURE_API
+        ++loop_count;
+#endif
+        assert ((loop_done = EVBREAK_RECURSE, 1)); /* assert for side effect */
+        backend_poll (EV_A_ waittime);
+        assert ((loop_done = EVBREAK_CANCEL, 1)); /* assert for side effect */
+
+        /* update ev_rt_now, do magic */
+        time_update (EV_A_ waittime + sleeptime);
+      }
+
+      /* queue pending timers and reschedule them */
+      timers_reify (EV_A); /* relative timers called last */
+#if EV_PERIODIC_ENABLE
+      periodics_reify (EV_A); /* absolute timers called first */
+#endif
+
+#if EV_IDLE_ENABLE
+      /* queue idle watchers unless other events are pending */
+      idle_reify (EV_A);
+#endif
+
+#if EV_CHECK_ENABLE
+      /* queue check watchers, to be executed first */
+      if (expect_false (checkcnt))
+        queue_events (EV_A_ (W *)checks, checkcnt, EV_CHECK);
+#endif
 
       EV_INVOKE_PENDING;
     }
-  while (0);
+  while (expect_true (
+    activecnt
+    && !loop_done
+    && !(flags & (EVRUN_ONCE | EVRUN_NOWAIT))
+  ));
 
   if (loop_done == EVBREAK_ONE)
     loop_done = EVBREAK_CANCEL;
@@ -2453,6 +2536,14 @@ ev_run (EV_P_ ev_tstamp waittime)
 #if EV_FEATURE_API
   --loop_depth;
 #endif
+}
+
+/* libuv special */
+void
+ev__run (EV_P_ ev_tstamp waittime)
+{
+  fd_reify (EV_A);
+  backend_poll (EV_A_ waittime);
 }
 
 void
