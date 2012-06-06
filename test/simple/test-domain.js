@@ -127,6 +127,13 @@ function fn(er) {
 var bound = d.intercept(fn);
 bound(new Error('bound'));
 
+// intercepted should never pass first argument to callback
+function fn2(data) {
+  assert.equal(data, 'data', 'should not be null err argument')
+}
+
+var bound = d.intercept(fn2);
+bound(null, 'data');
 
 
 // throwing in a bound fn is also caught,
