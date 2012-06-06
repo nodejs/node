@@ -50,8 +50,18 @@ void HandleWrap::Initialize(Handle<Object> target) {
 }
 
 
-// This function is used only for process.stdout. It's put here instead of
-// in TTYWrap because here we have access to the Close binding.
+Handle<Value> HandleWrap::Ref(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP(HandleWrap)
+
+  uv_ref(wrap->handle__);
+  wrap->unref_ = false;
+
+  return v8::Undefined();
+}
+
+
 Handle<Value> HandleWrap::Unref(const Arguments& args) {
   HandleScope scope;
 

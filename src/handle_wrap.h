@@ -50,6 +50,7 @@ class HandleWrap {
   public:
     static void Initialize(v8::Handle<v8::Object> target);
     static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+    static v8::Handle<v8::Value> Ref(const v8::Arguments& args);
     static v8::Handle<v8::Value> Unref(const v8::Arguments& args);
 
   protected:

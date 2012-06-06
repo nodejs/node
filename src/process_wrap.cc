@@ -67,6 +67,9 @@ class ProcessWrap : public HandleWrap {
     NODE_SET_PROTOTYPE_METHOD(constructor, "spawn", Spawn);
     NODE_SET_PROTOTYPE_METHOD(constructor, "kill", Kill);
 
+    NODE_SET_PROTOTYPE_METHOD(constructor, "ref", HandleWrap::Ref);
+    NODE_SET_PROTOTYPE_METHOD(constructor, "unref", HandleWrap::Unref);
+
     target->Set(String::NewSymbol("Process"), constructor->GetFunction());
   }
 
