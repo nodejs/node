@@ -49,8 +49,8 @@ server-side resources, which makes it a potential vector for denial-of-service
 attacks.
 
 To mitigate this, renegotiations are limited to three times every 10 minutes. An
-error is emitted on the [CleartextStream](#tls.CleartextStream) instance when
-the threshold is exceeded. The limits are configurable:
+error is emitted on the [CleartextStream][] instance when the threshold is
+exceeded. The limits are configurable:
 
   - `tls.CLIENT_RENEG_LIMIT`: renegotiation limit, default is 3.
 
@@ -78,10 +78,9 @@ handshake extensions allowing you:
 
 ## tls.createServer(options, [secureConnectionListener])
 
-Creates a new [tls.Server](#tls.Server).
-The `connectionListener` argument is automatically set as a listener for the
-[secureConnection](#event_secureConnection_) event.
-The `options` object has these possibilities:
+Creates a new [tls.Server][].  The `connectionListener` argument is
+automatically set as a listener for the [secureConnection][] event.  The
+`options` object has these possibilities:
 
   - `pfx`: A string or `Buffer` containing the private key, certificate and
     CA certs of the server in PFX or PKCS12 format. (Mutually exclusive with
@@ -241,9 +240,9 @@ Creates a new client connection to the given `port` and `host` (old API) or
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
 The `secureConnectListener` parameter will be added as a listener for the
-['secureConnect'](#event_secureConnect_) event.
+['secureConnect'][] event.
 
-`tls.connect()` returns a [CleartextStream](#tls.CleartextStream) object.
+`tls.connect()` returns a [CleartextStream][] object.
 
 Here is an example of a client of echo server as described previously:
 
@@ -315,8 +314,8 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
    automatically reject clients with invalid certificates. Only applies to
    servers with `requestCert` enabled.
 
-`tls.createSecurePair()` returns a SecurePair object with
-[cleartext](#tls.CleartextStream) and `encrypted` stream properties.
+`tls.createSecurePair()` returns a SecurePair object with [cleartext][] and
+`encrypted` stream properties.
 
 ## Class: SecurePair
 
@@ -342,9 +341,8 @@ connections using TLS or SSL.
 `function (cleartextStream) {}`
 
 This event is emitted after a new connection has been successfully
-handshaked. The argument is a instance of
-[CleartextStream](#tls.CleartextStream). It has all the common stream methods
-and events.
+handshaked. The argument is a instance of [CleartextStream][]. It has all the
+common stream methods and events.
 
 `cleartextStream.authorized` is a boolean value which indicates if the
 client has verified by one of the supplied certificate authorities for the
@@ -386,8 +384,8 @@ event.
 ### server.address()
 
 Returns the bound address, the address family name and port of the
-server as reported by the operating system.
-See [net.Server.address()](net.html#server.address) for more information.
+server as reported by the operating system.  See [net.Server.address()][] for
+more information.
 
 ### server.addContext(hostname, credentials)
 
@@ -410,8 +408,8 @@ The number of concurrent connections on the server.
 This is a stream on top of the *Encrypted* stream that makes it possible to
 read/write an encrypted data as a cleartext data.
 
-This instance implements a duplex [Stream](stream.html) interfaces.
-It has all the common stream methods and events.
+This instance implements a duplex [Stream][] interfaces.  It has all the
+common stream methods and events.
 
 A ClearTextStream is the `clear` member of a SecurePair object.
 
@@ -489,3 +487,10 @@ The string representation of the remote IP address. For example,
 ### cleartextStream.remotePort
 
 The numeric representation of the remote port. For example, `443`.
+
+[CleartextStream]: #tls_class_tls_cleartextstream
+[net.Server.address()]: net.html#net_server_address
+['secureConnect']: #tls_event_secureconnect
+[secureConnection]: #tls_event_secureconnection
+[Stream]: stream.html#stream_stream
+[tls.Server]: #tls_class_tls_server

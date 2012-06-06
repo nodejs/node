@@ -14,7 +14,7 @@ different, and explained below.
 
 ## Class: ChildProcess
 
-`ChildProcess` is an `EventEmitter`.
+`ChildProcess` is an [EventEmitter][].
 
 Child processes always have three streams associated with them. `child.stdin`,
 `child.stdout`, and `child.stderr`.  These may be shared with the stdio
@@ -496,7 +496,7 @@ the child process is killed.
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
   * `timeout` {Number} (Default: 0)
-  * `maxBuffer` {Number} (Default: 200*1024)
+  * `maxBuffer` {Number} (Default: 200\*1024)
   * `killSignal` {String} (Default: 'SIGTERM')
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
@@ -509,7 +509,7 @@ subshell but rather the specified file directly. This makes it slightly
 leaner than `child_process.exec`. It has the same options.
 
 
-## child_process.fork(modulePath, [args], [options])
+## child\_process.fork(modulePath, [args], [options])
 
 * `modulePath` {String} The module to run in the child
 * `args` {Array} List of string arguments
@@ -532,3 +532,5 @@ with the parent's. To change this behavior set the `silent` property in the
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many
 thousands of them.
+
+[EventEmitter]: events.html#events_class_events_eventemitter

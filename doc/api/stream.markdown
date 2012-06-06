@@ -4,7 +4,7 @@
 
 A stream is an abstract interface implemented by various objects in Node.
 For example a request to an HTTP server is a stream, as is stdout. Streams
-are readable, writable, or both. All streams are instances of `EventEmitter`.
+are readable, writable, or both. All streams are instances of [EventEmitter][]
 
 You can load up the Stream base class by doing `require('stream')`.
 
@@ -182,3 +182,5 @@ Any queued write data will not be sent.
 After the write queue is drained, close the file descriptor. `destroySoon()`
 can still destroy straight away, as long as there is no data left in the queue
 for writes.
+
+[EventEmitter]: events.html#events_class_events_eventemitter

@@ -119,7 +119,7 @@ Returns a new Domain object.
 The Domain class encapsulates the functionality of routing errors and
 uncaught exceptions to the active Domain object.
 
-Domain is a child class of EventEmitter.  To handle the errors that it
+Domain is a child class of [EventEmitter][].  To handle the errors that it
 catches, listen to its `error` event.
 
 ### domain.run(fn)
@@ -264,3 +264,5 @@ Note that IO might still be performed.  However, to the highest degree
 possible, once a domain is disposed, further errors from the emitters in
 that set will be ignored.  So, even if some remaining actions are still
 in flight, Node.js will not communicate further about them.
+
+[EventEmitter]: events.html#events_class_events_eventemitter

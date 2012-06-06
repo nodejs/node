@@ -42,13 +42,13 @@ added to the `'request'` event.
 
 ## http.createClient([port], [host])
 
-This function is **deprecated**; please use
-[http.request()](#http_http_request_options_callback) instead. Constructs a new
-HTTP client. `port` and `host` refer to the server to be connected to.
+This function is **deprecated**; please use [http.request()][] instead.
+Constructs a new HTTP client. `port` and `host` refer to the server to be
+connected to.
 
 ## Class: http.Server
 
-This is an `EventEmitter` with the following events:
+This is an [EventEmitter][] with the following events:
 
 ### Event: 'request'
 
@@ -145,8 +145,7 @@ The actual length will be determined by your OS through sysctl settings such as
 parameter is 511 (not 512).
 
 This function is asynchronous. The last parameter `callback` will be added as
-a listener for the ['listening'](net.html#event_listening_) event.
-See also [net.Server.listen()](net.html#server.listen).
+a listener for the ['listening'][] event.  See also [net.Server.listen(port)][].
 
 
 ### server.listen(path, [callback])
@@ -154,8 +153,7 @@ See also [net.Server.listen()](net.html#server.listen).
 Start a UNIX socket server listening for connections on the given `path`.
 
 This function is asynchronous. The last parameter `callback` will be added as
-a listener for the ['listening'](net.html#event_listening_) event.
-See also [net.Server.listen()](net.html#server.listen).
+a listener for the ['listening'][] event.  See also [net.Server.listen(path)][].
 
 
 ### server.listen(handle, [listeningListener])
@@ -178,8 +176,7 @@ See also [net.Server.listen()](net.html#server.listen).
 
 ### server.close([cb])
 
-Stops the server from accepting new connections.
-See [net.Server.close()](net.html#server.close).
+Stops the server from accepting new connections.  See [net.Server.close()][].
 
 
 ### server.maxHeadersCount
@@ -193,8 +190,8 @@ no limit will be applied.
 This object is created internally by a HTTP server -- not by
 the user -- and passed as the first argument to a `'request'` listener.
 
-The request implements the [Readable Stream](stream.html#readable_stream)
-interface. This is an `EventEmitter` with the following events:
+The request implements the [Readable Stream][] interface. This is an
+[EventEmitter][] with the following events:
 
 ### Event: 'data'
 
@@ -202,7 +199,7 @@ interface. This is an `EventEmitter` with the following events:
 
 Emitted when a piece of the message body is received. The chunk is a string if
 an encoding has been set with `request.setEncoding()`, otherwise it's a
-[Buffer](buffer.html).
+[Buffer][].
 
 Note that the __data will be lost__ if there is no listener when a
 `ServerRequest` emits a `'data'` event.
@@ -284,9 +281,8 @@ Also `request.httpVersionMajor` is the first integer and
 
 ### request.setEncoding([encoding])
 
-Set the encoding for the request body. See
-[stream.setEncoding()](stream.html#stream_stream_setencoding_encoding)
-for more information.
+Set the encoding for the request body. See [stream.setEncoding()][] for more
+information.
 
 ### request.pause()
 
@@ -313,8 +309,8 @@ authentication details.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event.
 
-The response implements the [Writable  Stream](stream.html#writable_stream)
-interface. This is an `EventEmitter` with the following events:
+The response implements the [Writable Stream][] interface. This is an
+[EventEmitter][] with the following events:
 
 ### Event: 'close'
 
@@ -326,8 +322,7 @@ Indicates that the underlaying connection was terminated before
 ### response.writeContinue()
 
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
-the request body should be sent. See the [checkContinue](#event_checkContinue_) event on
-`Server`.
+the request body should be sent. See the ['checkContinue'][] event on `Server`.
 
 ### response.writeHead(statusCode, [reasonPhrase], [headers])
 
@@ -467,7 +462,7 @@ Node maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
 `options` can be an object or a string. If `options` is a string, it is
-automatically parsed with [url.parse()](url.html#url.parse).
+automatically parsed with [url.parse()][].
 
 Options:
 
@@ -483,10 +478,9 @@ Options:
 - `headers`: An object containing request headers.
 - `auth`: Basic authentication i.e. `'user:password'` to compute an
   Authorization header.
-- `agent`: Controls [Agent](#http.Agent) behavior. When an Agent is used
-  request will default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [global Agent](#http.globalAgent) for this host
-   and port.
+- `agent`: Controls [Agent][] behavior. When an Agent is used request will
+  default to `Connection: keep-alive`. Possible values:
+ - `undefined` (default): use [global Agent][] for this host and port.
  - `Agent` object: explicitly use the passed in `Agent`.
  - `false`: opts out of connection pooling with an Agent, defaults request to
    `Connection: close`.
@@ -652,15 +646,15 @@ event, the entire body will be caught.
 Note: Node does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
 
-The request implements the [Writable  Stream](stream.html#writable_stream)
-interface. This is an `EventEmitter` with the following events:
+The request implements the [Writable Stream][] interface. This is an
+[EventEmitter][] with the following events:
 
 ### Event 'response'
 
 `function (response) { }`
 
-Emitted when a response is received to this request. This event is emitted only once. The
-`response` argument will be an instance of `http.ClientResponse`.
+Emitted when a response is received to this request. This event is emitted only
+once. The `response` argument will be an instance of `http.ClientResponse`.
 
 Options:
 
@@ -802,7 +796,7 @@ server--in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
 
-The `chunk` argument should be a [buffer](buffer.html) or a string.
+The `chunk` argument should be a [Buffer][] or a string.
 
 The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
@@ -823,29 +817,26 @@ Aborts a request.  (New since v0.3.8.)
 
 ### request.setTimeout(timeout, [callback])
 
-Once a socket is assigned to this request and is connected 
-[socket.setTimeout(timeout, [callback])](net.html#socket.setTimeout)
-will be called.
+Once a socket is assigned to this request and is connected
+[socket.setTimeout()][] will be called.
 
 ### request.setNoDelay([noDelay])
 
-Once a socket is assigned to this request and is connected 
-[socket.setNoDelay(noDelay)](net.html#socket.setNoDelay)
-will be called.
+Once a socket is assigned to this request and is connected
+[socket.setNoDelay()][] will be called.
 
 ### request.setSocketKeepAlive([enable], [initialDelay])
 
-Once a socket is assigned to this request and is connected 
-[socket.setKeepAlive(enable, [initialDelay])](net.html#socket.setKeepAlive)
-will be called.
+Once a socket is assigned to this request and is connected
+[socket.setKeepAlive()][] will be called.
 
 ## http.ClientResponse
 
 This object is created when making a request with `http.request()`. It is
 passed to the `'response'` event of the request object.
 
-The response implements the [Readable Stream](stream.html#readable_stream)
-interface. This is an `EventEmitter` with the following events:
+The response implements the [Readable Stream][] interface. This is an
+[EventEmitter][] with the following events:
 
 
 ### Event: 'data'
@@ -871,8 +862,7 @@ emitted no other events will be emitted on the response.
 
 Indicates that the underlaying connection was terminated before
 `end` event was emitted.
-See [http.ServerRequest](#http.ServerRequest)'s `'close'` event for more
-information.
+See [http.ServerRequest][]'s `'close'` event for more information.
 
 ### response.statusCode
 
@@ -895,9 +885,8 @@ The response trailers object. Only populated after the 'end' event.
 
 ### response.setEncoding([encoding])
 
-Set the encoding for the response body. See
-[stream.setEncoding()](stream.html#stream_stream_setencoding_encoding)
-for more information.
+Set the encoding for the response body. See [stream.setEncoding()][] for more
+information.
 
 ### response.pause()
 
@@ -906,3 +895,22 @@ Pauses response from emitting events.  Useful to throttle back a download.
 ### response.resume()
 
 Resumes a paused response.
+
+[Agent]: #http_class_http_agent
+['checkContinue']: #http_event_checkcontinue
+[Buffer]: buffer.html#buffer_buffer
+[EventEmitter]: events.html#events_class_events_eventemitter
+[global Agent]: #http_http_globalagent
+[http.request()]: #http_http_request_options_callback
+[http.ServerRequest]: #http_class_http_serverrequest
+['listening']: net.html#net_event_listening
+[net.Server.close()]: net.html#net_server_close_cb
+[net.Server.listen(path)]: net.html#net_server_listen_path_listeninglistener
+[net.Server.listen(port)]: net.html#net_server_listen_port_host_backlog_listeninglistener
+[Readable Stream]: stream.html#stream_readable_stream
+[socket.setKeepAlive()]: net.html#net_socket_setkeepalive_enable_initialdelay
+[socket.setNoDelay()]: net.html#net_socket_setnodelay_nodelay
+[socket.setTimeout()]: net.html#net_socket_settimeout_timeout_callback
+[stream.setEncoding()]: stream.html#stream_stream_setencoding_encoding
+[url.parse()]: url.html#url_url_parse_urlstr_parsequerystring_slashesdenotehost
+[Writable Stream]: stream.html#stream_writable_stream

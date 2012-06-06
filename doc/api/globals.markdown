@@ -22,7 +22,7 @@ scope; `var something` inside a Node module will be local to that module.
 
 * {Object}
 
-The process object. See the [process object](process.html#process) section.
+The process object. See the [process object][] section.
 
 ## console
 
@@ -30,7 +30,7 @@ The process object. See the [process object](process.html#process) section.
 
 * {Object}
 
-Used to print to stdout and stderr. See the [stdio](stdio.html) section.
+Used to print to stdout and stderr. See the [stdio][] section.
 
 ## Class: Buffer
 
@@ -38,7 +38,7 @@ Used to print to stdout and stderr. See the [stdio](stdio.html) section.
 
 * {Function}
 
-Used to handle binary data. See the [buffer section](buffer.html).
+Used to handle binary data. See the [buffer section][]
 
 ## require()
 
@@ -46,8 +46,8 @@ Used to handle binary data. See the [buffer section](buffer.html).
 
 * {Function}
 
-To require modules. See the [Modules](modules.html#modules) section.
-`require` isn't actually a global but rather local to each module.
+To require modules. See the [Modules][] section.  `require` isn't actually a
+global but rather local to each module.
 
 ### require.resolve()
 
@@ -123,8 +123,7 @@ A reference to the current module. In particular
 `module.exports` is the same as the `exports` object.
 `module` isn't actually a global but rather local to each module.
 
-See the [module system documentation](modules.html) for more
-information.
+See the [module system documentation][] for more information.
 
 ## exports
 
@@ -135,10 +134,9 @@ made accessible through `require()`.
 `exports` is the same as the `module.exports` object.
 `exports` isn't actually a global but rather local to each module.
 
-See the [module system documentation](modules.html) for more
-information.
+See the [module system documentation][] for more information.
 
-See the [module section](modules.html) for more information.
+See the [module section][] for more information.
 
 ## setTimeout(cb, ms)
 ## clearTimeout(t)
@@ -147,4 +145,12 @@ See the [module section](modules.html) for more information.
 
 <!--type=global-->
 
-The timer functions are global variables. See the [timers](timers.html) section.
+The timer functions are global variables. See the [timers][] section.
+
+[buffer section]: buffer.html
+[module section]: modules.html
+[module system documentation]: modules.html
+[Modules]: modules.html#modules_modules
+[process object]: process.html#process_process
+[stdio]: stdio.html
+[timers]: timers.html
