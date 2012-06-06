@@ -41,10 +41,22 @@ function bugs (args, cb) {
 }
 
 function open (url, cb) {
-  exec(npm.config.get("browser"), [url], log.er(cb,
-    "Failed to open "+url+" in a browser.  It could be that the\n"+
-    "'browser' config is not set.  Try doing this:\n"+
-    "    npm config set browser google-chrome\n"+
-    "or:\n"+
-    "    npm config set browser lynx\n"))
+  var args = [url]
+    , browser = npm.config.get("browser")
+
+  if (process.platform === "win32" && browser === "start") {
+    args = [ "/c", "start" ].concat(args)
+    browser = "cmd"
+  }
+
+  if (!browser) {
+    var er = ["the 'browser' config is not set.  Try doing this:"
+             ,"    npm config set browser google-chrome"
+             ,"or:"
+             ,"    npm config set browser lynx"].join("\n")
+    return cb(er)
+  }
+
+  exec(browser, args, process.env, false, function () {})
+  cb()
 }

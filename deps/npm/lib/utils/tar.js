@@ -16,6 +16,7 @@ var npm = require("../npm.js")
   , zlib = require("zlib")
   , fstream = require("fstream")
   , Packer = require("fstream-npm")
+  , lifecycle = require("./lifecycle.js")
 
 if (process.env.SUDO_UID && myUid === 0) {
   if (!isNaN(process.env.SUDO_UID)) myUid = +process.env.SUDO_UID
@@ -27,10 +28,23 @@ exports.unpack = unpack
 
 function pack (targetTarball, folder, pkg, dfc, cb) {
   log.verbose([targetTarball, folder], "tar.pack")
-  if (typeof cb !== "function") cb = dfc, dfc = true
+  if (typeof cb !== "function") cb = dfc, dfc = false
 
   log.verbose(targetTarball, "tarball")
   log.verbose(folder, "folder")
+
+  if (dfc) {
+    // do fancy crap
+    return lifecycle(pkg, 'prepublish', folder, function (er) {
+      if (er) return cb(er)
+      pack_(targetTarball, folder, pkg, cb)
+    })
+  } else {
+    pack_(targetTarball, folder, pkg, cb)
+  }
+}
+
+function pack_ (targetTarball, folder, pkg, cb) {
   new Packer({ path: folder, type: "Directory", isDirectory: true })
     .on("error", log.er(cb, "error reading "+folder))
 

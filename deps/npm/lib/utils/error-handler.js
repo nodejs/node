@@ -10,13 +10,14 @@ var cbCalled = false
   , path = require("path")
   , ini = require("./ini.js")
   , wroteLogFile = false
+  , exitCode = 0
 
 
 process.on("exit", function (code) {
   // console.error("exit", code)
   if (!ini.resolved) return
   if (code) itWorked = false
-  if (itWorked) log("ok")
+  if (itWorked) log.info("ok")
   else {
     if (!cbCalled) {
       log.error("cb() never called!\n ")
@@ -30,8 +31,39 @@ process.on("exit", function (code) {
     }
     log.win("not ok")
   }
-  itWorked = false // ready for next exit
+
+  var doExit = npm.config.get("_exit")
+  if (doExit) {
+    // actually exit.
+    if (exitCode === 0 && !itWorked) {
+      exitCode = 1
+    }
+    if (exitCode !== 0) process.exit(exitCode)
+  } else {
+    itWorked = false // ready for next exit
+  }
 })
+
+function exit (code, noLog) {
+  exitCode = exitCode || code
+
+  var doExit = npm.config.get("_exit")
+  log.verbose([code, doExit], "exit")
+  if (log.level === log.LEVEL.silent) noLog = true
+
+  if (code && !noLog) writeLogFile(reallyExit)
+  else rm("npm-debug.log", function () { rm(npm.tmp, reallyExit) })
+
+  function reallyExit() {
+    itWorked = !code
+
+    // just emit a fake exit event.
+    // if we're really exiting, then let it exit on its own, so that
+    // in-process stuff can finish or clean up first.
+    if (!doExit) process.emit("exit", code)
+  }
+}
+
 
 function errorHandler (er) {
   // console.error("errorHandler", er)
@@ -220,23 +252,6 @@ function errorHandler (er) {
 
   if (er.errno && typeof er.errno !== "object") log.error(er.errno, "errno")
   exit(typeof er.errno === "number" ? er.errno : 1)
-}
-
-function exit (code, noLog) {
-  var doExit = npm.config.get("_exit")
-  log.verbose([code, doExit], "exit")
-  if (log.level === log.LEVEL.silent) noLog = true
-
-  if (code && !noLog) writeLogFile(reallyExit)
-  else rm("npm-debug.log", function () { rm(npm.tmp, reallyExit) })
-
-  function reallyExit() {
-    itWorked = !code
-    //if (!itWorked) {
-      if (!doExit) process.emit("exit", code)
-      else process.exit(code)
-    //}
-  }
 }
 
 var writingLogFile = false

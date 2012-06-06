@@ -1,4 +1,21 @@
-2012.05.15 Version 0.6.18 (stable)
+2012.06.06 Version 0.6.19 (stable)
+
+* npm: upgrade to 1.1.24
+
+* fs: no end emit after createReadStream.pause() (Andreas Madsen)
+
+* vm: cleanup module memory leakage (Marcel Laverdet)
+
+* unix: fix loop starvation under high network load (Ben Noordhuis)
+
+* unix: remove abort() in ev_unref() (Ben Noordhuis)
+
+* windows/tty: never report error after forcibly aborting line-buffered read (Bert Belder)
+
+* windows: skip GetFileAttributes call when opening a file (Bert Belder)
+
+
+2012.05.15 Version 0.6.18 (stable), 4bc1d395de6abed2cf1e4d0b7b3a1480a21c368f
 
 * windows: skip GetFileAttributes call when opening a file (Bert Belder)
 

@@ -525,9 +525,9 @@ d_files := $(wildcard $(foreach f,$(all_deps),$(depsdir)/$(f).d))
 ifneq ($(d_files),)
   # Rather than include each individual .d file, concatenate them into a
   # single file which make is able to load faster.  We split this into
-  # commands that take 1000 files at a time to avoid overflowing the
+  # commands that take 512 files at a time to avoid overflowing the
   # command line.
-  $(shell cat $(wordlist 1,1000,$(d_files)) > $(depsdir)/all.deps)
+  $(shell cat $(wordlist 1,512,$(d_files)) > $(depsdir)/all.deps)
 %(generate_all_deps)s
   # make looks for ways to re-generate included makefiles, but in our case, we
   # don't have a direct way. Explicitly telling make that it has nothing to do
@@ -2128,10 +2128,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
   if generator_flags.get('auto_regeneration', True):
     WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
 
-  # Write the rule to load dependencies.  We batch 1000 files at a time to
+  # Write the rule to load dependencies.  We batch 512 files at a time to
   # avoid overflowing the command line.
   all_deps = ""
-  for i in range(1001, num_outputs, 1000):
+  for i in range(513, num_outputs, 512):
     all_deps += ("""
   ifneq ($(word %(start)d,$(d_files)),)
     $(shell cat $(wordlist %(start)d,%(end)d,$(d_files)) >> $(depsdir)/all.deps)
@@ -2142,7 +2142,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   ifneq ($(word %(last)d,$(d_files)),)
     $(error Found unprocessed dependency files (gyp didn't generate enough rules!))
   endif
-""" % { 'last': ((num_outputs / 1000) + 1) * 1000 + 1 }
+""" % { 'last': ((num_outputs / 512) + 1) * 512 + 1 }
 
   root_makefile.write(SHARED_FOOTER % { 'generate_all_deps': all_deps })
 

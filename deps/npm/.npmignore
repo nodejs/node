@@ -12,6 +12,9 @@ npm-debug.log
 .gitignore
 release/
 
+# don't need these in the npm package.
+html/*.png
+
 # don't ignore .npmignore files
 # these are used in some tests.
 !.npmignore
