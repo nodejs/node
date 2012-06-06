@@ -34,11 +34,12 @@ function publish (args, isRetry, cb) {
   // if it's a local folder, then run the prepublish there, first.
   readJson(path.resolve(arg, "package.json"), function (er, data) {
     // error is ok.  could be publishing a url or tarball
+    // however, that means that we will not have automatically run
+    // the prepublish script, since that gets run when adding a folder
+    // to the cache.
     if (er) return cacheAddPublish(arg, false, isRetry, cb)
-    lifecycle(data, "prepublish", arg, function (er) {
-      if (er) return cb(er)
-      cacheAddPublish(arg, true, isRetry, cb)
-    })
+
+    cacheAddPublish(arg, true, isRetry, cb)
   })
 }
 

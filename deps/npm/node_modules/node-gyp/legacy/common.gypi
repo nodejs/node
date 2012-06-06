@@ -8,6 +8,13 @@
     'library%': 'static_library',    # allow override to 'shared_library' for DLL/.so builds
     'component%': 'static_library',  # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',  # we do enable multicore compiles, but not using the V8 way
+
+    # Enable V8's post-mortem debugging only on unix flavors.
+    'conditions': [
+      ['OS != "win"', {
+        'v8_postmortem_support': 'true'
+      }]
+    ],
   },
 
   'target_defaults': {
@@ -25,7 +32,7 @@
           'VCCLCompilerTool': {
             'RuntimeLibrary': 1, # static debug
             'Optimization': 0, # /Od, no optimization
-            'MinimalRebuild': 'true',
+            'MinimalRebuild': 'false',
             'OmitFramePointers': 'false',
             'BasicRuntimeChecks': 3, # /RTC1
           },
@@ -42,6 +49,8 @@
           }],
           ['OS=="solaris"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
+            # pull in V8's postmortem metadata
+            'ldflags': [ '-Wl,-z,allextract' ]
           }],
           ['strict_aliasing!="true"', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -137,7 +146,6 @@
             'ldflags': [ '-m32' ],
           }],
           [ 'OS=="linux"', {
-            'cflags': [ '-ansi' ],
             'ldflags': [ '-rdynamic' ],
           }],
           [ 'OS=="solaris"', {
@@ -149,6 +157,7 @@
         ],
       }],
       ['OS=="mac"', {
+        'defines': ['_DARWIN_USE_64_BIT_INODE=1'],
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
           'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
@@ -161,7 +170,7 @@
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'MACOSX_DEPLOYMENT_TARGET': '10.5',
+          'MACOSX_DEPLOYMENT_TARGET': '10.5',       # -mmacosx-version-min=10.5
           'USE_HEADERMAP': 'NO',
           'OTHER_CFLAGS': [
             '-fno-strict-aliasing',

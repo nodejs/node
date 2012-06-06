@@ -14,7 +14,7 @@ var semver = "\\s*[v=]*\\s*([0-9]+)"                // major
                 + "(?:\\.([0-9]+|x|X|\\*)"
                 + "(?:\\.([0-9]+|x|X|\\*)"
                 + "([a-zA-Z-][a-zA-Z0-9-\.:]*)?)?)?"
-  , xRange = "((?:<|>)?=?)?\\s*" + xRangePlain
+  , xRange = "((?:<|>)=?)?\\s*" + xRangePlain
   , exprSpermy = "(?:~>?)"+xRange
   , expressions = exports.expressions =
     { parse : new RegExp("^\\s*"+semver+"\\s*$")

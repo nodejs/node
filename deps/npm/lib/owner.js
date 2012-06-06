@@ -167,7 +167,7 @@ function mutate (pkg, user, mutation, cb) {
       put("/"+pkg+"/-rev/"+data._rev, data, function (er, data) {
         if (er) return log.er(cb, "Failed to update package metadata")(er)
         if (data.error) return cb(new Error(
-          "Failed to update pacakge metadata: "+JSON.stringify(data)))
+          "Failed to update package metadata: "+JSON.stringify(data)))
         cb(null, data)
       })
     })

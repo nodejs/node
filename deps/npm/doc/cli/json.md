@@ -394,6 +394,7 @@ Git urls can be of the form:
 
     git://github.com/user/project.git#commit-ish
     git+ssh://user@hostname:project.git#commit-ish
+    git+ssh://user@hostname/project.git#commit-ish
     git+http://user@hostname/project/blah.git#commit-ish
     git+https://user@hostname/project/blah.git#commit-ish
 
@@ -419,6 +420,36 @@ for more on the topic.
 Array of package names that will be bundled when publishing the package.
 
 If this is spelled `"bundleDependencies"`, then that is also honorable.
+
+## optionalDependencies
+
+If a dependency can be used, but you would like npm to proceed if it
+cannot be found or fails to install, then you may put it in the
+`optionalDependencies` hash.  This is a map of package name to version
+or url, just like the `dependencies` hash.  The difference is that
+failure is tolerated.
+
+It is still your program's responsibility to handle the lack of the
+dependency.  For example, something like this:
+
+    try {
+      var foo = require('foo')
+      var fooVersion = require('foo/package.json').version
+    } catch (er) {
+      foo = null
+    }
+    if ( notGoodFooVersion(fooVersion) ) {
+      foo = null
+    }
+
+    // .. then later in your program ..
+
+    if (foo) {
+      foo.doFooThings()
+    }
+
+Entries in `optionalDependencies` will override entries of the same name in
+`dependencies`, so it's usually best to only put in one place.
 
 ## engines
 
