@@ -37,9 +37,8 @@
       'variables': {
         'variables': {
           'conditions': [
-            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac"', {
-              # This handles the Unix platforms we generally deal with.
+            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+              # This handles the Linux platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
               # to gyp.
@@ -47,8 +46,7 @@
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
                   s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mips/")',
             }, {
-              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
-              # OS!="netbsd" and OS!="mac"
+              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and OS!="netbsd"
               'host_arch%': 'ia32',
             }],
           ],
@@ -171,9 +169,6 @@
       },
     }],  # OS=="win"
     ['OS=="mac"', {
-      'xcode_settings': {
-        'SYMROOT': '<(DEPTH)/xcodebuild',
-      },
       'target_defaults': {
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
@@ -193,7 +188,6 @@
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'MACOSX_DEPLOYMENT_TARGET': '10.4',       # -mmacosx-version-min=10.4
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'SYMROOT': '<(DEPTH)/xcodebuild',
           'USE_HEADERMAP': 'NO',
           'OTHER_CFLAGS': [
             '-fno-strict-aliasing',

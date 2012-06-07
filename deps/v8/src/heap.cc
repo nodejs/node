@@ -171,9 +171,6 @@ Heap::Heap()
   global_contexts_list_ = NULL;
   mark_compact_collector_.heap_ = this;
   external_string_table_.heap_ = this;
-  // Put a dummy entry in the remembered pages so we can find the list the
-  // minidump even if there are no real unmapped pages.
-  RememberUnmappedPage(NULL, false);
 }
 
 
@@ -808,7 +805,7 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
-    size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSizeOfObjects();
+    size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSize();
 
     if (high_survival_rate_during_scavenges &&
         IsStableOrIncreasingSurvivalTrend()) {
@@ -2023,7 +2020,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_pre_allocated_property_fields(0);
   map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  map->init_prototype_transitions(undefined_value());
+  map->set_prototype_transitions(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
@@ -2162,15 +2159,15 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
-  meta_map()->init_prototype_transitions(undefined_value());
+  meta_map()->set_prototype_transitions(empty_fixed_array());
 
   fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
-  fixed_array_map()->init_prototype_transitions(undefined_value());
+  fixed_array_map()->set_prototype_transitions(empty_fixed_array());
 
   oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
-  oddball_map()->init_prototype_transitions(undefined_value());
+  oddball_map()->set_prototype_transitions(empty_fixed_array());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -2469,7 +2466,7 @@ bool Heap::CreateApiObjects() {
   // bottleneck to trap the Smi-only -> fast elements transition, and there
   // appears to be no benefit for optimize this case.
   Map* new_neander_map = Map::cast(obj);
-  new_neander_map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
+  new_neander_map->set_elements_kind(FAST_ELEMENTS);
   set_neander_map(new_neander_map);
 
   { MaybeObject* maybe_obj = AllocateJSObjectFromMap(neander_map());
@@ -3050,7 +3047,6 @@ MaybeObject* Heap::AllocateJSMessageObject(String* type,
   }
   JSMessageObject* message = JSMessageObject::cast(result);
   message->set_properties(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
-  message->initialize_elements();
   message->set_elements(Heap::empty_fixed_array(), SKIP_WRITE_BARRIER);
   message->set_type(type);
   message->set_arguments(arguments);
@@ -3326,8 +3322,6 @@ MaybeObject* Heap::AllocateExternalStringFromAscii(
     isolate()->context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
-
-  ASSERT(String::IsAscii(resource->data(), static_cast<int>(length)));
 
   Map* map = external_ascii_string_map();
   Object* result;
@@ -3754,7 +3748,7 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
 
   // Check the state of the object
   ASSERT(JSObject::cast(result)->HasFastProperties());
-  ASSERT(JSObject::cast(result)->HasFastObjectElements());
+  ASSERT(JSObject::cast(result)->HasFastElements());
 
   return result;
 }
@@ -3799,7 +3793,7 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
-  ASSERT(map->has_fast_object_elements());
+  ASSERT(map->has_fast_elements());
 
   // If the function has only simple this property assignments add
   // field descriptors for these to the initial map as the object
@@ -3916,7 +3910,8 @@ MaybeObject* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   InitializeJSObjectFromMap(JSObject::cast(obj),
                             FixedArray::cast(properties),
                             map);
-  ASSERT(JSObject::cast(obj)->HasFastSmiOrObjectElements());
+  ASSERT(JSObject::cast(obj)->HasFastSmiOnlyElements() ||
+         JSObject::cast(obj)->HasFastElements());
   return obj;
 }
 
@@ -3961,9 +3956,6 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
     ArrayStorageAllocationMode mode,
     PretenureFlag pretenure) {
   ASSERT(capacity >= length);
-  if (length != 0 && mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE) {
-    elements_kind = GetHoleyElementsKind(elements_kind);
-  }
   MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
   JSArray* array;
   if (!maybe_array->To(&array)) return maybe_array;
@@ -3984,7 +3976,8 @@ MaybeObject* Heap::AllocateJSArrayAndStorage(
       maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
     }
   } else {
-    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
+    ASSERT(elements_kind == FAST_ELEMENTS ||
+           elements_kind == FAST_SMI_ONLY_ELEMENTS);
     if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
       maybe_elms = AllocateUninitializedFixedArray(capacity);
     } else {
@@ -4010,7 +4003,6 @@ MaybeObject* Heap::AllocateJSArrayWithElements(
 
   array->set_elements(elements);
   array->set_length(Smi::FromInt(elements->length()));
-  array->ValidateElements();
   return array;
 }
 
@@ -4495,16 +4487,6 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
-
-#ifdef DEBUG
-  if (FLAG_verify_heap) {
-    // Initialize string's content to ensure ASCII-ness (character range 0-127)
-    // as required when verifying the heap.
-    char* dest = SeqAsciiString::cast(result)->GetChars();
-    memset(dest, 0x0F, length * kCharSize);
-  }
-#endif  // DEBUG
-
   return result;
 }
 
@@ -4551,13 +4533,13 @@ MaybeObject* Heap::AllocateJSArray(
   Context* global_context = isolate()->context()->global_context();
   JSFunction* array_function = global_context->array_function();
   Map* map = array_function->initial_map();
-  Object* maybe_map_array = global_context->js_array_maps();
-  if (!maybe_map_array->IsUndefined()) {
-    Object* maybe_transitioned_map =
-        FixedArray::cast(maybe_map_array)->get(elements_kind);
-    if (!maybe_transitioned_map->IsUndefined()) {
-      map = Map::cast(maybe_transitioned_map);
-    }
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    map = Map::cast(global_context->double_js_array_map());
+  } else if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
+    map = Map::cast(global_context->object_js_array_map());
+  } else {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    ASSERT(map == global_context->smi_js_array_map());
   }
 
   return AllocateJSObjectFromMap(map, pretenure);
@@ -4842,7 +4824,9 @@ MaybeObject* Heap::AllocateGlobalContext() {
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(global_context_map());
-  context->set_js_array_maps(undefined_value());
+  context->set_smi_js_array_map(undefined_value());
+  context->set_double_js_array_map(undefined_value());
+  context->set_object_js_array_map(undefined_value());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;
@@ -5823,6 +5807,16 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
       stats->size_per_type[type] += obj->Size();
     }
   }
+}
+
+
+intptr_t Heap::PromotedSpaceSize() {
+  return old_pointer_space_->Size()
+      + old_data_space_->Size()
+      + code_space_->Size()
+      + map_space_->Size()
+      + cell_space_->Size()
+      + lo_space_->Size();
 }
 
 

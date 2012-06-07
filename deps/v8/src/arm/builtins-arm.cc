@@ -114,7 +114,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Label* gc_required) {
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
   STATIC_ASSERT(initial_capacity >= 0);
-  __ LoadInitialArrayMap(array_function, scratch2, scratch1, false);
+  __ LoadInitialArrayMap(array_function, scratch2, scratch1);
 
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
@@ -208,8 +208,7 @@ static void AllocateJSArray(MacroAssembler* masm,
                             bool fill_with_hole,
                             Label* gc_required) {
   // Load the initial map from the array function.
-  __ LoadInitialArrayMap(array_function, scratch2,
-                         elements_array_storage, fill_with_hole);
+  __ LoadInitialArrayMap(array_function, scratch2, elements_array_storage);
 
   if (FLAG_debug_code) {  // Assert that array size is not zero.
     __ tst(array_size, array_size);
@@ -441,10 +440,10 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ b(call_generic_code);
 
   __ bind(&not_double);
-  // Transition FAST_SMI_ELEMENTS to FAST_ELEMENTS.
+  // Transition FAST_SMI_ONLY_ELEMENTS to FAST_ELEMENTS.
   // r3: JSArray
   __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                          FAST_ELEMENTS,
                                          r2,
                                          r9,

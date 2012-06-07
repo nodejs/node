@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -324,7 +324,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                index)));
     if (index == -1) return isolate->factory()->null_value();
   }
-  ASSERT(last_match_info->HasFastObjectElements());
+  ASSERT(last_match_info->HasFastElements());
 
   {
     NoHandleAllocation no_handles;
@@ -429,7 +429,6 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   RegExpEngine::CompilationResult result =
       RegExpEngine::Compile(&compile_data,
                             flags.is_ignore_case(),
-                            flags.is_global(),
                             flags.is_multiline(),
                             pattern,
                             sample_subject,
@@ -516,23 +515,7 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
 }
 
 
-int RegExpImpl::GlobalOffsetsVectorSize(Handle<JSRegExp> regexp,
-                                        int registers_per_match,
-                                        int* max_matches) {
-#ifdef V8_INTERPRETED_REGEXP
-  // Global loop in interpreted regexp is not implemented.  Therefore we choose
-  // the size of the offsets vector so that it can only store one match.
-  *max_matches = 1;
-  return registers_per_match;
-#else  // V8_INTERPRETED_REGEXP
-  int size = Max(registers_per_match, OffsetsVector::kStaticOffsetsVectorSize);
-  *max_matches = size / registers_per_match;
-  return size;
-#endif  // V8_INTERPRETED_REGEXP
-}
-
-
-int RegExpImpl::IrregexpExecRaw(
+RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
     Handle<JSRegExp> regexp,
     Handle<String> subject,
     int index,
@@ -634,7 +617,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 
   OffsetsVector registers(required_registers, isolate);
 
-  int res = RegExpImpl::IrregexpExecRaw(
+  IrregexpResult res = RegExpImpl::IrregexpExecOnce(
       jsregexp, subject, previous_index, Vector<int>(registers.vector(),
                                                      registers.length()));
   if (res == RE_SUCCESS) {
@@ -2191,12 +2174,15 @@ int ActionNode::EatsAtLeast(int still_to_find,
 
 
 void ActionNode::FillInBMInfo(int offset,
+                              int recursion_depth,
+                              int budget,
                               BoyerMooreLookahead* bm,
                               bool not_at_start) {
   if (type_ == BEGIN_SUBMATCH) {
     bm->SetRest(offset);
   } else if (type_ != POSITIVE_SUBMATCH_SUCCESS) {
-    on_success()->FillInBMInfo(offset, bm, not_at_start);
+    on_success()->FillInBMInfo(
+        offset, recursion_depth + 1, budget - 1, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
 }
@@ -2218,11 +2204,15 @@ int AssertionNode::EatsAtLeast(int still_to_find,
 }
 
 
-void AssertionNode::FillInBMInfo(
-    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+void AssertionNode::FillInBMInfo(int offset,
+                                 int recursion_depth,
+                                 int budget,
+                                 BoyerMooreLookahead* bm,
+                                 bool not_at_start) {
   // Match the behaviour of EatsAtLeast on this node.
   if (type() == AT_START && not_at_start) return;
-  on_success()->FillInBMInfo(offset, bm, not_at_start);
+  on_success()->FillInBMInfo(
+      offset, recursion_depth + 1, budget - 1, bm, not_at_start);
   SaveBMInfo(bm, not_at_start, offset);
 }
 
@@ -2803,14 +2793,20 @@ void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
 }
 
 
-void LoopChoiceNode::FillInBMInfo(
-    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
-  if (body_can_be_zero_length_) {
+void LoopChoiceNode::FillInBMInfo(int offset,
+                                  int recursion_depth,
+                                  int budget,
+                                  BoyerMooreLookahead* bm,
+                                  bool not_at_start) {
+  if (body_can_be_zero_length_ ||
+      recursion_depth > RegExpCompiler::kMaxRecursion ||
+      budget <= 0) {
     bm->SetRest(offset);
     SaveBMInfo(bm, not_at_start, offset);
     return;
   }
-  ChoiceNode::FillInBMInfo(offset, bm, not_at_start);
+  ChoiceNode::FillInBMInfo(
+      offset, recursion_depth + 1, budget - 1, bm, not_at_start);
   SaveBMInfo(bm, not_at_start, offset);
 }
 
@@ -2912,7 +2908,7 @@ void AssertionNode::EmitBoundaryCheck(RegExpCompiler* compiler, Trace* trace) {
     if (eats_at_least >= 1) {
       BoyerMooreLookahead* bm =
           new BoyerMooreLookahead(eats_at_least, compiler);
-      FillInBMInfo(0, bm, not_at_start);
+      FillInBMInfo(0, 0, kFillInBMBudget, bm, not_at_start);
       if (bm->at(0)->is_non_word()) next_is_word_character = Trace::FALSE;
       if (bm->at(0)->is_word()) next_is_word_character = Trace::TRUE;
     }
@@ -3850,7 +3846,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
             BoyerMooreLookahead* bm =
                 new BoyerMooreLookahead(eats_at_least, compiler);
             GuardedAlternative alt0 = alternatives_->at(0);
-            alt0.node()->FillInBMInfo(0, bm, not_at_start);
+            alt0.node()->FillInBMInfo(0, 0, kFillInBMBudget, bm, not_at_start);
             skip_was_emitted = bm->EmitSkipInstructions(macro_assembler);
           }
         } else {
@@ -5589,8 +5585,11 @@ void Analysis::VisitAssertion(AssertionNode* that) {
 }
 
 
-void BackReferenceNode::FillInBMInfo(
-    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+void BackReferenceNode::FillInBMInfo(int offset,
+                                     int recursion_depth,
+                                     int budget,
+                                     BoyerMooreLookahead* bm,
+                                     bool not_at_start) {
   // Working out the set of characters that a backreference can match is too
   // hard, so we just say that any character can match.
   bm->SetRest(offset);
@@ -5602,9 +5601,13 @@ STATIC_ASSERT(BoyerMoorePositionInfo::kMapSize ==
               RegExpMacroAssembler::kTableSize);
 
 
-void ChoiceNode::FillInBMInfo(
-    int offset, BoyerMooreLookahead* bm, bool not_at_start) {
+void ChoiceNode::FillInBMInfo(int offset,
+                              int recursion_depth,
+                              int budget,
+                              BoyerMooreLookahead* bm,
+                              bool not_at_start) {
   ZoneList<GuardedAlternative>* alts = alternatives();
+  budget = (budget - 1) / alts->length();
   for (int i = 0; i < alts->length(); i++) {
     GuardedAlternative& alt = alts->at(i);
     if (alt.guards() != NULL && alt.guards()->length() != 0) {
@@ -5612,14 +5615,18 @@ void ChoiceNode::FillInBMInfo(
       SaveBMInfo(bm, not_at_start, offset);
       return;
     }
-    alt.node()->FillInBMInfo(offset, bm, not_at_start);
+    alt.node()->FillInBMInfo(
+        offset, recursion_depth + 1, budget, bm, not_at_start);
   }
   SaveBMInfo(bm, not_at_start, offset);
 }
 
 
-void TextNode::FillInBMInfo(
-    int initial_offset, BoyerMooreLookahead* bm, bool not_at_start) {
+void TextNode::FillInBMInfo(int initial_offset,
+                            int recursion_depth,
+                            int budget,
+                            BoyerMooreLookahead* bm,
+                            bool not_at_start) {
   if (initial_offset >= bm->length()) return;
   int offset = initial_offset;
   int max_char = bm->max_char();
@@ -5673,6 +5680,8 @@ void TextNode::FillInBMInfo(
     return;
   }
   on_success()->FillInBMInfo(offset,
+                             recursion_depth + 1,
+                             budget - 1,
                              bm,
                              true);  // Not at start after a text node.
   if (initial_offset == 0) set_bm_info(not_at_start, bm);
@@ -5797,7 +5806,6 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 RegExpEngine::CompilationResult RegExpEngine::Compile(
     RegExpCompileData* data,
     bool ignore_case,
-    bool is_global,
     bool is_multiline,
     Handle<String> pattern,
     Handle<String> sample_subject,
@@ -5900,8 +5908,6 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
       max_length < kMaxBacksearchLimit) {
     macro_assembler.SetCurrentPositionFromEnd(max_length);
   }
-
-  macro_assembler.set_global(is_global);
 
   return compiler.Assemble(&macro_assembler,
                            node,

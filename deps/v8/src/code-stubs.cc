@@ -262,13 +262,10 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
       break;
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(masm);
       break;
     case EXTERNAL_BYTE_ELEMENTS:
@@ -295,9 +292,7 @@ void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
 void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS: {
+    case FAST_SMI_ONLY_ELEMENTS: {
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
                                                        is_js_array_,
                                                        elements_kind_,
@@ -305,7 +300,6 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
     }
       break;
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
                                                              is_js_array_,
                                                              grow_mode_);
@@ -436,32 +430,24 @@ bool ToBooleanStub::Types::CanBeUndetectable() const {
 
 void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
   Label fail;
-  ASSERT(!IsFastHoleyElementsKind(from_) || IsFastHoleyElementsKind(to_));
   if (!FLAG_trace_elements_transitions) {
-    if (IsFastSmiOrObjectElementsKind(to_)) {
-      if (IsFastSmiOrObjectElementsKind(from_)) {
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm);
-      } else if (IsFastDoubleElementsKind(from_)) {
-        ASSERT(!IsFastSmiElementsKind(to_));
+    if (to_ == FAST_ELEMENTS) {
+      if (from_ == FAST_SMI_ONLY_ELEMENTS) {
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+      } else if (from_ == FAST_DOUBLE_ELEMENTS) {
         ElementsTransitionGenerator::GenerateDoubleToObject(masm, &fail);
       } else {
         UNREACHABLE();
       }
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
                                                        is_jsarray_,
-                                                       to_,
+                                                       FAST_ELEMENTS,
                                                        grow_mode_);
-    } else if (IsFastSmiElementsKind(from_) &&
-               IsFastDoubleElementsKind(to_)) {
-      ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
+    } else if (from_ == FAST_SMI_ONLY_ELEMENTS && to_ == FAST_DOUBLE_ELEMENTS) {
+      ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
                                                              is_jsarray_,
                                                              grow_mode_);
-    } else if (IsFastDoubleElementsKind(from_)) {
-      ASSERT(to_ == FAST_HOLEY_DOUBLE_ELEMENTS);
-      ElementsTransitionGenerator::
-          GenerateMapChangeElementsTransition(masm);
     } else {
       UNREACHABLE();
     }

@@ -96,31 +96,8 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 
 
 HeapEntry* HeapGraphEdge::from() const {
-  return &snapshot()->entries()[from_index_];
-}
-
-
-HeapSnapshot* HeapGraphEdge::snapshot() const {
-  return to_entry_->snapshot();
-}
-
-
-int HeapEntry::index() const {
-  return static_cast<int>(this - &snapshot_->entries().first());
-}
-
-
-int HeapEntry::set_children_index(int index) {
-  children_index_ = index;
-  int next_index = index + children_count_;
-  children_count_ = 0;
-  return next_index;
-}
-
-
-HeapGraphEdge** HeapEntry::children_arr() {
-  ASSERT(children_index_ >= 0);
-  return &snapshot_->children()[children_index_];
+  return const_cast<HeapEntry*>(
+      reinterpret_cast<const HeapEntry*>(this - child_index_) - 1);
 }
 
 

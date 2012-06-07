@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -102,15 +102,14 @@ void RegExpMacroAssemblerTracer::PushBacktrack(Label* label) {
 }
 
 
-bool RegExpMacroAssemblerTracer::Succeed() {
-  bool restart = assembler_->Succeed();
-  PrintF(" Succeed();%s\n", restart ? " [restart for global match]" : "");
-  return restart;
+void RegExpMacroAssemblerTracer::Succeed() {
+  PrintF(" Succeed();\n");
+  assembler_->Succeed();
 }
 
 
 void RegExpMacroAssemblerTracer::Fail() {
-  PrintF(" Fail();");
+  PrintF(" Fail();\n");
   assembler_->Fail();
 }
 

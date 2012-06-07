@@ -64,7 +64,6 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 # Stack manipulations in LiveEdit are buggy - see bug 915
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
-debug-liveedit-stack-padding: SKIP
 
 # Test Crankshaft compilation time.  Expected to take too long in debug mode.
 regress/regress-1969: PASS, SKIP if $mode == debug

@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -91,11 +91,9 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
   rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
 }
 
-// All debug break stubs support padding for LiveEdit.
-const bool Debug::FramePaddingLayout::kIsSupported = true;
-
 
 #define __ ACCESS_MASM(masm)
+
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList object_regs,
@@ -104,13 +102,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Load padding words on stack.
-    for (int i = 0; i < Debug::FramePaddingLayout::kInitialSize; i++) {
-      __ push(Immediate(Smi::FromInt(
-          Debug::FramePaddingLayout::kPaddingValue)));
-    }
-    __ push(Immediate(Smi::FromInt(Debug::FramePaddingLayout::kInitialSize)));
 
     // Store the registers containing live values on the expression stack to
     // make sure that these are correctly updated during GC. Non object values
@@ -143,10 +134,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     CEntryStub ceb(1);
     __ CallStub(&ceb);
 
-    // Automatically find register that could be used after register restore.
-    // We need one register for padding skip instructions.
-    Register unused_reg = { -1 };
-
     // Restore the register values containing object pointers from the
     // expression stack.
     for (int i = kNumJSCallerSaved; --i >= 0;) {
@@ -155,28 +142,14 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       if (FLAG_debug_code) {
         __ Set(reg, Immediate(kDebugZapValue));
       }
-      bool taken = reg.code() == esi.code();
       if ((object_regs & (1 << r)) != 0) {
         __ pop(reg);
-        taken = true;
       }
       if ((non_object_regs & (1 << r)) != 0) {
         __ pop(reg);
         __ SmiUntag(reg);
-        taken = true;
-      }
-      if (!taken) {
-        unused_reg = reg;
       }
     }
-
-    ASSERT(unused_reg.code() != -1);
-
-    // Read current padding counter and skip corresponding number of words.
-    __ pop(unused_reg);
-    // We divide stored value by 2 (untagging) and multiply it by word's size.
-    STATIC_ASSERT(kSmiTagSize == 1 && kSmiShiftSize == 0);
-    __ lea(esp, Operand(esp, unused_reg, times_half_pointer_size, 0));
 
     // Get rid of the internal frame.
   }

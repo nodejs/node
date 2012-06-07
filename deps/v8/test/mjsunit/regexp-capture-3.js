@@ -162,7 +162,6 @@ assertEquals("*foo * baz", a);
 // string we can test that the relevant node is removed by verifying that
 // there is no hang.
 function NoHang(re) {
-  print(re);
   "This is an ASCII string that could take forever".match(re);
 }
 
@@ -216,3 +215,5 @@ regex10.exec(input0);
 var regex11 = /^(?:[^\u0000-\u0080]|[0-9a-z?,.!&\s#()])+$/i;
 regex11.exec(input0);
 
+var regex12 = /u(\xf0{8}?\D*?|( ? !)$h??(|)*?(||)+?\6((?:\W\B|--\d-*-|)?$){0, }?|^Y( ? !1)\d+)+a/;
+regex12.exec("");

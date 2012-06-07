@@ -5040,7 +5040,7 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Array::CloneElementAt()", return Local<Object>());
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  if (!self->HasFastObjectElements()) {
+  if (!self->HasFastElements()) {
     return Local<Object>();
   }
   i::FixedArray* elms = i::FixedArray::cast(self->elements());
@@ -6045,6 +6045,13 @@ int HeapGraphNode::GetSelfSize() const {
 }
 
 
+int HeapGraphNode::GetRetainedSize() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
+  return ToInternal(this)->retained_size();
+}
+
+
 int HeapGraphNode::GetChildrenCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetChildrenCount");
@@ -6056,7 +6063,29 @@ const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetChild");
   return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->children()[index]);
+      &ToInternal(this)->children()[index]);
+}
+
+
+int HeapGraphNode::GetRetainersCount() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainersCount");
+  return ToInternal(this)->retainers().length();
+}
+
+
+const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainer");
+  return reinterpret_cast<const HeapGraphEdge*>(
+      ToInternal(this)->retainers()[index]);
+}
+
+
+const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetDominatorNode");
+  return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
 }
 
 
@@ -6128,7 +6157,7 @@ const HeapGraphNode* HeapSnapshot::GetNodeById(SnapshotObjectId id) const {
 int HeapSnapshot::GetNodesCount() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodesCount");
-  return ToInternal(this)->entries().length();
+  return ToInternal(this)->entries()->length();
 }
 
 
@@ -6136,7 +6165,7 @@ const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNode");
   return reinterpret_cast<const HeapGraphNode*>(
-      &ToInternal(this)->entries().at(index));
+      ToInternal(this)->entries()->at(index));
 }
 
 

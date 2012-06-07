@@ -28,7 +28,6 @@
 #ifndef V8_ELEMENTS_H_
 #define V8_ELEMENTS_H_
 
-#include "elements-kind.h"
 #include "objects.h"
 #include "heap.h"
 #include "isolate.h"
@@ -46,10 +45,6 @@ class ElementsAccessor {
   virtual ElementsKind kind() const = 0;
   const char* name() const { return name_; }
 
-  // Checks the elements of an object for consistency, asserting when a problem
-  // is found.
-  virtual void Validate(JSObject* obj) = 0;
-
   // Returns true if a holder contains an element with the specified key
   // without iterating up the prototype chain.  The caller can optionally pass
   // in the backing store to use for the check, which must be compatible with
@@ -65,19 +60,18 @@ class ElementsAccessor {
   // can optionally pass in the backing store to use for the check, which must
   // be compatible with the ElementsKind of the ElementsAccessor. If
   // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual MaybeObject* Get(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
+  virtual MaybeObject* Get(Object* receiver,
+                           JSObject* holder,
+                           uint32_t key,
+                           FixedArrayBase* backing_store = NULL) = 0;
 
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
   // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that
   // have non-deletable elements can only be shrunk to the size of highest
   // element that is non-deletable.
-  MUST_USE_RESULT virtual MaybeObject* SetLength(JSArray* holder,
-                                                 Object* new_length) = 0;
+  virtual MaybeObject* SetLength(JSArray* holder,
+                                 Object* new_length) = 0;
 
   // Modifies both the length and capacity of a JSArray, resizing the underlying
   // backing store as necessary. This method does NOT honor the semantics of
@@ -85,14 +79,14 @@ class ElementsAccessor {
   // elements. This method should only be called for array expansion OR by
   // runtime JavaScript code that use InternalArrays and don't care about
   // EcmaScript 5.1 semantics.
-  MUST_USE_RESULT virtual MaybeObject* SetCapacityAndLength(JSArray* array,
-                                                            int capacity,
-                                                            int length) = 0;
+  virtual MaybeObject* SetCapacityAndLength(JSArray* array,
+                                            int capacity,
+                                            int length) = 0;
 
   // Deletes an element in an object, returning a new elements backing store.
-  MUST_USE_RESULT virtual MaybeObject* Delete(JSObject* holder,
-                                              uint32_t key,
-                                              JSReceiver::DeleteMode mode) = 0;
+  virtual MaybeObject* Delete(JSObject* holder,
+                              uint32_t key,
+                              JSReceiver::DeleteMode mode) = 0;
 
   // If kCopyToEnd is specified as the copy_size to CopyElements, it copies all
   // of elements from source after source_start to the destination array.
@@ -107,28 +101,26 @@ class ElementsAccessor {
   // the source JSObject or JSArray in source_holder. If the holder's backing
   // store is available, it can be passed in source and source_holder is
   // ignored.
-  MUST_USE_RESULT virtual MaybeObject* CopyElements(
-      JSObject* source_holder,
-      uint32_t source_start,
-      FixedArrayBase* destination,
-      ElementsKind destination_kind,
-      uint32_t destination_start,
-      int copy_size,
-      FixedArrayBase* source = NULL) = 0;
+  virtual MaybeObject* CopyElements(JSObject* source_holder,
+                                    uint32_t source_start,
+                                    FixedArrayBase* destination,
+                                    ElementsKind destination_kind,
+                                    uint32_t destination_start,
+                                    int copy_size,
+                                    FixedArrayBase* source = NULL) = 0;
 
-  MUST_USE_RESULT MaybeObject* CopyElements(JSObject* from_holder,
-                                            FixedArrayBase* to,
-                                            ElementsKind to_kind,
-                                            FixedArrayBase* from = NULL) {
+  MaybeObject* CopyElements(JSObject* from_holder,
+                            FixedArrayBase* to,
+                            ElementsKind to_kind,
+                            FixedArrayBase* from = NULL) {
     return CopyElements(from_holder, 0, to, to_kind, 0,
                         kCopyToEndAndInitializeToHole, from);
   }
 
-  MUST_USE_RESULT virtual MaybeObject* AddElementsToFixedArray(
-      Object* receiver,
-      JSObject* holder,
-      FixedArray* to,
-      FixedArrayBase* from = NULL) = 0;
+  virtual MaybeObject* AddElementsToFixedArray(Object* receiver,
+                                               JSObject* holder,
+                                               FixedArray* to,
+                                               FixedArrayBase* from = NULL) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {

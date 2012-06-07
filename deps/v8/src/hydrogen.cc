@@ -1709,23 +1709,23 @@ void HGlobalValueNumberer::ProcessLoopBlock(
       bool can_hoist = !instr->gvn_flags().ContainsAnyOf(depends_flags);
       if (instr->IsTransitionElementsKind()) {
         // It's possible to hoist transitions out of a loop as long as the
-        // hoisting wouldn't move the transition past an instruction that has a
-        // DependsOn flag for anything it changes.
+        // hoisting wouldn't move the transition past a DependsOn of one of it's
+        // changes or any instructions that might change an objects map or
+        // elements contents.
+        GVNFlagSet changes = instr->ChangesFlags();
         GVNFlagSet hoist_depends_blockers =
-            HValue::ConvertChangesToDependsFlags(instr->ChangesFlags());
-
-        // In addition, the transition must not be hoisted above elements kind
-        // changes, or if the transition is destructive to the elements buffer,
-        // changes to array pointer or array contents.
-        GVNFlagSet hoist_change_blockers;
-        hoist_change_blockers.Add(kChangesElementsKind);
+            HValue::ConvertChangesToDependsFlags(changes);
+        // In addition to not hoisting transitions above other instructions that
+        // change dependencies that the transition changes, it must not be
+        // hoisted above map changes and stores to an elements backing store
+        // that the transition might change.
+        GVNFlagSet hoist_change_blockers = changes;
+        hoist_change_blockers.Add(kChangesMaps);
         HTransitionElementsKind* trans = HTransitionElementsKind::cast(instr);
         if (trans->original_map()->has_fast_double_elements()) {
-          hoist_change_blockers.Add(kChangesElementsPointer);
           hoist_change_blockers.Add(kChangesDoubleArrayElements);
         }
         if (trans->transitioned_map()->has_fast_double_elements()) {
-          hoist_change_blockers.Add(kChangesElementsPointer);
           hoist_change_blockers.Add(kChangesArrayElements);
         }
         if (FLAG_trace_gvn) {
@@ -2758,7 +2758,6 @@ HGraph* HGraphBuilder::CreateGraph() {
   sce.Process();
 
   graph()->EliminateRedundantBoundsChecks();
-  graph()->DehoistSimpleArrayIndexComputations();
 
   return graph();
 }
@@ -3017,6 +3016,7 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
     HBoundsCheck* check = HBoundsCheck::cast(i);
     check->ReplaceAllUsesWith(check->index());
 
+    isolate()->counters()->array_bounds_checks_seen()->Increment();
     if (!FLAG_array_bounds_checks_elimination) continue;
 
     int32_t offset;
@@ -3035,8 +3035,10 @@ void HGraph::EliminateRedundantBoundsChecks(HBasicBlock* bb,
       *data_p = bb_data_list;
     } else if (data->OffsetIsCovered(offset)) {
       check->DeleteAndReplaceWith(NULL);
+      isolate()->counters()->array_bounds_checks_removed()->Increment();
     } else if (data->BasicBlock() == bb) {
       data->CoverCheck(check, offset);
+      isolate()->counters()->array_bounds_checks_removed()->Increment();
     } else {
       int32_t new_lower_offset = offset < data->LowerOffset()
           ? offset
@@ -3077,93 +3079,6 @@ void HGraph::EliminateRedundantBoundsChecks() {
   AssertNoAllocation no_gc;
   BoundsCheckTable checks_table;
   EliminateRedundantBoundsChecks(entry_block(), &checks_table);
-}
-
-
-static void DehoistArrayIndex(ArrayInstructionInterface* array_operation) {
-  HValue* index = array_operation->GetKey();
-
-  HConstant* constant;
-  HValue* subexpression;
-  int32_t sign;
-  if (index->IsAdd()) {
-    sign = 1;
-    HAdd* add = HAdd::cast(index);
-    if (add->left()->IsConstant()) {
-      subexpression = add->right();
-      constant = HConstant::cast(add->left());
-    } else if (add->right()->IsConstant()) {
-      subexpression = add->left();
-      constant = HConstant::cast(add->right());
-    } else {
-      return;
-    }
-  } else if (index->IsSub()) {
-    sign = -1;
-    HSub* sub = HSub::cast(index);
-    if (sub->left()->IsConstant()) {
-      subexpression = sub->right();
-      constant = HConstant::cast(sub->left());
-    } else if (sub->right()->IsConstant()) {
-      subexpression = sub->left();
-      constant = HConstant::cast(sub->right());
-    } return;
-  } else {
-    return;
-  }
-
-  if (!constant->HasInteger32Value()) return;
-  int32_t value = constant->Integer32Value() * sign;
-  // We limit offset values to 30 bits because we want to avoid the risk of
-  // overflows when the offset is added to the object header size.
-  if (value >= 1 << 30 || value < 0) return;
-  array_operation->SetKey(subexpression);
-  if (index->HasNoUses()) {
-    index->DeleteAndReplaceWith(NULL);
-  }
-  ASSERT(value >= 0);
-  array_operation->SetIndexOffset(static_cast<uint32_t>(value));
-  array_operation->SetDehoisted(true);
-}
-
-
-void HGraph::DehoistSimpleArrayIndexComputations() {
-  if (!FLAG_array_index_dehoisting) return;
-
-  HPhase phase("H_Dehoist index computations", this);
-  for (int i = 0; i < blocks()->length(); ++i) {
-    for (HInstruction* instr = blocks()->at(i)->first();
-        instr != NULL;
-        instr = instr->next()) {
-      ArrayInstructionInterface* array_instruction = NULL;
-      if (instr->IsLoadKeyedFastElement()) {
-        HLoadKeyedFastElement* op = HLoadKeyedFastElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsLoadKeyedFastDoubleElement()) {
-        HLoadKeyedFastDoubleElement* op =
-            HLoadKeyedFastDoubleElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsLoadKeyedSpecializedArrayElement()) {
-        HLoadKeyedSpecializedArrayElement* op =
-            HLoadKeyedSpecializedArrayElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyedFastElement()) {
-        HStoreKeyedFastElement* op = HStoreKeyedFastElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyedFastDoubleElement()) {
-        HStoreKeyedFastDoubleElement* op =
-            HStoreKeyedFastDoubleElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else if (instr->IsStoreKeyedSpecializedArrayElement()) {
-        HStoreKeyedSpecializedArrayElement* op =
-            HStoreKeyedSpecializedArrayElement::cast(instr);
-        array_instruction = static_cast<ArrayInstructionInterface*>(op);
-      } else {
-        continue;
-      }
-      DehoistArrayIndex(array_instruction);
-    }
-  }
 }
 
 
@@ -3966,7 +3881,7 @@ void HGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
       new(zone()) HLoadKeyedFastElement(
           environment()->ExpressionStackAt(2),  // Enum cache.
           environment()->ExpressionStackAt(0),  // Iteration index.
-          OMIT_HOLE_CHECK));
+          HLoadKeyedFastElement::OMIT_HOLE_CHECK));
 
   // Check if the expected map still matches that of the enumerable.
   // If not just deoptimize.
@@ -4257,7 +4172,7 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
       elements->map() != boilerplate->GetHeap()->fixed_cow_array_map()) {
     if (boilerplate->HasFastDoubleElements()) {
       *total_size += FixedDoubleArray::SizeFor(elements->length());
-    } else if (boilerplate->HasFastObjectElements()) {
+    } else if (boilerplate->HasFastElements()) {
       Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       int length = elements->length();
       for (int i = 0; i < length; i++) {
@@ -4464,13 +4379,11 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
                               Representation::Integer32()));
 
     switch (boilerplate_elements_kind) {
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_SMI_ONLY_ELEMENTS:
         // Smi-only arrays need a smi check.
         AddInstruction(new(zone()) HCheckSmi(value));
         // Fall through.
       case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
         AddInstruction(new(zone()) HStoreKeyedFastElement(
             elements,
             key,
@@ -4478,7 +4391,6 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
             boilerplate_elements_kind));
         break;
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
         AddInstruction(new(zone()) HStoreKeyedFastDoubleElement(elements,
                                                                 key,
                                                                 value));
@@ -5236,12 +5148,9 @@ HInstruction* HGraphBuilder::BuildExternalArrayElementAccess(
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
         break;
-      case FAST_SMI_ELEMENTS:
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -5266,16 +5175,13 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
     ASSERT(val != NULL);
     switch (elements_kind) {
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
         return new(zone()) HStoreKeyedFastDoubleElement(
             elements, checked_key, val);
-      case FAST_SMI_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
+      case FAST_SMI_ONLY_ELEMENTS:
         // Smi-only arrays need a smi check.
         AddInstruction(new(zone()) HCheckSmi(val));
         // Fall through.
       case FAST_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
         return new(zone()) HStoreKeyedFastElement(
             elements, checked_key, val, elements_kind);
       default:
@@ -5284,13 +5190,10 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
     }
   }
   // It's an element load (!is_store).
-  HoleCheckMode mode = IsFastPackedElementsKind(elements_kind) ?
-      OMIT_HOLE_CHECK :
-      PERFORM_HOLE_CHECK;
-  if (IsFastDoubleElementsKind(elements_kind)) {
-    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key, mode);
-  } else {  // Smi or Object elements.
-    return new(zone()) HLoadKeyedFastElement(elements, checked_key, mode);
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    return new(zone()) HLoadKeyedFastDoubleElement(elements, checked_key);
+  } else {  // FAST_ELEMENTS or FAST_SMI_ONLY_ELEMENTS.
+    return new(zone()) HLoadKeyedFastElement(elements, checked_key);
   }
 }
 
@@ -5298,30 +5201,15 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
 HInstruction* HGraphBuilder::BuildMonomorphicElementAccess(HValue* object,
                                                            HValue* key,
                                                            HValue* val,
-                                                           HValue* dependency,
                                                            Handle<Map> map,
                                                            bool is_store) {
-  HInstruction* mapcheck =
-      AddInstruction(new(zone()) HCheckMaps(object, map, dependency));
-  // No GVNFlag is necessary for ElementsKind if there is an explicit dependency
-  // on a HElementsTransition instruction. The flag can also be removed if the
-  // map to check has FAST_HOLEY_ELEMENTS, since there can be no further
-  // ElementsKind transitions. Finally, the dependency can be removed for stores
-  // for FAST_ELEMENTS, since a transition to HOLEY elements won't change the
-  // generated store code.
-  if (dependency ||
-      (map->elements_kind() == FAST_HOLEY_ELEMENTS) ||
-      (map->elements_kind() == FAST_ELEMENTS && is_store)) {
-    mapcheck->ClearGVNFlag(kDependsOnElementsKind);
-  }
-  bool fast_smi_only_elements = map->has_fast_smi_elements();
-  bool fast_elements = map->has_fast_object_elements();
+  HInstruction* mapcheck = AddInstruction(new(zone()) HCheckMaps(object, map));
+  bool fast_smi_only_elements = map->has_fast_smi_only_elements();
+  bool fast_elements = map->has_fast_elements();
   HInstruction* elements = AddInstruction(new(zone()) HLoadElements(object));
   if (is_store && (fast_elements || fast_smi_only_elements)) {
-    HCheckMaps* check_cow_map = new(zone()) HCheckMaps(
-        elements, isolate()->factory()->fixed_array_map());
-    check_cow_map->ClearGVNFlag(kDependsOnElementsKind);
-    AddInstruction(check_cow_map);
+    AddInstruction(new(zone()) HCheckMaps(
+        elements, isolate()->factory()->fixed_array_map()));
   }
   HInstruction* length = NULL;
   HInstruction* checked_key = NULL;
@@ -5374,8 +5262,8 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     ElementsKind elements_kind = map->elements_kind();
-    if (IsFastElementsKind(elements_kind) &&
-        elements_kind != GetInitialFastElementsKind()) {
+    if (elements_kind == FAST_DOUBLE_ELEMENTS ||
+        elements_kind == FAST_ELEMENTS) {
       possible_transitioned_maps.Add(map);
     }
   }
@@ -5389,17 +5277,12 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
   int num_untransitionable_maps = 0;
   Handle<Map> untransitionable_map;
-  HTransitionElementsKind* transition = NULL;
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
     ASSERT(map->IsMap());
     if (!transition_target.at(i).is_null()) {
-      ASSERT(Map::IsValidElementsTransition(
-          map->elements_kind(),
-          transition_target.at(i)->elements_kind()));
-      transition = new(zone()) HTransitionElementsKind(
-          object, map, transition_target.at(i));
-      AddInstruction(transition);
+      AddInstruction(new(zone()) HTransitionElementsKind(
+          object, map, transition_target.at(i)));
     } else {
       type_todo[map->elements_kind()] = true;
       if (map->elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND) {
@@ -5419,7 +5302,7 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
                                       : BuildLoadKeyedGeneric(object, key));
     } else {
       instr = AddInstruction(BuildMonomorphicElementAccess(
-          object, key, val, transition, untransitionable_map, is_store));
+          object, key, val, untransitionable_map, is_store));
     }
     *has_side_effects |= instr->HasObservableSideEffects();
     instr->set_position(position);
@@ -5436,18 +5319,20 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
   HLoadExternalArrayPointer* external_elements = NULL;
   HInstruction* checked_key = NULL;
 
-  // Generated code assumes that FAST_* and DICTIONARY_ELEMENTS ElementsKinds
-  // are handled before external arrays.
-  STATIC_ASSERT(FAST_SMI_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-  STATIC_ASSERT(FAST_HOLEY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  // Generated code assumes that FAST_SMI_ONLY_ELEMENTS, FAST_ELEMENTS,
+  // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS are handled before external
+  // arrays.
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+  STATIC_ASSERT(FAST_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
   STATIC_ASSERT(FAST_DOUBLE_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
   STATIC_ASSERT(DICTIONARY_ELEMENTS < FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
 
   for (ElementsKind elements_kind = FIRST_ELEMENTS_KIND;
        elements_kind <= LAST_ELEMENTS_KIND;
        elements_kind = ElementsKind(elements_kind + 1)) {
-    // After having handled FAST_* and DICTIONARY_ELEMENTS, we need to add some
-    // code that's executed for all external array cases.
+    // After having handled FAST_ELEMENTS, FAST_SMI_ONLY_ELEMENTS,
+    // FAST_DOUBLE_ELEMENTS and DICTIONARY_ELEMENTS, we need to add some code
+    // that's executed for all external array cases.
     STATIC_ASSERT(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND ==
                   LAST_ELEMENTS_KIND);
     if (elements_kind == FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND
@@ -5469,8 +5354,10 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
 
       set_current_block(if_true);
       HInstruction* access;
-      if (IsFastElementsKind(elements_kind)) {
-        if (is_store && !IsFastDoubleElementsKind(elements_kind)) {
+      if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
+          elements_kind == FAST_ELEMENTS ||
+          elements_kind == FAST_DOUBLE_ELEMENTS) {
+        if (is_store && elements_kind != FAST_DOUBLE_ELEMENTS) {
           AddInstruction(new(zone()) HCheckMaps(
               elements, isolate()->factory()->fixed_array_map(),
               elements_kind_branch));
@@ -5557,7 +5444,7 @@ HValue* HGraphBuilder::HandleKeyedElementAccess(HValue* obj,
                        : BuildLoadKeyedGeneric(obj, key);
     } else {
       AddInstruction(new(zone()) HCheckNonSmi(obj));
-      instr = BuildMonomorphicElementAccess(obj, key, val, NULL, map, is_store);
+      instr = BuildMonomorphicElementAccess(obj, key, val, map, is_store);
     }
   } else if (expr->GetReceiverTypes() != NULL &&
              !expr->GetReceiverTypes()->is_empty()) {
@@ -5775,39 +5662,6 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
 }
 
 
-class FunctionSorter {
- public:
-  FunctionSorter() : index_(0), ticks_(0), ast_length_(0), src_length_(0) { }
-  FunctionSorter(int index, int ticks, int ast_length, int src_length)
-      : index_(index),
-        ticks_(ticks),
-        ast_length_(ast_length),
-        src_length_(src_length) { }
-
-  int index() const { return index_; }
-  int ticks() const { return ticks_; }
-  int ast_length() const { return ast_length_; }
-  int src_length() const { return src_length_; }
-
- private:
-  int index_;
-  int ticks_;
-  int ast_length_;
-  int src_length_;
-};
-
-
-static int CompareHotness(void const* a, void const* b) {
-  FunctionSorter const* function1 = reinterpret_cast<FunctionSorter const*>(a);
-  FunctionSorter const* function2 = reinterpret_cast<FunctionSorter const*>(b);
-  int diff = function1->ticks() - function2->ticks();
-  if (diff != 0) return -diff;
-  diff = function1->ast_length() - function2->ast_length();
-  if (diff != 0) return diff;
-  return function1->src_length() - function2->src_length();
-}
-
-
 void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
                                                HValue* receiver,
                                                SmallMapList* types,
@@ -5816,73 +5670,51 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
   // maps are identical. In that case we can avoid repeatedly generating the
   // same prototype map checks.
   int argument_count = expr->arguments()->length() + 1;  // Includes receiver.
+  int count = 0;
   HBasicBlock* join = NULL;
-  FunctionSorter order[kMaxCallPolymorphism];
-  int ordered_functions = 0;
-  for (int i = 0;
-       i < types->length() && ordered_functions < kMaxCallPolymorphism;
-       ++i) {
+  for (int i = 0; i < types->length() && count < kMaxCallPolymorphism; ++i) {
     Handle<Map> map = types->at(i);
     if (expr->ComputeTarget(map, name)) {
-      order[ordered_functions++] =
-          FunctionSorter(i,
-                         expr->target()->shared()->profiler_ticks(),
-                         InliningAstSize(expr->target()),
-                         expr->target()->shared()->SourceSize());
-    }
-  }
+      if (count == 0) {
+        // Only needed once.
+        AddInstruction(new(zone()) HCheckNonSmi(receiver));
+        join = graph()->CreateBasicBlock();
+      }
+      ++count;
+      HBasicBlock* if_true = graph()->CreateBasicBlock();
+      HBasicBlock* if_false = graph()->CreateBasicBlock();
+      HCompareMap* compare =
+          new(zone()) HCompareMap(receiver, map, if_true, if_false);
+      current_block()->Finish(compare);
 
-  qsort(reinterpret_cast<void*>(&order[0]),
-        ordered_functions,
-        sizeof(order[0]),
-        &CompareHotness);
+      set_current_block(if_true);
+      AddCheckConstantFunction(expr, receiver, map, false);
+      if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
+        PrintF("Trying to inline the polymorphic call to %s\n",
+               *name->ToCString());
+      }
+      if (FLAG_polymorphic_inlining && TryInlineCall(expr)) {
+        // Trying to inline will signal that we should bailout from the
+        // entire compilation by setting stack overflow on the visitor.
+        if (HasStackOverflow()) return;
+      } else {
+        HCallConstantFunction* call =
+            new(zone()) HCallConstantFunction(expr->target(), argument_count);
+        call->set_position(expr->position());
+        PreProcessCall(call);
+        AddInstruction(call);
+        if (!ast_context()->IsEffect()) Push(call);
+      }
 
-  for (int fn = 0; fn < ordered_functions; ++fn) {
-    int i = order[fn].index();
-    Handle<Map> map = types->at(i);
-    if (fn == 0) {
-      // Only needed once.
-      AddInstruction(new(zone()) HCheckNonSmi(receiver));
-      join = graph()->CreateBasicBlock();
+      if (current_block() != NULL) current_block()->Goto(join);
+      set_current_block(if_false);
     }
-    HBasicBlock* if_true = graph()->CreateBasicBlock();
-    HBasicBlock* if_false = graph()->CreateBasicBlock();
-    HCompareMap* compare =
-        new(zone()) HCompareMap(receiver, map, if_true, if_false);
-    current_block()->Finish(compare);
-
-    set_current_block(if_true);
-    expr->ComputeTarget(map, name);
-    AddCheckConstantFunction(expr, receiver, map, false);
-    if (FLAG_trace_inlining && FLAG_polymorphic_inlining) {
-      Handle<JSFunction> caller = info()->closure();
-      SmartArrayPointer<char> caller_name =
-          caller->shared()->DebugName()->ToCString();
-      PrintF("Trying to inline the polymorphic call to %s from %s\n",
-             *name->ToCString(),
-             *caller_name);
-    }
-    if (FLAG_polymorphic_inlining && TryInlineCall(expr)) {
-      // Trying to inline will signal that we should bailout from the
-      // entire compilation by setting stack overflow on the visitor.
-      if (HasStackOverflow()) return;
-    } else {
-      HCallConstantFunction* call =
-          new(zone()) HCallConstantFunction(expr->target(), argument_count);
-      call->set_position(expr->position());
-      PreProcessCall(call);
-      AddInstruction(call);
-      if (!ast_context()->IsEffect()) Push(call);
-    }
-
-    if (current_block() != NULL) current_block()->Goto(join);
-    set_current_block(if_false);
   }
 
   // Finish up.  Unconditionally deoptimize if we've handled all the maps we
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
-  if (ordered_functions == types->length() && FLAG_deoptimize_uncommon_cases) {
+  if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
     current_block()->FinishExitWithDeoptimization(HDeoptimize::kNoUses);
   } else {
     HValue* context = environment()->LookupContext();
@@ -5931,11 +5763,14 @@ void HGraphBuilder::TraceInline(Handle<JSFunction> target,
 }
 
 
-static const int kNotInlinable = 1000000000;
-
-
-int HGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
-  if (!FLAG_use_inlining) return kNotInlinable;
+bool HGraphBuilder::TryInline(CallKind call_kind,
+                              Handle<JSFunction> target,
+                              ZoneList<Expression*>* arguments,
+                              HValue* receiver,
+                              int ast_id,
+                              int return_id,
+                              ReturnHandlingFlag return_handling) {
+  if (!FLAG_use_inlining) return false;
 
   // Precondition: call is monomorphic and we have found a target with the
   // appropriate arity.
@@ -5947,42 +5782,24 @@ int HGraphBuilder::InliningAstSize(Handle<JSFunction> target) {
   if (target_shared->SourceSize() >
       Min(FLAG_max_inlined_source_size, kUnlimitedMaxInlinedSourceSize)) {
     TraceInline(target, caller, "target text too big");
-    return kNotInlinable;
+    return false;
   }
 
   // Target must be inlineable.
   if (!target->IsInlineable()) {
     TraceInline(target, caller, "target not inlineable");
-    return kNotInlinable;
+    return false;
   }
   if (target_shared->dont_inline() || target_shared->dont_optimize()) {
     TraceInline(target, caller, "target contains unsupported syntax [early]");
-    return kNotInlinable;
+    return false;
   }
 
   int nodes_added = target_shared->ast_node_count();
-  return nodes_added;
-}
-
-
-bool HGraphBuilder::TryInline(CallKind call_kind,
-                              Handle<JSFunction> target,
-                              ZoneList<Expression*>* arguments,
-                              HValue* receiver,
-                              int ast_id,
-                              int return_id,
-                              ReturnHandlingFlag return_handling) {
-  int nodes_added = InliningAstSize(target);
-  if (nodes_added == kNotInlinable) return false;
-
-  Handle<JSFunction> caller = info()->closure();
-
   if (nodes_added > Min(FLAG_max_inlined_nodes, kUnlimitedMaxInlinedNodes)) {
     TraceInline(target, caller, "target AST is too large [early]");
     return false;
   }
-
-  Handle<SharedFunctionInfo> target_shared(target->shared());
 
 #if !defined(V8_TARGET_ARCH_IA32)
   // Target must be able to use caller's context.

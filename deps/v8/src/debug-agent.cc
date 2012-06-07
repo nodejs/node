@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -247,7 +247,7 @@ SmartArrayPointer<char> DebuggerAgentUtil::ReceiveMessage(const Socket* conn) {
     while (!(c == '\n' && prev_c == '\r')) {
       prev_c = c;
       received = conn->Receive(&c, 1);
-      if (received == 0) {
+      if (received <= 0) {
         PrintF("Error %d\n", Socket::LastError());
         return SmartArrayPointer<char>();
       }
@@ -323,41 +323,41 @@ bool DebuggerAgentUtil::SendConnectMessage(const Socket* conn,
                                            const char* embedding_host) {
   static const int kBufferSize = 80;
   char buffer[kBufferSize];  // Sending buffer.
+  bool ok;
   int len;
-  int r;
 
   // Send the header.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "Type: connect\r\n");
-  r = conn->Send(buffer, len);
-  if (r != len) return false;
+  ok = conn->Send(buffer, len);
+  if (!ok) return false;
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "V8-Version: %s\r\n", v8::V8::GetVersion());
-  r = conn->Send(buffer, len);
-  if (r != len) return false;
+  ok = conn->Send(buffer, len);
+  if (!ok) return false;
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "Protocol-Version: 1\r\n");
-  r = conn->Send(buffer, len);
-  if (r != len) return false;
+  ok = conn->Send(buffer, len);
+  if (!ok) return false;
 
   if (embedding_host != NULL) {
     len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                        "Embedding-Host: %s\r\n", embedding_host);
-    r = conn->Send(buffer, len);
-    if (r != len) return false;
+    ok = conn->Send(buffer, len);
+    if (!ok) return false;
   }
 
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize),
                      "%s: 0\r\n", kContentLength);
-  r = conn->Send(buffer, len);
-  if (r != len) return false;
+  ok = conn->Send(buffer, len);
+  if (!ok) return false;
 
   // Terminate header with empty line.
   len = OS::SNPrintF(Vector<char>(buffer, kBufferSize), "\r\n");
-  r = conn->Send(buffer, len);
-  if (r != len) return false;
+  ok = conn->Send(buffer, len);
+  if (!ok) return false;
 
   // No body for connect message.
 
@@ -454,7 +454,7 @@ int DebuggerAgentUtil::ReceiveAll(const Socket* conn, char* data, int len) {
   int total_received = 0;
   while (total_received < len) {
     int received = conn->Receive(data + total_received, len - total_received);
-    if (received == 0) {
+    if (received <= 0) {
       return total_received;
     }
     total_received += received;

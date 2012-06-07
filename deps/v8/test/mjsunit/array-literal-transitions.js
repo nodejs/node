@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,7 +33,7 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
-support_smi_only_arrays = %HasFastSmiElements([1,2,3,4,5,6,7,8,9,10]);
+support_smi_only_arrays = %HasFastSmiOnlyElements([1,2,3,4,5,6,7,8,9,10]);
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");
@@ -46,14 +46,14 @@ function get(foo) { return foo; }  // Used to generate dynamic values.
 
 function array_literal_test() {
   var a0 = [1, 2, 3];
-  assertTrue(%HasFastSmiElements(a0));
+  assertTrue(%HasFastSmiOnlyElements(a0));
   var a1 = [get(1), get(2), get(3)];
-  assertTrue(%HasFastSmiElements(a1));
+  assertTrue(%HasFastSmiOnlyElements(a1));
 
   var b0 = [1, 2, get("three")];
-  assertTrue(%HasFastObjectElements(b0));
+  assertTrue(%HasFastElements(b0));
   var b1 = [get(1), get(2), get("three")];
-  assertTrue(%HasFastObjectElements(b1));
+  assertTrue(%HasFastElements(b1));
 
   var c0 = [1, 2, get(3.5)];
   assertTrue(%HasFastDoubleElements(c0));
@@ -75,7 +75,7 @@ function array_literal_test() {
 
   var object = new Object();
   var d0 = [1, 2, object];
-  assertTrue(%HasFastObjectElements(d0));
+  assertTrue(%HasFastElements(d0));
   assertEquals(object, d0[2]);
   assertEquals(2, d0[1]);
   assertEquals(1, d0[0]);
@@ -87,7 +87,7 @@ function array_literal_test() {
   assertEquals(1, e0[0]);
 
   var f0 = [1, 2, [1, 2]];
-  assertTrue(%HasFastObjectElements(f0));
+  assertTrue(%HasFastElements(f0));
   assertEquals([1,2], f0[2]);
   assertEquals(2, f0[1]);
   assertEquals(1, f0[0]);
@@ -115,9 +115,9 @@ if (support_smi_only_arrays) {
     large =
         [ 0, 1, 2, 3, 4, 5, d(), d(), d(), d(), d(), d(), o(), o(), o(), o() ];
     assertFalse(%HasDictionaryElements(large));
-    assertFalse(%HasFastSmiElements(large));
+    assertFalse(%HasFastSmiOnlyElements(large));
     assertFalse(%HasFastDoubleElements(large));
-    assertTrue(%HasFastObjectElements(large));
+    assertTrue(%HasFastElements(large));
     assertEquals(large,
                  [0, 1, 2, 3, 4, 5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5,
                   new Object(), new Object(), new Object(), new Object()]);

@@ -34,11 +34,11 @@ var a = Array();
 for (var i = 0; i < 1000; i++) {
   var ai = natives.InternalArray(10000);
   assertFalse(%HaveSameMap(ai, a));
-  assertTrue(%HasFastObjectElements(ai));
+  assertTrue(%HasFastElements(ai));
 }
 
 for (var i = 0; i < 1000; i++) {
   var ai = new natives.InternalArray(10000);
   assertFalse(%HaveSameMap(ai, a));
-  assertTrue(%HasFastObjectElements(ai));
+  assertTrue(%HasFastElements(ai));
 }

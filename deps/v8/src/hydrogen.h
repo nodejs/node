@@ -267,7 +267,6 @@ class HGraph: public ZoneObject {
   void AssignDominators();
   void ReplaceCheckedValues();
   void EliminateRedundantBoundsChecks();
-  void DehoistSimpleArrayIndexComputations();
   void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
@@ -1011,7 +1010,6 @@ class HGraphBuilder: public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
-  int InliningAstSize(Handle<JSFunction> target);
   bool TryInline(CallKind call_kind,
                  Handle<JSFunction> target,
                  ZoneList<Expression*>* arguments,
@@ -1093,7 +1091,6 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
                                               HValue* val,
-                                              HValue* dependency,
                                               Handle<Map> map,
                                               bool is_store);
   HValue* HandlePolymorphicElementAccess(HValue* object,

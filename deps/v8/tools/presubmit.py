@@ -303,8 +303,7 @@ class SourceProcessor(SourceFileProcessor):
               or (name == 'third_party')
               or (name == 'gyp')
               or (name == 'out')
-              or (name == 'obj')
-              or (name == 'DerivedSources'))
+              or (name == 'obj'))
 
   IGNORE_COPYRIGHTS = ['cpplint.py',
                        'earley-boyer.js',

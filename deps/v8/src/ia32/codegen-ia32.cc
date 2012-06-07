@@ -351,7 +351,7 @@ OS::MemCopyFunction CreateMemCopyFunction() {
 
 #define __ ACCESS_MASM(masm)
 
-void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+void ElementsTransitionGenerator::GenerateSmiOnlyToObject(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
@@ -372,7 +372,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 }
 
 
-void ElementsTransitionGenerator::GenerateSmiToDouble(
+void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
     MacroAssembler* masm, Label* fail) {
   // ----------- S t a t e -------------
   //  -- eax    : value

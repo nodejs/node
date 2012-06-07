@@ -278,10 +278,6 @@ function TrimRegExp(regexp) {
 
 
 function RegExpToString() {
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.toString', this]);
-  }
   var result = '/' + this.source + '/';
   if (this.global) result += 'g';
   if (this.ignoreCase) result += 'i';
@@ -427,7 +423,6 @@ function SetUpRegExp() {
     LAST_INPUT(lastMatchInfo) = ToString(string);
   };
 
-  %OptimizeObjectForAddingMultipleProperties($RegExp, 22);
   %DefineOrRedefineAccessorProperty($RegExp, 'input', RegExpGetInput,
                                     RegExpSetInput, DONT_DELETE);
   %DefineOrRedefineAccessorProperty($RegExp, '$_', RegExpGetInput,
@@ -482,7 +477,6 @@ function SetUpRegExp() {
                                       RegExpMakeCaptureGetter(i), NoOpSetter,
                                       DONT_DELETE);
   }
-  %ToFastProperties($RegExp);
 }
 
 SetUpRegExp();

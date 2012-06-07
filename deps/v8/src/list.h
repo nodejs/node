@@ -117,9 +117,6 @@ class List {
   // pointer type. Returns the removed element.
   INLINE(T RemoveLast()) { return Remove(length_ - 1); }
 
-  // Deletes current list contents and allocates space for 'length' elements.
-  INLINE(void Allocate(int length));
-
   // Clears the list by setting the length to zero. Even if T is a
   // pointer type, clearing the list doesn't delete the entries.
   INLINE(void Clear());

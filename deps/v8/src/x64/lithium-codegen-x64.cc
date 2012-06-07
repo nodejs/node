@@ -2223,35 +2223,41 @@ void LCodeGen::DoLoadNamedFieldPolymorphic(LLoadNamedFieldPolymorphic* instr) {
   Register result = ToRegister(instr->result());
 
   int map_count = instr->hydrogen()->types()->length();
-  bool need_generic = instr->hydrogen()->need_generic();
-
-  if (map_count == 0 && !need_generic) {
-    DeoptimizeIf(no_condition, instr->environment());
-    return;
-  }
   Handle<String> name = instr->hydrogen()->name();
-  Label done;
-  for (int i = 0; i < map_count; ++i) {
-    bool last = (i == map_count - 1);
-    Handle<Map> map = instr->hydrogen()->types()->at(i);
-    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
-    if (last && !need_generic) {
-      DeoptimizeIf(not_equal, instr->environment());
-      EmitLoadFieldOrConstantFunction(result, object, map, name);
-    } else {
+
+  if (map_count == 0) {
+    ASSERT(instr->hydrogen()->need_generic());
+    __ Move(rcx, instr->hydrogen()->name());
+    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+    CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  } else {
+    Label done;
+    for (int i = 0; i < map_count - 1; ++i) {
+      Handle<Map> map = instr->hydrogen()->types()->at(i);
       Label next;
+      __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
       __ j(not_equal, &next, Label::kNear);
       EmitLoadFieldOrConstantFunction(result, object, map, name);
       __ jmp(&done, Label::kNear);
       __ bind(&next);
     }
+    Handle<Map> map = instr->hydrogen()->types()->last();
+    __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map);
+    if (instr->hydrogen()->need_generic()) {
+      Label generic;
+      __ j(not_equal, &generic, Label::kNear);
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
+      __ jmp(&done, Label::kNear);
+      __ bind(&generic);
+      __ Move(rcx, instr->hydrogen()->name());
+      Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
+      CallCode(ic, RelocInfo::CODE_TARGET, instr);
+    } else {
+      DeoptimizeIf(not_equal, instr->environment());
+      EmitLoadFieldOrConstantFunction(result, object, map, name);
+    }
+    __ bind(&done);
   }
-  if (need_generic) {
-    __ Move(rcx, name);
-    Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    CallCode(ic, RelocInfo::CODE_TARGET, instr);
-  }
-  __ bind(&done);
 }
 
 
@@ -2324,10 +2330,8 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ movzxbq(temp, FieldOperand(temp, Map::kBitField2Offset));
     __ and_(temp, Immediate(Map::kElementsKindMask));
     __ shr(temp, Immediate(Map::kElementsKindShift));
-    __ cmpl(temp, Immediate(GetInitialFastElementsKind()));
-    __ j(less, &fail, Label::kNear);
-    __ cmpl(temp, Immediate(TERMINAL_FAST_ELEMENTS_KIND));
-    __ j(less_equal, &ok, Label::kNear);
+    __ cmpl(temp, Immediate(FAST_ELEMENTS));
+    __ j(equal, &ok, Label::kNear);
     __ cmpl(temp, Immediate(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
     __ j(less, &fail, Label::kNear);
     __ cmpl(temp, Immediate(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
@@ -2371,20 +2375,11 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   Register result = ToRegister(instr->result());
 
-  if (instr->hydrogen()->IsDehoisted() && !instr->key()->IsConstantOperand()) {
-    // Sign extend key because it could be a 32 bit negative value
-    // and the dehoisted address computation happens in 64 bits.
-    Register key_reg = ToRegister(instr->key());
-    __ movsxlq(key_reg, key_reg);
-  }
-
   // Load the result.
   __ movq(result,
-          BuildFastArrayOperand(instr->elements(),
-                                instr->key(),
+          BuildFastArrayOperand(instr->elements(), instr->key(),
                                 FAST_ELEMENTS,
-                                FixedArray::kHeaderSize - kHeapObjectTag,
-                                instr->additional_index()));
+                                FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2398,32 +2393,19 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
     LLoadKeyedFastDoubleElement* instr) {
   XMMRegister result(ToDoubleRegister(instr->result()));
 
-  if (instr->hydrogen()->IsDehoisted() && !instr->key()->IsConstantOperand()) {
-    // Sign extend key because it could be a 32 bit negative value
-    // and the dehoisted address computation happens in 64 bits
-    Register key_reg = ToRegister(instr->key());
-    __ movsxlq(key_reg, key_reg);
-  }
-
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
-        sizeof(kHoleNanLower32);
-    Operand hole_check_operand = BuildFastArrayOperand(
-        instr->elements(),
-        instr->key(),
-        FAST_DOUBLE_ELEMENTS,
-        offset,
-        instr->additional_index());
-    __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
-    DeoptimizeIf(equal, instr->environment());
-  }
-
-  Operand double_load_operand = BuildFastArrayOperand(
+  int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+      sizeof(kHoleNanLower32);
+  Operand hole_check_operand = BuildFastArrayOperand(
       instr->elements(),
       instr->key(),
       FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
+      offset);
+  __ cmpl(hole_check_operand, Immediate(kHoleNanUpper32));
+  DeoptimizeIf(equal, instr->environment());
+
+  Operand double_load_operand = BuildFastArrayOperand(
+      instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ movsd(result, double_load_operand);
 }
 
@@ -2432,8 +2414,7 @@ Operand LCodeGen::BuildFastArrayOperand(
     LOperand* elements_pointer,
     LOperand* key,
     ElementsKind elements_kind,
-    uint32_t offset,
-    uint32_t additional_index) {
+    uint32_t offset) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
@@ -2442,14 +2423,11 @@ Operand LCodeGen::BuildFastArrayOperand(
       Abort("array index constant value too big");
     }
     return Operand(elements_pointer_reg,
-                   ((constant_value + additional_index) << shift_size)
-                       + offset);
+                   constant_value * (1 << shift_size) + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(elements_pointer_reg,
-                   ToRegister(key),
-                   scale_factor,
-                   offset + (additional_index << shift_size));
+    return Operand(elements_pointer_reg, ToRegister(key),
+                   scale_factor, offset);
   }
 }
 
@@ -2458,17 +2436,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildFastArrayOperand(instr->external_pointer(),
-                                        instr->key(),
-                                        elements_kind,
-                                        0,
-                                        instr->additional_index()));
-  if (instr->hydrogen()->IsDehoisted() && !instr->key()->IsConstantOperand()) {
-    // Sign extend key because it could be a 32 bit negative value
-    // and the dehoisted address computation happens in 64 bits
-    Register key_reg = ToRegister(instr->key());
-    __ movsxlq(key_reg, key_reg);
-  }
-
+                                        instr->key(), elements_kind, 0));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
@@ -2505,11 +2473,8 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
-      case FAST_SMI_ELEMENTS:
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -3373,18 +3338,7 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
   ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildFastArrayOperand(instr->external_pointer(),
-                                        instr->key(),
-                                        elements_kind,
-                                        0,
-                                        instr->additional_index()));
-
-  if (instr->hydrogen()->IsDehoisted() && !instr->key()->IsConstantOperand()) {
-    // Sign extend key because it could be a 32 bit negative value
-    // and the dehoisted address computation happens in 64 bits
-    Register key_reg = ToRegister(instr->key());
-    __ movsxlq(key_reg, key_reg);
-  }
-
+                                        instr->key(), elements_kind, 0));
   if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister value(ToDoubleRegister(instr->value()));
     __ cvtsd2ss(value, value);
@@ -3410,11 +3364,8 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
       case EXTERNAL_FLOAT_ELEMENTS:
       case EXTERNAL_DOUBLE_ELEMENTS:
       case FAST_ELEMENTS:
-      case FAST_SMI_ELEMENTS:
+      case FAST_SMI_ONLY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
-      case FAST_HOLEY_ELEMENTS:
-      case FAST_HOLEY_SMI_ELEMENTS:
-      case FAST_HOLEY_DOUBLE_ELEMENTS:
       case DICTIONARY_ELEMENTS:
       case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
@@ -3457,29 +3408,30 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   Register elements = ToRegister(instr->object());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
 
-  Operand operand =
-      BuildFastArrayOperand(instr->object(),
-                            instr->key(),
-                            FAST_ELEMENTS,
-                            FixedArray::kHeaderSize - kHeapObjectTag,
-                            instr->additional_index());
-
-  if (instr->hydrogen()->IsDehoisted() && !instr->key()->IsConstantOperand()) {
-    // Sign extend key because it could be a 32 bit negative value
-    // and the dehoisted address computation happens in 64 bits
-    Register key_reg = ToRegister(instr->key());
-    __ movsxlq(key_reg, key_reg);
+  // Do the store.
+  if (instr->key()->IsConstantOperand()) {
+    ASSERT(!instr->hydrogen()->NeedsWriteBarrier());
+    LConstantOperand* const_operand = LConstantOperand::cast(instr->key());
+    int offset =
+        ToInteger32(const_operand) * kPointerSize + FixedArray::kHeaderSize;
+    __ movq(FieldOperand(elements, offset), value);
+  } else {
+    __ movq(FieldOperand(elements,
+                         key,
+                         times_pointer_size,
+                         FixedArray::kHeaderSize),
+            value);
   }
 
-  __ movq(operand, value);
-
   if (instr->hydrogen()->NeedsWriteBarrier()) {
-    ASSERT(!instr->key()->IsConstantOperand());
     HType type = instr->hydrogen()->value()->type();
     SmiCheck check_needed =
         type.IsHeapObject() ? OMIT_SMI_CHECK : INLINE_SMI_CHECK;
     // Compute address of modified element and store it into key register.
-    __ lea(key, operand);
+    __ lea(key, FieldOperand(elements,
+                             key,
+                             times_pointer_size,
+                             FixedArray::kHeaderSize));
     __ RecordWrite(elements,
                    key,
                    value,
@@ -3508,19 +3460,8 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   }
 
   Operand double_store_operand = BuildFastArrayOperand(
-      instr->elements(),
-      instr->key(),
-      FAST_DOUBLE_ELEMENTS,
-      FixedDoubleArray::kHeaderSize - kHeapObjectTag,
-      instr->additional_index());
-
-  if (instr->hydrogen()->IsDehoisted() && !instr->key()->IsConstantOperand()) {
-    // Sign extend key because it could be a 32 bit negative value
-    // and the dehoisted address computation happens in 64 bits
-    Register key_reg = ToRegister(instr->key());
-    __ movsxlq(key_reg, key_reg);
-  }
-
+      instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ movsd(double_store_operand, value);
 }
 
@@ -3549,22 +3490,21 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   __ Cmp(FieldOperand(object_reg, HeapObject::kMapOffset), from_map);
   __ j(not_equal, &not_applicable);
   __ movq(new_map_reg, to_map, RelocInfo::EMBEDDED_OBJECT);
-  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) {
     __ movq(FieldOperand(object_reg, HeapObject::kMapOffset), new_map_reg);
     // Write barrier.
     ASSERT_NE(instr->temp_reg(), NULL);
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
                         ToRegister(instr->temp_reg()), kDontSaveFPRegs);
-  } else if (IsFastSmiElementsKind(from_kind) &&
-             IsFastDoubleElementsKind(to_kind)) {
+  } else if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+      to_kind == FAST_DOUBLE_ELEMENTS) {
     Register fixed_object_reg = ToRegister(instr->temp_reg());
     ASSERT(fixed_object_reg.is(rdx));
     ASSERT(new_map_reg.is(rbx));
     __ movq(fixed_object_reg, object_reg);
     CallCode(isolate()->builtins()->TransitionElementsSmiToDouble(),
              RelocInfo::CODE_TARGET, instr);
-  } else if (IsFastDoubleElementsKind(from_kind) &&
-             IsFastObjectElementsKind(to_kind)) {
+  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
     Register fixed_object_reg = ToRegister(instr->temp_reg());
     ASSERT(fixed_object_reg.is(rdx));
     ASSERT(new_map_reg.is(rbx));
@@ -4238,9 +4178,8 @@ void LCodeGen::DoArrayLiteral(LArrayLiteral* instr) {
 
   // Deopt if the array literal boilerplate ElementsKind is of a type different
   // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
-  if (CanTransitionToMoreGeneralFastElementsKind(
-          boilerplate_elements_kind, true)) {
+  // already been converted to FAST_ELEMENTS.
+  if (boilerplate_elements_kind != FAST_ELEMENTS) {
     __ LoadHeapObject(rax, instr->hydrogen()->boilerplate_object());
     __ movq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
     // Load the map's "bit field 2".
@@ -4386,11 +4325,10 @@ void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   ElementsKind boilerplate_elements_kind =
       instr->hydrogen()->boilerplate()->GetElementsKind();
 
-  // Deopt if the array literal boilerplate ElementsKind is of a type different
-  // than the expected one. The check isn't necessary if the boilerplate has
-  // already been converted to TERMINAL_FAST_ELEMENTS_KIND.
-  if (CanTransitionToMoreGeneralFastElementsKind(
-          boilerplate_elements_kind, true)) {
+  // Deopt if the literal boilerplate ElementsKind is of a type different than
+  // the expected one. The check isn't necessary if the boilerplate has already
+  // been converted to FAST_ELEMENTS.
+  if (boilerplate_elements_kind != FAST_ELEMENTS) {
     __ LoadHeapObject(rbx, instr->hydrogen()->boilerplate());
     __ movq(rcx, FieldOperand(rbx, HeapObject::kMapOffset));
     // Load the map's "bit field 2".

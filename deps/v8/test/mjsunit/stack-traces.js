@@ -111,18 +111,6 @@ function testStrippedCustomError() {
   throw new CustomError("hep-hey", CustomError);
 }
 
-MyObj = function() { FAIL; }
-
-MyObjCreator = function() {}
-
-MyObjCreator.prototype.Create = function() {
-  return new MyObj();
-}
-
-function testClassNames() {
-  (new MyObjCreator).Create();
-}
-
 // Utility function for testing that the expected strings occur
 // in the stack trace produced when running the given function.
 function testTrace(name, fun, expected, unexpected) {
@@ -266,8 +254,6 @@ testTrace("testDefaultCustomError", testDefaultCustomError,
     ["collectStackTrace"]);
 testTrace("testStrippedCustomError", testStrippedCustomError, ["hep-hey"],
     ["new CustomError", "collectStackTrace"]);
-testTrace("testClassNames", testClassNames,
-          ["new MyObj", "MyObjCreator.Create"], ["as Create"]);
 testCallerCensorship();
 testUnintendedCallerCensorship();
 testErrorsDuringFormatting();

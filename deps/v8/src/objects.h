@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "builtins.h"
-#include "elements-kind.h"
 #include "list.h"
 #include "property-details.h"
 #include "smart-array-pointer.h"
@@ -132,6 +131,40 @@
 namespace v8 {
 namespace internal {
 
+enum ElementsKind {
+  // The "fast" kind for elements that only contain SMI values. Must be first
+  // to make it possible to efficiently check maps for this kind.
+  FAST_SMI_ONLY_ELEMENTS,
+
+  // The "fast" kind for tagged values. Must be second to make it possible to
+  // efficiently check maps for this and the FAST_SMI_ONLY_ELEMENTS kind
+  // together at once.
+  FAST_ELEMENTS,
+
+  // The "fast" kind for unwrapped, non-tagged double values.
+  FAST_DOUBLE_ELEMENTS,
+
+  // The "slow" kind.
+  DICTIONARY_ELEMENTS,
+  NON_STRICT_ARGUMENTS_ELEMENTS,
+  // The "fast" kind for external arrays
+  EXTERNAL_BYTE_ELEMENTS,
+  EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
+  EXTERNAL_SHORT_ELEMENTS,
+  EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
+  EXTERNAL_INT_ELEMENTS,
+  EXTERNAL_UNSIGNED_INT_ELEMENTS,
+  EXTERNAL_FLOAT_ELEMENTS,
+  EXTERNAL_DOUBLE_ELEMENTS,
+  EXTERNAL_PIXEL_ELEMENTS,
+
+  // Derived constants from ElementsKind
+  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
+  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+  FIRST_ELEMENTS_KIND = FAST_SMI_ONLY_ELEMENTS,
+  LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
+};
+
 enum CompareMapMode {
   REQUIRE_EXACT_MAP,
   ALLOW_ELEMENT_TRANSITION_MAPS
@@ -141,6 +174,13 @@ enum KeyedAccessGrowMode {
   DO_NOT_ALLOW_JSARRAY_GROWTH,
   ALLOW_JSARRAY_GROWTH
 };
+
+const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
+
+void PrintElementsKind(FILE* out, ElementsKind kind);
+
+inline bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
+                                                ElementsKind to_kind);
 
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
@@ -664,13 +704,12 @@ enum CompareResult {
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
 
-class AccessorPair;
 class DictionaryElementsAccessor;
 class ElementsAccessor;
-class Failure;
 class FixedArrayBase;
 class ObjectVisitor;
 class StringStream;
+class Failure;
 
 struct ValueInfo : public Malloced {
   ValueInfo() : type(FIRST_TYPE), ptr(NULL), str(NULL), number(0) { }
@@ -1470,19 +1509,13 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT inline MaybeObject* ResetElements();
   inline ElementsKind GetElementsKind();
   inline ElementsAccessor* GetElementsAccessor();
-  // Returns true if an object has elements of FAST_SMI_ELEMENTS ElementsKind.
-  inline bool HasFastSmiElements();
-  // Returns true if an object has elements of FAST_ELEMENTS ElementsKind.
-  inline bool HasFastObjectElements();
-  // Returns true if an object has elements of FAST_ELEMENTS or
-  // FAST_SMI_ONLY_ELEMENTS.
-  inline bool HasFastSmiOrObjectElements();
-  // Returns true if an object has elements of FAST_DOUBLE_ELEMENTS
-  // ElementsKind.
+  inline bool HasFastSmiOnlyElements();
+  inline bool HasFastElements();
+  // Returns if an object has either FAST_ELEMENT or FAST_SMI_ONLY_ELEMENT
+  // elements.  TODO(danno): Rename HasFastTypeElements to HasFastElements() and
+  // HasFastElements to HasFastObjectElements.
+  inline bool HasFastTypeElements();
   inline bool HasFastDoubleElements();
-  // Returns true if an object has elements of FAST_HOLEY_*_ELEMENTS
-  // ElementsKind.
-  inline bool HasFastHoleyElements();
   inline bool HasNonStrictArgumentsElements();
   inline bool HasDictionaryElements();
   inline bool HasExternalPixelElements();
@@ -1609,14 +1642,6 @@ class JSObject: public JSReceiver {
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes);
-  // Try to define a single accessor paying attention to map transitions.
-  // Returns a JavaScript null if this was not possible and we have to use the
-  // slow case. Note that we can fail due to allocations, too.
-  MUST_USE_RESULT MaybeObject* DefineFastAccessor(
-      String* name,
-      AccessorComponent component,
-      Object* accessor,
-      PropertyAttributes attributes);
   Object* LookupAccessor(String* name, AccessorComponent component);
 
   MUST_USE_RESULT MaybeObject* DefineAccessor(AccessorInfo* info);
@@ -1685,7 +1710,7 @@ class JSObject: public JSReceiver {
   static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
-  inline void ValidateElements();
+  inline void ValidateSmiOnlyElements();
 
   // Makes sure that this object can contain HeapObject as elements.
   MUST_USE_RESULT inline MaybeObject* EnsureCanContainHeapObjectElements();
@@ -1697,7 +1722,6 @@ class JSObject: public JSReceiver {
       EnsureElementsMode mode);
   MUST_USE_RESULT inline MaybeObject* EnsureCanContainElements(
       FixedArrayBase* elements,
-      uint32_t length,
       EnsureElementsMode mode);
   MUST_USE_RESULT MaybeObject* EnsureCanContainElements(
       Arguments* arguments,
@@ -1796,10 +1820,10 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetElementWithInterceptor(Object* receiver,
                                                          uint32_t index);
 
-  enum SetFastElementsCapacitySmiMode {
-    kAllowSmiElements,
-    kForceSmiElements,
-    kDontAllowSmiElements
+  enum SetFastElementsCapacityMode {
+    kAllowSmiOnlyElements,
+    kForceSmiOnlyElements,
+    kDontAllowSmiOnlyElements
   };
 
   // Replace the elements' backing store with fast elements of the given
@@ -1808,7 +1832,7 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* SetFastElementsCapacityAndLength(
       int capacity,
       int length,
-      SetFastElementsCapacitySmiMode smi_mode);
+      SetFastElementsCapacityMode set_capacity_mode);
   MUST_USE_RESULT MaybeObject* SetFastDoubleElementsCapacityAndLength(
       int capacity,
       int length);
@@ -2575,9 +2599,6 @@ class DescriptorArray: public FixedArray {
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates();
-
-  // Is the descriptor array consistent with the back pointers in targets?
-  bool IsConsistentWithBackPointers(Map* current_map);
 
   // Are two DescriptorArrays equal?
   bool IsEqualTo(DescriptorArray* other);
@@ -4270,11 +4291,6 @@ class Code: public HeapObject {
   inline byte compare_state();
   inline void set_compare_state(byte value);
 
-  // [compare_operation]: For kind COMPARE_IC tells what compare operation the
-  // stub was generated for.
-  inline byte compare_operation();
-  inline void set_compare_operation(byte value);
-
   // [to_boolean_foo]: For kind TO_BOOLEAN_IC tells what state the stub is in.
   inline byte to_boolean_state();
   inline void set_to_boolean_state(byte value);
@@ -4410,7 +4426,6 @@ class Code: public HeapObject {
   void CodeVerify();
 #endif
   void ClearInlineCaches();
-  void ClearTypeFeedbackCells(Heap* heap);
 
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
@@ -4458,8 +4473,6 @@ class Code: public HeapObject {
   class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
-
-  static const int kCompareOperationOffset = kCompareStateOffset + 1;
 
   static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
   static const int kProfilerTicksOffset = kAllowOSRAtLoopNestingLevelOffset + 1;
@@ -4614,21 +4627,17 @@ class Map: public HeapObject {
   }
 
   // Tells whether the instance has fast elements that are only Smis.
-  inline bool has_fast_smi_elements() {
-    return IsFastSmiElementsKind(elements_kind());
+  inline bool has_fast_smi_only_elements() {
+    return elements_kind() == FAST_SMI_ONLY_ELEMENTS;
   }
 
   // Tells whether the instance has fast elements.
-  inline bool has_fast_object_elements() {
-    return IsFastObjectElementsKind(elements_kind());
-  }
-
-  inline bool has_fast_smi_or_object_elements() {
-    return IsFastSmiOrObjectElementsKind(elements_kind());
+  inline bool has_fast_elements() {
+    return elements_kind() == FAST_ELEMENTS;
   }
 
   inline bool has_fast_double_elements() {
-    return IsFastDoubleElementsKind(elements_kind());
+    return elements_kind() == FAST_DOUBLE_ELEMENTS;
   }
 
   inline bool has_non_strict_arguments_elements() {
@@ -4693,30 +4702,19 @@ class Map: public HeapObject {
   // [stub cache]: contains stubs compiled for this map.
   DECL_ACCESSORS(code_cache, Object)
 
-  // [back pointer]: points back to the parent map from which a transition
-  // leads to this map. The field overlaps with prototype transitions and the
-  // back pointer will be moved into the prototype transitions array if
-  // required.
-  inline Object* GetBackPointer();
-  inline void SetBackPointer(Object* value,
-                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
   // [prototype transitions]: cache of prototype transitions.
   // Prototype transition is a transition that happens
   // when we change object's prototype to a new one.
   // Cache format:
   //    0: finger - index of the first free cell in the cache
-  //    1: back pointer that overlaps with prototype transitions field.
-  //    2 + 2 * i: prototype
-  //    3 + 2 * i: target map
+  //    1 + 2 * i: prototype
+  //    2 + 2 * i: target map
   DECL_ACCESSORS(prototype_transitions, FixedArray)
 
-  inline void init_prototype_transitions(Object* undefined);
-  inline HeapObject* unchecked_prototype_transitions();
+  inline FixedArray* unchecked_prototype_transitions();
 
-  static const int kProtoTransitionHeaderSize = 2;
+  static const int kProtoTransitionHeaderSize = 1;
   static const int kProtoTransitionNumberOfEntriesOffset = 0;
-  static const int kProtoTransitionBackPointerOffset = 1;
   static const int kProtoTransitionElementsPerEntry = 2;
   static const int kProtoTransitionPrototypeOffset = 0;
   static const int kProtoTransitionMapOffset = 1;
@@ -4788,10 +4786,25 @@ class Map: public HeapObject {
   // Removes a code object from the code cache at the given index.
   void RemoveFromCodeCache(String* name, Code* code, int index);
 
-  // Set all map transitions from this map to dead maps to null.  Also clear
-  // back pointers in transition targets so that we do not process this map
-  // again while following back pointers.
-  void ClearNonLiveTransitions(Heap* heap);
+  // For every transition in this map, makes the transition's
+  // target's prototype pointer point back to this map.
+  // This is undone in MarkCompactCollector::ClearNonLiveTransitions().
+  void CreateBackPointers();
+
+  void CreateOneBackPointer(Object* transition_target);
+
+  // Set all map transitions from this map to dead maps to null.
+  // Also, restore the original prototype on the targets of these
+  // transitions, so that we do not process this map again while
+  // following back pointers.
+  void ClearNonLiveTransitions(Heap* heap, Object* real_prototype);
+
+  // Restore a possible back pointer in the prototype field of object.
+  // Return true in that case and false otherwise. Set *keep_entry to
+  // true when a live map transition has been found.
+  bool RestoreOneBackPointer(Object* object,
+                             Object* real_prototype,
+                             bool* keep_entry);
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
@@ -4826,14 +4839,6 @@ class Map: public HeapObject {
   Handle<Map> FindTransitionedMap(MapHandleList* candidates);
   Map* FindTransitionedMap(MapList* candidates);
 
-  // Zaps the contents of backing data structures in debug mode. Note that the
-  // heap verifier (i.e. VerifyMarkingVisitor) relies on zapping of objects
-  // holding weak references when incremental marking is used, because it also
-  // iterates over objects that are otherwise unreachable.
-#ifdef DEBUG
-  void ZapInstanceDescriptors();
-  void ZapPrototypeTransitions();
-#endif
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -4881,17 +4886,16 @@ class Map: public HeapObject {
       kConstructorOffset + kPointerSize;
   static const int kCodeCacheOffset =
       kInstanceDescriptorsOrBitField3Offset + kPointerSize;
-  static const int kPrototypeTransitionsOrBackPointerOffset =
+  static const int kPrototypeTransitionsOffset =
       kCodeCacheOffset + kPointerSize;
-  static const int kPadStart =
-      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
+  static const int kPadStart = kPrototypeTransitionsOffset + kPointerSize;
   static const int kSize = MAP_POINTER_ALIGN(kPadStart);
 
   // Layout of pointer fields. Heap iteration code relies on them
   // being continuously allocated.
   static const int kPointerFieldsBeginOffset = Map::kPrototypeOffset;
   static const int kPointerFieldsEndOffset =
-      kPrototypeTransitionsOrBackPointerOffset + kPointerSize;
+      Map::kPrototypeTransitionsOffset + kPointerSize;
 
   // Byte offsets within kInstanceSizesOffset.
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
@@ -4924,31 +4928,25 @@ class Map: public HeapObject {
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
-  static const int kStringWrapperSafeForDefaultValueOf = 1;
-  static const int kAttachedToSharedFunctionInfo = 2;
+  static const int kFunctionWithPrototype = 1;
+  static const int kStringWrapperSafeForDefaultValueOf = 2;
+  static const int kAttachedToSharedFunctionInfo = 3;
   // No bits can be used after kElementsKindFirstBit, they are all reserved for
   // storing ElementKind.
-  static const int kElementsKindShift = 3;
-  static const int kElementsKindBitCount = 5;
+  static const int kElementsKindShift = 4;
+  static const int kElementsKindBitCount = 4;
 
   // Derived values from bit field 2
   static const int kElementsKindMask = (-1 << kElementsKindShift) &
       ((1 << (kElementsKindShift + kElementsKindBitCount)) - 1);
   static const int8_t kMaximumBitField2FastElementValue = static_cast<int8_t>(
       (FAST_ELEMENTS + 1) << Map::kElementsKindShift) - 1;
-  static const int8_t kMaximumBitField2FastSmiElementValue =
-      static_cast<int8_t>((FAST_SMI_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
-  static const int8_t kMaximumBitField2FastHoleyElementValue =
-      static_cast<int8_t>((FAST_HOLEY_ELEMENTS + 1) <<
-                          Map::kElementsKindShift) - 1;
-  static const int8_t kMaximumBitField2FastHoleySmiElementValue =
-      static_cast<int8_t>((FAST_HOLEY_SMI_ELEMENTS + 1) <<
+  static const int8_t kMaximumBitField2FastSmiOnlyElementValue =
+      static_cast<int8_t>((FAST_SMI_ONLY_ELEMENTS + 1) <<
                           Map::kElementsKindShift) - 1;
 
   // Bit positions for bit field 3
   static const int kIsShared = 0;
-  static const int kFunctionWithPrototype = 1;
 
   // Layout of the default cache. It holds alternating name and code objects.
   static const int kCodeCacheEntrySize = 2;
@@ -5335,8 +5333,6 @@ class SharedFunctionInfo: public HeapObject {
   // deopt.
   inline int deopt_counter();
   inline void set_deopt_counter(int counter);
-
-  inline int profiler_ticks();
 
   // Inline cache age is used to infer whether the function survived a context
   // disposal or not. In the former case we reset the opt_count.
@@ -6124,7 +6120,7 @@ class JSDate: public JSObject {
 
   // Returns the date field with the specified index.
   // See FieldIndex for the list of date fields.
-  static Object* GetField(Object* date, Smi* index);
+  static MaybeObject* GetField(Object* date, Smi* index);
 
   void SetValue(Object* value, bool is_value_nan);
 
@@ -6873,7 +6869,7 @@ class String: public HeapObject {
   inline void Set(int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  INLINE(uint16_t Get(int index));
+  inline uint16_t Get(int index);
 
   // Try to flatten the string.  Checks first inline to see if it is
   // necessary.  Does nothing if the string is not a cons string.
@@ -7227,10 +7223,6 @@ class SeqAsciiString: public SeqString {
   inline const unibrow::byte* SeqAsciiStringReadBlock(unsigned* remaining,
                                                       unsigned* offset,
                                                       unsigned chars);
-
-#ifdef DEBUG
-  void SeqAsciiStringVerify();
-#endif
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqAsciiString);
@@ -8108,18 +8100,6 @@ class AccessorPair: public Struct {
   static inline AccessorPair* cast(Object* obj);
 
   MUST_USE_RESULT MaybeObject* CopyWithoutTransitions();
-
-  Object* get(AccessorComponent component) {
-    return component == ACCESSOR_GETTER ? getter() : setter();
-  }
-
-  void set(AccessorComponent component, Object* value) {
-    if (component == ACCESSOR_GETTER) {
-      set_getter(value);
-    } else {
-      set_setter(value);
-    }
-  }
 
   // Note: Returns undefined instead in case of a hole.
   Object* GetComponent(AccessorComponent component);

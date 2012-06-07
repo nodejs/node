@@ -137,12 +137,6 @@ ENVFILE = $(OUTDIR)/environment
 # Target definitions. "all" is the default.
 all: $(MODES)
 
-# Special target for the buildbots to use. Depends on $(OUTDIR)/Makefile
-# having been created before.
-buildbot:
-	$(MAKE) -C "$(OUTDIR)" BUILDTYPE=$(BUILDTYPE) \
-	        builddir="$(abspath $(OUTDIR))/$(BUILDTYPE)"
-
 # Compile targets. MODES and ARCHES are convenience targets.
 .SECONDEXPANSION:
 $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
@@ -228,7 +222,6 @@ $(OUTDIR)/Makefile.android: $(GYPFILES) $(ENVFILE) build/android.gypi \
                             must-set-ANDROID_NDK_ROOT
 	GYP_GENERATORS=make \
 	CC="${ANDROID_TOOL_PREFIX}-gcc" \
-	CXX="${ANDROID_TOOL_PREFIX}-g++" \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
 	              -S.android $(GYPFLAGS)

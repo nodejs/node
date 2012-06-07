@@ -43,49 +43,44 @@ namespace internal {
 #ifndef V8_INTERPRETED_REGEXP
 /*
  * This assembler uses the following register assignment convention
- * - t7 : Temporarily stores the index of capture start after a matching pass
- *        for a global regexp.
  * - t1 : Pointer to current code object (Code*) including heap object tag.
  * - t2 : Current position in input, as negative offset from end of string.
  *        Please notice that this is the byte offset, not the character offset!
  * - t3 : Currently loaded character. Must be loaded using
  *        LoadCurrentCharacter before using any of the dispatch methods.
- * - t4 : Points to tip of backtrack stack
+ * - t4 : points to tip of backtrack stack
  * - t5 : Unused.
  * - t6 : End of input (points to byte after last character in input).
  * - fp : Frame pointer. Used to access arguments, local variables and
  *         RegExp registers.
- * - sp : Points to tip of C stack.
+ * - sp : points to tip of C stack.
  *
  * The remaining registers are free for computations.
  * Each call to a public method should retain this convention.
  *
  * The stack will have the following structure:
  *
- *  - fp[64]  Isolate* isolate   (address of the current isolate)
- *  - fp[60]  direct_call  (if 1, direct call from JavaScript code,
+ *  - fp[56]  direct_call  (if 1, direct call from JavaScript code,
  *                          if 0, call through the runtime system).
- *  - fp[56]  stack_area_base (High end of the memory area to use as
+ *  - fp[52]  stack_area_base (High end of the memory area to use as
  *                             backtracking stack).
- *  - fp[52]  capture array size (may fit multiple sets of matches)
  *  - fp[48]  int* capture_array (int[num_saved_registers_], for output).
  *  - fp[44]  secondary link/return address used by native call.
  *  --- sp when called ---
- *  - fp[40]  return address      (lr).
- *  - fp[36]  old frame pointer   (r11).
+ *  - fp[40]  return address (lr).
+ *  - fp[36]  old frame pointer (r11).
  *  - fp[0..32]  backup of registers s0..s7.
  *  --- frame pointer ----
- *  - fp[-4]  end of input       (address of end of string).
- *  - fp[-8]  start of input     (address of first character in string).
+ *  - fp[-4]  end of input       (Address of end of string).
+ *  - fp[-8]  start of input     (Address of first character in string).
  *  - fp[-12] start index        (character index of start).
  *  - fp[-16] void* input_string (location of a handle containing the string).
- *  - fp[-20] success counter    (only for global regexps to count matches).
- *  - fp[-24] Offset of location before start of input (effectively character
+ *  - fp[-20] Offset of location before start of input (effectively character
  *            position -1). Used to initialize capture registers to a
  *            non-position.
- *  - fp[-28] At start (if 1, we are starting at the start of the
+ *  - fp[-24] At start (if 1, we are starting at the start of the
  *    string, otherwise 0)
- *  - fp[-32] register 0         (Only positions must be stored in the first
+ *  - fp[-28] register 0         (Only positions must be stored in the first
  *  -         register 1          num_saved_registers_ registers)
  *  -         ...
  *  -         register num_registers-1
@@ -206,8 +201,8 @@ void RegExpMacroAssemblerMIPS::CheckCharacterGT(uc16 limit, Label* on_greater) {
 void RegExpMacroAssemblerMIPS::CheckAtStart(Label* on_at_start) {
   Label not_at_start;
   // Did we start the match at the start of the string at all?
-  __ lw(a0, MemOperand(frame_pointer(), kStartIndex));
-  BranchOrBacktrack(&not_at_start, ne, a0, Operand(zero_reg));
+  __ lw(a0, MemOperand(frame_pointer(), kAtStart));
+  BranchOrBacktrack(&not_at_start, eq, a0, Operand(zero_reg));
 
   // If we did, are we still at the start of the input?
   __ lw(a1, MemOperand(frame_pointer(), kInputStart));
@@ -219,8 +214,8 @@ void RegExpMacroAssemblerMIPS::CheckAtStart(Label* on_at_start) {
 
 void RegExpMacroAssemblerMIPS::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
-  __ lw(a0, MemOperand(frame_pointer(), kStartIndex));
-  BranchOrBacktrack(on_not_at_start, ne, a0, Operand(zero_reg));
+  __ lw(a0, MemOperand(frame_pointer(), kAtStart));
+  BranchOrBacktrack(on_not_at_start, eq, a0, Operand(zero_reg));
   // If we did, are we still at the start of the input?
   __ lw(a1, MemOperand(frame_pointer(), kInputStart));
   __ Addu(a0, end_of_input_address(), Operand(current_input_offset()));
@@ -645,7 +640,6 @@ void RegExpMacroAssemblerMIPS::Fail() {
 
 
 Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
-  Label return_v0;
   if (masm_->has_exception()) {
     // If the code gets corrupted due to long regular expressions and lack of
     // space on trampolines, an internal exception flag is set. If this case
@@ -675,9 +669,8 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // Set frame pointer in space for it if this is not a direct call
     // from generated code.
     __ Addu(frame_pointer(), sp, Operand(4 * kPointerSize));
-    __ mov(a0, zero_reg);
-    __ push(a0);  // Make room for success counter and initialize it to 0.
     __ push(a0);  // Make room for "position - 1" constant (value irrelevant).
+    __ push(a0);  // Make room for "at start" constant (value irrelevant).
 
     // Check if we have space on the stack for registers.
     Label stack_limit_hit;
@@ -696,12 +689,12 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
     __ li(v0, Operand(EXCEPTION));
-    __ jmp(&return_v0);
+    __ jmp(&exit_label_);
 
     __ bind(&stack_limit_hit);
     CallCheckStackGuardState(a0);
     // If returned value is non-zero, we exit with the returned value as result.
-    __ Branch(&return_v0, ne, v0, Operand(zero_reg));
+    __ Branch(&exit_label_, ne, v0, Operand(zero_reg));
 
     __ bind(&stack_ok);
     // Allocate space on stack for registers.
@@ -722,44 +715,39 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
     // position registers.
     __ sw(a0, MemOperand(frame_pointer(), kInputStartMinusOne));
 
-    // Initialize code pointer register
-    __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
+    // Determine whether the start index is zero, that is at the start of the
+    // string, and store that value in a local variable.
+    __ mov(t5, a1);
+    __ li(a1, Operand(1));
+    __ Movn(a1, zero_reg, t5);
+    __ sw(a1, MemOperand(frame_pointer(), kAtStart));
 
-    Label load_char_start_regexp, start_regexp;
-    // Load newline if index is at start, previous character otherwise.
-    __ Branch(&load_char_start_regexp, ne, a1, Operand(zero_reg));
-    __ li(current_character(), Operand('\n'));
-    __ jmp(&start_regexp);
-
-    // Global regexp restarts matching here.
-    __ bind(&load_char_start_regexp);
-    // Load previous char as initial value of current character register.
-    LoadCurrentCharacterUnchecked(-1, 1);
-    __ bind(&start_regexp);
-
-    // Initialize on-stack registers.
     if (num_saved_registers_ > 0) {  // Always is, if generated from a regexp.
       // Fill saved registers with initial value = start offset - 1.
-      if (num_saved_registers_ > 8) {
-        // Address of register 0.
-        __ Addu(a1, frame_pointer(), Operand(kRegisterZero));
-        __ li(a2, Operand(num_saved_registers_));
-        Label init_loop;
-        __ bind(&init_loop);
-        __ sw(a0, MemOperand(a1));
-        __ Addu(a1, a1, Operand(-kPointerSize));
-        __ Subu(a2, a2, Operand(1));
-        __ Branch(&init_loop, ne, a2, Operand(zero_reg));
-      } else {
-        for (int i = 0; i < num_saved_registers_; i++) {
-          __ sw(a0, register_location(i));
-        }
-      }
+
+      // Address of register 0.
+      __ Addu(a1, frame_pointer(), Operand(kRegisterZero));
+      __ li(a2, Operand(num_saved_registers_));
+      Label init_loop;
+      __ bind(&init_loop);
+      __ sw(a0, MemOperand(a1));
+      __ Addu(a1, a1, Operand(-kPointerSize));
+      __ Subu(a2, a2, Operand(1));
+      __ Branch(&init_loop, ne, a2, Operand(zero_reg));
     }
 
     // Initialize backtrack stack pointer.
     __ lw(backtrack_stackpointer(), MemOperand(frame_pointer(), kStackHighEnd));
-
+    // Initialize code pointer register
+    __ li(code_pointer(), Operand(masm_->CodeObject()), CONSTANT_SIZE);
+    // Load previous char as initial value of current character register.
+    Label at_start;
+    __ lw(a0, MemOperand(frame_pointer(), kAtStart));
+    __ Branch(&at_start, ne, a0, Operand(zero_reg));
+    LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
+    __ jmp(&start_label_);
+    __ bind(&at_start);
+    __ li(current_character(), Operand('\n'));
     __ jmp(&start_label_);
 
 
@@ -788,10 +776,6 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
         for (int i = 0; i < num_saved_registers_; i += 2) {
           __ lw(a2, register_location(i));
           __ lw(a3, register_location(i + 1));
-          if (global()) {
-            // Keep capture start in a4 for the zero-length check later.
-            __ mov(t7, a2);
-          }
           if (mode_ == UC16) {
             __ sra(a2, a2, 1);
             __ Addu(a2, a2, a1);
@@ -807,52 +791,10 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
           __ Addu(a0, a0, kPointerSize);
         }
       }
-
-      if (global()) {
-        // Restart matching if the regular expression is flagged as global.
-        __ lw(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
-        __ lw(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
-        __ lw(a2, MemOperand(frame_pointer(), kRegisterOutput));
-        // Increment success counter.
-        __ Addu(a0, a0, 1);
-        __ sw(a0, MemOperand(frame_pointer(), kSuccessfulCaptures));
-        // Capture results have been stored, so the number of remaining global
-        // output registers is reduced by the number of stored captures.
-        __ Subu(a1, a1, num_saved_registers_);
-        // Check whether we have enough room for another set of capture results.
-        __ mov(v0, a0);
-        __ Branch(&return_v0, lt, a1, Operand(num_saved_registers_));
-
-        __ sw(a1, MemOperand(frame_pointer(), kNumOutputRegisters));
-        // Advance the location for output.
-        __ Addu(a2, a2, num_saved_registers_ * kPointerSize);
-        __ sw(a2, MemOperand(frame_pointer(), kRegisterOutput));
-
-        // Prepare a0 to initialize registers with its value in the next run.
-        __ lw(a0, MemOperand(frame_pointer(), kInputStartMinusOne));
-        // Special case for zero-length matches.
-        // t7: capture start index
-        // Not a zero-length match, restart.
-        __ Branch(
-            &load_char_start_regexp, ne, current_input_offset(), Operand(t7));
-        // Offset from the end is zero if we already reached the end.
-        __ Branch(&exit_label_, eq, current_input_offset(), Operand(zero_reg));
-        // Advance current position after a zero-length match.
-        __ Addu(current_input_offset(),
-                current_input_offset(),
-                Operand((mode_ == UC16) ? 2 : 1));
-        __ Branch(&load_char_start_regexp);
-      } else {
-        __ li(v0, Operand(SUCCESS));
-      }
+      __ li(v0, Operand(SUCCESS));
     }
     // Exit and return v0.
     __ bind(&exit_label_);
-    if (global()) {
-      __ lw(v0, MemOperand(frame_pointer(), kSuccessfulCaptures));
-    }
-
-    __ bind(&return_v0);
     // Skip sp past regexp registers and local variables..
     __ mov(sp, frame_pointer());
     // Restore registers s0..s7 and return (restoring ra to pc).
@@ -878,7 +820,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ MultiPop(regexp_registers_to_retain);
       // If returning non-zero, we should end execution with the given
       // result as return value.
-      __ Branch(&return_v0, ne, v0, Operand(zero_reg));
+      __ Branch(&exit_label_, ne, v0, Operand(zero_reg));
 
       // String might have moved: Reload end of string from frame.
       __ lw(end_of_input_address(), MemOperand(frame_pointer(), kInputEnd));
@@ -922,7 +864,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
       __ bind(&exit_with_exception);
       // Exit with Result EXCEPTION(-1) to signal thrown exception.
       __ li(v0, Operand(EXCEPTION));
-      __ jmp(&return_v0);
+      __ jmp(&exit_label_);
     }
   }
 
@@ -1070,9 +1012,8 @@ void RegExpMacroAssemblerMIPS::SetRegister(int register_index, int to) {
 }
 
 
-bool RegExpMacroAssemblerMIPS::Succeed() {
+void RegExpMacroAssemblerMIPS::Succeed() {
   __ jmp(&success_label_);
-  return global();
 }
 
 
@@ -1339,9 +1280,8 @@ void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
                                                              int characters) {
   Register offset = current_input_offset();
   if (cp_offset != 0) {
-    // t7 is not being used to store the capture start index at this point.
-    __ Addu(t7, current_input_offset(), Operand(cp_offset * char_size()));
-    offset = t7;
+    __ Addu(a0, current_input_offset(), Operand(cp_offset * char_size()));
+    offset = a0;
   }
   // We assume that we cannot do unaligned loads on MIPS, so this function
   // must only be used to load a single character at a time.

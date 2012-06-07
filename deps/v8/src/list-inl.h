@@ -137,14 +137,6 @@ bool List<T, P>::RemoveElement(const T& elm) {
 
 
 template<typename T, class P>
-void List<T, P>::Allocate(int length) {
-  DeleteData(data_);
-  Initialize(length);
-  length_ = length;
-}
-
-
-template<typename T, class P>
 void List<T, P>::Clear() {
   DeleteData(data_);
   Initialize(0);

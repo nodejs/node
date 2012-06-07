@@ -25,7 +25,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+var e = new Error();
+assertFalse(e.hasOwnProperty('message'));
+Error.prototype.toString = Object.prototype.toString;
+assertEquals("[object Error]", Error.prototype.toString());
+assertEquals(Object.prototype, Error.prototype.__proto__);
+
+// Check that error construction does not call setters for the
+// properties on error objects in prototypes.
+function fail() { assertTrue(false); };
+ReferenceError.prototype.__defineSetter__('stack', fail);
+ReferenceError.prototype.__defineSetter__('message', fail);
+ReferenceError.prototype.__defineSetter__('type', fail);
+ReferenceError.prototype.__defineSetter__('arguments', fail);
+var e0 = new ReferenceError();
+var e1 = new ReferenceError('123');
+assertTrue(e1.hasOwnProperty('message'));
+assertTrue(e0.hasOwnProperty('stack'));
+assertTrue(e1.hasOwnProperty('stack'));
+assertTrue(e0.hasOwnProperty('type'));
+assertTrue(e1.hasOwnProperty('type'));
+assertTrue(e0.hasOwnProperty('arguments'));
+assertTrue(e1.hasOwnProperty('arguments'));
+
+// Check that the name property on error prototypes is read-only and
+// dont-delete. This is not specified, but allowing overwriting the
+// name property with a getter can leaks error objects from different
+// script tags in the same context in a browser setting. We therefore
+// disallow changes to the name property on error objects.
+assertEquals("ReferenceError", ReferenceError.prototype.name);
+delete ReferenceError.prototype.name;
+assertEquals("ReferenceError", ReferenceError.prototype.name);
+ReferenceError.prototype.name = "not a reference error";
+assertEquals("ReferenceError", ReferenceError.prototype.name);
 
 // Check that message and name are not enumerable on Error objects.
 var desc = Object.getOwnPropertyDescriptor(Error.prototype, 'name');
@@ -43,75 +75,8 @@ assertFalse(desc['enumerable']);
 desc = Object.getOwnPropertyDescriptor(e, 'stack');
 assertFalse(desc['enumerable']);
 
-var e = new Error();
-assertFalse(e.hasOwnProperty('message'));
-
 // name is not tested above, but in addition we should have no enumerable
 // properties, so we simply assert that.
 for (var v in e) {
   assertUnreachable();
 }
-
-// Check that error construction does not call setters for the
-// properties on error objects in prototypes.
-function fail() { assertUnreachable(); };
-ReferenceError.prototype.__defineSetter__('name', fail);
-ReferenceError.prototype.__defineSetter__('message', fail);
-ReferenceError.prototype.__defineSetter__('type', fail);
-ReferenceError.prototype.__defineSetter__('arguments', fail);
-ReferenceError.prototype.__defineSetter__('stack', fail);
-
-var e = new ReferenceError();
-assertTrue(e.hasOwnProperty('stack'));
-assertTrue(e.hasOwnProperty('type'));
-assertTrue(e.hasOwnProperty('arguments'));
-
-var e = new ReferenceError('123');
-assertTrue(e.hasOwnProperty('message'));
-assertTrue(e.hasOwnProperty('stack'));
-assertTrue(e.hasOwnProperty('type'));
-assertTrue(e.hasOwnProperty('arguments'));
-
-var e = %MakeReferenceError("my_test_error", [0, 1]);
-assertTrue(e.hasOwnProperty('stack'));
-assertTrue(e.hasOwnProperty('type'));
-assertTrue(e.hasOwnProperty('arguments'));
-assertEquals("my_test_error", e.type)
-
-// Check that intercepting property access from toString is prevented for
-// compiler errors. This is not specified, but allowing interception
-// through a getter can leak error objects from different
-// script tags in the same context in a browser setting.
-var errors = [SyntaxError, ReferenceError, TypeError];
-for (var i in errors) {
-  var name = errors[i].prototype.toString();
-  // Monkey-patch prototype.
-  var props = ["name", "message", "type", "arguments", "stack"];
-  for (var j in props) {
-    errors[i].prototype.__defineGetter__(props[j], fail);
-  }
-  // String conversion should not invoke monkey-patched getters on prototype.
-  var e = new errors[i];
-  assertEquals(name, e.toString());
-  // Custom getters in actual objects are welcome.
-  e.__defineGetter__("name", function() { return "mine"; });
-  assertEquals("mine", e.toString());
-}
-
-// Monkey-patching non-static errors should still be observable.
-function MyError() {}
-MyError.prototype = new Error;
-var errors = [Error, RangeError, EvalError, URIError, MyError];
-for (var i in errors) {
-  errors[i].prototype.__defineGetter__("name", function() { return "my"; });
-  errors[i].prototype.__defineGetter__("message", function() { return "moo"; });
-  var e = new errors[i];
-  assertEquals("my: moo", e.toString());
-}
-
-
-Error.prototype.toString = Object.prototype.toString;
-assertEquals("[object Error]", Error.prototype.toString());
-assertEquals(Object.prototype, Error.prototype.__proto__);
-var e = new Error("foo");
-assertEquals("[object Error]", e.toString());

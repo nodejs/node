@@ -1287,19 +1287,12 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
                                           name, miss);
     ASSERT(holder_reg.is(receiver) || holder_reg.is(scratch1));
 
-    // Preserve the receiver register explicitly whenever it is different from
-    // the holder and it is needed should the interceptor return without any
-    // result. The CALLBACKS case needs the receiver to be passed into C++ code,
-    // the FIELD case might cause a miss during the prototype check.
-    bool must_perfrom_prototype_check = *interceptor_holder != lookup->holder();
-    bool must_preserve_receiver_reg = !receiver.is(holder_reg) &&
-        (lookup->type() == CALLBACKS || must_perfrom_prototype_check);
-
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
     {
       FrameScope frame_scope(masm(), StackFrame::INTERNAL);
-      if (must_preserve_receiver_reg) {
+      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+        // CALLBACKS case needs a receiver to be passed into C++ callback.
         __ Push(receiver, holder_reg, name_reg);
       } else {
         __ Push(holder_reg, name_reg);
@@ -1323,14 +1316,14 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       __ bind(&interceptor_failed);
       __ pop(name_reg);
       __ pop(holder_reg);
-      if (must_preserve_receiver_reg) {
+      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
         __ pop(receiver);
       }
       // Leave the internal frame.
     }
     // Check that the maps from interceptor's holder to lookup's holder
     // haven't changed.  And load lookup's holder into |holder| register.
-    if (must_perfrom_prototype_check) {
+    if (*interceptor_holder != lookup->holder()) {
       holder_reg = CheckPrototypes(interceptor_holder,
                                    holder_reg,
                                    Handle<JSObject>(lookup->holder()),
@@ -1585,29 +1578,16 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ jmp(&fast_object);
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
-        __ CheckFastSmiElements(a3, t3, &call_builtin);
+        __ CheckFastSmiOnlyElements(a3, t3, &call_builtin);
         // edx: receiver
         // r3: map
-        Label try_holey_map;
-        __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+        __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                                FAST_ELEMENTS,
-                                               a3,
-                                               t3,
-                                               &try_holey_map);
-        __ mov(a2, receiver);
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
-        __ jmp(&fast_object);
-
-        __ bind(&try_holey_map);
-        __ LoadTransitionedArrayMapConditional(FAST_HOLEY_SMI_ELEMENTS,
-                                               FAST_HOLEY_ELEMENTS,
                                                a3,
                                                t3,
                                                &call_builtin);
         __ mov(a2, receiver);
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
         __ bind(&fast_object);
       } else {
         __ CheckFastObjectElements(a3, a3, &call_builtin);
@@ -3385,12 +3365,9 @@ static bool IsElementTypeSigned(ElementsKind elements_kind) {
 
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -3524,11 +3501,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       }
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -3888,11 +3862,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -3956,11 +3927,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case EXTERNAL_FLOAT_ELEMENTS:
           case EXTERNAL_DOUBLE_ELEMENTS:
           case FAST_ELEMENTS:
-          case FAST_SMI_ELEMENTS:
+          case FAST_SMI_ONLY_ELEMENTS:
           case FAST_DOUBLE_ELEMENTS:
-          case FAST_HOLEY_ELEMENTS:
-          case FAST_HOLEY_SMI_ELEMENTS:
-          case FAST_HOLEY_DOUBLE_ELEMENTS:
           case DICTIONARY_ELEMENTS:
           case NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
@@ -4131,11 +4099,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case EXTERNAL_FLOAT_ELEMENTS:
           case EXTERNAL_DOUBLE_ELEMENTS:
           case FAST_ELEMENTS:
-          case FAST_SMI_ELEMENTS:
+          case FAST_SMI_ONLY_ELEMENTS:
           case FAST_DOUBLE_ELEMENTS:
-          case FAST_HOLEY_ELEMENTS:
-          case FAST_HOLEY_SMI_ELEMENTS:
-          case FAST_HOLEY_DOUBLE_ELEMENTS:
           case DICTIONARY_ELEMENTS:
           case NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
@@ -4314,7 +4279,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // Check that the key is a smi or a heap number convertible to a smi.
   GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
 
-  if (IsFastSmiElementsKind(elements_kind)) {
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(value_reg, &transition_elements_kind);
   }
 
@@ -4342,7 +4307,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
 
   __ bind(&finish_store);
 
-  if (IsFastSmiElementsKind(elements_kind)) {
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ Addu(scratch,
             elements_reg,
             Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4351,7 +4316,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ Addu(scratch, scratch, scratch2);
     __ sw(value_reg, MemOperand(scratch));
   } else {
-    ASSERT(IsFastObjectElementsKind(elements_kind));
+    ASSERT(elements_kind == FAST_ELEMENTS);
     __ Addu(scratch,
             elements_reg,
             Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4360,6 +4325,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ Addu(scratch, scratch, scratch2);
     __ sw(value_reg, MemOperand(scratch));
     __ mov(receiver_reg, value_reg);
+  ASSERT(elements_kind == FAST_ELEMENTS);
     __ RecordWrite(elements_reg,  // Object.
                    scratch,       // Address.
                    receiver_reg,  // Value.

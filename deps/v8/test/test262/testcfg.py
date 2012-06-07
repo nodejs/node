@@ -31,7 +31,6 @@ import os
 from os.path import join, exists
 import urllib
 import hashlib
-import sys
 import tarfile
 
 
@@ -121,11 +120,7 @@ class Test262TestConfiguration(test.TestConfiguration):
         os.remove(archive_name)
         raise Exception("Hash mismatch of test data file")
       archive = tarfile.open(archive_name, 'r:bz2')
-      if sys.platform in ('win32', 'cygwin'):
-        # Magic incantation to allow longer path names on Windows.
-        archive.extractall(u'\\\\?\\%s' % self.root)
-      else:
-        archive.extractall(self.root)
+      archive.extractall(join(self.root))
       os.rename(join(self.root, 'test262-%s' % revision), directory_name)
 
   def GetBuildRequirements(self):

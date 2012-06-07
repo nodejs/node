@@ -1581,29 +1581,16 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ jmp(&fast_object);
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
-        __ CheckFastSmiElements(r3, r7, &call_builtin);
+        __ CheckFastSmiOnlyElements(r3, r7, &call_builtin);
         // edx: receiver
         // r3: map
-        Label try_holey_map;
-        __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+        __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                                FAST_ELEMENTS,
-                                               r3,
-                                               r7,
-                                               &try_holey_map);
-        __ mov(r2, receiver);
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
-        __ jmp(&fast_object);
-
-        __ bind(&try_holey_map);
-        __ LoadTransitionedArrayMapConditional(FAST_HOLEY_SMI_ELEMENTS,
-                                               FAST_HOLEY_ELEMENTS,
                                                r3,
                                                r7,
                                                &call_builtin);
         __ mov(r2, receiver);
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
         __ bind(&fast_object);
       } else {
         __ CheckFastObjectElements(r3, r3, &call_builtin);
@@ -3385,11 +3372,8 @@ static bool IsElementTypeSigned(ElementsKind elements_kind) {
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
     case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -3513,11 +3497,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       }
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -3857,11 +3838,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -3924,11 +3902,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case EXTERNAL_FLOAT_ELEMENTS:
           case EXTERNAL_DOUBLE_ELEMENTS:
           case FAST_ELEMENTS:
-          case FAST_SMI_ELEMENTS:
+          case FAST_SMI_ONLY_ELEMENTS:
           case FAST_DOUBLE_ELEMENTS:
-          case FAST_HOLEY_ELEMENTS:
-          case FAST_HOLEY_SMI_ELEMENTS:
-          case FAST_HOLEY_DOUBLE_ELEMENTS:
           case DICTIONARY_ELEMENTS:
           case NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
@@ -4067,11 +4042,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           case EXTERNAL_FLOAT_ELEMENTS:
           case EXTERNAL_DOUBLE_ELEMENTS:
           case FAST_ELEMENTS:
-          case FAST_SMI_ELEMENTS:
+          case FAST_SMI_ONLY_ELEMENTS:
           case FAST_DOUBLE_ELEMENTS:
-          case FAST_HOLEY_ELEMENTS:
-          case FAST_HOLEY_SMI_ELEMENTS:
-          case FAST_HOLEY_DOUBLE_ELEMENTS:
           case DICTIONARY_ELEMENTS:
           case NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
@@ -4253,7 +4225,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // Check that the key is a smi or a heap number convertible to a smi.
   GenerateSmiKeyCheck(masm, key_reg, r4, r5, d1, &miss_force_generic);
 
-  if (IsFastSmiElementsKind(elements_kind)) {
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(value_reg, &transition_elements_kind);
   }
 
@@ -4281,7 +4253,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
               DONT_DO_SMI_CHECK);
 
   __ bind(&finish_store);
-  if (IsFastSmiElementsKind(elements_kind)) {
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ add(scratch,
            elements_reg,
            Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -4291,7 +4263,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
            Operand(key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
     __ str(value_reg, MemOperand(scratch));
   } else {
-    ASSERT(IsFastObjectElementsKind(elements_kind));
+    ASSERT(elements_kind == FAST_ELEMENTS);
     __ add(scratch,
            elements_reg,
            Operand(FixedArray::kHeaderSize - kHeapObjectTag));

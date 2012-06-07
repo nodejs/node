@@ -621,7 +621,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateMap(
       InstanceType instance_type,
       int instance_size,
-      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
+      ElementsKind elements_kind = FAST_ELEMENTS);
 
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
@@ -1342,7 +1342,7 @@ class Heap {
                                                      PretenureFlag pretenure);
 
   inline intptr_t PromotedTotalSize() {
-    return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
+    return PromotedSpaceSize() + PromotedExternalMemorySize();
   }
 
   // True if we have reached the allocation limit in the old generation that
@@ -1362,6 +1362,19 @@ class Heap {
   static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
   static const intptr_t kMinimumAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
+
+  // When we sweep lazily we initially guess that there is no garbage on the
+  // heap and set the limits for the next GC accordingly.  As we sweep we find
+  // out that some of the pages contained garbage and we have to adjust
+  // downwards the size of the heap.  This means the limits that control the
+  // timing of the next GC also need to be adjusted downwards.
+  void LowerOldGenLimits(intptr_t adjustment) {
+    size_of_old_gen_at_last_old_space_gc_ -= adjustment;
+    old_gen_promotion_limit_ =
+        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
+    old_gen_allocation_limit_ =
+        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
+  }
 
   intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
     const int divisor = FLAG_stress_compaction ? 10 : 3;
@@ -1455,7 +1468,7 @@ class Heap {
     intptr_t adjusted_allocation_limit =
         old_gen_allocation_limit_ - new_space_.Capacity() / 5;
 
-    if (PromotedSpaceSizeOfObjects() >= adjusted_allocation_limit) return true;
+    if (PromotedSpaceSize() >= adjusted_allocation_limit) return true;
 
     return false;
   }
@@ -1493,6 +1506,7 @@ class Heap {
   GCTracer* tracer() { return tracer_; }
 
   // Returns the size of objects residing in non new spaces.
+  intptr_t PromotedSpaceSize();
   intptr_t PromotedSpaceSizeOfObjects();
 
   double total_regexp_code_generated() { return total_regexp_code_generated_; }

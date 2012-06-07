@@ -73,7 +73,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 // -------------------------------------------------------------------------
 // Code generators
 
-void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
+void ElementsTransitionGenerator::GenerateSmiOnlyToObject(
     MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -96,7 +96,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 }
 
 
-void ElementsTransitionGenerator::GenerateSmiToDouble(
+void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
     MacroAssembler* masm, Label* fail) {
   // ----------- S t a t e -------------
   //  -- r0    : value

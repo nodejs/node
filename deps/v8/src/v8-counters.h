@@ -236,6 +236,8 @@ namespace internal {
   SC(math_sin, V8.MathSin)                                            \
   SC(math_sqrt, V8.MathSqrt)                                          \
   SC(math_tan, V8.MathTan)                                            \
+  SC(array_bounds_checks_seen, V8.ArrayBoundsChecksSeen)              \
+  SC(array_bounds_checks_removed, V8.ArrayBoundsChecksRemoved)        \
   SC(transcendental_cache_hit, V8.TranscendentalCacheHit)             \
   SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)           \
   SC(stack_interrupts, V8.StackInterrupts)                            \

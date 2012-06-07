@@ -26,8 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// Defined when linking against shared lib on Windows.
-#if defined(USING_V8_SHARED) && !defined(V8_SHARED)
+#ifdef USING_V8_SHARED  // Defined when linking against shared lib on Windows.
 #define V8_SHARED
 #endif
 
@@ -316,8 +315,8 @@ static size_t convertToUint(Local<Value> value_in, TryCatch* try_catch) {
 }
 
 
-const char kArrayBufferMarkerPropName[] = "_is_array_buffer_";
-const char kArrayBufferReferencePropName[] = "_array_buffer_ref_";
+const char kArrayBufferReferencePropName[] = "_is_array_buffer_";
+const char kArrayBufferMarkerPropName[] = "_array_buffer_ref_";
 
 static const int kExternalArrayAllocationHeaderSize = 2;
 
@@ -354,11 +353,10 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
 
   Local<Value> length_value = (args.Length() < 3)
       ? (first_arg_is_array_buffer
-         ? args[0]->ToObject()->Get(String::New("byteLength"))
+         ? args[0]->ToObject()->Get(String::New("length"))
          : args[0])
       : args[2];
-  size_t byteLength = convertToUint(length_value, &try_catch);
-  size_t length = byteLength;
+  size_t length = convertToUint(length_value, &try_catch);
   if (try_catch.HasCaught()) return try_catch.Exception();
 
   void* data = NULL;
@@ -370,7 +368,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     data = derived_from->GetIndexedPropertiesExternalArrayData();
 
     size_t array_buffer_length = convertToUint(
-        derived_from->Get(String::New("byteLength")),
+        derived_from->Get(String::New("length")),
         &try_catch);
     if (try_catch.HasCaught()) return try_catch.Exception();
 
@@ -453,20 +451,10 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   array->SetIndexedPropertiesToExternalArrayData(
       reinterpret_cast<uint8_t*>(data) + offset, type,
       static_cast<int>(length));
-  array->Set(String::New("byteLength"),
-             Int32::New(static_cast<int32_t>(byteLength)), ReadOnly);
-  if (!is_array_buffer_construct) {
-    array->Set(String::New("length"),
-               Int32::New(static_cast<int32_t>(length)), ReadOnly);
-    array->Set(String::New("byteOffset"),
-               Int32::New(static_cast<int32_t>(offset)), ReadOnly);
-    array->Set(String::New("BYTES_PER_ELEMENT"),
-               Int32::New(static_cast<int32_t>(element_size)));
-    // We currently support 'buffer' property only if constructed from a buffer.
-    if (first_arg_is_array_buffer) {
-      array->Set(String::New("buffer"), args[0], ReadOnly);
-    }
-  }
+  array->Set(String::New("length"),
+             Int32::New(static_cast<int32_t>(length)), ReadOnly);
+  array->Set(String::New("BYTES_PER_ELEMENT"),
+             Int32::New(static_cast<int32_t>(element_size)));
   return array;
 }
 
@@ -834,8 +822,8 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   global_template->Set(String::New("print"), FunctionTemplate::New(Print));
   global_template->Set(String::New("write"), FunctionTemplate::New(Write));
   global_template->Set(String::New("read"), FunctionTemplate::New(Read));
-  global_template->Set(String::New("readbuffer"),
-                       FunctionTemplate::New(ReadBuffer));
+  global_template->Set(String::New("readbinary"),
+                       FunctionTemplate::New(ReadBinary));
   global_template->Set(String::New("readline"),
                        FunctionTemplate::New(ReadLine));
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
@@ -1054,29 +1042,20 @@ static char* ReadChars(const char* name, int* size_out) {
 }
 
 
-Handle<Value> Shell::ReadBuffer(const Arguments& args) {
+Handle<Value> Shell::ReadBinary(const Arguments& args) {
   String::Utf8Value filename(args[0]);
-  int length;
+  int size;
   if (*filename == NULL) {
     return ThrowException(String::New("Error loading file"));
   }
-  char* data = ReadChars(*filename, &length);
-  if (data == NULL) {
+  char* chars = ReadChars(*filename, &size);
+  if (chars == NULL) {
     return ThrowException(String::New("Error reading file"));
   }
-
-  Handle<Object> buffer = Object::New();
-  buffer->Set(String::New(kArrayBufferMarkerPropName), True(), ReadOnly);
-
-  Persistent<Object> persistent_buffer = Persistent<Object>::New(buffer);
-  persistent_buffer.MakeWeak(data, ExternalArrayWeakCallback);
-  persistent_buffer.MarkIndependent();
-
-  buffer->SetIndexedPropertiesToExternalArrayData(
-      reinterpret_cast<uint8_t*>(data), kExternalUnsignedByteArray, length);
-  buffer->Set(String::New("byteLength"),
-             Int32::New(static_cast<int32_t>(length)), ReadOnly);
-  return buffer;
+  // We skip checking the string for UTF8 characters and use it raw as
+  // backing store for the external string with 8-bit characters.
+  BinaryResource* resource = new BinaryResource(chars, size);
+  return String::NewExternal(resource);
 }
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2012 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -55,9 +55,6 @@ def BuildOptions():
                     default='out')
   result.add_option("--no-presubmit",
                     help='Skip presubmit checks',
-                    default=False, action="store_true")
-  result.add_option("--buildbot",
-                    help='Adapt to path structure used on buildbots',
                     default=False, action="store_true")
 
   # Flags this wrapper script handles itself:
@@ -147,16 +144,14 @@ def ProcessOptions(options):
     options.mode = options.mode.split(',')
     options.arch = options.arch.split(',')
   for mode in options.mode:
-    if not mode.lower() in ['debug', 'release']:
+    if not mode in ['debug', 'release']:
       print "Unknown mode %s" % mode
       return False
   for arch in options.arch:
     if not arch in ['ia32', 'x64', 'arm', 'mips']:
       print "Unknown architecture %s" % arch
       return False
-  if options.buildbot:
-    # Buildbots run presubmit tests as a separate step.
-    options.no_presubmit = True
+
   return True
 
 
@@ -218,37 +213,28 @@ def Main():
     return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  returncodes = 0
 
   if not options.no_presubmit:
     print ">>> running presubmit tests"
-    returncodes += subprocess.call([workspace + '/tools/presubmit.py'])
+    subprocess.call([workspace + '/tools/presubmit.py'])
 
-  args_for_children = ['python']
-  args_for_children += [workspace + '/tools/test.py'] + PassOnOptions(options)
+  args_for_children = [workspace + '/tools/test.py'] + PassOnOptions(options)
   args_for_children += ['--no-build', '--build-system=gyp']
   for arg in args:
     args_for_children += [arg]
+  returncodes = 0
   env = os.environ
 
   for mode in options.mode:
     for arch in options.arch:
       print ">>> running tests for %s.%s" % (arch, mode)
-      if options.buildbot:
-        shellpath = workspace + '/' + options.outdir + '/' + mode
-        mode = mode.lower()
-      else:
-        shellpath = workspace + '/' + options.outdir + '/' + arch + '.' + mode
+      shellpath = workspace + '/' + options.outdir + '/' + arch + '.' + mode
       env['LD_LIBRARY_PATH'] = shellpath + '/lib.target'
       shell = shellpath + "/d8"
-      cmdline = ' '.join(args_for_children +
-                         ['--arch=' + arch] +
-                         ['--mode=' + mode] +
-                         ['--shell=' + shell])
-      # TODO(jkummerow): This print is temporary.
-      print "Executing: %s" % cmdline
-
-      child = subprocess.Popen(cmdline,
+      child = subprocess.Popen(' '.join(args_for_children +
+                                        ['--arch=' + arch] +
+                                        ['--mode=' + mode] +
+                                        ['--shell=' + shell]),
                                shell=True,
                                cwd=workspace,
                                env=env)

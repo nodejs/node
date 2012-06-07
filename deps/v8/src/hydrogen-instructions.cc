@@ -1603,7 +1603,6 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
   SetOperandAt(1, object);
   set_representation(Representation::Tagged());
   SetGVNFlag(kDependsOnMaps);
-  int map_transitions = 0;
   for (int i = 0;
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
@@ -1625,20 +1624,13 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
         case CONSTANT_FUNCTION:
           types_.Add(types->at(i));
           break;
-        case MAP_TRANSITION:
-          // We should just ignore these since they are not relevant to a load
-          // operation.  This means we will deopt if we actually see this map
-          // from optimized code.
-          map_transitions++;
-          break;
         default:
           break;
       }
     }
   }
 
-  if (types_.length() + map_transitions == types->length() &&
-      FLAG_deoptimize_uncommon_cases) {
+  if (types_.length() == types->length() && FLAG_deoptimize_uncommon_cases) {
     SetFlag(kUseGVN);
   } else {
     SetAllSideEffects();
@@ -1685,9 +1677,6 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
-  if (hole_check_mode_ == PERFORM_HOLE_CHECK) {
-    stream->Add(" check_hole");
-  }
 }
 
 
@@ -1739,7 +1728,7 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
         HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
             index_cache,
             key_load->key(),
-            OMIT_HOLE_CHECK);
+            HLoadKeyedFastElement::OMIT_HOLE_CHECK);
         HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
             object(), index);
         map_check->InsertBefore(this);
@@ -1787,11 +1776,8 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
       stream->Add("pixel");
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -1888,12 +1874,9 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
     case EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
       break;
-    case FAST_SMI_ELEMENTS:
+    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -1908,13 +1891,7 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
 
 void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  ElementsKind from_kind = original_map()->elements_kind();
-  ElementsKind to_kind = transitioned_map()->elements_kind();
-  stream->Add(" %p [%s] -> %p [%s]",
-              *original_map(),
-              ElementsAccessor::ForKind(from_kind)->name(),
-              *transitioned_map(),
-              ElementsAccessor::ForKind(to_kind)->name());
+  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
 }
 
 

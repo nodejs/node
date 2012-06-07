@@ -58,20 +58,29 @@
                 # has some sources to link into the component.
                 '../../src/v8dll-main.cc',
               ],
-              'defines': [
-                'V8_SHARED',
-                'BUILDING_V8_SHARED',
-              ],
-              'direct_dependent_settings': {
-                'defines': [
-                  'V8_SHARED',
-                  'USING_V8_SHARED',
-                ],
-              },
               'conditions': [
                 ['OS=="mac"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
+                  },
+                }],
+                ['OS=="win"', {
+                  'defines': [
+                    'BUILDING_V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'USING_V8_SHARED',
+                    ],
+                  },
+                }, {
+                  'defines': [
+                    'V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'V8_SHARED',
+                    ],
                   },
                 }],
                 ['soname_version!=""', {
@@ -101,16 +110,27 @@
               'dependencies': ['mksnapshot', 'js2c'],
             }],
             ['component=="shared_library"', {
-              'defines': [
-                'V8_SHARED',
-                'BUILDING_V8_SHARED',
+              'conditions': [
+                ['OS=="win"', {
+                  'defines': [
+                    'BUILDING_V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'USING_V8_SHARED',
+                    ],
+                  },
+                }, {
+                  'defines': [
+                    'V8_SHARED',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'V8_SHARED',
+                    ],
+                  },
+                }],
               ],
-              'direct_dependent_settings': {
-                'defines': [
-                  'V8_SHARED',
-                  'USING_V8_SHARED',
-                ],
-              },
             }],
           ],
           'dependencies': [
@@ -295,8 +315,6 @@
             '../../src/dtoa.h',
             '../../src/elements.cc',
             '../../src/elements.h',
-            '../../src/elements-kind.cc',
-            '../../src/elements-kind.h',
             '../../src/execution.cc',
             '../../src/execution.h',
             '../../src/factory.cc',

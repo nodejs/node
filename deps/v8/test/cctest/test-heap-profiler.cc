@@ -7,7 +7,6 @@
 #include "v8.h"
 
 #include "cctest.h"
-#include "hashmap.h"
 #include "heap-profiler.h"
 #include "snapshot.h"
 #include "debug.h"
@@ -28,30 +27,22 @@ class NamedEntriesDetector {
     if (strcmp(entry->name(), "C2") == 0) has_C2 = true;
   }
 
-  static bool AddressesMatch(void* key1, void* key2) {
-    return key1 == key2;
-  }
-
   void CheckAllReachables(i::HeapEntry* root) {
-    i::HashMap visited(AddressesMatch);
     i::List<i::HeapEntry*> list(10);
     list.Add(root);
+    root->paint();
     CheckEntry(root);
     while (!list.is_empty()) {
       i::HeapEntry* entry = list.RemoveLast();
-      i::Vector<i::HeapGraphEdge*> children = entry->children();
+      i::Vector<i::HeapGraphEdge> children = entry->children();
       for (int i = 0; i < children.length(); ++i) {
-        if (children[i]->type() == i::HeapGraphEdge::kShortcut) continue;
-        i::HeapEntry* child = children[i]->to();
-        i::HashMap::Entry* entry = visited.Lookup(
-            reinterpret_cast<void*>(child),
-            static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)),
-            true);
-        if (entry->value)
-          continue;
-        entry->value = reinterpret_cast<void*>(1);
-        list.Add(child);
-        CheckEntry(child);
+        if (children[i].type() == i::HeapGraphEdge::kShortcut) continue;
+        i::HeapEntry* child = children[i].to();
+        if (!child->painted()) {
+          list.Add(child);
+          child->paint();
+          CheckEntry(child);
+        }
       }
     }
   }
@@ -114,6 +105,9 @@ TEST(HeapSnapshot) {
       "var c2 = new C2(a2);");
   const v8::HeapSnapshot* snapshot_env2 =
       v8::HeapProfiler::TakeSnapshot(v8_str("env2"));
+  i::HeapSnapshot* i_snapshot_env2 =
+      const_cast<i::HeapSnapshot*>(
+          reinterpret_cast<const i::HeapSnapshot*>(snapshot_env2));
   const v8::HeapGraphNode* global_env2 = GetGlobalObject(snapshot_env2);
 
   // Verify, that JS global object of env2 has '..2' properties.
@@ -126,7 +120,9 @@ TEST(HeapSnapshot) {
       NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "b2_2"));
   CHECK_NE(NULL, GetProperty(global_env2, v8::HeapGraphEdge::kProperty, "c2"));
 
+  // Paint all nodes reachable from global object.
   NamedEntriesDetector det;
+  i_snapshot_env2->ClearPaint();
   det.CheckAllReachables(const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(global_env2)));
   CHECK(det.has_A2);
@@ -160,9 +156,9 @@ TEST(HeapSnapshotObjectSizes) {
   CHECK_NE(NULL, x2);
 
   // Test sizes.
-  CHECK_NE(0, x->GetSelfSize());
-  CHECK_NE(0, x1->GetSelfSize());
-  CHECK_NE(0, x2->GetSelfSize());
+  CHECK_EQ(x->GetSelfSize() * 3, x->GetRetainedSize());
+  CHECK_EQ(x1->GetSelfSize(), x1->GetRetainedSize());
+  CHECK_EQ(x2->GetSelfSize(), x2->GetRetainedSize());
 }
 
 
@@ -478,6 +474,66 @@ TEST(HeapSnapshotRootPreservedAfterSorting) {
       snapshot))->GetSortedEntriesList();
   const v8::HeapGraphNode* root2 = snapshot->GetRoot();
   CHECK_EQ(root1, root2);
+}
+
+
+TEST(HeapEntryDominator) {
+  // The graph looks like this:
+  //
+  //                   -> node1
+  //                  a    |^
+  //          -> node5     ba
+  //         a             v|
+  //   node6           -> node2
+  //         b        a    |^
+  //          -> node4     ba
+  //                  b    v|
+  //                   -> node3
+  //
+  // The dominator for all nodes is node6.
+
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "function X(a, b) { this.a = a; this.b = b; }\n"
+      "node6 = new X(new X(new X()), new X(new X(),new X()));\n"
+      "(function(){\n"
+      "node6.a.a.b = node6.b.a;  // node1 -> node2\n"
+      "node6.b.a.a = node6.a.a;  // node2 -> node1\n"
+      "node6.b.a.b = node6.b.b;  // node2 -> node3\n"
+      "node6.b.b.a = node6.b.a;  // node3 -> node2\n"
+      "})();");
+
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("dominators"));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* node6 =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "node6");
+  CHECK_NE(NULL, node6);
+  const v8::HeapGraphNode* node5 =
+      GetProperty(node6, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, node5);
+  const v8::HeapGraphNode* node4 =
+      GetProperty(node6, v8::HeapGraphEdge::kProperty, "b");
+  CHECK_NE(NULL, node4);
+  const v8::HeapGraphNode* node3 =
+      GetProperty(node4, v8::HeapGraphEdge::kProperty, "b");
+  CHECK_NE(NULL, node3);
+  const v8::HeapGraphNode* node2 =
+      GetProperty(node4, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, node2);
+  const v8::HeapGraphNode* node1 =
+      GetProperty(node5, v8::HeapGraphEdge::kProperty, "a");
+  CHECK_NE(NULL, node1);
+
+  CHECK_EQ(node6, node1->GetDominatorNode());
+  CHECK_EQ(node6, node2->GetDominatorNode());
+  CHECK_EQ(node6, node3->GetDominatorNode());
+  CHECK_EQ(node6, node4->GetDominatorNode());
+  CHECK_EQ(node6, node5->GetDominatorNode());
 }
 
 

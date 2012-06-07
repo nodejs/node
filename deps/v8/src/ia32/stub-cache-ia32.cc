@@ -1462,31 +1462,16 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ jmp(&fast_object);
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
-        __ CheckFastSmiElements(ebx, &call_builtin);
+        __ CheckFastSmiOnlyElements(ebx, &call_builtin);
         // edi: elements array
         // edx: receiver
         // ebx: map
-        Label try_holey_map;
-        __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+        __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
                                                FAST_ELEMENTS,
                                                ebx,
                                                edi,
-                                               &try_holey_map);
-
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
-        // Restore edi.
-        __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
-        __ jmp(&fast_object);
-
-        __ bind(&try_holey_map);
-        __ LoadTransitionedArrayMapConditional(FAST_HOLEY_SMI_ELEMENTS,
-                                               FAST_HOLEY_ELEMENTS,
-                                               ebx,
-                                               edi,
                                                &call_builtin);
-        ElementsTransitionGenerator::
-            GenerateMapChangeElementsTransition(masm());
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
         // Restore edi.
         __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
         __ bind(&fast_object);
@@ -3833,7 +3818,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // Check that the key is a smi or a heap number convertible to a smi.
   GenerateSmiKeyCheck(masm, ecx, ebx, xmm0, xmm1, &miss_force_generic);
 
-  if (IsFastSmiElementsKind(elements_kind)) {
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(eax, &transition_elements_kind);
   }
 
@@ -3858,7 +3843,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   __ j(not_equal, &miss_force_generic);
 
   __ bind(&finish_store);
-  if (IsFastSmiElementsKind(elements_kind)) {
+  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     // ecx is a smi, use times_half_pointer_size instead of
     // times_pointer_size
     __ mov(FieldOperand(edi,
@@ -3866,7 +3851,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
                         times_half_pointer_size,
                         FixedArray::kHeaderSize), eax);
   } else {
-    ASSERT(IsFastObjectElementsKind(elements_kind));
+    ASSERT(elements_kind == FAST_ELEMENTS);
     // Do the store and update the write barrier.
     // ecx is a smi, use times_half_pointer_size instead of
     // times_pointer_size

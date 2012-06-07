@@ -595,24 +595,12 @@ void ExternalStringTable::Iterate(ObjectVisitor* v) {
 void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    Object* obj = Object::cast(new_space_strings_[i]);
-    // TODO(yangguo): check that the object is indeed an external string.
-    ASSERT(heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
-    if (obj->IsExternalAsciiString()) {
-      ExternalAsciiString* string = ExternalAsciiString::cast(obj);
-      ASSERT(String::IsAscii(string->GetChars(), string->length()));
-    }
+    ASSERT(heap_->InNewSpace(new_space_strings_[i]));
+    ASSERT(new_space_strings_[i] != HEAP->raw_unchecked_the_hole_value());
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    Object* obj = Object::cast(old_space_strings_[i]);
-    // TODO(yangguo): check that the object is indeed an external string.
-    ASSERT(!heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
-    if (obj->IsExternalAsciiString()) {
-      ExternalAsciiString* string = ExternalAsciiString::cast(obj);
-      ASSERT(String::IsAscii(string->GetChars(), string->length()));
-    }
+    ASSERT(!heap_->InNewSpace(old_space_strings_[i]));
+    ASSERT(old_space_strings_[i] != HEAP->raw_unchecked_the_hole_value());
   }
 #endif
 }

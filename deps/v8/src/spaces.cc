@@ -2295,6 +2295,8 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
     first_unswept_page_ = p;
   }
 
+  heap()->LowerOldGenLimits(freed_bytes);
+
   heap()->FreeQueuedChunks();
 
   return IsSweepingComplete();

@@ -211,9 +211,6 @@ class StackFrame BASE_EMBEDDED {
 
   virtual void SetCallerFp(Address caller_fp) = 0;
 
-  // Manually changes value of fp in this object.
-  void UpdateFp(Address fp) { state_.fp = fp; }
-
   Address* pc_address() const { return state_.pc_address; }
 
   // Get the id of this stack frame.

@@ -231,8 +231,7 @@ class LCodeGen BASE_EMBEDDED {
       LOperand* elements_pointer,
       LOperand* key,
       ElementsKind elements_kind,
-      uint32_t offset,
-      uint32_t additional_index = 0);
+      uint32_t offset);
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);

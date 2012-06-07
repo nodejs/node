@@ -105,13 +105,13 @@ NeanderArray::NeanderArray(v8::internal::Handle<v8::internal::Object> obj)
 
 
 v8::internal::Object* NeanderObject::get(int offset) {
-  ASSERT(value()->HasFastObjectElements());
+  ASSERT(value()->HasFastElements());
   return v8::internal::FixedArray::cast(value()->elements())->get(offset);
 }
 
 
 void NeanderObject::set(int offset, v8::internal::Object* value) {
-  ASSERT(value_->HasFastObjectElements());
+  ASSERT(value_->HasFastElements());
   v8::internal::FixedArray::cast(value_->elements())->set(offset, value);
 }
 

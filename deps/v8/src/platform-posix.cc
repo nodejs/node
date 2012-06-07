@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -421,11 +421,7 @@ Socket* POSIXSocket::Accept() const {
     return NULL;
   }
 
-  int socket;
-  do {
-    socket = accept(socket_, NULL, NULL);
-  } while (socket == -1 && errno == EINTR);
-
+  int socket = accept(socket_, NULL, NULL);
   if (socket == -1) {
     return NULL;
   } else {
@@ -452,9 +448,7 @@ bool POSIXSocket::Connect(const char* host, const char* port) {
   }
 
   // Connect.
-  do {
-    status = connect(socket_, result->ai_addr, result->ai_addrlen);
-  } while (status == -1 && errno == EINTR);
+  status = connect(socket_, result->ai_addr, result->ai_addrlen);
   freeaddrinfo(result);
   return status == 0;
 }
@@ -473,29 +467,14 @@ bool POSIXSocket::Shutdown() {
 
 
 int POSIXSocket::Send(const char* data, int len) const {
-  if (len <= 0) return 0;
-  int written = 0;
-  while (written < len) {
-    int status = send(socket_, data + written, len - written, 0);
-    if (status == 0) {
-      break;
-    } else if (status > 0) {
-      written += status;
-    } else if (errno != EINTR) {
-      return 0;
-    }
-  }
-  return written;
+  int status = send(socket_, data, len, 0);
+  return status;
 }
 
 
 int POSIXSocket::Receive(char* data, int len) const {
-  if (len <= 0) return 0;
-  int status;
-  do {
-    status = recv(socket_, data, len, 0);
-  } while (status == -1 && errno == EINTR);
-  return (status < 0) ? 0 : status;
+  int status = recv(socket_, data, len, 0);
+  return status;
 }
 
 

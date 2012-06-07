@@ -38,11 +38,6 @@ import sys
 script_dir = os.path.dirname(__file__)
 v8_root = os.path.normpath(os.path.join(script_dir, os.pardir))
 
-if __name__ == '__main__':
-  os.chdir(v8_root)
-  script_dir = os.path.dirname(__file__)
-  v8_root = '.'
-
 sys.path.insert(0, os.path.join(v8_root, 'tools'))
 import utils
 
@@ -98,7 +93,7 @@ def additional_include_files(args=[]):
       result.append(path)
 
   # Always include standalone.gypi
-  AddInclude(os.path.join(v8_root, 'build', 'standalone.gypi'))
+  AddInclude(os.path.join(script_dir, 'standalone.gypi'))
 
   # Optionally add supplemental .gypi files if present.
   supplements = glob.glob(os.path.join(v8_root, '*', 'supplement.gypi'))
@@ -140,10 +135,7 @@ if __name__ == '__main__':
       # path separators even on Windows due to the use of shlex.split().
       args.extend(shlex.split(gyp_file))
     else:
-      # Note that this must not start with "./" or things break.
-      # So we rely on having done os.chdir(v8_root) above and use the
-      # relative path.
-      args.append(os.path.join('build', 'all.gyp'))
+      args.append(os.path.join(script_dir, 'all.gyp'))
 
   args.extend(['-I' + i for i in additional_include_files(args)])
 
@@ -164,6 +156,28 @@ if __name__ == '__main__':
 
   # Generate for the architectures supported on the given platform.
   gyp_args = list(args)
+  target_arch = None
+  for p in gyp_args:
+    if p.find('-Dtarget_arch=') == 0:
+      target_arch = p
+  if target_arch is None:
+    gyp_args.append('-Dtarget_arch=ia32')
   if utils.GuessOS() == 'linux':
-    gyp_args.append('--generator-output=out')
+    gyp_args.append('-S.ia32')
   run_gyp(gyp_args)
+
+  if utils.GuessOS() == 'linux':
+    gyp_args = list(args)
+    gyp_args.append('-Dtarget_arch=x64')
+    gyp_args.append('-S.x64')
+    run_gyp(gyp_args)
+
+    gyp_args = list(args)
+    gyp_args.append('-Dv8_target_arch=arm')
+    gyp_args.append('-S.arm')
+    run_gyp(gyp_args)
+
+    gyp_args = list(args)
+    gyp_args.append('-Dv8_target_arch=mips')
+    gyp_args.append('-S.mips')
+    run_gyp(gyp_args)

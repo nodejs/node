@@ -531,18 +531,18 @@ TEST(BootUpMemoryUse) {
   // there we just skip the test.
   if (initial_memory >= 0) {
     InitializeVM();
-    intptr_t delta = MemoryInUse() - initial_memory;
+    intptr_t booted_memory = MemoryInUse();
     if (sizeof(initial_memory) == 8) {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 3600 * 1024);  // 3396.
+        CHECK_LE(booted_memory - initial_memory, 3600 * 1024);  // 3396.
       } else {
-        CHECK_LE(delta, 4000 * 1024);  // 3948.
+        CHECK_LE(booted_memory - initial_memory, 3600 * 1024);  // 3432.
       }
     } else {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(delta, 2600 * 1024);  // 2484.
+        CHECK_LE(booted_memory - initial_memory, 2600 * 1024);  // 2484.
       } else {
-        CHECK_LE(delta, 2950 * 1024);  // 2844
+        CHECK_LE(booted_memory - initial_memory, 2950 * 1024);  // 2844
       }
     }
   }
