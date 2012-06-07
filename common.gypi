@@ -145,6 +145,10 @@
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],
+          [ 'target_arch=="x64"', {
+            'cflags': [ '-m64' ],
+            'ldflags': [ '-m64' ],
+          }],
           [ 'OS=="linux"', {
             'ldflags': [ '-rdynamic' ],
           }],
