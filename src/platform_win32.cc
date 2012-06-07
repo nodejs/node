@@ -155,7 +155,9 @@ static inline char* _getProcessTitle() {
   result = GetConsoleTitleW(title_w, sizeof(title_w) / sizeof(WCHAR));
 
   if (result == 0) {
-    winapi_perror("GetConsoleTitleW");
+    if (GetLastError() != ERROR_SUCCESS) {
+      winapi_perror("GetConsoleTitleW");
+    }
     return NULL;
   }
 
