@@ -258,6 +258,8 @@ The intention of calling `dispose` is generally to prevent cascading
 errors when a critical part of the Domain context is found to be in an
 error state.
 
+Once the domain is disposed the `dispose` event will emit.
+
 Note that IO might still be performed.  However, to the highest degree
 possible, once a domain is disposed, further errors from the emitters in
 that set will be ignored.  So, even if some remaining actions are still

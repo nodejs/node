@@ -28,7 +28,8 @@ var objects = { foo: 'bar', baz: {}, num: 42, arr: [1,2,3] };
 objects.baz.asdf = objects;
 
 var serverCaught = 0;
-var clientCaught = 0
+var clientCaught = 0;
+var disposeEmit = 0;
 
 var server = http.createServer(function(req, res) {
   var dom = domain.create();
@@ -84,6 +85,10 @@ function next() {
       dom.dispose();
     });
 
+    dom.on('dispose', function() {
+      disposeEmit += 1;
+    });
+
     var req = http.get({ host: 'localhost', port: common.PORT, path: p });
     dom.add(req);
     req.on('response', function(res) {
@@ -111,5 +116,6 @@ function next() {
 process.on('exit', function() {
   assert.equal(serverCaught, 2);
   assert.equal(clientCaught, 2);
+  assert.equal(disposeEmit, 2);
   console.log('ok');
 });
