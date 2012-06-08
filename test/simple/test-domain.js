@@ -199,6 +199,10 @@ d.run(function() {
   });
 });
 
+var result = d.run(function () {
+  return 'return value';
+});
+assert.equal(result, 'return value');
 
 
 var fst = fs.createReadStream('stream for nonexistent file')
