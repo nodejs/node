@@ -1,4 +1,3 @@
-#!/bin/bash
 # Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -26,38 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Checks that the number of compilation units having at least one static
-# initializer in d8 matches the one defined below.
-# Note that the project must be built with SCons before running this script.
-
-# Allow:
-#  - _GLOBAL__I__ZN2v810LineEditor6first_E
-#  - _GLOBAL__I__ZN2v88internal32AtomicOps_Internalx86CPUFeaturesE
-#  - _GLOBAL__I__ZN2v88internal8ThreadId18highest_thread_id_E
-expected_static_init_count=3
-
-v8_root=$(readlink -f $(dirname $BASH_SOURCE)/../)
-
-if [ -n "$1" ] ; then
-  d8="${v8_root}/$1"
-else
-  d8="${v8_root}/d8"
-fi
-
-if [ ! -f "$d8" ]; then
-  echo "d8 binary not found: $d8"
-  exit 1
-fi
-
-static_inits=$(nm "$d8" | grep _GLOBAL_ | grep _I_ | awk '{ print $NF; }')
-
-static_init_count=$(echo "$static_inits" | wc -l)
-
-if [ $static_init_count -gt $expected_static_init_count ]; then
-  echo "Too many static initializers."
-  echo "$static_inits"
-  exit 1
-else
-  echo "Static initializer check passed ($static_init_count initializers)."
-  exit 0
-fi
+{
+  'variables': {
+    'target_arch': 'ia32',
+    'v8_target_arch': 'mips',
+  },
+}

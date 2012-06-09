@@ -521,7 +521,6 @@ class ExistsInPrototypeContext: public DeclarationContext {
 
 
 TEST(ExistsInPrototype) {
-  i::FLAG_es52_globals = true;
   HandleScope scope;
 
   // Sanity check to make sure that the holder of the interceptor
@@ -536,17 +535,17 @@ TEST(ExistsInPrototype) {
 
   { ExistsInPrototypeContext context;
     context.Check("var x; x",
-                  0,  // get
+                  1,  // get
                   0,
-                  0,  // declaration
-                  EXPECT_RESULT, Undefined());
+                  1,  // declaration
+                  EXPECT_EXCEPTION);
   }
 
   { ExistsInPrototypeContext context;
     context.Check("var x = 0; x",
                   0,
                   0,
-                  0,  // declaration
+                  1,  // declaration
                   EXPECT_RESULT, Number::New(0));
   }
 
@@ -554,7 +553,7 @@ TEST(ExistsInPrototype) {
     context.Check("const x; x",
                   0,
                   0,
-                  0,  // declaration
+                  1,  // declaration
                   EXPECT_RESULT, Undefined());
   }
 
@@ -562,7 +561,7 @@ TEST(ExistsInPrototype) {
     context.Check("const x = 0; x",
                   0,
                   0,
-                  0,  // declaration
+                  1,  // declaration
                   EXPECT_RESULT, Number::New(0));
   }
 }
@@ -584,14 +583,13 @@ class AbsentInPrototypeContext: public DeclarationContext {
 
 
 TEST(AbsentInPrototype) {
-  i::FLAG_es52_globals = true;
   HandleScope scope;
 
   { AbsentInPrototypeContext context;
     context.Check("if (false) { var x = 0; }; x",
                   0,
                   0,
-                  0,  // declaration
+                  1,  // declaration
                   EXPECT_RESULT, Undefined());
   }
 }

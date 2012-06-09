@@ -172,10 +172,10 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 void Debug::GenerateLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for IC load call (from ic-ia32.cc).
   // ----------- S t a t e -------------
+  //  -- eax    : receiver
   //  -- ecx    : name
-  //  -- edx    : receiver
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ecx.bit() | edx.bit(), 0, false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | ecx.bit(), 0, false);
 }
 
 
@@ -194,10 +194,10 @@ void Debug::GenerateStoreICDebugBreak(MacroAssembler* masm) {
 void Debug::GenerateKeyedLoadICDebugBreak(MacroAssembler* masm) {
   // Register state for keyed IC load call (from ic-ia32.cc).
   // ----------- S t a t e -------------
-  //  -- ecx    : key
   //  -- edx    : receiver
+  //  -- eax    : key
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, ecx.bit() | edx.bit(), 0, false);
+  Generate_DebugBreakCallHelper(masm, eax.bit() | edx.bit(), 0, false);
 }
 
 

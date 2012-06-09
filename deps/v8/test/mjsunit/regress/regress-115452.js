@@ -27,21 +27,22 @@
 
 // Test that a function declaration cannot overwrite a read-only property.
 
-// Flags: --es52_globals
-
+print(0)
 function foobl() {}
 assertTrue(typeof this.foobl == "function");
 assertTrue(Object.getOwnPropertyDescriptor(this, "foobl").writable);
 
+print(1)
 Object.defineProperty(this, "foobl", {value: 1, writable: false});
 assertSame(1, this.foobl);
 assertFalse(Object.getOwnPropertyDescriptor(this, "foobl").writable);
 
-// This has to run in global scope, so cannot use assertThrows...
-try {
-  eval("function foobl() {}");  // Should throw.
-  assertUnreachable();
-} catch (e) {
-  assertInstanceof(e, TypeError);
-}
+print(2)
+eval("function foobl() {}");
 assertSame(1, this.foobl);
+assertFalse(Object.getOwnPropertyDescriptor(this, "foobl").writable);
+
+print(3)
+eval("function foobl() {}");
+assertSame(1, this.foobl);
+assertFalse(Object.getOwnPropertyDescriptor(this, "foobl").writable);

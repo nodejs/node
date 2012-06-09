@@ -1857,6 +1857,13 @@ static void RedirectActivationsToRecompiledCodeOnThread(
       // break slots.
       debug_break_slot_count++;
     }
+    if (frame_code->has_self_optimization_header() &&
+        !new_code->has_self_optimization_header()) {
+      delta -= FullCodeGenerator::self_optimization_header_size();
+    } else {
+      ASSERT(frame_code->has_self_optimization_header() ==
+             new_code->has_self_optimization_header());
+    }
     int debug_break_slot_bytes =
         debug_break_slot_count * Assembler::kDebugBreakSlotLength;
     if (FLAG_trace_deopt) {

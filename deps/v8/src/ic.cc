@@ -1053,33 +1053,18 @@ Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
 }
 
 
-static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
-  // This helper implements a few common fast cases for converting
-  // non-smi keys of keyed loads/stores to a smi or a string.
-  if (key->IsHeapNumber()) {
-    double value = Handle<HeapNumber>::cast(key)->value();
-    if (isnan(value)) {
-      key = isolate->factory()->nan_symbol();
-    } else {
-      int int_value = FastD2I(value);
-      if (value == int_value && Smi::IsValid(int_value)) {
-        key = Handle<Smi>(Smi::FromInt(int_value));
-      }
-    }
-  } else if (key->IsUndefined()) {
-    key = isolate->factory()->undefined_symbol();
-  }
-  return key;
-}
-
-
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
                                bool force_generic_stub) {
-  // Check for values that can be converted into a symbol directly or
-  // is representable as a smi.
-  key = TryConvertKey(key, isolate());
+  // Check for values that can be converted into a symbol.
+  // TODO(1295): Remove this code.
+  if (key->IsHeapNumber() &&
+      isnan(Handle<HeapNumber>::cast(key)->value())) {
+    key = isolate()->factory()->nan_symbol();
+  } else if (key->IsUndefined()) {
+    key = isolate()->factory()->undefined_symbol();
+  }
 
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
@@ -1776,10 +1761,6 @@ MaybeObject* KeyedStoreIC::Store(State state,
                                  Handle<Object> key,
                                  Handle<Object> value,
                                  bool force_generic) {
-  // Check for values that can be converted into a symbol directly or
-  // is representable as a smi.
-  key = TryConvertKey(key, isolate());
-
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 

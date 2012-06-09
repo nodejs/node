@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -245,8 +245,6 @@ class Debug {
   bool IsBreakOnException(ExceptionBreakType type);
   void PrepareStep(StepAction step_action, int step_count);
   void ClearStepping();
-  void ClearStepOut();
-  bool IsStepping() { return thread_local_.step_count_ > 0; }
   bool StepNextContinue(BreakLocationIterator* break_location_iterator,
                         JavaScriptFrame* frame);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
@@ -466,6 +464,7 @@ class Debug {
   void ActivateStepIn(StackFrame* frame);
   void ClearStepIn();
   void ActivateStepOut(StackFrame* frame);
+  void ClearStepOut();
   void ClearStepNext();
   // Returns whether the compile succeeded.
   void RemoveDebugInfo(Handle<DebugInfo> debug_info);

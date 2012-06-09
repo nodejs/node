@@ -95,12 +95,6 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
 }
 
 
-HeapEntry* HeapGraphEdge::from() const {
-  return const_cast<HeapEntry*>(
-      reinterpret_cast<const HeapEntry*>(this - child_index_) - 1);
-}
-
-
 SnapshotObjectId HeapObjectsMap::GetNthGcSubrootId(int delta) {
   return kGcRootsFirstSubrootId + delta * kObjectIdStep;
 }

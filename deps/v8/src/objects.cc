@@ -1338,7 +1338,6 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_MODULE_TYPE:
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
@@ -2322,7 +2321,7 @@ Object* Map::GetDescriptorContents(String* sentinel_name,
   }
   // If the transition already exists, return its descriptor.
   if (index != DescriptorArray::kNotFound) {
-    PropertyDetails details = descriptors->GetDetails(index);
+    PropertyDetails details(descriptors->GetDetails(index));
     if (details.type() == ELEMENTS_TRANSITION) {
       return descriptors->GetValue(index);
     } else {
@@ -3026,6 +3025,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     String* name,
     Object* value,
     PropertyAttributes attributes) {
+
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -3094,6 +3094,7 @@ MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
       return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case HANDLER:
       UNREACHABLE();
+      return value;
   }
   UNREACHABLE();  // keep the compiler happy
   return value;
@@ -3344,7 +3345,7 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 
   DescriptorArray* descs = map_of_this->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     switch (details.type()) {
       case CONSTANT_FUNCTION: {
         PropertyDetails d =
@@ -3752,11 +3753,13 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
   MaybeObject* dict_alloc = StringDictionary::Allocate(kInitialSize);
   StringDictionary* dictionary;
   if (!dict_alloc->To<StringDictionary>(&dictionary)) return dict_alloc;
-  // Using AddProperty or SetPropertyPostInterceptor here could fail, because
-  // object might be non-extensible.
-  return HasFastProperties()
-      ? AddFastProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM)
-      : AddSlowProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM);
+  MaybeObject* store_result =
+      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+                                 dictionary,
+                                 DONT_ENUM,
+                                 kNonStrictMode);
+  if (store_result->IsFailure()) return store_result;
+  return dictionary;
 }
 
 
@@ -4206,7 +4209,7 @@ int Map::NumberOfDescribedProperties(PropertyAttributes filter) {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    PropertyDetails details = descs->GetDetails(i);
+    PropertyDetails details(descs->GetDetails(i));
     if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
       result++;
     }
@@ -4409,29 +4412,37 @@ MaybeObject* JSObject::DefineElementAccessor(uint32_t index,
 }
 
 
-MaybeObject* JSObject::CreateAccessorPairFor(String* name) {
-  LookupResult result(GetHeap()->isolate());
-  LocalLookupRealNamedProperty(name, &result);
-  if (result.IsProperty() && result.type() == CALLBACKS) {
-    ASSERT(!result.IsDontDelete());
-    Object* obj = result.GetCallbackObject();
-    if (obj->IsAccessorPair()) {
-      return AccessorPair::cast(obj)->CopyWithoutTransitions();
-    }
-  }
-  return GetHeap()->AllocateAccessorPair();
-}
-
-
 MaybeObject* JSObject::DefinePropertyAccessor(String* name,
                                               Object* getter,
                                               Object* setter,
                                               PropertyAttributes attributes) {
+  // Lookup the name.
+  LookupResult result(GetHeap()->isolate());
+  LocalLookupRealNamedProperty(name, &result);
+  if (result.IsFound()) {
+    if (result.type() == CALLBACKS) {
+      ASSERT(!result.IsDontDelete());
+      Object* obj = result.GetCallbackObject();
+      // Need to preserve old getters/setters.
+      if (obj->IsAccessorPair()) {
+        AccessorPair* copy;
+        { MaybeObject* maybe_copy =
+              AccessorPair::cast(obj)->CopyWithoutTransitions();
+          if (!maybe_copy->To(&copy)) return maybe_copy;
+        }
+        copy->SetComponents(getter, setter);
+        // Use set to update attributes.
+        return SetPropertyCallback(name, copy, attributes);
+      }
+    }
+  }
+
   AccessorPair* accessors;
-  { MaybeObject* maybe_accessors = CreateAccessorPairFor(name);
+  { MaybeObject* maybe_accessors = GetHeap()->AllocateAccessorPair();
     if (!maybe_accessors->To(&accessors)) return maybe_accessors;
   }
   accessors->SetComponents(getter, setter);
+
   return SetPropertyCallback(name, accessors, attributes);
 }
 
@@ -5687,7 +5698,7 @@ MaybeObject* DescriptorArray::CopyFrom(int dst_index,
                                        int src_index,
                                        const WhitenessWitness& witness) {
   Object* value = src->GetValue(src_index);
-  PropertyDetails details = src->GetDetails(src_index);
+  PropertyDetails details(src->GetDetails(src_index));
   if (details.type() == CALLBACKS && value->IsAccessorPair()) {
     MaybeObject* maybe_copy =
         AccessorPair::cast(value)->CopyWithoutTransitions();
@@ -5730,7 +5741,7 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   if (replacing) {
     // We are replacing an existing descriptor.  We keep the enumeration
     // index of a visible property.
-    PropertyType t = GetDetails(index).type();
+    PropertyType t = PropertyDetails(GetDetails(index)).type();
     if (t == CONSTANT_FUNCTION ||
         t == FIELD ||
         t == CALLBACKS ||
@@ -5757,7 +5768,8 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int enumeration_index = NextEnumerationIndex();
   if (!descriptor->ContainsTransition()) {
     if (keep_enumeration_index) {
-      descriptor->SetEnumerationIndex(GetDetails(index).index());
+      descriptor->SetEnumerationIndex(
+          PropertyDetails(GetDetails(index)).index());
     } else {
       descriptor->SetEnumerationIndex(enumeration_index);
       ++enumeration_index;
@@ -5901,10 +5913,10 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
     ASSERT(hash == mid_hash);
     // There might be more, so we find the first one and
     // check them all to see if we have a match.
-    if (name == mid_name  && !IsNullDescriptor(mid)) return mid;
+    if (name == mid_name  && !is_null_descriptor(mid)) return mid;
     while ((mid > low) && (GetKey(mid - 1)->Hash() == hash)) mid--;
     for (; (mid <= high) && (GetKey(mid)->Hash() == hash); mid++) {
-      if (GetKey(mid)->Equals(name) && !IsNullDescriptor(mid)) return mid;
+      if (GetKey(mid)->Equals(name) && !is_null_descriptor(mid)) return mid;
     }
     break;
   }
@@ -5918,7 +5930,7 @@ int DescriptorArray::LinearSearch(String* name, int len) {
     String* entry = GetKey(number);
     if ((entry->Hash() == hash) &&
         name->Equals(entry) &&
-        !IsNullDescriptor(number)) {
+        !is_null_descriptor(number)) {
       return number;
     }
   }
@@ -8373,10 +8385,6 @@ void Code::Disassemble(const char* name, FILE* out) {
     }
     if (is_call_stub() || is_keyed_call_stub()) {
       PrintF(out, "argc = %d\n", arguments_count());
-    }
-    if (is_compare_ic_stub()) {
-      CompareIC::State state = CompareIC::ComputeState(this);
-      PrintF(out, "compare_state = %s\n", CompareIC::GetStateName(state));
     }
   }
   if ((name != NULL) && (name[0] != '\0')) {

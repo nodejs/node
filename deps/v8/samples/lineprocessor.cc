@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -434,9 +434,9 @@ v8::Handle<v8::String> ReadLine() {
   }
   if (res == NULL) {
     v8::Handle<v8::Primitive> t = v8::Undefined();
-    return v8::Handle<v8::String>(v8::String::Cast(*t));
+    return reinterpret_cast<v8::Handle<v8::String>&>(t);
   }
-  // Remove newline char
+  // remove newline char
   for (char* pos = buffer; *pos != '\0'; pos++) {
     if (*pos == '\n') {
       *pos = '\0';

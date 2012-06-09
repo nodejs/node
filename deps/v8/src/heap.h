@@ -243,8 +243,7 @@ namespace internal {
   V(compare_ic_symbol, ".compare_ic")                                    \
   V(infinity_symbol, "Infinity")                                         \
   V(minus_infinity_symbol, "-Infinity")                                  \
-  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")                 \
-  V(query_colon_symbol, "(?:)")
+  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")
 
 // Forward declarations.
 class GCTracer;
@@ -529,8 +528,6 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
-
-  MUST_USE_RESULT MaybeObject* AllocateJSModule();
 
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
@@ -822,10 +819,6 @@ class Heap {
 
   // Allocate a global (but otherwise uninitialized) context.
   MUST_USE_RESULT MaybeObject* AllocateGlobalContext();
-
-  // Allocate a module context.
-  MUST_USE_RESULT MaybeObject* AllocateModuleContext(Context* previous,
-                                                     ScopeInfo* scope_info);
 
   // Allocate a function context.
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
@@ -1333,8 +1326,7 @@ class Heap {
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
-  inline intptr_t AdjustAmountOfExternalAllocatedMemory(
-      intptr_t change_in_bytes);
+  inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
   // Allocate uninitialized fixed array.
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length);
@@ -1419,12 +1411,6 @@ class Heap {
     kRootListLength
   };
 
-  STATIC_CHECK(kUndefinedValueRootIndex == Internals::kUndefinedValueRootIndex);
-  STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
-  STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
-  STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
-  STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
-
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
@@ -1455,8 +1441,6 @@ class Heap {
 
   inline bool NextGCIsLikelyToBeFull() {
     if (FLAG_gc_global) return true;
-
-    if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
 
     intptr_t total_promoted = PromotedTotalSize();
 
@@ -1621,8 +1605,6 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
 
-  Object* roots_[kRootListLength];
-
   intptr_t code_range_size_;
   int reserved_semispace_size_;
   int max_semispace_size_;
@@ -1664,7 +1646,7 @@ class Heap {
   int gc_post_processing_depth_;
 
   // Returns the amount of external memory registered since last global gc.
-  intptr_t PromotedExternalMemorySize();
+  int PromotedExternalMemorySize();
 
   int ms_count_;  // how many mark-sweep collections happened
   unsigned int gc_count_;  // how many gc happened
@@ -1729,14 +1711,16 @@ class Heap {
 
   // The amount of external memory registered through the API kept alive
   // by global handles
-  intptr_t amount_of_external_allocated_memory_;
+  int amount_of_external_allocated_memory_;
 
   // Caches the amount of external memory registered at the last global gc.
-  intptr_t amount_of_external_allocated_memory_at_last_global_gc_;
+  int amount_of_external_allocated_memory_at_last_global_gc_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   int old_gen_exhausted_;
+
+  Object* roots_[kRootListLength];
 
   Object* global_contexts_list_;
 
@@ -1988,6 +1972,13 @@ class Heap {
 
   bool EnoughGarbageSinceLastIdleRound() {
     return (scavenges_since_last_idle_round_ >= kIdleScavengeThreshold);
+  }
+
+  bool WorthStartingGCWhenIdle() {
+    if (contexts_disposed_ > 0) {
+      return true;
+    }
+    return incremental_marking()->WorthActivating();
   }
 
   // Estimates how many milliseconds a Mark-Sweep would take to complete.

@@ -142,10 +142,8 @@
                   'USE_EABI_HARDFLOAT=1',
                   'CAN_USE_VFP_INSTRUCTIONS',
                 ],
-                'target_conditions': [
-                  ['_toolset=="target"', {
-                    'cflags': ['-mfloat-abi=hard',],
-                  }],
+                'cflags': [
+                  '-mfloat-abi=hard',
                 ],
               }, {
                 'defines': [
@@ -173,11 +171,8 @@
             'defines': [
               'V8_TARGET_ARCH_MIPS',
             ],
-            'variables': {
-              'mipscompiler': '<!($(echo ${CXX:-$(which g++)}) -v 2>&1 | grep -q "^Target: mips-" && echo "yes" || echo "no")',
-            },
             'conditions': [
-              ['mipscompiler=="yes"', {
+              [ 'target_arch=="mips"', {
                 'target_conditions': [
                   ['_toolset=="target"', {
                     'cflags': ['-EL'],
@@ -241,19 +236,6 @@
             ],
           }],
         ],
-      }, {  # Section for OS=="mac".
-        'conditions': [
-          ['target_arch=="ia32"', {
-            'xcode_settings': {
-              'ARCHS': ['i386'],
-            }
-          }],
-          ['target_arch=="x64"', {
-            'xcode_settings': {
-              'ARCHS': ['x86_64'],
-            }
-          }],
-        ],
       }],
       ['v8_use_liveobjectlist=="true"', {
         'defines': [
@@ -280,16 +262,19 @@
           },
         },
       }],
+      ['OS=="win" and v8_target_arch=="x64"', {
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'StackReserveSize': '2097152',
+          },
+        },
+      }],
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
          or OS=="netbsd"', {
         'conditions': [
-          [ 'v8_target_arch!="x64"', {
-            # Pass -m32 to the compiler iff it understands the flag.
-            'variables': {
-              'm32flag': '<!((echo | $(echo ${CXX:-$(which g++)}) -m32 -E - > /dev/null 2>&1) && echo "-m32" || true)',
-            },
-            'cflags': [ '<(m32flag)' ],
-            'ldflags': [ '<(m32flag)' ],
+          [ 'target_arch=="ia32"', {
+            'cflags': [ '-m32' ],
+            'ldflags': [ '-m32' ],
           }],
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -322,10 +307,6 @@
           },
           'VCLinkerTool': {
             'LinkIncremental': '2',
-            # For future reference, the stack size needs to be increased
-            # when building for Windows 64-bit, otherwise some test cases
-            # can cause stack overflow.
-            # 'StackReserveSize': '297152',
           },
         },
         'conditions': [
@@ -336,7 +317,7 @@
             'cflags': [ '-I/usr/pkg/include' ],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
-            'cflags': [ '-Wno-unused-parameter',
+            'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
         ],
@@ -407,12 +388,7 @@
               'VCLinkerTool': {
                 'LinkIncremental': '1',
                 'OptimizeReferences': '2',
-                'OptimizeForWindows98': '1',
                 'EnableCOMDATFolding': '2',
-                # For future reference, the stack size needs to be
-                # increased when building for Windows 64-bit, otherwise
-                # some test cases can cause stack overflow.
-                # 'StackReserveSize': '297152',
               },
             },
           }],  # OS=="win"

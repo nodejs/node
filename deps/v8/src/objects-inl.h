@@ -581,8 +581,7 @@ bool Object::IsContext() {
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
             map == heap->global_context_map() ||
-            map == heap->block_context_map() ||
-            map == heap->module_context_map());
+            map == heap->block_context_map());
   }
   return false;
 }
@@ -592,13 +591,6 @@ bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->global_context_map();
-}
-
-
-bool Object::IsModuleContext() {
-  return Object::IsHeapObject() &&
-      HeapObject::cast(this)->map() ==
-      HeapObject::cast(this)->GetHeap()->module_context_map();
 }
 
 
@@ -621,7 +613,6 @@ TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
@@ -1447,8 +1438,6 @@ int JSObject::GetHeaderSize() {
   // field operations considerably on average.
   if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
   switch (type) {
-    case JS_MODULE_TYPE:
-      return JSModule::kSize;
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1935,15 +1924,15 @@ Object* DescriptorArray::GetValue(int descriptor_number) {
 }
 
 
-PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
+Smi* DescriptorArray::GetDetails(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  Object* details = GetContentArray()->get(ToDetailsIndex(descriptor_number));
-  return PropertyDetails(Smi::cast(details));
+  return Smi::cast(GetContentArray()->get(ToDetailsIndex(descriptor_number)));
 }
 
 
 PropertyType DescriptorArray::GetType(int descriptor_number) {
-  return GetDetails(descriptor_number).type();
+  ASSERT(descriptor_number < number_of_descriptors());
+  return PropertyDetails(GetDetails(descriptor_number)).type();
 }
 
 
@@ -2006,10 +1995,15 @@ bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
 }
 
 
+bool DescriptorArray::IsDontEnum(int descriptor_number) {
+  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
+}
+
+
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             GetDetails(descriptor_number));
+             PropertyDetails(GetDetails(descriptor_number)));
 }
 
 
@@ -3012,26 +3006,26 @@ void Code::set_is_pregenerated(bool value) {
 
 
 bool Code::optimizable() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
 }
 
 
 void Code::set_optimizable(bool value) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   WRITE_BYTE_FIELD(this, kOptimizableOffset, value ? 1 : 0);
 }
 
 
 bool Code::has_deoptimization_support() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3039,14 +3033,14 @@ void Code::set_has_deoptimization_support(bool value) {
 
 
 bool Code::has_debug_break_slots() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
 }
 
 
 void Code::set_has_debug_break_slots(bool value) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3054,41 +3048,56 @@ void Code::set_has_debug_break_slots(bool value) {
 
 
 bool Code::is_compiled_optimizable() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsIsCompiledOptimizable::decode(flags);
 }
 
 
 void Code::set_compiled_optimizable(bool value) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
 }
 
 
+bool Code::has_self_optimization_header() {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasSelfOptimizationHeader::decode(flags);
+}
+
+
+void Code::set_self_optimization_header(bool value) {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasSelfOptimizationHeader::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+}
+
+
 int Code::allow_osr_at_loop_nesting_level() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
 }
 
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
   WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
 }
 
 
 int Code::profiler_ticks() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   return READ_BYTE_FIELD(this, kProfilerTicksOffset);
 }
 
 
 void Code::set_profiler_ticks(int ticks) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   ASSERT(ticks < 256);
   WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
 }
@@ -3120,13 +3129,13 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 
 
 unsigned Code::stack_check_table_offset() {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   return READ_UINT32_FIELD(this, kStackCheckTableOffsetOffset);
 }
 
 
 void Code::set_stack_check_table_offset(unsigned offset) {
-  ASSERT_EQ(FUNCTION, kind());
+  ASSERT(kind() == FUNCTION);
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   WRITE_UINT32_FIELD(this, kStackCheckTableOffsetOffset, offset);
 }
@@ -4083,16 +4092,6 @@ Address Foreign::foreign_address() {
 
 void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
-}
-
-
-ACCESSORS(JSModule, context, Object, kContextOffset)
-
-
-JSModule* JSModule::cast(Object* obj) {
-  ASSERT(obj->IsJSModule());
-  ASSERT(HeapObject::cast(obj)->Size() == JSModule::kSize);
-  return reinterpret_cast<JSModule*>(obj);
 }
 
 

@@ -196,7 +196,6 @@ macro SET_UTC_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 1));
 macro SET_LOCAL_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 0));
 
 # Last input and last subject of regexp matches.
-const LAST_SUBJECT_INDEX = 1;
 macro LAST_SUBJECT(array) = ((array)[1]);
 macro LAST_INPUT(array) = ((array)[2]);
 
@@ -204,15 +203,6 @@ macro LAST_INPUT(array) = ((array)[2]);
 macro CAPTURE(index) = (3 + (index));
 const CAPTURE0 = 3;
 const CAPTURE1 = 4;
-
-# For the regexp capture override array.  This has the same
-# format as the arguments to a function called from
-# String.prototype.replace.
-macro OVERRIDE_MATCH(override) = ((override)[0]);
-macro OVERRIDE_POS(override) = ((override)[(override).length - 2]);
-macro OVERRIDE_SUBJECT(override) = ((override)[(override).length - 1]);
-# 1-based so index of 1 returns the first capture
-macro OVERRIDE_CAPTURE(override, index) = ((override)[(index)]);
 
 # PropertyDescriptor return value indices - must match
 # PropertyDescriptorIndices in runtime.cc.

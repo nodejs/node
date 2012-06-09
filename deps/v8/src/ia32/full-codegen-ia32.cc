@@ -101,6 +101,13 @@ class JumpPatchSite BASE_EMBEDDED {
 };
 
 
+// TODO(jkummerow): Obsolete as soon as x64 is updated. Remove.
+int FullCodeGenerator::self_optimization_header_size() {
+  UNREACHABLE();
+  return 13;
+}
+
+
 // Generate code for a JS function.  On entry to the function the receiver
 // and arguments have been pushed on the stack left to right, with the
 // return address on top of them.  The actual argument count matches the
@@ -262,11 +269,11 @@ void FullCodeGenerator::Generate() {
       // For named function expressions, declare the function name as a
       // constant.
       if (scope()->is_function_scope() && scope()->function() != NULL) {
-        VariableDeclaration* function = scope()->function();
-        ASSERT(function->proxy()->var()->mode() == CONST ||
-               function->proxy()->var()->mode() == CONST_HARMONY);
-        ASSERT(function->proxy()->var()->location() != Variable::UNALLOCATED);
-        VisitVariableDeclaration(function);
+        VariableProxy* proxy = scope()->function();
+        ASSERT(proxy->var()->mode() == CONST ||
+               proxy->var()->mode() == CONST_HARMONY);
+        ASSERT(proxy->var()->location() != Variable::UNALLOCATED);
+        EmitDeclaration(proxy, proxy->var()->mode(), NULL);
       }
       VisitDeclarations(scope()->declarations());
     }
@@ -756,51 +763,60 @@ void FullCodeGenerator::PrepareForBailoutBeforeSplit(Expression* expr,
 }
 
 
-void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
-  // The variable in the declaration always resides in the current function
-  // context.
-  ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
-  if (FLAG_debug_code) {
-    // Check that we're not inside a with or catch context.
-    __ mov(ebx, FieldOperand(esi, HeapObject::kMapOffset));
-    __ cmp(ebx, isolate()->factory()->with_context_map());
-    __ Check(not_equal, "Declaration in with context.");
-    __ cmp(ebx, isolate()->factory()->catch_context_map());
-    __ Check(not_equal, "Declaration in catch context.");
-  }
-}
-
-
-void FullCodeGenerator::VisitVariableDeclaration(
-    VariableDeclaration* declaration) {
+void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
+                                        VariableMode mode,
+                                        FunctionLiteral* function) {
   // If it was not possible to allocate the variable at compile time, we
   // need to "declare" it at runtime to make sure it actually exists in the
   // local context.
-  VariableProxy* proxy = declaration->proxy();
-  VariableMode mode = declaration->mode();
   Variable* variable = proxy->var();
-  bool hole_init = mode == CONST || mode == CONST_HARMONY || mode == LET;
+  bool binding_needs_init = (function == NULL) &&
+      (mode == CONST || mode == CONST_HARMONY || mode == LET);
   switch (variable->location()) {
     case Variable::UNALLOCATED:
-      globals_->Add(variable->name());
-      globals_->Add(variable->binding_needs_init()
-                        ? isolate()->factory()->the_hole_value()
-                        : isolate()->factory()->undefined_value());
+      ++global_count_;
       break;
 
     case Variable::PARAMETER:
     case Variable::LOCAL:
-      if (hole_init) {
-        Comment cmnt(masm_, "[ VariableDeclaration");
+      if (function != NULL) {
+        Comment cmnt(masm_, "[ Declaration");
+        VisitForAccumulatorValue(function);
+        __ mov(StackOperand(variable), result_register());
+      } else if (binding_needs_init) {
+        Comment cmnt(masm_, "[ Declaration");
         __ mov(StackOperand(variable),
                Immediate(isolate()->factory()->the_hole_value()));
       }
       break;
 
     case Variable::CONTEXT:
-      if (hole_init) {
-        Comment cmnt(masm_, "[ VariableDeclaration");
-        EmitDebugCheckDeclarationContext(variable);
+      // The variable in the decl always resides in the current function
+      // context.
+      ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
+      if (FLAG_debug_code) {
+        // Check that we're not inside a with or catch context.
+        __ mov(ebx, FieldOperand(esi, HeapObject::kMapOffset));
+        __ cmp(ebx, isolate()->factory()->with_context_map());
+        __ Check(not_equal, "Declaration in with context.");
+        __ cmp(ebx, isolate()->factory()->catch_context_map());
+        __ Check(not_equal, "Declaration in catch context.");
+      }
+      if (function != NULL) {
+        Comment cmnt(masm_, "[ Declaration");
+        VisitForAccumulatorValue(function);
+        __ mov(ContextOperand(esi, variable->index()), result_register());
+        // We know that we have written a function, which is not a smi.
+        __ RecordWriteContextSlot(esi,
+                                  Context::SlotOffset(variable->index()),
+                                  result_register(),
+                                  ecx,
+                                  kDontSaveFPRegs,
+                                  EMIT_REMEMBERED_SET,
+                                  OMIT_SMI_CHECK);
+        PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
+      } else if (binding_needs_init) {
+        Comment cmnt(masm_, "[ Declaration");
         __ mov(ContextOperand(esi, variable->index()),
                Immediate(isolate()->factory()->the_hole_value()));
         // No write barrier since the hole value is in old space.
@@ -809,12 +825,14 @@ void FullCodeGenerator::VisitVariableDeclaration(
       break;
 
     case Variable::LOOKUP: {
-      Comment cmnt(masm_, "[ VariableDeclaration");
+      Comment cmnt(masm_, "[ Declaration");
       __ push(esi);
       __ push(Immediate(variable->name()));
-      // VariableDeclaration nodes are always introduced in one of four modes.
-      ASSERT(mode == VAR || mode == LET ||
-             mode == CONST || mode == CONST_HARMONY);
+      // Declaration nodes are always introduced in one of four modes.
+      ASSERT(mode == VAR ||
+             mode == CONST ||
+             mode == CONST_HARMONY ||
+             mode == LET);
       PropertyAttributes attr = (mode == CONST || mode == CONST_HARMONY)
           ? READ_ONLY : NONE;
       __ push(Immediate(Smi::FromInt(attr)));
@@ -822,7 +840,9 @@ void FullCodeGenerator::VisitVariableDeclaration(
       // Note: For variables we must not push an initial value (such as
       // 'undefined') because we may have a (legal) redeclaration and we
       // must not destroy the current value.
-      if (hole_init) {
+      if (function != NULL) {
+        VisitForStackValue(function);
+      } else if (binding_needs_init) {
         __ push(Immediate(isolate()->factory()->the_hole_value()));
       } else {
         __ push(Immediate(Smi::FromInt(0)));  // Indicates no initial value.
@@ -831,118 +851,6 @@ void FullCodeGenerator::VisitVariableDeclaration(
       break;
     }
   }
-}
-
-
-void FullCodeGenerator::VisitFunctionDeclaration(
-    FunctionDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* variable = proxy->var();
-  switch (variable->location()) {
-    case Variable::UNALLOCATED: {
-      globals_->Add(variable->name());
-      Handle<SharedFunctionInfo> function =
-          Compiler::BuildFunctionInfo(declaration->fun(), script());
-      // Check for stack-overflow exception.
-      if (function.is_null()) return SetStackOverflow();
-      globals_->Add(function);
-      break;
-    }
-
-    case Variable::PARAMETER:
-    case Variable::LOCAL: {
-      Comment cmnt(masm_, "[ FunctionDeclaration");
-      VisitForAccumulatorValue(declaration->fun());
-      __ mov(StackOperand(variable), result_register());
-      break;
-    }
-
-    case Variable::CONTEXT: {
-      Comment cmnt(masm_, "[ FunctionDeclaration");
-      EmitDebugCheckDeclarationContext(variable);
-      VisitForAccumulatorValue(declaration->fun());
-      __ mov(ContextOperand(esi, variable->index()), result_register());
-      // We know that we have written a function, which is not a smi.
-      __ RecordWriteContextSlot(esi,
-                                Context::SlotOffset(variable->index()),
-                                result_register(),
-                                ecx,
-                                kDontSaveFPRegs,
-                                EMIT_REMEMBERED_SET,
-                                OMIT_SMI_CHECK);
-      PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
-      break;
-    }
-
-    case Variable::LOOKUP: {
-      Comment cmnt(masm_, "[ FunctionDeclaration");
-      __ push(esi);
-      __ push(Immediate(variable->name()));
-      __ push(Immediate(Smi::FromInt(NONE)));
-      VisitForStackValue(declaration->fun());
-      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
-      break;
-    }
-  }
-}
-
-
-void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* variable = proxy->var();
-  Handle<JSModule> instance = declaration->module()->interface()->Instance();
-  ASSERT(!instance.is_null());
-
-  switch (variable->location()) {
-    case Variable::UNALLOCATED: {
-      Comment cmnt(masm_, "[ ModuleDeclaration");
-      globals_->Add(variable->name());
-      globals_->Add(instance);
-      Visit(declaration->module());
-      break;
-    }
-
-    case Variable::CONTEXT: {
-      Comment cmnt(masm_, "[ ModuleDeclaration");
-      EmitDebugCheckDeclarationContext(variable);
-      __ mov(ContextOperand(esi, variable->index()), Immediate(instance));
-      Visit(declaration->module());
-      break;
-    }
-
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
-      UNREACHABLE();
-  }
-}
-
-
-void FullCodeGenerator::VisitImportDeclaration(ImportDeclaration* declaration) {
-  VariableProxy* proxy = declaration->proxy();
-  Variable* variable = proxy->var();
-  switch (variable->location()) {
-    case Variable::UNALLOCATED:
-      // TODO(rossberg)
-      break;
-
-    case Variable::CONTEXT: {
-      Comment cmnt(masm_, "[ ImportDeclaration");
-      EmitDebugCheckDeclarationContext(variable);
-      // TODO(rossberg)
-      break;
-    }
-
-    case Variable::PARAMETER:
-    case Variable::LOCAL:
-    case Variable::LOOKUP:
-      UNREACHABLE();
-  }
-}
-
-
-void FullCodeGenerator::VisitExportDeclaration(ExportDeclaration* declaration) {
-  // TODO(rossberg)
 }
 
 
@@ -1286,7 +1194,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
 
   // All extension objects were empty and it is safe to use a global
   // load IC call.
-  __ mov(edx, GlobalObjectOperand());
+  __ mov(eax, GlobalObjectOperand());
   __ mov(ecx, var->name());
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
   RelocInfo::Mode mode = (typeof_state == INSIDE_TYPEOF)
@@ -1370,7 +1278,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, "Global variable");
       // Use inline caching. Variable name is passed in ecx and the global
       // object in eax.
-      __ mov(edx, GlobalObjectOperand());
+      __ mov(eax, GlobalObjectOperand());
       __ mov(ecx, var->name());
       Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
       CallIC(ic, RelocInfo::CODE_TARGET_CONTEXT);
@@ -1764,9 +1672,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       break;
     case NAMED_PROPERTY:
       if (expr->is_compound()) {
-        // We need the receiver both on the stack and in edx.
-        VisitForStackValue(property->obj());
-        __ mov(edx, Operand(esp, 0));
+        // We need the receiver both on the stack and in the accumulator.
+        VisitForAccumulatorValue(property->obj());
+        __ push(result_register());
       } else {
         VisitForStackValue(property->obj());
       }
@@ -1774,9 +1682,9 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     case KEYED_PROPERTY: {
       if (expr->is_compound()) {
         VisitForStackValue(property->obj());
-        VisitForStackValue(property->key());
-        __ mov(edx, Operand(esp, kPointerSize));  // Object.
-        __ mov(ecx, Operand(esp, 0));             // Key.
+        VisitForAccumulatorValue(property->key());
+        __ mov(edx, Operand(esp, 0));
+        __ push(eax);
       } else {
         VisitForStackValue(property->obj());
         VisitForStackValue(property->key());
@@ -2019,7 +1927,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       VisitForStackValue(prop->obj());
       VisitForAccumulatorValue(prop->key());
       __ mov(ecx, eax);
-      __ pop(edx);  // Receiver.
+      __ pop(edx);
       __ pop(eax);  // Restore value.
       Handle<Code> ic = is_classic_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize()
@@ -2125,9 +2033,6 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
 
 void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a named store IC.
-  // eax    : value
-  // esp[0] : receiver
-
   Property* prop = expr->target()->AsProperty();
   ASSERT(prop != NULL);
   ASSERT(prop->key()->AsLiteral() != NULL);
@@ -2170,9 +2075,6 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 
 void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   // Assignment to a property, using a keyed store IC.
-  // eax               : value
-  // esp[0]            : key
-  // esp[kPointerSize] : receiver
 
   // If the assignment starts a block of assignments to the same object,
   // change to slow case to avoid the quadratic behavior of repeatedly
@@ -2185,7 +2087,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
     __ pop(result_register());
   }
 
-  __ pop(ecx);  // Key.
+  __ pop(ecx);
   if (expr->ends_initialization_block()) {
     __ mov(edx, Operand(esp, 0));  // Leave receiver on the stack for later.
   } else {
@@ -2218,14 +2120,12 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
 
   if (key->IsPropertyName()) {
     VisitForAccumulatorValue(expr->obj());
-    __ mov(edx, result_register());
     EmitNamedPropertyLoad(expr);
     context()->Plug(eax);
   } else {
     VisitForStackValue(expr->obj());
     VisitForAccumulatorValue(expr->key());
-    __ pop(edx);                     // Object.
-    __ mov(ecx, result_register());  // Key.
+    __ pop(edx);
     EmitKeyedPropertyLoad(expr);
     context()->Plug(eax);
   }
@@ -4024,16 +3924,15 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ push(Immediate(Smi::FromInt(0)));
     }
     if (assign_type == NAMED_PROPERTY) {
-      // Put the object both on the stack and in edx.
+      // Put the object both on the stack and in the accumulator.
       VisitForAccumulatorValue(prop->obj());
       __ push(eax);
-      __ mov(edx, eax);
       EmitNamedPropertyLoad(prop);
     } else {
       VisitForStackValue(prop->obj());
-      VisitForStackValue(prop->key());
-      __ mov(edx, Operand(esp, kPointerSize));  // Object.
-      __ mov(ecx, Operand(esp, 0));             // Key.
+      VisitForAccumulatorValue(prop->key());
+      __ mov(edx, Operand(esp, 0));
+      __ push(eax);
       EmitKeyedPropertyLoad(prop);
     }
   }
@@ -4180,7 +4079,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
   if (proxy != NULL && proxy->var()->IsUnallocated()) {
     Comment cmnt(masm_, "Global variable");
-    __ mov(edx, GlobalObjectOperand());
+    __ mov(eax, GlobalObjectOperand());
     __ mov(ecx, Immediate(proxy->name()));
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     // Use a regular load, not a contextual load, to avoid a reference
@@ -4445,8 +4344,7 @@ void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
 
 void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
   Scope* declaration_scope = scope()->DeclarationScope();
-  if (declaration_scope->is_global_scope() ||
-      declaration_scope->is_module_scope()) {
+  if (declaration_scope->is_global_scope()) {
     // Contexts nested in the global context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.  Pass a smi sentinel and let the runtime look up the empty

@@ -25,74 +25,48 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --es52_globals
-
 var setter_value = 0;
 
-this.__defineSetter__("a", function(v) { setter_value = v; });
+__proto__.__defineSetter__("a", function(v) { setter_value = v; });
 eval("var a = 1");
 assertEquals(1, setter_value);
-assertFalse("value" in Object.getOwnPropertyDescriptor(this, "a"));
+assertFalse(this.hasOwnProperty("a"));
 
 eval("with({}) { eval('var a = 2') }");
 assertEquals(2, setter_value);
-assertFalse("value" in Object.getOwnPropertyDescriptor(this, "a"));
+assertFalse(this.hasOwnProperty("a"));
 
 // Function declarations are treated specially to match Safari. We do
 // not call setters for them.
-this.__defineSetter__("a", function(v) { assertUnreachable(); });
 eval("function a() {}");
-assertTrue("value" in Object.getOwnPropertyDescriptor(this, "a"));
+assertTrue(this.hasOwnProperty("a"));
 
-this.__defineSetter__("b", function(v) { setter_value = v; });
+__proto__.__defineSetter__("b", function(v) { assertUnreachable(); });
+var exception = false;
 try {
-  eval("const b = 3");
+  eval("const b = 23");
 } catch(e) {
-  assertUnreachable();
+  exception = true;
+  assertTrue(/TypeError/.test(e));
 }
-assertEquals(3, setter_value);
+assertFalse(exception);
 
+exception = false;
 try {
   eval("with({}) { eval('const b = 23') }");
 } catch(e) {
-  assertInstanceof(e, TypeError);
+  exception = true;
+  assertTrue(/TypeError/.test(e));
 }
+assertTrue(exception);
 
-this.__defineSetter__("c", function(v) { throw 42; });
+__proto__.__defineSetter__("c", function(v) { throw 42; });
+exception = false;
 try {
   eval("var c = 1");
-  assertUnreachable();
 } catch(e) {
+  exception = true;
   assertEquals(42, e);
-  assertFalse("value" in Object.getOwnPropertyDescriptor(this, "c"));
+  assertFalse(this.hasOwnProperty("c"));
 }
-
-
-
-
-__proto__.__defineSetter__("aa", function(v) { assertUnreachable(); });
-eval("var aa = 1");
-assertTrue(this.hasOwnProperty("aa"));
-
-__proto__.__defineSetter__("bb", function(v) { assertUnreachable(); });
-eval("with({}) { eval('var bb = 2') }");
-assertTrue(this.hasOwnProperty("bb"));
-
-// Function declarations are treated specially to match Safari. We do
-// not call setters for them.
-__proto__.__defineSetter__("cc", function(v) { assertUnreachable(); });
-eval("function cc() {}");
-assertTrue(this.hasOwnProperty("cc"));
-
-__proto__.__defineSetter__("dd", function(v) { assertUnreachable(); });
-try {
-  eval("const dd = 23");
-} catch(e) {
-  assertUnreachable();
-}
-
-try {
-  eval("with({}) { eval('const dd = 23') }");
-} catch(e) {
-  assertInstanceof(e, TypeError);
-}
+assertTrue(exception);

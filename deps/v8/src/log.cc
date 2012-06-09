@@ -1730,20 +1730,13 @@ void Logger::EnableSlidingStateWindow() {
 }
 
 // Protects the state below.
-static Mutex* active_samplers_mutex = NULL;
+static LazyMutex active_samplers_mutex = LAZY_MUTEX_INITIALIZER;
 
 List<Sampler*>* SamplerRegistry::active_samplers_ = NULL;
 
 
-void SamplerRegistry::SetUp() {
-  if (!active_samplers_mutex) {
-    active_samplers_mutex = OS::CreateMutex();
-  }
-}
-
-
 bool SamplerRegistry::IterateActiveSamplers(VisitSampler func, void* param) {
-  ScopedLock lock(active_samplers_mutex);
+  ScopedLock lock(active_samplers_mutex.Pointer());
   for (int i = 0;
        ActiveSamplersExist() && i < active_samplers_->length();
        ++i) {
@@ -1770,7 +1763,7 @@ SamplerRegistry::State SamplerRegistry::GetState() {
 
 void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
   ASSERT(sampler->IsActive());
-  ScopedLock lock(active_samplers_mutex);
+  ScopedLock lock(active_samplers_mutex.Pointer());
   if (active_samplers_ == NULL) {
     active_samplers_ = new List<Sampler*>;
   } else {
@@ -1782,7 +1775,7 @@ void SamplerRegistry::AddActiveSampler(Sampler* sampler) {
 
 void SamplerRegistry::RemoveActiveSampler(Sampler* sampler) {
   ASSERT(sampler->IsActive());
-  ScopedLock lock(active_samplers_mutex);
+  ScopedLock lock(active_samplers_mutex.Pointer());
   ASSERT(active_samplers_ != NULL);
   bool removed = active_samplers_->RemoveElement(sampler);
   ASSERT(removed);

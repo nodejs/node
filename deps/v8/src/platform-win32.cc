@@ -51,22 +51,6 @@ int strncasecmp(const char* s1, const char* s2, int n) {
 // the Microsoft Visual Studio C++ CRT.
 #ifdef __MINGW32__
 
-
-#ifndef __MINGW64_VERSION_MAJOR
-
-#define _TRUNCATE 0
-#define STRUNCATE 80
-
-inline void MemoryBarrier() {
-  int barrier = 0;
-  __asm__ __volatile__("xchgl %%eax,%0 ":"=r" (barrier));
-}
-
-#endif  // __MINGW64_VERSION_MAJOR
-
-
-#ifndef MINGW_HAS_SECURE_API
-
 int localtime_s(tm* out_tm, const time_t* time) {
   tm* posix_local_time_struct = localtime(time);
   if (posix_local_time_struct == NULL) return 1;
@@ -79,6 +63,21 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
   *pFile = fopen(filename, mode);
   return *pFile != NULL ? 0 : 1;
 }
+
+
+#ifndef __MINGW64_VERSION_MAJOR
+
+// Not sure this the correct interpretation of _mkgmtime
+time_t _mkgmtime(tm* timeptr) {
+  return mktime(timeptr);
+}
+
+
+#define _TRUNCATE 0
+#define STRUNCATE 80
+
+#endif  // __MINGW64_VERSION_MAJOR
+
 
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
@@ -113,7 +112,16 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
   return 0;
 }
 
-#endif  // MINGW_HAS_SECURE_API
+
+#ifndef __MINGW64_VERSION_MAJOR
+
+inline void MemoryBarrier() {
+  int barrier = 0;
+  __asm__ __volatile__("xchgl %%eax,%0 ":"=r" (barrier));
+}
+
+#endif  // __MINGW64_VERSION_MAJOR
+
 
 #endif  // __MINGW32__
 
@@ -141,11 +149,20 @@ static Mutex* limit_mutex = NULL;
 
 #if defined(V8_TARGET_ARCH_IA32)
 static OS::MemCopyFunction memcopy_function = NULL;
+static LazyMutex memcopy_function_mutex = LAZY_MUTEX_INITIALIZER;
 // Defined in codegen-ia32.cc.
 OS::MemCopyFunction CreateMemCopyFunction();
 
 // Copy memory area to disjoint memory area.
 void OS::MemCopy(void* dest, const void* src, size_t size) {
+  if (memcopy_function == NULL) {
+    ScopedLock lock(memcopy_function_mutex.Pointer());
+    if (memcopy_function == NULL) {
+      OS::MemCopyFunction temp = CreateMemCopyFunction();
+      MemoryBarrier();
+      memcopy_function = temp;
+    }
+  }
   // Note: here we rely on dependent reads being ordered. This is true
   // on all architectures we currently support.
   (*memcopy_function)(dest, src, size);
@@ -460,9 +477,6 @@ void Time::SetToCurrentTime() {
   // Check if we need to resync due to elapsed time.
   needs_resync |= (time_now.t_ - init_time.t_) > kMaxClockElapsedTime;
 
-  // Check if we need to resync due to backwards time change.
-  needs_resync |= time_now.t_ < init_time.t_;
-
   // Resync the clock if necessary.
   if (needs_resync) {
     GetSystemTimeAsFileTime(&init_time.ft_);
@@ -504,14 +518,11 @@ int64_t Time::LocalOffset() {
   // Convert to local time, as struct with fields for day, hour, year, etc.
   tm posix_local_time_struct;
   if (localtime_s(&posix_local_time_struct, &posix_time)) return 0;
+  // Convert local time in struct to POSIX time as if it were a UTC time.
+  time_t local_posix_time = _mkgmtime(&posix_local_time_struct);
+  Time localtime(1000.0 * local_posix_time);
 
-  if (posix_local_time_struct.tm_isdst > 0) {
-    return (tzinfo_.Bias + tzinfo_.DaylightBias) * -kMsPerMinute;
-  } else if (posix_local_time_struct.tm_isdst == 0) {
-    return (tzinfo_.Bias + tzinfo_.StandardBias) * -kMsPerMinute;
-  } else {
-    return tzinfo_.Bias * -kMsPerMinute;
-  }
+  return localtime.Diff(&rounded_to_second);
 }
 
 
@@ -554,13 +565,22 @@ char* Time::LocalTimezone() {
 }
 
 
+void OS::SetUp() {
+  // Seed the random number generator.
+  // Convert the current time to a 64-bit integer first, before converting it
+  // to an unsigned. Going directly can cause an overflow and the seed to be
+  // set to all ones. The seed will be identical for different instances that
+  // call this setup code within the same millisecond.
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
+  srand(static_cast<unsigned int>(seed));
+  limit_mutex = CreateMutex();
+}
+
+
 void OS::PostSetUp() {
   // Math functions depend on CPU features therefore they are initialized after
   // CPU.
   MathSetup();
-#if defined(V8_TARGET_ARCH_IA32)
-  memcopy_function = CreateMemCopyFunction();
-#endif
 }
 
 
@@ -1949,11 +1969,8 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
-
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
@@ -1964,7 +1981,7 @@ class SamplerThread : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -2050,7 +2067,7 @@ class SamplerThread : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static LazyMutex mutex_;
   static SamplerThread* instance_;
 
  private:
@@ -2058,27 +2075,8 @@ class SamplerThread : public Thread {
 };
 
 
-Mutex* SamplerThread::mutex_ = NULL;
+LazyMutex SamplerThread::mutex_ = LAZY_MUTEX_INITIALIZER;
 SamplerThread* SamplerThread::instance_ = NULL;
-
-
-void OS::SetUp() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
-  srand(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
-  SamplerThread::SetUp();
-}
-
-
-void OS::TearDown() {
-  SamplerThread::TearDown();
-  delete limit_mutex;
-}
 
 
 Sampler::Sampler(Isolate* isolate, int interval)

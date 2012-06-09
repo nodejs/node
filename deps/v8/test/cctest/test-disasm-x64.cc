@@ -264,7 +264,6 @@ TEST(DisasmX64) {
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(),
                         assm.isolate());
-  USE(after_break_target);
 #endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();

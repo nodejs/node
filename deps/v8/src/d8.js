@@ -2174,7 +2174,7 @@ function DebugResponseDetails(response) {
           }
 
           var current_line = from_line + num;
-          var spacer = maxdigits - (1 + Math.floor(log10(current_line)));
+          spacer = maxdigits - (1 + Math.floor(log10(current_line)));
           if (current_line == Debug.State.currentSourceLine + 1) {
             for (var i = 0; i < maxdigits; i++) {
               result += '>';

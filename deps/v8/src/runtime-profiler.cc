@@ -94,14 +94,12 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
       sampler_threshold_size_factor_(kSamplerThresholdSizeFactorInit),
       sampler_ticks_until_threshold_adjustment_(
           kSamplerTicksBetweenThresholdAdjustment),
-      sampler_window_position_(0),
-      any_ic_changed_(false),
-      code_generated_(false) {
+      sampler_window_position_(0) {
   ClearSampleBuffer();
 }
 
 
-void RuntimeProfiler::GlobalSetUp() {
+void RuntimeProfiler::GlobalSetup() {
   ASSERT(!has_been_globally_set_up_);
   enabled_ = V8::UseCrankshaft() && FLAG_opt;
 #ifdef DEBUG
@@ -181,10 +179,14 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
   // prepared to generate it, but we don't expect to have to.
   bool found_code = false;
   Code* stack_check_code = NULL;
+#if defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_MIPS)
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
   } else  // NOLINT
+#endif
   {  // NOLINT
     StackCheckStub check_stub;
     found_code = check_stub.FindCodeInCache(&stack_check_code);
@@ -313,6 +315,14 @@ void RuntimeProfiler::OptimizeNow() {
         // If no IC was patched since the last tick and this function is very
         // small, optimistically optimize it now.
         Optimize(function, "small function");
+      } else if (!code_generated_ &&
+          !any_ic_changed_ &&
+          total_code_generated_ > 0 &&
+          total_code_generated_ < 2000) {
+        // If no code was generated and no IC was patched since the last tick,
+        // but a little code has already been generated since last Reset(),
+        // then type info might already be stable and we can optimize now.
+        Optimize(function, "stable on startup");
       } else {
         shared_code->set_profiler_ticks(ticks + 1);
       }
@@ -333,6 +343,7 @@ void RuntimeProfiler::OptimizeNow() {
   }
   if (FLAG_watch_ic_patching) {
     any_ic_changed_ = false;
+    code_generated_ = false;
   } else {  // !FLAG_watch_ic_patching
     // Add the collected functions as samples. It's important not to do
     // this as part of collecting them because this will interfere with
@@ -345,7 +356,11 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
+#if defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_MIPS)
   if (FLAG_count_based_interrupts) return;
+#endif
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
 }
 
@@ -362,7 +377,9 @@ void RuntimeProfiler::SetUp() {
 
 
 void RuntimeProfiler::Reset() {
-  if (!FLAG_watch_ic_patching) {
+  if (FLAG_watch_ic_patching) {
+    total_code_generated_ = 0;
+  } else {  // !FLAG_watch_ic_patching
     sampler_threshold_ = kSamplerThresholdInit;
     sampler_threshold_size_factor_ = kSamplerThresholdSizeFactorInit;
     sampler_ticks_until_threshold_adjustment_ =

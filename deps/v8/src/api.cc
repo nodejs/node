@@ -512,16 +512,6 @@ void RegisteredExtension::Register(RegisteredExtension* that) {
 }
 
 
-void RegisteredExtension::UnregisterAll() {
-  RegisteredExtension* re = first_extension_;
-  while (re != NULL) {
-    RegisteredExtension* next = re->next();
-    delete re;
-    re = next;
-  }
-}
-
-
 void RegisterExtension(Extension* that) {
   RegisteredExtension* extension = new RegisteredExtension(that);
   RegisteredExtension::Register(extension);
@@ -2101,21 +2091,17 @@ bool StackFrame::IsConstructor() const {
 
 // --- D a t a ---
 
-bool Value::FullIsUndefined() const {
+bool Value::IsUndefined() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsUndefined()")) {
     return false;
   }
-  bool result = Utils::OpenHandle(this)->IsUndefined();
-  ASSERT_EQ(result, QuickIsUndefined());
-  return result;
+  return Utils::OpenHandle(this)->IsUndefined();
 }
 
 
-bool Value::FullIsNull() const {
+bool Value::IsNull() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsNull()")) return false;
-  bool result = Utils::OpenHandle(this)->IsNull();
-  ASSERT_EQ(result, QuickIsNull());
-  return result;
+  return Utils::OpenHandle(this)->IsNull();
 }
 
 
@@ -2813,13 +2799,9 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
 
-  // When deleting a property on the global object using ForceDelete
-  // deoptimize all functions as optimized code does not check for the hole
-  // value with DontDelete properties.  We have to deoptimize all contexts
-  // because of possible cross-context inlined functions.
-  if (self->IsJSGlobalProxy() || self->IsGlobalObject()) {
-    i::Deoptimizer::DeoptimizeAll();
-  }
+  // When turning on access checks for a global object deoptimize all functions
+  // as optimized code does not always handle access checks.
+  i::Deoptimizer::DeoptimizeGlobalObject(*self);
 
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
@@ -4630,9 +4612,7 @@ void* External::Value() const {
 
 Local<String> v8::String::Empty() {
   i::Isolate* isolate = i::Isolate::Current();
-  if (!EnsureInitializedForIsolate(isolate, "v8::String::Empty()")) {
-    return v8::Local<String>();
-  }
+  EnsureInitializedForIsolate(isolate, "v8::String::Empty()");
   LOG_API(isolate, "String::Empty()");
   return Utils::ToLocal(isolate->factory()->empty_symbol());
 }
@@ -5218,7 +5198,7 @@ void V8::AddImplicitReferences(Persistent<Object> parent,
 }
 
 
-intptr_t V8::AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes) {
+int V8::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
   i::Isolate* isolate = i::Isolate::Current();
   if (IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
     return 0;
@@ -5395,6 +5375,17 @@ void Isolate::Enter() {
 void Isolate::Exit() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->Exit();
+}
+
+
+void Isolate::SetData(void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetData(data);
+}
+
+void* Isolate::GetData() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->GetData();
 }
 
 
@@ -5997,7 +5988,7 @@ Handle<Value> HeapGraphEdge::GetName() const {
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetFromNode");
-  const i::HeapEntry* from = ToInternal(this)->from();
+  const i::HeapEntry* from = ToInternal(this)->From();
   return reinterpret_cast<const HeapGraphNode*>(from);
 }
 
@@ -6031,7 +6022,7 @@ Handle<String> HeapGraphNode::GetName() const {
 }
 
 
-SnapshotObjectId HeapGraphNode::GetId() const {
+uint64_t HeapGraphNode::GetId() const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetId");
   return ToInternal(this)->id();
@@ -6146,11 +6137,11 @@ const HeapGraphNode* HeapSnapshot::GetRoot() const {
 }
 
 
-const HeapGraphNode* HeapSnapshot::GetNodeById(SnapshotObjectId id) const {
+const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
-      ToInternal(this)->GetEntryById(id));
+      ToInternal(this)->GetEntryById(static_cast<i::SnapshotObjectId>(id)));
 }
 
 
@@ -6166,13 +6157,6 @@ const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNode");
   return reinterpret_cast<const HeapGraphNode*>(
       ToInternal(this)->entries()->at(index));
-}
-
-
-SnapshotObjectId HeapSnapshot::GetMaxSnapshotJSObjectId() const {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapSnapshot::GetMaxSnapshotJSObjectId");
-  return ToInternal(this)->max_snapshot_js_object_id();
 }
 
 
@@ -6217,14 +6201,6 @@ const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
 }
 
 
-SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Value> value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotObjectId");
-  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
-  return i::HeapProfiler::GetSnapshotObjectId(obj);
-}
-
-
 const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
                                                HeapSnapshot::Type type,
                                                ActivityControl* control) {
@@ -6241,27 +6217,6 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::TakeSnapshot(
           *Utils::OpenHandle(*title), internal_type, control));
-}
-
-
-void HeapProfiler::StartHeapObjectsTracking() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::StartHeapObjectsTracking");
-  i::HeapProfiler::StartHeapObjectsTracking();
-}
-
-
-void HeapProfiler::StopHeapObjectsTracking() {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::StopHeapObjectsTracking");
-  i::HeapProfiler::StopHeapObjectsTracking();
-}
-
-
-void HeapProfiler::PushHeapObjectsStats(OutputStream* stream) {
-  i::Isolate* isolate = i::Isolate::Current();
-  IsDeadCheck(isolate, "v8::HeapProfiler::PushHeapObjectsStats");
-  return i::HeapProfiler::PushHeapObjectsStats(stream);
 }
 
 
@@ -6312,11 +6267,7 @@ static void SetFlagsFromString(const char* flags) {
 
 void Testing::PrepareStressRun(int run) {
   static const char* kLazyOptimizations =
-      "--prepare-always-opt "
-      "--max-inlined-source-size=999999 "
-      "--max-inlined-nodes=999999 "
-      "--max-inlined-nodes-cumulative=999999 "
-      "--noalways-opt";
+      "--prepare-always-opt --nolimit-inlining --noalways-opt";
   static const char* kForcedOptimizations = "--always-opt";
 
   // If deoptimization stressed turn on frequent deoptimization. If no value

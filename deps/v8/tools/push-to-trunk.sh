@@ -130,7 +130,6 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
         | grep "^BUG=" | grep -v "BUG=$" | grep -v "BUG=none$" \
         | sed -e 's/^/        /' \
         | sed -e 's/BUG=v8:\(.*\)$/(issue \1)/' \
-        | sed -e 's/BUG=chromium:\(.*\)$/(Chromium issue \1)/' \
         | sed -e 's/BUG=\(.*\)$/(Chromium issue \1)/' \
         >> "$CHANGELOG_ENTRY_FILE"
     # Append the commit's author for reference.
@@ -319,14 +318,6 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   restore_version_if_unset
   git svn tag $MAJOR.$MINOR.$BUILD -m "Tagging version $MAJOR.$MINOR.$BUILD" \
     || die "'git svn tag' failed."
-fi
-
-if [ -z "$CHROME_PATH" ] ; then
-  echo ">>> (asking for Chromium checkout)"
-  echo -n "Do you have a \"NewGit\" Chromium checkout and want this script \
-to automate creation of the roll CL? If yes, enter the path to (and including) \
-the \"src\" directory here, otherwise just press <Return>: "
-  read CHROME_PATH
 fi
 
 if [ -n "$CHROME_PATH" ] ; then

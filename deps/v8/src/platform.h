@@ -123,9 +123,6 @@ class OS {
   // called after CPU initialization.
   static void PostSetUp();
 
-  // Clean up platform-OS-related things. Called once at VM shutdown.
-  static void TearDown();
-
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
   // strive for high-precision timer resolution, preferable

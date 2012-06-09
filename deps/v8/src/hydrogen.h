@@ -42,7 +42,6 @@ namespace internal {
 
 // Forward declarations.
 class BitVector;
-class FunctionState;
 class HEnvironment;
 class HGraph;
 class HLoopInformation;
@@ -122,7 +121,7 @@ class HBasicBlock: public ZoneObject {
 
   void Finish(HControlInstruction* last);
   void FinishExit(HControlInstruction* instruction);
-  void Goto(HBasicBlock* block, FunctionState* state = NULL);
+  void Goto(HBasicBlock* block, bool drop_extra = false);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   void AddSimulate(int ast_id) { AddInstruction(CreateSimulate(ast_id)); }
@@ -137,7 +136,7 @@ class HBasicBlock: public ZoneObject {
   // instruction and updating the bailout environment.
   void AddLeaveInlined(HValue* return_value,
                        HBasicBlock* target,
-                       FunctionState* state = NULL);
+                       bool drop_extra = false);
 
   // If a target block is tagged as an inline function return, all
   // predecessors should contain the inlined exit sequence:
@@ -241,7 +240,7 @@ class HLoopInformation: public ZoneObject {
   HStackCheck* stack_check_;
 };
 
-class BoundsCheckTable;
+
 class HGraph: public ZoneObject {
  public:
   explicit HGraph(CompilationInfo* info);
@@ -266,7 +265,6 @@ class HGraph: public ZoneObject {
   void OrderBlocks();
   void AssignDominators();
   void ReplaceCheckedValues();
-  void EliminateRedundantBoundsChecks();
   void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
@@ -359,7 +357,6 @@ class HGraph: public ZoneObject {
   void InferTypes(ZoneList<HValue*>* worklist);
   void InitializeInferredTypes(int from_inclusive, int to_inclusive);
   void CheckForBackEdge(HBasicBlock* block, HBasicBlock* successor);
-  void EliminateRedundantBoundsChecks(HBasicBlock* bb, BoundsCheckTable* table);
 
   Isolate* isolate_;
   int next_block_id_;
@@ -718,16 +715,6 @@ class FunctionState {
 
   FunctionState* outer() { return outer_; }
 
-  HEnterInlined* entry() { return entry_; }
-  void set_entry(HEnterInlined* entry) { entry_ = entry; }
-
-  HArgumentsElements* arguments_elements() { return arguments_elements_; }
-  void set_arguments_elements(HArgumentsElements* arguments_elements) {
-    arguments_elements_ = arguments_elements;
-  }
-
-  bool arguments_pushed() { return arguments_elements() != NULL; }
-
  private:
   HGraphBuilder* owner_;
 
@@ -753,12 +740,6 @@ class FunctionState {
   // When inlining a call in a test context, a context containing a pair of
   // return blocks.  NULL in all other cases.
   TestContext* test_context_;
-
-  // When inlining HEnterInlined instruction corresponding to the function
-  // entry.
-  HEnterInlined* entry_;
-
-  HArgumentsElements* arguments_elements_;
 
   FunctionState* outer_;
 };
@@ -870,11 +851,15 @@ class HGraphBuilder: public AstVisitor {
   static const int kMaxLoadPolymorphism = 4;
   static const int kMaxStorePolymorphism = 4;
 
+  static const int kMaxInlinedNodes = 196;
+  static const int kMaxInlinedSize = 196;
+  static const int kMaxSourceSize = 600;
+
   // Even in the 'unlimited' case we have to have some limit in order not to
   // overflow the stack.
-  static const int kUnlimitedMaxInlinedSourceSize = 100000;
-  static const int kUnlimitedMaxInlinedNodes = 10000;
-  static const int kUnlimitedMaxInlinedNodesCumulative = 10000;
+  static const int kUnlimitedMaxInlinedNodes = 1000;
+  static const int kUnlimitedMaxInlinedSize = 1000;
+  static const int kUnlimitedMaxSourceSize = 600;
 
   // Simple accessors.
   void set_function_state(FunctionState* state) { function_state_ = state; }
@@ -910,6 +895,11 @@ class HGraphBuilder: public AstVisitor {
   INLINE_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
+
+  void HandleDeclaration(VariableProxy* proxy,
+                         VariableMode mode,
+                         FunctionLiteral* function,
+                         int* global_count);
 
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
@@ -1004,7 +994,6 @@ class HGraphBuilder: public AstVisitor {
                                             LookupResult* lookup,
                                             bool is_store);
 
-  void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);
 
   // Try to optimize fun.apply(receiver, arguments) pattern.
@@ -1040,10 +1029,6 @@ class HGraphBuilder: public AstVisitor {
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicLoadNamedField(Property* expr,
-                                       HValue* object,
-                                       SmallMapList* types,
-                                       Handle<String> name);
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
@@ -1160,7 +1145,6 @@ class HGraphBuilder: public AstVisitor {
   HBasicBlock* current_block_;
 
   int inlined_count_;
-  ZoneList<Handle<Object> > globals_;
 
   Zone* zone_;
 
@@ -1232,30 +1216,6 @@ class HValueMap: public ZoneObject {
   // with a given hash.  Colliding elements are stored in linked lists.
   HValueMapListElement* lists_;  // The linked lists containing hash collisions.
   int free_list_head_;  // Unused elements in lists_ are on the free list.
-};
-
-
-class HSideEffectMap BASE_EMBEDDED {
- public:
-  HSideEffectMap();
-  explicit HSideEffectMap(HSideEffectMap* other);
-
-  void Kill(GVNFlagSet flags);
-
-  void Store(GVNFlagSet flags, HInstruction* instr);
-
-  bool IsEmpty() const { return count_ == 0; }
-
-  inline HInstruction* operator[](int i) const {
-    ASSERT(0 <= i);
-    ASSERT(i < kNumberOfTrackedSideEffects);
-    return data_[i];
-  }
-  inline HInstruction* at(int i) const { return operator[](i); }
-
- private:
-  int count_;
-  HInstruction* data_[kNumberOfTrackedSideEffects];
 };
 
 

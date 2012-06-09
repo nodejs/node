@@ -94,8 +94,18 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
+void OS::SetUp() {
+  // Seed the random number generator. We preserve microsecond resolution.
+  uint64_t seed = Ticks() ^ (getpid() << 16);
+  srandom(static_cast<unsigned int>(seed));
+  limit_mutex = CreateMutex();
+}
+
+
 void OS::PostSetUp() {
-  POSIXPostSetUp();
+  // Math functions depend on CPU features therefore they are initialized after
+  // CPU.
+  MathSetup();
 }
 
 
@@ -743,11 +753,8 @@ class SamplerThread : public Thread {
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),
         interval_(interval) {}
 
-  static void SetUp() { if (!mutex_) mutex_ = OS::CreateMutex(); }
-  static void TearDown() { delete mutex_; }
-
   static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
       instance_ = new SamplerThread(sampler->interval());
@@ -758,7 +765,7 @@ class SamplerThread : public Thread {
   }
 
   static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_.Pointer());
     SamplerRegistry::RemoveActiveSampler(sampler);
     if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
@@ -855,7 +862,7 @@ class SamplerThread : public Thread {
   RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
-  static Mutex* mutex_;
+  static LazyMutex mutex_;
   static SamplerThread* instance_;
 
  private:
@@ -865,23 +872,8 @@ class SamplerThread : public Thread {
 #undef REGISTER_FIELD
 
 
-Mutex* SamplerThread::mutex_ = NULL;
+LazyMutex SamplerThread::mutex_ = LAZY_MUTEX_INITIALIZER;
 SamplerThread* SamplerThread::instance_ = NULL;
-
-
-void OS::SetUp() {
-  // Seed the random number generator. We preserve microsecond resolution.
-  uint64_t seed = Ticks() ^ (getpid() << 16);
-  srandom(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
-  SamplerThread::SetUp();
-}
-
-
-void OS::TearDown() {
-  SamplerThread::TearDown();
-  delete limit_mutex;
-}
 
 
 Sampler::Sampler(Isolate* isolate, int interval)

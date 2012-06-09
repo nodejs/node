@@ -129,7 +129,7 @@ export module M2 {
 
 export module External at "external.js"
 export module External1 = External
-//export module ExternalA = External.A
+export module ExternalA = External.A
 export module InnerExternal {
   export module E at "external.js"
 }

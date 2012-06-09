@@ -239,13 +239,13 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   // ok:
 
   if (FLAG_count_based_interrupts) {
-    ASSERT_EQ(kJnsInstruction, *(call_target_address - 3));
-    ASSERT_EQ(kJnsOffset,      *(call_target_address - 2));
+    ASSERT_EQ(*(call_target_address - 3), kJnsInstruction);
+    ASSERT_EQ(*(call_target_address - 2), kJnsOffset);
   } else {
-    ASSERT_EQ(kJaeInstruction, *(call_target_address - 3));
-    ASSERT_EQ(kJaeOffset,      *(call_target_address - 2));
+    ASSERT_EQ(*(call_target_address - 3), kJaeInstruction);
+    ASSERT_EQ(*(call_target_address - 2), kJaeOffset);
   }
-  ASSERT_EQ(kCallInstruction,  *(call_target_address - 1));
+  ASSERT_EQ(*(call_target_address - 1), kCallInstruction);
   *(call_target_address - 3) = kNopByteOne;
   *(call_target_address - 2) = kNopByteTwo;
   Assembler::set_target_address_at(call_target_address,
@@ -266,9 +266,9 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 
   // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
   // restore the conditional branch.
-  ASSERT_EQ(kNopByteOne,      *(call_target_address - 3));
-  ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
-  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
+  ASSERT_EQ(*(call_target_address - 3), kNopByteOne);
+  ASSERT_EQ(*(call_target_address - 2), kNopByteTwo);
+  ASSERT_EQ(*(call_target_address - 1), kCallInstruction);
   if (FLAG_count_based_interrupts) {
     *(call_target_address - 3) = kJnsInstruction;
     *(call_target_address - 2) = kJnsOffset;

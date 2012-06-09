@@ -146,7 +146,6 @@ class RegisteredExtension {
  public:
   explicit RegisteredExtension(Extension* extension);
   static void Register(RegisteredExtension* that);
-  static void UnregisterAll();
   Extension* extension() { return extension_; }
   RegisteredExtension* next() { return next_; }
   RegisteredExtension* next_auto() { return next_auto_; }

@@ -196,18 +196,12 @@ class LCodeGen BASE_EMBEDDED {
                                int argc,
                                LInstruction* instr);
 
-  enum RDIState {
-    RDI_UNINITIALIZED,
-    RDI_CONTAINS_TARGET
-  };
-
   // Generate a direct call to a known function.  Expects the function
   // to be in rdi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind,
-                         RDIState rdi_state);
+                         CallKind call_kind);
 
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,

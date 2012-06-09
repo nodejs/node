@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --inline-construct --max-inlined-source-size=999999 --max-inlined-nodes=999999 --max-inlined-nodes-cumulative=999999
+// Flags: --allow-natives-syntax --inline-construct --nolimit-inlining
 
 // Test that huge constructors (more than 256 this assignments) are
 // handled correctly.

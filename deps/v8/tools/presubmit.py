@@ -114,15 +114,12 @@ def CppLintWorker(command):
     while True:
       out_line = process.stderr.readline()
       if out_line == '' and process.poll() != None:
-        if error_count == -1:
-          print "Failed to process %s" % command.pop()
-          return 1
         break
       m = LINT_OUTPUT_PATTERN.match(out_line)
       if m:
         out_lines += out_line
         error_count += 1
-    sys.stdout.write(out_lines)
+    sys.stderr.write(out_lines)
     return error_count
   except KeyboardInterrupt:
     process.kill()
@@ -303,7 +300,8 @@ class SourceProcessor(SourceFileProcessor):
               or (name == 'third_party')
               or (name == 'gyp')
               or (name == 'out')
-              or (name == 'obj'))
+              or (name == 'obj')
+              or (name == 'DerivedSources'))
 
   IGNORE_COPYRIGHTS = ['cpplint.py',
                        'earley-boyer.js',

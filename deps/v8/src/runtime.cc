@@ -1289,79 +1289,90 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareGlobals) {
     // We have to declare a global const property. To capture we only
     // assign to it when evaluating the assignment for "const x =
     // <expr>" the initial value is the hole.
-    bool is_var = value->IsUndefined();
-    bool is_const = value->IsTheHole();
-    bool is_function = value->IsSharedFunctionInfo();
-    bool is_module = value->IsJSModule();
-    ASSERT(is_var + is_const + is_function + is_module == 1);
-
-    if (is_var || is_const) {
+    bool is_const_property = value->IsTheHole();
+    bool is_function_declaration = false;
+    if (value->IsUndefined() || is_const_property) {
       // Lookup the property in the global object, and don't set the
       // value of the variable if the property is already there.
-      // Do the lookup locally only, see ES5 errata.
       LookupResult lookup(isolate);
-      if (FLAG_es52_globals)
-        global->LocalLookup(*name, &lookup);
-      else
-        global->Lookup(*name, &lookup);
+      global->Lookup(*name, &lookup);
       if (lookup.IsProperty()) {
         // We found an existing property. Unless it was an interceptor
         // that claims the property is absent, skip this declaration.
-        if (lookup.type() != INTERCEPTOR) continue;
+        if (lookup.type() != INTERCEPTOR) {
+          continue;
+        }
         PropertyAttributes attributes = global->GetPropertyAttribute(*name);
-        if (attributes != ABSENT) continue;
+        if (attributes != ABSENT) {
+          continue;
+        }
         // Fall-through and introduce the absent property by using
         // SetProperty.
       }
-    } else if (is_function) {
+    } else {
+      is_function_declaration = true;
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(value);
       Handle<JSFunction> function =
-          isolate->factory()->NewFunctionFromSharedFunctionInfo(
-              shared, context, TENURED);
+          isolate->factory()->NewFunctionFromSharedFunctionInfo(shared,
+                                                                context,
+                                                                TENURED);
       value = function;
     }
 
     LookupResult lookup(isolate);
     global->LocalLookup(*name, &lookup);
 
-    // Compute the property attributes. According to ECMA-262,
-    // the property must be non-configurable except in eval.
+    // Compute the property attributes. According to ECMA-262, section
+    // 13, page 71, the property must be read-only and
+    // non-deletable. However, neither SpiderMonkey nor KJS creates the
+    // property as read-only, so we don't either.
     int attr = NONE;
-    bool is_eval = DeclareGlobalsEvalFlag::decode(flags);
-    if (!is_eval || is_module) {
+    if (!DeclareGlobalsEvalFlag::decode(flags)) {
       attr |= DONT_DELETE;
     }
     bool is_native = DeclareGlobalsNativeFlag::decode(flags);
-    if (is_const || is_module || (is_native && is_function)) {
+    if (is_const_property || (is_native && is_function_declaration)) {
       attr |= READ_ONLY;
     }
 
     LanguageMode language_mode = DeclareGlobalsLanguageMode::decode(flags);
 
-    if (!lookup.IsProperty() || is_function || is_module) {
-      // If the local property exists, check that we can reconfigure it
-      // as required for function declarations.
-      if (lookup.IsProperty() && lookup.IsDontDelete()) {
-        if (lookup.IsReadOnly() || lookup.IsDontEnum() ||
-            lookup.type() == CALLBACKS) {
-          return ThrowRedeclarationError(
-              isolate, is_function ? "function" : "module", name);
+    // Safari does not allow the invocation of callback setters for
+    // function declarations. To mimic this behavior, we do not allow
+    // the invocation of setters for function values. This makes a
+    // difference for global functions with the same names as event
+    // handlers such as "function onload() {}". Firefox does call the
+    // onload setter in those case and Safari does not. We follow
+    // Safari for compatibility.
+    if (is_function_declaration) {
+      if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
+        // Do not overwrite READ_ONLY properties.
+        if (lookup.GetAttributes() & READ_ONLY) {
+          if (language_mode != CLASSIC_MODE) {
+            Handle<Object> args[] = { name };
+            return isolate->Throw(*isolate->factory()->NewTypeError(
+                "strict_cannot_assign", HandleVector(args, ARRAY_SIZE(args))));
+          }
+          continue;
         }
-        // If the existing property is not configurable, keep its attributes.
-        attr = lookup.GetAttributes();
+        // Do not change DONT_DELETE to false from true.
+        attr |= lookup.GetAttributes() & DONT_DELETE;
       }
-      // Define or redefine own property.
-      RETURN_IF_EMPTY_HANDLE(isolate,
-          JSObject::SetLocalPropertyIgnoreAttributes(
-              global, name, value, static_cast<PropertyAttributes>(attr)));
+      PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
+
+      RETURN_IF_EMPTY_HANDLE(
+          isolate,
+          JSObject::SetLocalPropertyIgnoreAttributes(global, name, value,
+                                                     attributes));
     } else {
-      // Do a [[Put]] on the existing (own) property.
-      RETURN_IF_EMPTY_HANDLE(isolate,
-          JSObject::SetProperty(
-              global, name, value, static_cast<PropertyAttributes>(attr),
-              language_mode == CLASSIC_MODE ? kNonStrictMode : kStrictMode));
+      RETURN_IF_EMPTY_HANDLE(
+          isolate,
+          JSReceiver::SetProperty(global, name, value,
+                                  static_cast<PropertyAttributes>(attr),
+                                  language_mode == CLASSIC_MODE
+                                      ? kNonStrictMode : kStrictMode));
     }
   }
 
@@ -1394,8 +1405,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
 
   if (attributes != ABSENT) {
     // The name was declared before; check for conflicting re-declarations.
-    // Note: this is actually inconsistent with what happens for globals (where
-    // we silently ignore such declarations).
     if (((attributes & READ_ONLY) != 0) || (mode == READ_ONLY)) {
       // Functions are not read-only.
       ASSERT(mode != READ_ONLY || initial_value->IsTheHole());
@@ -1458,14 +1467,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         return ThrowRedeclarationError(isolate, "const", name);
       }
     }
-    if (object->IsJSGlobalObject()) {
-      // Define own property on the global object.
-      RETURN_IF_EMPTY_HANDLE(isolate,
-         JSObject::SetLocalPropertyIgnoreAttributes(object, name, value, mode));
-    } else {
-      RETURN_IF_EMPTY_HANDLE(isolate,
-         JSReceiver::SetProperty(object, name, value, mode, kNonStrictMode));
-    }
+    RETURN_IF_EMPTY_HANDLE(
+        isolate,
+        JSReceiver::SetProperty(object, name, value, mode, kNonStrictMode));
   }
 
   return isolate->heap()->undefined_value();
@@ -1783,9 +1787,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
   ASSERT(args.length() == 5);
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_CHECKED(String, source, 1);
-  // If source is the empty string we set it to "(?:)" instead as
-  // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = isolate->heap()->query_colon_symbol();
 
   Object* global = args[2];
   if (!global->IsTrue()) global = isolate->heap()->false_value();
@@ -2100,7 +2101,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
     DescriptorArray* instance_desc = function->map()->instance_descriptors();
     int index = instance_desc->Search(name);
     ASSERT(index != DescriptorArray::kNotFound);
-    PropertyDetails details = instance_desc->GetDetails(index);
+    PropertyDetails details(instance_desc->GetDetails(index));
     CallbacksDescriptor new_desc(name,
         instance_desc->GetValue(index),
         static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
@@ -2885,79 +2886,12 @@ void FindStringIndicesDispatch(Isolate* isolate,
 }
 
 
-// Two smis before and after the match, for very long strings.
-const int kMaxBuilderEntriesPerRegExpMatch = 5;
-
-
-static void SetLastMatchInfoNoCaptures(Handle<String> subject,
-                                       Handle<JSArray> last_match_info,
-                                       int match_start,
-                                       int match_end) {
-  // Fill last_match_info with a single capture.
-  last_match_info->EnsureSize(2 + RegExpImpl::kLastMatchOverhead);
-  AssertNoAllocation no_gc;
-  FixedArray* elements = FixedArray::cast(last_match_info->elements());
-  RegExpImpl::SetLastCaptureCount(elements, 2);
-  RegExpImpl::SetLastInput(elements, *subject);
-  RegExpImpl::SetLastSubject(elements, *subject);
-  RegExpImpl::SetCapture(elements, 0, match_start);
-  RegExpImpl::SetCapture(elements, 1, match_end);
-}
-
-
-template <typename SubjectChar, typename PatternChar>
-static bool SearchStringMultiple(Isolate* isolate,
-                                 Vector<const SubjectChar> subject,
-                                 Vector<const PatternChar> pattern,
-                                 String* pattern_string,
-                                 FixedArrayBuilder* builder,
-                                 int* match_pos) {
-  int pos = *match_pos;
-  int subject_length = subject.length();
-  int pattern_length = pattern.length();
-  int max_search_start = subject_length - pattern_length;
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
-  while (pos <= max_search_start) {
-    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
-      *match_pos = pos;
-      return false;
-    }
-    // Position of end of previous match.
-    int match_end = pos + pattern_length;
-    int new_pos = search.Search(subject, match_end);
-    if (new_pos >= 0) {
-      // A match.
-      if (new_pos > match_end) {
-        ReplacementStringBuilder::AddSubjectSlice(builder,
-            match_end,
-            new_pos);
-      }
-      pos = new_pos;
-      builder->Add(pattern_string);
-    } else {
-      break;
-    }
-  }
-
-  if (pos < max_search_start) {
-    ReplacementStringBuilder::AddSubjectSlice(builder,
-                                              pos + pattern_length,
-                                              subject_length);
-  }
-  *match_pos = pos;
-  return true;
-}
-
-
-
-
 template<typename ResultSeqString>
-MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
+MUST_USE_RESULT static MaybeObject* StringReplaceStringWithString(
     Isolate* isolate,
     Handle<String> subject,
     Handle<JSRegExp> pattern_regexp,
-    Handle<String> replacement,
-    Handle<JSArray> last_match_info) {
+    Handle<String> replacement) {
   ASSERT(subject->IsFlat());
   ASSERT(replacement->IsFlat());
 
@@ -3016,12 +2950,6 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
                         subject_pos,
                         subject_len);
   }
-
-  SetLastMatchInfoNoCaptures(subject,
-                             last_match_info,
-                             indices.at(matches - 1),
-                             indices.at(matches - 1) + pattern_len);
-
   return *result;
 }
 
@@ -3070,19 +2998,11 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
       compiled_replacement.simple_hint()) {
     if (subject_handle->HasOnlyAsciiChars() &&
         replacement_handle->HasOnlyAsciiChars()) {
-      return StringReplaceAtomRegExpWithString<SeqAsciiString>(
-          isolate,
-          subject_handle,
-          regexp_handle,
-          replacement_handle,
-          last_match_info_handle);
+      return StringReplaceStringWithString<SeqAsciiString>(
+          isolate, subject_handle, regexp_handle, replacement_handle);
     } else {
-      return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
-          isolate,
-          subject_handle,
-          regexp_handle,
-          replacement_handle,
-          last_match_info_handle);
+      return StringReplaceStringWithString<SeqTwoByteString>(
+          isolate, subject_handle, regexp_handle, replacement_handle);
     }
   }
 
@@ -3171,29 +3091,21 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
 
   Handle<String> subject_handle(subject);
   Handle<JSRegExp> regexp_handle(regexp);
-  Handle<JSArray> last_match_info_handle(last_match_info);
 
   // Shortcut for simple non-regexp global replacements
   if (regexp_handle->GetFlags().is_global() &&
       regexp_handle->TypeTag() == JSRegExp::ATOM) {
     Handle<String> empty_string_handle(HEAP->empty_string());
     if (subject_handle->HasOnlyAsciiChars()) {
-      return StringReplaceAtomRegExpWithString<SeqAsciiString>(
-          isolate,
-          subject_handle,
-          regexp_handle,
-          empty_string_handle,
-          last_match_info_handle);
+      return StringReplaceStringWithString<SeqAsciiString>(
+          isolate, subject_handle, regexp_handle, empty_string_handle);
     } else {
-      return StringReplaceAtomRegExpWithString<SeqTwoByteString>(
-          isolate,
-          subject_handle,
-          regexp_handle,
-          empty_string_handle,
-          last_match_info_handle);
+      return StringReplaceStringWithString<SeqTwoByteString>(
+          isolate, subject_handle, regexp_handle, empty_string_handle);
     }
   }
 
+  Handle<JSArray> last_match_info_handle(last_match_info);
   Handle<Object> match = RegExpImpl::Exec(regexp_handle,
                                           subject_handle,
                                           0,
@@ -3213,10 +3125,6 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     end = RegExpImpl::GetCapture(match_info_array, 1);
   }
 
-  bool global = regexp_handle->GetFlags().is_global();
-
-  if (start == end && !global) return *subject_handle;
-
   int length = subject_handle->length();
   int new_length = length - (end - start);
   if (new_length == 0) {
@@ -3232,7 +3140,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   }
 
   // If the regexp isn't global, only match once.
-  if (!global) {
+  if (!regexp_handle->GetFlags().is_global()) {
     if (start > 0) {
       String::WriteToFlat(*subject_handle,
                           answer->GetChars(),
@@ -3731,6 +3639,70 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringMatch) {
 }
 
 
+// Two smis before and after the match, for very long strings.
+const int kMaxBuilderEntriesPerRegExpMatch = 5;
+
+
+static void SetLastMatchInfoNoCaptures(Handle<String> subject,
+                                       Handle<JSArray> last_match_info,
+                                       int match_start,
+                                       int match_end) {
+  // Fill last_match_info with a single capture.
+  last_match_info->EnsureSize(2 + RegExpImpl::kLastMatchOverhead);
+  AssertNoAllocation no_gc;
+  FixedArray* elements = FixedArray::cast(last_match_info->elements());
+  RegExpImpl::SetLastCaptureCount(elements, 2);
+  RegExpImpl::SetLastInput(elements, *subject);
+  RegExpImpl::SetLastSubject(elements, *subject);
+  RegExpImpl::SetCapture(elements, 0, match_start);
+  RegExpImpl::SetCapture(elements, 1, match_end);
+}
+
+
+template <typename SubjectChar, typename PatternChar>
+static bool SearchStringMultiple(Isolate* isolate,
+                                 Vector<const SubjectChar> subject,
+                                 Vector<const PatternChar> pattern,
+                                 String* pattern_string,
+                                 FixedArrayBuilder* builder,
+                                 int* match_pos) {
+  int pos = *match_pos;
+  int subject_length = subject.length();
+  int pattern_length = pattern.length();
+  int max_search_start = subject_length - pattern_length;
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  while (pos <= max_search_start) {
+    if (!builder->HasCapacity(kMaxBuilderEntriesPerRegExpMatch)) {
+      *match_pos = pos;
+      return false;
+    }
+    // Position of end of previous match.
+    int match_end = pos + pattern_length;
+    int new_pos = search.Search(subject, match_end);
+    if (new_pos >= 0) {
+      // A match.
+      if (new_pos > match_end) {
+        ReplacementStringBuilder::AddSubjectSlice(builder,
+            match_end,
+            new_pos);
+      }
+      pos = new_pos;
+      builder->Add(pattern_string);
+    } else {
+      break;
+    }
+  }
+
+  if (pos < max_search_start) {
+    ReplacementStringBuilder::AddSubjectSlice(builder,
+                                              pos + pattern_length,
+                                              subject_length);
+  }
+  *match_pos = pos;
+  return true;
+}
+
+
 static bool SearchStringMultiple(Isolate* isolate,
                                  Handle<String> subject,
                                  Handle<String> pattern,
@@ -3870,8 +3842,6 @@ static RegExpImpl::IrregexpResult SearchRegExpNoCaptureMultiple(
 }
 
 
-// Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
-// separate last match info.  See comment on that function.
 static RegExpImpl::IrregexpResult SearchRegExpMultiple(
     Isolate* isolate,
     Handle<String> subject,
@@ -3900,6 +3870,10 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
   // End of previous match. Differs from pos if match was empty.
   int match_end = 0;
   if (result == RegExpImpl::RE_SUCCESS) {
+    // Need to keep a copy of the previous match for creating last_match_info
+    // at the end, so we have two vectors that we swap between.
+    OffsetsVector registers2(required_registers, isolate);
+    Vector<int> prev_register_vector(registers2.vector(), registers2.length());
     bool first = true;
     do {
       int match_start = register_vector[0];
@@ -3952,6 +3926,11 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
         elements->set(capture_count + 2, *subject);
         builder->Add(*isolate->factory()->NewJSArrayWithElements(elements));
       }
+      // Swap register vectors, so the last successful match is in
+      // prev_register_vector.
+      Vector<int32_t> tmp = prev_register_vector;
+      prev_register_vector = register_vector;
+      register_vector = tmp;
 
       if (match_end > match_start) {
         pos = match_end;
@@ -3983,12 +3962,12 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
       last_match_array->EnsureSize(last_match_array_size);
       AssertNoAllocation no_gc;
       FixedArray* elements = FixedArray::cast(last_match_array->elements());
-      // We have to set this even though the rest of the last match array is
-      // ignored.
       RegExpImpl::SetLastCaptureCount(elements, last_match_capture_count);
-      // These are also read without consulting the override.
       RegExpImpl::SetLastSubject(elements, *subject);
       RegExpImpl::SetLastInput(elements, *subject);
+      for (int i = 0; i < last_match_capture_count; i++) {
+        RegExpImpl::SetCapture(elements, i, prev_register_vector[i]);
+      }
       return RegExpImpl::RE_SUCCESS;
     }
   }
@@ -3997,9 +3976,6 @@ static RegExpImpl::IrregexpResult SearchRegExpMultiple(
 }
 
 
-// This is only called for StringReplaceGlobalRegExpWithFunction.  This sets
-// lastMatchInfoOverride to maintain the last match info, so we don't need to
-// set any other last match array info.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   ASSERT(args.length() == 4);
   HandleScope handles(isolate);
@@ -4693,7 +4669,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   HandleScope scope;
 
   Object* raw_boilerplate_object = literals->get(literal_index);
-  Handle<JSArray> boilerplate(JSArray::cast(raw_boilerplate_object));
+  Handle<JSArray> boilerplate_object(JSArray::cast(raw_boilerplate_object));
 #if DEBUG
   ElementsKind elements_kind = object->GetElementsKind();
 #endif
@@ -4704,56 +4680,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   if (value->IsNumber()) {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
     JSObject::TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
-    if (IsMoreGeneralElementsKindTransition(boilerplate->GetElementsKind(),
-                                            FAST_DOUBLE_ELEMENTS)) {
-      JSObject::TransitionElementsKind(boilerplate, FAST_DOUBLE_ELEMENTS);
-    }
+    JSObject::TransitionElementsKind(boilerplate_object, FAST_DOUBLE_ELEMENTS);
     ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
-    FixedDoubleArray* double_array = FixedDoubleArray::cast(object->elements());
+    FixedDoubleArray* double_array =
+        FixedDoubleArray::cast(object->elements());
     HeapNumber* number = HeapNumber::cast(*value);
     double_array->set(store_index, number->Number());
   } else {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            elements_kind == FAST_DOUBLE_ELEMENTS);
     JSObject::TransitionElementsKind(object, FAST_ELEMENTS);
-    if (IsMoreGeneralElementsKindTransition(boilerplate->GetElementsKind(),
-                                            FAST_ELEMENTS)) {
-      JSObject::TransitionElementsKind(boilerplate, FAST_ELEMENTS);
-    }
-    FixedArray* object_array = FixedArray::cast(object->elements());
+    JSObject::TransitionElementsKind(boilerplate_object, FAST_ELEMENTS);
+    FixedArray* object_array =
+        FixedArray::cast(object->elements());
     object_array->set(store_index, *value);
   }
   return *object;
-}
-
-
-// Check whether debugger and is about to step into the callback that is passed
-// to a built-in function such as Array.forEach.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugCallbackSupportsStepping) {
-  if (!isolate->IsDebuggerActive()) return isolate->heap()->false_value();
-  CONVERT_ARG_CHECKED(Object, callback, 0);
-  // We do not step into the callback if it's a builtin or not even a function.
-  if (!callback->IsJSFunction() || JSFunction::cast(callback)->IsBuiltin()) {
-    return isolate->heap()->false_value();
-  }
-  return isolate->heap()->true_value();
-}
-
-
-// Set one shot breakpoints for the callback function that is passed to a
-// built-in function such as Array.forEach to enable stepping into the callback.
-RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrepareStepInIfStepping) {
-  Debug* debug = isolate->debug();
-  if (!debug->IsStepping()) return NULL;
-  CONVERT_ARG_CHECKED(Object, callback, 0);
-  HandleScope scope(isolate);
-  Handle<SharedFunctionInfo> shared_info(JSFunction::cast(callback)->shared());
-  // When leaving the callback, step out has been activated, but not performed
-  // if we do not leave the builtin.  To be able to step into the callback
-  // again, we need to clear the step out at this point.
-  debug->ClearStepOut();
-  debug->FloodWithOneShot(shared_info);
-  return NULL;
 }
 
 
@@ -8180,14 +8122,6 @@ static void MaterializeArgumentsObjectInFrame(Isolate* isolate,
         ASSERT(*arguments != isolate->heap()->undefined_value());
       }
       frame->SetExpression(i, *arguments);
-      if (FLAG_trace_deopt) {
-        PrintF("Materializing arguments object for frame %p - %p: %p ",
-               reinterpret_cast<void*>(frame->sp()),
-               reinterpret_cast<void*>(frame->fp()),
-               reinterpret_cast<void*>(*arguments));
-        arguments->ShortPrint();
-        PrintF("\n");
-      }
     }
   }
 }
@@ -8316,13 +8250,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOptimizationStatus) {
   if (!V8::UseCrankshaft()) {
     return Smi::FromInt(4);  // 4 == "never".
   }
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (FLAG_always_opt) {
-    // We may have always opt, but that is more best-effort than a real
-    // promise, so we still say "no" if it is not optimized.
-    return function->IsOptimized() ? Smi::FromInt(3)   // 3 == "always".
-                                   : Smi::FromInt(2);  // 2 == "no".
+    return Smi::FromInt(3);  // 3 == "always".
   }
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".
 }
@@ -8426,10 +8357,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CompileForOnStackReplacement) {
     PrintF("]\n");
   }
   Handle<Code> check_code;
+#if defined(V8_TARGET_ARCH_IA32) || \
+    defined(V8_TARGET_ARCH_ARM) || \
+    defined(V8_TARGET_ARCH_MIPS)
   if (FLAG_count_based_interrupts) {
     InterruptStub interrupt_stub;
     check_code = interrupt_stub.GetCode();
   } else  // NOLINT
+#endif
   {  // NOLINT
     StackCheckStub check_stub;
     check_code = check_stub.GetCode();
@@ -8664,25 +8599,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
                                             scope_info);
   if (!maybe_context->To(&context)) return maybe_context;
   isolate->set_context(context);
-  return context;
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_PushModuleContext) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-  CONVERT_ARG_CHECKED(ScopeInfo, scope_info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSModule, instance, 1);
-
-  Context* context;
-  MaybeObject* maybe_context =
-      isolate->heap()->AllocateModuleContext(isolate->context(),
-                                             scope_info);
-  if (!maybe_context->To(&context)) return maybe_context;
-  // Also initialize the context slot of the instance object.
-  instance->set_context(context);
-  isolate->set_context(context);
-
   return context;
 }
 
@@ -10988,10 +10904,10 @@ static Handle<JSObject> MaterializeModuleScope(
 }
 
 
-// Iterate over the actual scopes visible from a stack frame or from a closure.
-// The iteration proceeds from the innermost visible nested scope outwards.
-// All scopes are backed by an actual context except the local scope,
-// which is inserted "artificially" in the context chain.
+// Iterate over the actual scopes visible from a stack frame. The iteration
+// proceeds from the innermost visible nested scope outwards. All scopes are
+// backed by an actual context except the local scope, which is inserted
+// "artificially" in the context chain.
 class ScopeIterator {
  public:
   enum ScopeType {
@@ -11089,18 +11005,6 @@ class ScopeIterator {
         // completely stack allocated scopes or stack allocated locals.
         UNREACHABLE();
       }
-    }
-  }
-
-  ScopeIterator(Isolate* isolate,
-                Handle<JSFunction> function)
-    : isolate_(isolate),
-      frame_(NULL),
-      inlined_jsframe_index_(0),
-      function_(function),
-      context_(function->context()) {
-    if (function->IsBuiltin()) {
-      context_ = Handle<Context>();
     }
   }
 
@@ -11324,22 +11228,6 @@ static const int kScopeDetailsTypeIndex = 0;
 static const int kScopeDetailsObjectIndex = 1;
 static const int kScopeDetailsSize = 2;
 
-
-static MaybeObject* MaterializeScopeDetails(Isolate* isolate,
-    ScopeIterator* it) {
-  // Calculate the size of the result.
-  int details_size = kScopeDetailsSize;
-  Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
-
-  // Fill in scope details.
-  details->set(kScopeDetailsTypeIndex, Smi::FromInt(it->Type()));
-  Handle<JSObject> scope_object = it->ScopeObject();
-  RETURN_IF_EMPTY_HANDLE(isolate, scope_object);
-  details->set(kScopeDetailsObjectIndex, *scope_object);
-
-  return *isolate->factory()->NewJSArrayWithElements(details);
-}
-
 // Return an array with scope details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -11377,46 +11265,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
   if (it.Done()) {
     return isolate->heap()->undefined_value();
   }
-  return MaterializeScopeDetails(isolate, &it);
-}
 
+  // Calculate the size of the result.
+  int details_size = kScopeDetailsSize;
+  Handle<FixedArray> details = isolate->factory()->NewFixedArray(details_size);
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeCount) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
+  // Fill in scope details.
+  details->set(kScopeDetailsTypeIndex, Smi::FromInt(it.Type()));
+  Handle<JSObject> scope_object = it.ScopeObject();
+  RETURN_IF_EMPTY_HANDLE(isolate, scope_object);
+  details->set(kScopeDetailsObjectIndex, *scope_object);
 
-  // Check arguments.
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-
-  // Count the visible scopes.
-  int n = 0;
-  for (ScopeIterator it(isolate, fun); !it.Done(); it.Next()) {
-    n++;
-  }
-
-  return Smi::FromInt(n);
-}
-
-
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFunctionScopeDetails) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 2);
-
-  // Check arguments.
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
-
-  // Find the requested scope.
-  int n = 0;
-  ScopeIterator it(isolate, fun);
-  for (; !it.Done() && n < index; it.Next()) {
-    n++;
-  }
-  if (it.Done()) {
-    return isolate->heap()->undefined_value();
-  }
-
-  return MaterializeScopeDetails(isolate, &it);
+  return *isolate->factory()->NewJSArrayWithElements(details);
 }
 
 

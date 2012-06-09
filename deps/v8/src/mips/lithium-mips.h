@@ -71,7 +71,7 @@ class LCodeGen;
   V(CallStub)                                   \
   V(CheckFunction)                              \
   V(CheckInstanceType)                          \
-  V(CheckMaps)                                  \
+  V(CheckMap)                                   \
   V(CheckNonSmi)                                \
   V(CheckPrototypeMaps)                         \
   V(CheckSmi)                                   \
@@ -179,8 +179,7 @@ class LCodeGen;
   V(CheckMapValue)                              \
   V(LoadFieldByIndex)                           \
   V(DateField)                                  \
-  V(WrapReceiver)                               \
-  V(Drop)
+  V(WrapReceiver)
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
   virtual Opcode opcode() const { return LInstruction::k##type; } \
@@ -203,14 +202,15 @@ class LInstruction: public ZoneObject {
   LInstruction()
       :  environment_(NULL),
          hydrogen_value_(NULL),
-         is_call_(false) { }
+         is_call_(false),
+         is_save_doubles_(false) { }
   virtual ~LInstruction() { }
 
   virtual void CompileToNative(LCodeGen* generator) = 0;
   virtual const char* Mnemonic() const = 0;
   virtual void PrintTo(StringStream* stream);
-  virtual void PrintDataTo(StringStream* stream);
-  virtual void PrintOutputOperandTo(StringStream* stream);
+  virtual void PrintDataTo(StringStream* stream) = 0;
+  virtual void PrintOutputOperandTo(StringStream* stream) = 0;
 
   enum Opcode {
     // Declare a unique enum value for each instruction.
@@ -245,12 +245,22 @@ class LInstruction: public ZoneObject {
   void set_hydrogen_value(HValue* value) { hydrogen_value_ = value; }
   HValue* hydrogen_value() const { return hydrogen_value_; }
 
-  virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
+  void set_deoptimization_environment(LEnvironment* env) {
+    deoptimization_environment_.set(env);
+  }
+  LEnvironment* deoptimization_environment() const {
+    return deoptimization_environment_.get();
+  }
+  bool HasDeoptimizationEnvironment() const {
+    return deoptimization_environment_.is_set();
+  }
 
   void MarkAsCall() { is_call_ = true; }
+  void MarkAsSaveDoubles() { is_save_doubles_ = true; }
 
   // Interface to the register allocator and iterators.
   bool IsMarkedAsCall() const { return is_call_; }
+  bool IsMarkedAsSaveDoubles() const { return is_save_doubles_; }
 
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
@@ -271,6 +281,7 @@ class LInstruction: public ZoneObject {
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
+  SetOncePointer<LEnvironment> deoptimization_environment_;
   bool is_call_;
   bool is_save_doubles_;
 };
@@ -293,6 +304,9 @@ class LTemplateInstruction: public LInstruction {
 
   int TempCount() { return T; }
   LOperand* TempAt(int i) { return temps_[i]; }
+
+  virtual void PrintDataTo(StringStream* stream);
+  virtual void PrintOutputOperandTo(StringStream* stream);
 
  protected:
   EmbeddedContainer<LOperand*, R> results_;
@@ -519,8 +533,9 @@ class LArgumentsLength: public LTemplateInstruction<1, 1, 0> {
 
 class LArgumentsElements: public LTemplateInstruction<1, 0, 0> {
  public:
+  LArgumentsElements() { }
+
   DECLARE_CONCRETE_INSTRUCTION(ArgumentsElements, "arguments-elements")
-  DECLARE_HYDROGEN_ACCESSOR(ArgumentsElements)
 };
 
 
@@ -818,15 +833,6 @@ class LInstanceOfKnownGlobal: public LTemplateInstruction<1, 1, 1> {
   DECLARE_HYDROGEN_ACCESSOR(InstanceOfKnownGlobal)
 
   Handle<JSFunction> function() const { return hydrogen()->function(); }
-  LEnvironment* GetDeferredLazyDeoptimizationEnvironment() {
-    return lazy_deopt_env_;
-  }
-  virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) {
-    lazy_deopt_env_ = env;
-  }
-
- private:
-  LEnvironment* lazy_deopt_env_;
 };
 
 
@@ -1352,19 +1358,6 @@ class LPushArgument: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LDrop: public LTemplateInstruction<0, 0, 0> {
- public:
-  explicit LDrop(int count) : count_(count) { }
-
-  int count() const { return count_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(Drop, "drop")
-
- private:
-  int count_;
-};
-
-
 class LThisFunction: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
@@ -1447,7 +1440,6 @@ class LInvokeFunction: public LTemplateInstruction<1, 1, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   int arity() const { return hydrogen()->argument_count() - 1; }
-  Handle<JSFunction> known_function() { return hydrogen()->known_function(); }
 };
 
 
@@ -1727,8 +1719,6 @@ class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
-
-  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
 
 
@@ -1879,14 +1869,14 @@ class LCheckInstanceType: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
+class LCheckMap: public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LCheckMaps(LOperand* value) {
+  explicit LCheckMap(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckMaps, "check-maps")
-  DECLARE_HYDROGEN_ACCESSOR(CheckMaps)
+  DECLARE_CONCRETE_INSTRUCTION(CheckMap, "check-map")
+  DECLARE_HYDROGEN_ACCESSOR(CheckMap)
 };
 
 
@@ -2359,6 +2349,11 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr,
       HInstruction* hinstr,
       CanDeoptimize can_deoptimize = CANNOT_DEOPTIMIZE_EAGERLY);
+  LInstruction* MarkAsSaveDoubles(LInstruction* instr);
+
+  LInstruction* SetInstructionPendingDeoptimizationEnvironment(
+      LInstruction* instr, int ast_id);
+  void ClearInstructionPendingDeoptimizationEnvironment();
 
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
                                   int* argument_index_accumulator);

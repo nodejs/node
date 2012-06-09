@@ -572,10 +572,11 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t body_size,
 }
 
 
-Page* MemoryAllocator::AllocatePage(intptr_t size,
-                                    PagedSpace* owner,
+Page* MemoryAllocator::AllocatePage(PagedSpace* owner,
                                     Executability executable) {
-  MemoryChunk* chunk = AllocateChunk(size, executable, owner);
+  MemoryChunk* chunk = AllocateChunk(owner->AreaSize(),
+                                     executable,
+                                     owner);
 
   if (chunk == NULL) return NULL;
 
@@ -584,8 +585,8 @@ Page* MemoryAllocator::AllocatePage(intptr_t size,
 
 
 LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
-                                              Space* owner,
-                                              Executability executable) {
+                                              Executability executable,
+                                              Space* owner) {
   MemoryChunk* chunk = AllocateChunk(object_size, executable, owner);
   if (chunk == NULL) return NULL;
   return LargePage::Initialize(isolate_->heap(), chunk);
@@ -839,6 +840,7 @@ MaybeObject* PagedSpace::FindObject(Address addr) {
 
 bool PagedSpace::CanExpand() {
   ASSERT(max_capacity_ % AreaSize() == 0);
+  ASSERT(Capacity() % AreaSize() == 0);
 
   if (Capacity() == max_capacity_) return false;
 
@@ -853,14 +855,8 @@ bool PagedSpace::CanExpand() {
 bool PagedSpace::Expand() {
   if (!CanExpand()) return false;
 
-  intptr_t size = AreaSize();
-
-  if (anchor_.next_page() == &anchor_) {
-    size = SizeOfFirstPage();
-  }
-
-  Page* p = heap()->isolate()->memory_allocator()->AllocatePage(
-      size, this, executable());
+  Page* p = heap()->isolate()->memory_allocator()->
+      AllocatePage(this, executable());
   if (p == NULL) return false;
 
   ASSERT(Capacity() <= max_capacity_);
@@ -868,38 +864,6 @@ bool PagedSpace::Expand() {
   p->InsertAfter(anchor_.prev_page());
 
   return true;
-}
-
-
-intptr_t PagedSpace::SizeOfFirstPage() {
-  int size = 0;
-  switch (identity()) {
-    case OLD_POINTER_SPACE:
-      size = 64 * kPointerSize * KB;
-      break;
-    case OLD_DATA_SPACE:
-      size = 192 * KB;
-      break;
-    case MAP_SPACE:
-      size = 128 * KB;
-      break;
-    case CELL_SPACE:
-      size = 96 * KB;
-      break;
-    case CODE_SPACE:
-      if (kPointerSize == 8) {
-        // On x64 we allocate code pages in a special way (from the reserved
-        // 2Byte area). That part of the code is not yet upgraded to handle
-        // small pages.
-        size = AreaSize();
-      } else {
-        size = 384 * KB;
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
-  return Min(size, AreaSize());
 }
 
 
@@ -946,6 +910,7 @@ void PagedSpace::ReleasePage(Page* page) {
   }
 
   ASSERT(Capacity() > 0);
+  ASSERT(Capacity() % AreaSize() == 0);
   accounting_stats_.ShrinkSpace(AreaSize());
 }
 
@@ -1084,7 +1049,6 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   if (!to_space_.Commit()) {
     return false;
   }
-  ASSERT(!from_space_.is_committed());  // No need to use memory yet.
 
   start_ = chunk_base_;
   address_mask_ = ~(2 * reserved_semispace_capacity - 1);
@@ -2626,7 +2590,7 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   }
 
   LargePage* page = heap()->isolate()->memory_allocator()->
-      AllocateLargePage(object_size, this, executable);
+      AllocateLargePage(object_size, executable, this);
   if (page == NULL) return Failure::RetryAfterGC(identity());
   ASSERT(page->area_size() >= object_size);
 

@@ -565,8 +565,6 @@ static void PushInterceptorArguments(MacroAssembler* masm,
   __ Push(scratch, receiver, holder);
   __ lw(scratch, FieldMemOperand(scratch, InterceptorInfo::kDataOffset));
   __ push(scratch);
-  __ li(scratch, Operand(ExternalReference::isolate_address()));
-  __ push(scratch);
 }
 
 
@@ -581,7 +579,7 @@ static void CompileCallLoadPropertyWithInterceptor(
   ExternalReference ref =
       ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptorOnly),
           masm->isolate());
-  __ PrepareCEntryArgs(6);
+  __ PrepareCEntryArgs(5);
   __ PrepareCEntryFunction(ref);
 
   CEntryStub stub(1);
@@ -589,10 +587,10 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
-static const int kFastApiCallArguments = 4;
+static const int kFastApiCallArguments = 3;
 
 
-// Reserves space for the extra arguments to API function in the
+// Reserves space for the extra arguments to FastHandleApiCall in the
 // caller's frame.
 //
 // These arguments are set by CheckPrototypes and GenerateFastApiDirectCall.
@@ -618,8 +616,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   //  -- sp[0]              : holder (set by CheckPrototypes)
   //  -- sp[4]              : callee JS function
   //  -- sp[8]              : call data
-  //  -- sp[12]             : isolate
-  //  -- sp[16]             : last JS argument
+  //  -- sp[12]             : last JS argument
   //  -- ...
   //  -- sp[(argc + 3) * 4] : first JS argument
   //  -- sp[(argc + 4) * 4] : receiver
@@ -629,7 +626,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   __ LoadHeapObject(t1, function);
   __ lw(cp, FieldMemOperand(t1, JSFunction::kContextOffset));
 
-  // Pass the additional arguments.
+  // Pass the additional arguments FastHandleApiCall expects.
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   Handle<Object> call_data(api_call_info->data());
   if (masm->isolate()->heap()->InNewSpace(*call_data)) {
@@ -639,17 +636,14 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
     __ li(t2, call_data);
   }
 
-  __ li(t3, Operand(ExternalReference::isolate_address()));
-  // Store JS function, call data and isolate.
+  // Store JS function and call data.
   __ sw(t1, MemOperand(sp, 1 * kPointerSize));
   __ sw(t2, MemOperand(sp, 2 * kPointerSize));
-  __ sw(t3, MemOperand(sp, 3 * kPointerSize));
 
-  // Prepare arguments.
-  __ Addu(a2, sp, Operand(3 * kPointerSize));
+  // a2 points to call data as expected by Arguments
+  // (refer to layout above).
+  __ Addu(a2, sp, Operand(2 * kPointerSize));
 
-  // Allocate the v8::Arguments structure in the arguments' space since
-  // it's not controlled by GC.
   const int kApiStackSpace = 4;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
@@ -664,9 +658,9 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   // Arguments is built at sp + 1 (sp is a reserved spot for ra).
   __ Addu(a1, sp, kPointerSize);
 
-  // v8::Arguments::implicit_args_
+  // v8::Arguments::implicit_args = data
   __ sw(a2, MemOperand(a1, 0 * kPointerSize));
-  // v8::Arguments::values_
+  // v8::Arguments::values = last argument
   __ Addu(t0, a2, Operand(argc * kPointerSize));
   __ sw(t0, MemOperand(a1, 1 * kPointerSize));
   // v8::Arguments::length_ = argc
@@ -844,7 +838,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
           ExternalReference(
               IC_Utility(IC::kLoadPropertyWithInterceptorForCall),
               masm->isolate()),
-          6);
+          5);
     // Restore the name_ register.
     __ pop(name_);
     // Leave the internal frame.
@@ -1212,13 +1206,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   } else {
     __ li(scratch3, Handle<Object>(callback->data()));
   }
-  __ Subu(sp, sp, 4 * kPointerSize);
-  __ sw(reg, MemOperand(sp, 3 * kPointerSize));
-  __ sw(scratch3, MemOperand(sp, 2 * kPointerSize));
-  __ li(scratch3, Operand(ExternalReference::isolate_address()));
-  __ sw(scratch3, MemOperand(sp, 1 * kPointerSize));
-  __ sw(name_reg, MemOperand(sp, 0 * kPointerSize));
-
+  __ Push(reg, scratch3, name_reg);
   __ mov(a2, scratch2);  // Saved in case scratch2 == a1.
   __ mov(a1, sp);  // a1 (first argument - see note below) = Handle<String>
 
@@ -1237,7 +1225,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   // a2 (second argument - see note above) = AccessorInfo&
   __ Addu(a2, sp, kPointerSize);
 
-  const int kStackUnwindSpace = 5;
+  const int kStackUnwindSpace = 4;
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);
   ExternalReference ref =
@@ -1353,17 +1341,24 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
       // Important invariant in CALLBACKS case: the code above must be
       // structured to never clobber |receiver| register.
       __ li(scratch2, callback);
-
-      __ Push(receiver, holder_reg);
-      __ lw(scratch3,
-            FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
-      __ li(scratch1, Operand(ExternalReference::isolate_address()));
-      __ Push(scratch3, scratch1, scratch2, name_reg);
+      // holder_reg is either receiver or scratch1.
+      if (!receiver.is(holder_reg)) {
+        ASSERT(scratch1.is(holder_reg));
+        __ Push(receiver, holder_reg);
+        __ lw(scratch3,
+              FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(scratch3, scratch2, name_reg);
+      } else {
+        __ push(receiver);
+        __ lw(scratch3,
+              FieldMemOperand(scratch2, AccessorInfo::kDataOffset));
+        __ Push(holder_reg, scratch3, scratch2, name_reg);
+      }
 
       ExternalReference ref =
           ExternalReference(IC_Utility(IC::kLoadCallbackProperty),
                             masm()->isolate());
-      __ TailCallExternalReference(ref, 6, 1);
+      __ TailCallExternalReference(ref, 5, 1);
     }
   } else {  // !compile_followup_inline
     // Call the runtime system to load the interceptor.
@@ -1376,7 +1371,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
 
     ExternalReference ref = ExternalReference(
         IC_Utility(IC::kLoadPropertyWithInterceptorForLoad), masm()->isolate());
-    __ TailCallExternalReference(ref, 6, 1);
+    __ TailCallExternalReference(ref, 5, 1);
   }
 }
 
@@ -1743,14 +1738,14 @@ Handle<Code> CallStubCompiler::CompileArrayPopCall(
   // expensive shift first, and use an offset later on.
   __ sll(t1, t0, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(elements, elements, t1);
-  __ lw(v0, FieldMemOperand(elements, FixedArray::kHeaderSize));
+  __ lw(v0, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
   __ Branch(&call_builtin, eq, v0, Operand(t2));
 
   // Set the array's length.
   __ sw(t0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
   // Fill with the hole.
-  __ sw(t2, FieldMemOperand(elements, FixedArray::kHeaderSize));
+  __ sw(t2, MemOperand(elements, FixedArray::kHeaderSize - kHeapObjectTag));
   __ Drop(argc + 1);
   __ Ret();
 
@@ -3377,45 +3372,6 @@ static bool IsElementTypeSigned(ElementsKind elements_kind) {
 }
 
 
-static void GenerateSmiKeyCheck(MacroAssembler* masm,
-                                Register key,
-                                Register scratch0,
-                                Register scratch1,
-                                FPURegister double_scratch0,
-                                Label* fail) {
-  if (CpuFeatures::IsSupported(FPU)) {
-    CpuFeatures::Scope scope(FPU);
-    Label key_ok;
-    // Check for smi or a smi inside a heap number.  We convert the heap
-    // number and check if the conversion is exact and fits into the smi
-    // range.
-    __ JumpIfSmi(key, &key_ok);
-    __ CheckMap(key,
-                scratch0,
-                Heap::kHeapNumberMapRootIndex,
-                fail,
-                DONT_DO_SMI_CHECK);
-    __ ldc1(double_scratch0, FieldMemOperand(key, HeapNumber::kValueOffset));
-    __ EmitFPUTruncate(kRoundToZero,
-                       double_scratch0,
-                       double_scratch0,
-                       scratch0,
-                       scratch1,
-                       kCheckForInexactConversion);
-
-    __ Branch(fail, ne, scratch1, Operand(zero_reg));
-
-    __ mfc1(scratch0, double_scratch0);
-    __ SmiTagCheckOverflow(key, scratch0, scratch1);
-    __ BranchOnOverflow(fail, scratch1);
-    __ bind(&key_ok);
-  } else {
-    // Check that the key is a smi.
-    __ JumpIfNotSmi(key, fail);
-  }
-}
-
-
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
     ElementsKind elements_kind) {
@@ -3432,8 +3388,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key, t0, t1, f2, &miss_force_generic);
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(key, &miss_force_generic);
 
   __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // a3: elements array
@@ -3541,7 +3497,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       CpuFeatures::Scope scope(FPU);
       __ mtc1(value, f0);
       __ cvt_d_w(f0, f0);
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset - kHeapObjectTag));
       __ Ret();
     } else {
       Register dst1 = t2;
@@ -3589,7 +3545,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
       __ Cvt_d_uw(f0, value, f22);
 
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset - kHeapObjectTag));
 
       __ Ret();
     } else {
@@ -3643,7 +3599,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
       // The float (single) value is already in fpu reg f0 (if we use float).
       __ cvt_d_s(f0, f0);
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset - kHeapObjectTag));
       __ Ret();
     } else {
       // Allocate a HeapNumber for the result. Don't use a0 and a1 as
@@ -3771,8 +3727,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key, t0, t1, f2, &miss_force_generic);
+    // Check that the key is a smi.
+  __ JumpIfNotSmi(key, &miss_force_generic);
 
   __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
@@ -4151,8 +4107,9 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, a0, t0, t1, f2, &miss_force_generic);
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(a0, &miss_force_generic, at, USE_DELAY_SLOT);
+  // The delay slot can be safely used here, a1 is an object pointer.
 
   // Get the elements array.
   __ lw(a2, FieldMemOperand(a1, JSObject::kElementsOffset));
@@ -4202,8 +4159,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(key_reg, &miss_force_generic);
 
   // Get the elements array.
   __ lw(elements_reg,
@@ -4276,8 +4233,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(key_reg, &miss_force_generic);
 
   if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
     __ JumpIfNotSmi(value_reg, &transition_elements_kind);
@@ -4443,9 +4400,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
-
-  // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
+  __ JumpIfNotSmi(key_reg, &miss_force_generic);
 
   __ lw(elements_reg,
          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));

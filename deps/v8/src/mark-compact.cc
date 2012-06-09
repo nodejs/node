@@ -296,6 +296,8 @@ void MarkCompactCollector::CollectGarbage() {
 
   if (!collect_maps_) ReattachInitialMaps();
 
+  heap_->isolate()->inner_pointer_to_code_cache()->Flush();
+
   Finish();
 
   tracer_ = NULL;
@@ -335,7 +337,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
     ASSERT(Marking::IsWhite(mark_bit));
-    ASSERT_EQ(0, Page::FromAddress(obj->address())->LiveBytes());
   }
 }
 #endif
@@ -372,7 +373,6 @@ void MarkCompactCollector::ClearMarkbits() {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
     mark_bit.Clear();
     mark_bit.Next().Clear();
-    Page::FromAddress(obj->address())->ResetLiveBytes();
   }
 }
 
@@ -1150,10 +1150,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(object);
 
     // Enqueue weak map in linked list of encountered weak maps.
-    if (weak_map->next() == Smi::FromInt(0)) {
-      weak_map->set_next(collector->encountered_weak_maps());
-      collector->set_encountered_weak_maps(weak_map);
-    }
+    ASSERT(weak_map->next() == Smi::FromInt(0));
+    weak_map->set_next(collector->encountered_weak_maps());
+    collector->set_encountered_weak_maps(weak_map);
 
     // Skip visiting the backing hash table containing the mappings.
     int object_size = JSWeakMap::BodyDescriptor::SizeOf(map, object);
@@ -1169,15 +1168,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
         object_size);
 
     // Mark the backing hash table without pushing it on the marking stack.
-    Object* table_object = weak_map->table();
-    if (!table_object->IsHashTable()) return;
-    ObjectHashTable* table = ObjectHashTable::cast(table_object);
-    Object** table_slot =
-        HeapObject::RawField(weak_map, JSWeakMap::kTableOffset);
-    MarkBit table_mark = Marking::MarkBitFrom(table);
-    collector->RecordSlot(table_slot, table_slot, table);
-    if (!table_mark.Get()) collector->SetMark(table, table_mark);
-    // Recording the map slot can be skipped, because maps are not compacted.
+    ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
+    ASSERT(!MarkCompactCollector::IsMarked(table));
+    collector->SetMark(table, Marking::MarkBitFrom(table));
     collector->MarkObject(table->map(), Marking::MarkBitFrom(table->map()));
     ASSERT(MarkCompactCollector::IsMarked(table->map()));
   }
@@ -1397,12 +1390,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   static void VisitSharedFunctionInfoAndFlushCode(Map* map,
                                                   HeapObject* object) {
-    Heap* heap = map->GetHeap();
-    SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
-    if (shared->ic_age() != heap->global_ic_age()) {
-      shared->ResetForNewContext(heap->global_ic_age());
-    }
-
     MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
     if (!collector->is_code_flushing_enabled()) {
       VisitSharedFunctionInfoGeneric(map, object);
@@ -1418,6 +1405,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(object);
 
     if (shared->IsInobjectSlackTrackingInProgress()) shared->DetachInitialMap();
+
+    if (shared->ic_age() != heap->global_ic_age()) {
+      shared->ResetForNewContext(heap->global_ic_age());
+    }
 
     if (!known_flush_code_candidate) {
       known_flush_code_candidate = IsFlushable(heap, shared);
@@ -1532,6 +1523,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                              JSFunction::kCodeEntryOffset + kPointerSize),
         HeapObject::RawField(object,
                              JSFunction::kNonWeakFieldsEndOffset));
+
+    // Don't visit the next function list field as it is a weak reference.
+    Object** next_function =
+        HeapObject::RawField(object, JSFunction::kNextFunctionLinkOffset);
+    heap->mark_compact_collector()->RecordSlot(
+        next_function, next_function, *next_function);
   }
 
   static inline void VisitJSRegExpFields(Map* map,
@@ -1977,7 +1974,6 @@ static inline int MarkWordToObjectStarts(uint32_t mark_bits, int* starts);
 
 
 static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
-  ASSERT(!marking_deque->IsFull());
   ASSERT(strcmp(Marking::kWhiteBitPattern, "00") == 0);
   ASSERT(strcmp(Marking::kBlackBitPattern, "10") == 0);
   ASSERT(strcmp(Marking::kGreyBitPattern, "11") == 0);
@@ -2594,17 +2590,14 @@ void MarkCompactCollector::ProcessWeakMaps() {
     ASSERT(MarkCompactCollector::IsMarked(HeapObject::cast(weak_map_obj)));
     JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
     ObjectHashTable* table = ObjectHashTable::cast(weak_map->table());
-    Object** anchor = reinterpret_cast<Object**>(table->address());
     for (int i = 0; i < table->Capacity(); i++) {
       if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
-        Object** key_slot =
-            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
-                ObjectHashTable::EntryToIndex(i)));
-        RecordSlot(anchor, key_slot, *key_slot);
-        Object** value_slot =
-            HeapObject::RawField(table, FixedArray::OffsetOfElementAt(
-                ObjectHashTable::EntryToValueIndex(i)));
-        StaticMarkingVisitor::MarkObjectByPointer(this, anchor, value_slot);
+        Object* value = table->get(table->EntryToValueIndex(i));
+        StaticMarkingVisitor::VisitPointer(heap(), &value);
+        table->set_unchecked(heap(),
+                             table->EntryToValueIndex(i),
+                             value,
+                             UPDATE_WRITE_BARRIER);
       }
     }
     weak_map_obj = weak_map->next();
@@ -3423,8 +3416,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   // Visit invalidated code (we ignored all slots on it) and clear mark-bits
   // under it.
   ProcessInvalidatedCode(&updating_visitor);
-
-  heap_->isolate()->inner_pointer_to_code_cache()->Flush();
 
 #ifdef DEBUG
   if (FLAG_verify_heap) {

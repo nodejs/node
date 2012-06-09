@@ -729,6 +729,22 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
+LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
+    LInstruction* instr, int ast_id) {
+  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
+  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+  instruction_pending_deoptimization_environment_ = instr;
+  pending_deoptimization_ast_id_ = ast_id;
+  return instr;
+}
+
+
+void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
+  instruction_pending_deoptimization_environment_ = NULL;
+  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
+}
+
+
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -741,10 +757,8 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasObservableSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-    instruction_pending_deoptimization_environment_ = instr;
-    pending_deoptimization_ast_id_ = sim->ast_id();
+    instr = SetInstructionPendingDeoptimizationEnvironment(
+        instr, sim->ast_id());
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -758,6 +772,12 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
     instr = AssignEnvironment(instr);
   }
 
+  return instr;
+}
+
+
+LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
+  instr->MarkAsSaveDoubles();
   return instr;
 }
 
@@ -1310,7 +1330,6 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
-  if (instr->HasNoUses()) return NULL;
   LOperand* input = UseRegisterAtStart(instr->value());
   LBitNotI* result = new(zone()) LBitNotI(input);
   return DefineSameAsFirst(result);
@@ -1332,12 +1351,6 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::DIV, instr);
   }
-}
-
-
-LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
-  UNIMPLEMENTED();
-  return NULL;
 }
 
 
@@ -1787,9 +1800,9 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
+LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LCheckMaps* result = new(zone()) LCheckMaps(value);
+  LCheckMap* result = new(zone()) LCheckMap(value);
   return AssignEnvironment(result);
 }
 
@@ -1849,7 +1862,7 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* global_object = UseFixed(instr->global_object(), edx);
+  LOperand* global_object = UseFixed(instr->global_object(), eax);
   LLoadGlobalGeneric* result =
       new(zone()) LLoadGlobalGeneric(context, global_object);
   return MarkAsCall(DefineFixed(result, eax), instr);
@@ -1909,7 +1922,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
   ASSERT(instr->representation().IsTagged());
   if (instr->need_generic()) {
     LOperand* context = UseFixed(instr->context(), esi);
-    LOperand* obj = UseFixed(instr->object(), edx);
+    LOperand* obj = UseFixed(instr->object(), eax);
     LLoadNamedFieldPolymorphic* result =
         new(zone()) LLoadNamedFieldPolymorphic(context, obj);
     return MarkAsCall(DefineFixed(result, eax), instr);
@@ -1925,7 +1938,7 @@ LInstruction* LChunkBuilder::DoLoadNamedFieldPolymorphic(
 
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* object = UseFixed(instr->object(), edx);
+  LOperand* object = UseFixed(instr->object(), eax);
   LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(context, object);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -2004,7 +2017,7 @@ LInstruction* LChunkBuilder::DoLoadKeyedSpecializedArrayElement(
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), edx);
-  LOperand* key = UseFixed(instr->key(), ecx);
+  LOperand* key = UseFixed(instr->key(), eax);
 
   LLoadKeyedGeneric* result =
       new(zone()) LLoadKeyedGeneric(context, object, key);
@@ -2335,12 +2348,9 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
     ASSERT(pending_deoptimization_ast_id_ == instr->ast_id());
     LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
-    // Store the lazy deopt environment with the instruction if needed. Right
-    // now it is only used for LInstanceOfKnownGlobal.
     instruction_pending_deoptimization_environment_->
-        SetDeferredLazyDeoptimizationEnvironment(result->environment());
-    instruction_pending_deoptimization_environment_ = NULL;
-    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
+        set_deoptimization_environment(result->environment());
+    ClearInstructionPendingDeoptimizationEnvironment();
     return result;
   }
 
@@ -2370,8 +2380,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                undefined,
                                                instr->call_kind(),
                                                instr->is_construct());
-  if (instr->arguments_var() != NULL) {
-    inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
+  if (instr->arguments() != NULL) {
+    inner->Bind(instr->arguments(), graph()->GetArgumentsObject());
   }
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
@@ -2380,20 +2390,10 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
 
 
 LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
-  LInstruction* pop = NULL;
-
-  HEnvironment* env = current_block_->last_environment();
-
-  if (instr->arguments_pushed()) {
-    int argument_count = env->arguments_environment()->parameter_count();
-    pop = new(zone()) LDrop(argument_count);
-    argument_count_ -= argument_count;
-  }
-
   HEnvironment* outer = current_block_->last_environment()->
       DiscardInlined(false);
   current_block_->UpdateEnvironment(outer);
-  return pop;
+  return NULL;
 }
 
 

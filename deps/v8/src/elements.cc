@@ -1332,8 +1332,18 @@ ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
 
 
 void ElementsAccessor::InitializeOncePerProcess() {
+  static struct ConcreteElementsAccessors {
+#define ACCESSOR_STRUCT(Class, Kind, Store) Class* Kind##_handler;
+    ELEMENTS_LIST(ACCESSOR_STRUCT)
+#undef ACCESSOR_STRUCT
+  } element_accessors = {
+#define ACCESSOR_INIT(Class, Kind, Store) new Class(#Kind),
+    ELEMENTS_LIST(ACCESSOR_INIT)
+#undef ACCESSOR_INIT
+  };
+
   static ElementsAccessor* accessor_array[] = {
-#define ACCESSOR_ARRAY(Class, Kind, Store) new Class(#Kind),
+#define ACCESSOR_ARRAY(Class, Kind, Store) element_accessors.Kind##_handler,
     ELEMENTS_LIST(ACCESSOR_ARRAY)
 #undef ACCESSOR_ARRAY
   };
@@ -1342,14 +1352,6 @@ void ElementsAccessor::InitializeOncePerProcess() {
                 kElementsKindCount);
 
   elements_accessors_ = accessor_array;
-}
-
-
-void ElementsAccessor::TearDown() {
-#define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
-  ELEMENTS_LIST(ACCESSOR_DELETE)
-#undef ACCESSOR_DELETE
-  elements_accessors_ = NULL;
 }
 
 

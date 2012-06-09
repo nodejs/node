@@ -207,19 +207,20 @@ void List<T, P>::Initialize(int capacity) {
 }
 
 
-template <typename T, typename P>
-int SortedListBSearch(const List<T>& list, P cmp) {
+template <typename T>
+int SortedListBSearch(
+    const List<T>& list, T elem, int (*cmp)(const T* x, const T* y)) {
   int low = 0;
   int high = list.length() - 1;
   while (low <= high) {
     int mid = (low + high) / 2;
     T mid_elem = list[mid];
 
-    if (cmp(&mid_elem) > 0) {
+    if (cmp(&mid_elem, &elem) > 0) {
       high = mid - 1;
       continue;
     }
-    if (cmp(&mid_elem) < 0) {
+    if (cmp(&mid_elem, &elem) < 0) {
       low = mid + 1;
       continue;
     }
@@ -230,21 +231,9 @@ int SortedListBSearch(const List<T>& list, P cmp) {
 }
 
 
-template<typename T>
-class ElementCmp {
- public:
-  explicit ElementCmp(T e) : elem_(e) {}
-  int operator()(const T* other) {
-    return PointerValueCompare(other, &elem_);
-  }
- private:
-  T elem_;
-};
-
-
 template <typename T>
 int SortedListBSearch(const List<T>& list, T elem) {
-  return SortedListBSearch<T, ElementCmp<T> > (list, ElementCmp<T>(elem));
+  return SortedListBSearch<T>(list, elem, PointerValueCompare<T>);
 }
 
 

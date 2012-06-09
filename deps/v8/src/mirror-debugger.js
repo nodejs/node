@@ -596,23 +596,6 @@ ObjectMirror.prototype.protoObject = function() {
 };
 
 
-/**
- * Return the primitive value if this is object of Boolean, Number or String
- * type (but not Date). Otherwise return undefined.
- */
-ObjectMirror.prototype.primitiveValue = function() {
-  if (!IS_STRING_WRAPPER(this.value_) && !IS_NUMBER_WRAPPER(this.value_) &&
-      !IS_BOOLEAN_WRAPPER(this.value_)) {
-    return void 0;
-  }
-  var primitiveValue = %_ValueOf(this.value_);
-  if (IS_UNDEFINED(primitiveValue)) {
-    return void 0;
-  }
-  return MakeMirror(primitiveValue);
-};
-
-
 ObjectMirror.prototype.hasNamedInterceptor = function() {
   // Get information on interceptors for this object.
   var x = %GetInterceptorInfo(this.value_);
@@ -909,22 +892,6 @@ FunctionMirror.prototype.constructedBy = function(opt_max_instances) {
     return result;
   } else {
     return [];
-  }
-};
-
-
-FunctionMirror.prototype.scopeCount = function() {
-  if (this.resolved()) {
-    return %GetFunctionScopeCount(this.value());
-  } else {
-    return 0;
-  }
-};
-
-
-FunctionMirror.prototype.scope = function(index) {
-  if (this.resolved()) {
-    return new ScopeMirror(void 0, this, index);
   }
 };
 
@@ -1605,7 +1572,7 @@ FrameMirror.prototype.scopeCount = function() {
 
 
 FrameMirror.prototype.scope = function(index) {
-  return new ScopeMirror(this, void 0, index);
+  return new ScopeMirror(this, index);
 };
 
 
@@ -1768,54 +1735,39 @@ FrameMirror.prototype.toText = function(opt_locals) {
 var kScopeDetailsTypeIndex = 0;
 var kScopeDetailsObjectIndex = 1;
 
-function ScopeDetails(frame, fun, index) {
-  if (frame) {
-    this.break_id_ = frame.break_id_;
-    this.details_ = %GetScopeDetails(frame.break_id_,
-                                     frame.details_.frameId(),
-                                     frame.details_.inlinedFrameIndex(),
-                                     index);
-  } else {
-    this.details_ = %GetFunctionScopeDetails(fun.value(), index);
-    this.break_id_ = undefined;
-  }
+function ScopeDetails(frame, index) {
+  this.break_id_ = frame.break_id_;
+  this.details_ = %GetScopeDetails(frame.break_id_,
+                                   frame.details_.frameId(),
+                                   frame.details_.inlinedFrameIndex(),
+                                   index);
 }
 
 
 ScopeDetails.prototype.type = function() {
-  if (!IS_UNDEFINED(this.break_id_)) {
-    %CheckExecutionState(this.break_id_);
-  }
+  %CheckExecutionState(this.break_id_);
   return this.details_[kScopeDetailsTypeIndex];
 };
 
 
 ScopeDetails.prototype.object = function() {
-  if (!IS_UNDEFINED(this.break_id_)) {
-    %CheckExecutionState(this.break_id_);
-  }
+  %CheckExecutionState(this.break_id_);
   return this.details_[kScopeDetailsObjectIndex];
 };
 
 
 /**
- * Mirror object for scope of frame or function. Either frame or function must
- * be specified.
+ * Mirror object for scope.
  * @param {FrameMirror} frame The frame this scope is a part of
- * @param {FunctionMirror} function The function this scope is a part of
  * @param {number} index The scope index in the frame
  * @constructor
  * @extends Mirror
  */
-function ScopeMirror(frame, function, index) {
+function ScopeMirror(frame, index) {
   %_CallFunction(this, SCOPE_TYPE, Mirror);
-  if (frame) {
-    this.frame_index_ = frame.index_;
-  } else {
-    this.frame_index_ = undefined;
-  }
+  this.frame_index_ = frame.index_;
   this.scope_index_ = index;
-  this.details_ = new ScopeDetails(frame, function, index);
+  this.details_ = new ScopeDetails(frame, index);
 }
 inherits(ScopeMirror, Mirror);
 
@@ -2282,11 +2234,6 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
   content.protoObject = this.serializeReference(mirror.protoObject());
   content.prototypeObject = this.serializeReference(mirror.prototypeObject());
 
-  var primitiveValue = mirror.primitiveValue();
-  if (!IS_UNDEFINED(primitiveValue)) {
-    content.primitiveValue = this.serializeReference(primitiveValue);
-  }
-
   // Add flags to indicate whether there are interceptors.
   if (mirror.hasNamedInterceptor()) {
     content.namedInterceptor = true;
@@ -2311,15 +2258,6 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
       content.scriptId = mirror.script().id();
 
       serializeLocationFields(mirror.sourceLocation(), content);
-    }
-
-    content.scopes = [];
-    for (var i = 0; i < mirror.scopeCount(); i++) {
-      var scope = mirror.scope(i);
-      content.scopes.push({
-        type: scope.scopeType(),
-        index: i
-      });
     }
   }
 

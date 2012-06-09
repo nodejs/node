@@ -159,11 +159,6 @@ Debug.LiveEdit = new function() {
 
     preview_description.stack_modified = dropped_functions_number != 0;
 
-    // Our current implementation requires client to manually issue "step in"
-    // command for correct stack state.
-    preview_description.stack_update_needs_step_in =
-        preview_description.stack_modified;
-
     // Start with breakpoints. Convert their line/column positions and
     // temporary remove.
     var break_points_restorer = TemporaryRemoveBreakPoints(script, change_log);

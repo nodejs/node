@@ -2139,7 +2139,8 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                   RelocInfo::CODE_TARGET,
                   instr,
                   RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS);
-  LEnvironment* env = instr->GetDeferredLazyDeoptimizationEnvironment();
+  ASSERT(instr->HasDeoptimizationEnvironment());
+  LEnvironment* env = instr->deoptimization_environment();
   safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
   // Put the result value into the result register slot and
   // restore all registers.
@@ -2650,20 +2651,16 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
   Register temp = scratch1();
   Register result = ToRegister(instr->result());
 
-  if (instr->hydrogen()->from_inlined()) {
-    __ Subu(result, sp, 2 * kPointerSize);
-  } else {
-    // Check if the calling frame is an arguments adaptor frame.
-    Label done, adapted;
-    __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ lw(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
-    __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  // Check if the calling frame is an arguments adaptor frame.
+  Label done, adapted;
+  __ lw(scratch, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ lw(result, MemOperand(scratch, StandardFrameConstants::kContextOffset));
+  __ Xor(temp, result, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
-    // Result is the frame pointer for the frame if not adapted and for the real
-    // frame below the adaptor frame if adapted.
-    __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
-    __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
-  }
+  // Result is the frame pointer for the frame if not adapted and for the real
+  // frame below the adaptor frame if adapted.
+  __ Movn(result, fp, temp);  // Move only if temp is not equal to zero (ne).
+  __ Movz(result, scratch, temp);  // Move only if temp is equal to zero (eq).
 }
 
 
@@ -2771,7 +2768,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ sll(scratch, length, 2);
 
   __ bind(&invoke);
-  ASSERT(instr->HasPointerMap());
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(
@@ -2793,11 +2790,6 @@ void LCodeGen::DoPushArgument(LPushArgument* instr) {
     Register argument_reg = EmitLoadRegister(argument, at);
     __ push(argument_reg);
   }
-}
-
-
-void LCodeGen::DoDrop(LDrop* instr) {
-  __ Drop(instr->count());
 }
 
 
@@ -2846,8 +2838,7 @@ void LCodeGen::DoGlobalReceiver(LGlobalReceiver* instr) {
 void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
                                  LInstruction* instr,
-                                 CallKind call_kind,
-                                 A1State a1_state) {
+                                 CallKind call_kind) {
   bool can_invoke_directly = !function->NeedsArgumentsAdaption() ||
       function->shared()->formal_parameter_count() == arity;
 
@@ -2855,10 +2846,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   RecordPosition(pointers->position());
 
   if (can_invoke_directly) {
-    if (a1_state == A1_UNINITIALIZED) {
-      __ LoadHeapObject(a1, function);
-    }
-
+    __ LoadHeapObject(a1, function);
     // Change context if needed.
     bool change_context =
         (info()->closure()->context() != function->context()) ||
@@ -2895,11 +2883,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
   __ mov(a0, v0);
-  CallKnownFunction(instr->function(),
-                    instr->arity(),
-                    instr,
-                    CALL_AS_METHOD,
-                    A1_UNINITIALIZED);
+  CallKnownFunction(instr->function(), instr->arity(), instr, CALL_AS_METHOD);
 }
 
 
@@ -3335,21 +3319,13 @@ void LCodeGen::DoUnaryMathOperation(LUnaryMathOperation* instr) {
 void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(ToRegister(instr->function()).is(a1));
   ASSERT(instr->HasPointerMap());
-
-  if (instr->known_function().is_null()) {
-    LPointerMap* pointers = instr->pointer_map();
-    RecordPosition(pointers->position());
-    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
-    ParameterCount count(instr->arity());
-    __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
-    __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  } else {
-    CallKnownFunction(instr->known_function(),
-                      instr->arity(),
-                      instr,
-                      CALL_AS_METHOD,
-                      A1_CONTAINS_TARGET);
-  }
+  ASSERT(instr->HasDeoptimizationEnvironment());
+  LPointerMap* pointers = instr->pointer_map();
+  RecordPosition(pointers->position());
+  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+  ParameterCount count(instr->arity());
+  __ InvokeFunction(a1, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
+  __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
 
 
@@ -3404,11 +3380,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
-  CallKnownFunction(instr->target(),
-                    instr->arity(),
-                    instr,
-                    CALL_AS_FUNCTION,
-                    A1_UNINITIALIZED);
+  CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 
 
@@ -3564,16 +3536,14 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
             Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
   }
 
-  if (instr->NeedsCanonicalization()) {
-    Label is_nan;
-    // Check for NaN. All NaNs must be canonicalized.
-    __ BranchF(NULL, &is_nan, eq, value, value);
-    __ Branch(&not_nan);
+  Label is_nan;
+  // Check for NaN. All NaNs must be canonicalized.
+  __ BranchF(NULL, &is_nan, eq, value, value);
+  __ Branch(&not_nan);
 
-    // Only load canonical NaN if the comparison above set the overflow.
-    __ bind(&is_nan);
-    __ Move(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
-  }
+  // Only load canonical NaN if the comparison above set the overflow.
+  __ bind(&is_nan);
+  __ Move(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double());
 
   __ bind(&not_nan);
   __ sdc1(value, MemOperand(scratch));
@@ -4265,21 +4235,14 @@ void LCodeGen::DoCheckMapCommon(Register reg,
 }
 
 
-void LCodeGen::DoCheckMaps(LCheckMaps* instr) {
+void LCodeGen::DoCheckMap(LCheckMap* instr) {
   Register scratch = scratch0();
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister());
   Register reg = ToRegister(input);
-  Label success;
-  SmallMapList* map_set = instr->hydrogen()->map_set();
-  for (int i = 0; i < map_set->length() - 1; i++) {
-    Handle<Map> map = map_set->at(i);
-    __ CompareMapAndBranch(
-        reg, scratch, map, &success, eq, &success, REQUIRE_EXACT_MAP);
-  }
-  Handle<Map> map = map_set->last();
-  DoCheckMapCommon(reg, scratch, map, REQUIRE_EXACT_MAP, instr->environment());
-  __ bind(&success);
+  Handle<Map> map = instr->hydrogen()->map();
+  DoCheckMapCommon(reg, scratch, map, instr->hydrogen()->mode(),
+                   instr->environment());
 }
 
 
@@ -4395,14 +4358,6 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
                         deferred->entry(),
                         TAG_OBJECT);
 
-  __ bind(deferred->exit());
-  if (FLAG_debug_code) {
-    Label is_in_new_space;
-    __ JumpIfInNewSpace(result, scratch, &is_in_new_space);
-    __ Abort("Allocated object is not in new-space");
-    __ bind(&is_in_new_space);
-  }
-
   // Load the initial map.
   Register map = scratch;
   __ LoadHeapObject(map, constructor);
@@ -4421,14 +4376,14 @@ void LCodeGen::DoAllocateObject(LAllocateObject* instr) {
       __ sw(scratch, FieldMemOperand(result, property_offset));
     }
   }
+
+  __ bind(deferred->exit());
 }
 
 
 void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
   Register result = ToRegister(instr->result());
   Handle<JSFunction> constructor = instr->hydrogen()->constructor();
-  Handle<Map> initial_map(constructor->initial_map());
-  int instance_size = initial_map->instance_size();
 
   // TODO(3095996): Get rid of this. For now, we need to make the
   // result register contain a valid pointer because it is already
@@ -4436,9 +4391,9 @@ void LCodeGen::DoDeferredAllocateObject(LAllocateObject* instr) {
   __ mov(result, zero_reg);
 
   PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
-  __ li(a0, Operand(Smi::FromInt(instance_size)));
+  __ LoadHeapObject(a0, constructor);
   __ push(a0);
-  CallRuntimeFromDeferred(Runtime::kAllocateInNewSpace, 1, instr);
+  CallRuntimeFromDeferred(Runtime::kNewObject, 1, instr);
   __ StoreToSafepointRegisterSlot(v0, result);
 }
 
@@ -4574,10 +4529,9 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
         __ sw(a2, FieldMemOperand(result, total_offset + 4));
       }
     } else if (elements->IsFixedArray()) {
-      Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
       for (int i = 0; i < elements_length; i++) {
         int total_offset = elements_offset + FixedArray::OffsetOfElementAt(i);
-        Handle<Object> value(fast_elements->get(i));
+        Handle<Object> value = JSObject::GetElement(object, i);
         if (value->IsJSObject()) {
           Handle<JSObject> value_object = Handle<JSObject>::cast(value);
           __ Addu(a2, result, Operand(*offset));
@@ -4601,23 +4555,6 @@ void LCodeGen::EmitDeepCopy(Handle<JSObject> object,
 
 void LCodeGen::DoFastLiteral(LFastLiteral* instr) {
   int size = instr->hydrogen()->total_size();
-  ElementsKind boilerplate_elements_kind =
-      instr->hydrogen()->boilerplate()->GetElementsKind();
-
-  // Deopt if the literal boilerplate ElementsKind is of a type different than
-  // the expected one. The check isn't necessary if the boilerplate has already
-  // been converted to FAST_ELEMENTS.
-  if (boilerplate_elements_kind != FAST_ELEMENTS) {
-    __ LoadHeapObject(a1, instr->hydrogen()->boilerplate());
-    // Load map into a2.
-    __ lw(a2, FieldMemOperand(a1, HeapObject::kMapOffset));
-    // Load the map's "bit field 2".
-    __ lbu(a2, FieldMemOperand(a2, Map::kBitField2Offset));
-    // Retrieve elements_kind from bit field 2.
-    __ Ext(a2, a2, Map::kElementsKindShift, Map::kElementsKindBitCount);
-    DeoptimizeIf(ne, instr->environment(), a2,
-        Operand(boilerplate_elements_kind));
-  }
 
   // Allocate all objects that are part of the literal in one big
   // allocation. This avoids multiple limit checks.
@@ -4953,7 +4890,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   Register strict = scratch0();
   __ li(strict, Operand(Smi::FromInt(strict_mode_flag())));
   __ Push(object, key, strict);
-  ASSERT(instr->HasPointerMap());
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(
@@ -4966,7 +4903,7 @@ void LCodeGen::DoIn(LIn* instr) {
   Register obj = ToRegister(instr->object());
   Register key = ToRegister(instr->key());
   __ Push(key, obj);
-  ASSERT(instr->HasPointerMap());
+  ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   SafepointGenerator safepoint_generator(this, pointers, Safepoint::kLazyDeopt);

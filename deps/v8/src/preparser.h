@@ -470,19 +470,8 @@ class PreParser {
     void set_language_mode(i::LanguageMode language_mode) {
       language_mode_ = language_mode;
     }
-
-    class InsideWith {
-     public:
-      explicit InsideWith(Scope* scope) : scope_(scope) {
-        scope->with_nesting_count_++;
-      }
-
-      ~InsideWith() { scope_->with_nesting_count_--; }
-
-     private:
-      Scope* scope_;
-      DISALLOW_COPY_AND_ASSIGN(InsideWith);
-    };
+    void EnterWith() { with_nesting_count_++; }
+    void LeaveWith() { with_nesting_count_--; }
 
    private:
     Scope** const variable_;

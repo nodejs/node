@@ -72,7 +72,9 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
 
-  table_.Register(kVisitJSFunction, &VisitJSFunction);
+  table_.Register(kVisitJSFunction,
+                  &JSObjectVisitor::
+                      template VisitSpecialized<JSFunction::kSize>);
 
   table_.Register(kVisitFreeSpace, &VisitFreeSpace);
 

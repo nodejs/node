@@ -131,7 +131,6 @@ class ElementsAccessor {
   static ElementsAccessor* ForArray(FixedArrayBase* array);
 
   static void InitializeOncePerProcess();
-  static void TearDown();
 
  protected:
   friend class NonStrictArgumentsElementsAccessor;

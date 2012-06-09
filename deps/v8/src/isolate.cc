@@ -1430,7 +1430,6 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 Isolate::Isolate()
     : state_(UNINITIALIZED),
-      embedder_data_(NULL),
       entry_stack_(NULL),
       stack_trace_nesting_level_(0),
       incomplete_message_(NULL),
@@ -1473,6 +1472,7 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
+      embedder_data_(NULL),
       context_exit_happened_(false) {
   TRACE_ISOLATE(constructor);
 
@@ -1856,13 +1856,6 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
   }
-
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, state_)),
-           Internals::kIsolateStateOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
-           Internals::kIsolateEmbedderDataOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
-           Internals::kIsolateRootsOffset);
 
   state_ = INITIALIZED;
   time_millis_at_init_ = OS::TimeCurrentMillis();

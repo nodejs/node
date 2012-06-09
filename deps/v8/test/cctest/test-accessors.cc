@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -116,8 +116,6 @@ static v8::Handle<v8::Object> x_holder;
 
 static v8::Handle<Value> XGetter(Local<String> name, const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_receiver, info.This());
   CHECK_EQ(x_holder, info.Holder());
   return v8_num(x_register);
@@ -127,8 +125,6 @@ static v8::Handle<Value> XGetter(Local<String> name, const AccessorInfo& info) {
 static void XSetter(Local<String> name,
                     Local<Value> value,
                     const AccessorInfo& info) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(x_holder, info.This());
   CHECK_EQ(x_holder, info.Holder());
   x_register = value->Int32Value();
@@ -240,15 +236,12 @@ THREADED_TEST(HandleScopePop) {
 
 static v8::Handle<Value> CheckAccessorArgsCorrect(Local<String> name,
                                                   const AccessorInfo& info) {
-  CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   ApiTestFuzzer::Fuzz();
-  CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK(info.GetIsolate() == v8::Isolate::GetCurrent());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   return v8::Integer::New(17);

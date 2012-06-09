@@ -255,10 +255,6 @@ TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
     threads[i]->Join();
     delete threads[i];
   }
-  {
-    v8::Locker locker;
-    v8::Locker::StopPreemption();
-  }
 
   delete semaphore;
   semaphore = NULL;

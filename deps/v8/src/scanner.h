@@ -520,16 +520,13 @@ class Scanner {
   Token::Value ScanIdentifierOrKeyword();
   Token::Value ScanIdentifierSuffix(LiteralScope* literal);
 
+  void ScanEscape();
   Token::Value ScanString();
 
-  // Scans an escape-sequence which is part of a string and adds the
-  // decoded character to the current literal. Returns true if a pattern
-  // is scanned.
-  bool ScanEscape();
-  // Decodes a Unicode escape-sequence which is part of an identifier.
+  // Decodes a unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
-  // Scans a Unicode escape-sequence and adds its characters,
+  // Recognizes a uniocde escape-sequence and adds its characters,
   // uninterpreted, to the current literal. Used for parsing RegExp
   // flags.
   bool ScanLiteralUnicodeEscape();

@@ -158,7 +158,7 @@ int RegExpMacroAssemblerMIPS::stack_limit_slack()  {
 void RegExpMacroAssemblerMIPS::AdvanceCurrentPosition(int by) {
   if (by != 0) {
     __ Addu(current_input_offset(),
-            current_input_offset(), Operand(by * char_size()));
+           current_input_offset(), Operand(by * char_size()));
   }
 }
 
@@ -229,9 +229,9 @@ void RegExpMacroAssemblerMIPS::CheckCharacterLT(uc16 limit, Label* on_less) {
 
 
 void RegExpMacroAssemblerMIPS::CheckCharacters(Vector<const uc16> str,
-                                               int cp_offset,
-                                               Label* on_failure,
-                                               bool check_end_of_string) {
+                                              int cp_offset,
+                                              Label* on_failure,
+                                              bool check_end_of_string) {
   if (on_failure == NULL) {
     // Instead of inlining a backtrack for each test, (re)use the global
     // backtrack target.
@@ -452,26 +452,24 @@ void RegExpMacroAssemblerMIPS::CheckNotRegistersEqual(int reg1,
 
 
 void RegExpMacroAssemblerMIPS::CheckNotCharacter(uint32_t c,
-                                                 Label* on_not_equal) {
+                                                Label* on_not_equal) {
   BranchOrBacktrack(on_not_equal, ne, current_character(), Operand(c));
 }
 
 
 void RegExpMacroAssemblerMIPS::CheckCharacterAfterAnd(uint32_t c,
-                                                      uint32_t mask,
-                                                      Label* on_equal) {
+                                                     uint32_t mask,
+                                                     Label* on_equal) {
   __ And(a0, current_character(), Operand(mask));
-  Operand rhs = (c == 0) ? Operand(zero_reg) : Operand(c);
-  BranchOrBacktrack(on_equal, eq, a0, rhs);
+  BranchOrBacktrack(on_equal, eq, a0, Operand(c));
 }
 
 
 void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterAnd(uint32_t c,
-                                                         uint32_t mask,
-                                                         Label* on_not_equal) {
+                                                        uint32_t mask,
+                                                        Label* on_not_equal) {
   __ And(a0, current_character(), Operand(mask));
-  Operand rhs = (c == 0) ? Operand(zero_reg) : Operand(c);
-  BranchOrBacktrack(on_not_equal, ne, a0, rhs);
+  BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
 }
 
 
@@ -480,51 +478,12 @@ void RegExpMacroAssemblerMIPS::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  ASSERT(minus < String::kMaxUtf16CodeUnit);
-  __ Subu(a0, current_character(), Operand(minus));
-  __ And(a0, a0, Operand(mask));
-  BranchOrBacktrack(on_not_equal, ne, a0, Operand(c));
-}
-
-
-void RegExpMacroAssemblerMIPS::CheckCharacterInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_in_range) {
-  __ Subu(a0, current_character(), Operand(from));
-  // Unsigned lower-or-same condition.
-  BranchOrBacktrack(on_in_range, ls, a0, Operand(to - from));
-}
-
-
-void RegExpMacroAssemblerMIPS::CheckCharacterNotInRange(
-    uc16 from,
-    uc16 to,
-    Label* on_not_in_range) {
-  __ Subu(a0, current_character(), Operand(from));
-  // Unsigned higher condition.
-  BranchOrBacktrack(on_not_in_range, hi, a0, Operand(to - from));
-}
-
-
-void RegExpMacroAssemblerMIPS::CheckBitInTable(
-    Handle<ByteArray> table,
-    Label* on_bit_set) {
-  __ li(a0, Operand(table));
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
-    __ And(a1, current_character(), Operand(kTableSize - 1));
-    __ Addu(a0, a0, a1);
-  } else {
-    __ Addu(a0, a0, current_character());
-  }
-
-  __ lbu(a0, FieldMemOperand(a0, ByteArray::kHeaderSize));
-  BranchOrBacktrack(on_bit_set, ne, a0, Operand(zero_reg));
+  UNIMPLEMENTED_MIPS();
 }
 
 
 bool RegExpMacroAssemblerMIPS::CheckSpecialCharacterClass(uc16 type,
-                                                          Label* on_no_match) {
+                                                         Label* on_no_match) {
   // Range checks (c in min..max) are generally implemented by an unsigned
   // (c - min) <= (max - min) check.
   switch (type) {
@@ -889,23 +848,23 @@ void RegExpMacroAssemblerMIPS::GoTo(Label* to) {
 
 
 void RegExpMacroAssemblerMIPS::IfRegisterGE(int reg,
-                                            int comparand,
-                                            Label* if_ge) {
+                                           int comparand,
+                                           Label* if_ge) {
   __ lw(a0, register_location(reg));
     BranchOrBacktrack(if_ge, ge, a0, Operand(comparand));
 }
 
 
 void RegExpMacroAssemblerMIPS::IfRegisterLT(int reg,
-                                            int comparand,
-                                            Label* if_lt) {
+                                           int comparand,
+                                           Label* if_lt) {
   __ lw(a0, register_location(reg));
   BranchOrBacktrack(if_lt, lt, a0, Operand(comparand));
 }
 
 
 void RegExpMacroAssemblerMIPS::IfRegisterEqPos(int reg,
-                                               Label* if_eq) {
+                                              Label* if_eq) {
   __ lw(a0, register_location(reg));
   BranchOrBacktrack(if_eq, eq, a0, Operand(current_input_offset()));
 }
@@ -918,9 +877,9 @@ RegExpMacroAssembler::IrregexpImplementation
 
 
 void RegExpMacroAssemblerMIPS::LoadCurrentCharacter(int cp_offset,
-                                                    Label* on_end_of_input,
-                                                    bool check_bounds,
-                                                    int characters) {
+                                                   Label* on_end_of_input,
+                                                   bool check_bounds,
+                                                   int characters) {
   ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works).
   if (check_bounds) {
@@ -971,7 +930,7 @@ void RegExpMacroAssemblerMIPS::PushCurrentPosition() {
 
 
 void RegExpMacroAssemblerMIPS::PushRegister(int register_index,
-                                            StackCheckFlag check_stack_limit) {
+                                           StackCheckFlag check_stack_limit) {
   __ lw(a0, register_location(register_index));
   Push(a0);
   if (check_stack_limit) CheckStackLimit();
@@ -1018,7 +977,7 @@ void RegExpMacroAssemblerMIPS::Succeed() {
 
 
 void RegExpMacroAssemblerMIPS::WriteCurrentPositionToRegister(int reg,
-                                                              int cp_offset) {
+                                                             int cp_offset) {
   if (cp_offset == 0) {
     __ sw(current_input_offset(), register_location(reg));
   } else {
@@ -1175,7 +1134,7 @@ MemOperand RegExpMacroAssemblerMIPS::register_location(int register_index) {
 
 
 void RegExpMacroAssemblerMIPS::CheckPosition(int cp_offset,
-                                             Label* on_outside_input) {
+                                            Label* on_outside_input) {
   BranchOrBacktrack(on_outside_input,
                     ge,
                     current_input_offset(),
@@ -1203,10 +1162,8 @@ void RegExpMacroAssemblerMIPS::BranchOrBacktrack(Label* to,
 }
 
 
-void RegExpMacroAssemblerMIPS::SafeCall(Label* to,
-                                        Condition cond,
-                                        Register rs,
-                                        const Operand& rt) {
+void RegExpMacroAssemblerMIPS::SafeCall(Label* to, Condition cond, Register rs,
+                                           const Operand& rt) {
   __ BranchAndLink(to, cond, rs, rt);
 }
 
@@ -1277,7 +1234,7 @@ void RegExpMacroAssemblerMIPS::CallCFunctionUsingStub(
 
 
 void RegExpMacroAssemblerMIPS::LoadCurrentCharacterUnchecked(int cp_offset,
-                                                             int characters) {
+                                                            int characters) {
   Register offset = current_input_offset();
   if (cp_offset != 0) {
     __ Addu(a0, current_input_offset(), Operand(cp_offset * char_size()));

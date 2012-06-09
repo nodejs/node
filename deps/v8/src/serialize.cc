@@ -244,7 +244,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
     "Isolate::" #hacker_name "_address",
     FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL)
     NULL
-#undef BUILD_NAME_LITERAL
+#undef C
   };
 
   for (uint16_t i = 0; i < Isolate::kIsolateAddressCount; ++i) {

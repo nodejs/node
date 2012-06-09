@@ -5013,10 +5013,7 @@ static void ThreadedMessageHandler(const v8::Debug::Message& message) {
   if (IsBreakEventMessage(print_buffer)) {
     // Check that we are inside the while loop.
     int source_line = GetSourceLineFromBreakEventMessage(print_buffer);
-    // TODO(2047): This should really be 8 <= source_line <= 13; but we
-    // currently have an off-by-one error when calculating the source
-    // position corresponding to the program counter at the debug break.
-    CHECK(7 <= source_line && source_line <= 13);
+    CHECK(8 <= source_line && source_line <= 13);
     threaded_debugging_barriers.barrier_2.Wait();
   }
 }

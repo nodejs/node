@@ -91,11 +91,6 @@ void OS::PostSetUp() {
 }
 
 
-void OS::TearDown() {
-  UNIMPLEMENTED();
-}
-
-
 // Returns the accumulated user time for thread.
 int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
   UNIMPLEMENTED();

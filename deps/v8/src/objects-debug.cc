@@ -135,9 +135,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
-    case JS_MODULE_TYPE:
-      JSModule::cast(this)->JSModuleVerify();
-      break;
     case JS_VALUE_TYPE:
       JSValue::cast(this)->JSValueVerify();
       break;
@@ -366,15 +363,6 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
              ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
-}
-
-
-void JSModule::JSModuleVerify() {
-  Object* v = context();
-  if (v->IsHeapObject()) {
-    VerifyHeapPointer(v);
-  }
-  CHECK(v->IsUndefined() || v->IsModuleContext());
 }
 
 

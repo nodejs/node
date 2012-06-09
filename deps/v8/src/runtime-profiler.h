@@ -43,7 +43,7 @@ class RuntimeProfiler {
  public:
   explicit RuntimeProfiler(Isolate* isolate);
 
-  static void GlobalSetUp();
+  static void GlobalSetup();
 
   static inline bool IsEnabled() {
     ASSERT(has_been_globally_set_up_);
@@ -62,6 +62,13 @@ class RuntimeProfiler {
   int SamplerWindowSize();
 
   void NotifyICChanged() { any_ic_changed_ = true; }
+
+  void NotifyCodeGenerated(int generated_code_size) {
+    if (FLAG_watch_ic_patching) {
+      code_generated_ = true;
+      total_code_generated_ += generated_code_size;
+    }
+  }
 
   // Rate limiting support.
 
@@ -123,6 +130,7 @@ class RuntimeProfiler {
 
   bool any_ic_changed_;
   bool code_generated_;
+  int total_code_generated_;
 
   // Possible state values:
   //   -1            => the profiler thread is waiting on the semaphore

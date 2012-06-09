@@ -1957,7 +1957,7 @@ DebugCommandProcessor.prototype.frameForScopeRequest_ = function(request) {
   if (request.arguments && !IS_UNDEFINED(request.arguments.frameNumber)) {
     frame_index = request.arguments.frameNumber;
     if (frame_index < 0 || this.exec_state_.frameCount() <= frame_index) {
-      throw new Error('Invalid frame number');
+      return response.failed('Invalid frame number');
     }
     return this.exec_state_.frame(frame_index);
   } else {
@@ -1966,44 +1966,20 @@ DebugCommandProcessor.prototype.frameForScopeRequest_ = function(request) {
 };
 
 
-// Gets scope host object from request. It is either a function
-// ('functionHandle' argument must be specified) or a stack frame
-// ('frameNumber' may be specified and the current frame is taken by default).
-DebugCommandProcessor.prototype.scopeHolderForScopeRequest_ =
-    function(request) {
-  if (request.arguments && "functionHandle" in request.arguments) {
-    if (!IS_NUMBER(request.arguments.functionHandle)) {
-      throw new Error('Function handle must be a number');
-    }
-    var function_mirror = LookupMirror(request.arguments.functionHandle);
-    if (!function_mirror) {
-      throw new Error('Failed to find function object by handle');
-    }
-    if (!function_mirror.isFunction()) {
-      throw new Error('Value of non-function type is found by handle');
-    }
-    return function_mirror;
-  } else {
-    // No frames no scopes.
-    if (this.exec_state_.frameCount() == 0) {
-      throw new Error('No scopes');
-    }
-
-    // Get the frame for which the scopes are requested.
-    var frame = this.frameForScopeRequest_(request);
-    return frame;
-  }
-}
-
-
 DebugCommandProcessor.prototype.scopesRequest_ = function(request, response) {
-  var scope_holder = this.scopeHolderForScopeRequest_(request);
+  // No frames no scopes.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No scopes');
+  }
 
-  // Fill all scopes for this frame or function.
-  var total_scopes = scope_holder.scopeCount();
+  // Get the frame for which the scopes are requested.
+  var frame = this.frameForScopeRequest_(request);
+
+  // Fill all scopes for this frame.
+  var total_scopes = frame.scopeCount();
   var scopes = [];
   for (var i = 0; i < total_scopes; i++) {
-    scopes.push(scope_holder.scope(i));
+    scopes.push(frame.scope(i));
   }
   response.body = {
     fromScope: 0,
@@ -2015,19 +1991,24 @@ DebugCommandProcessor.prototype.scopesRequest_ = function(request, response) {
 
 
 DebugCommandProcessor.prototype.scopeRequest_ = function(request, response) {
-  // Get the frame or function for which the scope is requested.
-  var scope_holder = this.scopeHolderForScopeRequest_(request);
+  // No frames no scopes.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No scopes');
+  }
+
+  // Get the frame for which the scope is requested.
+  var frame = this.frameForScopeRequest_(request);
 
   // With no scope argument just return top scope.
   var scope_index = 0;
   if (request.arguments && !IS_UNDEFINED(request.arguments.number)) {
     scope_index = %ToNumber(request.arguments.number);
-    if (scope_index < 0 || scope_holder.scopeCount() <= scope_index) {
+    if (scope_index < 0 || frame.scopeCount() <= scope_index) {
       return response.failed('Invalid scope number');
     }
   }
 
-  response.body = scope_holder.scope(scope_index);
+  response.body = frame.scope(scope_index);
 };
 
 
