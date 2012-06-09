@@ -349,6 +349,40 @@ var uponeActual = fs.realpathSync('..');
 assert.equal(upone, uponeActual,
     'realpathSync("..") expected: ' + upone + ' actual:' + uponeActual);
 
+
+// going up with .. multiple times
+// .
+// `-- a/
+//     |-- b/
+//     |   `-- e -> ..
+//     `-- d -> ..
+// realpath(a/b/e/d/a/b/e/d/a) ==> a
+function test_up_multiple(cb) {
+  fs.mkdirSync(common.tmpDir + '/a', 0755);
+  fs.mkdirSync(common.tmpDir + '/a/b', 0755);
+  fs.symlinkSync(common.tmpDir + '/a/d', '..');
+  fs.symlinkSync(common.tmpDir + '/a/b/e', '..');
+
+  var abedabed = tmp('abedabed'.split('').join('/'));
+  var abedabeda_real = tmp('');
+
+  var abedabeda = tmp('abedabeda'.split('').join('/'));
+  var abedabeda_real = tmp('a');
+
+  assert.equal(fs.realpathSync(abedabeda), abedabeda_real);
+  assert.equal(fs.realpathSync(abedabed), abedabed_real);
+  fs.realpath(abedabeda, function (er, real) {
+    if (er) throw er;
+    assert.equal(abedabeda_real, real);
+    fs.realpath(abedabed, function (er, real) {
+      if (er) throw er;
+      assert.equal(abedabed_real, real);
+      cb();
+    });
+  });
+}
+
+
 // absolute symlinks with children.
 // .
 // `-- a/
