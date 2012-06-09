@@ -79,13 +79,14 @@ function bashRealpath(path, callback) {
 }
 
 // sub-tests:
-function test_simple_error_callback() {
+function test_simple_error_callback(cb) {
   var ncalls = 0;
 
   fs.realpath('/this/path/does/not/exist', function(err, s) {
     assert(err);
     assert(!s);
     ncalls++;
+    cb();
   });
 
   process.on('exit', function() {
@@ -358,13 +359,16 @@ assert.equal(upone, uponeActual,
 //     `-- d -> ..
 // realpath(a/b/e/d/a/b/e/d/a) ==> a
 function test_up_multiple(cb) {
-  fs.mkdirSync(common.tmpDir + '/a', 0755);
-  fs.mkdirSync(common.tmpDir + '/a/b', 0755);
-  fs.symlinkSync(common.tmpDir + '/a/d', '..');
-  fs.symlinkSync(common.tmpDir + '/a/b/e', '..');
+  console.error('test_up_multiple');
+  fs.mkdirSync(tmp('a'), 0755);
+  fs.mkdirSync(tmp('a/b'), 0755);
+  fs.symlinkSync('..', tmp('a/d'), 'dir');
+  unlink.push(tmp('a/d'));
+  fs.symlinkSync('..', tmp('a/b/e'), 'dir');
+  unlink.push(tmp('a/b/e'));
 
   var abedabed = tmp('abedabed'.split('').join('/'));
-  var abedabeda_real = tmp('');
+  var abedabed_real = tmp('');
 
   var abedabeda = tmp('abedabeda'.split('').join('/'));
   var abedabeda_real = tmp('a');
@@ -435,6 +439,8 @@ function test_abs_with_kids(cb) {
 }
 
 function test_lying_cache_liar(cb) {
+  var n = 2;
+
   // this should not require *any* stat calls, since everything
   // checked by realpath will be found in the cache.
   console.log('test_lying_cache_liar');
@@ -448,6 +454,7 @@ function test_lying_cache_liar(cb) {
   assert.equal(cache['/foo/bar/baz/bluff'], rps);
   fs.realpath('/1/2/3/4/5/6/7', cache, function(er, rp) {
     assert.equal(cache['/1/2/3/4/5/6/7'], rp);
+    if (--n === 0) cb();
   });
 
   var test = '/a/b/c/d',
@@ -456,6 +463,7 @@ function test_lying_cache_liar(cb) {
   assert.equal(expect, actual);
   fs.realpath(test, cache, function(er, actual) {
     assert.equal(expect, actual);
+    if (--n === 0) cb();
   });
 }
 
@@ -474,16 +482,22 @@ var tests = [
   test_non_symlinks,
   test_escape_cwd,
   test_abs_with_kids,
-  test_lying_cache_liar
+  test_lying_cache_liar,
+  test_up_multiple
 ];
 var numtests = tests.length;
+var testsRun = 0;
 function runNextTest(err) {
   if (err) throw err;
   var test = tests.shift();
-  if (!test) console.log(numtests +
-                         ' subtests completed OK for fs.realpath');
-  else test(runNextTest);
+  if (!test) {
+    return console.log(numtests +
+                       ' subtests completed OK for fs.realpath');
+  }
+  testsRun++;
+  test(runNextTest);
 }
+
 getAbsPaths(function(er) {
   if (er) throw er;
   var tmpDirs = ['cycles', 'cycles/folder'];
@@ -495,6 +509,7 @@ getAbsPaths(function(er) {
     fs.mkdirSync(t, 0700);
   });
   fs.writeFileSync(tmp('cycles/root.js'), "console.error('roooot!');");
+  console.error('start tests');
   runNextTest();
 });
 
@@ -508,6 +523,7 @@ fs.realpath('/', function(err, result) {
 
 
 process.on('exit', function() {
+  assert.equal(numtests, testsRun);
   unlink.forEach(function(path) { try {fs.unlinkSync(path);} catch (e) {} });
   assert.equal(async_completed, async_expected);
 });
