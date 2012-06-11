@@ -106,7 +106,8 @@ class ProcessWrap : public HandleWrap {
       if (type->Equals(String::NewSymbol("ignore"))) {
         options->stdio[i].flags = UV_IGNORE;
       } else if (type->Equals(String::NewSymbol("pipe"))) {
-        options->stdio[i].flags = UV_CREATE_PIPE;
+        options->stdio[i].flags = static_cast<uv_stdio_flags>(
+            UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE);
         options->stdio[i].data.stream = reinterpret_cast<uv_stream_t*>(
             PipeWrap::Unwrap(stdio
                 ->Get(String::NewSymbol("handle")).As<Object>())->UVHandle());
