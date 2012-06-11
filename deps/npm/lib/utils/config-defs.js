@@ -8,7 +8,7 @@ var path = require("path")
   , stableFamily = semver.parse(process.version)
   , os = require("os")
   , nopt = require("nopt")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , npm = require("../npm.js")
 
 function Octal () {}
@@ -32,7 +32,7 @@ nopt.typeDefs.semver = { type: semver, validate: validateSemver }
 nopt.typeDefs.Octal = { type: Octal, validate: validateOctal }
 
 nopt.invalidHandler = function (k, val, type, data) {
-  log.warn(k + "=" + JSON.stringify(val), "invalid config")
+  log.warn("invalid config", k + "=" + JSON.stringify(val))
 
   if (Array.isArray(type)) {
     if (type.indexOf(url) !== -1) type = url
@@ -41,25 +41,22 @@ nopt.invalidHandler = function (k, val, type, data) {
 
   switch (type) {
     case Octal:
-      log.warn("Must be octal number, starting with 0", "invalid config")
+      log.warn("invalid config", "Must be octal number, starting with 0")
       break
     case url:
-      log.warn("Must be a full url with 'http://'", "invalid config")
+      log.warn("invalid config", "Must be a full url with 'http://'")
       break
     case path:
-      log.warn("Must be a valid filesystem path", "invalid config")
+      log.warn("invalid config", "Must be a valid filesystem path")
       break
     case Number:
-      log.warn("Must be a numeric value", "invalid config")
+      log.warn("invalid config", "Must be a numeric value")
       break
   }
 }
 
 if (!stableFamily || (+stableFamily[2] % 2)) stableFamily = null
 else stableFamily = stableFamily[1] + "." + stableFamily[2]
-
-var httpsOk = semver.satisfies(process.version, ">=0.4.9")
-var winColor = semver.satisfies(process.version, ">=0.5.9")
 
 var defaults
 
@@ -143,7 +140,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "cache-max": Infinity
     , "cache-min": 0
 
-    , color : process.platform !== "win32" || winColor
+    , color : true
     , coverage: false
     , depth: Infinity
     , description : true
@@ -166,9 +163,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "init.author.url" : ""
     , json: false
     , link: false
-    , logfd : 2
     , loglevel : "http"
-    , logprefix : process.platform !== "win32" || winColor
     , long : false
     , message : "%s"
     , "node-version" : process.version
@@ -186,7 +181,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
                       process.env.HTTP_PROXY || process.env.http_proxy || null
     , "user-agent" : "npm/" + npm.version + " node/" + process.version
     , "rebuild-bundle" : true
-    , registry : "http" + (httpsOk ? "s" : "") + "://registry.npmjs.org/"
+    , registry : "https://registry.npmjs.org/"
     , rollback : true
     , save : false
     , "save-dev" : false
@@ -251,9 +246,7 @@ exports.types =
   , "init.author.url" : ["", url]
   , json: Boolean
   , link: Boolean
-  , logfd : [Number, Stream]
   , loglevel : ["silent","win","error","warn","http","info","verbose","silly"]
-  , logprefix : Boolean
   , long : Boolean
   , message: String
   , "node-version" : [null, semver]

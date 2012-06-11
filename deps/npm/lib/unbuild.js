@@ -10,7 +10,7 @@ var readJson = require("./utils/read-json.js")
   , lifecycle = require("./utils/lifecycle.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , build = require("./build.js")
 
 // args is a list of folders.
@@ -55,7 +55,8 @@ function rmBins (pkg, folder, parent, top, cb) {
   log.verbose([binRoot, pkg.bin], "binRoot")
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     if (process.platform === "win32") {
-      rm(path.resolve(binRoot, b) + ".cmd", cb)
+      chain([ [rm, path.resolve(binRoot, b) + ".cmd"]
+            , [rm, path.resolve(binRoot, b) ] ], cb)
     } else {
       gentlyRm( path.resolve(binRoot, b)
               , !npm.config.get("force") && folder

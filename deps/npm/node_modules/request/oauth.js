@@ -8,11 +8,11 @@ function sha1 (key, body) {
 
 function rfc3986 (str) {
   return encodeURIComponent(str)
-    .replace('!','%21')
-    .replace('*','%2A')
-    .replace('(','%28')
-    .replace(')','%29')
-    .replace("'",'%27')
+    .replace(/!/g,'%21')
+    .replace(/\*/g,'%2A')
+    .replace(/\(/g,'%28')
+    .replace(/\)/g,'%29')
+    .replace(/'/g,'%27')
     ;
 }
 

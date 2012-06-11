@@ -10,7 +10,7 @@ config.usage = "npm config set <key> <value>"
              + "\nnpm get [<key>]"
 
 var ini = require("./utils/ini.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , npm = require("./npm.js")
   , exec = require("./utils/exec.js")
   , fs = require("graceful-fs")
@@ -129,7 +129,7 @@ function set (key, val, cb) {
   }
   key = key.trim()
   val = val.trim()
-  log("set "+key+" "+val, "config")
+  log.info("config", "set %j %j", key, val)
   var where = ini.get("global") ? "global" : "user"
   ini.set(key, val, where)
   ini.save(where, cb)

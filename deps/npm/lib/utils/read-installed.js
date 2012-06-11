@@ -93,7 +93,7 @@ var npm = require("../npm.js")
   , asyncMap = require("slide").asyncMap
   , semver = require("semver")
   , readJson = require("./read-json.js")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , url = require("url")
 
 module.exports = readInstalled
@@ -186,13 +186,26 @@ function readInstalled_ (folder, parent, name, reqver, depth, maxDepth, cb) {
     if (parent && !obj.link) obj.parent = parent
     rpSeen[real] = obj
     obj.depth = depth
-    if (depth >= maxDepth) return cb(null, obj)
+    //if (depth >= maxDepth) return cb(null, obj)
     asyncMap(installed, function (pkg, cb) {
       var rv = obj.dependencies[pkg]
       if (!rv && obj.devDependencies) rv = obj.devDependencies[pkg]
+      if (depth >= maxDepth) {
+        // just try to get the version number
+        var pkgfolder = path.resolve(folder, "node_modules", pkg)
+          , jsonFile = path.resolve(pkgfolder, "package.json")
+        return readJson(jsonFile, function (er, depData) {
+          // already out of our depth, ignore errors
+          if (er || !depData || !depData.version) return cb(null, obj)
+          obj.dependencies[pkg] = depData.version
+          cb(null, obj)
+        })
+      }
+
       readInstalled_( path.resolve(folder, "node_modules/"+pkg)
                     , obj, pkg, obj.dependencies[pkg], depth + 1, maxDepth
                     , cb )
+
     }, function (er, installedData) {
       if (er) return cb(er)
       installedData.forEach(function (dep) {
@@ -259,17 +272,17 @@ function findUnmet (obj) {
             && !url.parse(deps[d]).protocol
             && !semver.satisfies(found.version, deps[d])) {
           // the bad thing will happen
-          log.warn(obj.path + " requires "+d+"@'"+deps[d]
+          log.warn("unmet dependency", obj.path + " requires "+d+"@'"+deps[d]
                   +"' but will load\n"
                   +found.path+",\nwhich is version "+found.version
-                  ,"unmet dependency")
+                  )
           found.invalid = true
         }
         deps[d] = found
       }
 
     })
-  log.verbose([obj._id], "returning")
+  log.verbose("readInstalled", "returning", obj._id)
   return obj
 }
 

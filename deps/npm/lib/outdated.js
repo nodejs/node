@@ -24,7 +24,6 @@ var path = require("path")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
-  , log = require("./utils/log.js")
   , semver = require("semver")
   , relativize = require("./utils/relativize.js")
 

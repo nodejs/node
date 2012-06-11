@@ -5,7 +5,7 @@ var lifecycle = require("./utils/lifecycle.js")
   , npm = require("./npm.js")
   , path = require("path")
   , readJson = require("./utils/read-json.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , chain = require("slide").chain
   , fs = require("graceful-fs")
   , asyncMap = require("slide").asyncMap
@@ -92,7 +92,7 @@ function run (pkg, wd, cmd, cb) {
   if (!cmd.match(/^(pre|post)/)) {
     cmds = ["pre"+cmd].concat(cmds).concat("post"+cmd)
   }
-  log.verbose(cmds, "run-script")
+  log.verbose("run-script", cmds)
   chain(cmds.map(function (c) {
     // when running scripts explicitly, assume that they're trusted.
     return [lifecycle, pkg, c, wd, true]

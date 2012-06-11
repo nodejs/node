@@ -1,9 +1,8 @@
 // happy xmas
 var npm = require("./npm.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
 
 module.exports = function (args, cb) {
-npm.config.set("loglevel", "win")
 var s = process.platform === "win32" ? " *" : " \u2605"
   , f = "\uFF0F"
   , b = "\uFF3C"
@@ -44,7 +43,10 @@ w("\n")
   }
 })(20)
 w("\n\n")
-log.win("Happy Xmas, Noders!", "loves you", cb)
+log.heading = ''
+log.addLevel('npm', 100000, log.headingStyle)
+log.npm("loves you", "Happy Xmas, Noders!")
+cb()
 }
 var dg=false
 Object.defineProperty(module.exports, "usage", {get:function () {

@@ -9,7 +9,7 @@ uninstall.usage = "npm uninstall <name>[@<version> [<name>[@<version>] ...]"
 uninstall.completion = require("./utils/completion/installed-shallow.js")
 
 var fs = require("graceful-fs")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , readJson = require("./utils/read-json.js")
   , path = require("path")
   , npm = require("./npm.js")
@@ -43,12 +43,12 @@ function uninstall_ (args, nm, cb) {
     // uninstall .. should not delete /usr/local/lib/node_modules/..
     var p = path.join(path.resolve(nm), path.join("/", arg))
     if (path.resolve(p) === nm) {
-      log.warn(arg, "uninstall: invalid argument")
+      log.warn("uninstall", "invalid argument: %j", arg)
       return cb(null, [])
     }
     fs.lstat(p, function (er) {
       if (er) {
-        log.warn(arg, "Not installed in "+nm)
+        log.warn("uninstall", "not installed in %s: %j", nm, arg)
         return cb(null, [])
       }
       cb(null, p)

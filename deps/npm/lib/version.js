@@ -8,7 +8,7 @@ var exec = require("./utils/exec.js")
   , path = require("path")
   , fs = require("graceful-fs")
   , chain = require("slide").chain
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , npm = require("./npm.js")
 
 version.usage = "npm version <newversion> [--message commit-message]"
@@ -22,7 +22,10 @@ version.usage = "npm version <newversion> [--message commit-message]"
 function version (args, cb) {
   if (args.length !== 1) return cb(version.usage)
   readJson(path.join(process.cwd(), "package.json"), function (er, data) {
-    if (er) return log.er(cb, "No package.json found")(er)
+    if (er) {
+      log.error("version", "No package.json found")
+      return cb(er)
+    }
 		var newVer = semver.valid(args[0])
 		if (!newVer) newVer = semver.inc(data.version, args[0])
 		if (!newVer) return cb(version.usage)

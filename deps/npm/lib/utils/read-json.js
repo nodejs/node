@@ -8,7 +8,7 @@ readJson.clearCache = clearCache
 var fs = require("graceful-fs")
   , semver = require("semver")
   , path = require("path")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , npm = require("../npm.js")
   , cache = {}
   , timers = {}
@@ -17,19 +17,12 @@ var fs = require("graceful-fs")
 function readJson (jsonFile, opts, cb) {
   if (typeof cb !== "function") cb = opts, opts = {}
   if (cache.hasOwnProperty(jsonFile)) {
-    log.verbose(jsonFile, "from cache")
+    log.verbose("json from cache", jsonFile)
     return cb(null, cache[jsonFile])
   }
+  log.verbose("read json", jsonFile)
+
   opts.file = jsonFile
-  if (!opts.tag) {
-    var parsedPath = jsonFile.indexOf(npm.dir) === 0 && jsonFile.match(
-      /\/([^\/]+)\/([^\/]+)\/package\/package\.json$/)
-    if (parsedPath && semver.valid(parsedPath[2])) {
-      // this is a package.json in some installed package.
-      // infer the opts.tag so that linked packages behave right.
-      opts.tag = parsedPath[2]
-    }
-  }
 
   var wscript = null
     , contributors = null
@@ -180,8 +173,7 @@ function processJsonString (opts, cb) { return function (er, jsonString) {
     if (opts.file && opts.file.indexOf(npm.dir) === 0) {
       try {
         json = require("vm").runInNewContext("(\n"+jsonString+"\n)")
-        log.error(opts.file, "Error parsing json")
-        log.error(ex, "parse error ")
+        log.error("Error parsing json", opts.file, ex)
       } catch (ex2) {
         return jsonParseFail(ex, opts.file, cb)
       }
@@ -196,7 +188,7 @@ function processJsonString (opts, cb) { return function (er, jsonString) {
 function jsonParseFail (ex, file, cb) {
   var e = new Error(
     "Failed to parse json\n"+ex.message)
-  e.errno = npm.EJSONPARSE
+  e.code = "EJSONPARSE"
   e.file = file
   if (cb) return cb(e)
   throw e
@@ -209,7 +201,7 @@ function typoWarn (json) {
   typoWarned[json._id] = true
 
   if (json.modules) {
-    log.warn("package.json: 'modules' object is deprecated", json._id)
+    log.verbose("package.json", "'modules' object is deprecated", json._id)
     delete json.modules
   }
 
@@ -235,8 +227,8 @@ function typoWarn (json) {
 
   Object.keys(typos).forEach(function (d) {
     if (json.hasOwnProperty(d)) {
-      log.warn( "package.json: '" + d + "' should probably be '"
-              + typos[d] + "'", json._id)
+      log.warn( json._id, "package.json: '" + d + "' should probably be '"
+              + typos[d] + "'" )
     }
   })
 
@@ -259,8 +251,9 @@ function typoWarn (json) {
   var scriptTypos = { "server": "start" }
   if (json.scripts) Object.keys(scriptTypos).forEach(function (d) {
     if (json.scripts.hasOwnProperty(d)) {
-      log.warn( "package.json: scripts['" + d + "'] should probably be "
-              + "scripts['" + scriptTypos[d] + "']", json._id)
+      log.warn( json._id
+              , "package.json: scripts['" + d + "'] should probably be "
+              + "scripts['" + scriptTypos[d] + "']" )
     }
   })
 }
@@ -268,7 +261,6 @@ function typoWarn (json) {
 
 function processObject (opts, cb) { return function (er, json) {
   // json._npmJsonOpts = opts
-  // log.warn(json, "processing json")
   if (npm.config.get("username")) {
     json._npmUser = { name: npm.config.get("username")
                     , email: npm.config.get("email") }
@@ -310,7 +302,7 @@ function processObject (opts, cb) { return function (er, json) {
     // uncomment once this is no longer an issue.
     // if (cb) return cb(e)
     // throw e
-    log.error(msg, "incorrect json: "+json.name)
+    log.error("json", "incorrect json: "+json.name, msg)
     json.repostory = json.repositories[0]
     delete json.repositories
   }
@@ -335,14 +327,14 @@ function processObject (opts, cb) { return function (er, json) {
     }
     if (repo.match(/github\.com\/[^\/]+\/[^\/]+\/?$/)
         && repo.match(/\.git\.git$/)) {
-      log.warn(repo, "Probably broken git url")
+      log.warn(json._id, "Probably broken git url", repo)
     }
     json.repository.url = repo
   }
 
   var files = json.files
   if (files && !Array.isArray(files)) {
-    log.warn(files, "Invalid 'files' member.  See 'npm help json'")
+    log.warn(json._id, "Invalid 'files' member.  See 'npm help json'", files)
     delete json.files
   }
 
@@ -354,14 +346,11 @@ function processObject (opts, cb) { return function (er, json) {
 
   json._id = json.name+"@"+json.version
 
-  var tag = opts.tag
-  if (tag) json.version = tag
-
   var scripts = json.scripts || {}
 
   // if it has a bindings.gyp, then build with node-gyp
   if (opts.gypfile && !json.prebuilt) {
-    log.verbose([json.prebuilt, opts], "has bindings.gyp")
+    log.verbose(json._id, "has bindings.gyp", [json.prebuilt, opts])
     if (!scripts.install && !scripts.preinstall) {
       scripts.install = "node-gyp rebuild"
       json.scripts = scripts
@@ -370,7 +359,7 @@ function processObject (opts, cb) { return function (er, json) {
 
   // if it has a wscript, then build it.
   if (opts.wscript && !json.prebuilt) {
-    log.verbose([json.prebuilt, opts], "has wscript")
+    log.verbose(json._id, "has wscript", [json.prebuilt, opts])
     if (!scripts.install && !scripts.preinstall) {
       // don't fail if it was unexpected, just try.
       scripts.preinstall = "node-waf clean || (exit 0); node-waf configure build"
@@ -460,7 +449,7 @@ function processObject (opts, cb) { return function (er, json) {
   json._npmVersion = npm.version
   json._nodeVersion = process.version
   if (opts.file) {
-    log.verbose(opts.file, "caching")
+    log.verbose("caching json", opts.file)
     cache[opts.file] = json
     // arbitrary
     var keys = Object.keys(cache)
@@ -522,8 +511,9 @@ function testEngine (json) {
   }
   if (json.engines.node === "") json.engines.node = "*"
   if (json.engines.node && null === semver.validRange(json.engines.node)) {
-    log.warn( json.engines.node
-            , "Invalid range in engines.node.  Please see `npm help json`" )
+    log.warn( json._id
+            , "Invalid range in engines.node.  Please see `npm help json`"
+            , json.engines.node )
   }
 
   if (nodeVer) {

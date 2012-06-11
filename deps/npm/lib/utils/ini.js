@@ -39,7 +39,7 @@ var fs = require("graceful-fs")
   , mkdir = require("mkdirp")
   , npm = require("../npm.js")
 
-  , log = require("./log.js")
+  , log = require("npmlog")
   , configDefs = require("./config-defs.js")
 
   , myUid = process.env.SUDO_UID !== undefined
@@ -66,7 +66,6 @@ exports.configList = configList
 
 // just put this here for a moment, so that the logs
 // in the config-loading phase don't cause it to blow up.
-configList.push({loglevel:"warn"})
 
 function resolveConfigs (cli, cb_) {
   defaultConfig = defaultConfig || configDefs.defaults
@@ -108,7 +107,8 @@ function resolveConfigs (cli, cb_) {
       if (er) return cb(er)
 
       if (conf.hasOwnProperty("prefix")) {
-        log.warn("Cannot set prefix in globalconfig file"
+        log.warn( "globalconfig"
+                , "Cannot set prefix in globalconfig file"
                 , cl.get("globalconfig"))
         delete conf.prefix
       }
@@ -196,7 +196,7 @@ function parseField (f, k, emptyIsFalse) {
 
 function parseFile (file, cb) {
   if (!file) return cb(null, {})
-  log.verbose(file, "config file")
+  log.verbose("config file", file)
   fs.readFile(file, function (er, data) {
     // treat all errors as just an empty file
     if (er) return cb(null, {})

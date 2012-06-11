@@ -6,7 +6,7 @@ var request = require("request")
   , fs = require("graceful-fs")
   , npm = require("../npm.js")
   , url = require("url")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , path = require("path")
   , mkdir = require("mkdirp")
   , chownr = require("chownr")
@@ -16,7 +16,7 @@ module.exports = fetch
 
 function fetch (remote, local, headers, cb) {
   if (typeof cb !== "function") cb = headers, headers = {}
-  log.verbose(local, "fetch to")
+  log.verbose("fetch", "to=", local)
   mkdir(path.dirname(local), function (er, made) {
     if (er) return cb(er)
     fetch_(remote, local, headers, cb)
@@ -41,7 +41,7 @@ function fetch_ (remote, local, headers, cb) {
 
 function makeRequest (remote, fstr, headers) {
   remote = url.parse(remote)
-  log.http(remote.href, "GET")
+  log.http("GET", remote.href)
   regHost = regHost || url.parse(npm.config.get("registry")).host
 
   if (remote.host === regHost && npm.config.get("always-auth")) {
@@ -63,6 +63,6 @@ function makeRequest (remote, fstr, headers) {
           , onResponse: onResponse }).pipe(fstr)
   function onResponse (er, res) {
     if (er) return fstr.emit("error", er)
-    log.http(res.statusCode + " " + remote.href)
+    log.http(res.statusCode, remote.href)
   }
 }

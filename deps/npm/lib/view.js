@@ -39,12 +39,12 @@ view.completion = function (opts, cb) {
   }
 }
 
-var registry = require("./utils/npm-registry-client/index.js")
+var npm = require("./npm.js")
+  , registry = npm.registry
   , ini = require("ini")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , util = require("util")
   , output
-  , npm = require("./npm.js")
   , semver = require("semver")
   , readJson = require("./utils/read-json.js")
 
@@ -59,7 +59,7 @@ function view (args, silent, cb) {
   if (name === ".") return cb(view.usage)
 
   // get the data about this package
-  registry.get(name, null, 600, function (er, data) {
+  registry.get(name, 600, function (er, data) {
     if (er) return cb(er)
     if (data["dist-tags"].hasOwnProperty(version)) {
       version = data["dist-tags"][version]
@@ -94,7 +94,7 @@ function view (args, silent, cb) {
 
     if (args.length === 1 && args[0] === "") {
       retval = cleanBlanks(retval)
-      log.silly(retval, "cleanup")
+      log.silly("cleanup", retval)
     }
 
     if (error || silent) cb(error, retval)

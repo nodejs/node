@@ -2,10 +2,9 @@
 module.exports = exports = search
 
 var npm = require("./npm.js")
-  , registry = require("./utils/npm-registry-client/index.js")
+  , registry = npm.registry
   , semver = require("semver")
   , output
-  , log = require("./utils/log.js")
 
 search.usage = "npm search [some search terms ...]"
 
@@ -60,7 +59,7 @@ function search (args, silent, staleness, cb_) {
 }
 
 function getFilteredData (staleness, args, notArgs, cb) {
-  registry.get( "/-/all", null, staleness, false
+  registry.get( "/-/all", staleness, false
               , true, function (er, data) {
     if (er) return cb(er)
     return cb(null, filter(data, args, notArgs))
