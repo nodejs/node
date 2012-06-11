@@ -24,7 +24,7 @@
 
 // We are demonstrating a problem with http.get when queueing up many
 // transfers. The server simply introduces some delay and sends a file.
-// Note this is demonstarted with connection: close.
+// Note this is demonstrated with connection: close.
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
@@ -89,7 +89,7 @@ var checkedFiles = false;
 function checkFiles() {
   // Should see 1.jpg, 2.jpg, ..., 100.jpg in tmpDir
   var files = fs.readdirSync(common.tmpDir);
-  assert.equal(total, files.length);
+  assert(total <= files.length);
 
   for (var i = 0; i < total; i++) {
     var fn = i + '.jpg';
