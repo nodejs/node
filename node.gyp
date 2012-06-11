@@ -5,6 +5,7 @@
     # See http://codereview.chromium.org/8159015
     'werror': '',
     'node_use_dtrace%': 'false',
+    'node_use_etw%': 'false',
     'node_shared_v8%': 'false',
     'node_shared_zlib%': 'false',
     'node_use_openssl%': 'true',
@@ -163,7 +164,18 @@
             }
           ] ],
         } ],
-
+        [ 'node_use_etw=="true"', {
+          'defines': [ 'HAVE_ETW=1' ],
+          'dependencies': [ 'node_etw' ],
+          'sources': [
+            'src/node_win32_etw_provider.h',
+            'src/node_win32_etw_provider-inl.h',
+            'src/node_win32_etw_provider.cc',
+            'src/node_dtrace.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.h',
+            '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.rc',
+          ]
+        } ],
         [ 'node_shared_v8=="true"', {
           'sources': [
             '<(node_shared_v8_includes)/v8.h',
@@ -228,7 +240,23 @@
         },
       },
     },
-
+    # generate ETW header and resource files
+    {
+      'target_name': 'node_etw',
+      'type': 'none',
+      'conditions': [
+        [ 'node_use_etw=="true"', {
+          'actions': [
+            {
+              'action_name': 'node_etw',
+              'inputs': [ 'src/res/node_etw_provider.man' ],
+              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
+              'action': [ 'mc <@(_inputs) -h <@(_outputs) -r <@(_outputs)' ]
+            }
+          ]
+        } ]
+      ]
+    },
     {
       'target_name': 'node_js2c',
       'type': 'none',
@@ -251,7 +279,7 @@
           # action?
 
           'conditions': [
-            [ 'node_use_dtrace=="true"', {
+            [ 'node_use_dtrace=="true" or node_use_etw=="true"', {
               'action': [
                 'python',
                 'tools/js2c.py',

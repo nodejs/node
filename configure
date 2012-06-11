@@ -115,6 +115,16 @@ parser.add_option("--without-dtrace",
     dest="without_dtrace",
     help="Build without DTrace")
 
+parser.add_option("--with-etw",
+    action="store_true",
+    dest="with_etw",
+    help="Build with ETW (default is true on Windows)")
+
+parser.add_option("--without-etw",
+    action="store_true",
+    dest="without_etw",
+    help="Build without ETW")
+
 # CHECKME does this still work with recent releases of V8?
 parser.add_option("--gdb",
     action="store_true",
@@ -271,6 +281,15 @@ def configure_node(o):
     raise Exception('DTrace is currently only supported on SunOS systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
+
+
+  # By default, enable ETW on Windows.
+  if sys.platform.startswith('win32'):
+    o['variables']['node_use_etw'] = b(not options.without_etw);
+  elif b(options.with_etw) == 'true':
+    raise Exception('ETW is only supported on Windows.')
+  else:
+    o['variables']['node_use_etw'] = 'false'
 
 
 def configure_libz(o):

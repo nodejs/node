@@ -24,6 +24,9 @@
 
 #ifdef HAVE_DTRACE
 #include "node_provider.h"
+#elif HAVE_ETW
+#include "node_win32_etw_provider.h"
+#include "node_win32_etw_provider-inl.h"
 #else
 #define NODE_HTTP_SERVER_REQUEST(arg0, arg1)
 #define NODE_HTTP_SERVER_REQUEST_ENABLED() (0)
@@ -315,7 +318,11 @@ void InitDTrace(Handle<Object> target) {
     target->Set(String::NewSymbol(tab[i].name), tab[i].templ->GetFunction());
   }
 
-#ifdef HAVE_DTRACE
+#ifdef HAVE_ETW
+  init_etw();
+#endif
+
+#if defined HAVE_DTRACE || defined HAVE_ETW
   v8::V8::AddGCPrologueCallback((GCPrologueCallback)dtrace_gc_start);
   v8::V8::AddGCEpilogueCallback((GCEpilogueCallback)dtrace_gc_done);
 #endif

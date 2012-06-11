@@ -40,6 +40,11 @@
           </Directory>
           <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodeexe" KeyPath="yes" Source="$(var.SourceDir)\node.exe" />
+            <?if $(var.NoETW) != 1 ?>
+            <File Id="node_etw_provider_man" Name="node_etw_provider.man" Source="$(var.RepoDir)\src\res\node_etw_provider.man" >
+              <util:EventManifest MessageFile="[APPLICATIONROOTDIRECTORY]node.exe" ResourceFile="[APPLICATIONROOTDIRECTORY]node.exe"/>
+            </File>
+            <?endif?>
             <Environment Id="npm_env"
                          Action="set"
                          Name="PATH"
