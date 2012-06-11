@@ -2530,11 +2530,11 @@ class DescriptorArray: public FixedArray {
   void Sort(const WhitenessWitness&);
 
   // Search the instance descriptors for given name.
-  inline int Search(String* name);
+  INLINE(int Search(String* name));
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  inline int SearchWithCache(String* name);
+  INLINE(int SearchWithCache(String* name));
 
   // Tells whether the name is present int the array.
   bool Contains(String* name) { return kNotFound != Search(name); }
