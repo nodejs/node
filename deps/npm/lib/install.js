@@ -30,7 +30,7 @@ install.completion = function (opts, cb) {
   // if it has a slash, then it's gotta be a folder
   // if it starts with https?://, then just give up, because it's a url
   // for now, not yet implemented.
-  var registry = require("./utils/npm-registry-client/index.js")
+  var registry = npm.registry
   registry.get("/-/short", function (er, pkgs) {
     if (er) return cb()
     if (!opts.partialWord) return cb(null, pkgs)
@@ -58,7 +58,7 @@ install.completion = function (opts, cb) {
 var npm = require("./npm.js")
   , semver = require("semver")
   , readJson = require("./utils/read-json.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , path = require("path")
   , fs = require("graceful-fs")
   , cache = require("./cache.js")
@@ -98,7 +98,7 @@ function install (args, cb_) {
     where = args
     args = [].concat(cb_) // pass in [] to do default dep-install
     cb_ = arguments[2]
-    log.verbose([where, args], "install(where, what)")
+    log.verbose("install", "where,what", [where, args])
   }
 
   if (!npm.config.get("global")) {
@@ -117,9 +117,12 @@ function install (args, cb_) {
                                   , where
                                   , { dev: !npm.config.get("production") }
                                   , function (er, data) {
-        if (er) return log.er(cb, "Couldn't read dependencies.")(er)
+        if (er) {
+          log.error("install", "Couldn't read dependencies")
+          return cb(er)
+        }
         var deps = Object.keys(data.dependencies || {})
-        log.verbose([where, deps], "where, deps")
+        log.verbose("install", "where, deps", [where, deps])
         var context = { family: {}
                       , ancestors: {}
                       , explicit: false
@@ -176,18 +179,18 @@ function readDependencies (context, where, opts, cb) {
     if (er)  return cb(er)
 
     if (wrap) {
-      log.verbose([where, wrap], "readDependencies: using existing wrap")
+      log.verbose("readDependencies: using existing wrap", [where, wrap])
       var rv = {}
       Object.keys(data).forEach(function (key) {
         rv[key] = data[key]
       })
       rv.dependencies = {}
       Object.keys(wrap).forEach(function (key) {
-        log.verbose([key, wrap[key]], "from wrap")
+        log.verbose("from wrap", [key, wrap[key]])
         var w = wrap[key]
         rv.dependencies[key] = w.from || w.version
       })
-      log.verbose([rv.dependencies], "readDependencies: returned deps")
+      log.verbose("readDependencies returned deps", rv.dependencies)
       return cb(null, rv, wrap)
     }
 
@@ -195,7 +198,7 @@ function readDependencies (context, where, opts, cb) {
 
     fs.readFile(wrapfile, "utf8", function (er, wrapjson) {
       if (er) {
-        log.verbose("readDependencies: using package.json deps")
+        log.verbose("readDependencies", "using package.json deps")
         return cb(null, data, null)
       }
 
@@ -205,7 +208,7 @@ function readDependencies (context, where, opts, cb) {
         return cb(ex)
       }
 
-      log.info(wrapfile, "using shrinkwrap file")
+      log.info("shrinkwrap", "file %j", wrapfile)
       var rv = {}
       Object.keys(data).forEach(function (key) {
         rv[key] = data[key]
@@ -215,7 +218,7 @@ function readDependencies (context, where, opts, cb) {
         var w = newwrap.dependencies[key]
         rv.dependencies[key] = w.from || w.version
       })
-      log.verbose([rv.dependencies], "readDependencies: returned deps")
+      log.verbose("readDependencies returned deps", rv.dependencies)
       return cb(null, rv, newwrap.dependencies)
     })
   })
@@ -358,10 +361,10 @@ function treeify (installed) {
     return l
   }, {})
 
-  //log.warn(whatWhere, "whatWhere")
+  //log.warn("install", whatWhere, "whatWhere")
   return Object.keys(whatWhere).reduce(function (l, r) {
     var ww = whatWhere[r]
-    //log.warn([r, ww], "r, ww")
+    //log.warn("r, ww", [r, ww])
     if (!ww.parent) {
       l[r] = ww
     } else {
@@ -464,12 +467,12 @@ function installMany (what, where, context, cb) {
       targets.forEach(function (t) {
         newPrev[t.name] = t.version
       })
-      log.silly(targets, "resolved")
+      log.silly("resolved", targets)
       targets.filter(function (t) { return t }).forEach(function (t) {
-        log.info(t._id, "into "+where)
+        log.info("install", "%s into %s", t._id, where)
       })
       asyncMap(targets, function (target, cb) {
-        log.info(target._id, "installOne")
+        log.info("installOne", target._id)
         var newWrap = wrap ? wrap[target.name].dependencies || {} : null
         var newContext = { family: newPrev
                          , ancestors: newAnc
@@ -521,7 +524,7 @@ function targetResolver (where, context, deps) {
     // now we know what's been installed here manually,
     // or tampered with in some way that npm doesn't want to overwrite.
     if (alreadyInstalledManually.indexOf(what.split("@").shift()) !== -1) {
-      log.verbose("skipping "+what, "already installed in "+where)
+      log.verbose("already installed", "skipping %s %s", what, where)
       return cb(null, [])
     }
 
@@ -529,7 +532,7 @@ function targetResolver (where, context, deps) {
     // If installing from a shrinkwrap, it must match exactly.
     if (context.family[what]) {
       if (wrap && wrap[what].version === context.family[what]) {
-        log.verbose(what, "using existing (matches shrinkwrap)")
+        log.verbose("shrinkwrap", "use existing", what)
         return cb(null, [])
       }
     }
@@ -538,8 +541,8 @@ function targetResolver (where, context, deps) {
     // doing `npm install foo` inside of the foo project.  Print
     // a warning, and skip it.
     if (parent && parent.name === what && !npm.config.get("force")) {
-      log.warn("Refusing to install "+what+" as a dependency of itself"
-              ,"install")
+      log.warn("install", "Refusing to install %s as a dependency of itself"
+              , what)
       return cb(null, [])
     }
 
@@ -547,10 +550,10 @@ function targetResolver (where, context, deps) {
       name = what.split(/@/).shift()
       if (wrap[name]) {
         var wrapTarget = wrap[name].from || wrap[name].version
-        log.verbose("resolving "+what+" to "+wrapTarget, "shrinkwrap")
+        log.verbose("shrinkwrap", "resolving %s to %s", wrapTarget, what)
         what = name + "@" + wrapTarget
       } else {
-        log.verbose("skipping "+what+" (not in shrinkwrap)", "shrinkwrap")
+        log.verbose("shrinkwrap", "skipping %s (not in shrinkwrap)", what)
       }
     } else if (deps[what]) {
       what = what + "@" + deps[what]
@@ -559,8 +562,8 @@ function targetResolver (where, context, deps) {
     cache.add(what, function (er, data) {
       if (er && parent && parent.optionalDependencies &&
           parent.optionalDependencies.hasOwnProperty(what.split("@")[0])) {
-        log.warn(what, "optional dependency failed, continuing")
-        log.verbose([what, er], "optional dependency failed, continuing")
+        log.warn("optional dep failed, continuing", what)
+        log.verbose("optional dep failed, continuing", [what, er])
         return cb(null, [])
       }
 
@@ -569,7 +572,7 @@ function targetResolver (where, context, deps) {
           !context.explicit &&
           context.family[data.name] === data.version &&
           !npm.config.get("force")) {
-        log.info(data.name + "@" + data.version, "already installed")
+        log.info("already installed", data.name + "@" + data.version)
         return cb(null, [])
       }
 
@@ -594,8 +597,8 @@ function installOne (target, where, context, cb) {
     // check if this one is optional to its parent.
     if (er && context.parent && context.parent.optionalDependencies &&
         context.parent.optionalDependencies.hasOwnProperty(target.name)) {
-      log.warn(target._id, "optional dependency failed, continuing")
-      log.verbose([target._id, er], "optional dependency failed, continuing")
+      log.warn("optional dep failed, continuing", target._id)
+      log.verbose("optional dep failed, continuing", [target._id, er])
       er = null
     }
 
@@ -605,7 +608,7 @@ function installOne (target, where, context, cb) {
 }
 
 function localLink (target, where, context, cb) {
-  log.verbose(target._id, "try to link")
+  log.verbose("localLink", target._id)
   var jsonFile = path.resolve( npm.globalDir, target.name
                              , "package.json" )
     , parent = context.parent
@@ -623,13 +626,13 @@ function localLink (target, where, context, cb) {
 
       function thenLink () {
         npm.commands.link([target.name], function (er, d) {
-          log.silly([er, d], "back from link")
+          log.silly("localLink", "back from link", [er, d])
           cb(er, [resultList(target, where, parent && parent._id)])
         })
       }
 
     } else {
-      log.verbose(target._id, "install locally (no link)")
+      log.verbose("localLink", "install locally (no link)", target._id)
       installOne_(target, where, context, cb)
     }
   })
@@ -686,7 +689,7 @@ function checkEngine (target, cb) {
   if (nodev && eng.node && !semver.satisfies(nodev, eng.node)
       || eng.npm && !semver.satisfies(npmv, eng.npm)) {
     var er = new Error("Unsupported")
-    er.errno = npm.ENOTSUP
+    er.code = "ENOTSUP"
     er.required = eng
     er.pkgid = target._id
     return cb(er)
@@ -713,7 +716,7 @@ function checkPlatform (target, cb) {
   }
   if (!osOk || !cpuOk) {
     var er = new Error("Unsupported")
-    er.errno = npm.EBADPLATFORM
+    er.code = "EBADPLATFORM"
     er.os = target.os || ['any']
     er.cpu = target.cpu || ['any']
     er.pkgid = target._id
@@ -785,9 +788,9 @@ function checkCycle (target, ancestors, cb) {
     tree.push(JSON.parse(JSON.stringify(t)))
     t = Object.getPrototypeOf(t)
   }
-  log.verbose(tree, "unresolvable dependency tree")
+  log.verbose("unresolvable dependency tree", tree)
   er.pkgid = target._id
-  er.errno = npm.ECYCLE
+  er.code = "ECYCLE"
   return cb(er)
 }
 
@@ -804,7 +807,7 @@ function checkGit_ (folder, cb) {
     if (!er && s.isDirectory()) {
       var e = new Error("Appears to be a git repo or submodule.")
       e.path = folder
-      e.errno = npm.EISGIT
+      e.code = "EISGIT"
       return cb(e)
     }
     cb()
@@ -824,7 +827,7 @@ function write (target, targetFolder, context, cb_) {
 
     if (false === npm.config.get("rollback")) return cb_(er)
     npm.commands.unbuild([targetFolder], function (er2) {
-      if (er2) log.error(er2, "error rolling back "+target._id)
+      if (er2) log.error("error rolling back", target._id, er2)
       return cb_(er, data)
     })
   }
@@ -883,7 +886,7 @@ function write (target, targetFolder, context, cb_) {
           t = d + "@" + t
           return t
         }), targetFolder, newcontext, function (er, d) {
-          log.verbose(targetFolder, "about to build")
+          log.verbose("about to build", targetFolder)
           if (er) return cb(er)
           npm.commands.build( [targetFolder]
                             , npm.config.get("global")

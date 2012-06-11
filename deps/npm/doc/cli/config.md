@@ -430,13 +430,6 @@ if one of the two conditions are met:
 * the globally installed version is identical to the version that is
   being installed locally.
 
-### logfd
-
-* Default: stderr file descriptor
-* Type: Number or Stream
-
-The location to write log output.
-
 ### loglevel
 
 * Default: "http"
@@ -448,14 +441,6 @@ What level of logs to report.  On failure, *all* logs are written to
 
 Any logs of a higher level than the setting are shown.
 The default is "http", which shows http, warn, and error output.
-
-### logprefix
-
-* Default: true on Posix, false on Windows
-* Type: Boolean
-
-Whether or not to prefix log messages with "npm" and the log level.  See
-also "color" and "loglevel".
 
 ### long
 
@@ -502,13 +487,6 @@ The url to report npat test results.
 
 A node module to `require()` when npm loads.  Useful for programmatic
 usage.
-
-### outfd
-
-* Default: standard output file descriptor
-* Type: Number or Stream
-
-Where to write "normal" output.  This has no effect on log output.
 
 ### parseable
 

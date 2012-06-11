@@ -13,7 +13,7 @@ var fs = require("graceful-fs")
   , exec = require("./utils/exec.js")
   , npm = require("./npm.js")
   , output = require("./utils/output.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
 
 function help (args, cb) {
   var num = 1
@@ -34,6 +34,7 @@ function help (args, cb) {
       && npm.commands[section].usage
     ) {
       npm.config.set("loglevel", "silent")
+      log.level = "silent"
       return output.write(npm.commands[section].usage, cb)
     }
 
@@ -83,6 +84,7 @@ function help (args, cb) {
   } else getSections(function (er, sections) {
     if (er) return cb(er)
     npm.config.set("loglevel", "silent")
+    log.level = "silent"
     output.write
       ( ["\nUsage: npm <command>"
         , ""

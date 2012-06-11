@@ -3,7 +3,7 @@ module.exports = rebuild
 
 var readInstalled = require("./utils/read-installed.js")
   , semver = require("semver")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , path = require("path")
   , npm = require("./npm.js")
   , output = require("./utils/output.js")
@@ -17,14 +17,14 @@ rebuild.completion = require("./utils/completion/installed-deep.js")
 
 function rebuild (args, cb) {
   readInstalled(npm.prefix, function (er, data) {
-    log(typeof data, "read Installed")
+    log.info("readInstalled", typeof data)
     if (er) return cb(er)
     var set = filter(data, args)
       , folders = Object.keys(set).filter(function (f) {
           return f !== npm.prefix
         })
     if (!folders.length) return cb()
-    log.silly(folders, "rebuild set")
+    log.silly("rebuild set", folders)
     cleanBuild(folders, set, cb)
   })
 }
@@ -79,7 +79,7 @@ function filter (data, args, set, seen) {
     }
   }
   if (pass && data._id) {
-    log.verbose([data.path, data._id], "path id")
+    log.verbose("rebuild", "path, id", [data.path, data._id])
     set[data.path] = data._id
   }
   // need to also dive through kids, always.

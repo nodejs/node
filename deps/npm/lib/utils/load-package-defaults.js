@@ -2,7 +2,7 @@
 module.exports = loadPackageDefaults
 
 var path = require("path")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , find = require("./find.js")
   , asyncMap = require("slide").asyncMap
   , npm = require("../npm.js")
@@ -21,7 +21,7 @@ function loadPackageDefaults (pkg, pkgDir, cb) {
   pkg._defaultsLoaded = true
   asyncMap
     ( [pkg]
-    , function (pkg, cb) { log.verbose(pkg._id, "loadDefaults", cb) }
+    , function (pkg, cb) { log.verbose("loadDefaults", pkg._id); cb() }
     , readDefaultBins(pkgDir)
     , readDefaultMans(pkgDir)
     , function (er) { cb(er, pkg) } )
@@ -54,7 +54,7 @@ function readDefaultBins (pkgDir) { return function (pkg, cb) {
   var bin = pkg.directories && pkg.directories.bin
   if (pkg.bins) pkg.bin = pkg.bins, delete pkg.bins
   if (pkg.bin || !bin) return cb(null, pkg)
-  log.verbose("linking default bins", pkg._id)
+  log.verbose("loadDefaults", pkg._id, "linking default bins")
   var binDir = path.join(pkgDir, bin)
   pkg.bin = {}
   find(binDir, function (er, filenames) {
@@ -69,7 +69,7 @@ function readDefaultBins (pkgDir) { return function (pkg, cb) {
         , val = filename.substr(cut)
       if (key.length && val.length) pkg.bin[key] = val
     })
-    log.silly(pkg.bin, pkg._id+".bin")
+    log.silly("loadDefaults", pkg._id, "bin", pkg.bin)
     cb(null, pkg)
   })
 }}

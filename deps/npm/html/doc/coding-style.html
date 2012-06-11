@@ -133,29 +133,18 @@ Just send the error message back as the first argument to the callback.</p>
 <p>Always create a new Error object with your message.  Don't just return a
 string message to the callback.  Stack traces are handy.</p>
 
-<p>Use the <code>require("./utils/log").er</code> function.  It takes a callback and an
-error message, and returns an object that will report the message in the
-event of a failure.  It's quite handy.</p>
-
-<pre><code>function myThing (args, cb) {
-  getData(args, function (er, data) {
-    if (er) return log.er(cb, "Couldn't get data")(er)
-    doSomethingElse(data, cb)
-  })
-}
-function justHasToWork (cb) {
-  doSomething(log.er(cb, "the doSomething failed."))
-}</code></pre>
-
 <h2 id="Logging">Logging</h2>
+
+<p>Logging is done using the <a href="https://github.com/isaacs/npmlog">npmlog</a>
+utility.</p>
 
 <p>Please clean up logs when they are no longer helpful.  In particular,
 logging the same object over and over again is not helpful.  Logs should
 report what's happening so that it's easier to track down where a fault
 occurs.</p>
 
-<p>Use appropriate log levels.  The default log() function logs at the
-"info" level.  See <code><a href="../doc/config.html">config(1)</a></code> and search for "loglevel".</p>
+<p>Use appropriate log levels.  See <code><a href="../doc/config.html">config(1)</a></code> and search for
+"loglevel".</p>
 
 <h2 id="Case-naming-etc">Case, naming, etc.</h2>
 
@@ -191,7 +180,7 @@ set to anything."</p>
 
 <ul><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">coding-style &mdash; npm@1.1.24</p>
+<p id="footer">coding-style &mdash; npm@1.1.25</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

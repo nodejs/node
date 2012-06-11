@@ -13,7 +13,7 @@ Adding a url:
 2. goto folder(2)
 
 adding a name@version:
-1. registry.get(name, version)
+1. registry.get(name/version)
 2. if response isn't 304, add url(dist.tarball)
 
 adding a name@range:
@@ -38,8 +38,8 @@ var mkdir = require("mkdirp")
   , fs = require("graceful-fs")
   , rm = require("rimraf")
   , readJson = require("./utils/read-json.js")
-  , registry = require("./utils/npm-registry-client/index.js")
-  , log = require("./utils/log.js")
+  , registry = npm.registry
+  , log = require("npmlog")
   , path = require("path")
   , output
   , sha = require("./utils/sha.js")
@@ -104,7 +104,7 @@ function read (name, ver, forceBypass, cb) {
   }
 
   if (forceBypass && npm.config.get("force")) {
-    log.verbose(true, "force found, skipping cache")
+    log.verbose("using force", "skipping cache")
     return addNamed(name, ver, c)
   }
 
@@ -171,7 +171,7 @@ exports.add = function (pkg, ver, scrub, cb) {
       add([pkg, ver], cb)
     })
   }
-  log.verbose([pkg, ver], "cache add")
+  log.verbose("cache add", [pkg, ver])
   return add([pkg, ver], cb)
 }
 
@@ -204,14 +204,15 @@ function add (args, cb) {
     spec = args[0]
   }
 
-  log.silly([name, spec, args], "cache add: name, spec, args")
+  log.silly("cache add", "name=%j spec=%j args=%j", name, spec, args)
+
 
   if (!name && !spec) return cb(usage)
 
   // see if the spec is a url
   // otherwise, treat as name@version
   var p = url.parse(spec) || {}
-  log.verbose(p, "parsed url")
+  log.verbose("parsed url", p)
 
   // it could be that we got name@http://blah
   // in that case, we will not have a protocol now, but if we
@@ -260,12 +261,15 @@ function addRemoteTarball (u, shasum, name, cb_) {
     delete inFlightURLs[u]
   }
 
-  log.verbose([u, shasum], "addRemoteTarball")
+  log.verbose("addRemoteTarball", [u, shasum])
   var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), "tmp.tgz")
   mkdir(path.dirname(tmp), function (er) {
     if (er) return cb(er)
     fetch(u, tmp, function (er) {
-      if (er) return log.er(cb, "failed to fetch "+u)(er)
+      if (er) {
+        log.error("fetch failed", u)
+        return cb(er)
+      }
       if (!shasum) return done()
       // validate that the url we just downloaded matches the expected shasum.
       sha.check(tmp, shasum, done)
@@ -309,7 +313,7 @@ function addRemoteGit (u, parsed, name, cb_) {
     u = u.replace(/^ssh:\/\//, "")
   }
 
-  log.verbose([u, co], "addRemoteGit")
+  log.verbose("addRemoteGit", [u, co])
 
   var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random())
   mkdir(path.dirname(tmp), function (er) {
@@ -318,18 +322,18 @@ function addRemoteGit (u, parsed, name, cb_) {
         , function (er, code, stdout, stderr) {
       stdout = (stdout + "\n" + stderr).trim()
       if (er) {
-        log.error(stdout, "git clone "+u)
+        log.error("git clone " + u, stdout)
         return cb(er)
       }
-      log.verbose(stdout, "git clone "+u)
+      log.verbose("git clone "+u, stdout)
       exec( npm.config.get("git"), ["checkout", co], null, false, tmp
           , function (er, code, stdout, stderr) {
         stdout = (stdout + "\n" + stderr).trim()
         if (er) {
-          log.error(stdout, "git checkout "+co)
+          log.error("git checkout " + co, stdout)
           return cb(er)
         }
-        log.verbose(stdout, "git checkout "+co)
+        log.verbose("git checkout " + co, stdout)
         addLocalDirectory(tmp, cb)
       })
     })
@@ -341,7 +345,7 @@ function addRemoteGit (u, parsed, name, cb_) {
 // name@blah thing.
 var inFlightNames = {}
 function addNamed (name, x, cb_) {
-  log.verbose([name, x], "addNamed")
+  log.verbose("addNamed", [name, x])
   var k = name + "@" + x
   if (!inFlightNames[k]) inFlightNames[k] = []
   var iF = inFlightNames[k]
@@ -354,7 +358,7 @@ function addNamed (name, x, cb_) {
     delete inFlightNames[k]
   }
 
-  log.verbose([semver.valid(x), semver.validRange(x)], "addNamed")
+  log.verbose("addNamed", [semver.valid(x), semver.validRange(x)])
   return ( null !== semver.valid(x) ? addNameVersion
          : null !== semver.validRange(x) ? addNameRange
          : addNameTag
@@ -362,7 +366,7 @@ function addNamed (name, x, cb_) {
 }
 
 function addNameTag (name, tag, cb) {
-  log([name, tag], "addNameTag")
+  log.info("addNameTag", [name, tag])
   var explicit = true
   if (!tag) {
     explicit = false
@@ -407,7 +411,7 @@ function addNameRange (name, range, data, cb) {
   if (range === null) return cb(new Error(
     "Invalid version range: "+range))
 
-  log.silly([name, range, !!data], "name, range, hasData")
+  log.silly("addNameRange", {name:name, range:range, hasData:!!data})
 
   if (data) return next()
   registry.get(name, function (er, d, json, response) {
@@ -417,7 +421,8 @@ function addNameRange (name, range, data, cb) {
   })
 
   function next () {
-    log.silly([name, range, !!data], "name, range, hasData 2")
+    log.silly( "addNameRange", "number 2"
+             , {name:name, range:range, hasData:!!data})
     engineFilter(data)
 
     if (npm.config.get("registry")) return next_()
@@ -433,7 +438,9 @@ function addNameRange (name, range, data, cb) {
   }
 
   function next_ () {
-    log.silly([data.name, Object.keys(data.versions)], "versions")
+    log.silly("addNameRange", "versions"
+             , [data.name, Object.keys(data.versions)])
+
     // if the tagged version satisfies, then use that.
     var tagged = data["dist-tags"][npm.config.get("tag")]
     if (tagged && data.versions[tagged] && semver.satisfies(tagged, range)) {
@@ -454,9 +461,12 @@ function addNameRange (name, range, data, cb) {
 
 // filter the versions down based on what's already in cache.
 function cachedFilter (data, range, cb) {
-  log.silly(data.name, "cachedFilter")
+  log.silly("cachedFilter", data.name)
   ls_(data.name, 1, function (er, files) {
-    if (er) return log.er(cb, "Not in cache, can't fetch: "+data.name)(er)
+    if (er) {
+      log.error("cachedFilter", "Not in cache, can't fetch", data.name)
+      return cb(er)
+    }
     files = files.map(function (f) {
       return path.basename(f.replace(/(\\|\/)$/, ""))
     }).filter(function (f) {
@@ -467,16 +477,17 @@ function cachedFilter (data, range, cb) {
       return cb(new Error("Not in cache, can't fetch: "+data.name+"@"+range))
     }
 
-    log.silly([data.name, files], "cached")
+    log.silly("cached", [data.name, files])
     Object.keys(data.versions).forEach(function (v) {
       if (files.indexOf(v) === -1) delete data.versions[v]
     })
 
     if (Object.keys(data.versions).length === 0) {
-      return log.er(cb, "Not in cache, can't fetch: "+data.name)(er)
+      log.error("cachedFilter", "Not in cache, can't fetch", data.name)
+      return cb(new Error("Not in cache, can't fetch: "+data.name+"@"+range))
     }
 
-    log.silly([data.name, Object.keys(data.versions)], "filtered")
+    log.silly("filtered", [data.name, Object.keys(data.versions)])
     cb(null, data)
   })
 }
@@ -509,7 +520,7 @@ function addNameVersion (name, ver, data, cb) {
     response = null
     return next()
   }
-  registry.get(name, ver, function (er, d, json, resp) {
+  registry.get(name + "/" + ver, function (er, d, json, resp) {
     if (er) return cb(er)
     data = d
     response = resp
@@ -524,10 +535,10 @@ function addNameVersion (name, ver, data, cb) {
 
     var bd = npm.config.get("bindist")
       , b = dist.bin && bd && dist.bin[bd]
-    log.verbose([bd, dist], "bin dist")
+    log.verbose("bin dist", [bd, dist])
     if (b && b.tarball && b.shasum) {
-      log.info(data._id, "prebuilt")
-      log.verbose(b, "prebuilt "+data._id)
+      log.info("prebuilt", data._id)
+      log.verbose("prebuilt", data._id, b)
       dist = b
     }
 
@@ -579,7 +590,8 @@ function addLocal (p, name, cb_) {
          && (process.platform !== "win32" || p.indexOf("\\") === -1)) {
         return addNamed(p, "", cb_)
       }
-      return log.er(cb_, "Could not install: "+p)(er)
+      log.error("addLocal", "Could not install %s", p)
+      return cb_(er)
     }
     return cb_(er, data)
   }
@@ -620,7 +632,7 @@ function addLocalTarball (p, name, cb) {
     to.on("error", errHandler)
     to.on("close", function () {
       if (errState) return
-      log.verbose(npm.modes.file.toString(8), "chmod "+tmp)
+      log.verbose("chmod", tmp, npm.modes.file.toString(8))
       fs.chmod(tmp, npm.modes.file, function (er) {
         if (er) return cb(er)
         addTmpTarball(tmp, name, cb)
@@ -637,7 +649,8 @@ function getCacheStat (cb) {
   fs.stat(npm.cache, function (er, st) {
     if (er) return makeCacheDir(cb)
     if (!st.isDirectory()) {
-      return log.er(cb, "invalid cache directory: "+npm.cache)(er)
+      log.error("getCacheStat", "invalid cache dir %j", npm.cache)
+      return cb(er)
     }
     return cb(null, cacheStat = st)
   })
@@ -659,9 +672,12 @@ function makeCacheDir (cb) {
   }
 
   fs.stat(process.env.HOME, function (er, st) {
-    if (er) return log.er(cb, "homeless?")(er)
+    if (er) {
+      log.error("makeCacheDir", "homeless?")
+      return cb(er)
+    }
     cacheStat = st
-    log.silly([st.uid, st.gid], "uid, gid for cache dir")
+    log.silly("makeCacheDir", "cache dir uid, gid", [st.uid, st.gid])
     return mkdir(npm.cache, afterMkdir)
   })
 
@@ -698,33 +714,46 @@ function addPlacedTarball_ (p, name, uid, gid, cb) {
     , folder = path.join(target, "package")
 
   rm(folder, function (er) {
-    if (er) return log.er(cb, "Could not remove "+folder)(er)
+    if (er) {
+      log.error("addPlacedTarball", "Could not remove %j", folder)
+      return cb(er)
+    }
     tar.unpack(p, folder, null, null, uid, gid, function (er) {
-      if (er) return log.er(cb, "Could not unpack "+p+" to "+target)(er)
+      if (er) {
+        log.error("addPlacedTarball", "Could not unpack %j to %j", p, target)
+        return cb(er)
+      }
       // calculate the sha of the file that we just unpacked.
       // this is so that the data is available when publishing.
       sha.get(p, function (er, shasum) {
-        if (er) return log.er(cb, "couldn't validate shasum of "+p)(er)
+        if (er) {
+          log.error("addPlacedTarball", "shasum fail", p)
+          return cb(er)
+        }
         readJson(path.join(folder, "package.json"), function (er, data) {
-          if (er) return log.er(cb, "couldn't read json in "+folder)(er)
+          if (er) {
+            log.error("addPlacedTarball", "Couldn't read json in %j"
+                     , folder)
+            return cb(er)
+          }
           data.dist = data.dist || {}
           if (shasum) data.dist.shasum = shasum
           deprCheck(data)
           asyncMap([p], function (f, cb) {
-            log.verbose(npm.modes.file.toString(8), "chmod "+f)
+            log.verbose("chmod", f, npm.modes.file.toString(8))
             fs.chmod(f, npm.modes.file, cb)
           }, function (f, cb) {
             if (process.platform === "win32") {
-              log.silly(f, "skipping chown for windows")
+              log.silly("chown", "skipping for windows", f)
               cb()
             } else if (typeof uid === "number"
                 && typeof gid === "number"
                 && parseInt(uid, 10) === uid
                 && parseInt(gid, 10) === gid) {
-              log.verbose([f, uid, gid], "chown")
+              log.verbose("chown", f, [uid, gid])
               fs.chown(f, uid, gid, cb)
             } else {
-              log.verbose([f, uid, gid], "not chowning, invalid uid/gid")
+              log.verbose("chown", "skip for invalid uid/gid", [f, uid, gid])
               cb()
             }
           }, function (er) {
@@ -758,9 +787,15 @@ function addLocalDirectory (p, name, cb) {
       mkdir(path.dirname(tgz), function (er, made) {
         if (er) return cb(er)
         tar.pack(tgz, p, data, doFancyCrap, function (er) {
-          if (er) return log.er(cb,"couldn't pack "+p+ " to "+tgz)(er)
+          if (er) {
+            log.error( "addLocalDirectory", "Could not pack %j to %j"
+                     , p, tgz )
+            return cb(er)
+          }
 
-          if (er || !cs || isNaN(cs.uid) || isNaN(cs.gid)) return cb()
+          // if we don't get a cache stat, or if the gid/uid is not
+          // a number, then just move on.  chown would fail anyway.
+          if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) return cb()
 
           chownr(made || tgz, cs.uid, cs.gid, function (er) {
             if (er) return cb(er)
@@ -797,7 +832,7 @@ function unpack (pkg, ver, unpackTarget, dMode, fMode, uid, gid, cb) {
 
   read(pkg, ver, false, function (er, data) {
     if (er) {
-      log.error("Could not read data for "+pkg+"@"+ver)
+      log.error("unpack", "Could not read data for %s", pkg + "@" + ver)
       return cb(er)
     }
     npm.commands.unbuild([unpackTarget], function (er) {
@@ -819,6 +854,6 @@ function deprCheck (data) {
   else return
   if (!deprWarned[data._id]) {
     deprWarned[data._id] = true
-    log.warn(data._id+": "+data.deprecated, "deprecated")
+    log.warn("deprecated", "%s: %s", data._id, data.deprecated)
   }
 }

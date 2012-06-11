@@ -10,7 +10,6 @@ var npm = require("./npm.js")
   , exec = require("./utils/exec.js")
   , path = require("path")
   , fs = require("graceful-fs")
-  , log = require("./utils/log.js")
 
 function edit (args, cb) {
   var p = args[0]

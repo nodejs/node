@@ -1,11 +1,10 @@
-
 // link with no args: symlink the folder to the global location
 // link with package arg: symlink the global to the local
 
 var npm = require("./npm.js")
   , symlink = require("./utils/link.js")
   , fs = require("graceful-fs")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
   , path = require("path")
@@ -30,16 +29,21 @@ link.completion = function (opts, cb) {
 
 function link (args, cb) {
   if (process.platform === "win32") {
-    var e = new Error("npm link not supported on windows")
-    e.code = "ENOTSUP"
-    e.errno = require("constants").ENOTSUP
-    return cb(e)
+    var semver = require("semver")
+    if (!semver.satisfies(process.version, ">=0.7.9")) {
+      var msg = "npm link not supported on windows prior to node 0.7.9"
+        , e = new Error(msg)
+      e.code = "ENOTSUP"
+      e.errno = require("constants").ENOTSUP
+      return cb(e)
+    }
   }
 
   if (npm.config.get("global")) {
     return cb(new Error("link should never be --global.\n"
                        +"Please re-run this command with --local"))
   }
+
   if (args.length === 1 && args[0] === ".") args = []
   if (args.length) return linkInstall(args, cb)
   linkPkg(npm.prefix, cb)
@@ -85,7 +89,7 @@ function linkInstall (pkgs, cb) {
         next()
       } else {
         return fs.realpath(pp, function (er, real) {
-          if (er) log.warn(pkg, "invalid symbolic link")
+          if (er) log.warn("invalid symbolic link", pkg)
           else rp = real
           next()
         })
@@ -95,7 +99,10 @@ function linkInstall (pkgs, cb) {
     function next () {
       chain
         ( [ [npm.commands, "unbuild", [target]]
-          , [log.verbose, "symlinking " + pp + " to "+target, "link"]
+          , [function (cb) {
+              log.verbose("link", "symlinking %s to %s",  pp, target)
+              cb()
+            }]
           , [symlink, pp, target]
           // do run lifecycle scripts - full build here.
           , rp && [build, [target]]
@@ -108,6 +115,9 @@ function linkInstall (pkgs, cb) {
 function linkPkg (folder, cb_) {
   var me = folder || npm.prefix
     , readJson = require("./utils/read-json.js")
+
+  log.verbose("linkPkg", folder)
+
   readJson( path.resolve(me, "package.json")
           , { dev: true }
           , function (er, d) {
@@ -120,7 +130,7 @@ function linkPkg (folder, cb_) {
       if (er) return cb(er)
       symlink(me, target, function (er) {
         if (er) return cb(er)
-        log.verbose(target, "link: build target")
+        log.verbose("link", "build target", target)
         // also install missing dependencies.
         npm.commands.install(me, [], function (er, installed) {
           if (er) return cb(er)

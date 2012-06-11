@@ -10,7 +10,7 @@ var read = require("read")
   , promiseChain = require("./utils/promise-chain.js")
   , exec = require("./utils/exec.js")
   , semver = require("semver")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , npm = require("./npm.js")
   , output = require("./utils/output.js")
 
@@ -18,8 +18,7 @@ init.usage = "npm init [folder]"
 
 function init (args, cb) {
   var folder = args[0] || "."
-    , ll = npm.config.get("loglevel")
-  npm.config.set("loglevel", "paused")
+  log.pause()
   if (folder.charAt(0) !== "/") folder = path.join(process.cwd(), folder)
 
   readJson(path.join(folder, "package.json"), function (er, data) {
@@ -31,8 +30,8 @@ function init (args, cb) {
       , url: npm.config.get("init.author.url") }
 
     init_(data, folder, function (er) {
-      npm.config.set("loglevel", ll)
-      if (!er) log(path.resolve(folder, "package.json"), "written")
+      log.resume()
+      if (!er) log.info("written", path.resolve(folder, "package.json"))
       cb(er)
     })
   })

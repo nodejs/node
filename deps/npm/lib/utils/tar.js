@@ -4,7 +4,7 @@
 var npm = require("../npm.js")
   , fs = require("graceful-fs")
   , path = require("path")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , uidNumber = require("uid-number")
   , rm = require("rimraf")
   , readJson = require("./read-json.js")
@@ -27,11 +27,11 @@ exports.pack = pack
 exports.unpack = unpack
 
 function pack (targetTarball, folder, pkg, dfc, cb) {
-  log.verbose([targetTarball, folder], "tar.pack")
+  log.verbose("tar pack", [targetTarball, folder])
   if (typeof cb !== "function") cb = dfc, dfc = false
 
-  log.verbose(targetTarball, "tarball")
-  log.verbose(folder, "folder")
+  log.verbose("tarball", targetTarball)
+  log.verbose("folder", folder)
 
   if (dfc) {
     // do fancy crap
@@ -46,7 +46,10 @@ function pack (targetTarball, folder, pkg, dfc, cb) {
 
 function pack_ (targetTarball, folder, pkg, cb) {
   new Packer({ path: folder, type: "Directory", isDirectory: true })
-    .on("error", log.er(cb, "error reading "+folder))
+    .on("error", function (er) {
+      if (er) log.error("tar pack", "Error reading " + folder)
+      return cb(er)
+    })
 
     // By default, npm includes some proprietary attributes in the
     // package tarball.  This is sane, and allowed by the spec.
@@ -54,19 +57,26 @@ function pack_ (targetTarball, folder, pkg, cb) {
     // so that it can be more easily bootstrapped using old and
     // non-compliant tar implementations.
     .pipe(tar.Pack({ noProprietary: !npm.config.get("proprietary-attribs") }))
-    .on("error", log.er(cb, "tar creation error "+targetTarball))
-    .pipe(zlib.Gzip())
-    .on("error", log.er(cb, "gzip error "+targetTarball))
-    .pipe(fstream.Writer({ type: "File", path: targetTarball }))
-    .on("error", log.er(cb, "Could not write "+targetTarball))
-    .on("close", function () {
-      cb()
+    .on("error", function (er) {
+      if (er) log.error("tar.pack", "tar creation error", targetTarball)
+      cb(er)
     })
+    .pipe(zlib.Gzip())
+    .on("error", function (er) {
+      if (er) log.error("tar.pack", "gzip error "+targetTarball)
+      cb(er)
+    })
+    .pipe(fstream.Writer({ type: "File", path: targetTarball }))
+    .on("error", function (er) {
+      if (er) log.error("tar.pack", "Could not write "+targetTarball)
+      cb(er)
+    })
+    .on("close", cb)
 }
 
 
 function unpack (tarball, unpackTarget, dMode, fMode, uid, gid, cb) {
-  log.verbose(tarball, "unpack")
+  log.verbose("tar unpack", tarball)
   if (typeof cb !== "function") cb = gid, gid = null
   if (typeof cb !== "function") cb = uid, uid = null
   if (typeof cb !== "function") cb = fMode, fMode = npm.modes.file
@@ -101,7 +111,7 @@ function unpack_ ( tarball, unpackTarget, dMode, fMode, uid, gid, cb ) {
 function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   if (!dMode) dMode = npm.modes.exec
   if (!fMode) fMode = npm.modes.file
-  log.silly([dMode.toString(8), fMode.toString(8)], "gunzTarPerm modes")
+  log.silly("gunzTarPerm", "modes", [dMode.toString(8), fMode.toString(8)])
 
   var cbCalled = false
   function cb (er) {
@@ -120,7 +130,7 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   }
 
   function extractEntry (entry) {
-    log.silly(entry.path, "extracting entry")
+    log.silly("gunzTarPerm", "extractEntry", entry.path)
     // never create things that are user-unreadable,
     // or dirs that are user-un-listable. Only leads to headaches.
     var originalMode = entry.mode = entry.mode || entry.props.mode
@@ -128,7 +138,8 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
     entry.mode = entry.mode & (~npm.modes.umask)
     entry.props.mode = entry.mode
     if (originalMode !== entry.mode) {
-      log.silly([entry.path, originalMode, entry.mode], "modified mode")
+      log.silly( "gunzTarPerm", "modified mode"
+               , [entry.path, originalMode, entry.mode])
     }
 
     // if there's a specific owner uid/gid that we want, then set that
@@ -152,16 +163,19 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
   extractOpts.filter = function () {
     // symbolic links are not allowed in packages.
     if (this.type.match(/^.*Link$/)) {
-      log.warn( this.path.substr(target.length + 1)
-              + ' -> ' + this.linkpath
-              , "excluding symbolic link")
+      log.warn( "excluding symbolic link"
+              , this.path.substr(target.length + 1)
+              + ' -> ' + this.linkpath )
       return false
     }
     return true
   }
 
 
-  fst.on("error", log.er(cb, "error reading "+tarball))
+  fst.on("error", function (er) {
+    if (er) log.error("tar.unpack", "error reading "+tarball)
+    cb(er)
+  })
   fst.on("data", function OD (c) {
     // detect what it is.
     // Then, depending on that, we'll figure out whether it's
@@ -172,17 +186,26 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
         c[2] === 0x08) {
       fst
         .pipe(zlib.Unzip())
-        .on("error", log.er(cb, "unzip error "+tarball))
+        .on("error", function (er) {
+          if (er) log.error("tar.unpack", "unzip error "+tarball)
+          cb(er)
+        })
         .pipe(tar.Extract(extractOpts))
         .on("entry", extractEntry)
-        .on("error", log.er(cb, "untar error "+tarball))
+        .on("error", function (er) {
+          if (er) log.error("tar.unpack", "untar error "+tarball)
+          cb(er)
+        })
         .on("close", cb)
     } else if (c.toString().match(/^package\//)) {
       // naked tar
       fst
         .pipe(tar.Extract(extractOpts))
         .on("entry", extractEntry)
-        .on("error", log.er(cb, "untar error "+tarball))
+        .on("error", function (er) {
+          if (er) log.error("tar.unpack", "untar error "+tarball)
+          cb(er)
+        })
         .on("close", cb)
     } else {
       // naked js file
@@ -197,12 +220,15 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
 
       fst
         .pipe(fstream.Writer(jsOpts))
-        .on("error", log.er(cb, "copy error "+tarball))
+        .on("error", function (er) {
+          if (er) log.error("tar.unpack", "copy error "+tarball)
+          cb(er)
+        })
         .on("close", function () {
           var j = path.resolve(target, "package.json")
           readJson(j, function (er, d) {
             if (er) {
-              log.error(tarball, "Not a package")
+              log.error("not a package", tarball)
               return cb(er)
             }
             fs.writeFile(j, JSON.stringify(d) + "\n", cb)

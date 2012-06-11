@@ -734,19 +734,6 @@ being installed locally\.
 .
 .IP "" 0
 .
-.SS "logfd"
-.
-.IP "\(bu" 4
-Default: stderr file descriptor
-.
-.IP "\(bu" 4
-Type: Number or Stream
-.
-.IP "" 0
-.
-.P
-The location to write log output\.
-.
 .SS "loglevel"
 .
 .IP "\(bu" 4
@@ -766,20 +753,6 @@ What level of logs to report\.  On failure, \fIall\fR logs are written to \fBnpm
 .P
 Any logs of a higher level than the setting are shown\.
 The default is "http", which shows http, warn, and error output\.
-.
-.SS "logprefix"
-.
-.IP "\(bu" 4
-Default: true on Posix, false on Windows
-.
-.IP "\(bu" 4
-Type: Boolean
-.
-.IP "" 0
-.
-.P
-Whether or not to prefix log messages with "npm" and the log level\.  See
-also "color" and "loglevel"\.
 .
 .SS "long"
 .
@@ -862,19 +835,6 @@ Type: path
 .P
 A node module to \fBrequire()\fR when npm loads\.  Useful for programmatic
 usage\.
-.
-.SS "outfd"
-.
-.IP "\(bu" 4
-Default: standard output file descriptor
-.
-.IP "\(bu" 4
-Type: Number or Stream
-.
-.IP "" 0
-.
-.P
-Where to write "normal" output\.  This has no effect on log output\.
 .
 .SS "parseable"
 .

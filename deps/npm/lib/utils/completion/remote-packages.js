@@ -1,7 +1,8 @@
 
 module.exports = remotePackages
 
-var registry = require("../npm-registry-client/index.js")
+var npm = require("../../npm.js")
+  , registry = npm.registry
   , containsSingleMatch = require("./contains-single-match.js")
   , getCompletions = require("./get-completions.js")
 
@@ -25,7 +26,7 @@ function remotePackages (args, index, doVersion, doTag
     if (name === undefined) name = ""
     if (name.indexOf("/") !== -1) return cb(null, [])
     // use up-to 1 hour stale cache.  not super urgent.
-    registry.get("/", null, 3600, function (er, d) {
+    registry.get("/", 3600, function (er, d) {
       if (er) return cb(er)
       var remoteList = Object.keys(d)
         , found = remoteList.indexOf(name)

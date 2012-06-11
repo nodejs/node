@@ -1,4 +1,44 @@
-2012.05.28, Version 0.7.9 (unstable)
+2012.06.11, Version 0.7.10 (unstable)
+
+* Roll V8 back to 3.9.24.31
+
+* build: x64 target should always pass -m64 (Robert Mustacchi)
+
+* add NODE_EXTERN to node::Start (Joel Brandt)
+
+* repl: Warn about running npm commands (isaacs)
+
+* slab_allocator: fix crash in dtor if V8 is dead (Ben Noordhuis)
+
+* slab_allocator: fix leak of Persistent handles (Shigeki Ohtsu)
+
+* windows/msi: add node.js prompt to startmenu (Jeroen Janssen)
+
+* windows/msi: fix adding node to PATH (Jeroen Janssen)
+
+* windows/msi: add start menu links when installing (Jeroen Janssen)
+
+* windows: don't install x64 version into the 'program files (x86)' folder (Matt Gollob)
+
+* domain: Fix #3379 domain.intercept no longer passes error arg to cb (Marc Harter)
+
+* fs: make callbacks run in global context (Ben Noordhuis)
+
+* fs: enable fs.realpath on windows (isaacs)
+
+* child_process: expose UV_PROCESS_DETACHED as options.detached (Charlie McConnell)
+
+* child_process: new stdio API for .spawn() method (Fedor Indutny)
+
+* child_process: spawn().ref() and spawn().unref() (Fedor Indutny)
+
+* Upgrade npm to 1.1.25
+	- Enable npm link on windows
+	- Properly remove sh-shim on Windows
+	- Abstract out registry client and logger
+
+
+2012.05.28, Version 0.7.9 (unstable), 782277f11a753ded831439ed826448c06fc0f356
 
 * Upgrade V8 to 3.11.1
 

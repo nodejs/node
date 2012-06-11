@@ -18,10 +18,9 @@ deprecate.completion = function (opts, cb) {
   })
 }
 
-var registry = require("./utils/npm-registry-client/index.js")
-  , semver = require("semver")
-  , log = require("./utils/log.js")
+var semver = require("semver")
   , npm = require("./npm.js")
+  , registry = npm.registry
 
 function deprecate (args, cb) {
   var pkg = args[0]
@@ -43,6 +42,6 @@ function deprecate (args, cb) {
       data.versions[v].deprecated = msg
     })
     // now update the doc on the registry
-    registry.request.PUT(data._id, data, cb)
+    registry.request('PUT', data._id, data, cb)
   })
 }

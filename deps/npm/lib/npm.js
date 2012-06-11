@@ -18,7 +18,7 @@ var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter
   , config = require("./config.js")
   , ini = require("./utils/ini.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , fs = require("graceful-fs")
   , path = require("path")
   , abbrev = require("abbrev")
@@ -29,6 +29,7 @@ var EventEmitter = require("events").EventEmitter
   , mkdirp = require("mkdirp")
   , slide = require("slide")
   , chain = slide.chain
+  , RegClient = require("npm-registry-client")
 
 // /usr/local is often a read-only fs, which is not
 // well handled by node or mkdirp.  Just double-check
@@ -48,14 +49,6 @@ function mkdir (p, cb) {
 }
 
 npm.commands = {}
-npm.ELIFECYCLE = {}
-npm.E404 = {}
-npm.EPUBLISHCONFLICT = {}
-npm.EJSONPARSE = {}
-npm.EISGIT = {}
-npm.ECYCLE = {}
-npm.ENOTSUP = {}
-npm.EBADPLATFORM = {}
 
 try {
   // startup, ok to do this synchronously
@@ -64,17 +57,17 @@ try {
   npm.version = j.version
   npm.nodeVersionRequired = j.engines.node
   if (!semver.satisfies(process.version, j.engines.node)) {
-    log.error([""
+    log.error("unsupported version", [""
               ,"npm requires node version: "+j.engines.node
               ,"And you have: "+process.version
               ,"which is not satisfactory."
               ,""
               ,"Bad things will likely happen.  You have been warned."
-              ,""].join("\n"), "unsupported version")
+              ,""].join("\n"))
   }
 } catch (ex) {
   try {
-    log(ex, "error reading version")
+    log.info("error reading version", ex)
   } catch (er) {}
   npm.version = ex
 }
@@ -250,7 +243,7 @@ npm.load = function (conf, cb_) {
     }
   }
 
-  log.waitForConfig()
+  log.pause()
 
   load(npm, conf, cb)
 }
@@ -268,8 +261,32 @@ function load (npm, conf, cb) {
     //console.error("about to look up configs")
 
     ini.resolveConfigs(conf, function (er) {
-      //console.error("back from config lookup", er && er.stack)
+      log.level = npm.config.get("loglevel")
+      log.heading = "npm"
+      switch (npm.config.get("color")) {
+        case "always": log.enableColor(); break
+        case false: log.disableColor(); break
+      }
+      log.resume()
+
       if (er) return cb(er)
+
+      // at this point the configs are all set.
+      // go ahead and spin up the registry client.
+      npm.registry = new RegClient(
+        { registry: npm.config.get("registry")
+        , cache: npm.config.get("cache")
+        , auth: npm.config.get("_auth")
+        , alwaysAuth: npm.config.get("always-auth")
+        , email: npm.config.get("email")
+        , tag: npm.config.get("tag")
+        , ca: npm.config.get("ca")
+        , strictSSL: npm.config.get("strict-ssl")
+        , userAgent: npm.config.get("user-agent")
+        , E404: npm.E404
+        , EPUBLISHCONFLICT: npm.EPUBLISHCONFLICT
+        , log: log
+        })
 
       var umask = parseInt(conf.umask, 8)
       npm.modes = { exec: 0777 & (~umask)
@@ -352,7 +369,7 @@ function setUser (cl, dc, cb) {
   var prefix = path.resolve(cl.get("prefix"))
   mkdir(prefix, function (er) {
     if (er) {
-      log.error(prefix, "could not create prefix directory")
+      log.error("could not create prefix dir", prefix)
       return cb(er)
     }
     fs.stat(prefix, function (er, st) {

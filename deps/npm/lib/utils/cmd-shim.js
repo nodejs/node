@@ -16,7 +16,7 @@ var fs = require("graceful-fs")
   , chain = require("slide").chain
   , mkdir = require("mkdirp")
   , rm = require("rimraf")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , path = require("path")
   , relativize = require("./relativize.js")
   , npm = require("../npm.js")
@@ -122,12 +122,12 @@ function writeShim_ (from, to, prog, args, cb) {
 
   fs.writeFile(to + ".cmd", cmd, "utf8", function (er) {
     if (er) {
-      log.warn("Could not write "+to+".cmd", "cmdShim")
+      log.warn("cmdShim", "Could not write "+to+".cmd")
       return cb(er)
     }
     fs.writeFile(to, sh, "utf8", function (er) {
       if (er) {
-        log.warn("Could not write "+to, "shShim")
+        log.warn("shShim", "Could not write "+to)
         return cb(er)
       }
       fs.chmod(to, 0755, cb)

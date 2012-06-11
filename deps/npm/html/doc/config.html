@@ -381,12 +381,6 @@ if one of the two conditions are met:</p>
 <ul><li>The package is not already installed globally, or</li><li>the globally installed version is identical to the version that is
 being installed locally.</li></ul>
 
-<h3 id="logfd">logfd</h3>
-
-<ul><li>Default: stderr file descriptor</li><li>Type: Number or Stream</li></ul>
-
-<p>The location to write log output.</p>
-
 <h3 id="loglevel">loglevel</h3>
 
 <ul><li>Default: "http"</li><li>Type: String</li><li>Values: "silent", "win", "error", "warn", "http", "info", "verbose", "silly"</li></ul>
@@ -396,13 +390,6 @@ being installed locally.</li></ul>
 
 <p>Any logs of a higher level than the setting are shown.
 The default is "http", which shows http, warn, and error output.</p>
-
-<h3 id="logprefix">logprefix</h3>
-
-<ul><li>Default: true on Posix, false on Windows</li><li>Type: Boolean</li></ul>
-
-<p>Whether or not to prefix log messages with "npm" and the log level.  See
-also "color" and "loglevel".</p>
 
 <h3 id="long">long</h3>
 
@@ -443,12 +430,6 @@ also "color" and "loglevel".</p>
 
 <p>A node module to <code>require()</code> when npm loads.  Useful for programmatic
 usage.</p>
-
-<h3 id="outfd">outfd</h3>
-
-<ul><li>Default: standard output file descriptor</li><li>Type: Number or Stream</li></ul>
-
-<p>Where to write "normal" output.  This has no effect on log output.</p>
 
 <h3 id="parseable">parseable</h3>
 
@@ -684,7 +665,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.24</p>
+<p id="footer">config &mdash; npm@1.1.25</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

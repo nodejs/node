@@ -1,10 +1,10 @@
 
 module.exports = adduser
 
-var registry = require("./utils/npm-registry-client/index.js")
-  , ini = require("./utils/ini.js")
-  , log = require("./utils/log.js")
+var ini = require("./utils/ini.js")
+  , log = require("npmlog")
   , npm = require("./npm.js")
+  , registry = npm.registry
   , read = require("read")
   , promiseChain = require("./utils/promise-chain.js")
   , crypto
@@ -39,10 +39,13 @@ function adduser (args, cb) {
       if (changed) npm.config.del("_auth")
       registry.adduser(u.u, u.p, u.e, function (er) {
         if (er) return cb(er)
+        registry.username = u.u
+        registry.password = u.p
+        registry.email = u.e
         ini.set("username", u.u, "user")
         ini.set("_password", u.p, "user")
         ini.set("email", u.e, "user")
-        log("Authorized user " + u.u, "adduser")
+        log.info("adduser", "Authorized user %s", u.u)
         ini.save("user", cb)
       })
     })

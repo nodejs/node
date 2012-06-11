@@ -10,7 +10,7 @@ module.exports = exports = ls
 var npm = require("./npm.js")
   , readInstalled = require("./utils/read-installed.js")
   , output = require("./utils/output.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , relativize = require("./utils/relativize.js")
   , path = require("path")
   , archy = require("archy")
@@ -21,6 +21,8 @@ function ls (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
 
   if (args.length) {
+    // TODO: it would actually be nice to maybe show the locally
+    // installed packages only matching the argument names.
     log.warn("ls doesn't take positional args. Try the 'search' command")
   }
 
@@ -167,10 +169,10 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
     if (depth < npm.config.get("depth")) {
       // just missing
       var p = parent.link || parent.path
-      log.warn("Unmet dependency in "+p, d+" "+data)
+      log.warn("unmet dependency", "%s in %s", d+" "+data, p)
       data = "\033[31;40mUNMET DEPENDENCY\033[0m " + d + " " + data
     } else {
-      data = d+"@'"+ data +"' (max depth reached)"
+      data = d+"@"+ data +" (max depth reached)"
     }
     return data
   }
@@ -244,7 +246,7 @@ function makeParseable_ (data, long, dir, depth, parent, d) {
   if (typeof data === "string") {
     if (data.depth < npm.config.get("depth")) {
       var p = parent.link || parent.path
-      log.warn("Unmet dependency in "+p, d+" "+data)
+      log.warn("unmet dependency", "%s in %s", d+" "+data, p)
       data = npm.config.get("long")
            ? path.resolve(parent.path, "node_modules", d)
            + ":"+d+"@"+JSON.stringify(data)+":INVALID:MISSING"
