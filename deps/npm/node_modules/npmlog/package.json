@@ -1,0 +1,42 @@
+{
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "name": "npmlog",
+  "description": "logger for npm",
+  "version": "0.0.2",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/npmlog.git"
+  },
+  "main": "log.js",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "dependencies": {
+    "ansi": "~0.1.2"
+  },
+  "devDependencies": {
+    "tap": ""
+  },
+  "license": "BSD",
+  "_npmUser": {
+    "name": "isaacs",
+    "email": "i@izs.me"
+  },
+  "_id": "npmlog@0.0.2",
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "_engineSupported": true,
+  "_npmVersion": "1.1.24",
+  "_nodeVersion": "v0.7.10-pre",
+  "_defaultsLoaded": true,
+  "dist": {
+    "shasum": "f0cf4b2c519950c00e91ba8e2868b62bf86254f6"
+  },
+  "_from": "npmlog@0"
+}
