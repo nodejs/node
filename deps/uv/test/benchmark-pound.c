@@ -26,7 +26,7 @@
 #define MAX_CONNS 1000
 
 #undef NANOSEC
-#define NANOSEC ((uint64_t)10e8)
+#define NANOSEC ((uint64_t) 1e9)
 
 #undef DEBUG
 #define DEBUG 0

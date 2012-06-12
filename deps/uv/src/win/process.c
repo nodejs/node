@@ -1320,32 +1320,46 @@ done:
 
 
 static uv_err_t uv__kill(HANDLE process_handle, int signum) {
-  DWORD status;
-  uv_err_t err;
+  switch (signum) {
+    case SIGTERM:
+    case SIGKILL:
+    case SIGINT: {
+      /* Unconditionally terminate the process. On Windows, killed processes */
+      /* normally return 1. */
+      DWORD error, status;
 
-  if (signum == SIGTERM || signum == SIGKILL || signum == SIGINT) {
-    /* Kill the process. On Windows, killed processes normally return 1. */
-    if (TerminateProcess(process_handle, 1)) {
-      err = uv_ok_;
-    } else {
-      err = uv__new_sys_error(GetLastError());
-    }
-  } else if (signum == 0) {
-    /* Health check: is the process still alive? */
-    if (GetExitCodeProcess(process_handle, &status)) {
-      if (status == STILL_ACTIVE) {
-        err =  uv_ok_;
-      } else {
-        err = uv__new_artificial_error(UV_ESRCH);
+      if (TerminateProcess(process_handle, 1))
+        return uv_ok_;
+
+      /* If the process already exited before TerminateProcess was called, */
+      /* TerminateProcess will fail with ERROR_ACESS_DENIED. */
+      error = GetLastError();
+      if (error == ERROR_ACCESS_DENIED &&
+          GetExitCodeProcess(process_handle, &status) &&
+          status != STILL_ACTIVE) {
+        return uv__new_artificial_error(UV_ESRCH);
       }
-    } else {
-      err = uv__new_sys_error(GetLastError());
-    }
-  } else {
-    err = uv__new_artificial_error(UV_ENOSYS);
-  }
 
-  return err;
+      return uv__new_sys_error(error);
+    }
+
+    case 0: {
+      /* Health check: is the process still alive? */
+      DWORD status;
+
+      if (!GetExitCodeProcess(process_handle, &status))
+        return uv__new_sys_error(GetLastError());
+
+      if (status != STILL_ACTIVE)
+        return uv__new_artificial_error(UV_ESRCH);
+
+      return uv_ok_;
+    }
+
+    default:
+      /* Unsupported signal. */
+      return uv__new_artificial_error(UV_ENOSYS);
+  }
 }
 
 

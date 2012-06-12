@@ -4419,7 +4419,7 @@ typedef VOID (WINAPI* sReleaseSRWLockExclusive)
 
 
 
-/* Ntapi function pointers */
+/* Ntdll function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtDeviceIoControlFile pNtDeviceIoControlFile;
 extern sNtQueryInformationFile pNtQueryInformationFile;

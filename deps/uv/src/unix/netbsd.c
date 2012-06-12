@@ -32,7 +32,7 @@
 #include <time.h>
 
 #undef NANOSEC
-#define NANOSEC 1000000000
+#define NANOSEC ((uint64_t) 1e9)
 
 
 uint64_t uv_hrtime(void) {

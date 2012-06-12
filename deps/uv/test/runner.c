@@ -32,7 +32,7 @@ static void log_progress(int total, int passed, int failed, const char* name) {
   if (total == 0)
     total = 1;
 
-  LOGF("[%% %3d|+ %3d|- %3d]: %s", (passed + failed) / total * 100,
+  LOGF("[%% %3d|+ %3d|- %3d]: %s", (int) ((passed + failed) / ((double) total) * 100.0),
       passed, failed, name);
 }
 

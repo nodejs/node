@@ -27,25 +27,28 @@
 #endif
 
 #ifndef NANOSEC
-# define NANOSEC 1000000000
+# define NANOSEC ((uint64_t) 1e9)
 #endif
 
 
 TEST_IMPL(hrtime) {
   uint64_t a, b, diff;
+  int i = 100;
+  while (i > 0) {
+    a = uv_hrtime();
+    uv_sleep(45);
+    b = uv_hrtime();
 
-  a = uv_hrtime();
-  uv_sleep(100);
-  b = uv_hrtime();
+    diff = b - a;
 
-  diff = b - a;
+    /*  printf("i= %d diff = %llu\n", i, (unsigned long long int) diff); */
 
-  printf("diff = %llu\n", (unsigned long long int) diff);
-
-  /* The windows Sleep() function has only a resolution of 10-20 ms. */
-  /* Check that the difference between the two hrtime values is somewhat in */
-  /* the range we expect it to be. */
-  ASSERT(diff > (uint64_t) 80 * NANOSEC / MILLISEC);
-  ASSERT(diff < (uint64_t) 120 * NANOSEC / MILLISEC);
+    /* The windows Sleep() function has only a resolution of 10-20 ms. */
+    /* Check that the difference between the two hrtime values is somewhat in */
+    /* the range we expect it to be. */
+    ASSERT(diff > (uint64_t) 25 * NANOSEC / MILLISEC);
+    ASSERT(diff < (uint64_t) 60 * NANOSEC / MILLISEC);
+    --i;
+  }
   return 0;
 }
