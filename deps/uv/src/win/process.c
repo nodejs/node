@@ -101,8 +101,7 @@ typedef struct env_var {
 
 
 static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
-  uv_handle_init(loop, (uv_handle_t*) handle);
-  handle->type = UV_PROCESS;
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_PROCESS);
   handle->exit_cb = NULL;
   handle->pid = 0;
   handle->exit_signal = 0;
@@ -1093,7 +1092,7 @@ static int init_child_stdio(uv_loop_t* loop, uv_process_options_t* options,
         uv_stream_t* stream = fdopt.data.stream;
 
         /* Leech the handle out of the stream. */
-        if (stream->type = UV_TTY) {
+        if (stream->type == UV_TTY) {
           stream_handle = ((uv_tty_t*) stream)->handle;
           crt_flags = FOPEN | FDEV;
         } else if (stream->type == UV_NAMED_PIPE &&

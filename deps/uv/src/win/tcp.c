@@ -146,9 +146,8 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
 
 
 int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
-  uv_stream_init(loop, (uv_stream_t*) handle);
+  uv_stream_init(loop, (uv_stream_t*) handle, UV_TCP);
 
-  handle->type = UV_TCP;
   handle->accept_reqs = NULL;
   handle->pending_accepts = NULL;
   handle->socket = INVALID_SOCKET;

@@ -153,4 +153,17 @@ UNUSED static void uv__handle_unref(uv_handle_t* h) {
 }
 #define uv__handle_unref(h) uv__handle_unref((uv_handle_t*)(h))
 
+UNUSED static void uv__handle_init(uv_loop_t* loop,
+                                   uv_handle_t* handle,
+                                   uv_handle_type type) {
+  loop->counters.handle_init++;
+  handle->loop = loop;
+  handle->type = type;
+  handle->flags = UV__HANDLE_REF; /* ref the loop when active */
+  ngx_queue_insert_tail(&loop->handle_queue, &handle->handle_queue);
+#ifndef _WIN32
+  handle->next_closing = NULL;
+#endif
+}
+
 #endif /* UV_COMMON_H_ */

@@ -69,15 +69,6 @@
   } while (0)
 
 
-INLINE static void uv_handle_init(uv_loop_t* loop, uv_handle_t* handle) {
-  handle->loop = loop;
-  handle->flags = UV__HANDLE_REF;
-  ngx_queue_insert_tail(&loop->handle_queue, &handle->handle_queue);
-
-  loop->counters.handle_init++;
-}
-
-
 INLINE static void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle) {
   if (!(handle->flags & UV_HANDLE_ENDGAME_QUEUED)) {
     handle->flags |= UV_HANDLE_ENDGAME_QUEUED;

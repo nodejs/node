@@ -36,8 +36,7 @@ const unsigned int uv_directory_watcher_buffer_size = 4096;
 
 static void uv_fs_event_init_handle(uv_loop_t* loop, uv_fs_event_t* handle,
     const char* filename, uv_fs_event_cb cb) {
-  uv_handle_init(loop, (uv_handle_t*) handle);
-  handle->type = UV_FS_EVENT;
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_FS_EVENT);
   handle->cb = cb;
   handle->dir_handle = INVALID_HANDLE_VALUE;
   handle->buffer = NULL;

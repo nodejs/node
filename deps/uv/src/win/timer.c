@@ -67,8 +67,7 @@ RB_GENERATE_STATIC(uv_timer_tree_s, uv_timer_s, tree_entry, uv_timer_compare);
 
 
 int uv_timer_init(uv_loop_t* loop, uv_timer_t* handle) {
-  uv_handle_init(loop, (uv_handle_t*) handle);
-  handle->type = UV_TIMER;
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_TIMER);
   handle->timer_cb = NULL;
   handle->repeat = 0;
 

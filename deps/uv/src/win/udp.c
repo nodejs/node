@@ -123,9 +123,8 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
 
 
 int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
-  uv_handle_init(loop, (uv_handle_t*) handle);
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_UDP);
 
-  handle->type = UV_UDP;
   handle->socket = INVALID_SOCKET;
   handle->reqs_pending = 0;
   handle->activecnt = 0;

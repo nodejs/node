@@ -112,10 +112,9 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
     LeaveCriticalSection(&uv_tty_output_lock);
   }
 
-  uv_stream_init(loop, (uv_stream_t*) tty);
+  uv_stream_init(loop, (uv_stream_t*) tty, UV_TTY);
   uv_connection_init((uv_stream_t*) tty);
 
-  tty->type = UV_TTY;
   tty->handle = win_handle;
   tty->read_line_handle = NULL;
   tty->read_line_buffer = uv_null_buf_;

@@ -271,18 +271,6 @@ int uv_run_once(uv_loop_t* loop) {
 }
 
 
-void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle,
-    uv_handle_type type) {
-  loop->counters.handle_init++;
-
-  handle->loop = loop;
-  handle->type = type;
-  handle->flags = UV__HANDLE_REF; /* ref the loop when active */
-  handle->next_closing = NULL;
-  ngx_queue_insert_tail(&loop->handle_queue, &handle->handle_queue);
-}
-
-
 void uv_update_time(uv_loop_t* loop) {
   loop->time = uv_hrtime() / 1000000;
 }

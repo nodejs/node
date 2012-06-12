@@ -519,8 +519,7 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
     socket = base_socket;
   }
 
-  uv_handle_init(loop, (uv_handle_t*) handle);
-  handle->type = UV_POLL;
+  uv__handle_init(loop, (uv_handle_t*) handle, UV_POLL);
   handle->socket = socket;
   handle->events = 0;
 
