@@ -424,54 +424,77 @@ var verified = crypto.createVerify('RSA-SHA256')
                      .verify(certPem, s2); // binary
 assert.strictEqual(verified, true, 'sign and verify (binary)');
 
-// Test encryption and decryption
-var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
-var cipher = crypto.createCipher('aes192', 'MySecretKey123');
 
-// encrypt plaintext which is in utf8 format
-// to a ciphertext which will be in hex
-var ciph = cipher.update(plaintext, 'utf8', 'hex');
-// Only use binary or hex, not base64.
-ciph += cipher.final('hex');
+function testCipher1(key) {
+  // Test encryption and decryption
+  var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
+  var cipher = crypto.createCipher('aes192', key);
 
-var decipher = crypto.createDecipher('aes192', 'MySecretKey123');
-var txt = decipher.update(ciph, 'hex', 'utf8');
-txt += decipher.final('utf8');
+  // encrypt plaintext which is in utf8 format
+  // to a ciphertext which will be in hex
+  var ciph = cipher.update(plaintext, 'utf8', 'hex');
+  // Only use binary or hex, not base64.
+  ciph += cipher.final('hex');
 
-assert.equal(txt, plaintext, 'encryption and decryption');
+  var decipher = crypto.createDecipher('aes192', key);
+  var txt = decipher.update(ciph, 'hex', 'utf8');
+  txt += decipher.final('utf8');
 
-// encryption and decryption with Base64
-// reported in https://github.com/joyent/node/issues/738
-var plaintext =
-    '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-    'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**';
-var cipher = crypto.createCipher('aes256', '0123456789abcdef');
-
-// encrypt plaintext which is in utf8 format
-// to a ciphertext which will be in Base64
-var ciph = cipher.update(plaintext, 'utf8', 'base64');
-ciph += cipher.final('base64');
-
-var decipher = crypto.createDecipher('aes256', '0123456789abcdef');
-var txt = decipher.update(ciph, 'base64', 'utf8');
-txt += decipher.final('utf8');
-
-assert.equal(txt, plaintext, 'encryption and decryption with Base64');
+  assert.equal(txt, plaintext, 'encryption and decryption');
+}
 
 
-// Test encyrption and decryption with explicit key and iv
-var encryption_key = '0123456789abcd0123456789';
-var iv = '12345678';
+function testCipher2(key) {
+  // encryption and decryption with Base64
+  // reported in https://github.com/joyent/node/issues/738
+  var plaintext =
+      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
+      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
+      'jAfaFg**';
+  var cipher = crypto.createCipher('aes256', key);
 
-var cipher = crypto.createCipheriv('des-ede3-cbc', encryption_key, iv);
-var ciph = cipher.update(plaintext, 'utf8', 'hex');
-ciph += cipher.final('hex');
+  // encrypt plaintext which is in utf8 format
+  // to a ciphertext which will be in Base64
+  var ciph = cipher.update(plaintext, 'utf8', 'base64');
+  ciph += cipher.final('base64');
 
-var decipher = crypto.createDecipheriv('des-ede3-cbc', encryption_key, iv);
-var txt = decipher.update(ciph, 'hex', 'utf8');
-txt += decipher.final('utf8');
+  var decipher = crypto.createDecipher('aes256', key);
+  var txt = decipher.update(ciph, 'base64', 'utf8');
+  txt += decipher.final('utf8');
 
-assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
+  assert.equal(txt, plaintext, 'encryption and decryption with Base64');
+}
+
+
+function testCipher3(key, iv) {
+  // Test encyrption and decryption with explicit key and iv
+  var plaintext =
+      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
+      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
+      'jAfaFg**';
+  var cipher = crypto.createCipheriv('des-ede3-cbc', key, iv);
+  var ciph = cipher.update(plaintext, 'utf8', 'hex');
+  ciph += cipher.final('hex');
+
+  var decipher = crypto.createDecipheriv('des-ede3-cbc', key, iv);
+  var txt = decipher.update(ciph, 'hex', 'utf8');
+  txt += decipher.final('utf8');
+
+  assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
+}
+
+
+testCipher1('MySecretKey123');
+testCipher1(new Buffer('MySecretKey123'));
+
+testCipher2('0123456789abcdef');
+testCipher2(new Buffer('0123456789abcdef'));
+
+testCipher3('0123456789abcd0123456789', '12345678');
+testCipher3('0123456789abcd0123456789', new Buffer('12345678'));
+testCipher3(new Buffer('0123456789abcd0123456789'), '12345678');
+testCipher3(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
+
 
 // update() should only take buffers / strings
 assert.throws(function() {
