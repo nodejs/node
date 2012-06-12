@@ -49,26 +49,6 @@
 # endif
 #endif /* __NR_accept4 */
 
-#ifndef __NR_eventfd
-# if __x86_64__
-#  define __NR_eventfd 284
-# elif __i386__
-#  define __NR_eventfd 323
-# elif __arm__
-#  define __NR_eventfd (UV_SYSCALL_BASE + 351)
-# endif
-#endif /* __NR_eventfd */
-
-#ifndef __NR_eventfd2
-# if __x86_64__
-#  define __NR_eventfd2 290
-# elif __i386__
-#  define __NR_eventfd2 328
-# elif __arm__
-#  define __NR_eventfd2 (UV_SYSCALL_BASE + 356)
-# endif
-#endif /* __NR_eventfd2 */
-
 #ifndef __NR_inotify_init
 # if __x86_64__
 #  define __NR_inotify_init 253
@@ -161,24 +141,6 @@ int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
   return syscall(__NR_socketcall, 18 /* SYS_ACCEPT4 */, args);
 #elif __NR_accept4
   return syscall(__NR_accept4, fd, addr, addrlen, flags);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__eventfd(unsigned int count) {
-#if __NR_eventfd
-  return syscall(__NR_eventfd, count);
-#else
-  return errno = ENOSYS, -1;
-#endif
-}
-
-
-int uv__eventfd2(unsigned int count, int flags) {
-#if __NR_eventfd2
-  return syscall(__NR_eventfd2, count, flags);
 #else
   return errno = ENOSYS, -1;
 #endif

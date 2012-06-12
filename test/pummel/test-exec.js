@@ -22,20 +22,10 @@
 var common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
-
-
-if (process.platform !== 'win32') {
-  var SLEEP = "sleep 3";
-} else {
-  var SLEEP = "choice /t 3 /c X /d X";
-}
-
 var success_count = 0;
 var error_count = 0;
 
-
-exec(process.execPath + ' -p -e process.versions',
-     function(err, stdout, stderr) {
+exec('ls /', function(err, stdout, stderr) {
   if (err) {
     error_count++;
     console.log('error!: ' + err.code);
@@ -49,7 +39,7 @@ exec(process.execPath + ' -p -e process.versions',
 });
 
 
-exec('thisisnotavalidcommand', function(err, stdout, stderr) {
+exec('ls /DOES_NOT_EXIST', function(err, stdout, stderr) {
   if (err) {
     error_count++;
     assert.equal('', stdout);
@@ -69,7 +59,7 @@ exec('thisisnotavalidcommand', function(err, stdout, stderr) {
 
 
 var sleeperStart = new Date();
-exec(SLEEP, { timeout: 50 }, function(err, stdout, stderr) {
+exec('sleep 3', { timeout: 50 }, function(err, stdout, stderr) {
   var diff = (new Date()) - sleeperStart;
   console.log('\'sleep 3\' with timeout 50 took %d ms', diff);
   assert.ok(diff < 500);
@@ -108,12 +98,12 @@ function killMeTwiceCallback(err, stdout, stderr) {
 }
 
 
+
 exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
      function(err, stdout, stderr) {
        assert.ok(err);
        assert.ok(/maxBuffer/.test(err.message));
      });
-
 
 process.on('exit', function() {
   assert.equal(1, success_count);

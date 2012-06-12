@@ -68,15 +68,25 @@ static void uv__chld(EV_P_ ev_child* watcher, int revents) {
 
 
 int uv__make_socketpair(int fds[2], int flags) {
-#if __linux__
-  if (socketpair(AF_UNIX, SOCK_STREAM | UV__SOCK_CLOEXEC | flags, 0, fds) == 0)
+#ifdef SOCK_NONBLOCK
+  int fl;
+
+  fl = SOCK_CLOEXEC;
+
+  if (flags & UV__F_NONBLOCK)
+    fl |= SOCK_NONBLOCK;
+
+  if (socketpair(AF_UNIX, SOCK_STREAM|fl, 0, fds) == 0)
     return 0;
 
-  /* Retry on EINVAL, it means SOCK_CLOEXEC is not supported.
-   * Anything else is a genuine error.
-   */
   if (errno != EINVAL)
     return -1;
+
+  /* errno == EINVAL so maybe the kernel headers lied about
+   * the availability of SOCK_NONBLOCK. This can happen if people
+   * build libuv against newer kernel headers than the kernel
+   * they actually run the software on.
+   */
 #endif
 
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
@@ -96,7 +106,14 @@ int uv__make_socketpair(int fds[2], int flags) {
 
 int uv__make_pipe(int fds[2], int flags) {
 #if __linux__
-  if (uv__pipe2(fds, flags | UV__O_CLOEXEC) == 0)
+  int fl;
+
+  fl = UV__O_CLOEXEC;
+
+  if (flags & UV__F_NONBLOCK)
+    fl |= UV__O_NONBLOCK;
+
+  if (uv__pipe2(fds, fl) == 0)
     return 0;
 
   if (errno != ENOSYS)

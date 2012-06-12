@@ -31,7 +31,6 @@ static int uv__dlerror(uv_lib_t* lib);
 
 
 int uv_dlopen(const char* filename, uv_lib_t* lib) {
-  dlerror(); /* Reset error status. */
   lib->errmsg = NULL;
   lib->handle = dlopen(filename, RTLD_LAZY);
   return uv__dlerror(lib);

@@ -37,7 +37,7 @@
 #include <unistd.h>
 
 #undef NANOSEC
-#define NANOSEC ((uint64_t) 1e9)
+#define NANOSEC 1000000000
 
 
 static char *process_title;

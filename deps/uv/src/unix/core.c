@@ -233,9 +233,6 @@ static unsigned int uv__poll_timeout(uv_loop_t* loop) {
   if (!ngx_queue_empty(&loop->idle_handles))
     return 0;
 
-  if (loop->closing_handles)
-    return 0;
-
   return uv__next_timeout(loop);
 }
 

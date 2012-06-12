@@ -28,7 +28,9 @@
 #include <assert.h>
 #include <errno.h>
 
-#include <ifaddrs.h>
+#ifdef SUNOS_HAVE_IFADDRS
+# include <ifaddrs.h>
+#endif
 #include <net/if.h>
 
 #include <sys/loadavg.h>
@@ -405,7 +407,9 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 
 uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
   int* count) {
-
+#ifndef SUNOS_HAVE_IFADDRS
+  return uv__new_artificial_error(UV_ENOSYS);
+#else
   struct ifaddrs *addrs, *ent;
   char ip[INET6_ADDRSTRLEN];
   uv_interface_address_t* address;
@@ -462,6 +466,7 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
   freeifaddrs(addrs);
 
   return uv_ok_;
+#endif  /* SUNOS_HAVE_IFADDRS */
 }
 
 

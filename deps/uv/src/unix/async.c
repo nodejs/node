@@ -21,99 +21,40 @@
 #include "uv.h"
 #include "internal.h"
 
-#include <errno.h>
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
 
-static int uv__async_init(uv_loop_t* loop);
-static void uv__async_io(uv_loop_t* loop, uv__io_t* handle, int events);
+static void uv__async(EV_P_ ev_async* w, int revents) {
+  uv_async_t* async = container_of(w, uv_async_t, async_watcher);
+
+  if (async->async_cb) {
+    async->async_cb(async, 0);
+  }
+}
 
 
-int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
-  if (uv__async_init(loop))
-    return uv__set_sys_error(loop, errno);
-
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_ASYNC);
+int uv_async_init(uv_loop_t* loop, uv_async_t* async, uv_async_cb async_cb) {
+  uv__handle_init(loop, (uv_handle_t*)async, UV_ASYNC);
   loop->counters.async_init++;
 
-  handle->async_cb = async_cb;
-  handle->pending = 0;
+  ev_async_init(&async->async_watcher, uv__async);
+  async->async_cb = async_cb;
 
-  ngx_queue_insert_tail(&loop->async_handles, &handle->queue);
-  uv__handle_start(handle);
+  /* Note: This does not have symmetry with the other libev wrappers. */
+  ev_async_start(loop->ev, &async->async_watcher);
+  uv__handle_unref(async);
+  uv__handle_start(async);
 
   return 0;
 }
 
 
-int uv_async_send(uv_async_t* handle) {
-  int r;
-
-  handle->pending = 1; /* XXX needs a memory barrier? */
-
-  do
-    r = write(handle->loop->async_pipefd[1], "x", 1);
-  while (r == -1 && errno == EINTR);
-
-  if (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
-    return uv__set_sys_error(handle->loop, errno);
-
+int uv_async_send(uv_async_t* async) {
+  ev_async_send(async->loop->ev, &async->async_watcher);
   return 0;
 }
 
 
 void uv__async_close(uv_async_t* handle) {
-  ngx_queue_remove(&handle->queue);
+  ev_async_stop(handle->loop->ev, &handle->async_watcher);
+  uv__handle_ref(handle);
   uv__handle_stop(handle);
-}
-
-
-static int uv__async_init(uv_loop_t* loop) {
-  if (loop->async_pipefd[0] != -1)
-    return 0;
-
-  if (uv__make_pipe(loop->async_pipefd, UV__F_NONBLOCK))
-    return -1;
-
-  uv__io_init(&loop->async_watcher,
-              uv__async_io,
-              loop->async_pipefd[0],
-              UV__IO_READ);
-  uv__io_start(loop, &loop->async_watcher);
-
-  return 0;
-}
-
-
-static void uv__async_io(uv_loop_t* loop, uv__io_t* handle, int events) {
-  char buf[1024];
-  ngx_queue_t* q;
-  uv_async_t* h;
-  ssize_t r;
-
-  while (1) {
-    r = read(loop->async_pipefd[0], buf, sizeof(buf));
-
-    if (r == sizeof(buf))
-      continue;
-
-    if (r != -1)
-      break;
-
-    if (errno == EAGAIN || errno == EWOULDBLOCK)
-      break;
-
-    if (errno == EINTR)
-      continue;
-
-    abort();
-  }
-
-  ngx_queue_foreach(q, &loop->async_handles) {
-    h = ngx_queue_data(q, uv_async_t, queue);
-    if (!h->pending) continue;
-    h->pending = 0;
-    h->async_cb(h, 0);
-  }
 }

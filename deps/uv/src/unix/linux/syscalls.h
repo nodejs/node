@@ -32,16 +32,12 @@
 #define UV__O_NONBLOCK        0x800
 #define UV__O_CLOEXEC         0x80000
 
-#define UV__EFD_CLOEXEC       UV__O_CLOEXEC
-#define UV__EFD_NONBLOCK      UV__O_NONBLOCK
+#define UV__SOCK_CLOEXEC      UV__O_CLOEXEC
+#define UV__SOCK_NONBLOCK     UV__O_NONBLOCK
 
 #define UV__IN_CLOEXEC        UV__O_CLOEXEC
 #define UV__IN_NONBLOCK       UV__O_NONBLOCK
 
-#define UV__SOCK_CLOEXEC      UV__O_CLOEXEC
-#define UV__SOCK_NONBLOCK     UV__O_NONBLOCK
-
-/* inotify flags */
 #define UV__IN_ACCESS         0x001
 #define UV__IN_MODIFY         0x002
 #define UV__IN_ATTRIB         0x004
@@ -69,8 +65,6 @@ struct uv__mmsghdr {
 };
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags);
-int uv__eventfd(unsigned int count);
-int uv__eventfd2(unsigned int count, int flags);
 int uv__inotify_init(void);
 int uv__inotify_init1(int flags);
 int uv__inotify_add_watch(int fd, const char* path, __u32 mask);
