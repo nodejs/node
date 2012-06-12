@@ -430,6 +430,8 @@
       if (r) {
         throw errnoException(errno, 'kill');
       }
+
+      return true;
     };
   };
 
