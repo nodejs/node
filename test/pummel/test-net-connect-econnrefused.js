@@ -25,19 +25,25 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var ROUNDS = 1024;
+var ROUNDS = 5;
+var ATTEMPTS_PER_ROUND = 200;
 var rounds = 0;
 var reqs = 0;
 
 pummel();
 
 function pummel() {
-  net.createConnection(common.PORT).on('error', function(err) {
-    assert.equal(err.code, 'ECONNREFUSED');
-    if (++rounds < ROUNDS) return pummel();
-    check();
-  });
-  reqs++;
+  console.log('Round', rounds, '/', ROUNDS);
+
+  for (var pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
+    net.createConnection(common.PORT).on('error', function(err) {
+      assert.equal(err.code, 'ECONNREFUSED');
+      if (--pending > 0) return;
+      if (++rounds < ROUNDS) return pummel();
+      check();
+    });
+    reqs++;
+  }
 }
 
 function check() {
@@ -53,6 +59,6 @@ var check_called = false;
 
 process.on('exit', function() {
   assert.equal(rounds, ROUNDS);
-  assert.equal(reqs, ROUNDS);
+  assert.equal(reqs, ROUNDS * ATTEMPTS_PER_ROUND);
   assert(check_called);
 });
