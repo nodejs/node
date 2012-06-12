@@ -163,6 +163,25 @@ This function is asynchronous.  When the server has been bound,
 the last parameter `listeningListener` will be added as an listener for the
 ['listening'](#event_listening_) event.
 
+### server.listen(handle, [listeningListener])
+
+* `handle` {Object}
+* `listeningListener` {Function}
+
+The `handle` object can be set to either a server or socket (anything
+with an underlying `_handle` member), or a `{fd: <n>}` object.
+
+This will cause the server to accept connections on the specified
+handle, but it is presumed that the file descriptor or handle has
+already been bound to a port or domain socket.
+
+Listening on a file descriptor is not supported on Windows.
+
+This function is asynchronous.  When the server has been bound,
+['listening'](#event_listening_) event will be emitted.
+the last parameter `listeningListener` will be added as an listener for the
+['listening'](#event_listening_) event.
+
 ### server.close([cb])
 
 Stops the server from accepting new connections and keeps existing

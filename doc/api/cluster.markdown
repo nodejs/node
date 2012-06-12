@@ -41,6 +41,52 @@ Running node will now share port 8000 between the workers:
 This feature was introduced recently, and may change in future versions.
 Please try it out and provide feedback.
 
+## How It Works
+
+<!--type=misc-->
+
+The worker processes are spawned using the `child_process.fork` method,
+so that they can communicate with the parent via IPC and pass server
+handles back and forth.
+
+When you call `server.listen(...)` in a worker, it serializes the
+arguments and passes the request to the master process.  If the master
+process already has a listening server matching the worker's
+requirements, then it passes the handle to the worker.  If it does not
+already have a listening server matching that requirement, then it will
+create one, and pass the handle to the child.
+
+This causes potentially surprising behavior in three edge cases:
+
+1. `server.listen({fd: 7})` Because the message is passed to the worker,
+   file descriptor 7 **in the parent** will be listened on, and the
+   handle passed to the worker, rather than listening to the worker's
+   idea of what the number 7 file descriptor references.
+2. `server.listen(handle)` Listening on handles explicitly will cause
+   the worker to use the supplied handle, rather than talk to the master
+   process.  If the worker already has the handle, then it's presumed
+   that you know what you are doing.
+3. `server.listen(0)` Normally, this will case servers to listen on a
+   random port.  However, in a cluster, each worker will receive the
+   same "random" port each time they do `listen(0)`.  In essence, the
+   port is random the first time, but predictable thereafter.  If you
+   want to listen on a unique port, generate a port number based on the
+   cluster worker ID.
+
+When multiple processes are all `accept()`ing on the same underlying
+resource, the operating system load-balances across them very
+efficiently.  There is no routing logic in Node.js, or in your program,
+and no shared state between the workers.  Therefore, it is important to
+design your program such that it does not rely too heavily on in-memory
+data objects for things like sessions and login.
+
+Because workers are all separate processes, they can be killed or
+re-spawned depending on your program's needs, without affecting other
+workers.  As long as there are some workers still alive, the server will
+continue to accept connections.  Node does not automatically manage the
+number of workers for you, however.  It is your responsibility to manage
+the worker pool for your application's needs.
+
 ## cluster.settings
 
 * {Object}
