@@ -37,10 +37,6 @@ var gotStderrEOF = false;
 var cat = spawn(is_windows ? 'cmd' : 'cat');
 
 
-cat.stdout.on('data', function(chunk) {
-  assert.ok(false);
-});
-
 cat.stdout.on('end', function() {
   gotStdoutEOF = true;
 });
