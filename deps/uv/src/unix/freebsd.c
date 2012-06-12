@@ -38,7 +38,7 @@
 #include <fcntl.h>
 
 #undef NANOSEC
-#define NANOSEC 1000000000
+#define NANOSEC ((uint64_t) 1e9)
 
 #ifndef CPUSTATES
 # define CPUSTATES 5U

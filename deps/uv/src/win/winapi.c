@@ -25,11 +25,15 @@
 #include "internal.h"
 
 
+/* Ntdll function pointers */
 sRtlNtStatusToDosError pRtlNtStatusToDosError;
 sNtDeviceIoControlFile pNtDeviceIoControlFile;
 sNtQueryInformationFile pNtQueryInformationFile;
 sNtSetInformationFile pNtSetInformationFile;
 sNtQuerySystemInformation pNtQuerySystemInformation;
+
+
+/* Kernel32 function pointers */
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 sCreateSymbolicLinkW pCreateSymbolicLinkW;

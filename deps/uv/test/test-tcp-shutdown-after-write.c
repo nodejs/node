@@ -70,13 +70,18 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void connect_cb(uv_connect_t* req, int status) {
-  ASSERT(status == 0);
-  connect_cb_called++;
+static void read_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 }
 
 
-static void read_cb(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
+static void connect_cb(uv_connect_t* req, int status) {
+  int r;
+
+  ASSERT(status == 0);
+  connect_cb_called++;
+
+  r = uv_read_start((uv_stream_t*)&conn, alloc_cb, read_cb);
+  ASSERT(r == 0);
 }
 
 
@@ -111,9 +116,6 @@ TEST_IMPL(tcp_shutdown_after_write) {
   ASSERT(r == 0);
 
   r = uv_tcp_connect(&connect_req, &conn, addr, connect_cb);
-  ASSERT(r == 0);
-
-  r = uv_read_start((uv_stream_t*)&conn, alloc_cb, read_cb);
   ASSERT(r == 0);
 
   r = uv_run(loop);

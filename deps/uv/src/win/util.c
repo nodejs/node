@@ -21,6 +21,7 @@
 
 #include <assert.h>
 #include <direct.h>
+#include <limits.h>
 #include <malloc.h>
 #include <stdio.h>
 #include <string.h>
@@ -773,8 +774,13 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
   for (adapter_address = adapter_addresses;
        adapter_address != NULL;
        adapter_address = adapter_address->Next) {
+
+    if (adapter_address->OperStatus != IfOperStatusUp)
+      continue;
+
     unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
                       adapter_address->FirstUnicastAddress;
+
     while (unicast_address) {
       (*count)++;
       unicast_address = unicast_address->Next;
@@ -792,6 +798,10 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
   for (adapter_address = adapter_addresses;
        adapter_address != NULL;
        adapter_address = adapter_address->Next) {
+
+    if (adapter_address->OperStatus != IfOperStatusUp)
+      continue;
+
     name = NULL;
     unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
                       adapter_address->FirstUnicastAddress;

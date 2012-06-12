@@ -19,65 +19,47 @@
  * IN THE SOFTWARE.
  */
 
+#include "task.h"
 #include "uv.h"
-#include "internal.h"
 
-#include <dlfcn.h>
-#include <errno.h>
-#include <string.h>
-#include <locale.h>
+#define NUM_TIMERS (1000 * 1000)
 
-static int uv__dlerror(uv_lib_t* lib);
+static int timer_cb_called;
 
 
-int uv_dlopen(const char* filename, uv_lib_t* lib) {
-  dlerror(); /* Reset error status. */
-  lib->errmsg = NULL;
-  lib->handle = dlopen(filename, RTLD_LAZY);
-  return uv__dlerror(lib);
+static void timer_cb(uv_timer_t* handle, int status) {
+  timer_cb_called++;
 }
 
 
-void uv_dlclose(uv_lib_t* lib) {
-  if (lib->errmsg) {
-    free(lib->errmsg);
-    lib->errmsg = NULL;
+BENCHMARK_IMPL(million_timers) {
+  uv_timer_t* timers;
+  uv_loop_t* loop;
+  uint64_t before;
+  uint64_t after;
+  int timeout;
+  int i;
+
+  timers = malloc(NUM_TIMERS * sizeof(timers[0]));
+  ASSERT(timers != NULL);
+
+  loop = uv_default_loop();
+  timeout = 0;
+
+  for (i = 0; i < NUM_TIMERS; i++) {
+    if (i % 1000 == 0) timeout++;
+    ASSERT(0 == uv_timer_init(loop, timers + i));
+    ASSERT(0 == uv_timer_start(timers + i, timer_cb, timeout, 0));
   }
 
-  if (lib->handle) {
-    /* Ignore errors. No good way to signal them without leaking memory. */
-    dlclose(lib->handle);
-    lib->handle = NULL;
-  }
-}
+  before = uv_hrtime();
+  ASSERT(0 == uv_run(loop));
+  after = uv_hrtime();
 
+  ASSERT(timer_cb_called == NUM_TIMERS);
+  free(timers);
 
-int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr) {
-  dlerror(); /* Reset error status. */
-  *ptr = dlsym(lib->handle, name);
-  return uv__dlerror(lib);
-}
+  LOGF("%.2f seconds\n", (after - before) / 1e9);
 
-
-const char* uv_dlerror(uv_lib_t* lib) {
-  return lib->errmsg ? lib->errmsg : "no error";
-}
-
-
-static int uv__dlerror(uv_lib_t* lib) {
-  char* errmsg;
-
-  if (lib->errmsg)
-    free(lib->errmsg);
-
-  errmsg = dlerror();
-
-  if (errmsg) {
-    lib->errmsg = strdup(errmsg);
-    return -1;
-  }
-  else {
-    lib->errmsg = NULL;
-    return 0;
-  }
+  return 0;
 }

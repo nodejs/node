@@ -46,7 +46,7 @@
 #endif
 
 #undef NANOSEC
-#define NANOSEC 1000000000
+#define NANOSEC ((uint64_t) 1e9)
 
 /* This is rather annoying: CLOCK_BOOTTIME lives in <linux/time.h> but we can't
  * include that file because it conflicts with <time.h>. We'll just have to
