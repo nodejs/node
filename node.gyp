@@ -183,7 +183,7 @@
 
         [ 'OS=="win"', {
           'sources': [
-            'tools/msvs/res/node.rc',
+            'src/res/node.rc',
           ],
           'defines': [
             'FD_SETSIZE=1024',
