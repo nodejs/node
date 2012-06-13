@@ -6,6 +6,10 @@ Provides a few basic operating-system related utility functions.
 
 Use `require('os')` to access this module.
 
+## os.tmpDir()
+
+Returns the operating system's default directory for temp files.
+
 ## os.hostname()
 
 Returns the hostname of the operating system.

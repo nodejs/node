@@ -27,6 +27,18 @@ var assert = require('assert');
 var os = require('os');
 
 
+process.env.TMPDIR = '/tmpdir';
+process.env.TMP = '/tmp';
+process.env.TEMP = '/temp';
+var t = ( process.platform === 'win32' ? 'c:\\windows\\temp' : '/tmp' );
+assert.equal(os.tmpDir(), '/tmpdir');
+process.env.TMPDIR = '';
+assert.equal(os.tmpDir(), '/tmp');
+process.env.TMP = '';
+assert.equal(os.tmpDir(), '/temp');
+process.env.TEMP = '';
+assert.equal(os.tmpDir(), t);
+
 var hostname = os.hostname();
 console.log('hostname = %s', hostname);
 assert.ok(hostname.length > 0);
