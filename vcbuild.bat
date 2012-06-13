@@ -62,6 +62,7 @@ if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 echo Warning: ignoring invalid command line option `%1`.
 
 :arg-ok
+:arg-ok
 shift
 goto next-arg
 
