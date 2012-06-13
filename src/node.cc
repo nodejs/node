@@ -2702,6 +2702,9 @@ char** Init(int argc, char *argv[]) {
   // Initialize prog_start_time to get relative uptime.
   uv_uptime(&prog_start_time);
 
+  // Make inherited handles noninheritable.
+  uv_disable_stdio_inheritance();
+
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(argc, argv);
   // Parse the rest of the args (up to the 'option_end_index' (where '--' was
