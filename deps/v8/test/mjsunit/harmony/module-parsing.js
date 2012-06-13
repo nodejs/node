@@ -70,7 +70,7 @@ module B {
 
   import i0 from I
   import i1, i2, i3, M from I
-  import i4, i5 from "http://where"
+  //import i4, i5 from "http://where"
 }
 
 module I {
@@ -85,7 +85,7 @@ module D3 = D2
 
 module E1 at "http://where"
 module E2 at "http://where";
-module E3 = E1.F
+module E3 = E1
 
 // Check that ASI does not interfere.
 
@@ -103,11 +103,11 @@ at
 "file://local"
 
 import
-x
+vx
 ,
-y
+vy
 from
-"file://local"
+B
 
 
 module Wrap {

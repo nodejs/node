@@ -287,6 +287,9 @@ for (var i = 0; i < 24 * 365 * 100; i += 150) {
 var testCasesNegative = [
     'May 25 2008 1:30 (PM)) UTC',  // Bad unmatched ')' after number.
     'May 25 2008 1:30( )AM (PM)',  //
+    'a1',                          // Issue 126448, 53209.
+    'nasfdjklsfjoaifg1',
+    'x_2',
     'May 25 2008 AAA (GMT)'];      // Unknown word after number.
 
 testCasesNegative.forEach(function (s) {

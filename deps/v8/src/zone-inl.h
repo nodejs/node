@@ -90,30 +90,17 @@ ZoneSplayTree<Config>::~ZoneSplayTree() {
   // Reset the root to avoid unneeded iteration over all tree nodes
   // in the destructor.  For a zone-allocated tree, nodes will be
   // freed by the Zone.
-  SplayTree<Config, ZoneListAllocationPolicy>::ResetRoot();
+  SplayTree<Config, ZoneAllocationPolicy>::ResetRoot();
 }
 
-
-// TODO(isolates): for performance reasons, this should be replaced with a new
-//                 operator that takes the zone in which the object should be
-//                 allocated.
-void* ZoneObject::operator new(size_t size) {
-  return ZONE->New(static_cast<int>(size));
-}
 
 void* ZoneObject::operator new(size_t size, Zone* zone) {
   return zone->New(static_cast<int>(size));
 }
 
-
-inline void* ZoneListAllocationPolicy::New(int size) {
-  return ZONE->New(size);
-}
-
-
-template <typename T>
-void* ZoneList<T>::operator new(size_t size) {
-  return ZONE->New(static_cast<int>(size));
+inline void* ZoneAllocationPolicy::New(size_t size) {
+  ASSERT(zone_);
+  return zone_->New(size);
 }
 
 

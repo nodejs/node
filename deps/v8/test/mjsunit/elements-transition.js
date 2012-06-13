@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax --smi-only-arrays
 
-support_smi_only_arrays = %HasFastSmiOnlyElements(new Array(1,2,3,4,5,6,7,8));
+support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");
@@ -44,8 +44,8 @@ if (support_smi_only_arrays) {
     var array_1 = new Array(length);
     var array_2 = new Array(length);
 
-    assertTrue(%HasFastSmiOnlyElements(array_1));
-    assertTrue(%HasFastSmiOnlyElements(array_2));
+    assertTrue(%HasFastSmiElements(array_1));
+    assertTrue(%HasFastSmiElements(array_2));
     for (var i = 0; i < length; i++) {
       if (i == length - 5 && test_double) {
         // Trigger conversion to fast double elements at length-5.
@@ -57,8 +57,8 @@ if (support_smi_only_arrays) {
         // Trigger conversion to fast object elements at length-3.
         set(array_1, i, 'object');
         set(array_2, i, 'object');
-        assertTrue(%HasFastElements(array_1));
-        assertTrue(%HasFastElements(array_2));
+        assertTrue(%HasFastObjectElements(array_1));
+        assertTrue(%HasFastObjectElements(array_2));
       } else if (i != length - 7) {
         // Set the element to an integer but leave a hole at length-7.
         set(array_1, i, 2*i+1);

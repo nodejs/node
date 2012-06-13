@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,7 @@
 // not hoisted) correctly, don't change the semantics programs and don't trigger
 // deopt through hoisting in important situations.
 
-support_smi_only_arrays = %HasFastSmiOnlyElements(new Array(1,2,3,4,5,6));
+support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6));
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");
@@ -58,6 +58,9 @@ if (support_smi_only_arrays) {
   }
 
   testDoubleConversion4(new Array(5));
+  testDoubleConversion4(new Array(5));  // Call twice to make sure that second
+                                        // store is a transition and not
+                                        // optimistically MONOMORPHIC
   %OptimizeFunctionOnNextCall(testDoubleConversion4);
   testDoubleConversion4(new Array(5));
   testDoubleConversion4(new Array(5));
@@ -73,13 +76,16 @@ if (support_smi_only_arrays) {
     a[1] = 1;
     var count = 3;
     do {
-      a.foo = object; // This map check should be hoistable
+      a.foo = object;  // This map check should be hoistable
       a[1] = object;
       result = a.foo == object && a[1] == object;
     } while (--count > 0);
   }
 
   testExactMapHoisting(new Array(5));
+  testExactMapHoisting(new Array(5));  // Call twice to make sure that second
+                                       // store is a transition and not
+                                       // optimistically MONOMORPHIC
   %OptimizeFunctionOnNextCall(testExactMapHoisting);
   testExactMapHoisting(new Array(5));
   testExactMapHoisting(new Array(5));
@@ -98,19 +104,23 @@ if (support_smi_only_arrays) {
       if (a.bar === undefined) {
         a[1] = 2.5;
       }
-      a.foo = object; // This map check should NOT be hoistable because it
-                      // includes a check for the FAST_ELEMENTS map as well as
-                      // the FAST_DOUBLE_ELEMENTS map, which depends on the
-                      // double transition above in the if, which cannot be
-                      // hoisted.
+      a.foo = object;  // This map check should NOT be hoistable because it
+                       // includes a check for the FAST_ELEMENTS map as well as
+                       // the FAST_DOUBLE_ELEMENTS map, which depends on the
+                       // double transition above in the if, which cannot be
+                       // hoisted.
     } while (--count > 0);
   }
 
   testExactMapHoisting2(new Array(5));
+  testExactMapHoisting2(new Array(5));  // Call twice to make sure that second
+                                        // store is a transition and not
+                                        // optimistically MONOMORPHIC
   %OptimizeFunctionOnNextCall(testExactMapHoisting2);
   testExactMapHoisting2(new Array(5));
   testExactMapHoisting2(new Array(5));
-  assertTrue(2 != %GetOptimizationStatus(testExactMapHoisting2));
+  // Temporarily disabled - see bug 2176.
+  // assertTrue(2 != %GetOptimizationStatus(testExactMapHoisting2));
 
   // Make sure that non-element related map checks do get hoisted if they use
   // the transitioned map for the check and all transitions that they depend
@@ -123,15 +133,18 @@ if (support_smi_only_arrays) {
     var count = 3;
     do {
       a[1] = 2.5;
-      a.foo = object; // This map check should be hoistable because all elements
-                      // transitions in the loop can also be hoisted.
+      a.foo = object;  // This map check should be hoistable because all elements
+                       // transitions in the loop can also be hoisted.
     } while (--count > 0);
   }
 
   var add_transition = new Array(5);
   add_transition.foo = 0;
-  add_transition[0] = new Object(); // For FAST_ELEMENT transition to be created
+  add_transition[0] = new Object();  // For FAST_ELEMENT transition to be created
   testExactMapHoisting3(new Array(5));
+  testExactMapHoisting3(new Array(5));  // Call twice to make sure that second
+                                        // store is a transition and not
+                                        // optimistically MONOMORPHIC
   %OptimizeFunctionOnNextCall(testExactMapHoisting3);
   testExactMapHoisting3(new Array(5));
   testExactMapHoisting3(new Array(5));
@@ -150,6 +163,10 @@ if (support_smi_only_arrays) {
   }
 
   testDominatingTransitionHoisting1(new Array(5));
+  testDominatingTransitionHoisting1(new Array(5));  // Call twice to make sure
+                                                    // that second store is a
+                                                    // transition and not
+                                                    // optimistically MONOMORPHIC
   %OptimizeFunctionOnNextCall(testDominatingTransitionHoisting1);
   testDominatingTransitionHoisting1(new Array(5));
   testDominatingTransitionHoisting1(new Array(5));
@@ -166,6 +183,9 @@ if (support_smi_only_arrays) {
   }
 
   testHoistingWithSideEffect(new Array(5));
+  testHoistingWithSideEffect(new Array(5));  // Call twice to make sure that
+                                             // second store is a transition and
+                                             // not optimistically MONOMORPHIC
   %OptimizeFunctionOnNextCall(testHoistingWithSideEffect);
   testHoistingWithSideEffect(new Array(5));
   testHoistingWithSideEffect(new Array(5));
@@ -179,7 +199,7 @@ if (support_smi_only_arrays) {
       a[1] = c;
       a[2] = d;
       assertTrue(true);
-      a[3] = e; // TransitionElementsKind should be eliminated despite call.
+      a[3] = e;  // TransitionElementsKind should be eliminated despite call.
       a[4] = f;
     } while (--count > 3);
   }

@@ -85,7 +85,7 @@ class LChunkBuilder;
   V(Change)                                    \
   V(CheckFunction)                             \
   V(CheckInstanceType)                         \
-  V(CheckMap)                                  \
+  V(CheckMaps)                                 \
   V(CheckNonSmi)                               \
   V(CheckPrototypeMaps)                        \
   V(CheckSmi)                                  \
@@ -140,6 +140,7 @@ class LChunkBuilder;
   V(LoadNamedField)                            \
   V(LoadNamedFieldPolymorphic)                 \
   V(LoadNamedGeneric)                          \
+  V(MathFloorOfDiv)                            \
   V(Mod)                                       \
   V(Mul)                                       \
   V(ObjectLiteral)                             \
@@ -188,7 +189,10 @@ class LChunkBuilder;
   V(DateField)                                 \
   V(WrapReceiver)
 
-#define GVN_FLAG_LIST(V)                       \
+#define GVN_TRACKED_FLAG_LIST(V)               \
+  V(NewSpacePromotion)
+
+#define GVN_UNTRACKED_FLAG_LIST(V)             \
   V(Calls)                                     \
   V(InobjectFields)                            \
   V(BackingStoreFields)                        \
@@ -506,14 +510,18 @@ class HUseIterator BASE_EMBEDDED {
 
 // There must be one corresponding kDepends flag for every kChanges flag and
 // the order of the kChanges flags must be exactly the same as of the kDepends
-// flags.
+// flags. All tracked flags should appear before untracked ones.
 enum GVNFlag {
   // Declare global value numbering flags.
 #define DECLARE_FLAG(type) kChanges##type, kDependsOn##type,
-  GVN_FLAG_LIST(DECLARE_FLAG)
+  GVN_TRACKED_FLAG_LIST(DECLARE_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(DECLARE_FLAG)
 #undef DECLARE_FLAG
   kAfterLastFlag,
-  kLastFlag = kAfterLastFlag - 1
+  kLastFlag = kAfterLastFlag - 1,
+#define COUNT_FLAG(type) + 1
+  kNumberOfTrackedSideEffects = 0 GVN_TRACKED_FLAG_LIST(COUNT_FLAG)
+#undef COUNT_FLAG
 };
 
 typedef EnumSet<GVNFlag> GVNFlagSet;
@@ -530,6 +538,10 @@ class HValue: public ZoneObject {
     // implement DataEquals(), which will be used to determine if other
     // occurrences of the instruction are indeed the same.
     kUseGVN,
+    // Track instructions that are dominating side effects. If an instruction
+    // sets this flag, it must implement SetSideEffectDominator() and should
+    // indicate which side effects to track by setting GVN flags.
+    kTrackSideEffectDominators,
     kCanOverflow,
     kBailoutOnMinusZero,
     kCanBeDivByZero,
@@ -544,6 +556,12 @@ class HValue: public ZoneObject {
 
   static const int kChangesToDependsFlagsLeftShift = 1;
 
+  static GVNFlag ChangesFlagFromInt(int x) {
+    return static_cast<GVNFlag>(x * 2);
+  }
+  static GVNFlag DependsOnFlagFromInt(int x) {
+    return static_cast<GVNFlag>(x * 2 + 1);
+  }
   static GVNFlagSet ConvertChangesToDependsFlags(GVNFlagSet flags) {
     return GVNFlagSet(flags.ToIntegral() << kChangesToDependsFlagsLeftShift);
   }
@@ -702,6 +720,11 @@ class HValue: public ZoneObject {
     return representation();
   }
 
+  // Type feedback access.
+  virtual Representation ObservedInputRepresentation(int index) {
+    return RequiredInputRepresentation(index);
+  }
+
   // This gives the instruction an opportunity to replace itself with an
   // instruction that does the same in some better way.  To replace an
   // instruction with a new one, first add the new instruction to the graph,
@@ -725,6 +748,13 @@ class HValue: public ZoneObject {
   bool UpdateInferredType();
 
   virtual HType CalculateInferredType();
+
+  // This function must be overridden for instructions which have the
+  // kTrackSideEffectDominators flag set, to track instructions that are
+  // dominating side effects.
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    UNREACHABLE();
+  }
 
 #ifdef DEBUG
   virtual void Verify() = 0;
@@ -756,7 +786,8 @@ class HValue: public ZoneObject {
     GVNFlagSet result;
     // Create changes mask.
 #define ADD_FLAG(type) result.Add(kDependsOn##type);
-  GVN_FLAG_LIST(ADD_FLAG)
+  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
@@ -765,7 +796,8 @@ class HValue: public ZoneObject {
     GVNFlagSet result;
     // Create changes mask.
 #define ADD_FLAG(type) result.Add(kChanges##type);
-  GVN_FLAG_LIST(ADD_FLAG)
+  GVN_TRACKED_FLAG_LIST(ADD_FLAG)
+  GVN_UNTRACKED_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
@@ -781,6 +813,7 @@ class HValue: public ZoneObject {
   // an executing program (i.e. are not safe to repeat, move or remove);
   static GVNFlagSet AllObservableSideEffectsFlagSet() {
     GVNFlagSet result = AllChangesFlagSet();
+    result.Remove(kChangesNewSpacePromotion);
     result.Remove(kChangesElementsKind);
     result.Remove(kChangesElementsPointer);
     result.Remove(kChangesMaps);
@@ -959,7 +992,8 @@ class HSoftDeoptimize: public HTemplateInstruction<0> {
 
 class HDeoptimize: public HControlInstruction {
  public:
-  explicit HDeoptimize(int environment_length) : values_(environment_length) { }
+  HDeoptimize(int environment_length, Zone* zone)
+      : values_(environment_length, zone) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
@@ -978,8 +1012,8 @@ class HDeoptimize: public HControlInstruction {
     UNREACHABLE();
   }
 
-  void AddEnvironmentValue(HValue* value) {
-    values_.Add(NULL);
+  void AddEnvironmentValue(HValue* value, Zone* zone) {
+    values_.Add(NULL, zone);
     SetOperandAt(values_.length() - 1, value);
   }
 
@@ -1196,6 +1230,7 @@ class HChange: public HUnaryOperation {
     SetFlag(kUseGVN);
     if (deoptimize_on_undefined) SetFlag(kDeoptimizeOnUndefined);
     if (is_truncating) SetFlag(kTruncatingToInt32);
+    if (to.IsTagged()) SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited);
@@ -1246,11 +1281,12 @@ class HClampToUint8: public HUnaryOperation {
 
 class HSimulate: public HInstruction {
  public:
-  HSimulate(int ast_id, int pop_count)
+  HSimulate(int ast_id, int pop_count, Zone* zone)
       : ast_id_(ast_id),
         pop_count_(pop_count),
-        values_(2),
-        assigned_indexes_(2) {}
+        values_(2, zone),
+        assigned_indexes_(2, zone),
+        zone_(zone) {}
   virtual ~HSimulate() {}
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1298,9 +1334,9 @@ class HSimulate: public HInstruction {
  private:
   static const int kNoIndex = -1;
   void AddValue(int index, HValue* value) {
-    assigned_indexes_.Add(index);
+    assigned_indexes_.Add(index, zone_);
     // Resize the list of pushed values.
-    values_.Add(NULL);
+    values_.Add(NULL, zone_);
     // Set the operand through the base method in HValue to make sure that the
     // use lists are correctly updated.
     SetOperandAt(values_.length() - 1, value);
@@ -1309,6 +1345,7 @@ class HSimulate: public HInstruction {
   int pop_count_;
   ZoneList<HValue*> values_;
   ZoneList<int> assigned_indexes_;
+  Zone* zone_;
 };
 
 
@@ -1321,6 +1358,7 @@ class HStackCheck: public HTemplateInstruction<1> {
 
   HStackCheck(HValue* context, Type type) : type_(type) {
     SetOperandAt(0, context);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* context() { return OperandAt(0); }
@@ -1354,13 +1392,15 @@ class HEnterInlined: public HTemplateInstruction<0> {
                 FunctionLiteral* function,
                 CallKind call_kind,
                 bool is_construct,
-                Variable* arguments)
+                Variable* arguments_var,
+                ZoneList<HValue*>* arguments_values)
       : closure_(closure),
         arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind),
         is_construct_(is_construct),
-        arguments_(arguments) {
+        arguments_var_(arguments_var),
+        arguments_values_(arguments_values) {
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -1375,7 +1415,8 @@ class HEnterInlined: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
-  Variable* arguments() { return arguments_; }
+  Variable* arguments_var() { return arguments_var_; }
+  ZoneList<HValue*>* arguments_values() { return arguments_values_; }
 
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
@@ -1385,19 +1426,28 @@ class HEnterInlined: public HTemplateInstruction<0> {
   FunctionLiteral* function_;
   CallKind call_kind_;
   bool is_construct_;
-  Variable* arguments_;
+  Variable* arguments_var_;
+  ZoneList<HValue*>* arguments_values_;
 };
 
 
 class HLeaveInlined: public HTemplateInstruction<0> {
  public:
-  HLeaveInlined() {}
+  explicit HLeaveInlined(bool arguments_pushed)
+      : arguments_pushed_(arguments_pushed) { }
 
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::None();
   }
 
+  bool arguments_pushed() {
+    return arguments_pushed_;
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(LeaveInlined)
+
+ private:
+  bool arguments_pushed_;
 };
 
 
@@ -1605,14 +1655,26 @@ class HInvokeFunction: public HBinaryCall {
       : HBinaryCall(context, function, argument_count) {
   }
 
+  HInvokeFunction(HValue* context,
+                  HValue* function,
+                  Handle<JSFunction> known_function,
+                  int argument_count)
+      : HBinaryCall(context, function, argument_count),
+        known_function_(known_function) {
+  }
+
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
 
   HValue* context() { return first(); }
   HValue* function() { return second(); }
+  Handle<JSFunction> known_function() { return known_function_; }
 
   DECLARE_CONCRETE_INSTRUCTION(InvokeFunction)
+
+ private:
+  Handle<JSFunction> known_function_;
 };
 
 
@@ -1786,7 +1848,9 @@ class HCallRuntime: public HCall<1> {
 
 class HJSArrayLength: public HTemplateInstruction<2> {
  public:
-  HJSArrayLength(HValue* value, HValue* typecheck) {
+  HJSArrayLength(HValue* value, HValue* typecheck,
+                 HType type = HType::Tagged()) {
+    set_type(type);
     // The length of an array is stored as a tagged value in the array
     // object. It is guaranteed to be 32 bit integer, but it can be
     // represented as either a smi or heap number.
@@ -1810,7 +1874,7 @@ class HJSArrayLength: public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other_raw) { return true; }
 };
 
 
@@ -1865,6 +1929,8 @@ class HBitNot: public HUnaryOperation {
   }
   virtual HType CalculateInferredType();
 
+  virtual HValue* Canonicalize();
+
   DECLARE_CONCRETE_INSTRUCTION(BitNot)
 
  protected:
@@ -1887,6 +1953,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
       case kMathAbs:
         set_representation(Representation::Tagged());
         SetFlag(kFlexibleRepresentation);
+        SetGVNFlag(kChangesNewSpacePromotion);
         break;
       case kMathSqrt:
       case kMathPowHalf:
@@ -1895,6 +1962,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
       case kMathCos:
       case kMathTan:
         set_representation(Representation::Double());
+        SetGVNFlag(kChangesNewSpacePromotion);
         break;
       default:
         UNREACHABLE();
@@ -1935,15 +2003,7 @@ class HUnaryMathOperation: public HTemplateInstruction<2> {
     }
   }
 
-  virtual HValue* Canonicalize() {
-    // If the input is integer32 then we replace the floor instruction
-    // with its inputs.  This happens before the representation changes are
-    // introduced.
-    if (op() == kMathFloor) {
-      if (value()->representation().IsInteger32()) return value();
-    }
-    return this;
-  }
+  virtual HValue* Canonicalize();
 
   BuiltinFunctionId op() const { return op_; }
   const char* OpName() const;
@@ -2003,14 +2063,10 @@ class HLoadExternalArrayPointer: public HUnaryOperation {
 };
 
 
-class HCheckMap: public HTemplateInstruction<2> {
+class HCheckMaps: public HTemplateInstruction<2> {
  public:
-  HCheckMap(HValue* value,
-            Handle<Map> map,
-            HValue* typecheck = NULL,
-            CompareMapMode mode = REQUIRE_EXACT_MAP)
-      : map_(map),
-        mode_(mode) {
+  HCheckMaps(HValue* value, Handle<Map> map, Zone* zone,
+             HValue* typecheck = NULL) {
     SetOperandAt(0, value);
     // If callers don't depend on a typecheck, they can pass in NULL. In that
     // case we use a copy of the |value| argument as a dummy value.
@@ -2018,14 +2074,43 @@ class HCheckMap: public HTemplateInstruction<2> {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
-    // If the map to check doesn't have the untransitioned elements, it must not
-    // be hoisted above TransitionElements instructions.
-    if (mode == REQUIRE_EXACT_MAP || !map->has_fast_smi_only_elements()) {
-      SetGVNFlag(kDependsOnElementsKind);
+    SetGVNFlag(kDependsOnElementsKind);
+    map_set()->Add(map, zone);
+  }
+  HCheckMaps(HValue* value, SmallMapList* maps, Zone* zone) {
+    SetOperandAt(0, value);
+    SetOperandAt(1, value);
+    set_representation(Representation::Tagged());
+    SetFlag(kUseGVN);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnElementsKind);
+    for (int i = 0; i < maps->length(); i++) {
+      map_set()->Add(maps->at(i), zone);
     }
-    has_element_transitions_ =
-        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL) != NULL ||
-        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL) != NULL;
+    map_set()->Sort();
+  }
+
+  static HCheckMaps* NewWithTransitions(HValue* object, Handle<Map> map,
+                                        Zone* zone) {
+    HCheckMaps* check_map = new(zone) HCheckMaps(object, map, zone);
+    SmallMapList* map_set = check_map->map_set();
+
+    // Since transitioned elements maps of the initial map don't fail the map
+    // check, the CheckMaps instruction doesn't need to depend on ElementsKinds.
+    check_map->ClearGVNFlag(kDependsOnElementsKind);
+
+    ElementsKind kind = map->elements_kind();
+    bool packed = IsFastPackedElementsKind(kind);
+    while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+      kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+      Map* transitioned_map =
+          map->LookupElementsTransitionMap(kind);
+      if (transitioned_map) {
+        map_set->Add(Handle<Map>(transitioned_map), zone);
+      }
+    };
+    map_set->Sort();
+    return check_map;
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2035,25 +2120,23 @@ class HCheckMap: public HTemplateInstruction<2> {
   virtual HType CalculateInferredType();
 
   HValue* value() { return OperandAt(0); }
-  Handle<Map> map() const { return map_; }
-  CompareMapMode mode() const { return mode_; }
+  SmallMapList* map_set() { return &map_set_; }
 
-  DECLARE_CONCRETE_INSTRUCTION(CheckMap)
+  DECLARE_CONCRETE_INSTRUCTION(CheckMaps)
 
  protected:
   virtual bool DataEquals(HValue* other) {
-    HCheckMap* b = HCheckMap::cast(other);
-    // Two CheckMaps instructions are DataEqual if their maps are identical and
-    // they have the same mode. The mode comparison can be ignored if the map
-    // has no elements transitions.
-    return map_.is_identical_to(b->map()) &&
-        (b->mode() == mode() || !has_element_transitions_);
+    HCheckMaps* b = HCheckMaps::cast(other);
+    // Relies on the fact that map_set has been sorted before.
+    if (map_set()->length() != b->map_set()->length()) return false;
+    for (int i = 0; i < map_set()->length(); i++) {
+      if (!map_set()->at(i).is_identical_to(b->map_set()->at(i))) return false;
+    }
+    return true;
   }
 
  private:
-  bool has_element_transitions_;
-  Handle<Map> map_;
-  CompareMapMode mode_;
+  SmallMapList map_set_;
 };
 
 
@@ -2092,17 +2175,17 @@ class HCheckFunction: public HUnaryOperation {
 
 class HCheckInstanceType: public HUnaryOperation {
  public:
-  static HCheckInstanceType* NewIsSpecObject(HValue* value) {
-    return new HCheckInstanceType(value, IS_SPEC_OBJECT);
+  static HCheckInstanceType* NewIsSpecObject(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_SPEC_OBJECT);
   }
-  static HCheckInstanceType* NewIsJSArray(HValue* value) {
-    return new HCheckInstanceType(value, IS_JS_ARRAY);
+  static HCheckInstanceType* NewIsJSArray(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_JS_ARRAY);
   }
-  static HCheckInstanceType* NewIsString(HValue* value) {
-    return new HCheckInstanceType(value, IS_STRING);
+  static HCheckInstanceType* NewIsString(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_STRING);
   }
-  static HCheckInstanceType* NewIsSymbol(HValue* value) {
-    return new HCheckInstanceType(value, IS_SYMBOL);
+  static HCheckInstanceType* NewIsSymbol(HValue* value, Zone* zone) {
+    return new(zone) HCheckInstanceType(value, IS_SYMBOL);
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -2251,8 +2334,8 @@ class HCheckSmi: public HUnaryOperation {
 
 class HPhi: public HValue {
  public:
-  explicit HPhi(int merged_index)
-      : inputs_(2),
+  HPhi(int merged_index, Zone* zone)
+      : inputs_(2, zone),
         merged_index_(merged_index),
         phi_id_(-1),
         is_live_(false),
@@ -2331,10 +2414,14 @@ class HPhi: public HValue {
 
   bool AllOperandsConvertibleToInteger() {
     for (int i = 0; i < OperandCount(); ++i) {
-      if (!OperandAt(i)->IsConvertibleToInteger()) return false;
+      if (!OperandAt(i)->IsConvertibleToInteger()) {
+        return false;
+      }
     }
     return true;
   }
+
+  void ResetInteger32Uses();
 
  protected:
   virtual void DeleteFromGraph();
@@ -2407,8 +2494,8 @@ class HConstant: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
   virtual HType CalculateInferredType();
   bool IsInteger() const { return handle_->IsSmi(); }
-  HConstant* CopyToRepresentation(Representation r) const;
-  HConstant* CopyToTruncatedInt32() const;
+  HConstant* CopyToRepresentation(Representation r, Zone* zone) const;
+  HConstant* CopyToTruncatedInt32(Zone* zone) const;
   bool HasInteger32Value() const { return has_int32_value_; }
   int32_t Integer32Value() const {
     ASSERT(HasInteger32Value());
@@ -2485,6 +2572,7 @@ class HBinaryOperation: public HTemplateInstruction<3> {
     if (IsCommutative() && left()->IsConstant()) return right();
     return left();
   }
+
   HValue* MostConstantOperand() {
     if (IsCommutative() && left()->IsConstant()) return left();
     return right();
@@ -2549,7 +2637,7 @@ class HApplyArguments: public HTemplateInstruction<4> {
 
 class HArgumentsElements: public HTemplateInstruction<0> {
  public:
-  HArgumentsElements() {
+  explicit HArgumentsElements(bool from_inlined) : from_inlined_(from_inlined) {
     // The value produced by this instruction is a pointer into the stack
     // that looks as if it was a smi because of alignment.
     set_representation(Representation::Tagged());
@@ -2562,8 +2650,12 @@ class HArgumentsElements: public HTemplateInstruction<0> {
     return Representation::None();
   }
 
+  bool from_inlined() const { return from_inlined_; }
+
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
+
+  bool from_inlined_;
 };
 
 
@@ -2646,6 +2738,9 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kFlexibleRepresentation);
     SetAllSideEffects();
+    observed_input_representation_[0] = Representation::Tagged();
+    observed_input_representation_[1] = Representation::None();
+    observed_input_representation_[2] = Representation::None();
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -2665,7 +2760,38 @@ class HBitwiseBinaryOperation: public HBinaryOperation {
 
   virtual HType CalculateInferredType();
 
+  virtual Representation ObservedInputRepresentation(int index) {
+    return observed_input_representation_[index];
+  }
+
+  void InitializeObservedInputRepresentation(Representation r) {
+    observed_input_representation_[1] = r;
+    observed_input_representation_[2] = r;
+  }
+
   DECLARE_ABSTRACT_INSTRUCTION(BitwiseBinaryOperation)
+
+ private:
+  Representation observed_input_representation_[3];
+};
+
+
+class HMathFloorOfDiv: public HBinaryOperation {
+ public:
+  HMathFloorOfDiv(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right) {
+    set_representation(Representation::Integer32());
+    SetFlag(kUseGVN);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) {
+    return Representation::Integer32();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
 };
 
 
@@ -3083,6 +3209,7 @@ class HPower: public HTemplateInstruction<2> {
     SetOperandAt(1, right);
     set_representation(Representation::Double());
     SetFlag(kUseGVN);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* left() { return OperandAt(0); }
@@ -3281,6 +3408,8 @@ class HBitwise: public HBitwiseBinaryOperation {
                                    HValue* context,
                                    HValue* left,
                                    HValue* right);
+
+  virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(Bitwise)
 
@@ -3529,6 +3658,12 @@ inline bool StoringValueNeedsWriteBarrier(HValue* value) {
 }
 
 
+inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
+                                            HValue* new_space_dominator) {
+  return !object->IsAllocateObject() || (object != new_space_dominator);
+}
+
+
 class HStoreGlobalCell: public HUnaryOperation {
  public:
   HStoreGlobalCell(HValue* value,
@@ -3759,7 +3894,8 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
   HLoadNamedFieldPolymorphic(HValue* context,
                              HValue* object,
                              SmallMapList* types,
-                             Handle<String> name);
+                             Handle<String> name,
+                             Zone* zone);
 
   HValue* context() { return OperandAt(0); }
   HValue* object() { return OperandAt(1); }
@@ -3836,15 +3972,29 @@ class HLoadFunctionPrototype: public HUnaryOperation {
   virtual bool DataEquals(HValue* other) { return true; }
 };
 
-
-class HLoadKeyedFastElement: public HTemplateInstruction<2> {
+class ArrayInstructionInterface {
  public:
-  enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
+  virtual HValue* GetKey() = 0;
+  virtual void SetKey(HValue* key) = 0;
+  virtual void SetIndexOffset(uint32_t index_offset) = 0;
+  virtual bool IsDehoisted() = 0;
+  virtual void SetDehoisted(bool is_dehoisted) = 0;
+  virtual ~ArrayInstructionInterface() { };
+};
 
+class HLoadKeyedFastElement
+    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
+ public:
   HLoadKeyedFastElement(HValue* obj,
                         HValue* key,
-                        HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
-      : hole_check_mode_(hole_check_mode) {
+                        ElementsKind elements_kind = FAST_ELEMENTS)
+      : bit_field_(0) {
+    ASSERT(IsFastSmiOrObjectElementsKind(elements_kind));
+    bit_field_ = ElementsKindField::encode(elements_kind);
+    if (IsFastSmiElementsKind(elements_kind) &&
+        IsFastPackedElementsKind(elements_kind)) {
+      set_type(HType::Smi());
+    }
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     set_representation(Representation::Tagged());
@@ -3854,6 +4004,19 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
 
   HValue* object() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  uint32_t index_offset() { return IndexOffsetField::decode(bit_field_); }
+  void SetIndexOffset(uint32_t index_offset) {
+    bit_field_ = IndexOffsetField::update(bit_field_, index_offset);
+  }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return IsDehoistedField::decode(bit_field_); }
+  void SetDehoisted(bool is_dehoisted) {
+    bit_field_ = IsDehoistedField::update(bit_field_, is_dehoisted);
+  }
+  ElementsKind elements_kind() const {
+    return ElementsKindField::decode(bit_field_);
+  }
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
@@ -3872,17 +4035,32 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
   virtual bool DataEquals(HValue* other) {
     if (!other->IsLoadKeyedFastElement()) return false;
     HLoadKeyedFastElement* other_load = HLoadKeyedFastElement::cast(other);
-    return hole_check_mode_ == other_load->hole_check_mode_;
+    if (IsDehoisted() && index_offset() != other_load->index_offset())
+      return false;
+    return elements_kind() == other_load->elements_kind();
   }
 
  private:
-  HoleCheckMode hole_check_mode_;
+  class ElementsKindField:  public BitField<ElementsKind, 0, 4> {};
+  class IndexOffsetField:   public BitField<uint32_t, 4, 27> {};
+  class IsDehoistedField:   public BitField<bool, 31, 1> {};
+  uint32_t bit_field_;
 };
 
 
-class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
+enum HoleCheckMode { PERFORM_HOLE_CHECK, OMIT_HOLE_CHECK };
+
+
+class HLoadKeyedFastDoubleElement
+    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
-  HLoadKeyedFastDoubleElement(HValue* elements, HValue* key) {
+  HLoadKeyedFastDoubleElement(
+    HValue* elements,
+    HValue* key,
+    HoleCheckMode hole_check_mode = PERFORM_HOLE_CHECK)
+      : index_offset_(0),
+        is_dehoisted_(false),
+        hole_check_mode_(hole_check_mode) {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     set_representation(Representation::Double());
@@ -3892,6 +4070,12 @@ class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
 
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   virtual Representation RequiredInputRepresentation(int index) {
     // The key is supposed to be Integer32.
@@ -3900,21 +4084,38 @@ class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
       : Representation::Integer32();
   }
 
+  bool RequiresHoleCheck() {
+    return hole_check_mode_ == PERFORM_HOLE_CHECK;
+  }
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement)
 
  protected:
-  virtual bool DataEquals(HValue* other) { return true; }
+  virtual bool DataEquals(HValue* other) {
+    if (!other->IsLoadKeyedFastDoubleElement()) return false;
+    HLoadKeyedFastDoubleElement* other_load =
+        HLoadKeyedFastDoubleElement::cast(other);
+    return hole_check_mode_ == other_load->hole_check_mode_;
+  }
+
+ private:
+  uint32_t index_offset_;
+  bool is_dehoisted_;
+  HoleCheckMode hole_check_mode_;
 };
 
 
-class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
+class HLoadKeyedSpecializedArrayElement
+    : public HTemplateInstruction<2>, public ArrayInstructionInterface {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
                                     ElementsKind elements_kind)
-      :  elements_kind_(elements_kind) {
+      :  elements_kind_(elements_kind),
+         index_offset_(0),
+         is_dehoisted_(false) {
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
     if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
@@ -3942,6 +4143,12 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   ElementsKind elements_kind() const { return elements_kind_; }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   virtual Range* InferRange(Zone* zone);
 
@@ -3957,6 +4164,8 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
 
  private:
   ElementsKind elements_kind_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
@@ -3995,9 +4204,12 @@ class HStoreNamedField: public HTemplateInstruction<2> {
                    int offset)
       : name_(name),
         is_in_object_(in_object),
-        offset_(offset) {
+        offset_(offset),
+        new_space_dominator_(NULL) {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
+    SetFlag(kTrackSideEffectDominators);
+    SetGVNFlag(kDependsOnNewSpacePromotion);
     if (is_in_object_) {
       SetGVNFlag(kChangesInobjectFields);
     } else {
@@ -4010,6 +4222,10 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) {
     return Representation::Tagged();
   }
+  virtual void SetSideEffectDominator(GVNFlag side_effect, HValue* dominator) {
+    ASSERT(side_effect == kChangesNewSpacePromotion);
+    new_space_dominator_ = dominator;
+  }
   virtual void PrintDataTo(StringStream* stream);
 
   HValue* object() { return OperandAt(0); }
@@ -4020,9 +4236,15 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   int offset() const { return offset_; }
   Handle<Map> transition() const { return transition_; }
   void set_transition(Handle<Map> map) { transition_ = map; }
+  HValue* new_space_dominator() const { return new_space_dominator_; }
 
   bool NeedsWriteBarrier() {
-    return StoringValueNeedsWriteBarrier(value());
+    return StoringValueNeedsWriteBarrier(value()) &&
+        ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
+  }
+
+  bool NeedsWriteBarrierForMap() {
+    return ReceiverObjectNeedsWriteBarrier(object(), new_space_dominator());
   }
 
  private:
@@ -4030,6 +4252,7 @@ class HStoreNamedField: public HTemplateInstruction<2> {
   bool is_in_object_;
   int offset_;
   Handle<Map> transition_;
+  HValue* new_space_dominator_;
 };
 
 
@@ -4068,11 +4291,12 @@ class HStoreNamedGeneric: public HTemplateInstruction<3> {
 };
 
 
-class HStoreKeyedFastElement: public HTemplateInstruction<3> {
+class HStoreKeyedFastElement
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HStoreKeyedFastElement(HValue* obj, HValue* key, HValue* val,
                          ElementsKind elements_kind = FAST_ELEMENTS)
-      : elements_kind_(elements_kind) {
+      : elements_kind_(elements_kind), index_offset_(0), is_dehoisted_(false) {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -4090,8 +4314,14 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   bool value_is_smi() {
-    return elements_kind_ == FAST_SMI_ONLY_ELEMENTS;
+    return IsFastSmiElementsKind(elements_kind_);
   }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   bool NeedsWriteBarrier() {
     if (value_is_smi()) {
@@ -4107,14 +4337,18 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
 
  private:
   ElementsKind elements_kind_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
-class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
+class HStoreKeyedFastDoubleElement
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HStoreKeyedFastDoubleElement(HValue* elements,
                                HValue* key,
-                               HValue* val) {
+                               HValue* val)
+      : index_offset_(0), is_dehoisted_(false) {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -4134,24 +4368,37 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
   HValue* elements() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
   }
 
+  bool NeedsCanonicalization();
+
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement)
+
+ private:
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
-class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
+class HStoreKeyedSpecializedArrayElement
+    : public HTemplateInstruction<3>, public ArrayInstructionInterface {
  public:
   HStoreKeyedSpecializedArrayElement(HValue* external_elements,
                                      HValue* key,
                                      HValue* val,
                                      ElementsKind elements_kind)
-      : elements_kind_(elements_kind) {
+      : elements_kind_(elements_kind), index_offset_(0), is_dehoisted_(false) {
     SetGVNFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
@@ -4179,11 +4426,19 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
   ElementsKind elements_kind() const { return elements_kind_; }
+  uint32_t index_offset() { return index_offset_; }
+  void SetIndexOffset(uint32_t index_offset) { index_offset_ = index_offset; }
+  HValue* GetKey() { return key(); }
+  void SetKey(HValue* key) { SetOperandAt(1, key); }
+  bool IsDehoisted() { return is_dehoisted_; }
+  void SetDehoisted(bool is_dehoisted) { is_dehoisted_ = is_dehoisted; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement)
 
  private:
   ElementsKind elements_kind_;
+  uint32_t index_offset_;
+  bool is_dehoisted_;
 };
 
 
@@ -4230,8 +4485,19 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
+    // Don't set GVN DependOn flags here. That would defeat GVN's detection of
+    // congruent HTransitionElementsKind instructions. Instruction hoisting
+    // handles HTransitionElementsKind instruction specially, explicitly adding
+    // DependsOn flags during its dependency calculations.
     SetGVNFlag(kChangesElementsKind);
-    SetGVNFlag(kChangesElementsPointer);
+    if (original_map->has_fast_double_elements()) {
+      SetGVNFlag(kChangesElementsPointer);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
+    if (transitioned_map->has_fast_double_elements()) {
+      SetGVNFlag(kChangesElementsPointer);
+      SetGVNFlag(kChangesNewSpacePromotion);
+    }
     set_representation(Representation::Tagged());
   }
 
@@ -4293,6 +4559,7 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4324,6 +4591,7 @@ class HStringCharFromCode: public HTemplateInstruction<2> {
     SetOperandAt(1, char_code);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4376,7 +4644,11 @@ class HAllocateObject: public HTemplateInstruction<1> {
       : constructor_(constructor) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
+
+  // Maximum instance size for which allocations will be inlined.
+  static const int kMaxSize = 64 * kPointerSize;
 
   HValue* context() { return OperandAt(0); }
   Handle<JSFunction> constructor() { return constructor_; }
@@ -4421,6 +4693,7 @@ class HFastLiteral: public HMaterializedLiteral<1> {
         boilerplate_(boilerplate),
         total_size_(total_size) {
     SetOperandAt(0, context);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   // Maximum depth and total number of elements and properties for literal
@@ -4456,12 +4729,13 @@ class HArrayLiteral: public HMaterializedLiteral<1> {
         length_(length),
         boilerplate_object_(boilerplate_object) {
     SetOperandAt(0, context);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* context() { return OperandAt(0); }
   ElementsKind boilerplate_elements_kind() const {
     if (!boilerplate_object_->IsJSObject()) {
-      return FAST_ELEMENTS;
+      return TERMINAL_FAST_ELEMENTS_KIND;
     }
     return Handle<JSObject>::cast(boilerplate_object_)->GetElementsKind();
   }
@@ -4496,6 +4770,7 @@ class HObjectLiteral: public HMaterializedLiteral<1> {
         fast_elements_(fast_elements),
         has_function_(has_function) {
     SetOperandAt(0, context);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* context() { return OperandAt(0); }
@@ -4557,6 +4832,7 @@ class HFunctionLiteral: public HTemplateInstruction<1> {
       : shared_info_(shared), pretenure_(pretenure) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   HValue* context() { return OperandAt(0); }

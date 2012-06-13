@@ -7662,7 +7662,7 @@ THREADED_TEST(ShadowObject) {
   value = Script::Compile(v8_str("f()"))->Run();
   CHECK_EQ(42, value->Int32Value());
 
-  Script::Compile(v8_str("y = 42"))->Run();
+  Script::Compile(v8_str("y = 43"))->Run();
   CHECK_EQ(1, shadow_y_setter_call_count);
   value = Script::Compile(v8_str("y"))->Run();
   CHECK_EQ(1, shadow_y_getter_call_count);
@@ -8608,6 +8608,8 @@ static void CheckInterceptorLoadIC(NamedPropertyGetter getter,
 static v8::Handle<Value> InterceptorLoadICGetter(Local<String> name,
                                                  const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, info.GetIsolate());
   CHECK_EQ(v8_str("data"), info.Data());
   CHECK_EQ(v8_str("x"), name);
   return v8::Integer::New(42);
@@ -9334,6 +9336,8 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
 static v8::Handle<Value> FastApiCallback_TrivialSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This(), args.Holder());
   CHECK(args.Data()->Equals(v8_str("method_data")));
   return v8::Integer::New(args[0]->Int32Value() + 1);
@@ -9342,6 +9346,8 @@ static v8::Handle<Value> FastApiCallback_TrivialSignature(
 static v8::Handle<Value> FastApiCallback_SimpleSignature(
     const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(isolate, args.GetIsolate());
   CHECK_EQ(args.This()->GetPrototype(), args.Holder());
   CHECK(args.Data()->Equals(v8_str("method_data")));
   // Note, we're using HasRealNamedProperty instead of Has to avoid
@@ -10254,6 +10260,7 @@ static v8::Handle<Value> ChildGetter(Local<String> name,
 
 
 THREADED_TEST(Overriding) {
+  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   LocalContext context;
 
@@ -10300,11 +10307,11 @@ THREADED_TEST(Overriding) {
   value = v8_compile("o.g")->Run();
   CHECK_EQ(42, value->Int32Value());
 
-  // Check 'h' can be shadowed.
+  // Check that 'h' cannot be shadowed.
   value = v8_compile("o.h = 3; o.h")->Run();
-  CHECK_EQ(3, value->Int32Value());
+  CHECK_EQ(1, value->Int32Value());
 
-  // Check 'i' is cannot be shadowed or changed.
+  // Check that 'i' cannot be shadowed or changed.
   value = v8_compile("o.i = 3; o.i")->Run();
   CHECK_EQ(42, value->Int32Value());
 }
@@ -10865,13 +10872,18 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 }
 
 
+static int64_t cast(intptr_t x) { return static_cast<int64_t>(x); }
+
+
 THREADED_TEST(ExternalAllocatedMemory) {
   v8::HandleScope outer;
   v8::Persistent<Context> env(Context::New());
   CHECK(!env.IsEmpty());
-  const int kSize = 1024*1024;
-  CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize), kSize);
-  CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize), 0);
+  const intptr_t kSize = 1024*1024;
+  CHECK_EQ(cast(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize)),
+           cast(kSize));
+  CHECK_EQ(cast(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize)),
+           cast(0));
 }
 
 
@@ -12137,9 +12149,10 @@ TEST(RegExpStringModification) {
 }
 
 
-// Test that we can set a property on the global object even if there
+// Test that we cannot set a property on the global object if there
 // is a read-only property in the prototype chain.
 TEST(ReadOnlyPropertyInGlobalProto) {
+  i::FLAG_es5_readonly = true;
   v8::HandleScope scope;
   v8::Handle<v8::ObjectTemplate> templ = v8::ObjectTemplate::New();
   LocalContext context(0, templ);
@@ -12151,12 +12164,13 @@ TEST(ReadOnlyPropertyInGlobalProto) {
   // Check without 'eval' or 'with'.
   v8::Handle<v8::Value> res =
       CompileRun("function f() { x = 42; return x; }; f()");
+  CHECK_EQ(v8::Integer::New(0), res);
   // Check with 'eval'.
-  res = CompileRun("function f() { eval('1'); y = 42; return y; }; f()");
-  CHECK_EQ(v8::Integer::New(42), res);
+  res = CompileRun("function f() { eval('1'); y = 43; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(0), res);
   // Check with 'with'.
-  res = CompileRun("function f() { with (this) { y = 42 }; return y; }; f()");
-  CHECK_EQ(v8::Integer::New(42), res);
+  res = CompileRun("function f() { with (this) { y = 44 }; return y; }; f()");
+  CHECK_EQ(v8::Integer::New(0), res);
 }
 
 static int force_set_set_count = 0;
@@ -12365,6 +12379,46 @@ THREADED_TEST(ForceDeleteIC) {
 }
 
 
+TEST(InlinedFunctionAcrossContexts) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var G = 42; function foo() { return G; }");
+    v8::Local<v8::Value> foo = ctx1->Global()->Get(v8_str("foo"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), foo);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() { return o(); }"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Exit();
+    v8::Handle<v8::String> G_property = v8::String::New("G");
+    CHECK(ctx1->Global()->ForceDelete(G_property));
+    ctx2->Enter();
+    ExpectString(
+        "(function() {"
+        "  try {"
+        "    return f();"
+        "  } catch(e) {"
+        "    return e.toString();"
+        "  }"
+        " })()",
+        "ReferenceError: G is not defined");
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  ctx2.Dispose();
+}
+
+
 v8::Persistent<Context> calling_context0;
 v8::Persistent<Context> calling_context1;
 v8::Persistent<Context> calling_context2;
@@ -12430,19 +12484,16 @@ THREADED_TEST(GetCallingContext) {
 
 
 // Check that a variable declaration with no explicit initialization
-// value does not shadow an existing property in the prototype chain.
-//
-// This is consistent with Firefox and Safari.
-//
-// See http://crbug.com/12548.
+// value does shadow an existing property in the prototype chain.
 THREADED_TEST(InitGlobalVarInProtoChain) {
+  i::FLAG_es52_globals = true;
   v8::HandleScope scope;
   LocalContext context;
   // Introduce a variable in the prototype chain.
   CompileRun("__proto__.x = 42");
-  v8::Handle<v8::Value> result = CompileRun("var x; x");
+  v8::Handle<v8::Value> result = CompileRun("var x = 43; x");
   CHECK(!result->IsUndefined());
-  CHECK_EQ(42, result->Int32Value());
+  CHECK_EQ(43, result->Int32Value());
 }
 
 
@@ -13947,74 +13998,103 @@ TEST(SourceURLInStackTrace) {
 }
 
 
-// Test that idle notification can be handled and eventually returns true.
-// This just checks the contract of the IdleNotification() function,
-// and does not verify that it does reasonable work.
-THREADED_TEST(IdleNotification) {
+static void CreateGarbageInOldSpace() {
   v8::HandleScope scope;
-  LocalContext env;
-  {
-    // Create garbage in old-space to generate work for idle notification.
-    i::AlwaysAllocateScope always_allocate;
-    for (int i = 0; i < 100; i++) {
-      FACTORY->NewFixedArray(1000, i::TENURED);
-    }
+  i::AlwaysAllocateScope always_allocate;
+  for (int i = 0; i < 1000; i++) {
+    FACTORY->NewFixedArray(1000, i::TENURED);
   }
-  bool finshed_idle_work = false;
-  for (int i = 0; i < 100 && !finshed_idle_work; i++) {
-    finshed_idle_work = v8::V8::IdleNotification();
-  }
-  CHECK(finshed_idle_work);
 }
 
 // Test that idle notification can be handled and eventually returns true.
-// This just checks the contract of the IdleNotification() function,
-// and does not verify that it does reasonable work.
+TEST(IdleNotification) {
+  const intptr_t MB = 1024 * 1024;
+  v8::HandleScope scope;
+  LocalContext env;
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification();
+  }
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK(finished);
+  CHECK_LT(final_size, initial_size + 1);
+}
+
+
+// Test that idle notification can be handled and eventually collects garbage.
 TEST(IdleNotificationWithSmallHint) {
+  const intptr_t MB = 1024 * 1024;
+  const int IdlePauseInMs = 900;
   v8::HandleScope scope;
   LocalContext env;
-  {
-    // Create garbage in old-space to generate work for idle notification.
-    i::AlwaysAllocateScope always_allocate;
-    for (int i = 0; i < 100; i++) {
-      FACTORY->NewFixedArray(1000, i::TENURED);
-    }
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification(IdlePauseInMs);
   }
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool finshed_idle_work = false;
-  bool no_idle_work = v8::V8::IdleNotification(10);
-  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
-    finshed_idle_work = v8::V8::IdleNotification(10);
-  }
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(finshed_idle_work);
-  CHECK(no_idle_work || new_size < old_size);
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK(finished);
+  CHECK_LT(final_size, initial_size + 1);
 }
 
 
-// This just checks the contract of the IdleNotification() function,
-// and does not verify that it does reasonable work.
+// Test that idle notification can be handled and eventually collects garbage.
 TEST(IdleNotificationWithLargeHint) {
+  const intptr_t MB = 1024 * 1024;
+  const int IdlePauseInMs = 900;
   v8::HandleScope scope;
   LocalContext env;
-  {
-    // Create garbage in old-space to generate work for idle notification.
-    i::AlwaysAllocateScope always_allocate;
-    for (int i = 0; i < 100; i++) {
-      FACTORY->NewFixedArray(1000, i::TENURED);
-    }
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification(IdlePauseInMs);
   }
-  intptr_t old_size = HEAP->SizeOfObjects();
-  bool finshed_idle_work = false;
-  bool no_idle_work = v8::V8::IdleNotification(900);
-  for (int i = 0; i < 200 && !finshed_idle_work; i++) {
-    finshed_idle_work = v8::V8::IdleNotification(900);
-  }
-  intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(finshed_idle_work);
-  CHECK(no_idle_work || new_size < old_size);
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK(finished);
+  CHECK_LT(final_size, initial_size + 1);
 }
 
+
+TEST(Regress2107) {
+  const intptr_t MB = 1024 * 1024;
+  const int kShortIdlePauseInMs = 100;
+  const int kLongIdlePauseInMs = 1000;
+  v8::HandleScope scope;
+  LocalContext env;
+  intptr_t initial_size = HEAP->SizeOfObjects();
+  // Send idle notification to start a round of incremental GCs.
+  v8::V8::IdleNotification(kShortIdlePauseInMs);
+  // Emulate 7 page reloads.
+  for (int i = 0; i < 7; i++) {
+    v8::Persistent<v8::Context> ctx = v8::Context::New();
+    ctx->Enter();
+    CreateGarbageInOldSpace();
+    ctx->Exit();
+    ctx.Dispose();
+    v8::V8::ContextDisposedNotification();
+    v8::V8::IdleNotification(kLongIdlePauseInMs);
+  }
+  // Create garbage and check that idle notification still collects it.
+  CreateGarbageInOldSpace();
+  intptr_t size_with_garbage = HEAP->SizeOfObjects();
+  CHECK_GT(size_with_garbage, initial_size + MB);
+  bool finished = false;
+  for (int i = 0; i < 200 && !finished; i++) {
+    finished = v8::V8::IdleNotification(kShortIdlePauseInMs);
+  }
+  intptr_t final_size = HEAP->SizeOfObjects();
+  CHECK_LT(final_size, initial_size + 1);
+}
 
 static uint32_t* stack_limit;
 
@@ -16425,3 +16505,309 @@ TEST(PrimaryStubCache) {
   StubCacheHelper(false);
 }
 
+
+static int fatal_error_callback_counter = 0;
+static void CountingErrorCallback(const char* location, const char* message) {
+  printf("CountingErrorCallback(\"%s\", \"%s\")\n", location, message);
+  fatal_error_callback_counter++;
+}
+
+
+TEST(StaticGetters) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  i::Handle<i::Object> undefined_value = FACTORY->undefined_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::Undefined()) == *undefined_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::Undefined(isolate)) == *undefined_value);
+  i::Handle<i::Object> null_value = FACTORY->null_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::Null()) == *null_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::Null(isolate)) == *null_value);
+  i::Handle<i::Object> true_value = FACTORY->true_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::True()) == *true_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::True(isolate)) == *true_value);
+  i::Handle<i::Object> false_value = FACTORY->false_value();
+  CHECK(*v8::Utils::OpenHandle(*v8::False()) == *false_value);
+  CHECK(*v8::Utils::OpenHandle(*v8::False(isolate)) == *false_value);
+
+  // Test after-death behavior.
+  CHECK(i::Internals::IsInitialized(isolate));
+  CHECK_EQ(0, fatal_error_callback_counter);
+  v8::V8::SetFatalErrorHandler(CountingErrorCallback);
+  v8::Utils::ReportApiFailure("StaticGetters()", "Kill V8");
+  i::Isolate::Current()->TearDown();
+  CHECK(!i::Internals::IsInitialized(isolate));
+  CHECK_EQ(1, fatal_error_callback_counter);
+  CHECK(v8::Undefined().IsEmpty());
+  CHECK_EQ(2, fatal_error_callback_counter);
+  CHECK(v8::Undefined(isolate).IsEmpty());
+  CHECK_EQ(3, fatal_error_callback_counter);
+  CHECK(v8::Null().IsEmpty());
+  CHECK_EQ(4, fatal_error_callback_counter);
+  CHECK(v8::Null(isolate).IsEmpty());
+  CHECK_EQ(5, fatal_error_callback_counter);
+  CHECK(v8::True().IsEmpty());
+  CHECK_EQ(6, fatal_error_callback_counter);
+  CHECK(v8::True(isolate).IsEmpty());
+  CHECK_EQ(7, fatal_error_callback_counter);
+  CHECK(v8::False().IsEmpty());
+  CHECK_EQ(8, fatal_error_callback_counter);
+  CHECK(v8::False(isolate).IsEmpty());
+  CHECK_EQ(9, fatal_error_callback_counter);
+}
+
+
+TEST(IsolateEmbedderData) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  CHECK_EQ(NULL, isolate->GetData());
+  CHECK_EQ(NULL, ISOLATE->GetData());
+  static void* data1 = reinterpret_cast<void*>(0xacce55ed);
+  isolate->SetData(data1);
+  CHECK_EQ(data1, isolate->GetData());
+  CHECK_EQ(data1, ISOLATE->GetData());
+  static void* data2 = reinterpret_cast<void*>(0xdecea5ed);
+  ISOLATE->SetData(data2);
+  CHECK_EQ(data2, isolate->GetData());
+  CHECK_EQ(data2, ISOLATE->GetData());
+  ISOLATE->TearDown();
+  CHECK_EQ(data2, isolate->GetData());
+  CHECK_EQ(data2, ISOLATE->GetData());
+}
+
+
+TEST(StringEmpty) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  i::Handle<i::Object> empty_string = FACTORY->empty_symbol();
+  CHECK(*v8::Utils::OpenHandle(*v8::String::Empty()) == *empty_string);
+  CHECK(*v8::Utils::OpenHandle(*v8::String::Empty(isolate)) == *empty_string);
+
+  // Test after-death behavior.
+  CHECK(i::Internals::IsInitialized(isolate));
+  CHECK_EQ(0, fatal_error_callback_counter);
+  v8::V8::SetFatalErrorHandler(CountingErrorCallback);
+  v8::Utils::ReportApiFailure("StringEmpty()", "Kill V8");
+  i::Isolate::Current()->TearDown();
+  CHECK(!i::Internals::IsInitialized(isolate));
+  CHECK_EQ(1, fatal_error_callback_counter);
+  CHECK(v8::String::Empty().IsEmpty());
+  CHECK_EQ(2, fatal_error_callback_counter);
+  CHECK(v8::String::Empty(isolate).IsEmpty());
+  CHECK_EQ(3, fatal_error_callback_counter);
+}
+
+
+static int instance_checked_getter_count = 0;
+static Handle<Value> InstanceCheckedGetter(Local<String> name,
+                                           const AccessorInfo& info) {
+  CHECK_EQ(name, v8_str("foo"));
+  instance_checked_getter_count++;
+  return v8_num(11);
+}
+
+
+static int instance_checked_setter_count = 0;
+static void InstanceCheckedSetter(Local<String> name,
+                      Local<Value> value,
+                      const AccessorInfo& info) {
+  CHECK_EQ(name, v8_str("foo"));
+  CHECK_EQ(value, v8_num(23));
+  instance_checked_setter_count++;
+}
+
+
+static void CheckInstanceCheckedResult(int getters,
+                                       int setters,
+                                       bool expects_callbacks,
+                                       TryCatch* try_catch) {
+  if (expects_callbacks) {
+    CHECK(!try_catch->HasCaught());
+    CHECK_EQ(getters, instance_checked_getter_count);
+    CHECK_EQ(setters, instance_checked_setter_count);
+  } else {
+    CHECK(try_catch->HasCaught());
+    CHECK_EQ(0, instance_checked_getter_count);
+    CHECK_EQ(0, instance_checked_setter_count);
+  }
+  try_catch->Reset();
+}
+
+
+static void CheckInstanceCheckedAccessors(bool expects_callbacks) {
+  instance_checked_getter_count = 0;
+  instance_checked_setter_count = 0;
+  TryCatch try_catch;
+
+  // Test path through generic runtime code.
+  CompileRun("obj.foo");
+  CheckInstanceCheckedResult(1, 0, expects_callbacks, &try_catch);
+  CompileRun("obj.foo = 23");
+  CheckInstanceCheckedResult(1, 1, expects_callbacks, &try_catch);
+
+  // Test path through generated LoadIC and StoredIC.
+  CompileRun("function test_get(o) { o.foo; }"
+             "test_get(obj);");
+  CheckInstanceCheckedResult(2, 1, expects_callbacks, &try_catch);
+  CompileRun("test_get(obj);");
+  CheckInstanceCheckedResult(3, 1, expects_callbacks, &try_catch);
+  CompileRun("test_get(obj);");
+  CheckInstanceCheckedResult(4, 1, expects_callbacks, &try_catch);
+  CompileRun("function test_set(o) { o.foo = 23; }"
+             "test_set(obj);");
+  CheckInstanceCheckedResult(4, 2, expects_callbacks, &try_catch);
+  CompileRun("test_set(obj);");
+  CheckInstanceCheckedResult(4, 3, expects_callbacks, &try_catch);
+  CompileRun("test_set(obj);");
+  CheckInstanceCheckedResult(4, 4, expects_callbacks, &try_catch);
+
+  // Test path through optimized code.
+  CompileRun("%OptimizeFunctionOnNextCall(test_get);"
+             "test_get(obj);");
+  CheckInstanceCheckedResult(5, 4, expects_callbacks, &try_catch);
+  CompileRun("%OptimizeFunctionOnNextCall(test_set);"
+             "test_set(obj);");
+  CheckInstanceCheckedResult(5, 5, expects_callbacks, &try_catch);
+
+  // Cleanup so that closures start out fresh in next check.
+  CompileRun("%DeoptimizeFunction(test_get);"
+             "%ClearFunctionTypeFeedback(test_get);"
+             "%DeoptimizeFunction(test_set);"
+             "%ClearFunctionTypeFeedback(test_set);");
+}
+
+
+THREADED_TEST(InstanceCheckOnInstanceAccessor) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> inst = templ->InstanceTemplate();
+  inst->SetAccessor(v8_str("foo"),
+                    InstanceCheckedGetter, InstanceCheckedSetter,
+                    Handle<Value>(),
+                    v8::DEFAULT,
+                    v8::None,
+                    v8::AccessorSignature::New(templ));
+  context->Global()->Set(v8_str("f"), templ->GetFunction());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+
+  printf("Testing negative ...\n");
+  CompileRun("var obj = {};"
+             "obj.__proto__ = new f();");
+  CHECK(!templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(false);
+}
+
+
+THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> inst = templ->InstanceTemplate();
+  AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
+  inst->SetAccessor(v8_str("foo"),
+                    InstanceCheckedGetter, InstanceCheckedSetter,
+                    Handle<Value>(),
+                    v8::DEFAULT,
+                    v8::None,
+                    v8::AccessorSignature::New(templ));
+  context->Global()->Set(v8_str("f"), templ->GetFunction());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+
+  printf("Testing negative ...\n");
+  CompileRun("var obj = {};"
+             "obj.__proto__ = new f();");
+  CHECK(!templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(false);
+}
+
+
+THREADED_TEST(InstanceCheckOnPrototypeAccessor) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+
+  Local<FunctionTemplate> templ = FunctionTemplate::New();
+  Local<ObjectTemplate> proto = templ->PrototypeTemplate();
+  proto->SetAccessor(v8_str("foo"),
+                     InstanceCheckedGetter, InstanceCheckedSetter,
+                     Handle<Value>(),
+                     v8::DEFAULT,
+                     v8::None,
+                     v8::AccessorSignature::New(templ));
+  context->Global()->Set(v8_str("f"), templ->GetFunction());
+
+  printf("Testing positive ...\n");
+  CompileRun("var obj = new f();");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+
+  printf("Testing negative ...\n");
+  CompileRun("var obj = {};"
+             "obj.__proto__ = new f();");
+  CHECK(!templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(false);
+
+  printf("Testing positive with modified prototype chain ...\n");
+  CompileRun("var obj = new f();"
+             "var pro = {};"
+             "pro.__proto__ = obj.__proto__;"
+             "obj.__proto__ = pro;");
+  CHECK(templ->HasInstance(context->Global()->Get(v8_str("obj"))));
+  CheckInstanceCheckedAccessors(true);
+}
+
+
+TEST(TryFinallyMessage) {
+  v8::HandleScope scope;
+  LocalContext context;
+  {
+    // Test that the original error message is not lost if there is a
+    // recursive call into Javascript is done in the finally block, e.g. to
+    // initialize an IC. (crbug.com/129171)
+    TryCatch try_catch;
+    const char* trigger_ic =
+        "try {                      \n"
+        "  throw new Error('test'); \n"
+        "} finally {                \n"
+        "  var x = 0;               \n"
+        "  x++;                     \n"  // Trigger an IC initialization here.
+        "}                          \n";
+    CompileRun(trigger_ic);
+    CHECK(try_catch.HasCaught());
+    Local<Message> message = try_catch.Message();
+    CHECK(!message.IsEmpty());
+    CHECK_EQ(2, message->GetLineNumber());
+  }
+
+  {
+    // Test that the original exception message is indeed overwritten if
+    // a new error is thrown in the finally block.
+    TryCatch try_catch;
+    const char* throw_again =
+        "try {                       \n"
+        "  throw new Error('test');  \n"
+        "} finally {                 \n"
+        "  var x = 0;                \n"
+        "  x++;                      \n"
+        "  throw new Error('again'); \n"  // This is the new uncaught error.
+        "}                           \n";
+    CompileRun(throw_again);
+    CHECK(try_catch.HasCaught());
+    Local<Message> message = try_catch.Message();
+    CHECK(!message.IsEmpty());
+    CHECK_EQ(6, message->GetLineNumber());
+  }
+}

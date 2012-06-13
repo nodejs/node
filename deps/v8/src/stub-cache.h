@@ -90,6 +90,11 @@ class StubCache {
                                    Handle<JSObject> holder,
                                    Handle<AccessorInfo> callback);
 
+  Handle<Code> ComputeLoadViaGetter(Handle<String> name,
+                                    Handle<JSObject> receiver,
+                                    Handle<JSObject> holder,
+                                    Handle<JSFunction> getter);
+
   Handle<Code> ComputeLoadConstant(Handle<String> name,
                                    Handle<JSObject> receiver,
                                    Handle<JSObject> holder,
@@ -157,6 +162,11 @@ class StubCache {
                                     Handle<AccessorInfo> callback,
                                     StrictModeFlag strict_mode);
 
+  Handle<Code> ComputeStoreViaSetter(Handle<String> name,
+                                     Handle<JSObject> receiver,
+                                     Handle<JSFunction> setter,
+                                     StrictModeFlag strict_mode);
+
   Handle<Code> ComputeStoreInterceptor(Handle<String> name,
                                        Handle<JSObject> receiver,
                                        StrictModeFlag strict_mode);
@@ -169,7 +179,7 @@ class StubCache {
                                       Handle<Map> transition,
                                       StrictModeFlag strict_mode);
 
-  Handle<Code> ComputeKeyedLoadOrStoreElement(Handle<JSObject> receiver,
+  Handle<Code> ComputeKeyedLoadOrStoreElement(Handle<Map> receiver_map,
                                               KeyedIC::StubKind stub_kind,
                                               StrictModeFlag strict_mode);
 
@@ -300,9 +310,10 @@ class StubCache {
   Isolate* isolate() { return isolate_; }
   Heap* heap() { return isolate()->heap(); }
   Factory* factory() { return isolate()->factory(); }
+  Zone* zone() const { return zone_; }
 
  private:
-  explicit StubCache(Isolate* isolate);
+  StubCache(Isolate* isolate, Zone* zone);
 
   Handle<Code> ComputeCallInitialize(int argc,
                                      RelocInfo::Mode mode,
@@ -375,6 +386,7 @@ class StubCache {
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;
+  Zone* zone_;
 
   friend class Isolate;
   friend class SCTableReference;
@@ -460,14 +472,16 @@ class StubCompiler BASE_EMBEDDED {
                                             Register scratch2,
                                             Label* miss_label);
 
-  static void GenerateStoreField(MacroAssembler* masm,
-                                 Handle<JSObject> object,
-                                 int index,
-                                 Handle<Map> transition,
-                                 Register receiver_reg,
-                                 Register name_reg,
-                                 Register scratch,
-                                 Label* miss_label);
+  void GenerateStoreField(MacroAssembler* masm,
+                          Handle<JSObject> object,
+                          int index,
+                          Handle<Map> transition,
+                          Handle<String> name,
+                          Register receiver_reg,
+                          Register name_reg,
+                          Register scratch1,
+                          Register scratch2,
+                          Label* miss_label);
 
   static void GenerateLoadMiss(MacroAssembler* masm,
                                Code::Kind kind);
@@ -510,6 +524,7 @@ class StubCompiler BASE_EMBEDDED {
                            Handle<String> name,
                            int save_at_depth,
                            Label* miss);
+
 
  protected:
   Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
@@ -592,6 +607,11 @@ class LoadStubCompiler: public StubCompiler {
                                    Handle<JSObject> object,
                                    Handle<JSObject> holder,
                                    Handle<AccessorInfo> callback);
+
+  Handle<Code> CompileLoadViaGetter(Handle<String> name,
+                                    Handle<JSObject> receiver,
+                                    Handle<JSObject> holder,
+                                    Handle<JSFunction> getter);
 
   Handle<Code> CompileLoadConstant(Handle<JSObject> object,
                                    Handle<JSObject> holder,
@@ -677,6 +697,10 @@ class StoreStubCompiler: public StubCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object,
                                     Handle<AccessorInfo> callback,
                                     Handle<String> name);
+
+  Handle<Code> CompileStoreViaSetter(Handle<JSObject> receiver,
+                                     Handle<JSFunction> setter,
+                                     Handle<String> name);
 
   Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
                                        Handle<String> name);

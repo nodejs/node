@@ -75,7 +75,7 @@ var assertTrue;
 // Checks that the found value is false.
 var assertFalse;
 
-// Checks that the found value is null. Kept for historical compatability,
+// Checks that the found value is null. Kept for historical compatibility,
 // please just use assertEquals(null, expected).
 var assertNull;
 

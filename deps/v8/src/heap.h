@@ -243,7 +243,8 @@ namespace internal {
   V(compare_ic_symbol, ".compare_ic")                                    \
   V(infinity_symbol, "Infinity")                                         \
   V(minus_infinity_symbol, "-Infinity")                                  \
-  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")
+  V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")                 \
+  V(query_colon_symbol, "(?:)")
 
 // Forward declarations.
 class GCTracer;
@@ -529,6 +530,8 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
 
+  MUST_USE_RESULT MaybeObject* AllocateJSModule();
+
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
       ElementsKind elements_kind,
@@ -618,7 +621,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateMap(
       InstanceType instance_type,
       int instance_size,
-      ElementsKind elements_kind = FAST_ELEMENTS);
+      ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
 
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
@@ -819,6 +822,10 @@ class Heap {
 
   // Allocate a global (but otherwise uninitialized) context.
   MUST_USE_RESULT MaybeObject* AllocateGlobalContext();
+
+  // Allocate a module context.
+  MUST_USE_RESULT MaybeObject* AllocateModuleContext(Context* previous,
+                                                     ScopeInfo* scope_info);
 
   // Allocate a function context.
   MUST_USE_RESULT MaybeObject* AllocateFunctionContext(int length,
@@ -1326,7 +1333,8 @@ class Heap {
 
   // Adjusts the amount of registered external memory.
   // Returns the adjusted value.
-  inline int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
+  inline intptr_t AdjustAmountOfExternalAllocatedMemory(
+      intptr_t change_in_bytes);
 
   // Allocate uninitialized fixed array.
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length);
@@ -1334,7 +1342,7 @@ class Heap {
                                                      PretenureFlag pretenure);
 
   inline intptr_t PromotedTotalSize() {
-    return PromotedSpaceSize() + PromotedExternalMemorySize();
+    return PromotedSpaceSizeOfObjects() + PromotedExternalMemorySize();
   }
 
   // True if we have reached the allocation limit in the old generation that
@@ -1354,19 +1362,6 @@ class Heap {
   static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
   static const intptr_t kMinimumAllocationLimit =
       8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
-
-  // When we sweep lazily we initially guess that there is no garbage on the
-  // heap and set the limits for the next GC accordingly.  As we sweep we find
-  // out that some of the pages contained garbage and we have to adjust
-  // downwards the size of the heap.  This means the limits that control the
-  // timing of the next GC also need to be adjusted downwards.
-  void LowerOldGenLimits(intptr_t adjustment) {
-    size_of_old_gen_at_last_old_space_gc_ -= adjustment;
-    old_gen_promotion_limit_ =
-        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
-    old_gen_allocation_limit_ =
-        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
-  }
 
   intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
     const int divisor = FLAG_stress_compaction ? 10 : 3;
@@ -1411,6 +1406,12 @@ class Heap {
     kRootListLength
   };
 
+  STATIC_CHECK(kUndefinedValueRootIndex == Internals::kUndefinedValueRootIndex);
+  STATIC_CHECK(kNullValueRootIndex == Internals::kNullValueRootIndex);
+  STATIC_CHECK(kTrueValueRootIndex == Internals::kTrueValueRootIndex);
+  STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
+  STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
+
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
@@ -1442,6 +1443,8 @@ class Heap {
   inline bool NextGCIsLikelyToBeFull() {
     if (FLAG_gc_global) return true;
 
+    if (FLAG_stress_compaction && (gc_count_ & 1) != 0) return true;
+
     intptr_t total_promoted = PromotedTotalSize();
 
     intptr_t adjusted_promotion_limit =
@@ -1452,7 +1455,7 @@ class Heap {
     intptr_t adjusted_allocation_limit =
         old_gen_allocation_limit_ - new_space_.Capacity() / 5;
 
-    if (PromotedSpaceSize() >= adjusted_allocation_limit) return true;
+    if (PromotedSpaceSizeOfObjects() >= adjusted_allocation_limit) return true;
 
     return false;
   }
@@ -1490,7 +1493,6 @@ class Heap {
   GCTracer* tracer() { return tracer_; }
 
   // Returns the size of objects residing in non new spaces.
-  intptr_t PromotedSpaceSize();
   intptr_t PromotedSpaceSizeOfObjects();
 
   double total_regexp_code_generated() { return total_regexp_code_generated_; }
@@ -1595,7 +1597,7 @@ class Heap {
   }
 
   void AgeInlineCaches() {
-    ++global_ic_age_;
+    global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
  private:
@@ -1604,6 +1606,8 @@ class Heap {
   // This can be calculated directly from a pointer to the heap; however, it is
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
+
+  Object* roots_[kRootListLength];
 
   intptr_t code_range_size_;
   int reserved_semispace_size_;
@@ -1646,7 +1650,7 @@ class Heap {
   int gc_post_processing_depth_;
 
   // Returns the amount of external memory registered since last global gc.
-  int PromotedExternalMemorySize();
+  intptr_t PromotedExternalMemorySize();
 
   int ms_count_;  // how many mark-sweep collections happened
   unsigned int gc_count_;  // how many gc happened
@@ -1711,16 +1715,14 @@ class Heap {
 
   // The amount of external memory registered through the API kept alive
   // by global handles
-  int amount_of_external_allocated_memory_;
+  intptr_t amount_of_external_allocated_memory_;
 
   // Caches the amount of external memory registered at the last global gc.
-  int amount_of_external_allocated_memory_at_last_global_gc_;
+  intptr_t amount_of_external_allocated_memory_at_last_global_gc_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
   int old_gen_exhausted_;
-
-  Object* roots_[kRootListLength];
 
   Object* global_contexts_list_;
 
@@ -1972,13 +1974,6 @@ class Heap {
 
   bool EnoughGarbageSinceLastIdleRound() {
     return (scavenges_since_last_idle_round_ >= kIdleScavengeThreshold);
-  }
-
-  bool WorthStartingGCWhenIdle() {
-    if (contexts_disposed_ > 0) {
-      return true;
-    }
-    return incremental_marking()->WorthActivating();
   }
 
   // Estimates how many milliseconds a Mark-Sweep would take to complete.

@@ -41,11 +41,13 @@ static bool Match(void* key1, void* key2) {
 }
 
 
-Interface* Interface::Lookup(Handle<String> name) {
+Interface* Interface::Lookup(Handle<String> name, Zone* zone) {
   ASSERT(IsModule());
   ZoneHashMap* map = Chase()->exports_;
   if (map == NULL) return NULL;
-  ZoneHashMap::Entry* p = map->Lookup(name.location(), name->Hash(), false);
+  ZoneAllocationPolicy allocator(zone);
+  ZoneHashMap::Entry* p = map->Lookup(name.location(), name->Hash(), false,
+                                      allocator);
   if (p == NULL) return NULL;
   ASSERT(*static_cast<String**>(p->key) == *name);
   ASSERT(p->value != NULL);
@@ -69,7 +71,7 @@ int Nesting::current_ = 0;
 
 
 void Interface::DoAdd(
-    void* name, uint32_t hash, Interface* interface, bool* ok) {
+    void* name, uint32_t hash, Interface* interface, Zone* zone, bool* ok) {
   MakeModule(ok);
   if (!*ok) return;
 
@@ -79,15 +81,19 @@ void Interface::DoAdd(
     PrintF("%*sthis = ", Nesting::current(), "");
     this->Print(Nesting::current());
     PrintF("%*s%s : ", Nesting::current(), "",
-           (*reinterpret_cast<String**>(name))->ToAsciiArray());
+           (*static_cast<String**>(name))->ToAsciiArray());
     interface->Print(Nesting::current());
   }
 #endif
 
   ZoneHashMap** map = &Chase()->exports_;
-  if (*map == NULL) *map = new ZoneHashMap(Match, 8);
+  ZoneAllocationPolicy allocator(zone);
 
-  ZoneHashMap::Entry* p = (*map)->Lookup(name, hash, !IsFrozen());
+  if (*map == NULL)
+    *map = new ZoneHashMap(Match, ZoneHashMap::kDefaultHashMapCapacity,
+                           allocator);
+
+  ZoneHashMap::Entry* p = (*map)->Lookup(name, hash, !IsFrozen(), allocator);
   if (p == NULL) {
     // This didn't have name but was frozen already, that's an error.
     *ok = false;
@@ -97,7 +103,7 @@ void Interface::DoAdd(
 #ifdef DEBUG
     Nesting nested;
 #endif
-    reinterpret_cast<Interface*>(p->value)->Unify(interface, ok);
+    static_cast<Interface*>(p->value)->Unify(interface, zone, ok);
   }
 
 #ifdef DEBUG
@@ -110,9 +116,9 @@ void Interface::DoAdd(
 }
 
 
-void Interface::Unify(Interface* that, bool* ok) {
-  if (this->forward_) return this->Chase()->Unify(that, ok);
-  if (that->forward_) return this->Unify(that->Chase(), ok);
+void Interface::Unify(Interface* that, Zone* zone, bool* ok) {
+  if (this->forward_) return this->Chase()->Unify(that, zone, ok);
+  if (that->forward_) return this->Unify(that->Chase(), zone, ok);
   ASSERT(this->forward_ == NULL);
   ASSERT(that->forward_ == NULL);
 
@@ -134,9 +140,9 @@ void Interface::Unify(Interface* that, bool* ok) {
   // Merge the smaller interface into the larger, for performance.
   if (this->exports_ != NULL && (that->exports_ == NULL ||
       this->exports_->occupancy() >= that->exports_->occupancy())) {
-    this->DoUnify(that, ok);
+    this->DoUnify(that, ok, zone);
   } else {
-    that->DoUnify(this, ok);
+    that->DoUnify(this, ok, zone);
   }
 
 #ifdef DEBUG
@@ -151,7 +157,7 @@ void Interface::Unify(Interface* that, bool* ok) {
 }
 
 
-void Interface::DoUnify(Interface* that, bool* ok) {
+void Interface::DoUnify(Interface* that, bool* ok, Zone* zone) {
   ASSERT(this->forward_ == NULL);
   ASSERT(that->forward_ == NULL);
   ASSERT(!this->IsValue());
@@ -166,7 +172,7 @@ void Interface::DoUnify(Interface* that, bool* ok) {
   ZoneHashMap* map = that->exports_;
   if (map != NULL) {
     for (ZoneHashMap::Entry* p = map->Start(); p != NULL; p = map->Next(p)) {
-      this->DoAdd(p->key, p->hash, static_cast<Interface*>(p->value), ok);
+      this->DoAdd(p->key, p->hash, static_cast<Interface*>(p->value), zone, ok);
       if (!*ok) return;
     }
   }
@@ -178,6 +184,15 @@ void Interface::DoUnify(Interface* that, bool* ok) {
   if (that->IsFrozen() && this_size > that_size) {
     *ok = false;
     return;
+  }
+
+  // Merge instance.
+  if (!that->instance_.is_null()) {
+    if (!this->instance_.is_null() && *this->instance_ != *that->instance_) {
+      *ok = false;
+      return;
+    }
+    this->instance_ = that->instance_;
   }
 
   // Merge interfaces.

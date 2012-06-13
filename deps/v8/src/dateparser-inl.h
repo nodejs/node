@@ -148,6 +148,9 @@ bool DateParser::Parse(Vector<Char> str,
       } else {
         // Garbage words are illegal if a number has been read.
         if (has_read_number) return false;
+        // The first number has to be separated from garbage words by
+        // whitespace or other separators.
+        if (scanner.Peek().IsNumber()) return false;
       }
     } else if (token.IsAsciiSign() && (tz.IsUTC() || !time.IsEmpty())) {
       // Parse UTC offset (only after UTC or time).

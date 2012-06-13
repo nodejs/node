@@ -498,6 +498,7 @@ class ICCompareStub: public CodeStub {
 
   virtual void FinishCode(Handle<Code> code) {
     code->set_compare_state(state_);
+    code->set_compare_operation(op_);
   }
 
   virtual CodeStub::Major MajorKey() { return CompareIC; }

@@ -34,6 +34,15 @@
 using namespace v8::internal;
 
 
+static inline void SimulateFullSpace(PagedSpace* space) {
+  int old_linear_size = static_cast<int>(space->limit() - space->top());
+  space->Free(space->top(), old_linear_size);
+  space->SetTop(space->limit(), space->limit());
+  space->ResetFreeList();
+  space->ClearStats();
+}
+
+
 static MaybeObject* AllocateAfterFailures() {
   static int attempts = 0;
   if (++attempts < 3) return Failure::RetryAfterGC();
@@ -65,24 +74,12 @@ static MaybeObject* AllocateAfterFailures() {
   CHECK(!heap->CopyJSObject(JSObject::cast(object))->IsFailure());
 
   // Old data space.
-  OldSpace* old_data_space = heap->old_data_space();
-  static const int kOldDataSpaceFillerSize = ByteArray::SizeFor(0);
-  while (old_data_space->Available() > kOldDataSpaceFillerSize) {
-    CHECK(!heap->AllocateByteArray(0, TENURED)->IsFailure());
-  }
+  SimulateFullSpace(heap->old_data_space());
   CHECK(!heap->AllocateRawAsciiString(100, TENURED)->IsFailure());
 
   // Old pointer space.
-  OldSpace* old_pointer_space = heap->old_pointer_space();
-  static const int kOldPointerSpaceFillerLength = 10000;
-  static const int kOldPointerSpaceFillerSize = FixedArray::SizeFor(
-      kOldPointerSpaceFillerLength);
-  while (old_pointer_space->Available() > kOldPointerSpaceFillerSize) {
-    CHECK(!heap->AllocateFixedArray(kOldPointerSpaceFillerLength, TENURED)->
-          IsFailure());
-  }
-  CHECK(!heap->AllocateFixedArray(kOldPointerSpaceFillerLength, TENURED)->
-        IsFailure());
+  SimulateFullSpace(heap->old_pointer_space());
+  CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
 
   // Large object space.
   static const int kLargeObjectSpaceFillerLength = 300000;
@@ -97,14 +94,9 @@ static MaybeObject* AllocateAfterFailures() {
         IsFailure());
 
   // Map space.
-  MapSpace* map_space = heap->map_space();
-  static const int kMapSpaceFillerSize = Map::kSize;
-  InstanceType instance_type = JS_OBJECT_TYPE;
+  SimulateFullSpace(heap->map_space());
   int instance_size = JSObject::kHeaderSize;
-  while (map_space->Available() > kMapSpaceFillerSize) {
-    CHECK(!heap->AllocateMap(instance_type, instance_size)->IsFailure());
-  }
-  CHECK(!heap->AllocateMap(instance_type, instance_size)->IsFailure());
+  CHECK(!heap->AllocateMap(JS_OBJECT_TYPE, instance_size)->IsFailure());
 
   // Test that we can allocate in old pointer space and code space.
   CHECK(!heap->AllocateFixedArray(100, TENURED)->IsFailure());

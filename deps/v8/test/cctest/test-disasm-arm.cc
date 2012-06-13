@@ -92,6 +92,10 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
     if (!DisassembleAndCompare(progcounter, compare_string)) failure = true; \
   }
 
+// Force emission of any pending literals into a pool.
+#define EMIT_PENDING_LITERALS() \
+  assm.CheckConstPool(true, false)
+
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
@@ -280,6 +284,10 @@ TEST(Type0) {
     // is pretty strange anyway.
     COMPARE(mov(r5, Operand(0x01234), SetCC, ne),
             "159fc000       ldrne ip, [pc, #+0]");
+    // Emit a literal pool now, otherwise this could be dumped later, in the
+    // middle of a different test.
+    EMIT_PENDING_LITERALS();
+
     // We only disassemble one instruction so the eor instruction is not here.
     // The eor does the setcc so we get a movw here.
     COMPARE(eor(r5, r4, Operand(0x1234), SetCC, ne),

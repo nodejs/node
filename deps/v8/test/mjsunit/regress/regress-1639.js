@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,7 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 var breaks = 0;
+var exception = false;
 
 function sendCommand(state, cmd) {
   // Get the debug command processor in paused state.
@@ -47,15 +48,18 @@ function listener(event, exec_state, event_data, data) {
                    "should not break on unexpected lines")
       assertEquals('BREAK ' + breaks, line.substr(-7));
       breaks++;
-      sendCommand(exec_state, {
-        seq: 0,
-        type: "request",
-        command: "continue",
-        arguments: { stepaction: "next" }
-      });
+      if (breaks < 4) {
+        sendCommand(exec_state, {
+          seq: 0,
+          type: "request",
+          command: "continue",
+          arguments: { stepaction: "next" }
+        });
+      }
     }
   } catch (e) {
     print(e);
+    exception = true;
   }
 }
 
@@ -82,4 +86,6 @@ function c() {
 // Set a break point and call to invoke the debug event listener.
 Debug.setBreakPoint(b, 0, 0);
 a(b);
-// BREAK 3
+a(); // BREAK 3
+
+assertFalse(exception);

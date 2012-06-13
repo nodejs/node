@@ -33,5 +33,5 @@
 var fast_array = ['a', 'b'];
 var array = fast_array.concat(fast_array);
 
-assertTrue(%HasFastElements(fast_array));
-assertTrue(%HasFastElements(array));
+assertTrue(%HasFastObjectElements(fast_array));
+assertTrue(%HasFastObjectElements(array));

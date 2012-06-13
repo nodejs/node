@@ -539,6 +539,8 @@ class ExternalReference BASE_EMBEDDED {
     DIRECT_GETTER_CALL
   };
 
+  static void SetUp();
+
   typedef void* ExternalReferenceRedirector(void* original, Type type);
 
   ExternalReference(Builtins::CFunctionId id, Isolate* isolate);
@@ -638,6 +640,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference handle_scope_level_address();
 
   static ExternalReference scheduled_exception_address(Isolate* isolate);
+  static ExternalReference address_of_pending_message_obj(Isolate* isolate);
+  static ExternalReference address_of_has_pending_message(Isolate* isolate);
+  static ExternalReference address_of_pending_message_script(Isolate* isolate);
 
   // Static variables containing common double constants.
   static ExternalReference address_of_min_int();
@@ -653,6 +658,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference math_cos_double_function(Isolate* isolate);
   static ExternalReference math_tan_double_function(Isolate* isolate);
   static ExternalReference math_log_double_function(Isolate* isolate);
+
+  static ExternalReference page_flags(Page* page);
 
   Address address() const {return reinterpret_cast<Address>(address_);}
 

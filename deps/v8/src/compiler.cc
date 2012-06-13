@@ -294,8 +294,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   Handle<Context> global_context(info->closure()->context()->global_context());
-  TypeFeedbackOracle oracle(code, global_context, info->isolate());
-  HGraphBuilder builder(info, &oracle);
+  TypeFeedbackOracle oracle(code, global_context, info->isolate(),
+                            info->isolate()->zone());
+  HGraphBuilder builder(info, &oracle, info->isolate()->zone());
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph();
   if (info->isolate()->has_pending_exception()) {
@@ -304,7 +305,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   if (graph != NULL) {
-    Handle<Code> optimized_code = graph->Compile(info);
+    Handle<Code> optimized_code = graph->Compile(info, graph->zone());
     if (!optimized_code.is_null()) {
       info->SetCode(optimized_code);
       FinishOptimization(info->closure(), start);
@@ -346,7 +347,8 @@ bool Compiler::MakeCodeForLiveEdit(CompilationInfo* info) {
   // the compilation info is set if compilation succeeded.
   bool succeeded = MakeCode(info);
   if (!info->shared_info().is_null()) {
-    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope());
+    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope(),
+                                                     info->isolate()->zone());
     info->shared_info()->set_scope_info(*scope_info);
   }
   return succeeded;
@@ -420,7 +422,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
           lit->name(),
           lit->materialized_literal_count(),
           info->code(),
-          ScopeInfo::Create(info->scope()));
+          ScopeInfo::Create(info->scope(), info->isolate()->zone()));
 
   ASSERT_EQ(RelocInfo::kNoPosition, lit->function_token_position());
   Compiler::SetFunctionInfo(result, lit, true, script);
@@ -462,7 +464,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
       script, Debugger::NO_AFTER_COMPILE_FLAGS);
 #endif
 
-  live_edit_tracker.RecordFunctionInfo(result, lit);
+  live_edit_tracker.RecordFunctionInfo(result, lit, isolate->zone());
 
   return result;
 }
@@ -651,7 +653,8 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         // info initialization is important since set_scope_info might
         // trigger a GC, causing the ASSERT below to be invalid if the code
         // was flushed. By setting the code object last we avoid this.
-        Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope());
+        Handle<ScopeInfo> scope_info =
+            ScopeInfo::Create(info->scope(), info->isolate()->zone());
         shared->set_scope_info(*scope_info);
         shared->set_code(*code);
         if (!function.is_null()) {
@@ -728,7 +731,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   } else if ((V8::UseCrankshaft() && MakeCrankshaftCode(&info)) ||
              (!V8::UseCrankshaft() && FullCodeGenerator::MakeCode(&info))) {
     ASSERT(!info.code().is_null());
-    scope_info = ScopeInfo::Create(info.scope());
+    scope_info = ScopeInfo::Create(info.scope(), info.isolate()->zone());
   } else {
     return Handle<SharedFunctionInfo>::null();
   }
@@ -747,7 +750,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   // the resulting function.
   SetExpectedNofPropertiesFromEstimate(result,
                                        literal->expected_property_count());
-  live_edit_tracker.RecordFunctionInfo(result, literal);
+  live_edit_tracker.RecordFunctionInfo(result, literal, info.isolate()->zone());
   return result;
 }
 

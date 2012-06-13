@@ -352,9 +352,9 @@ void IC::Clear(Address address) {
       return KeyedStoreIC::Clear(address, target);
     case Code::CALL_IC: return CallIC::Clear(address, target);
     case Code::KEYED_CALL_IC:  return KeyedCallIC::Clear(address, target);
+    case Code::COMPARE_IC: return CompareIC::Clear(address, target);
     case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
-    case Code::COMPARE_IC:
     case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
       // make any performance difference.
@@ -365,9 +365,8 @@ void IC::Clear(Address address) {
 
 
 void CallICBase::Clear(Address address, Code* target) {
+  if (target->ic_state() == UNINITIALIZED) return;
   bool contextual = CallICBase::Contextual::decode(target->extra_ic_state());
-  State state = target->ic_state();
-  if (state == UNINITIALIZED) return;
   Code* code =
       Isolate::Current()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
@@ -407,6 +406,17 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
       (Code::GetStrictMode(target->extra_ic_state()) == kStrictMode)
         ? initialize_stub_strict()
         : initialize_stub());
+}
+
+
+void CompareIC::Clear(Address address, Code* target) {
+  // Only clear ICCompareStubs, we currently cannot clear generic CompareStubs.
+  if (target->major_key() != CodeStub::CompareIC) return;
+  // Only clear CompareICs that can retain objects.
+  if (target->compare_state() != KNOWN_OBJECTS) return;
+  Token::Value op = CompareIC::ComputeOperation(target);
+  SetTargetAtAddress(address, GetRawUninitialized(op));
+  PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
 
 
@@ -978,13 +988,25 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         }
         break;
       case CALLBACKS: {
-        Handle<Object> callback_object(lookup->GetCallbackObject());
-        if (!callback_object->IsAccessorInfo()) return;
-        Handle<AccessorInfo> callback =
-            Handle<AccessorInfo>::cast(callback_object);
-        if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        code = isolate()->stub_cache()->ComputeLoadCallback(
-            name, receiver, holder, callback);
+        Handle<Object> callback(lookup->GetCallbackObject());
+        if (callback->IsAccessorInfo()) {
+          Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
+          if (v8::ToCData<Address>(info->getter()) == 0) return;
+          if (!info->IsCompatibleReceiver(*receiver)) return;
+          code = isolate()->stub_cache()->ComputeLoadCallback(
+              name, receiver, holder, info);
+        } else if (callback->IsAccessorPair()) {
+          Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
+          if (!getter->IsJSFunction()) return;
+          if (holder->IsGlobalObject()) return;
+          if (!receiver->HasFastProperties()) return;
+          code = isolate()->stub_cache()->ComputeLoadViaGetter(
+              name, receiver, holder, Handle<JSFunction>::cast(getter));
+        } else {
+          ASSERT(callback->IsForeign());
+          // No IC support for old-style native accessors.
+          return;
+        }
         break;
       }
       case INTERCEPTOR:
@@ -1053,18 +1075,33 @@ Handle<Code> KeyedLoadIC::ComputePolymorphicStub(
 }
 
 
+static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
+  // This helper implements a few common fast cases for converting
+  // non-smi keys of keyed loads/stores to a smi or a string.
+  if (key->IsHeapNumber()) {
+    double value = Handle<HeapNumber>::cast(key)->value();
+    if (isnan(value)) {
+      key = isolate->factory()->nan_symbol();
+    } else {
+      int int_value = FastD2I(value);
+      if (value == int_value && Smi::IsValid(int_value)) {
+        key = Handle<Smi>(Smi::FromInt(int_value));
+      }
+    }
+  } else if (key->IsUndefined()) {
+    key = isolate->factory()->undefined_symbol();
+  }
+  return key;
+}
+
+
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key,
                                bool force_generic_stub) {
-  // Check for values that can be converted into a symbol.
-  // TODO(1295): Remove this code.
-  if (key->IsHeapNumber() &&
-      isnan(Handle<HeapNumber>::cast(key)->value())) {
-    key = isolate()->factory()->nan_symbol();
-  } else if (key->IsUndefined()) {
-    key = isolate()->factory()->undefined_symbol();
-  }
+  // Check for values that can be converted into a symbol directly or
+  // is representable as a smi.
+  key = TryConvertKey(key, isolate());
 
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
@@ -1231,6 +1268,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
         Handle<AccessorInfo> callback =
             Handle<AccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
+        if (!callback->IsCompatibleReceiver(*receiver)) return;
         code = isolate()->stub_cache()->ComputeKeyedLoadCallback(
             name, receiver, holder, callback);
         break;
@@ -1383,7 +1421,11 @@ MaybeObject* StoreIC::Store(State state,
   }
 
   // Set the property.
-  return receiver->SetProperty(*name, *value, NONE, strict_mode);
+  return receiver->SetProperty(*name,
+                               *value,
+                               NONE,
+                               strict_mode,
+                               JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
 }
 
 
@@ -1408,6 +1450,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
+  Handle<JSObject> holder(lookup->holder());
   Handle<Code> code;
   switch (type) {
     case FIELD:
@@ -1435,18 +1478,30 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         code = isolate()->stub_cache()->ComputeStoreGlobal(
             name, global, cell, strict_mode);
       } else {
-        if (lookup->holder() != *receiver) return;
+        if (!holder.is_identical_to(receiver)) return;
         code = isolate()->stub_cache()->ComputeStoreNormal(strict_mode);
       }
       break;
     case CALLBACKS: {
-      Handle<Object> callback_object(lookup->GetCallbackObject());
-      if (!callback_object->IsAccessorInfo()) return;
-      Handle<AccessorInfo> callback =
-          Handle<AccessorInfo>::cast(callback_object);
-      if (v8::ToCData<Address>(callback->setter()) == 0) return;
-      code = isolate()->stub_cache()->ComputeStoreCallback(
-          name, receiver, callback, strict_mode);
+      Handle<Object> callback(lookup->GetCallbackObject());
+      if (callback->IsAccessorInfo()) {
+        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
+        if (v8::ToCData<Address>(info->setter()) == 0) return;
+        ASSERT(info->IsCompatibleReceiver(*receiver));
+        code = isolate()->stub_cache()->ComputeStoreCallback(
+            name, receiver, info, strict_mode);
+      } else if (callback->IsAccessorPair()) {
+        Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
+        if (!setter->IsJSFunction()) return;
+        if (holder->IsGlobalObject()) return;
+        if (!receiver->HasFastProperties()) return;
+        code = isolate()->stub_cache()->ComputeStoreViaSetter(
+            name, receiver, Handle<JSFunction>::cast(setter), strict_mode);
+      } else {
+        ASSERT(callback->IsForeign());
+        // No IC support for old-style native accessors.
+        return;
+      }
       break;
     }
     case INTERCEPTOR:
@@ -1456,7 +1511,6 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
       break;
     case CONSTANT_FUNCTION:
     case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
       return;
     case HANDLER:
     case NULL_DESCRIPTOR:
@@ -1538,38 +1592,43 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
   }
 
   bool monomorphic = false;
+  bool is_transition_stub = IsTransitionStubKind(stub_kind);
+  Handle<Map> receiver_map(receiver->map());
+  Handle<Map> monomorphic_map = receiver_map;
   MapHandleList target_receiver_maps;
-  if (ic_state != UNINITIALIZED && ic_state != PREMONOMORPHIC) {
+  if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
+    // Optimistically assume that ICs that haven't reached the MONOMORPHIC state
+    // yet will do so and stay there.
+    monomorphic = true;
+  } else {
     GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
-  }
-  if (!IsTransitionStubKind(stub_kind)) {
-    if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
-      monomorphic = true;
-    } else {
-      if (ic_state == MONOMORPHIC) {
-        // The first time a receiver is seen that is a transitioned version of
-        // the previous monomorphic receiver type, assume the new ElementsKind
-        // is the monomorphic type. This benefits global arrays that only
-        // transition once, and all call sites accessing them are faster if they
-        // remain monomorphic. If this optimistic assumption is not true, the IC
-        // will miss again and it will become polymorphic and support both the
-        // untransitioned and transitioned maps.
-        monomorphic = IsMoreGeneralElementsKindTransition(
-            target_receiver_maps.at(0)->elements_kind(),
-            receiver->GetElementsKind());
-      }
+    if (ic_state == MONOMORPHIC && is_transition_stub) {
+      // The first time a receiver is seen that is a transitioned version of the
+      // previous monomorphic receiver type, assume the new ElementsKind is the
+      // monomorphic type. This benefits global arrays that only transition
+      // once, and all call sites accessing them are faster if they remain
+      // monomorphic. If this optimistic assumption is not true, the IC will
+      // miss again and it will become polymorphic and support both the
+      // untransitioned and transitioned maps.
+      monomorphic = IsMoreGeneralElementsKindTransition(
+          target_receiver_maps.at(0)->elements_kind(),
+          receiver->GetElementsKind());
     }
   }
 
   if (monomorphic) {
+    if (is_transition_stub) {
+      monomorphic_map = ComputeTransitionedMap(receiver, stub_kind);
+      ASSERT(*monomorphic_map != *receiver_map);
+      stub_kind = GetNoTransitionStubKind(stub_kind);
+    }
     return ComputeMonomorphicStub(
-        receiver, stub_kind, strict_mode, generic_stub);
+        monomorphic_map, stub_kind, strict_mode, generic_stub);
   }
   ASSERT(target() != *generic_stub);
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
-  Handle<Map> receiver_map(receiver->map());
   bool map_added =
       AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map);
   if (IsTransitionStubKind(stub_kind)) {
@@ -1619,8 +1678,7 @@ Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
     return string_stub();
   } else {
     ASSERT(receiver_map->has_dictionary_elements() ||
-           receiver_map->has_fast_elements() ||
-           receiver_map->has_fast_smi_only_elements() ||
+           receiver_map->has_fast_smi_or_object_elements() ||
            receiver_map->has_fast_double_elements() ||
            receiver_map->has_external_array_elements());
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -1631,17 +1689,16 @@ Handle<Code> KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
 }
 
 
-Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<JSObject> receiver,
+Handle<Code> KeyedIC::ComputeMonomorphicStub(Handle<Map> receiver_map,
                                              StubKind stub_kind,
                                              StrictModeFlag strict_mode,
                                              Handle<Code> generic_stub) {
-  if (receiver->HasFastElements() ||
-      receiver->HasFastSmiOnlyElements() ||
-      receiver->HasExternalArrayElements() ||
-      receiver->HasFastDoubleElements() ||
-      receiver->HasDictionaryElements()) {
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  if (IsFastElementsKind(elements_kind) ||
+      IsExternalArrayElementsKind(elements_kind) ||
+      IsDictionaryElementsKind(elements_kind)) {
     return isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
-        receiver, stub_kind, strict_mode);
+        receiver_map, stub_kind, strict_mode);
   } else {
     return generic_stub;
   }
@@ -1656,15 +1713,26 @@ Handle<Map> KeyedIC::ComputeTransitionedMap(Handle<JSObject> receiver,
     case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT:
     case KeyedIC::STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT:
       return JSObject::GetElementsTransitionMap(receiver, FAST_ELEMENTS);
-      break;
     case KeyedIC::STORE_TRANSITION_SMI_TO_DOUBLE:
     case KeyedIC::STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE:
       return JSObject::GetElementsTransitionMap(receiver, FAST_DOUBLE_ELEMENTS);
-      break;
-    default:
+    case KeyedIC::STORE_TRANSITION_HOLEY_SMI_TO_OBJECT:
+    case KeyedIC::STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT:
+      return JSObject::GetElementsTransitionMap(receiver,
+                                                FAST_HOLEY_ELEMENTS);
+    case KeyedIC::STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE:
+    case KeyedIC::STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE:
+      return JSObject::GetElementsTransitionMap(receiver,
+                                                FAST_HOLEY_DOUBLE_ELEMENTS);
+    case KeyedIC::LOAD:
+    case KeyedIC::STORE_NO_TRANSITION:
+    case KeyedIC::STORE_AND_GROW_NO_TRANSITION:
       UNREACHABLE();
-      return Handle<Map>::null();
+      break;
   }
+  return Handle<Map>::null();
 }
 
 
@@ -1724,30 +1792,54 @@ KeyedIC::StubKind KeyedStoreIC::GetStubKind(Handle<JSObject> receiver,
 
   if (allow_growth) {
     // Handle growing array in stub if necessary.
-    if (receiver->HasFastSmiOnlyElements()) {
+    if (receiver->HasFastSmiElements()) {
       if (value->IsHeapNumber()) {
-        return STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_DOUBLE;
+        } else {
+          return STORE_AND_GROW_TRANSITION_SMI_TO_DOUBLE;
+        }
       }
       if (value->IsHeapObject()) {
-        return STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_AND_GROW_TRANSITION_HOLEY_SMI_TO_OBJECT;
+        } else {
+          return STORE_AND_GROW_TRANSITION_SMI_TO_OBJECT;
+        }
       }
     } else if (receiver->HasFastDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
-        return STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_AND_GROW_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+        } else {
+          return STORE_AND_GROW_TRANSITION_DOUBLE_TO_OBJECT;
+        }
       }
     }
     return STORE_AND_GROW_NO_TRANSITION;
   } else {
     // Handle only in-bounds elements accesses.
-    if (receiver->HasFastSmiOnlyElements()) {
+    if (receiver->HasFastSmiElements()) {
       if (value->IsHeapNumber()) {
-        return STORE_TRANSITION_SMI_TO_DOUBLE;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_TRANSITION_HOLEY_SMI_TO_DOUBLE;
+        } else {
+          return STORE_TRANSITION_SMI_TO_DOUBLE;
+        }
       } else if (value->IsHeapObject()) {
-        return STORE_TRANSITION_SMI_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_TRANSITION_HOLEY_SMI_TO_OBJECT;
+        } else {
+          return STORE_TRANSITION_SMI_TO_OBJECT;
+        }
       }
     } else if (receiver->HasFastDoubleElements()) {
       if (!value->IsSmi() && !value->IsHeapNumber()) {
-        return STORE_TRANSITION_DOUBLE_TO_OBJECT;
+        if (receiver->HasFastHoleyElements()) {
+          return STORE_TRANSITION_HOLEY_DOUBLE_TO_OBJECT;
+        } else {
+          return STORE_TRANSITION_DOUBLE_TO_OBJECT;
+        }
       }
     }
     return STORE_NO_TRANSITION;
@@ -1761,6 +1853,10 @@ MaybeObject* KeyedStoreIC::Store(State state,
                                  Handle<Object> key,
                                  Handle<Object> value,
                                  bool force_generic) {
+  // Check for values that can be converted into a symbol directly or
+  // is representable as a smi.
+  key = TryConvertKey(key, isolate());
+
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 
@@ -1878,7 +1974,6 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     case CALLBACKS:
     case INTERCEPTOR:
     case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
       // Always rewrite to the generic case so that we do not
       // repeatedly try to rewrite.
       code = (strict_mode == kStrictMode)
@@ -2377,7 +2472,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 
     // Activate inlined smi code.
     if (previous_type == BinaryOpIC::UNINITIALIZED) {
-      PatchInlinedSmiCode(ic.address());
+      PatchInlinedSmiCode(ic.address(), ENABLE_INLINED_SMI_CHECK);
     }
   }
 
@@ -2438,6 +2533,14 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 }
 
 
+Code* CompareIC::GetRawUninitialized(Token::Value op) {
+  ICCompareStub stub(op, UNINITIALIZED);
+  Code* code = NULL;
+  CHECK(stub.FindCodeInCache(&code));
+  return code;
+}
+
+
 Handle<Code> CompareIC::GetUninitialized(Token::Value op) {
   ICCompareStub stub(op, UNINITIALIZED);
   return stub.GetCode();
@@ -2449,6 +2552,12 @@ CompareIC::State CompareIC::ComputeState(Code* target) {
   if (key == CodeStub::Compare) return GENERIC;
   ASSERT(key == CodeStub::CompareIC);
   return static_cast<State>(target->compare_state());
+}
+
+
+Token::Value CompareIC::ComputeOperation(Code* target) {
+  ASSERT(target->major_key() == CodeStub::CompareIC);
+  return static_cast<Token::Value>(target->compare_operation());
 }
 
 

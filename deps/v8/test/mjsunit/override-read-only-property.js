@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --es5_readonly
+
 // According to ECMA-262, sections 8.6.2.2 and 8.6.2.3 you're not
 // allowed to override read-only properties, not even if the read-only
 // property is in the prototype chain.
@@ -38,19 +40,19 @@ F.prototype = Number;
 var original_number_max = Number.MAX_VALUE;
 
 // Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype takes effect.
+// but is read-only in a prototype does not take effect.
 var f = new F();
 assertEquals(original_number_max, f.MAX_VALUE);
 f.MAX_VALUE = 42;
-assertEquals(42, f.MAX_VALUE);
+assertEquals(original_number_max, f.MAX_VALUE);
 
 // Assignment to a property which does not exist on the object itself,
-// but is read-only in a prototype takes effect.
+// but is read-only in a prototype does not take effect.
 f = new F();
 with (f) {
   MAX_VALUE = 42;
 }
-assertEquals(42, f.MAX_VALUE);
+assertEquals(original_number_max, f.MAX_VALUE);
 
 // Assignment to read-only property on the object itself is ignored.
 Number.MAX_VALUE = 42;

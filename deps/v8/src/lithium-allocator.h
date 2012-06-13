@@ -457,6 +457,7 @@ class LAllocator BASE_EMBEDDED {
 
   LChunk* chunk() const { return chunk_; }
   HGraph* graph() const { return graph_; }
+  Zone* zone() const { return zone_; }
 
   int GetVirtualRegister() {
     if (next_virtual_register_ > LUnallocated::kMaxVirtualRegisters) {

@@ -37,8 +37,9 @@
       'variables': {
         'variables': {
           'conditions': [
-            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
-              # This handles the Linux platforms we generally deal with.
+            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
+               OS=="netbsd" or OS=="mac"', {
+              # This handles the Unix platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
               # to gyp.
@@ -46,7 +47,8 @@
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
                   s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mips/")',
             }, {
-              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and OS!="netbsd"
+              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
+              # OS!="netbsd" and OS!="mac"
               'host_arch%': 'ia32',
             }],
           ],
@@ -71,6 +73,10 @@
         'want_separate_host_toolset': 0,
       }],
     ],
+    # Default ARM variable settings.
+    'armv7%': 1,
+    'arm_neon%': 0,
+    'arm_fpu%': 'vfpv3',
   },
   'target_defaults': {
     'default_configuration': 'Debug',

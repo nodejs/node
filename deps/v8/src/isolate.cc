@@ -256,7 +256,7 @@ void Isolate::PreallocatedStorageInit(size_t size) {
 
 void* Isolate::PreallocatedStorageNew(size_t size) {
   if (!preallocated_storage_preallocated_) {
-    return FreeStoreAllocationPolicy::New(size);
+    return FreeStoreAllocationPolicy().New(size);
   }
   ASSERT(free_list_.next_ != &free_list_);
   ASSERT(free_list_.previous_ != &free_list_);
@@ -921,7 +921,7 @@ Failure* Isolate::Throw(Object* exception, MessageLocation* location) {
 }
 
 
-Failure* Isolate::ReThrow(MaybeObject* exception, MessageLocation* location) {
+Failure* Isolate::ReThrow(MaybeObject* exception) {
   bool can_be_caught_externally = false;
   bool catchable_by_javascript = is_catchable_by_javascript(exception);
   ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
@@ -1131,8 +1131,18 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // to the console for easier debugging.
       int line_number = GetScriptLineNumberSafe(location->script(),
                                                 location->start_pos());
-      OS::PrintError("Extension or internal compilation error at line %d.\n",
-                     line_number);
+      if (exception->IsString()) {
+        OS::PrintError(
+            "Extension or internal compilation error: %s in %s at line %d.\n",
+            *String::cast(exception)->ToCString(),
+            *String::cast(location->script()->name())->ToCString(),
+            line_number);
+      } else {
+        OS::PrintError(
+            "Extension or internal compilation error in %s at line %d.\n",
+            *String::cast(location->script()->name())->ToCString(),
+            line_number);
+      }
     }
   }
 
@@ -1430,6 +1440,7 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 
 Isolate::Isolate()
     : state_(UNINITIALIZED),
+      embedder_data_(NULL),
       entry_stack_(NULL),
       stack_trace_nesting_level_(0),
       incomplete_message_(NULL),
@@ -1472,7 +1483,6 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
-      embedder_data_(NULL),
       context_exit_happened_(false) {
   TRACE_ISOLATE(constructor);
 
@@ -1768,7 +1778,7 @@ bool Isolate::Init(Deserializer* des) {
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
   handle_scope_implementer_ = new HandleScopeImplementer(this);
-  stub_cache_ = new StubCache(this);
+  stub_cache_ = new StubCache(this, zone());
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
@@ -1856,6 +1866,13 @@ bool Isolate::Init(Deserializer* des) {
     LOG(this, LogCodeObjects());
     LOG(this, LogCompiledFunctions());
   }
+
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, state_)),
+           Internals::kIsolateStateOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, embedder_data_)),
+           Internals::kIsolateEmbedderDataOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, heap_.roots_)),
+           Internals::kIsolateRootsOffset);
 
   state_ = INITIALIZED;
   time_millis_at_init_ = OS::TimeCurrentMillis();

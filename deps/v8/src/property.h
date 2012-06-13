@@ -111,14 +111,6 @@ class MapTransitionDescriptor: public Descriptor {
       : Descriptor(key, map, attributes, MAP_TRANSITION) { }
 };
 
-class ElementsTransitionDescriptor: public Descriptor {
- public:
-  ElementsTransitionDescriptor(String* key,
-                               Object* map_or_array)
-      : Descriptor(key, map_or_array, PropertyDetails(NONE,
-                                                      ELEMENTS_TRANSITION)) { }
-};
-
 // Marks a field name in a map so that adding the field is guaranteed
 // to create a FIELD descriptor in the new map.  Used after adding
 // a constant function the first time, creating a CONSTANT_FUNCTION
@@ -180,7 +172,6 @@ bool IsPropertyDescriptor(T* desc) {
               AccessorPair::cast(callback_object)->ContainsAccessor());
     }
     case MAP_TRANSITION:
-    case ELEMENTS_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
       return false;
@@ -211,13 +202,6 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = DESCRIPTOR_TYPE;
     holder_ = holder;
     details_ = details;
-    number_ = number;
-  }
-
-  void DescriptorResult(JSObject* holder, Smi* details, int number) {
-    lookup_type_ = DESCRIPTOR_TYPE;
-    holder_ = holder;
-    details_ = PropertyDetails(details);
     number_ = number;
   }
 
@@ -318,7 +302,6 @@ class LookupResult BASE_EMBEDDED {
   Map* GetTransitionMap() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(type() == MAP_TRANSITION ||
-           type() == ELEMENTS_TRANSITION ||
            type() == CONSTANT_TRANSITION);
     return Map::cast(GetValue());
   }

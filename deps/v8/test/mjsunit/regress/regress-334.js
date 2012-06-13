@@ -40,7 +40,7 @@ var object = {__proto__:{}};
 %SetProperty(object, "foo", func1, DONT_ENUM | DONT_DELETE);
 %SetProperty(object, "bar", func1, DONT_ENUM | READ_ONLY);
 %SetProperty(object, "baz", func1, DONT_DELETE | READ_ONLY);
-%SetProperty(object.__proto__, "bif", func1, DONT_ENUM | DONT_DELETE | READ_ONLY);
+%SetProperty(object.__proto__, "bif", func1, DONT_ENUM | DONT_DELETE);
 object.bif = func2;
 
 function enumerable(obj) {

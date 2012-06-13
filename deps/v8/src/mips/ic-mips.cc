@@ -1347,34 +1347,35 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
   __ Branch(&non_double_value, ne, t0, Operand(at));
 
-  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
-  // FAST_DOUBLE_ELEMENTS and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+
+  // Value is a double. Transition FAST_SMI_ELEMENTS -> FAST_DOUBLE_ELEMENTS
+  // and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_DOUBLE_ELEMENTS,
                                          receiver_map,
                                          t0,
                                          &slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_ELEMENTS,
                                          receiver_map,
                                          t0,
                                          &slow);
   ASSERT(receiver_map.is(a3));  // Transition code expects map in a3
-  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
   __ lw(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 
   __ bind(&transition_double_elements);
-  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
-  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
-  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
+  // Elements are double, but value is an Object that's not a HeapNumber. Make
+  // sure that the receiver is a Array with Object elements and transition array
+  // from double elements to Object elements.
   __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
                                          FAST_ELEMENTS,
                                          receiver_map,
@@ -1471,7 +1472,7 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in v0.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
     __ Ret(USE_DELAY_SLOT);
     __ mov(v0, a2);
     __ bind(&fail);
@@ -1688,12 +1689,12 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
   // Activate inlined smi code.
   if (previous_state == UNINITIALIZED) {
-    PatchInlinedSmiCode(address());
+    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
   }
 }
 
 
-void PatchInlinedSmiCode(Address address) {
+void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   Address andi_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
 
@@ -1727,33 +1728,30 @@ void PatchInlinedSmiCode(Address address) {
   Instr instr_at_patch = Assembler::instr_at(patch_address);
   Instr branch_instr =
       Assembler::instr_at(patch_address + Instruction::kInstrSize);
-  ASSERT(Assembler::IsAndImmediate(instr_at_patch));
-  ASSERT_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+  // This is patching a conditional "jump if not smi/jump if smi" site.
+  // Enabling by changing from
+  //   andi at, rx, 0
+  //   Branch <target>, eq, at, Operand(zero_reg)
+  // to:
+  //   andi at, rx, #kSmiTagMask
+  //   Branch <target>, ne, at, Operand(zero_reg)
+  // and vice-versa to be disabled again.
+  CodePatcher patcher(patch_address, 2);
+  Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
+  if (check == ENABLE_INLINED_SMI_CHECK) {
+    ASSERT(Assembler::IsAndImmediate(instr_at_patch));
+    ASSERT_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+    patcher.masm()->andi(at, reg, kSmiTagMask);
+  } else {
+    ASSERT(check == DISABLE_INLINED_SMI_CHECK);
+    ASSERT(Assembler::IsAndImmediate(instr_at_patch));
+    patcher.masm()->andi(at, reg, 0);
+  }
   ASSERT(Assembler::IsBranch(branch_instr));
   if (Assembler::IsBeq(branch_instr)) {
-    // This is patching a "jump if not smi" site to be active.
-    // Changing:
-    //   andi at, rx, 0
-    //   Branch <target>, eq, at, Operand(zero_reg)
-    // to:
-    //   andi at, rx, #kSmiTagMask
-    //   Branch <target>, ne, at, Operand(zero_reg)
-    CodePatcher patcher(patch_address, 2);
-    Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
-    patcher.masm()->andi(at, reg, kSmiTagMask);
     patcher.ChangeBranchCondition(ne);
   } else {
     ASSERT(Assembler::IsBne(branch_instr));
-    // This is patching a "jump if smi" site to be active.
-    // Changing:
-    //   andi at, rx, 0
-    //   Branch <target>, ne, at, Operand(zero_reg)
-    // to:
-    //   andi at, rx, #kSmiTagMask
-    //   Branch <target>, eq, at, Operand(zero_reg)
-    CodePatcher patcher(patch_address, 2);
-    Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
-    patcher.masm()->andi(at, reg, kSmiTagMask);
     patcher.ChangeBranchCondition(eq);
   }
 }

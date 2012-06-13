@@ -1,4 +1,4 @@
-// Copyright 2008-2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -59,7 +59,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void Backtrack();
   virtual void GoTo(Label* label);
   virtual void PushBacktrack(Label* label);
-  virtual void Succeed();
+  virtual bool Succeed();
   virtual void Fail();
   virtual void PopRegister(int register_index);
   virtual void PushRegister(int register_index,
@@ -93,10 +93,16 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  virtual void CheckCharacterInRange(uc16 from,
+                                     uc16 to,
+                                     Label* on_in_range);
+  virtual void CheckCharacterNotInRange(uc16 from,
+                                        uc16 to,
+                                        Label* on_not_in_range);
+  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
-  virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
   virtual void CheckCharacters(Vector<const uc16> str,
                                int cp_offset,
                                Label* on_failure,
@@ -114,6 +120,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   inline void EmitOrLink(Label* label);
   inline void Emit32(uint32_t x);
   inline void Emit16(uint32_t x);
+  inline void Emit8(uint32_t x);
   inline void Emit(uint32_t bc, uint32_t arg);
   // Bytecode buffer.
   int length();

@@ -65,8 +65,12 @@
 //   static LazyInstance<MyClass, MyCreateTrait>::type my_instance =
 //      LAZY_INSTANCE_INITIALIZER;
 //
-// WARNING: This implementation of LazyInstance is NOT thread-safe by default.
-// See ThreadSafeInitOnceTrait declared below for that.
+// WARNINGS:
+// - This implementation of LazyInstance is NOT THREAD-SAFE by default. See
+//   ThreadSafeInitOnceTrait declared below for that.
+// - Lazy initialization comes with a cost. Make sure that you don't use it on
+//   critical path. Consider adding your initialization code to a function
+//   which is explicitly called once.
 //
 // Notes for advanced users:
 // LazyInstance can actually be used in two different ways:
@@ -246,7 +250,7 @@ struct LazyInstance {
 
 
 template <typename T,
-          typename CreateTrait = DefaultConstructTrait<T>,
+          typename CreateTrait = DefaultCreateTrait<T>,
           typename InitOnceTrait = SingleThreadInitOnceTrait,
           typename DestroyTrait = LeakyInstanceTrait<T> >
 struct LazyDynamicInstance {

@@ -705,3 +705,14 @@ assertThrows("RegExp('(?!*)')");
 // Test trimmed regular expression for RegExp.test().
 assertTrue(/.*abc/.test("abc"));
 assertFalse(/.*\d+/.test("q"));
+
+// Test that RegExp.prototype.toString() throws TypeError for
+// incompatible receivers (ES5 section 15.10.6 and 15.10.6.4).
+assertThrows("RegExp.prototype.toString.call(null)", TypeError);
+assertThrows("RegExp.prototype.toString.call(0)", TypeError);
+assertThrows("RegExp.prototype.toString.call('')", TypeError);
+assertThrows("RegExp.prototype.toString.call(false)", TypeError);
+assertThrows("RegExp.prototype.toString.call(true)", TypeError);
+assertThrows("RegExp.prototype.toString.call([])", TypeError);
+assertThrows("RegExp.prototype.toString.call({})", TypeError);
+assertThrows("RegExp.prototype.toString.call(function(){})", TypeError);

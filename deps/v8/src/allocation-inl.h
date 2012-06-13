@@ -34,12 +34,12 @@ namespace v8 {
 namespace internal {
 
 
-void* PreallocatedStorage::New(size_t size) {
+void* PreallocatedStorageAllocationPolicy::New(size_t size) {
   return Isolate::Current()->PreallocatedStorageNew(size);
 }
 
 
-void PreallocatedStorage::Delete(void* p) {
+void PreallocatedStorageAllocationPolicy::Delete(void* p) {
   return Isolate::Current()->PreallocatedStorageDelete(p);
 }
 

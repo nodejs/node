@@ -337,7 +337,7 @@ function ObjectKeys(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
-    return ToStringArray(names);
+    return ToStringArray(names, "keys");
   }
   return %LocalKeys(obj);
 }
@@ -963,7 +963,7 @@ function ToStringArray(obj, trap) {
   var names = {};  // TODO(rossberg): use sets once they are ready.
   for (var index = 0; index < n; index++) {
     var s = ToString(obj[index]);
-    if (s in names) {
+    if (%HasLocalProperty(names, s)) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
     }
     array[index] = s;

@@ -47,7 +47,7 @@ class RegExpMacroAssemblerMIPS: public RegExpMacroAssembler {
 #else  // V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerMIPS(Mode mode, int registers_to_save);
+  RegExpMacroAssemblerMIPS(Mode mode, int registers_to_save, Zone* zone);
   virtual ~RegExpMacroAssemblerMIPS();
   virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
@@ -72,7 +72,6 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
-  virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
   virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(uint32_t c,
                                          uint32_t mask,
@@ -81,6 +80,14 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  virtual void CheckCharacterInRange(uc16 from,
+                                     uc16 to,
+                                     Label* on_in_range);
+  virtual void CheckCharacterNotInRange(uc16 from,
+                                        uc16 to,
+                                        Label* on_not_in_range);
+  virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
+
   // Checks whether the given offset from the current position is before
   // the end of the string.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
@@ -107,7 +114,7 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetCurrentPositionFromEnd(int by);
   virtual void SetRegister(int register_index, int to);
-  virtual void Succeed();
+  virtual bool Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
@@ -133,7 +140,8 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kStackFrameHeader = kReturnAddress + kPointerSize;
   // Stack parameters placed by caller.
   static const int kRegisterOutput = kStackFrameHeader + 20;
-  static const int kStackHighEnd = kRegisterOutput + kPointerSize;
+  static const int kNumOutputRegisters = kRegisterOutput + kPointerSize;
+  static const int kStackHighEnd = kNumOutputRegisters + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
 
@@ -145,10 +153,10 @@ class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
   static const int kInputString = kStartIndex - kPointerSize;
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
-  static const int kInputStartMinusOne = kInputString - kPointerSize;
-  static const int kAtStart = kInputStartMinusOne - kPointerSize;
+  static const int kSuccessfulCaptures = kInputString - kPointerSize;
+  static const int kInputStartMinusOne = kSuccessfulCaptures - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kAtStart - kPointerSize;
+  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;

@@ -65,6 +65,7 @@
 #include "log-inl.h"
 #include "cpu-profiler-inl.h"
 #include "handles-inl.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {

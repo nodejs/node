@@ -788,11 +788,6 @@ const int kBArgsSlotsSize = 0 * Instruction::kInstrSize;
 
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
-const int kDoubleAlignmentBits = 3;
-const int kDoubleAlignment = (1 << kDoubleAlignmentBits);
-const int kDoubleAlignmentMask = kDoubleAlignment - 1;
-
-
 } }   // namespace v8::internal
 
 #endif    // #ifndef V8_MIPS_CONSTANTS_H_

@@ -76,6 +76,7 @@ class MozillaTestCase(test.TestCase):
   def GetCommand(self):
     result = self.context.GetVmCommand(self, self.mode) + \
        [ '--expose-gc', join(self.root, 'mozilla-shell-emulation.js') ]
+    result += [ '--es5_readonly' ]  # Temporary hack until we can remove flag
     result += self.framework
     result.append(self.filename)
     return result

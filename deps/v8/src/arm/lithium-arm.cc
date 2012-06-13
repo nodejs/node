@@ -108,22 +108,17 @@ void LInstruction::PrintTo(StringStream* stream) {
 }
 
 
-template<int R, int I, int T>
-void LTemplateInstruction<R, I, T>::PrintDataTo(StringStream* stream) {
+void LInstruction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  for (int i = 0; i < inputs_.length(); i++) {
+  for (int i = 0; i < InputCount(); i++) {
     if (i > 0) stream->Add(" ");
-    inputs_[i]->PrintTo(stream);
+    InputAt(i)->PrintTo(stream);
   }
 }
 
 
-template<int R, int I, int T>
-void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
-  for (int i = 0; i < results_.length(); i++) {
-    if (i > 0) stream->Add(" ");
-    results_[i]->PrintTo(stream);
-  }
+void LInstruction::PrintOutputOperandTo(StringStream* stream) {
+  if (HasResult()) result()->PrintTo(stream);
 }
 
 
@@ -416,9 +411,9 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
     : spill_slot_count_(0),
       info_(info),
       graph_(graph),
-      instructions_(32),
-      pointer_maps_(8),
-      inlined_closures_(1) {
+      instructions_(32, graph->zone()),
+      pointer_maps_(8, graph->zone()),
+      inlined_closures_(1, graph->zone()) {
 }
 
 
@@ -432,9 +427,9 @@ int LChunk::GetNextSpillIndex(bool is_double) {
 LOperand* LChunk::GetNextSpillSlot(bool is_double)  {
   int index = GetNextSpillIndex(is_double);
   if (is_double) {
-    return LDoubleStackSlot::Create(index);
+    return LDoubleStackSlot::Create(index, zone());
   } else {
-    return LStackSlot::Create(index);
+    return LStackSlot::Create(index, zone());
   }
 }
 
@@ -479,23 +474,23 @@ void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
   int index = -1;
   if (instr->IsControl()) {
-    instructions_.Add(gap);
+    instructions_.Add(gap, zone());
     index = instructions_.length();
-    instructions_.Add(instr);
+    instructions_.Add(instr, zone());
   } else {
     index = instructions_.length();
-    instructions_.Add(instr);
-    instructions_.Add(gap);
+    instructions_.Add(instr, zone());
+    instructions_.Add(gap, zone());
   }
   if (instr->HasPointerMap()) {
-    pointer_maps_.Add(instr->pointer_map());
+    pointer_maps_.Add(instr->pointer_map(), zone());
     instr->pointer_map()->set_lithium_position(index);
   }
 }
 
 
 LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
-  return LConstantOperand::Create(constant->id());
+  return LConstantOperand::Create(constant->id(), zone());
 }
 
 
@@ -534,7 +529,8 @@ int LChunk::NearestGapPos(int index) const {
 
 
 void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
-  GetGapAt(index)->GetOrCreateParallelMove(LGap::START)->AddMove(from, to);
+  GetGapAt(index)->GetOrCreateParallelMove(
+      LGap::START, zone())->AddMove(from, to, zone());
 }
 
 
@@ -732,22 +728,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instruction_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instruction_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -760,8 +740,10 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasObservableSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(instruction_pending_deoptimization_environment_ == NULL);
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    instruction_pending_deoptimization_environment_ = instr;
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -779,15 +761,9 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 }
 
 
-LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
-  instr->MarkAsSaveDoubles();
-  return instr;
-}
-
-
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_));
+  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
   return instr;
 }
 
@@ -1010,7 +986,8 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
       hydrogen_env->parameter_count(),
       argument_count_,
       value_count,
-      outer);
+      outer,
+      zone());
   int argument_index = *argument_index_accumulator;
   for (int i = 0; i < value_count; ++i) {
     if (hydrogen_env->is_special_index(i)) continue;
@@ -1295,6 +1272,7 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
+  if (instr->HasNoUses()) return NULL;
   LOperand* value = UseRegisterAtStart(instr->value());
   return DefineAsRegister(new(zone()) LBitNotI(value));
 }
@@ -1316,6 +1294,76 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
   } else {
     return DoArithmeticT(Token::DIV, instr);
   }
+}
+
+
+bool LChunkBuilder::HasMagicNumberForDivisor(int32_t divisor) {
+  uint32_t divisor_abs = abs(divisor);
+  // Dividing by 0, 1, and powers of 2 is easy.
+  // Note that IsPowerOf2(0) returns true;
+  ASSERT(IsPowerOf2(0) == true);
+  if (IsPowerOf2(divisor_abs)) return true;
+
+  // We have magic numbers for a few specific divisors.
+  // Details and proofs can be found in:
+  // - Hacker's Delight, Henry S. Warren, Jr.
+  // - The PowerPC Compiler Writer’s Guide
+  // and probably many others.
+  //
+  // We handle
+  //   <divisor with magic numbers> * <power of 2>
+  // but not
+  //   <divisor with magic numbers> * <other divisor with magic numbers>
+  int32_t power_of_2_factor =
+    CompilerIntrinsics::CountTrailingZeros(divisor_abs);
+  DivMagicNumbers magic_numbers =
+    DivMagicNumberFor(divisor_abs >> power_of_2_factor);
+  if (magic_numbers.M != InvalidDivMagicNumber.M) return true;
+
+  return false;
+}
+
+
+HValue* LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(HValue* dividend) {
+  // A value with an integer representation does not need to be transformed.
+  if (dividend->representation().IsInteger32()) {
+    return dividend;
+  // A change from an integer32 can be replaced by the integer32 value.
+  } else if (dividend->IsChange() &&
+      HChange::cast(dividend)->from().IsInteger32()) {
+    return HChange::cast(dividend)->value();
+  }
+  return NULL;
+}
+
+
+HValue* LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(HValue* divisor) {
+  // Only optimize when we have magic numbers for the divisor.
+  // The standard integer division routine is usually slower than transitionning
+  // to VFP.
+  if (divisor->IsConstant() &&
+      HConstant::cast(divisor)->HasInteger32Value()) {
+    HConstant* constant_val = HConstant::cast(divisor);
+    int32_t int32_val = constant_val->Integer32Value();
+    if (LChunkBuilder::HasMagicNumberForDivisor(int32_val)) {
+      return constant_val->CopyToRepresentation(Representation::Integer32(),
+                                                divisor->block()->zone());
+    }
+  }
+  return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+    HValue* right = instr->right();
+    LOperand* dividend = UseRegister(instr->left());
+    LOperand* divisor = UseRegisterOrConstant(right);
+    LOperand* remainder = TempRegister();
+    ASSERT(right->IsConstant() &&
+           HConstant::cast(right)->HasInteger32Value() &&
+           HasMagicNumberForDivisor(HConstant::cast(right)->Integer32Value()));
+    return AssignEnvironment(DefineAsRegister(
+          new(zone()) LMathFloorOfDiv(dividend, divisor, remainder)));
 }
 
 
@@ -1612,7 +1660,8 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 
 LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
   LOperand* object = UseFixed(instr->value(), r0);
-  LDateField* result = new LDateField(object, FixedTemp(r1), instr->index());
+  LDateField* result =
+      new(zone()) LDateField(object, FixedTemp(r1), instr->index());
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
@@ -1661,10 +1710,9 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegisterAtStart(instr->value());
-      bool needs_check = !instr->value()->type().IsSmi();
       LInstruction* res = NULL;
-      if (!needs_check) {
-        res = DefineAsRegister(new(zone()) LSmiUntag(value, needs_check));
+      if (instr->value()->type().IsSmi()) {
+        res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
       } else {
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
@@ -1753,9 +1801,9 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
+LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LInstruction* result = new(zone()) LCheckMap(value);
+  LInstruction* result = new(zone()) LCheckMaps(value);
   return AssignEnvironment(result);
 }
 
@@ -2037,8 +2085,9 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoTransitionElementsKind(
     HTransitionElementsKind* instr) {
-  if (instr->original_map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
-      instr->transitioned_map()->elements_kind() == FAST_ELEMENTS) {
+  ElementsKind from_kind = instr->original_map()->elements_kind();
+  ElementsKind to_kind = instr->transitioned_map()->elements_kind();
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     LOperand* object = UseRegister(instr->object());
     LOperand* new_map_reg = TempRegister();
     LTransitionElementsKind* result =
@@ -2059,16 +2108,28 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool needs_write_barrier = instr->NeedsWriteBarrier();
+  bool needs_write_barrier_for_map = !instr->transition().is_null() &&
+      instr->NeedsWriteBarrierForMap();
 
-  LOperand* obj = needs_write_barrier
-      ? UseTempRegister(instr->object())
-      : UseRegisterAtStart(instr->object());
+  LOperand* obj;
+  if (needs_write_barrier) {
+    obj = instr->is_in_object()
+        ? UseRegister(instr->object())
+        : UseTempRegister(instr->object());
+  } else {
+    obj = needs_write_barrier_for_map
+        ? UseRegister(instr->object())
+        : UseRegisterAtStart(instr->object());
+  }
 
   LOperand* val = needs_write_barrier
       ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
 
-  return new(zone()) LStoreNamedField(obj, val);
+  // We need a temporary register for write barrier of the map field.
+  LOperand* temp = needs_write_barrier_for_map ? TempRegister() : NULL;
+
+  return new(zone()) LStoreNamedField(obj, val, temp);
 }
 
 
@@ -2111,7 +2172,8 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
-  LAllocateObject* result = new LAllocateObject(TempRegister(), TempRegister());
+  LAllocateObject* result =
+      new(zone()) LAllocateObject(TempRegister(), TempRegister());
   return AssignPointerMap(DefineAsRegister(result));
 }
 
@@ -2242,9 +2304,12 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   if (pending_deoptimization_ast_id_ == instr->ast_id()) {
     LInstruction* result = new(zone()) LLazyBailout;
     result = AssignEnvironment(result);
+    // Store the lazy deopt environment with the instruction if needed. Right
+    // now it is only used for LInstanceOfKnownGlobal.
     instruction_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+        SetDeferredLazyDeoptimizationEnvironment(result->environment());
+    instruction_pending_deoptimization_environment_ = NULL;
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 
@@ -2271,8 +2336,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                undefined,
                                                instr->call_kind(),
                                                instr->is_construct());
-  if (instr->arguments() != NULL) {
-    inner->Bind(instr->arguments(), graph()->GetArgumentsObject());
+  if (instr->arguments_var() != NULL) {
+    inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
   }
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
@@ -2281,10 +2346,21 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
 
 
 LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
+  LInstruction* pop = NULL;
+
+  HEnvironment* env = current_block_->last_environment();
+
+  if (instr->arguments_pushed()) {
+    int argument_count = env->arguments_environment()->parameter_count();
+    pop = new(zone()) LDrop(argument_count);
+    argument_count_ -= argument_count;
+  }
+
   HEnvironment* outer = current_block_->last_environment()->
       DiscardInlined(false);
   current_block_->UpdateEnvironment(outer);
-  return NULL;
+
+  return pop;
 }
 
 

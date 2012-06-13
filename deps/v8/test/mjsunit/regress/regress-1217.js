@@ -30,7 +30,7 @@
 var proto = RegExp.prototype;
 assertEquals("[object RegExp]", Object.prototype.toString.call(proto));
 
-assertEquals("", proto.source);
+assertEquals("(?:)", proto.source);
 assertEquals(false, proto.global);
 assertEquals(false, proto.multiline);
 assertEquals(false, proto.ignoreCase);

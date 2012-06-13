@@ -1246,9 +1246,6 @@ def BuildOptions():
   result.add_option("--nostress",
                     help="Don't run crankshaft --always-opt --stress-op test",
                     default=False, action="store_true")
-  result.add_option("--crankshaft",
-                    help="Run with the --crankshaft flag",
-                    default=False, action="store_true")
   result.add_option("--shard-count",
                     help="Split testsuites into this number of shards",
                     default=1, type="int")
@@ -1300,11 +1297,6 @@ def ProcessOptions(options):
     VARIANT_FLAGS = [['--stress-opt', '--always-opt']]
   if options.nostress:
     VARIANT_FLAGS = [[],['--nocrankshaft']]
-  if options.crankshaft:
-    if options.special_command:
-      options.special_command += " --crankshaft"
-    else:
-      options.special_command = "@ --crankshaft"
   if options.shell.endswith("d8"):
     if options.special_command:
       options.special_command += " --test"
@@ -1493,7 +1485,6 @@ def Main():
         'system': utils.GuessOS(),
         'arch': options.arch,
         'simulator': options.simulator,
-        'crankshaft': options.crankshaft,
         'isolates': options.isolates
       }
       test_list = root.ListTests([], path, context, mode, [])

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// See: http://code.google.com/p/v8/issues/detail?id=1878
+// See: http://code.google.com/p/v8/issues/detail?id=1849
 
 // Flags: --allow-natives-syntax
 
@@ -36,4 +36,4 @@ for (var i = 0; i < count; i++) {
   arr[i] = 0;
 }
 assertFalse(%HasFastDoubleElements(arr));
-assertTrue(%HasFastSmiOnlyElements(arr));
+assertTrue(%HasFastSmiElements(arr));

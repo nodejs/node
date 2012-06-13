@@ -53,12 +53,12 @@ class Interface : public ZoneObject {
     return &value_interface;
   }
 
-  static Interface* NewUnknown() {
-    return new Interface(NONE);
+  static Interface* NewUnknown(Zone* zone) {
+    return new(zone) Interface(NONE);
   }
 
-  static Interface* NewModule() {
-    return new Interface(MODULE);
+  static Interface* NewModule(Zone* zone) {
+    return new(zone) Interface(MODULE);
   }
 
   // ---------------------------------------------------------------------------
@@ -66,13 +66,13 @@ class Interface : public ZoneObject {
 
   // Add a name to the list of exports. If it already exists, unify with
   // interface, otherwise insert unless this is closed.
-  void Add(Handle<String> name, Interface* interface, bool* ok) {
-    DoAdd(name.location(), name->Hash(), interface, ok);
+  void Add(Handle<String> name, Interface* interface, Zone* zone, bool* ok) {
+    DoAdd(name.location(), name->Hash(), interface, zone, ok);
   }
 
   // Unify with another interface. If successful, both interface objects will
   // represent the same type, and changes to one are reflected in the other.
-  void Unify(Interface* that, bool* ok);
+  void Unify(Interface* that, Zone* zone, bool* ok);
 
   // Determine this interface to be a value interface.
   void MakeValue(bool* ok) {
@@ -86,6 +86,12 @@ class Interface : public ZoneObject {
     if (*ok) Chase()->flags_ |= MODULE;
   }
 
+  // Set associated instance object.
+  void MakeSingleton(Handle<JSModule> instance, bool* ok) {
+    *ok = IsModule() && Chase()->instance_.is_null();
+    if (*ok) Chase()->instance_ = instance;
+  }
+
   // Do not allow any further refinements, directly or through unification.
   void Freeze(bool* ok) {
     *ok = IsValue() || IsModule();
@@ -94,9 +100,6 @@ class Interface : public ZoneObject {
 
   // ---------------------------------------------------------------------------
   // Accessors.
-
-  // Look up an exported name. Returns NULL if not (yet) defined.
-  Interface* Lookup(Handle<String> name);
 
   // Check whether this is still a fully undetermined type.
   bool IsUnknown() { return Chase()->flags_ == NONE; }
@@ -109,6 +112,42 @@ class Interface : public ZoneObject {
 
   // Check whether this is closed (i.e. fully determined).
   bool IsFrozen() { return Chase()->flags_ & FROZEN; }
+
+  Handle<JSModule> Instance() { return Chase()->instance_; }
+
+  // Look up an exported name. Returns NULL if not (yet) defined.
+  Interface* Lookup(Handle<String> name, Zone* zone);
+
+  // ---------------------------------------------------------------------------
+  // Iterators.
+
+  // Use like:
+  //   for (auto it = interface->iterator(); !it.done(); it.Advance()) {
+  //     ... it.name() ... it.interface() ...
+  //   }
+  class Iterator {
+   public:
+    bool done() const { return entry_ == NULL; }
+    Handle<String> name() const {
+      ASSERT(!done());
+      return Handle<String>(*static_cast<String**>(entry_->key));
+    }
+    Interface* interface() const {
+      ASSERT(!done());
+      return static_cast<Interface*>(entry_->value);
+    }
+    void Advance() { entry_ = exports_->Next(entry_); }
+
+   private:
+    friend class Interface;
+    explicit Iterator(const ZoneHashMap* exports)
+        : exports_(exports), entry_(exports ? exports->Start() : NULL) {}
+
+    const ZoneHashMap* exports_;
+    ZoneHashMap::Entry* entry_;
+  };
+
+  Iterator iterator() const { return Iterator(this->exports_); }
 
   // ---------------------------------------------------------------------------
   // Debugging.
@@ -129,6 +168,7 @@ class Interface : public ZoneObject {
   int flags_;
   Interface* forward_;     // Unification link
   ZoneHashMap* exports_;   // Module exports and their types (allocated lazily)
+  Handle<JSModule> instance_;
 
   explicit Interface(int flags)
     : flags_(flags),
@@ -147,8 +187,9 @@ class Interface : public ZoneObject {
     return result;
   }
 
-  void DoAdd(void* name, uint32_t hash, Interface* interface, bool* ok);
-  void DoUnify(Interface* that, bool* ok);
+  void DoAdd(void* name, uint32_t hash, Interface* interface, Zone* zone,
+             bool* ok);
+  void DoUnify(Interface* that, bool* ok, Zone* zone);
 };
 
 } }  // namespace v8::internal

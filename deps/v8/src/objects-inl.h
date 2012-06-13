@@ -128,18 +128,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
-bool IsMoreGeneralElementsKindTransition(ElementsKind from_kind,
-                                         ElementsKind to_kind) {
-  if (to_kind == FAST_ELEMENTS) {
-    return from_kind == FAST_SMI_ONLY_ELEMENTS ||
-        from_kind == FAST_DOUBLE_ELEMENTS;
-  } else {
-    return to_kind == FAST_DOUBLE_ELEMENTS &&
-        from_kind == FAST_SMI_ONLY_ELEMENTS;
-  }
-}
-
-
 bool Object::IsFixedArrayBase() {
   return IsFixedArray() || IsFixedDoubleArray();
 }
@@ -581,7 +569,8 @@ bool Object::IsContext() {
             map == heap->catch_context_map() ||
             map == heap->with_context_map() ||
             map == heap->global_context_map() ||
-            map == heap->block_context_map());
+            map == heap->block_context_map() ||
+            map == heap->module_context_map());
   }
   return false;
 }
@@ -591,6 +580,13 @@ bool Object::IsGlobalContext() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map() ==
       HeapObject::cast(this)->GetHeap()->global_context_map();
+}
+
+
+bool Object::IsModuleContext() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map() ==
+      HeapObject::cast(this)->GetHeap()->module_context_map();
 }
 
 
@@ -613,6 +609,7 @@ TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
@@ -1235,35 +1232,26 @@ FixedArrayBase* JSObject::elements() {
   return static_cast<FixedArrayBase*>(array);
 }
 
-void JSObject::ValidateSmiOnlyElements() {
+
+void JSObject::ValidateElements() {
 #if DEBUG
-  if (map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS) {
-    Heap* heap = GetHeap();
-    // Don't use elements, since integrity checks will fail if there
-    // are filler pointers in the array.
-    FixedArray* fixed_array =
-        reinterpret_cast<FixedArray*>(READ_FIELD(this, kElementsOffset));
-    Map* map = fixed_array->map();
-    // Arrays that have been shifted in place can't be verified.
-    if (map != heap->raw_unchecked_one_pointer_filler_map() &&
-        map != heap->raw_unchecked_two_pointer_filler_map() &&
-        map != heap->free_space_map()) {
-      for (int i = 0; i < fixed_array->length(); i++) {
-        Object* current = fixed_array->get(i);
-        ASSERT(current->IsSmi() || current->IsTheHole());
-      }
-    }
+  if (FLAG_enable_slow_asserts) {
+    ElementsAccessor* accessor = GetElementsAccessor();
+    accessor->Validate(this);
   }
 #endif
 }
 
 
 MaybeObject* JSObject::EnsureCanContainHeapObjectElements() {
-#if DEBUG
-  ValidateSmiOnlyElements();
-#endif
-  if ((map()->elements_kind() != FAST_ELEMENTS)) {
-    return TransitionElementsKind(FAST_ELEMENTS);
+  ValidateElements();
+  ElementsKind elements_kind = map()->elements_kind();
+  if (!IsFastObjectElementsKind(elements_kind)) {
+    if (IsFastHoleyElementsKind(elements_kind)) {
+      return TransitionElementsKind(FAST_HOLEY_ELEMENTS);
+    } else {
+      return TransitionElementsKind(FAST_ELEMENTS);
+    }
   }
   return this;
 }
@@ -1275,20 +1263,29 @@ MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
   ElementsKind current_kind = map()->elements_kind();
   ElementsKind target_kind = current_kind;
   ASSERT(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
-  if (current_kind == FAST_ELEMENTS) return this;
-
+  bool is_holey = IsFastHoleyElementsKind(current_kind);
+  if (current_kind == FAST_HOLEY_ELEMENTS) return this;
   Heap* heap = GetHeap();
   Object* the_hole = heap->the_hole_value();
-  Object* heap_number_map = heap->heap_number_map();
   for (uint32_t i = 0; i < count; ++i) {
     Object* current = *objects++;
-    if (!current->IsSmi() && current != the_hole) {
-      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS &&
-          HeapObject::cast(current)->map() == heap_number_map) {
-        target_kind = FAST_DOUBLE_ELEMENTS;
+    if (current == the_hole) {
+      is_holey = true;
+      target_kind = GetHoleyElementsKind(target_kind);
+    } else if (!current->IsSmi()) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS && current->IsNumber()) {
+        if (IsFastSmiElementsKind(target_kind)) {
+          if (is_holey) {
+            target_kind = FAST_HOLEY_DOUBLE_ELEMENTS;
+          } else {
+            target_kind = FAST_DOUBLE_ELEMENTS;
+          }
+        }
+      } else if (is_holey) {
+        target_kind = FAST_HOLEY_ELEMENTS;
+        break;
       } else {
         target_kind = FAST_ELEMENTS;
-        break;
       }
     }
   }
@@ -1301,6 +1298,7 @@ MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
 
 
 MaybeObject* JSObject::EnsureCanContainElements(FixedArrayBase* elements,
+                                                uint32_t length,
                                                 EnsureElementsMode mode) {
   if (elements->map() != GetHeap()->fixed_double_array_map()) {
     ASSERT(elements->map() == GetHeap()->fixed_array_map() ||
@@ -1309,11 +1307,19 @@ MaybeObject* JSObject::EnsureCanContainElements(FixedArrayBase* elements,
       mode = DONT_ALLOW_DOUBLE_ELEMENTS;
     }
     Object** objects = FixedArray::cast(elements)->GetFirstElementAddress();
-    return EnsureCanContainElements(objects, elements->length(), mode);
+    return EnsureCanContainElements(objects, length, mode);
   }
 
   ASSERT(mode == ALLOW_COPIED_DOUBLE_ELEMENTS);
-  if (GetElementsKind() == FAST_SMI_ONLY_ELEMENTS) {
+  if (GetElementsKind() == FAST_HOLEY_SMI_ELEMENTS) {
+    return TransitionElementsKind(FAST_HOLEY_DOUBLE_ELEMENTS);
+  } else if (GetElementsKind() == FAST_SMI_ELEMENTS) {
+    FixedDoubleArray* double_array = FixedDoubleArray::cast(elements);
+    for (uint32_t i = 0; i < length; ++i) {
+      if (double_array->is_the_hole(i)) {
+        return TransitionElementsKind(FAST_HOLEY_DOUBLE_ELEMENTS);
+      }
+    }
     return TransitionElementsKind(FAST_DOUBLE_ELEMENTS);
   }
 
@@ -1325,21 +1331,20 @@ MaybeObject* JSObject::GetElementsTransitionMap(Isolate* isolate,
                                                 ElementsKind to_kind) {
   Map* current_map = map();
   ElementsKind from_kind = current_map->elements_kind();
-
   if (from_kind == to_kind) return current_map;
 
   Context* global_context = isolate->context()->global_context();
-  if (current_map == global_context->smi_js_array_map()) {
-    if (to_kind == FAST_ELEMENTS) {
-      return global_context->object_js_array_map();
-    } else {
-      if (to_kind == FAST_DOUBLE_ELEMENTS) {
-        return global_context->double_js_array_map();
-      } else {
-        ASSERT(to_kind == DICTIONARY_ELEMENTS);
+  Object* maybe_array_maps = global_context->js_array_maps();
+  if (maybe_array_maps->IsFixedArray()) {
+    FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
+    if (array_maps->get(from_kind) == current_map) {
+      Object* maybe_transitioned_map = array_maps->get(to_kind);
+      if (maybe_transitioned_map->IsMap()) {
+        return Map::cast(maybe_transitioned_map);
       }
     }
   }
+
   return GetElementsTransitionMapSlow(to_kind);
 }
 
@@ -1348,9 +1353,6 @@ void JSObject::set_map_and_elements(Map* new_map,
                                     FixedArrayBase* value,
                                     WriteBarrierMode mode) {
   ASSERT(value->HasValidElements());
-#ifdef DEBUG
-  ValidateSmiOnlyElements();
-#endif
   if (new_map != NULL) {
     if (mode == UPDATE_WRITE_BARRIER) {
       set_map(new_map);
@@ -1359,8 +1361,7 @@ void JSObject::set_map_and_elements(Map* new_map,
       set_map_no_write_barrier(new_map);
     }
   }
-  ASSERT((map()->has_fast_elements() ||
-          map()->has_fast_smi_only_elements() ||
+  ASSERT((map()->has_fast_smi_or_object_elements() ||
           (value == GetHeap()->empty_fixed_array())) ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
@@ -1383,8 +1384,7 @@ void JSObject::initialize_properties() {
 
 
 void JSObject::initialize_elements() {
-  ASSERT(map()->has_fast_elements() ||
-         map()->has_fast_smi_only_elements() ||
+  ASSERT(map()->has_fast_smi_or_object_elements() ||
          map()->has_fast_double_elements());
   ASSERT(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
   WRITE_FIELD(this, kElementsOffset, GetHeap()->empty_fixed_array());
@@ -1393,9 +1393,10 @@ void JSObject::initialize_elements() {
 
 MaybeObject* JSObject::ResetElements() {
   Object* obj;
-  ElementsKind elements_kind = FLAG_smi_only_arrays
-      ? FAST_SMI_ONLY_ELEMENTS
-      : FAST_ELEMENTS;
+  ElementsKind elements_kind = GetInitialFastElementsKind();
+  if (!FLAG_smi_only_arrays) {
+    elements_kind = FastSmiToObjectElementsKind(elements_kind);
+  }
   MaybeObject* maybe_obj = GetElementsTransitionMap(GetIsolate(),
                                                     elements_kind);
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -1438,6 +1439,8 @@ int JSObject::GetHeaderSize() {
   // field operations considerably on average.
   if (type == JS_OBJECT_TYPE) return JSObject::kHeaderSize;
   switch (type) {
+    case JS_MODULE_TYPE:
+      return JSModule::kSize;
     case JS_GLOBAL_PROXY_TYPE:
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
@@ -1603,13 +1606,23 @@ bool JSObject::HasFastProperties() {
 }
 
 
-int JSObject::MaxFastProperties() {
+bool JSObject::TooManyFastProperties(int properties,
+                                     JSObject::StoreFromKeyed store_mode) {
   // Allow extra fast properties if the object has more than
-  // kMaxFastProperties in-object properties. When this is the case,
+  // kFastPropertiesSoftLimit in-object properties. When this is the case,
   // it is very unlikely that the object is being used as a dictionary
   // and there is a good chance that allowing more map transitions
   // will be worth it.
-  return Max(map()->inobject_properties(), kMaxFastProperties);
+  int inobject = map()->inobject_properties();
+
+  int limit;
+  if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ||
+      map()->used_for_prototype()) {
+    limit = Max(inobject, kMaxFastProperties);
+  } else {
+    limit = Max(inobject, kFastPropertiesSoftLimit);
+  }
+  return properties > limit;
 }
 
 
@@ -1662,6 +1675,11 @@ FixedArrayBase* FixedArrayBase::cast(Object* object) {
 Object* FixedArray::get(int index) {
   ASSERT(index >= 0 && index < this->length());
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
+}
+
+
+bool FixedArray::is_the_hole(int index) {
+  return get(index) == GetHeap()->the_hole_value();
 }
 
 
@@ -1858,9 +1876,14 @@ Object** FixedArray::data_start() {
 
 bool DescriptorArray::IsEmpty() {
   ASSERT(this->IsSmi() ||
-         this->length() > kFirstIndex ||
+         this->MayContainTransitions() ||
          this == HEAP->empty_descriptor_array());
-  return this->IsSmi() || length() <= kFirstIndex;
+  return this->IsSmi() || length() < kFirstIndex;
+}
+
+
+bool DescriptorArray::MayContainTransitions() {
+  return length() >= kTransitionsIndex;
 }
 
 
@@ -1870,7 +1893,7 @@ int DescriptorArray::bit_field3_storage() {
 }
 
 void DescriptorArray::set_bit_field3_storage(int value) {
-  ASSERT(!IsEmpty());
+  ASSERT(this->MayContainTransitions());
   WRITE_FIELD(this, kBitField3StorageOffset, Smi::FromInt(value));
 }
 
@@ -1894,7 +1917,7 @@ int DescriptorArray::Search(String* name) {
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
   if (StringShape(name).IsSymbol() && nof < kMaxElementsForLinearSearch) {
-    return LinearSearch(name, nof);
+    return LinearSearch(EXPECT_SORTED, name, nof);
   }
 
   // Slow case: perform binary search.
@@ -1912,27 +1935,79 @@ int DescriptorArray::SearchWithCache(String* name) {
 }
 
 
+Map* DescriptorArray::elements_transition_map() {
+  if (!this->MayContainTransitions()) {
+    return NULL;
+  }
+  Object* transition_map = get(kTransitionsIndex);
+  if (transition_map == Smi::FromInt(0)) {
+    return NULL;
+  } else {
+    return Map::cast(transition_map);
+  }
+}
+
+
+void DescriptorArray::set_elements_transition_map(
+    Map* transition_map, WriteBarrierMode mode) {
+  ASSERT(this->length() > kTransitionsIndex);
+  Heap* heap = GetHeap();
+  WRITE_FIELD(this, kTransitionsOffset, transition_map);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kTransitionsOffset, transition_map, mode);
+  ASSERT(DescriptorArray::cast(this));
+}
+
+
+Object** DescriptorArray::GetKeySlot(int descriptor_number) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  return HeapObject::RawField(
+      reinterpret_cast<HeapObject*>(this),
+      OffsetOfElementAt(ToKeyIndex(descriptor_number)));
+}
+
+
 String* DescriptorArray::GetKey(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
   return String::cast(get(ToKeyIndex(descriptor_number)));
 }
 
 
-Object* DescriptorArray::GetValue(int descriptor_number) {
+Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return GetContentArray()->get(ToValueIndex(descriptor_number));
+  return HeapObject::RawField(
+      reinterpret_cast<HeapObject*>(this),
+      OffsetOfElementAt(ToValueIndex(descriptor_number)));
 }
 
 
-Smi* DescriptorArray::GetDetails(int descriptor_number) {
+Object* DescriptorArray::GetValue(int descriptor_number) {
   ASSERT(descriptor_number < number_of_descriptors());
-  return Smi::cast(GetContentArray()->get(ToDetailsIndex(descriptor_number)));
+  return get(ToValueIndex(descriptor_number));
+}
+
+
+void DescriptorArray::SetNullValueUnchecked(int descriptor_number, Heap* heap) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  set_null_unchecked(heap, ToValueIndex(descriptor_number));
+}
+
+
+PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  Object* details = get(ToDetailsIndex(descriptor_number));
+  return PropertyDetails(Smi::cast(details));
+}
+
+
+void DescriptorArray::SetDetailsUnchecked(int descriptor_number, Smi* value) {
+  ASSERT(descriptor_number < number_of_descriptors());
+  set_unchecked(ToDetailsIndex(descriptor_number), value);
 }
 
 
 PropertyType DescriptorArray::GetType(int descriptor_number) {
-  ASSERT(descriptor_number < number_of_descriptors());
-  return PropertyDetails(GetDetails(descriptor_number)).type();
+  return GetDetails(descriptor_number).type();
 }
 
 
@@ -1969,7 +2044,6 @@ bool DescriptorArray::IsTransitionOnly(int descriptor_number) {
   switch (GetType(descriptor_number)) {
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
       return true;
     case CALLBACKS: {
       Object* value = GetValue(descriptor_number);
@@ -1995,15 +2069,10 @@ bool DescriptorArray::IsNullDescriptor(int descriptor_number) {
 }
 
 
-bool DescriptorArray::IsDontEnum(int descriptor_number) {
-  return PropertyDetails(GetDetails(descriptor_number)).IsDontEnum();
-}
-
-
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(GetKey(descriptor_number),
              GetValue(descriptor_number),
-             PropertyDetails(GetDetails(descriptor_number)));
+             GetDetails(descriptor_number));
 }
 
 
@@ -2016,11 +2085,10 @@ void DescriptorArray::Set(int descriptor_number,
   NoIncrementalWriteBarrierSet(this,
                                ToKeyIndex(descriptor_number),
                                desc->GetKey());
-  FixedArray* content_array = GetContentArray();
-  NoIncrementalWriteBarrierSet(content_array,
+  NoIncrementalWriteBarrierSet(this,
                                ToValueIndex(descriptor_number),
                                desc->GetValue());
-  NoIncrementalWriteBarrierSet(content_array,
+  NoIncrementalWriteBarrierSet(this,
                                ToDetailsIndex(descriptor_number),
                                desc->GetDetails().AsSmi());
 }
@@ -2029,11 +2097,10 @@ void DescriptorArray::Set(int descriptor_number,
 void DescriptorArray::NoIncrementalWriteBarrierSwapDescriptors(
     int first, int second) {
   NoIncrementalWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
-  FixedArray* content_array = GetContentArray();
-  NoIncrementalWriteBarrierSwap(content_array,
+  NoIncrementalWriteBarrierSwap(this,
                                 ToValueIndex(first),
                                 ToValueIndex(second));
-  NoIncrementalWriteBarrierSwap(content_array,
+  NoIncrementalWriteBarrierSwap(this,
                                 ToDetailsIndex(first),
                                 ToDetailsIndex(second));
 }
@@ -2044,7 +2111,6 @@ DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
   marking_->EnterNoMarkingScope();
   if (array->number_of_descriptors() > 0) {
     ASSERT(Marking::Color(array) == Marking::WHITE_OBJECT);
-    ASSERT(Marking::Color(array->GetContentArray()) == Marking::WHITE_OBJECT);
   }
 }
 
@@ -2851,15 +2917,15 @@ bool Map::has_non_instance_prototype() {
 
 void Map::set_function_with_prototype(bool value) {
   if (value) {
-    set_bit_field2(bit_field2() | (1 << kFunctionWithPrototype));
+    set_bit_field3(bit_field3() | (1 << kFunctionWithPrototype));
   } else {
-    set_bit_field2(bit_field2() & ~(1 << kFunctionWithPrototype));
+    set_bit_field3(bit_field3() & ~(1 << kFunctionWithPrototype));
   }
 }
 
 
 bool Map::function_with_prototype() {
-  return ((1 << kFunctionWithPrototype) & bit_field2()) != 0;
+  return ((1 << kFunctionWithPrototype) & bit_field3()) != 0;
 }
 
 
@@ -2913,6 +2979,20 @@ void Map::set_is_shared(bool value) {
 
 bool Map::is_shared() {
   return ((1 << kIsShared) & bit_field3()) != 0;
+}
+
+
+void Map::set_used_for_prototype(bool value) {
+  if (value) {
+    set_bit_field3(bit_field3() | (1 << kUsedForPrototype));
+  } else {
+    set_bit_field3(bit_field3() & ~(1 << kUsedForPrototype));
+  }
+}
+
+
+bool Map::used_for_prototype() {
+  return ((1 << kUsedForPrototype) & bit_field3()) != 0;
 }
 
 
@@ -3006,26 +3086,26 @@ void Code::set_is_pregenerated(bool value) {
 
 
 bool Code::optimizable() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
 }
 
 
 void Code::set_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   WRITE_BYTE_FIELD(this, kOptimizableOffset, value ? 1 : 0);
 }
 
 
 bool Code::has_deoptimization_support() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3033,14 +3113,14 @@ void Code::set_has_deoptimization_support(bool value) {
 
 
 bool Code::has_debug_break_slots() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
 }
 
 
 void Code::set_has_debug_break_slots(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
@@ -3048,56 +3128,41 @@ void Code::set_has_debug_break_slots(bool value) {
 
 
 bool Code::is_compiled_optimizable() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   return FullCodeFlagsIsCompiledOptimizable::decode(flags);
 }
 
 
 void Code::set_compiled_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
   flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
   WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
 }
 
 
-bool Code::has_self_optimization_header() {
-  ASSERT(kind() == FUNCTION);
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsHasSelfOptimizationHeader::decode(flags);
-}
-
-
-void Code::set_self_optimization_header(bool value) {
-  ASSERT(kind() == FUNCTION);
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsHasSelfOptimizationHeader::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
-}
-
-
 int Code::allow_osr_at_loop_nesting_level() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
 }
 
 
 void Code::set_allow_osr_at_loop_nesting_level(int level) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(level >= 0 && level <= kMaxLoopNestingMarker);
   WRITE_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset, level);
 }
 
 
 int Code::profiler_ticks() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kProfilerTicksOffset);
 }
 
 
 void Code::set_profiler_ticks(int ticks) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(ticks < 256);
   WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
 }
@@ -3129,13 +3194,13 @@ void Code::set_safepoint_table_offset(unsigned offset) {
 
 
 unsigned Code::stack_check_table_offset() {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   return READ_UINT32_FIELD(this, kStackCheckTableOffsetOffset);
 }
 
 
 void Code::set_stack_check_table_offset(unsigned offset) {
-  ASSERT(kind() == FUNCTION);
+  ASSERT_EQ(FUNCTION, kind());
   ASSERT(IsAligned(offset, static_cast<unsigned>(kIntSize)));
   WRITE_UINT32_FIELD(this, kStackCheckTableOffsetOffset, offset);
 }
@@ -3199,6 +3264,18 @@ byte Code::compare_state() {
 void Code::set_compare_state(byte value) {
   ASSERT(is_compare_ic_stub());
   WRITE_BYTE_FIELD(this, kCompareStateOffset, value);
+}
+
+
+byte Code::compare_operation() {
+  ASSERT(is_compare_ic_stub());
+  return READ_BYTE_FIELD(this, kCompareOperationOffset);
+}
+
+
+void Code::set_compare_operation(byte value) {
+  ASSERT(is_compare_ic_stub());
+  WRITE_BYTE_FIELD(this, kCompareOperationOffset, value);
 }
 
 
@@ -3348,6 +3425,9 @@ void Map::clear_instance_descriptors() {
   Object* object = READ_FIELD(this,
                               kInstanceDescriptorsOrBitField3Offset);
   if (!object->IsSmi()) {
+#ifdef DEBUG
+    ZapInstanceDescriptors();
+#endif
     WRITE_FIELD(
         this,
         kInstanceDescriptorsOrBitField3Offset,
@@ -3373,6 +3453,11 @@ void Map::set_instance_descriptors(DescriptorArray* value,
     }
   }
   ASSERT(!is_shared());
+#ifdef DEBUG
+  if (value != instance_descriptors()) {
+    ZapInstanceDescriptors();
+  }
+#endif
   WRITE_FIELD(this, kInstanceDescriptorsOrBitField3Offset, value);
   CONDITIONAL_WRITE_BARRIER(
       heap, this, kInstanceDescriptorsOrBitField3Offset, value, mode);
@@ -3404,22 +3489,86 @@ void Map::set_bit_field3(int value) {
 }
 
 
-FixedArray* Map::unchecked_prototype_transitions() {
-  return reinterpret_cast<FixedArray*>(
-      READ_FIELD(this, kPrototypeTransitionsOffset));
+Object* Map::GetBackPointer() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object)->get(kProtoTransitionBackPointerOffset);
+  } else {
+    return object;
+  }
+}
+
+
+Map* Map::elements_transition_map() {
+  return instance_descriptors()->elements_transition_map();
+}
+
+
+void Map::set_elements_transition_map(Map* transitioned_map) {
+  return instance_descriptors()->set_elements_transition_map(transitioned_map);
+}
+
+
+void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(instance_type() >= FIRST_JS_RECEIVER_TYPE);
+  ASSERT((value->IsUndefined() && GetBackPointer()->IsMap()) ||
+         (value->IsMap() && GetBackPointer()->IsUndefined()));
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    FixedArray::cast(object)->set(
+        kProtoTransitionBackPointerOffset, value, mode);
+  } else {
+    WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+    CONDITIONAL_WRITE_BARRIER(
+        heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+  }
+}
+
+
+FixedArray* Map::prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  if (object->IsFixedArray()) {
+    return FixedArray::cast(object);
+  } else {
+    return GetHeap()->empty_fixed_array();
+  }
+}
+
+
+void Map::set_prototype_transitions(FixedArray* value, WriteBarrierMode mode) {
+  Heap* heap = GetHeap();
+  ASSERT(value != heap->empty_fixed_array());
+  value->set(kProtoTransitionBackPointerOffset, GetBackPointer());
+#ifdef DEBUG
+  if (value != prototype_transitions()) {
+    ZapPrototypeTransitions();
+  }
+#endif
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, value);
+  CONDITIONAL_WRITE_BARRIER(
+      heap, this, kPrototypeTransitionsOrBackPointerOffset, value, mode);
+}
+
+
+void Map::init_prototype_transitions(Object* undefined) {
+  ASSERT(undefined->IsUndefined());
+  WRITE_FIELD(this, kPrototypeTransitionsOrBackPointerOffset, undefined);
+}
+
+
+HeapObject* Map::unchecked_prototype_transitions() {
+  Object* object = READ_FIELD(this, kPrototypeTransitionsOrBackPointerOffset);
+  return reinterpret_cast<HeapObject*>(object);
 }
 
 
 ACCESSORS(Map, code_cache, Object, kCodeCacheOffset)
-ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
-ACCESSORS(JSFunction,
-          next_function_link,
-          Object,
-          kNextFunctionLinkOffset)
+ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
@@ -3432,6 +3581,8 @@ ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 ACCESSORS_TO_SMI(AccessorInfo, flag, kFlagOffset)
+ACCESSORS(AccessorInfo, expected_receiver_type, Object,
+          kExpectedReceiverTypeOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
@@ -3522,7 +3673,7 @@ ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ic_age, kICAgeOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
 
 
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
@@ -3571,8 +3722,10 @@ SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
 SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-SMI_ACCESSORS(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
+SMI_ACCESSORS(SharedFunctionInfo, counters, kCountersOffset)
+SMI_ACCESSORS(SharedFunctionInfo,
+              stress_deopt_counter,
+              kStressDeoptCounterOffset)
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -3624,8 +3777,10 @@ PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
                         kThisPropertyAssignmentsCountOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, opt_count, kOptCountOffset)
 
-PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, counters, kCountersOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
+                        stress_deopt_counter,
+                        kStressDeoptCounterOffset)
 #endif
 
 
@@ -3666,6 +3821,12 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   if ((code()->kind() == Code::FUNCTION) && disable) {
     code()->set_optimizable(false);
   }
+}
+
+
+int SharedFunctionInfo::profiler_ticks() {
+  if (code()->kind() != Code::FUNCTION) return 0;
+  return code()->profiler_ticks();
 }
 
 
@@ -3820,9 +3981,61 @@ void SharedFunctionInfo::set_code_age(int code_age) {
 }
 
 
+int SharedFunctionInfo::ic_age() {
+  return ICAgeBits::decode(counters());
+}
+
+
+void SharedFunctionInfo::set_ic_age(int ic_age) {
+  set_counters(ICAgeBits::update(counters(), ic_age));
+}
+
+
+int SharedFunctionInfo::deopt_count() {
+  return DeoptCountBits::decode(counters());
+}
+
+
+void SharedFunctionInfo::set_deopt_count(int deopt_count) {
+  set_counters(DeoptCountBits::update(counters(), deopt_count));
+}
+
+
+void SharedFunctionInfo::increment_deopt_count() {
+  int value = counters();
+  int deopt_count = DeoptCountBits::decode(value);
+  deopt_count = (deopt_count + 1) & DeoptCountBits::kMax;
+  set_counters(DeoptCountBits::update(value, deopt_count));
+}
+
+
+int SharedFunctionInfo::opt_reenable_tries() {
+  return OptReenableTriesBits::decode(counters());
+}
+
+
+void SharedFunctionInfo::set_opt_reenable_tries(int tries) {
+  set_counters(OptReenableTriesBits::update(counters(), tries));
+}
+
+
 bool SharedFunctionInfo::has_deoptimization_support() {
   Code* code = this->code();
   return code->kind() == Code::FUNCTION && code->has_deoptimization_support();
+}
+
+
+void SharedFunctionInfo::TryReenableOptimization() {
+  int tries = opt_reenable_tries();
+  set_opt_reenable_tries((tries + 1) & OptReenableTriesBits::kMax);
+  // We reenable optimization whenever the number of tries is a large
+  // enough power of 2.
+  if (tries >= 16 && (((tries - 1) & tries) == 0)) {
+    set_optimization_disabled(false);
+    set_opt_count(0);
+    set_deopt_count(0);
+    code()->set_optimizable(true);
+  }
 }
 
 
@@ -3934,27 +4147,29 @@ MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
       global_context->get(Context::ARRAY_FUNCTION_INDEX);
   if (array_function->IsJSFunction() &&
       this == JSFunction::cast(array_function)) {
-    ASSERT(initial_map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+    // Replace all of the cached initial array maps in the global context with
+    // the appropriate transitioned elements kind maps.
+    Heap* heap = GetHeap();
+    MaybeObject* maybe_maps =
+        heap->AllocateFixedArrayWithHoles(kElementsKindCount);
+    FixedArray* maps;
+    if (!maybe_maps->To(&maps)) return maybe_maps;
 
-    MaybeObject* maybe_map = initial_map->CopyDropTransitions();
-    Map* new_double_map = NULL;
-    if (!maybe_map->To<Map>(&new_double_map)) return maybe_map;
-    new_double_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
-    maybe_map = initial_map->AddElementsTransition(FAST_DOUBLE_ELEMENTS,
-                                                   new_double_map);
-    if (maybe_map->IsFailure()) return maybe_map;
-
-    maybe_map = new_double_map->CopyDropTransitions();
-    Map* new_object_map = NULL;
-    if (!maybe_map->To<Map>(&new_object_map)) return maybe_map;
-    new_object_map->set_elements_kind(FAST_ELEMENTS);
-    maybe_map = new_double_map->AddElementsTransition(FAST_ELEMENTS,
-                                                      new_object_map);
-    if (maybe_map->IsFailure()) return maybe_map;
-
-    global_context->set_smi_js_array_map(initial_map);
-    global_context->set_double_js_array_map(new_double_map);
-    global_context->set_object_js_array_map(new_object_map);
+    Map* current_map = initial_map;
+    ElementsKind kind = current_map->elements_kind();
+    ASSERT(kind == GetInitialFastElementsKind());
+    maps->set(kind, current_map);
+    for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
+         i < kFastElementsKindCount; ++i) {
+      Map* new_map;
+      ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
+      MaybeObject* maybe_new_map =
+          current_map->CreateNextElementsTransition(next_kind);
+      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+      maps->set(next_kind, new_map);
+      current_map = new_map;
+    }
+    global_context->set_js_array_maps(maps);
   }
   set_initial_map(initial_map);
   return this;
@@ -3992,6 +4207,7 @@ Object* JSFunction::prototype() {
   if (map()->has_non_instance_prototype()) return map()->constructor();
   return instance_prototype();
 }
+
 
 bool JSFunction::should_have_prototype() {
   return map()->function_with_prototype();
@@ -4092,6 +4308,16 @@ Address Foreign::foreign_address() {
 
 void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
+}
+
+
+ACCESSORS(JSModule, context, Object, kContextOffset)
+
+
+JSModule* JSModule::cast(Object* obj) {
+  ASSERT(obj->IsJSModule());
+  ASSERT(HeapObject::cast(obj)->Size() == JSModule::kSize);
+  return reinterpret_cast<JSModule*>(obj);
 }
 
 
@@ -4280,18 +4506,18 @@ ElementsKind JSObject::GetElementsKind() {
   FixedArrayBase* fixed_array =
       reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
   Map* map = fixed_array->map();
-    ASSERT(((kind == FAST_ELEMENTS || kind == FAST_SMI_ONLY_ELEMENTS) &&
-            (map == GetHeap()->fixed_array_map() ||
-             map == GetHeap()->fixed_cow_array_map())) ||
-           (kind == FAST_DOUBLE_ELEMENTS &&
-            (fixed_array->IsFixedDoubleArray() ||
-            fixed_array == GetHeap()->empty_fixed_array())) ||
-           (kind == DICTIONARY_ELEMENTS &&
+  ASSERT((IsFastSmiOrObjectElementsKind(kind) &&
+          (map == GetHeap()->fixed_array_map() ||
+           map == GetHeap()->fixed_cow_array_map())) ||
+         (IsFastDoubleElementsKind(kind) &&
+          (fixed_array->IsFixedDoubleArray() ||
+           fixed_array == GetHeap()->empty_fixed_array())) ||
+         (kind == DICTIONARY_ELEMENTS &&
             fixed_array->IsFixedArray() &&
-            fixed_array->IsDictionary()) ||
-           (kind > DICTIONARY_ELEMENTS));
-    ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
-           (elements()->IsFixedArray() && elements()->length() >= 2));
+          fixed_array->IsDictionary()) ||
+         (kind > DICTIONARY_ELEMENTS));
+  ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
+         (elements()->IsFixedArray() && elements()->length() >= 2));
 #endif
   return kind;
 }
@@ -4302,25 +4528,28 @@ ElementsAccessor* JSObject::GetElementsAccessor() {
 }
 
 
-bool JSObject::HasFastElements() {
-  return GetElementsKind() == FAST_ELEMENTS;
+bool JSObject::HasFastObjectElements() {
+  return IsFastObjectElementsKind(GetElementsKind());
 }
 
 
-bool JSObject::HasFastSmiOnlyElements() {
-  return GetElementsKind() == FAST_SMI_ONLY_ELEMENTS;
+bool JSObject::HasFastSmiElements() {
+  return IsFastSmiElementsKind(GetElementsKind());
 }
 
 
-bool JSObject::HasFastTypeElements() {
-  ElementsKind elements_kind = GetElementsKind();
-  return elements_kind == FAST_SMI_ONLY_ELEMENTS ||
-      elements_kind == FAST_ELEMENTS;
+bool JSObject::HasFastSmiOrObjectElements() {
+  return IsFastSmiOrObjectElementsKind(GetElementsKind());
 }
 
 
 bool JSObject::HasFastDoubleElements() {
-  return GetElementsKind() == FAST_DOUBLE_ELEMENTS;
+  return IsFastDoubleElementsKind(GetElementsKind());
+}
+
+
+bool JSObject::HasFastHoleyElements() {
+  return IsFastHoleyElementsKind(GetElementsKind());
 }
 
 
@@ -4377,7 +4606,7 @@ bool JSObject::HasIndexedInterceptor() {
 
 
 MaybeObject* JSObject::EnsureWritableFastElements() {
-  ASSERT(HasFastTypeElements());
+  ASSERT(HasFastSmiOrObjectElements());
   FixedArray* elems = FixedArray::cast(elements());
   Isolate* isolate = GetIsolate();
   if (elems->map() != isolate->heap()->fixed_cow_array_map()) return elems;
@@ -4618,6 +4847,13 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
 }
 
 
+bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
+  Object* function_template = expected_receiver_type();
+  if (!function_template->IsFunctionTemplateInfo()) return true;
+  return receiver->IsInstanceOf(FunctionTemplateInfo::cast(function_template));
+}
+
+
 template<typename Shape, typename Key>
 void Dictionary<Shape, Key>::SetEntry(int entry,
                                       Object* key,
@@ -4735,7 +4971,7 @@ void Map::ClearCodeCache(Heap* heap) {
 
 
 void JSArray::EnsureSize(int required_size) {
-  ASSERT(HasFastTypeElements());
+  ASSERT(HasFastSmiOrObjectElements());
   FixedArray* elts = FixedArray::cast(elements());
   const int kArraySizeThatFitsComfortablyInNewSpace = 128;
   if (elts->length() < required_size) {
@@ -4767,13 +5003,13 @@ bool JSArray::AllowsSetElementsLength() {
 
 MaybeObject* JSArray::SetContent(FixedArrayBase* storage) {
   MaybeObject* maybe_result = EnsureCanContainElements(
-      storage, ALLOW_COPIED_DOUBLE_ELEMENTS);
+      storage, storage->length(), ALLOW_COPIED_DOUBLE_ELEMENTS);
   if (maybe_result->IsFailure()) return maybe_result;
   ASSERT((storage->map() == GetHeap()->fixed_double_array_map() &&
-          GetElementsKind() == FAST_DOUBLE_ELEMENTS) ||
+          IsFastDoubleElementsKind(GetElementsKind())) ||
          ((storage->map() != GetHeap()->fixed_double_array_map()) &&
-          ((GetElementsKind() == FAST_ELEMENTS) ||
-           (GetElementsKind() == FAST_SMI_ONLY_ELEMENTS &&
+          (IsFastObjectElementsKind(GetElementsKind()) ||
+           (IsFastSmiElementsKind(GetElementsKind()) &&
             FixedArray::cast(storage)->ContainsOnlySmisOrHoles()))));
   set_elements(storage);
   set_length(Smi::FromInt(storage->length()));

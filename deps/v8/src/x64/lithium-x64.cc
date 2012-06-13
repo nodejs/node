@@ -110,22 +110,17 @@ void LInstruction::PrintTo(StringStream* stream) {
 }
 
 
-template<int R, int I, int T>
-void LTemplateInstruction<R, I, T>::PrintDataTo(StringStream* stream) {
+void LInstruction::PrintDataTo(StringStream* stream) {
   stream->Add("= ");
-  for (int i = 0; i < inputs_.length(); i++) {
+  for (int i = 0; i < InputCount(); i++) {
     if (i > 0) stream->Add(" ");
-    inputs_[i]->PrintTo(stream);
+    InputAt(i)->PrintTo(stream);
   }
 }
 
 
-template<int R, int I, int T>
-void LTemplateInstruction<R, I, T>::PrintOutputOperandTo(StringStream* stream) {
-  for (int i = 0; i < results_.length(); i++) {
-    if (i > 0) stream->Add(" ");
-    results_[i]->PrintTo(stream);
-  }
+void LInstruction::PrintOutputOperandTo(StringStream* stream) {
+  if (HasResult()) result()->PrintTo(stream);
 }
 
 
@@ -374,9 +369,9 @@ LOperand* LChunk::GetNextSpillSlot(bool is_double) {
   // stack slots for int32 values.
   int index = GetNextSpillIndex(is_double);
   if (is_double) {
-    return LDoubleStackSlot::Create(index);
+    return LDoubleStackSlot::Create(index, zone());
   } else {
-    return LStackSlot::Create(index);
+    return LStackSlot::Create(index, zone());
   }
 }
 
@@ -472,23 +467,23 @@ void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
   int index = -1;
   if (instr->IsControl()) {
-    instructions_.Add(gap);
+    instructions_.Add(gap, zone());
     index = instructions_.length();
-    instructions_.Add(instr);
+    instructions_.Add(instr, zone());
   } else {
     index = instructions_.length();
-    instructions_.Add(instr);
-    instructions_.Add(gap);
+    instructions_.Add(instr, zone());
+    instructions_.Add(gap, zone());
   }
   if (instr->HasPointerMap()) {
-    pointer_maps_.Add(instr->pointer_map());
+    pointer_maps_.Add(instr->pointer_map(), zone());
     instr->pointer_map()->set_lithium_position(index);
   }
 }
 
 
 LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
-  return LConstantOperand::Create(constant->id());
+  return LConstantOperand::Create(constant->id(), zone());
 }
 
 
@@ -527,7 +522,8 @@ int LChunk::NearestGapPos(int index) const {
 
 
 void LChunk::AddGapMove(int index, LOperand* from, LOperand* to) {
-  GetGapAt(index)->GetOrCreateParallelMove(LGap::START)->AddMove(from, to);
+  GetGapAt(index)->GetOrCreateParallelMove(
+      LGap::START, zone())->AddMove(from, to, zone());
 }
 
 
@@ -727,22 +723,6 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::SetInstructionPendingDeoptimizationEnvironment(
-    LInstruction* instr, int ast_id) {
-  ASSERT(instruction_pending_deoptimization_environment_ == NULL);
-  ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
-  instruction_pending_deoptimization_environment_ = instr;
-  pending_deoptimization_ast_id_ = ast_id;
-  return instr;
-}
-
-
-void LChunkBuilder::ClearInstructionPendingDeoptimizationEnvironment() {
-  instruction_pending_deoptimization_environment_ = NULL;
-  pending_deoptimization_ast_id_ = AstNode::kNoNumber;
-}
-
-
 LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
                                         HInstruction* hinstr,
                                         CanDeoptimize can_deoptimize) {
@@ -755,8 +735,10 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
   if (hinstr->HasObservableSideEffects()) {
     ASSERT(hinstr->next()->IsSimulate());
     HSimulate* sim = HSimulate::cast(hinstr->next());
-    instr = SetInstructionPendingDeoptimizationEnvironment(
-        instr, sim->ast_id());
+    ASSERT(instruction_pending_deoptimization_environment_ == NULL);
+    ASSERT(pending_deoptimization_ast_id_ == AstNode::kNoNumber);
+    instruction_pending_deoptimization_environment_ = instr;
+    pending_deoptimization_ast_id_ = sim->ast_id();
   }
 
   // If instruction does not have side-effects lazy deoptimization
@@ -774,15 +756,9 @@ LInstruction* LChunkBuilder::MarkAsCall(LInstruction* instr,
 }
 
 
-LInstruction* LChunkBuilder::MarkAsSaveDoubles(LInstruction* instr) {
-  instr->MarkAsSaveDoubles();
-  return instr;
-}
-
-
 LInstruction* LChunkBuilder::AssignPointerMap(LInstruction* instr) {
   ASSERT(!instr->HasPointerMap());
-  instr->set_pointer_map(new(zone()) LPointerMap(position_));
+  instr->set_pointer_map(new(zone()) LPointerMap(position_, zone()));
   return instr;
 }
 
@@ -1005,7 +981,8 @@ LEnvironment* LChunkBuilder::CreateEnvironment(
       hydrogen_env->parameter_count(),
       argument_count_,
       value_count,
-      outer);
+      outer,
+      zone());
   int argument_index = *argument_index_accumulator;
   for (int i = 0; i < value_count; ++i) {
     if (hydrogen_env->is_special_index(i)) continue;
@@ -1285,6 +1262,7 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
 LInstruction* LChunkBuilder::DoBitNot(HBitNot* instr) {
   ASSERT(instr->value()->representation().IsInteger32());
   ASSERT(instr->representation().IsInteger32());
+  if (instr->HasNoUses()) return NULL;
   LOperand* input = UseRegisterAtStart(instr->value());
   LBitNotI* result = new(zone()) LBitNotI(input);
   return DefineSameAsFirst(result);
@@ -1306,6 +1284,12 @@ LInstruction* LChunkBuilder::DoDiv(HDiv* instr) {
     ASSERT(instr->representation().IsTagged());
     return DoArithmeticT(Token::DIV, instr);
   }
+}
+
+
+LInstruction* LChunkBuilder::DoMathFloorOfDiv(HMathFloorOfDiv* instr) {
+  UNIMPLEMENTED();
+  return NULL;
 }
 
 
@@ -1611,7 +1595,7 @@ LInstruction* LChunkBuilder::DoValueOf(HValueOf* instr) {
 
 LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
   LOperand* object = UseFixed(instr->value(), rax);
-  LDateField* result = new LDateField(object, instr->index());
+  LDateField* result = new(zone()) LDateField(object, instr->index());
   return MarkAsCall(DefineFixed(result, rax), instr);
 }
 
@@ -1660,14 +1644,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
     } else {
       ASSERT(to.IsInteger32());
       LOperand* value = UseRegister(instr->value());
-      bool needs_check = !instr->value()->type().IsSmi();
-      if (needs_check) {
+      if (instr->value()->type().IsSmi()) {
+        return DefineSameAsFirst(new(zone()) LSmiUntag(value, false));
+      } else {
         bool truncating = instr->CanTruncateToInt32();
         LOperand* xmm_temp = truncating ? NULL : FixedTemp(xmm1);
         LTaggedToI* res = new(zone()) LTaggedToI(value, xmm_temp);
         return AssignEnvironment(DefineSameAsFirst(res));
-      } else {
-        return DefineSameAsFirst(new(zone()) LSmiUntag(value, needs_check));
       }
     }
   } else if (from.IsDouble()) {
@@ -1737,9 +1720,9 @@ LInstruction* LChunkBuilder::DoCheckFunction(HCheckFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCheckMap(HCheckMap* instr) {
+LInstruction* LChunkBuilder::DoCheckMaps(HCheckMaps* instr) {
   LOperand* value = UseRegisterAtStart(instr->value());
-  LCheckMap* result = new(zone()) LCheckMap(value);
+  LCheckMaps* result = new(zone()) LCheckMaps(value);
   return AssignEnvironment(result);
 }
 
@@ -2030,8 +2013,9 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoTransitionElementsKind(
     HTransitionElementsKind* instr) {
-  if (instr->original_map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
-      instr->transitioned_map()->elements_kind() == FAST_ELEMENTS) {
+  ElementsKind from_kind = instr->original_map()->elements_kind();
+  ElementsKind to_kind = instr->transitioned_map()->elements_kind();
+  if (IsSimpleMapChangeTransition(from_kind, to_kind)) {
     LOperand* object = UseRegister(instr->object());
     LOperand* new_map_reg = TempRegister();
     LOperand* temp_reg = TempRegister();
@@ -2053,10 +2037,19 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
 
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   bool needs_write_barrier = instr->NeedsWriteBarrier();
+  bool needs_write_barrier_for_map = !instr->transition().is_null() &&
+      instr->NeedsWriteBarrierForMap();
 
-  LOperand* obj = needs_write_barrier
-      ? UseTempRegister(instr->object())
-      : UseRegisterAtStart(instr->object());
+  LOperand* obj;
+  if (needs_write_barrier) {
+    obj = instr->is_in_object()
+        ? UseRegister(instr->object())
+        : UseTempRegister(instr->object());
+  } else {
+    obj = needs_write_barrier_for_map
+        ? UseRegister(instr->object())
+        : UseRegisterAtStart(instr->object());
+  }
 
   LOperand* val = needs_write_barrier
       ? UseTempRegister(instr->value())
@@ -2064,8 +2057,8 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 
   // We only need a scratch register if we have a write barrier or we
   // have a store into the properties array (not in-object-property).
-  LOperand* temp = (!instr->is_in_object() || needs_write_barrier)
-      ? TempRegister() : NULL;
+  LOperand* temp = (!instr->is_in_object() || needs_write_barrier ||
+      needs_write_barrier_for_map) ? TempRegister() : NULL;
 
   return new(zone()) LStoreNamedField(obj, val, temp);
 }
@@ -2110,7 +2103,7 @@ LInstruction* LChunkBuilder::DoStringLength(HStringLength* instr) {
 
 
 LInstruction* LChunkBuilder::DoAllocateObject(HAllocateObject* instr) {
-  LAllocateObject* result = new LAllocateObject(TempRegister());
+  LAllocateObject* result = new(zone()) LAllocateObject(TempRegister());
   return AssignPointerMap(DefineAsRegister(result));
 }
 
@@ -2241,9 +2234,12 @@ LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   if (pending_deoptimization_ast_id_ == instr->ast_id()) {
     LLazyBailout* lazy_bailout = new(zone()) LLazyBailout;
     LInstruction* result = AssignEnvironment(lazy_bailout);
+    // Store the lazy deopt environment with the instruction if needed. Right
+    // now it is only used for LInstanceOfKnownGlobal.
     instruction_pending_deoptimization_environment_->
-        set_deoptimization_environment(result->environment());
-    ClearInstructionPendingDeoptimizationEnvironment();
+        SetDeferredLazyDeoptimizationEnvironment(result->environment());
+    instruction_pending_deoptimization_environment_ = NULL;
+    pending_deoptimization_ast_id_ = AstNode::kNoNumber;
     return result;
   }
 
@@ -2270,8 +2266,8 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
                                                undefined,
                                                instr->call_kind(),
                                                instr->is_construct());
-  if (instr->arguments() != NULL) {
-    inner->Bind(instr->arguments(), graph()->GetArgumentsObject());
+  if (instr->arguments_var() != NULL) {
+    inner->Bind(instr->arguments_var(), graph()->GetArgumentsObject());
   }
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());
@@ -2280,10 +2276,21 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
 
 
 LInstruction* LChunkBuilder::DoLeaveInlined(HLeaveInlined* instr) {
+  LInstruction* pop = NULL;
+
+  HEnvironment* env = current_block_->last_environment();
+
+  if (instr->arguments_pushed()) {
+    int argument_count = env->arguments_environment()->parameter_count();
+    pop = new(zone()) LDrop(argument_count);
+    argument_count_ -= argument_count;
+  }
+
   HEnvironment* outer = current_block_->last_environment()->
       DiscardInlined(false);
   current_block_->UpdateEnvironment(outer);
-  return NULL;
+
+  return pop;
 }
 
 

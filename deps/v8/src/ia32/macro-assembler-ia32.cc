@@ -237,6 +237,68 @@ void MacroAssembler::RecordWriteField(
 }
 
 
+void MacroAssembler::RecordWriteForMap(
+    Register object,
+    Handle<Map> map,
+    Register scratch1,
+    Register scratch2,
+    SaveFPRegsMode save_fp) {
+  Label done;
+
+  Register address = scratch1;
+  Register value = scratch2;
+  if (emit_debug_code()) {
+    Label ok;
+    lea(address, FieldOperand(object, HeapObject::kMapOffset));
+    test_b(address, (1 << kPointerSizeLog2) - 1);
+    j(zero, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
+
+  ASSERT(!object.is(value));
+  ASSERT(!object.is(address));
+  ASSERT(!value.is(address));
+  if (emit_debug_code()) {
+    AbortIfSmi(object);
+  }
+
+  if (!FLAG_incremental_marking) {
+    return;
+  }
+
+  // A single check of the map's pages interesting flag suffices, since it is
+  // only set during incremental collection, and then it's also guaranteed that
+  // the from object's page's interesting flag is also set.  This optimization
+  // relies on the fact that maps can never be in new space.
+  ASSERT(!isolate()->heap()->InNewSpace(*map));
+  CheckPageFlagForMap(map,
+                      MemoryChunk::kPointersToHereAreInterestingMask,
+                      zero,
+                      &done,
+                      Label::kNear);
+
+  // Delay the initialization of |address| and |value| for the stub until it's
+  // known that the will be needed. Up until this point their values are not
+  // needed since they are embedded in the operands of instructions that need
+  // them.
+  lea(address, FieldOperand(object, HeapObject::kMapOffset));
+  mov(value, Immediate(map));
+  RecordWriteStub stub(object, value, address, OMIT_REMEMBERED_SET, save_fp);
+  CallStub(&stub);
+
+  bind(&done);
+
+  // Clobber clobbered input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(scratch1, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(scratch2, Immediate(BitCast<int32_t>(kZapValue)));
+  }
+}
+
+
 void MacroAssembler::RecordWrite(Register object,
                                  Register address,
                                  Register value,
@@ -382,10 +444,12 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CheckFastElements(Register map,
                                        Label* fail,
                                        Label::Distance distance) {
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastElementValue);
+       Map::kMaximumBitField2FastHoleyElementValue);
   j(above, fail, distance);
 }
 
@@ -393,23 +457,26 @@ void MacroAssembler::CheckFastElements(Register map,
 void MacroAssembler::CheckFastObjectElements(Register map,
                                              Label* fail,
                                              Label::Distance distance) {
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastSmiOnlyElementValue);
+       Map::kMaximumBitField2FastHoleySmiElementValue);
   j(below_equal, fail, distance);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastElementValue);
+       Map::kMaximumBitField2FastHoleyElementValue);
   j(above, fail, distance);
 }
 
 
-void MacroAssembler::CheckFastSmiOnlyElements(Register map,
-                                              Label* fail,
-                                              Label::Distance distance) {
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+void MacroAssembler::CheckFastSmiElements(Register map,
+                                          Label* fail,
+                                          Label::Distance distance) {
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
-       Map::kMaximumBitField2FastSmiOnlyElementValue);
+       Map::kMaximumBitField2FastHoleySmiElementValue);
   j(above, fail, distance);
 }
 
@@ -493,24 +560,18 @@ void MacroAssembler::CompareMap(Register obj,
                                 CompareMapMode mode) {
   cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
   if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
-    Map* transitioned_fast_element_map(
-        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL));
-    ASSERT(transitioned_fast_element_map == NULL ||
-           map->elements_kind() != FAST_ELEMENTS);
-    if (transitioned_fast_element_map != NULL) {
-      j(equal, early_success, Label::kNear);
-      cmp(FieldOperand(obj, HeapObject::kMapOffset),
-          Handle<Map>(transitioned_fast_element_map));
-    }
-
-    Map* transitioned_double_map(
-        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL));
-    ASSERT(transitioned_double_map == NULL ||
-           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
-    if (transitioned_double_map != NULL) {
-      j(equal, early_success, Label::kNear);
-      cmp(FieldOperand(obj, HeapObject::kMapOffset),
-          Handle<Map>(transitioned_double_map));
+    ElementsKind kind = map->elements_kind();
+    if (IsFastElementsKind(kind)) {
+      bool packed = IsFastPackedElementsKind(kind);
+      Map* current_map = *map;
+      while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+        kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+        current_map = current_map->LookupElementsTransitionMap(kind);
+        if (!current_map) break;
+        j(equal, early_success, Label::kNear);
+        cmp(FieldOperand(obj, HeapObject::kMapOffset),
+            Handle<Map>(current_map));
+      }
     }
   }
 }
@@ -2161,27 +2222,38 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
   mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
-  int expected_index =
-      Context::GetContextMapIndexFromElementsKind(expected_kind);
-  cmp(map_in_out, Operand(scratch, Context::SlotOffset(expected_index)));
+  mov(scratch, Operand(scratch,
+                       Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
+
+  size_t offset = expected_kind * kPointerSize +
+      FixedArrayBase::kHeaderSize;
+  cmp(map_in_out, FieldOperand(scratch, offset));
   j(not_equal, no_map_match);
 
   // Use the transitioned cached map.
-  int trans_index =
-      Context::GetContextMapIndexFromElementsKind(transitioned_kind);
-  mov(map_in_out, Operand(scratch, Context::SlotOffset(trans_index)));
+  offset = transitioned_kind * kPointerSize +
+      FixedArrayBase::kHeaderSize;
+  mov(map_in_out, FieldOperand(scratch, offset));
 }
 
 
 void MacroAssembler::LoadInitialArrayMap(
-    Register function_in, Register scratch, Register map_out) {
+    Register function_in, Register scratch,
+    Register map_out, bool can_have_holes) {
   ASSERT(!function_in.is(map_out));
   Label done;
   mov(map_out, FieldOperand(function_in,
                             JSFunction::kPrototypeOrInitialMapOffset));
   if (!FLAG_smi_only_arrays) {
-    LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
-                                        FAST_ELEMENTS,
+    ElementsKind kind = can_have_holes ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                        kind,
+                                        map_out,
+                                        scratch,
+                                        &done);
+  } else if (can_have_holes) {
+    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                        FAST_HOLEY_SMI_ELEMENTS,
                                         map_out,
                                         scratch,
                                         &done);
@@ -2566,7 +2638,7 @@ bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address),
       size_(size),
-      masm_(Isolate::Current(), address, size + Assembler::kGap) {
+      masm_(NULL, address, size + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.
@@ -2603,6 +2675,28 @@ void MacroAssembler::CheckPageFlag(
            static_cast<uint8_t>(mask));
   } else {
     test(Operand(scratch, MemoryChunk::kFlagsOffset), Immediate(mask));
+  }
+  j(cc, condition_met, condition_met_distance);
+}
+
+
+void MacroAssembler::CheckPageFlagForMap(
+    Handle<Map> map,
+    int mask,
+    Condition cc,
+    Label* condition_met,
+    Label::Distance condition_met_distance) {
+  ASSERT(cc == zero || cc == not_zero);
+  Page* page = Page::FromAddress(map->address());
+  ExternalReference reference(ExternalReference::page_flags(page));
+  // The inlined static address check of the page's flags relies
+  // on maps never being compacted.
+  ASSERT(!isolate()->heap()->mark_compact_collector()->
+         IsOnEvacuationCandidate(*map));
+  if (mask < (1 << kBitsPerByte)) {
+    test_b(Operand::StaticVariable(reference), static_cast<uint8_t>(mask));
+  } else {
+    test(Operand::StaticVariable(reference), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

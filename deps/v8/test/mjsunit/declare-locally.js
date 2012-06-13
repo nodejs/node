@@ -33,11 +33,13 @@
 // This exercises the code in runtime.cc in
 // DeclareGlobal...Locally().
 
+// Flags: --es52_globals
+
 this.__proto__.foo = 42;
 this.__proto__.bar = 87;
 
-eval("assertEquals(42, foo); var foo = 87;");
+eval("assertEquals(undefined, foo); var foo = 87;");
 assertEquals(87, foo);
 
-eval("assertEquals(87, bar); const bar = 42;");
+eval("assertEquals(undefined, bar); const bar = 42;");
 assertEquals(42, bar);

@@ -36,7 +36,7 @@ var literal = [1.2];
 KeyedStoreIC(literal);
 KeyedStoreIC(literal);
 
-// Trruncate array to 0 elements, at which point backing store will be replaced
+// Truncate array to 0 elements, at which point backing store will be replaced
 // with empty fixed array.
 literal.length = 0;
 

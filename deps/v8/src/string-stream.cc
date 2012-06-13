@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -291,7 +291,7 @@ void StringStream::ClearMentionedObjectCache() {
   isolate->set_string_stream_current_security_token(NULL);
   if (isolate->string_stream_debug_object_cache() == NULL) {
     isolate->set_string_stream_debug_object_cache(
-        new List<HeapObject*, PreallocatedStorage>(0));
+        new List<HeapObject*, PreallocatedStorageAllocationPolicy>(0));
   }
   isolate->string_stream_debug_object_cache()->Clear();
 }
@@ -427,7 +427,7 @@ void StringStream::PrintMentionedObjectCache() {
       PrintUsingMap(JSObject::cast(printee));
       if (printee->IsJSArray()) {
         JSArray* array = JSArray::cast(printee);
-        if (array->HasFastElements()) {
+        if (array->HasFastObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
           unsigned int length =
             static_cast<uint32_t>(JSArray::cast(array)->length()->Number());

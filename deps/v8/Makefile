@@ -150,21 +150,21 @@ $(MODES): $(addsuffix .$$@,$(DEFAULT_ARCHES))
 $(ARCHES): $(addprefix $$@.,$(MODES))
 
 # Defines how to build a particular target (e.g. ia32.release).
-$(BUILDS): $(OUTDIR)/Makefile-$$(basename $$@)
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile-$(basename $@) \
+$(BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$(basename $@) \
 	         CXX="$(CXX)" LINK="$(LINK)" \
 	         BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
 	                     python -c "print raw_input().capitalize()") \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
-native: $(OUTDIR)/Makefile-native
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile-native \
+native: $(OUTDIR)/Makefile.native
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.native \
 	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
 # TODO(jkummerow): add "android.debug" when we need it.
-android android.release: $(OUTDIR)/Makefile-android
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile-android \
+android android.release: $(OUTDIR)/Makefile.android
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.android \
 	        CXX="$(ANDROID_TOOL_PREFIX)-g++" \
 	        AR="$(ANDROID_TOOL_PREFIX)-ar" \
 	        RANLIB="$(ANDROID_TOOL_PREFIX)-ranlib" \
@@ -197,55 +197,41 @@ native.check: native
 	    --arch-and-mode=. $(TESTFLAGS)
 
 # Clean targets. You can clean each architecture individually, or everything.
-$(addsuffix .clean,$(ARCHES)):
-	rm -f $(OUTDIR)/Makefile-$(basename $@)
+$(addsuffix .clean,$(ARCHES)) android.clean:
+	rm -f $(OUTDIR)/Makefile.$(basename $@)
 	rm -rf $(OUTDIR)/$(basename $@).release
 	rm -rf $(OUTDIR)/$(basename $@).debug
-	find $(OUTDIR) -regex '.*\(host\|target\)-$(basename $@)\.mk' -delete
+	find $(OUTDIR) -regex '.*\(host\|target\).$(basename $@)\.mk' -delete
 
 native.clean:
-	rm -f $(OUTDIR)/Makefile-native
+	rm -f $(OUTDIR)/Makefile.native
 	rm -rf $(OUTDIR)/native
-	find $(OUTDIR) -regex '.*\(host\|target\)-native\.mk' -delete
+	find $(OUTDIR) -regex '.*\(host\|target\).native\.mk' -delete
 
-android.clean:
-	rm -f $(OUTDIR)/Makefile-android
-	rm -rf $(OUTDIR)/android.release
-	find $(OUTDIR) -regex '.*\(host\|target\)-android\.mk' -delete
-
-clean: $(addsuffix .clean,$(ARCHES)) native.clean
+clean: $(addsuffix .clean,$(ARCHES)) native.clean android.clean
 
 # GYP file generation targets.
-$(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
+MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ARCHES))
+$(MAKEFILES): $(GYPFILES) $(ENVFILE)
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=ia32 \
-	              -S-ia32 $(GYPFLAGS)
+	              -Ibuild/standalone.gypi --depth=. \
+	              -Dv8_target_arch=$(subst .,,$(suffix $@)) \
+	              -S.$(subst .,,$(suffix $@)) $(GYPFLAGS)
 
-$(OUTDIR)/Makefile-x64: $(GYPFILES) $(ENVFILE)
+$(OUTDIR)/Makefile.native: $(GYPFILES) $(ENVFILE)
+	GYP_GENERATORS=make \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
-	              -S-x64 $(GYPFLAGS)
+	              -Ibuild/standalone.gypi --depth=. -S.native $(GYPFLAGS)
 
-$(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE) build/armu.gypi
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
-	              -S-arm $(GYPFLAGS)
-
-$(OUTDIR)/Makefile-mips: $(GYPFILES) $(ENVFILE) build/mipsu.gypi
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -Ibuild/mipsu.gypi \
-	              -S-mips $(GYPFLAGS)
-
-$(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
-
-$(OUTDIR)/Makefile-android: $(GYPFILES) $(ENVFILE) build/android.gypi \
+$(OUTDIR)/Makefile.android: $(GYPFILES) $(ENVFILE) build/android.gypi \
                             must-set-ANDROID_NDK_ROOT
+	GYP_GENERATORS=make \
 	CC="${ANDROID_TOOL_PREFIX}-gcc" \
+	CXX="${ANDROID_TOOL_PREFIX}-g++" \
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
-	              -S-android $(GYPFLAGS)
+	              -S.android $(GYPFLAGS)
 
 must-set-ANDROID_NDK_ROOT:
 ifndef ANDROID_NDK_ROOT
@@ -261,9 +247,10 @@ $(ENVFILE): $(ENVFILE).new
 
 # Stores current GYPFLAGS in a file.
 $(ENVFILE).new:
-	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new;
+	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new; \
+	    echo "CXX=$(CXX)" >> $(ENVFILE).new
 
 # Dependencies.
 dependencies:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
-	    --revision 1026
+	    --revision 1282

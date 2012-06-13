@@ -1502,10 +1502,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             break;
         }
       }
-      double result = target(arg0, arg1, arg2, arg3);
       if (redirection->type() != ExternalReference::BUILTIN_COMPARE_CALL) {
-          SetFpResult(result);
+        SimulatorRuntimeFPCall target =
+            reinterpret_cast<SimulatorRuntimeFPCall>(external);
+        double result = target(arg0, arg1, arg2, arg3);
+        SetFpResult(result);
       } else {
+        SimulatorRuntimeCall target =
+            reinterpret_cast<SimulatorRuntimeCall>(external);
+        uint64_t result = target(arg0, arg1, arg2, arg3, arg4, arg5);
         int32_t gpreg_pair[2];
         memcpy(&gpreg_pair[0], &result, 2 * sizeof(int32_t));
         set_register(v0, gpreg_pair[0]);

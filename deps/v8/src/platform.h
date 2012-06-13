@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -122,6 +122,9 @@ class OS {
   // Initializes the platform OS support that depend on CPU features. This is
   // called after CPU initialization.
   static void PostSetUp();
+
+  // Clean up platform-OS-related things. Called once at VM shutdown.
+  static void TearDown();
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -650,6 +653,7 @@ class Socket {
   virtual bool Shutdown() = 0;
 
   // Data Transimission
+  // Return 0 on failure.
   virtual int Send(const char* data, int len) const = 0;
   virtual int Receive(char* data, int len) const = 0;
 

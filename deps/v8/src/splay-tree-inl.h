@@ -42,10 +42,11 @@ SplayTree<Config, Allocator>::~SplayTree() {
 
 
 template<typename Config, class Allocator>
-bool SplayTree<Config, Allocator>::Insert(const Key& key, Locator* locator) {
+bool SplayTree<Config, Allocator>::Insert(const Key& key,
+                                          Locator* locator) {
   if (is_empty()) {
     // If the tree is empty, insert the new node.
-    root_ = new Node(key, Config::NoValue());
+    root_ = new(allocator_) Node(key, Config::NoValue());
   } else {
     // Splay on the key to move the last node on the search path
     // for the key to the root of the tree.
@@ -57,7 +58,7 @@ bool SplayTree<Config, Allocator>::Insert(const Key& key, Locator* locator) {
       return false;
     }
     // Insert the new node.
-    Node* node = new Node(key, Config::NoValue());
+    Node* node = new(allocator_) Node(key, Config::NoValue());
     InsertInternal(cmp, node);
   }
   locator->bind(root_);
@@ -293,13 +294,13 @@ void SplayTree<Config, Allocator>::ForEach(Callback* callback) {
 template <typename Config, class Allocator> template <class Callback>
 void SplayTree<Config, Allocator>::ForEachNode(Callback* callback) {
   // Pre-allocate some space for tiny trees.
-  List<Node*, Allocator> nodes_to_visit(10);
-  if (root_ != NULL) nodes_to_visit.Add(root_);
+  List<Node*, Allocator> nodes_to_visit(10, allocator_);
+  if (root_ != NULL) nodes_to_visit.Add(root_, allocator_);
   int pos = 0;
   while (pos < nodes_to_visit.length()) {
     Node* node = nodes_to_visit[pos++];
-    if (node->left() != NULL) nodes_to_visit.Add(node->left());
-    if (node->right() != NULL) nodes_to_visit.Add(node->right());
+    if (node->left() != NULL) nodes_to_visit.Add(node->left(), allocator_);
+    if (node->right() != NULL) nodes_to_visit.Add(node->right(), allocator_);
     callback->Call(node);
   }
 }

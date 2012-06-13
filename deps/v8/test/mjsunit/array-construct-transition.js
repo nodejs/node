@@ -27,13 +27,13 @@
 
 // Flags: --allow-natives-syntax --smi-only-arrays
 
-support_smi_only_arrays = %HasFastSmiOnlyElements(new Array(1,2,3,4,5,6,7,8));
+support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6));
 
 if (support_smi_only_arrays) {
   var a = new Array(0, 1, 2);
-  assertTrue(%HasFastSmiOnlyElements(a));
+  assertTrue(%HasFastSmiElements(a));
   var b = new Array(0.5, 1.2, 2.3);
   assertTrue(%HasFastDoubleElements(b));
   var c = new Array(0.5, 1.2, new Object());
-  assertTrue(%HasFastElements(c));
+  assertTrue(%HasFastObjectElements(c));
 }

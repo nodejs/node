@@ -27,6 +27,7 @@
 
 prefix cctest
 
+# All tests prefixed with 'Bug' are expected to fail.
 test-api/Bug*: FAIL
 
 ##############################################################################
@@ -75,17 +76,3 @@ test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
 test-serialize/DeserializeFromSecondSerialization: SKIP
 
-##############################################################################
-[ $arch == arm && $crankshaft ]
-
-# Tests that time out with crankshaft.
-test-debug/ThreadedDebugging: SKIP
-test-debug/DebugBreakLoop: SKIP
-
-
-##############################################################################
-[ $arch == mips && $crankshaft ]
-
-# Tests that time out with crankshaft.
-test-debug/ThreadedDebugging: SKIP
-test-debug/DebugBreakLoop: SKIP

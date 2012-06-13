@@ -1868,10 +1868,12 @@ void MacroAssembler::CompareRoot(Register obj,
 void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastHoleyElementValue));
   b(hi, fail);
 }
 
@@ -1879,22 +1881,25 @@ void MacroAssembler::CheckFastElements(Register map,
 void MacroAssembler::CheckFastObjectElements(Register map,
                                              Register scratch,
                                              Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
-  STATIC_ASSERT(FAST_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
+  STATIC_ASSERT(FAST_ELEMENTS == 2);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
   ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  cmp(scratch, Operand(Map::kMaximumBitField2FastSmiOnlyElementValue));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastHoleySmiElementValue));
   b(ls, fail);
-  cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastHoleyElementValue));
   b(hi, fail);
 }
 
 
-void MacroAssembler::CheckFastSmiOnlyElements(Register map,
-                                              Register scratch,
-                                              Label* fail) {
-  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+void MacroAssembler::CheckFastSmiElements(Register map,
+                                          Register scratch,
+                                          Label* fail) {
+  STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS == 1);
   ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
-  cmp(scratch, Operand(Map::kMaximumBitField2FastSmiOnlyElementValue));
+  cmp(scratch, Operand(Map::kMaximumBitField2FastHoleySmiElementValue));
   b(hi, fail);
 }
 
@@ -1995,24 +2000,27 @@ void MacroAssembler::CompareMap(Register obj,
                                 Label* early_success,
                                 CompareMapMode mode) {
   ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  cmp(scratch, Operand(map));
-  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
-    Map* transitioned_fast_element_map(
-        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL));
-    ASSERT(transitioned_fast_element_map == NULL ||
-           map->elements_kind() != FAST_ELEMENTS);
-    if (transitioned_fast_element_map != NULL) {
-      b(eq, early_success);
-      cmp(scratch, Operand(Handle<Map>(transitioned_fast_element_map)));
-    }
+  CompareMap(scratch, map, early_success, mode);
+}
 
-    Map* transitioned_double_map(
-        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL));
-    ASSERT(transitioned_double_map == NULL ||
-           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
-    if (transitioned_double_map != NULL) {
-      b(eq, early_success);
-      cmp(scratch, Operand(Handle<Map>(transitioned_double_map)));
+
+void MacroAssembler::CompareMap(Register obj_map,
+                                Handle<Map> map,
+                                Label* early_success,
+                                CompareMapMode mode) {
+  cmp(obj_map, Operand(map));
+  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
+    ElementsKind kind = map->elements_kind();
+    if (IsFastElementsKind(kind)) {
+      bool packed = IsFastPackedElementsKind(kind);
+      Map* current_map = *map;
+      while (CanTransitionToMoreGeneralFastElementsKind(kind, packed)) {
+        kind = GetNextMoreGeneralFastElementsKind(kind, packed);
+        current_map = current_map->LookupElementsTransitionMap(kind);
+        if (!current_map) break;
+        b(eq, early_success);
+        cmp(obj_map, Operand(Handle<Map>(current_map)));
+      }
     }
   }
 }
@@ -2865,28 +2873,38 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
   ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
-  int expected_index =
-      Context::GetContextMapIndexFromElementsKind(expected_kind);
-  ldr(ip, MemOperand(scratch, Context::SlotOffset(expected_index)));
-  cmp(map_in_out, ip);
+  ldr(scratch,
+      MemOperand(scratch,
+                 Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
+  size_t offset = expected_kind * kPointerSize +
+      FixedArrayBase::kHeaderSize;
+  cmp(map_in_out, scratch);
   b(ne, no_map_match);
 
   // Use the transitioned cached map.
-  int trans_index =
-      Context::GetContextMapIndexFromElementsKind(transitioned_kind);
-  ldr(map_in_out, MemOperand(scratch, Context::SlotOffset(trans_index)));
+  offset = transitioned_kind * kPointerSize +
+      FixedArrayBase::kHeaderSize;
+  ldr(map_in_out, FieldMemOperand(scratch, offset));
 }
 
 
 void MacroAssembler::LoadInitialArrayMap(
-    Register function_in, Register scratch, Register map_out) {
+    Register function_in, Register scratch,
+    Register map_out, bool can_have_holes) {
   ASSERT(!function_in.is(map_out));
   Label done;
   ldr(map_out, FieldMemOperand(function_in,
                                JSFunction::kPrototypeOrInitialMapOffset));
   if (!FLAG_smi_only_arrays) {
-    LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
-                                        FAST_ELEMENTS,
+    ElementsKind kind = can_have_holes ? FAST_HOLEY_ELEMENTS : FAST_ELEMENTS;
+    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                        kind,
+                                        map_out,
+                                        scratch,
+                                        &done);
+  } else if (can_have_holes) {
+    LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                        FAST_HOLEY_SMI_ELEMENTS,
                                         map_out,
                                         scratch,
                                         &done);
@@ -3710,22 +3728,35 @@ void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
 }
 
 
-bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
-  if (r1.is(r2)) return true;
-  if (r1.is(r3)) return true;
-  if (r1.is(r4)) return true;
-  if (r2.is(r3)) return true;
-  if (r2.is(r4)) return true;
-  if (r3.is(r4)) return true;
-  return false;
+#ifdef DEBUG
+bool AreAliased(Register reg1,
+                Register reg2,
+                Register reg3,
+                Register reg4,
+                Register reg5,
+                Register reg6) {
+  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() +
+    reg3.is_valid() + reg4.is_valid() + reg5.is_valid() + reg6.is_valid();
+
+  RegList regs = 0;
+  if (reg1.is_valid()) regs |= reg1.bit();
+  if (reg2.is_valid()) regs |= reg2.bit();
+  if (reg3.is_valid()) regs |= reg3.bit();
+  if (reg4.is_valid()) regs |= reg4.bit();
+  if (reg5.is_valid()) regs |= reg5.bit();
+  if (reg6.is_valid()) regs |= reg6.bit();
+  int n_of_non_aliasing_regs = NumRegs(regs);
+
+  return n_of_valid_regs != n_of_non_aliasing_regs;
 }
+#endif
 
 
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
       instructions_(instructions),
       size_(instructions * Assembler::kInstrSize),
-      masm_(Isolate::Current(), address, size_ + Assembler::kGap) {
+      masm_(NULL, address, size_ + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.

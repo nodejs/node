@@ -31,9 +31,8 @@
 namespace v8 {
 namespace internal {
 
-// Used by platform implementation files during OS::PostSetUp() to initialize
-// the math functions.
-void MathSetup();
+// Used by platform implementation files during OS::PostSetUp().
+void POSIXPostSetUp();
 
 } }  // namespace v8::internal
 

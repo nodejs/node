@@ -82,6 +82,7 @@ static void InitializeBuildingBlocks(
     Handle<String> building_blocks[NUMBER_OF_BUILDING_BLOCKS]) {
   // A list of pointers that we don't have any interest in cleaning up.
   // If they are reachable from a root then leak detection won't complain.
+  Zone* zone = Isolate::Current()->zone();
   for (int i = 0; i < NUMBER_OF_BUILDING_BLOCKS; i++) {
     int len = gen() % 16;
     if (len > 14) {
@@ -113,11 +114,11 @@ static void InitializeBuildingBlocks(
         break;
       }
       case 2: {
-        uc16* buf = ZONE->NewArray<uc16>(len);
+        uc16* buf = zone->NewArray<uc16>(len);
         for (int j = 0; j < len; j++) {
           buf[j] = gen() % 65536;
         }
-        Resource* resource = new Resource(Vector<const uc16>(buf, len));
+        Resource* resource = new(zone) Resource(Vector<const uc16>(buf, len));
         building_blocks[i] = FACTORY->NewExternalStringFromTwoByte(resource);
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
@@ -348,10 +349,11 @@ TEST(Utf8Conversion) {
 
 
 TEST(ExternalShortStringAdd) {
-  ZoneScope zone(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zonescope(Isolate::Current(), DELETE_ON_EXIT);
 
   InitializeVM();
   v8::HandleScope handle_scope;
+  Zone* zone = Isolate::Current()->zone();
 
   // Make sure we cover all always-flat lengths and at least one above.
   static const int kMaxLength = 20;
@@ -365,25 +367,25 @@ TEST(ExternalShortStringAdd) {
 
   // Generate short ascii and non-ascii external strings.
   for (int i = 0; i <= kMaxLength; i++) {
-    char* ascii = ZONE->NewArray<char>(i + 1);
+    char* ascii = zone->NewArray<char>(i + 1);
     for (int j = 0; j < i; j++) {
       ascii[j] = 'a';
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
     AsciiResource* ascii_resource =
-        new AsciiResource(Vector<const char>(ascii, i));
+        new(zone) AsciiResource(Vector<const char>(ascii, i));
     v8::Local<v8::String> ascii_external_string =
         v8::String::NewExternal(ascii_resource);
 
     ascii_external_strings->Set(v8::Integer::New(i), ascii_external_string);
-    uc16* non_ascii = ZONE->NewArray<uc16>(i + 1);
+    uc16* non_ascii = zone->NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_ascii[j] = 0x1234;
     }
     // Terminating '\0' is left out on purpose. It is not required for external
     // string data.
-    Resource* resource = new Resource(Vector<const uc16>(non_ascii, i));
+    Resource* resource = new(zone) Resource(Vector<const uc16>(non_ascii, i));
     v8::Local<v8::String> non_ascii_external_string =
       v8::String::NewExternal(resource);
     non_ascii_external_strings->Set(v8::Integer::New(i),
@@ -586,4 +588,106 @@ TEST(SliceFromSlice) {
   CHECK(string->IsSlicedString());
   CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
   CHECK_EQ("cdefghijklmnopqrstuvwx", *(string->ToCString()));
+}
+
+
+TEST(AsciiArrayJoin) {
+  // Set heap limits.
+  static const int K = 1024;
+  v8::ResourceConstraints constraints;
+  constraints.set_max_young_space_size(256 * K);
+  constraints.set_max_old_space_size(4 * K * K);
+  v8::SetResourceConstraints(&constraints);
+
+  // String s is made of 2^17 = 131072 'c' characters and a is an array
+  // starting with 'bad', followed by 2^14 times the string s. That means the
+  // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
+  // summing the lengths of the strings (as Smis) overflows and wraps.
+  static const char* join_causing_out_of_memory =
+      "var two_14 = Math.pow(2, 14);"
+      "var two_17 = Math.pow(2, 17);"
+      "var s = Array(two_17 + 1).join('c');"
+      "var a = ['bad'];"
+      "for (var i = 1; i <= two_14; i++) a.push(s);"
+      "a.join("");";
+
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::V8::IgnoreOutOfMemoryException();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(v8::String::New(join_causing_out_of_memory));
+  v8::Local<v8::Value> result = script->Run();
+
+  // Check for out of memory state.
+  CHECK(result.IsEmpty());
+  CHECK(context->HasOutOfMemoryException());
+}
+
+
+static void CheckException(const char* source) {
+  // An empty handle is returned upon exception.
+  CHECK(CompileRun(source).IsEmpty());
+}
+
+
+TEST(RobustSubStringStub) {
+  // This tests whether the SubStringStub can handle unsafe arguments.
+  // If not recognized, those unsafe arguments lead to out-of-bounds reads.
+  FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  HandleScope scope;
+  v8::Local<v8::Value> result;
+  Handle<String> string;
+  CompileRun("var short = 'abcdef';");
+
+  // Invalid indices.
+  CheckException("%_SubString(short,     0,    10000);");
+  CheckException("%_SubString(short, -1234,        5);");
+  CheckException("%_SubString(short,     5,        2);");
+  // Special HeapNumbers.
+  CheckException("%_SubString(short,     1, Infinity);");
+  CheckException("%_SubString(short,   NaN,        5);");
+  // String arguments.
+  CheckException("%_SubString(short,    '2',     '5');");
+  // Ordinary HeapNumbers can be handled (in runtime).
+  result = CompileRun("%_SubString(short, Math.sqrt(4), 5.1);");
+  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK_EQ("cde", *(string->ToCString()));
+
+  CompileRun("var long = 'abcdefghijklmnopqrstuvwxyz';");
+  // Invalid indices.
+  CheckException("%_SubString(long,     0,    10000);");
+  CheckException("%_SubString(long, -1234,       17);");
+  CheckException("%_SubString(long,    17,        2);");
+  // Special HeapNumbers.
+  CheckException("%_SubString(long,     1, Infinity);");
+  CheckException("%_SubString(long,   NaN,       17);");
+  // String arguments.
+  CheckException("%_SubString(long,    '2',    '17');");
+  // Ordinary HeapNumbers within bounds can be handled (in runtime).
+  result = CompileRun("%_SubString(long, Math.sqrt(4), 17.1);");
+  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK_EQ("cdefghijklmnopq", *(string->ToCString()));
+
+  // Test that out-of-bounds substring of a slice fails when the indices
+  // would have been valid for the underlying string.
+  CompileRun("var slice = long.slice(1, 15);");
+  CheckException("%_SubString(slice, 0, 17);");
+}
+
+
+TEST(RegExpOverflow) {
+  // Result string has the length 2^32, causing a 32-bit integer overflow.
+  InitializeVM();
+  HandleScope scope;
+  LocalContext context;
+  v8::V8::IgnoreOutOfMemoryException();
+  v8::Local<v8::Value> result = CompileRun(
+      "var a = 'a';                     "
+      "for (var i = 0; i < 16; i++) {   "
+      "  a += a;                        "
+      "}                                "
+      "a.replace(/a/g, a);              ");
+  CHECK(result.IsEmpty());
+  CHECK(context->HasOutOfMemoryException());
 }

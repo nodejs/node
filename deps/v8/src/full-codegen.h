@@ -77,27 +77,24 @@ class FullCodeGenerator: public AstVisitor {
     TOS_REG
   };
 
-  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info,
+                    Zone* zone)
       : masm_(masm),
         info_(info),
         scope_(info->scope()),
         nesting_stack_(NULL),
         loop_depth_(0),
-        global_count_(0),
+        globals_(NULL),
         context_(NULL),
         bailout_entries_(info->HasDeoptimizationSupport()
-                         ? info->function()->ast_node_count() : 0),
-        stack_checks_(2),  // There's always at least one.
+                         ? info->function()->ast_node_count() : 0, zone),
+        stack_checks_(2, zone),  // There's always at least one.
         type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0),
+                             ? info->function()->ast_node_count() : 0, zone),
         ic_total_count_(0),
-        has_self_optimization_header_(false) { }
+        zone_(zone) { }
 
   static bool MakeCode(CompilationInfo* info);
-
-  // Returns the platform-specific size in bytes of the self-optimization
-  // header.
-  static int self_optimization_header_size();
 
   // Encode state and pc-offset as a BitField<type, start, size>.
   // Only use 30 bits because we encode the result as a smi.
@@ -112,6 +109,8 @@ class FullCodeGenerator: public AstVisitor {
     UNREACHABLE();
     return NULL;
   }
+
+  Zone* zone() const { return zone_; }
 
  private:
   class Breakable;
@@ -207,7 +206,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual ~NestedBlock() {}
 
     virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      if (statement()->AsBlock()->block_scope() != NULL) {
+      if (statement()->AsBlock()->scope() != NULL) {
         ++(*context_length);
       }
       return previous_;
@@ -241,7 +240,7 @@ class FullCodeGenerator: public AstVisitor {
   // The finally block of a try/finally statement.
   class Finally : public NestedStatement {
    public:
-    static const int kElementCount = 2;
+    static const int kElementCount = 5;
 
     explicit Finally(FullCodeGenerator* codegen) : NestedStatement(codegen) { }
     virtual ~Finally() {}
@@ -418,12 +417,9 @@ class FullCodeGenerator: public AstVisitor {
                                     Label* if_true,
                                     Label* if_false);
 
-  // Platform-specific code for a variable, constant, or function
-  // declaration.  Functions have an initial value.
-  // Increments global_count_ for unallocated variables.
-  void EmitDeclaration(VariableProxy* proxy,
-                       VariableMode mode,
-                       FunctionLiteral* function);
+  // If enabled, emit debug code for checking that the current context is
+  // neither a with nor a catch context.
+  void EmitDebugCheckDeclarationContext(Variable* variable);
 
   // Platform-specific code for checking the stack limit at the back edge of
   // a loop.
@@ -553,12 +549,8 @@ class FullCodeGenerator: public AstVisitor {
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
   bool is_native() { return info_->is_native(); }
-  bool is_classic_mode() {
-    return language_mode() == CLASSIC_MODE;
-  }
-  LanguageMode language_mode() {
-    return function()->language_mode();
-  }
+  bool is_classic_mode() { return language_mode() == CLASSIC_MODE; }
+  LanguageMode language_mode() { return function()->language_mode(); }
   FunctionLiteral* function() { return info_->function(); }
   Scope* scope() { return scope_; }
 
@@ -790,15 +782,15 @@ class FullCodeGenerator: public AstVisitor {
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;
-  int global_count_;
+  ZoneList<Handle<Object> >* globals_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
-  bool has_self_optimization_header_;
   Handle<FixedArray> handler_table_;
   Handle<JSGlobalPropertyCell> profiling_counter_;
+  Zone* zone_;
 
   friend class NestedStatement;
 
@@ -809,16 +801,16 @@ class FullCodeGenerator: public AstVisitor {
 // A map from property names to getter/setter pairs allocated in the zone.
 class AccessorTable: public TemplateHashMap<Literal,
                                             ObjectLiteral::Accessors,
-                                            ZoneListAllocationPolicy> {
+                                            ZoneAllocationPolicy> {
  public:
   explicit AccessorTable(Zone* zone) :
-      TemplateHashMap<Literal,
-                      ObjectLiteral::Accessors,
-                      ZoneListAllocationPolicy>(Literal::Match),
+      TemplateHashMap<Literal, ObjectLiteral::Accessors,
+                      ZoneAllocationPolicy>(Literal::Match,
+                                            ZoneAllocationPolicy(zone)),
       zone_(zone) { }
 
   Iterator lookup(Literal* literal) {
-    Iterator it = find(literal, true);
+    Iterator it = find(literal, true, ZoneAllocationPolicy(zone_));
     if (it->second == NULL) it->second = new(zone_) ObjectLiteral::Accessors();
     return it;
   }

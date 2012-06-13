@@ -1,6 +1,6 @@
 #!/usr/bin/python2.4
 
-# Copyright 2009 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -154,7 +154,7 @@ class JavaScriptMinifier(object):
       return var_name
     while True:
       identifier_first_char = self.identifier_counter % 52
-      identifier_second_char = self.identifier_counter / 52
+      identifier_second_char = self.identifier_counter // 52
       new_identifier = self.CharFromNumber(identifier_first_char)
       if identifier_second_char != 0:
         new_identifier = (

@@ -63,9 +63,8 @@ enum PropertyType {
   INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
   // All properties before MAP_TRANSITION are real.
   MAP_TRANSITION            = 6,  // only in fast mode
-  ELEMENTS_TRANSITION       = 7,
-  CONSTANT_TRANSITION       = 8,  // only in fast mode
-  NULL_DESCRIPTOR           = 9,  // only in fast mode
+  CONSTANT_TRANSITION       = 7,  // only in fast mode
+  NULL_DESCRIPTOR           = 8,  // only in fast mode
   // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
   // NULL_DESCRIPTOR can be used as the type flag for IC stubs for
   // nonexistent properties.

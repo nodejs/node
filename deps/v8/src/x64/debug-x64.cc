@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -91,6 +91,8 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
   rinfo()->PatchCode(original_rinfo()->pc(), Assembler::kDebugBreakSlotLength);
 }
 
+const bool Debug::FramePaddingLayout::kIsSupported = true;
+
 
 #define __ ACCESS_MASM(masm)
 
@@ -102,6 +104,12 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Load padding words on stack.
+    for (int i = 0; i < Debug::FramePaddingLayout::kInitialSize; i++) {
+      __ Push(Smi::FromInt(Debug::FramePaddingLayout::kPaddingValue));
+    }
+    __ Push(Smi::FromInt(Debug::FramePaddingLayout::kInitialSize));
 
     // Store the registers containing live values on the expression stack to
     // make sure that these are correctly updated during GC. Non object values
@@ -156,6 +164,11 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         __ or_(reg, kScratchRegister);
       }
     }
+
+    // Read current padding counter and skip corresponding number of words.
+    __ pop(kScratchRegister);
+    __ SmiToInteger32(kScratchRegister, kScratchRegister);
+    __ lea(rsp, Operand(rsp, kScratchRegister, times_pointer_size, 0));
 
     // Get rid of the internal frame.
   }

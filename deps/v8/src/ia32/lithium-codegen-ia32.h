@@ -46,21 +46,26 @@ class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
  public:
-  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
+  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info,
+           Zone* zone)
       : chunk_(chunk),
         masm_(assembler),
         info_(info),
         current_block_(-1),
         current_instruction_(-1),
         instructions_(chunk->instructions()),
-        deoptimizations_(4),
-        deoptimization_literals_(8),
+        deoptimizations_(4, zone),
+        deoptimization_literals_(8, zone),
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
-        deferred_(8),
+        translations_(zone),
+        deferred_(8, zone),
+        dynamic_frame_alignment_(false),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
+        safepoints_(zone),
+        zone_(zone),
         resolver_(this),
         expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
@@ -72,6 +77,7 @@ class LCodeGen BASE_EMBEDDED {
   Isolate* isolate() const { return info_->isolate(); }
   Factory* factory() const { return isolate()->factory(); }
   Heap* heap() const { return isolate()->heap(); }
+  Zone* zone() const { return zone_; }
 
   // Support for converting LOperands to assembler types.
   Operand ToOperand(LOperand* op) const;
@@ -164,7 +170,7 @@ class LCodeGen BASE_EMBEDDED {
   void Abort(const char* format, ...);
   void Comment(const char* format, ...);
 
-  void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code); }
+  void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
   // Code generation passes.  Returns true if code generation should
   // continue.
@@ -206,12 +212,18 @@ class LCodeGen BASE_EMBEDDED {
                                LInstruction* instr,
                                LOperand* context);
 
+  enum EDIState {
+    EDI_UNINITIALIZED,
+    EDI_CONTAINS_TARGET
+  };
+
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
                          LInstruction* instr,
-                         CallKind call_kind);
+                         CallKind call_kind,
+                         EDIState edi_state);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
@@ -236,7 +248,8 @@ class LCodeGen BASE_EMBEDDED {
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
                                 ElementsKind elements_kind,
-                                uint32_t offset);
+                                uint32_t offset,
+                                uint32_t additional_index = 0);
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);
@@ -301,7 +314,8 @@ class LCodeGen BASE_EMBEDDED {
   void EmitLoadFieldOrConstantFunction(Register result,
                                        Register object,
                                        Handle<Map> type,
-                                       Handle<String> name);
+                                       Handle<String> name,
+                                       LEnvironment* env);
 
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).
@@ -330,12 +344,15 @@ class LCodeGen BASE_EMBEDDED {
   Status status_;
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
+  bool dynamic_frame_alignment_;
   int osr_pc_offset_;
   int last_lazy_deopt_pc_;
 
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
+
+  Zone* zone_;
 
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;

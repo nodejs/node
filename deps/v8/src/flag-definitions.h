@@ -132,6 +132,10 @@ public:
 
 // Flags for language modes and experimental language features.
 DEFINE_bool(use_strict, false, "enforce strict mode")
+DEFINE_bool(es5_readonly, false,
+            "activate correct semantics for inheriting readonliness")
+DEFINE_bool(es52_globals, false,
+            "activate new semantics for global var declarations")
 
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
@@ -148,6 +152,7 @@ DEFINE_implication(harmony, harmony_collections)
 DEFINE_implication(harmony_modules, harmony_scoping)
 
 // Flags for experimental implementation features.
+DEFINE_bool(packed_arrays, false, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
 DEFINE_bool(clever_optimizations,
             true,
@@ -165,7 +170,12 @@ DEFINE_bool(eliminate_dead_phis, true, "eliminate dead phis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
-DEFINE_bool(limit_inlining, true, "limit code size growth from inlining")
+DEFINE_int(max_inlined_source_size, 600,
+           "maximum source size in bytes considered for a single inlining")
+DEFINE_int(max_inlined_nodes, 196,
+           "maximum number of AST nodes considered for a single inlining")
+DEFINE_int(max_inlined_nodes_cumulative, 196,
+           "maximum cumulative number of AST nodes considered for inlining")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             true,
@@ -188,6 +198,10 @@ DEFINE_bool(trap_on_deopt, false, "put a break point before deoptimizing")
 DEFINE_bool(deoptimize_uncommon_cases, true, "deoptimize uncommon cases")
 DEFINE_bool(polymorphic_inlining, true, "polymorphic inlining")
 DEFINE_bool(use_osr, true, "use on-stack replacement")
+DEFINE_bool(array_bounds_checks_elimination, false,
+            "perform array bounds checks elimination")
+DEFINE_bool(array_index_dehoisting, false,
+            "perform array index dehoisting")
 
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")

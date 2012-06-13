@@ -1,4 +1,4 @@
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -35,8 +35,8 @@ import sys
 import tarfile
 
 
-TEST_262_ARCHIVE_REVISION = '3a890174343c'  # This is the r309 revision.
-TEST_262_ARCHIVE_MD5 = 'be5d4cfbe69cef70430907b8f3a92b50'
+TEST_262_ARCHIVE_REVISION = 'fb327c439e20'  # This is the r334 revision.
+TEST_262_ARCHIVE_MD5 = '307acd166ec34629592f240dc12d57ed'
 TEST_262_URL = 'http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2'
 TEST_262_HARNESS = ['sta.js']
 
@@ -62,6 +62,7 @@ class Test262TestCase(test.TestCase):
 
   def GetCommand(self):
     result = self.context.GetVmCommand(self, self.mode)
+    result += [ '--es5_readonly' ]  # Temporary hack until we can remove flag
     result += self.framework
     result.append(self.filename)
     return result
@@ -104,27 +105,29 @@ class Test262TestConfiguration(test.TestConfiguration):
     revision = TEST_262_ARCHIVE_REVISION
     archive_url = TEST_262_URL % revision
     archive_name = join(self.root, 'test262-%s.tar.bz2' % revision)
-    directory_name = join(self.root, "test262-%s" % revision)
-    if not exists(directory_name) or not exists(archive_name):
-      if not exists(archive_name):
-        print "Downloading test data from %s ..." % archive_url
-        urllib.urlretrieve(archive_url, archive_name)
-      if not exists(directory_name):
-        print "Extracting test262-%s.tar.bz2 ..." % revision
-        md5 = hashlib.md5()
-        with open(archive_name,'rb') as f:
-          for chunk in iter(lambda: f.read(8192), ''):
-            md5.update(chunk)
-        if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
-          raise Exception("Hash mismatch of test data file")
-        archive = tarfile.open(archive_name, 'r:bz2')
-        if sys.platform in ('win32', 'cygwin'):
-          # Magic incantation to allow longer path names on Windows.
-          archive.extractall(u'\\\\?\\%s' % self.root)
-        else:
-          archive.extractall(self.root)
-      if not exists(join(self.root, 'data')):
-        os.symlink(directory_name, join(self.root, 'data'))
+    directory_name = join(self.root, 'data')
+    directory_old_name = join(self.root, 'data.old')
+    if not exists(archive_name):
+      print "Downloading test data from %s ..." % archive_url
+      urllib.urlretrieve(archive_url, archive_name)
+      if exists(directory_name):
+        os.rename(directory_name, directory_old_name)
+    if not exists(directory_name):
+      print "Extracting test262-%s.tar.bz2 ..." % revision
+      md5 = hashlib.md5()
+      with open(archive_name,'rb') as f:
+        for chunk in iter(lambda: f.read(8192), ''):
+          md5.update(chunk)
+      if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
+        os.remove(archive_name)
+        raise Exception("Hash mismatch of test data file")
+      archive = tarfile.open(archive_name, 'r:bz2')
+      if sys.platform in ('win32', 'cygwin'):
+        # Magic incantation to allow longer path names on Windows.
+        archive.extractall(u'\\\\?\\%s' % self.root)
+      else:
+        archive.extractall(self.root)
+      os.rename(join(self.root, 'test262-%s' % revision), directory_name)
 
   def GetBuildRequirements(self):
     return ['d8']

@@ -239,13 +239,13 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   // ok:
 
   if (FLAG_count_based_interrupts) {
-    ASSERT_EQ(*(call_target_address - 3), kJnsInstruction);
-    ASSERT_EQ(*(call_target_address - 2), kJnsOffset);
+    ASSERT_EQ(kJnsInstruction, *(call_target_address - 3));
+    ASSERT_EQ(kJnsOffset,      *(call_target_address - 2));
   } else {
-    ASSERT_EQ(*(call_target_address - 3), kJaeInstruction);
-    ASSERT_EQ(*(call_target_address - 2), kJaeOffset);
+    ASSERT_EQ(kJaeInstruction, *(call_target_address - 3));
+    ASSERT_EQ(kJaeOffset,      *(call_target_address - 2));
   }
-  ASSERT_EQ(*(call_target_address - 1), kCallInstruction);
+  ASSERT_EQ(kCallInstruction,  *(call_target_address - 1));
   *(call_target_address - 3) = kNopByteOne;
   *(call_target_address - 2) = kNopByteTwo;
   Assembler::set_target_address_at(call_target_address,
@@ -266,9 +266,9 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 
   // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
   // restore the conditional branch.
-  ASSERT_EQ(*(call_target_address - 3), kNopByteOne);
-  ASSERT_EQ(*(call_target_address - 2), kNopByteTwo);
-  ASSERT_EQ(*(call_target_address - 1), kCallInstruction);
+  ASSERT_EQ(kNopByteOne,      *(call_target_address - 3));
+  ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
+  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
   if (FLAG_count_based_interrupts) {
     *(call_target_address - 3) = kJnsInstruction;
     *(call_target_address - 2) = kJnsOffset;
@@ -351,10 +351,12 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     PrintF("[on-stack replacement: begin 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function_));
     function_->PrintName();
-    PrintF(" => node=%u, frame=%d->%d]\n",
+    PrintF(" => node=%u, frame=%d->%d, ebp:esp=0x%08x:0x%08x]\n",
            ast_id,
            input_frame_size,
-           output_frame_size);
+           output_frame_size,
+           input_->GetRegister(ebp.code()),
+           input_->GetRegister(esp.code()));
   }
 
   // There's only one output frame in the OSR case.
@@ -404,7 +406,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
           name = "function";
           break;
       }
-      PrintF("    [esp + %d] <- 0x%08x ; [esp + %d] (fixed part - %s)\n",
+      PrintF("    [sp + %d] <- 0x%08x ; [sp + %d] (fixed part - %s)\n",
              output_offset,
              input_value,
              input_offset,
@@ -414,6 +416,24 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     input_offset -= kPointerSize;
     output_offset -= kPointerSize;
   }
+
+  // All OSR stack frames are dynamically aligned to an 8-byte boundary.
+  int frame_pointer = input_->GetRegister(ebp.code());
+  if ((frame_pointer & kPointerSize) != 0) {
+    frame_pointer -= kPointerSize;
+    has_alignment_padding_ = 1;
+  }
+
+  int32_t alignment_state = (has_alignment_padding_ == 1) ?
+    kAlignmentPaddingPushed :
+    kNoAlignmentPadding;
+  if (FLAG_trace_osr) {
+    PrintF("    [sp + %d] <- 0x%08x ; (alignment state)\n",
+           output_offset,
+           alignment_state);
+  }
+  output_[0]->SetFrameSlot(output_offset, alignment_state);
+  output_offset -= kPointerSize;
 
   // Translate the rest of the frame.
   while (ok && input_offset >= 0) {
@@ -427,7 +447,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0]->SetPc(reinterpret_cast<uint32_t>(from_));
   } else {
     // Set up the frame pointer and the context pointer.
-    output_[0]->SetRegister(ebp.code(), input_->GetRegister(ebp.code()));
+    output_[0]->SetRegister(ebp.code(), frame_pointer);
     output_[0]->SetRegister(esi.code(), input_->GetRegister(esi.code()));
 
     unsigned pc_offset = data->OsrPcOffset()->value();
@@ -688,24 +708,38 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   ASSERT(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
 
+  // Compute the incoming parameter translation.
+  int parameter_count = function->shared()->formal_parameter_count() + 1;
+  unsigned output_offset = output_frame_size;
+  unsigned input_offset = input_frame_size;
+
+  unsigned alignment_state_offset =
+    input_offset - parameter_count * kPointerSize -
+    StandardFrameConstants::kFixedFrameSize -
+    kPointerSize;
+  ASSERT(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
+    JavaScriptFrameConstants::kLocal0Offset);
+
   // The top address for the bottommost output frame can be computed from
   // the input frame pointer and the output frame's height.  For all
   // subsequent output frames, it can be computed from the previous one's
   // top address and the current frame's size.
   uint32_t top_address;
   if (is_bottommost) {
+    int32_t alignment_state = input_->GetFrameSlot(alignment_state_offset);
+    has_alignment_padding_ =
+      (alignment_state == kAlignmentPaddingPushed) ? 1 : 0;
     // 2 = context and function in the frame.
-    top_address =
-        input_->GetRegister(ebp.code()) - (2 * kPointerSize) - height_in_bytes;
+    // If the optimized frame had alignment padding, adjust the frame pointer
+    // to point to the new position of the old frame pointer after padding
+    // is removed. Subtract 2 * kPointerSize for the context and function slots.
+    top_address = input_->GetRegister(ebp.code()) - (2 * kPointerSize) -
+        height_in_bytes + has_alignment_padding_ * kPointerSize;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
   output_frame->SetTop(top_address);
 
-  // Compute the incoming parameter translation.
-  int parameter_count = function->shared()->formal_parameter_count() + 1;
-  unsigned output_offset = output_frame_size;
-  unsigned input_offset = input_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     DoTranslateCommand(iterator, frame_index, output_offset);
@@ -747,13 +781,17 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   }
   output_frame->SetFrameSlot(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  ASSERT(!is_bottommost || input_->GetRegister(ebp.code()) == fp_value);
+  ASSERT(!is_bottommost ||
+    (input_->GetRegister(ebp.code()) + has_alignment_padding_ * kPointerSize) ==
+    fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(ebp.code(), fp_value);
   if (FLAG_trace_deopt) {
     PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's fp\n",
            fp_value, output_offset, value);
   }
+  ASSERT(!is_bottommost || !has_alignment_padding_ ||
+    (fp_value & kPointerSize) != 0);
 
   // For the bottommost output frame the context can be gotten from the input
   // frame. For all subsequent output frames it can be gotten from the function
@@ -947,6 +985,28 @@ void Deoptimizer::EntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate), 1);
   }
   __ pop(eax);
+
+  if (type() != OSR) {
+    // If frame was dynamically aligned, pop padding.
+    Label no_padding;
+    __ cmp(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
+           Immediate(0));
+    __ j(equal, &no_padding);
+    __ pop(ecx);
+    if (FLAG_debug_code) {
+      __ cmp(ecx, Immediate(kAlignmentZapValue));
+      __ Assert(equal, "alignment marker expected");
+    }
+    __ bind(&no_padding);
+  } else {
+    // If frame needs dynamic alignment push padding.
+    Label no_padding;
+    __ cmp(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
+           Immediate(0));
+    __ j(equal, &no_padding);
+    __ push(Immediate(kAlignmentZapValue));
+    __ bind(&no_padding);
+  }
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop;

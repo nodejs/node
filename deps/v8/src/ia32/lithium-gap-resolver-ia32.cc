@@ -37,7 +37,7 @@ namespace internal {
 
 LGapResolver::LGapResolver(LCodeGen* owner)
     : cgen_(owner),
-      moves_(32),
+      moves_(32, owner->zone()),
       source_uses_(),
       destination_uses_(),
       spilled_register_(-1) {}
@@ -157,7 +157,7 @@ void LGapResolver::AddMove(LMoveOperands move) {
   LOperand* destination = move.destination();
   if (destination->IsRegister()) ++destination_uses_[destination->index()];
 
-  moves_.Add(move);
+  moves_.Add(move, cgen_->zone());
 }
 
 

@@ -36,38 +36,38 @@ assertEquals(8, eval("6;'abc';8"));
 
 // Characters just outside the ranges of hex-escapes.
 // "/" comes just before "0".
-assertEquals("x1/", "\x1/");
-assertEquals("u111/", "\u111/");
+assertThrows('"\\x1/"');
+assertThrows('"\\u111/"');
 assertEquals("\\x1/", RegExp("\\x1/").source);
 assertEquals("\\u111/", RegExp("\\u111/").source);
 
 // ":" comes just after "9".
-assertEquals("x1:", "\x1:");
-assertEquals("u111:", "\u111:");
+assertThrows('"\\x1:"');
+assertThrows('"\\u111:"');
 assertEquals("\\x1:", /\x1:/.source);
 assertEquals("\\u111:", /\u111:/.source);
 
 // "`" comes just before "a".
-assertEquals("x1`", "\x1`");
-assertEquals("u111`", "\u111`");
+assertThrows('"\\x1`"');
+assertThrows('"\\u111`"');
 assertEquals("\\x1`", /\x1`/.source);
 assertEquals("\\u111`", /\u111`/.source);
 
 // "g" comes just before "f".
-assertEquals("x1g", "\x1g");
-assertEquals("u111g", "\u111g");
+assertThrows('"\\x1g"');
+assertThrows('"\\u111g"');
 assertEquals("\\x1g", /\x1g/.source);
 assertEquals("\\u111g", /\u111g/.source);
 
 // "@" comes just before "A".
-assertEquals("x1@", "\x1@");
-assertEquals("u111@", "\u111@");
+assertThrows('"\\x1@"');
+assertThrows('"\\u111@"');
 assertEquals("\\x1@", /\x1@/.source);
 assertEquals("\\u111@", /\u111@/.source);
 
 // "G" comes just after "F".
-assertEquals("x1G", "\x1G");
-assertEquals("u111G", "\u111G");
+assertThrows('"\\x1G"');
+assertThrows('"\\u111G"');
 assertEquals("\\x1G", /\x1G/.source);
 assertEquals("\\u111G", /\u111G/.source);
 

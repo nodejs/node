@@ -637,7 +637,9 @@ class MemoryChunk {
   friend class MemoryAllocator;
 };
 
+
 STATIC_CHECK(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
+
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
@@ -950,11 +952,11 @@ class MemoryAllocator {
 
   void TearDown();
 
-  Page* AllocatePage(PagedSpace* owner, Executability executable);
+  Page* AllocatePage(
+      intptr_t size, PagedSpace* owner, Executability executable);
 
-  LargePage* AllocateLargePage(intptr_t object_size,
-                                      Executability executable,
-                                      Space* owner);
+  LargePage* AllocateLargePage(
+      intptr_t object_size, Space* owner, Executability executable);
 
   void Free(MemoryChunk* chunk);
 
@@ -1520,6 +1522,10 @@ class PagedSpace : public Space {
     return size_in_bytes - wasted;
   }
 
+  void ResetFreeList() {
+    free_list_.Reset();
+  }
+
   // Set space allocation info.
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
@@ -1626,6 +1632,8 @@ class PagedSpace : public Space {
 
   // Maximum capacity of this space.
   intptr_t max_capacity_;
+
+  intptr_t SizeOfFirstPage();
 
   // Accounting information for this space.
   AllocationStats accounting_stats_;
@@ -2368,11 +2376,6 @@ class FixedSpace : public PagedSpace {
 
   // Prepares for a mark-compact GC.
   virtual void PrepareForMarkCompact();
-
- protected:
-  void ResetFreeList() {
-    free_list_.Reset();
-  }
 
  private:
   // The size of objects in this space.

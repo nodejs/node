@@ -484,8 +484,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
     global_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
-    object_function_map->
-      set_instance_descriptors(heap->empty_descriptor_array());
+    object_function_map->set_instance_descriptors(
+        heap->empty_descriptor_array());
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -516,12 +516,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   function_instance_map_writable_prototype_->set_prototype(*empty_function);
 
   // Allocate the function map first and then patch the prototype later
-  Handle<Map> empty_fm = factory->CopyMapDropDescriptors(
-      function_without_prototype_map);
-  empty_fm->set_instance_descriptors(
-      function_without_prototype_map->instance_descriptors());
-  empty_fm->set_prototype(global_context()->object_function()->prototype());
-  empty_function->set_map(*empty_fm);
+  Handle<Map> empty_function_map = CreateFunctionMap(DONT_ADD_PROTOTYPE);
+  empty_function_map->set_prototype(
+      global_context()->object_function()->prototype());
+  empty_function->set_map(*empty_function_map);
   return empty_function;
 }
 
@@ -1011,7 +1009,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     proto_map->set_prototype(global_context()->initial_object_prototype());
     Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
     proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
-                                 heap->empty_string());
+                                 heap->query_colon_symbol());
     proto->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex,
                                  heap->false_value());
     proto->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex,
@@ -1094,7 +1092,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
-    ASSERT(result->HasFastElements());
+    ASSERT(result->HasFastObjectElements());
 #endif
   }
 
@@ -1187,7 +1185,7 @@ bool Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
-    ASSERT(result->HasFastElements());
+    ASSERT(result->HasFastObjectElements());
 #endif
   }
 
@@ -1634,10 +1632,11 @@ bool Genesis::InstallNatives() {
     // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
     // transition easy to trap. Moreover, they rarely are smi-only.
     MaybeObject* maybe_map =
-        array_function->initial_map()->CopyDropTransitions();
+        array_function->initial_map()->CopyDropTransitions(
+            DescriptorArray::MAY_BE_SHARED);
     Map* new_map;
-    if (!maybe_map->To<Map>(&new_map)) return false;
-    new_map->set_elements_kind(FAST_ELEMENTS);
+    if (!maybe_map->To(&new_map)) return false;
+    new_map->set_elements_kind(FAST_HOLEY_ELEMENTS);
     array_function->set_initial_map(new_map);
 
     // Make "length" magic on instances.
@@ -2094,14 +2093,10 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     Handle<JSFunction> function
         = Handle<JSFunction>(JSFunction::cast(function_object));
     builtins->set_javascript_builtin(id, *function);
-    Handle<SharedFunctionInfo> shared
-        = Handle<SharedFunctionInfo>(function->shared());
-    if (!SharedFunctionInfo::EnsureCompiled(shared, CLEAR_EXCEPTION)) {
+    if (!JSFunction::CompileLazy(function, CLEAR_EXCEPTION)) {
       return false;
     }
-    // Set the code object on the function object.
-    function->ReplaceCode(function->shared()->code());
-    builtins->set_javascript_builtin_code(id, shared->code());
+    builtins->set_javascript_builtin_code(id, function->shared()->code());
   }
   return true;
 }
@@ -2159,7 +2154,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     Handle<DescriptorArray> descs =
         Handle<DescriptorArray>(from->map()->instance_descriptors());
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details = PropertyDetails(descs->GetDetails(i));
+      PropertyDetails details = descs->GetDetails(i);
       switch (details.type()) {
         case FIELD: {
           HandleScope inner;
@@ -2197,7 +2192,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case MAP_TRANSITION:
-        case ELEMENTS_TRANSITION:
         case CONSTANT_TRANSITION:
         case NULL_DESCRIPTOR:
           // Ignore non-properties.

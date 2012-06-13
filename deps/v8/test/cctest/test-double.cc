@@ -112,21 +112,6 @@ TEST(IsInfinite) {
 }
 
 
-TEST(IsNan) {
-  CHECK(Double(OS::nan_value()).IsNan());
-  uint64_t other_nan = V8_2PART_UINT64_C(0xFFFFFFFF, 00000001);
-  CHECK(Double(other_nan).IsNan());
-  CHECK(!Double(V8_INFINITY).IsNan());
-  CHECK(!Double(-V8_INFINITY).IsNan());
-  CHECK(!Double(0.0).IsNan());
-  CHECK(!Double(-0.0).IsNan());
-  CHECK(!Double(1.0).IsNan());
-  CHECK(!Double(-1.0).IsNan());
-  uint64_t min_double64 = V8_2PART_UINT64_C(0x00000000, 00000001);
-  CHECK(!Double(min_double64).IsNan());
-}
-
-
 TEST(Sign) {
   CHECK_EQ(1, Double(1.0).Sign());
   CHECK_EQ(1, Double(V8_INFINITY).Sign());

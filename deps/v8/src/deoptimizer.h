@@ -221,6 +221,10 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
+  static int has_alignment_padding_offset() {
+    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
+  }
+
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
@@ -322,6 +326,7 @@ class Deoptimizer : public Malloced {
   BailoutType bailout_type_;
   Address from_;
   int fp_to_sp_delta_;
+  int has_alignment_padding_;
 
   // Input frame description.
   FrameDescription* input_;
@@ -515,10 +520,10 @@ class FrameDescription {
 
 class TranslationBuffer BASE_EMBEDDED {
  public:
-  TranslationBuffer() : contents_(256) { }
+  explicit TranslationBuffer(Zone* zone) : contents_(256, zone) { }
 
   int CurrentIndex() const { return contents_.length(); }
-  void Add(int32_t value);
+  void Add(int32_t value, Zone* zone);
 
   Handle<ByteArray> CreateByteArray();
 
@@ -569,12 +574,14 @@ class Translation BASE_EMBEDDED {
     DUPLICATE
   };
 
-  Translation(TranslationBuffer* buffer, int frame_count, int jsframe_count)
+  Translation(TranslationBuffer* buffer, int frame_count, int jsframe_count,
+              Zone* zone)
       : buffer_(buffer),
-        index_(buffer->CurrentIndex()) {
-    buffer_->Add(BEGIN);
-    buffer_->Add(frame_count);
-    buffer_->Add(jsframe_count);
+        index_(buffer->CurrentIndex()),
+        zone_(zone) {
+    buffer_->Add(BEGIN, zone);
+    buffer_->Add(frame_count, zone);
+    buffer_->Add(jsframe_count, zone);
   }
 
   int index() const { return index_; }
@@ -593,6 +600,8 @@ class Translation BASE_EMBEDDED {
   void StoreArgumentsObject();
   void MarkDuplicate();
 
+  Zone* zone() const { return zone_; }
+
   static int NumberOfOperandsFor(Opcode opcode);
 
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
@@ -602,6 +611,7 @@ class Translation BASE_EMBEDDED {
  private:
   TranslationBuffer* buffer_;
   int index_;
+  Zone* zone_;
 };
 
 

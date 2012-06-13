@@ -61,9 +61,11 @@ TypeInfo TypeInfo::TypeFromValue(Handle<Object> value) {
 
 TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
                                        Handle<Context> global_context,
-                                       Isolate* isolate) {
+                                       Isolate* isolate,
+                                       Zone* zone) {
   global_context_ = global_context;
   isolate_ = isolate;
+  zone_ = zone;
   BuildDictionary(code);
   ASSERT(reinterpret_cast<Address>(*dictionary_.location()) != kHandleZapValue);
 }
@@ -501,10 +503,10 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
     // we need a generic store (or load) here.
     ASSERT(Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC);
   } else if (object->IsMap()) {
-    types->Add(Handle<Map>::cast(object));
+    types->Add(Handle<Map>::cast(object), zone());
   } else if (FLAG_collect_megamorphic_maps_from_stub_cache &&
       Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
-    types->Reserve(4);
+    types->Reserve(4, zone());
     ASSERT(object->IsCode());
     isolate_->stub_cache()->CollectMatchingMaps(types,
                                                 *name,
@@ -548,11 +550,12 @@ bool TypeFeedbackOracle::CanRetainOtherContext(JSFunction* function,
 }
 
 
-static void AddMapIfMissing(Handle<Map> map, SmallMapList* list) {
+static void AddMapIfMissing(Handle<Map> map, SmallMapList* list,
+                            Zone* zone) {
   for (int i = 0; i < list->length(); ++i) {
     if (list->at(i).is_identical_to(map)) return;
   }
-  list->Add(map);
+  list->Add(map, zone);
 }
 
 
@@ -571,7 +574,7 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
       if (object->IsMap()) {
         Map* map = Map::cast(object);
         if (!CanRetainOtherContext(map, *global_context_)) {
-          AddMapIfMissing(Handle<Map>(map), types);
+          AddMapIfMissing(Handle<Map>(map), types, zone());
         }
       }
     }
@@ -591,7 +594,7 @@ byte TypeFeedbackOracle::ToBooleanTypes(unsigned ast_id) {
 // infos before we process them.
 void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
   AssertNoAllocation no_allocation;
-  ZoneList<RelocInfo> infos(16);
+  ZoneList<RelocInfo> infos(16, zone());
   HandleScope scope;
   GetRelocInfos(code, &infos);
   CreateDictionary(code, &infos);
@@ -606,7 +609,7 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
                                        ZoneList<RelocInfo>* infos) {
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID);
   for (RelocIterator it(*code, mask); !it.done(); it.next()) {
-    infos->Add(*it.rinfo());
+    infos->Add(*it.rinfo(), zone());
   }
 }
 

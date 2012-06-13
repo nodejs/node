@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -95,8 +95,8 @@ UnaryMathFunction CreateSqrtFunction();
 
 class ElementsTransitionGenerator : public AllStatic {
  public:
-  static void GenerateSmiOnlyToObject(MacroAssembler* masm);
-  static void GenerateSmiOnlyToDouble(MacroAssembler* masm, Label* fail);
+  static void GenerateMapChangeElementsTransition(MacroAssembler* masm);
+  static void GenerateSmiToDouble(MacroAssembler* masm, Label* fail);
   static void GenerateDoubleToObject(MacroAssembler* masm, Label* fail);
 
  private:

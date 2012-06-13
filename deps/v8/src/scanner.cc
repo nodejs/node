@@ -611,7 +611,7 @@ void Scanner::SeekForward(int pos) {
 }
 
 
-void Scanner::ScanEscape() {
+bool Scanner::ScanEscape() {
   uc32 c = c0_;
   Advance();
 
@@ -621,7 +621,7 @@ void Scanner::ScanEscape() {
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
     if (IsLineFeed(c) && IsCarriageReturn(c0_)) Advance();
-    return;
+    return true;
   }
 
   switch (c) {
@@ -635,13 +635,13 @@ void Scanner::ScanEscape() {
     case 't' : c = '\t'; break;
     case 'u' : {
       c = ScanHexNumber(4);
-      if (c < 0) c = 'u';
+      if (c < 0) return false;
       break;
     }
     case 'v' : c = '\v'; break;
     case 'x' : {
       c = ScanHexNumber(2);
-      if (c < 0) c = 'x';
+      if (c < 0) return false;
       break;
     }
     case '0' :  // fall through
@@ -654,10 +654,11 @@ void Scanner::ScanEscape() {
     case '7' : c = ScanOctalEscape(c, 2); break;
   }
 
-  // According to ECMA-262, 3rd, 7.8.4 (p 18ff) these
-  // should be illegal, but they are commonly handled
-  // as non-escaped characters by JS VMs.
+  // According to ECMA-262, section 7.8.4, characters not covered by the
+  // above cases should be illegal, but they are commonly handled as
+  // non-escaped characters by JS VMs.
   AddLiteralChar(c);
+  return true;
 }
 
 
@@ -696,8 +697,7 @@ Token::Value Scanner::ScanString() {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
-      if (c0_ < 0) return Token::ILLEGAL;
-      ScanEscape();
+      if (c0_ < 0 || !ScanEscape()) return Token::ILLEGAL;
     } else {
       AddLiteralChar(c);
     }

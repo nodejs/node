@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -27,6 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import cmd
 import ctypes
 import mmap
 import optparse
@@ -36,21 +37,20 @@ import sys
 import types
 import codecs
 import re
+import struct
 
 
-USAGE="""usage: %prog [OPTION]...
+USAGE="""usage: %prog [OPTIONS] [DUMP-FILE]
 
 Minidump analyzer.
 
 Shows the processor state at the point of exception including the
 stack of the active thread and the referenced objects in the V8
 heap. Code objects are disassembled and the addresses linked from the
-stack (pushed return addresses) are marked with "=>".
-
+stack (e.g. pushed return addresses) are marked with "=>".
 
 Examples:
-  $ %prog 12345678-1234-1234-1234-123456789abcd-full.dmp
-"""
+  $ %prog 12345678-1234-1234-1234-123456789abcd-full.dmp"""
 
 
 DEBUG=False
@@ -105,6 +105,62 @@ class Descriptor(object):
                                for field, _ in Raw._fields_) + "}"
     return Raw
 
+
+def FullDump(reader, heap):
+  """Dump all available memory regions."""
+  def dump_region(reader, start, size, location):
+    print
+    while start & 3 != 0:
+      start += 1
+      size -= 1
+      location += 1
+    is_executable = reader.IsProbableExecutableRegion(location, size)
+    is_ascii = reader.IsProbableASCIIRegion(location, size)
+
+    if is_executable is not False:
+      lines = reader.GetDisasmLines(start, size)
+      for line in lines:
+        print FormatDisasmLine(start, heap, line)
+      print
+
+    if is_ascii is not False:
+      # Output in the same format as the Unix hd command
+      addr = start
+      for slot in xrange(location, location + size, 16):
+        hex_line = ""
+        asc_line = ""
+        for i in xrange(0, 16):
+          if slot + i < location + size:
+            byte = ctypes.c_uint8.from_buffer(reader.minidump, slot + i).value
+            if byte >= 0x20 and byte < 0x7f:
+              asc_line += chr(byte)
+            else:
+              asc_line += "."
+            hex_line += " %02x" % (byte)
+          else:
+            hex_line += "   "
+          if i == 7:
+            hex_line += " "
+        print "%s  %s |%s|" % (reader.FormatIntPtr(addr),
+                               hex_line,
+                               asc_line)
+        addr += 16
+
+    if is_executable is not True and is_ascii is not True:
+      print "%s - %s" % (reader.FormatIntPtr(start),
+                         reader.FormatIntPtr(start + size))
+      for slot in xrange(start,
+                         start + size,
+                         reader.PointerSize()):
+        maybe_address = reader.ReadUIntPtr(slot)
+        heap_object = heap.FindObject(maybe_address)
+        print "%s: %s" % (reader.FormatIntPtr(slot),
+                          reader.FormatIntPtr(maybe_address))
+        if heap_object:
+          heap_object.Print(Printer())
+          print
+
+  reader.ForEachMemoryRegion(dump_region)
 
 # Set of structures and constants that describe the layout of minidump
 # files. Based on MSDN and Google Breakpad.
@@ -362,7 +418,7 @@ class MinidumpReader(object):
     self.minidump = mmap.mmap(self.minidump_file.fileno(), 0, mmap.MAP_PRIVATE)
     self.header = MINIDUMP_HEADER.Read(self.minidump, 0)
     if self.header.signature != MinidumpReader._HEADER_MAGIC:
-      print >>sys.stderr, "Warning: unsupported minidump header magic"
+      print >>sys.stderr, "Warning: Unsupported minidump header magic!"
     DebugPrint(self.header)
     directories = []
     offset = self.header.stream_directories_rva
@@ -406,7 +462,7 @@ class MinidumpReader(object):
           DebugPrint(thread)
           self.thread_map[thread.id] = thread
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
-        print >>sys.stderr, "Warning: not a full minidump"
+        print >>sys.stderr, "Warning: This is not a full minidump!"
         assert self.memory_list is None
         self.memory_list = MINIDUMP_MEMORY_LIST.Read(
           self.minidump, d.location.rva)
@@ -443,6 +499,91 @@ class MinidumpReader(object):
   def ReadBytes(self, address, size):
     location = self.FindLocation(address)
     return self.minidump[location:location + size]
+
+  def _ReadWord(self, location):
+    if self.arch == MD_CPU_ARCHITECTURE_AMD64:
+      return ctypes.c_uint64.from_buffer(self.minidump, location).value
+    elif self.arch == MD_CPU_ARCHITECTURE_X86:
+      return ctypes.c_uint32.from_buffer(self.minidump, location).value
+
+  def IsProbableASCIIRegion(self, location, length):
+    ascii_bytes = 0
+    non_ascii_bytes = 0
+    for loc in xrange(location, location + length):
+      byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
+      if byte >= 0x7f:
+        non_ascii_bytes += 1
+      if byte < 0x20 and byte != 0:
+        non_ascii_bytes += 1
+      if byte < 0x7f and byte >= 0x20:
+        ascii_bytes += 1
+      if byte == 0xa:  # newline
+        ascii_bytes += 1
+    if ascii_bytes * 10 <= length:
+      return False
+    if length > 0 and ascii_bytes > non_ascii_bytes * 7:
+      return True
+    if ascii_bytes > non_ascii_bytes * 3:
+      return None  # Maybe
+    return False
+
+  def IsProbableExecutableRegion(self, location, length):
+    opcode_bytes = 0
+    sixty_four = self.arch == MD_CPU_ARCHITECTURE_AMD64
+    for loc in xrange(location, location + length):
+      byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
+      if (byte == 0x8b or           # mov
+          byte == 0x89 or           # mov reg-reg
+          (byte & 0xf0) == 0x50 or  # push/pop
+          (sixty_four and (byte & 0xf0) == 0x40) or  # rex prefix
+          byte == 0xc3 or           # return
+          byte == 0x74 or           # jeq
+          byte == 0x84 or           # jeq far
+          byte == 0x75 or           # jne
+          byte == 0x85 or           # jne far
+          byte == 0xe8 or           # call
+          byte == 0xe9 or           # jmp far
+          byte == 0xeb):            # jmp near
+        opcode_bytes += 1
+    opcode_percent = (opcode_bytes * 100) / length
+    threshold = 20
+    if opcode_percent > threshold + 2:
+      return True
+    if opcode_percent > threshold - 2:
+      return None  # Maybe
+    return False
+
+  def FindRegion(self, addr):
+    answer = [-1, -1]
+    def is_in(reader, start, size, location):
+      if addr >= start and addr < start + size:
+        answer[0] = start
+        answer[1] = size
+    self.ForEachMemoryRegion(is_in)
+    if answer[0] == -1:
+      return None
+    return answer
+
+  def ForEachMemoryRegion(self, cb):
+    if self.memory_list64 is not None:
+      for r in self.memory_list64.ranges:
+        location = self.memory_list64.base_rva + offset
+        cb(self, r.start, r.size, location)
+        offset += r.size
+
+    if self.memory_list is not None:
+      for r in self.memory_list.ranges:
+        cb(self, r.start, r.memory.data_size, r.memory.rva)
+
+  def FindWord(self, word, alignment=0):
+    def search_inside_region(reader, start, size, location):
+      location = (location + alignment) & ~alignment
+      for loc in xrange(location, location + size - self.PointerSize()):
+        if reader._ReadWord(loc) == word:
+          slot = start + (loc - location)
+          print "%s: %s" % (reader.FormatIntPtr(slot),
+                            reader.FormatIntPtr(word))
+    self.ForEachMemoryRegion(search_inside_region)
 
   def FindLocation(self, address):
     offset = 0
@@ -567,24 +708,182 @@ INSTANCE_TYPES = {
   156: "SCRIPT_TYPE",
   157: "CODE_CACHE_TYPE",
   158: "POLYMORPHIC_CODE_CACHE_TYPE",
-  161: "FIXED_ARRAY_TYPE",
+  159: "TYPE_FEEDBACK_INFO_TYPE",
+  160: "ALIASED_ARGUMENTS_ENTRY_TYPE",
+  163: "FIXED_ARRAY_TYPE",
   145: "FIXED_DOUBLE_ARRAY_TYPE",
-  162: "SHARED_FUNCTION_INFO_TYPE",
-  163: "JS_MESSAGE_OBJECT_TYPE",
-  166: "JS_VALUE_TYPE",
-  167: "JS_OBJECT_TYPE",
-  168: "JS_CONTEXT_EXTENSION_OBJECT_TYPE",
-  169: "JS_GLOBAL_OBJECT_TYPE",
-  170: "JS_BUILTINS_OBJECT_TYPE",
-  171: "JS_GLOBAL_PROXY_TYPE",
-  172: "JS_ARRAY_TYPE",
-  165: "JS_PROXY_TYPE",
-  175: "JS_WEAK_MAP_TYPE",
-  176: "JS_REGEXP_TYPE",
-  177: "JS_FUNCTION_TYPE",
-  164: "JS_FUNCTION_PROXY_TYPE",
-  159: "DEBUG_INFO_TYPE",
-  160: "BREAK_POINT_INFO_TYPE",
+  164: "SHARED_FUNCTION_INFO_TYPE",
+  165: "JS_MESSAGE_OBJECT_TYPE",
+  168: "JS_VALUE_TYPE",
+  169: "JS_DATE_TYPE",
+  170: "JS_OBJECT_TYPE",
+  171: "JS_CONTEXT_EXTENSION_OBJECT_TYPE",
+  172: "JS_MODULE_TYPE",
+  173: "JS_GLOBAL_OBJECT_TYPE",
+  174: "JS_BUILTINS_OBJECT_TYPE",
+  175: "JS_GLOBAL_PROXY_TYPE",
+  176: "JS_ARRAY_TYPE",
+  167: "JS_PROXY_TYPE",
+  179: "JS_WEAK_MAP_TYPE",
+  180: "JS_REGEXP_TYPE",
+  181: "JS_FUNCTION_TYPE",
+  166: "JS_FUNCTION_PROXY_TYPE",
+  161: "DEBUG_INFO_TYPE",
+  162: "BREAK_POINT_INFO_TYPE",
+}
+
+
+# List of known V8 maps. Used to determine the instance type and name
+# for maps that are part of the root-set and hence on the first page of
+# the map-space. Obtained by adding the code below to an IA32 release
+# build with enabled snapshots to the end of the Isolate::Init method.
+#
+# #define ROOT_LIST_CASE(type, name, camel_name) \
+#   if (o == heap_.name()) n = #camel_name;
+# #define STRUCT_LIST_CASE(upper_name, camel_name, name) \
+#   if (o == heap_.name##_map()) n = #camel_name "Map";
+# HeapObjectIterator it(heap_.map_space());
+# printf("KNOWN_MAPS = {\n");
+# for (Object* o = it.Next(); o != NULL; o = it.Next()) {
+#   Map* m = Map::cast(o);
+#   const char* n = "";
+#   intptr_t p = reinterpret_cast<intptr_t>(m) & 0xfffff;
+#   int t = m->instance_type();
+#   ROOT_LIST(ROOT_LIST_CASE)
+#   STRUCT_LIST(STRUCT_LIST_CASE)
+#   printf("  0x%05x: (%d, \"%s\"),\n", p, t, n);
+# }
+# printf("}\n");
+KNOWN_MAPS = {
+  0x08081: (134, "ByteArrayMap"),
+  0x080a1: (128, "MetaMap"),
+  0x080c1: (130, "OddballMap"),
+  0x080e1: (163, "FixedArrayMap"),
+  0x08101: (68, "AsciiSymbolMap"),
+  0x08121: (132, "HeapNumberMap"),
+  0x08141: (135, "FreeSpaceMap"),
+  0x08161: (146, "OnePointerFillerMap"),
+  0x08181: (146, "TwoPointerFillerMap"),
+  0x081a1: (131, "GlobalPropertyCellMap"),
+  0x081c1: (164, "SharedFunctionInfoMap"),
+  0x081e1: (4, "AsciiStringMap"),
+  0x08201: (163, "GlobalContextMap"),
+  0x08221: (129, "CodeMap"),
+  0x08241: (163, "ScopeInfoMap"),
+  0x08261: (163, "FixedCOWArrayMap"),
+  0x08281: (145, "FixedDoubleArrayMap"),
+  0x082a1: (163, "HashTableMap"),
+  0x082c1: (0, "StringMap"),
+  0x082e1: (64, "SymbolMap"),
+  0x08301: (1, "ConsStringMap"),
+  0x08321: (5, "ConsAsciiStringMap"),
+  0x08341: (3, "SlicedStringMap"),
+  0x08361: (7, "SlicedAsciiStringMap"),
+  0x08381: (65, "ConsSymbolMap"),
+  0x083a1: (69, "ConsAsciiSymbolMap"),
+  0x083c1: (66, "ExternalSymbolMap"),
+  0x083e1: (74, "ExternalSymbolWithAsciiDataMap"),
+  0x08401: (70, "ExternalAsciiSymbolMap"),
+  0x08421: (2, "ExternalStringMap"),
+  0x08441: (10, "ExternalStringWithAsciiDataMap"),
+  0x08461: (6, "ExternalAsciiStringMap"),
+  0x08481: (82, "ShortExternalSymbolMap"),
+  0x084a1: (90, "ShortExternalSymbolWithAsciiDataMap"),
+  0x084c1: (86, "ShortExternalAsciiSymbolMap"),
+  0x084e1: (18, "ShortExternalStringMap"),
+  0x08501: (26, "ShortExternalStringWithAsciiDataMap"),
+  0x08521: (22, "ShortExternalAsciiStringMap"),
+  0x08541: (0, "UndetectableStringMap"),
+  0x08561: (4, "UndetectableAsciiStringMap"),
+  0x08581: (144, "ExternalPixelArrayMap"),
+  0x085a1: (136, "ExternalByteArrayMap"),
+  0x085c1: (137, "ExternalUnsignedByteArrayMap"),
+  0x085e1: (138, "ExternalShortArrayMap"),
+  0x08601: (139, "ExternalUnsignedShortArrayMap"),
+  0x08621: (140, "ExternalIntArrayMap"),
+  0x08641: (141, "ExternalUnsignedIntArrayMap"),
+  0x08661: (142, "ExternalFloatArrayMap"),
+  0x08681: (143, "ExternalDoubleArrayMap"),
+  0x086a1: (163, "NonStrictArgumentsElementsMap"),
+  0x086c1: (163, "FunctionContextMap"),
+  0x086e1: (163, "CatchContextMap"),
+  0x08701: (163, "WithContextMap"),
+  0x08721: (163, "BlockContextMap"),
+  0x08741: (163, "ModuleContextMap"),
+  0x08761: (165, "JSMessageObjectMap"),
+  0x08781: (133, "ForeignMap"),
+  0x087a1: (170, "NeanderMap"),
+  0x087c1: (158, "PolymorphicCodeCacheMap"),
+  0x087e1: (156, "ScriptMap"),
+  0x08801: (147, "AccessorInfoMap"),
+  0x08821: (148, "AccessorPairMap"),
+  0x08841: (149, "AccessCheckInfoMap"),
+  0x08861: (150, "InterceptorInfoMap"),
+  0x08881: (151, "CallHandlerInfoMap"),
+  0x088a1: (152, "FunctionTemplateInfoMap"),
+  0x088c1: (153, "ObjectTemplateInfoMap"),
+  0x088e1: (154, "SignatureInfoMap"),
+  0x08901: (155, "TypeSwitchInfoMap"),
+  0x08921: (157, "CodeCacheMap"),
+  0x08941: (159, "TypeFeedbackInfoMap"),
+  0x08961: (160, "AliasedArgumentsEntryMap"),
+  0x08981: (161, "DebugInfoMap"),
+  0x089a1: (162, "BreakPointInfoMap"),
+}
+
+
+# List of known V8 objects. Used to determine name for objects that are
+# part of the root-set and hence on the first page of various old-space
+# paged. Obtained by adding the code below to an IA32 release build with
+# enabled snapshots to the end of the Isolate::Init method.
+#
+# #define ROOT_LIST_CASE(type, name, camel_name) \
+#   if (o == heap_.name()) n = #camel_name;
+# OldSpaces spit;
+# printf("KNOWN_OBJECTS = {\n");
+# for (PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
+#   HeapObjectIterator it(s);
+#   const char* sname = AllocationSpaceName(s->identity());
+#   for (Object* o = it.Next(); o != NULL; o = it.Next()) {
+#     const char* n = NULL;
+#     intptr_t p = reinterpret_cast<intptr_t>(o) & 0xfffff;
+#     ROOT_LIST(ROOT_LIST_CASE)
+#     if (n != NULL) {
+#       printf("  (\"%s\", 0x%05x): \"%s\",\n", sname, p, n);
+#     }
+#   }
+# }
+# printf("}\n");
+KNOWN_OBJECTS = {
+  ("OLD_POINTER_SPACE", 0x08081): "NullValue",
+  ("OLD_POINTER_SPACE", 0x08091): "UndefinedValue",
+  ("OLD_POINTER_SPACE", 0x080a1): "InstanceofCacheMap",
+  ("OLD_POINTER_SPACE", 0x080b1): "TrueValue",
+  ("OLD_POINTER_SPACE", 0x080c1): "FalseValue",
+  ("OLD_POINTER_SPACE", 0x080d1): "NoInterceptorResultSentinel",
+  ("OLD_POINTER_SPACE", 0x080e1): "ArgumentsMarker",
+  ("OLD_POINTER_SPACE", 0x080f1): "NumberStringCache",
+  ("OLD_POINTER_SPACE", 0x088f9): "SingleCharacterStringCache",
+  ("OLD_POINTER_SPACE", 0x08b01): "StringSplitCache",
+  ("OLD_POINTER_SPACE", 0x08f09): "TerminationException",
+  ("OLD_POINTER_SPACE", 0x08f19): "MessageListeners",
+  ("OLD_POINTER_SPACE", 0x08f35): "CodeStubs",
+  ("OLD_POINTER_SPACE", 0x09b61): "NonMonomorphicCache",
+  ("OLD_POINTER_SPACE", 0x0a175): "PolymorphicCodeCache",
+  ("OLD_POINTER_SPACE", 0x0a17d): "NativesSourceCache",
+  ("OLD_POINTER_SPACE", 0x0a1bd): "EmptyScript",
+  ("OLD_POINTER_SPACE", 0x0a1f9): "IntrinsicFunctionNames",
+  ("OLD_POINTER_SPACE", 0x24a49): "SymbolTable",
+  ("OLD_DATA_SPACE", 0x08081): "EmptyFixedArray",
+  ("OLD_DATA_SPACE", 0x080a1): "NanValue",
+  ("OLD_DATA_SPACE", 0x0811d): "EmptyByteArray",
+  ("OLD_DATA_SPACE", 0x08125): "EmptyString",
+  ("OLD_DATA_SPACE", 0x08131): "EmptyDescriptorArray",
+  ("OLD_DATA_SPACE", 0x08259): "InfinityValue",
+  ("OLD_DATA_SPACE", 0x08265): "MinusZeroValue",
+  ("OLD_DATA_SPACE", 0x08271): "PrototypeAccessors",
+  ("CODE_SPACE", 0x12b81): "JsEntryCode",
+  ("CODE_SPACE", 0x12c61): "JsConstructEntryCode",
 }
 
 
@@ -745,7 +1044,10 @@ class ConsString(String):
     self.right = self.ObjectField(self.RightOffset())
 
   def GetChars(self):
-    return self.left.GetChars() + self.right.GetChars()
+    try:
+      return self.left.GetChars() + self.right.GetChars()
+    except:
+      return "***CAUGHT EXCEPTION IN GROKDUMP***"
 
 
 class Oddball(HeapObject):
@@ -760,7 +1062,10 @@ class Oddball(HeapObject):
     p.Print(str(self))
 
   def __str__(self):
-    return "<%s>" % self.to_string.GetChars()
+    if self.to_string:
+      return "Oddball(%08x, <%s>)" % (self.address, self.to_string.GetChars())
+    else:
+      return "Oddball(%08x, kind=%s)" % (self.address, "???")
 
 
 class FixedArray(HeapObject):
@@ -886,6 +1191,27 @@ class Script(HeapObject):
     self.name = self.ObjectField(self.NameOffset())
 
 
+class CodeCache(HeapObject):
+  def DefaultCacheOffset(self):
+    return self.heap.PointerSize()
+
+  def NormalTypeCacheOffset(self):
+    return self.DefaultCacheOffset() + self.heap.PointerSize()
+
+  def __init__(self, heap, map, address):
+    HeapObject.__init__(self, heap, map, address)
+    self.default_cache = self.ObjectField(self.DefaultCacheOffset())
+    self.normal_type_cache = self.ObjectField(self.NormalTypeCacheOffset())
+
+  def Print(self, p):
+    p.Print("CodeCache(%s) {" % self.heap.reader.FormatIntPtr(self.address))
+    p.Indent()
+    p.Print("default cache: %s" % self.default_cache)
+    p.Print("normal type cache: %s" % self.normal_type_cache)
+    p.Dedent()
+    p.Print("}")
+
+
 class Code(HeapObject):
   CODE_ALIGNMENT_MASK = (1 << 5) - 1
 
@@ -936,14 +1262,14 @@ class V8Heap(object):
     "EXTERNAL_STRING_TYPE": ExternalString,
     "EXTERNAL_STRING_WITH_ASCII_DATA_TYPE": ExternalString,
     "EXTERNAL_ASCII_STRING_TYPE": ExternalString,
-
     "MAP_TYPE": Map,
     "ODDBALL_TYPE": Oddball,
     "FIXED_ARRAY_TYPE": FixedArray,
     "JS_FUNCTION_TYPE": JSFunction,
     "SHARED_FUNCTION_INFO_TYPE": SharedFunctionInfo,
     "SCRIPT_TYPE": Script,
-    "CODE_TYPE": Code
+    "CODE_CACHE_TYPE": CodeCache,
+    "CODE_TYPE": Code,
   }
 
   def __init__(self, reader, stack_map):
@@ -1001,6 +1327,250 @@ class V8Heap(object):
     elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
       return (1 << 5) - 1
 
+  def PageAlignmentMask(self):
+    return (1 << 20) - 1
+
+
+class KnownObject(HeapObject):
+  def __init__(self, heap, known_name):
+    HeapObject.__init__(self, heap, None, None)
+    self.known_name = known_name
+
+  def __str__(self):
+    return "<%s>" % self.known_name
+
+
+class KnownMap(HeapObject):
+  def __init__(self, heap, known_name, instance_type):
+    HeapObject.__init__(self, heap, None, None)
+    self.instance_type = instance_type
+    self.known_name = known_name
+
+  def __str__(self):
+    return "<%s>" % self.known_name
+
+
+class InspectionPadawan(object):
+  """The padawan can improve annotations by sensing well-known objects."""
+  def __init__(self, reader, heap):
+    self.reader = reader
+    self.heap = heap
+    self.known_first_map_page = 0
+    self.known_first_data_page = 0
+    self.known_first_pointer_page = 0
+
+  def __getattr__(self, name):
+    """An InspectionPadawan can be used instead of V8Heap, even though
+       it does not inherit from V8Heap (aka. mixin)."""
+    return getattr(self.heap, name)
+
+  def GetPageOffset(self, tagged_address):
+    return tagged_address & self.heap.PageAlignmentMask()
+
+  def IsInKnownMapSpace(self, tagged_address):
+    page_address = tagged_address & ~self.heap.PageAlignmentMask()
+    return page_address == self.known_first_map_page
+
+  def IsInKnownOldSpace(self, tagged_address):
+    page_address = tagged_address & ~self.heap.PageAlignmentMask()
+    return page_address in [self.known_first_data_page,
+                            self.known_first_pointer_page]
+
+  def ContainingKnownOldSpaceName(self, tagged_address):
+    page_address = tagged_address & ~self.heap.PageAlignmentMask()
+    if page_address == self.known_first_data_page: return "OLD_DATA_SPACE"
+    if page_address == self.known_first_pointer_page: return "OLD_POINTER_SPACE"
+    return None
+
+  def SenseObject(self, tagged_address):
+    if self.IsInKnownOldSpace(tagged_address):
+      offset = self.GetPageOffset(tagged_address)
+      lookup_key = (self.ContainingKnownOldSpaceName(tagged_address), offset)
+      known_obj_name = KNOWN_OBJECTS.get(lookup_key)
+      if known_obj_name:
+        return KnownObject(self, known_obj_name)
+    if self.IsInKnownMapSpace(tagged_address):
+      known_map = self.SenseMap(tagged_address)
+      if known_map:
+        return known_map
+    found_obj = self.heap.FindObject(tagged_address)
+    if found_obj: return found_ob
+    address = tagged_address - 1
+    if self.reader.IsValidAddress(address):
+      map_tagged_address = self.reader.ReadUIntPtr(address)
+      map = self.SenseMap(map_tagged_address)
+      if map is None: return None
+      instance_type_name = INSTANCE_TYPES.get(map.instance_type)
+      if instance_type_name is None: return None
+      cls = V8Heap.CLASS_MAP.get(instance_type_name, HeapObject)
+      return cls(self, map, address)
+    return None
+
+  def SenseMap(self, tagged_address):
+    if self.IsInKnownMapSpace(tagged_address):
+      offset = self.GetPageOffset(tagged_address)
+      known_map_info = KNOWN_MAPS.get(offset)
+      if known_map_info:
+        known_map_type, known_map_name = known_map_info
+        return KnownMap(self, known_map_name, known_map_type)
+    found_map = self.heap.FindMap(tagged_address)
+    if found_map: return found_map
+    return None
+
+  def FindObjectOrSmi(self, tagged_address):
+    """When used as a mixin in place of V8Heap."""
+    found_obj = self.SenseObject(tagged_address)
+    if found_obj: return found_obj
+    if (tagged_address & 1) == 0:
+      return "Smi(%d)" % (tagged_address / 2)
+    else:
+      return "Unknown(%s)" % self.reader.FormatIntPtr(tagged_address)
+
+  def FindObject(self, tagged_address):
+    """When used as a mixin in place of V8Heap."""
+    raise NotImplementedError
+
+  def FindMap(self, tagged_address):
+    """When used as a mixin in place of V8Heap."""
+    raise NotImplementedError
+
+  def PrintKnowledge(self):
+    print "  known_first_map_page = %s\n"\
+          "  known_first_data_page = %s\n"\
+          "  known_first_pointer_page = %s" % (
+          self.reader.FormatIntPtr(self.known_first_map_page),
+          self.reader.FormatIntPtr(self.known_first_data_page),
+          self.reader.FormatIntPtr(self.known_first_pointer_page))
+
+
+class InspectionShell(cmd.Cmd):
+  def __init__(self, reader, heap):
+    cmd.Cmd.__init__(self)
+    self.reader = reader
+    self.heap = heap
+    self.padawan = InspectionPadawan(reader, heap)
+    self.prompt = "(grok) "
+
+  def do_dd(self, address):
+    """
+     Interpret memory at the given address (if available) as a sequence
+     of words. Automatic alignment is not performed.
+    """
+    start = int(address, 16)
+    if (start & self.heap.ObjectAlignmentMask()) != 0:
+      print "Warning: Dumping un-aligned memory, is this what you had in mind?"
+    for slot in xrange(start,
+                       start + self.reader.PointerSize() * 10,
+                       self.reader.PointerSize()):
+      if not self.reader.IsValidAddress(slot):
+        print "Address is not contained within the minidump!"
+        return
+      maybe_address = self.reader.ReadUIntPtr(slot)
+      heap_object = self.padawan.SenseObject(maybe_address)
+      print "%s: %s %s" % (self.reader.FormatIntPtr(slot),
+                           self.reader.FormatIntPtr(maybe_address),
+                           heap_object or '')
+
+  def do_do(self, address):
+    """
+     Interpret memory at the given address as a V8 object. Automatic
+     alignment makes sure that you can pass tagged as well as un-tagged
+     addresses.
+    """
+    address = int(address, 16)
+    if (address & self.heap.ObjectAlignmentMask()) == 0:
+      address = address + 1
+    elif (address & self.heap.ObjectAlignmentMask()) != 1:
+      print "Address doesn't look like a valid pointer!"
+      return
+    heap_object = self.padawan.SenseObject(address)
+    if heap_object:
+      heap_object.Print(Printer())
+    else:
+      print "Address cannot be interpreted as object!"
+
+  def do_dp(self, address):
+    """
+     Interpret memory at the given address as being on a V8 heap page
+     and print information about the page header (if available).
+    """
+    address = int(address, 16)
+    page_address = address & ~self.heap.PageAlignmentMask()
+    if self.reader.IsValidAddress(page_address):
+      raise NotImplementedError
+    else:
+      print "Page header is not available!"
+
+  def do_k(self, arguments):
+    """
+     Teach V8 heap layout information to the inspector. This increases
+     the amount of annotations the inspector can produce while dumping
+     data. The first page of each heap space is of particular interest
+     because it contains known objects that do not move.
+    """
+    self.padawan.PrintKnowledge()
+
+  def do_km(self, address):
+    """
+     Teach V8 heap layout information to the inspector. Set the first
+     map-space page by passing any pointer into that page.
+    """
+    address = int(address, 16)
+    page_address = address & ~self.heap.PageAlignmentMask()
+    self.padawan.known_first_map_page = page_address
+
+  def do_kd(self, address):
+    """
+     Teach V8 heap layout information to the inspector. Set the first
+     data-space page by passing any pointer into that page.
+    """
+    address = int(address, 16)
+    page_address = address & ~self.heap.PageAlignmentMask()
+    self.padawan.known_first_data_page = page_address
+
+  def do_kp(self, address):
+    """
+     Teach V8 heap layout information to the inspector. Set the first
+     pointer-space page by passing any pointer into that page.
+    """
+    address = int(address, 16)
+    page_address = address & ~self.heap.PageAlignmentMask()
+    self.padawan.known_first_pointer_page = page_address
+
+  def do_s(self, word):
+    """
+     Search for a given word in available memory regions. The given word
+     is expanded to full pointer size and searched at aligned as well as
+     un-aligned memory locations. Use 'sa' to search aligned locations
+     only.
+    """
+    try:
+      word = int(word, 0)
+    except ValueError:
+      print "Malformed word, prefix with '0x' to use hexadecimal format."
+      return
+    print "Searching for word %d/0x%s:" % (word, self.reader.FormatIntPtr(word))
+    self.reader.FindWord(word)
+
+  def do_sh(self, none):
+    """
+     Search for the V8 Heap object in all available memory regions. You
+     might get lucky and find this rare treasure full of invaluable
+     information.
+    """
+    raise NotImplementedError
+
+  def do_list(self, smth):
+    """
+     List all available memory regions.
+    """
+    def print_region(reader, start, size, location):
+      print "  %s - %s (%d bytes)" % (reader.FormatIntPtr(start),
+                                      reader.FormatIntPtr(start + size),
+                                      size)
+    print "Available memory regions:"
+    self.reader.ForEachMemoryRegion(print_region)
+
 
 EIP_PROXIMITY = 64
 
@@ -1011,55 +1581,79 @@ CONTEXT_FOR_ARCH = {
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
 
+
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
+  heap = None
   DebugPrint("========================================")
   if reader.exception is None:
     print "Minidump has no exception info"
-    return
-  print "Exception info:"
-  exception_thread = reader.thread_map[reader.exception.thread_id]
-  print "  thread id: %d" % exception_thread.id
-  print "  code: %08X" % reader.exception.exception.code
-  print "  context:"
-  for r in CONTEXT_FOR_ARCH[reader.arch]:
-    print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
-  # TODO(vitalyr): decode eflags.
-  print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
-  print
+  else:
+    print "Exception info:"
+    exception_thread = reader.thread_map[reader.exception.thread_id]
+    print "  thread id: %d" % exception_thread.id
+    print "  code: %08X" % reader.exception.exception.code
+    print "  context:"
+    for r in CONTEXT_FOR_ARCH[reader.arch]:
+      print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
+    # TODO(vitalyr): decode eflags.
+    print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
+    print
 
-  stack_top = reader.ExceptionSP()
-  stack_bottom = exception_thread.stack.start + \
-      exception_thread.stack.memory.data_size
-  stack_map = {reader.ExceptionIP(): -1}
-  for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-    maybe_address = reader.ReadUIntPtr(slot)
-    if not maybe_address in stack_map:
-      stack_map[maybe_address] = slot
-  heap = V8Heap(reader, stack_map)
+    stack_top = reader.ExceptionSP()
+    stack_bottom = exception_thread.stack.start + \
+        exception_thread.stack.memory.data_size
+    stack_map = {reader.ExceptionIP(): -1}
+    for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+      maybe_address = reader.ReadUIntPtr(slot)
+      if not maybe_address in stack_map:
+        stack_map[maybe_address] = slot
+    heap = V8Heap(reader, stack_map)
 
-  print "Disassembly around exception.eip:"
-  start = reader.ExceptionIP() - EIP_PROXIMITY
-  lines = reader.GetDisasmLines(start, 2 * EIP_PROXIMITY)
-  for line in lines:
-    print FormatDisasmLine(start, heap, line)
-  print
+    print "Disassembly around exception.eip:"
+    disasm_start = reader.ExceptionIP() - EIP_PROXIMITY
+    disasm_bytes = 2 * EIP_PROXIMITY
+    if (options.full):
+      full_range = reader.FindRegion(reader.ExceptionIP())
+      if full_range is not None:
+        disasm_start = full_range[0]
+        disasm_bytes = full_range[1]
 
-  print "Annotated stack (from exception.esp to bottom):"
-  for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
-    maybe_address = reader.ReadUIntPtr(slot)
-    heap_object = heap.FindObject(maybe_address)
-    print "%s: %s" % (reader.FormatIntPtr(slot),
-                      reader.FormatIntPtr(maybe_address))
-    if heap_object:
-      heap_object.Print(Printer())
-      print
+    lines = reader.GetDisasmLines(disasm_start, disasm_bytes)
+
+    for line in lines:
+      print FormatDisasmLine(disasm_start, heap, line)
+    print
+
+  if heap is None:
+    heap = V8Heap(reader, None)
+
+  if options.full:
+    FullDump(reader, heap)
+
+  if options.shell:
+    InspectionShell(reader, heap).cmdloop("type help to get help")
+  else:
+    if reader.exception is not None:
+      print "Annotated stack (from exception.esp to bottom):"
+      for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
+        maybe_address = reader.ReadUIntPtr(slot)
+        heap_object = heap.FindObject(maybe_address)
+        print "%s: %s" % (reader.FormatIntPtr(slot),
+                          reader.FormatIntPtr(maybe_address))
+        if heap_object:
+          heap_object.Print(Printer())
+          print
 
   reader.Dispose()
 
 
 if __name__ == "__main__":
   parser = optparse.OptionParser(USAGE)
+  parser.add_option("-s", "--shell", dest="shell", action="store_true",
+                    help="start an interactive inspector shell")
+  parser.add_option("-f", "--full", dest="full", action="store_true",
+                    help="dump all information contained in the minidump")
   options, args = parser.parse_args()
   if len(args) != 1:
     parser.print_help()

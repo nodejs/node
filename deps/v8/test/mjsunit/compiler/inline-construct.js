@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc --inline-construct
+// Flags: --allow-natives-syntax --inline-construct
 
 // Test inlining of constructor calls.
 
@@ -68,7 +68,9 @@ function TestInAllContexts(constructor) {
   %DeoptimizeFunction(value_context);
   %DeoptimizeFunction(test_context);
   %DeoptimizeFunction(effect_context);
-  gc();  // Makes V8 forget about type information for *_context.
+  %ClearFunctionTypeFeedback(value_context);
+  %ClearFunctionTypeFeedback(test_context);
+  %ClearFunctionTypeFeedback(effect_context);
 }
 
 

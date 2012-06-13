@@ -36,7 +36,7 @@ namespace internal {
 static const Register kSavedValueRegister = { 9 };
 
 LGapResolver::LGapResolver(LCodeGen* owner)
-    : cgen_(owner), moves_(32), root_index_(0), in_cycle_(false),
+    : cgen_(owner), moves_(32, owner->zone()), root_index_(0), in_cycle_(false),
       saved_destination_(NULL) { }
 
 
@@ -79,7 +79,7 @@ void LGapResolver::BuildInitialMoveList(LParallelMove* parallel_move) {
   const ZoneList<LMoveOperands>* moves = parallel_move->move_operands();
   for (int i = 0; i < moves->length(); ++i) {
     LMoveOperands move = moves->at(i);
-    if (!move.IsRedundant()) moves_.Add(move);
+    if (!move.IsRedundant()) moves_.Add(move, cgen_->zone());
   }
   Verify();
 }

@@ -640,6 +640,9 @@ class Assembler : public AssemblerBase {
   static const byte kJccShortPrefix = 0x70;
   static const byte kJncShortOpcode = kJccShortPrefix | not_carry;
   static const byte kJcShortOpcode = kJccShortPrefix | carry;
+  static const byte kJnzShortOpcode = kJccShortPrefix | not_zero;
+  static const byte kJzShortOpcode = kJccShortPrefix | zero;
+
 
   // ---------------------------------------------------------------------------
   // Code generation

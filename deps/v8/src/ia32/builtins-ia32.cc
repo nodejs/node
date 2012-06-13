@@ -831,7 +831,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    __ mov(eax, Operand(ebp, kIndexOffset));
+    __ mov(ecx, Operand(ebp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
     __ mov(edx, Operand(ebp, kArgumentsOffset));  // load arguments
@@ -848,16 +848,17 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ push(eax);
 
     // Update the index on the stack and in register eax.
-    __ mov(eax, Operand(ebp, kIndexOffset));
-    __ add(eax, Immediate(1 << kSmiTagSize));
-    __ mov(Operand(ebp, kIndexOffset), eax);
+    __ mov(ecx, Operand(ebp, kIndexOffset));
+    __ add(ecx, Immediate(1 << kSmiTagSize));
+    __ mov(Operand(ebp, kIndexOffset), ecx);
 
     __ bind(&entry);
-    __ cmp(eax, Operand(ebp, kLimitOffset));
+    __ cmp(ecx, Operand(ebp, kLimitOffset));
     __ j(not_equal, &loop);
 
     // Invoke the function.
     Label call_proxy;
+    __ mov(eax, ecx);
     ParameterCount actual(eax);
     __ SmiUntag(eax);
     __ mov(edi, Operand(ebp, kFunctionOffset));
@@ -899,7 +900,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
   STATIC_ASSERT(initial_capacity >= 0);
 
-  __ LoadInitialArrayMap(array_function, scratch2, scratch1);
+  __ LoadInitialArrayMap(array_function, scratch2, scratch1, false);
 
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
@@ -1002,7 +1003,8 @@ static void AllocateJSArray(MacroAssembler* masm,
   ASSERT(!fill_with_hole || array_size.is(ecx));  // rep stos count
   ASSERT(!fill_with_hole || !result.is(eax));  // result is never eax
 
-  __ LoadInitialArrayMap(array_function, scratch, elements_array);
+  __ LoadInitialArrayMap(array_function, scratch,
+                         elements_array, fill_with_hole);
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
@@ -1273,11 +1275,11 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ jmp(&prepare_generic_code_call);
 
   __ bind(&not_double);
-  // Transition FAST_SMI_ONLY_ELEMENTS to FAST_ELEMENTS.
+  // Transition FAST_SMI_ELEMENTS to FAST_ELEMENTS.
   __ mov(ebx, Operand(esp, 0));
   __ mov(edi, FieldOperand(ebx, HeapObject::kMapOffset));
   __ LoadTransitionedArrayMapConditional(
-      FAST_SMI_ONLY_ELEMENTS,
+      FAST_SMI_ELEMENTS,
       FAST_ELEMENTS,
       edi,
       eax,

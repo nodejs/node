@@ -336,7 +336,8 @@ HUseListNode* HValue::RemoveUse(HValue* value, int index) {
   // Do not reuse use list nodes in debug mode, zap them.
   if (current != NULL) {
     HUseListNode* temp =
-        new HUseListNode(current->value(), current->index(), NULL);
+        new(block()->zone())
+        HUseListNode(current->value(), current->index(), NULL);
     current->Zap();
     current = temp;
   }
@@ -416,6 +417,7 @@ void HValue::Kill() {
   SetFlag(kIsDead);
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* operand = OperandAt(i);
+    if (operand == NULL) continue;
     HUseListNode* first = operand->use_list_;
     if (first != NULL && first->value() == this && first->index() == i) {
       operand->use_list_ = first->tail();
@@ -462,7 +464,8 @@ void HValue::PrintChangesTo(StringStream* stream) {
       add_comma = true;                           \
       stream->Add(#type);                         \
     }
-    GVN_FLAG_LIST(PRINT_DO);
+    GVN_TRACKED_FLAG_LIST(PRINT_DO);
+    GVN_UNTRACKED_FLAG_LIST(PRINT_DO);
 #undef PRINT_DO
   }
   stream->Add("]");
@@ -493,8 +496,8 @@ void HValue::RegisterUse(int index, HValue* new_value) {
 
   if (new_value != NULL) {
     if (removed == NULL) {
-      new_value->use_list_ =
-          new HUseListNode(this, index, new_value->use_list_);
+      new_value->use_list_ = new(new_value->block()->zone()) HUseListNode(
+          this, index, new_value->use_list_);
     } else {
       removed->set_tail(new_value->use_list_);
       new_value->use_list_ = removed;
@@ -599,6 +602,9 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   SetBlock(block);
   previous->next_ = this;
   if (next != NULL) next->previous_ = this;
+  if (block->last() == previous) {
+    block->set_last(this);
+  }
 }
 
 
@@ -608,6 +614,7 @@ void HInstruction::Verify() {
   HBasicBlock* cur_block = block();
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* other_operand = OperandAt(i);
+    if (other_operand == NULL) continue;
     HBasicBlock* other_block = other_operand->block();
     if (cur_block == other_block) {
       if (!other_operand->IsPhi()) {
@@ -866,6 +873,17 @@ HValue* HBitwise::Canonicalize() {
 }
 
 
+HValue* HBitNot::Canonicalize() {
+  // Optimize ~~x, a common pattern used for ToInt32(x).
+  if (value()->IsBitNot()) {
+    HValue* result = HBitNot::cast(value())->value();
+    ASSERT(result->representation().IsInteger32());
+    return result;
+  }
+  return this;
+}
+
+
 HValue* HAdd::Canonicalize() {
   if (!representation().IsInteger32()) return this;
   if (CheckUsesForFlag(kTruncatingToInt32)) ClearFlag(kCanOverflow);
@@ -913,6 +931,62 @@ void HJSArrayLength::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" ");
   typecheck()->PrintNameTo(stream);
+}
+
+
+HValue* HUnaryMathOperation::Canonicalize() {
+  if (op() == kMathFloor) {
+    // If the input is integer32 then we replace the floor instruction
+    // with its input. This happens before the representation changes are
+    // introduced.
+    if (value()->representation().IsInteger32()) return value();
+
+#ifdef V8_TARGET_ARCH_ARM
+    if (value()->IsDiv() && (value()->UseCount() == 1)) {
+      // TODO(2038): Implement this optimization for non ARM architectures.
+      HDiv* hdiv = HDiv::cast(value());
+      HValue* left = hdiv->left();
+      HValue* right = hdiv->right();
+      // Try to simplify left and right values of the division.
+      HValue* new_left =
+        LChunkBuilder::SimplifiedDividendForMathFloorOfDiv(left);
+      HValue* new_right =
+        LChunkBuilder::SimplifiedDivisorForMathFloorOfDiv(right);
+
+      // Return if left or right are not optimizable.
+      if ((new_left == NULL) || (new_right == NULL)) return this;
+
+      // Insert the new values in the graph.
+      if (new_left->IsInstruction() &&
+          !HInstruction::cast(new_left)->IsLinked()) {
+        HInstruction::cast(new_left)->InsertBefore(this);
+      }
+      if (new_right->IsInstruction() &&
+          !HInstruction::cast(new_right)->IsLinked()) {
+        HInstruction::cast(new_right)->InsertBefore(this);
+      }
+      HMathFloorOfDiv* instr =  new(block()->zone()) HMathFloorOfDiv(context(),
+          new_left,
+          new_right);
+      // Replace this HMathFloor instruction by the new HMathFloorOfDiv.
+      instr->InsertBefore(this);
+      ReplaceAllUsesWith(instr);
+      Kill();
+      // We know the division had no other uses than this HMathFloor. Delete it.
+      // Also delete the arguments of the division if they are not used any
+      // more.
+      hdiv->DeleteAndReplaceWith(NULL);
+      ASSERT(left->IsChange() || left->IsConstant());
+      ASSERT(right->IsChange() || right->IsConstant());
+      if (left->HasNoUses())  left->DeleteAndReplaceWith(NULL);
+      if (right->HasNoUses())  right->DeleteAndReplaceWith(NULL);
+
+      // Return NULL to remove this instruction from the graph.
+      return NULL;
+    }
+#endif  // V8_TARGET_ARCH_ARM
+  }
+  return this;
 }
 
 
@@ -965,16 +1039,13 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 }
 
 
-void HCheckMap::PrintDataTo(StringStream* stream) {
+void HCheckMaps::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" %p", *map());
-  if (mode() == REQUIRE_EXACT_MAP) {
-    stream->Add(" [EXACT]");
-  } else if (!has_element_transitions_) {
-    stream->Add(" [EXACT*]");
-  } else {
-    stream->Add(" [MATCH ELEMENTS]");
+  stream->Add(" [%p", *map_set()->first());
+  for (int i = 1; i < map_set()->length(); ++i) {
+    stream->Add(",%p", *map_set()->at(i));
   }
+  stream->Add("]");
 }
 
 
@@ -1181,7 +1252,7 @@ void HPhi::PrintTo(StringStream* stream) {
 
 
 void HPhi::AddInput(HValue* value) {
-  inputs_.Add(NULL);
+  inputs_.Add(NULL, value->block()->zone());
   SetOperandAt(OperandCount() - 1, value);
   // Mark phis that may have 'arguments' directly or indirectly as an operand.
   if (!CheckFlag(kIsArguments) && value->CheckFlag(kIsArguments)) {
@@ -1228,14 +1299,33 @@ void HPhi::InitRealUses(int phi_id) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
-      Representation rep = value->RequiredInputRepresentation(it.index());
+      Representation rep = value->ObservedInputRepresentation(it.index());
       non_phi_uses_[rep.kind()] += value->LoopWeight();
+      if (FLAG_trace_representation) {
+        PrintF("%d %s is used by %d %s as %s\n",
+               this->id(),
+               this->Mnemonic(),
+               value->id(),
+               value->Mnemonic(),
+               rep.Mnemonic());
+      }
     }
   }
 }
 
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
+  if (FLAG_trace_representation) {
+    PrintF("adding to %d %s uses of %d %s: i%d d%d t%d\n",
+           this->id(),
+           this->Mnemonic(),
+           other->id(),
+           other->Mnemonic(),
+           other->non_phi_uses_[Representation::kInteger32],
+           other->non_phi_uses_[Representation::kDouble],
+           other->non_phi_uses_[Representation::kTagged]);
+  }
+
   for (int i = 0; i < Representation::kNumRepresentations; i++) {
     indirect_uses_[i] += other->non_phi_uses_[i];
   }
@@ -1246,6 +1336,12 @@ void HPhi::AddIndirectUsesTo(int* dest) {
   for (int i = 0; i < Representation::kNumRepresentations; i++) {
     dest[i] += indirect_uses_[i];
   }
+}
+
+
+void HPhi::ResetInteger32Uses() {
+  non_phi_uses_[Representation::kInteger32] = 0;
+  indirect_uses_[Representation::kInteger32] = 0;
 }
 
 
@@ -1302,18 +1398,18 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
 }
 
 
-HConstant* HConstant::CopyToRepresentation(Representation r) const {
+HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (r.IsInteger32() && !has_int32_value_) return NULL;
   if (r.IsDouble() && !has_double_value_) return NULL;
-  return new HConstant(handle_, r);
+  return new(zone) HConstant(handle_, r);
 }
 
 
-HConstant* HConstant::CopyToTruncatedInt32() const {
+HConstant* HConstant::CopyToTruncatedInt32(Zone* zone) const {
   if (!has_double_value_) return NULL;
   int32_t truncated = NumberToInt32(*handle_);
-  return new HConstant(FACTORY->NewNumberFromInt(truncated),
-                       Representation::Integer32());
+  return new(zone) HConstant(FACTORY->NewNumberFromInt(truncated),
+                             Representation::Integer32());
 }
 
 
@@ -1522,17 +1618,51 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
+// Returns true if an instance of this map can never find a property with this
+// name in its prototype chain.  This means all prototypes up to the top are
+// fast and don't have the name in them.  It would be good if we could optimize
+// polymorphic loads where the property is sometimes found in the prototype
+// chain.
+static bool PrototypeChainCanNeverResolve(
+    Handle<Map> map, Handle<String> name) {
+  Isolate* isolate = map->GetIsolate();
+  Object* current = map->prototype();
+  while (current != isolate->heap()->null_value()) {
+    if (current->IsJSGlobalProxy() ||
+        current->IsGlobalObject() ||
+        !current->IsJSObject() ||
+        JSObject::cast(current)->IsAccessCheckNeeded() ||
+        !JSObject::cast(current)->HasFastProperties()) {
+      return false;
+    }
+
+    LookupResult lookup(isolate);
+    JSObject::cast(current)->map()->LookupInDescriptors(NULL, *name, &lookup);
+    if (lookup.IsFound()) {
+      if (lookup.type() != MAP_TRANSITION) return false;
+    } else if (!lookup.IsCacheable()) {
+      return false;
+    }
+
+    current = JSObject::cast(current)->GetPrototype();
+  }
+  return true;
+}
+
+
 HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
                                                        HValue* object,
                                                        SmallMapList* types,
-                                                       Handle<String> name)
-    : types_(Min(types->length(), kMaxLoadPolymorphism)),
+                                                       Handle<String> name,
+                                                       Zone* zone)
+    : types_(Min(types->length(), kMaxLoadPolymorphism), zone),
       name_(name),
       need_generic_(false) {
   SetOperandAt(0, context);
   SetOperandAt(1, object);
   set_representation(Representation::Tagged());
   SetGVNFlag(kDependsOnMaps);
+  SmallMapList negative_lookups;
   for (int i = 0;
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
@@ -1548,21 +1678,39 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           } else {
             SetGVNFlag(kDependsOnBackingStoreFields);
           }
-          types_.Add(types->at(i));
+          types_.Add(types->at(i), zone);
           break;
         }
         case CONSTANT_FUNCTION:
-          types_.Add(types->at(i));
+          types_.Add(types->at(i), zone);
+          break;
+        case MAP_TRANSITION:
+          if (PrototypeChainCanNeverResolve(map, name)) {
+            negative_lookups.Add(types->at(i), zone);
+          }
           break;
         default:
           break;
       }
+    } else if (lookup.IsCacheable()) {
+      if (PrototypeChainCanNeverResolve(map, name)) {
+        negative_lookups.Add(types->at(i), zone);
+      }
     }
   }
 
-  if (types_.length() == types->length() && FLAG_deoptimize_uncommon_cases) {
+  bool need_generic =
+      (types->length() != negative_lookups.length() + types_.length());
+  if (!need_generic && FLAG_deoptimize_uncommon_cases) {
     SetFlag(kUseGVN);
+    for (int i = 0; i < negative_lookups.length(); i++) {
+      types_.Add(negative_lookups.at(i), zone);
+    }
   } else {
+    // We don't have an easy way to handle both a call (to the generic stub) and
+    // a deopt in the same hydrogen instruction, so in this case we don't add
+    // the negative lookups which can deopt - just let the generic stub handle
+    // them.
     SetAllSideEffects();
     need_generic_ = true;
   }
@@ -1607,11 +1755,14 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
+  if (RequiresHoleCheck()) {
+    stream->Add(" check_hole");
+  }
 }
 
 
 bool HLoadKeyedFastElement::RequiresHoleCheck() {
-  if (hole_check_mode_ == OMIT_HOLE_CHECK) {
+  if (IsFastPackedElementsKind(elements_kind())) {
     return false;
   }
 
@@ -1657,12 +1808,11 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
             new(block()->zone()) HCheckMapValue(object(), names_cache->map());
         HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
             index_cache,
-            key_load->key(),
-            HLoadKeyedFastElement::OMIT_HOLE_CHECK);
-        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
-            object(), index);
+            key_load->key());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
+        HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
+            object(), index);
         load->InsertBefore(this);
         return load;
       }
@@ -1706,8 +1856,11 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
       stream->Add("pixel");
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ONLY_ELEMENTS:
+    case FAST_SMI_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -1736,6 +1889,9 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
   stream->Add(" = ");
   value()->PrintNameTo(stream);
   stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
+  if (NeedsWriteBarrier()) {
+    stream->Add(" (write-barrier)");
+  }
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }
@@ -1801,9 +1957,12 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
     case EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
       break;
-    case FAST_SMI_ONLY_ELEMENTS:
+    case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -1818,7 +1977,13 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
 
 void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
+  ElementsKind from_kind = original_map()->elements_kind();
+  ElementsKind to_kind = transitioned_map()->elements_kind();
+  stream->Add(" %p [%s] -> %p [%s]",
+              *original_map(),
+              ElementsAccessor::ForKind(from_kind)->name(),
+              *transitioned_map(),
+              ElementsAccessor::ForKind(to_kind)->name());
 }
 
 
@@ -1879,7 +2044,7 @@ HType HValue::CalculateInferredType() {
 }
 
 
-HType HCheckMap::CalculateInferredType() {
+HType HCheckMaps::CalculateInferredType() {
   return value()->type();
 }
 
@@ -2089,6 +2254,17 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
+bool HStoreKeyedFastDoubleElement::NeedsCanonicalization() {
+  // If value was loaded from unboxed double backing store or
+  // converted from an integer then we don't have to canonicalize it.
+  if (value()->IsLoadKeyedFastDoubleElement() ||
+      (value()->IsChange() && HChange::cast(value())->from().IsInteger32())) {
+    return false;
+  }
+  return true;
+}
+
+
 #define H_CONSTANT_INT32(val)                                                  \
 new(zone) HConstant(FACTORY->NewNumberFromInt(val, TENURED),                   \
                     Representation::Integer32())
@@ -2254,6 +2430,13 @@ void HIn::PrintDataTo(StringStream* stream) {
   key()->PrintNameTo(stream);
   stream->Add(" ");
   object()->PrintNameTo(stream);
+}
+
+
+void HBitwise::PrintDataTo(StringStream* stream) {
+  stream->Add(Token::Name(op_));
+  stream->Add(" ");
+  HBitwiseBinaryOperation::PrintDataTo(stream);
 }
 
 

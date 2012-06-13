@@ -236,7 +236,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
  public:
   TypeFeedbackOracle(Handle<Code> code,
                      Handle<Context> global_context,
-                     Isolate* isolate);
+                     Isolate* isolate,
+                     Zone* zone);
 
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsUninitialized(Property* expr);
@@ -293,6 +294,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo SwitchType(CaseClause* clause);
   TypeInfo IncrementType(CountOperation* expr);
 
+  Zone* zone() const { return zone_; }
+
  private:
   void CollectReceiverTypes(unsigned ast_id,
                             Handle<String> name,
@@ -317,6 +320,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Handle<Context> global_context_;
   Isolate* isolate_;
   Handle<UnseededNumberDictionary> dictionary_;
+  Zone* zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

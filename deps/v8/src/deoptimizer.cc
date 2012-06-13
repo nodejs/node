@@ -354,6 +354,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       bailout_type_(type),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
+      has_alignment_padding_(0),
       input_(NULL),
       output_count_(0),
       jsframe_count_(0),
@@ -378,6 +379,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
            reinterpret_cast<intptr_t>(from),
            fp_to_sp_delta - (2 * kPointerSize));
   }
+  function->shared()->increment_deopt_count();
   // Find the optimized code.
   if (type == EAGER) {
     ASSERT(from == NULL);
@@ -593,12 +595,14 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function));
     function->PrintName();
-    PrintF(" => node=%u, pc=0x%08" V8PRIxPTR ", state=%s, took %0.3f ms]\n",
+    PrintF(" => node=%u, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
+           " took %0.3f ms]\n",
            node_id,
            output_[index]->GetPc(),
            FullCodeGenerator::State2String(
                static_cast<FullCodeGenerator::State>(
                    output_[index]->GetState()->value())),
+           has_alignment_padding_ ? "with padding" : "no padding",
            ms);
   }
 }
@@ -769,7 +773,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
-        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d] ",
+        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d] ",
                output_offset,
                input_value,
                input_offset);
@@ -789,7 +793,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
-        PrintF("[top + %d] <- %" V8PRIdPTR " ; [esp + %d] (%s)\n",
+        PrintF("[top + %d] <- %" V8PRIdPTR " ; [sp + %d] (%s)\n",
                output_offset,
                value,
                input_offset,
@@ -815,7 +819,7 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
           input_->GetOffsetFromSlotIndex(input_slot_index);
       double value = input_->GetDoubleFrameSlot(input_offset);
       if (FLAG_trace_deopt) {
-        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- %e ; [esp + %d]\n",
+        PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- %e ; [sp + %d]\n",
                output_[frame_index]->GetTop() + output_offset,
                output_offset,
                value,
@@ -1290,7 +1294,7 @@ Object* FrameDescription::GetExpression(int index) {
 }
 
 
-void TranslationBuffer::Add(int32_t value) {
+void TranslationBuffer::Add(int32_t value, Zone* zone) {
   // Encode the sign bit in the least significant bit.
   bool is_negative = (value < 0);
   uint32_t bits = ((is_negative ? -value : value) << 1) |
@@ -1299,7 +1303,7 @@ void TranslationBuffer::Add(int32_t value) {
   // each byte to indicate whether or not more bytes follow.
   do {
     uint32_t next = bits >> 7;
-    contents_.Add(((bits << 1) & 0xFF) | (next != 0));
+    contents_.Add(((bits << 1) & 0xFF) | (next != 0), zone);
     bits = next;
   } while (bits != 0);
 }
@@ -1332,76 +1336,76 @@ Handle<ByteArray> TranslationBuffer::CreateByteArray() {
 
 
 void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
-  buffer_->Add(CONSTRUCT_STUB_FRAME);
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
+  buffer_->Add(CONSTRUCT_STUB_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
 }
 
 
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
-  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME);
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
+  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
 }
 
 
 void Translation::BeginJSFrame(int node_id, int literal_id, unsigned height) {
-  buffer_->Add(JS_FRAME);
-  buffer_->Add(node_id);
-  buffer_->Add(literal_id);
-  buffer_->Add(height);
+  buffer_->Add(JS_FRAME, zone());
+  buffer_->Add(node_id, zone());
+  buffer_->Add(literal_id, zone());
+  buffer_->Add(height, zone());
 }
 
 
 void Translation::StoreRegister(Register reg) {
-  buffer_->Add(REGISTER);
-  buffer_->Add(reg.code());
+  buffer_->Add(REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
 }
 
 
 void Translation::StoreInt32Register(Register reg) {
-  buffer_->Add(INT32_REGISTER);
-  buffer_->Add(reg.code());
+  buffer_->Add(INT32_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
 }
 
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
-  buffer_->Add(DOUBLE_REGISTER);
-  buffer_->Add(DoubleRegister::ToAllocationIndex(reg));
+  buffer_->Add(DOUBLE_REGISTER, zone());
+  buffer_->Add(DoubleRegister::ToAllocationIndex(reg), zone());
 }
 
 
 void Translation::StoreStackSlot(int index) {
-  buffer_->Add(STACK_SLOT);
-  buffer_->Add(index);
+  buffer_->Add(STACK_SLOT, zone());
+  buffer_->Add(index, zone());
 }
 
 
 void Translation::StoreInt32StackSlot(int index) {
-  buffer_->Add(INT32_STACK_SLOT);
-  buffer_->Add(index);
+  buffer_->Add(INT32_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
 }
 
 
 void Translation::StoreDoubleStackSlot(int index) {
-  buffer_->Add(DOUBLE_STACK_SLOT);
-  buffer_->Add(index);
+  buffer_->Add(DOUBLE_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
 }
 
 
 void Translation::StoreLiteral(int literal_id) {
-  buffer_->Add(LITERAL);
-  buffer_->Add(literal_id);
+  buffer_->Add(LITERAL, zone());
+  buffer_->Add(literal_id, zone());
 }
 
 
 void Translation::StoreArgumentsObject() {
-  buffer_->Add(ARGUMENTS_OBJECT);
+  buffer_->Add(ARGUMENTS_OBJECT, zone());
 }
 
 
 void Translation::MarkDuplicate() {
-  buffer_->Add(DUPLICATE);
+  buffer_->Add(DUPLICATE, zone());
 }
 
 

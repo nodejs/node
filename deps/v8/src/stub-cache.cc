@@ -43,7 +43,8 @@ namespace internal {
 // StubCache implementation.
 
 
-StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
+StubCache::StubCache(Isolate* isolate, Zone* zone)
+    : isolate_(isolate), zone_(zone) {
   ASSERT(isolate == Isolate::Current());
 }
 
@@ -164,6 +165,25 @@ Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
   LoadStubCompiler compiler(isolate_);
   Handle<Code> code =
       compiler.CompileLoadCallback(name, receiver, holder, callback);
+  PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
+  JSObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeLoadViaGetter(Handle<String> name,
+                                             Handle<JSObject> receiver,
+                                             Handle<JSObject> holder,
+                                             Handle<JSFunction> getter) {
+  ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, CALLBACKS);
+  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  LoadStubCompiler compiler(isolate_);
+  Handle<Code> code =
+      compiler.CompileLoadViaGetter(name, receiver, holder, getter);
   PROFILE(isolate_, CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::LOAD_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
@@ -384,7 +404,7 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
 
 
 Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
-    Handle<JSObject> receiver,
+    Handle<Map> receiver_map,
     KeyedIC::StubKind stub_kind,
     StrictModeFlag strict_mode) {
   KeyedAccessGrowMode grow_mode =
@@ -412,7 +432,6 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
       UNREACHABLE();
       break;
   }
-  Handle<Map> receiver_map(receiver->map());
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -447,7 +466,7 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
   } else {
     PROFILE(isolate_, CodeCreateEvent(Logger::KEYED_STORE_IC_TAG, *code, 0));
   }
-  JSObject::UpdateMapCodeCache(receiver, name, code);
+  Map::UpdateCodeCache(receiver_map, name, code);
   return code;
 }
 
@@ -489,6 +508,24 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
 
   StoreStubCompiler compiler(isolate_, strict_mode);
   Handle<Code> code = compiler.CompileStoreCallback(receiver, callback, name);
+  PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
+  GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
+  JSObject::UpdateMapCodeCache(receiver, name, code);
+  return code;
+}
+
+
+Handle<Code> StubCache::ComputeStoreViaSetter(Handle<String> name,
+                                              Handle<JSObject> receiver,
+                                              Handle<JSFunction> setter,
+                                              StrictModeFlag strict_mode) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(
+      Code::STORE_IC, CALLBACKS, strict_mode);
+  Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
+  if (probe->IsCode()) return Handle<Code>::cast(probe);
+
+  StoreStubCompiler compiler(isolate_, strict_mode);
+  Handle<Code> code = compiler.CompileStoreViaSetter(receiver, setter, name);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
@@ -901,7 +938,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int offset = PrimaryOffset(name, flags, map);
       if (entry(primary_, offset) == &primary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map));
+        types->Add(Handle<Map>(map), zone());
       }
     }
   }
@@ -925,7 +962,7 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       int offset = SecondaryOffset(name, flags, primary_offset);
       if (entry(secondary_, offset) == &secondary_[i] &&
           !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map));
+        types->Add(Handle<Map>(map), zone());
       }
     }
   }
@@ -939,10 +976,12 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   ASSERT(args[0]->IsJSObject());
   ASSERT(args[1]->IsJSObject());
-  AccessorInfo* callback = AccessorInfo::cast(args[3]);
+  ASSERT(args[3]->IsSmi());
+  AccessorInfo* callback = AccessorInfo::cast(args[4]);
   Address getter_address = v8::ToCData<Address>(callback->getter());
   v8::AccessorGetter fun = FUNCTION_CAST<v8::AccessorGetter>(getter_address);
   ASSERT(fun != NULL);
+  ASSERT(callback->IsCompatibleReceiver(args[0]));
   v8::AccessorInfo info(&args[0]);
   HandleScope scope(isolate);
   v8::Handle<v8::Value> result;
@@ -950,7 +989,7 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
     // Leaving JavaScript.
     VMState state(isolate, EXTERNAL);
     ExternalCallbackScope call_scope(isolate, getter_address);
-    result = fun(v8::Utils::ToLocal(args.at<String>(4)), info);
+    result = fun(v8::Utils::ToLocal(args.at<String>(5)), info);
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (result.IsEmpty()) return HEAP->undefined_value();
@@ -964,6 +1003,7 @@ RUNTIME_FUNCTION(MaybeObject*, StoreCallbackProperty) {
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetter fun = FUNCTION_CAST<v8::AccessorSetter>(setter_address);
   ASSERT(fun != NULL);
+  ASSERT(callback->IsCompatibleReceiver(recv));
   Handle<String> name = args.at<String>(2);
   Handle<Object> value = args.at<Object>(3);
   HandleScope scope(isolate);
@@ -997,7 +1037,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
   ASSERT(args[2]->IsJSObject());  // Receiver.
   ASSERT(args[3]->IsJSObject());  // Holder.
-  ASSERT(args.length() == 5);  // Last arg is data object.
+  ASSERT(args[5]->IsSmi());  // Isolate.
+  ASSERT(args.length() == 6);
 
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetter getter =
@@ -1050,7 +1091,7 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
   ASSERT(kAccessorInfoOffsetInInterceptorArgs == 2);
   Handle<JSObject> receiver_handle = args->at<JSObject>(2);
   Handle<JSObject> holder_handle = args->at<JSObject>(3);
-  ASSERT(args->length() == 5);  // Last arg is data object.
+  ASSERT(args->length() == 6);
 
   Isolate* isolate = receiver_handle->GetIsolate();
 

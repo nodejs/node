@@ -266,16 +266,17 @@ class Statement: public AstNode {
 class SmallMapList {
  public:
   SmallMapList() {}
-  explicit SmallMapList(int capacity) : list_(capacity) {}
+  SmallMapList(int capacity, Zone* zone) : list_(capacity, zone) {}
 
-  void Reserve(int capacity) { list_.Reserve(capacity); }
+  void Reserve(int capacity, Zone* zone) { list_.Reserve(capacity, zone); }
   void Clear() { list_.Clear(); }
+  void Sort() { list_.Sort(); }
 
   bool is_empty() const { return list_.is_empty(); }
   int length() const { return list_.length(); }
 
-  void Add(Handle<Map> handle) {
-    list_.Add(handle.location());
+  void Add(Handle<Map> handle, Zone* zone) {
+    list_.Add(handle.location(), zone);
   }
 
   Handle<Map> at(int i) const {
@@ -415,13 +416,15 @@ class Block: public BreakableStatement {
  public:
   DECLARE_NODE_TYPE(Block)
 
-  void AddStatement(Statement* statement) { statements_.Add(statement); }
+  void AddStatement(Statement* statement, Zone* zone) {
+    statements_.Add(statement, zone);
+  }
 
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
-  Scope* block_scope() const { return block_scope_; }
-  void set_block_scope(Scope* block_scope) { block_scope_ = block_scope; }
+  Scope* scope() const { return scope_; }
+  void set_scope(Scope* scope) { scope_ = scope; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -429,17 +432,18 @@ class Block: public BreakableStatement {
   Block(Isolate* isolate,
         ZoneStringList* labels,
         int capacity,
-        bool is_initializer_block)
+        bool is_initializer_block,
+        Zone* zone)
       : BreakableStatement(isolate, labels, TARGET_FOR_NAMED_ONLY),
-        statements_(capacity),
+        statements_(capacity, zone),
         is_initializer_block_(is_initializer_block),
-        block_scope_(NULL) {
+        scope_(NULL) {
   }
 
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
-  Scope* block_scope_;
+  Scope* scope_;
 };
 
 
@@ -594,7 +598,7 @@ class Module: public AstNode {
   Interface* interface() const { return interface_; }
 
  protected:
-  Module() : interface_(Interface::NewModule()) {}
+  explicit Module(Zone* zone) : interface_(Interface::NewModule(zone)) {}
   explicit Module(Interface* interface) : interface_(interface) {}
 
  private:
@@ -607,6 +611,7 @@ class ModuleLiteral: public Module {
   DECLARE_NODE_TYPE(ModuleLiteral)
 
   Block* body() const { return body_; }
+  Handle<Context> context() const { return context_; }
 
  protected:
   template<class> friend class AstNodeFactory;
@@ -618,6 +623,7 @@ class ModuleLiteral: public Module {
 
  private:
   Block* body_;
+  Handle<Context> context_;
 };
 
 
@@ -647,8 +653,9 @@ class ModulePath: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  ModulePath(Module* module, Handle<String> name)
-      : module_(module),
+  ModulePath(Module* module, Handle<String> name, Zone* zone)
+      : Module(zone),
+        module_(module),
         name_(name) {
   }
 
@@ -667,7 +674,8 @@ class ModuleUrl: public Module {
  protected:
   template<class> friend class AstNodeFactory;
 
-  explicit ModuleUrl(Handle<String> url) : url_(url) {
+  ModuleUrl(Handle<String> url, Zone* zone)
+      : Module(zone), url_(url) {
   }
 
  private:
@@ -1095,12 +1103,12 @@ class IfStatement: public Statement {
 // stack in the compiler; this should probably be reworked.
 class TargetCollector: public AstNode {
  public:
-  TargetCollector() : targets_(0) { }
+  explicit TargetCollector(Zone* zone) : targets_(0, zone) { }
 
   // Adds a jump target to the collector. The collector stores a pointer not
   // a copy of the target to make binding work, so make sure not to pass in
   // references to something on the stack.
-  void AddTarget(Label* target);
+  void AddTarget(Label* target, Zone* zone);
 
   // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
@@ -1358,7 +1366,7 @@ class ObjectLiteral: public MaterializedLiteral {
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
   // marked expressions, no store code is emitted.
-  void CalculateEmitStore();
+  void CalculateEmitStore(Zone* zone);
 
   enum Flags {
     kNoFlags = 0,
@@ -1523,7 +1531,7 @@ class Property: public Expression {
   bool IsFunctionPrototype() const { return is_function_prototype_; }
 
   // Type feedback information.
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
   bool IsArrayLength() { return is_array_length_; }
@@ -1796,7 +1804,7 @@ class CountOperation: public Expression {
 
   virtual void MarkAsStatement() { is_prefix_ = true; }
 
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* znoe);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
@@ -1949,7 +1957,7 @@ class Assignment: public Expression {
   void mark_block_end() { block_end_ = true; }
 
   // Type feedback information.
-  void RecordTypeFeedback(TypeFeedbackOracle* oracle);
+  void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
 
@@ -2208,8 +2216,8 @@ class RegExpTree: public ZoneObject {
   // Returns the interval of registers used for captures within this
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
-  virtual void AppendToText(RegExpText* text);
-  SmartArrayPointer<const char> ToString();
+  virtual void AppendToText(RegExpText* text, Zone* zone);
+  SmartArrayPointer<const char> ToString(Zone* zone);
 #define MAKE_ASTYPE(Name)                                                  \
   virtual RegExp##Name* As##Name();                                        \
   virtual bool Is##Name();
@@ -2294,7 +2302,7 @@ class CharacterSet BASE_EMBEDDED {
   explicit CharacterSet(ZoneList<CharacterRange>* ranges)
       : ranges_(ranges),
         standard_set_type_(0) {}
-  ZoneList<CharacterRange>* ranges();
+  ZoneList<CharacterRange>* ranges(Zone* zone);
   uc16 standard_set_type() { return standard_set_type_; }
   void set_standard_set_type(uc16 special_set_type) {
     standard_set_type_ = special_set_type;
@@ -2325,11 +2333,11 @@ class RegExpCharacterClass: public RegExpTree {
   virtual bool IsTextElement() { return true; }
   virtual int min_match() { return 1; }
   virtual int max_match() { return 1; }
-  virtual void AppendToText(RegExpText* text);
+  virtual void AppendToText(RegExpText* text, Zone* zone);
   CharacterSet character_set() { return set_; }
   // TODO(lrn): Remove need for complex version if is_standard that
   // recognizes a mangled standard set and just do { return set_.is_special(); }
-  bool is_standard();
+  bool is_standard(Zone* zone);
   // Returns a value representing the standard character set if is_standard()
   // returns true.
   // Currently used values are:
@@ -2342,7 +2350,7 @@ class RegExpCharacterClass: public RegExpTree {
   // . : non-unicode non-newline
   // * : All characters
   uc16 standard_type() { return set_.standard_set_type(); }
-  ZoneList<CharacterRange>* ranges() { return set_.ranges(); }
+  ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
   bool is_negated() { return is_negated_; }
 
  private:
@@ -2362,7 +2370,7 @@ class RegExpAtom: public RegExpTree {
   virtual bool IsTextElement() { return true; }
   virtual int min_match() { return data_.length(); }
   virtual int max_match() { return data_.length(); }
-  virtual void AppendToText(RegExpText* text);
+  virtual void AppendToText(RegExpText* text, Zone* zone);
   Vector<const uc16> data() { return data_; }
   int length() { return data_.length(); }
  private:
@@ -2372,7 +2380,7 @@ class RegExpAtom: public RegExpTree {
 
 class RegExpText: public RegExpTree {
  public:
-  RegExpText() : elements_(2), length_(0) {}
+  explicit RegExpText(Zone* zone) : elements_(2, zone), length_(0) {}
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
@@ -2381,9 +2389,9 @@ class RegExpText: public RegExpTree {
   virtual bool IsTextElement() { return true; }
   virtual int min_match() { return length_; }
   virtual int max_match() { return length_; }
-  virtual void AppendToText(RegExpText* text);
-  void AddElement(TextElement elm)  {
-    elements_.Add(elm);
+  virtual void AppendToText(RegExpText* text, Zone* zone);
+  void AddElement(TextElement elm, Zone* zone)  {
+    elements_.Add(elm, zone);
     length_ += elm.length();
   }
   ZoneList<TextElement>* elements() { return &elements_; }
@@ -2691,20 +2699,21 @@ class AstNodeFactory BASE_EMBEDDED {
   }
 
   ModulePath* NewModulePath(Module* origin, Handle<String> name) {
-    ModulePath* module = new(zone_) ModulePath(origin, name);
+    ModulePath* module = new(zone_) ModulePath(origin, name, zone_);
     VISIT_AND_RETURN(ModulePath, module)
   }
 
   ModuleUrl* NewModuleUrl(Handle<String> url) {
-    ModuleUrl* module = new(zone_) ModuleUrl(url);
+    ModuleUrl* module = new(zone_) ModuleUrl(url, zone_);
     VISIT_AND_RETURN(ModuleUrl, module)
   }
 
   Block* NewBlock(ZoneStringList* labels,
                   int capacity,
-                  bool is_initializer_block) {
+                  bool is_initializer_block,
+                  Zone* zone) {
     Block* block = new(zone_) Block(
-        isolate_, labels, capacity, is_initializer_block);
+        isolate_, labels, capacity, is_initializer_block, zone);
     VISIT_AND_RETURN(Block, block)
   }
 

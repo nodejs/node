@@ -112,9 +112,6 @@ def BuildOptions():
   result.add_option("--nostress",
                     help="Don't run crankshaft --always-opt --stress-op test",
                     default=False, action="store_true")
-  result.add_option("--crankshaft",
-                    help="Run with the --crankshaft flag",
-                    default=False, action="store_true")
   result.add_option("--shard-count",
                     help="Split testsuites into this number of shards",
                     default=1, type="int")
@@ -199,8 +196,6 @@ def PassOnOptions(options):
     result += ['--stress-only']
   if options.nostress:
     result += ['--nostress']
-  if options.crankshaft:
-    result += ['--crankshaft']
   if options.shard_count != 1:
     result += ['--shard-count=%s' % options.shard_count]
   if options.shard_run != 1:
@@ -224,7 +219,8 @@ def Main():
     print ">>> running presubmit tests"
     returncodes += subprocess.call([workspace + '/tools/presubmit.py'])
 
-  args_for_children = [workspace + '/tools/test.py'] + PassOnOptions(options)
+  args_for_children = ['python']
+  args_for_children += [workspace + '/tools/test.py'] + PassOnOptions(options)
   args_for_children += ['--no-build', '--build-system=gyp']
   for arg in args:
     args_for_children += [arg]
@@ -240,10 +236,11 @@ def Main():
         shellpath = workspace + '/' + options.outdir + '/' + arch + '.' + mode
       env['LD_LIBRARY_PATH'] = shellpath + '/lib.target'
       shell = shellpath + "/d8"
-      child = subprocess.Popen(' '.join(args_for_children +
-                                        ['--arch=' + arch] +
-                                        ['--mode=' + mode] +
-                                        ['--shell=' + shell]),
+      cmdline = ' '.join(args_for_children +
+                         ['--arch=' + arch] +
+                         ['--mode=' + mode] +
+                         ['--shell=' + shell])
+      child = subprocess.Popen(cmdline,
                                shell=True,
                                cwd=workspace,
                                env=env)

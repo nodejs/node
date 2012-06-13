@@ -307,7 +307,7 @@ class Shell : public i::AllStatic {
   static Handle<Value> EnableProfiler(const Arguments& args);
   static Handle<Value> DisableProfiler(const Arguments& args);
   static Handle<Value> Read(const Arguments& args);
-  static Handle<Value> ReadBinary(const Arguments& args);
+  static Handle<Value> ReadBuffer(const Arguments& args);
   static Handle<String> ReadFromStdin();
   static Handle<Value> ReadLine(const Arguments& args) {
     return ReadFromStdin();
@@ -383,9 +383,11 @@ class Shell : public i::AllStatic {
   static void RunShell();
   static bool SetOptions(int argc, char* argv[]);
   static Handle<ObjectTemplate> CreateGlobalTemplate();
+  static Handle<Value> CreateExternalArrayBuffer(int32_t size);
+  static Handle<Value> CreateExternalArrayBuffer(const Arguments& args);
   static Handle<Value> CreateExternalArray(const Arguments& args,
                                            ExternalArrayType type,
-                                           size_t element_size);
+                                           int32_t element_size);
   static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
 

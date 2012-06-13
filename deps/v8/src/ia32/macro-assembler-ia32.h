@@ -90,6 +90,13 @@ class MacroAssembler: public Assembler {
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
 
+  void CheckPageFlagForMap(
+      Handle<Map> map,
+      int mask,
+      Condition cc,
+      Label* condition_met,
+      Label::Distance condition_met_distance = Label::kFar);
+
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but scratch will be clobbered.
   void JumpIfNotInNewSpace(Register object,
@@ -194,6 +201,16 @@ class MacroAssembler: public Assembler {
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
 
+  // For page containing |object| mark the region covering the object's map
+  // dirty. |object| is the object being stored into, |map| is the Map object
+  // that was stored.
+  void RecordWriteForMap(
+      Register object,
+      Handle<Map> map,
+      Register scratch1,
+      Register scratch2,
+      SaveFPRegsMode save_fp);
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // ---------------------------------------------------------------------------
   // Debugger Support
@@ -235,7 +252,8 @@ class MacroAssembler: public Assembler {
   // Load the initial map for new Arrays from a JSFunction.
   void LoadInitialArrayMap(Register function_in,
                            Register scratch,
-                           Register map_out);
+                           Register map_out,
+                           bool can_have_holes);
 
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
@@ -357,9 +375,9 @@ class MacroAssembler: public Assembler {
 
   // Check if a map for a JSObject indicates that the object has fast smi only
   // elements.  Jump to the specified label if it does not.
-  void CheckFastSmiOnlyElements(Register map,
-                                Label* fail,
-                                Label::Distance distance = Label::kFar);
+  void CheckFastSmiElements(Register map,
+                            Label* fail,
+                            Label::Distance distance = Label::kFar);
 
   // Check to see if maybe_number can be stored as a double in
   // FastDoubleElements. If it can, store it at the index specified by key in

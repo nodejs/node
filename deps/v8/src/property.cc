@@ -61,12 +61,6 @@ void LookupResult::Print(FILE* out) {
       GetTransitionMap()->Print(out);
       PrintF(out, "\n");
       break;
-    case ELEMENTS_TRANSITION:
-      PrintF(out, " -type = elements transition\n");
-      PrintF(out, " -map:\n");
-      GetTransitionMap()->Print(out);
-      PrintF(out, "\n");
-      break;
     case CONSTANT_FUNCTION:
       PrintF(out, " -type = constant function\n");
       PrintF(out, " -function:\n");
@@ -118,7 +112,6 @@ bool Descriptor::ContainsTransition() {
   switch (details_.type()) {
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
       return true;
     case CALLBACKS: {
       if (!value_->IsAccessorPair()) return false;

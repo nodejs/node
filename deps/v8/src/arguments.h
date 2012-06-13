@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -91,9 +91,11 @@ class CustomArguments : public Relocatable {
                          Object* data,
                          Object* self,
                          JSObject* holder) : Relocatable(isolate) {
-    values_[2] = self;
-    values_[1] = holder;
-    values_[0] = data;
+    ASSERT(reinterpret_cast<Object*>(isolate)->IsSmi());
+    values_[3] = self;
+    values_[2] = holder;
+    values_[1] = data;
+    values_[0] = reinterpret_cast<Object*>(isolate);
   }
 
   inline explicit CustomArguments(Isolate* isolate) : Relocatable(isolate) {
@@ -106,8 +108,9 @@ class CustomArguments : public Relocatable {
 
   void IterateInstance(ObjectVisitor* v);
   Object** end() { return values_ + ARRAY_SIZE(values_) - 1; }
+
  private:
-  Object* values_[3];
+  Object* values_[4];
 };
 
 

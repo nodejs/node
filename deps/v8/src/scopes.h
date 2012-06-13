@@ -40,7 +40,7 @@ class CompilationInfo;
 // A hash map to support fast variable declaration and lookup.
 class VariableMap: public ZoneHashMap {
  public:
-  VariableMap();
+  explicit VariableMap(Zone* zone);
 
   virtual ~VariableMap();
 
@@ -53,6 +53,11 @@ class VariableMap: public ZoneHashMap {
                     Interface* interface = Interface::NewValue());
 
   Variable* Lookup(Handle<String> name);
+
+  Zone* zone() const { return zone_; }
+
+ private:
+  Zone* zone_;
 };
 
 
@@ -62,14 +67,19 @@ class VariableMap: public ZoneHashMap {
 // and setup time for scopes that don't need them.
 class DynamicScopePart : public ZoneObject {
  public:
+  explicit DynamicScopePart(Zone* zone) {
+    for (int i = 0; i < 3; i++)
+      maps_[i] = new(zone->New(sizeof(VariableMap))) VariableMap(zone);
+  }
+
   VariableMap* GetMap(VariableMode mode) {
     int index = mode - DYNAMIC;
     ASSERT(index >= 0 && index < 3);
-    return &maps_[index];
+    return maps_[index];
   }
 
  private:
-  VariableMap maps_[3];
+  VariableMap *maps_[3];
 };
 
 
@@ -87,14 +97,15 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  Scope(Scope* outer_scope, ScopeType type);
+  Scope(Scope* outer_scope, ScopeType type, Zone* zone);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
-  static Scope* DeserializeScopeChain(Context* context, Scope* global_scope);
+  static Scope* DeserializeScopeChain(Context* context, Scope* global_scope,
+                                      Zone* zone);
 
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
@@ -105,6 +116,8 @@ class Scope: public ZoneObject {
   // block scoped declarations. In that case it is removed from the scope
   // tree and its children are reparented.
   Scope* FinalizeBlockScope();
+
+  Zone* zone() const { return zone_; }
 
   // ---------------------------------------------------------------------------
   // Declarations
@@ -126,15 +139,9 @@ class Scope: public ZoneObject {
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
-  template<class Visitor>
-  Variable* DeclareFunctionVar(Handle<String> name,
-                               VariableMode mode,
-                               AstNodeFactory<Visitor>* factory) {
-    ASSERT(is_function_scope() && function_ == NULL);
-    Variable* function_var = new Variable(
-        this, name, mode, true, Variable::NORMAL, kCreatedInitialized);
-    function_ = factory->NewVariableProxy(function_var);
-    return function_var;
+  void DeclareFunctionVar(VariableDeclaration* declaration) {
+    ASSERT(is_function_scope());
+    function_ = declaration;
   }
 
   // Declare a parameter in this scope.  When there are duplicated
@@ -167,7 +174,7 @@ class Scope: public ZoneObject {
     ASSERT(!already_resolved());
     VariableProxy* proxy =
         factory->NewVariableProxy(name, false, position, interface);
-    unresolved_.Add(proxy);
+    unresolved_.Add(proxy, zone_);
     return proxy;
   }
 
@@ -312,9 +319,8 @@ class Scope: public ZoneObject {
   Variable* receiver() { return receiver_; }
 
   // The variable holding the function literal for named function
-  // literals, or NULL.
-  // Only valid for function scopes.
-  VariableProxy* function() const {
+  // literals, or NULL.  Only valid for function scopes.
+  VariableDeclaration* function() const {
     ASSERT(is_function_scope());
     return function_;
   }
@@ -449,7 +455,7 @@ class Scope: public ZoneObject {
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
-  VariableProxy* function_;
+  VariableDeclaration* function_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
   // Interface; module scopes only.
@@ -588,14 +594,15 @@ class Scope: public ZoneObject {
 
  private:
   // Construct a scope based on the scope info.
-  Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info);
+  Scope(Scope* inner_scope, ScopeType type, Handle<ScopeInfo> scope_info,
+        Zone* zone);
 
   // Construct a catch scope with a binding for the name.
-  Scope(Scope* inner_scope, Handle<String> catch_variable_name);
+  Scope(Scope* inner_scope, Handle<String> catch_variable_name, Zone* zone);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
-      inner_scopes_.Add(inner_scope);
+      inner_scopes_.Add(inner_scope, zone_);
       inner_scope->outer_scope_ = this;
     }
   }
@@ -603,6 +610,8 @@ class Scope: public ZoneObject {
   void SetDefaults(ScopeType type,
                    Scope* outer_scope,
                    Handle<ScopeInfo> scope_info);
+
+  Zone* zone_;
 };
 
 } }  // namespace v8::internal

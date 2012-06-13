@@ -581,9 +581,8 @@ PreParser::Statement PreParser::ParseWithStatement(bool* ok) {
   ParseExpression(true, CHECK_OK);
   Expect(i::Token::RPAREN, CHECK_OK);
 
-  scope_->EnterWith();
+  Scope::InsideWith iw(scope_);
   ParseStatement(CHECK_OK);
-  scope_->LeaveWith();
   return Statement::Default();
 }
 
@@ -749,10 +748,9 @@ PreParser::Statement PreParser::ParseTryStatement(bool* ok) {
       return Statement::Default();
     }
     Expect(i::Token::RPAREN, CHECK_OK);
-    scope_->EnterWith();
-    ParseBlock(ok);
-    scope_->LeaveWith();
-    if (!*ok) Statement::Default();
+    { Scope::InsideWith iw(scope_);
+      ParseBlock(CHECK_OK);
+    }
     catch_or_finally_seen = true;
   }
   if (peek() == i::Token::FINALLY) {

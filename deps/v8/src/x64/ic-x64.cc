@@ -769,25 +769,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ CompareRoot(r9, Heap::kHeapNumberMapRootIndex);
   __ j(not_equal, &non_double_value);
 
-  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
+  // Value is a double. Transition FAST_SMI_ELEMENTS ->
   // FAST_DOUBLE_ELEMENTS and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_DOUBLE_ELEMENTS,
                                          rbx,
                                          rdi,
                                          &slow);
-  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                          FAST_ELEMENTS,
                                          rbx,
                                          rdi,
                                          &slow);
-  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 
@@ -1642,7 +1642,7 @@ void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
   // Must return the modified receiver in eax.
   if (!FLAG_trace_elements_transitions) {
     Label fail;
-    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    ElementsTransitionGenerator::GenerateSmiToDouble(masm, &fail);
     __ movq(rax, rdx);
     __ Ret();
     __ bind(&fail);
@@ -1741,11 +1741,11 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 
   // Activate inlined smi code.
   if (previous_state == UNINITIALIZED) {
-    PatchInlinedSmiCode(address());
+    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
   }
 }
 
-void PatchInlinedSmiCode(Address address) {
+void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // The address of the instruction following the call.
   Address test_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
@@ -1766,14 +1766,18 @@ void PatchInlinedSmiCode(Address address) {
            address, test_instruction_address, delta);
   }
 
-  // Patch with a short conditional jump. There must be a
-  // short jump-if-carry/not-carry at this position.
+  // Patch with a short conditional jump. Enabling means switching from a short
+  // jump-if-carry/not-carry to jump-if-zero/not-zero, whereas disabling is the
+  // reverse operation of that.
   Address jmp_address = test_instruction_address - delta;
-  ASSERT(*jmp_address == Assembler::kJncShortOpcode ||
-         *jmp_address == Assembler::kJcShortOpcode);
-  Condition cc = *jmp_address == Assembler::kJncShortOpcode
-      ? not_zero
-      : zero;
+  ASSERT((check == ENABLE_INLINED_SMI_CHECK)
+         ? (*jmp_address == Assembler::kJncShortOpcode ||
+            *jmp_address == Assembler::kJcShortOpcode)
+         : (*jmp_address == Assembler::kJnzShortOpcode ||
+            *jmp_address == Assembler::kJzShortOpcode));
+  Condition cc = (check == ENABLE_INLINED_SMI_CHECK)
+      ? (*jmp_address == Assembler::kJncShortOpcode ? not_zero : zero)
+      : (*jmp_address == Assembler::kJnzShortOpcode ? not_carry : carry);
   *jmp_address = static_cast<byte>(Assembler::kJccShortPrefix | cc);
 }
 

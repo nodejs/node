@@ -460,15 +460,16 @@ MaybeObject* Heap::PrepareForCompare(String* str) {
 }
 
 
-int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
+intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
+    intptr_t change_in_bytes) {
   ASSERT(HasBeenSetUp());
-  int amount = amount_of_external_allocated_memory_ + change_in_bytes;
+  intptr_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
   if (change_in_bytes >= 0) {
     // Avoid overflow.
     if (amount > amount_of_external_allocated_memory_) {
       amount_of_external_allocated_memory_ = amount;
     }
-    int amount_since_last_global_gc =
+    intptr_t amount_since_last_global_gc =
         amount_of_external_allocated_memory_ -
         amount_of_external_allocated_memory_at_last_global_gc_;
     if (amount_since_last_global_gc > external_allocation_limit_) {
@@ -594,12 +595,24 @@ void ExternalStringTable::Iterate(ObjectVisitor* v) {
 void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    ASSERT(heap_->InNewSpace(new_space_strings_[i]));
-    ASSERT(new_space_strings_[i] != HEAP->raw_unchecked_the_hole_value());
+    Object* obj = Object::cast(new_space_strings_[i]);
+    // TODO(yangguo): check that the object is indeed an external string.
+    ASSERT(heap_->InNewSpace(obj));
+    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
+    if (obj->IsExternalAsciiString()) {
+      ExternalAsciiString* string = ExternalAsciiString::cast(obj);
+      ASSERT(String::IsAscii(string->GetChars(), string->length()));
+    }
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    ASSERT(!heap_->InNewSpace(old_space_strings_[i]));
-    ASSERT(old_space_strings_[i] != HEAP->raw_unchecked_the_hole_value());
+    Object* obj = Object::cast(old_space_strings_[i]);
+    // TODO(yangguo): check that the object is indeed an external string.
+    ASSERT(!heap_->InNewSpace(obj));
+    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
+    if (obj->IsExternalAsciiString()) {
+      ExternalAsciiString* string = ExternalAsciiString::cast(obj);
+      ASSERT(String::IsAscii(string->GetChars(), string->length()));
+    }
   }
 #endif
 }

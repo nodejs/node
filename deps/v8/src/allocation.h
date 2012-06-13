@@ -104,7 +104,7 @@ char* StrNDup(const char* str, int n);
 // and free. Used as the default policy for lists.
 class FreeStoreAllocationPolicy {
  public:
-  INLINE(static void* New(size_t size)) { return Malloced::New(size); }
+  INLINE(void* New(size_t size)) { return Malloced::New(size); }
   INLINE(static void Delete(void* p)) { Malloced::Delete(p); }
 };
 
@@ -117,12 +117,6 @@ class PreallocatedStorage {
   explicit PreallocatedStorage(size_t size);
   size_t size() { return size_; }
 
-  // TODO(isolates): Get rid of these-- we'll have to change the allocator
-  //                 interface to include a pointer to an isolate to do this
-  //                 efficiently.
-  static inline void* New(size_t size);
-  static inline void Delete(void* p);
-
  private:
   size_t size_;
   PreallocatedStorage* previous_;
@@ -134,6 +128,12 @@ class PreallocatedStorage {
   friend class Isolate;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PreallocatedStorage);
+};
+
+
+struct PreallocatedStorageAllocationPolicy {
+  INLINE(void* New(size_t size));
+  INLINE(static void Delete(void* ptr));
 };
 
 

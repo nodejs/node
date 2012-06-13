@@ -81,7 +81,8 @@ class ListDiffOutputWriter : public Comparator::Output {
     (*next_chunk_pointer_) = NULL;
   }
   void AddChunk(int pos1, int pos2, int len1, int len2) {
-    current_chunk_ = new DiffChunkStruct(pos1, pos2, len1, len2);
+    current_chunk_ =
+        new(Isolate::Current()->zone()) DiffChunkStruct(pos1, pos2, len1, len2);
     (*next_chunk_pointer_) = current_chunk_;
     next_chunk_pointer_ = &current_chunk_->next;
   }

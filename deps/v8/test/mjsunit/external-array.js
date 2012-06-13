@@ -52,13 +52,53 @@ assertThrows(abfunc1);
 // Test derivation from an ArrayBuffer
 var ab = new ArrayBuffer(12);
 var derived_uint8 = new Uint8Array(ab);
+assertSame(ab, derived_uint8.buffer);
 assertEquals(12, derived_uint8.length);
+assertEquals(12, derived_uint8.byteLength);
+assertEquals(0, derived_uint8.byteOffset);
+assertEquals(1, derived_uint8.BYTES_PER_ELEMENT);
+var derived_uint8_2 = new Uint8Array(ab,7);
+assertSame(ab, derived_uint8_2.buffer);
+assertEquals(5, derived_uint8_2.length);
+assertEquals(5, derived_uint8_2.byteLength);
+assertEquals(7, derived_uint8_2.byteOffset);
+assertEquals(1, derived_uint8_2.BYTES_PER_ELEMENT);
+var derived_int16 = new Int16Array(ab);
+assertSame(ab, derived_int16.buffer);
+assertEquals(6, derived_int16.length);
+assertEquals(12, derived_int16.byteLength);
+assertEquals(0, derived_int16.byteOffset);
+assertEquals(2, derived_int16.BYTES_PER_ELEMENT);
+var derived_int16_2 = new Int16Array(ab,6);
+assertSame(ab, derived_int16_2.buffer);
+assertEquals(3, derived_int16_2.length);
+assertEquals(6, derived_int16_2.byteLength);
+assertEquals(6, derived_int16_2.byteOffset);
+assertEquals(2, derived_int16_2.BYTES_PER_ELEMENT);
 var derived_uint32 = new Uint32Array(ab);
+assertSame(ab, derived_uint32.buffer);
 assertEquals(3, derived_uint32.length);
+assertEquals(12, derived_uint32.byteLength);
+assertEquals(0, derived_uint32.byteOffset);
+assertEquals(4, derived_uint32.BYTES_PER_ELEMENT);
 var derived_uint32_2 = new Uint32Array(ab,4);
+assertSame(ab, derived_uint32_2.buffer);
 assertEquals(2, derived_uint32_2.length);
+assertEquals(8, derived_uint32_2.byteLength);
+assertEquals(4, derived_uint32_2.byteOffset);
+assertEquals(4, derived_uint32_2.BYTES_PER_ELEMENT);
 var derived_uint32_3 = new Uint32Array(ab,4,1);
+assertSame(ab, derived_uint32_3.buffer);
 assertEquals(1, derived_uint32_3.length);
+assertEquals(4, derived_uint32_3.byteLength);
+assertEquals(4, derived_uint32_3.byteOffset);
+assertEquals(4, derived_uint32_3.BYTES_PER_ELEMENT);
+var derived_float64 = new Float64Array(ab,0,1);
+assertSame(ab, derived_float64.buffer);
+assertEquals(1, derived_float64.length);
+assertEquals(8, derived_float64.byteLength);
+assertEquals(0, derived_float64.byteOffset);
+assertEquals(8, derived_float64.BYTES_PER_ELEMENT);
 
 // If a given byteOffset and length references an area beyond the end of the
 // ArrayBuffer an exception is raised.
@@ -86,6 +126,24 @@ function abfunc6() {
   new Uint32Array(ab2,4);
 }
 assertThrows(abfunc6);
+
+// Test that an array constructed without an array buffer creates one properly.
+a = new Uint8Array(31);
+assertEquals(a.byteLength, a.buffer.byteLength);
+assertEquals(a.length, a.buffer.byteLength);
+assertEquals(a.length * a.BYTES_PER_ELEMENT, a.buffer.byteLength);
+a = new Int16Array(5);
+assertEquals(a.byteLength, a.buffer.byteLength);
+assertEquals(a.length * a.BYTES_PER_ELEMENT, a.buffer.byteLength);
+a = new Float64Array(7);
+assertEquals(a.byteLength, a.buffer.byteLength);
+assertEquals(a.length * a.BYTES_PER_ELEMENT, a.buffer.byteLength);
+
+// Test that an implicitly created buffer is a valid buffer.
+a = new Float64Array(7);
+assertSame(a.buffer, (new Uint16Array(a.buffer)).buffer);
+assertSame(a.buffer, (new Float32Array(a.buffer,4)).buffer);
+assertSame(a.buffer, (new Int8Array(a.buffer,3,51)).buffer);
 
 // Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
 // "constant", but not read-only).
@@ -351,3 +409,25 @@ assertTrue(isNaN(float64_array[0]));
 %OptimizeFunctionOnNextCall(store_float64_undefined);
 store_float64_undefined(float64_array);
 assertTrue(isNaN(float64_array[0]));
+
+
+// Check handling of 0-sized buffers and arrays.
+
+ab = new ArrayBuffer(0);
+assertEquals(0, ab.byteLength);
+a = new Int8Array(ab);
+assertEquals(0, a.byteLength);
+assertEquals(0, a.length);
+a[0] = 1;
+assertEquals(undefined, a[0])
+ab = new ArrayBuffer(16);
+a = new Float32Array(ab,4,0);
+assertEquals(0, a.byteLength);
+assertEquals(0, a.length);
+a[0] = 1;
+assertEquals(undefined, a[0])
+a = new Uint16Array(0);
+assertEquals(0, a.byteLength);
+assertEquals(0, a.length);
+a[0] = 1;
+assertEquals(undefined, a[0])

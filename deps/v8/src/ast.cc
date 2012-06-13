@@ -242,8 +242,11 @@ bool IsEqualNumber(void* first, void* second) {
 }
 
 
-void ObjectLiteral::CalculateEmitStore() {
-  ZoneHashMap table(Literal::Match);
+void ObjectLiteral::CalculateEmitStore(Zone* zone) {
+  ZoneAllocationPolicy allocator(zone);
+
+  ZoneHashMap table(Literal::Match, ZoneHashMap::kDefaultHashMapCapacity,
+                    allocator);
   for (int i = properties()->length() - 1; i >= 0; i--) {
     ObjectLiteral::Property* property = properties()->at(i);
     Literal* literal = property->key();
@@ -252,23 +255,23 @@ void ObjectLiteral::CalculateEmitStore() {
     // If the key of a computed property is in the table, do not emit
     // a store for the property later.
     if (property->kind() == ObjectLiteral::Property::COMPUTED &&
-        table.Lookup(literal, hash, false) != NULL) {
+        table.Lookup(literal, hash, false, allocator) != NULL) {
       property->set_emit_store(false);
     } else {
       // Add key to the table.
-      table.Lookup(literal, hash, true);
+      table.Lookup(literal, hash, true, allocator);
     }
   }
 }
 
 
-void TargetCollector::AddTarget(Label* target) {
+void TargetCollector::AddTarget(Label* target, Zone* zone) {
   // Add the label to the collector, but discard duplicates.
   int length = targets_.length();
   for (int i = 0; i < length; i++) {
     if (targets_[i] == target) return;
   }
-  targets_.Add(target);
+  targets_.Add(target, zone);
 }
 
 
@@ -397,7 +400,8 @@ bool FunctionDeclaration::IsInlineable() const {
 // ----------------------------------------------------------------------------
 // Recording of type feedback
 
-void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                                  Zone* zone) {
   // Record type feedback from the oracle in the AST.
   is_uninitialized_ = oracle->LoadIsUninitialized(this);
   if (is_uninitialized_) return;
@@ -421,15 +425,17 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
-    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this));
+    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this),
+                        zone);
   } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism);
+    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
   }
 }
 
 
-void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                                    Zone* zone) {
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
@@ -441,22 +447,23 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
     oracle->StoreReceiverTypes(this, name, &receiver_types_);
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this));
+    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this), zone);
   } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism);
+    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
   }
 }
 
 
-void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
+void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
+                                        Zone* zone) {
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
   receiver_types_.Clear();
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this));
+    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this), zone);
   } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
-    receiver_types_.Reserve(kMaxKeyedPolymorphism);
+    receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
   }
 }
@@ -507,7 +514,6 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
           // We don't know the target.
           return false;
         case MAP_TRANSITION:
-        case ELEMENTS_TRANSITION:
         case CONSTANT_TRANSITION:
         case NULL_DESCRIPTOR:
           // Perhaps something interesting is up in the prototype chain...
@@ -784,7 +790,7 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // output formats are alike.
 class RegExpUnparser: public RegExpVisitor {
  public:
-  RegExpUnparser();
+  explicit RegExpUnparser(Zone* zone);
   void VisitCharacterRange(CharacterRange that);
   SmartArrayPointer<const char> ToString() { return stream_.ToCString(); }
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
@@ -794,10 +800,11 @@ class RegExpUnparser: public RegExpVisitor {
   StringStream* stream() { return &stream_; }
   HeapStringAllocator alloc_;
   StringStream stream_;
+  Zone* zone_;
 };
 
 
-RegExpUnparser::RegExpUnparser() : stream_(&alloc_) {
+RegExpUnparser::RegExpUnparser(Zone* zone) : stream_(&alloc_), zone_(zone) {
 }
 
 
@@ -837,9 +844,9 @@ void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
   if (that->is_negated())
     stream()->Add("^");
   stream()->Add("[");
-  for (int i = 0; i < that->ranges()->length(); i++) {
+  for (int i = 0; i < that->ranges(zone_)->length(); i++) {
     if (i > 0) stream()->Add(" ");
-    VisitCharacterRange(that->ranges()->at(i));
+    VisitCharacterRange(that->ranges(zone_)->at(i));
   }
   stream()->Add("]");
   return NULL;
@@ -941,8 +948,8 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
 }
 
 
-SmartArrayPointer<const char> RegExpTree::ToString() {
-  RegExpUnparser unparser;
+SmartArrayPointer<const char> RegExpTree::ToString(Zone* zone) {
+  RegExpUnparser unparser(zone);
   Accept(&unparser, NULL);
   return unparser.ToString();
 }
@@ -962,6 +969,14 @@ RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
 }
 
 
+static int IncreaseBy(int previous, int increase) {
+  if (RegExpTree::kInfinity - previous < increase) {
+    return RegExpTree::kInfinity;
+  } else {
+    return previous + increase;
+  }
+}
+
 RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
     : nodes_(nodes) {
   ASSERT(nodes->length() > 1);
@@ -969,13 +984,10 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
   max_match_ = 0;
   for (int i = 0; i < nodes->length(); i++) {
     RegExpTree* node = nodes->at(i);
-    min_match_ += node->min_match();
+    int node_min_match = node->min_match();
+    min_match_ = IncreaseBy(min_match_, node_min_match);
     int node_max_match = node->max_match();
-    if (kInfinity - max_match_ < node_max_match) {
-      max_match_ = kInfinity;
-    } else {
-      max_match_ += node->max_match();
-    }
+    max_match_ = IncreaseBy(max_match_, node_max_match);
   }
 }
 
@@ -993,138 +1005,78 @@ CaseClause::CaseClause(Isolate* isolate,
 }
 
 
-#define INCREASE_NODE_COUNT(NodeType) \
+#define REGULAR_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
   }
+#define DONT_OPTIMIZE_NODE(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+    add_flag(kDontOptimize); \
+    add_flag(kDontInline); \
+    add_flag(kDontSelfOptimize); \
+  }
+#define DONT_INLINE_NODE(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+    add_flag(kDontInline); \
+  }
+#define DONT_SELFOPTIMIZE_NODE(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+    add_flag(kDontSelfOptimize); \
+  }
 
-INCREASE_NODE_COUNT(VariableDeclaration)
-INCREASE_NODE_COUNT(FunctionDeclaration)
-INCREASE_NODE_COUNT(ModuleDeclaration)
-INCREASE_NODE_COUNT(ImportDeclaration)
-INCREASE_NODE_COUNT(ExportDeclaration)
-INCREASE_NODE_COUNT(ModuleLiteral)
-INCREASE_NODE_COUNT(ModuleVariable)
-INCREASE_NODE_COUNT(ModulePath)
-INCREASE_NODE_COUNT(ModuleUrl)
-INCREASE_NODE_COUNT(Block)
-INCREASE_NODE_COUNT(ExpressionStatement)
-INCREASE_NODE_COUNT(EmptyStatement)
-INCREASE_NODE_COUNT(IfStatement)
-INCREASE_NODE_COUNT(ContinueStatement)
-INCREASE_NODE_COUNT(BreakStatement)
-INCREASE_NODE_COUNT(ReturnStatement)
-INCREASE_NODE_COUNT(Conditional)
-INCREASE_NODE_COUNT(Literal)
-INCREASE_NODE_COUNT(ObjectLiteral)
-INCREASE_NODE_COUNT(Assignment)
-INCREASE_NODE_COUNT(Throw)
-INCREASE_NODE_COUNT(Property)
-INCREASE_NODE_COUNT(UnaryOperation)
-INCREASE_NODE_COUNT(CountOperation)
-INCREASE_NODE_COUNT(BinaryOperation)
-INCREASE_NODE_COUNT(CompareOperation)
-INCREASE_NODE_COUNT(ThisFunction)
-INCREASE_NODE_COUNT(Call)
-INCREASE_NODE_COUNT(CallNew)
+REGULAR_NODE(VariableDeclaration)
+REGULAR_NODE(FunctionDeclaration)
+REGULAR_NODE(Block)
+REGULAR_NODE(ExpressionStatement)
+REGULAR_NODE(EmptyStatement)
+REGULAR_NODE(IfStatement)
+REGULAR_NODE(ContinueStatement)
+REGULAR_NODE(BreakStatement)
+REGULAR_NODE(ReturnStatement)
+REGULAR_NODE(SwitchStatement)
+REGULAR_NODE(Conditional)
+REGULAR_NODE(Literal)
+REGULAR_NODE(ObjectLiteral)
+REGULAR_NODE(Assignment)
+REGULAR_NODE(Throw)
+REGULAR_NODE(Property)
+REGULAR_NODE(UnaryOperation)
+REGULAR_NODE(CountOperation)
+REGULAR_NODE(BinaryOperation)
+REGULAR_NODE(CompareOperation)
+REGULAR_NODE(ThisFunction)
+REGULAR_NODE(Call)
+REGULAR_NODE(CallNew)
+// In theory, for VariableProxy we'd have to add:
+// if (node->var()->IsLookupSlot()) add_flag(kDontInline);
+// But node->var() is usually not bound yet at VariableProxy creation time, and
+// LOOKUP variables only result from constructs that cannot be inlined anyway.
+REGULAR_NODE(VariableProxy)
 
-#undef INCREASE_NODE_COUNT
+DONT_OPTIMIZE_NODE(ModuleDeclaration)
+DONT_OPTIMIZE_NODE(ImportDeclaration)
+DONT_OPTIMIZE_NODE(ExportDeclaration)
+DONT_OPTIMIZE_NODE(ModuleLiteral)
+DONT_OPTIMIZE_NODE(ModuleVariable)
+DONT_OPTIMIZE_NODE(ModulePath)
+DONT_OPTIMIZE_NODE(ModuleUrl)
+DONT_OPTIMIZE_NODE(WithStatement)
+DONT_OPTIMIZE_NODE(TryCatchStatement)
+DONT_OPTIMIZE_NODE(TryFinallyStatement)
+DONT_OPTIMIZE_NODE(DebuggerStatement)
+DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
 
+DONT_INLINE_NODE(FunctionLiteral)
+DONT_INLINE_NODE(RegExpLiteral)  // TODO(1322): Allow materialized literals.
+DONT_INLINE_NODE(ArrayLiteral)  // TODO(1322): Allow materialized literals.
 
-void AstConstructionVisitor::VisitWithStatement(WithStatement* node) {
-  increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitSwitchStatement(SwitchStatement* node) {
-  increase_node_count();
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
-void AstConstructionVisitor::VisitWhileStatement(WhileStatement* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
-void AstConstructionVisitor::VisitForStatement(ForStatement* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
-void AstConstructionVisitor::VisitForInStatement(ForInStatement* node) {
-  increase_node_count();
-  add_flag(kDontSelfOptimize);
-}
-
-
-void AstConstructionVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
-  increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitTryFinallyStatement(
-    TryFinallyStatement* node) {
-  increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
-  increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
-  increase_node_count();
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* node) {
-  increase_node_count();
-  add_flag(kDontOptimize);
-  add_flag(kDontInline);
-}
-
-
-void AstConstructionVisitor::VisitVariableProxy(VariableProxy* node) {
-  increase_node_count();
-  // In theory, we'd have to add:
-  // if(node->var()->IsLookupSlot()) { add_flag(kDontInline); }
-  // However, node->var() is usually not bound yet at VariableProxy creation
-  // time, and LOOKUP variables only result from constructs that cannot
-  // be inlined anyway.
-}
-
-
-void AstConstructionVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
-  increase_node_count();
-  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
-}
-
-
-void AstConstructionVisitor::VisitArrayLiteral(ArrayLiteral* node) {
-  increase_node_count();
-  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
-}
-
+DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
+DONT_SELFOPTIMIZE_NODE(WhileStatement)
+DONT_SELFOPTIMIZE_NODE(ForStatement)
+DONT_SELFOPTIMIZE_NODE(ForInStatement)
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
@@ -1141,6 +1093,11 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     add_flag(kDontInline);
   }
 }
+
+#undef REGULAR_NODE
+#undef DONT_OPTIMIZE_NODE
+#undef DONT_INLINE_NODE
+#undef DONT_SELFOPTIMIZE_NODE
 
 
 Handle<String> Literal::ToString() {

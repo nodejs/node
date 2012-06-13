@@ -126,13 +126,13 @@ ecma/Date/15.9.2.2-5: PASS || FAIL
 ecma/Date/15.9.2.2-6: PASS || FAIL
 
 # 1026139: These date tests fail on arm and mips
-ecma/Date/15.9.5.29-1: PASS || (($ARM || $MIPS) && FAIL)
-ecma/Date/15.9.5.34-1: PASS || (($ARM || $MIPS) && FAIL)
-ecma/Date/15.9.5.28-1: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Date/15.9.5.29-1: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.34-1: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.28-1: PASS || FAIL if ($arch == arm || $arch == mips)
 
 # 1050186: Arm/MIPS vm is broken; probably unrelated to dates
-ecma/Array/15.4.4.5-3: PASS || (($ARM || $MIPS) && FAIL)
-ecma/Date/15.9.5.22-2: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Array/15.4.4.5-3: PASS || FAIL if ($arch == arm || $arch == mips)
+ecma/Date/15.9.5.22-2: PASS || FAIL if ($arch == arm || $arch == mips)
 
 # Flaky test that fails due to what appears to be a bug in the test.
 # Occurs depending on current time
@@ -244,9 +244,6 @@ js1_5/Function/regress-338121-03: FAIL_OK
 
 # Expectes 'prototype' property of functions to be enumerable.
 js1_5/Function/10.1.6-01: FAIL_OK
-
-# Length of objects whose prototype chain includes a function
-ecma_3/Function/regress-313570: FAIL_OK
 
 # toPrecision argument restricted to range 1..21 in JSC/V8
 js1_5/Regress/regress-452346: FAIL_OK
@@ -592,6 +589,20 @@ js1_5/Regress/regress-416737-01: FAIL_OK
 js1_5/Regress/regress-416737-02: FAIL_OK
 
 
+# Illegal escape-sequences in string literals. Has already been fixed
+# by most engines (i.e. V8, JSC, Opera and FF).
+ecma/Array/15.4.5.1-1: FAIL_OK
+ecma/LexicalConventions/7.7.4: FAIL_OK
+ecma_2/RegExp/hex-001: FAIL_OK
+js1_2/regexp/hexadecimal: FAIL_OK
+
+
+# The source field of RegExp objects is properly escaped. We match JSC.
+ecma_2/RegExp/constructor-001: FAIL_OK
+ecma_2/RegExp/function-001: FAIL_OK
+ecma_2/RegExp/properties-001: FAIL_OK
+
+
 ##################### FAILING TESTS #####################
 
 # This section is for tests that fail in V8 and pass in JSC.
@@ -737,7 +748,6 @@ js1_5/extensions/regress-90596-001: FAIL_OK
 js1_5/extensions/regress-90596-002: FAIL_OK
 js1_5/extensions/regress-96284-001: FAIL_OK
 js1_5/extensions/regress-96284-002: FAIL_OK
-js1_5/extensions/scope-001: FAIL_OK
 js1_5/extensions/toLocaleFormat-01: FAIL_OK
 js1_5/extensions/toLocaleFormat-02: FAIL_OK
 
