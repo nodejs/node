@@ -56,9 +56,14 @@ function status() {
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {
-    console.log('All should be collected now.');
-    assert(count === countGC);
-    process.exit(0);
+    /* Give libuv some time to make close callbacks. */
+    setTimeout(function() {
+      gc();
+      console.log('All should be collected now.');
+      console.log('Collected: %d/%d', countGC, count);
+      assert(count === countGC);
+      process.exit(0);
+    }, 200);
   }
 }
 
