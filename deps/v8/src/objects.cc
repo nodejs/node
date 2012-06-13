@@ -1720,11 +1720,13 @@ MaybeObject* JSObject::AddProperty(String* name,
                                    Object* value,
                                    PropertyAttributes attributes,
                                    StrictModeFlag strict_mode,
-                                   JSReceiver::StoreFromKeyed store_mode) {
+                                   JSReceiver::StoreFromKeyed store_mode,
+                                   ExtensibilityCheck extensibility_check) {
   ASSERT(!IsJSGlobalProxy());
   Map* map_of_this = map();
   Heap* heap = GetHeap();
-  if (!map_of_this->is_extensible()) {
+  if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
+      !map_of_this->is_extensible()) {
     if (strict_mode == kNonStrictMode) {
       return value;
     } else {
@@ -1763,7 +1765,8 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,
     PropertyAttributes attributes,
-    StrictModeFlag strict_mode) {
+    StrictModeFlag strict_mode,
+    ExtensibilityCheck extensibility_check) {
   // Check local property, ignore interceptor.
   LookupResult result(GetIsolate());
   LocalLookupRealNamedProperty(name, &result);
@@ -1778,7 +1781,8 @@ MaybeObject* JSObject::SetPropertyPostInterceptor(
       SetPropertyViaPrototypes(name, value, attributes, strict_mode, &done);
   if (done) return result_object;
   // Add a new real property.
-  return AddProperty(name, value, attributes, strict_mode);
+  return AddProperty(name, value, attributes, strict_mode,
+                     MAY_BE_STORE_FROM_KEYED, extensibility_check);
 }
 
 
@@ -1935,7 +1939,8 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
                                               attributes,
-                                              strict_mode);
+                                              strict_mode,
+                                              PERFORM_EXTENSIBILITY_CHECK);
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   return raw_result;
 }
@@ -3664,11 +3669,14 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
   MaybeObject* dict_alloc = StringDictionary::Allocate(kInitialSize);
   StringDictionary* dictionary;
   if (!dict_alloc->To<StringDictionary>(&dictionary)) return dict_alloc;
-  // Using AddProperty or SetPropertyPostInterceptor here could fail, because
-  // object might be non-extensible.
-  return HasFastProperties()
-      ? AddFastProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM)
-      : AddSlowProperty(GetHeap()->hidden_symbol(), dictionary, DONT_ENUM);
+  MaybeObject* store_result =
+      SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
+                                 dictionary,
+                                 DONT_ENUM,
+                                 kNonStrictMode,
+                                 OMIT_EXTENSIBILITY_CHECK);
+  if (store_result->IsFailure()) return store_result;
+  return dictionary;
 }
 
 
@@ -3697,7 +3705,8 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
       SetPropertyPostInterceptor(GetHeap()->hidden_symbol(),
                                  dictionary,
                                  DONT_ENUM,
-                                 kNonStrictMode);
+                                 kNonStrictMode,
+                                 OMIT_EXTENSIBILITY_CHECK);
   if (store_result->IsFailure()) return store_result;
   return this;
 }

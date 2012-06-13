@@ -1369,6 +1369,13 @@ class JSReceiver: public HeapObject {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
+  // Internal properties (e.g. the hidden properties dictionary) might
+  // be added even though the receiver is non-extensible.
+  enum ExtensibilityCheck {
+    PERFORM_EXTENSIBILITY_CHECK,
+    OMIT_EXTENSIBILITY_CHECK
+  };
+
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
@@ -1567,7 +1574,8 @@ class JSObject: public JSReceiver {
       String* name,
       Object* value,
       PropertyAttributes attributes,
-      StrictModeFlag strict_mode);
+      StrictModeFlag strict_mode,
+      ExtensibilityCheck extensibility_check);
 
   static Handle<Object> SetLocalPropertyIgnoreAttributes(
       Handle<JSObject> object,
@@ -1959,7 +1967,8 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
+      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK);
 
   // Convert the object to use the canonical dictionary
   // representation. If the object is expected to have additional properties
