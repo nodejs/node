@@ -10,5 +10,5 @@ ReferenceError: foo is not defined
     at *..js (module.js:*)
     at Module.load (module.js:*)
     at *._load (module.js:*)
-    at Module.runMain (module.js:*)
+    at module.js:*
     at *._tickCallback (node.js:*)
