@@ -61,17 +61,16 @@ test-http1: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind simple message
 
-node_modules/weak:
+test/gc/node_modules/weak/build:
 	@if [ ! -f node ]; then make all; fi
-	@if [ ! -d node_modules ]; then mkdir -p node_modules; fi
-	./node deps/npm/bin/npm-cli.js install weak \
-		--nodedir="$(shell pwd)" \
-		--prefix="$(shell pwd)" --unsafe-perm # go ahead and run as root.
+	./node deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
+		--directory="$(shell pwd)/test/gc/node_modules/weak" \
+		--nodedir="$(shell pwd)"
 
-test-gc: all node_modules/weak
+test-gc: all test/gc/node_modules/weak/build
 	$(PYTHON) tools/test.py --mode=release gc
 
-test-all: all node_modules/weak
+test-all: all test/gc/node_modules/weak/build
 	$(PYTHON) tools/test.py --mode=debug,release
 	make test-npm
 

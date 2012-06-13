@@ -28,6 +28,7 @@ set msi=
 set licensertf=
 set upload=
 set jslint=
+set buildnodeweak=
 set noetw=
 set noetw_arg=
 set noetw_msi_arg=
@@ -51,7 +52,8 @@ if /i "%1"=="test-internet" set test=test-internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test=test-pummel&goto arg-ok
 if /i "%1"=="test-simple"   set test=test-simple&goto arg-ok
 if /i "%1"=="test-message"  set test=test-message&goto arg-ok
-if /i "%1"=="test-all"      set test=test-all&goto arg-ok
+if /i "%1"=="test-gc"       set test=test-gc&set buildnodeweak=1&goto arg-ok
+if /i "%1"=="test-all"      set test=test-all&set buildnodeweak=1&goto arg-ok
 if /i "%1"=="test"          set test=test&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
@@ -62,6 +64,7 @@ echo Warning: ignoring invalid command line option `%1`.
 :arg-ok
 shift
 goto next-arg
+
 :args-done
 if defined upload goto upload
 if defined jslint goto jslint
@@ -139,13 +142,24 @@ if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% simple
 if "%test%"=="test-message" set test_args=%test_args% message
+if "%test%"=="test-gc" set test_args=%test_args% gc
 if "%test%"=="test-all" set test_args=%test_args%
 
+:build-node-weak
+@rem Build node-weak if required
+if "%buildnodeweak%"=="" goto run-tests
+"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
+if errorlevel 1 goto build-node-weak-failed
+goto run-tests
+
+:build-node-weak-failed
+echo Failed to build node-weak.
+goto exit
+
+:run-tests
 echo running 'python tools/test.py %test_args%'
 python tools/test.py %test_args%
-
 if "%test%"=="test" goto jslint
-
 goto exit
 
 :create-msvs-files-failed
