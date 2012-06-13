@@ -280,6 +280,18 @@ uv_err_code uv_translate_sys_error(int sys_errno);
 
 
 /*
+ * Process stdio handles.
+ */
+int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
+    BYTE** buffer_ptr);
+void uv__stdio_destroy(BYTE* buffer);
+void uv__stdio_noinherit(BYTE* buffer);
+int uv__stdio_verify(BYTE* buffer, WORD size);
+WORD uv__stdio_size(BYTE* buffer);
+HANDLE uv__stdio_handle(BYTE* buffer, int fd);
+
+
+/*
  * Winapi and ntapi utility functions
  */
 void uv_winapi_init();

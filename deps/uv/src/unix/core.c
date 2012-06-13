@@ -462,55 +462,69 @@ int uv__accept(int sockfd) {
 
 
 int uv__nonblock(int fd, int set) {
+  int r;
+
 #if FIONBIO
-  return ioctl(fd, FIONBIO, &set);
+  do
+    r = ioctl(fd, FIONBIO, &set);
+  while (r == -1 && errno == EINTR);
+
+  return r;
 #else
   int flags;
 
-  if ((flags = fcntl(fd, F_GETFL)) == -1) {
+  do
+    r = fcntl(fd, F_GETFL);
+  while (r == -1 && errno == EINTR);
+
+  if (r == -1)
     return -1;
-  }
 
-  if (set) {
-    flags |= O_NONBLOCK;
-  } else {
-    flags &= ~O_NONBLOCK;
-  }
+  if (set)
+    flags = r | O_NONBLOCK;
+  else
+    flags = r & ~O_NONBLOCK;
 
-  if (fcntl(fd, F_SETFL, flags) == -1) {
-    return -1;
-  }
+  do
+    r = fcntl(fd, F_SETFL, flags);
+  while (r == -1 && errno == EINTR);
 
-  return 0;
+  return r;
 #endif
 }
 
 
 int uv__cloexec(int fd, int set) {
+  int flags;
+  int r;
+
 #if __linux__
   /* Linux knows only FD_CLOEXEC so we can safely omit the fcntl(F_GETFD)
    * syscall. CHECKME: That's probably true for other Unices as well.
    */
-  return fcntl(fd, F_SETFD, set ? FD_CLOEXEC : 0);
+  if (set)
+    flags = FD_CLOEXEC;
+  else
+    flags = 0;
 #else
-  int flags;
+  do
+    r = fcntl(fd, F_GETFD);
+  while (r == -1 && errno == EINTR);
 
-  if ((flags = fcntl(fd, F_GETFD)) == -1) {
+  if (r == -1)
     return -1;
-  }
 
-  if (set) {
-    flags |= FD_CLOEXEC;
-  } else {
-    flags &= ~FD_CLOEXEC;
-  }
-
-  if (fcntl(fd, F_SETFD, flags) == -1) {
-    return -1;
-  }
-
-  return 0;
+  if (set)
+    flags = r | FD_CLOEXEC;
+  else
+    flags = r & ~FD_CLOEXEC;
 #endif
+
+  do
+    r = fcntl(fd, F_SETFD, flags);
+  while (r == -1 && errno == EINTR);
+
+  return r;
 }
 
 
@@ -569,6 +583,18 @@ uv_err_t uv_chdir(const char* dir) {
   } else {
     return uv__new_sys_error(errno);
   }
+}
+
+
+void uv_disable_stdio_inheritance(void) {
+  int fd;
+
+  /* Set the CLOEXEC flag on all open descriptors. Unconditionally try the
+   * first 16 file descriptors. After that, bail out after the first error.
+   */
+  for (fd = 0; ; fd++)
+    if (uv__cloexec(fd, 1) && fd > 15)
+      break;
 }
 
 

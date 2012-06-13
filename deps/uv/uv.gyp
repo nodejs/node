@@ -149,6 +149,7 @@
             'src/win/thread.c',
             'src/win/poll.c',
             'src/win/process.c',
+            'src/win/process-stdio.c',
             'src/win/req.c',
             'src/win/req-inl.h',
             'src/win/stream.c',

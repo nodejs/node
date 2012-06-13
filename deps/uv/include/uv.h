@@ -1581,6 +1581,22 @@ UV_EXTERN extern uint64_t uv_hrtime(void);
 
 
 /*
+ * Disables inheritance for file descriptors / handles that this process
+ * inherited from its parent. The effect is that child processes spawned by
+ * this proces don't accidently inherit these handles.
+ *
+ * It is recommended to call this function as early in your program as possible,
+ * before the inherited file descriptors can be closed or duplicated.
+ *
+ * Note that this function works on a best-effort basis: there is no guarantee
+ * that libuv can discover all file descriptors that were inherited. In general
+ * it does a better job on Windows than it does on unix.
+ *
+ * TODO(bb): insert snarky remark to annoy bnoordhuis and the folks at joyent.
+ */
+UV_EXTERN void uv_disable_stdio_inheritance(void);
+
+/*
  * Opens a shared library. The filename is in utf-8. Returns 0 on success and
  * -1 on error. Call `uv_dlerror(uv_lib_t*)` to get the error message.
  */
