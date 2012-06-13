@@ -39,10 +39,15 @@ e1.removeAllListeners('baz');
 assert.deepEqual(e1.listeners('foo'), [listener]);
 assert.deepEqual(e1.listeners('bar'), []);
 assert.deepEqual(e1.listeners('baz'), []);
-// identity check, the array should not change
-assert.equal(e1.listeners('foo'), fooListeners);
-assert.equal(e1.listeners('bar'), barListeners);
-assert.equal(e1.listeners('baz'), bazListeners);
+// after calling removeAllListeners,
+// the old listeners array should stay unchanged
+assert.deepEqual(fooListeners, [listener]);
+assert.deepEqual(barListeners, [listener]);
+assert.deepEqual(bazListeners, [listener, listener]);
+// after calling removeAllListeners,
+// new listeners arrays are different from the old
+assert.notEqual(e1.listeners('bar'), barListeners);
+assert.notEqual(e1.listeners('baz'), bazListeners);
 
 var e2 = new events.EventEmitter();
 e2.on('foo', listener);
