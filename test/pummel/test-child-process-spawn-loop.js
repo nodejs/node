@@ -46,7 +46,7 @@ function doSpawn(i) {
     console.log('stderr: ' + chunk);
   });
 
-  child.on('exit', function() {
+  child.on('close', function() {
     // + 1 for \n or + 2 for \r\n on Windows
     assert.equal(SIZE + (is_windows ? 2 : 1), count);
     if (i < N) {
