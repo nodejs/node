@@ -33,14 +33,6 @@ if (isWindows) {
   // something like "C:\\"
   root = process.cwd().substr(0, 3);
 
-  // Symlinks MUST use \ paths, never / paths.
-  fs._symlinkSync = fs.symlinkSync;
-  fs.symlinkSync = function(a, b, type) {
-    a = a.split('/').join('\\');
-    b = b.split('/').join('\\');
-    return fs._symlinkSync(a, b, type);
-  };
-
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
   try {
