@@ -94,12 +94,6 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
     return -1;
   }
 
-  /* Make the socket non-inheritable */
-  if (!SetHandleInformation((HANDLE)socket, HANDLE_FLAG_INHERIT, 0)) {
-    uv__set_sys_error(loop, GetLastError());
-    return -1;
-  }
-
   /* Associate it with the I/O completion port. */
   /* Use uv_handle_t pointer as completion key. */
   if (CreateIoCompletionPort((HANDLE)socket,
@@ -258,6 +252,13 @@ static int uv__bind(uv_tcp_t* handle,
       return -1;
     }
 
+    /* Make the socket non-inheritable */
+    if (!SetHandleInformation((HANDLE) sock, HANDLE_FLAG_INHERIT, 0)) {
+      uv__set_sys_error(handle->loop, GetLastError());
+      closesocket(sock);
+      return -1;
+    }
+
     if (uv_tcp_set_socket(handle->loop, handle, sock, 0) == -1) {
       closesocket(sock);
       return -1;
@@ -368,6 +369,15 @@ static void uv_tcp_queue_accept(uv_tcp_t* handle, uv_tcp_accept_t* req) {
     SET_REQ_ERROR(req, WSAGetLastError());
     uv_insert_pending_req(loop, (uv_req_t*)req);
     handle->reqs_pending++;
+    return;
+  }
+
+  /* Make the socket non-inheritable */
+  if (!SetHandleInformation((HANDLE) accept_socket, HANDLE_FLAG_INHERIT, 0)) {
+    SET_REQ_ERROR(req, GetLastError());
+    uv_insert_pending_req(loop, (uv_req_t*)req);
+    handle->reqs_pending++;
+    closesocket(accept_socket);
     return;
   }
 
@@ -1154,19 +1164,26 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info,
     return -1;
   }
 
-  tcp->flags |= UV_HANDLE_BOUND;
-  tcp->flags |= UV_HANDLE_SHARED_TCP_SOCKET;
+  if (!SetHandleInformation((HANDLE) socket, HANDLE_FLAG_INHERIT, 0)) {
+    uv__set_sys_error(tcp->loop, GetLastError());
+    closesocket(socket);
+    return -1;
+  }
+
+  if (uv_tcp_set_socket(tcp->loop, tcp, socket, 1) != 0) {
+    closesocket(socket);
+    return -1;
+  }
 
   if (tcp_connection) {
     uv_connection_init((uv_stream_t*)tcp);
   }
 
+  tcp->flags |= UV_HANDLE_BOUND;
+  tcp->flags |= UV_HANDLE_SHARED_TCP_SOCKET;
+
   if (socket_protocol_info->iAddressFamily == AF_INET6) {
     tcp->flags |= UV_HANDLE_IPV6;
-  }
-
-  if (uv_tcp_set_socket(tcp->loop, tcp, socket, 1) != 0) {
-    return -1;
   }
 
   tcp->loop->active_tcp_streams++;
