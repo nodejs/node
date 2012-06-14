@@ -237,6 +237,8 @@ static void uv__process_child_init(uv_process_options_t options,
     if (i != use_fd) {
       dup2(use_fd, i);
       close(use_fd);
+    } else {
+      uv__cloexec(use_fd, 0);
     }
   }
 
