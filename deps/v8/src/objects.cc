@@ -8279,7 +8279,8 @@ void Code::ClearTypeFeedbackCells(Heap* heap) {
 
 
 bool Code::allowed_in_shared_map_code_cache() {
-  return is_keyed_load_stub() || is_keyed_store_stub();
+  return is_keyed_load_stub() || is_keyed_store_stub() ||
+      (is_compare_ic_stub() && compare_state() == CompareIC::KNOWN_OBJECTS);
 }
 
 
