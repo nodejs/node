@@ -116,16 +116,20 @@ void NODE_NET_STREAM_END(node_dtrace_connection_t* conn) {
 
 
 void NODE_GC_START(GCType type, GCCallbackFlags flags) {
-  EVENT_DATA_DESCRIPTOR descriptors[2];
-  ETW_WRITE_GC(descriptors, type, flags);
-  ETW_WRITE_EVENT(NODE_GC_START_EVENT, descriptors);
+  if (events_enabled > 0) {
+    EVENT_DATA_DESCRIPTOR descriptors[2];
+    ETW_WRITE_GC(descriptors, type, flags);
+    ETW_WRITE_EVENT(NODE_GC_START_EVENT, descriptors);
+  }
 }
 
 
 void NODE_GC_DONE(GCType type, GCCallbackFlags flags) {
-  EVENT_DATA_DESCRIPTOR descriptors[2];
-  ETW_WRITE_GC(descriptors, type, flags);
-  ETW_WRITE_EVENT(NODE_GC_DONE_EVENT, descriptors);
+  if (events_enabled > 0) {
+    EVENT_DATA_DESCRIPTOR descriptors[2];
+    ETW_WRITE_GC(descriptors, type, flags);
+    ETW_WRITE_EVENT(NODE_GC_DONE_EVENT, descriptors);
+  }
 }
 
 

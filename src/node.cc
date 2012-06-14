@@ -30,10 +30,6 @@
 # include "node_dtrace.h"
 #endif
 
-#ifdef HAVE_ETW
-# include "node_win32_etw_provider.h"
-#endif
-
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
@@ -2900,10 +2896,6 @@ int Start(int argc, char *argv[]) {
     // uv_unref'd) then this function exits. As long as there are active
     // watchers, it blocks.
     uv_run(uv_default_loop());
-
-#ifdef HAVE_ETW
-    shutdown_etw();
-#endif
 
     EmitExit(process_l);
     RunAtExit();
