@@ -174,7 +174,8 @@ inherits(ParagraphParser, Stream);
 
 /*
  * This filter consumes paragraph objects and emits modified paragraph objects.
- * The lines within the paragraph are unwrapped where appropriate.
+ * The lines within the paragraph are unwrapped where appropriate. It also
+ * replaces multiple consecutive whitespace characters by a single one.
  */
 function Unwrapper() {
   var self = this;
@@ -208,6 +209,12 @@ function Unwrapper() {
       } else {
         i++;
       }
+    }
+
+    for (i = 0; i < lines.length; i++) {
+      // Replace multiple whitespace characters by a single one, and strip
+      // trailing whitespace.
+      lines[i] = lines[i].replace(/\s+/g, ' ').replace(/\s+$/, '');
     }
 
     self.emit('data', paragraph);
