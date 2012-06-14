@@ -1602,7 +1602,7 @@ Handle<Code> KeyedIC::ComputeStub(Handle<JSObject> receiver,
     monomorphic = true;
   } else {
     GetReceiverMapsForStub(Handle<Code>(target()), &target_receiver_maps);
-    if (ic_state == MONOMORPHIC && is_transition_stub) {
+    if (ic_state == MONOMORPHIC && (is_transition_stub || stub_kind == LOAD)) {
       // The first time a receiver is seen that is a transitioned version of the
       // previous monomorphic receiver type, assume the new ElementsKind is the
       // monomorphic type. This benefits global arrays that only transition
