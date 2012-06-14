@@ -18,9 +18,14 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
-var assert = require('assert');
-var bad_unicode = '\uc/ef';
 
-console.log(bad_unicode);
+var assert = require('assert'),
+    exception = null;
 
-assert.equal(bad_unicode, "uc/ef");
+try {
+  eval('"\\uc/ef"');
+} catch (e) {
+  exception = e;
+}
+
+assert(exception instanceof SyntaxError);
