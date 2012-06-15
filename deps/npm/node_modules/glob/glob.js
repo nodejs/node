@@ -206,7 +206,7 @@ Glob.prototype._finish = function () {
         return m.replace(/\/$/, "")
       }
       return m
-    })
+    }, this)
   }
 
   if (this.debug) console.error("emitting end", all)

@@ -6,7 +6,6 @@ var log = require("npmlog")
   , exec = require("./exec.js")
   , npm = require("../npm.js")
   , path = require("path")
-  , readJson = require("./read-json.js")
   , fs = require("graceful-fs")
   , chain = require("slide").chain
   , constants = require("constants")

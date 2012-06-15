@@ -9,13 +9,15 @@ exports.usage = 'Prints a listing of the currently installed node development fi
 
 var fs = require('graceful-fs')
   , path = require('path')
+  , log = require('npmlog')
 
 function list (gyp, args, callback) {
 
-  gyp.verbose('using node-gyp dir', gyp.devDir)
+  var devDir = gyp.devDir
+  log.verbose('list', 'using node-gyp dir:', devDir)
 
-  // readdir the node-gyp dir
-  fs.readdir(gyp.devDir, onreaddir)
+  // readdir() the node-gyp dir
+  fs.readdir(devDir, onreaddir)
 
   function onreaddir (err, versions) {
     if (err && err.code != 'ENOENT') {

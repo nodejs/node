@@ -4,7 +4,7 @@ module.exports = unpublish
 var log = require("npmlog")
   , npm = require("./npm.js")
   , registry = npm.registry
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , path = require("path")
   , output = require("./utils/output.js")
 

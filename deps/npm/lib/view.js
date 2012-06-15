@@ -46,7 +46,6 @@ var npm = require("./npm.js")
   , util = require("util")
   , output
   , semver = require("semver")
-  , readJson = require("./utils/read-json.js")
 
 function view (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -76,11 +75,6 @@ function view (args, silent, cb) {
     }
 
     Object.keys(versions).forEach(function (v) {
-      try {
-        versions[v] = readJson.processJson(versions[v])
-      } catch (ex) {
-        delete versions[v]
-      }
       if (semver.satisfies(v, version)) args.forEach(function (args) {
         // remove readme unless we asked for it
         if (-1 === args.indexOf("readme")) {

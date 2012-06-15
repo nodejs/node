@@ -1,7 +1,7 @@
 
 module.exports = rebuild
 
-var readInstalled = require("./utils/read-installed.js")
+var readInstalled = require("read-installed")
   , semver = require("semver")
   , log = require("npmlog")
   , path = require("path")
@@ -16,7 +16,7 @@ rebuild.usage = "npm rebuild [<name>[@<version>] [name[@<version>] ...]]"
 rebuild.completion = require("./utils/completion/installed-deep.js")
 
 function rebuild (args, cb) {
-  readInstalled(npm.prefix, function (er, data) {
+  readInstalled(npm.prefix, npm.config.get("depth"), function (er, data) {
     log.info("readInstalled", typeof data)
     if (er) return cb(er)
     var set = filter(data, args)

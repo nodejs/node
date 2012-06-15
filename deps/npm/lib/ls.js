@@ -8,10 +8,9 @@
 module.exports = exports = ls
 
 var npm = require("./npm.js")
-  , readInstalled = require("./utils/read-installed.js")
+  , readInstalled = require("read-installed")
   , output = require("./utils/output.js")
   , log = require("npmlog")
-  , relativize = require("./utils/relativize.js")
   , path = require("path")
   , archy = require("archy")
 
@@ -28,7 +27,7 @@ function ls (args, silent, cb) {
 
   var dir = path.resolve(npm.dir, "..")
 
-  readInstalled(dir, function (er, data) {
+  readInstalled(dir, npm.config.get("depth"), function (er, data) {
     var lite = getLite(bfsify(data))
     if (er || silent) return cb(er, data, lite)
 
@@ -213,7 +212,6 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
 
 function getExtras (data, dir) {
   var extras = []
-    , rel = relativize(data.path || "", dir)
     , url = require("url")
 
   if (data.description) extras.push(data.description)

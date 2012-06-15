@@ -3,7 +3,6 @@
 module.exports = version
 
 var exec = require("./utils/exec.js")
-  , readJson = require("./utils/read-json.js")
   , semver = require("semver")
   , path = require("path")
   , fs = require("graceful-fs")
@@ -21,20 +20,25 @@ version.usage = "npm version <newversion> [--message commit-message]"
 
 function version (args, cb) {
   if (args.length !== 1) return cb(version.usage)
-  readJson(path.join(process.cwd(), "package.json"), function (er, data) {
+  fs.readFile(path.join(process.cwd(), "package.json"), function (er, data) {
     if (er) {
       log.error("version", "No package.json found")
       return cb(er)
     }
+
+    try {
+      data = JSON.parse(data)
+    } catch (er) {
+      log.error("version", "Bad package.json data")
+      return cb(er)
+    }
+
 		var newVer = semver.valid(args[0])
 		if (!newVer) newVer = semver.inc(data.version, args[0])
 		if (!newVer) return cb(version.usage)
     if (data.version === newVer) return cb(new Error("Version not changed"))
     data.version = newVer
-    Object.keys(data).forEach(function (k) {
-      if (k.charAt(0) === "_") delete data[k]
-    })
-    readJson.unParsePeople(data)
+
     fs.stat(path.join(process.cwd(), ".git"), function (er, s) {
       var doGit = !er && s.isDirectory()
       if (!doGit) return write(data, cb)
@@ -42,6 +46,7 @@ function version (args, cb) {
     })
   })
 }
+
 function checkGit (data, cb) {
   exec( npm.config.get("git"), ["status", "--porcelain"], process.env, false
       , function (er, code, stdout, stderr) {
@@ -64,6 +69,7 @@ function checkGit (data, cb) {
     })
   })
 }
+
 function write (data, cb) {
   fs.writeFile( path.join(process.cwd(), "package.json")
               , new Buffer(JSON.stringify(data, null, 2) + "\n")

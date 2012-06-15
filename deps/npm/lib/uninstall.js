@@ -10,7 +10,7 @@ uninstall.completion = require("./utils/completion/installed-shallow.js")
 
 var fs = require("graceful-fs")
   , log = require("npmlog")
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , path = require("path")
   , npm = require("./npm.js")
   , semver = require("semver")

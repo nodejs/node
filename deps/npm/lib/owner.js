@@ -68,6 +68,7 @@ var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , output
+  , readJson = require("read-package-json")
 
 function owner (args, cb) {
   var action = args.shift()
@@ -189,7 +190,6 @@ function mutate (pkg, user, mutation, cb) {
 function readLocalPkg (cb) {
   if (npm.config.get("global")) return cb()
   var path = require("path")
-    , readJson = require("./utils/read-json.js")
   readJson(path.resolve(npm.prefix, "package.json"), function (er, d) {
     return cb(er, d && d.name)
   })

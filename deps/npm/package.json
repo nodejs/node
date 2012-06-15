@@ -1,5 +1,5 @@
 {
-  "version": "1.1.25",
+  "version": "1.1.26",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -52,15 +52,18 @@
     "inherits": "1",
     "mkdirp": "~0.3.3",
     "read": "0",
-    "lru-cache": "1",
-    "node-gyp": "~0.4.5",
+    "lru-cache": "~1.1.0",
+    "node-gyp": "~0.5",
     "fstream-npm": "0.1",
     "uid-number": "0",
     "archy": "0",
     "chownr": "0",
     "npmlog": "0",
     "ansi": "~0.1.2",
-    "npm-registry-client": "0"
+    "npm-registry-client": "0",
+    "read-package-json": "0",
+    "read-installed": "0",
+    "glob": "~3.1.9"
   },
   "bundleDependencies": [
     "slide",
@@ -89,7 +92,10 @@
     "chownr",
     "npmlog",
     "ansi",
-    "npm-registry-client"
+    "npm-registry-client",
+    "read-package-json",
+    "read-installed",
+    "glob"
   ],
   "devDependencies": {
     "ronn": "https://github.com/isaacs/ronnjs/tarball/master"

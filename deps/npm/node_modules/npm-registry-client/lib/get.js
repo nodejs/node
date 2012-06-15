@@ -43,7 +43,7 @@ function requestAll (cb) {
 
   mkdir(path.join(this.cache, "-", "all"), function (er) {
     fs.readFile(cache, function (er, data) {
-      if (er) return requestAll_(0, {}, cb)
+      if (er) return requestAll_.call(this, 0, {}, cb)
       try {
         data = JSON.parse(data)
       } catch (ex) {

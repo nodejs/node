@@ -18,7 +18,6 @@ var fs = require("graceful-fs")
   , rm = require("rimraf")
   , log = require("npmlog")
   , path = require("path")
-  , relativize = require("./relativize.js")
   , npm = require("../npm.js")
   , shebangExpr = /^#\!\s*(?:\/usr\/bin\/env)?\s*([^ \t]+)(.*)$/
 
@@ -60,7 +59,7 @@ function writeShim (from, to, cb) {
 }
 
 function writeShim_ (from, to, prog, args, cb) {
-  var shTarget = relativize(from, to)
+  var shTarget = from
     , target = shTarget.split("/").join("\\")
     , longProg
     , shProg = prog

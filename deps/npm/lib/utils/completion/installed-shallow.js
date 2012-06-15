@@ -4,7 +4,7 @@ module.exports = installedShallow
 var npm = require("../../npm.js")
   , fs = require("graceful-fs")
   , path = require("path")
-  , readJson = require("../read-json.js")
+  , readJson = require("read-package-json")
   , asyncMap = require("slide").asyncMap
 
 function installedShallow (opts, filter, cb) {

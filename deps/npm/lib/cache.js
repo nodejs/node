@@ -37,13 +37,12 @@ var mkdir = require("mkdirp")
   , npm = require("./npm.js")
   , fs = require("graceful-fs")
   , rm = require("rimraf")
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , registry = npm.registry
   , log = require("npmlog")
   , path = require("path")
   , output
   , sha = require("./utils/sha.js")
-  , find = require("./utils/find.js")
   , asyncMap = require("slide").asyncMap
   , semver = require("semver")
   , tar = require("./utils/tar.js")

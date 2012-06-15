@@ -1,7 +1,7 @@
 module.exports = unbuild
 unbuild.usage = "npm unbuild <folder>\n(this is plumbing)"
 
-var readJson = require("./utils/read-json.js")
+var readJson = require("read-package-json")
   , rm = require("rimraf")
   , gentlyRm = require("./utils/gently-rm.js")
   , npm = require("./npm.js")
@@ -24,7 +24,7 @@ function unbuild_ (folder, cb) {
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     // if no json, then just trash it, but no scripts or whatever.
     if (er) return rm(folder, cb)
-    readJson.clearCache(folder)
+    readJson.cache.del(folder)
     chain
       ( [ [lifecycle, pkg, "preuninstall", folder, false, true]
         , [lifecycle, pkg, "uninstall", folder, false, true]

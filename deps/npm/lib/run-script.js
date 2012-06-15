@@ -4,7 +4,7 @@ module.exports = runScript
 var lifecycle = require("./utils/lifecycle.js")
   , npm = require("./npm.js")
   , path = require("path")
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , log = require("npmlog")
   , chain = require("slide").chain
   , fs = require("graceful-fs")
@@ -34,8 +34,6 @@ runScript.completion = function (opts, cb) {
                : npm.prefix
       var pkgDir = path.resolve( pref, "node_modules"
                                , argv[2], "package.json" )
-      console.error("global?", npm.config.get("global"))
-      console.error(pkgDir, "package dir")
       readJson(pkgDir, function (er, d) {
         if (er) d = {}
         var scripts = Object.keys(d.scripts || {})

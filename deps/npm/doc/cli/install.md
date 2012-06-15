@@ -160,7 +160,7 @@ local copy exists on disk.
     npm install sax --force
 
 The `--global` argument will cause npm to install the package globally
-rather than locally.  See `npm-global(1)`.
+rather than locally.  See `npm-folders(1)`.
 
 The `--link` argument will cause npm to link global installs into the
 local space in some cases.

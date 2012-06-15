@@ -8,7 +8,6 @@ var npm = require("./npm.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
   , path = require("path")
-  , relativize = require("./utils/relativize.js")
   , rm = require("rimraf")
   , output = require("./utils/output.js")
   , build = require("./build.js")
@@ -114,13 +113,11 @@ function linkInstall (pkgs, cb) {
 
 function linkPkg (folder, cb_) {
   var me = folder || npm.prefix
-    , readJson = require("./utils/read-json.js")
+    , readJson = require("read-package-json")
 
   log.verbose("linkPkg", folder)
 
-  readJson( path.resolve(me, "package.json")
-          , { dev: true }
-          , function (er, d) {
+  readJson(path.resolve(me, "package.json"), function (er, d) {
     function cb (er) {
       return cb_(er, [[d && d._id, target, null, null]])
     }
@@ -148,7 +145,7 @@ function linkPkg (folder, cb_) {
 
 function resultPrinter (pkg, src, dest, rp, cb) {
   if (typeof cb !== "function") cb = rp, rp = null
-  var where = relativize(dest, path.resolve(process.cwd(),"x"))
+  var where = dest
   rp = (rp || "").trim()
   src = (src || "").trim()
   // XXX If --json is set, then look up the data from the package.json

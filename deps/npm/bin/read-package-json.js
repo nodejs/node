@@ -6,7 +6,7 @@ if (argv.length < 3) {
 
 var fs = require("fs")
   , file = argv[2]
-  , readJson = require("../lib/utils/read-json")
+  , readJson = require("read-package-json")
 
 readJson(file, function (er, data) {
   if (er) throw er

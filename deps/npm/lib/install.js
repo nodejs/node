@@ -57,14 +57,13 @@ install.completion = function (opts, cb) {
 
 var npm = require("./npm.js")
   , semver = require("semver")
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , log = require("npmlog")
   , path = require("path")
   , fs = require("graceful-fs")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
-  , relativize = require("./utils/relativize.js")
   , output
   , url = require("url")
   , mkdir = require("mkdirp")
@@ -174,9 +173,14 @@ function readDependencies (context, where, opts, cb) {
   var wrap = context ? context.wrap : null
 
   readJson( path.resolve(where, "package.json")
-          , opts
           , function (er, data) {
     if (er)  return cb(er)
+
+    if (opts && opts.dev) {
+      Object.keys(data.devDependencies || {}).forEach(function (k) {
+        data.dependencies[k] = data.devDependencies[k]
+      })
+    }
 
     if (wrap) {
       log.verbose("readDependencies: using existing wrap", [where, wrap])
@@ -641,14 +645,13 @@ function localLink (target, where, context, cb) {
 function resultList (target, where, parentId) {
   var nm = path.resolve(where, "node_modules")
     , targetFolder = path.resolve(nm, target.name)
-    , prettyWhere = relativize(where, process.cwd() + "/x")
+    , prettyWhere = path.relative(process.cwd(), where)
 
   if (prettyWhere === ".") prettyWhere = null
 
   if (!npm.config.get("global")) {
     // print out the folder relative to where we are right now.
-    // relativize isn't really made for dirs, so you need this hack
-    targetFolder = relativize(targetFolder, process.cwd()+"/x")
+    targetFolder = path.relative(process.cwd(), targetFolder)
   }
 
   return [ target._id
@@ -661,7 +664,7 @@ function resultList (target, where, parentId) {
 function installOne_ (target, where, context, cb) {
   var nm = path.resolve(where, "node_modules")
     , targetFolder = path.resolve(nm, target.name)
-    , prettyWhere = relativize(where, process.cwd() + "/x")
+    , prettyWhere = path.relative(process.cwd, where)
     , parent = context.parent
 
   if (prettyWhere === ".") prettyWhere = null

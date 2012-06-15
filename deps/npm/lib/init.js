@@ -5,7 +5,6 @@ module.exports = init
 
 var read = require("read")
   , path = require("path")
-  , readJson = require("./utils/read-json.js")
   , fs = require("graceful-fs")
   , promiseChain = require("./utils/promise-chain.js")
   , exec = require("./utils/exec.js")
@@ -21,8 +20,15 @@ function init (args, cb) {
   log.pause()
   if (folder.charAt(0) !== "/") folder = path.join(process.cwd(), folder)
 
-  readJson(path.join(folder, "package.json"), function (er, data) {
+  fs.readFile(path.join(folder, "package.json"), "utf8", function (er, data) {
     if (er) data = {}
+    else try {
+      data = JSON.parse(data)
+    } catch (_) {
+      data = {}
+    }
+
+    if (data.author) data.author = parseAuthor(data.author)
 
     data.author = data.author ||
       { name: npm.config.get("init.author.name")
@@ -150,12 +156,8 @@ function init_ (data, folder, cb) {
     )
     (cleanupPaths, [data, folder])
     (function (cb) {
-      try { data = readJson.processJson(data) }
-      catch (er) { return cb(er) }
-      Object.keys(data)
-        .filter(function (k) { return k.match(/^_/) })
-        .forEach(function (k) { delete data[k] })
-      readJson.unParsePeople(data)
+      if (data.author) data.author = unparseAuthor(data.author)
+
       var str = JSON.stringify(data, null, 2)
         , msg = "About to write to "
               + path.join(folder, "package.json")
@@ -235,4 +237,25 @@ function cleanupPaths (data, folder, cb) {
 function cleanupPath (m, folder) {
   if (m.indexOf(folder) === 0) m = path.join(".", m.substr(folder.length))
   return m
+}
+
+function parseAuthor (person) {
+  if (typeof person !== "string") return person
+  var name = person.match(/^([^\(<]+)/)
+  var url = person.match(/\(([^\)]+)\)/)
+  var email = person.match(/<([^>]+)>/)
+  var obj = {}
+  if (name && name[0].trim()) obj.name = name[0].trim()
+  if (email) obj.email = email[1];
+  if (url) obj.url = url[1];
+  return obj
+}
+
+function unparseAuthor (a) {
+  if (!a) return ""
+  if (typeof a === "string") return a
+  var s = a.name
+  if (a.email) s += " <" + a.email + ">"
+  if (a.url) s += " (" + a.url + ")"
+  return s
 }
