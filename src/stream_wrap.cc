@@ -132,6 +132,10 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
 
   UNWRAP(StreamWrap)
 
+  // Probably the user did .pause() and then an immediate .resume()
+  // before the fd had been set up. Don't even try to set up.
+  if (wrap->stream_->fd < 0) return scope.Close(Integer::New(1));
+
   bool ipc_pipe = wrap->stream_->type == UV_NAMED_PIPE &&
                   ((uv_pipe_t*)wrap->stream_)->ipc;
   int r;
