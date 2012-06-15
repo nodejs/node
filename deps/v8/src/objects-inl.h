@@ -1616,8 +1616,7 @@ bool JSObject::TooManyFastProperties(int properties,
   int inobject = map()->inobject_properties();
 
   int limit;
-  if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ||
-      map()->used_for_prototype()) {
+  if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED) {
     limit = Max(inobject, kMaxFastProperties);
   } else {
     limit = Max(inobject, kFastPropertiesSoftLimit);
@@ -2979,20 +2978,6 @@ void Map::set_is_shared(bool value) {
 
 bool Map::is_shared() {
   return ((1 << kIsShared) & bit_field3()) != 0;
-}
-
-
-void Map::set_used_for_prototype(bool value) {
-  if (value) {
-    set_bit_field3(bit_field3() | (1 << kUsedForPrototype));
-  } else {
-    set_bit_field3(bit_field3() & ~(1 << kUsedForPrototype));
-  }
-}
-
-
-bool Map::used_for_prototype() {
-  return ((1 << kUsedForPrototype) & bit_field3()) != 0;
 }
 
 

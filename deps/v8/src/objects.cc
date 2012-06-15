@@ -7515,34 +7515,11 @@ MaybeObject* JSObject::OptimizeAsPrototype() {
   // Make sure prototypes are fast objects and their maps have the bit set
   // so they remain fast.
   Map* proto_map = map();
-  if (!proto_map->used_for_prototype()) {
-    if (!HasFastProperties()) {
-      MaybeObject* new_proto = TransformToFastProperties(0);
-      if (new_proto->IsFailure()) return new_proto;
-      ASSERT(new_proto == this);
-      proto_map = map();
-      if (!proto_map->is_shared()) {
-        proto_map->set_used_for_prototype(true);
-      }
-    } else {
-      Heap* heap = GetHeap();
-      // We use the hole value as a singleton key in the prototype transition
-      // map so that we don't multiply the number of maps unnecessarily.
-      Map* new_map =
-          proto_map->GetPrototypeTransition(heap->the_hole_value());
-      if (new_map == NULL) {
-        MaybeObject* maybe_new_map =
-            proto_map->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED);
-        if (!maybe_new_map->To<Map>(&new_map)) return maybe_new_map;
-        new_map->set_used_for_prototype(true);
-        MaybeObject* ok =
-            proto_map->PutPrototypeTransition(heap->the_hole_value(),
-                                              new_map);
-        if (ok->IsFailure()) return ok;
-      }
-      ASSERT(!proto_map->is_shared() && !new_map->is_shared());
-      set_map(new_map);
-    }
+  if (!HasFastProperties()) {
+    MaybeObject* new_proto = TransformToFastProperties(0);
+    if (new_proto->IsFailure()) return new_proto;
+    ASSERT(new_proto == this);
+    proto_map = map();
   }
   return this;
 }
@@ -7552,8 +7529,8 @@ MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSReceiver());
   Heap* heap = GetHeap();
 
-  // First some logic for the map of the prototype to make sure the
-  // used_for_prototype flag is set.
+  // First some logic for the map of the prototype to make sure it is in fast
+  // mode.
   if (value->IsJSObject()) {
     MaybeObject* ok = JSObject::cast(value)->OptimizeAsPrototype();
     if (ok->IsFailure()) return ok;

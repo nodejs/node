@@ -71,8 +71,8 @@ function test(use_new, add_first, set__proto__, same_map_as) {
     // Still fast
     assertTrue(%HasFastProperties(proto));
     AddProps(proto);
-    // Setting the bit means it is still fast with all these properties.
-    assertTrue(%HasFastProperties(proto));
+    // After we add all those properties it went slow mode again :-(
+    assertFalse(%HasFastProperties(proto));
   }
   if (same_map_as && !add_first) {
     assertTrue(%HaveSameMap(same_map_as, proto));

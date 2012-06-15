@@ -1579,13 +1579,10 @@ TEST(PrototypeTransitionClearing) {
           *v8::Handle<v8::Object>::Cast(
               v8::Context::GetCurrent()->Global()->Get(v8_str("base"))));
 
-  // Verify that only dead prototype transitions are cleared.  There is an
-  // extra, 11th, prototype transition on the Object map, which is the
-  // transition to a map with the used_for_prototype flag set (the key is
-  // the_hole).
-  CHECK_EQ(11, baseObject->map()->NumberOfProtoTransitions());
+  // Verify that only dead prototype transitions are cleared.
+  CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  const int transitions = 11 - 3;
+  const int transitions = 10 - 3;
   CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
   // Verify that prototype transitions array was compacted.
