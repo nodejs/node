@@ -34,20 +34,13 @@ var e = new events.EventEmitter();
 
 d.on('error', function(er) {
   console.error('caught', er);
-  switch (er.message) {
-    case "ENOENT, open 'this file does not exist'":
-      assert.equal(er.domain, d);
-      assert.equal(er.domain_thrown, true);
-      assert.ok(!er.domain_emitter);
-      assert.equal(er.code, 'ENOENT');
-      assert.equal(er.path, 'this file does not exist');
-      assert.equal(typeof er.errno, 'number');
-      break;
 
-    default:
-      console.error('unexpected error, throwing %j', er.message);
-      throw er;
-  }
+  assert.strictEqual(er.domain, d);
+  assert.strictEqual(er.domain_thrown, true);
+  assert.ok(!er.domain_emitter);
+  assert.strictEqual(er.code, 'ENOENT');
+  assert.ok(/\bthis file does not exist\b/i.test(er.path));
+  assert.strictEqual(typeof er.errno, 'number');
 
   caught++;
 });
