@@ -1,4 +1,41 @@
-2012.06.11, Version 0.7.10 (unstable)
+2012.06.15, Version 0.7.11 (unstable)
+
+* V8: Upgrade to v3.11.10
+
+* npm: Upgrade to 1.1.26
+
+* doc: Improve cross-linking in API docs markdown (Ben Kelly)
+
+* Fix #3425: removeAllListeners should delete array (Reid Burke)
+
+* cluster: don't silently drop messages when the write queue gets big (Bert Belder)
+
+* Add Buffer.concat method (isaacs)
+
+* windows: make symlinks tolerant to forward slashes (Bert Belder)
+
+* build: Add node.d and node.1 to installer (isaacs)
+
+* cluster: rename worker.unqiueID to worker.id (Andreas Madsen)
+
+* Windows: Enable ETW events on Windows for existing DTrace probes. (Igor Zinkovsky)
+
+* test: bundle node-weak in test/gc so that it doesn't need to be downloaded (Nathan Rajlich)
+
+* Make many tests pass on Windows (Bert Belder)
+
+* Fix #3388 Support listening on file descriptors (isaacs)
+
+* Fix #3407 Add os.tmpDir() (isaacs)
+
+* Unbreak the snapshotted build on Windows (Bert Belder)
+
+* Clean up child_process.kill throws (Bert Belder)
+
+* crypto: make cipher/decipher accept buffer args (Ben Noordhuis)
+
+
+2012.06.11, Version 0.7.10 (unstable), 12a32a48a30182621b3f8e9b9695d1946b53c131
 
 * Roll V8 back to 3.9.24.31
 
