@@ -157,8 +157,15 @@ if (process.argv[2] === 'child') {
       console.log('PARENT: server closed');
       callback();
     });
-    server.listen(common.PORT, function() {
-      var connect = net.connect(common.PORT);
+    // don't listen on the same port, because SmartOS sometimes says
+    // that the server's fd is closed, but it still cannot listen
+    // on the same port again.
+    //
+    // An isolated test for this would be lovely, but for now, this
+    // will have to do.
+    server.listen(common.PORT + 1, function() {
+      console.error('testSocket, listening');
+      var connect = net.connect(common.PORT + 1);
       var store = '';
       connect.on('data', function(chunk) {
         store += chunk;
