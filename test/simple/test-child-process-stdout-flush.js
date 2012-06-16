@@ -46,7 +46,7 @@ child.stdout.on('data', function(data) {
   console.log(count);
 });
 
-child.on('exit', function(data) {
+child.on('close', function(data) {
   assert.equal(n, count);
   console.log('okay');
 });
