@@ -36,9 +36,11 @@ if (process.argv[2] === 'server') {
       server.close();
     });
   });
-  server.listen(1234, '127.0.0.1');
 
-  console.log('Server running.');
+  server.listen(1234, '127.0.0.1', function() {
+    console.log('Server running.');
+  });
+
 } else {
   // Client
 
