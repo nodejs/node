@@ -22,9 +22,7 @@
 #include "node.h"
 #include "node_file.h"
 #include "node_buffer.h"
-#ifdef __POSIX__
-# include "node_stat_watcher.h"
-#endif
+#include "node_stat_watcher.h"
 #include "req_wrap.h"
 
 #include <fcntl.h>
@@ -984,9 +982,7 @@ void InitFs(Handle<Object> target) {
 
   oncomplete_sym = NODE_PSYMBOL("oncomplete");
 
-#ifdef __POSIX__
   StatWatcher::Initialize(target);
-#endif
 }
 
 }  // end namespace node

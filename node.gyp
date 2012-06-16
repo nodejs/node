@@ -82,6 +82,7 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_script.cc',
+        'src/node_stat_watcher.cc',
         'src/node_string.cc',
         'src/node_zlib.cc',
         'src/pipe_wrap.cc',
@@ -208,7 +209,6 @@
           'defines': [ '__POSIX__' ],
           'sources': [
             'src/node_signal_watcher.cc',
-            'src/node_stat_watcher.cc',
             'src/node_io_watcher.cc',
           ]
         }],
