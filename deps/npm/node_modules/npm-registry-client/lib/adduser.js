@@ -63,8 +63,13 @@ function adduser (username, password, email, cb) {
         return this.request('GET'
           , '/-/user/org.couchdb.user:'+encodeURIComponent(username)
           , function (er, data, json, response) {
+              if (er || data.error) {
+                return cb(er, data, json, response)
+              }
               Object.keys(data).forEach(function (k) {
-                userobj[k] = data[k]
+                if (!userobj[k]) {
+                  userobj[k] = data[k]
+                }
               })
               this.log.verbose("adduser", "userobj", userobj)
               this.request('PUT'

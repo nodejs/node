@@ -192,6 +192,35 @@ function authors_ (file, data, ad, cb) {
                 return cb(null, data)
 }
 
+var defDesc = "Unnamed repository; edit this file " +
+              "'description' to name the repository."
+function gitDescription (file, data, cb) {
+                if (data.description) return cb(null, data);
+                var dir = path.dirname(file)
+                // just cuz it'd be nice if this file mattered...
+                var gitDesc = path.resolve(dir, '.git/description')
+                fs.readFile(gitDesc, 'utf8', function (er, desc) {
+                                desc = desc.trim()
+                                if (!er && desc.trim() !== defDesc)
+                                                data.description = desc
+                                return cb(null, data)
+                })
+}
+
+function readmeDescription (file, data) {
+                var d = data.readme
+                if (!d) return
+                d = d.split('\n')
+                d = d.filter(function (line) {
+                                return /\s+/.test(line)
+                                && line.trim() !== data.name
+                                && !line.trim().match(/^#/)
+                })[0]
+                d = d.trim()
+                d = d.replace(/\.$/, '')
+                if (d) data.description = d
+}
+
 function readme (file, data, cb) {
                 if (data.readme) return cb(null, data);
                 var dir = path.dirname(file)
@@ -259,6 +288,9 @@ function final (file, data, cb) {
                 objectifyDeps(file, data)
                 unParsePeople(file, data)
                 parsePeople(file, data)
+
+                if (data.readme)
+                                readmeDescription(file, data)
 
                 readJson.cache.set(file, data)
                 cb(null, data)

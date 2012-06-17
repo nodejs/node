@@ -59,6 +59,12 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
   var remote = url.parse(where)
     , auth = authRequired && this.auth
 
+  if (authRequired && !auth && this.username && this.password) {
+    var a = this.username + ":" + this.password
+    a = new Buffer(a, "utf8").toString("base64")
+    auth = this.auth = a
+  }
+
   if (authRequired && !auth) {
     return cb(new Error(
       "Cannot insert data into the registry without auth"))

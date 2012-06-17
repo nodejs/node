@@ -129,7 +129,6 @@ To install the latest \fBunstable\fR development version from git:
 .nf
 git clone https://github\.com/isaacs/npm\.git
 cd npm
-git submodule update \-\-init \-\-recursive
 sudo make install     # (or: `node cli\.js install \-gf`)
 .
 .fi
@@ -143,7 +142,6 @@ terminal, then you\'ve already got the code\.  Just do:
 .IP "" 4
 .
 .nf
-git submodule update \-\-init \-\-recursive
 sudo make install
 .
 .fi
@@ -152,11 +150,6 @@ sudo make install
 .
 .P
 and npm will install itself\.
-.
-.P
-Note that github tarballs \fBdo not contain submodules\fR, so
-those won\'t work\.  You\'ll have to also fetch the appropriate submodules
-listed in the \.gitmodules file\.
 .
 .SH "Permissions when Using npm to Install Other Stuff"
 \fBtl;dr\fR

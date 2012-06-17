@@ -157,6 +157,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , group : process.platform === "win32" ? 0
             : process.env.SUDO_GID || (process.getgid && process.getgid())
     , ignore: ""
+    , "init-module": path.resolve(home, '.npm-init.js')
     , "init.version" : "0.0.0"
     , "init.author.name" : ""
     , "init.author.email" : ""
@@ -240,6 +241,7 @@ exports.types =
   , "https-proxy" : [null, url]
   , "user-agent" : String
   , ignore : String
+  , "init-module": path
   , "init.version" : [null, semver]
   , "init.author.name" : String
   , "init.author.email" : String

@@ -375,6 +375,16 @@ Sets a User-Agent to the request header
 A white-space separated list of glob patterns of files to always exclude
 from packages when building tarballs.
 
+### init-module
+
+* Default: ~/.npm-init.js
+* Type: path
+
+A module that will be loaded by the `npm init` command.  See the
+documentation for the
+[init-package-json](https://github.com/isaacs/init-package-json) module
+for more information, or npm-init(1).
+
 ### init.version
 
 * Default: "0.0.0"

@@ -3,61 +3,18 @@
 
 module.exports = init
 
-var read = require("read")
-  , path = require("path")
-  , fs = require("graceful-fs")
-  , promiseChain = require("./utils/promise-chain.js")
-  , exec = require("./utils/exec.js")
-  , semver = require("semver")
-  , log = require("npmlog")
+var log = require("npmlog")
   , npm = require("./npm.js")
-  , output = require("./utils/output.js")
+  , initJson = require("init-package-json")
 
-init.usage = "npm init [folder]"
+init.usage = "npm init"
 
 function init (args, cb) {
-  var folder = args[0] || "."
+  var dir = process.cwd()
   log.pause()
-  if (folder.charAt(0) !== "/") folder = path.join(process.cwd(), folder)
+  var initFile = npm.config.get('init-module')
 
-  fs.readFile(path.join(folder, "package.json"), "utf8", function (er, data) {
-    if (er) data = {}
-    else try {
-      data = JSON.parse(data)
-    } catch (_) {
-      data = {}
-    }
-
-    if (data.author) data.author = parseAuthor(data.author)
-
-    data.author = data.author ||
-      { name: npm.config.get("init.author.name")
-      , email: npm.config.get("init.author.email")
-      , url: npm.config.get("init.author.url") }
-
-    init_(data, folder, function (er) {
-      log.resume()
-      if (!er) log.info("written", path.resolve(folder, "package.json"))
-      cb(er)
-    })
-  })
-}
-
-function init_ (data, folder, cb) {
-  var nv = npm.config.get("node-version")
-    , p = semver.parse(nv)
-    , eng = ""
-
-  if (!p[5]) eng = "~" + nv
-  else eng = "~" + [p[1], p[2], p[3]].join(".") + " || " + nv
-
-  // node version 0.n is api-compatible with 0.(n+1) when n is odd.
-  if (p[2] % 2) {
-    eng += " || " + [p[1], +(p[2]) + 1].join(".")
-  }
-
-
-  output.write(
+  console.log(
     ["This utility will walk you through creating a package.json file."
     ,"It only covers the most common items, and tries to guess sane defaults."
     ,""
@@ -68,194 +25,12 @@ function init_ (data, folder, cb) {
     ,"save it as a dependency in the package.json file."
     ,""
     ,"Press ^C at any time to quit."
-    ,""
     ].join("\n"))
-  promiseChain(cb)
-    ( read
-    , [{prompt: "Package name: ", default: defaultName(folder, data)}]
-    , function (n) { data.name = n }
-    )
-    ( read
-    , [{prompt: "Description: ", default: data.description}]
-    , function (d) { data.description = d }
-    )
-    ( defaultVersion, [folder, data], function (v) { data.version = v } )
-    (function (cb) {
-      read( { prompt: "Package version: ", default: data.version }
-          , function (er, v) {
-        if (er) return cb(er)
-        data.version = v
-        cb()
-      })
-    }, [])
-    ( read
-    , [ { prompt: "Project homepage: "
-        , default: data.homepage || data.url || "none" } ]
-    , function (u) {
-        if (u === "none") return
-        data.homepage = u
-        delete data.url
-      }
-    )
-    ( defaultRepo, [folder, data], function (r) { data.repository = r } )
-    (function (cb) {
-      read( { prompt: "Project git repository: "
-            , default: data.repository && data.repository.url || "none" }
-          , function (er, r) {
-              if (er) return cb(er)
-              if (r !== "none") {
-                data.repository = (data.repository || {})
-                data.repository.url = r
-              } else {
-                delete data.repository
-              }
-              cb()
-            }
-          )
-    }, [])
-    ( read
-    , [{ prompt: "Author name: ", default: data.author && data.author.name }]
-    , function (n) {
-        if (!n) return
-        (data.author = data.author || {}).name = n
-      }
-    )
-    ( read
-    , [ { prompt: "Author email: " 
-        , default: data.author && data.author.email || "none" } ]
-    , function (n) {
-        if (n === "none") return
-        (data.author = data.author || {}).email = n
-      }
-    )
-    ( read
-    , [ { prompt: "Author url: "
-        , default: data.author && data.author.url || "none" } ]
-    , function (n) {
-        if (n === "none") return
-        (data.author = data.author || {}).url = n
-      }
-    )
-    ( read
-    , [ { prompt: "Main module/entry point: ", default: data.main || "none" } ]
-    , function (m) {
-        if (m === "none") {
-          delete data.main
-          return
-        }
-        data.main = m
-      }
-    )
-    ( read
-    , [ { prompt: "Test command: "
-        , default: data.scripts && data.scripts.test || "none" } ]
-    , function (t) {
-        if (t === "none") return
-        (data.scripts = data.scripts || {}).test = t
-      }
-    )
-    (cleanupPaths, [data, folder])
-    (function (cb) {
-      if (data.author) data.author = unparseAuthor(data.author)
 
-      var str = JSON.stringify(data, null, 2)
-        , msg = "About to write to "
-              + path.join(folder, "package.json")
-              + "\n\n"
-              + str
-              + "\n\n"
-      output.write(msg, cb)
-    })
-    (function (cb) {
-      read({ prompt: "\nIs this ok? ", default: "yes" }, function (er, ok) {
-        if (er) return cb(er)
-        if (ok.toLowerCase().charAt(0) !== "y") {
-          return cb(new Error("cancelled"))
-        }
-        return cb()
-      })
-    })
-    (function (cb) {
-      fs.writeFile( path.join(folder, "package.json")
-                  , JSON.stringify(data, null, 2) + "\n"
-                  , cb )
-    })
-    ()
-}
-
-// sync - no io
-function defaultName (folder, data) {
-  if (data.name) return data.name
-  return path.basename(folder)
-             .replace(/^node[-\._]?|([-\._]node)[-\._]?(js)?$/g, "")
-}
-
-function defaultVersion (folder, data, cb) {
-  if (data.version) return cb(null, data.version)
-  exec(npm.config.get("git"), ["describe", "--tags"], process.env, false, folder,
-       function (er, code, out) {
-    out = (out || "").trim()
-    if (semver.valid(out)) return cb(null, out)
-    out = npm.config.get("init.version")
-    if (semver.valid(out)) return cb(null, out)
-    return cb(null, "0.0.0")
+  initJson(dir, initFile, npm.config.get(), function (er, data) {
+    log.resume()
+    log.silly('package data', data)
+    log.info('init', 'written successfully')
+    cb(er, data)
   })
-}
-
-function defaultRepo (folder, data, cb) {
-  if (data.repository) return cb(null, data.repository)
-  exec( npm.config.get("git"), ["remote", "-v"], process.env, false, folder
-      , function (er, code, out) {
-    out = (out || "")
-      .trim()
-      .split("\n").filter(function (line) {
-        return line.search(/^origin/) !== -1
-      })[0]
-    if (!out) return cb(null, {})
-    var repo =
-      { type: "git"
-      , url: out.split(/\s/)[1]
-                .replace("git@github.com:", "git://github.com/")
-      }
-    return cb(null, repo)
-  })
-}
-
-function cleanupPaths (data, folder, cb) {
-  if (data.main) {
-    data.main = cleanupPath(data.main, folder)
-  }
-  var dirs = data.directories
-  if (dirs) {
-    Object.keys(dirs).forEach(function (dir) {
-      dirs[dir] = cleanupPath(dirs[dir], folder)
-    })
-  }
-  cb()
-}
-
-function cleanupPath (m, folder) {
-  if (m.indexOf(folder) === 0) m = path.join(".", m.substr(folder.length))
-  return m
-}
-
-function parseAuthor (person) {
-  if (typeof person !== "string") return person
-  var name = person.match(/^([^\(<]+)/)
-  var url = person.match(/\(([^\)]+)\)/)
-  var email = person.match(/<([^>]+)>/)
-  var obj = {}
-  if (name && name[0].trim()) obj.name = name[0].trim()
-  if (email) obj.email = email[1];
-  if (url) obj.url = url[1];
-  return obj
-}
-
-function unparseAuthor (a) {
-  if (!a) return ""
-  if (typeof a === "string") return a
-  var s = a.name
-  if (a.email) s += " <" + a.email + ">"
-  if (a.url) s += " (" + a.url + ")"
-  return s
 }

@@ -636,6 +636,21 @@ Type: string
 A white\-space separated list of glob patterns of files to always exclude
 from packages when building tarballs\.
 .
+.SS "init\-module"
+.
+.IP "\(bu" 4
+Default: ~/\.npm\-init\.js
+.
+.IP "\(bu" 4
+Type: path
+.
+.IP "" 0
+.
+.P
+A module that will be loaded by the \fBnpm init\fR command\.  See the
+documentation for the init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
+for more information, or npm help init\.
+.
 .SS "init\.version"
 .
 .IP "\(bu" 4

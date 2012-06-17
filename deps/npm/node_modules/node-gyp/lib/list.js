@@ -23,7 +23,7 @@ function list (gyp, args, callback) {
     if (err && err.code != 'ENOENT') {
       return callback(err)
     }
-    if (versions) {
+    if (Array.isArray(versions)) {
       versions = versions.filter(function (v) { return v != 'current' })
     } else {
       versions = []

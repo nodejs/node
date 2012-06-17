@@ -34,7 +34,8 @@ function outdated (args, silent, cb) {
 
     if (er || silent) return cb_(er)
     var outList = list.map(makePretty)
-    require("./utils/output.js").write(outList.join("\n"), cb_)
+    require("./utils/output.js").write(outList.join("\n"))
+    cb_()
   })
 }
 
@@ -77,7 +78,7 @@ function outdated_ (args, dir, parentHas, cb) {
 
   var deps = null
   readJson(path.resolve(dir, "package.json"), function (er, d) {
-    deps = (er) ? true : d.dependencies
+    deps = (er) ? true : (d.dependencies || {})
     return next()
   })
 
@@ -98,6 +99,7 @@ function outdated_ (args, dir, parentHas, cb) {
       pvs.forEach(function (pv) {
         has[pv[0]] = pv[1]
       })
+
       next()
     })
   })
@@ -110,6 +112,7 @@ function outdated_ (args, dir, parentHas, cb) {
         return l
       }, {})
     }
+
     // now get what we should have, based on the dep.
     // if has[dep] !== shouldHave[dep], then cb with the data
     // otherwise dive into the folder
