@@ -3959,6 +3959,15 @@ class DiffieHellman : public ObjectWrap {
 
     Local<Value> outString;
 
+    // DH_size returns number of bytes in a prime number
+    // DH_compute_key returns number of bytes in a remainder of exponent, which
+    // may have less bytes than a prime number. Therefore add 0-padding to the
+    // allocated buffer.
+    if (size != dataSize) {
+      assert(dataSize > size);
+      memset(data + size, 0, dataSize - size);
+    }
+
     if (size == -1) {
       int checkResult;
       if (!DH_check_pub_key(diffieHellman->dh, key, &checkResult)) {
