@@ -19,11 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node_http_parser.h>
+#include "node_http_parser.h"
 
-#include <v8.h>
-#include <node.h>
-#include <node_buffer.h>
+#include "v8.h"
+#include "node.h"
+#include "node_buffer.h"
 
 #include <http_parser.h>
 

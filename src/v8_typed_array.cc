@@ -22,7 +22,7 @@
 #include <stdlib.h>  // calloc, etc
 #include <string.h>  // memmove
 
-#include <v8.h>
+#include "v8.h"
 
 #include "v8_typed_array.h"
 

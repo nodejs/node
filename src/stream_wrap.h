@@ -22,9 +22,9 @@
 #ifndef STREAM_WRAP_H_
 #define STREAM_WRAP_H_
 
-#include <v8.h>
-#include <node.h>
-#include <handle_wrap.h>
+#include "v8.h"
+#include "node.h"
+#include "handle_wrap.h"
 
 namespace node {
 

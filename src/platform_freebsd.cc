@@ -22,7 +22,7 @@
 #include "node.h"
 #include "platform.h"
 
-#include <v8.h>
+#include "v8.h"
 
 #include <stdlib.h>
 #include <kvm.h>

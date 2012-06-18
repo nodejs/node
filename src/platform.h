@@ -22,7 +22,7 @@
 #ifndef NODE_PLATFORM_H_
 #define NODE_PLATFORM_H_
 
-#include <v8.h>
+#include "v8.h"
 
 namespace node {
 

@@ -22,7 +22,7 @@
 #include "node.h"
 #include "platform.h"
 
-#include <v8.h>
+#include "v8.h"
 
 #include <mach/task.h>
 #include <mach/mach.h>

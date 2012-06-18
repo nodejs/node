@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_STRING_H_
 #define SRC_NODE_STRING_H_
 
-#include <v8.h>
+#include "v8.h"
 
 namespace node {
 

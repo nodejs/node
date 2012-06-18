@@ -22,8 +22,8 @@
 #ifndef NODE_STAT_WATCHER_H_
 #define NODE_STAT_WATCHER_H_
 
-#include <node.h>
-#include <uv-private/ev.h>
+#include "node.h"
+#include "uv-private/ev.h"
 
 namespace node {
 

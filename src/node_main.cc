@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node.h>
+#include "node.h"
 
 #ifdef _WIN32
 int wmain(int argc, wchar_t *wargv[]) {

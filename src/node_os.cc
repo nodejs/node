@@ -20,11 +20,11 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-#include <node.h>
-#include <node_os.h>
+#include "node.h"
+#include "node_os.h"
 #include "platform.h"
 
-#include <v8.h>
+#include "v8.h"
 
 #include <errno.h>
 #include <string.h>
@@ -32,7 +32,7 @@
 #ifdef __MINGW32__
 # include <io.h>
 
-# include <platform_win32.h>
+# include "platform_win32.h"
 #endif
 
 #ifdef __POSIX__

@@ -22,8 +22,8 @@
 #ifndef NODE_IO_H_
 #define NODE_IO_H_
 
-#include <node_object_wrap.h>
-#include <uv-private/ev.h>
+#include "node_object_wrap.h"
+#include "uv-private/ev.h"
 
 namespace node {
 

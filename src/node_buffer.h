@@ -22,9 +22,9 @@
 #ifndef NODE_BUFFER_H_
 #define NODE_BUFFER_H_
 
-#include <node.h>
-#include <node_object_wrap.h>
-#include <v8.h>
+#include "node.h"
+#include "node_object_wrap.h"
+#include "v8.h"
 #include <assert.h>
 
 namespace node {

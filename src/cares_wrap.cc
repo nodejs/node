@@ -20,9 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
-#include <node.h>
-#include <req_wrap.h>
-#include <uv.h>
+#include "node.h"
+#include "req_wrap.h"
+#include "uv.h"
 
 #include <string.h>
 

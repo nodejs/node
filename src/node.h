@@ -58,13 +58,13 @@
 # define SIGKILL         9
 #endif
 
-#include <uv.h>
-#include <v8.h>
+#include "uv.h"
+#include "v8.h"
 #include <sys/types.h> /* struct stat */
 #include <sys/stat.h>
 #include <assert.h>
 
-#include <node_object_wrap.h>
+#include "node_object_wrap.h"
 
 #if defined(_MSC_VER)
 #undef interface

@@ -20,10 +20,10 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-#include <node.h>
+#include "node.h"
 #include "platform.h"
 
-#include <v8.h>
+#include "v8.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -32,7 +32,7 @@
 #include <unistd.h> // getpagesize
 #endif
 
-#include <platform_win32.h>
+#include "platform_win32.h"
 #include <psapi.h>
 
 namespace node {

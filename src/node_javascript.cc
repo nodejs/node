@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <v8.h>
+#include "v8.h"
 #include "node.h"
 #include "node_natives.h"
 #include "node_string.h"

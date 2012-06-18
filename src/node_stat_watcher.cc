@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node_stat_watcher.h>
+#include "node_stat_watcher.h"
 
 #include <assert.h>
 #include <string.h>

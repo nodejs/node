@@ -19,10 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node_io_watcher.h>
+#include "node_io_watcher.h"
 
-#include <node.h>
-#include <v8.h>
+#include "node.h"
+#include "v8.h"
 
 #include <assert.h>
 

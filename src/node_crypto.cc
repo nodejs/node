@@ -19,12 +19,12 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node_crypto.h>
-#include <v8.h>
+#include "node_crypto.h"
+#include "v8.h"
 
-#include <node.h>
-#include <node_buffer.h>
-#include <node_root_certs.h>
+#include "node.h"
+#include "node_buffer.h"
+#include "node_root_certs.h"
 
 #include <string.h>
 #ifdef _MSC_VER
