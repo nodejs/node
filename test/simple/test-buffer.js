@@ -724,3 +724,6 @@ var a = Buffer(3);
 var b = Buffer('xxx');
 a.write('aaaaaaaa', 'base64');
 assert.equal(b.toString(), 'xxx');
+
+// issue GH-3416
+Buffer(Buffer(0), 0, 0);
