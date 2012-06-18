@@ -136,6 +136,11 @@ parser.add_option("--dest-cpu",
     dest="dest_cpu",
     help="CPU architecture to build for. Valid values are: arm, ia32, x64")
 
+parser.add_option("--no-ifaddrs",
+    action="store_true",
+    dest="no_ifaddrs",
+    help="Use on deprecated SunOS systems that do not support ifaddrs.h")
+
 (options, args) = parser.parse_args()
 
 
@@ -327,6 +332,9 @@ def configure_openssl(o):
 
   if options.without_ssl:
     return
+
+  if options.no_ifaddrs:
+    o['defines'] += ['SUNOS_NO_IFADDRS']
 
   if options.no_ssl2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
