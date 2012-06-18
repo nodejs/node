@@ -49,11 +49,14 @@ function test(next) {
     key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
   };
 
+  var seenError = false;
+
   var server = tls.createServer(options, function(conn) {
     conn.on('error', function(err) {
       console.error('Caught exception: ' + err);
       assert(/TLS session renegotiation attack/.test(err));
       conn.destroy();
+      seenError = true;
     });
     conn.pipe(conn);
   });
@@ -67,16 +70,17 @@ function test(next) {
 
     // count handshakes, start the attack after the initial handshake is done
     var handshakes = 0;
+    var renegs = 0;
+
     child.stderr.on('data', function(data) {
+      if (seenError) return;
       handshakes += (('' + data).match(/verify return:1/g) || []).length;
       if (handshakes === 2) spam();
+      renegs += (('' + data).match(/RENEGOTIATING/g) || []).length;
     });
 
     child.on('exit', function() {
-      // with a renegotiation limit <= 1, we always see 4 handshake markers:
-      // two for the initial handshake and another two for the attempted
-      // renegotiation
-      assert.equal(handshakes, 2 * Math.max(2, tls.CLIENT_RENEG_LIMIT));
+      assert.equal(renegs, tls.CLIENT_RENEG_LIMIT + 1);
       server.close();
       process.nextTick(next);
     });
@@ -94,7 +98,7 @@ function test(next) {
     function spam() {
       if (closed) return;
       child.stdin.write('R\n');
-      setTimeout(spam, 250);
+      setTimeout(spam, 50);
     }
   });
 }
