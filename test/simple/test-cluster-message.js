@@ -32,21 +32,32 @@ function forEach(obj, fn) {
 }
 
 if (cluster.isWorker) {
-  // Create a tcp server
-  // this will be used as cluster-shared-server
-  // and as an alternativ IPC channel
+  // Create a tcp server. This will be used as cluster-shared-server and as an
+  // alternative IPC channel.
   var server = net.Server();
-  server.on('connection', function(socket) {
+  var socket, message;
 
-    // Tell master using TCP socket that a message is received
-    process.on('message', function(message) {
-      socket.write(JSON.stringify({
-        code: 'received message',
-        echo: message
-      }));
-    });
+  function maybeReply() {
+    if (!socket || !message) return;
 
+    // Tell master using TCP socket that a message is received.
+    socket.write(JSON.stringify({
+      code: 'received message',
+      echo: message
+    }));
+  }
+
+  server.on('connection', function(socket_) {
+    socket = socket_;
+    maybeReply();
+
+    // Send a message back over the IPC channel.
     process.send('message from worker');
+  });
+
+  process.on('message', function(message_) {
+    message = message_;
+    maybeReply();
   });
 
   server.listen(common.PORT, '127.0.0.1');
@@ -93,8 +104,7 @@ else if (cluster.isMaster) {
   worker.on('listening', function() {
 
     client = net.connect(common.PORT, function() {
-
-      //Send message to worker
+      // Send message to worker.
       worker.send('message from master');
     });
 
@@ -105,7 +115,7 @@ else if (cluster.isMaster) {
       if (data.code === 'received message') {
         check('worker', data.echo === 'message from master');
       } else {
-        throw new Error('worng TCP message recived: ' + data);
+        throw new Error('wrong TCP message recived: ' + data);
       }
     });
 
@@ -117,7 +127,6 @@ else if (cluster.isMaster) {
     worker.on('exit', function() {
       process.exit(0);
     });
-
   });
 
   process.once('exit', function() {
