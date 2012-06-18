@@ -92,7 +92,7 @@ if (cmd === 'install') {
   copy([
     // Node
     'src/node.h', 'src/node_buffer.h', 'src/node_object_wrap.h',
-    'src/node_version.h', 'src/ev-emul.h',
+    'src/node_version.h', 'src/ev-emul.h', 'src/eio-emul.h',
     // v8
     'deps/v8/include/v8-debug.h', 'deps/v8/include/v8-preparser.h',
     'deps/v8/include/v8-profiler.h', 'deps/v8/include/v8-testing.h',
