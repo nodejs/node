@@ -2441,9 +2441,7 @@ class DescriptorArray: public FixedArray {
 
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    ASSERT(length() > kFirstIndex ||
-           length() == kTransitionsIndex ||
-           IsEmpty());
+    ASSERT(length() >= kFirstIndex || IsEmpty());
     int len = length();
     return len <= kFirstIndex ? 0 : (len - kFirstIndex) / kDescriptorSize;
   }
@@ -2615,8 +2613,8 @@ class DescriptorArray: public FixedArray {
   static const int kNotFound = -1;
 
   static const int kBitField3StorageIndex = 0;
-  static const int kTransitionsIndex = 1;
-  static const int kEnumerationIndexIndex = 2;
+  static const int kEnumerationIndexIndex = 1;
+  static const int kTransitionsIndex = 2;
   static const int kFirstIndex = 3;
 
   // The length of the "bridge" to the enum cache.
@@ -2627,9 +2625,10 @@ class DescriptorArray: public FixedArray {
 
   // Layout description.
   static const int kBitField3StorageOffset = FixedArray::kHeaderSize;
-  static const int kTransitionsOffset = kBitField3StorageOffset + kPointerSize;
-  static const int kEnumerationIndexOffset = kTransitionsOffset + kPointerSize;
-  static const int kFirstOffset = kEnumerationIndexOffset + kPointerSize;
+  static const int kEnumerationIndexOffset =
+      kBitField3StorageOffset + kPointerSize;
+  static const int kTransitionsOffset = kEnumerationIndexOffset + kPointerSize;
+  static const int kFirstOffset = kTransitionsOffset + kPointerSize;
 
   // Layout description for the bridge array.
   static const int kEnumCacheBridgeEnumOffset = FixedArray::kHeaderSize;

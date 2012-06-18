@@ -2243,7 +2243,12 @@ Handle<Map> Map::FindTransitionedMap(MapHandleList* candidates) {
 static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
   Map* current_map = map;
   int index = GetSequenceIndexFromFastElementsKind(map->elements_kind());
-  int to_index = GetSequenceIndexFromFastElementsKind(to_kind);
+  int to_index = IsFastElementsKind(to_kind)
+      ? GetSequenceIndexFromFastElementsKind(to_kind)
+      : GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+
+  ASSERT(index <= to_index);
+
   for (; index < to_index; ++index) {
     Map* next_map = current_map->elements_transition_map();
     if (next_map == NULL) {
@@ -2251,27 +2256,36 @@ static Map* FindClosestElementsTransition(Map* map, ElementsKind to_kind) {
     }
     current_map = next_map;
   }
-  ASSERT(current_map->elements_kind() == to_kind);
+  if (!IsFastElementsKind(to_kind)) {
+    Map* next_map = current_map->elements_transition_map();
+    if (next_map != NULL && next_map->elements_kind() == to_kind) {
+      return next_map;
+    }
+    ASSERT(current_map->elements_kind() == TERMINAL_FAST_ELEMENTS_KIND);
+  } else {
+    ASSERT(current_map->elements_kind() == to_kind);
+  }
   return current_map;
 }
 
 
 Map* Map::LookupElementsTransitionMap(ElementsKind to_kind) {
-  if (this->instance_descriptors()->MayContainTransitions() &&
-      IsMoreGeneralElementsKindTransition(this->elements_kind(), to_kind)) {
-    Map* to_map = FindClosestElementsTransition(this, to_kind);
-    if (to_map->elements_kind() == to_kind) {
-      return to_map;
-    }
-  }
+  Map* to_map = FindClosestElementsTransition(this, to_kind);
+  if (to_map->elements_kind() == to_kind) return to_map;
   return NULL;
 }
 
 
 MaybeObject* Map::CreateNextElementsTransition(ElementsKind next_kind) {
-    ASSERT(elements_transition_map() == NULL);
-    ASSERT(GetSequenceIndexFromFastElementsKind(elements_kind()) ==
-           (GetSequenceIndexFromFastElementsKind(next_kind) - 1));
+    ASSERT(elements_transition_map() == NULL ||
+        ((elements_transition_map()->elements_kind() == DICTIONARY_ELEMENTS ||
+          IsExternalArrayElementsKind(
+              elements_transition_map()->elements_kind())) &&
+         (next_kind == DICTIONARY_ELEMENTS ||
+          IsExternalArrayElementsKind(next_kind))));
+    ASSERT(!IsFastElementsKind(next_kind) ||
+           IsMoreGeneralElementsKindTransition(elements_kind(), next_kind));
+    ASSERT(next_kind != elements_kind());
 
     Map* next_map;
     MaybeObject* maybe_next_map =
@@ -2287,16 +2301,28 @@ MaybeObject* Map::CreateNextElementsTransition(ElementsKind next_kind) {
 
 static MaybeObject* AddMissingElementsTransitions(Map* map,
                                                   ElementsKind to_kind) {
-  int index = GetSequenceIndexFromFastElementsKind(map->elements_kind()) + 1;
-  int to_index = GetSequenceIndexFromFastElementsKind(to_kind);
+  ASSERT(IsFastElementsKind(map->elements_kind()));
+  int index = GetSequenceIndexFromFastElementsKind(map->elements_kind());
+  int to_index = IsFastElementsKind(to_kind)
+      ? GetSequenceIndexFromFastElementsKind(to_kind)
+      : GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
+
   ASSERT(index <= to_index);
 
   Map* current_map = map;
 
-  for (; index <= to_index; ++index) {
-      ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(index);
+  for (; index < to_index; ++index) {
+      ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(index + 1);
       MaybeObject* maybe_next_map =
           current_map->CreateNextElementsTransition(next_kind);
+      if (!maybe_next_map->To(&current_map)) return maybe_next_map;
+  }
+
+  // In case we are exiting the fast elements kind system, just add the map in
+  // the end.
+  if (!IsFastElementsKind(to_kind)) {
+      MaybeObject* maybe_next_map =
+          current_map->CreateNextElementsTransition(to_kind);
       if (!maybe_next_map->To(&current_map)) return maybe_next_map;
   }
 
@@ -2345,10 +2371,14 @@ MaybeObject* JSObject::GetElementsTransitionMapSlow(ElementsKind to_kind) {
       // non-matching element transition.
       (global_context->object_function()->map() != map()) &&
       !start_map->IsUndefined() && !start_map->is_shared() &&
-      // Only store fast element maps in ascending generality.
-      IsTransitionableFastElementsKind(from_kind) &&
-      IsFastElementsKind(to_kind) &&
-      IsMoreGeneralElementsKindTransition(from_kind, to_kind);
+      IsFastElementsKind(from_kind);
+
+  // Only store fast element maps in ascending generality.
+  if (IsFastElementsKind(to_kind)) {
+    allow_store_transition &=
+        IsTransitionableFastElementsKind(from_kind) &&
+        IsMoreGeneralElementsKindTransition(from_kind, to_kind);
+  }
 
   if (!allow_store_transition) {
     // Create a new free-floating map only if we are not allowed to store it.
@@ -5063,7 +5093,7 @@ class IntrusiveMapTransitionIterator {
     if (index == descriptor_array_->number_of_descriptors()) {
       Map* elements_transition = descriptor_array_->elements_transition_map();
       if (elements_transition != NULL) {
-        *DescriptorArrayHeader() = Smi::FromInt(index + 1);
+        *DescriptorArrayHeader() = Smi::FromInt(raw_index + 2);
         return elements_transition;
       }
     }
@@ -5765,24 +5795,18 @@ MaybeObject* DescriptorArray::Allocate(int number_of_descriptors,
   Heap* heap = Isolate::Current()->heap();
   // Do not use DescriptorArray::cast on incomplete object.
   FixedArray* result;
-  if (number_of_descriptors == 0) {
-    if (shared_mode == MAY_BE_SHARED) {
-      return heap->empty_descriptor_array();
-    }
-    { MaybeObject* maybe_array =
-          heap->AllocateFixedArray(kTransitionsIndex + 1);
-      if (!maybe_array->To(&result)) return maybe_array;
-    }
-  } else {
-    // Allocate the array of keys.
-    { MaybeObject* maybe_array =
-          heap->AllocateFixedArray(ToKeyIndex(number_of_descriptors));
-      if (!maybe_array->To(&result)) return maybe_array;
-    }
-    result->set(kEnumerationIndexIndex,
-                Smi::FromInt(PropertyDetails::kInitialIndex));
+  if (number_of_descriptors == 0 && shared_mode == MAY_BE_SHARED) {
+    return heap->empty_descriptor_array();
   }
+  // Allocate the array of keys.
+  { MaybeObject* maybe_array =
+        heap->AllocateFixedArray(ToKeyIndex(number_of_descriptors));
+    if (!maybe_array->To(&result)) return maybe_array;
+  }
+
   result->set(kBitField3StorageIndex, Smi::FromInt(0));
+  result->set(kEnumerationIndexIndex,
+              Smi::FromInt(PropertyDetails::kInitialIndex));
   result->set(kTransitionsIndex, Smi::FromInt(0));
   return result;
 }
