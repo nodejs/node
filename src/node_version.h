@@ -19,10 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#if 0 /* commenting out to build via gyp faster */
-#include "node_config.h"
-#endif
-
 #ifndef NODE_VERSION_H
 #define NODE_VERSION_H
 
