@@ -213,6 +213,7 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
   free(handle->filename);
   handle->filename = NULL;
   handle->fo.fo_name = NULL;
+  uv__handle_stop(handle);
 }
 
 #else /* !HAVE_PORTS_FS */

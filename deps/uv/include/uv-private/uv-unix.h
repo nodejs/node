@@ -28,13 +28,17 @@
 #include "eio.h"
 
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <pwd.h>
+
 #include <termios.h>
+#include <pwd.h>
 
 #include <semaphore.h>
 #include <pthread.h>
@@ -54,6 +58,8 @@ typedef struct {
 typedef int uv_file;
 
 typedef int uv_os_sock_t;
+
+typedef struct stat uv_statbuf_t;
 
 #define UV_ONCE_INIT PTHREAD_ONCE_INIT
 

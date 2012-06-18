@@ -109,6 +109,10 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
     uv__poll_close((uv_poll_t*)handle);
     break;
 
+  case UV_FS_POLL:
+    uv__fs_poll_close((uv_fs_poll_t*)handle);
+    break;
+
   default:
     assert(0);
   }
@@ -133,6 +137,9 @@ static void uv__finish_close(uv_handle_t* handle) {
     case UV_ASYNC:
     case UV_TIMER:
     case UV_PROCESS:
+    case UV_FS_EVENT:
+    case UV_FS_POLL:
+    case UV_POLL:
       break;
 
     case UV_NAMED_PIPE:
@@ -146,12 +153,6 @@ static void uv__finish_close(uv_handle_t* handle) {
 
     case UV_UDP:
       uv__udp_finish_close((uv_udp_t*)handle);
-      break;
-
-    case UV_FS_EVENT:
-      break;
-
-    case UV_POLL:
       break;
 
     default:

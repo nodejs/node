@@ -168,6 +168,16 @@ TEST_IMPL(fs_event_ref) {
 }
 
 
+TEST_IMPL(fs_poll_ref) {
+  uv_fs_poll_t h;
+  uv_fs_poll_init(uv_default_loop(), &h);
+  uv_fs_poll_start(&h, NULL, ".", 999);
+  uv_unref((uv_handle_t*)&h);
+  uv_run(uv_default_loop());
+  return 0;
+}
+
+
 TEST_IMPL(tcp_ref) {
   uv_tcp_t h;
   uv_tcp_init(uv_default_loop(), &h);

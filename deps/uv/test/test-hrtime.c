@@ -33,7 +33,7 @@
 
 TEST_IMPL(hrtime) {
   uint64_t a, b, diff;
-  int i = 100;
+  int i = 75;
   while (i > 0) {
     a = uv_hrtime();
     uv_sleep(45);

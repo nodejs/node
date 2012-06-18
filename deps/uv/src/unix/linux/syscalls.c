@@ -135,7 +135,7 @@
 # elif __i386__
 #  define __NR_sendmmsg 345
 # elif __arm__
-#  define __NR_recvmmsg (UV_SYSCALL_BASE + 374)
+#  define __NR_sendmmsg (UV_SYSCALL_BASE + 374)
 # endif
 #endif /* __NR_sendmmsg */
 

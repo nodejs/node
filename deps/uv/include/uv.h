@@ -140,6 +140,7 @@ typedef enum {
   XX(ASYNC, async)              \
   XX(CHECK, check)              \
   XX(FS_EVENT, fs_event)        \
+  XX(FS_POLL, fs_poll)          \
   XX(IDLE, idle)                \
   XX(NAMED_PIPE, pipe)          \
   XX(POLL, poll)                \
@@ -209,6 +210,7 @@ typedef struct uv_udp_send_s uv_udp_send_t;
 typedef struct uv_fs_s uv_fs_t;
 /* uv_fs_event_t is a subclass of uv_handle_t. */
 typedef struct uv_fs_event_s uv_fs_event_t;
+typedef struct uv_fs_poll_s uv_fs_poll_t;
 typedef struct uv_work_s uv_work_t;
 
 
@@ -311,6 +313,11 @@ typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 */
 typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
     int events, int status);
+
+typedef void (*uv_fs_poll_cb)(uv_fs_poll_t* handle,
+                              int status,
+                              uv_statbuf_t* prev,
+                              uv_statbuf_t* curr);
 
 typedef enum {
   UV_LEAVE_GROUP = 0,
@@ -1511,6 +1518,46 @@ struct uv_fs_event_s {
 
 
 /*
+ * uv_fs_stat() based polling file watcher.
+ */
+struct uv_fs_poll_s {
+  UV_HANDLE_FIELDS
+  /* Private, don't touch. */
+  int busy_polling; /* TODO(bnoordhuis) Fold into flags field. */
+  unsigned int interval;
+  uint64_t start_time;
+  char* path;
+  uv_fs_poll_cb poll_cb;
+  uv_timer_t timer_handle;
+  uv_fs_t* fs_req;
+  uv_statbuf_t statbuf;
+};
+
+UV_EXTERN int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle);
+
+/*
+ * Check the file at `path` for changes every `interval` milliseconds.
+ *
+ * Your callback i invoked with `status == -1` if `path` does not exist
+ * or is inaccessible. The watcher is *not* stopped but your callback is
+ * not called again until something changes (e.g. when the file is created
+ * or the error reason changes).
+ *
+ * When `status == 0`, your callback receives pointers to the old and new
+ * `uv_statbuf_t` structs. They are valid for the duration of the callback
+ * only!
+ *
+ * For maximum portability, use multi-second intervals. Sub-second intervals
+ * will not detect all changes on many file systems.
+ */
+UV_EXTERN int uv_fs_poll_start(uv_fs_poll_t* handle,
+                               uv_fs_poll_cb poll_cb,
+                               const char* path,
+                               unsigned int interval);
+
+UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
+
+/*
  * Gets load avg
  * See: http://en.wikipedia.org/wiki/Load_(computing)
  * (Returns [0,0,0] for windows and cygwin)
@@ -1683,22 +1730,23 @@ union uv_any_req {
 
 
 struct uv_counters_s {
+  uint64_t async_init;
+  uint64_t check_init;
   uint64_t eio_init;
-  uint64_t req_init;
+  uint64_t fs_event_init;
+  uint64_t fs_poll_init;
   uint64_t handle_init;
-  uint64_t stream_init;
-  uint64_t tcp_init;
-  uint64_t udp_init;
+  uint64_t idle_init;
   uint64_t pipe_init;
-  uint64_t tty_init;
   uint64_t poll_init;
   uint64_t prepare_init;
-  uint64_t check_init;
-  uint64_t idle_init;
-  uint64_t async_init;
-  uint64_t timer_init;
   uint64_t process_init;
-  uint64_t fs_event_init;
+  uint64_t req_init;
+  uint64_t stream_init;
+  uint64_t tcp_init;
+  uint64_t timer_init;
+  uint64_t tty_init;
+  uint64_t udp_init;
 };
 
 
