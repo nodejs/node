@@ -127,7 +127,15 @@ function install (args, cb_) {
                       , explicit: false
                       , parent: data
                       , wrap: null }
-        context.family[data.name] = context.ancestors[data.name] = data.version
+
+        if (data.name === path.basename(where) &&
+            path.basename(path.dirname(where)) === "node_modules") {
+          // Only include in ancestry if it can actually be required.
+          // Otherwise, it does not count.
+          context.family[data.name] =
+            context.ancestors[data.name] = data.version
+        }
+
         installManyTop(deps.map(function (dep) {
           var target = data.dependencies[dep]
             , parsed = url.parse(target.replace(/^git\+/, "git"))
@@ -177,6 +185,7 @@ function readDependencies (context, where, opts, cb) {
     if (er)  return cb(er)
 
     if (opts && opts.dev) {
+      if (!data.dependencies) data.dependencies = {};
       Object.keys(data.devDependencies || {}).forEach(function (k) {
         data.dependencies[k] = data.devDependencies[k]
       })

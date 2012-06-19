@@ -1,5 +1,5 @@
 {
-  "version": "1.1.29",
+  "version": "1.1.30",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -102,14 +102,15 @@
     "osenv"
   ],
   "devDependencies": {
-    "ronn": "https://github.com/isaacs/ronnjs/tarball/master"
+    "ronn": "https://github.com/isaacs/ronnjs/tarball/master",
+    "tap": "~0.2.5"
   },
   "engines": {
     "node": "0.6 || 0.7 || 0.8",
     "npm": "1"
   },
   "scripts": {
-    "test": "node ./test/run.js",
+    "test": "node ./test/run.js && tap test/tap/*.js",
     "prepublish": "npm prune ; make -j4 doc",
     "dumpconf": "env | grep npm | sort | uniq"
   },

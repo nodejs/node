@@ -161,7 +161,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , parseable : false
     , pre: false
     , prefix : globalPrefix
-    , production: false
+    , production: process.env.NODE_ENV === "production"
     , "proprietary-attribs": true
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||

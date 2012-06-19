@@ -200,8 +200,8 @@ function gitDescription (file, data, cb) {
                 // just cuz it'd be nice if this file mattered...
                 var gitDesc = path.resolve(dir, '.git/description')
                 fs.readFile(gitDesc, 'utf8', function (er, desc) {
-                                desc = desc.trim()
-                                if (!er && desc.trim() !== defDesc)
+                                if (desc) desc = desc.trim()
+                                if (!er && desc !== defDesc)
                                                 data.description = desc
                                 return cb(null, data)
                 })
@@ -214,7 +214,8 @@ function readmeDescription (file, data) {
                 // that isn't the first line heading
                 d = d.trim().split('\n')
                 for (var s = 0; d[s].trim().match(/^(#|$)/); s ++);
-                for (var e = s + 1; d[e].trim(); e ++);
+                var l = d.length
+                for (var e = s + 1; e < l && d[e].trim(); e ++);
                 data.description = d.slice(s, e).join(' ').trim()
 }
 
