@@ -747,7 +747,7 @@ void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
 
 int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     uv_process_options_t options) {
-  int size, err = 0, keep_child_stdio_open = 0;
+  int i, size, err = 0, keep_child_stdio_open = 0;
   wchar_t* path = NULL;
   BOOL result;
   wchar_t* application_path = NULL, *application = NULL, *arguments = NULL,
@@ -850,11 +850,14 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     process->process_handle = info.hProcess;
     process->pid = info.dwProcessId;
 
-    if (options.stdio_count > 0 &&
-        options.stdio[0].flags & UV_CREATE_PIPE &&
-        options.stdio[0].data.stream->type == UV_NAMED_PIPE &&
-        ((uv_pipe_t*)options.stdio[0].data.stream)->ipc) {
-      ((uv_pipe_t*)options.stdio[0].data.stream)->ipc_pid = info.dwProcessId;
+    /* Set IPC pid to all IPC pipes. */
+    for (i = 0; i < options.stdio_count; i++) {
+      const uv_stdio_container_t* fdopt = &options.stdio[i];
+      if (fdopt->flags & UV_CREATE_PIPE &&
+          fdopt->data.stream->type == UV_NAMED_PIPE &&
+          ((uv_pipe_t*) fdopt->data.stream)->ipc) {
+        ((uv_pipe_t*) fdopt->data.stream)->ipc_pid = info.dwProcessId;
+      }
     }
 
     /* Setup notifications for when the child process exits. */
