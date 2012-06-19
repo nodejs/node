@@ -41,6 +41,9 @@ Running node will now share port 8000 between the workers:
 This feature was introduced recently, and may change in future versions.
 Please try it out and provide feedback.
 
+Also note that, on Windows, it is not yet possible to set up a named pipe
+server in a worker.
+
 ## How It Works
 
 <!--type=misc-->
