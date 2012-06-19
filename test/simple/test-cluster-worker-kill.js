@@ -21,7 +21,7 @@
 
 
 // test-cluster-worker-kill.js
-// verifies that, when a child process is killed (we use SIGHUP)
+// verifies that, when a child process is killed (we use SIGKILL)
 // - the parent receives the proper events in the proper order, no duplicates
 // - the exitCode and signalCode are correct in the 'exit' event
 // - the worker.suicide flag, and worker.state are correct
@@ -40,7 +40,7 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
 
-  var KILL_SIGNAL = 'SIGHUP',
+  var KILL_SIGNAL = 'SIGKILL',
     expected_results = {
       cluster_emitDisconnect: [1, "the cluster did not emit 'disconnect'"],
       cluster_emitExit: [1, "the cluster did not emit 'exit'"],
