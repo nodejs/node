@@ -34,7 +34,22 @@ var e = new events.EventEmitter();
 
 d.on('error', function(er) {
   console.error('caught', er);
-  switch (er.message) {
+
+  var er_message = er.message;
+  var er_path = er.path
+
+  // On windows, error messages can contain full path names. If this is the
+  // case, remove the directory part.
+  if (typeof er_path === 'string') {
+    var slash = er_path.lastIndexOf('\\');
+    if (slash !== -1) {
+      var dir = er_path.slice(0, slash + 1);
+      er_path = er_path.replace(dir, '');
+      er_message = er_message.replace(dir, '');
+    }
+  }
+
+  switch (er_message) {
     case 'emitted':
       assert.equal(er.domain, d);
       assert.equal(er.domain_emitter, e);
@@ -60,14 +75,14 @@ d.on('error', function(er) {
       assert.equal(typeof er.domain_bound, 'function');
       assert.ok(!er.domain_emitter);
       assert.equal(er.code, 'ENOENT');
-      assert.equal(er.path, 'this file does not exist');
+      assert.equal(er_path, 'this file does not exist');
       assert.equal(typeof er.errno, 'number');
       break;
 
     case "ENOENT, open 'stream for nonexistent file'":
       assert.equal(typeof er.errno, 'number');
       assert.equal(er.code, 'ENOENT');
-      assert.equal(er.path, 'stream for nonexistent file');
+      assert.equal(er_path, 'stream for nonexistent file');
       assert.equal(er.domain, d);
       assert.equal(er.domain_emitter, fst);
       assert.ok(!er.domain_bound);
