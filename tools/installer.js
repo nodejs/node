@@ -11,7 +11,7 @@ if (cmd !== 'install' && cmd !== 'uninstall') {
 
 // Use the built-in config reported by the current process
 var variables = process.config.variables,
-    node_prefix = dest_dir || variables.node_prefix || '/usr/local';
+    node_prefix = variables.node_prefix || '/usr/local';
 
 // Execution queue
 var queue = [],
@@ -27,7 +27,7 @@ function copy(src, dst, callback) {
     return;
   }
 
-  dst = path.join(node_prefix, dst);
+  dst = path.join(dest_dir, node_prefix, dst);
   var dir = dst.replace(/\/[^\/]*$/, '/');
 
   // Create directory if hasn't done this yet
@@ -43,7 +43,7 @@ function copy(src, dst, callback) {
 // Remove files
 function remove(files) {
   files.forEach(function(file) {
-    file = path.join(node_prefix, file);
+    file = path.join(dest_dir, node_prefix, file);
     queue.push('rm -rf ' + file);
   });
 }
@@ -146,9 +146,9 @@ if (cmd === 'install') {
     if (!isSymlink) {
       copy('deps/npm', 'lib/node_modules/npm');
       queue.push('ln -sf ../lib/node_modules/npm/bin/npm-cli.js ' +
-                 path.join(node_prefix, 'bin/npm'));
+                 path.join(dest_dir, node_prefix, 'bin/npm'));
       queue.push([shebang, '#!' + path.join(node_prefix, 'bin/node'),
-                 path.join(node_prefix,
+                 path.join(dest_dir, node_prefix,
                            'lib/node_modules/npm/bin/npm-cli.js')]);
     }
   }
