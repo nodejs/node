@@ -517,6 +517,11 @@ maintained libraries. The externally maintained libraries used by Node are:
     "npm Logo" created by Mathias Pettersson and Brian Hammond,
     used with permission.
 
+    "Gubblebum Blocky" font
+    Copyright (c) 2007 by Tjarda Koster, http://jelloween.deviantart.com
+    included for use in the npm website and documentation,
+    used with permission.
+
     This program uses "node-uuid", Copyright (c) 2010 Robert Kieffer,
     according to the terms of the MIT license.
 
