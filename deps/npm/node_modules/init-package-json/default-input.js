@@ -40,6 +40,9 @@ function readDeps (test) { return function (cb) {
 
 exports.name = prompt('name', package.name || basename)
 exports.version = prompt('version', package.version || '0.0.0')
+if (!package.description) {
+  exports.description = prompt('description')
+}
 
 if (!package.main) {
   exports.main = function (cb) {

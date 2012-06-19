@@ -105,7 +105,7 @@ global config.</p>
 
 <p>The following shorthands are parsed on the command-line:</p>
 
-<ul><li><code>-v</code>: <code>--version</code></li><li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li><li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li><li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li><li><code>-d</code>: <code>--loglevel info</code></li><li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li><li><code>-ddd</code>: <code>--loglevel silly</code></li><li><code>-g</code>: <code>--global</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-m</code>: <code>--message</code></li><li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li><li><code>-reg</code>: <code>--registry</code></li><li><code>-v</code>: <code>--version</code></li><li><code>-f</code>: <code>--force</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-desc</code>: <code>--description</code></li><li><code>-S</code>: <code>--save</code></li><li><code>-D</code>: <code>--save-dev</code></li><li><code>-O</code>: <code>--save-optional</code></li><li><code>-y</code>: <code>--yes</code></li><li><code>-n</code>: <code>--yes false</code></li><li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li></ul>
+<ul><li><code>-v</code>: <code>--version</code></li><li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li><li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li><li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li><li><code>-d</code>: <code>--loglevel info</code></li><li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li><li><code>-ddd</code>: <code>--loglevel silly</code></li><li><code>-g</code>: <code>--global</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-m</code>: <code>--message</code></li><li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li><li><code>-reg</code>: <code>--registry</code></li><li><code>-v</code>: <code>--version</code></li><li><code>-f</code>: <code>--force</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-desc</code>: <code>--description</code></li><li><code>-S</code>: <code>--save</code></li><li><code>-D</code>: <code>--save-dev</code></li><li><code>-O</code>: <code>--save-optional</code></li><li><code>-B</code>: <code>--save-bundle</code></li><li><code>-y</code>: <code>--yes</code></li><li><code>-n</code>: <code>--yes false</code></li><li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li></ul>
 
 <p>If the specified configuration param resolves unambiguously to a known
 configuration parameter, then it is expanded to that configuration
@@ -151,30 +151,6 @@ the package.json has this:</p>
 
 <p>Force npm to always require authentication when accessing the registry,
 even for <code>GET</code> requests.</p>
-
-<h3 id="bin-publish">bin-publish</h3>
-
-<ul><li>Default: false</li><li>Type: Boolean</li></ul>
-
-<p>If set to true, then binary packages will be created on publish.</p>
-
-<p>This is the way to opt into the "bindist" behavior described below.</p>
-
-<h3 id="bindist">bindist</h3>
-
-<ul><li>Default: Unstable node versions, <code>null</code>, otherwise
-<code>"&lt;node version&gt;-&lt;platform&gt;-&lt;os release&gt;"</code></li><li>Type: String or <code>null</code></li></ul>
-
-<p>Experimental: on stable versions of node, binary distributions will be
-created with this tag.  If a user then installs that package, and their
-<code>bindist</code> tag is found in the list of binary distributions, they will
-get that prebuilt version.</p>
-
-<p>Pre-build node packages have their preinstall, install, and postinstall
-scripts stripped (since they are run prior to publishing), and do not
-have their <code>build</code> directories automatically ignored.</p>
-
-<p>It's yet to be seen if this is a good idea.</p>
 
 <h3 id="browser">browser</h3>
 
@@ -400,6 +376,17 @@ being installed locally.</li></ul>
 <p>Any logs of a higher level than the setting are shown.
 The default is "http", which shows http, warn, and error output.</p>
 
+<h3 id="logstream">logstream</h3>
+
+<ul><li>Default: process.stderr</li><li>Type: Stream</li></ul>
+
+<p>This is the stream that is passed to the
+<a href="https://github.com/isaacs/npmlog">npmlog</a> module at run time.</p>
+
+<p>It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr.</p>
+
 <h3 id="long">long</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
@@ -504,13 +491,30 @@ this as true.</p>
 
 <p>Save installed packages to a package.json file as dependencies.</p>
 
+<p>When used with the <code>npm rm</code> command, it removes it from the dependencies
+hash.</p>
+
 <p>Only works if there is already a package.json file present.</p>
+
+<h3 id="save-bundle">save-bundle</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>If a package would be saved at install time by the use of <code>--save</code>,
+<code>--save-dev</code>, or <code>--save-optional</code>, then also put it in the
+<code>bundleDependencies</code> list.</p>
+
+<p>When used with the <code>npm rm</code> command, it removes it from the
+bundledDependencies list.</p>
 
 <h3 id="save-dev">save-dev</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
 <p>Save installed packages to a package.json file as devDependencies.</p>
+
+<p>When used with the <code>npm rm</code> command, it removes it from the devDependencies
+hash.</p>
 
 <p>Only works if there is already a package.json file present.</p>
 
@@ -519,6 +523,9 @@ this as true.</p>
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
 <p>Save installed packages to a package.json file as optionalDependencies.</p>
+
+<p>When used with the <code>npm rm</code> command, it removes it from the devDependencies
+hash.</p>
 
 <p>Only works if there is already a package.json file present.</p>
 
@@ -674,7 +681,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.27</p>
+<p id="footer">config &mdash; npm@1.1.29</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

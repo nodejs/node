@@ -117,6 +117,7 @@ The following shorthands are parsed on the command-line:
 * `-S`: `--save`
 * `-D`: `--save-dev`
 * `-O`: `--save-optional`
+* `-B`: `--save-bundle`
 * `-y`: `--yes`
 * `-n`: `--yes false`
 * `ll` and `la` commands: `ls --long`
@@ -166,32 +167,6 @@ then the user could change the behavior by doing:
 
 Force npm to always require authentication when accessing the registry,
 even for `GET` requests.
-
-### bin-publish
-
-* Default: false
-* Type: Boolean
-
-If set to true, then binary packages will be created on publish.
-
-This is the way to opt into the "bindist" behavior described below.
-
-### bindist
-
-* Default: Unstable node versions, `null`, otherwise
-  `"<node version>-<platform>-<os release>"`
-* Type: String or `null`
-
-Experimental: on stable versions of node, binary distributions will be
-created with this tag.  If a user then installs that package, and their
-`bindist` tag is found in the list of binary distributions, they will
-get that prebuilt version.
-
-Pre-build node packages have their preinstall, install, and postinstall
-scripts stripped (since they are run prior to publishing), and do not
-have their `build` directories automatically ignored.
-
-It's yet to be seen if this is a good idea.
 
 ### browser
 
@@ -452,6 +427,18 @@ What level of logs to report.  On failure, *all* logs are written to
 Any logs of a higher level than the setting are shown.
 The default is "http", which shows http, warn, and error output.
 
+### logstream
+
+* Default: process.stderr
+* Type: Stream
+
+This is the stream that is passed to the
+[npmlog](https://github.com/isaacs/npmlog) module at run time.
+
+It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr.
+
 ### long
 
 * Default: false
@@ -572,7 +559,22 @@ Remove failed installs.
 
 Save installed packages to a package.json file as dependencies.
 
+When used with the `npm rm` command, it removes it from the dependencies
+hash.
+
 Only works if there is already a package.json file present.
+
+### save-bundle
+
+* Default: false
+* Type: Boolean
+
+If a package would be saved at install time by the use of `--save`,
+`--save-dev`, or `--save-optional`, then also put it in the
+`bundleDependencies` list.
+
+When used with the `npm rm` command, it removes it from the
+bundledDependencies list.
 
 ### save-dev
 
@@ -580,6 +582,9 @@ Only works if there is already a package.json file present.
 * Type: Boolean
 
 Save installed packages to a package.json file as devDependencies.
+
+When used with the `npm rm` command, it removes it from the devDependencies
+hash.
 
 Only works if there is already a package.json file present.
 
@@ -589,6 +594,9 @@ Only works if there is already a package.json file present.
 * Type: Boolean
 
 Save installed packages to a package.json file as optionalDependencies.
+
+When used with the `npm rm` command, it removes it from the devDependencies
+hash.
 
 Only works if there is already a package.json file present.
 

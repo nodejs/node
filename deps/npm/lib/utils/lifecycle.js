@@ -10,6 +10,7 @@ var log = require("npmlog")
   , chain = require("slide").chain
   , constants = require("constants")
   , output = require("./output.js")
+  , Stream = require("stream").Stream
   , PATH = "PATH"
 
 // windows calls it's path "Path" usually, but this is not guaranteed.
@@ -260,6 +261,7 @@ function makeEnv (data, prefix, env) {
       return
     }
     var value = ini.get(i)
+    if (value instanceof Stream) return
     if (!value) value = ""
     else if (typeof value !== "string") value = JSON.stringify(value)
 

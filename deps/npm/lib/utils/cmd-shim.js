@@ -67,15 +67,15 @@ function writeShim_ (from, to, prog, args, cb) {
   args = args || ""
   if (!prog) {
     prog = "\"%~dp0\\" + target + "\""
-    shProg = "\"`dirname \"$0\"`/" + shTarget + "\""
+    shProg = "\"$basedir/" + shTarget + "\""
     args = ""
     target = ""
     shTarget = ""
   } else {
     longProg = "\"%~dp0\\" + prog + ".exe\""
-    shLongProg = "\"`dirname \"$0\"`/" + prog + "\""
+    shLongProg = "\"$basedir/" + prog + "\""
     target = "\"%~dp0\\" + target + "\""
-    shTarget = "\"`dirname \"$0\"`/" + shTarget + "\""
+    shTarget = "\"$basedir/" + shTarget + "\""
   }
 
   // @IF EXIST "%~dp0\node.exe" (
@@ -97,14 +97,32 @@ function writeShim_ (from, to, prog, args, cb) {
   cmd = ":: Created by npm, please don't edit manually.\r\n" + cmd
 
   // #!/bin/sh
-  // if [ -x "`dirname "$0"`/node.exe" ]; then
-  //   "`dirname "$0"`/node.exe" "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  // basedir=`dirname "$0"`
+  //
+  // case `uname` in
+  //     *CYGWIN*) basedir=`cygpath -w "$basedir"`;;
+  // esac
+  //
+  // if [ -x "$basedir/node.exe" ]; then
+  //   "$basedir/node.exe" "$basedir/node_modules/npm/bin/npm-cli.js" "$@"
+  //   ret=$?
   // else
-  //   node "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  //   node "$basedir/node_modules/npm/bin/npm-cli.js" "$@"
+  //   ret=$?
   // fi
+  // exit $ret
+
   var sh = "#!/bin/sh\n"
 
   if (shLongProg) {
+    sh = sh
+        + "basedir=`dirname \"$0\"`\n"
+        + "\n"
+        + "case `uname` in\n"
+        + "    *CYGWIN*) basedir=`cygpath -w \"$basedir\"`;;\n"
+        + "esac\n"
+        + "\n"
+
     sh = sh
        + "if [ -x "+shLongProg+" ]; then\n"
        + "  " + shLongProg + " " + args + " " + shTarget + " \"$@\"\n"

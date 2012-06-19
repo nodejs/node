@@ -263,6 +263,7 @@ function load (npm, conf, cb) {
     ini.resolveConfigs(conf, function (er) {
       log.level = npm.config.get("loglevel")
       log.heading = "npm"
+      log.stream = npm.config.get("logstream")
       switch (npm.config.get("color")) {
         case "always": log.enableColor(); break
         case false: log.disableColor(); break

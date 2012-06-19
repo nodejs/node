@@ -532,15 +532,6 @@ function addNameVersion (name, ver, data, cb) {
 
     if (!dist) return cb(new Error("No dist in "+data._id+" package"))
 
-    var bd = npm.config.get("bindist")
-      , b = dist.bin && bd && dist.bin[bd]
-    log.verbose("bin dist", [bd, dist])
-    if (b && b.tarball && b.shasum) {
-      log.info("prebuilt", data._id)
-      log.verbose("prebuilt", data._id, b)
-      dist = b
-    }
-
     if (!dist.tarball) return cb(new Error(
       "No dist.tarball in " + data._id + " package"))
 

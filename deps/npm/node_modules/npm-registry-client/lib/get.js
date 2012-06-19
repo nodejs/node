@@ -107,7 +107,7 @@ function get_ (uri, timeout, cache, stat, data, nofollow, staleOk, cb) {
     }
   }
 
-  this.request('GET', uri, etag, nofollow, function (er, remoteData, raw, response) {
+  this.request('GET', uri, null, etag, nofollow, function (er, remoteData, raw, response) {
     // if we get an error talking to the registry, but we have it
     // from the cache, then just pretend we got it.
     if (er && cache && data && !data.error) {

@@ -177,6 +177,9 @@ The following shorthands are parsed on the command\-line:
 \fB\-O\fR: \fB\-\-save\-optional\fR
 .
 .IP "\(bu" 4
+\fB\-B\fR: \fB\-\-save\-bundle\fR
+.
+.IP "\(bu" 4
 \fB\-y\fR: \fB\-\-yes\fR
 .
 .IP "\(bu" 4
@@ -276,45 +279,6 @@ Type: Boolean
 .P
 Force npm to always require authentication when accessing the registry,
 even for \fBGET\fR requests\.
-.
-.SS "bin\-publish"
-.
-.IP "\(bu" 4
-Default: false
-.
-.IP "\(bu" 4
-Type: Boolean
-.
-.IP "" 0
-.
-.P
-If set to true, then binary packages will be created on publish\.
-.
-.P
-This is the way to opt into the "bindist" behavior described below\.
-.
-.SS "bindist"
-.
-.IP "\(bu" 4
-Default: Unstable node versions, \fBnull\fR, otherwise \fB"<node version>\-<platform>\-<os release>"\fR
-.
-.IP "\(bu" 4
-Type: String or \fBnull\fR
-.
-.IP "" 0
-.
-.P
-Experimental: on stable versions of node, binary distributions will be
-created with this tag\.  If a user then installs that package, and their \fBbindist\fR tag is found in the list of binary distributions, they will
-get that prebuilt version\.
-.
-.P
-Pre\-build node packages have their preinstall, install, and postinstall
-scripts stripped (since they are run prior to publishing), and do not
-have their \fBbuild\fR directories automatically ignored\.
-.
-.P
-It\'s yet to be seen if this is a good idea\.
 .
 .SS "browser"
 .
@@ -769,6 +733,24 @@ What level of logs to report\.  On failure, \fIall\fR logs are written to \fBnpm
 Any logs of a higher level than the setting are shown\.
 The default is "http", which shows http, warn, and error output\.
 .
+.SS "logstream"
+.
+.IP "\(bu" 4
+Default: process\.stderr
+.
+.IP "\(bu" 4
+Type: Stream
+.
+.IP "" 0
+.
+.P
+This is the stream that is passed to the npmlog \fIhttps://github\.com/isaacs/npmlog\fR module at run time\.
+.
+.P
+It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr\.
+.
 .SS "long"
 .
 .IP "\(bu" 4
@@ -986,7 +968,28 @@ Type: Boolean
 Save installed packages to a package\.json file as dependencies\.
 .
 .P
+When used with the \fBnpm rm\fR command, it removes it from the dependencies
+hash\.
+.
+.P
 Only works if there is already a package\.json file present\.
+.
+.SS "save\-bundle"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+If a package would be saved at install time by the use of \fB\-\-save\fR, \fB\-\-save\-dev\fR, or \fB\-\-save\-optional\fR, then also put it in the \fBbundleDependencies\fR list\.
+.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the
+bundledDependencies list\.
 .
 .SS "save\-dev"
 .
@@ -1000,6 +1003,10 @@ Type: Boolean
 .
 .P
 Save installed packages to a package\.json file as devDependencies\.
+.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the devDependencies
+hash\.
 .
 .P
 Only works if there is already a package\.json file present\.
@@ -1016,6 +1023,10 @@ Type: Boolean
 .
 .P
 Save installed packages to a package\.json file as optionalDependencies\.
+.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the devDependencies
+hash\.
 .
 .P
 Only works if there is already a package\.json file present\.
