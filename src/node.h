@@ -274,10 +274,11 @@ MakeCallback(const v8::Handle<v8::Object> object,
              int argc,
              v8::Handle<v8::Value> argv[]);
 
+}  // namespace node
+
 #if !defined(NODE_WANT_INTERNALS) && !defined(_WIN32)
 # include "ev-emul.h"
 # include "eio-emul.h"
 #endif
 
-}  // namespace node
 #endif  // SRC_NODE_H_

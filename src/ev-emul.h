@@ -30,6 +30,10 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #undef ev_init
 #undef ev_set_cb
 #undef ev_set_priority
@@ -247,5 +251,9 @@ inline static void __ev_unref(void) {
 
 #undef __uv_container_of
 #undef __uv_warn_of
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NODE_EV_EMUL_H_ */
