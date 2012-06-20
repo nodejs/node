@@ -1,4 +1,42 @@
-2012.06.15, Version 0.7.11 (unstable)
+2012.06.19, Version 0.7.12 (unstable)
+
+* npm: Upgrade to 1.1.30
+	- Improved 'npm init'
+	- Fix the 'cb never called' error from 'oudated' and 'update'
+	- Add --save-bundle|-B config
+	- Fix isaacs/npm#2465: Make npm script and windows shims cygwin-aware
+	- Fix isaacs/npm#2452 Use --save(-dev|-optional) in npm rm
+	- `logstream` option to replace removed `logfd` (Rod Vagg)
+	- Read default descriptions from README.md files
+
+* Shims to support deprecated ev_* and eio_* methods (Ben Noordhuis)
+
+* #3118 net.Socket: Delay pause/resume until after connect (isaacs)
+
+* #3465 Add ./configure --no-ifaddrs flag (isaacs)
+
+* child_process: add .stdin stream to forks (Fedor Indutny)
+
+* build: fix `make install DESTDIR=/path` (Ben Noordhuis)
+
+* tls: fix off-by-one error in renegotiation check (Ben Noordhuis)
+
+* crypto: Fix diffie-hellman key generation UTF-8 errors (Fedor Indutny)
+
+* node: change the constructor name of process from EventEmitter to process (Andreas Madsen)
+
+* net: Prevent property access throws during close (Reid Burke)
+
+* querystring: improved speed and code cleanup (Felix Böhm)
+
+* sunos: fix assertion errors breaking fs.watch() (Fedor Indutny)
+
+* unix: stat: detect sub-second changes (Ben Noordhuis)
+
+* add stat() based file watcher (Ben Noordhuis)
+
+
+2012.06.15, Version 0.7.11 (unstable), 5cfe0b86d5be266ef51bbba369c39e412ee51944
 
 * V8: Upgrade to v3.11.10
 

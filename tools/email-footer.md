@@ -4,7 +4,7 @@ Macintosh Installer (Universal): http://nodejs.org/dist/__VERSION__/node-__VERSI
 
 Windows Installer: http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi
 
-Windows Installer: http://nodejs.org/dist/__VERSION__/x64/node-__VERSION__-x64.msi
+Windows x64 Installer: http://nodejs.org/dist/__VERSION__/x64/node-__VERSION__-x64.msi
 
 Windows x64 Files: http://nodejs.org/dist/__VERSION__/x64/
 

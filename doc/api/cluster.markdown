@@ -61,7 +61,7 @@ create one, and pass the handle to the child.
 
 This causes potentially surprising behavior in three edge cases:
 
-1. `server.listen({fd: 7})` Because the message is passed to the worker,
+1. `server.listen({fd: 7})` Because the message is passed to the master,
    file descriptor 7 **in the parent** will be listened on, and the
    handle passed to the worker, rather than listening to the worker's
    idea of what the number 7 file descriptor references.
