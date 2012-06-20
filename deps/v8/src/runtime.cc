@@ -1123,11 +1123,13 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
     elms->set(IS_ACCESSOR_INDEX, heap->true_value());
 
     AccessorPair* accessors = AccessorPair::cast(result.GetCallbackObject());
-    if (CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
-      elms->set(GETTER_INDEX, accessors->GetComponent(ACCESSOR_GETTER));
+    Object* getter = accessors->GetComponent(ACCESSOR_GETTER);
+    if (!getter->IsMap() && CheckAccess(*obj, *name, &result, v8::ACCESS_GET)) {
+      elms->set(GETTER_INDEX, getter);
     }
-    if (CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
-      elms->set(SETTER_INDEX, accessors->GetComponent(ACCESSOR_SETTER));
+    Object* setter = accessors->GetComponent(ACCESSOR_SETTER);
+    if (!setter->IsMap() && CheckAccess(*obj, *name, &result, v8::ACCESS_SET)) {
+      elms->set(SETTER_INDEX, setter);
     }
   } else {
     elms->set(IS_ACCESSOR_INDEX, heap->false_value());

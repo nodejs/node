@@ -310,6 +310,10 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     // Self-optimization is a one-off thing; if it fails, don't try again.
     reset_value = Smi::kMaxValue;
   }
+  if (isolate()->IsDebuggerActive()) {
+    // Detect debug break requests as soon as possible.
+    reset_value = 10;
+  }
   __ movq(rbx, profiling_counter_, RelocInfo::EMBEDDED_OBJECT);
   __ movq(kScratchRegister,
           reinterpret_cast<uint64_t>(Smi::FromInt(reset_value)),

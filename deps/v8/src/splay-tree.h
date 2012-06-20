@@ -66,8 +66,12 @@ class SplayTree {
                             AllocationPolicy allocator = AllocationPolicy())) {
     return allocator.New(static_cast<int>(size));
   }
-  INLINE(void operator delete(void* p, size_t)) {
+  INLINE(void operator delete(void* p)) {
     AllocationPolicy::Delete(p);
+  }
+  // Please the MSVC compiler.  We should never have to execute this.
+  INLINE(void operator delete(void* p, AllocationPolicy policy)) {
+    UNREACHABLE();
   }
 
   // Inserts the given key in this tree with the given value.  Returns
@@ -119,8 +123,13 @@ class SplayTree {
     INLINE(void* operator new(size_t size, AllocationPolicy allocator)) {
       return allocator.New(static_cast<int>(size));
     }
-    INLINE(void operator delete(void* p, size_t)) {
+    INLINE(void operator delete(void* p)) {
       return AllocationPolicy::Delete(p);
+    }
+    // Please the MSVC compiler.  We should never have to execute
+    // this.
+    INLINE(void operator delete(void* p, AllocationPolicy allocator)) {
+      UNREACHABLE();
     }
 
     Key key() { return key_; }

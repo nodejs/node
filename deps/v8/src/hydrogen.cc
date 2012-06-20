@@ -4698,7 +4698,7 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
   // If the property does not exist yet, we have to check that it wasn't made
   // readonly or turned into a setter by some meanwhile modifications on the
   // prototype chain.
-  if (!lookup->IsProperty()) {
+  if (!lookup->IsProperty() && type->prototype()->IsJSReceiver()) {
     Object* proto = type->prototype();
     // First check that the prototype chain isn't affected already.
     LookupResult proto_result(isolate());

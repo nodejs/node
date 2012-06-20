@@ -2692,6 +2692,10 @@ void V8HeapExplorer::TagGlobalObjects() {
     Object* obj_document;
     if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
         obj_document->IsJSObject()) {
+      // FixMe: Workaround: SharedWorker's current Isolate has NULL context.
+      // As result GetProperty(*url_string) will crash.
+      if (!Isolate::Current()->context() && obj_document->IsJSGlobalProxy())
+        continue;
       JSObject* document = JSObject::cast(obj_document);
       Object* obj_url;
       if (document->GetProperty(*url_string)->ToObject(&obj_url) &&

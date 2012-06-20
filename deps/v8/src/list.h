@@ -74,6 +74,11 @@ class List {
     AllocationPolicy::Delete(p);
   }
 
+  // Please the MSVC compiler.  We should never have to execute this.
+  INLINE(void operator delete(void* p, AllocationPolicy allocator)) {
+    UNREACHABLE();
+  }
+
   // Returns a reference to the element at index i.  This reference is
   // not safe to use after operations that can change the list's
   // backing store (e.g. Add).

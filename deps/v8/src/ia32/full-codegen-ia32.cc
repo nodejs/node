@@ -317,6 +317,10 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     // Self-optimization is a one-off thing: if it fails, don't try again.
     reset_value = Smi::kMaxValue;
   }
+  if (isolate()->IsDebuggerActive()) {
+    // Detect debug break requests as soon as possible.
+    reset_value = 10;
+  }
   __ mov(ebx, Immediate(profiling_counter_));
   __ mov(FieldOperand(ebx, JSGlobalPropertyCell::kValueOffset),
          Immediate(Smi::FromInt(reset_value)));
