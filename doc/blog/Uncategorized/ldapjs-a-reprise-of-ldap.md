@@ -7,6 +7,7 @@ slug: ldapjs-a-reprise-of-ldap
 
 This post has been about 10 years in the making. My first job out of college was at IBM working on the <a title="Tivoli Directory Server" href="http://www-01.ibm.com/software/tivoli/products/directory-server/">Tivoli Directory Server</a>, and at the time I had a preconceived notion that working on anything related to Internet RFCs was about as hot as you could get. I spent a lot of time back then getting "down and dirty" with everything about LDAP: the protocol, performance, storage engines, indexing and querying, caching, customer use cases and patterns, general network server patterns, etc. Basically, I soaked up as much as I possibly could while I was there. On top of that, I listened to all the "gray beards" tell me about the history of LDAP, which was a bizarre marriage of telecommunications conglomerates and graduate students. The point of this blog post is to give you a crash course in LDAP, and explain what makes <a title="ldapjs" href="http://ldapjs.org">ldapjs</a> different. Allow me to be the gray beard for a bit...
 <h2>What is LDAP and where did it come from?</h2>
+
 Directory services were largely pioneered by the telecommunications companies (e.g., AT&amp;T) to allow fast information retrieval of all the crap you'd expect would be in a telephone book and directory. That is, given a name, or an address, or an area code, or a number, or a foo support looking up customer records, billing information, routing information, etc. The efforts of several telcos came to exist in the <a title="X.500" href="http://en.wikipedia.org/wiki/X.500">X.500</a> standard(s). An X.500 directory is one of the most complicated beasts you can possibly imagine, but on a high note, there's
 probably not a thing you can imagine in a directory service that wasn't thought of in there. It is literally the kitchen sink. Oh, and it doesn't run over IP (it's <em>actually</em> on the <a title="OSI Model" href="http://en.wikipedia.org/wiki/OSI_model">OSI</a> model).
 
@@ -22,6 +23,7 @@ Macro point is that there have actually been very few "fresh" implementations o
 
 That said, while there certainly is some wacky stuff in the LDAP protocol itself, it really suffered from poor and buggy implementations more than the fact that LDAP itself was fundamentally flawed. As <a title="Engine Yard LDAP" href="http://www.engineyard.com/blog/2009/ldap-directories-the-forgotten-nosql/">engine yard pointed out a few years back</a>, you can think of LDAP as the original NoSQL store.
 <h2>LDAP: The Good Parts</h2>
+
 So what's awesome about LDAP? Since it's a directory system it maintains a hierarchy of your data, which as an information management pattern aligns
 with _a lot_ of use case (the quintessential example is white pages for people in your company, but subscriptions to SaaS applications, "host groups"
 for tracking machines/instances, physical goods tracking, etc., all have use cases that fit that organization scheme). For example, presumably at your job
@@ -50,6 +52,7 @@ I could keep going, but the gist is that LDAP has "full" boolean predicate logi
 
 Oh, and on top of the technical merits, better or worse, it's an established standard for both administrators and applications (i.e., most "shipped" intranet software has either a local user repository or the ability to leverage an LDAP server somewhere). So there's a lot of compelling reasons to look at leveraging LDAP.
 <h2>ldapjs: Why do I care?</h2>
+
 As I said earlier, I spent a lot of time at IBM observing how customers used LDAP, and the real items I took away from that experience were:
 <ul>
 	<li>LDAP implementations have suffered a lot from never having been designed from the ground up for a large number of concurrent connections with asynchronous operations.</li>
@@ -57,7 +60,6 @@ As I said earlier, I spent a lot of time at IBM observing how customers used LD
 	<li>Replication was always a sticking point. LDAP vendors all tried to offer a big multi-master, multi-site replication model. It was a lot of "bolt-on" complexity, done before the <a title="CAP Theorem" href="http://en.wikipedia.org/wiki/CAP_theorem">CAP theorem</a> was written, and certainly before it was accepted as "truth."</li>
 	<li>Nobody uses all of the protocol. In fact, 20% of the features solve 80% of the use cases (I'm making that number up, but you get the idea).</li>
 </ul>
-<div>
 
 For all the good parts of LDAP, those are really damned big failing points, and even I eventually abandoned LDAP for the greener pastures of NoSQL somewhere
 along the way. But it always nagged at me that LDAP didn't get it's due because of a lot of implementation problems (to be clear, if I could, I'd change some
@@ -70,7 +72,6 @@ Well, in the last year, I went to work for <a title="Joyent" href="http://www.jo
 	<li><strong>Replication is hard. CAP is right:</strong> There are a lot of distributed databases out vying to solve exactly this problem. At Joyent we went with <a title="Riak" href="http://www.basho.com/">Riak</a>. Check!</li>
 	<li><strong>Don't need all of the protocol:</strong> I'm lazy. Let's just skip the stupid things most people don't need. Check!</li>
 </ul>
-<div>
 
 So that's the crux of ldapjs right there. Giving you the ability to put LDAP back into your application while nailing those 4 fundamental problems that plague most existing LDAP deployments.
 
@@ -78,11 +79,6 @@ The obvious question is how it turned out, and the answer is, honestly, better 
 
 Within 24 hours of releasing ldapjs on <a title="twitter" href="http://twitter.com/#!/mcavage/status/106767571012952064">Twitter</a>, there was an <a title="github ldapjs address book" href="https://gist.github.com/1173999">implementation of an address book</a> that works with Thunderbird/Evolution, by the end of that weekend there was some <a href="http://i.imgur.com/uR16U.png">slick integration with CouchDB</a>, and ldapjs even got used in one of the <a href="http://twitter.com/#!/jheusala/status/108977708649811970">node knockout apps</a>. Off to a pretty good start!
 
-</div>
-</div>
 <h2>The Road Ahead</h2>
-<div>
 
 Hopefully you've been motivated to learn a little bit more about LDAP and try out <a href="http://ldapjs.org">ldapjs</a>. The best place to start is probably the <a title="ldapjs guide" href="http://ldapjs.org/guide.html">guide</a>. After that you'll probably need to pick up a book from <a href="http://www.amazon.com/Understanding-Deploying-LDAP-Directory-Services/dp/0672323168">back in the day</a>. ldapjs itself is still in its infancy; there's quite a bit of room to add some slick client-side logic (e.g., connection pools, automatic reconnects), easy to use schema validation, backends, etc. By the time this post is live, there will be experimental <a href="http://en.wikipedia.org/wiki/DTrace">dtrace</a> support if you're running on Mac OS X or preferably Joyent's <a href="http://smartos.org/">SmartOS</a> (shameless plug). And that nagging percentage of the protocol I didn't do will get filled in over time I suspect. If you've got an interest in any of this, send me some pull requests, but most importantly, I just want to see LDAP not just be a skeleton in the closet and get used in places where you should be using it. So get out there and write you some LDAP.
-
-</div>

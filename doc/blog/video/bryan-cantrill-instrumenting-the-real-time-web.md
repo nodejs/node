@@ -14,6 +14,29 @@ This talk was given at Velocity Conf in 2011.
 src="http://www.youtube.com/embed/F5jCXdTYJYc" frameborder="0"
 allowfullscreen></iframe>
 
-<div id="__ss_8332407"> <strong><a href="http://www.slideshare.net/bcantrill/instrumenting-the-realtime-web" title="Instrumenting the real-time web" target="_blank">Instrumenting the real-time web</a></strong> <div style="width:425px" id="__ss_8332407"> <strong style="display:block;margin:12px 0 4px"><a href="http://www.slideshare.net/bcantrill/instrumenting-the-realtime-web" title="Instrumenting the real-time web" target="_blank">Instrumenting the real-time web</a></strong> <object id="__sse8332407" width="425" height="355"> <param name="movie" value="http://static.slidesharecdn.com/swf/ssplayer2.swf?doc=velocity-110616190636-phpapp02&stripped_title=instrumenting-the-realtime-web&userName=bcantrill" /> <param name="allowFullScreen" value="true"/> <param name="allowScriptAccess" value="always"/> <param name="wmode" value="transparent"/> <embed name="__sse8332407" src="http://static.slidesharecdn.com/swf/ssplayer2.swf?doc=velocity-110616190636-phpapp02&stripped_title=instrumenting-the-realtime-web&userName=bcantrill" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" wmode="transparent" width="425" height="355"></embed> </object> <div style="padding:5px 0 12px"> View more <a href="http://www.slideshare.net/" target="_blank">presentations</a> from <a href="http://www.slideshare.net/bcantrill" target="_blank">bcantrill</a> </div> </div>
-</div>
+  <div style="width:425px" id="__ss_8332407">
+    <strong style="display:block;margin:12px 0 4px"><a href=
+    "http://www.slideshare.net/bcantrill/instrumenting-the-realtime-web"
+    title="Instrumenting the real-time web" target=
+    "_blank">Instrumenting the real-time web</a></strong>
+    <object id="__sse8332407" width="425" height="355">
+      <param name="movie" value=
+      "http://static.slidesharecdn.com/swf/ssplayer2.swf?doc=velocity-110616190636-phpapp02&amp;stripped_title=instrumenting-the-realtime-web&amp;userName=bcantrill">
+      <param name="allowFullScreen" value="true">
+      <param name="allowScriptAccess" value="always">
+      <param name="wmode" value="transparent">
+      <embed name="__sse8332407" src=
+      "http://static.slidesharecdn.com/swf/ssplayer2.swf?doc=velocity-110616190636-phpapp02&amp;stripped_title=instrumenting-the-realtime-web&amp;userName=bcantrill"
+      type="application/x-shockwave-flash" allowscriptaccess=
+      "always" allowfullscreen="true" wmode="transparent" width=
+      "425" height="355">
+    </object>
+
+    <div style="padding:5px 0 12px">
+      View more <a href="http://www.slideshare.net/" target=
+      "_blank">presentations</a> from <a href=
+      "http://www.slideshare.net/bcantrill" target=
+      "_blank">bcantrill</a>
+    </div>
+  </div>
 </td></td></table>
