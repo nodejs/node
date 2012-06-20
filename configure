@@ -340,7 +340,7 @@ def configure_openssl(o):
     o['defines'] += ['OPENSSL_NO_SSL2=1']
 
   if not options.openssl_use_sys:
-    o['variables']['node_use_system_openssl'] = b(False)
+    o['variables']['node_shared_openssl'] = b(False)
   else:
     out = pkg_config('openssl')
     (libs, cflags) = out if out else ('', '')
@@ -355,7 +355,7 @@ def configure_openssl(o):
     else:
       o['cflags'] += cflags.split()
 
-    o['variables']['node_use_system_openssl'] = b(
+    o['variables']['node_shared_openssl'] = b(
       libs or cflags or options.openssl_libpath or options.openssl_includes)
 
 
