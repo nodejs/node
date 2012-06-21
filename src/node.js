@@ -400,6 +400,14 @@
       // know yet.  Call pause() explicitly to unref() it.
       stdin.pause();
 
+      // when piping stdin to a destination stream,
+      // let the data begin to flow.
+      var pipe = stdin.pipe;
+      stdin.pipe = function(dest) {
+        stdin.resume();
+        return pipe.call(stdin, dest);
+      };
+
       return stdin;
     });
 
