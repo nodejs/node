@@ -297,7 +297,14 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
 
   if (!key) {
     BIO_free(bio);
-    return False();
+    unsigned long err = ERR_get_error();
+    if (!err) {
+      return ThrowException(Exception::Error(
+          String::New("PEM_read_bio_PrivateKey")));
+    }
+    char string[120];
+    ERR_error_string_n(err, string, sizeof string);
+    return ThrowException(Exception::Error(String::New(string)));
   }
 
   SSL_CTX_use_PrivateKey(sc->ctx_, key);
