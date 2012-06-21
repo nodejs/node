@@ -120,7 +120,6 @@ static Persistent<String> disposed_symbol;
 
 static bool print_eval = false;
 static bool force_repl = false;
-static bool no_deprecation = false;
 static bool trace_deprecation = false;
 static char *eval_string = NULL;
 static int option_end_index = 0;
@@ -128,6 +127,9 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port=5858;
 static int max_stack_size = 0;
+
+// used by C++ modules as well
+bool no_deprecation = false;
 
 static uv_check_t check_tick_watcher;
 static uv_prepare_t prepare_tick_watcher;
