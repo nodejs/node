@@ -80,6 +80,8 @@ void IOWatcher::Callback(EV_P_ ev_io *w, int revents) {
 //  io.start();
 //
 Handle<Value> IOWatcher::New(const Arguments& args) {
+  fprintf(stderr, "WARNING: don't use IOWatcher, it'll be removed in v0.9\n");
+
   if (!args.IsConstructCall()) {
     return FromConstructorTemplate(constructor_template, args);
   }
