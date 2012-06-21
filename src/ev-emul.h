@@ -88,7 +88,7 @@ extern "C" {
 
 #define __uv_warn_of(old_, new_)                                              \
   do {                                                                        \
-    if (__uv_warn_##old_ || no_deprecation) break;                            \
+    if (__uv_warn_##old_ || node::no_deprecation) break;                      \
     __uv_warn_##old_ = 1;                                                     \
     fputs("WARNING: " #old_ " is deprecated, use " #new_ "\n", stderr);       \
   }                                                                           \

@@ -28,8 +28,6 @@
 
 namespace node {
 
-extern bool no_deprecation;
-
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
 // on overflow...
