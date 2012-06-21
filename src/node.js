@@ -600,34 +600,5 @@
     NativeModule._cache[this.id] = this;
   };
 
-  // Wrap a core module's method in a wrapper that will warn on first use
-  // and then return the result of invoking the original function. After
-  // first being called the original method is restored.
-  NativeModule.prototype.deprecate = function(method, message) {
-    var original = this.exports[method];
-    var self = this;
-    var warned = false;
-    message = message || '';
-
-    Object.defineProperty(this.exports, method, {
-      enumerable: false,
-      value: function() {
-        if (!warned) {
-          warned = true;
-          message = self.id + '.' + method + ' is deprecated. ' + message;
-
-          var moduleIdCheck = new RegExp('\\b' + self.id + '\\b');
-          if (moduleIdCheck.test(process.env.NODE_DEBUG))
-            console.trace(message);
-          else
-            console.error(message);
-
-          self.exports[method] = original;
-        }
-        return original.apply(this, arguments);
-      }
-    });
-  };
-
   startup();
 });
