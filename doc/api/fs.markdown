@@ -456,8 +456,7 @@ The second argument is optional. The `options` if provided should be an object
 containing two members a boolean, `persistent`, and `interval`. `persistent`
 indicates whether the process should continue to run as long as files are
 being watched. `interval` indicates how often the target should be polled,
-in milliseconds. (On Linux systems with inotify, `interval` is ignored.) The
-default is `{ persistent: true, interval: 0 }`.
+in milliseconds. The default is `{ persistent: true, interval: 5007 }`.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
