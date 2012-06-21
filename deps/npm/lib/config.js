@@ -167,7 +167,9 @@ function list (cb) {
   if (cliKeys.length) {
     msg += "; cli configs" + eol
     cliKeys.forEach(function (k) {
+      if (cli[k] && typeof cli[k] === 'object') return
       if (k === "argv") return
+      if (typeof cli[k] === 'object') return
       msg += k + " = " + JSON.stringify(cli[k]) + eol
     })
     msg += eol
@@ -183,6 +185,7 @@ function list (cb) {
   if (envKeys.length) {
     msg += "; environment configs" + eol
     envKeys.forEach(function (k) {
+      if (env[k] && typeof env[k] === 'object') return
       if (env[k] !== ini.get(k)) {
         if (!long) return
         msg += "; " + k + " = " + JSON.stringify(env[k])
@@ -202,6 +205,7 @@ function list (cb) {
   if (uconfKeys.length) {
     msg += "; userconfig " + ini.get("userconfig") + eol
     uconfKeys.forEach(function (k) {
+      if (uconf[k] && typeof uconf[k] === 'object') return
       var val = (k.charAt(0) === "_")
               ? "---sekretz---"
               : JSON.stringify(uconf[k])
@@ -224,6 +228,7 @@ function list (cb) {
   if (gconfKeys.length) {
     msg += "; globalconfig " + ini.get("globalconfig") + eol
     gconfKeys.forEach(function (k) {
+      if (gconf[k] && typeof gconf[k] === 'object') return
       var val = (k.charAt(0) === "_")
               ? "---sekretz---"
               : JSON.stringify(gconf[k])
@@ -247,6 +252,7 @@ function list (cb) {
     var path = require("path")
     msg += "; builtin config " + path.resolve(__dirname, "../npmrc") + eol
     bconfKeys.forEach(function (k) {
+      if (bconf[k] && typeof bconf[k] === 'object') return
       var val = (k.charAt(0) === "_")
               ? "---sekretz---"
               : JSON.stringify(bconf[k])
@@ -274,6 +280,7 @@ function list (cb) {
     , defKeys = Object.keys(defaults)
   msg += "; default values" + eol
   defKeys.forEach(function (k) {
+    if (defaults[k] && typeof defaults[k] === 'object') return
     var val = JSON.stringify(defaults[k])
     if (defaults[k] !== ini.get(k)) {
       if (!long) return
