@@ -56,7 +56,7 @@
 #define QUEUE_FS_TP_JOB(loop, req)                                          \
   if (!QueueUserWorkItem(&uv_fs_thread_proc,                                \
                          req,                                               \
-                         WT_EXECUTELONGFUNCTION)) {                         \
+                         WT_EXECUTEDEFAULT)) {                              \
     uv__set_sys_error((loop), GetLastError());                              \
     return -1;                                                              \
   }                                                                         \

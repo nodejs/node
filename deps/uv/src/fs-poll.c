@@ -30,6 +30,8 @@ static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b);
 static void timer_cb(uv_timer_t* timer, int status);
 static void poll_cb(uv_fs_t* req);
 
+static uv_statbuf_t zero_statbuf;
+
 
 int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle) {
   /* TODO(bnoordhuis) Mark fs_req internal. */
@@ -141,7 +143,7 @@ static void poll_cb(uv_fs_t* req) {
   if (req->result != 0) {
     if (handle->busy_polling != -req->errorno) {
       uv__set_artificial_error(handle->loop, req->errorno);
-      handle->poll_cb(handle, -1, NULL, NULL);
+      handle->poll_cb(handle, -1, &handle->statbuf, &zero_statbuf);
       handle->busy_polling = -req->errorno;
     }
     goto out;
