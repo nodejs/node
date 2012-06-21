@@ -25,6 +25,7 @@ import re
 
 from closure_linter import checkerbase
 from closure_linter import ecmametadatapass
+from closure_linter import error_check
 from closure_linter import errors
 from closure_linter import indentation
 from closure_linter import javascripttokens
@@ -39,8 +40,6 @@ from closure_linter.common import tokens
 import gflags as flags
 
 FLAGS = flags.FLAGS
-flags.DEFINE_boolean('strict', False,
-                     'Whether to validate against the stricter Closure style.')
 flags.DEFINE_list('custom_jsdoc_tags', '', 'Extra jsdoc tags to allow')
 
 # TODO(robbyw): Check for extra parens on return statements
@@ -53,6 +52,7 @@ Context = ecmametadatapass.EcmaContext
 Error = error.Error
 Modes = javascripttokenizer.JavaScriptModes
 Position = position.Position
+Rule = error_check.Rule
 Type = javascripttokens.JavaScriptTokenType
 
 class EcmaScriptLintRules(checkerbase.LintRulesBase):
@@ -183,8 +183,9 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
           self._HandleError(errors.JSDOC_ILLEGAL_QUESTION_WITH_PIPE,
               'JsDoc types cannot contain both "?" and "|": "%s"' % p, token)
 
-      if FLAGS.strict and (flag.type_start_token.type != Type.DOC_START_BRACE or
-                           flag.type_end_token.type != Type.DOC_END_BRACE):
+      if error_check.ShouldCheck(Rule.BRACES_AROUND_TYPE) and (
+          flag.type_start_token.type != Type.DOC_START_BRACE or
+          flag.type_end_token.type != Type.DOC_END_BRACE):
         self._HandleError(errors.MISSING_BRACES_AROUND_TYPE,
             'Type must always be surrounded by curly braces.', token)
 
@@ -249,7 +250,7 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
     type = token.type
 
     # Process the line change.
-    if not self._is_html and FLAGS.strict:
+    if not self._is_html and error_check.ShouldCheck(Rule.INDENTATION):
       # TODO(robbyw): Support checking indentation in HTML files.
       indentation_errors = self._indentation.CheckToken(token, state)
       for indentation_error in indentation_errors:
@@ -360,32 +361,7 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
               token.previous, Position.All(token.previous.string))
 
     elif type == Type.START_BRACKET:
-      if (not first_in_line and token.previous.type == Type.WHITESPACE and
-          last_non_space_token and
-          last_non_space_token.type in Type.EXPRESSION_ENDER_TYPES):
-        self._HandleError(errors.EXTRA_SPACE, 'Extra space before "["',
-            token.previous, Position.All(token.previous.string))
-      # If the [ token is the first token in a line we shouldn't complain
-      # about a missing space before [.  This is because some Ecma script
-      # languages allow syntax like:
-      # [Annotation]
-      # class MyClass {...}
-      # So we don't want to blindly warn about missing spaces before [.
-      # In the the future, when rules for computing exactly how many spaces
-      # lines should be indented are added, then we can return errors for
-      # [ tokens that are improperly indented.
-      # For example:
-      # var someVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongVariableName =
-      # [a,b,c];
-      # should trigger a proper indentation warning message as [ is not indented
-      # by four spaces.
-      elif (not first_in_line and token.previous and
-            not token.previous.type in (
-                [Type.WHITESPACE, Type.START_PAREN, Type.START_BRACKET] +
-                Type.EXPRESSION_ENDER_TYPES)):
-        self._HandleError(errors.MISSING_SPACE, 'Missing space before "["',
-            token, Position.AtBeginning())
-
+      self._HandleStartBracket(token, last_non_space_token)
     elif type in (Type.END_PAREN, Type.END_BRACKET):
       # Ensure there is no space before closing parentheses, except when
       # it's in a for statement with an omitted section, or when it's at the
@@ -408,9 +384,14 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
     elif type == Type.WHITESPACE:
       if self.ILLEGAL_TAB.search(token.string):
         if token.IsFirstInLine():
-          self._HandleError(errors.ILLEGAL_TAB,
-              'Illegal tab in whitespace before "%s"' % token.next.string,
-              token, Position.All(token.string))
+          if token.next:
+            self._HandleError(errors.ILLEGAL_TAB,
+                'Illegal tab in whitespace before "%s"' % token.next.string,
+                token, Position.All(token.string))
+          else:
+            self._HandleError(errors.ILLEGAL_TAB,
+                'Illegal tab in whitespace',
+                token, Position.All(token.string))
         else:
           self._HandleError(errors.ILLEGAL_TAB,
               'Illegal tab in whitespace after "%s"' % token.previous.string,
@@ -471,12 +452,15 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
           self._HandleError(errors.INCORRECT_SUPPRESS_SYNTAX,
               'Invalid suppress syntax: should be @suppress {errortype}. '
               'Spaces matter.', token)
-        elif flag.type not in state.GetDocFlag().SUPPRESS_TYPES:
-          self._HandleError(errors.INVALID_SUPPRESS_TYPE,
-              'Invalid suppression type: %s' % flag.type,
-              token)
+        else:
+          for suppress_type in flag.type.split('|'):
+            if suppress_type not in state.GetDocFlag().SUPPRESS_TYPES:
+              self._HandleError(errors.INVALID_SUPPRESS_TYPE,
+                'Invalid suppression type: %s' % suppress_type,
+                token)
 
-      elif FLAGS.strict and flag.flag_type == 'author':
+      elif (error_check.ShouldCheck(Rule.WELL_FORMED_AUTHOR) and
+            flag.flag_type == 'author'):
         # TODO(user): In non strict mode check the author tag for as much as
         # it exists, though the full form checked below isn't required.
         string = token.next.string
@@ -546,7 +530,7 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
             while desc_str.endswith('>'):
               start_tag_index = desc_str.rfind('<')
               if start_tag_index < 0:
-                break              
+                break
               desc_str = desc_str[:start_tag_index].rstrip()
             end_position = Position(len(desc_str), 0)
 
@@ -570,7 +554,8 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
           self._HandleError(errors.INVALID_JSDOC_TAG,
               'Invalid JsDoc tag: %s' % token.values['name'], token)
 
-        if (FLAGS.strict and token.values['name'] == 'inheritDoc' and
+        if (error_check.ShouldCheck(Rule.NO_BRACES_AROUND_INHERIT_DOC) and
+            token.values['name'] == 'inheritDoc' and
             type == Type.DOC_INLINE_FLAG):
           self._HandleError(errors.UNNECESSARY_BRACES_AROUND_INHERIT_DOC,
               'Unnecessary braces around @inheritDoc',
@@ -599,18 +584,24 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
                         identifier.startswith('this.')):
           # We are at the top level and the function/member is documented.
           if identifier.endswith('_') and not identifier.endswith('__'):
-            if jsdoc.HasFlag('override'):
+            # Can have a private class which inherits documentation from a
+            # public superclass.
+            #
+            # @inheritDoc is deprecated in favor of using @override, and they
+            if (jsdoc.HasFlag('override') and not jsdoc.HasFlag('constructor')
+                and not ('accessControls' in jsdoc.suppressions)):
               self._HandleError(errors.INVALID_OVERRIDE_PRIVATE,
                   '%s should not override a private member.' % identifier,
                   jsdoc.GetFlag('override').flag_token)
-            # Can have a private class which inherits documentation from a
-            # public superclass.
-            if jsdoc.HasFlag('inheritDoc') and not jsdoc.HasFlag('constructor'):
+            if (jsdoc.HasFlag('inheritDoc') and not jsdoc.HasFlag('constructor')
+                and not ('accessControls' in jsdoc.suppressions)):
               self._HandleError(errors.INVALID_INHERIT_DOC_PRIVATE,
                   '%s should not inherit from a private member.' % identifier,
                   jsdoc.GetFlag('inheritDoc').flag_token)
             if (not jsdoc.HasFlag('private') and
-                not ('underscore' in jsdoc.suppressions)):
+                not ('underscore' in jsdoc.suppressions) and not
+                ((jsdoc.HasFlag('inheritDoc') or jsdoc.HasFlag('override')) and
+                 ('accessControls' in jsdoc.suppressions))):
               self._HandleError(errors.MISSING_PRIVATE,
                   'Member "%s" must have @private JsDoc.' %
                   identifier, token)
@@ -618,19 +609,23 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
               self._HandleError(errors.UNNECESSARY_SUPPRESS,
                   '@suppress {underscore} is not necessary with @private',
                   jsdoc.suppressions['underscore'])
-          elif jsdoc.HasFlag('private'):
+          elif (jsdoc.HasFlag('private') and
+                not self.InExplicitlyTypedLanguage()):
+            # It is convention to hide public fields in some ECMA
+            # implementations from documentation using the @private tag.
             self._HandleError(errors.EXTRA_PRIVATE,
                 'Member "%s" must not have @private JsDoc' %
                 identifier, token)
 
-          if ((jsdoc.HasFlag('desc') or jsdoc.HasFlag('hidden'))
+          # These flags are only legal on localizable message definitions;
+          # such variables always begin with the prefix MSG_.
+          for f in ('desc', 'hidden', 'meaning'):
+            if (jsdoc.HasFlag(f)
               and not identifier.startswith('MSG_')
               and identifier.find('.MSG_') == -1):
-            # TODO(user): Update error message to show the actual invalid
-            # tag, either @desc or @hidden.
-            self._HandleError(errors.INVALID_USE_OF_DESC_TAG,
-                'Member "%s" should not have @desc JsDoc' % identifier,
-                token)
+              self._HandleError(errors.INVALID_USE_OF_DESC_TAG,
+                  'Member "%s" should not have @%s JsDoc' % (identifier, f),
+                  token)
 
       # Check for illegaly assigning live objects as prototype property values.
       index = identifier.find('.prototype.')
@@ -677,7 +672,8 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
               # Languages that don't allow variables to by typed such as
               # JavaScript care but languages such as ActionScript or Java
               # that allow variables to be typed don't care.
-              self.HandleMissingParameterDoc(token, params_iter.next())
+              if not self._limited_doc_checks:
+                self.HandleMissingParameterDoc(token, params_iter.next())
 
             elif op == 'D':
               # Deletion
@@ -686,9 +682,10 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
                   docs_iter.next(), token)
             elif op == 'S':
               # Substitution
-              self._HandleError(errors.WRONG_PARAMETER_DOCUMENTATION,
-                  'Parameter mismatch: got "%s", expected "%s"' %
-                  (params_iter.next(), docs_iter.next()), token)
+              if not self._limited_doc_checks:
+                self._HandleError(errors.WRONG_PARAMETER_DOCUMENTATION,
+                    'Parameter mismatch: got "%s", expected "%s"' %
+                    (params_iter.next(), docs_iter.next()), token)
 
             else:
               # Equality - just advance the iterators
@@ -722,6 +719,39 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
       self._HandleError(errors.MISSING_SEMICOLON,
           'Missing semicolon at end of line', token)
 
+  def _HandleStartBracket(self, token, last_non_space_token):
+    """Handles a token that is an open bracket.
+
+    Args:
+      token: The token to handle.
+      last_non_space_token: The last token that was not a space.
+    """
+    if (not token.IsFirstInLine() and token.previous.type == Type.WHITESPACE and
+        last_non_space_token and
+        last_non_space_token.type in Type.EXPRESSION_ENDER_TYPES):
+      self._HandleError(errors.EXTRA_SPACE, 'Extra space before "["',
+                        token.previous, Position.All(token.previous.string))
+    # If the [ token is the first token in a line we shouldn't complain
+    # about a missing space before [.  This is because some Ecma script
+    # languages allow syntax like:
+    # [Annotation]
+    # class MyClass {...}
+    # So we don't want to blindly warn about missing spaces before [.
+    # In the the future, when rules for computing exactly how many spaces
+    # lines should be indented are added, then we can return errors for
+    # [ tokens that are improperly indented.
+    # For example:
+    # var someVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryLongVariableName =
+    # [a,b,c];
+    # should trigger a proper indentation warning message as [ is not indented
+    # by four spaces.
+    elif (not token.IsFirstInLine() and token.previous and
+          not token.previous.type in (
+              [Type.WHITESPACE, Type.START_PAREN, Type.START_BRACKET] +
+              Type.EXPRESSION_ENDER_TYPES)):
+      self._HandleError(errors.MISSING_SPACE, 'Missing space before "["',
+                        token, Position.AtBeginning())
+
   def Finalize(self, state, tokenizer_mode):
     last_non_space_token = state.GetLastNonSpaceToken()
     # Check last line for ending with newline.
@@ -750,3 +780,7 @@ class EcmaScriptLintRules(checkerbase.LintRulesBase):
   def GetLongLineExceptions(self):
     """Gets a list of regexps for lines which can be longer than the limit."""
     return []
+
+  def InExplicitlyTypedLanguage(self):
+    """Returns whether this ecma implementation is explicitly typed."""
+    return False

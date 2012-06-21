@@ -123,3 +123,17 @@ class Token(object):
     return '<Token: %s, "%s", %r, %d, %r>' % (self.type, self.string,
                                               self.values, self.line_number,
                                               self.metadata)
+
+  def __iter__(self):
+    """Returns a token iterator."""
+    node = self
+    while node:
+      yield node
+      node = node.next
+
+  def __reversed__(self):
+    """Returns a reverse-direction token iterator."""
+    node = self
+    while node:
+      yield node
+      node = node.previous

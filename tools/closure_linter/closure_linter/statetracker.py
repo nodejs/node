@@ -65,6 +65,7 @@ class DocFlag(object):
       'implements',
       'implicitCast',
       'interface',
+      'lends',
       'license',
       'noalias',
       'nocompile',
@@ -89,18 +90,38 @@ class DocFlag(object):
 
   # Includes all Closure Compiler @suppress types.
   # Not all of these annotations are interpreted by Closure Linter.
+  #
+  # Specific cases:
+  # - accessControls is supported by the compiler at the expression
+  #   and method level to suppress warnings about private/protected
+  #   access (method level applies to all references in the method).
+  #   The linter mimics the compiler behavior.
   SUPPRESS_TYPES = frozenset([
       'accessControls',
+      'ambiguousFunctionDecl',
       'checkRegExp',
       'checkTypes',
       'checkVars',
+      'const',
+      'constantProperty',
       'deprecated',
       'duplicate',
+      'es5Strict',
+      'externsValidation',
+      'extraProvide',
+      'extraRequire',
       'fileoverviewTags',
+      'globalThis',
+      'internetExplorerChecks',
       'invalidCasts',
       'missingProperties',
+      'missingProvide',
+      'missingRequire',
       'nonStandardJsDocs',
       'strictModuleDepCheck',
+      'tweakValidation',
+      'typeInvalidation',
+      'undefinedNames',
       'undefinedVars',
       'underscore',
       'unknownDefines',
@@ -249,7 +270,15 @@ class DocComment(object):
                                   [Type.DOC_FLAG])
     if brace:
       end_token, contents = _GetMatchingEndBraceAndContents(brace)
-      self.suppressions[contents] = token
+      for suppression in contents.split('|'):
+        self.suppressions[suppression] = token
+
+  def SuppressionOnly(self):
+    """Returns whether this comment contains only suppression flags."""
+    for flag_type in self.__flags.keys():
+      if flag_type != 'suppress':
+        return False
+    return True
 
   def AddFlag(self, flag):
     """Add a new document flag.
@@ -265,10 +294,7 @@ class DocComment(object):
     Returns:
         True if documentation may be pulled off the superclass.
     """
-    return (self.HasFlag('inheritDoc') or
-        (self.HasFlag('override') and
-         not self.HasFlag('return') and
-         not self.HasFlag('param')))
+    return self.HasFlag('inheritDoc') or self.HasFlag('override')
 
   def HasFlag(self, flag_type):
     """Test if the given flag has been set.
@@ -455,7 +481,8 @@ def _GetEndTokenAndContents(start_token):
   last_line = iterator.line_number
   last_token = None
   contents = ''
-  while not iterator.type in Type.FLAG_ENDING_TYPES:
+  doc_depth = 0
+  while not iterator.type in Type.FLAG_ENDING_TYPES or doc_depth > 0:
     if (iterator.IsFirstInLine() and
         DocFlag.EMPTY_COMMENT_LINE.match(iterator.line)):
       # If we have a blank comment line, consider that an implicit
@@ -469,6 +496,17 @@ def _GetEndTokenAndContents(start_token):
       # no definitive ending token. Rather there was a line containing
       # only a doc comment prefix or whitespace.
       break
+
+    # b/2983692
+    # don't prematurely match against a @flag if inside a doc flag
+    # need to think about what is the correct behavior for unterminated
+    # inline doc flags
+    if (iterator.type == Type.DOC_START_BRACE and
+        iterator.next.type == Type.DOC_INLINE_FLAG):
+      doc_depth += 1
+    elif (iterator.type == Type.DOC_END_BRACE and
+        doc_depth > 0):
+      doc_depth -= 1
 
     if iterator.type in Type.FLAG_DESCRIPTION_TYPES:
       contents += iterator.string
@@ -509,6 +547,7 @@ class Function(object):
     self.is_constructor = doc and doc.HasFlag('constructor')
     self.is_interface = doc and doc.HasFlag('interface')
     self.has_return = False
+    self.has_throw = False
     self.has_this = False
     self.name = name
     self.doc = doc
@@ -892,6 +931,11 @@ class StateTracker(object):
         function = self.GetFunction()
         if function:
           function.has_return = True
+
+    elif type == Type.KEYWORD and token.string == 'throw':
+      function = self.GetFunction()
+      if function:
+        function.has_throw = True
 
     elif type == Type.SIMPLE_LVALUE:
       identifier = token.values['identifier']

@@ -19,14 +19,15 @@
 __author__ = ('robbyw@google.com (Robert Walker)',
               'ajp@google.com (Andy Perelson)')
 
-from closure_linter.common import tokens
-from closure_linter import javascripttokens
-
 import copy
+
+from closure_linter import javascripttokens
+from closure_linter.common import tokens
 
 # Shorthand
 JavaScriptToken = javascripttokens.JavaScriptToken
 Type = tokens.TokenType
+
 
 def GetFirstTokenInSameLine(token):
   """Returns the first token in the same line as token.
@@ -40,6 +41,58 @@ def GetFirstTokenInSameLine(token):
   while not token.IsFirstInLine():
     token = token.previous
   return token
+
+
+def GetFirstTokenInPreviousLine(token):
+  """Returns the first token in the previous line as token.
+
+  Args:
+    token: Any token in the line.
+
+  Returns:
+    The first token in the previous line as token, or None if token is on the
+    first line.
+  """
+  first_in_line = GetFirstTokenInSameLine(token)
+  if first_in_line.previous:
+    return GetFirstTokenInSameLine(first_in_line.previous)
+
+  return None
+
+
+def GetLastTokenInSameLine(token):
+  """Returns the last token in the same line as token.
+
+  Args:
+    token: Any token in the line.
+
+  Returns:
+    The last token in the same line as token.
+  """
+  while not token.IsLastInLine():
+    token = token.next
+  return token
+
+
+def GetAllTokensInSameLine(token):
+  """Returns all tokens in the same line as the given token.
+
+  Args:
+    token: Any token in the line.
+
+  Returns:
+    All tokens on the same line as the given token.
+  """
+  first_token = GetFirstTokenInSameLine(token)
+  last_token = GetLastTokenInSameLine(token)
+
+  tokens_in_line = []
+  while first_token != last_token:
+    tokens_in_line.append(first_token)
+    first_token = first_token.next
+  tokens_in_line.append(last_token)
+
+  return tokens_in_line
 
 
 def CustomSearch(start_token, func, end_func=None, distance=None,
@@ -77,14 +130,14 @@ def CustomSearch(start_token, func, end_func=None, distance=None,
 
   else:
     while token and (distance is None or distance > 0):
-      next = token.next
-      if next:
-        if func(next):
-          return next
-        if end_func and end_func(next):
+      next_token = token.next
+      if next_token:
+        if func(next_token):
+          return next_token
+        if end_func and end_func(next_token):
           return None
 
-      token = next
+      token = next_token
       if distance is not None:
         distance -= 1
 
@@ -122,7 +175,6 @@ def SearchExcept(start_token, token_types, distance=None, reverse=False):
         chain
     reverse: When true, search the tokens before this one instead of the tokens
         after it
-
 
   Returns:
     The first token of any type in token_types within distance of this token, or
@@ -173,19 +225,21 @@ def DeleteToken(token):
       following_token.metadata.last_code = token.metadata.last_code
       following_token = following_token.next
 
-def DeleteTokens(token, tokenCount):
+
+def DeleteTokens(token, token_count):
   """Deletes the given number of tokens starting with the given token.
 
   Args:
     token: The token to start deleting at.
-    tokenCount: The total number of tokens to delete.
+    token_count: The total number of tokens to delete.
   """
-  for i in xrange(1, tokenCount):
+  for i in xrange(1, token_count):
     DeleteToken(token.next)
   DeleteToken(token)
 
+
 def InsertTokenAfter(new_token, token):
-  """Insert new_token after token
+  """Insert new_token after token.
 
   Args:
     new_token: A token to be added to the stream
@@ -221,6 +275,21 @@ def InsertTokenAfter(new_token, token):
       iterator = iterator.next
 
 
+def InsertTokensAfter(new_tokens, token):
+  """Insert multiple tokens after token.
+
+  Args:
+    new_tokens: An array of tokens to be added to the stream
+    token: A token already in the stream
+  """
+  # TODO(user): It would be nicer to have InsertTokenAfter defer to here
+  # instead of vice-versa.
+  current_token = token
+  for new_token in new_tokens:
+    InsertTokenAfter(new_token, current_token)
+    current_token = new_token
+
+
 def InsertSpaceTokenAfter(token):
   """Inserts a space token after the given token.
 
@@ -228,28 +297,44 @@ def InsertSpaceTokenAfter(token):
     token: The token to insert a space token after
 
   Returns:
-    A single space token"""
+    A single space token
+  """
   space_token = JavaScriptToken(' ', Type.WHITESPACE, token.line,
                                 token.line_number)
   InsertTokenAfter(space_token, token)
 
 
-def InsertLineAfter(token):
+def InsertBlankLineAfter(token):
   """Inserts a blank line after the given token.
 
   Args:
     token: The token to insert a blank line after
 
   Returns:
-    A single space token"""
+    A single space token
+  """
   blank_token = JavaScriptToken('', Type.BLANK_LINE, '',
                                 token.line_number + 1)
-  InsertTokenAfter(blank_token, token)
-  # Update all subsequent ine numbers.
-  blank_token = blank_token.next
-  while blank_token:
-    blank_token.line_number += 1
-    blank_token = blank_token.next
+  InsertLineAfter(token, [blank_token])
+
+
+def InsertLineAfter(token, new_tokens):
+  """Inserts a new line consisting of new_tokens after the given token.
+
+  Args:
+    token: The token to insert after.
+    new_tokens: The tokens that will make up the new line.
+  """
+  insert_location = token
+  for new_token in new_tokens:
+    InsertTokenAfter(new_token, insert_location)
+    insert_location = new_token
+
+  # Update all subsequent line numbers.
+  next_token = new_tokens[-1].next
+  while next_token:
+    next_token.line_number += 1
+    next_token = next_token.next
 
 
 def SplitToken(token, position):
@@ -274,6 +359,10 @@ def SplitToken(token, position):
 
 def Compare(token1, token2):
   """Compares two tokens and determines their relative order.
+
+  Args:
+    token1: The first token to compare.
+    token2: The second token to compare.
 
   Returns:
     A negative integer, zero, or a positive integer as the first token is
