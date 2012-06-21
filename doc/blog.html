@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="http://nodejs.org/pipe.css">
+  <link rel="stylesheet" href="http://nodejs.org/sh_vim-dark.css">
+  <style>
+    #column1 h1 {
+      clear:both;
+    }
+    #column1 li, #content h1 + p {
+      color:inherit;
+      font-family: inherit;
+      font-size: 14px;
+      line-height:24px;
+    }
+    #content #column1 p.meta, #content #column1 p.respond {
+      font-size: 14px;
+      line-height: 24px;
+      color:#690;
+      font-family: inherit;
+    }
+    #content #column1 p.respond {
+      font-style:italic;
+      padding:2em 0;
+    }
+    #column1 a {
+      color: #8c0;
+    }
+    #column2 ul {
+      padding:0;
+    }
+    #column2 {
+      margin-top:-66px!important;
+    }
+    div.post-in-feed {
+      padding-bottom:1em;
+    }
+
+    p.next { float:right; width: 40%; text-align:right; }
+    p.prev { float:left; width:40%; text-align:left; }
+
+    pre { overflow: auto; }
+  </style>
+
+  <title><%= title %></title>
+</head>
+
+<body class="int blog" id="<%= pageid %>">
+  <div id="intro" class="interior">
+    <a href="/" title="Go back to the home page"><img id="logo" src=
+    "http://nodejs.org/logo.png" alt="node.js"></a>
+  </div>
+
+  <div id="content" class="clearfix">
+    <div id="column2" class="interior">
+      <ul>
+        <li><a href="http://nodejs.org/" class="home">Home</a></li>
+
+        <li><a href="http://nodejs.org/#download" class=
+        "download">Download</a></li>
+
+        <li><a href="http://nodejs.org/about/" class="about">About</a></li>
+
+        <li><a href="http://search.npmjs.org/" class="npm">npm
+        Registry</a></li>
+
+        <li><a href="http://nodejs.org/api/" class="docs">Docs</a></li>
+
+        <li><a href="http://blog.nodejs.org/" class="blog current">Blog</a></li>
+
+        <li><a href="http://nodejs.org/community/" class=
+        "community">Community</a></li>
+
+        <li><a href="http://nodejs.org/logos/" class=
+        "logos">Logos</a></li>
+
+        <li><a href="http://jobs.nodejs.org/" class="jobs">Jobs</a></li>
+      </ul>
+
+      <p class="twitter"><a href="http://twitter.com/nodejs">@nodejs</a></p>
+    </div>
+
+    <div id="column1" class="interior">
+      <h1><%- title %></h1>
+      <% if (typeof post !== 'undefined') {
+        // just one post on this page
+        %>
+        <p class="meta"><%=
+          post.author + ' - ' +
+          post.date.toUTCString().replace(/ GMT$/, '')
+          %></p>
+
+          <%- post.content %>
+
+          <p class="respond">Please post feedback and comments on
+            <a href="https://groups.google.com/group/nodejs">the Node.JS 
+              user mailing list</a>.</p>
+
+          <%
+          if (post.next || post.prev) {
+            if (post.prev) {
+              %><p class="prev"><a href="<%=
+                post.prev.permalink
+              %>">&larr; <%=
+                post.prev.title
+              %></a></p>
+              <%
+            }
+            if (post.next) {
+              %><p class="next"><a href="<%=
+                post.next.permalink
+              %>"><%=
+                post.next.title
+              %> &rarr;</a></p>
+              <%
+            }
+          }
+        } else {  // not single post page
+          if (paginated && total > 1 ) {
+            if (page > 0) {
+              // add 1 to all of the displayed numbers, because
+              // humans are not zero-indexed like they ought to be.
+              %>
+              <p class="prev"><a href="<%= uri + (page - 1) %>">
+                &larr; Page <%- page %>
+              </a></p>
+              <%
+            }
+            if (page < total - 1) { %>
+              <p class="next"><a href="<%= uri + (page + 1) %>">
+                Page <%- page + 2 %> &rarr;
+              </a></p>
+              <%
+            }
+          }
+
+          posts.forEach(function(post) {
+            %>
+            <div class="post-in-feed">
+              <h1><a href="<%=
+                post.permalink
+              %>" class="permalink"><%-
+                post.title
+              %></a></h1>
+              <p class="meta"><%=
+                post.author + ' - ' +
+                post.date.toUTCString().replace(/ GMT$/, '')
+              %></p>
+              <%- post.content %>
+            </div>
+            <%
+          });
+
+          if (paginated && total > 1 ) {
+            if (page > 0) {
+              // add 1 to all of the displayed numbers, because
+              // humans are not zero-indexed like they ought to be.
+              %>
+              <p class="prev"><a href="<%= uri + (page - 1) %>">
+                &larr; Page <%- page %>
+              </a></p>
+              <%
+            }
+            if (page < total - 1) { %>
+              <p class="next"><a href="<%= uri + (page + 1) %>">
+                Page <%- page + 2 %> &rarr;
+              </a></p>
+              <%
+            }
+          } // pagination
+        } // not a single post
+        %>
+    </div>
+  </div>
+
+  <div id="footer">
+      <ul class="clearfix">
+          <li><a href="/">Node.js</a></li>
+          <li><a href="/#download">Download</a></li>
+          <li><a href="/about/">About</a></li>
+          <li><a href="http://search.npmjs.org/">npm Registry</a></li>
+          <li><a href="http://nodejs.org/api/">Docs</a></li>
+          <li><a href="http://blog.nodejs.org">Blog</a></li>
+          <li><a href="/community/">Community</a></li>
+          <li><a href="/logos/">Logos</a></li>
+          <li><a href="http://jobs.nodejs.org/">Jobs</a></li>
+          <li><a href="http://twitter.com/nodejs" class="twitter">@nodejs</a></li>
+      </ul>
+
+      <p>Copyright <a href="http://joyent.com">Joyent, Inc</a>, Node.js is a <a href="/trademark-policy.pdf">trademark</a> of Joyent, Inc. View <a href="https://raw.github.com/joyent/node/master/LICENSE">license</a>.</p>
+    </div>
+
+  <script src="../sh_main.js"></script>
+  <script src="../sh_javascript.min.js"></script>
+  <script>highlight(undefined, undefined, 'pre');</script>
+  <script>
+    var gaJsHost = (("https:" == document.location.protocol) ?
+    "https://ssl." : "http://www.");
+    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+  </script>
+  <script>
+    try {
+      var pageTracker = _gat._getTracker("UA-10874194-2");
+      pageTracker._trackPageview();
+      } catch(err) {}</script>
+</body>
+</html>
