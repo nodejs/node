@@ -25,11 +25,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Poll interval in milliseconds. 5007 is what libev used to use. It's a little
-// on the slow side but let's stick with it for now, keep behavioral changes to
-// a minimum.
-#define DEFAULT_POLL_INTERVAL 5007
-
 namespace node {
 
 using namespace v8;
@@ -76,10 +71,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
 
 
 Handle<Value> StatWatcher::New(const Arguments& args) {
-  if (!args.IsConstructCall()) {
-    return FromConstructorTemplate(constructor_template, args);
-  }
-
+  assert(args.IsConstructCall());
   HandleScope scope;
   StatWatcher* s = new StatWatcher();
   s->Wrap(args.Holder());
@@ -88,28 +80,16 @@ Handle<Value> StatWatcher::New(const Arguments& args) {
 
 
 Handle<Value> StatWatcher::Start(const Arguments& args) {
+  assert(args.Length() == 3);
   HandleScope scope;
-
-  if (args.Length() < 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New("Bad arguments")));
-  }
 
   StatWatcher* wrap = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
   String::Utf8Value path(args[0]);
+  const bool persistent = args[1]->BooleanValue();
+  const uint32_t interval = args[2]->Uint32Value();
 
-  uint32_t interval = DEFAULT_POLL_INTERVAL;
-  if (args[2]->IsUint32()) {
-    interval = args[2]->Uint32Value();
-  }
-
+  if (!persistent) uv_unref(reinterpret_cast<uv_handle_t*>(&wrap->watcher_));
   uv_fs_poll_start(&wrap->watcher_, Callback, *path, interval);
-
-  wrap->persistent_ = args[1]->IsTrue();
-
-  if (!wrap->persistent_) {
-    uv_unref(reinterpret_cast<uv_handle_t*>(&wrap->watcher_));
-  }
-
   wrap->Ref();
 
   return Undefined();

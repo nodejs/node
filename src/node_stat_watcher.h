@@ -35,7 +35,6 @@ class StatWatcher : ObjectWrap {
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   StatWatcher() : ObjectWrap() {
-    persistent_ = false;
     uv_fs_poll_init(uv_default_loop(), &watcher_);
   }
 
@@ -52,11 +51,9 @@ class StatWatcher : ObjectWrap {
                        int status,
                        const uv_statbuf_t* prev,
                        const uv_statbuf_t* curr);
-
   void Stop();
 
   uv_fs_poll_t watcher_;
-  bool persistent_;
 };
 
 }  // namespace node
