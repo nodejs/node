@@ -9,7 +9,7 @@
     #column1 h1 {
       clear:both;
     }
-    #colum1 {
+    #column1 {
       font-size: 14px;
     }
     #column1 li, #content h1 + p {
@@ -92,8 +92,8 @@
         %>
         <p class="meta"><%=
           post.author + ' - ' +
-          post.date.toUTCString().replace(/ GMT$/, '')
-          %></p>
+          post.date.toUTCString().replace(/ GMT$/, '') + ' - '
+          %><a href="/<%= post.category %>/"><%= post.category %></a></p>
 
           <%- post.content %>
 
@@ -149,8 +149,8 @@
               %></a></h1>
               <p class="meta"><%=
                 post.author + ' - ' +
-                post.date.toUTCString().replace(/ GMT$/, '')
-              %></p>
+                post.date.toUTCString().replace(/ GMT$/, '') + ' - '
+                %><a href="/<%= post.category %>/"><%= post.category %></a></p>
               <%- post.content %>
             </div>
             <%
