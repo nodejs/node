@@ -403,9 +403,9 @@
       // when piping stdin to a destination stream,
       // let the data begin to flow.
       var pipe = stdin.pipe;
-      stdin.pipe = function(dest) {
+      stdin.pipe = function(dest, opts) {
         stdin.resume();
-        return pipe.call(stdin, dest);
+        return pipe.call(stdin, dest, opts);
       };
 
       return stdin;
