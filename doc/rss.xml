@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	xmlns:georss="http://www.georss.org/georss" xmlns:geo="http://www.w3.org/2003/01/geo/wgs84_pos#" xmlns:media="http://search.yahoo.com/mrss/"
+	>
+
+<channel>
+	<title>Node.js Blog</title>
+  <atom:link href="http://blog.nodejs.org<%= uri %>" rel="self" type="application/rss+xml" />
+  <link>http://blog.nodejs.org/</link>
+	<description>The Blog about Node.js</description>
+  <lastBuildDate><%= new Date().toUTCString() %></lastBuildDate>
+	<language>en</language>
+	<sy:updatePeriod>weekly</sy:updatePeriod>
+	<sy:updateFrequency>1</sy:updateFrequency>
+	<generator>http://nodejs.org/</generator>
+  <image>
+    <url>http://nodejs.org/images/logo-light.png</url>
+		<title>Node.js</title>
+    <link>http://blog.nodejs.org/</link>
+	</image>
+  <%
+  posts.forEach(function(post) {
+    %>
+    <item>
+      <title><%= post.title %></title>
+      <link>http://blog.nodejs.org<%= post.permalink %></link>
+      <pubDate><%= post.date.toUTCString() %></pubDate>
+      <dc:creator><%= post.author %></dc:creator>
+      <category><![CDATA[<%= post.category %>]]></category>
+
+      <guid isPermaLink="true">http://blog.nodejs.org<%= post.permalink %></guid>
+      <description><![CDATA[<%- post.content %>]]></description>
+      <content:encoded><![CDATA[<%- post.content %>]]></content:encoded>
+    </item>
+    <%
+  });
+  %>
+</channel>
+</rss>
