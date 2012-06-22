@@ -103,10 +103,12 @@
                   WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
         <util:InternetShortcut Id="OnlineWebsiteShortcut"
                   Name="Node.js website"
-                  Target="http://nodejs.org"/>
+                  Target="http://nodejs.org"
+                  Type="url"/>
         <util:InternetShortcut Id="OnlineDocumentationShortcut"
                   Name="Node.js documentation"
-                  Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"/>
+                  Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"
+                  Type="url"/>
         <Shortcut Id="UninstallProduct"
                   Name="Uninstall Node.js"
                   Target="[SystemFolder]msiexec.exe"
