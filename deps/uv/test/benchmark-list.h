@@ -44,6 +44,7 @@ BENCHMARK_DECLARE (udp_packet_storm_100v1000)
 BENCHMARK_DECLARE (udp_packet_storm_1000v1000)
 BENCHMARK_DECLARE (gethostbyname)
 BENCHMARK_DECLARE (getaddrinfo)
+BENCHMARK_DECLARE (fs_stat)
 BENCHMARK_DECLARE (spawn)
 BENCHMARK_DECLARE (thread_create)
 BENCHMARK_DECLARE (million_timers)
@@ -104,6 +105,8 @@ TASK_LIST_START
   BENCHMARK_HELPER (gethostbyname, dns_server)
 
   BENCHMARK_ENTRY  (getaddrinfo)
+
+  BENCHMARK_ENTRY  (fs_stat)
 
   BENCHMARK_ENTRY  (spawn)
   BENCHMARK_ENTRY  (thread_create)

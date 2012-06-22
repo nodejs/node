@@ -862,26 +862,3 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
 
   free(addresses);
 }
-
-
-void uv_filetime_to_time_t(FILETIME* file_time, time_t* stat_time) {
-  FILETIME local_time;
-  SYSTEMTIME system_time;
-  struct tm time;
-
-  if ((file_time->dwLowDateTime || file_time->dwHighDateTime) &&
-      FileTimeToLocalFileTime(file_time, &local_time)         &&
-      FileTimeToSystemTime(&local_time, &system_time)) {
-    time.tm_year = system_time.wYear - 1900;
-    time.tm_mon = system_time.wMonth - 1;
-    time.tm_mday = system_time.wDay;
-    time.tm_hour = system_time.wHour;
-    time.tm_min = system_time.wMinute;
-    time.tm_sec = system_time.wSecond;
-    time.tm_isdst = -1;
-
-    *stat_time = mktime(&time);
-  } else {
-    *stat_time = 0;
-  }
-}

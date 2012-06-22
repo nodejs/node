@@ -91,6 +91,9 @@
     return;                                                                 \
   }
 
+#define FILETIME_TO_TIME_T(filetime)                                        \
+   ((*((uint64_t*) &(filetime)) - 116444736000000000ULL) / 10000000ULL);
+
 #define IS_SLASH(c) ((c) == L'\\' || (c) == L'/')
 #define IS_LETTER(c) (((c) >= L'a' && (c) <= L'z') || \
   ((c) >= L'A' && (c) <= L'Z'))
@@ -630,9 +633,9 @@ static void fs__stat(uv_fs_t* req, const wchar_t* path, int link) {
                         (int64_t) info.nFileSizeLow;
   }
 
-  uv_filetime_to_time_t(&info.ftLastWriteTime, &(req->stat.st_mtime));
-  uv_filetime_to_time_t(&info.ftLastAccessTime, &(req->stat.st_atime));
-  uv_filetime_to_time_t(&info.ftCreationTime, &(req->stat.st_ctime));
+  req->stat.st_mtime = FILETIME_TO_TIME_T(info.ftLastWriteTime);
+  req->stat.st_atime = FILETIME_TO_TIME_T(info.ftLastAccessTime);
+  req->stat.st_ctime = FILETIME_TO_TIME_T(info.ftCreationTime);
 
   req->stat.st_nlink = (info.nNumberOfLinks <= SHRT_MAX) ?
                        (short) info.nNumberOfLinks : SHRT_MAX;
