@@ -12,7 +12,7 @@ var output = path.resolve(process.argv[3]);
 var template = path.resolve(process.argv[4]);
 
 var config = {
-  postsPerPage: 5
+  postsPerPage: 4
 };
 
 console.error("argv=%j", process.argv)
