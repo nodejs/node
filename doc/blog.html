@@ -48,6 +48,11 @@
   </style>
 
   <title><%= title || "Node.js Blog" %></title>
+  <link rel="alternate" type="application/rss+xml"
+    title="Node.js Blog RSS"
+    href="http://blog.nodejs.org/feed<%=
+      (typeof posts !== 'undefined') ? uri : '/'
+    %>">
 </head>
 
 <body class="int blog" id="<%= pageid %>">
