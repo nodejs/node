@@ -52,7 +52,7 @@
                          Action="set"
                          Name="PATH"
                          Part="last"
-                         System="yes"
+                         System="no"
                          Value="[AppDataFolder]npm\" />
             <Environment Id="node_env"
                          Action="set"
