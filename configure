@@ -164,6 +164,12 @@ parser.add_option("--no-ifaddrs",
     dest="no_ifaddrs",
     help="Use on deprecated SunOS systems that do not support ifaddrs.h")
 
+parser.add_option("--with-arm-float-abi",
+    action="store",
+    dest="arm_float_abi",
+    help="Specifies which floating-point ABI to use. Valid values are: "
+         "soft, softfp, hard")
+
 (options, args) = parser.parse_args()
 
 
@@ -189,8 +195,8 @@ def pkg_config(pkg):
   return (libs, cflags)
 
 
-def host_arch_cc():
-  """Host architecture check using the CC command."""
+def cc_macros():
+  """Checks predefined macros using the CC command."""
 
   try:
     p = subprocess.Popen(CC.split() + ['-dM', '-E', '-'],
@@ -219,6 +225,52 @@ def host_arch_cc():
       key = lst[1]
       val = lst[2]
       k[key] = val
+  return k
+
+
+def is_arch_armv7():
+  """Check for ARMv7 instructions"""
+  cc_macros_cache = cc_macros()
+  return ('__ARM_ARCH_7__' in cc_macros_cache or
+          '__ARM_ARCH_7A__' in cc_macros_cache or
+          '__ARM_ARCH_7R__' in cc_macros_cache or
+          '__ARM_ARCH_7M__' in cc_macros_cache)
+
+
+def arm_hard_float_abi():
+  """Check for hardfloat or softfloat eabi on ARM"""
+  # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
+  # the Floating Point ABI used (PCS stands for Procedure Call Standard).
+  # We use these as well as a couple of other defines to statically determine
+  # what FP ABI used.
+  # GCC versions 4.4 and below don't support hard-fp.
+  # GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
+  # __ARM_PCS_VFP.
+
+  if compiler_version() >= (4, 6, 0):
+    return '__ARM_PCS_VFP' in cc_macros()
+  elif compiler_version() < (4, 5, 0):
+    return False
+  elif '__ARM_PCS_VFP' in cc_macros():
+    return True
+  elif ('__ARM_PCS' in cc_macros() or
+        '__SOFTFP' in cc_macros() or
+        not '__VFP_FP__' in cc_macros()):
+    return False
+  else:
+    print '''Node.js configure error: Your version of GCC does not report
+      the Floating-Point ABI to compile for your hardware
+
+      Please manually specify which floating-point ABI to use with the
+      --with-arm-float-abi option.
+      '''
+    sys.exit()
+
+
+def host_arch_cc():
+  """Host architecture check using the CC command."""
+
+  k = cc_macros()
 
   matchup = {
     '__x86_64__'  : 'x64',
@@ -277,11 +329,15 @@ def configure_node(o):
   o['variables']['host_arch'] = host_arch
   o['variables']['target_arch'] = target_arch
 
-  # V8 on ARM requires that armv7 is set. We don't have a good way to detect
-  # the CPU model right now so we pick a default and hope that it works okay
-  # for the majority of users.
+  # V8 on ARM requires that armv7 is set. CPU Model detected by
+  # the presence of __ARM_ARCH_7__ and the like defines in compiler
   if target_arch == 'arm':
-    o['variables']['armv7'] = 0 # FIXME
+    if options.arm_float_abi:
+      hard_float = options.arm_float_abi == 'hard'
+    else:
+      hard_float = arm_hard_float_abi()
+    o['variables']['v8_use_arm_eabi_hardfloat'] = b(hard_float)
+    o['variables']['armv7'] = 1 if is_arch_armv7() else 0
 
   # clang has always supported -fvisibility=hidden, right?
   cc_version, is_clang = compiler_version()
