@@ -31,7 +31,7 @@
 
         <a href="#download" class="button" id="downloadbutton">Download</a>
         <a href="api/" class="button" id="docsbutton">Docs</a>
-        <p class="version">__VERSION__</p> 
+        <p class="version">__VERSION__</p>
 
         <a href="http://github.com/joyent/node"><img class="forkme" src="https://a248.e.akamai.net/camo.github.com/abad93f42020b733148435e2cd92ce15c542d320/687474703a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" alt="Fork me on GitHub"></a>
     </div>
@@ -214,7 +214,7 @@ server.listen(1337, '127.0.0.1');</pre>
             <!-- <li><a hrfe="http://twitter.com/nodejs" class="twitter">@nodejs</a></li> -->
         </ul>
 
-        <p>Copyright <a href="http://joyent.com">Joyent, Inc</a>, Node.js is a <a href="/trademark-policy.pdf">trademark</a> of Joyent, Inc. View <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">license</a>.</p>
+        <p>Copyright <a href="http://joyent.com/">Joyent, Inc</a>, Node.js is a <a href="/trademark-policy.pdf">trademark</a> of Joyent, Inc. View <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">license</a>.</p>
     </div>
 
 
@@ -223,15 +223,13 @@ server.listen(1337, '127.0.0.1');</pre>
     <script>highlight(undefined, undefined, 'pre');</script>
 
     <script>
-      var gaJsHost = (("https:" == document.location.protocol) ?
-      "https://ssl." : "http://www.");
-      document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-    </script>
-    <script>
-      try {
-        var pageTracker = _gat._getTracker("UA-10874194-2");
-        pageTracker._trackPageview();
-      } catch(err) {}
+      window._gaq = [['_setAccount', 'UA-10874194-2'], ['_trackPageview']];
+      (function(d, t) {
+        var g = d.createElement(t),
+            s = d.getElementsByTagName(t)[0];
+        g.src = '//www.google-analytics.com/ga.js';
+        s.parentNode.insertBefore(g, s);
+      }(document, 'script'));
     </script>
   </body>
 </html>
