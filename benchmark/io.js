@@ -62,7 +62,7 @@ function readtest(size, bsize) {
 
 function wt(tsize, bsize, done) {
   var start = Date.now();
-  s = writetest(tsize, bsizes[0]);
+  s = writetest(tsize, bsize);
   s.addListener('close', function() {
     var end = Date.now();
     var diff = end - start;
@@ -73,7 +73,7 @@ function wt(tsize, bsize, done) {
 
 function rt(tsize, bsize, done) {
   var start = Date.now();
-  s = readtest(tsize, bsizes[0]);
+  s = readtest(tsize, bsize);
   s.addListener('close', function() {
     var end = Date.now();
     var diff = end - start;
