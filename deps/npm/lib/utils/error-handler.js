@@ -82,7 +82,10 @@ function errorHandler (er) {
 
   cbCalled = true
   if (!er) return exit(0)
-  if (!(er instanceof Error)) {
+  if (typeof er === "string") {
+    log.error("", er)
+    return exit(1, true)
+  } else if (!(er instanceof Error)) {
     log.error("weird error", er)
     return exit(1, true)
   }

@@ -349,7 +349,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
       knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"brand");
       assert(knp->data_type == KSTAT_DATA_STRING);
-      cpu_info->model = KSTAT_NAMED_STR_PTR(knp);
+      cpu_info->model = strdup(KSTAT_NAMED_STR_PTR(knp));
     }
 
     lookup_instance++;

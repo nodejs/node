@@ -1,4 +1,31 @@
-2012.06.19, Version 0.7.12 (unstable)
+2012.06.25, Version 0.8.0 (stable)
+
+* V8: upgrade to v3.11.10.10
+
+* npm: Upgrade to 1.1.32
+
+* Deprecate iowatcher (Ben Noordhuis)
+
+* windows: update icon (Bert Belder)
+
+* http: Hush 'MUST NOT have a body' warnings to debug() (isaacs)
+
+* Move blog.nodejs.org content into repository (isaacs)
+
+* Fix #3503: stdin: resume() on pipe(dest) (isaacs)
+
+* crypto: fix error reporting in SetKey() (Fedor Indutny)
+
+* Add --no-deprecation and --trace-deprecation command-line flags (isaacs)
+
+* fs: fix fs.watchFile() (Ben Noordhuis)
+
+* fs: Fix fs.readfile() on pipes (isaacs)
+
+* Rename GYP variable node_use_system_openssl to be consistent (Ryan Dahl)
+
+
+2012.06.19, Version 0.7.12 (unstable), a72120190a8ffdbcd3d6ad2a2e6ceecd2087111e
 
 * npm: Upgrade to 1.1.30
 	- Improved 'npm init'
