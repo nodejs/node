@@ -48,10 +48,10 @@ Wrote 16384 byte buffers: 83.97010664203543 mB/s
 Wrote 65536 byte buffers: 97.4184120798831 mB/s
 
 # 0.8.0, writes
-Wrote 1024 byte buffers: 61.236987140232706 mB/s
-Wrote 4096 byte buffers: 109.05125408942203 mB/s
-Wrote 16384 byte buffers: 182.18254691200585 mB/s
-Wrote 65536 byte buffers: 181.91740949608877 mB/s
+Wrote 1024 byte buffers: 61.236987140232706 mB/s +215.19%
+Wrote 4096 byte buffers: 109.05125408942203 mB/s +82.55%
+Wrote 16384 byte buffers: 182.18254691200585 mB/s +116.96%
+Wrote 65536 byte buffers: 181.91740949608877 mB/s +86.74%
 
 # v0.6.19, reads
 Read 1024 byte buffers: 29.96883241428914 mB/s
@@ -60,10 +60,10 @@ Read 16384 byte buffers: 165.7550140891762 mB/s
 Read 65536 byte buffers: 266.73779674579885 mB/s
 
 # v0.8.0, reads
-Read 1024 byte buffers: 57.63688760806916 mB/s
-Read 4096 byte buffers: 136.7801942278758 mB/s
-Read 16384 byte buffers: 244.8579823702253 mB/s
-Read 65536 byte buffers: 302.2974607013301 mB/s
+Read 1024 byte buffers: 57.63688760806916 mB/s +92.32%
+Read 4096 byte buffers: 136.7801942278758 mB/s +119.40%
+Read 16384 byte buffers: 244.8579823702253 mB/s +47.72%
+Read 65536 byte buffers: 302.2974607013301 mB/s +13.33%
 ```
 
 The difference is not small.  If you are writing network programs with
@@ -78,9 +78,9 @@ read the file 110948 times (higher is better)
 11093.69 reads per sec (higher is better)
 
 # v0.8.0
-read the file 158193 times (higher is better)
-63217.16 ns per read (lower is better)
-15818.48 reads per sec (higher is better)
+read the file 158193 times (higher is better) +42.58%
+63217.16 ns per read (lower is better) -29.87%
+15818.48 reads per sec (higher is better) +42.59%
 ```
 
 And of course, the ubiquitous 'hello, world' http server benchmark got
@@ -91,21 +91,21 @@ $ TYPE=bytes LENGTH=123 bash benchmark/http.sh  2>&1 | grep Req
 # 0.6.19
 Requests per second:    3317.24 [#/sec] (mean)
 # 0.8.0
-Requests per second:    3795.34 [#/sec] (mean)
+Requests per second:    3795.34 [#/sec] (mean) +14.41%
 
 
 $ TYPE=bytes LENGTH=1024 bash benchmark/http.sh  2>&1 | grep Req
 # v0.6.19
 Requests per second:    3258.42 [#/sec] (mean)
 # 0.8.0
-Requests per second:    3585.62 [#/sec] (mean)
+Requests per second:    3585.62 [#/sec] (mean) +10.04%
 
 
 $ TYPE=bytes LENGTH=123456 bash benchmark/http.sh  2>&1 | grep Req
 # v0.6.19
 Requests per second:    218.51 [#/sec] (mean)
 # 0.8.0
-Requests per second:    749.17 [#/sec] (mean)
+Requests per second:    749.17 [#/sec] (mean) +242.85%
 ```
 
 The difference with Unicode responses is even more pronounced:
@@ -115,19 +115,19 @@ $ TYPE=unicode LENGTH=1024 bash benchmark/http.sh  2>&1 | grep Req
 # v0.6.19
 Requests per second:    3228.23 [#/sec] (mean)
 # v0.8.0
-Requests per second:    3317.60 [#/sec] (mean)
+Requests per second:    3317.60 [#/sec] (mean) +2.77%
 
 $ TYPE=unicode LENGTH=12345 bash benchmark/http.sh  2>&1 | grep Req
 # v0.6.19
 Requests per second:    1703.96 [#/sec] (mean)
 # v0.8.0
-Requests per second:    2431.61 [#/sec] (mean)
+Requests per second:    2431.61 [#/sec] (mean) +42.70%
 
 $ TYPE=unicode LENGTH=55555 bash benchmark/http.sh  2>&1 | grep Req
 #v0.6.19
 Requests per second:    161.65 [#/sec] (mean)
 #v0.8.0
-Requests per second:    980.38 [#/sec] (mean)
+Requests per second:    980.38 [#/sec] (mean) +506.48%
 
 $ TYPE=unicode LENGTH=99999 bash benchmark/http.sh  2>&1 | grep Req
 # v0.6.19
@@ -379,3 +379,6 @@ fc07b475d943f7681e1904d6d7d666b41874a6fa  x64/node.exe
 686c60d5ae5dad7fcffcdc88049c63b2cd23cffc  x64/node.lib
 75549cffab0c11107348a66ab0d94d4897bd6a27  x64/node.pdb
 ```
+
+<ins>Edited by Tim Oxley to provide percentage differences in the
+benchmarks.</ins>
