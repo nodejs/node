@@ -802,61 +802,50 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
   int sockfd;
   int r;
 
+  if (stream->type != UV_TCP)
+    return uv__set_sys_error(stream->loop, ENOTSOCK);
+
+  if (stream->connect_req)
+    return uv__set_sys_error(stream->loop, EALREADY);
+
   if (stream->fd <= 0) {
-    if ((sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0)) == -1) {
-      uv__set_sys_error(stream->loop, errno);
-      return -1;
-    }
+    sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0);
+
+    if (sockfd == -1)
+      return uv__set_sys_error(stream->loop, errno);
 
     if (uv__stream_open(stream,
                         sockfd,
                         UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
       close(sockfd);
-      return -2;
+      return -1;
     }
+  }
+
+  stream->delayed_error = 0;
+
+  do
+    r = connect(stream->fd, addr, addrlen);
+  while (r == -1 && errno == EINTR);
+
+  if (r == -1) {
+    if (errno == EINPROGRESS)
+      ; /* not an error */
+    else if (errno == ECONNREFUSED)
+    /* If we get a ECONNREFUSED wait until the next tick to report the
+     * error. Solaris wants to report immediately--other unixes want to
+     * wait.
+     */
+      stream->delayed_error = errno;
+    else
+      return uv__set_sys_error(stream->loop, errno);
   }
 
   uv__req_init(stream->loop, req, UV_CONNECT);
   req->cb = cb;
   req->handle = stream;
   ngx_queue_init(&req->queue);
-
-  if (stream->connect_req) {
-    uv__set_sys_error(stream->loop, EALREADY);
-    return -1;
-  }
-
-  if (stream->type != UV_TCP) {
-    uv__set_sys_error(stream->loop, ENOTSOCK);
-    return -1;
-  }
-
   stream->connect_req = req;
-
-  do {
-    r = connect(stream->fd, addr, addrlen);
-  }
-  while (r == -1 && errno == EINTR);
-
-  stream->delayed_error = 0;
-
-  if (r != 0 && errno != EINPROGRESS) {
-    switch (errno) {
-      /* If we get a ECONNREFUSED wait until the next tick to report the
-       * error. Solaris wants to report immediately--other unixes want to
-       * wait.
-       *
-       * XXX: do the same for ECONNABORTED?
-       */
-      case ECONNREFUSED:
-        stream->delayed_error = errno;
-        break;
-
-      default:
-        uv__set_sys_error(stream->loop, errno);
-        return -1;
-    }
-  }
 
   uv__io_start(stream->loop, &stream->write_watcher);
 

@@ -332,14 +332,6 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   lookup_instance = 0;
   while ((ksp = kstat_lookup(kc, (char *)"cpu_info", lookup_instance, NULL))) {
     if (kstat_read(kc, ksp, NULL) == -1) {
-      /*
-       * It is deeply annoying, but some kstats can return errors
-       * under otherwise routine conditions.  (ACPI is one
-       * offender; there are surely others.)  To prevent these
-       * fouled kstats from completely ruining our day, we assign
-       * an "error" member to the return value that consists of
-       * the strerror().
-       */
       cpu_info->speed = 0;
       cpu_info->model = NULL;
     } else {

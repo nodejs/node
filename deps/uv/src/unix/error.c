@@ -86,6 +86,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case EADDRNOTAVAIL: return UV_EADDRNOTAVAIL;
     case ENOTDIR: return UV_ENOTDIR;
     case EISDIR: return UV_EISDIR;
+    case ENODEV: return UV_ENODEV;
     case ENOTCONN: return UV_ENOTCONN;
     case EEXIST: return UV_EEXIST;
     case EHOSTUNREACH: return UV_EHOSTUNREACH;
