@@ -243,17 +243,17 @@ def compiler_version():
   try:
     proc = subprocess.Popen([CC, '-v'], stderr=subprocess.PIPE)
   except OSError:
-    return None
+    return (False, False, None)
   lines = proc.communicate()[1].split('\n')
   version_line = None
   for i, line in enumerate(lines):
     if 'version' in line:
       version_line = line
   if not version_line:
-    return None
+    return (False, False, None)
   version = version_line.split("version")[1].strip().split()[0].split(".")
   if not version:
-    return None
+    return (False, False, None)
   return ('LLVM' in version_line, 'clang' in CC, tuple(version))
 
 def configure_node(o):
