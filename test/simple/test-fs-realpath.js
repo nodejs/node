@@ -515,10 +515,13 @@ function test_lying_cache_liar(cb) {
   var rps = fs.realpathSync(bluff, cache);
   assert.equal(cache[bluff], rps);
   var nums = path.resolve('/1/2/3/4/5/6/7');
+  var called = false; // no sync cb calling!
   fs.realpath(nums, cache, function(er, rp) {
+    called = true;
     assert.equal(cache[nums], rp);
     if (--n === 0) cb();
   });
+  assert(called === false);
 
   var test = path.resolve('/a/b/c/d'),
       expect = path.resolve('/a/b/d');
