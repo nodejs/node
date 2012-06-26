@@ -241,7 +241,7 @@ def target_arch():
 
 def compiler_version():
   try:
-    proc = subprocess.Popen([CC, '-v'], stderr=subprocess.PIPE)
+    proc = subprocess.Popen(CC.split() + ['-v'], stderr=subprocess.PIPE)
   except OSError:
     return (False, False, None)
   lines = proc.communicate()[1].split('\n')
