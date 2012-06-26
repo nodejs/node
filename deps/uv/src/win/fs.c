@@ -87,9 +87,19 @@
   if (file == -1) {                                                         \
     req->result = -1;                                                       \
     req->errorno = UV_EBADF;                                                \
-    req->sys_errno_ = ERROR_SUCCESS;                                        \
+    req->sys_errno_ = ERROR_INVALID_HANDLE;                                 \
     return;                                                                 \
   }
+
+#define FILETIME_TO_TIME_T(filetime)                                        \
+   ((*((uint64_t*) &(filetime)) - 116444736000000000ULL) / 10000000ULL);
+
+#define TIME_T_TO_FILETIME(time, filetime_ptr)                              \
+  do {                                                                      \
+    *(uint64_t*) (filetime_ptr) = ((int64_t) (time) * 10000000LL) +         \
+                                  116444736000000000ULL;                    \
+  } while(0)
+
 
 #define IS_SLASH(c) ((c) == L'\\' || (c) == L'/')
 #define IS_LETTER(c) (((c) >= L'a' && (c) <= L'z') || \
@@ -142,7 +152,7 @@ static void uv_fs_req_init_sync(uv_loop_t* loop, uv_fs_t* req,
 
 static int is_path_dir(const wchar_t* path) {
   DWORD attr = GetFileAttributesW(path);
-  
+
   if (attr != INVALID_FILE_ATTRIBUTES) {
     return attr & FILE_ATTRIBUTE_DIRECTORY ? 1 : 0;
   } else {
@@ -175,7 +185,7 @@ static int get_reparse_point(HANDLE handle, int* target_length) {
   }
 
   reparse_data = (REPARSE_DATA_BUFFER*)buffer;
-  
+
   if (reparse_data->ReparseTag == IO_REPARSE_TAG_SYMLINK) {
     rv = 1;
     if (target_length) {
@@ -572,17 +582,67 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
 }
 
 
-static void fs__stat(uv_fs_t* req, const wchar_t* path, int link) {
-  HANDLE handle;
+INLINE static int fs__stat_handle(HANDLE handle, uv_statbuf_t* statbuf) {
   int target_length;
-  int symlink = 0;
   BY_HANDLE_FILE_INFORMATION info;
+
+  if (!GetFileInformationByHandle(handle, &info)) {
+    return -1;
+  }
+
+  /* TODO: set st_dev, st_rdev and st_ino to something meaningful. */
+  statbuf->st_ino = 0;
+  statbuf->st_dev = 0;
+  statbuf->st_rdev = 0;
+
+  statbuf->st_gid = 0;
+  statbuf->st_uid = 0;
+
+  statbuf->st_mode = 0;
+
+  if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT &&
+    get_reparse_point(handle, &target_length)) {
+      statbuf->st_mode = S_IFLNK;
+      /* Adjust for long path */
+      statbuf->st_size = target_length - JUNCTION_PREFIX_LEN;
+  } else {
+    if (info.dwFileAttributes & FILE_ATTRIBUTE_READONLY) {
+      statbuf->st_mode |= (_S_IREAD + (_S_IREAD >> 3) + (_S_IREAD >> 6));
+    } else {
+      statbuf->st_mode |= ((_S_IREAD|_S_IWRITE) + ((_S_IREAD|_S_IWRITE) >> 3) +
+        ((_S_IREAD|_S_IWRITE) >> 6));
+    }
+
+    if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      statbuf->st_mode |= _S_IFDIR;
+    } else {
+      statbuf->st_mode |= _S_IFREG;
+    }
+
+    statbuf->st_size = ((int64_t) info.nFileSizeHigh << 32) +
+                        (int64_t) info.nFileSizeLow;
+
+  }
+
+  statbuf->st_mtime = FILETIME_TO_TIME_T(info.ftLastWriteTime);
+  statbuf->st_atime = FILETIME_TO_TIME_T(info.ftLastAccessTime);
+  statbuf->st_ctime = FILETIME_TO_TIME_T(info.ftCreationTime);
+
+  statbuf->st_nlink = (info.nNumberOfLinks <= SHRT_MAX) ?
+                      (short) info.nNumberOfLinks : SHRT_MAX;
+
+  return 0;
+}
+
+
+INLINE static void fs__stat(uv_fs_t* req, const wchar_t* path, int do_lstat) {
+  HANDLE handle;
   DWORD flags;
 
   req->ptr = NULL;
   flags = FILE_FLAG_BACKUP_SEMANTICS;
 
-  if (link) {
+  if (do_lstat) {
     flags |= FILE_FLAG_OPEN_REPARSE_POINT;
   }
 
@@ -598,44 +658,11 @@ static void fs__stat(uv_fs_t* req, const wchar_t* path, int link) {
     return;
   }
 
-  if (!GetFileInformationByHandle(handle, &info)) {
+  if (fs__stat_handle(handle, &req->stat) != 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     CloseHandle(handle);
     return;
   }
-
-  memset(&req->stat, 0, sizeof req->stat);
-
-  /* TODO: set st_dev and st_ino? */
-
-  if (link && get_reparse_point(handle, &target_length)) {
-    req->stat.st_mode = S_IFLNK;
-    /* Adjust for long path */
-    req->stat.st_size = target_length - JUNCTION_PREFIX_LEN;
-  } else {
-    if (info.dwFileAttributes & FILE_ATTRIBUTE_READONLY) {
-      req->stat.st_mode |= (_S_IREAD + (_S_IREAD >> 3) + (_S_IREAD >> 6));
-    } else {
-      req->stat.st_mode |= ((_S_IREAD|_S_IWRITE) + ((_S_IREAD|_S_IWRITE) >> 3) +
-        ((_S_IREAD|_S_IWRITE) >> 6));
-    }
-
-    if (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-      req->stat.st_mode |= _S_IFDIR;
-    } else {
-      req->stat.st_mode |= _S_IFREG;
-    }
-
-    req->stat.st_size = ((int64_t) info.nFileSizeHigh << 32) +
-                        (int64_t) info.nFileSizeLow;
-  }
-
-  uv_filetime_to_time_t(&info.ftLastWriteTime, &(req->stat.st_mtime));
-  uv_filetime_to_time_t(&info.ftLastAccessTime, &(req->stat.st_atime));
-  uv_filetime_to_time_t(&info.ftCreationTime, &(req->stat.st_ctime));
-
-  req->stat.st_nlink = (info.nNumberOfLinks <= SHRT_MAX) ?
-                       (short) info.nNumberOfLinks : SHRT_MAX;
 
   req->ptr = &req->stat;
   req->result = 0;
@@ -644,18 +671,26 @@ static void fs__stat(uv_fs_t* req, const wchar_t* path, int link) {
 
 
 void fs__fstat(uv_fs_t* req, uv_file file) {
-  int result;
+  HANDLE handle;
+
+  req->ptr = NULL;
 
   VERIFY_UV_FILE(file, req);
 
-  result = _fstati64(file, &req->stat);
-  if (result == -1) {
-    req->ptr = NULL;
-  } else {
-    req->ptr = &req->stat;
+  handle = (HANDLE) _get_osfhandle(file);
+
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
+    return;
   }
 
-  SET_REQ_RESULT(req, result);
+  if (fs__stat_handle(handle, &req->stat) != 0) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  req->ptr = &req->stat;
+  req->result = 0;
 }
 
 
@@ -804,22 +839,62 @@ done:
 }
 
 
+INLINE static int fs__utime_handle(HANDLE handle, double atime, double mtime) {
+  FILETIME filetime_a, filetime_m;
+
+  TIME_T_TO_FILETIME((time_t) atime, &filetime_a);
+  TIME_T_TO_FILETIME((time_t) mtime, &filetime_m);
+
+  if (!SetFileTime(handle, NULL, &filetime_a, &filetime_m)) {
+    return -1;
+  }
+
+  return 0;
+}
+
+
 void fs__utime(uv_fs_t* req, const wchar_t* path, double atime, double mtime) {
-  int result;
-  struct _utimbuf b = {(time_t)atime, (time_t)mtime};
-  result = _wutime(path, &b);
-  SET_REQ_RESULT(req, result);
+  HANDLE handle;
+
+  handle = CreateFileW(path,
+                       FILE_WRITE_ATTRIBUTES,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_FLAG_BACKUP_SEMANTICS,
+                       NULL);
+
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  if (fs__utime_handle(handle, atime, mtime) != 0) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  req->result = 0;
 }
 
 
 void fs__futime(uv_fs_t* req, uv_file file, double atime, double mtime) {
-  int result;
-  struct _utimbuf b = {(time_t)atime, (time_t)mtime};
-
+  HANDLE handle;
   VERIFY_UV_FILE(file, req);
 
-  result = _futime(file, &b);
-  SET_REQ_RESULT(req, result);
+  handle = (HANDLE) _get_osfhandle(file);
+
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_WIN32_ERROR(req, ERROR_INVALID_HANDLE);
+    return;
+  }
+
+  if (fs__utime_handle(handle, atime, mtime) != 0) {
+    SET_REQ_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  req->result = 0;
 }
 
 

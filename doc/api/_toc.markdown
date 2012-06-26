@@ -23,6 +23,7 @@
 * [HTTPS](https.html)
 * [URL](url.html)
 * [Query Strings](querystring.html)
+* [Punycode](punycode.html)
 * [Readline](readline.html)
 * [REPL](repl.html)
 * [VM](vm.html)

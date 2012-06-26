@@ -23,6 +23,7 @@
 @include https
 @include url
 @include querystring
+@include punycode
 @include readline
 @include repl
 @include vm

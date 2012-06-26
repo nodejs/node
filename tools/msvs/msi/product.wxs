@@ -23,7 +23,7 @@
     <MajorUpgrade AllowSameVersionUpgrades="yes"
                   DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit." />
 
-    <Icon Id="node.exe" SourceFile="$(var.SourceDir)\node.exe"/>
+    <Icon Id="node.exe" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
     <Property Id="ARPPRODUCTICON" Value="node.exe" />
 
     <Directory Id="TARGETDIR" Name="SourceDir">

@@ -10,6 +10,7 @@ var semver = require('semver');
 var input = path.resolve(process.argv[2]);
 var output = path.resolve(process.argv[3]);
 var template = path.resolve(process.argv[4]);
+var rssTemplate = path.resolve(process.argv[5]);
 
 var config = {
   postsPerPage: 4
@@ -20,7 +21,13 @@ console.error("argv=%j", process.argv)
 fs.readFile(template, 'utf8', function(er, contents) {
   if (er) throw er;
   template = ejs.compile(contents, template);
-  readInput();
+  template.filename = 'index.html';
+  fs.readFile(rssTemplate, 'utf8', function(er, contents) {
+    if (er) throw er;
+    rssTemplate = ejs.compile(contents, rssTemplate);
+    rssTemplate.filename = 'index.xml';
+    readInput();
+  });
 });
 
 function readInput() {
@@ -101,14 +108,15 @@ function buildPermalink(key, post) {
   return data;
 }
 
-function writeFile(uri, data) {
+function writeFile(uri, data, templ) {
+  if (!templ) templ = template;
   data.uri = path.join(data.uri);
   uri = path.join(uri);
-  var contents = template(data);
+  var contents = templ(data);
   var outdir = path.join(output, uri);
   mkdirp(outdir, function(er) {
     if (er) throw er;
-    var file = path.resolve(outdir, 'index.html');
+    var file = path.resolve(outdir, templ.filename);
     fs.writeFile(file, contents, 'utf8', function(er) {
       if (er) throw er;
       console.log('wrote: ', data.pageid, path.relative(process.cwd(), file));
@@ -248,8 +256,10 @@ function writePaginated(title, posts, p, total, id) {
   };
   if (p === 0) {
     writeFile(uri, d);
+    writeFile('/feed' + uri, d, rssTemplate);
   }
   writeFile(uri + p, d);
+  writeFile('/feed' + uri + p, d, rssTemplate);
 }
 
 function buildOutput(data) {

@@ -136,7 +136,7 @@ blogclean:
 	rm -rf out/blog
 
 blog: doc/blog out/Release/node tools/blog
-	out/Release/node tools/blog/generate.js doc/blog/ out/blog/ doc/blog.html
+	out/Release/node tools/blog/generate.js doc/blog/ out/blog/ doc/blog.html doc/rss.xml
 
 $(apidoc_dirs):
 	mkdir -p $@

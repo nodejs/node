@@ -404,6 +404,7 @@
       'dependencies': [ 'uv' ],
       'sources': [
         'test/benchmark-ares.c',
+        'test/benchmark-fs-stat.c',
         'test/benchmark-getaddrinfo.c',
         'test/benchmark-list.h',
         'test/benchmark-loop-count.c',

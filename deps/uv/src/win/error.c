@@ -132,6 +132,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_NOT_SUPPORTED:               return UV_ENOTSUP;
     case ERROR_INSUFFICIENT_BUFFER:         return UV_EINVAL;
     case ERROR_INVALID_FLAGS:               return UV_EBADF;
+    case ERROR_INVALID_HANDLE:              return UV_EBADF;
     case ERROR_INVALID_PARAMETER:           return UV_EINVAL;
     case ERROR_NO_UNICODE_TRANSLATION:      return UV_ECHARSET;
     case ERROR_BROKEN_PIPE:                 return UV_EOF;

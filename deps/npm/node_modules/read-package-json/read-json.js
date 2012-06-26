@@ -208,6 +208,7 @@ function gitDescription (file, data, cb) {
 }
 
 function readmeDescription (file, data) {
+                if (data.description) return cb(null, data);
                 var d = data.readme
                 if (!d) return;
                 // the first block of text before the first heading
@@ -294,7 +295,7 @@ function final (file, data, cb) {
                 unParsePeople(file, data)
                 parsePeople(file, data)
 
-                if (data.readme)
+                if (data.readme && !data.description)
                                 readmeDescription(file, data)
 
                 readJson.cache.set(file, data)

@@ -40,7 +40,7 @@
                 <p class="twitter"><a href="http://twitter.com/nodejs">@nodejs</a></p>
 
             </div>
-        
+
             <div id="column1" class="interior">
           <h2>Logo Downloads</h2>
           <table border="0" cellspacing="0" cellpadding="10">
@@ -82,19 +82,17 @@
             <li><a href="http://twitter.com/nodejs" class="twitter">@nodejs</a></li>
         </ul>
 
-        <p>Copyright <a href="http://joyent.com">Joyent, Inc</a>., Node.js is a <a href="/trademark-policy.pdf">trademark of Joyent, Inc</a>., <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">View License</a></p>
+        <p>Copyright <a href="http://joyent.com/">Joyent, Inc</a>., Node.js is a <a href="/trademark-policy.pdf">trademark of Joyent, Inc</a>., <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">View License</a></p>
     </div>
 
     <script>
-      var gaJsHost = (("https:" == document.location.protocol) ?
-      "https://ssl." : "http://www.");
-      document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-    </script>
-    <script type="text/javascript">
-      try {
-        var pageTracker = _gat._getTracker("UA-10874194-2");
-        pageTracker._trackPageview();
-      } catch(err) {}
+      window._gaq = [['_setAccount', 'UA-10874194-2'], ['_trackPageview']];
+      (function(d, t) {
+        var g = d.createElement(t),
+            s = d.getElementsByTagName(t)[0];
+        g.src = '//www.google-analytics.com/ga.js';
+        s.parentNode.insertBefore(g, s);
+      }(document, 'script'));
     </script>
 </body>
 </html>

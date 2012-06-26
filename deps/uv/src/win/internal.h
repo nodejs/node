@@ -280,7 +280,6 @@ void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle);
 void uv__util_init();
 
 int uv_parent_pid();
-void uv_filetime_to_time_t(FILETIME* file_time,  time_t* stat_time);
 void uv_fatal_error(const int errorno, const char* syscall);
 uv_err_code uv_translate_sys_error(int sys_errno);
 
