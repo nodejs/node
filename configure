@@ -239,7 +239,7 @@ def host_arch():
 def target_arch():
   return host_arch()
 
-def cc_version():
+def compiler_version():
   try:
     proc = subprocess.Popen([CC, '-v'], stderr=subprocess.PIPE)
   except OSError:
@@ -254,7 +254,7 @@ def cc_version():
   version = version_line.split("version")[1].strip().split()[0].split(".")
   if not version:
     return None
-  return ['LLVM' in version_line] + version
+  return ('LLVM' in version_line, 'clang' in CC, tuple(version))
 
 def configure_node(o):
   # TODO add gdb
@@ -265,14 +265,20 @@ def configure_node(o):
   o['variables']['target_arch'] = options.dest_cpu or target_arch()
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
+  is_llvm, is_clang, cc_version = compiler_version()
+
   # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
   # see http://code.google.com/p/v8/issues/detail?id=884
-  o['variables']['strict_aliasing'] = b(
-    'clang' in CC or cc_version() >= [False, 4, 6, 0])
+  o['variables']['strict_aliasing'] = b(is_clang or cc_version >= (4,6,0))
+
+  # disable strict aliasing in V8 if we're compiling with gcc 4.5.x,
+  # it makes V8 crash in various ways
+  o['variables']['v8_no_strict_aliasing'] = b(
+    not is_clang and (4,5,0) <= cc_version < (4,6,0))
 
   # clang has always supported -fvisibility=hidden, right?
-  if 'clang' not in CC and cc_version() < [False, 4, 0, 0]:
+  if not is_clang and cc_version < (4,0,0):
     o['variables']['visibility'] = ''
 
   # By default, enable DTrace on SunOS systems. Don't allow it on other
