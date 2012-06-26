@@ -2235,10 +2235,15 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
 
 // Check for cases where EmitLoadFieldOrConstantFunction needs to walk the
 // prototype chain, which causes unbounded code generation.
-static bool CompactEmit(
-    SmallMapList* list, Handle<String> name, int i, Isolate* isolate) {
-  LookupResult lookup(isolate);
+static bool CompactEmit(SmallMapList* list,
+                        Handle<String> name,
+                        int i,
+                        Isolate* isolate) {
   Handle<Map> map = list->at(i);
+  // If the map has ElementsKind transitions, we will generate map checks
+  // for each kind in __ CompareMap(..., ALLOW_ELEMENTS_TRANSITION_MAPS).
+  if (map->elements_transition_map() != NULL) return false;
+  LookupResult lookup(isolate);
   map->LookupInDescriptors(NULL, *name, &lookup);
   return lookup.IsFound() &&
       (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION);
