@@ -1,6 +1,6 @@
 {
   'variables': {
-    'strict_aliasing%': 'false',     # turn on/off -fstrict-aliasing
+    'node_no_strict_aliasing%': 0,   # turn off -fstrict-aliasing
     'visibility%': 'hidden',         # V8's visibility setting
     'target_arch%': 'ia32',          # set v8's target architecture
     'host_arch%': 'ia32',            # set v8's host architecture
@@ -52,7 +52,7 @@
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
           }],
-          ['strict_aliasing!="true"', {
+          ['node_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
           }],
         ],
