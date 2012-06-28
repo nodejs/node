@@ -355,13 +355,7 @@ without waiting for the callback. For this scenario,
 
 ## fs.writeSync(fd, buffer, offset, length, position)
 
-Synchronous version of buffer-based `fs.write()`. Returns the number of bytes
-written.
-
-## fs.writeSync(fd, str, position, [encoding])
-
-Synchronous version of string-based `fs.write()`. `encoding` defaults to
-`'utf8'`. Returns the number of _bytes_ written.
+Synchronous version of `fs.write()`. Returns the number of bytes written.
 
 ## fs.read(fd, buffer, offset, length, position, [callback])
 
@@ -380,13 +374,7 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 ## fs.readSync(fd, buffer, offset, length, position)
 
-Synchronous version of buffer-based `fs.read`. Returns the number of
-`bytesRead`.
-
-## fs.readSync(fd, length, position, encoding)
-
-Legacy synchronous version of string-based `fs.read`. Returns an array with the
-data from the file specified and number of bytes read, `[string, bytesRead]`.
+Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 
 ## fs.readFile(filename, [encoding], [callback])
 
