@@ -50,7 +50,7 @@ class JsDocFlag(statetracker.DocFlag):
   # TODO(robbyw): determine which of these, if any, should be illegal.
   EXTENDED_DOC = frozenset([
       'class', 'code', 'desc', 'final', 'hidden', 'inheritDoc', 'link',
-      'meaning', 'protected', 'notypecheck', 'throws'])
+      'protected', 'notypecheck', 'throws'])
 
   LEGAL_DOC = EXTENDED_DOC | statetracker.DocFlag.LEGAL_DOC
 
@@ -70,9 +70,24 @@ class JavaScriptStateTracker(statetracker.StateTracker):
   functionality needed for JavaScript.
   """
 
-  def __init__(self):
-    """Initializes a JavaScript token stream state tracker."""
+  def __init__(self, closurized_namespaces=''):
+    """Initializes a JavaScript token stream state tracker.
+
+    Args:
+      closurized_namespaces: An optional list of namespace prefixes used for
+          testing of goog.provide/require.
+    """
     statetracker.StateTracker.__init__(self, JsDocFlag)
+    self.__closurized_namespaces = closurized_namespaces
+
+  def Reset(self):
+    """Resets the state tracker to prepare for processing a new page."""
+    super(JavaScriptStateTracker, self).Reset()
+
+    self.__goog_require_tokens = []
+    self.__goog_provide_tokens = []
+    self.__provided_namespaces = set()
+    self.__used_namespaces = []
 
   def InTopLevel(self):
     """Compute whether we are at the top level in the class.
@@ -86,6 +101,22 @@ class JavaScriptStateTracker(statetracker.StateTracker):
       Whether we are at the top level in the class.
     """
     return not self.InParentheses()
+
+  def GetGoogRequireTokens(self):
+    """Returns list of require tokens."""
+    return self.__goog_require_tokens
+
+  def GetGoogProvideTokens(self):
+    """Returns list of provide tokens."""
+    return self.__goog_provide_tokens
+
+  def GetProvidedNamespaces(self):
+    """Returns list of provided namespaces."""
+    return self.__provided_namespaces
+
+  def GetUsedNamespaces(self):
+    """Returns list of used namespaces, is a list of sequences."""
+    return self.__used_namespaces
 
   def GetBlockType(self, token):
     """Determine the block type given a START_BLOCK token.
@@ -114,3 +145,94 @@ class JavaScriptStateTracker(statetracker.StateTracker):
     """
     super(JavaScriptStateTracker, self).HandleToken(token,
                                                     last_non_space_token)
+
+    if token.IsType(Type.IDENTIFIER):
+      if token.string == 'goog.require':
+        class_token = tokenutil.Search(token, Type.STRING_TEXT)
+        self.__goog_require_tokens.append(class_token)
+
+      elif token.string == 'goog.provide':
+        class_token = tokenutil.Search(token, Type.STRING_TEXT)
+        self.__goog_provide_tokens.append(class_token)
+
+      elif self.__closurized_namespaces:
+        self.__AddUsedNamespace(token.string)
+    if token.IsType(Type.SIMPLE_LVALUE) and not self.InFunction():
+      identifier = token.values['identifier']
+
+      if self.__closurized_namespaces:
+        namespace = self.GetClosurizedNamespace(identifier)
+        if namespace and identifier == namespace:
+          self.__provided_namespaces.add(namespace)
+    if (self.__closurized_namespaces and
+        token.IsType(Type.DOC_FLAG) and
+        token.attached_object.flag_type == 'implements'):
+      # Interfaces should be goog.require'd.
+      doc_start = tokenutil.Search(token, Type.DOC_START_BRACE)
+      interface = tokenutil.Search(doc_start, Type.COMMENT)
+      self.__AddUsedNamespace(interface.string)
+
+  def __AddUsedNamespace(self, identifier):
+    """Adds the namespace of an identifier to the list of used namespaces.
+    
+    Args:
+      identifier: An identifier which has been used.
+    """
+    namespace = self.GetClosurizedNamespace(identifier)
+
+    if namespace:
+      # We add token.string as a 'namespace' as it is something that could
+      # potentially be provided to satisfy this dependency.
+      self.__used_namespaces.append([namespace, identifier])
+
+  def GetClosurizedNamespace(self, identifier):
+    """Given an identifier, returns the namespace that identifier is from.
+
+    Args:
+      identifier: The identifier to extract a namespace from.
+
+    Returns:
+      The namespace the given identifier resides in, or None if one could not
+      be found.
+    """
+    parts = identifier.split('.')
+    for part in parts:
+      if part.endswith('_'):
+        # Ignore private variables / inner classes.
+        return None
+
+    if identifier.startswith('goog.global'):
+      # Ignore goog.global, since it is, by definition, global.
+      return None
+
+    for namespace in self.__closurized_namespaces:
+      if identifier.startswith(namespace + '.'):
+        last_part = parts[-1]
+        if not last_part:
+          # TODO(robbyw): Handle this: it's a multi-line identifier.
+          return None
+
+        if last_part in ('apply', 'inherits', 'call'):
+          # Calling one of Function's methods usually indicates use of a
+          # superclass.
+          parts.pop()
+          last_part = parts[-1]
+
+        for i in xrange(1, len(parts)):
+          part = parts[i]
+          if part.isupper():
+            # If an identifier is of the form foo.bar.BAZ.x or foo.bar.BAZ,
+            # the namespace is foo.bar.
+            return '.'.join(parts[:i])
+          if part == 'prototype':
+            # If an identifier is of the form foo.bar.prototype.x, the
+            # namespace is foo.bar.
+            return '.'.join(parts[:i])
+
+        if last_part.isupper() or not last_part[0].isupper():
+          # Strip off the last part of an enum or constant reference.
+          parts.pop()
+
+        return '.'.join(parts)
+
+    return None

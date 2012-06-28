@@ -101,8 +101,5 @@ class AnnotatedFileTestCase(googletest.TestCase):
     self._runner.Run([filename], errors)
 
     errors = errors.GetErrors()
-
-    # Convert to expected tuple format.
-    error_msgs = [(error.token.line_number, error.code) for error in errors]
-    error_msgs.sort()
-    return error_msgs
+    errors.sort()
+    return errors

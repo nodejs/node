@@ -35,7 +35,7 @@ class ErrorAccumulator(errorhandler.ErrorHandler):
     Args:
       error: The error object
     """
-    self._errors.append(error)
+    self._errors.append((error.token.line_number, error.code))
 
   def GetErrors(self):
     """Returns the accumulated errors.

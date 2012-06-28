@@ -33,7 +33,6 @@ import unittest as googletest
 
 from closure_linter import checker
 from closure_linter import errors
-from closure_linter import error_check
 from closure_linter.common import filetestcase
 
 _RESOURCE_PREFIX = 'closure_linter/testdata'
@@ -41,50 +40,36 @@ _RESOURCE_PREFIX = 'closure_linter/testdata'
 flags.FLAGS.strict = True
 flags.FLAGS.custom_jsdoc_tags = ('customtag', 'requires')
 flags.FLAGS.closurized_namespaces = ('goog', 'dummy')
-flags.FLAGS.limited_doc_files = ('externs.js', 'dummy.js',
-                                 'limited_doc_checks.js')
-flags.FLAGS.jslint_error = error_check.Rule.ALL
+flags.FLAGS.limited_doc_files = ('externs.js', 'dummy.js')
 
 # List of files under testdata to test.
 # We need to list files explicitly since pyglib can't list directories.
-# TODO(user): Figure out how to list the directory.
 _TEST_FILES = [
     'all_js_wrapped.js',
     'blank_lines.js',
     'ends_with_block.js',
     'externs.js',
-    'externs_jsdoc.js',
-    'goog_scope.js',
     'html_parse_error.html',
     'indentation.js',
     'interface.js',
     'jsdoc.js',
-    'limited_doc_checks.js',
     'minimal.js',
     'other.js',
-    'provide_blank.js',
-    'provide_extra.js',
-    'provide_missing.js',
     'require_all_caps.js',
-    'require_blank.js',
     'require_extra.js',
     'require_function.js',
     'require_function_missing.js',
     'require_function_through_both.js',
     'require_function_through_namespace.js',
     'require_interface.js',
-    'require_interface_base.js',
     'require_lower_case.js',
-    'require_missing.js',
     'require_numeric.js',
-    'require_provide_blank.js',
     'require_provide_ok.js',
     'require_provide_missing.js',
     'simple.html',
     'spaces.js',
     'tokenizer.js',
     'unparseable.js',
-    'unused_private_members.js',
     'utf8.html'
     ]
 

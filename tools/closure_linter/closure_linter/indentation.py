@@ -152,31 +152,7 @@ class IndentationRules(object):
       self._PopTo(Type.START_BRACKET)
 
     elif token_type == Type.END_BLOCK:
-      start_token = self._PopTo(Type.START_BLOCK)
-      # Check for required goog.scope comment.
-      if start_token:
-        goog_scope = self._GoogScopeOrNone(start_token.token)
-        if goog_scope is not None:
-          if not token.line.endswith(';  // goog.scope\n'):
-            if (token.line.find('//') > -1 and
-                token.line.find('goog.scope') >
-                token.line.find('//')):
-              indentation_errors.append([
-                  errors.MALFORMED_END_OF_SCOPE_COMMENT,
-                  ('Malformed end of goog.scope comment. Please use the '
-                   'exact following syntax to close the scope:\n'
-                   '});  // goog.scope'),
-                  token,
-                  Position(token.start_index, token.length)])
-            else:
-              indentation_errors.append([
-                  errors.MISSING_END_OF_SCOPE_COMMENT,
-                  ('Missing comment for end of goog.scope which opened at line '
-                   '%d. End the scope with:\n'
-                   '});  // goog.scope' %
-                   (start_token.line_number)),
-                  token,
-                  Position(token.start_index, token.length)])
+      self._PopTo(Type.START_BLOCK)
 
     elif token_type == Type.KEYWORD and token.string in ('case', 'default'):
       self._Add(self._PopTo(Type.START_BLOCK))
@@ -236,7 +212,7 @@ class IndentationRules(object):
     elif token_type == Type.START_BLOCK or token.metadata.is_implied_block:
       self._Add(TokenInfo(token=token, is_block=True))
 
-    elif token_type in (Type.START_PAREN, Type.START_PARAMETERS):
+    elif token_type in (Type.START_PAREN,  Type.START_PARAMETERS):
       self._Add(TokenInfo(token=token, is_block=False))
 
     elif token_type == Type.KEYWORD and token.string == 'return':
@@ -447,27 +423,6 @@ class IndentationRules(object):
       if token.type not in Type.NON_CODE_TYPES:
         return False
 
-  def _GoogScopeOrNone(self, token):
-    """Determines if the given START_BLOCK is part of a goog.scope statement.
-
-    Args:
-      token: A token of type START_BLOCK.
-
-    Returns:
-      The goog.scope function call token, or None if such call doesn't exist.
-    """
-    # Search for a goog.scope statement, which will be 5 tokens before the
-    # block. Illustration of the tokens found prior to the start block:
-    # goog.scope(function() {
-    #      5    4    3   21 ^
-
-    maybe_goog_scope = token
-    for unused_i in xrange(5):
-      maybe_goog_scope = (maybe_goog_scope.previous if maybe_goog_scope and
-                          maybe_goog_scope.previous else None)
-    if maybe_goog_scope and maybe_goog_scope.string == 'goog.scope':
-      return maybe_goog_scope
-
   def _Add(self, token_info):
     """Adds the given token info to the stack.
 
@@ -479,7 +434,6 @@ class IndentationRules(object):
       return
 
     if token_info.is_block or token_info.token.type == Type.START_PAREN:
-      token_info.overridden_by = self._GoogScopeOrNone(token_info.token)
       index = 1
       while index <= len(self._stack):
         stack_info = self._stack[-index]
