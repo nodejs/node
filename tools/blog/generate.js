@@ -170,9 +170,18 @@ function buildFeeds(data) {
   }
 
   // filter non-latest release notices out of main feeds.
+  // still show the first stable release of the family, since
+  // it usually is an important milestone with benchmarks and stuff.
   var main = posts.filter(function(post) {
-    if (post.version && post.family && post !== releases[post.family][0]) {
-      return false;
+    if (post.version && post.family) {
+      var ver = semver.parse(post.version)
+      if (+ver[2] % 2 === 0 && +ver[3] === 0) {
+        // 0.x.0, where x is event
+        return true;
+      }
+      if (post.version && post.family && post !== releases[post.family][0]) {
+        return false;
+      }
     }
     return true;
   });
