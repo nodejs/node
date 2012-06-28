@@ -83,6 +83,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_SIGNAL_REFUSED:              return UV_EIO;
     case ERROR_FILE_NOT_FOUND:              return UV_ENOENT;
     case ERROR_INVALID_NAME:                return UV_ENOENT;
+    case ERROR_INVALID_REPARSE_DATA:        return UV_ENOENT;
     case ERROR_MOD_NOT_FOUND:               return UV_ENOENT;
     case ERROR_PATH_NOT_FOUND:              return UV_ENOENT;
     case ERROR_ACCESS_DENIED:               return UV_EPERM;
@@ -111,6 +112,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_OPERATION_ABORTED:           return UV_EINTR;
     case WSAEINTR:                          return UV_EINTR;
     case ERROR_INVALID_DATA:                return UV_EINVAL;
+    case ERROR_SYMLINK_NOT_SUPPORTED:       return UV_EINVAL;
     case WSAEINVAL:                         return UV_EINVAL;
     case ERROR_CANT_RESOLVE_FILENAME:       return UV_ELOOP;
     case ERROR_TOO_MANY_OPEN_FILES:         return UV_EMFILE;
