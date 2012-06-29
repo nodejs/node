@@ -110,10 +110,12 @@
       <% if (typeof post !== 'undefined') {
         // just one post on this page
         %>
-        <p class="meta"><%=
-          post.author + ' - ' +
-          post.date.toUTCString().replace(/ GMT$/, '') + ' - '
-          %><a href="/<%= post.category %>/"><%= post.category %></a></p>
+        <p class="meta"><%-
+          post.date.toUTCString().replace(/ GMT$/, '') + ' UTC' +
+          (post.author ? ' - ' + post.author : '') +
+          (post.category ? ' - <a href="/' + post.category + '/">' +
+                            post.category + '</a>' : '')
+          %></p>
 
           <%- post.content %>
 
@@ -167,10 +169,14 @@
               %>" class="permalink"><%-
                 post.title
               %></a></h1>
-              <p class="meta"><%=
-                post.author + ' - ' +
-                post.date.toUTCString().replace(/ GMT$/, '') + ' - '
-                %><a href="/<%= post.category %>/"><%= post.category %></a></p>
+
+              <p class="meta"><%-
+                post.date.toUTCString().replace(/ GMT$/, '') + ' UTC' +
+                (post.author ? ' - ' + post.author : '') +
+                (post.category ? ' - <a href="/' + post.category + '/">' +
+                                  post.category + '</a>' : '')
+                %></p>
+
               <%- post.content %>
             </div>
             <%
