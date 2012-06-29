@@ -1959,8 +1959,8 @@ static Handle<Value> EnvGetter(Local<String> property,
     return scope.Close(String::New(reinterpret_cast<uint16_t*>(buffer), result));
   }
 #endif
-  // Not found
-  return Undefined();
+  // Not found.  Fetch from prototype.
+  return scope.Close(info.Data().As<Object>()->Get(property));
 }
 
 
@@ -2210,7 +2210,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
                                        EnvQuery,
                                        EnvDeleter,
                                        EnvEnumerator,
-                                       Undefined());
+                                       Object::New());
   Local<Object> env = envTemplate->NewInstance();
   process->Set(String::NewSymbol("env"), env);
 
