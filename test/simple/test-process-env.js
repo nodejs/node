@@ -47,18 +47,8 @@ if (process.argv[2] == 'you-are-the-child') {
   // failed assertion results in process exiting with status code 1
   assert.equal(false, 'NODE_PROCESS_ENV_DELETED' in process.env);
   assert.equal(42, process.env.NODE_PROCESS_ENV);
-  assert.equal('asdf', process.env.hasOwnProperty);
-  var hasOwnProperty = Object.prototype.hasOwnProperty;
-  var has = hasOwnProperty.call(process.env, 'hasOwnProperty');
-  assert.equal(true, has);
   process.exit(0);
 } else {
-  assert.equal(Object.prototype.hasOwnProperty, process.env.hasOwnProperty);
-  var has = process.env.hasOwnProperty('hasOwnProperty');
-  assert.equal(false, has);
-
-  process.env.hasOwnProperty = 'asdf';
-
   process.env.NODE_PROCESS_ENV = 42;
   assert.equal(42, process.env.NODE_PROCESS_ENV);
 
