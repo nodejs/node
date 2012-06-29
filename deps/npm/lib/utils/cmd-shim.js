@@ -62,7 +62,7 @@ function writeShim_ (from, to, prog, args, cb) {
   var shTarget = path.relative(path.dirname(to), from)
     , target = shTarget.split("/").join("\\")
     , longProg
-    , shProg = prog.split("\\").join("/")
+    , shProg = prog && prog.split("\\").join("/")
     , shLongProg
   shTarget = shTarget.split("\\").join("/")
   args = args || ""

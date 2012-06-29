@@ -1,6 +1,30 @@
 // XXX lib/utils/tar.js and this file need to be rewritten.
 
+// URL-to-cache folder mapping:
+// : -> !
+// @ -> _
+// http://registry.npmjs.org/foo/version -> cache/http!/...
+//
+
 /*
+fetching a url:
+1. Check for url in inFlightUrls.  If present, add cb, and return.
+2. create inFlightURL list
+3. Acquire lock at {cache}/{sha(url)}.lock
+   retries = {cache-lock-retries, def=3}
+   stale = {cache-lock-stale, def=30000}
+   wait = {cache-lock-wait, def=100}
+4. if lock can't be acquired, then fail
+5. fetch url, clear lock, call cbs
+
+cache folders:
+1. urls: http!/server.com/path/to/thing
+2. c:\path\to\thing: file!/c!/path/to/thing
+3. /path/to/thing: file!/path/to/thing
+4. git@ private: git_github.com!isaacs/npm
+5. git://public: git!/github.com/isaacs/npm
+6. git+blah:// git-blah!/server.com/foo/bar
+
 adding a folder:
 1. tar into tmp/random/package.tgz
 2. untar into tmp/random/contents/package, stripping one dir piece
@@ -49,6 +73,9 @@ var mkdir = require("mkdirp")
   , fileCompletion = require("./utils/completion/file-completion.js")
   , url = require("url")
   , chownr = require("chownr")
+  , lockFile = require("lockfile")
+  , crypto = require("crypto")
+  , retry = require("retry")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -238,8 +265,24 @@ function add (args, cb) {
     default:
       // if we have a name and a spec, then try name@spec
       // if not, then try just spec (which may try name@"" if not found)
-      return name ? addNamed(name, spec, cb) : addLocal(spec, cb)
+      if (name) {
+        addNamed(name, spec, cb)
+      } else {
+        addLocal(spec, cb)
+      }
   }
+}
+
+function fetchAndShaCheck (u, tmp, shasum, cb) {
+  fetch(u, tmp, function (er, response) {
+    if (er) {
+      log.error("fetch failed", u)
+      return cb(er, response)
+    }
+    if (!shasum) return cb()
+    // validate that the url we just downloaded matches the expected shasum.
+    sha.check(tmp, shasum, cb)
+  })
 }
 
 // Only have a single download action at once for a given url
@@ -255,29 +298,48 @@ function addRemoteTarball (u, shasum, name, cb_) {
   if (iF.length > 1) return
 
   function cb (er, data) {
-    var c
-    while (c = iF.shift()) c(er, data)
-    delete inFlightURLs[u]
+    unlock(u, function () {
+      var c
+      while (c = iF.shift()) c(er, data)
+      delete inFlightURLs[u]
+    })
   }
 
-  log.verbose("addRemoteTarball", [u, shasum])
-  var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), "tmp.tgz")
-  mkdir(path.dirname(tmp), function (er) {
+  lock(u, function (er) {
     if (er) return cb(er)
-    fetch(u, tmp, function (er) {
-      if (er) {
-        log.error("fetch failed", u)
-        return cb(er)
-      }
-      if (!shasum) return done()
-      // validate that the url we just downloaded matches the expected shasum.
-      sha.check(tmp, shasum, done)
+
+    log.verbose("addRemoteTarball", [u, shasum])
+    var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), "tmp.tgz")
+    mkdir(path.dirname(tmp), function (er) {
+      if (er) return cb(er)
+      // Tuned to spread 3 attempts over about a minute.
+      // See formula at <https://github.com/tim-kos/node-retry>.
+      var operation = retry.operation
+        ( { retries: npm.config.get("fetch-retries")
+          , factor: npm.config.get("fetch-retry-factor")
+          , minTimeout: npm.config.get("fetch-retry-mintimeout")
+          , maxTimeout: npm.config.get("fetch-retry-maxtimeout") })
+
+      operation.attempt(function (currentAttempt) {
+        log.info("retry", "fetch attempt " + currentAttempt
+          + " at " + (new Date()).toLocaleTimeString())
+        fetchAndShaCheck(u, tmp, shasum, function (er, response) {
+          // Only retry on 408, 5xx or no `response`.
+          var statusCode = response && response.statusCode
+          var statusRetry = !statusCode || (statusCode === 408 || statusCode >= 500)
+          if (er && statusRetry && operation.retry(er)) {
+            log.info("retry", "will retry, error on last attempt: " + er)
+            return
+          }
+          done(er)
+        })
+      })
     })
+    function done (er) {
+      if (er) return cb(er)
+      addLocalTarball(tmp, name, cb)
+    }
   })
-  function done (er) {
-    if (er) return cb(er)
-    addLocalTarball(tmp, name, cb)
-  }
 }
 
 // For now, this is kind of dumb.  Just basically treat git as
@@ -292,48 +354,54 @@ function addRemoteGit (u, parsed, name, cb_) {
   if (iF.length > 1) return
 
   function cb (er, data) {
-    var c
-    while (c = iF.shift()) c(er, data)
-    delete inFlightURLs[u]
+    unlock(u, function () {
+      var c
+      while (c = iF.shift()) c(er, data)
+      delete inFlightURLs[u]
+    })
   }
 
-  // figure out what we should check out.
-  var co = parsed.hash && parsed.hash.substr(1) || "master"
-  // git is so tricky!
-  // if the path is like ssh://foo:22/some/path then it works, but
-  // it needs the ssh://
-  // If the path is like ssh://foo:some/path then it works, but
-  // only if you remove the ssh://
-  u = u.replace(/^git\+/, "")
-       .replace(/#.*$/, "")
-
-  // ssh paths that are scp-style urls don't need the ssh://
-  if (parsed.pathname.match(/^\/?:/)) {
-    u = u.replace(/^ssh:\/\//, "")
-  }
-
-  log.verbose("addRemoteGit", [u, co])
-
-  var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random())
-  mkdir(path.dirname(tmp), function (er) {
+  lock(u, function (er) {
     if (er) return cb(er)
-    exec( npm.config.get("git"), ["clone", u, tmp], null, false
-        , function (er, code, stdout, stderr) {
-      stdout = (stdout + "\n" + stderr).trim()
-      if (er) {
-        log.error("git clone " + u, stdout)
-        return cb(er)
-      }
-      log.verbose("git clone "+u, stdout)
-      exec( npm.config.get("git"), ["checkout", co], null, false, tmp
+
+    // figure out what we should check out.
+    var co = parsed.hash && parsed.hash.substr(1) || "master"
+    // git is so tricky!
+    // if the path is like ssh://foo:22/some/path then it works, but
+    // it needs the ssh://
+    // If the path is like ssh://foo:some/path then it works, but
+    // only if you remove the ssh://
+    u = u.replace(/^git\+/, "")
+         .replace(/#.*$/, "")
+
+    // ssh paths that are scp-style urls don't need the ssh://
+    if (parsed.pathname.match(/^\/?:/)) {
+      u = u.replace(/^ssh:\/\//, "")
+    }
+
+    log.verbose("addRemoteGit", [u, co])
+
+    var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random())
+    mkdir(path.dirname(tmp), function (er) {
+      if (er) return cb(er)
+      exec( npm.config.get("git"), ["clone", u, tmp], null, false
           , function (er, code, stdout, stderr) {
         stdout = (stdout + "\n" + stderr).trim()
         if (er) {
-          log.error("git checkout " + co, stdout)
+          log.error("git clone " + u, stdout)
           return cb(er)
         }
-        log.verbose("git checkout " + co, stdout)
-        addLocalDirectory(tmp, cb)
+        log.verbose("git clone "+u, stdout)
+        exec( npm.config.get("git"), ["checkout", co], null, false, tmp
+            , function (er, code, stdout, stderr) {
+          stdout = (stdout + "\n" + stderr).trim()
+          if (er) {
+            log.error("git checkout " + co, stdout)
+            return cb(er)
+          }
+          log.verbose("git checkout " + co, stdout)
+          addLocalDirectory(tmp, cb)
+        })
       })
     })
   })
@@ -343,8 +411,10 @@ function addRemoteGit (u, parsed, name, cb_) {
 // only have one request in flight for a given
 // name@blah thing.
 var inFlightNames = {}
-function addNamed (name, x, cb_) {
+function addNamed (name, x, data, cb_) {
+  if (typeof cb_ !== "function") cb_ = data, data = null
   log.verbose("addNamed", [name, x])
+
   var k = name + "@" + x
   if (!inFlightNames[k]) inFlightNames[k] = []
   var iF = inFlightNames[k]
@@ -352,19 +422,27 @@ function addNamed (name, x, cb_) {
   if (iF.length > 1) return
 
   function cb (er, data) {
-    var c
-    while (c = iF.shift()) c(er, data)
-    delete inFlightNames[k]
+    unlock(k, function () {
+      var c
+      while (c = iF.shift()) c(er, data)
+      delete inFlightNames[k]
+    })
   }
 
   log.verbose("addNamed", [semver.valid(x), semver.validRange(x)])
-  return ( null !== semver.valid(x) ? addNameVersion
-         : null !== semver.validRange(x) ? addNameRange
-         : addNameTag
-         )(name, x, cb)
+  lock(k, function (er, fd) {
+    if (er) return cb(er)
+
+    var fn = ( null !== semver.valid(x) ? addNameVersion
+             : null !== semver.validRange(x) ? addNameRange
+             : addNameTag
+             )
+    fn(name, x, data, cb)
+  })
 }
 
-function addNameTag (name, tag, cb) {
+function addNameTag (name, tag, data, cb) {
+  if (typeof cb !== "function") cb = data, data = null
   log.info("addNameTag", [name, tag])
   var explicit = true
   if (!tag) {
@@ -378,10 +456,10 @@ function addNameTag (name, tag, cb) {
     if (data["dist-tags"] && data["dist-tags"][tag]
         && data.versions[data["dist-tags"][tag]]) {
       var ver = data["dist-tags"][tag]
-      return addNameVersion(name, ver, data.versions[ver], cb)
+      return addNamed(name, ver, data.versions[ver], cb)
     }
     if (!explicit && Object.keys(data.versions).length) {
-      return addNameRange(name, "*", data, cb)
+      return addNamed(name, "*", data, cb)
     }
     return cb(installTargetsError(tag, data))
   })
@@ -390,12 +468,14 @@ function addNameTag (name, tag, cb) {
 function engineFilter (data) {
   var npmv = npm.version
     , nodev = npm.config.get("node-version")
+    , strict = npm.config.get("engine-strict")
 
   if (!nodev || npm.config.get("force")) return data
 
   Object.keys(data.versions || {}).forEach(function (v) {
     var eng = data.versions[v].engines
     if (!eng) return
+    if (!strict && !data.versions[v].engineStrict) return
     if (eng.node && !semver.satisfies(nodev, eng.node)
         || eng.npm && !semver.satisfies(npmv, eng.npm)) {
       delete data.versions[v]
@@ -438,12 +518,12 @@ function addNameRange (name, range, data, cb) {
 
   function next_ () {
     log.silly("addNameRange", "versions"
-             , [data.name, Object.keys(data.versions)])
+             , [data.name, Object.keys(data.versions || {})])
 
     // if the tagged version satisfies, then use that.
     var tagged = data["dist-tags"][npm.config.get("tag")]
     if (tagged && data.versions[tagged] && semver.satisfies(tagged, range)) {
-      return addNameVersion(name, tagged, data.versions[tagged], cb)
+      return addNamed(name, tagged, data.versions[tagged], cb)
     }
 
     // find the max satisfying version.
@@ -454,7 +534,7 @@ function addNameRange (name, range, data, cb) {
 
     // if we don't have a registry connection, try to see if
     // there's a cached copy that will be ok.
-    addNameVersion(name, ms, data.versions[ms], cb)
+    addNamed(name, ms, data.versions[ms], cb)
   }
 }
 
@@ -573,24 +653,29 @@ function addLocal (p, name, cb_) {
   if (typeof cb_ !== "function") cb_ = name, name = ""
 
   function cb (er, data) {
-    if (er) {
-      // if it doesn't have a / in it, it might be a
-      // remote thing.
-      if (p.indexOf("/") === -1 && p.charAt(0) !== "."
-         && (process.platform !== "win32" || p.indexOf("\\") === -1)) {
-        return addNamed(p, "", cb_)
+    unlock(p, function () {
+      if (er) {
+        // if it doesn't have a / in it, it might be a
+        // remote thing.
+        if (p.indexOf("/") === -1 && p.charAt(0) !== "."
+           && (process.platform !== "win32" || p.indexOf("\\") === -1)) {
+          return addNamed(p, "", cb_)
+        }
+        log.error("addLocal", "Could not install %s", p)
+        return cb_(er)
       }
-      log.error("addLocal", "Could not install %s", p)
-      return cb_(er)
-    }
-    return cb_(er, data)
+      return cb_(er, data)
+    })
   }
 
-  // figure out if this is a folder or file.
-  fs.stat(p, function (er, s) {
+  lock(p, function (er) {
     if (er) return cb(er)
-    if (s.isDirectory()) addLocalDirectory(p, name, cb)
-    else addLocalTarball(p, name, cb)
+    // figure out if this is a folder or file.
+    fs.stat(p, function (er, s) {
+      if (er) return cb(er)
+      if (s.isDirectory()) addLocalDirectory(p, name, cb)
+      else addLocalTarball(p, name, cb)
+    })
   })
 }
 
@@ -846,4 +931,33 @@ function deprCheck (data) {
     deprWarned[data._id] = true
     log.warn("deprecated", "%s: %s", data._id, data.deprecated)
   }
+}
+
+function lockFileName (u) {
+  var c = u.replace(/[^a-zA-Z0-9]+/g, '-')
+    , h = crypto.createHash("sha1").update(u).digest("hex")
+  return path.resolve(npm.config.get("cache"), h + "-" + c + ".lock")
+}
+
+var madeCache = false
+function lock (u, cb) {
+  // the cache dir needs to exist already for this.
+  if (madeCache) then()
+  else mkdir(npm.config.get("cache"), function (er) {
+    if (er) return cb(er)
+    madeCache = true
+    then()
+  })
+  function then () {
+    var opts = { stale: npm.config.get("cache-lock-stale")
+               , retries: npm.config.get("cache-lock-retries")
+               , wait: npm.config.get("cache-lock-wait") }
+    var lf = lockFileName(u)
+    log.verbose("lock", u, lf)
+    lockFile.lock(lf, opts, cb)
+  }
+}
+
+function unlock (u, cb) {
+  lockFile.unlock(lockFileName(u), cb)
 }

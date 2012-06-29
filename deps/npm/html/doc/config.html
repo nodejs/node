@@ -176,6 +176,24 @@ to trust only that specific signing authority.</p>
 
 <p>The location of npm's cache directory.  See <code><a href="../doc/cache.html">cache(1)</a></code></p>
 
+<h3 id="cache-lock-stale">cache-lock-stale</h3>
+
+<ul><li>Default: 60000 (1 minute)</li><li>Type: Number</li></ul>
+
+<p>The number of ms before cache folder lockfiles are considered stale.</p>
+
+<h3 id="cache-lock-retries">cache-lock-retries</h3>
+
+<ul><li>Default: 10</li><li>Type: Number</li></ul>
+
+<p>Number of times to retry to acquire a lock on cache folder lockfiles.</p>
+
+<h3 id="cache-lock-wait">cache-lock-wait</h3>
+
+<ul><li>Default: 10000 (10 seconds)</li><li>Type: Number</li></ul>
+
+<p>Number of ms to wait for cache lock files to expire.</p>
+
 <h3 id="cache-max">cache-max</h3>
 
 <ul><li>Default: Infinity</li><li>Type: Number</li></ul>
@@ -239,6 +257,14 @@ or <code>"notepad"</code> on Windows.</li><li>Type: path</li></ul>
 
 <p>The command to run for <code>npm edit</code> or <code>npm config edit</code>.</p>
 
+<h3 id="engine-strict">engine-strict</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node.js version.</p>
+
 <h3 id="force">force</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
@@ -246,6 +272,34 @@ or <code>"notepad"</code> on Windows.</li><li>Type: path</li></ul>
 <p>Makes various commands more forceful.</p>
 
 <ul><li>lifecycle script failure does not block progress.</li><li>publishing clobbers previously published versions.</li><li>skips cache when requesting from the registry.</li><li>prevents checks against clobbering non-npm files.</li></ul>
+
+<h3 id="fetch-retries">fetch-retries</h3>
+
+<ul><li>Default: 2</li><li>Type: Number</li></ul>
+
+<p>The "retries" config for the <code>retry</code> module to use when fetching
+packages from the registry.</p>
+
+<h3 id="fetch-retry-factor">fetch-retry-factor</h3>
+
+<ul><li>Default: 10</li><li>Type: Number</li></ul>
+
+<p>The "factor" config for the <code>retry</code> module to use when fetching
+packages.</p>
+
+<h3 id="fetch-retry-mintimeout">fetch-retry-mintimeout</h3>
+
+<ul><li>Default: 10000 (10 seconds)</li><li>Type: Number</li></ul>
+
+<p>The "minTimeout" config for the <code>retry</code> module to use when fetching
+packages.</p>
+
+<h3 id="fetch-retry-maxtimeout">fetch-retry-maxtimeout</h3>
+
+<ul><li>Default: 60000 (1 minute)</li><li>Type: Number</li></ul>
+
+<p>The "maxTimeout" config for the <code>retry</code> module to use when fetching
+packages.</p>
 
 <h3 id="git">git</h3>
 
@@ -681,7 +735,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.32</p>
+<p id="footer">config &mdash; npm@1.1.33</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

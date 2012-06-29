@@ -1,0 +1,29 @@
+{
+  "author": {
+    "name": "Tim Koschützki",
+    "email": "tim@debuggable.com",
+    "url": "http://debuggable.com/"
+  },
+  "name": "retry",
+  "description": "Abstraction for exponential and custom retry strategies for failed operations.",
+  "version": "0.6.0",
+  "homepage": "https://github.com/tim-kos/node-retry",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/felixge/node-retry.git"
+  },
+  "directories": {
+    "lib": "./lib"
+  },
+  "main": "index",
+  "engines": {
+    "node": "*"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "fake": "0.2.0",
+    "far": "0.0.1"
+  },
+  "_id": "retry@0.6.0",
+  "_from": "retry"
+}

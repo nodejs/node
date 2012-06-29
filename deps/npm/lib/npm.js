@@ -57,13 +57,13 @@ try {
   npm.version = j.version
   npm.nodeVersionRequired = j.engines.node
   if (!semver.satisfies(process.version, j.engines.node)) {
-    log.error("unsupported version", [""
-              ,"npm requires node version: "+j.engines.node
-              ,"And you have: "+process.version
-              ,"which is not satisfactory."
-              ,""
-              ,"Bad things will likely happen.  You have been warned."
-              ,""].join("\n"))
+    log.warn("unsupported version", [""
+            ,"npm requires node version: "+j.engines.node
+            ,"And you have: "+process.version
+            ,"which is not satisfactory."
+            ,""
+            ,"Bad things will likely happen.  You have been warned."
+            ,""].join("\n"))
   }
 } catch (ex) {
   try {
@@ -98,6 +98,7 @@ var commandCache = {}
               , "apihelp" : "help"
               , "login": "adduser"
               , "add-user": "adduser"
+              , "tst": "test"
               }
 
   , aliasNames = Object.keys(aliases)
@@ -287,6 +288,10 @@ function load (npm, conf, cb) {
         , E404: npm.E404
         , EPUBLISHCONFLICT: npm.EPUBLISHCONFLICT
         , log: log
+        , retries: npm.config.get("fetch-retries")
+        , retryFactor: npm.config.get("fetch-retry-factor")
+        , retryMinTimeout: npm.config.get("fetch-retry-mintimeout")
+        , retryMaxTimeout: npm.config.get("fetch-retry-maxtimeout")
         })
 
       var umask = parseInt(conf.umask, 8)
@@ -443,7 +448,7 @@ Object.defineProperty(npm, "cache",
 var tmpFolder
 Object.defineProperty(npm, "tmp",
   { get : function () {
-      if (!tmpFolder) tmpFolder = "npm-"+Date.now()
+      if (!tmpFolder) tmpFolder = "npm-" + process.pid
       return path.resolve(npm.config.get("tmp"), tmpFolder)
     }
   , enumerable : true

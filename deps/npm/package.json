@@ -1,5 +1,5 @@
 {
-  "version": "1.1.32",
+  "version": "1.1.33",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -65,7 +65,9 @@
     "read-installed": "0",
     "glob": "~3.1.9",
     "init-package-json": "0",
-    "osenv": "0"
+    "osenv": "0",
+    "lockfile": ">=0.2",
+    "retry": "~0.6.0"
   },
   "bundleDependencies": [
     "semver",
@@ -99,7 +101,9 @@
     "read-installed",
     "glob",
     "init-package-json",
-    "osenv"
+    "osenv",
+    "lockfile",
+    "retry"
   ],
   "devDependencies": {
     "ronn": "https://github.com/isaacs/ronnjs/tarball/master",

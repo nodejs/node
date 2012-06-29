@@ -123,6 +123,11 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , cache : process.platform === "win32"
             ? path.resolve(process.env.APPDATA || home || temp, "npm-cache")
             : path.resolve( home || temp, ".npm")
+
+    , "cache-lock-stale": 60000
+    , "cache-lock-retries": 10
+    , "cache-lock-wait": 10000
+
     , "cache-max": Infinity
     , "cache-min": 0
 
@@ -132,7 +137,13 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , description : true
     , dev : false
     , editor : osenv.editor()
+    , "engine-strict": false
     , force : false
+
+    , "fetch-retries": 2
+    , "fetch-retry-factor": 10
+    , "fetch-retry-mintimeout": 10000
+    , "fetch-retry-maxtimeout": 60000
 
     , git: "git"
 
@@ -207,6 +218,9 @@ exports.types =
   , browser : String
   , ca: [null, String]
   , cache : path
+  , "cache-lock-stale": Number
+  , "cache-lock-retries": Number
+  , "cache-lock-wait": Number
   , "cache-max": Number
   , "cache-min": Number
   , color : ["always", Boolean]
@@ -215,7 +229,12 @@ exports.types =
   , description : Boolean
   , dev : Boolean
   , editor : String
+  , "engine-strict": Boolean
   , force : Boolean
+  , "fetch-retries": Number
+  , "fetch-retry-factor": Number
+  , "fetch-retry-mintimeout": Number
+  , "fetch-retry-maxtimeout": Number
   , git: String
   , global : Boolean
   , globalconfig : path
