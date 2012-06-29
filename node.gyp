@@ -177,12 +177,7 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.rc',
           ]
         } ],
-        [ 'node_shared_v8=="true"', {
-          'sources': [
-            '<(node_shared_v8_includes)/v8.h',
-            '<(node_shared_v8_includes)/v8-debug.h',
-          ],
-        }, {
+        [ 'node_shared_v8=="false"', {
           'sources': [
             'deps/v8/include/v8.h',
             'deps/v8/include/v8-debug.h',
