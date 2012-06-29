@@ -72,6 +72,7 @@ function parseFile(file, contents) {
   }, {});
   if (post.status && post.status !== 'publish') return null;
   post.body = c;
+  post.src = file;
   return post;
 }
 
@@ -93,7 +94,9 @@ function buildPermalink(key, post) {
 
   data.post = post;
 
-  var d = post.date = new Date(post.date);
+  if (!post.date) throw new Error('post date is required ' + post.src);
+  else post.date = new Date(post.date);
+  var d = post.date;
 
   var y = d.getYear() + 1900;
   var m = d.getMonth() + 1;
