@@ -355,6 +355,7 @@
         'test/test-tcp-write-error.c',
         'test/test-tcp-write-to-half-open-connection.c',
         'test/test-tcp-writealot.c',
+        'test/test-tcp-unexpected-read.c',
         'test/test-threadpool.c',
         'test/test-mutexes.c',
         'test/test-thread.c',

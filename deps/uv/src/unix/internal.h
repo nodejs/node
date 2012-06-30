@@ -93,7 +93,8 @@ enum {
   UV_STREAM_WRITABLE  = 0x40,   /* The stream is writable */
   UV_STREAM_BLOCKING  = 0x80,   /* Synchronous writes. */
   UV_TCP_NODELAY      = 0x100,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE    = 0x200   /* Turn on keep-alive. */
+  UV_TCP_KEEPALIVE    = 0x200,  /* Turn on keep-alive. */
+  UV_TCP_CONNECTING   = 0x400   /* Not alway set. See uv_connect() in tcp.c */
 };
 
 inline static void uv__req_init(uv_loop_t* loop,
@@ -139,8 +140,6 @@ int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_destroy(uv_stream_t* stream);
 void uv__server_io(uv_loop_t* loop, uv__io_t* watcher, int events);
 int uv__accept(int sockfd);
-int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
-    socklen_t addrlen, uv_connect_cb cb);
 
 /* tcp */
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
