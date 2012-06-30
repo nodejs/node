@@ -65,20 +65,43 @@ parser.add_option("--shared-v8-libname",
     dest="shared_v8_libname",
     help="Alternative lib name to link to (default: 'v8')")
 
+parser.add_option("--shared-openssl",
+    action="store_true",
+    dest="shared_openssl",
+    help="Link to a shared OpenSSl DLL instead of static linking")
+
+parser.add_option("--shared-openssl-includes",
+    action="store",
+    dest="shared_openssl_includes",
+    help="Directory containing OpenSSL header files")
+
+parser.add_option("--shared-openssl-libpath",
+    action="store",
+    dest="shared_openssl_libpath",
+    help="A directory to search for the shared OpenSSL DLLs")
+
+parser.add_option("--shared-openssl-libname",
+    action="store",
+    dest="shared_openssl_libname",
+    help="Alternative lib name to link to (default: 'crypto,ssl')")
+
+# deprecated
 parser.add_option("--openssl-use-sys",
     action="store_true",
-    dest="openssl_use_sys",
-    help="Use the system OpenSSL instead of one included with Node")
+    dest="shared_openssl",
+    help=optparse.SUPPRESS_HELP)
 
+# deprecated
 parser.add_option("--openssl-includes",
     action="store",
-    dest="openssl_includes",
-    help="A directory to search for the OpenSSL includes")
+    dest="shared_openssl_includes",
+    help=optparse.SUPPRESS_HELP)
 
+# deprecated
 parser.add_option("--openssl-libpath",
     action="store",
-    dest="openssl_libpath",
-    help="A directory to search for the OpenSSL libraries")
+    dest="shared_openssl_libpath",
+    help=optparse.SUPPRESS_HELP)
 
 parser.add_option("--no-ssl2",
     action="store_true",
@@ -293,6 +316,8 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
+  if options.no_ifaddrs:
+    o['defines'] += ['SUNOS_NO_IFADDRS']
 
   # By default, enable ETW on Windows.
   if sys.platform.startswith('win32'):
@@ -334,34 +359,30 @@ def configure_v8(o):
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
+  o['variables']['node_shared_openssl'] = b(options.shared_openssl)
 
   if options.without_ssl:
     return
 
-  if options.no_ifaddrs:
-    o['defines'] += ['SUNOS_NO_IFADDRS']
-
   if options.no_ssl2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
 
-  if not options.openssl_use_sys:
-    o['variables']['node_shared_openssl'] = b(False)
-  else:
-    out = pkg_config('openssl')
-    (libs, cflags) = out if out else ('', '')
+  if options.shared_openssl:
+    (libs, cflags) = pkg_config('openssl') or ('-lssl -lcrypto', '')
 
-    if options.openssl_libpath:
-      o['libraries'] += ['-L%s' % options.openssl_libpath, '-lssl', '-lcrypto']
+    if options.shared_openssl_libpath:
+      o['libraries'] += ['-L%s' % options.shared_openssl_libpath]
+
+    if options.shared_openssl_libname:
+      libnames = options.shared_openssl_libname.split(',')
+      o['libraries'] += ['-l%s' % s for s in libnames]
     else:
       o['libraries'] += libs.split()
 
-    if options.openssl_includes:
-      o['include_dirs'] += [options.openssl_includes]
+    if options.shared_openssl_includes:
+      o['include_dirs'] += [options.shared_openssl_includes]
     else:
       o['cflags'] += cflags.split()
-
-    o['variables']['node_shared_openssl'] = b(
-      libs or cflags or options.openssl_libpath or options.openssl_includes)
 
 
 output = {
