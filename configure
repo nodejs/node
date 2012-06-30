@@ -262,22 +262,24 @@ def host_arch():
 def target_arch():
   return host_arch()
 
+
 def compiler_version():
-  try:
-    proc = subprocess.Popen(CC.split() + ['-v'], stderr=subprocess.PIPE)
-  except OSError:
-    return (False, False, None)
-  lines = proc.communicate()[1].split('\n')
-  version_line = None
-  for i, line in enumerate(lines):
-    if 'version' in line:
-      version_line = line
-  if not version_line:
-    return (False, False, None)
-  version = version_line.split("version")[1].strip().split()[0].split(".")
-  if not version:
-    return (False, False, None)
-  return ('LLVM' in version_line, 'clang' in CC, tuple(version))
+  proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
+  version_line = proc.communicate()[0].split('\n')[0]
+
+  if 'clang' in version_line:
+    version, is_clang = version_line.split()[2], True
+  elif 'gcc' in version_line:
+    version, is_clang = version_line.split()[-1], False
+  else:
+    raise Exception(
+      'Unknown compiler. Please open an issue at ' +
+      'https://github.com/joyent/node/issues and ' +
+      'include the output of `%s --version`' % CC)
+
+  version = tuple(map(int, version.split('.')))
+  return (version, is_clang)
+
 
 def configure_node(o):
   # TODO add gdb
@@ -288,7 +290,7 @@ def configure_node(o):
   o['variables']['target_arch'] = options.dest_cpu or target_arch()
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
-  is_llvm, is_clang, cc_version = compiler_version()
+  cc_version, is_clang = compiler_version()
 
   # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
