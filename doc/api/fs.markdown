@@ -130,6 +130,8 @@ Synchronous fchmod(2).
 Asynchronous lchmod(2). No arguments other than a possible exception
 are given to the completion callback.
 
+Only available on Mac OS X.
+
 ## fs.lchmodSync(path, mode)
 
 Synchronous lchmod(2).
