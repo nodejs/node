@@ -20,7 +20,7 @@ all share server ports.
       }
 
       cluster.on('exit', function(worker, code, signal) {
-        console.log('worker ' + worker.pid + ' died');
+        console.log('worker ' + worker.process.pid + ' died');
       });
     } else {
       // Workers can share any TCP connection
@@ -201,7 +201,7 @@ This can be used to restart the worker by calling `fork()` again.
 
     cluster.on('exit', function(worker, code, signal) {
       var exitCode = worker.process.exitCode;
-      console.log('worker ' + worker.pid + ' died ('+exitCode+'). restarting...');
+      console.log('worker ' + worker.process.pid + ' died ('+exitCode+'). restarting...');
       cluster.fork();
     });
 
