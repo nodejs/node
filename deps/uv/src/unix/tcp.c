@@ -109,17 +109,8 @@ static int uv__connect(uv_connect_t* req,
   while (r == -1 && errno == EINTR);
 
   if (r == -1) {
-    if (errno == EINPROGRESS) {
-      /* Not an error. However, we need to keep the event loop from spinning
-       * while the connection is in progress. Artificially start the handle
-       * and stop it again in uv__stream_connect() in stream.c. Yes, it's a
-       * hack but there's no good alternative, the v0.8 ABI is frozen.
-       */
-      if (!uv__is_active(handle)) {
-        handle->flags |= UV_TCP_CONNECTING;
-        uv__handle_start(handle);
-      }
-    }
+    if (errno == EINPROGRESS)
+      ; /* not an error */
     else if (errno == ECONNREFUSED)
     /* If we get a ECONNREFUSED wait until the next tick to report the
      * error. Solaris wants to report immediately--other unixes want to

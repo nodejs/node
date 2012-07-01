@@ -787,12 +787,6 @@ static void uv__stream_connect(uv_stream_t* stream) {
   stream->connect_req = NULL;
   uv__req_unregister(stream->loop, req);
 
-  /* Hack. See uv__connect() in tcp.c */
-  if (stream->flags & UV_TCP_CONNECTING) {
-    assert(stream->type == UV_TCP);
-    uv__handle_stop(stream);
-  }
-
   if (req->cb) {
     uv__set_sys_error(stream->loop, error);
     req->cb(req, error ? -1 : 0);

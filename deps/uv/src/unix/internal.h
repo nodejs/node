@@ -93,8 +93,7 @@ enum {
   UV_STREAM_WRITABLE  = 0x40,   /* The stream is writable */
   UV_STREAM_BLOCKING  = 0x80,   /* Synchronous writes. */
   UV_TCP_NODELAY      = 0x100,  /* Disable Nagle. */
-  UV_TCP_KEEPALIVE    = 0x200,  /* Turn on keep-alive. */
-  UV_TCP_CONNECTING   = 0x400   /* Not alway set. See uv_connect() in tcp.c */
+  UV_TCP_KEEPALIVE    = 0x200   /* Turn on keep-alive. */
 };
 
 inline static void uv__req_init(uv_loop_t* loop,
