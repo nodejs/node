@@ -139,9 +139,37 @@ See the [module system documentation][] for more information.
 See the [module section][] for more information.
 
 ## setTimeout(cb, ms)
+
+Run callback `cb` after *at least* `ms` milliseconds. The actual delay depends
+on external factors like OS timer granularity and system load.
+
+The timeout must be in the range of 1-2,147,483,647 inclusive. If the value is
+outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
+cannot span more than 24.8 days.
+
+Returns an opaque value that represents the timer.
+
 ## clearTimeout(t)
+
+Stop a timer that was previously created with `setTimeout()`. The callback will
+not execute.
+
 ## setInterval(cb, ms)
+
+Run callback `cb` repeatedly every `ms` milliseconds. Note that the actual
+interval may vary, depending on external factors like OS timer granularity and
+system load. It's never less than `ms` but it may be longer.
+
+The interval must be in the range of 1-2,147,483,647 inclusive. If the value is
+outside that range, it's changed to 1 millisecond. Broadly speaking, a timer
+cannot span more than 24.8 days.
+
+Returns an opaque value that represents the timer.
+
 ## clearInterval(t)
+
+Stop a timer that was previously created with `setInterval()`. The callback
+will not execute.
 
 <!--type=global-->
 
