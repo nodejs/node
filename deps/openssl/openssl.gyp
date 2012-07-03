@@ -179,7 +179,6 @@
         'openssl/crypto/bio/bss_null.c',
         'openssl/crypto/bio/bss_sock.c',
         'openssl/crypto/bn/bn_add.c',
-        'openssl/crypto/bn/bn_asm.c',
         'openssl/crypto/bn/bn_blind.c',
         'openssl/crypto/bn/bn_const.c',
         'openssl/crypto/bn/bn_ctx.c',
@@ -650,9 +649,15 @@
         }],
         ['target_arch=="ia32"', {
           'variables': {'openssl_config_path': 'config/piii'},
+          'sources': [
+            'openssl/crypto/bn/bn_asm.c',
+          ]
         }, {
           'variables': {'openssl_config_path': 'config/k8'},
-        }],
+          'sources': [
+            'openssl/crypto/bn/asm/x86_64-gcc.c',
+          ]
+        }]
       ],
       'include_dirs': [
         '.',
