@@ -265,19 +265,11 @@ def target_arch():
 
 def compiler_version():
   proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
-  version_line = proc.communicate()[0].split('\n')[0]
+  is_clang = 'clang' in proc.communicate()[0].split('\n')[0]
 
-  if 'clang' in version_line:
-    version, is_clang = version_line.split()[2], True
-  elif 'gcc' in version_line:
-    version, is_clang = version_line.split()[-1], False
-  else:
-    raise Exception(
-      'Unknown compiler. Please open an issue at ' +
-      'https://github.com/joyent/node/issues and ' +
-      'include the output of `%s --version`' % CC)
+  proc = subprocess.Popen(CC.split() + ['-dumpversion'], stdout=subprocess.PIPE)
+  version = tuple(map(int, proc.communicate()[0].split('.')))
 
-  version = tuple(map(int, version.split('.')))
   return (version, is_clang)
 
 
