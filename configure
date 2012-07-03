@@ -287,9 +287,9 @@ def configure_node(o):
   # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
   # see http://code.google.com/p/v8/issues/detail?id=884
-  strict_aliasing = is_clang or cc_version >= (4,6,0)
-  o['variables']['strict_aliasing'] = b(strict_aliasing)
-  o['variables']['v8_no_strict_aliasing'] = b(not strict_aliasing)
+  no_strict_aliasing = int(not(is_clang or cc_version >= (4,6,0)))
+  o['variables']['v8_no_strict_aliasing'] = no_strict_aliasing
+  o['variables']['node_no_strict_aliasing'] = no_strict_aliasing
 
   # clang has always supported -fvisibility=hidden, right?
   if not is_clang and cc_version < (4,0,0):
