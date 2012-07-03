@@ -233,7 +233,7 @@
         [ 'OS=="linux"', {
           'include_dirs': [ 'src/ares/config_linux' ],
           'sources': [
-            'src/unix/linux/core.c',
+            'src/unix/linux/linux-core.c',
             'src/unix/linux/inotify.c',
             'src/unix/linux/syscalls.c',
             'src/unix/linux/syscalls.h',
