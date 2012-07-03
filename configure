@@ -287,12 +287,9 @@ def configure_node(o):
   # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
   # see http://code.google.com/p/v8/issues/detail?id=884
-  o['variables']['strict_aliasing'] = b(is_clang or cc_version >= (4,6,0))
-
-  # disable strict aliasing in V8 if we're compiling with gcc 4.5.x,
-  # it makes V8 crash in various ways
-  o['variables']['v8_no_strict_aliasing'] = b(
-    not is_clang and (4,5,0) <= cc_version < (4,6,0))
+  strict_aliasing = is_clang or cc_version >= (4,6,0)
+  o['variables']['strict_aliasing'] = b(strict_aliasing)
+  o['variables']['v8_no_strict_aliasing'] = b(not strict_aliasing)
 
   # clang has always supported -fvisibility=hidden, right?
   if not is_clang and cc_version < (4,0,0):
