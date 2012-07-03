@@ -35,7 +35,8 @@ class Writer(object):
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None,
-             generator=False, restat=False, deplist=None):
+             generator=False, restat=False, deplist=None, rspfile=None,
+             rspfile_content=None):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
@@ -48,13 +49,17 @@ class Writer(object):
             self.variable('generator', '1', indent=1)
         if restat:
             self.variable('restat', '1', indent=1)
+        if rspfile:
+            self.variable('rspfile', rspfile, indent=1)
+        if rspfile_content:
+            self.variable('rspfile_content', rspfile_content, indent=1)
 
     def build(self, outputs, rule, inputs=None, implicit=None, order_only=None,
               variables=None):
         outputs = self._as_list(outputs)
         all_inputs = self._as_list(inputs)[:]
-        out_outputs = map(escape_spaces, outputs)
-        all_inputs = map(escape_spaces, all_inputs)
+        out_outputs = list(map(escape_spaces, outputs))
+        all_inputs = list(map(escape_spaces, all_inputs))
 
         if implicit:
             implicit = map(escape_spaces, self._as_list(implicit))
@@ -70,7 +75,12 @@ class Writer(object):
                                         ' '.join(all_inputs)))
 
         if variables:
-            for key, val in variables:
+            if isinstance(variables, dict):
+                iterator = variables.iteritems()
+            else:
+                iterator = iter(variables)
+
+            for key, val in iterator:
                 self.variable(key, val, indent=1)
 
         return outputs
@@ -96,7 +106,7 @@ class Writer(object):
     def _line(self, text, indent=0):
         """Write 'text' word-wrapped at self.width characters."""
         leading_space = '  ' * indent
-        while len(text) > self.width:
+        while len(leading_space) + len(text) > self.width:
             # The text is too wide; wrap if possible.
 
             # Find the rightmost space that would obey our width constraint and

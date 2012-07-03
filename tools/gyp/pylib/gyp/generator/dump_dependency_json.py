@@ -8,6 +8,8 @@ import gyp.common
 import json
 import sys
 
+generator_supports_multiple_toolsets = True
+
 generator_wants_static_library_dependencies_adjusted = False
 
 generator_default_variables = {

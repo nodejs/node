@@ -1,13 +1,14 @@
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 """Visual Studio user preferences file writer."""
 
-import common
 import os
 import re
 import socket # for gethostname
+
+import gyp.common
 import gyp.easy_xml as easy_xml
 
 

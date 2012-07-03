@@ -79,6 +79,7 @@ def GypBuild():
     retcode += GypTestFormat('xcode')
     retcode += GypTestFormat('make')
   elif sys.platform == 'win32':
+    retcode += GypTestFormat('ninja')
     retcode += GypTestFormat('msvs-2008', format='msvs', msvs_version='2008')
     if os.environ['BUILDBOT_BUILDERNAME'] == 'gyp-win64':
       retcode += GypTestFormat('msvs-2010', format='msvs', msvs_version='2010')

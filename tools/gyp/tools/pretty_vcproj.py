@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,37 +27,35 @@ ARGUMENTS = None
 class CmpTuple(object):
   """Compare function between 2 tuple."""
   def __call__(self, x, y):
-    (key1, value1) = x
-    (key2, value2) = y
-    return cmp(key1, key2)
+    return cmp(x[0], y[0])
 
 
 class CmpNode(object):
   """Compare function between 2 xml nodes."""
 
-  def get_string(self, node):
-    node_string = "node"
-    node_string += node.nodeName
-    if node.nodeValue:
-      node_string += node.nodeValue
-
-    if node.attributes:
-      # We first sort by name, if present.
-      node_string += node.getAttribute("Name")
-
-      all_nodes = []
-      for (name, value) in node.attributes.items():
-        all_nodes.append((name, value))
-
-      all_nodes.sort(CmpTuple())
-      for (name, value) in all_nodes:
-        node_string += name
-        node_string += value
-
-    return node_string
-
   def __call__(self, x, y):
-    return cmp(self.get_string(x), self.get_string(y))
+    def get_string(node):
+      node_string = "node"
+      node_string += node.nodeName
+      if node.nodeValue:
+        node_string += node.nodeValue
+
+      if node.attributes:
+        # We first sort by name, if present.
+        node_string += node.getAttribute("Name")
+
+        all_nodes = []
+        for (name, value) in node.attributes.items():
+          all_nodes.append((name, value))
+
+        all_nodes.sort(CmpTuple())
+        for (name, value) in all_nodes:
+          node_string += name
+          node_string += value
+
+      return node_string
+
+    return cmp(get_string(x), get_string(y))
 
 
 def PrettyPrintNode(node, indent=0):
@@ -152,9 +150,9 @@ def CleanupVcproj(node):
   # Normalize the node, and remove all extranous whitespaces.
   for sub_node in node.childNodes:
     if sub_node.nodeType == Node.TEXT_NODE:
-        sub_node.data = sub_node.data.replace("\r", "")
-        sub_node.data = sub_node.data.replace("\n", "")
-        sub_node.data = sub_node.data.rstrip()
+      sub_node.data = sub_node.data.replace("\r", "")
+      sub_node.data = sub_node.data.replace("\n", "")
+      sub_node.data = sub_node.data.rstrip()
 
   # Fix all the semicolon separated attributes to be sorted, and we also
   # remove the dups.
@@ -162,7 +160,9 @@ def CleanupVcproj(node):
     for (name, value) in node.attributes.items():
       sorted_list = sorted(value.split(';'))
       unique_list = []
-      [unique_list.append(i) for i in sorted_list if not unique_list.count(i)]
+      for i in sorted_list:
+        if not unique_list.count(i):
+          unique_list.append(i)
       node.setAttribute(name, ';'.join(unique_list))
       if not value:
         node.removeAttribute(name)
@@ -277,10 +277,9 @@ def MergeProperties(node1, node2):
 
 
 def main(argv):
-  global REPLACEMENTS
+  """Main function of this vcproj prettifier."""
   global ARGUMENTS
   ARGUMENTS = argv
-  """Main function of this vcproj prettifier."""
 
   # check if we have exactly 1 parameter.
   if len(argv) < 2:
@@ -309,7 +308,7 @@ def main(argv):
     # Extend the list of vsprops with all vsprops contained in the current
     # vsprops.
     for current_vsprops in vsprops_list:
-     vsprops_list.extend(GetChildrenVsprops(current_vsprops))
+      vsprops_list.extend(GetChildrenVsprops(current_vsprops))
 
     # Now that we have all the vsprops, we need to merge them.
     for current_vsprops in vsprops_list:

@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -481,7 +481,7 @@ _link = _Tool('VCLinkerTool', 'Link')
 _midl = _Tool('VCMIDLTool', 'Midl')
 _rc = _Tool('VCResourceCompilerTool', 'ResourceCompile')
 _lib = _Tool('VCLibrarianTool', 'Lib')
-_manifest = _Tool('VCManifestTool', 'Mt')
+_manifest = _Tool('VCManifestTool', 'Manifest')
 
 
 _AddTool(_compile)

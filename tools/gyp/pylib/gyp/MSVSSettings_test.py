@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2011 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -514,7 +514,7 @@ class TestSequenceFunctions(unittest.TestCase):
              'TreatLibWarningAsErrors': 'true',
              'UseUnicodeResponseFiles': 'true',
              'Verbose': 'true'},
-         'Mt': {
+         'Manifest': {
              'AdditionalManifestFiles': 'file1;file2',
              'AdditionalOptions': 'a string1',
              'AssemblyIdentity': 'a string1',
@@ -550,11 +550,12 @@ class TestSequenceFunctions(unittest.TestCase):
     self._ExpectedWarnings([
         'Warning: unrecognized setting ClCompile/Enableprefast',
         'Warning: unrecognized setting ClCompile/ZZXYZ',
-        'Warning: unrecognized setting Mt/notgood3',
-        "Warning: for Mt/GenerateCatalogFiles, expected bool; got 'truel'",
+        'Warning: unrecognized setting Manifest/notgood3',
+        'Warning: for Manifest/GenerateCatalogFiles, '
+        "expected bool; got 'truel'",
         'Warning: for Lib/TargetMachine, unrecognized enumerated value '
         'MachineX86i',
-        "Warning: for Mt/EnableDPIAwareness, expected bool; got 'fal'"])
+        "Warning: for Manifest/EnableDPIAwareness, expected bool; got 'fal'"])
 
   def testConvertToMSBuildSettings_empty(self):
     """Tests an empty conversion."""
@@ -1054,7 +1055,7 @@ class TestSequenceFunctions(unittest.TestCase):
             'OutputFile': 'a_file_name',
             'SuppressStartupBanner': 'true',
             'UseUnicodeResponseFiles': 'true'},
-        'Mt': {
+        'Manifest': {
             'AdditionalManifestFiles': 'file1;file2;file3',
             'AdditionalOptions': 'a_string',
             'AssemblyIdentity': 'a_string',
@@ -1124,7 +1125,7 @@ class TestSequenceFunctions(unittest.TestCase):
             AdditionalIncludeDirectories:  ';%(AdditionalIncludeDirectories)',
             AdditionalOptions:  ' %(AdditionalOptions)',
             PreprocessorDefinitions:  ';%(PreprocessorDefinitions)',
-        Mt:
+        Manifest:
             AdditionalManifestFiles:  ';%(AdditionalManifestFiles)',
             AdditionalOptions:  ' %(AdditionalOptions)',
             InputResourceManifests:  ';%(InputResourceManifests)',
@@ -1442,7 +1443,7 @@ class TestSequenceFunctions(unittest.TestCase):
             'PreprocessorDefinitions': '_UNICODE;UNICODE2',
             'ResourceOutputFileName': '$(IntDir)%(Filename)3.res',
             'ShowProgress': 'true'},
-        'Mt': {
+        'Manifest': {
             'AdditionalManifestFiles': 'sfsdfsd',
             'AdditionalOptions': 'afdsdafsd',
             'AssemblyIdentity': 'sddfdsadfsa',

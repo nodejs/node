@@ -1,4 +1,4 @@
-# Copyright (c) 2011 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -462,8 +462,7 @@ def GenerateSConscript(output_filename, spec, build_file, build_file_data):
 
   rules = spec.get('rules', [])
   for rule in rules:
-    name = rule['rule_name']
-    a = ['cd', src_subdir, '&&'] + rule['action']
+    name = re.sub('[^a-zA-Z0-9_]', '_', rule['rule_name'])
     message = rule.get('message')
     if message:
         message = repr(message)
@@ -473,6 +472,10 @@ def GenerateSConscript(output_filename, spec, build_file, build_file_data):
       poas_line = '_processed_input_files.append(infile)'
     inputs = [FixPath(f, src_subdir_) for f in rule.get('inputs', [])]
     outputs = [FixPath(f, src_subdir_) for f in rule.get('outputs', [])]
+    # Skip a rule with no action and no inputs.
+    if 'action' not in rule and not rule.get('rule_sources', []):
+      continue
+    a = ['cd', src_subdir, '&&'] + rule['action']
     fp.write(_rule_template % {
                  'inputs' : pprint.pformat(inputs),
                  'outputs' : pprint.pformat(outputs),

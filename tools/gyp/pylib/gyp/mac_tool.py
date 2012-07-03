@@ -51,26 +51,31 @@ class MacTool(object):
         shutil.rmtree(dest)
       shutil.copytree(source, dest)
     elif extension == '.xib':
-      self._CopyXIBFile(source, dest)
+      return self._CopyXIBFile(source, dest)
     elif extension == '.strings':
       self._CopyStringsFile(source, dest)
-    # TODO: Given that files with arbitrary extensions can be copied to the
-    # bundle, we will want to get rid of this whitelist eventually.
-    elif extension in [
-        '.icns', '.manifest', '.pak', '.pdf', '.png', '.sb', '.sh',
-        '.ttf', '.sdef']:
-      shutil.copyfile(source, dest)
     else:
-      raise NotImplementedError(
-          "Don't know how to copy bundle resources of type %s while copying "
-          "%s to %s)" % (extension, source, dest))
+      shutil.copyfile(source, dest)
 
   def _CopyXIBFile(self, source, dest):
     """Compiles a XIB file with ibtool into a binary plist in the bundle."""
-    args = ['/Developer/usr/bin/ibtool', '--errors', '--warnings',
+    tools_dir = os.environ.get('DEVELOPER_BIN_DIR', '/usr/bin')
+    args = [os.path.join(tools_dir, 'ibtool'), '--errors', '--warnings',
         '--notices', '--output-format', 'human-readable-text', '--compile',
         dest, source]
-    subprocess.call(args)
+    ibtool_section_re = re.compile(r'/\*.*\*/')
+    ibtool_re = re.compile(r'.*note:.*is clipping its content')
+    ibtoolout = subprocess.Popen(args, stdout=subprocess.PIPE)
+    current_section_header = None
+    for line in ibtoolout.stdout:
+      if ibtool_section_re.match(line):
+        current_section_header = line
+      elif not ibtool_re.match(line):
+        if current_section_header:
+          sys.stdout.write(current_section_header)
+          current_section_header = None
+        sys.stdout.write(line)
+    return ibtoolout.returncode
 
   def _CopyStringsFile(self, source, dest):
     """Copies a .strings file using iconv to reconvert the input into UTF-16."""
@@ -138,8 +143,8 @@ class MacTool(object):
     # The format of PkgInfo is eight characters, representing the bundle type
     # and bundle signature, each four characters. If that is missing, four
     # '?' characters are used instead.
-    signature_code = plist['CFBundleSignature']
-    if len(signature_code) != 4:
+    signature_code = plist.get('CFBundleSignature', '????')
+    if len(signature_code) != 4:  # Wrong length resets everything, too.
       signature_code = '?' * 4
 
     dest = os.path.join(os.path.dirname(info_plist), 'PkgInfo')

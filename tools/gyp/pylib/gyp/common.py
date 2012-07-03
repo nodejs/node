@@ -355,15 +355,16 @@ def GetFlavor(params):
     'sunos5': 'solaris',
     'freebsd7': 'freebsd',
     'freebsd8': 'freebsd',
+    'freebsd9': 'freebsd',
   }
   flavor = flavors.get(sys.platform, 'linux')
   return params.get('flavor', flavor)
 
 
 def CopyTool(flavor, out_path):
-  """Finds (mac|sun)_tool.gyp in the gyp directory and copies it
+  """Finds (mac|sun|win)_tool.gyp in the gyp directory and copies it
   to |out_path|."""
-  prefix = { 'solaris': 'sun', 'mac': 'mac' }.get(flavor, None)
+  prefix = { 'solaris': 'sun', 'mac': 'mac', 'win': 'win' }.get(flavor, None)
   if not prefix:
     return
 
@@ -391,7 +392,7 @@ def CopyTool(flavor, out_path):
 
 def uniquer(seq, idfun=None):
     if idfun is None:
-        def idfun(x): return x
+        idfun = lambda x: x
     seen = {}
     result = []
     for item in seq:
@@ -400,3 +401,52 @@ def uniquer(seq, idfun=None):
         seen[marker] = 1
         result.append(item)
     return result
+
+
+class CycleError(Exception):
+  """An exception raised when an unexpected cycle is detected."""
+  def __init__(self, nodes):
+    self.nodes = nodes
+  def __str__(self):
+    return 'CycleError: cycle involving: ' + str(self.nodes)
+
+
+def TopologicallySorted(graph, get_edges):
+  """Topologically sort based on a user provided edge definition.
+
+  Args:
+    graph: A list of node names.
+    get_edges: A function mapping from node name to a hashable collection
+               of node names which this node has outgoing edges to.
+  Returns:
+    A list containing all of the node in graph in topological order.
+    It is assumed that calling get_edges once for each node and caching is
+    cheaper than repeatedly calling get_edges.
+  Raises:
+    CycleError in the event of a cycle.
+  Example:
+    graph = {'a': '$(b) $(c)', 'b': 'hi', 'c': '$(b)'}
+    def GetEdges(node):
+      return re.findall(r'\$\(([^))]\)', graph[node])
+    print TopologicallySorted(graph.keys(), GetEdges)
+    ==>
+    ['a', 'c', b']
+  """
+  get_edges = memoize(get_edges)
+  visited = set()
+  visiting = set()
+  ordered_nodes = []
+  def Visit(node):
+    if node in visiting:
+      raise CycleError(visiting)
+    if node in visited:
+      return
+    visited.add(node)
+    visiting.add(node)
+    for neighbor in get_edges(node):
+      Visit(neighbor)
+    visiting.remove(node)
+    ordered_nodes.insert(0, node)
+  for node in sorted(graph):
+    Visit(node)
+  return ordered_nodes
