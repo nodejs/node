@@ -34,6 +34,13 @@ client.get("npm", "latest", 1000, function (er, data, raw, res) {
   `"node/{process.version}"`
 * `log` {Object} The logger to use.  Defaults to `require("npmlog")` if
   that works, otherwise logs are disabled.
+* `retries` {Number} Number of times to retry on GET failures.
+  Default=2
+* `retryFactor` {Number} `factor` setting for `node-retry`. Default=10
+* `retryMinTimeout` {Number} `minTimeout` setting for `node-retry`.
+  Default=10000 (10 seconds)
+* `retryMaxTimeout` {Number} `maxTimeout` setting for `node-retry`.
+  Default=60000 (60 seconds)
 
 # client.request(method, where, [what], [etag], [nofollow], cb)
 

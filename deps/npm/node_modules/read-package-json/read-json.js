@@ -214,7 +214,7 @@ function readmeDescription (file, data) {
                 // the first block of text before the first heading
                 // that isn't the first line heading
                 d = d.trim().split('\n')
-                for (var s = 0; d[s].trim().match(/^(#|$)/); s ++);
+                for (var s = 0; d[s] && d[s].trim().match(/^(#|$)/); s ++);
                 var l = d.length
                 for (var e = s + 1; e < l && d[e].trim(); e ++);
                 data.description = d.slice(s, e).join(' ').trim()

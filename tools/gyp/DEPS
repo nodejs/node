@@ -4,6 +4,7 @@
 
 vars = {
   "chrome_trunk": "http://src.chromium.org/svn/trunk",
+  "googlecode_url": "http://%s.googlecode.com/svn",
 }
 
 deps = {
@@ -18,5 +19,8 @@ deps_os = {
 
     "third_party/python_26":
       Var("chrome_trunk") + "/tools/third_party/python_26@89111",
+
+    "src/third_party/pefile":
+      (Var("googlecode_url") % "pefile") + "/trunk@63",
   },
 }

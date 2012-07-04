@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -121,7 +121,7 @@ def PrintBuildOrder(projects, deps):
   print "--                                   --"
 
   built = []
-  for (project, dep_list) in sorted(deps.items()):
+  for (project, _) in sorted(deps.items()):
     if project not in built:
       BuildProject(project, built, projects, deps)
 

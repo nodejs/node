@@ -425,8 +425,7 @@ if (foo) {
 
 <h2 id="engines">engines</h2>
 
-<p>You can specify the version of
-node that your stuff works on:</p>
+<p>You can specify the version of node that your stuff works on:</p>
 
 <pre><code>{ "engines" : { "node" : "&gt;=0.1.27 &lt;0.1.30" } }</code></pre>
 
@@ -441,6 +440,22 @@ that it works on node.</p>
 are capable of properly installing your program.  For example:</p>
 
 <pre><code>{ "engines" : { "npm" : "~1.0.20" } }</code></pre>
+
+<p>Note that, unless the user has set the <code>engine-strict</code> config flag, this
+field is advisory only.</p>
+
+<h2 id="engineStrict">engineStrict</h2>
+
+<p>If you are sure that your module will <em>definitely not</em> run properly on
+versions of Node/npm other than those specified in the <code>engines</code> hash,
+then you can set <code>"engineStrict": true</code> in your package.json file.
+This will override the user's <code>engine-strict</code> config setting.</p>
+
+<p>Please do not do this unless you are really very very sure.  If your
+engines hash is something overly restrictive, you can quite easily and
+inadvertently lock yourself into obscurity and prevent your users from
+updating to new versions of Node.  Consider this choice carefully.  If
+people abuse it, it will be removed in a future version of npm.</p>
 
 <h2 id="os">os</h2>
 
@@ -509,7 +524,7 @@ overridden.</p>
 
 <ul><li><a href="../doc/semver.html">semver(1)</a></li><li><a href="../doc/init.html">init(1)</a></li><li><a href="../doc/version.html">version(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/publish.html">publish(1)</a></li><li><a href="../doc/rm.html">rm(1)</a></li></ul>
 </div>
-<p id="footer">json &mdash; npm@1.1.32</p>
+<p id="footer">json &mdash; npm@1.1.33</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

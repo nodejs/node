@@ -25,17 +25,31 @@ function fetch (remote, local, headers, cb) {
 
 function fetch_ (remote, local, headers, cb) {
   var fstr = fs.createWriteStream(local, { mode : npm.modes.file })
+  var response = null
+  var calledback = false
   fstr.on("error", function (er) {
     fs.close(fstr.fd, function () {})
-    if (fstr._ERROR) return
+    if (calledback) return
+    calledback = true
     cb(fstr._ERROR = er)
   })
   fstr.on("open", function () {
-    makeRequest(remote, fstr, headers)
+    var req = makeRequest(remote, fstr, headers)
+    req.on("response", function (res) {
+      log.http(res.statusCode, remote)
+      response = res
+    })
   })
   fstr.on("close", function () {
-    if (fstr._ERROR) return
-    cb()
+    if (calledback) return
+    calledback = true
+    if (response && response.statusCode && response.statusCode >= 400) {
+      var er = new Error(response.statusCode + " "
+                        + require("http").STATUS_CODES[response.statusCode])
+      cb(fstr._ERROR = er, response)
+    } else {
+      cb(null, response)
+    }
   })
 }
 
@@ -55,14 +69,15 @@ function makeRequest (remote, fstr, headers) {
                             ? "https-proxy"
                             : "proxy")
 
-  request({ url: remote
-          , proxy: proxy
-          , strictSSL: npm.config.get("strict-ssl")
-          , ca: remote.host === regHost ? npm.config.get("ca") : undefined
-          , headers: { "user-agent": npm.config.get("user-agent") }
-          , onResponse: onResponse }).pipe(fstr)
-  function onResponse (er, res) {
-    if (er) return fstr.emit("error", er)
-    log.http(res.statusCode, remote.href)
-  }
+  var opts = { url: remote
+             , proxy: proxy
+             , strictSSL: npm.config.get("strict-ssl")
+             , ca: remote.host === regHost ? npm.config.get("ca") : undefined
+             , headers: { "user-agent": npm.config.get("user-agent") }}
+  var req = request(opts)
+  req.on("error", function (er) {
+    fstr.emit("error", er)
+  })
+  req.pipe(fstr)
+  return req;
 }

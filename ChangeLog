@@ -1,4 +1,43 @@
-2012.06.25, Version 0.8.0 (stable)
+2012.06.29, Version 0.8.1 (stable)
+
+* V8: upgrade to v3.11.10.12
+
+* npm: upgrade to v1.1.33
+  - Support for parallel use of the cache folder
+  - Retry on registry timeouts or network failures (Trent Mick)
+  - Reduce 'engines' failures to a warning
+  - Use new zsh completion if aviailable (Jeremy Cantrell)
+
+* Fix #3577 Un-break require('sys')
+
+* util: speed up formatting of large arrays/objects (Ben Noordhuis)
+
+* windows: make fs.realpath(Sync) work with UNC paths (Bert Belder)
+
+* build: fix --shared-v8 option (Ben Noordhuis)
+
+* doc: `detached` is a boolean (Andreas Madsen)
+
+* build: use proper python interpreter (Ben Noordhuis)
+
+* build: expand ~ in `./configure --prefix=~/a/b/c` (Ben Noordhuis)
+
+* build: handle CC env var with spaces (Gabriel de Perthuis)
+
+* build: fix V8 build when compiling with gcc 4.5 (Ben Noordhuis)
+
+* build: fix --shared-v8 option (Ben Noordhuis)
+
+* windows msi: Fix icon issue which caused huge file size (Bert Belder)
+
+* unix: assume that dlopen() may clobber dlerror() (Ben Noordhuis)
+
+* sunos: fix memory corruption bugs (Ben Noordhuis)
+
+* windows: better (f)utimes and (f)stat (Bert Belder)
+
+
+2012.06.25, Version 0.8.0 (stable), 8b8a7a7f9b41e74e1e810d0330738ad06fc302ec
 
 * V8: upgrade to v3.11.10.10
 

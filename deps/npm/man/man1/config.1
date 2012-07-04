@@ -327,6 +327,45 @@ Type: path
 .P
 The location of npm\'s cache directory\.  See \fBnpm help cache\fR
 .
+.SS "cache\-lock\-stale"
+.
+.IP "\(bu" 4
+Default: 60000 (1 minute)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The number of ms before cache folder lockfiles are considered stale\.
+.
+.SS "cache\-lock\-retries"
+.
+.IP "\(bu" 4
+Default: 10
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+Number of times to retry to acquire a lock on cache folder lockfiles\.
+.
+.SS "cache\-lock\-wait"
+.
+.IP "\(bu" 4
+Default: 10000 (10 seconds)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+Number of ms to wait for cache lock files to expire\.
+.
 .SS "cache\-max"
 .
 .IP "\(bu" 4
@@ -448,6 +487,21 @@ Type: path
 .P
 The command to run for \fBnpm edit\fR or \fBnpm config edit\fR\|\.
 .
+.SS "engine\-strict"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node\.js version\.
+.
 .SS "force"
 .
 .IP "\(bu" 4
@@ -474,6 +528,62 @@ skips cache when requesting from the registry\.
 prevents checks against clobbering non\-npm files\.
 .
 .IP "" 0
+.
+.SS "fetch\-retries"
+.
+.IP "\(bu" 4
+Default: 2
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "retries" config for the \fBretry\fR module to use when fetching
+packages from the registry\.
+.
+.SS "fetch\-retry\-factor"
+.
+.IP "\(bu" 4
+Default: 10
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "factor" config for the \fBretry\fR module to use when fetching
+packages\.
+.
+.SS "fetch\-retry\-mintimeout"
+.
+.IP "\(bu" 4
+Default: 10000 (10 seconds)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "minTimeout" config for the \fBretry\fR module to use when fetching
+packages\.
+.
+.SS "fetch\-retry\-maxtimeout"
+.
+.IP "\(bu" 4
+Default: 60000 (1 minute)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "maxTimeout" config for the \fBretry\fR module to use when fetching
+packages\.
 .
 .SS "git"
 .

@@ -233,7 +233,7 @@
         [ 'OS=="linux"', {
           'include_dirs': [ 'src/ares/config_linux' ],
           'sources': [
-            'src/unix/linux/core.c',
+            'src/unix/linux/linux-core.c',
             'src/unix/linux/inotify.c',
             'src/unix/linux/syscalls.c',
             'src/unix/linux/syscalls.h',
@@ -355,6 +355,7 @@
         'test/test-tcp-write-error.c',
         'test/test-tcp-write-to-half-open-connection.c',
         'test/test-tcp-writealot.c',
+        'test/test-tcp-unexpected-read.c',
         'test/test-threadpool.c',
         'test/test-mutexes.c',
         'test/test-thread.c',

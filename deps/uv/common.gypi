@@ -32,6 +32,9 @@
             'LinkIncremental': 2, # enable incremental linking
           },
         },
+        'xcode_settings': {
+          'GCC_OPTIMIZATION_LEVEL': '0',
+        },
         'conditions': [
           ['OS != "win"', {
             'defines': [ 'EV_VERIFY=2' ],

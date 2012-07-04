@@ -784,9 +784,6 @@ static void uv__stream_connect(uv_stream_t* stream) {
   if (error == EINPROGRESS)
     return;
 
-  if (error == 0)
-    uv__io_start(stream->loop, &stream->read_watcher);
-
   stream->connect_req = NULL;
   uv__req_unregister(stream->loop, req);
 
@@ -794,65 +791,6 @@ static void uv__stream_connect(uv_stream_t* stream) {
     uv__set_sys_error(stream->loop, error);
     req->cb(req, error ? -1 : 0);
   }
-}
-
-
-int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
-    socklen_t addrlen, uv_connect_cb cb) {
-  int sockfd;
-  int r;
-
-  if (stream->type != UV_TCP)
-    return uv__set_sys_error(stream->loop, ENOTSOCK);
-
-  if (stream->connect_req)
-    return uv__set_sys_error(stream->loop, EALREADY);
-
-  if (stream->fd <= 0) {
-    sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0);
-
-    if (sockfd == -1)
-      return uv__set_sys_error(stream->loop, errno);
-
-    if (uv__stream_open(stream,
-                        sockfd,
-                        UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
-      close(sockfd);
-      return -1;
-    }
-  }
-
-  stream->delayed_error = 0;
-
-  do
-    r = connect(stream->fd, addr, addrlen);
-  while (r == -1 && errno == EINTR);
-
-  if (r == -1) {
-    if (errno == EINPROGRESS)
-      ; /* not an error */
-    else if (errno == ECONNREFUSED)
-    /* If we get a ECONNREFUSED wait until the next tick to report the
-     * error. Solaris wants to report immediately--other unixes want to
-     * wait.
-     */
-      stream->delayed_error = errno;
-    else
-      return uv__set_sys_error(stream->loop, errno);
-  }
-
-  uv__req_init(stream->loop, req, UV_CONNECT);
-  req->cb = cb;
-  req->handle = stream;
-  ngx_queue_init(&req->queue);
-  stream->connect_req = req;
-
-  uv__io_start(stream->loop, &stream->write_watcher);
-
-  if (stream->delayed_error)
-    uv__io_feed(stream->loop, &stream->write_watcher, UV__IO_WRITE);
-
-  return 0;
 }
 
 

@@ -195,6 +195,27 @@ See also the `strict-ssl` config.
 
 The location of npm's cache directory.  See `npm-cache(1)`
 
+### cache-lock-stale
+
+* Default: 60000 (1 minute)
+* Type: Number
+
+The number of ms before cache folder lockfiles are considered stale.
+
+### cache-lock-retries
+
+* Default: 10
+* Type: Number
+
+Number of times to retry to acquire a lock on cache folder lockfiles.
+
+### cache-lock-wait
+
+* Default: 10000 (10 seconds)
+* Type: Number
+
+Number of ms to wait for cache lock files to expire.
+
 ### cache-max
 
 * Default: Infinity
@@ -266,6 +287,15 @@ set.
 
 The command to run for `npm edit` or `npm config edit`.
 
+### engine-strict
+
+* Default: false
+* Type: Boolean
+
+If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node.js version.
+
 ### force
 
 * Default: false
@@ -277,6 +307,38 @@ Makes various commands more forceful.
 * publishing clobbers previously published versions.
 * skips cache when requesting from the registry.
 * prevents checks against clobbering non-npm files.
+
+### fetch-retries
+
+* Default: 2
+* Type: Number
+
+The "retries" config for the `retry` module to use when fetching
+packages from the registry.
+
+### fetch-retry-factor
+
+* Default: 10
+* Type: Number
+
+The "factor" config for the `retry` module to use when fetching
+packages.
+
+### fetch-retry-mintimeout
+
+* Default: 10000 (10 seconds)
+* Type: Number
+
+The "minTimeout" config for the `retry` module to use when fetching
+packages.
+
+### fetch-retry-maxtimeout
+
+* Default: 60000 (1 minute)
+* Type: Number
+
+The "maxTimeout" config for the `retry` module to use when fetching
+packages.
 
 ### git
 

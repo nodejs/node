@@ -65,20 +65,43 @@ parser.add_option("--shared-v8-libname",
     dest="shared_v8_libname",
     help="Alternative lib name to link to (default: 'v8')")
 
+parser.add_option("--shared-openssl",
+    action="store_true",
+    dest="shared_openssl",
+    help="Link to a shared OpenSSl DLL instead of static linking")
+
+parser.add_option("--shared-openssl-includes",
+    action="store",
+    dest="shared_openssl_includes",
+    help="Directory containing OpenSSL header files")
+
+parser.add_option("--shared-openssl-libpath",
+    action="store",
+    dest="shared_openssl_libpath",
+    help="A directory to search for the shared OpenSSL DLLs")
+
+parser.add_option("--shared-openssl-libname",
+    action="store",
+    dest="shared_openssl_libname",
+    help="Alternative lib name to link to (default: 'crypto,ssl')")
+
+# deprecated
 parser.add_option("--openssl-use-sys",
     action="store_true",
-    dest="openssl_use_sys",
-    help="Use the system OpenSSL instead of one included with Node")
+    dest="shared_openssl",
+    help=optparse.SUPPRESS_HELP)
 
+# deprecated
 parser.add_option("--openssl-includes",
     action="store",
-    dest="openssl_includes",
-    help="A directory to search for the OpenSSL includes")
+    dest="shared_openssl_includes",
+    help=optparse.SUPPRESS_HELP)
 
+# deprecated
 parser.add_option("--openssl-libpath",
     action="store",
-    dest="openssl_libpath",
-    help="A directory to search for the OpenSSL libraries")
+    dest="shared_openssl_libpath",
+    help=optparse.SUPPRESS_HELP)
 
 parser.add_option("--no-ssl2",
     action="store_true",
@@ -239,22 +262,16 @@ def host_arch():
 def target_arch():
   return host_arch()
 
+
 def compiler_version():
-  try:
-    proc = subprocess.Popen(CC.split() + ['-v'], stderr=subprocess.PIPE)
-  except OSError:
-    return (False, False, None)
-  lines = proc.communicate()[1].split('\n')
-  version_line = None
-  for i, line in enumerate(lines):
-    if 'version' in line:
-      version_line = line
-  if not version_line:
-    return (False, False, None)
-  version = version_line.split("version")[1].strip().split()[0].split(".")
-  if not version:
-    return (False, False, None)
-  return ('LLVM' in version_line, 'clang' in CC, tuple(version))
+  proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
+  is_clang = 'clang' in proc.communicate()[0].split('\n')[0]
+
+  proc = subprocess.Popen(CC.split() + ['-dumpversion'], stdout=subprocess.PIPE)
+  version = tuple(map(int, proc.communicate()[0].split('.')))
+
+  return (version, is_clang)
+
 
 def configure_node(o):
   # TODO add gdb
@@ -265,14 +282,14 @@ def configure_node(o):
   o['variables']['target_arch'] = options.dest_cpu or target_arch()
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
-  is_llvm, is_clang, cc_version = compiler_version()
+  cc_version, is_clang = compiler_version()
 
-  # turn off strict aliasing if gcc >= 4.5.0 && < 4.6.0 unless it's clang
+  # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
   # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
   # see http://code.google.com/p/v8/issues/detail?id=884
-  no_strict_aliasing = (4,5,0) <= cc_version < (4,6,0) and not is_clang
-  o['variables']['node_no_strict_aliasing'] = int(no_strict_aliasing)
-  o['variables']['v8_no_strict_aliasing'] = int(no_strict_aliasing)
+  no_strict_aliasing = int(not(is_clang or cc_version >= (4,6,0)))
+  o['variables']['v8_no_strict_aliasing'] = no_strict_aliasing
+  o['variables']['node_no_strict_aliasing'] = no_strict_aliasing
 
   # clang has always supported -fvisibility=hidden, right?
   if not is_clang and cc_version < (4,0,0):
@@ -290,6 +307,8 @@ def configure_node(o):
   else:
     o['variables']['node_use_dtrace'] = 'false'
 
+  if options.no_ifaddrs:
+    o['defines'] += ['SUNOS_NO_IFADDRS']
 
   # By default, enable ETW on Windows.
   if sys.platform.startswith('win32'):
@@ -331,34 +350,30 @@ def configure_v8(o):
 
 def configure_openssl(o):
   o['variables']['node_use_openssl'] = b(not options.without_ssl)
+  o['variables']['node_shared_openssl'] = b(options.shared_openssl)
 
   if options.without_ssl:
     return
 
-  if options.no_ifaddrs:
-    o['defines'] += ['SUNOS_NO_IFADDRS']
-
   if options.no_ssl2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
 
-  if not options.openssl_use_sys:
-    o['variables']['node_shared_openssl'] = b(False)
-  else:
-    out = pkg_config('openssl')
-    (libs, cflags) = out if out else ('', '')
+  if options.shared_openssl:
+    (libs, cflags) = pkg_config('openssl') or ('-lssl -lcrypto', '')
 
-    if options.openssl_libpath:
-      o['libraries'] += ['-L%s' % options.openssl_libpath, '-lssl', '-lcrypto']
+    if options.shared_openssl_libpath:
+      o['libraries'] += ['-L%s' % options.shared_openssl_libpath]
+
+    if options.shared_openssl_libname:
+      libnames = options.shared_openssl_libname.split(',')
+      o['libraries'] += ['-l%s' % s for s in libnames]
     else:
       o['libraries'] += libs.split()
 
-    if options.openssl_includes:
-      o['include_dirs'] += [options.openssl_includes]
+    if options.shared_openssl_includes:
+      o['include_dirs'] += [options.shared_openssl_includes]
     else:
       o['cflags'] += cflags.split()
-
-    o['variables']['node_shared_openssl'] = b(
-      libs or cflags or options.openssl_libpath or options.openssl_includes)
 
 
 output = {

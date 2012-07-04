@@ -419,7 +419,7 @@ class XCObject(object):
       hash.update(struct.pack('>i', len(data)))
       hash.update(data)
 
-    if hash == None:
+    if hash is None:
       hash = _new_sha1()
 
     hashables = self.Hashables()
@@ -431,7 +431,7 @@ class XCObject(object):
       for child in self.Children():
         child.ComputeIDs(recursive, overwrite, hash.copy())
 
-    if overwrite or self.id == None:
+    if overwrite or self.id is None:
       # Xcode IDs are only 96 bits (24 hex characters), but a SHA-1 digest is
       # is 160 bits.  Instead of throwing out 64 bits of the digest, xor them
       # into the portion that gets used.
@@ -736,7 +736,7 @@ class XCObject(object):
     references added.
     """
 
-    if properties == None:
+    if properties is None:
       return
 
     for property, value in properties.iteritems():
@@ -918,7 +918,7 @@ class XCHierarchicalElement(XCObject):
         self._properties['sourceTree'] = source_tree
       if path != None:
         self._properties['path'] = path
-      if source_tree != None and path == None and \
+      if source_tree != None and path is None and \
          not 'name' in self._properties:
         # The path was of the form "$(SDKROOT)" with no path following it.
         # This object is now relative to that variable, so it has no path
@@ -1068,7 +1068,7 @@ class XCHierarchicalElement(XCObject):
     xche = self
     path = None
     while isinstance(xche, XCHierarchicalElement) and \
-          (path == None or \
+          (path is None or \
            (not path.startswith('/') and not path.startswith('$'))):
       this_path = xche.PathFromSourceTreeAndPath()
       if this_path != None and path != None:
@@ -1222,7 +1222,7 @@ class PBXGroup(XCHierarchicalElement):
       grandparent = None
 
     # Putting a directory inside a variant group is not currently supported.
-    assert not is_dir or variant_name == None
+    assert not is_dir or variant_name is None
 
     path_split = path.split(posixpath.sep)
     if len(path_split) == 1 or \
@@ -1230,7 +1230,7 @@ class PBXGroup(XCHierarchicalElement):
        not hierarchical:
       # The PBXFileReference or PBXVariantGroup will be added to or gotten from
       # this PBXGroup, no recursion necessary.
-      if variant_name == None:
+      if variant_name is None:
         # Add or get a PBXFileReference.
         file_ref = self.GetChildByPath(normpath)
         if file_ref != None:
@@ -1583,14 +1583,14 @@ class XCConfigurationList(XCObject):
     value = None
     for configuration in self._properties['buildConfigurations']:
       configuration_has = configuration.HasBuildSetting(key)
-      if has == None:
+      if has is None:
         has = configuration_has
       elif has != configuration_has:
         return -1
 
       if configuration_has:
         configuration_value = configuration.GetBuildSetting(key)
-        if value == None:
+        if value is None:
           value = configuration_value
         elif value != configuration_value:
           return -1
@@ -1613,7 +1613,7 @@ class XCConfigurationList(XCObject):
     value = None
     for configuration in self._properties['buildConfigurations']:
       configuration_value = configuration.GetBuildSetting(key)
-      if value == None:
+      if value is None:
         value = configuration_value
       else:
         if value != configuration_value:
@@ -1941,7 +1941,7 @@ class PBXCopyFilesBuildPhase(XCBuildPhase):
 
       if path_tree in self.path_tree_to_subfolder:
         subfolder = self.path_tree_to_subfolder[path_tree]
-        if relative_path == None:
+        if relative_path is None:
           relative_path = ''
       else:
         # The path starts with an unrecognized Xcode variable
@@ -2117,8 +2117,7 @@ class XCTarget(XCRemoteObject):
     pbxproject = self.PBXProjectAncestor()
     other_pbxproject = other.PBXProjectAncestor()
     if pbxproject == other_pbxproject:
-      # The easy case.  Add a dependency to another target in the same
-      # project file.
+      # Add a dependency to another target in the same project file.
       container = PBXContainerItemProxy({'containerPortal':      pbxproject,
                                          'proxyType':            1,
                                          'remoteGlobalIDString': other,
@@ -2127,8 +2126,7 @@ class XCTarget(XCRemoteObject):
                                         'targetProxy': container})
       self.AppendProperty('dependencies', dependency)
     else:
-      # The hard case.  Add a dependency to a target in a different project
-      # file.  Actually, this case isn't really so hard.
+      # Add a dependency to a target in a different project file.
       other_project_ref = \
           pbxproject.AddOrGetProjectReference(other_pbxproject)[1]
       container = PBXContainerItemProxy({
@@ -2257,7 +2255,7 @@ class PBXNativeTarget(XCTarget):
           self.SetBuildSetting('MACH_O_TYPE', 'mh_bundle')
           self.SetBuildSetting('DYLIB_CURRENT_VERSION', '')
           self.SetBuildSetting('DYLIB_COMPATIBILITY_VERSION', '')
-          if force_extension == None:
+          if force_extension is None:
             force_extension = suffix[1:]
 
         if force_extension is not None:
@@ -2327,14 +2325,14 @@ class PBXNativeTarget(XCTarget):
         # this function is intended as an aid to GetBuildPhaseByType.  Loop
         # over the entire list of phases and assert if more than one of the
         # desired type is found.
-        assert the_phase == None
+        assert the_phase is None
         the_phase = phase
 
     return the_phase
 
   def HeadersPhase(self):
     headers_phase = self.GetBuildPhaseByType(PBXHeadersBuildPhase)
-    if headers_phase == None:
+    if headers_phase is None:
       headers_phase = PBXHeadersBuildPhase()
 
       # The headers phase should come before the resources, sources, and
@@ -2355,7 +2353,7 @@ class PBXNativeTarget(XCTarget):
 
   def ResourcesPhase(self):
     resources_phase = self.GetBuildPhaseByType(PBXResourcesBuildPhase)
-    if resources_phase == None:
+    if resources_phase is None:
       resources_phase = PBXResourcesBuildPhase()
 
       # The resources phase should come before the sources and frameworks
@@ -2375,7 +2373,7 @@ class PBXNativeTarget(XCTarget):
 
   def SourcesPhase(self):
     sources_phase = self.GetBuildPhaseByType(PBXSourcesBuildPhase)
-    if sources_phase == None:
+    if sources_phase is None:
       sources_phase = PBXSourcesBuildPhase()
       self.AppendProperty('buildPhases', sources_phase)
 
@@ -2383,7 +2381,7 @@ class PBXNativeTarget(XCTarget):
 
   def FrameworksPhase(self):
     frameworks_phase = self.GetBuildPhaseByType(PBXFrameworksBuildPhase)
-    if frameworks_phase == None:
+    if frameworks_phase is None:
       frameworks_phase = PBXFrameworksBuildPhase()
       self.AppendProperty('buildPhases', frameworks_phase)
 
@@ -2492,7 +2490,7 @@ class PBXProject(XCContainerPortal):
 
     main_group = self._properties['mainGroup']
     group = main_group.GetChildByName(name)
-    if group == None:
+    if group is None:
       group = PBXGroup({'name': name})
       main_group.AppendChild(group)
 
@@ -2696,7 +2694,7 @@ class PBXProject(XCContainerPortal):
         continue
 
       other_fileref = target._properties['productReference']
-      if product_group.GetChildByRemoteObject(other_fileref) == None:
+      if product_group.GetChildByRemoteObject(other_fileref) is None:
         # Xcode sets remoteInfo to the name of the target and not the name
         # of its product, despite this proxy being a reference to the product.
         container_item = PBXContainerItemProxy({

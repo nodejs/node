@@ -25,6 +25,11 @@ function RegClient (options) {
     'Invalid registry: ' + registry.url)
   this.registry = registry.href
 
+  this.retries = options.retries || 2
+  this.retryFactor = options.retryFactor || 10
+  this.retryMinTimeout = options.retryMinTimeout || 10000
+  this.retryMaxTimeout = options.retryMaxTimeout || 60000
+
   this.cache = options.cache
   if (!this.cache) throw new Error("Cache dir is required")
 
