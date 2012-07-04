@@ -261,7 +261,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return uv__new_sys_error(ENOMEM);
   }
 
-  if (sysctlbyname("kern.cp_times", &cp_times, &size, NULL, 0) < 0) {
+  if (sysctlbyname("kern.cp_times", cp_times, &size, NULL, 0) < 0) {
     free(cp_times);
     free(*cpu_infos);
     return uv__new_sys_error(errno);
