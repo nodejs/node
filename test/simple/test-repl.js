@@ -152,7 +152,9 @@ function error_test() {
     { client: client_unix, send: 'npm install foobar',
       expect: expect_npm },
     { client: client_unix, send: '(function () {\n\nreturn 1;\n})()',
-      expect: '1' }
+      expect: '1' },
+    { client: client_unix, send: '{\n\na: 1\n}',
+      expect: '{ a: 1 }' }
   ]);
 }
 
