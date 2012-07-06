@@ -2641,10 +2641,8 @@ class Decipher : public ObjectWrap {
         char* complete_hex = new char[len+2];
         memcpy(complete_hex, &cipher->incomplete_hex, 1);
         memcpy(complete_hex+1, buf, len);
-        if (alloc_buf) {
-          delete [] buf;
-          alloc_buf = false;
-        }
+        if (alloc_buf) delete [] buf;
+        alloc_buf = true;
         buf = complete_hex;
         len += 1;
       }
