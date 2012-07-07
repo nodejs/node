@@ -24,6 +24,7 @@ var assert = require('assert');
 try {
   require('../fixtures/invalid.json');
 } catch (err) {
-  var i = err.message.indexOf('test/fixtures/invalid.json: Unexpected string')
-  assert(-1 != i, 'require() json error should include path');
+  var re = /test[\/\\]fixtures[\/\\]invalid.json: Unexpected string/;
+  var i = err.message.match(re);
+  assert(null !== i, 'require() json error should include path');
 }
