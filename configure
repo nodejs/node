@@ -264,7 +264,11 @@ def target_arch():
 
 
 def compiler_version():
-  proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
+  try:
+    proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
+  except WindowsError:
+    return (0, False)
+
   is_clang = 'clang' in proc.communicate()[0].split('\n')[0]
 
   proc = subprocess.Popen(CC.split() + ['-dumpversion'], stdout=subprocess.PIPE)
