@@ -174,8 +174,9 @@ Same as above but with a `buffer`.
 
 ### stream.destroy()
 
-Closes the underlying file descriptor. Stream will not emit any more events.
-Any queued write data will not be sent.
+Closes the underlying file descriptor. Stream is no longer `writable` nor `readable`.
+the stream will not emit any more 'data', or 'end' events. Any queued write data will not be sent.
+the stream should emit 'close' event once it's resources have been disposed of.
 
 ### stream.destroySoon()
 
