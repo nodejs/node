@@ -281,6 +281,7 @@ function load (npm, conf, cb) {
         , auth: npm.config.get("_auth")
         , alwaysAuth: npm.config.get("always-auth")
         , email: npm.config.get("email")
+        , proxy: npm.config.get("proxy")
         , tag: npm.config.get("tag")
         , ca: npm.config.get("ca")
         , strictSSL: npm.config.get("strict-ssl")

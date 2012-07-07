@@ -43,6 +43,8 @@ function rmStuff (pkg, folder, cb) {
     , gnm = npm.dir
     , top = gnm === parent
 
+  readJson.cache.del(path.resolve(folder, "package.json"))
+
   log.verbose([top, gnm, parent], "unbuild "+pkg._id)
   asyncMap([rmBins, rmMans], function (fn, cb) {
     fn(pkg, folder, parent, top, cb)

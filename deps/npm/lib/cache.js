@@ -54,6 +54,8 @@ exports = module.exports = cache
 exports.read = read
 exports.clean = clean
 exports.unpack = unpack
+exports.lock = lock
+exports.unlock = unlock
 
 var mkdir = require("mkdirp")
   , exec = require("./utils/exec.js")
@@ -788,11 +790,24 @@ function addPlacedTarball_ (p, name, uid, gid, cb) {
   var target = path.dirname(p)
     , folder = path.join(target, "package")
 
-  rm(folder, function (er) {
-    if (er) {
-      log.error("addPlacedTarball", "Could not remove %j", folder)
-      return cb(er)
-    }
+  lock(folder, function (er) {
+    if (er) return cb(er)
+    rmUnpack()
+  })
+
+  function rmUnpack () {
+    rm(folder, function (er) {
+      unlock(folder, function () {
+        if (er) {
+          log.error("addPlacedTarball", "Could not remove %j", folder)
+          return cb(er)
+        }
+        thenUnpack()
+      })
+    })
+  }
+
+  function thenUnpack () {
     tar.unpack(p, folder, null, null, uid, gid, function (er) {
       if (er) {
         log.error("addPlacedTarball", "Could not unpack %j to %j", p, target)
@@ -837,7 +852,7 @@ function addPlacedTarball_ (p, name, uid, gid, cb) {
         })
       })
     })
-  })
+  }
 }
 
 function addLocalDirectory (p, name, cb) {
@@ -934,8 +949,11 @@ function deprCheck (data) {
 }
 
 function lockFileName (u) {
-  var c = u.replace(/[^a-zA-Z0-9]+/g, '-')
+  var c = u.replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "")
     , h = crypto.createHash("sha1").update(u).digest("hex")
+  h = h.substr(0, 8)
+  c = c.substr(-32)
+  log.silly("lockFile", h + "-" + c, u)
   return path.resolve(npm.config.get("cache"), h + "-" + c + ".lock")
 }
 
