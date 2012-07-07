@@ -49,6 +49,9 @@ namespace crypto {
 
 static X509_STORE* root_cert_store;
 
+// Forward declaration
+class Connection;
+
 class SecureContext : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
@@ -58,6 +61,8 @@ class SecureContext : ObjectWrap {
   X509_STORE *ca_store_;
 
  protected:
+  static const int kMaxSessionSize = 10 * 1024;
+
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> Init(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetKey(const v8::Arguments& args);
@@ -70,6 +75,12 @@ class SecureContext : ObjectWrap {
   static v8::Handle<v8::Value> SetSessionIdContext(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
   static v8::Handle<v8::Value> LoadPKCS12(const v8::Arguments& args);
+
+  static SSL_SESSION* GetSessionCallback(SSL* s,
+                                         unsigned char* key,
+                                         int len,
+                                         int* copy);
+  static int NewSessionCallback(SSL* s, SSL_SESSION* sess);
 
   SecureContext() : ObjectWrap() {
     ctx_ = NULL;
@@ -100,6 +111,51 @@ class SecureContext : ObjectWrap {
  private:
 };
 
+class ClientHelloParser {
+ public:
+  enum FrameType {
+    kChangeCipherSpec = 20,
+    kAlert = 21,
+    kHandshake = 22,
+    kApplicationData = 23,
+    kOther = 255
+  };
+
+  enum HandshakeType {
+    kClientHello = 1
+  };
+
+  enum ParseState {
+    kWaiting,
+    kTLSHeader,
+    kSSLHeader,
+    kPaused,
+    kEnded
+  };
+
+  ClientHelloParser(Connection* c) : conn_(c),
+                                     state_(kWaiting),
+                                     offset_(0),
+                                     body_offset_(0),
+                                     written_(0) {
+  }
+
+  size_t Write(const uint8_t* data, size_t len);
+  void Finish();
+
+  inline bool ended() { return state_ == kEnded; }
+
+ private:
+  Connection* conn_;
+  ParseState state_;
+  size_t frame_len_;
+
+  uint8_t data_[18432];
+  size_t offset_;
+  size_t body_offset_;
+  size_t written_;
+};
+
 class Connection : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
@@ -126,6 +182,7 @@ class Connection : ObjectWrap {
   static v8::Handle<v8::Value> GetPeerCertificate(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetSession(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetSession(const v8::Arguments& args);
+  static v8::Handle<v8::Value> LoadSession(const v8::Arguments& args);
   static v8::Handle<v8::Value> IsSessionReused(const v8::Arguments& args);
   static v8::Handle<v8::Value> IsInitFinished(const v8::Arguments& args);
   static v8::Handle<v8::Value> VerifyError(const v8::Arguments& args);
@@ -168,15 +225,21 @@ class Connection : ObjectWrap {
     return ss;
   }
 
-  Connection() : ObjectWrap() {
+  Connection() : ObjectWrap(), hello_parser_(this) {
     bio_read_ = bio_write_ = NULL;
     ssl_ = NULL;
+    next_sess_ = NULL;
   }
 
   ~Connection() {
     if (ssl_ != NULL) {
       SSL_free(ssl_);
       ssl_ = NULL;
+    }
+
+    if (next_sess_ != NULL) {
+      SSL_SESSION_free(next_sess_);
+      next_sess_ = NULL;
     }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -198,7 +261,13 @@ class Connection : ObjectWrap {
   BIO *bio_write_;
   SSL *ssl_;
 
+  ClientHelloParser hello_parser_;
+
   bool is_server_; /* coverity[member_decl] */
+  SSL_SESSION* next_sess_;
+
+  friend class ClientHelloParser;
+  friend class SecureContext;
 };
 
 void InitCrypto(v8::Handle<v8::Object> target);

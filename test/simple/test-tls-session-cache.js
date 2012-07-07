@@ -50,10 +50,27 @@ function doTest() {
     requestCert: true
   };
   var requestCount = 0;
+  var session;
 
   var server = tls.createServer(options, function(cleartext) {
     ++requestCount;
     cleartext.end();
+  });
+  server.on('newSession', function(id, data) {
+    assert.ok(!session);
+    session = {
+      id: id,
+      data: data
+    };
+  });
+  server.on('resumeSession', function(id, callback) {
+    assert.ok(session);
+    assert.equal(session.id.toString('hex'), id.toString('hex'));
+
+    // Just to check that async really works there
+    setTimeout(function() {
+      callback(null, session.data);
+    }, 100);
   });
   server.listen(common.PORT, function() {
     var client = spawn('openssl', [
@@ -61,7 +78,8 @@ function doTest() {
       '-connect', 'localhost:' + common.PORT,
       '-key', join(common.fixturesDir, 'agent.key'),
       '-cert', join(common.fixturesDir, 'agent.crt'),
-      '-reconnect'
+      '-reconnect',
+      '-no_ticket'
     ], {
       customFds: [0, 1, 2]
     });
@@ -72,6 +90,8 @@ function doTest() {
   });
 
   process.on('exit', function() {
+    assert.ok(session);
+
     // initial request + reconnect requests (5 times)
     assert.equal(requestCount, 6);
   });
