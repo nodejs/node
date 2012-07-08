@@ -29,7 +29,7 @@ var watchSeenTwo = 0;
 var watchSeenThree = 0;
 
 var startDir = process.cwd();
-var testDir = common.fixturesDir;
+var testDir = common.tmpDir;
 
 var filenameOne = 'watch.txt';
 var filepathOne = path.join(testDir, filenameOne);
