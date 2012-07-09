@@ -1,4 +1,39 @@
-2012.06.29, Version 0.8.1 (stable)
+2012.07.09, Version 0.8.2 (Stable)
+
+* npm: Upgrade to 1.1.36
+
+* readline: don't use Function#call() (Nathan Rajlich)
+
+* Code cleanup to pass 'use strict' (Jonas Westerlund)
+
+* module: add filename to require() json errors (TJ Holowaychuk)
+
+* readline: fix for unicode prompts (Tim Macfarlane)
+
+* timers: fix handling of large timeouts (Ben Noordhuis)
+
+* repl: fix passing an empty line inserting "undefined" into the buffer (Nathan Rajlich)
+
+* repl: fix crashes when buffering command (Maciej Małecki)
+
+* build: rename strict_aliasing to node_no_strict_aliasing (Ben Noordhuis)
+
+* build: disable -fstrict-aliasing for any gcc < 4.6.0 (Ben Noordhuis)
+
+* build: detect cc version with -dumpversion (Ben Noordhuis)
+
+* build: handle output of localized gcc or clang (Ben Noordhuis)
+
+* unix: fix memory corruption in freebsd.c (Ben Noordhuis)
+
+* unix: fix 'zero handles, one request' busy loop (Ben Noordhuis)
+
+* unix: fix busy loop on unexpected tcp message (Ben Noordhuis)
+
+* unix: fix EINPROGRESS busy loop (Ben Noordhuis)
+
+
+2012.06.29, Version 0.8.1 (stable), 2134aa3d5c622fc3c3b02ccb713fcde0e0df479a
 
 * V8: upgrade to v3.11.10.12
 
