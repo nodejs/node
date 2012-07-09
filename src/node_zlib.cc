@@ -63,7 +63,8 @@ class ZCtx : public ObjectWrap {
   ~ZCtx() {
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
       (void)deflateEnd(&strm_);
-    } else if (mode_ == INFLATE || mode_ == GUNZIP || mode_ == INFLATERAW) {
+    } else if (mode_ == INFLATE || mode_ == GUNZIP || mode_ == INFLATERAW ||
+               mode_ == UNZIP) {
       (void)inflateEnd(&strm_);
     }
 
