@@ -162,7 +162,9 @@ if (process.argv[2] !== 'child') {
   // bind the address explicitly for sending
   // INADDR_BROADCAST to only one interface
   sendSocket.bind(common.PORT, bindAddress);
-  sendSocket.setBroadcast(true);
+  sendSocket.on('listening', function () {
+    sendSocket.setBroadcast(true);
+  });
 
   sendSocket.on('close', function() {
     console.error('[PARENT] sendSocket closed');

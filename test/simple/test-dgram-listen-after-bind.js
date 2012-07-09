@@ -19,25 +19,25 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common'),
-    assert = require('assert'),
-    dgram = require('dgram'),
-    thrown = false,
-    socket = dgram.createSocket('udp4');
+var common = require('../common');
+var assert = require('assert');
+var dgram = require('dgram');
 
-socket.bind(common.PORT);
-socket.on('listening', function () {
-  socket.setMulticastTTL(16);
+var socket = dgram.createSocket('udp4');
 
-  //Try to set an invalid TTL (valid ttl is > 0 and < 256)
-  try {
-    socket.setMulticastTTL(1000);
-  } catch (e) {
-    thrown = true;
-  }
+socket.bind();
 
-  assert(thrown, 'Setting an invalid multicast TTL should throw some error');
-
-  //close the socket
+var fired = false;
+var timer = setTimeout(function () {
   socket.close();
+}, 100);
+
+socket.on('listening', function () {
+  clearTimeout(timer);
+  fired = true;
+  socket.close();
+});
+
+socket.on('close', function () {
+  assert(fired, 'listening should fire after bind');
 });

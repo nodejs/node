@@ -149,10 +149,13 @@ if (process.argv[2] !== 'child') {
   // call is what creates the actual socket...
   sendSocket.bind();
 
-  sendSocket.setTTL(1);
-  sendSocket.setBroadcast(true);
-  sendSocket.setMulticastTTL(1);
-  sendSocket.setMulticastLoopback(true);
+  // The socket is actually created async now
+  sendSocket.on('listening', function () {
+    sendSocket.setTTL(1);
+    sendSocket.setBroadcast(true);
+    sendSocket.setMulticastTTL(1);
+    sendSocket.setMulticastLoopback(true);
+  });
 
   sendSocket.on('close', function() {
     console.error('[PARENT] sendSocket closed');
@@ -221,5 +224,7 @@ if (process.argv[2] === 'child') {
 
   listenSocket.bind(common.PORT);
 
-  listenSocket.addMembership(LOCAL_BROADCAST_HOST);
+  listenSocket.on('listening', function () {
+    listenSocket.addMembership(LOCAL_BROADCAST_HOST);
+  });
 }
