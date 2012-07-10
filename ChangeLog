@@ -1,4 +1,19 @@
-2012.06.06 Version 0.6.19 (stable)
+2012.07.10 Version 0.6.20 (maintenance)
+
+* npm: Upgrade to 1.1.37 (isaacs)
+
+* benchmark: Backport improvements made in master (isaacs)
+
+* build: always link with -lz (Trent Mick)
+
+* core: use proper #include directives (Ben Noordhuis)
+
+* cluster: don't silently drop messages when the write queue gets big (Bert Belder)
+
+* windows: don't print error when GetConsoleTitleW returns an empty string (Bert Belder)
+
+
+2012.06.06 Version 0.6.19 (stable), debf552ed2d4a53957446e82ff3c52a8182d5ff4
 
 * npm: upgrade to 1.1.24
 
