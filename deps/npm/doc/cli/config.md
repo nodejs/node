@@ -117,6 +117,7 @@ The following shorthands are parsed on the command-line:
 * `-S`: `--save`
 * `-D`: `--save-dev`
 * `-O`: `--save-optional`
+* `-B`: `--save-bundle`
 * `-y`: `--yes`
 * `-n`: `--yes false`
 * `ll` and `la` commands: `ls --long`
@@ -167,32 +168,6 @@ then the user could change the behavior by doing:
 Force npm to always require authentication when accessing the registry,
 even for `GET` requests.
 
-### bin-publish
-
-* Default: false
-* Type: Boolean
-
-If set to true, then binary packages will be created on publish.
-
-This is the way to opt into the "bindist" behavior described below.
-
-### bindist
-
-* Default: Unstable node versions, `null`, otherwise
-  `"<node version>-<platform>-<os release>"`
-* Type: String or `null`
-
-Experimental: on stable versions of node, binary distributions will be
-created with this tag.  If a user then installs that package, and their
-`bindist` tag is found in the list of binary distributions, they will
-get that prebuilt version.
-
-Pre-build node packages have their preinstall, install, and postinstall
-scripts stripped (since they are run prior to publishing), and do not
-have their `build` directories automatically ignored.
-
-It's yet to be seen if this is a good idea.
-
 ### browser
 
 * Default: OS X: `"open"`, others: `"google-chrome"`
@@ -219,6 +194,27 @@ See also the `strict-ssl` config.
 * Type: path
 
 The location of npm's cache directory.  See `npm-cache(1)`
+
+### cache-lock-stale
+
+* Default: 60000 (1 minute)
+* Type: Number
+
+The number of ms before cache folder lockfiles are considered stale.
+
+### cache-lock-retries
+
+* Default: 10
+* Type: Number
+
+Number of times to retry to acquire a lock on cache folder lockfiles.
+
+### cache-lock-wait
+
+* Default: 10000 (10 seconds)
+* Type: Number
+
+Number of ms to wait for cache lock files to expire.
 
 ### cache-max
 
@@ -291,6 +287,15 @@ set.
 
 The command to run for `npm edit` or `npm config edit`.
 
+### engine-strict
+
+* Default: false
+* Type: Boolean
+
+If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node.js version.
+
 ### force
 
 * Default: false
@@ -302,6 +307,38 @@ Makes various commands more forceful.
 * publishing clobbers previously published versions.
 * skips cache when requesting from the registry.
 * prevents checks against clobbering non-npm files.
+
+### fetch-retries
+
+* Default: 2
+* Type: Number
+
+The "retries" config for the `retry` module to use when fetching
+packages from the registry.
+
+### fetch-retry-factor
+
+* Default: 10
+* Type: Number
+
+The "factor" config for the `retry` module to use when fetching
+packages.
+
+### fetch-retry-mintimeout
+
+* Default: 10000 (10 seconds)
+* Type: Number
+
+The "minTimeout" config for the `retry` module to use when fetching
+packages.
+
+### fetch-retry-maxtimeout
+
+* Default: 60000 (1 minute)
+* Type: Number
+
+The "maxTimeout" config for the `retry` module to use when fetching
+packages.
 
 ### git
 
@@ -375,6 +412,16 @@ Sets a User-Agent to the request header
 A white-space separated list of glob patterns of files to always exclude
 from packages when building tarballs.
 
+### init-module
+
+* Default: ~/.npm-init.js
+* Type: path
+
+A module that will be loaded by the `npm init` command.  See the
+documentation for the
+[init-package-json](https://github.com/isaacs/init-package-json) module
+for more information, or npm-init(1).
+
 ### init.version
 
 * Default: "0.0.0"
@@ -430,13 +477,6 @@ if one of the two conditions are met:
 * the globally installed version is identical to the version that is
   being installed locally.
 
-### logfd
-
-* Default: stderr file descriptor
-* Type: Number or Stream
-
-The location to write log output.
-
 ### loglevel
 
 * Default: "http"
@@ -449,13 +489,17 @@ What level of logs to report.  On failure, *all* logs are written to
 Any logs of a higher level than the setting are shown.
 The default is "http", which shows http, warn, and error output.
 
-### logprefix
+### logstream
 
-* Default: true on Posix, false on Windows
-* Type: Boolean
+* Default: process.stderr
+* Type: Stream
 
-Whether or not to prefix log messages with "npm" and the log level.  See
-also "color" and "loglevel".
+This is the stream that is passed to the
+[npmlog](https://github.com/isaacs/npmlog) module at run time.
+
+It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr.
 
 ### long
 
@@ -502,13 +546,6 @@ The url to report npat test results.
 
 A node module to `require()` when npm loads.  Useful for programmatic
 usage.
-
-### outfd
-
-* Default: standard output file descriptor
-* Type: Number or Stream
-
-Where to write "normal" output.  This has no effect on log output.
 
 ### parseable
 
@@ -584,7 +621,22 @@ Remove failed installs.
 
 Save installed packages to a package.json file as dependencies.
 
+When used with the `npm rm` command, it removes it from the dependencies
+hash.
+
 Only works if there is already a package.json file present.
+
+### save-bundle
+
+* Default: false
+* Type: Boolean
+
+If a package would be saved at install time by the use of `--save`,
+`--save-dev`, or `--save-optional`, then also put it in the
+`bundleDependencies` list.
+
+When used with the `npm rm` command, it removes it from the
+bundledDependencies list.
 
 ### save-dev
 
@@ -592,6 +644,9 @@ Only works if there is already a package.json file present.
 * Type: Boolean
 
 Save installed packages to a package.json file as devDependencies.
+
+When used with the `npm rm` command, it removes it from the devDependencies
+hash.
 
 Only works if there is already a package.json file present.
 
@@ -601,6 +656,9 @@ Only works if there is already a package.json file present.
 * Type: Boolean
 
 Save installed packages to a package.json file as optionalDependencies.
+
+When used with the `npm rm` command, it removes it from the devDependencies
+hash.
 
 Only works if there is already a package.json file present.
 

@@ -1,7 +1,7 @@
 module.exports = unbuild
 unbuild.usage = "npm unbuild <folder>\n(this is plumbing)"
 
-var readJson = require("./utils/read-json.js")
+var readJson = require("read-package-json")
   , rm = require("rimraf")
   , gentlyRm = require("./utils/gently-rm.js")
   , npm = require("./npm.js")
@@ -10,7 +10,7 @@ var readJson = require("./utils/read-json.js")
   , lifecycle = require("./utils/lifecycle.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , build = require("./build.js")
 
 // args is a list of folders.
@@ -24,7 +24,7 @@ function unbuild_ (folder, cb) {
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     // if no json, then just trash it, but no scripts or whatever.
     if (er) return rm(folder, cb)
-    readJson.clearCache(folder)
+    readJson.cache.del(folder)
     chain
       ( [ [lifecycle, pkg, "preuninstall", folder, false, true]
         , [lifecycle, pkg, "uninstall", folder, false, true]
@@ -43,6 +43,8 @@ function rmStuff (pkg, folder, cb) {
     , gnm = npm.dir
     , top = gnm === parent
 
+  readJson.cache.del(path.resolve(folder, "package.json"))
+
   log.verbose([top, gnm, parent], "unbuild "+pkg._id)
   asyncMap([rmBins, rmMans], function (fn, cb) {
     fn(pkg, folder, parent, top, cb)
@@ -55,7 +57,8 @@ function rmBins (pkg, folder, parent, top, cb) {
   log.verbose([binRoot, pkg.bin], "binRoot")
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     if (process.platform === "win32") {
-      rm(path.resolve(binRoot, b) + ".cmd", cb)
+      chain([ [rm, path.resolve(binRoot, b) + ".cmd"]
+            , [rm, path.resolve(binRoot, b) ] ], cb)
     } else {
       gentlyRm( path.resolve(binRoot, b)
               , !npm.config.get("force") && folder

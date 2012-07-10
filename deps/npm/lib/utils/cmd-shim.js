@@ -16,9 +16,8 @@ var fs = require("graceful-fs")
   , chain = require("slide").chain
   , mkdir = require("mkdirp")
   , rm = require("rimraf")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , path = require("path")
-  , relativize = require("./relativize.js")
   , npm = require("../npm.js")
   , shebangExpr = /^#\!\s*(?:\/usr\/bin\/env)?\s*([^ \t]+)(.*)$/
 
@@ -60,23 +59,24 @@ function writeShim (from, to, cb) {
 }
 
 function writeShim_ (from, to, prog, args, cb) {
-  var shTarget = relativize(from, to)
+  var shTarget = path.relative(path.dirname(to), from)
     , target = shTarget.split("/").join("\\")
     , longProg
-    , shProg = prog
+    , shProg = prog && prog.split("\\").join("/")
     , shLongProg
+  shTarget = shTarget.split("\\").join("/")
   args = args || ""
   if (!prog) {
     prog = "\"%~dp0\\" + target + "\""
-    shProg = "\"`dirname \"$0\"`/" + shTarget + "\""
+    shProg = "\"$basedir/" + shTarget + "\""
     args = ""
     target = ""
     shTarget = ""
   } else {
     longProg = "\"%~dp0\\" + prog + ".exe\""
-    shLongProg = "\"`dirname \"$0\"`/" + prog + "\""
+    shLongProg = "\"$basedir/" + prog + "\""
     target = "\"%~dp0\\" + target + "\""
-    shTarget = "\"`dirname \"$0\"`/" + shTarget + "\""
+    shTarget = "\"$basedir/" + shTarget + "\""
   }
 
   // @IF EXIST "%~dp0\node.exe" (
@@ -98,14 +98,32 @@ function writeShim_ (from, to, prog, args, cb) {
   cmd = ":: Created by npm, please don't edit manually.\r\n" + cmd
 
   // #!/bin/sh
-  // if [ -x "`dirname "$0"`/node.exe" ]; then
-  //   "`dirname "$0"`/node.exe" "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  // basedir=`dirname "$0"`
+  //
+  // case `uname` in
+  //     *CYGWIN*) basedir=`cygpath -w "$basedir"`;;
+  // esac
+  //
+  // if [ -x "$basedir/node.exe" ]; then
+  //   "$basedir/node.exe" "$basedir/node_modules/npm/bin/npm-cli.js" "$@"
+  //   ret=$?
   // else
-  //   node "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  //   node "$basedir/node_modules/npm/bin/npm-cli.js" "$@"
+  //   ret=$?
   // fi
+  // exit $ret
+
   var sh = "#!/bin/sh\n"
 
   if (shLongProg) {
+    sh = sh
+        + "basedir=`dirname \"$0\"`\n"
+        + "\n"
+        + "case `uname` in\n"
+        + "    *CYGWIN*) basedir=`cygpath -w \"$basedir\"`;;\n"
+        + "esac\n"
+        + "\n"
+
     sh = sh
        + "if [ -x "+shLongProg+" ]; then\n"
        + "  " + shLongProg + " " + args + " " + shTarget + " \"$@\"\n"
@@ -122,12 +140,12 @@ function writeShim_ (from, to, prog, args, cb) {
 
   fs.writeFile(to + ".cmd", cmd, "utf8", function (er) {
     if (er) {
-      log.warn("Could not write "+to+".cmd", "cmdShim")
+      log.warn("cmdShim", "Could not write "+to+".cmd")
       return cb(er)
     }
     fs.writeFile(to, sh, "utf8", function (er) {
       if (er) {
-        log.warn("Could not write "+to, "shShim")
+        log.warn("shShim", "Could not write "+to)
         return cb(er)
       }
       fs.chmod(to, 0755, cb)

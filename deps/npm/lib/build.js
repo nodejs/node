@@ -9,12 +9,12 @@
 // This runs AFTER install or link are completed.
 
 var npm = require("./npm.js")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , chain = require("slide").chain
   , fs = require("graceful-fs")
   , path = require("path")
   , lifecycle = require("./utils/lifecycle.js")
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , link = require("./utils/link.js")
   , linkIfExists = link.ifExists
   , cmdShim = require("./utils/cmd-shim.js")
@@ -44,7 +44,7 @@ function build (args, global, didPre, didRB, cb) {
 function build_ (global, didPre, didRB) { return function (folder, cb) {
   folder = path.resolve(folder)
   build._didBuild[folder] = true
-  log.info(folder, "build")
+  log.info("build", folder)
   readJson(path.resolve(folder, "package.json"), function (er, pkg) {
     if (er) return cb(er)
     chain
@@ -76,17 +76,17 @@ function linkStuff (pkg, folder, global, didRB, cb) {
     , top = parent === npm.dir
     , gtop = parent === gnm
 
-  log.verbose([global, gnm, gtop, parent], "linkStuff")
-  log(pkg._id, "linkStuff")
+  log.verbose("linkStuff", [global, gnm, gtop, parent])
+  log.info("linkStuff", pkg._id)
 
   if (top && pkg.preferGlobal && !global) {
-    log.warn(pkg._id + " should be installed with -g", "prefer global")
+    log.warn("prefer global", pkg._id + " should be installed with -g")
   }
 
   asyncMap( [linkBins, linkMans, !didRB && rebuildBundles]
           , function (fn, cb) {
     if (!fn) return cb()
-    log.verbose(pkg._id, fn.name)
+    log.verbose(fn.name, pkg._id)
     fn(pkg, folder, parent, gtop, cb)
   }, cb)
 }
@@ -102,7 +102,7 @@ function rebuildBundles (pkg, folder, parent, gtop, cb) {
     // error means no bundles
     if (er) return cb()
 
-    log.verbose(files, "rebuildBundles")
+    log.verbose("rebuildBundles", files)
     // don't asyncMap these, because otherwise build script output
     // gets interleaved and is impossible to read
     chain(files.filter(function (file) {
@@ -117,7 +117,7 @@ function rebuildBundles (pkg, folder, parent, gtop, cb) {
       file = path.resolve(folder, "node_modules", file)
       return function (cb) {
         if (build._didBuild[file]) return cb()
-        log.verbose(file, "rebuild bundle")
+        log.verbose("rebuild bundle", file)
         // if file is not a package dir, then don't do it.
         fs.lstat(path.resolve(file, "package.json"), function (er, st) {
           if (er) return cb()
@@ -133,7 +133,7 @@ function linkBins (pkg, folder, parent, gtop, cb) {
   }
   var binRoot = gtop ? npm.globalBin
                      : path.resolve(parent, ".bin")
-  log.verbose([pkg.bin, binRoot, gtop], "bins linking")
+  log.verbose("link bins", [pkg.bin, binRoot, gtop])
 
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     linkBin( path.resolve(folder, pkg.bin[b])

@@ -1,4 +1,5 @@
 {
+  "version": "1.1.37",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -10,7 +11,6 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.24",
   "preferGlobal": true,
   "config": {
     "publishtest": false
@@ -50,27 +50,38 @@
     "fstream": "~0.1.17",
     "block-stream": "*",
     "inherits": "1",
-    "mkdirp": "0.3",
+    "mkdirp": "~0.3.3",
     "read": "0",
-    "lru-cache": "1",
-    "node-gyp": "~0.4.5",
+    "lru-cache": "~1.1.0",
+    "node-gyp": "~0.5",
     "fstream-npm": "0.1",
     "uid-number": "0",
     "archy": "0",
-    "chownr": "0"
+    "chownr": "0",
+    "npmlog": "0",
+    "ansi": "~0.1.2",
+    "npm-registry-client": "0",
+    "read-package-json": "~0.1.1",
+    "read-installed": "0",
+    "glob": "~3.1.9",
+    "init-package-json": "0",
+    "osenv": "0",
+    "lockfile": ">=0.2",
+    "retry": "~0.6.0",
+    "couch-login": "~0.1.6"
   },
   "bundleDependencies": [
-    "slide",
-    "ini",
     "semver",
+    "ini",
+    "slide",
     "abbrev",
     "graceful-fs",
     "minimatch",
     "nopt",
     "node-uuid",
+    "proto-list",
     "rimraf",
     "request",
-    "proto-list",
     "which",
     "tar",
     "fstream",
@@ -83,18 +94,30 @@
     "fstream-npm",
     "uid-number",
     "archy",
-    "chownr"
+    "chownr",
+    "npmlog",
+    "ansi",
+    "npm-registry-client",
+    "read-package-json",
+    "read-installed",
+    "glob",
+    "init-package-json",
+    "osenv",
+    "lockfile",
+    "retry",
+    "couch-login"
   ],
   "devDependencies": {
-    "ronn": "https://github.com/isaacs/ronnjs/tarball/master"
+    "ronn": "https://github.com/isaacs/ronnjs/tarball/master",
+    "tap": "~0.2.5"
   },
   "engines": {
     "node": "0.6 || 0.7 || 0.8",
     "npm": "1"
   },
   "scripts": {
-    "test": "node ./test/run.js",
-    "prepublish": "npm prune; rm -rf node_modules/*/{test,example,bench}*; make -j4 doc",
+    "test": "node ./test/run.js && tap test/tap/*.js",
+    "prepublish": "npm prune ; make -j4 doc",
     "dumpconf": "env | grep npm | sort | uniq"
   },
   "licenses": [

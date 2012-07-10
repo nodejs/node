@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-JSON" "1" "June 2012" "" ""
+.TH "NPM\-JSON" "1" "July 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-json\fR \-\- Specifics of npm\'s package\.json handling
@@ -632,8 +632,7 @@ if (foo) {
 Entries in \fBoptionalDependencies\fR will override entries of the same name in \fBdependencies\fR, so it\'s usually best to only put in one place\.
 .
 .SH "engines"
-You can specify the version of
-node that your stuff works on:
+You can specify the version of node that your stuff works on:
 .
 .IP "" 4
 .
@@ -665,6 +664,23 @@ are capable of properly installing your program\.  For example:
 .fi
 .
 .IP "" 0
+.
+.P
+Note that, unless the user has set the \fBengine\-strict\fR config flag, this
+field is advisory only\.
+.
+.SH "engineStrict"
+If you are sure that your module will \fIdefinitely not\fR run properly on
+versions of Node/npm other than those specified in the \fBengines\fR hash,
+then you can set \fB"engineStrict": true\fR in your package\.json file\.
+This will override the user\'s \fBengine\-strict\fR config setting\.
+.
+.P
+Please do not do this unless you are really very very sure\.  If your
+engines hash is something overly restrictive, you can quite easily and
+inadvertently lock yourself into obscurity and prevent your users from
+updating to new versions of Node\.  Consider this choice carefully\.  If
+people abuse it, it will be removed in a future version of npm\.
 .
 .SH "os"
 You can specify which operating systems your

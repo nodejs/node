@@ -4,8 +4,8 @@ module.exports = runScript
 var lifecycle = require("./utils/lifecycle.js")
   , npm = require("./npm.js")
   , path = require("path")
-  , readJson = require("./utils/read-json.js")
-  , log = require("./utils/log.js")
+  , readJson = require("read-package-json")
+  , log = require("npmlog")
   , chain = require("slide").chain
   , fs = require("graceful-fs")
   , asyncMap = require("slide").asyncMap
@@ -34,8 +34,6 @@ runScript.completion = function (opts, cb) {
                : npm.prefix
       var pkgDir = path.resolve( pref, "node_modules"
                                , argv[2], "package.json" )
-      console.error("global?", npm.config.get("global"))
-      console.error(pkgDir, "package dir")
       readJson(pkgDir, function (er, d) {
         if (er) d = {}
         var scripts = Object.keys(d.scripts || {})
@@ -92,7 +90,7 @@ function run (pkg, wd, cmd, cb) {
   if (!cmd.match(/^(pre|post)/)) {
     cmds = ["pre"+cmd].concat(cmds).concat("post"+cmd)
   }
-  log.verbose(cmds, "run-script")
+  log.verbose("run-script", cmds)
   chain(cmds.map(function (c) {
     // when running scripts explicitly, assume that they're trusted.
     return [lifecycle, pkg, c, wd, true]

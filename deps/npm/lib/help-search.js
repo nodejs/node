@@ -7,7 +7,7 @@ var fs = require("graceful-fs")
   , asyncMap = require("slide").asyncMap
   , cliDocsPath = path.join(__dirname, "..", "doc", "cli")
   , apiDocsPath = path.join(__dirname, "..", "doc", "api")
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
   , npm = require("./npm.js")
 
 helpSearch.usage = "npm help-search <text>"
@@ -26,7 +26,10 @@ function helpSearch (args, silent, cb) {
   }
 
   fs.readdir(docsPath, function(er, files) {
-    if (er) return log.er(cb, "Could not load documentation")(er)
+    if (er) {
+      log.error("helpSearch", "Could not load documentation")
+      return cb(er)
+    }
 
     var search = args.join(" ")
       , results = []

@@ -105,7 +105,7 @@ global config.</p>
 
 <p>The following shorthands are parsed on the command-line:</p>
 
-<ul><li><code>-v</code>: <code>--version</code></li><li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li><li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li><li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li><li><code>-d</code>: <code>--loglevel info</code></li><li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li><li><code>-ddd</code>: <code>--loglevel silly</code></li><li><code>-g</code>: <code>--global</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-m</code>: <code>--message</code></li><li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li><li><code>-reg</code>: <code>--registry</code></li><li><code>-v</code>: <code>--version</code></li><li><code>-f</code>: <code>--force</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-desc</code>: <code>--description</code></li><li><code>-S</code>: <code>--save</code></li><li><code>-D</code>: <code>--save-dev</code></li><li><code>-O</code>: <code>--save-optional</code></li><li><code>-y</code>: <code>--yes</code></li><li><code>-n</code>: <code>--yes false</code></li><li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li></ul>
+<ul><li><code>-v</code>: <code>--version</code></li><li><code>-h</code>, <code>-?</code>, <code>--help</code>, <code>-H</code>: <code>--usage</code></li><li><code>-s</code>, <code>--silent</code>: <code>--loglevel silent</code></li><li><code>-q</code>, <code>--quiet</code>: <code>--loglevel warn</code></li><li><code>-d</code>: <code>--loglevel info</code></li><li><code>-dd</code>, <code>--verbose</code>: <code>--loglevel verbose</code></li><li><code>-ddd</code>: <code>--loglevel silly</code></li><li><code>-g</code>: <code>--global</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-m</code>: <code>--message</code></li><li><code>-p</code>, <code>--porcelain</code>: <code>--parseable</code></li><li><code>-reg</code>: <code>--registry</code></li><li><code>-v</code>: <code>--version</code></li><li><code>-f</code>: <code>--force</code></li><li><code>-l</code>: <code>--long</code></li><li><code>-desc</code>: <code>--description</code></li><li><code>-S</code>: <code>--save</code></li><li><code>-D</code>: <code>--save-dev</code></li><li><code>-O</code>: <code>--save-optional</code></li><li><code>-B</code>: <code>--save-bundle</code></li><li><code>-y</code>: <code>--yes</code></li><li><code>-n</code>: <code>--yes false</code></li><li><code>ll</code> and <code>la</code> commands: <code>ls --long</code></li></ul>
 
 <p>If the specified configuration param resolves unambiguously to a known
 configuration parameter, then it is expanded to that configuration
@@ -152,30 +152,6 @@ the package.json has this:</p>
 <p>Force npm to always require authentication when accessing the registry,
 even for <code>GET</code> requests.</p>
 
-<h3 id="bin-publish">bin-publish</h3>
-
-<ul><li>Default: false</li><li>Type: Boolean</li></ul>
-
-<p>If set to true, then binary packages will be created on publish.</p>
-
-<p>This is the way to opt into the "bindist" behavior described below.</p>
-
-<h3 id="bindist">bindist</h3>
-
-<ul><li>Default: Unstable node versions, <code>null</code>, otherwise
-<code>"&lt;node version&gt;-&lt;platform&gt;-&lt;os release&gt;"</code></li><li>Type: String or <code>null</code></li></ul>
-
-<p>Experimental: on stable versions of node, binary distributions will be
-created with this tag.  If a user then installs that package, and their
-<code>bindist</code> tag is found in the list of binary distributions, they will
-get that prebuilt version.</p>
-
-<p>Pre-build node packages have their preinstall, install, and postinstall
-scripts stripped (since they are run prior to publishing), and do not
-have their <code>build</code> directories automatically ignored.</p>
-
-<p>It's yet to be seen if this is a good idea.</p>
-
 <h3 id="browser">browser</h3>
 
 <ul><li>Default: OS X: <code>"open"</code>, others: <code>"google-chrome"</code></li><li>Type: String</li></ul>
@@ -199,6 +175,24 @@ to trust only that specific signing authority.</p>
 <ul><li>Default: Windows: <code>%APPDATA%\npm-cache</code>, Posix: <code>~/.npm</code></li><li>Type: path</li></ul>
 
 <p>The location of npm's cache directory.  See <code><a href="../doc/cache.html">cache(1)</a></code></p>
+
+<h3 id="cache-lock-stale">cache-lock-stale</h3>
+
+<ul><li>Default: 60000 (1 minute)</li><li>Type: Number</li></ul>
+
+<p>The number of ms before cache folder lockfiles are considered stale.</p>
+
+<h3 id="cache-lock-retries">cache-lock-retries</h3>
+
+<ul><li>Default: 10</li><li>Type: Number</li></ul>
+
+<p>Number of times to retry to acquire a lock on cache folder lockfiles.</p>
+
+<h3 id="cache-lock-wait">cache-lock-wait</h3>
+
+<ul><li>Default: 10000 (10 seconds)</li><li>Type: Number</li></ul>
+
+<p>Number of ms to wait for cache lock files to expire.</p>
 
 <h3 id="cache-max">cache-max</h3>
 
@@ -263,6 +257,14 @@ or <code>"notepad"</code> on Windows.</li><li>Type: path</li></ul>
 
 <p>The command to run for <code>npm edit</code> or <code>npm config edit</code>.</p>
 
+<h3 id="engine-strict">engine-strict</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node.js version.</p>
+
 <h3 id="force">force</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
@@ -270,6 +272,34 @@ or <code>"notepad"</code> on Windows.</li><li>Type: path</li></ul>
 <p>Makes various commands more forceful.</p>
 
 <ul><li>lifecycle script failure does not block progress.</li><li>publishing clobbers previously published versions.</li><li>skips cache when requesting from the registry.</li><li>prevents checks against clobbering non-npm files.</li></ul>
+
+<h3 id="fetch-retries">fetch-retries</h3>
+
+<ul><li>Default: 2</li><li>Type: Number</li></ul>
+
+<p>The "retries" config for the <code>retry</code> module to use when fetching
+packages from the registry.</p>
+
+<h3 id="fetch-retry-factor">fetch-retry-factor</h3>
+
+<ul><li>Default: 10</li><li>Type: Number</li></ul>
+
+<p>The "factor" config for the <code>retry</code> module to use when fetching
+packages.</p>
+
+<h3 id="fetch-retry-mintimeout">fetch-retry-mintimeout</h3>
+
+<ul><li>Default: 10000 (10 seconds)</li><li>Type: Number</li></ul>
+
+<p>The "minTimeout" config for the <code>retry</code> module to use when fetching
+packages.</p>
+
+<h3 id="fetch-retry-maxtimeout">fetch-retry-maxtimeout</h3>
+
+<ul><li>Default: 60000 (1 minute)</li><li>Type: Number</li></ul>
+
+<p>The "maxTimeout" config for the <code>retry</code> module to use when fetching
+packages.</p>
 
 <h3 id="git">git</h3>
 
@@ -333,6 +363,15 @@ user.</p>
 <p>A white-space separated list of glob patterns of files to always exclude
 from packages when building tarballs.</p>
 
+<h3 id="init-module">init-module</h3>
+
+<ul><li>Default: ~/.npm-init.js</li><li>Type: path</li></ul>
+
+<p>A module that will be loaded by the <code>npm init</code> command.  See the
+documentation for the
+<a href="https://github.com/isaacs/init-package-json">init-package-json</a> module
+for more information, or <a href="../doc/init.html">init(1)</a>.</p>
+
 <h3 id="init-version">init.version</h3>
 
 <ul><li>Default: "0.0.0"</li><li>Type: semver</li></ul>
@@ -381,12 +420,6 @@ if one of the two conditions are met:</p>
 <ul><li>The package is not already installed globally, or</li><li>the globally installed version is identical to the version that is
 being installed locally.</li></ul>
 
-<h3 id="logfd">logfd</h3>
-
-<ul><li>Default: stderr file descriptor</li><li>Type: Number or Stream</li></ul>
-
-<p>The location to write log output.</p>
-
 <h3 id="loglevel">loglevel</h3>
 
 <ul><li>Default: "http"</li><li>Type: String</li><li>Values: "silent", "win", "error", "warn", "http", "info", "verbose", "silly"</li></ul>
@@ -397,12 +430,16 @@ being installed locally.</li></ul>
 <p>Any logs of a higher level than the setting are shown.
 The default is "http", which shows http, warn, and error output.</p>
 
-<h3 id="logprefix">logprefix</h3>
+<h3 id="logstream">logstream</h3>
 
-<ul><li>Default: true on Posix, false on Windows</li><li>Type: Boolean</li></ul>
+<ul><li>Default: process.stderr</li><li>Type: Stream</li></ul>
 
-<p>Whether or not to prefix log messages with "npm" and the log level.  See
-also "color" and "loglevel".</p>
+<p>This is the stream that is passed to the
+<a href="https://github.com/isaacs/npmlog">npmlog</a> module at run time.</p>
+
+<p>It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr.</p>
 
 <h3 id="long">long</h3>
 
@@ -443,12 +480,6 @@ also "color" and "loglevel".</p>
 
 <p>A node module to <code>require()</code> when npm loads.  Useful for programmatic
 usage.</p>
-
-<h3 id="outfd">outfd</h3>
-
-<ul><li>Default: standard output file descriptor</li><li>Type: Number or Stream</li></ul>
-
-<p>Where to write "normal" output.  This has no effect on log output.</p>
 
 <h3 id="parseable">parseable</h3>
 
@@ -514,13 +545,30 @@ this as true.</p>
 
 <p>Save installed packages to a package.json file as dependencies.</p>
 
+<p>When used with the <code>npm rm</code> command, it removes it from the dependencies
+hash.</p>
+
 <p>Only works if there is already a package.json file present.</p>
+
+<h3 id="save-bundle">save-bundle</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>If a package would be saved at install time by the use of <code>--save</code>,
+<code>--save-dev</code>, or <code>--save-optional</code>, then also put it in the
+<code>bundleDependencies</code> list.</p>
+
+<p>When used with the <code>npm rm</code> command, it removes it from the
+bundledDependencies list.</p>
 
 <h3 id="save-dev">save-dev</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
 <p>Save installed packages to a package.json file as devDependencies.</p>
+
+<p>When used with the <code>npm rm</code> command, it removes it from the devDependencies
+hash.</p>
 
 <p>Only works if there is already a package.json file present.</p>
 
@@ -529,6 +577,9 @@ this as true.</p>
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
 <p>Save installed packages to a package.json file as optionalDependencies.</p>
+
+<p>When used with the <code>npm rm</code> command, it removes it from the devDependencies
+hash.</p>
 
 <p>Only works if there is already a package.json file present.</p>
 
@@ -684,7 +735,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.24</p>
+<p id="footer">config &mdash; npm@1.1.37</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -1,7 +1,7 @@
 
 var fs = require("graceful-fs")
   , crypto = require("crypto")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , binding
 
 try { binding = process.binding("crypto") }
@@ -12,11 +12,14 @@ exports.get = get
 
 function check (file, sum, cb) {
   if (!binding) {
-    log.warn("crypto binding not found. Cannot verify shasum.", "shasum")
+    log.warn("shasum", "crypto binding not found. Cannot verify shasum.")
     return cb()
   }
   get(file, function (er, actual) {
-    if (er) return log.er(cb, "Error getting shasum")(er)
+    if (er) {
+      log.error("shasum", "error getting shasum")
+      return cb(er)
+    }
     var expected = sum.toLowerCase().trim()
       , ok = actual === expected
     cb(ok ? null : new Error(
@@ -28,7 +31,7 @@ function check (file, sum, cb) {
 
 function get (file, cb) {
   if (!binding) {
-    log.warn("crypto binding not found. Cannot verify shasum.", "shasum")
+    log.warn("shasum", "crypto binding not found. Cannot verify shasum.")
     return cb()
   }
   var h = crypto.createHash("sha1")
@@ -36,16 +39,16 @@ function get (file, cb) {
     , errState = null
   s.on("error", function (er) {
     if (errState) return
-    log.silly(er.stack || er.message, "sha error")
+    log.silly("shasum", "error", er)
     return cb(errState = er)
   }).on("data", function (chunk) {
     if (errState) return
-    log.silly(chunk.length, "updated sha bytes")
+    log.silly("shasum", "updated bytes", chunk.length)
     h.update(chunk)
   }).on("end", function () {
     if (errState) return
     var actual = h.digest("hex").toLowerCase().trim()
-    log(actual+"\n"+file, "shasum")
+    log.info("shasum", actual+"\n"+file)
     cb(null, actual)
   })
 }

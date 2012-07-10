@@ -20,13 +20,11 @@ outdated.completion = require("./utils/completion/installed-deep.js")
 
 var path = require("path")
   , fs = require("graceful-fs")
-  , readJson = require("./utils/read-json.js")
+  , readJson = require("read-package-json")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , npm = require("./npm.js")
-  , log = require("./utils/log.js")
   , semver = require("semver")
-  , relativize = require("./utils/relativize.js")
 
 function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
@@ -36,7 +34,8 @@ function outdated (args, silent, cb) {
 
     if (er || silent) return cb_(er)
     var outList = list.map(makePretty)
-    require("./utils/output.js").write(outList.join("\n"), cb_)
+    require("./utils/output.js").write(outList.join("\n"))
+    cb_()
   })
 }
 
@@ -62,7 +61,7 @@ function makePretty (p) {
   }
 
   if (!npm.config.get("global")) {
-    dir = relativize(dir, process.cwd()+"/x")
+    dir = path.relative(process.cwd(), dir)
   }
   return dep + "@" + want + " " + dir
        + " current=" + (has || "MISSING")
@@ -79,7 +78,7 @@ function outdated_ (args, dir, parentHas, cb) {
 
   var deps = null
   readJson(path.resolve(dir, "package.json"), function (er, d) {
-    deps = (er) ? true : d.dependencies
+    deps = (er) ? true : (d.dependencies || {})
     return next()
   })
 
@@ -90,8 +89,8 @@ function outdated_ (args, dir, parentHas, cb) {
       return next()
     }
     asyncMap(pkgs, function (pkg, cb) {
-      readJson( path.resolve(dir, "node_modules", pkg, "package.json")
-              , function (er, d) {
+      var jsonFile = path.resolve(dir, "node_modules", pkg, "package.json")
+      readJson(jsonFile, function (er, d) {
         cb(null, er ? [] : [[d.name, d.version]])
       })
     }, function (er, pvs) {
@@ -100,6 +99,7 @@ function outdated_ (args, dir, parentHas, cb) {
       pvs.forEach(function (pv) {
         has[pv[0]] = pv[1]
       })
+
       next()
     })
   })
@@ -112,6 +112,7 @@ function outdated_ (args, dir, parentHas, cb) {
         return l
       }, {})
     }
+
     // now get what we should have, based on the dep.
     // if has[dep] !== shouldHave[dep], then cb with the data
     // otherwise dive into the folder

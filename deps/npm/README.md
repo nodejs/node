@@ -89,20 +89,14 @@ To install the latest **unstable** development version from git:
 
     git clone https://github.com/isaacs/npm.git
     cd npm
-    git submodule update --init --recursive
     sudo make install     # (or: `node cli.js install -gf`)
 
 If you're sitting in the code folder reading this document in your
 terminal, then you've already got the code.  Just do:
 
-    git submodule update --init --recursive
     sudo make install
 
 and npm will install itself.
-
-Note that github tarballs **do not contain submodules**, so
-those won't work.  You'll have to also fetch the appropriate submodules
-listed in the .gitmodules file.
 
 ## Permissions when Using npm to Install Other Stuff
 

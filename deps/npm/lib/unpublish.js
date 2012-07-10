@@ -1,10 +1,10 @@
 
 module.exports = unpublish
 
-var registry = require("./utils/npm-registry-client/index.js")
-  , log = require("./utils/log.js")
+var log = require("npmlog")
   , npm = require("./npm.js")
-  , readJson = require("./utils/read-json.js")
+  , registry = npm.registry
+  , readJson = require("read-package-json")
   , path = require("path")
   , output = require("./utils/output.js")
 
@@ -72,7 +72,11 @@ function gotProject (project, version, cb_) {
 
   // remove from the cache first
   npm.commands.cache(["clean", project, version], function (er) {
-    if (er) return log.er(cb, "Failed to clean cache")(er)
+    if (er) {
+      log.error("unpublish", "Failed to clean cache")
+      return cb(er)
+    }
+
     registry.unpublish(project, version, cb)
   })
 }

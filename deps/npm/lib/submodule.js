@@ -5,7 +5,6 @@
 module.exports = submodule
 
 var npm = require("./npm.js")
-  , readJson = require("./utils/read-json.js")
   , exec = require("./utils/exec.js")
   , output = require("./utils/output.js")
   , cache = require("./cache.js")

@@ -11,7 +11,6 @@ var npm = require("./npm.js")
   , fs = require("graceful-fs")
   , chain = require("slide").chain
   , path = require("path")
-  , relativize = require("./utils/relativize.js")
   , cwd = process.cwd()
 
 pack.usage = "npm pack <pkg>"
@@ -34,7 +33,7 @@ function pack (args, silent, cb) {
 
 function printFiles (files, cb) {
   files = files.map(function (file) {
-    return relativize(file, cwd)
+    return path.relative(cwd, file)
   })
   output.write(files.join("\n"), cb)
 }

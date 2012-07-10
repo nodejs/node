@@ -64,12 +64,11 @@ owner.completion = function (opts, cb) {
   }
 }
 
-var registry = require("./utils/npm-registry-client/index.js")
-  , get = registry.request.GET
-  , put = registry.request.PUT
-  , log = require("./utils/log.js")
+var npm = require("./npm.js")
+  , registry = npm.registry
+  , log = require("npmlog")
   , output
-  , npm = require("./npm.js")
+  , readJson = require("read-package-json")
 
 function owner (args, cb) {
   var action = args.shift()
@@ -83,9 +82,12 @@ function owner (args, cb) {
 
 function ls (pkg, cb) {
   if (!pkg) return cb(owner.usage)
-  get(pkg, function (er, data) {
+  registry.get(pkg, function (er, data) {
     var msg = ""
-    if (er) return log.er(cb, "Couldn't get owner data for "+pkg)(er)
+    if (er) {
+      log.error("owner ls", "Couldn't get owner data", pkg)
+      return cb(er)
+    }
     var owners = data.maintainers
     if (!owners || !owners.length) msg = "admin party!"
     else msg = owners.map(function (o) { return o.name +" <"+o.email+">" }).join("\n")
@@ -101,15 +103,14 @@ function add (user, pkg, cb) {
     add(user, pkg, cb)
   })
 
-  log.verbose(user+" to "+pkg, "owner add")
+  log.verbose("owner add", "%s to %s", user, pkg)
   mutate(pkg, user, function (u, owners) {
     if (!owners) owners = []
     for (var i = 0, l = owners.length; i < l; i ++) {
       var o = owners[i]
       if (o.name === u.name) {
-        log( "Already a package owner: "+o.name+" <"+o.email+">"
-           , "owner add"
-           )
+        log.info( "owner add"
+                , "Already a package owner: "+o.name+" <"+o.email+">")
         return false
       }
     }
@@ -125,7 +126,7 @@ function rm (user, pkg, cb) {
     rm(user, pkg, cb)
   })
 
-  log.verbose(user+" from "+pkg, "owner rm")
+  log.verbose("owner rm", "%s from %s", user, pkg)
   mutate(pkg, null, function (u, owners) {
     var found = false
       , m = owners.filter(function (o) {
@@ -134,7 +135,7 @@ function rm (user, pkg, cb) {
           return !match
         })
     if (!found) {
-      log("Not a package owner: "+user, "owner rm")
+      log.info("owner rm", "Not a package owner: "+user)
       return false
     }
     if (!m.length) return new Error(
@@ -145,18 +146,26 @@ function rm (user, pkg, cb) {
 
 function mutate (pkg, user, mutation, cb) {
   if (user) {
-    get("/-/user/org.couchdb.user:"+user, mutate_)
+    registry.get("/-/user/org.couchdb.user:"+user, mutate_)
   } else {
     mutate_(null, null)
   }
 
   function mutate_ (er, u) {
-    if (er) return log.er(cb, "Error getting user data for "+user)(er)
-    if (user && (!u || u.error)) return cb(new Error(
-      "Couldn't get user data for "+user+": "+JSON.stringify(u)))
+    if (!er && user && (!u || u.error)) er = new Error(
+      "Couldn't get user data for "+user+": "+JSON.stringify(u))
+
+    if (er) {
+      log.error("owner mutate", "Error getting user data for %s", user)
+      return cb(er)
+    }
+
     if (u) u = { "name" : u.name, "email" : u.email }
-    get("/"+pkg, function (er, data) {
-      if (er) return log.er(cb, "Couldn't get package data for "+pkg)(er)
+    registry.get(pkg, function (er, data) {
+      if (er) {
+        log.error("owner mutate", "Error getting package data for %s", pkg)
+        return cb(er)
+      }
       var m = mutation(u, data.maintainers)
       if (!m) return cb() // handled
       if (m instanceof Error) return cb(m) // error
@@ -164,11 +173,15 @@ function mutate (pkg, user, mutation, cb) {
              , _rev : data._rev
              , maintainers : m
              }
-      put("/"+pkg+"/-rev/"+data._rev, data, function (er, data) {
-        if (er) return log.er(cb, "Failed to update package metadata")(er)
-        if (data.error) return cb(new Error(
-          "Failed to update package metadata: "+JSON.stringify(data)))
-        cb(null, data)
+      registry.request("PUT"
+          , pkg+"/-rev/"+data._rev, data
+          , function (er, data) {
+        if (!er && data.error) er = new Error(
+          "Failed to update package metadata: "+JSON.stringify(data))
+        if (er) {
+          log.error("owner mutate", "Failed to update package metadata")
+        }
+        cb(er, data)
       })
     })
   }
@@ -177,7 +190,6 @@ function mutate (pkg, user, mutation, cb) {
 function readLocalPkg (cb) {
   if (npm.config.get("global")) return cb()
   var path = require("path")
-    , readJson = require("./utils/read-json.js")
   readJson(path.resolve(npm.prefix, "package.json"), function (er, d) {
     return cb(er, d && d.name)
   })

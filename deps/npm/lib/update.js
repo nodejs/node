@@ -12,7 +12,7 @@ update.usage = "npm update [pkg]"
 var npm = require("./npm.js")
   , lifecycle = require("./utils/lifecycle.js")
   , asyncMap = require("slide").asyncMap
-  , log = require("./utils/log.js")
+  , log = require("npmlog")
 
   // load these, just so that we know that they'll be available, in case
   // npm itself is getting overwritten.
@@ -23,7 +23,7 @@ update.completion = npm.commands.outdated.completion
 
 function update (args, cb) {
   npm.commands.outdated(args, true, function (er, outdated) {
-    log(outdated, "outdated updating")
+    log.info("outdated", "updating", outdated)
     if (er) return cb(er)
 
     asyncMap(outdated, function (ww, cb) {

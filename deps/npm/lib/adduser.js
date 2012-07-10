@@ -1,12 +1,11 @@
 
 module.exports = adduser
 
-var registry = require("./utils/npm-registry-client/index.js")
-  , ini = require("./utils/ini.js")
-  , log = require("./utils/log.js")
+var ini = require("./utils/ini.js")
+  , log = require("npmlog")
   , npm = require("./npm.js")
+  , registry = npm.registry
   , read = require("read")
-  , promiseChain = require("./utils/promise-chain.js")
   , crypto
 
 try {
@@ -19,32 +18,68 @@ function adduser (args, cb) {
   if (!crypto) return cb(new Error(
     "You must compile node with ssl support to use the adduser feature"))
 
-  var u = { u : npm.config.get("username")
+  var c = { u : npm.config.get("username")
           , p : npm.config.get("_password")
           , e : npm.config.get("email")
           }
     , changed = false
+    , u = {}
+    , fns = [readUsername, readPassword, readEmail, save]
 
-  promiseChain(cb)
-    (read, [{prompt: "Username: ", default: u.u}], function (un) {
-      changed = u.u !== un
-      u.u = un
-    })
-    (function (cb) {
-      if (u.p && !changed) return cb(null, u.p)
-      read({prompt: "Password: ", default: u.p, silent: true}, cb)
-    }, [], function (pw) { u.p = pw })
-    (read, [{prompt: "Email: ", default: u.e}], function (em) { u.e = em })
-    (function (cb) {
-      if (changed) npm.config.del("_auth")
-      registry.adduser(u.u, u.p, u.e, function (er) {
-        if (er) return cb(er)
-        ini.set("username", u.u, "user")
-        ini.set("_password", u.p, "user")
-        ini.set("email", u.e, "user")
-        log("Authorized user " + u.u, "adduser")
-        ini.save("user", cb)
-      })
-    })
-    ()
+  loop()
+  function loop (er) {
+    if (er) return cb(er)
+    var fn = fns.shift()
+    if (fn) return fn(c, u, loop)
+    cb()
+  }
+}
+
+function readUsername (c, u, cb) {
+  read({prompt: "Username: ", default: c.u}, function (er, un) {
+    c.changed = c.u !== un
+    u.u = un
+    cb(er)
+  })
+}
+
+function readPassword (c, u, cb) {
+  if (!c.changed) {
+    u.p = c.p
+    return cb()
+  }
+  read({prompt: "Password: ", silent: true}, function (er, pw) {
+    u.p = pw
+    cb(er)
+  })
+}
+
+function readEmail (c, u, cb) {
+  read({prompt: "Email: ", default: c.e}, function (er, em) {
+    u.e = em
+    cb(er)
+  })
+}
+
+function save (c, u, cb) {
+  if (c.changed) {
+    delete registry.auth
+    delete registry.username
+    delete registry.password
+    registry.username = u.u
+    registry.password = u.p
+  }
+
+  // save existing configs, but yank off for this PUT
+  registry.adduser(u.u, u.p, u.e, function (er) {
+    if (er) return cb(er)
+    registry.username = u.u
+    registry.password = u.p
+    registry.email = u.e
+    ini.set("username", u.u, "user")
+    ini.set("_password", u.p, "user")
+    ini.set("email", u.e, "user")
+    log.info("adduser", "Authorized user %s", u.u)
+    ini.save("user", cb)
+  })
 }

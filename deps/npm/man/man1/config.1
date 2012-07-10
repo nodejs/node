@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "1" "June 2012" "" ""
+.TH "NPM\-CONFIG" "1" "July 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- Manage the npm configuration file
@@ -177,6 +177,9 @@ The following shorthands are parsed on the command\-line:
 \fB\-O\fR: \fB\-\-save\-optional\fR
 .
 .IP "\(bu" 4
+\fB\-B\fR: \fB\-\-save\-bundle\fR
+.
+.IP "\(bu" 4
 \fB\-y\fR: \fB\-\-yes\fR
 .
 .IP "\(bu" 4
@@ -277,45 +280,6 @@ Type: Boolean
 Force npm to always require authentication when accessing the registry,
 even for \fBGET\fR requests\.
 .
-.SS "bin\-publish"
-.
-.IP "\(bu" 4
-Default: false
-.
-.IP "\(bu" 4
-Type: Boolean
-.
-.IP "" 0
-.
-.P
-If set to true, then binary packages will be created on publish\.
-.
-.P
-This is the way to opt into the "bindist" behavior described below\.
-.
-.SS "bindist"
-.
-.IP "\(bu" 4
-Default: Unstable node versions, \fBnull\fR, otherwise \fB"<node version>\-<platform>\-<os release>"\fR
-.
-.IP "\(bu" 4
-Type: String or \fBnull\fR
-.
-.IP "" 0
-.
-.P
-Experimental: on stable versions of node, binary distributions will be
-created with this tag\.  If a user then installs that package, and their \fBbindist\fR tag is found in the list of binary distributions, they will
-get that prebuilt version\.
-.
-.P
-Pre\-build node packages have their preinstall, install, and postinstall
-scripts stripped (since they are run prior to publishing), and do not
-have their \fBbuild\fR directories automatically ignored\.
-.
-.P
-It\'s yet to be seen if this is a good idea\.
-.
 .SS "browser"
 .
 .IP "\(bu" 4
@@ -362,6 +326,45 @@ Type: path
 .
 .P
 The location of npm\'s cache directory\.  See \fBnpm help cache\fR
+.
+.SS "cache\-lock\-stale"
+.
+.IP "\(bu" 4
+Default: 60000 (1 minute)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The number of ms before cache folder lockfiles are considered stale\.
+.
+.SS "cache\-lock\-retries"
+.
+.IP "\(bu" 4
+Default: 10
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+Number of times to retry to acquire a lock on cache folder lockfiles\.
+.
+.SS "cache\-lock\-wait"
+.
+.IP "\(bu" 4
+Default: 10000 (10 seconds)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+Number of ms to wait for cache lock files to expire\.
 .
 .SS "cache\-max"
 .
@@ -484,6 +487,21 @@ Type: path
 .P
 The command to run for \fBnpm edit\fR or \fBnpm config edit\fR\|\.
 .
+.SS "engine\-strict"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+If set to true, then npm will stubbornly refuse to install (or even
+consider installing) any package that claims to not be compatible with
+the current Node\.js version\.
+.
 .SS "force"
 .
 .IP "\(bu" 4
@@ -510,6 +528,62 @@ skips cache when requesting from the registry\.
 prevents checks against clobbering non\-npm files\.
 .
 .IP "" 0
+.
+.SS "fetch\-retries"
+.
+.IP "\(bu" 4
+Default: 2
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "retries" config for the \fBretry\fR module to use when fetching
+packages from the registry\.
+.
+.SS "fetch\-retry\-factor"
+.
+.IP "\(bu" 4
+Default: 10
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "factor" config for the \fBretry\fR module to use when fetching
+packages\.
+.
+.SS "fetch\-retry\-mintimeout"
+.
+.IP "\(bu" 4
+Default: 10000 (10 seconds)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "minTimeout" config for the \fBretry\fR module to use when fetching
+packages\.
+.
+.SS "fetch\-retry\-maxtimeout"
+.
+.IP "\(bu" 4
+Default: 60000 (1 minute)
+.
+.IP "\(bu" 4
+Type: Number
+.
+.IP "" 0
+.
+.P
+The "maxTimeout" config for the \fBretry\fR module to use when fetching
+packages\.
 .
 .SS "git"
 .
@@ -636,6 +710,21 @@ Type: string
 A white\-space separated list of glob patterns of files to always exclude
 from packages when building tarballs\.
 .
+.SS "init\-module"
+.
+.IP "\(bu" 4
+Default: ~/\.npm\-init\.js
+.
+.IP "\(bu" 4
+Type: path
+.
+.IP "" 0
+.
+.P
+A module that will be loaded by the \fBnpm init\fR command\.  See the
+documentation for the init\-package\-json \fIhttps://github\.com/isaacs/init\-package\-json\fR module
+for more information, or npm help init\.
+.
 .SS "init\.version"
 .
 .IP "\(bu" 4
@@ -734,19 +823,6 @@ being installed locally\.
 .
 .IP "" 0
 .
-.SS "logfd"
-.
-.IP "\(bu" 4
-Default: stderr file descriptor
-.
-.IP "\(bu" 4
-Type: Number or Stream
-.
-.IP "" 0
-.
-.P
-The location to write log output\.
-.
 .SS "loglevel"
 .
 .IP "\(bu" 4
@@ -767,19 +843,23 @@ What level of logs to report\.  On failure, \fIall\fR logs are written to \fBnpm
 Any logs of a higher level than the setting are shown\.
 The default is "http", which shows http, warn, and error output\.
 .
-.SS "logprefix"
+.SS "logstream"
 .
 .IP "\(bu" 4
-Default: true on Posix, false on Windows
+Default: process\.stderr
 .
 .IP "\(bu" 4
-Type: Boolean
+Type: Stream
 .
 .IP "" 0
 .
 .P
-Whether or not to prefix log messages with "npm" and the log level\.  See
-also "color" and "loglevel"\.
+This is the stream that is passed to the npmlog \fIhttps://github\.com/isaacs/npmlog\fR module at run time\.
+.
+.P
+It cannot be set from the command line, but if you are using npm
+programmatically, you may wish to send logs to somewhere other than
+stderr\.
 .
 .SS "long"
 .
@@ -862,19 +942,6 @@ Type: path
 .P
 A node module to \fBrequire()\fR when npm loads\.  Useful for programmatic
 usage\.
-.
-.SS "outfd"
-.
-.IP "\(bu" 4
-Default: standard output file descriptor
-.
-.IP "\(bu" 4
-Type: Number or Stream
-.
-.IP "" 0
-.
-.P
-Where to write "normal" output\.  This has no effect on log output\.
 .
 .SS "parseable"
 .
@@ -1011,7 +1078,28 @@ Type: Boolean
 Save installed packages to a package\.json file as dependencies\.
 .
 .P
+When used with the \fBnpm rm\fR command, it removes it from the dependencies
+hash\.
+.
+.P
 Only works if there is already a package\.json file present\.
+.
+.SS "save\-bundle"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+If a package would be saved at install time by the use of \fB\-\-save\fR, \fB\-\-save\-dev\fR, or \fB\-\-save\-optional\fR, then also put it in the \fBbundleDependencies\fR list\.
+.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the
+bundledDependencies list\.
 .
 .SS "save\-dev"
 .
@@ -1025,6 +1113,10 @@ Type: Boolean
 .
 .P
 Save installed packages to a package\.json file as devDependencies\.
+.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the devDependencies
+hash\.
 .
 .P
 Only works if there is already a package\.json file present\.
@@ -1041,6 +1133,10 @@ Type: Boolean
 .
 .P
 Save installed packages to a package\.json file as optionalDependencies\.
+.
+.P
+When used with the \fBnpm rm\fR command, it removes it from the devDependencies
+hash\.
 .
 .P
 Only works if there is already a package\.json file present\.

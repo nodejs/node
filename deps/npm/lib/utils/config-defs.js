@@ -6,10 +6,10 @@ var path = require("path")
   , Stream = require("stream").Stream
   , semver = require("semver")
   , stableFamily = semver.parse(process.version)
-  , os = require("os")
   , nopt = require("nopt")
-  , log = require("./log.js")
+  , log = require("npmlog")
   , npm = require("../npm.js")
+  , osenv = require("osenv")
 
 function Octal () {}
 function validateOctal (data, k, val) {
@@ -28,11 +28,17 @@ function validateSemver (data, k, val) {
   data[k] = semver.valid(val)
 }
 
+function validateStream (data, k, val) {
+  if (!(val instanceof Stream)) return false
+  data[k] = val
+}
+
 nopt.typeDefs.semver = { type: semver, validate: validateSemver }
 nopt.typeDefs.Octal = { type: Octal, validate: validateOctal }
+nopt.typeDefs.Stream = { type: Stream, validate: validateStream }
 
 nopt.invalidHandler = function (k, val, type, data) {
-  log.warn(k + "=" + JSON.stringify(val), "invalid config")
+  log.warn("invalid config", k + "=" + JSON.stringify(val))
 
   if (Array.isArray(type)) {
     if (type.indexOf(url) !== -1) type = url
@@ -41,16 +47,19 @@ nopt.invalidHandler = function (k, val, type, data) {
 
   switch (type) {
     case Octal:
-      log.warn("Must be octal number, starting with 0", "invalid config")
+      log.warn("invalid config", "Must be octal number, starting with 0")
       break
     case url:
-      log.warn("Must be a full url with 'http://'", "invalid config")
+      log.warn("invalid config", "Must be a full url with 'http://'")
       break
     case path:
-      log.warn("Must be a valid filesystem path", "invalid config")
+      log.warn("invalid config", "Must be a valid filesystem path")
       break
     case Number:
-      log.warn("Must be a numeric value", "invalid config")
+      log.warn("invalid config", "Must be a numeric value")
+      break
+    case Stream:
+      log.warn("invalid config", "Must be an instance of the Stream class")
       break
   }
 }
@@ -58,21 +67,10 @@ nopt.invalidHandler = function (k, val, type, data) {
 if (!stableFamily || (+stableFamily[2] % 2)) stableFamily = null
 else stableFamily = stableFamily[1] + "." + stableFamily[2]
 
-var httpsOk = semver.satisfies(process.version, ">=0.4.9")
-var winColor = semver.satisfies(process.version, ">=0.5.9")
-
 var defaults
 
-var temp = process.env.TMPDIR
-         || process.env.TMP
-         || process.env.TEMP
-         || ( process.platform === "win32"
-            ? "c:\\windows\\temp"
-            : "/tmp" )
-
-var home = ( process.platform === "win32"
-           ? process.env.USERPROFILE
-           : process.env.HOME )
+var temp = osenv.tmpdir()
+var home = osenv.home()
 
 if (home) process.env.HOME = home
 else home = temp
@@ -85,34 +83,19 @@ Object.defineProperty(exports, "defaults", {get: function () {
     globalPrefix = process.env.PREFIX
   } else if (process.platform === "win32") {
     // c:\node\node.exe --> prefix=c:\node\
-    globalPrefix = path.join(process.execPath, "..")
+    globalPrefix = path.dirname(process.execPath)
   } else {
     // /usr/local/bin/node --> prefix=/usr/local
-    globalPrefix = path.join(process.execPath, "..", "..")
+    globalPrefix = path.dirname(path.dirname(process.execPath))
 
     // destdir only is respected on Unix
     if (process.env.DESTDIR) {
-      globalPrefix = process.env.DESTDIR + "/" + globalPrefix
+      globalPrefix = path.join(process.env.DESTDIR, globalPrefix)
     }
   }
 
   return defaults =
     { "always-auth" : false
-
-    // Disable bindist publishing for now.  Too problematic.
-    // Revisit when we have a less crappy approach, or just make
-    // bindist be a thing that only dedicated build-farms will enable.
-    , "bin-publish" : false
-
-    , bindist : stableFamily
-        && ( stableFamily + "-"
-           + "ares" + process.versions.ares + "-"
-           + "ev" + process.versions.ev + "-"
-           + "openssl" + process.versions.openssl + "-"
-           + "v8" + process.versions.v8 + "-"
-           + process.platform + "-"
-           + (process.arch ? process.arch + "-" : "")
-           + os.release() )
 
       // are there others?
     , browser : process.platform === "darwin" ? "open"
@@ -140,17 +123,27 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , cache : process.platform === "win32"
             ? path.resolve(process.env.APPDATA || home || temp, "npm-cache")
             : path.resolve( home || temp, ".npm")
+
+    , "cache-lock-stale": 60000
+    , "cache-lock-retries": 10
+    , "cache-lock-wait": 10000
+
     , "cache-max": Infinity
     , "cache-min": 0
 
-    , color : process.platform !== "win32" || winColor
+    , color : true
     , coverage: false
     , depth: Infinity
     , description : true
     , dev : false
-    , editor : process.env.EDITOR ||
-             ( process.platform === "win32" ? "notepad" : "vi" )
+    , editor : osenv.editor()
+    , "engine-strict": false
     , force : false
+
+    , "fetch-retries": 2
+    , "fetch-retry-factor": 10
+    , "fetch-retry-mintimeout": 10000
+    , "fetch-retry-maxtimeout": 60000
 
     , git: "git"
 
@@ -160,15 +153,15 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , group : process.platform === "win32" ? 0
             : process.env.SUDO_GID || (process.getgid && process.getgid())
     , ignore: ""
+    , "init-module": path.resolve(home, '.npm-init.js')
     , "init.version" : "0.0.0"
     , "init.author.name" : ""
     , "init.author.email" : ""
     , "init.author.url" : ""
     , json: false
     , link: false
-    , logfd : 2
     , loglevel : "http"
-    , logprefix : process.platform !== "win32" || winColor
+    , logstream : process.stderr
     , long : false
     , message : "%s"
     , "node-version" : process.version
@@ -179,24 +172,23 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , parseable : false
     , pre: false
     , prefix : globalPrefix
-    , production: false
+    , production: process.env.NODE_ENV === "production"
     , "proprietary-attribs": true
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
                       process.env.HTTP_PROXY || process.env.http_proxy || null
     , "user-agent" : "npm/" + npm.version + " node/" + process.version
     , "rebuild-bundle" : true
-    , registry : "http" + (httpsOk ? "s" : "") + "://registry.npmjs.org/"
+    , registry : "https://registry.npmjs.org/"
     , rollback : true
     , save : false
+    , "save-bundle": false
     , "save-dev" : false
     , "save-optional" : false
     , searchopts: ""
     , searchexclude: null
     , searchsort: "name"
-    , shell : process.platform === "win32"
-            ? process.env.ComSpec || "cmd"
-            : process.env.SHELL || "bash"
+    , shell : osenv.shell()
     , "strict-ssl": true
     , tag : "latest"
     , tmp : temp
@@ -223,11 +215,12 @@ Object.defineProperty(exports, "defaults", {get: function () {
 
 exports.types =
   { "always-auth" : Boolean
-  , "bin-publish" : Boolean
-  , bindist : [null, String]
   , browser : String
   , ca: [null, String]
   , cache : path
+  , "cache-lock-stale": Number
+  , "cache-lock-retries": Number
+  , "cache-lock-wait": Number
   , "cache-max": Number
   , "cache-min": Number
   , color : ["always", Boolean]
@@ -236,7 +229,12 @@ exports.types =
   , description : Boolean
   , dev : Boolean
   , editor : String
+  , "engine-strict": Boolean
   , force : Boolean
+  , "fetch-retries": Number
+  , "fetch-retry-factor": Number
+  , "fetch-retry-mintimeout": Number
+  , "fetch-retry-maxtimeout": Number
   , git: String
   , global : Boolean
   , globalconfig : path
@@ -245,15 +243,15 @@ exports.types =
   , "https-proxy" : [null, url]
   , "user-agent" : String
   , ignore : String
+  , "init-module": path
   , "init.version" : [null, semver]
   , "init.author.name" : String
   , "init.author.email" : String
   , "init.author.url" : ["", url]
   , json: Boolean
   , link: Boolean
-  , logfd : [Number, Stream]
   , loglevel : ["silent","win","error","warn","http","info","verbose","silly"]
-  , logprefix : Boolean
+  , logstream : Stream
   , long : Boolean
   , message: String
   , "node-version" : [null, semver]
@@ -271,6 +269,7 @@ exports.types =
   , registry : [null, url]
   , rollback : Boolean
   , save : Boolean
+  , "save-bundle": Boolean
   , "save-dev" : Boolean
   , "save-optional" : Boolean
   , searchopts : String
@@ -332,4 +331,5 @@ exports.shorthands =
   , O : ["--save-optional"]
   , y : ["--yes"]
   , n : ["--no-yes"]
+  , B : ["--save-bundle"]
   }

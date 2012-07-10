@@ -6,9 +6,7 @@ var fs = require("graceful-fs")
   , chain = require("slide").chain
   , mkdir = require("mkdirp")
   , rm = require("./gently-rm.js")
-  , log = require("./log.js")
   , path = require("path")
-  , relativize = require("./relativize.js")
   , npm = require("../npm.js")
 
 function linkIfExists (from, to, gently, cb) {
@@ -21,10 +19,21 @@ function linkIfExists (from, to, gently, cb) {
 function link (from, to, gently, cb) {
   if (typeof cb !== "function") cb = gently, gently = null
   if (npm.config.get("force")) gently = false
+
+  to = path.resolve(to)
+  var target = from = path.resolve(from)
+  if (process.platform !== "win32") {
+    // junctions on windows must be absolute
+    target = path.relative(path.dirname(to), from)
+    // if there is no folder in common, then it will be much
+    // longer, and using a relative link is dumb.
+    if (target.length >= from.length) target = from
+  }
+
   chain
     ( [ [fs, "stat", from]
       , [rm, to, gently]
       , [mkdir, path.dirname(to)]
-      , [fs, "symlink", relativize(from, to), to] ]
+      , [fs, "symlink", target, to, "junction"] ]
     , cb)
 }

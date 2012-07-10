@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CODING\-STYLE" "1" "June 2012" "" ""
+.TH "NPM\-CODING\-STYLE" "1" "July 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-coding-style\fR \-\- npm\'s "funny" coding style
@@ -187,37 +187,19 @@ Just send the error message back as the first argument to the callback\.
 Always create a new Error object with your message\.  Don\'t just return a
 string message to the callback\.  Stack traces are handy\.
 .
-.P
-Use the \fBrequire("\./utils/log")\.er\fR function\.  It takes a callback and an
-error message, and returns an object that will report the message in the
-event of a failure\.  It\'s quite handy\.
-.
-.IP "" 4
-.
-.nf
-function myThing (args, cb) {
-  getData(args, function (er, data) {
-    if (er) return log\.er(cb, "Couldn\'t get data")(er)
-    doSomethingElse(data, cb)
-  })
-}
-function justHasToWork (cb) {
-  doSomething(log\.er(cb, "the doSomething failed\."))
-}
-.
-.fi
-.
-.IP "" 0
-.
 .SH "Logging"
+Logging is done using the npmlog \fIhttps://github\.com/isaacs/npmlog\fR
+utility\.
+.
+.P
 Please clean up logs when they are no longer helpful\.  In particular,
 logging the same object over and over again is not helpful\.  Logs should
 report what\'s happening so that it\'s easier to track down where a fault
 occurs\.
 .
 .P
-Use appropriate log levels\.  The default log() function logs at the
-"info" level\.  See \fBnpm help config\fR and search for "loglevel"\.
+Use appropriate log levels\.  See \fBnpm help config\fR and search for
+"loglevel"\.
 .
 .SH "Case, naming, etc\."
 Use \fBlowerCamelCase\fR for multiword identifiers when they refer to objects,

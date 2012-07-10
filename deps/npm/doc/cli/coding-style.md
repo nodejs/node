@@ -129,29 +129,18 @@ Just send the error message back as the first argument to the callback.
 Always create a new Error object with your message.  Don't just return a
 string message to the callback.  Stack traces are handy.
 
-Use the `require("./utils/log").er` function.  It takes a callback and an
-error message, and returns an object that will report the message in the
-event of a failure.  It's quite handy.
-
-    function myThing (args, cb) {
-      getData(args, function (er, data) {
-        if (er) return log.er(cb, "Couldn't get data")(er)
-        doSomethingElse(data, cb)
-      })
-    }
-    function justHasToWork (cb) {
-      doSomething(log.er(cb, "the doSomething failed."))
-    }
-
 ## Logging
+
+Logging is done using the [npmlog](https://github.com/isaacs/npmlog)
+utility.
 
 Please clean up logs when they are no longer helpful.  In particular,
 logging the same object over and over again is not helpful.  Logs should
 report what's happening so that it's easier to track down where a fault
 occurs.
 
-Use appropriate log levels.  The default log() function logs at the
-"info" level.  See `npm-config(1)` and search for "loglevel".
+Use appropriate log levels.  See `npm-config(1)` and search for
+"loglevel".
 
 ## Case, naming, etc.
 

@@ -1,6 +1,13 @@
 #!/bin/sh
-if [ -x "`dirname "$0"`/node.exe" ]; then
-  "`dirname "$0"`/node.exe" "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+
+basedir=`dirname "$0"`
+
+case `uname` in
+    *CYGWIN*) basedir=`cygpath -w "$basedir"`;;
+esac
+
+if [ -x "$basedir/node.exe" ]; then
+  "$basedir/node.exe" "$basedir/node_modules/npm/bin/npm-cli.js" "$@"
 else
-  node "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  node "$basedir/node_modules/npm/bin/npm-cli.js" "$@"
 fi

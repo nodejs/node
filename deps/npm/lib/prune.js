@@ -4,13 +4,13 @@ module.exports = prune
 
 prune.usage = "npm prune"
 
-var readInstalled = require("./utils/read-installed.js")
+var readInstalled = require("read-installed")
   , npm = require("./npm.js")
 
 prune.completion = require("./utils/completion/installed-deep.js")
 
 function prune (args, cb) {
-  readInstalled(npm.prefix, function (er, data) {
+  readInstalled(npm.prefix, npm.config.get("depth"), function (er, data) {
     if (er) return cb(er)
     prune_(args, data, cb)
   })

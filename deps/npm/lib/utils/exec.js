@@ -1,8 +1,7 @@
 module.exports = exec
 exec.spawn = spawn
-exec.pipe = pipe
 
-var log = require("./log.js")
+var log = require("npmlog")
   , child_process = require("child_process")
   , util = require("util")
   , npm = require("../npm.js")
@@ -31,8 +30,7 @@ function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
     }
   }
   if (uid !== myUID) {
-    log.verbose(uid, "Setting uid from "+myUID)
-    log.verbose(new Error().stack, "stack at uid setting")
+    log.verbose("set uid", "from=%s to=%s", myUID, uid)
   }
 
   if (uid && gid && (isNaN(uid) || isNaN(gid))) {
@@ -43,7 +41,7 @@ function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
     })
   }
 
-  log.silly(cmd+" "+args.map(JSON.stringify).join(" "), "exec")
+  log.silly("exec", cmd+" "+args.map(JSON.stringify).join(" "))
   var stdout = ""
     , stderr = ""
     , cp = spawn(cmd, args, env, takeOver, cwd, uid, gid)
@@ -65,38 +63,6 @@ function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
   return cp
 }
 
-function logger (d) { if (d) process.stderr.write(d+"") }
-function pipe (cp1, cp2, cb) {
-  util.pump(cp1.stdout, cp2.stdin)
-  var errState = null
-    , buff1 = ""
-    , buff2 = ""
-  if (log.level <= log.LEVEL.silly) {
-    cp1.stderr.on("data", logger)
-    cp2.stderr.on("data", logger)
-  } else {
-    cp1.stderr.on("data", function (d) { buff1 += d })
-    cp2.stderr.on("data", function (d) { buff2 += d })
-  }
-
-  cp1.on("exit", function (code) {
-    if (!code) return log.verbose(cp1.name || "<unknown>", "success")
-    if (!cp2._exited) cp2.kill()
-    log.error(buff1, cp1.name || "<unknown>")
-    cb(errState = new Error(
-      "Failed "+(cp1.name || "<unknown>")+"\nexited with "+code))
-  })
-
-  cp2.on("exit", function (code) {
-    cp2._exited = true
-    if (errState) return
-    if (!code) return log.verbose(cp2.name || "<unknown>", "success", cb)
-    log.error(buff2, cp2.name || "<unknown>")
-    cb(new Error( "Failed "
-                + (cp2.name || "<unknown>")
-                + "\nexited with " + code ))
-  })
-}
 
 function spawn (c, a, env, takeOver, cwd, uid, gid) {
   var fds = [ 0, 1, 2 ]

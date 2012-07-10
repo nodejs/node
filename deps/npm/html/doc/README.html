@@ -96,20 +96,14 @@ git, and mess with it directly.</p>
 
 <pre><code>git clone https://github.com/isaacs/npm.git
 cd npm
-git submodule update --init --recursive
 sudo make install     # (or: `node cli.js install -gf`)</code></pre>
 
 <p>If you're sitting in the code folder reading this document in your
 terminal, then you've already got the code.  Just do:</p>
 
-<pre><code>git submodule update --init --recursive
-sudo make install</code></pre>
+<pre><code>sudo make install</code></pre>
 
 <p>and npm will install itself.</p>
-
-<p>Note that github tarballs <strong>do not contain submodules</strong>, so
-those won't work.  You'll have to also fetch the appropriate submodules
-listed in the .gitmodules file.</p>
 
 <h2 id="Permissions-when-Using-npm-to-Install-Other-Stuff">Permissions when Using npm to Install Other Stuff</h2>
 
@@ -267,7 +261,7 @@ will no doubt tell you to put the output in a gist or email.</p>
 
 <ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/index.html">index(1)</a></li></ul>
 </div>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.24</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.37</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

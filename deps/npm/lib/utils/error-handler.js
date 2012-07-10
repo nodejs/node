@@ -2,10 +2,9 @@
 module.exports = errorHandler
 
 var cbCalled = false
-  , log = require("./log.js")
+  , log = require("npmlog")
   , npm = require("../npm.js")
   , rm = require("rimraf")
-  , constants = require("constants")
   , itWorked = false
   , path = require("path")
   , ini = require("./ini.js")
@@ -20,16 +19,17 @@ process.on("exit", function (code) {
   if (itWorked) log.info("ok")
   else {
     if (!cbCalled) {
-      log.error("cb() never called!\n ")
+      log.error("", "cb() never called!")
     }
+
     if (wroteLogFile) {
-      log.error([""
+      log.error("", [""
                 ,"Additional logging details can be found in:"
                 ,"    " + path.resolve("npm-debug.log")
                 ].join("\n"))
       wroteLogFile = false
     }
-    log.win("not ok")
+    log.error("not ok", "code", code)
   }
 
   var doExit = npm.config.get("_exit")
@@ -48,13 +48,16 @@ function exit (code, noLog) {
   exitCode = exitCode || code
 
   var doExit = npm.config.get("_exit")
-  log.verbose([code, doExit], "exit")
-  if (log.level === log.LEVEL.silent) noLog = true
+  log.verbose("exit", [code, doExit])
+  if (log.level === "silent") noLog = true
 
   if (code && !noLog) writeLogFile(reallyExit)
   else rm("npm-debug.log", function () { rm(npm.tmp, reallyExit) })
 
   function reallyExit() {
+    // truncate once it's been written.
+    log.record.length = 0
+
     itWorked = !code
 
     // just emit a fake exit event.
@@ -79,41 +82,36 @@ function errorHandler (er) {
 
   cbCalled = true
   if (!er) return exit(0)
-  if (!(er instanceof Error)) {
-    log.error(er)
+  if (typeof er === "string") {
+    log.error("", er)
+    return exit(1, true)
+  } else if (!(er instanceof Error)) {
+    log.error("weird error", er)
     return exit(1, true)
   }
 
   var m = er.code || er.message.match(/^(?:Error: )?(E[A-Z]+)/)
-  if (m) {
-    m = m[1]
-    if (!constants[m] && !npm[m]) constants[m] = {}
-    er.errno = npm[m] || constants[m]
-  }
+  if (m && !er.code) er.code = m
 
-  console.error("")
-  switch (er.code || er.errno) {
+  switch (er.code) {
   case "ECONNREFUSED":
-  case constants.ECONNREFUSED:
-    log.error(er)
-    log.error(["\nIf you are behind a proxy, please make sure that the"
+    log.error("", er)
+    log.error("", ["\nIf you are behind a proxy, please make sure that the"
               ,"'proxy' config is set properly.  See: 'npm help config'"
               ].join("\n"))
     break
 
   case "EACCES":
   case "EPERM":
-  case constants.EACCES:
-  case constants.EPERM:
-    log.error(er)
-    log.error(["\nPlease try running this command again as root/Administrator."
+    log.error("", er)
+    log.error("", ["\nPlease try running this command again as root/Administrator."
               ].join("\n"))
     break
 
-  case npm.ELIFECYCLE:
+  case "ELIFECYCLE":
     er.code = "ELIFECYCLE"
-    log.error(er.message)
-    log.error(["","Failed at the "+er.pkgid+" "+er.stage+" script."
+    log.error("", er.message)
+    log.error("", ["","Failed at the "+er.pkgid+" "+er.stage+" script."
               ,"This is most likely a problem with the "+er.pkgname+" package,"
               ,"not with npm itself."
               ,"Tell the author that this fails on your system:"
@@ -124,18 +122,18 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
-  case npm.EJSONPARSE:
+  case "EJSONPARSE":
     er.code = "EJSONPARSE"
-    log.error(er.message)
-    log.error("File: "+er.file)
-    log.error(["Failed to parse package.json data."
+    log.error("", er.message)
+    log.error("", "File: "+er.file)
+    log.error("", ["Failed to parse package.json data."
               ,"package.json must be actual JSON, not just JavaScript."
               ,"","This is not a bug in npm."
               ,"Tell the package author to fix their package.json file."
               ].join("\n"), "JSON.parse")
     break
 
-  case npm.E404:
+  case "E404":
     er.code = "E404"
     if (er.pkgid && er.pkgid !== "-") {
       var msg = ["'"+er.pkgid+"' is not in the npm registry."
@@ -149,51 +147,40 @@ function errorHandler (er) {
       }
       msg.push("\nNote that you can also install from a"
               ,"tarball, folder, or http url, or git url.")
-      log.error(msg.join("\n"), "404")
+      log.error("404", msg.join("\n"))
     }
     break
 
-  case npm.EPUBLISHCONFLICT:
+  case "EPUBLISHCONFLICT":
     er.code = "EPUBLISHCONFLICT"
-    log.error(["Cannot publish over existing version."
+    log.error("publish fail", ["Cannot publish over existing version."
               ,"Bump the 'version' field, set the --force flag, or"
               ,"    npm unpublish '"+er.pkgid+"'"
               ,"and try again"
-              ].join("\n"), "publish fail" )
+              ].join("\n"))
     break
 
-  case npm.EISGIT:
+  case "EISGIT":
     er.code = "EISGIT"
-    log.error([er.message
+    log.error("git", [er.message
               ,"    "+er.path
               ,"Refusing to remove it. Update manually,"
               ,"or move it out of the way first."
-              ].join("\n"), "git" )
+              ].join("\n"))
     break
 
-  case npm.ECYCLE:
+  case "ECYCLE":
     er.code = "ECYCLE"
-    log.error([er.message
+    log.error("cycle", [er.message
               ,"While installing: "+er.pkgid
               ,"Found a pathological dependency case that npm cannot solve."
               ,"Please report this to the package author."
               ].join("\n"))
     break
 
-  case npm.ENOTSUP:
-    er.code = "ENOTSUP"
-    log.error([er.message
-              ,"Not compatible with your version of node/npm: "+er.pkgid
-              ,"Required: "+JSON.stringify(er.required)
-              ,"Actual:   "
-              +JSON.stringify({npm:npm.version
-                              ,node:npm.config.get("node-version")})
-              ].join("\n"))
-    break
-
-  case npm.EBADPLATFORM:
+  case "EBADPLATFORM":
     er.code = "EBADPLATFORM"
-    log.error([er.message
+    log.error("notsup", [er.message
               ,"Not compatible with your operating system or architecture: "+er.pkgid
               ,"Valid OS:    "+er.os.join(",")
               ,"Valid Arch:  "+er.cpu.join(",")
@@ -203,15 +190,26 @@ function errorHandler (er) {
     break
 
   case "EEXIST":
-  case constants.EEXIST:
     log.error([er.message
               ,"File exists: "+er.path
               ,"Move it away, and try again."].join("\n"))
     break
 
+  case "ENOTSUP":
+    if (er.required) {
+      log.error("notsup", [er.message
+                ,"Not compatible with your version of node/npm: "+er.pkgid
+                ,"Required: "+JSON.stringify(er.required)
+                ,"Actual:   "
+                +JSON.stringify({npm:npm.version
+                                ,node:npm.config.get("node-version")})
+                ].join("\n"))
+      break
+    } // else passthrough
+
   default:
-    log.error(er)
-    log.error(["You may report this log at:"
+    log.error("", er)
+    log.error("", ["You may report this log at:"
               ,"    <http://github.com/isaacs/npm/issues>"
               ,"or email it to:"
               ,"    <npm-@googlegroups.com>"
@@ -220,13 +218,14 @@ function errorHandler (er) {
   }
 
   var os = require("os")
-  log.error("")
-  log.error(os.type() + " " + os.release(), "System")
-  log.error(process.argv
-            .map(JSON.stringify).join(" "), "command")
-  log.error(process.cwd(), "cwd")
-  log.error(process.version, "node -v")
-  log.error(npm.version, "npm -v")
+  // just a line break
+  console.error("")
+  log.error("System", os.type() + " " + os.release())
+  log.error("command", process.argv
+            .map(JSON.stringify).join(" "))
+  log.error("cwd", process.cwd())
+  log.error("node -v", process.version)
+  log.error("npm -v", npm.version)
 
   ; [ "file"
     , "path"
@@ -238,16 +237,15 @@ function errorHandler (er) {
     , "fstream_class"
     , "fstream_finish_call"
     , "fstream_linkpath"
-    , "arguments"
     , "code"
     , "message"
     , "errno"
     ].forEach(function (k) {
-      if (er[k]) log.error(er[k], k)
+      if (er[k]) log.error(k, er[k])
     })
 
   if (er.fstream_stack) {
-    log.error(er.fstream_stack.join("\n"), "fstream_stack")
+    log.error("fstream_stack", er.fstream_stack.join("\n"))
   }
 
   if (er.errno && typeof er.errno !== "object") log.error(er.errno, "errno")
@@ -263,19 +261,21 @@ function writeLogFile (cb) {
   var fs = require("graceful-fs")
     , fstr = fs.createWriteStream("npm-debug.log")
     , util = require("util")
+    , eol = process.platform === "win32" ? "\r\n" : "\n"
+    , out = ""
 
-  log.history.forEach(function (m) {
-    var lvl = log.LEVEL[m.level]
-      , pref = m.pref ? " " + m.pref : ""
-      , b = lvl + pref + " "
-      , eol = process.platform === "win32" ? "\r\n" : "\n"
-      , msg = typeof m.msg === "string" ? m.msg
-            : msg instanceof Error ? msg.stack || msg.message
-            : util.inspect(m.msg, 0, 4)
-    fstr.write(new Buffer(b
-                         +(msg.split(/\r?\n+/).join(eol+b))
-                         + eol))
+  log.record.forEach(function (m) {
+    var pref = [m.id, m.level]
+    if (m.prefix) pref.push(m.prefix)
+    pref = pref.join(' ')
+
+    m.message.trim().split(/\r?\n/).map(function (line) {
+      return (pref + ' ' + line).trim()
+    }).forEach(function (line) {
+      out += line + eol
+    })
   })
-  fstr.end()
+
+  fstr.end(out)
   fstr.on("close", cb)
 }
