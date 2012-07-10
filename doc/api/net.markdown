@@ -10,6 +10,8 @@ this module with `require('net');`
 
 Creates a new TCP server. The `connectionListener` argument is
 automatically set as a listener for the ['connection'][] event.
+If the server has no `connection` listener it will not accept
+connections until it gets one.
 
 `options` is an object with the following defaults:
 
