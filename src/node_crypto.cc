@@ -1547,7 +1547,8 @@ Handle<Value> Connection::VerifyError(const Arguments& args) {
     // We requested a certificate and they did not send us one.
     // Definitely an error.
     // XXX is this the right error message?
-    return scope.Close(String::New("UNABLE_TO_GET_ISSUER_CERT"));
+    return scope.Close(Exception::Error(
+          String::New("UNABLE_TO_GET_ISSUER_CERT")));
   }
   X509_free(peer_cert);
 
@@ -1673,7 +1674,7 @@ Handle<Value> Connection::VerifyError(const Arguments& args) {
       break;
   }
 
-  return scope.Close(s);
+  return scope.Close(Exception::Error(s));
 }
 
 
