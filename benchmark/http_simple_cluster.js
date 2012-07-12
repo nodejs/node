@@ -3,7 +3,7 @@ var os = require('os');
 
 if (cluster.isMaster) {
   console.log('master running on pid %d', process.pid);
-  for (var i = 1, n = os.cpus().length; i < n; ++i) cluster.fork();
+  for (var i = 0, n = os.cpus().length; i < n; ++i) cluster.fork();
 } else {
   require(__dirname + '/http_simple.js');
 }
