@@ -8,6 +8,10 @@
     'component%': 'static_library',  # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',  # we do enable multicore compiles, but not using the V8 way
 
+    # Turn on optimizations that may trigger compiler bugs.
+    # Use at your own risk. Do *NOT* report bugs if this option is enabled.
+    'node_unsafe_optimizations%': 0,
+
     # Enable V8's post-mortem debugging only on unix flavors.
     'conditions': [
       ['OS != "win"', {
@@ -41,13 +45,17 @@
         },
       },
       'Release': {
-        # Do *NOT* enable -ffunction-sections or -fdata-sections again.
-        # We don't link with -Wl,--gc-sections so they're effectively no-ops.
-        # Worse, they trigger very nasty bugs in some versions of gcc, notably
-        # v4.4.6 on x86_64-redhat-linux (i.e. RHEL and CentOS).
-        'cflags!': [ '-ffunction-sections', '-fdata-sections' ],
-        'cflags': [ '-O3' ],
         'conditions': [
+          ['node_unsafe_optimizations==1', {
+            'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
+            'ldflags': [ '-Wl,--gc-sections' ],
+          }, {
+            'cflags': [ '-O2', '-fno-strict-aliasing', '-fno-tree-vrp' ],
+            'cflags!': [ '-O3',
+                         '-fstrict-aliasing',
+                         '-ffunction-sections',
+                         '-fdata-sections' ],
+          }],
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
           }],

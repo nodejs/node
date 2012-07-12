@@ -297,7 +297,6 @@ def configure_node(o):
   # SunOS, and we haven't implemented it.)
   if sys.platform.startswith('sunos'):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
-    o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bug
   elif b(options.with_dtrace) == 'true':
     raise Exception('DTrace is currently only supported on SunOS systems.')
   else:
