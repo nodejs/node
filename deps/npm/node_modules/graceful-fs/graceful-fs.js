@@ -151,14 +151,6 @@ if (constants.hasOwnProperty('O_SYMLINK') &&
 }
 
 
-// lstat on windows, missing from early 0.5 versions
-// replacing with stat isn't quite perfect, but good enough to get by.
-if (process.platform === "win32" && !process.binding("fs").lstat) {
-  fs.lstat = fs.stat
-  fs.lstatSync = fs.statSync
-}
-
-
 // lutimes implementation, or no-op
 if (!fs.lutimes) {
   if (constants.hasOwnProperty("O_SYMLINK")) {
@@ -253,6 +245,22 @@ function chownErOk (er) {
   if (!er || (!process.getuid || process.getuid() !== 0)
       && (er.code === "EINVAL" || er.code === "EPERM")) return true
 }
+
+
+// if lchmod/lchown do not exist, then make them no-ops
+if (!fs.lchmod) {
+  fs.lchmod = function (path, mode, cb) {
+    process.nextTick(cb)
+  }
+  fs.lchmodSync = function () {}
+}
+if (!fs.lchown) {
+  fs.lchown = function (path, uid, gid, cb) {
+    process.nextTick(cb)
+  }
+  fs.lchownSync = function () {}
+}
+
 
 
 

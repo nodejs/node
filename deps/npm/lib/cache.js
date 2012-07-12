@@ -506,19 +506,6 @@ function addNameRange (name, range, data, cb) {
              , {name:name, range:range, hasData:!!data})
     engineFilter(data)
 
-    if (npm.config.get("registry")) return next_()
-
-    cachedFilter(data, range, function (er) {
-      if (er) return cb(er)
-      if (Object.keys(data.versions).length === 0) {
-        return cb(new Error( "Can't fetch, and not cached: "
-                           + data.name + "@" + range))
-      }
-      next_()
-    })
-  }
-
-  function next_ () {
     log.silly("addNameRange", "versions"
              , [data.name, Object.keys(data.versions || {})])
 
@@ -538,39 +525,6 @@ function addNameRange (name, range, data, cb) {
     // there's a cached copy that will be ok.
     addNamed(name, ms, data.versions[ms], cb)
   }
-}
-
-// filter the versions down based on what's already in cache.
-function cachedFilter (data, range, cb) {
-  log.silly("cachedFilter", data.name)
-  ls_(data.name, 1, function (er, files) {
-    if (er) {
-      log.error("cachedFilter", "Not in cache, can't fetch", data.name)
-      return cb(er)
-    }
-    files = files.map(function (f) {
-      return path.basename(f.replace(/(\\|\/)$/, ""))
-    }).filter(function (f) {
-      return semver.valid(f) && semver.satisfies(f, range)
-    })
-
-    if (files.length === 0) {
-      return cb(new Error("Not in cache, can't fetch: "+data.name+"@"+range))
-    }
-
-    log.silly("cached", [data.name, files])
-    Object.keys(data.versions).forEach(function (v) {
-      if (files.indexOf(v) === -1) delete data.versions[v]
-    })
-
-    if (Object.keys(data.versions).length === 0) {
-      log.error("cachedFilter", "Not in cache, can't fetch", data.name)
-      return cb(new Error("Not in cache, can't fetch: "+data.name+"@"+range))
-    }
-
-    log.silly("filtered", [data.name, Object.keys(data.versions)])
-    cb(null, data)
-  })
 }
 
 function installTargetsError (requested, data) {

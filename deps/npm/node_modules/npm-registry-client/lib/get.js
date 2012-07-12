@@ -15,6 +15,8 @@ function get (uri, timeout, nofollow, staleOk, cb) {
   timeout = Math.min(timeout, this.cacheMax)
   timeout = Math.max(timeout, this.cacheMin)
 
+  if (!this.registry) timeout = Infinity
+
   if ( process.env.COMP_CWORD !== undefined
     && process.env.COMP_LINE !== undefined
     && process.env.COMP_POINT !== undefined

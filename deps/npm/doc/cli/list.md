@@ -3,20 +3,26 @@ npm-ls(1) -- List installed packages
 
 ## SYNOPSIS
 
-    npm list
-    npm ls
-    npm la
-    npm ll
+    npm list [<pkg> ...]
+    npm ls [<pkg> ...]
+    npm la [<pkg> ...]
+    npm ll [<pkg> ...]
 
 ## DESCRIPTION
 
 This command will print to stdout all the versions of packages that are
 installed, as well as their dependencies, in a tree-structure.
 
-It does not take positional arguments, though you may set config flags
-like with any other command, such as `-g` to list global packages.
+Positional arguments are `name@version-range` identifiers, which will
+limit the results to only the paths to the packages named.  Note that
+nested packages will *also* show the paths to the specified packages.
+For example, running `npm ls promzard` in npm's source tree will show:
 
-It will print out extraneous, missing, and invalid packages.
+    npm@@VERSION@ /path/to/npm
+    └─┬ init-package-json@0.0.4
+      └── promzard@0.1.5
+
+It will show print out extraneous, missing, and invalid packages.
 
 When run as `ll` or `la`, it shows extended information by default.
 

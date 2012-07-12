@@ -275,10 +275,15 @@ function load (npm, conf, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
+      var token
+      try { token = JSON.parse(npm.config.get("_token")) }
+      catch (er) { token = null }
+
       npm.registry = new RegClient(
         { registry: npm.config.get("registry")
         , cache: npm.config.get("cache")
         , auth: npm.config.get("_auth")
+        , token: token
         , alwaysAuth: npm.config.get("always-auth")
         , email: npm.config.get("email")
         , proxy: npm.config.get("proxy")
@@ -293,7 +298,18 @@ function load (npm, conf, cb) {
         , retryFactor: npm.config.get("fetch-retry-factor")
         , retryMinTimeout: npm.config.get("fetch-retry-mintimeout")
         , retryMaxTimeout: npm.config.get("fetch-retry-maxtimeout")
+        , cacheMin: npm.config.get("cache-min")
+        , cacheMax: npm.config.get("cache-max")
         })
+
+      // save the token cookie in the config file
+      if (npm.registry.couchLogin) {
+        npm.registry.couchLogin.tokenSet = function (tok, cb) {
+          ini.set("_token", JSON.stringify(tok), "user")
+          // ignore save error.  best effort.
+          ini.save("user", function () {})
+        }
+      }
 
       var umask = parseInt(conf.umask, 8)
       npm.modes = { exec: 0777 & (~umask)
