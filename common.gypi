@@ -1,6 +1,5 @@
 {
   'variables': {
-    'node_no_strict_aliasing%': 0,   # turn off -fstrict-aliasing
     'visibility%': 'hidden',         # V8's visibility setting
     'target_arch%': 'ia32',          # set v8's target architecture
     'host_arch%': 'ia32',            # set v8's host architecture
@@ -42,7 +41,12 @@
         },
       },
       'Release': {
-        'cflags': [ '-O3', '-fdata-sections', '-ffunction-sections' ],
+        # Do *NOT* enable -ffunction-sections or -fdata-sections again.
+        # We don't link with -Wl,--gc-sections so they're effectively no-ops.
+        # Worse, they trigger very nasty bugs in some versions of gcc, notably
+        # v4.4.6 on x86_64-redhat-linux (i.e. RHEL and CentOS).
+        'cflags!': [ '-ffunction-sections', '-fdata-sections' ],
+        'cflags': [ '-O3' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
@@ -51,9 +55,6 @@
             'cflags': [ '-fno-omit-frame-pointer' ],
             # pull in V8's postmortem metadata
             'ldflags': [ '-Wl,-z,allextract' ]
-          }],
-          ['node_no_strict_aliasing==1', {
-            'cflags': [ '-fno-strict-aliasing' ],
           }],
         ],
         'msvs_settings': {

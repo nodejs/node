@@ -47,7 +47,7 @@ TEST_IMPL(hrtime) {
     /* Check that the difference between the two hrtime values is somewhat in */
     /* the range we expect it to be. */
     ASSERT(diff > (uint64_t) 25 * NANOSEC / MILLISEC);
-    ASSERT(diff < (uint64_t) 60 * NANOSEC / MILLISEC);
+    ASSERT(diff < (uint64_t) 80 * NANOSEC / MILLISEC);
     --i;
   }
   return 0;

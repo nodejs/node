@@ -264,7 +264,11 @@ def target_arch():
 
 
 def compiler_version():
-  proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
+  try:
+    proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
+  except WindowsError:
+    return (0, False)
+
   is_clang = 'clang' in proc.communicate()[0].split('\n')[0]
 
   proc = subprocess.Popen(CC.split() + ['-dumpversion'], stdout=subprocess.PIPE)
@@ -284,13 +288,6 @@ def configure_node(o):
 
   cc_version, is_clang = compiler_version()
 
-  # turn off strict aliasing if gcc < 4.6.0 unless it's llvm-gcc
-  # see http://gcc.gnu.org/bugzilla/show_bug.cgi?id=45883
-  # see http://code.google.com/p/v8/issues/detail?id=884
-  no_strict_aliasing = int(not(is_clang or cc_version >= (4,6,0)))
-  o['variables']['v8_no_strict_aliasing'] = no_strict_aliasing
-  o['variables']['node_no_strict_aliasing'] = no_strict_aliasing
-
   # clang has always supported -fvisibility=hidden, right?
   if not is_clang and cc_version < (4,0,0):
     o['variables']['visibility'] = ''
@@ -299,9 +296,8 @@ def configure_node(o):
   # systems, since it won't work.  (The MacOS build process is different than
   # SunOS, and we haven't implemented it.)
   if sys.platform.startswith('sunos'):
-    o['variables']['node_use_dtrace'] = b(not options.without_dtrace);
-    # Strict aliasing causes problems with the V8 snapshots on SunOS
-    o['variables']['strict_aliasing'] = b(False);
+    o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
+    o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bug
   elif b(options.with_dtrace) == 'true':
     raise Exception('DTrace is currently only supported on SunOS systems.')
   else:

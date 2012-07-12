@@ -150,6 +150,15 @@ function fn2(data) {
 var bound = d.intercept(fn2);
 bound(null, 'data');
 
+// intercepted should never pass first argument to callback
+// even if arguments length is more than 2.
+function fn3(data, data2) {
+  assert.equal(data, 'data', 'should not be null err argument');
+  assert.equal(data2, 'data2', 'should not be data argument');
+}
+
+bound = d.intercept(fn3);
+bound(null, 'data', 'data2');
 
 // throwing in a bound fn is also caught,
 // even if it's asynchronous, by hitting the

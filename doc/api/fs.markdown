@@ -176,7 +176,7 @@ the completion callback.
 
 Synchronous link(2).
 
-## fs.symlink(destination, path, [type], [callback])
+## fs.symlink(srcpath, dstpath, [type], [callback])
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback.
@@ -185,7 +185,7 @@ used on Windows (ignored on other platforms).
 Note that Windows junction points require the destination path to be absolute.  When using
 `'junction'`, the `destination` argument will automatically be normalized to absolute path.
 
-## fs.symlinkSync(destination, path, [type])
+## fs.symlinkSync(srcpath, dstpath, [type])
 
 Synchronous symlink(2).
 
@@ -461,12 +461,16 @@ These stat objects are instances of `fs.Stat`.
 If you want to be notified when the file was modified, not just accessed
 you need to compare `curr.mtime` and `prev.mtime`.
 
-
-## fs.unwatchFile(filename)
+## fs.unwatchFile(filename, [listener])
 
     Stability: 2 - Unstable.  Use fs.watch instead, if available.
 
-Stop watching for changes on `filename`.
+Stop watching for changes on `filename`. If `listener` is specified, only that
+particular listener is removed. Otherwise, *all* listeners are removed and you
+have effectively stopped watching `filename`.
+
+Calling `fs.unwatchFile()` with a filename that is not being watched is a
+no-op, not an error.
 
 ## fs.watch(filename, [options], [listener])
 

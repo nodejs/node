@@ -25,8 +25,8 @@ function hmacsign (httpMethod, base_uri, params, consumer_secret, token_secret, 
       // big WTF here with the escape + encoding but it's what twitter wants
       return escape(rfc3986(i)) + "%3D" + escape(rfc3986(params[i]))
     }).join("%26")
-  var key = consumer_secret + '&'
-  if (token_secret) key += token_secret
+  var key = encodeURIComponent(consumer_secret) + '&'
+  if (token_secret) key += encodeURIComponent(token_secret)
   return sha1(key, base)
 }
 

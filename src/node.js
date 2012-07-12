@@ -25,7 +25,7 @@
 // bootstrapping the node.js core. Special caution is given to the performance
 // of the startup process, so many dependencies are invoked lazily.
 (function(process) {
-  global = this;
+  this.global = this;
 
   function startup() {
     var EventEmitter = NativeModule.require('events').EventEmitter;

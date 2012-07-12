@@ -26,9 +26,10 @@ var fs = require('fs');
 
 var watchSeenOne = 0;
 var watchSeenTwo = 0;
+var watchSeenThree = 0;
 
 var startDir = process.cwd();
-var testDir = common.fixturesDir;
+var testDir = common.tmpDir;
 
 var filenameOne = 'watch.txt';
 var filepathOne = path.join(testDir, filenameOne);
@@ -37,12 +38,16 @@ var filenameTwo = 'hasOwnProperty';
 var filepathTwo = filenameTwo;
 var filepathTwoAbs = path.join(testDir, filenameTwo);
 
+var filenameThree = 'charm'; // because the third time is
+
 
 process.on('exit', function() {
   fs.unlinkSync(filepathOne);
   fs.unlinkSync(filepathTwoAbs);
+  fs.unlinkSync(filenameThree);
   assert.equal(1, watchSeenOne);
-  assert.equal(1, watchSeenTwo);
+  assert.equal(2, watchSeenTwo);
+  assert.equal(1, watchSeenThree);
 });
 
 
@@ -86,13 +91,38 @@ assert.throws(
 
 assert.doesNotThrow(
     function() {
-      fs.watchFile(filepathTwo, function(curr, prev) {
-        fs.unwatchFile(filepathTwo);
+      function a(curr, prev) {
+        fs.unwatchFile(filepathTwo, a);
         ++watchSeenTwo;
-      });
+      }
+      function b(curr, prev) {
+        fs.unwatchFile(filepathTwo, b);
+        ++watchSeenTwo;
+      }
+      fs.watchFile(filepathTwo, a);
+      fs.watchFile(filepathTwo, b);
     }
 );
 
 setTimeout(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
+}, 1000);
+
+assert.doesNotThrow(
+    function() {
+      function a(curr, prev) {
+        assert.ok(0); // should not run
+      }
+      function b(curr, prev) {
+        fs.unwatchFile(filenameThree, b);
+        ++watchSeenThree;
+      }
+      fs.watchFile(filenameThree, a);
+      fs.watchFile(filenameThree, b);
+      fs.unwatchFile(filenameThree, a);
+    }
+);
+
+setTimeout(function() {
+  fs.writeFileSync(filenameThree, 'pardner');
 }, 1000);

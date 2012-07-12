@@ -1690,6 +1690,11 @@ Handle<Value> Hrtime(const v8::Arguments& args) {
 
   if (args.Length() > 0) {
     // return a time diff tuple
+    if (!args[0]->IsArray()) {
+      Local<Value> exception = Exception::TypeError(
+          String::New("process.hrtime() only accepts an Array tuple."));
+      return ThrowException(exception);
+    }
     Local<Array> inArray = Local<Array>::Cast(args[0]);
     uint64_t seconds = inArray->Get(0)->Uint32Value();
     uint64_t nanos = inArray->Get(1)->Uint32Value();

@@ -34,7 +34,8 @@
 using namespace v8::internal;
 
 
-static inline void SimulateFullSpace(PagedSpace* space) {
+// Also used in test-heap.cc test cases.
+void SimulateFullSpace(PagedSpace* space) {
   int old_linear_size = static_cast<int>(space->limit() - space->top());
   space->Free(space->top(), old_linear_size);
   space->SetTop(space->limit(), space->limit());

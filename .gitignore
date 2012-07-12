@@ -42,3 +42,4 @@ ipch/
 email.md
 deps/v8-*
 ./node_modules
+.svn/

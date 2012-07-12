@@ -1,0 +1,104 @@
+Aaron Heckmann <aaron.heckmann@gmail.com> <aaron.heckmann+github@gmail.com>
+Abe Fettig <abefettig@gmail.com> <abe@fettig.net>
+Alex Kocharin <rlidwka@kocharin.ru>
+Alex Kocharin <rlidwka@kocharin.ru> <alex@kocharin.ru>
+Alexis Sellier <self@cloudhead.net>
+Alexis Sellier <self@cloudhead.net> <alexis@cloudhead.io>
+Arlo Breault <arlolra@gmail.com>
+Artem Zaytsev <a.arepo@gmail.com>
+Atsuo Fukaya <fukayatsu@gmail.com>
+Ben Noordhuis <info@bnoordhuis.nl> <bnoordhuis@bender.(none)>
+Bert Belder <bertbelder@gmail.com> <bert@piscisaureus2.(none)>
+Bert Belder <bertbelder@gmail.com> <piscisaureus@Berts-MacBook-Pro.local>
+Brandon Benvie <brandon@bbenvie.com> <brandon@brandonbenvie.com>
+Brian White <mscdex@mscdex.net>
+Brian White <mscdex@mscdex.net> <mscdex@gmail.com>
+Chew Choon Keat <choonkeat@gmail.com>
+Christopher Lenz <cmlenz@gmail.com> <chris@lamech.local>
+Daniel Berger <code+node@dpbis.net>
+Daniel Chcouri <333222@gmail.com>
+Daniel Gröber <darklord@darkboxed.org>
+Daniel Gröber <darklord@darkboxed.org> <dxld@darkboxed.org>
+Daniel Pihlström <sciolist.se@gmail.com>
+David Siegel <david@artcom.de> <david.siegel@artcom.de>
+Domenic Denicola <domenic@domenicdenicola.com>
+Eduard Burtescu <eddy_me08@yahoo.com>
+Einar Otto Stangvik <einaros@gmail.com>
+Elliott Cable <me@ell.io>
+EungJun Yi <semtlenori@gmail.com>
+Evan Larkin <evan.larkin.il.com> <evan.larkin.iit@gmail.com>
+Farid Neshat <FaridN_SOAD@yahoo.com>
+Felix Geisendörfer <felix@debuggable.com>
+Felix Geisendörfer <felix@debuggable.com>
+Friedemann Altrock <frodenius@gmail.com>
+Fuji Goro <gfuji@cpan.org>
+Gabriel de Perthuis <g2p.code@gmail.com>
+Herbert Vojčík <herby@mailbox.sk>
+Igor Zinkovsky <igorzi@microsoft.com>
+Isaac Z. Schlueter <i@izs.me>
+Isaac Z. Schlueter <i@izs.me> <i@foohack.com>
+Jérémy Lal <kapouer@melix.org>
+Jérémy Lal <kapouer@melix.org> <holisme@gmail.com>
+Jered Schmidt <tr@nslator.jp>
+Joe Shaw <joe@joeshaw.org> <joeshaw@litl.com>
+Johan Bergström <bugs@bergstroem.nu>
+Johan Dahlberg <jfd@distrop.com> <dahlberg.johan@gmail.com>
+Jonas Pfenniger <jonas@pfenniger.name> <jonas@stvs.ch>
+Jonathan Rentzsch <jwr.git@redshed.net>
+Joshua S. Weinstein <josher19@users.sf.net>
+Koichi Kobayashi <koichik@improvement.jp>
+Kris Kowal <kris.kowal@cixar.com>
+Kyle Robinson Young <kyle@dontkry.com>
+Mathias Pettersson <mape@mape.me>
+Michael Bernstein <michaelrbernstein@gmail.com>
+Michael Wilber <gcr@sneakygcr.net>
+Micheil Smith <micheil@brandedcode.com> <micheil@yettobebranded.net>
+Mikael Bourges-Sevenier <mikeseven@gmail.com> <msevenier@motorola.com>
+Nebu Pookins<nebu@nebupookins.net>
+Nicholas Kinsey <pyrotechnick@feistystudios.com>
+Onne Gorter <onne@onnlucky.com>
+Paul Querna <pquerna@apache.org> <paul@querna.org>
+Ray Morgan <rmorgan@zappos.com>
+Ray Solomon <raybsolomon@gmail.com>
+Rick Olson <technoweenie@gmail.com>
+Ryan Dahl <ry@tinyclouds.org>
+Ryan Emery <seebees@gmail.com>
+Sam Shull <brickysam26@gmail.com> <brickysam26@samuel-shulls-computer.local>
+Sam Shull <brickysam26@gmail.com> <sshull@squaremouth.com>
+Sambasiva Suda <sambasivarao@gmail.com>
+San-Tai Hsu <v@fatpipi.com>
+Sergey Kryzhanovsky <skryzhanovsky@gmail.com> <another@dhcp199-223-red.yandex.net>
+Shannen Saez <shannenlaptop@gmail.com>
+Shigeki Ohtsu <ohtsu@d.jp> <ohtsu@iij.ad.jp>
+Siddharth Mahendraker <siddharth_mahen@hotmail.com> <siddharth_mahen@me.com>
+Simon Willison <simon@simonwillison.net>
+Stanislav Opichal <opichals@gmail.com>
+Stefan Bühler <stbuehler@web.de>
+Tadashi SAWADA <cesare@mayverse.jp>
+Takahiro ANDO <takahiro.ando@gmail.com>
+Ted Young <ted@radicaldesigns.org>
+Thomas Lee <thomas.lee@shinetech.com> <tom@tom-debian.sensis.com.au>
+Tim Caswell <tim@creationix.com> <tim@0-26-8-e9-4c-e1.dyn.utdallas.edu>
+Tim Smart <timehandgod@gmail.com> <tim@fostle.com>
+Tim Smart <timehandgod@gmail.com> <timehandgod@gmail.com>
+TJ Holowaychuk <tj@vision-media.ca>
+TJ Holowaychuk <tj@vision-media.ca> <tjholowayhuk@gmail.com>
+Trevor Burnham <trevor@databraid.com> <trevorburnham@gmail.com>
+Tyler Larson <talltyler@gmail.com>
+Vincent Voyer <v@fasterize.com>
+Yoshihiro KIKUCHI <yknetg@gmail.com>
+Yuichiro MASUI <masui@masuidrive.jp>
+Zachary Scott <zachary@zacharyscott.net> <zachary.s.scott@gmail.com>
+Zoran Tomicic <ztomicic@gmail.com>
+
+# These people didn't contribute patches to node directly,
+# but we've landed their v8 patches in the node repository:
+Daniel Clifford <danno@chromium.org>
+Erik Corry <erik.corry@gmail.com>
+Jakob Kummerow <jkummerow@chromium.org>
+Kevin Millikin <kmillikin@chromium.org>
+Lasse R.H. Nielsen <lrn@chromium.org>
+Michael Starzinger <mstarzinger@chromium.org>
+Toon Verwaest <verwaest@chromium.org>
+Vyacheslav Egorov <vegorov@chromium.org>
+Yang Guo <yangguo@chromium.org>

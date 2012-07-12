@@ -500,12 +500,10 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
          space->identity() == OLD_DATA_SPACE ||
          space->identity() == CODE_SPACE);
 
+  static const int kMaxMaxEvacuationCandidates = 1000;
   int number_of_pages = space->CountTotalPages();
-
-  const int kMaxMaxEvacuationCandidates = 1000;
-  int max_evacuation_candidates = Min(
-    kMaxMaxEvacuationCandidates,
-    static_cast<int>(sqrt(static_cast<double>(number_of_pages / 2)) + 1));
+  int max_evacuation_candidates =
+      static_cast<int>(sqrt(static_cast<double>(number_of_pages / 2)) + 1);
 
   if (FLAG_stress_compaction || FLAG_always_compact) {
     max_evacuation_candidates = kMaxMaxEvacuationCandidates;
@@ -535,17 +533,27 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   intptr_t over_reserved = reserved - space->SizeOfObjects();
   static const intptr_t kFreenessThreshold = 50;
 
-  if (over_reserved >= 2 * space->AreaSize() &&
-      reduce_memory_footprint_) {
-    mode = REDUCE_MEMORY_FOOTPRINT;
+  if (over_reserved >= 2 * space->AreaSize()) {
+    // If reduction of memory footprint was requested, we are aggressive
+    // about choosing pages to free.  We expect that half-empty pages
+    // are easier to compact so slightly bump the limit.
+    if (reduce_memory_footprint_) {
+      mode = REDUCE_MEMORY_FOOTPRINT;
+      max_evacuation_candidates += 2;
+    }
 
-    // We expect that empty pages are easier to compact so slightly bump the
-    // limit.
-    max_evacuation_candidates += 2;
+    // If over-usage is very high (more than a third of the space), we
+    // try to free all mostly empty pages.  We expect that almost empty
+    // pages are even easier to compact so bump the limit even more.
+    if (over_reserved > reserved / 3) {
+      mode = REDUCE_MEMORY_FOOTPRINT;
+      max_evacuation_candidates *= 2;
+    }
 
-    if (FLAG_trace_fragmentation) {
-      PrintF("Estimated over reserved memory: %.1f MB (setting threshold %d)\n",
+    if (FLAG_trace_fragmentation && mode == REDUCE_MEMORY_FOOTPRINT) {
+      PrintF("Estimated over reserved memory: %.1f / %.1f MB (threshold %d)\n",
              static_cast<double>(over_reserved) / MB,
+             static_cast<double>(reserved) / MB,
              static_cast<int>(kFreenessThreshold));
     }
   }
@@ -553,6 +561,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   intptr_t estimated_release = 0;
 
   Candidate candidates[kMaxMaxEvacuationCandidates];
+
+  max_evacuation_candidates =
+      Min(kMaxMaxEvacuationCandidates, max_evacuation_candidates);
 
   int count = 0;
   int fragmentation = 0;
@@ -3817,11 +3828,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
   bool lazy_sweeping_active = false;
   bool unused_page_present = false;
 
-  intptr_t old_space_size = heap()->PromotedSpaceSizeOfObjects();
-  intptr_t space_left =
-      Min(heap()->OldGenPromotionLimit(old_space_size),
-          heap()->OldGenAllocationLimit(old_space_size)) - old_space_size;
-
   while (it.has_next()) {
     Page* p = it.next();
 
@@ -3881,7 +3887,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         }
         freed_bytes += SweepConservatively(space, p);
         pages_swept++;
-        if (space_left + freed_bytes > newspace_size) {
+        if (freed_bytes > 2 * newspace_size) {
           space->SetPagesToSweep(p->next_page());
           lazy_sweeping_active = true;
         } else {

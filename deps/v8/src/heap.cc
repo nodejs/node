@@ -5013,7 +5013,11 @@ void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
 
 
 bool Heap::IdleNotification(int hint) {
+  // Hints greater than this value indicate that
+  // the embedder is requesting a lot of GC work.
   const int kMaxHint = 1000;
+  // Minimal hint that allows to do full GC.
+  const int kMinHintForFullGC = 100;
   intptr_t size_factor = Min(Max(hint, 20), kMaxHint) / 4;
   // The size factor is in range [5..250]. The numbers here are chosen from
   // experiments. If you changes them, make sure to test with
@@ -5081,16 +5085,30 @@ bool Heap::IdleNotification(int hint) {
   mark_sweeps_since_idle_round_started_ += new_mark_sweeps;
   ms_count_at_last_idle_notification_ = ms_count_;
 
-  if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
+  int remaining_mark_sweeps = kMaxMarkSweepsInIdleRound -
+                              mark_sweeps_since_idle_round_started_;
+
+  if (remaining_mark_sweeps <= 0) {
     FinishIdleRound();
     return true;
   }
 
   if (incremental_marking()->IsStopped()) {
-    incremental_marking()->Start();
+    // If there are no more than two GCs left in this idle round and we are
+    // allowed to do a full GC, then make those GCs full in order to compact
+    // the code space.
+    // TODO(ulan): Once we enable code compaction for incremental marking,
+    // we can get rid of this special case and always start incremental marking.
+    if (remaining_mark_sweeps <= 2 && hint >= kMinHintForFullGC) {
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        "idle notification: finalize idle round");
+    } else {
+      incremental_marking()->Start();
+    }
   }
-
-  AdvanceIdleIncrementalMarking(step_size);
+  if (!incremental_marking()->IsStopped()) {
+    AdvanceIdleIncrementalMarking(step_size);
+  }
   return false;
 }
 
