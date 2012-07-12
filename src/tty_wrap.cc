@@ -104,6 +104,9 @@ Handle<Value> TTYWrap::GuessHandleType(const Arguments& args) {
     case UV_FILE:
       return scope.Close(String::New("FILE"));
 
+    case UV_UNKNOWN_HANDLE:
+      return scope.Close(String::New("UNKNOWN"));
+
     default:
       assert(0);
       return v8::Undefined();
