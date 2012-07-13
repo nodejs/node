@@ -207,6 +207,18 @@ Example:
 
 Don't call `server.address()` until the `'listening'` event has been emitted.
 
+### server.unref()
+
+Calling `unref` on a server will allow the program to exit if this is the only
+active server in the event system. If the server is already `unref`d calling
+`unref` again will have no effect.
+
+### server.ref()
+
+Opposite of `unref`, calling `ref` on a previously `unref`d server will *not*
+let the program exit if it's the only server left (the default behavior). If
+the server is `ref`d calling `ref` again will have no effect.
+
 ### server.maxConnections
 
 Set this property to reject connections when the server's connection count gets
@@ -384,6 +396,18 @@ Returns the bound address, the address family name and port of the
 socket as reported by the operating system. Returns an object with
 three properties, e.g.
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
+
+### socket.unref()
+
+Calling `unref` on a socket will allow the program to exit if this is the only
+active socket in the event system. If the socket is already `unref`d calling
+`unref` again will have no effect.
+
+### socket.ref()
+
+Opposite of `unref`, calling `ref` on a previously `unref`d socket will *not*
+let the program exit if it's the only socket left (the default behavior). If
+the socket is `ref`d calling `ref` again will have no effect.
 
 ### socket.remoteAddress
 
