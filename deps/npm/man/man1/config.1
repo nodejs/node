@@ -1199,6 +1199,24 @@ Type: path
 .P
 The shell to run for the \fBnpm explore\fR command\.
 .
+.SS "sign\-git\-tag"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+If set to true, then the \fBnpm version\fR command will tag the version
+using \fB\-s\fR to add a signature\.
+.
+.P
+Note that git requires you to have set up GPG keys in your git configs
+for this to work properly\.
+.
 .SS "strict\-ssl"
 .
 .IP "\(bu" 4

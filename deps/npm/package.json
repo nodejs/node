@@ -1,5 +1,5 @@
 {
-  "version": "1.1.36",
+  "version": "1.1.41",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -61,13 +61,14 @@
     "npmlog": "0",
     "ansi": "~0.1.2",
     "npm-registry-client": "0",
-    "read-package-json": "0",
+    "read-package-json": "~0.1.1",
     "read-installed": "0",
     "glob": "~3.1.9",
     "init-package-json": "0",
     "osenv": "0",
     "lockfile": ">=0.2",
-    "retry": "~0.6.0"
+    "retry": "~0.6.0",
+    "couch-login": "~0.1.6"
   },
   "bundleDependencies": [
     "semver",
@@ -103,14 +104,15 @@
     "init-package-json",
     "osenv",
     "lockfile",
-    "retry"
+    "retry",
+    "couch-login"
   ],
   "devDependencies": {
     "ronn": "https://github.com/isaacs/ronnjs/tarball/master",
     "tap": "~0.2.5"
   },
   "engines": {
-    "node": "0.6 || 0.7 || 0.8",
+    "node": ">0.6",
     "npm": "1"
   },
   "scripts": {

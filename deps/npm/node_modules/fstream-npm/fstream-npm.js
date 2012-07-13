@@ -90,6 +90,9 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
   // package.json files can never be ignored.
   if (entry === "package.json") return true
 
+  // readme files should never be ignored.
+  if (entry.match(/^readme(\.[^\.]*)$/i)) return true
+
   // special rules.  see below.
   if (entry === "node_modules" && this.packageRoot) return true
 

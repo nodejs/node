@@ -71,7 +71,6 @@ function makeRequest (remote, fstr, headers) {
 
   var opts = { url: remote
              , proxy: proxy
-             , follow: false
              , strictSSL: npm.config.get("strict-ssl")
              , ca: remote.host === regHost ? npm.config.get("ca") : undefined
              , headers: { "user-agent": npm.config.get("user-agent") }}

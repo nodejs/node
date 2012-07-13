@@ -610,6 +610,16 @@ Windows</li><li>Type: path</li></ul>
 
 <p>The shell to run for the <code>npm explore</code> command.</p>
 
+<h3 id="sign-git-tag">sign-git-tag</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>If set to true, then the <code>npm version</code> command will tag the version
+using <code>-s</code> to add a signature.</p>
+
+<p>Note that git requires you to have set up GPG keys in your git configs
+for this to work properly.</p>
+
 <h3 id="strict-ssl">strict-ssl</h3>
 
 <ul><li>Default: true</li><li>Type: Boolean</li></ul>
@@ -735,7 +745,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.36</p>
+<p id="footer">config &mdash; npm@1.1.41</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

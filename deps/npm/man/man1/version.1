@@ -9,7 +9,7 @@
 .SH "SYNOPSIS"
 .
 .nf
-npm version <newversion> [\-\-message commit\-message]
+npm version [<newversion> | major | minor | patch | build]
 .
 .fi
 .
@@ -19,16 +19,32 @@ data back to the package\.json file\.
 .
 .P
 The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a valid
-second argument to semver\.inc (one of "patch", "minor", or "major")\. In 
-the second case, the existing version will be incremented by that amount\.
+second argument to semver\.inc (one of "build", "patch", "minor", or
+"major")\. In the second case, the existing version will be incremented
+by 1 in the specified field\.
 .
 .P
 If run in a git repo, it will also create a version commit and tag, and
 fail if the repo is not clean\.
 .
 .P
-If supplied with \fB\-\-message\fR (shorthand: \fB\-m\fR) command line option, npm
-will use it as a commit message when creating a version commit\.
+If supplied with \fB\-\-message\fR (shorthand: \fB\-m\fR) config option, npm will
+use it as a commit message when creating a version commit\.  If the \fBmessage\fR config contains \fB%s\fR then that will be replaced with the
+resulting version number\.  For example:
+.
+.IP "" 4
+.
+.nf
+npm version patch \-m "Upgrade to %s for reasons"
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If the \fBsign\-git\-tag\fR config is set, then the tag will be signed using
+the \fB\-s\fR flag to git\.  Note that you must have a default GPG key set up
+in your git config for this to work properly\.
 .
 .SH "SEE ALSO"
 .

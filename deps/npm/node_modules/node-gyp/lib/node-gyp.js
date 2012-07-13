@@ -72,16 +72,17 @@ proto.package = require('../package')
  */
 
 proto.configDefs = {
-    help: Boolean    // everywhere
-  , arch: String     // 'configure'
-  , debug: Boolean   // 'build'
+    help: Boolean     // everywhere
+  , arch: String      // 'configure'
+  , debug: Boolean    // 'build'
   , directory: String // bin
+  , make: String      // 'build'
   , msvs_version: String // 'configure'
-  , ensure: Boolean  // 'install'
-  , solution: String // 'build' (windows only)
-  , proxy: String // 'install'
-  , nodedir: String // 'configure'
-  , loglevel: String // everywhere
+  , ensure: Boolean   // 'install'
+  , solution: String  // 'build' (windows only)
+  , proxy: String     // 'install'
+  , nodedir: String   // 'configure'
+  , loglevel: String  // everywhere
 }
 
 /**
