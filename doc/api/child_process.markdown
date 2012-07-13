@@ -306,7 +306,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
     });
 
     grep.stdout.on('data', function (data) {
-      console.log(data);
+      console.log('' + data);
     });
 
     grep.stderr.on('data', function (data) {
