@@ -388,7 +388,7 @@ function treeify (installed) {
     return l
   }, {})
 
-  //log.warn("install", whatWhere, "whatWhere")
+  // log.warn("install", whatWhere, "whatWhere")
   return Object.keys(whatWhere).reduce(function (l, r) {
     var ww = whatWhere[r]
     //log.warn("r, ww", [r, ww])
@@ -668,7 +668,11 @@ function localLink (target, where, context, cb) {
 function resultList (target, where, parentId) {
   var nm = path.resolve(where, "node_modules")
     , targetFolder = path.resolve(nm, target.name)
-    , prettyWhere = path.relative(process.cwd(), where)
+    , prettyWhere = where
+
+  if (!npm.config.get("global")) {
+    prettyWhere = path.relative(process.cwd(), where)
+  }
 
   if (prettyWhere === ".") prettyWhere = null
 

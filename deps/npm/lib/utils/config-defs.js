@@ -189,6 +189,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , searchexclude: null
     , searchsort: "name"
     , shell : osenv.shell()
+    , "sign-git-tag": false
     , "strict-ssl": true
     , tag : "latest"
     , tmp : temp
@@ -280,6 +281,7 @@ exports.types =
                 , "date", "-date"
                 , "keywords", "-keywords" ]
   , shell : String
+  , "sign-git-tag": Boolean
   , "strict-ssl": Boolean
   , tag : String
   , tmp : path

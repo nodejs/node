@@ -101,16 +101,10 @@ man: $(cli_docs) $(api_docs)
 test:
 	node cli.js test
 
-version: link
-	git add package.json &&\
-	git ci -m v$(shell npm -v)
-
 publish: link doc
-	@git tag -d v$(shell npm -v) || true
 	@git push origin :v$(shell npm -v) || true
 	@npm unpublish npm@$(shell npm -v) || true
 	git clean -fd
-	git tag -s -m v$(shell npm -v) v$(shell npm -v) &&\
 	git push origin --tags &&\
 	npm publish &&\
 	npm tag npm@$(shell npm -v) $(shell npm -v | awk -F. '{print $$1 "." $$2}') &&\
@@ -131,6 +125,6 @@ release:
 	@bash scripts/release.sh
 
 sandwich:
-	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || echo "make it yourself"
+	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || echo "make it yourself" && exit 13
 
 .PHONY: all latest install dev link doc clean uninstall test man doc-publish doc-clean docclean docpublish release zip-publish

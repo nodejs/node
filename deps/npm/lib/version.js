@@ -10,7 +10,7 @@ var exec = require("./utils/exec.js")
   , log = require("npmlog")
   , npm = require("./npm.js")
 
-version.usage = "npm version <newversion> [--message commit-message]"
+version.usage = "npm version [<newversion> | major | minor | patch | build]\n"
               + "\n(run in package dir)\n"
               + "'npm -v' or 'npm --version' to print npm version "
               + "("+npm.version+")\n"
@@ -52,19 +52,23 @@ function checkGit (data, cb) {
       , function (er, code, stdout, stderr) {
     var lines = stdout.trim().split("\n").filter(function (line) {
       return line.trim() && !line.match(/^\?\? /)
+    }).map(function (line) {
+      return line.trim()
     })
     if (lines.length) return cb(new Error(
       "Git working directory not clean.\n"+lines.join("\n")))
     write(data, function (er) {
       if (er) return cb(er)
       var message = npm.config.get("message").replace(/%s/g, data.version)
+        , sign = npm.config.get("sign-git-tag")
+        , flag = sign ? "-sm" : "-am"
       chain
         ( [ [ exec, npm.config.get("git")
             , ["add","package.json"], process.env, false ]
           , [ exec, npm.config.get("git")
             , ["commit", "-m", message ], process.env, false ]
           , [ exec, npm.config.get("git")
-            , ["tag", "v"+data.version], process.env, false ] ]
+            , ["tag", "v"+data.version, flag, message], process.env, false ] ]
         , cb )
     })
   })

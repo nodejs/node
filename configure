@@ -250,19 +250,6 @@ def host_arch_win():
   return matchup.get(arch, 'ia32')
 
 
-def host_arch():
-  """Host architecture. One of arm, ia32 or x64."""
-  if os.name == 'nt':
-    arch = host_arch_win()
-  else:
-    arch = host_arch_cc()
-  return arch
-
-
-def target_arch():
-  return host_arch()
-
-
 def compiler_version():
   try:
     proc = subprocess.Popen(CC.split() + ['--version'], stdout=subprocess.PIPE)
@@ -278,17 +265,24 @@ def compiler_version():
 
 
 def configure_node(o):
-  # TODO add gdb
   o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_waf'] = b(not options.without_waf)
-  o['variables']['host_arch'] = host_arch()
-  o['variables']['target_arch'] = options.dest_cpu or target_arch()
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
-  cc_version, is_clang = compiler_version()
+  host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
+  target_arch = options.dest_cpu or host_arch
+  o['variables']['host_arch'] = host_arch
+  o['variables']['target_arch'] = target_arch
+
+  # V8 on ARM requires that armv7 is set. We don't have a good way to detect
+  # the CPU model right now so we pick a default and hope that it works okay
+  # for the majority of users.
+  if target_arch == 'arm':
+    o['variables']['armv7'] = 0 # FIXME
 
   # clang has always supported -fvisibility=hidden, right?
+  cc_version, is_clang = compiler_version()
   if not is_clang and cc_version < (4,0,0):
     o['variables']['visibility'] = ''
 
@@ -297,7 +291,6 @@ def configure_node(o):
   # SunOS, and we haven't implemented it.)
   if sys.platform.startswith('sunos'):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
-    o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bug
   elif b(options.with_dtrace) == 'true':
     raise Exception('DTrace is currently only supported on SunOS systems.')
   else:

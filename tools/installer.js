@@ -48,21 +48,12 @@ function remove(files) {
   });
 }
 
-// Add/update shebang (#!) line
-function shebang(line, file) {
-  var content = fs.readFileSync(file, 'utf8');
-  var firstLine = content.split(/\n/, 1)[0];
-  var newContent;
-  if (firstLine.slice(0, 2) === '#!') {
-    newContent = line + content.slice(firstLine.length);
-  } else {
-    newContent = line + '\n' + content;
-  }
-  if (content !== newContent) {
-    fs.writeFileSync(file, newContent, 'utf8');
-  }
-  var mode = parseInt('0777', 8) & (~process.umask());
-  fs.chmodSync(file, mode);
+// Add/update shebang (#!) line so that npm uses
+// the newly installed node, rather than the first in PATH.
+function shebang(line, npmDir) {
+  var script = JSON.stringify(path.join(npmDir, 'scripts/relocate.sh'));
+  var bin = JSON.stringify(path.join(npmDir, 'bin/npm-cli.js'));
+  queue.push('bash ' + script + ' ' + line);
 }
 
 // Run every command in queue, one-by-one
@@ -138,18 +129,22 @@ if (cmd === 'install') {
     // link to the development folder, and so installing this is
     // a bit annoying.  If it's a symlink, skip it.
     var isSymlink = false;
+    var exists = true;
+    var npmDir = path.resolve(node_prefix, 'lib/node_modules/npm');
     try {
-      var st = fs.lstatSync(path.resolve(node_prefix, 'lib/node_modules/npm'));
+      var st = fs.lstatSync(npmDir);
       isSymlink = st.isSymbolicLink();
-    } catch (e) {}
+    } catch (e) {
+      exists = true;
+    }
 
     if (!isSymlink) {
+      if (exists) queue.push('rm -rf ' + npmDir);
       copy('deps/npm', 'lib/node_modules/npm');
       queue.push('ln -sf ../lib/node_modules/npm/bin/npm-cli.js ' +
                  path.join(dest_dir, node_prefix, 'bin/npm'));
-      queue.push([shebang, '#!' + path.join(node_prefix, 'bin/node'),
-                 path.join(dest_dir, node_prefix,
-                           'lib/node_modules/npm/bin/npm-cli.js')]);
+      shebang(path.join(node_prefix, 'bin/node'),
+              path.join(dest_dir, node_prefix, 'lib/node_modules/npm'));
     }
   }
 } else {
