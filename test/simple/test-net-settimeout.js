@@ -33,18 +33,24 @@ var server = net.createServer(function(c) {
 });
 server.listen(common.PORT);
 
-var socket = net.createConnection(common.PORT, 'localhost');
+var killers = [0, Infinity, NaN];
 
-socket.setTimeout(T, function() {
-  socket.destroy();
-  server.close();
-  assert.ok(false);
+var left = killers.length;
+killers.forEach(function(killer) {
+  var socket = net.createConnection(common.PORT, 'localhost');
+
+  socket.setTimeout(T, function() {
+    socket.destroy();
+    if (--left === 0) server.close();
+    assert.ok(killer !== 0);
+    clearTimeout(timeout);
+  });
+
+  socket.setTimeout(killer);
+
+  var timeout = setTimeout(function() {
+    socket.destroy();
+    if (--left === 0) server.close();
+    assert.ok(killer === 0);
+  }, T * 2);
 });
-
-socket.setTimeout(0);
-
-setTimeout(function() {
-  socket.destroy();
-  server.close();
-  assert.ok(true);
-}, T * 2);
