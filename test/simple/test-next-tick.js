@@ -44,7 +44,9 @@ process.nextTick(function() {
   complete++;
 });
 
-
 process.on('exit', function() {
   assert.equal(5, complete);
+  process.nextTick(function() {
+    throw new Error('this should not occur');
+  });
 });
