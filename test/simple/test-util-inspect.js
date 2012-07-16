@@ -107,3 +107,26 @@ assert.doesNotThrow(function() {
 // GH-2225
 var x = { inspect: util.inspect };
 assert.ok(util.inspect(x).indexOf('inspect') != -1);
+
+// util.inspect.styles and util.inspect.colors
+function test_color_style(style, input, implicit) {
+  var color_name = util.inspect.styles[style];
+  var color = ['', ''];
+  if(util.inspect.colors[color_name])
+    color = util.inspect.colors[color_name];
+
+  var without_color = util.inspect(input, false, 0, false);
+  var with_color = util.inspect(input, false, 0, true);
+  var expect = '\u001b[' + color[0] + 'm' + without_color +
+               '\u001b[' + color[1] + 'm';
+  assert.equal(with_color, expect, 'util.inspect color for style '+style);
+}
+
+test_color_style('special', function(){});
+test_color_style('number', 123.456);
+test_color_style('boolean', true);
+test_color_style('undefined', undefined);
+test_color_style('null', null);
+test_color_style('string', 'test string');
+test_color_style('date', new Date);
+test_color_style('regexp', /regexp/);

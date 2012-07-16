@@ -81,12 +81,35 @@ in `null` for `depth`.
 
 If `colors` is `true`, the output will be styled with ANSI color codes.
 Defaults to `false`.
+Colors are customizable, see below.
 
 Example of inspecting all properties of the `util` object:
 
     var util = require('util');
 
     console.log(util.inspect(util, true, null));
+
+### Customizing `util.inspect` colors
+
+Color output (if enabled) of `util.inspect` is customizable globally
+via `util.inspect.styles` and `util.inspect.colors` objects.
+
+`util.inspect.styles` is a map assigning each style a color
+from `util.inspect.colors`.
+Highlighted styles and their default values are:
+ * `number` (yellow)
+ * `boolean` (yellow)
+ * `string` (green)
+ * `date` (magenta)
+ * `regexp` (red)
+ * `null` (bold)
+ * `undefined` (grey)
+ * `special` - only function at this time (cyan)
+ * `name` (intentionally no styling)
+
+Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`, 
+`green`, `magenta`, `red` and `yellow`.
+There are also `bold`, `italic`, `underline` and `inverse` codes.
 
 
 ## util.isArray(object)
