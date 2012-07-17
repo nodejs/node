@@ -19,32 +19,51 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-// Make sure that the domain stack doesn't get out of hand.
-
 var common = require('../common');
 var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
 
-var a = domain.create();
-a.name = 'a';
+if (process.argv[2] !== 'child') {
+  var spawn = require('child_process').spawn;
+  var child = spawn(process.execPath, [__filename, 'child'], {
+    stdio: 'pipe'//'inherit'
+  });
+  var timer = setTimeout(function() {
+    throw new Error('child is hung');
+  }, 500);
+  child.on('exit', function(code) {
+    console.error('ok');
+    assert(!code);
+    clearTimeout(timer);
+  });
+} else {
 
-a.on('error', function() {
-  if (domain._stack.length > 5) {
-    console.error('leaking!', domain._stack);
-    process.exit(1);
+  var domain = require('domain');
+  var d = domain.create();
+  process.maxTickDepth = 10;
+
+  // in the error handler, we trigger several MakeCallback events
+  d.on('error', function(e) {
+    console.log('a')
+    console.log('b')
+    console.log('c')
+    console.log('d')
+    console.log('e')
+    f();
+  });
+
+  function f() {
+    process.nextTick(function() {
+      d.run(function() {
+        throw(new Error('x'));
+      });
+    });
   }
-});
 
-var foo = a.bind(function() {
-  throw new Error('error from foo');
-});
-
-for (var i = 0; i < 1000; i++) {
-  process.nextTick(foo);
+  f();
+  setTimeout(function () {
+    console.error('broke in!');
+    //process.stdout.close();
+    //process.stderr.close();
+    process.exit(0);
+  });
 }
-
-process.on('exit', function(c) {
-  if (!c) console.log('ok');
-});

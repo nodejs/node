@@ -260,8 +260,8 @@
     // limit is hit, which is not ideal, but not terrible.
     process.maxTickDepth = 1000;
 
-    function tickDone() {
-      tickDepth = 0;
+    function tickDone(tickDepth_) {
+      tickDepth = tickDepth_ || 0;
       nextTickQueue.splice(0, nextTickIndex);
       nextTickIndex = 0;
       inTick = false;
@@ -270,12 +270,35 @@
       }
     }
 
-    process._tickCallback = function() {
+    process._tickCallback = function(fromSpinner) {
+
+      // if you add a nextTick in a domain's error handler, then
+      // it's possible to cycle indefinitely.  Normally, the tickDone
+      // in the finally{} block below will prevent this, however if
+      // that error handler ALSO triggers multiple MakeCallbacks, then
+      // it'll try to keep clearing the queue, since the finally block
+      // fires *before* the error hits the top level and is handled.
+      if (tickDepth >= process.maxTickDepth) {
+        if (fromSpinner) {
+          // coming in from the event queue.  reset.
+          tickDepth = 0;
+        } else {
+          if (nextTickQueue.length) {
+            process._needTickCallback();
+          }
+          return;
+        }
+      }
+
+      if (!nextTickQueue.length) return tickDone();
+
       if (inTick) return;
       inTick = true;
 
       // always do this at least once.  otherwise if process.maxTickDepth
-      // is set to some negative value, we'd never process any of them.
+      // is set to some negative value, or if there were repeated errors
+      // preventing tickDepth from being cleared, we'd never process any
+      // of them.
       do {
         tickDepth++;
         var nextTickLength = nextTickQueue.length;
@@ -292,7 +315,9 @@
             callback();
             threw = false;
           } finally {
-            if (threw) tickDone();
+            // finally blocks fire before the error hits the top level,
+            // so we can't clear the tickDepth at this point.
+            if (threw) tickDone(tickDepth);
           }
           if (tock.domain) {
             tock.domain.exit();
@@ -316,7 +341,9 @@
       var tock = { callback: callback };
       if (process.domain) tock.domain = process.domain;
       nextTickQueue.push(tock);
-      process._needTickCallback();
+      if (nextTickQueue.length) {
+        process._needTickCallback();
+      }
     };
   };
 

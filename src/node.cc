@@ -247,7 +247,9 @@ static void Tick(void) {
 
   TryCatch try_catch;
 
-  cb->Call(process, 0, NULL);
+  // Let the tick callback know that this is coming from the spinner
+  Handle<Value> argv[] = { True() };
+  cb->Call(process, ARRAY_SIZE(argv), argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
