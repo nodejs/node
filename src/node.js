@@ -45,6 +45,7 @@
     startup.processAssert();
     startup.processConfig();
     startup.processNextTick();
+    startup.processMakeCallback();
     startup.processStdio();
     startup.processKillAndExit();
     startup.processSignalHandlers();
@@ -224,15 +225,43 @@
       if (value === 'false') return false;
       return value;
     });
-  }
+  };
+
+  startup.processMakeCallback = function() {
+    process._makeCallback = function(obj, fn, args) {
+      var domain = obj.domain;
+      if (domain) {
+        if (domain._disposed) return;
+        domain.enter();
+      }
+
+      var ret = fn.apply(obj, args);
+
+      if (domain) domain.exit();
+
+      return ret;
+    };
+  };
 
   startup.processNextTick = function() {
     var nextTickQueue = [];
     var nextTickIndex = 0;
+    var inTick = false;
+
+    function tickDone() {
+      nextTickQueue.splice(0, nextTickIndex);
+      nextTickIndex = 0;
+      inTick = false;
+      if (nextTickQueue.length) {
+        process._needTickCallback();
+      }
+    }
 
     process._tickCallback = function() {
+      if (inTick) return;
       var nextTickLength = nextTickQueue.length;
       if (nextTickLength === 0) return;
+      inTick = true;
 
       while (nextTickIndex < nextTickLength) {
         var tock = nextTickQueue[nextTickIndex++];
@@ -241,14 +270,19 @@
           if (tock.domain._disposed) continue;
           tock.domain.enter();
         }
-        callback();
+        var threw = true;
+        try {
+          callback();
+          threw = false;
+        } finally {
+          if (threw) tickDone();
+        }
         if (tock.domain) {
           tock.domain.exit();
         }
       }
 
-      nextTickQueue.splice(0, nextTickIndex);
-      nextTickIndex = 0;
+      tickDone();
     };
 
     process.nextTick = function(callback) {

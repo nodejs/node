@@ -113,9 +113,7 @@ static Persistent<String> listeners_symbol;
 static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
-static Persistent<String> enter_symbol;
-static Persistent<String> exit_symbol;
-static Persistent<String> disposed_symbol;
+static Persistent<Function> process_makeCallback;
 
 
 static bool print_eval = false;
@@ -1010,42 +1008,27 @@ MakeCallback(const Handle<Object> object,
 
   TryCatch try_catch;
 
-  if (enter_symbol.IsEmpty()) {
-    enter_symbol = NODE_PSYMBOL("enter");
-    exit_symbol = NODE_PSYMBOL("exit");
-    disposed_symbol = NODE_PSYMBOL("_disposed");
-  }
-
-  Local<Value> domain_v = object->Get(domain_symbol);
-  Local<Object> domain;
-  Local<Function> enter;
-  Local<Function> exit;
-  if (!domain_v->IsUndefined()) {
-    domain = domain_v->ToObject();
-    if (domain->Get(disposed_symbol)->BooleanValue()) {
-      // domain has been disposed of.
-      return Undefined();
+  if (process_makeCallback.IsEmpty()) {
+    Local<Value> cb_v = process->Get(String::New("_makeCallback"));
+    if (!cb_v->IsFunction()) {
+      fprintf(stderr, "process._makeCallback assigned to non-function\n");
+      abort();
     }
-    enter = Local<Function>::Cast(domain->Get(enter_symbol));
-    enter->Call(domain, 0, NULL);
+    Local<Function> cb = cb_v.As<Function>();
+    process_makeCallback = Persistent<Function>::New(cb);
   }
 
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined();
+  Local<Array> argArray = Array::New(argc);
+  for (int i = 0; i < argc; i++) {
+    argArray->Set(Integer::New(i), argv[i]);
   }
 
-  Local<Value> ret = callback->Call(object, argc, argv);
+  Local<Value> object_l = Local<Value>::New(object);
+  Local<Value> callback_l = Local<Value>::New(callback);
 
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined();
-  }
+  Local<Value> args[3] = { object_l, callback_l, argArray };
 
-  if (!domain_v->IsUndefined()) {
-    exit = Local<Function>::Cast(domain->Get(exit_symbol));
-    exit->Call(domain, 0, NULL);
-  }
+  Local<Value> ret = process_makeCallback->Call(process, ARRAY_SIZE(args), args);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -1858,9 +1841,6 @@ void FatalException(TryCatch &try_catch) {
     ReportException(event_try_catch, true);
     exit(1);
   }
-
-  // This makes sure uncaught exceptions don't interfere with process.nextTick
-  StartTickSpinner();
 }
 
 
