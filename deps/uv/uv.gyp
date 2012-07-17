@@ -287,6 +287,9 @@
         [ 'OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
           'sources': [ 'src/unix/kqueue.c' ],
         }],
+        [ 'OS!="win" and OS!="freebsd"', {
+          'sources': [ 'src/unix/proctitle.c' ],
+        }],
       ]
     },
 

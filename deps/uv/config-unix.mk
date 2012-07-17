@@ -128,6 +128,10 @@ else
 RUNNER_LINKFLAGS += -pthread
 endif
 
+ifneq (FreeBSD,$(uname_S))
+OBJS += src/unix/proctitle.o
+endif
+
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
