@@ -262,16 +262,35 @@ function load (npm, conf, cb) {
     //console.error("about to look up configs")
 
     ini.resolveConfigs(conf, function (er) {
+      var color = npm.config.get("color")
+
       log.level = npm.config.get("loglevel")
       log.heading = "npm"
       log.stream = npm.config.get("logstream")
-      switch (npm.config.get("color")) {
+      switch (color) {
         case "always": log.enableColor(); break
         case false: log.disableColor(); break
       }
       log.resume()
 
       if (er) return cb(er)
+
+      // see if we need to color normal output
+      switch (color) {
+        case "always":
+          npm.color = true
+          break
+        case false:
+          npm.color = false
+          break
+        default:
+          var tty = require("tty")
+          if (process.stdout.isTTY) npm.color = true
+          else if (!tty.isatty) npm.color = true
+          else if (tty.isatty(1)) npm.color = true
+          else npm.color = false
+          break
+      }
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.

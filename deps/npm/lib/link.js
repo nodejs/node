@@ -9,7 +9,6 @@ var npm = require("./npm.js")
   , chain = require("slide").chain
   , path = require("path")
   , rm = require("rimraf")
-  , output = require("./utils/output.js")
   , build = require("./build.js")
 
 module.exports = link
@@ -153,8 +152,8 @@ function resultPrinter (pkg, src, dest, rp, cb) {
     return parseableOutput(dest, rp || src, cb)
   }
   if (rp === src) rp = null
-  output.write(where+" -> " + src
-              +(rp ? " -> " + rp: ""), cb)
+  console.log(where + " -> " + src + (rp ? " -> " + rp: ""))
+  cb()
 }
 
 function parseableOutput (dest, rp, cb) {
@@ -165,5 +164,6 @@ function parseableOutput (dest, rp, cb) {
   // *just* print the target folder.
   // However, we don't actually ever read the version number, so
   // the second field is always blank.
-  output.write(dest + "::" + rp, cb)
+  console.log(dest + "::" + rp)
+  cb()
 }

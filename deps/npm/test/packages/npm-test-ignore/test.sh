@@ -8,11 +8,13 @@ x=`find . | grep -v ignore | sort`
 y=".
 ./include4
 ./package.json
+./README
 ./sub
 ./sub/include
 ./sub/include2
 ./sub/include4
 ./test.sh"
+y="`echo "$y" | sort`"
 if [ "$x" != "$y" ]; then
   echo "missing included files"
   echo "got:"

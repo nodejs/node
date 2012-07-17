@@ -9,7 +9,6 @@ module.exports = exports = ls
 
 var npm = require("./npm.js")
   , readInstalled = require("read-installed")
-  , output = require("./utils/output.js")
   , log = require("npmlog")
   , path = require("path")
   , archy = require("archy")
@@ -58,7 +57,8 @@ function ls (args, silent, cb) {
     } else if (data) {
       out = makeArchy(bfs, long, dir)
     }
-    output.write(out, function (er) { cb(er, data, lite) })
+    console.log(out)
+    cb(null, data, lite)
   })
 }
 
@@ -205,12 +205,17 @@ function makeArchy (data, long, dir) {
 }
 
 function makeArchy_ (data, long, dir, depth, parent, d) {
+  var color = npm.color
   if (typeof data === "string") {
     if (depth < npm.config.get("depth")) {
       // just missing
       var p = parent.link || parent.path
       log.warn("unmet dependency", "%s in %s", d+" "+data, p)
-      data = "\033[31;40mUNMET DEPENDENCY\033[0m " + d + " " + data
+      var unmet = "UNMET DEPENDENCY"
+      if (color) {
+        unmet = "\033[31;40m" + unmet + "\033[0m"
+      }
+      data = unmet + " " + d + " " + data
     } else {
       data = d+"@"+ data +" (max depth reached)"
     }
@@ -221,17 +226,23 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
   // the top level is a bit special.
   out.label = data._id || ""
   if (data._found === true && data._id) {
-    out.label = "\033[33;40m" + out.label.trim() + "\033[m "
+    var pre = color ? "\033[33;40m" : ""
+      , post = color ? "\033[m" : ""
+    out.label = pre + out.label.trim() + post + " "
   }
   if (data.link) out.label += " -> " + data.link
 
   if (data.invalid) {
     if (data.realName !== data.name) out.label += " ("+data.realName+")"
-    out.label += " \033[31;40minvalid\033[0m"
+    out.label += " " + (color ? "\033[31;40m" : "")
+              + "invalid"
+              + (color ? "\033[0m" : "")
   }
 
   if (data.extraneous && data.path !== dir) {
-    out.label += " \033[32;40mextraneous\033[0m"
+    out.label += " " + (color ? "\033[32;40m" : "")
+              + "extraneous"
+              + (color ? "\033[0m" : "")
   }
 
   if (long) {

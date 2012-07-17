@@ -44,7 +44,6 @@ var npm = require("./npm.js")
   , ini = require("ini")
   , log = require("npmlog")
   , util = require("util")
-  , output
   , semver = require("semver")
 
 function view (args, silent, cb) {
@@ -184,7 +183,6 @@ function printData (data, name, cb) {
     , msg = ""
     , showVersions = versions.length > 1
     , showFields
-  function cb_ (er) { return cb(er, data) }
 
   versions.forEach(function (v, i) {
     var fields = Object.keys(data[v])
@@ -200,8 +198,9 @@ function printData (data, name, cb) {
            + (showFields ? f : "") + d + "\n"
     })
   })
-  output = output || require("./utils/output.js")
-  output.write(msg, cb_)
+
+  console.log(msg)
+  cb(null, data)
 }
 function cleanup (data) {
   if (Array.isArray(data)) {

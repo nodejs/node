@@ -114,14 +114,22 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
                      , function (er, parsed, raw, response) {
       // Only retry on 408, 5xx or no `response`.
       var statusCode = response && response.statusCode
-      var statusRetry = !statusCode || (statusCode === 408 || statusCode >= 500)
+      var reauth = statusCode === 401
+      var timeout = statusCode === 408
+      var serverError = statusCode >= 500
+      var statusRetry = !statusCode || timeout || serverError
+      if (reauth && this.auth && this.token) {
+        this.token = null
+        this.couchLogin.token = null
+        return regRequest.call(this, method, where, what, etag, nofollow, cb_)
+      }
       if (er && statusRetry && operation.retry(er)) {
         self.log.info("retry", "will retry, error on last attempt: " + er)
         return
       }
       cb.apply(null, arguments)
-    })
-  })
+    }.bind(this))
+  }.bind(this))
 }
 
 function makeRequest (method, remote, where, what, etag, nofollow, tok, cb_) {

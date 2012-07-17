@@ -501,6 +501,9 @@ It cannot be set from the command line, but if you are using npm
 programmatically, you may wish to send logs to somewhere other than
 stderr.
 
+If the `color` config is set to true, then this stream will receive
+colored output if it is a TTY.
+
 ### long
 
 * Default: false

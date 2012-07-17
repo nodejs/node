@@ -6,7 +6,6 @@ var readInstalled = require("read-installed")
   , log = require("npmlog")
   , path = require("path")
   , npm = require("./npm.js")
-  , output = require("./utils/output.js")
   , asyncMap = require("slide").asyncMap
   , fs = require("graceful-fs")
   , exec = require("./utils/exec.js")
@@ -51,9 +50,10 @@ function cleanBuild (folders, set, cb) {
     if (er) return cb(er)
     npm.commands.build(folders, function (er) {
       if (er) return cb(er)
-      output.write(folders.map(function (f) {
+      console.log(folders.map(function (f) {
         return set[f] + " " + f
-      }).join("\n"), cb)
+      }).join("\n"))
+      cb()
     })
   })
 }

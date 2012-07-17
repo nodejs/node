@@ -2,7 +2,6 @@
 module.exports = helpSearch
 
 var fs = require("graceful-fs")
-  , output = require("./utils/output.js")
   , path = require("path")
   , asyncMap = require("slide").asyncMap
   , cliDocsPath = path.join(__dirname, "..", "doc", "cli")
@@ -118,8 +117,8 @@ function helpSearch (args, silent, cb) {
       }
 
       if (results.length === 0) {
-        return output.write("No results for "
-                           + args.map(JSON.stringify).join(" "), cb)
+        console.log("No results for " + args.map(JSON.stringify).join(" "))
+        return cb()
       }
 
       // sort results by number of results found, then by number of hits
@@ -164,8 +163,15 @@ function helpSearch (args, silent, cb) {
             })
             out = newOut.join("")
           }
-          out = out.split("\1").join("\033[31;40m")
-                   .split("\2").join("\033[0m")
+          if (npm.color) {
+            var color = "\033[31;40m"
+              , reset = "\033[0m"
+          } else {
+            var color = ""
+              , reset = ""
+          }
+          out = out.split("\1").join(color)
+                   .split("\2").join(reset)
           return out
         }).join("\n").trim()
         return out
@@ -179,7 +185,8 @@ function helpSearch (args, silent, cb) {
             + "(run with -l or --long to see more context)"
       }
 
-      output.write(out.trim(), function (er) { cb(er, results) })
+      console.log(out.trim())
+      cb(null, results)
     })
 
   })

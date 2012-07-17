@@ -20,7 +20,6 @@ var npm = require("./npm.js")
   , cmdShim = require("./utils/cmd-shim.js")
   , cmdShimIfExists = cmdShim.ifExists
   , asyncMap = require("slide").asyncMap
-  , output = require("./utils/output.js")
 
 module.exports = build
 build.usage = "npm build <folder>\n(this is plumbing)"
@@ -150,7 +149,8 @@ function linkBins (pkg, folder, parent, gtop, cb) {
           , out = npm.config.get("parseable")
                 ? dest + "::" + src + ":BINFILE"
                 : dest + " -> " + src
-        output.write(out, cb)
+        console.log(out)
+        cb()
       })
     })
   }, cb)

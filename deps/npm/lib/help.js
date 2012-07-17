@@ -12,7 +12,6 @@ var fs = require("graceful-fs")
   , path = require("path")
   , exec = require("./utils/exec.js")
   , npm = require("./npm.js")
-  , output = require("./utils/output.js")
   , log = require("npmlog")
 
 function help (args, cb) {
@@ -35,7 +34,8 @@ function help (args, cb) {
     ) {
       npm.config.set("loglevel", "silent")
       log.level = "silent"
-      return output.write(npm.commands[section].usage, cb)
+      console.log(npm.commands[section].usage)
+      return cb()
     }
 
     var sectionPath = path.join( __dirname, "..", "man", "man" + num
@@ -67,7 +67,8 @@ function help (args, cb) {
               if (!b) {
                 return cb(new Error("viewer=browser and no browser set."))
               }
-              output.write("Opening HTML in default browser...", cb)
+              console.log("Opening HTML in default browser...")
+              process.nextTick(cb)
               // windows is SO weird.
               if (process.platform === "win32") {
                 exec("cmd", ["/c", htmlPath], env, false, function () {})
@@ -85,7 +86,7 @@ function help (args, cb) {
     if (er) return cb(er)
     npm.config.set("loglevel", "silent")
     log.level = "silent"
-    output.write
+    console.log
       ( ["\nUsage: npm <command>"
         , ""
         , "where <command> is one of:"
@@ -104,7 +105,8 @@ function help (args, cb) {
         , "Config info can be viewed via: npm help config"
         , ""
         , "npm@" + npm.version + " " + path.dirname(__dirname)
-        ].join("\n"), function () { cb(er) })
+        ].join("\n"))
+    cb(er)
   })
 }
 

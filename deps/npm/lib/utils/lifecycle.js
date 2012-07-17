@@ -9,7 +9,6 @@ var log = require("npmlog")
   , fs = require("graceful-fs")
   , chain = require("slide").chain
   , constants = require("constants")
-  , output = require("./output.js")
   , Stream = require("stream").Stream
   , PATH = "PATH"
 
@@ -149,32 +148,29 @@ function runPackageLifecycle (pkg, env, wd, unsafe, cb) {
   var note = "\n> " + pkg._id + " " + stage + " " + wd
            + "\n> " + cmd + "\n"
 
-  output.write(note, function (er) {
-    if (er) return cb(er)
-
-    exec( sh, [shFlag, cmd], env, true, wd
-        , user, group
-        , function (er, code, stdout, stderr) {
-      if (er && !npm.ROLLBACK) {
-        log.info(pkg._id, "Failed to exec "+stage+" script")
-        er.message = pkg._id + " "
-                   + stage + ": `" + env.npm_lifecycle_script+"`\n"
-                   + er.message
-        if (er.code !== "EPERM") {
-          er.code = "ELIFECYCLE"
-        }
-        er.pkgid = pkg._id
-        er.stage = stage
-        er.script = env.npm_lifecycle_script
-        er.pkgname = pkg.name
-        return cb(er)
-      } else if (er) {
-        log.error(pkg._id+"."+stage, er)
-        log.error(pkg._id+"."+stage, "continuing anyway")
-        return cb()
+  console.log(note)
+  exec( sh, [shFlag, cmd], env, true, wd
+      , user, group
+      , function (er, code, stdout, stderr) {
+    if (er && !npm.ROLLBACK) {
+      log.info(pkg._id, "Failed to exec "+stage+" script")
+      er.message = pkg._id + " "
+                 + stage + ": `" + env.npm_lifecycle_script+"`\n"
+                 + er.message
+      if (er.code !== "EPERM") {
+        er.code = "ELIFECYCLE"
       }
-      cb(er)
-    })
+      er.pkgid = pkg._id
+      er.stage = stage
+      er.script = env.npm_lifecycle_script
+      er.pkgname = pkg.name
+      return cb(er)
+    } else if (er) {
+      log.error(pkg._id+"."+stage, er)
+      log.error(pkg._id+"."+stage, "continuing anyway")
+      return cb()
+    }
+    cb(er)
   })
 }
 
