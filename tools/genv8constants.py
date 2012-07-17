@@ -17,7 +17,7 @@ if len(sys.argv) != 3:
 
 outfile = file(sys.argv[1], 'w');
 pipe = subprocess.Popen([ 'objdump', '-z', '-D', sys.argv[2] ],
-    stdout=subprocess.PIPE).stdout;
+    bufsize=-1, stdout=subprocess.PIPE).stdout;
 pattern = re.compile('00000000 <(v8dbg_.*)>:');
 numpattern = re.compile('[0-9a-fA-F]{2}');
 
