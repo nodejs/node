@@ -75,13 +75,8 @@ extern "C" {
     (w)->cb = (cb_);                                                          \
   while (0)
 
-#define ev_set_priority(...)
-
 #define ev_is_active(w)                                                       \
   (uv_is_active((uv_handle_t*) &(w)->handle))
-
-#define ev_now(...)                                                           \
-  (uv_hrtime() / 1e9)
 
 #define __uv_container_of(ptr, type, field)                                   \
   ((type*) ((char*) (ptr) - offsetof(type, field)))
@@ -194,13 +189,15 @@ inline static void __ev_timer_set(__ev_timer* w,
 
 
 inline static void __ev_timer_start(__ev_timer* w) {
-  uint64_t ms = 1000;
   __uv_warn_of(ev_timer, uv_timer_t);
   if (!(w->flags & 1)) {
     uv_timer_init(uv_default_loop(), &w->handle);
     w->flags |= 1;
   }
-  uv_timer_start(&w->handle, __uv_timer_cb, w->delay * ms, w->repeat * ms);
+  uv_timer_start(&w->handle,
+                 __uv_timer_cb,
+                 (int64_t) (w->delay * 1000),
+                 (int64_t) (w->repeat * 1000));
 }
 
 
@@ -233,6 +230,15 @@ inline static void __ev_unref(void) {
 }
 
 
+inline static double __ev_now(/* variadic */) {
+  return uv_hrtime() / 1e9;
+}
+
+
+inline static void __ev_set_priority(/* variadic */) {
+}
+
+
 #define ev_io           __ev_io
 #define ev_io_init      __ev_io_init
 #define ev_io_set       __ev_io_set
@@ -248,6 +254,9 @@ inline static void __ev_unref(void) {
 
 #define ev_ref          __ev_ref
 #define ev_unref        __ev_unref
+
+#define ev_now          __ev_now
+#define ev_set_priority __ev_set_priority
 
 #undef __uv_container_of
 #undef __uv_warn_of
