@@ -148,7 +148,7 @@
       [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
         'cflags': [ '-Wall', '-pthread', ],
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
-        'ldflags': [ '-pthread', ],
+        'ldflags': [ '-pthread', '-rdynamic' ],
         'conditions': [
           [ 'target_arch=="ia32"', {
             'cflags': [ '-m32' ],
@@ -157,9 +157,6 @@
           [ 'target_arch=="x64"', {
             'cflags': [ '-m64' ],
             'ldflags': [ '-m64' ],
-          }],
-          [ 'OS=="linux"', {
-            'ldflags': [ '-rdynamic' ],
           }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
