@@ -81,7 +81,14 @@ char** uv_setup_args(int argc, char** argv) {
 
 
 uv_err_t uv_set_process_title(const char* title) {
-  uv_strlcpy(process_title.str, title, process_title.len);
+  /* proctitle doesn't need to be zero terminated, last char is always '\0'.
+   * Use strncpy(), it pads the remainder with nul bytes. Avoids garbage output
+   * on systems where `ps aux` prints the entire proctitle buffer, not just the
+   * characters up to the first '\0'.
+   */
+  if (process_title.len > 0)
+    strncpy(process_title.str, title, process_title.len - 1);
+
   return uv_ok_;
 }
 
