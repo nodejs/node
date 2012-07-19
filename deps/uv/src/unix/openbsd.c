@@ -40,6 +40,9 @@
 #define NANOSEC ((uint64_t) 1e9)
 
 
+static char *process_title;
+
+
 uint64_t uv_hrtime(void) {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -131,6 +134,33 @@ uint64_t uv_get_total_memory(void) {
   }
 
   return (uint64_t) info;
+}
+
+
+char** uv_setup_args(int argc, char** argv) {
+  process_title = argc ? strdup(argv[0]) : NULL;
+  return argv;
+}
+
+
+uv_err_t uv_set_process_title(const char* title) {
+  if (process_title) free(process_title);
+  process_title = strdup(title);
+  setproctitle(title);
+  return uv_ok_;
+}
+
+
+uv_err_t uv_get_process_title(char* buffer, size_t size) {
+  if (process_title) {
+    strncpy(buffer, process_title, size);
+  } else {
+    if (size > 0) {
+      buffer[0] = '\0';
+    }
+  }
+
+  return uv_ok_;
 }
 
 

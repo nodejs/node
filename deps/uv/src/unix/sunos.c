@@ -238,6 +238,24 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
 #endif /* HAVE_PORTS_FS */
 
 
+char** uv_setup_args(int argc, char** argv) {
+  return argv;
+}
+
+
+uv_err_t uv_set_process_title(const char* title) {
+  return uv_ok_;
+}
+
+
+uv_err_t uv_get_process_title(char* buffer, size_t size) {
+  if (size > 0) {
+    buffer[0] = '\0';
+  }
+  return uv_ok_;
+}
+
+
 uv_err_t uv_resident_set_memory(size_t* rss) {
   psinfo_t psinfo;
   uv_err_t err;
