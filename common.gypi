@@ -46,18 +46,25 @@
       },
       'Release': {
         'conditions': [
+          ['target_arch=="x64"', {
+            'msvs_configuration_platform': 'x64',
+          }],
           ['node_unsafe_optimizations==1', {
             'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
             'ldflags': [ '-Wl,--gc-sections' ],
           }, {
             'cflags': [ '-O2', '-fno-strict-aliasing', '-fno-tree-vrp' ],
-            'cflags!': [ '-O3',
-                         '-fstrict-aliasing',
-                         '-ffunction-sections',
-                         '-fdata-sections' ],
-          }],
-          ['target_arch=="x64"', {
-            'msvs_configuration_platform': 'x64',
+            'cflags!': [ '-O3', '-fstrict-aliasing' ],
+            'conditions': [
+              # Required by the dtrace post-processor. Unfortunately,
+              # some gcc/binutils combos generate bad code when
+              # -ffunction-sections is enabled. Let's hope for the best.
+              ['OS=="solaris"', {
+                'cflags': [ '-ffunction-sections', '-fdata-sections' ],
+              }, {
+                'cflags!': [ '-ffunction-sections', '-fdata-sections' ],
+              }],
+            ],
           }],
           ['OS=="solaris"', {
             'cflags': [ '-fno-omit-frame-pointer' ],
