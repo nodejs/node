@@ -13,10 +13,6 @@ mv *.tgz release
 cd release
 tar xzf *.tgz
 
-# remove some unnecessary stuff.
-rm -rf package/node_modules/*/{test,bench,example}*
-rm -rf package/test/{disabled,output,bin,root}*
-
 mkdir node_modules
 mv package node_modules/npm
 
