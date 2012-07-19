@@ -1,4 +1,27 @@
-2012.07.19, Version 0.8.3 (Stable)
+2012.07.20, Version 0.9.0 (Unstable)
+
+* punycode: update to v1.1.1 (Mathias Bynens)
+
+* c-ares: upgrade to 1.9.0 (Saúl Ibarra Corretgé)
+
+* dns: ignore rogue DNS servers reported by windows (Saúl Ibarra Corretgé)
+
+* unix: speed up uv_async_send() (Ben Noordhuis)
+
+* darwin: get cpu model correctly on mac (Xidorn Quan)
+
+* nextTick: Handle tick callbacks before any other I/O (isaacs)
+
+* Enable color customization of `util.inspect` (Pavel Lang)
+
+* tls: Speed and memory improvements (Fedor Indutny)
+
+* readline: Use one history item for reentered line (Vladimir Beloborodov)
+
+* Fix #3521 Make process.env more like a regular Object (isaacs)
+
+
+2012.07.19, Version 0.8.3 (Stable), 60bf2d6cb33e4ce55604f73889ab840a9de8bdab
 
 * V8: upgrade to 3.11.10.15
 
