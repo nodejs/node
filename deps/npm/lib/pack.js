@@ -7,7 +7,6 @@ module.exports = pack
 var npm = require("./npm.js")
   , install = require("./install.js")
   , cache = require("./cache.js")
-  , output = require("./utils/output.js")
   , fs = require("graceful-fs")
   , chain = require("slide").chain
   , path = require("path")
@@ -35,7 +34,8 @@ function printFiles (files, cb) {
   files = files.map(function (file) {
     return path.relative(cwd, file)
   })
-  output.write(files.join("\n"), cb)
+  console.log(files.join("\n"))
+  cb()
 }
 
 // add to cache, then cp to the cwd

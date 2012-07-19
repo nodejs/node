@@ -206,7 +206,6 @@
             'src/node_signal_watcher.cc',
             'src/node_io_watcher.cc',
           ],
-          'ldflags': [ '-Wl,--export-dynamic' ],
         }],
         [ 'OS=="mac"', {
           'libraries': [ '-framework Carbon' ],

@@ -64,7 +64,6 @@ var npm = require("./npm.js")
   , cache = require("./cache.js")
   , asyncMap = require("slide").asyncMap
   , chain = require("slide").chain
-  , output
   , url = require("url")
   , mkdir = require("mkdirp")
   , lifecycle = require("./utils/lifecycle.js")
@@ -75,18 +74,12 @@ function install (args, cb_) {
   function cb (er, installed) {
     if (er) return cb_(er)
 
-    output = output || require("./utils/output.js")
-
     var tree = treeify(installed)
       , pretty = prettify(tree, installed).trim()
 
-    if (pretty) output.write(pretty, afterWrite)
-    else afterWrite()
-
-    function afterWrite (er) {
-      if (er) return cb_(er)
-      save(where, installed, tree, pretty, cb_)
-    }
+    if (pretty) console.log(pretty)
+    if (er) return cb_(er)
+    save(where, installed, tree, pretty, cb_)
   }
 
   // the /path/to/node_modules/..

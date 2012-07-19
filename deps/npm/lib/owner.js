@@ -67,7 +67,6 @@ owner.completion = function (opts, cb) {
 var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
-  , output
   , readJson = require("read-package-json")
 
 function owner (args, cb) {
@@ -91,8 +90,8 @@ function ls (pkg, cb) {
     var owners = data.maintainers
     if (!owners || !owners.length) msg = "admin party!"
     else msg = owners.map(function (o) { return o.name +" <"+o.email+">" }).join("\n")
-    output = output || require("./utils/output.js")
-    output.write(msg, function (er) { cb(er, owners) })
+    console.log(msg)
+    cb(er, owners)
   })
 }
 

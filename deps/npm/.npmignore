@@ -6,9 +6,9 @@ npm-debug.log
 /test/packages/npm-test-depends-on-spark/which-spark.log
 /test/packages/test-package/random-data.txt
 /test/root
-/node_modules/ronn
-/node_modules/tap
-/node_modules/.bin
+node_modules/ronn
+node_modules/tap
+node_modules/.bin
 /npmrc
 /release/
 
@@ -18,3 +18,5 @@ html/*.png
 # don't ignore .npmignore files
 # these are used in some tests.
 !.npmignore
+
+/npm-*.tgz

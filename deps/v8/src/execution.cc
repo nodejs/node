@@ -132,6 +132,12 @@ static Handle<Object> Invoke(bool is_construct,
         V8::FatalProcessOutOfMemory("JS", true);
       }
     }
+#ifdef ENABLE_DEBUGGER_SUPPORT
+    // Reset stepping state when script exits with uncaught exception.
+    if (isolate->debugger()->IsDebuggerActive()) {
+      isolate->debug()->ClearStepping();
+    }
+#endif  // ENABLE_DEBUGGER_SUPPORT
     return Handle<Object>();
   } else {
     isolate->clear_pending_message();

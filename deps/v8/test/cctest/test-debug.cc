@@ -7350,4 +7350,47 @@ TEST(DebugBreakInline) {
 }
 
 
+static void DebugEventStepNext(v8::DebugEvent event,
+                               v8::Handle<v8::Object> exec_state,
+                               v8::Handle<v8::Object> event_data,
+                               v8::Handle<v8::Value> data) {
+  if (event == v8::Break) {
+    PrepareStep(StepNext);
+  }
+}
+
+
+static void RunScriptInANewCFrame(const char* source) {
+  v8::TryCatch try_catch;
+  CompileRun(source);
+  CHECK(try_catch.HasCaught());
+}
+
+
+TEST(Regress131642) {
+  // Bug description:
+  // When doing StepNext through the first script, the debugger is not reset
+  // after exiting through exception.  A flawed implementation enabling the
+  // debugger to step into Array.prototype.forEach breaks inside the callback
+  // for forEach in the second script under the assumption that we are in a
+  // recursive call.  In an attempt to step out, we crawl the stack using the
+  // recorded frame pointer from the first script and fail when not finding it
+  // on the stack.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  v8::Debug::SetDebugEventListener(DebugEventStepNext);
+
+  // We step through the first script.  It exits through an exception.  We run
+  // this inside a new frame to record a different FP than the second script
+  // would expect.
+  const char* script_1 = "debugger; throw new Error();";
+  RunScriptInANewCFrame(script_1);
+
+  // The second script uses forEach.
+  const char* script_2 = "[0].forEach(function() { });";
+  CompileRun(script_2);
+
+  v8::Debug::SetDebugEventListener(NULL);
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT

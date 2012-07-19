@@ -265,6 +265,8 @@ def compiler_version():
 
 
 def configure_node(o):
+  # TODO add gdb
+  o['variables']['v8_no_strict_aliasing'] = 1 # work around compiler bugs
   o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_waf'] = b(not options.without_waf)

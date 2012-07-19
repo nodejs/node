@@ -67,7 +67,6 @@ var mkdir = require("mkdirp")
   , registry = npm.registry
   , log = require("npmlog")
   , path = require("path")
-  , output
   , sha = require("./utils/sha.js")
   , asyncMap = require("slide").asyncMap
   , semver = require("semver")
@@ -145,7 +144,6 @@ function read (name, ver, forceBypass, cb) {
 
 // npm cache ls [<path>]
 function ls (args, cb) {
-  output = output || require("./utils/output.js")
   args = args.join("/").split("@").join("/")
   if (args.substr(-1) === "/") args = args.substr(0, args.length - 1)
   var prefix = npm.config.get("cache")
@@ -153,11 +151,10 @@ function ls (args, cb) {
     prefix = "~" + prefix.substr(process.env.HOME.length)
   }
   ls_(args, npm.config.get("depth"), function(er, files) {
-    output.write(files.map(function (f) {
+    console.log(files.map(function (f) {
       return path.join(prefix, f)
-    }).join("\n").trim(), function (er) {
-      return cb(er, files)
-    })
+    }).join("\n").trim())
+    cb(er, files)
   })
 }
 
@@ -386,7 +383,7 @@ function addRemoteGit (u, parsed, name, cb_) {
     var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random())
     mkdir(path.dirname(tmp), function (er) {
       if (er) return cb(er)
-      exec( npm.config.get("git"), ["clone", u, tmp], null, false
+      exec( npm.config.get("git"), ["clone", u, tmp], gitEnv(), false
           , function (er, code, stdout, stderr) {
         stdout = (stdout + "\n" + stderr).trim()
         if (er) {
@@ -394,7 +391,7 @@ function addRemoteGit (u, parsed, name, cb_) {
           return cb(er)
         }
         log.verbose("git clone "+u, stdout)
-        exec( npm.config.get("git"), ["checkout", co], null, false, tmp
+        exec( npm.config.get("git"), ["checkout", co], gitEnv(), false, tmp
             , function (er, code, stdout, stderr) {
           stdout = (stdout + "\n" + stderr).trim()
           if (er) {
@@ -407,6 +404,20 @@ function addRemoteGit (u, parsed, name, cb_) {
       })
     })
   })
+}
+
+
+var gitEnv_
+function gitEnv () {
+  // git responds to env vars in some weird ways in post-receive hooks
+  // so don't carry those along.
+  if (gitEnv_) return gitEnv_
+  gitEnv_ = {}
+  for (var k in process.env) {
+    if (k.match(/^GIT/)) continue
+    gitEnv_[k] = process.env[k]
+  }
+  return gitEnv_
 }
 
 

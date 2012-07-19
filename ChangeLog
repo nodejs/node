@@ -1,4 +1,37 @@
-2012.07.09, Version 0.8.2 (Stable)
+2012.07.19, Version 0.8.3 (Stable)
+
+* V8: upgrade to 3.11.10.15
+
+* npm: Upgrade to 1.1.43
+
+* net: fix net.Server.listen({fd:x}) error reporting (Ben Noordhuis)
+
+* net: fix bogus errno reporting (Ben Noordhuis)
+
+* build: Move npm shebang logic into an npm script (isaacs)
+
+* build: fix add-on loading on freebsd (Ben Noordhuis)
+
+* build: disable unsafe optimizations (Ben Noordhuis)
+
+* build: fix spurious mksnapshot crashes for good (Ben Noordhuis)
+
+* build: speed up genv8constants (Dave Pacheco)
+
+* fs: make unwatchFile() remove a specific listener (Ben Noordhuis)
+
+* domain: Remove first arg from intercepted fn (Toshihiro Nakamura)
+
+* domain: Fix memory leak on error (isaacs)
+
+* events: Fix memory leak from removeAllListeners (Nathan Rajlich)
+
+* zlib: Fix memory leak in Unzip class. (isaacs)
+
+* crypto: Fix memory leak in DecipherUpdate() (Ben Noordhuis)
+
+
+2012.07.09, Version 0.8.2 (Stable), cc6084b9ac5cf1d4fe5e7165b71e8fc05d11be1f
 
 * npm: Upgrade to 1.1.36
 

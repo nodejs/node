@@ -5,7 +5,6 @@ var npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
   , asyncMap = require("slide").asyncMap
-  , output = require("./utils/output.js")
 
 star.usage = "npm star <package> [pkg, pkg, ...]\n"
            + "npm unstar <package> [pkg, pkg, ...]"
@@ -25,7 +24,7 @@ function star (args, cb) {
   asyncMap(args, function (pkg, cb) {
     registry.star(pkg, using, function (er, data, raw, req) {
       if (!er) {
-        output.write(s + " "+pkg, npm.config.get("outfd"))
+        console.log(s + " "+pkg)
         log.verbose("star", data)
       }
       cb(er, data, raw, req)

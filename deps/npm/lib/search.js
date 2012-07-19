@@ -4,7 +4,6 @@ module.exports = exports = search
 var npm = require("./npm.js")
   , registry = npm.registry
   , semver = require("semver")
-  , output
 
 search.usage = "npm search [some search terms ...]"
 
@@ -30,9 +29,9 @@ search.completion = function (opts, cb) {
   })
 }
 
-function search (args, silent, staleness, cb_) {
-  if (typeof cb_ !== "function") cb_ = staleness, staleness = 600
-  if (typeof cb_ !== "function") cb_ = silent, silent = false
+function search (args, silent, staleness, cb) {
+  if (typeof cb !== "function") cb = staleness, staleness = 600
+  if (typeof cb !== "function") cb = silent, silent = false
 
   var searchopts = npm.config.get("searchopts")
     , searchexclude = npm.config.get("searchexclude")
@@ -51,10 +50,9 @@ function search (args, silent, staleness, cb_) {
     // now data is the list of data that we want to show.
     // prettify and print it, and then provide the raw
     // data to the cb.
-    if (er || silent) return cb_(er, data)
-    function cb (er) { return cb_(er, data) }
-    output = output || require("./utils/output.js")
-    output.write(prettify(data, args), cb)
+    if (er || silent) return cb(er, data)
+    console.log(prettify(data, args))
+    cb(null, data)
   })
 }
 
@@ -255,7 +253,9 @@ function addColorMarker (str, arg, i) {
 function colorize (line) {
   for (var i = 0; i < cl; i ++) {
     var m = i + 1
-    line = line.split(String.fromCharCode(m)).join("\033["+colors[i]+"m")
+    var color = npm.color ? "\033["+colors[i]+"m" : ""
+    line = line.split(String.fromCharCode(m)).join(color)
   }
-  return line.split("\u0000").join("\033[0m")
+  var uncolor = npm.color ? "\033[0m" : ""
+  return line.split("\u0000").join(uncolor)
 }

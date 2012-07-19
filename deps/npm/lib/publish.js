@@ -10,7 +10,6 @@ var npm = require("./npm.js")
   , fs = require("graceful-fs")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
-  , output = require("./utils/output.js")
 
 publish.usage = "npm publish <tarball>"
               + "\nnpm publish <folder>"
@@ -98,7 +97,8 @@ function regPublish (data, isRetry, arg, cachedir, cb) {
         })
       }
       if (er) return cb(er)
-      output.write("+ " + data._id, cb)
+      console.log("+ " + data._id)
+      cb()
     })
   })
 }

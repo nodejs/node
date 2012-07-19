@@ -30,12 +30,10 @@ function outdated (args, silent, cb) {
   if (typeof cb !== "function") cb = silent, silent = false
   var dir = path.resolve(npm.dir, "..")
   outdated_(args, dir, {}, function (er, list) {
-    function cb_ (er) { cb(er, list) }
-
-    if (er || silent) return cb_(er)
+    if (er || silent) return cb(er, list)
     var outList = list.map(makePretty)
-    require("./utils/output.js").write(outList.join("\n"))
-    cb_()
+    console.log(outList.join("\n"))
+    cb(null, list)
   })
 }
 

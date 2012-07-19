@@ -15,7 +15,6 @@ var ini = require("./utils/ini.js")
   , exec = require("./utils/exec.js")
   , fs = require("graceful-fs")
   , dc
-  , output = require("./utils/output.js")
   , types = require("./utils/config-defs.js").types
 
 config.completion = function (opts, cb) {
@@ -140,7 +139,8 @@ function get (key, cb) {
   if (key.charAt(0) === "_") {
     return cb(new Error("---sekretz---"))
   }
-  output.write(npm.config.get(key), cb)
+  console.log(npm.config.get(key))
+  cb()
 }
 
 function sort (a, b) {
@@ -273,7 +273,8 @@ function list (cb) {
          + "; HOME = " + process.env.HOME + eol
          + "; 'npm config ls -l' to show all defaults." + eol
 
-    return output.write(msg, cb)
+    console.log(msg)
+    cb()
   }
 
   var defaults = ini.defaultConfig
@@ -290,7 +291,8 @@ function list (cb) {
   })
   msg += eol
 
-  return output.write(msg, cb)
+  console.log(msg)
+  cb()
 }
 
 function unknown (action, cb) {
