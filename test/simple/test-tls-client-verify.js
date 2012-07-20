@@ -25,6 +25,7 @@ if (!process.versions.openssl) {
 }
 
 
+var hosterr = 'Hostname/IP doesn\'t match certificate\'s altnames';
 var testCases =
     [{ ca: ['ca1-cert'],
        key: 'agent2-key',
@@ -101,10 +102,12 @@ function testServers(index, servers, clientOptions, cb) {
 
     console.error('connecting...');
     var client = tls.connect(clientOptions, function() {
+      var authorized = client.authorized ||
+                       client.authorizationError === hosterr;
 
-      console.error('expected: ' + ok + ' authed: ' + client.authorized);
+      console.error('expected: ' + ok + ' authed: ' + authorized);
 
-      assert.equal(ok, client.authorized);
+      assert.equal(ok, authorized);
       server.close();
     });
 
