@@ -94,7 +94,9 @@ server.listen(serverPort, startTest);
 function startTest() {
   function connectClient(options, callback) {
     var client = tls.connect(options, function() {
-      clientResults.push(client.authorized);
+      clientResults.push(
+        client.authorizationError &&
+        /Hostname\/IP doesn't/.test(client.authorizationError));
       client.destroy();
 
       callback();
