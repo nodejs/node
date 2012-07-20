@@ -64,9 +64,6 @@ Remove a listener from the listener array for the specified event.
 
 Removes all listeners, or those of the specified event.
 
-Note that this will **invalidate** any arrays that have previously been
-returned by `emitter.listeners(event)`.
-
 
 ### emitter.setMaxListeners(n)
 
@@ -85,19 +82,6 @@ Returns an array of listeners for the specified event.
     });
     console.log(util.inspect(server.listeners('connection'))); // [ [Function] ]
 
-This array **may** be a mutable reference to the same underlying list of
-listeners that is used by the event subsystem.  However, certain
-actions (specifically, removeAllListeners) will invalidate this
-reference.
-
-If you would like to get a copy of the listeners at a specific point in
-time that is guaranteed not to change, make a copy, for example by doing
-`emitter.listeners(event).slice(0)`.
-
-In a future release of node, this behavior **may** change to always
-return a copy, for consistency.  In your programs, please do not rely on
-being able to modify the EventEmitter listeners using array methods.
-Always use the 'on' method to add new listeners.
 
 ### emitter.emit(event, [arg1], [arg2], [...])
 
