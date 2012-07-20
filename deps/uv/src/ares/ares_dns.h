@@ -1,5 +1,7 @@
+#ifndef HEADER_CARES_DNS_H
+#define HEADER_CARES_DNS_H
 
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* Copyright 1998, 2011 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -14,12 +16,23 @@
  * without express or implied warranty.
  */
 
-#ifndef ARES__DNS_H
-#define ARES__DNS_H
+/*
+ * Macro DNS__16BIT reads a network short (16 bit) given in network
+ * byte order, and returns its value as an unsigned short.
+ */
+#define DNS__16BIT(p)  ((unsigned short)((unsigned int) 0xffff & \
+                         (((unsigned int)((unsigned char)(p)[0]) << 8U) | \
+                          ((unsigned int)((unsigned char)(p)[1])))))
 
-#define DNS__16BIT(p)                   (((p)[0] << 8) | (p)[1])
-#define DNS__32BIT(p)                   (((p)[0] << 24) | ((p)[1] << 16) | \
-                                         ((p)[2] << 8) | (p)[3])
+/*
+ * Macro DNS__32BIT reads a network long (32 bit) given in network
+ * byte order, and returns its value as an unsigned int.
+ */
+#define DNS__32BIT(p)  ((unsigned int) \
+                         (((unsigned int)((unsigned char)(p)[0]) << 24U) | \
+                          ((unsigned int)((unsigned char)(p)[1]) << 16U) | \
+                          ((unsigned int)((unsigned char)(p)[2]) <<  8U) | \
+                          ((unsigned int)((unsigned char)(p)[3]))))
 
 #define DNS__SET16BIT(p, v)  (((p)[0] = (unsigned char)(((v) >> 8) & 0xff)), \
                               ((p)[1] = (unsigned char)((v) & 0xff)))
@@ -87,4 +100,4 @@
 #define DNS_RR_SET_TTL(r)               DNS__SET32BIT((r) + 4, v)
 #define DNS_RR_SET_LEN(r)               DNS__SET16BIT((r) + 8, v)
 
-#endif /* ARES__DNS_H */
+#endif /* HEADER_CARES_DNS_H */

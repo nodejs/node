@@ -211,7 +211,8 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   uv_cpu_info_t* cpu_info;
 
   size = sizeof(model);
-  if (sysctlbyname("hw.model", &model, &size, NULL, 0) < 0) {
+  if (sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0) < 0 &&
+      sysctlbyname("hw.model", &model, &size, NULL, 0) < 0) {
     return uv__new_sys_error(errno);
   }
   size = sizeof(cpuspeed);

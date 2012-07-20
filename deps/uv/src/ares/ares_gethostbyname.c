@@ -1,5 +1,5 @@
 
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* Copyright 1998, 2011 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -49,6 +49,7 @@
 #include "inet_net_pton.h"
 #include "bitncmp.h"
 #include "ares_platform.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 #ifdef WATT32
@@ -300,7 +301,7 @@ static int fake_hostent(const char *name, int family,
   /* Fill in the rest of the host structure and terminate the query. */
   addrs[1] = NULL;
   hostent.h_aliases = aliases;
-  hostent.h_addrtype = family;
+  hostent.h_addrtype = aresx_sitoss(family);
   hostent.h_addr_list = addrs;
   callback(arg, ARES_SUCCESS, 0, &hostent);
 

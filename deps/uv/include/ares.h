@@ -85,7 +85,8 @@ typedef int ares_socklen_t;
    libc5-based Linux systems. Only include it on system that are known to
    require it! */
 #if defined(_AIX) || defined(__NOVELL_LIBC__) || defined(__NetBSD__) || \
-    defined(__minix) || defined(__SYMBIAN32__) || defined(__INTEGRITY)
+    defined(__minix) || defined(__SYMBIAN32__) || defined(__INTEGRITY) || \
+    defined(ANDROID) || defined(__ANDROID__)
 #include <sys/select.h>
 #endif
 #if (defined(NETWARE) && !defined(__NOVELL_LIBC__))
@@ -513,6 +514,26 @@ struct ares_txt_reply {
   size_t                  length;  /* length excludes null termination */
 };
 
+struct ares_naptr_reply {
+  struct ares_naptr_reply *next;
+  unsigned char           *flags;
+  unsigned char           *service;
+  unsigned char           *regexp;
+  char                    *replacement;
+  unsigned short           order;
+  unsigned short           preference;
+};
+
+struct ares_soa_reply {
+  char        *nsname;
+  char        *hostmaster;
+  unsigned int serial;
+  unsigned int refresh;
+  unsigned int retry;
+  unsigned int expire;
+  unsigned int minttl;
+};
+
 /*
 ** Parse the buffer, starting at *abuf and of length alen bytes, previously
 ** obtained from an ares_search call.  Put the results in *host, if nonnull.
@@ -556,9 +577,19 @@ CARES_EXTERN int ares_parse_txt_reply(const unsigned char* abuf,
                                       int alen,
                                       struct ares_txt_reply** txt_out);
 
+CARES_EXTERN int ares_parse_naptr_reply(const unsigned char* abuf,
+                                        int alen,
+                                        struct ares_naptr_reply** naptr_out);
+
+CARES_EXTERN int ares_parse_soa_reply(const unsigned char* abuf,
+				      int alen,
+				      struct ares_soa_reply** soa_out);
+
 CARES_EXTERN void ares_free_string(void *str);
 
 CARES_EXTERN void ares_free_hostent(struct hostent *host);
+
+CARES_EXTERN void ares_free_soa(struct ares_soa_reply *soa);
 
 CARES_EXTERN void ares_free_data(void *dataptr);
 

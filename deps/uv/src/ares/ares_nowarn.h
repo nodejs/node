@@ -2,7 +2,7 @@
 #define HEADER_CARES_NOWARN_H
 
 
-/* Copyright (C) 2010-2011 by Daniel Stenberg
+/* Copyright (C) 2010-2012 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -17,13 +17,19 @@
  * without express or implied warranty.
  */
 
-int aresx_uztosi(size_t uznum);
+long  aresx_uztosl(size_t uznum);
+int   aresx_uztosi(size_t uznum);
+short aresx_uztoss(size_t uznum);
+
+short aresx_sitoss(int sinum);
 
 int aresx_sltosi(long slnum);
 
 int aresx_sztosi(ssize_t sznum);
 
 unsigned int aresx_sztoui(ssize_t sznum);
+
+unsigned short aresx_sitous(int sinum);
 
 #if defined(__INTEL_COMPILER) && defined(__unix__)
 

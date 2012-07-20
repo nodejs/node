@@ -1,5 +1,5 @@
 
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* Copyright 1998, 2011 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -33,6 +33,7 @@
 
 #include <stdlib.h>
 #include "ares.h"
+#include "ares_nowarn.h"
 #include "ares_private.h" /* for the memdebug */
 
 static int name_length(const unsigned char *encoded, const unsigned char *abuf,
@@ -91,9 +92,9 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
     /* indirect root label (like 0xc0 0x0c) is 2 bytes long (stupid, but
        valid) */
     if ((*encoded & INDIR_MASK) == INDIR_MASK)
-      *enclen = 2;
+      *enclen = 2L;
     else
-      *enclen = 1;  /* the caller should move one byte to get past this */
+      *enclen = 1L;  /* the caller should move one byte to get past this */
 
     return ARES_SUCCESS;
   }
@@ -106,7 +107,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
         {
           if (!indir)
             {
-              *enclen = p + 2 - encoded;
+              *enclen = aresx_uztosl(p + 2U - encoded);
               indir = 1;
             }
           p = abuf + ((*p & ~INDIR_MASK) << 8 | *(p + 1));
@@ -126,7 +127,7 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
         }
     }
   if (!indir)
-    *enclen = p + 1 - encoded;
+    *enclen = aresx_uztosl(p + 1U - encoded);
 
   /* Nuke the trailing period if we wrote one. */
   if (q > *s)

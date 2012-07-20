@@ -49,7 +49,7 @@ extern "C" {
 
 
 #define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 8
+#define UV_VERSION_MINOR 9
 
 
 #include <stdint.h> /* int64_t */
@@ -181,7 +181,7 @@ typedef enum {
 } uv_req_type;
 
 
-
+/* Handle types. */
 typedef struct uv_loop_s uv_loop_t;
 typedef struct uv_ares_task_s uv_ares_task_t;
 typedef struct uv_err_s uv_err_t;
@@ -197,22 +197,24 @@ typedef struct uv_prepare_s uv_prepare_t;
 typedef struct uv_check_s uv_check_t;
 typedef struct uv_idle_s uv_idle_t;
 typedef struct uv_async_s uv_async_t;
-typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
 typedef struct uv_process_s uv_process_t;
-typedef struct uv_counters_s uv_counters_t;
-typedef struct uv_cpu_info_s uv_cpu_info_t;
-typedef struct uv_interface_address_s uv_interface_address_t;
-/* Request types */
+typedef struct uv_fs_event_s uv_fs_event_t;
+typedef struct uv_fs_poll_s uv_fs_poll_t;
+
+/* Request types. */
 typedef struct uv_req_s uv_req_t;
+typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
 typedef struct uv_shutdown_s uv_shutdown_t;
 typedef struct uv_write_s uv_write_t;
 typedef struct uv_connect_s uv_connect_t;
 typedef struct uv_udp_send_s uv_udp_send_t;
 typedef struct uv_fs_s uv_fs_t;
-/* uv_fs_event_t is a subclass of uv_handle_t. */
-typedef struct uv_fs_event_s uv_fs_event_t;
-typedef struct uv_fs_poll_s uv_fs_poll_t;
 typedef struct uv_work_s uv_work_t;
+
+/* None of the above. */
+typedef struct uv_counters_s uv_counters_t;
+typedef struct uv_cpu_info_s uv_cpu_info_t;
+typedef struct uv_interface_address_s uv_interface_address_t;
 
 
 /*
@@ -298,13 +300,14 @@ typedef void (*uv_async_cb)(uv_async_t* handle, int status);
 typedef void (*uv_prepare_cb)(uv_prepare_t* handle, int status);
 typedef void (*uv_check_cb)(uv_check_t* handle, int status);
 typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
-typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* handle, int status,
-    struct addrinfo* res);
 typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
+typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 typedef void (*uv_fs_cb)(uv_fs_t* req);
 typedef void (*uv_work_cb)(uv_work_t* req);
 typedef void (*uv_after_work_cb)(uv_work_t* req);
-typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
+typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* req,
+                                  int status,
+                                  struct addrinfo* res);
 
 /*
 * This will be called repeatedly after the uv_fs_event_t is initialized.
@@ -1156,19 +1159,33 @@ struct uv_getaddrinfo_s {
 /*
  * Asynchronous getaddrinfo(3).
  *
- * Return code 0 means that request is accepted and callback will be called
- * with result. Other return codes mean that there will not be a callback.
- * Input arguments may be released after return from this call.
+ * Either node or service may be NULL but not both.
  *
- * uv_freeaddrinfo() must be called after completion to free the addrinfo
- * structure.
+ * hints is a pointer to a struct addrinfo with additional address type
+ * constraints, or NULL. Consult `man -s 3 getaddrinfo` for details.
  *
- * On error NXDOMAIN the status code will be non-zero and UV_ENOENT returned.
+ * Returns 0 on success, -1 on error. Call uv_last_error() to get the error.
+ *
+ * If successful, your callback gets called sometime in the future with the
+ * lookup result, which is either:
+ *
+ *  a) status == 0, the res argument points to a valid struct addrinfo, or
+ *  b) status == -1, the res argument is NULL.
+ *
+ * On NXDOMAIN, the status code is -1 and uv_last_error() returns UV_ENOENT.
+ *
+ * Call uv_freeaddrinfo() to free the addrinfo structure.
  */
-UV_EXTERN int uv_getaddrinfo(uv_loop_t*, uv_getaddrinfo_t* handle,
-    uv_getaddrinfo_cb getaddrinfo_cb, const char* node, const char* service,
-    const struct addrinfo* hints);
+UV_EXTERN int uv_getaddrinfo(uv_loop_t* loop,
+                             uv_getaddrinfo_t* req,
+                             uv_getaddrinfo_cb getaddrinfo_cb,
+                             const char* node,
+                             const char* service,
+                             const struct addrinfo* hints);
 
+/*
+ * Free the struct addrinfo. Passing NULL is allowed and is a no-op.
+ */
 UV_EXTERN void uv_freeaddrinfo(struct addrinfo* ai);
 
 /* uv_spawn() options */
@@ -1709,6 +1726,8 @@ UV_EXTERN int uv_thread_join(uv_thread_t *tid);
 
 /* the presence of these unions force similar struct layout */
 union uv_any_handle {
+  uv_handle_t handle;
+  uv_stream_t stream;
   uv_tcp_t tcp;
   uv_pipe_t pipe;
   uv_prepare_t prepare;
@@ -1716,8 +1735,12 @@ union uv_any_handle {
   uv_idle_t idle;
   uv_async_t async;
   uv_timer_t timer;
-  uv_getaddrinfo_t getaddrinfo;
   uv_fs_event_t fs_event;
+  uv_fs_poll_t fs_poll;
+  uv_poll_t poll;
+  uv_process_t process;
+  uv_tty_t tty;
+  uv_udp_t udp;
 };
 
 union uv_any_req {
@@ -1727,6 +1750,8 @@ union uv_any_req {
   uv_shutdown_t shutdown;
   uv_fs_t fs_req;
   uv_work_t work_req;
+  uv_udp_send_t udp_send_req;
+  uv_getaddrinfo_t getaddrinfo_req;
 };
 
 

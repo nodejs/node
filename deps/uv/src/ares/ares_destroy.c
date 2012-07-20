@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2004-2010 by Daniel Stenberg
+ * Copyright (C) 2004-2011 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -29,10 +29,12 @@ void ares_destroy_options(struct ares_options *options)
     free(options->servers);
   for (i = 0; i < options->ndomains; i++)
     free(options->domains[i]);
-  free(options->domains);
+  if(options->domains)
+    free(options->domains);
   if(options->sortlist)
     free(options->sortlist);
-  free(options->lookups);
+  if(options->lookups)
+    free(options->lookups);
 }
 
 void ares_destroy(ares_channel channel)

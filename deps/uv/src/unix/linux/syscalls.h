@@ -25,6 +25,7 @@
 #undef  _GNU_SOURCE
 #define _GNU_SOURCE
 
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <linux/types.h>
@@ -41,6 +42,19 @@
 #define UV__SOCK_CLOEXEC      UV__O_CLOEXEC
 #define UV__SOCK_NONBLOCK     UV__O_NONBLOCK
 
+/* epoll flags */
+#define UV__EPOLL_CLOEXEC     UV__O_CLOEXEC
+#define UV__EPOLL_CTL_ADD     1
+#define UV__EPOLL_CTL_DEL     2
+#define UV__EPOLL_CTL_MOD     3
+
+#define UV__EPOLLIN           1
+#define UV__EPOLLOUT          4
+#define UV__EPOLLERR          8
+#define UV__EPOLLHUP          16
+#define UV__EPOLLONESHOT      0x40000000
+#define UV__EPOLLET           0x80000000
+
 /* inotify flags */
 #define UV__IN_ACCESS         0x001
 #define UV__IN_MODIFY         0x002
@@ -54,6 +68,11 @@
 #define UV__IN_DELETE         0x200
 #define UV__IN_DELETE_SELF    0x400
 #define UV__IN_MOVE_SELF      0x800
+
+struct uv__epoll_event {
+  __u32 events;
+  __u64 data;
+} __attribute__((packed));
 
 struct uv__inotify_event {
   __s32 wd;
@@ -70,6 +89,18 @@ struct uv__mmsghdr {
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags);
 int uv__eventfd(unsigned int count);
+int uv__epoll_create(void);
+int uv__epoll_create1(int flags);
+int uv__epoll_ctl(int epfd, int op, int fd, struct uv__epoll_event *ev);
+int uv__epoll_wait(int epfd,
+                   struct uv__epoll_event* events,
+                   int nevents,
+                   int timeout);
+int uv__epoll_pwait(int epfd,
+                    struct uv__epoll_event* events,
+                    int nevents,
+                    int timeout,
+                    const sigset_t* sigmask);
 int uv__eventfd2(unsigned int count, int flags);
 int uv__inotify_init(void);
 int uv__inotify_init1(int flags);

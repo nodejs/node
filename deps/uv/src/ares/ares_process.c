@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2004-2010 by Daniel Stenberg
+ * Copyright (C) 2004-2012 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -837,30 +837,29 @@ static int setsocknonblock(ares_socket_t sockfd,    /* operate on this */
 #elif defined(HAVE_IOCTL_FIONBIO)
 
   /* older unix versions */
-  int flags;
-  flags = nonblock;
+  int flags = nonblock ? 1 : 0;
   return ioctl(sockfd, FIONBIO, &flags);
 
 #elif defined(HAVE_IOCTLSOCKET_FIONBIO)
 
 #ifdef WATT32
-  char flags;
+  char flags = nonblock ? 1 : 0;
 #else
   /* Windows */
-  unsigned long flags;
+  unsigned long flags = nonblock ? 1UL : 0UL;
 #endif
-  flags = nonblock;
   return ioctlsocket(sockfd, FIONBIO, &flags);
 
 #elif defined(HAVE_IOCTLSOCKET_CAMEL_FIONBIO)
 
   /* Amiga */
-  return IoctlSocket(sockfd, FIONBIO, (long)nonblock);
+  long flags = nonblock ? 1L : 0L;
+  return IoctlSocket(sockfd, FIONBIO, flags);
 
 #elif defined(HAVE_SETSOCKOPT_SO_NONBLOCK)
 
   /* BeOS */
-  long b = nonblock ? 1 : 0;
+  long b = nonblock ? 1L : 0L;
   return setsockopt(sockfd, SOL_SOCKET, SO_NONBLOCK, &b, sizeof(b));
 
 #else
@@ -947,7 +946,7 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
         salen = sizeof(saddr.sa4);
         memset(sa, 0, salen);
         saddr.sa4.sin_family = AF_INET;
-        saddr.sa4.sin_port = (unsigned short)(channel->tcp_port & 0xffff);
+        saddr.sa4.sin_port = aresx_sitous(channel->tcp_port);
         memcpy(&saddr.sa4.sin_addr, &server->addr.addrV4,
                sizeof(server->addr.addrV4));
         break;
@@ -956,7 +955,7 @@ static int open_tcp_socket(ares_channel channel, struct server_state *server)
         salen = sizeof(saddr.sa6);
         memset(sa, 0, salen);
         saddr.sa6.sin6_family = AF_INET6;
-        saddr.sa6.sin6_port = (unsigned short)(channel->tcp_port & 0xffff);
+        saddr.sa6.sin6_port = aresx_sitous(channel->tcp_port);
         memcpy(&saddr.sa6.sin6_addr, &server->addr.addrV6,
                sizeof(server->addr.addrV6));
         break;
@@ -1039,7 +1038,7 @@ static int open_udp_socket(ares_channel channel, struct server_state *server)
         salen = sizeof(saddr.sa4);
         memset(sa, 0, salen);
         saddr.sa4.sin_family = AF_INET;
-        saddr.sa4.sin_port = (unsigned short)(channel->udp_port & 0xffff);
+        saddr.sa4.sin_port = aresx_sitous(channel->udp_port);
         memcpy(&saddr.sa4.sin_addr, &server->addr.addrV4,
                sizeof(server->addr.addrV4));
         break;
@@ -1048,7 +1047,7 @@ static int open_udp_socket(ares_channel channel, struct server_state *server)
         salen = sizeof(saddr.sa6);
         memset(sa, 0, salen);
         saddr.sa6.sin6_family = AF_INET6;
-        saddr.sa6.sin6_port = (unsigned short)(channel->udp_port & 0xffff);
+        saddr.sa6.sin6_port = aresx_sitous(channel->udp_port);
         memcpy(&saddr.sa6.sin6_addr, &server->addr.addrV6,
                sizeof(server->addr.addrV6));
         break;

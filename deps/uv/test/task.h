@@ -106,4 +106,7 @@ typedef enum {
 /* Pause the calling thread for a number of milliseconds. */
 void uv_sleep(int msec);
 
+/* Format big numbers nicely. WARNING: leaks memory. */
+const char* fmt(double d);
+
 #endif /* TASK_H_ */

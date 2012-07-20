@@ -37,6 +37,35 @@ static void log_progress(int total, int passed, int failed, const char* name) {
 }
 
 
+const char* fmt(double d) {
+  uint64_t v;
+  char* p;
+
+  p = (char *) calloc(1, 32) + 31; /* leaks memory */
+  v = d;
+
+#if 0 /* works but we don't care about fractional precision */
+  if (d - v >= 0.01) {
+    *--p = '0' + (uint64_t) (d * 100) % 10;
+    *--p = '0' + (uint64_t) (d * 10) % 10;
+    *--p = '.';
+  }
+#endif
+
+  if (v == 0)
+    *--p = '0';
+
+  while (v) {
+    if (v) *--p = '0' + (v % 10), v /= 10;
+    if (v) *--p = '0' + (v % 10), v /= 10;
+    if (v) *--p = '0' + (v % 10), v /= 10;
+    if (v) *--p = ',';
+  }
+
+  return p;
+}
+
+
 int run_tests(int timeout, int benchmark_output) {
   int total, passed, failed;
   task_entry_t* task;

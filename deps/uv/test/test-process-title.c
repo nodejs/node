@@ -23,27 +23,20 @@
 #include "task.h"
 #include <string.h>
 
-
-static void set_title(const char* title) {
+TEST_IMPL(process_title) {
   char buffer[512];
   uv_err_t err;
 
   err = uv_get_process_title(buffer, sizeof(buffer));
   ASSERT(UV_OK == err.code);
 
-  err = uv_set_process_title(title);
+  err = uv_set_process_title("new title");
   ASSERT(UV_OK == err.code);
 
   err = uv_get_process_title(buffer, sizeof(buffer));
   ASSERT(UV_OK == err.code);
 
-  ASSERT(strcmp(buffer, title) == 0);
-}
+  ASSERT(strcmp(buffer, "new title") == 0);
 
-
-TEST_IMPL(process_title) {
-  /* Check for format string vulnerabilities. */
-  set_title("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s");
-  set_title("new title");
   return 0;
 }

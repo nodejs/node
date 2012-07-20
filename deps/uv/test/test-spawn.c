@@ -71,12 +71,6 @@ static void exit_cb_failure_expected(uv_process_t* process, int exit_status,
 }
 
 
-static void exit_cb_unexpected(uv_process_t* process, int exit_status,
-    int term_signal) {
-  ASSERT(0 && "should not have been called");
-}
-
-
 static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
   uv_err_t err;
 
@@ -804,6 +798,14 @@ TEST_IMPL(spawn_setgid_fails) {
 
 
 #ifdef _WIN32
+
+static void exit_cb_unexpected(uv_process_t* process,
+                               int exit_status,
+                               int term_signal) {
+  ASSERT(0 && "should not have been called");
+}
+
+
 TEST_IMPL(spawn_setuid_fails) {
   int r;
 

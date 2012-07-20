@@ -170,17 +170,18 @@ void uv_pipe_connect(uv_connect_t* req,
                     uv_connect_cb cb) {
   struct sockaddr_un saddr;
   int saved_errno;
-  int new_sock;
-  int err;
+  int sockfd;
+  int status;
   int r;
 
   saved_errno = errno;
-  new_sock = (handle->fd == -1);
-  err = -1;
+  sockfd = -1;
+  status = -1;
 
-  if (new_sock)
-    if ((handle->fd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
-      goto out;
+  if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    goto out;
+  }
 
   memset(&saddr, 0, sizeof saddr);
   uv_strlcpy(saddr.sun_path, name, sizeof(saddr.sun_path));
@@ -190,25 +191,25 @@ void uv_pipe_connect(uv_connect_t* req,
    * is either there or not.
    */
   do {
-    r = connect(handle->fd, (struct sockaddr*)&saddr, sizeof saddr);
+    r = connect(sockfd, (struct sockaddr*)&saddr, sizeof saddr);
   }
   while (r == -1 && errno == EINTR);
 
-  if (r == -1)
+  if (r == -1) {
+    status = errno;
+    close(sockfd);
     goto out;
+  }
 
-  if (new_sock)
-    if (uv__stream_open((uv_stream_t*)handle,
-                        handle->fd,
-                        UV_STREAM_READABLE | UV_STREAM_WRITABLE))
-      goto out;
-
+  uv__stream_open((uv_stream_t*)handle,
+                  sockfd,
+                  UV_STREAM_READABLE | UV_STREAM_WRITABLE);
   uv__io_start(handle->loop, &handle->read_watcher);
   uv__io_start(handle->loop, &handle->write_watcher);
-  err = 0;
+  status = 0;
 
 out:
-  handle->delayed_error = err ? errno : 0; /* Passed to callback. */
+  handle->delayed_error = status; /* Passed to callback. */
   handle->connect_req = req;
 
   uv__req_init(handle->loop, req, UV_CONNECT);

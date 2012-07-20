@@ -30,6 +30,36 @@ static int uv__async_init(uv_loop_t* loop);
 static void uv__async_io(uv_loop_t* loop, uv__io_t* handle, int events);
 
 
+__attribute__((always_inline))
+inline static int uv__async_make_pending(volatile sig_atomic_t* ptr) {
+  /* Do a cheap read first. */
+  if (*ptr)
+    return 1;
+
+  /* Micro-optimization: use atomic memory operations to detect if we've been
+   * preempted by another thread and don't have to make an expensive syscall.
+   * This speeds up the heavily contended case by about 1-2% and has little
+   * if any impact on the non-contended case.
+   *
+   * Use XCHG instead of the CMPXCHG that __sync_val_compare_and_swap() emits
+   * on x86, it's about 4x faster. It probably makes zero difference in the
+   * grand scheme of things but I'm OCD enough not to let this one pass.
+   */
+#if __i386__ || __x86_64__
+  {
+    unsigned int val = 1;
+    __asm__ __volatile__("xchgl %0, %1" : "+r" (val) : "m" (*ptr));
+    return val != 0;
+  }
+#elif __GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 1 /* gcc >= 4.1 */
+  return __sync_val_compare_and_swap(ptr, 0, 1) != 0;
+#else
+  *ptr = 1;
+  return 1;
+#endif
+}
+
+
 int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
   if (uv__async_init(loop))
     return uv__set_sys_error(loop, errno);
@@ -50,7 +80,8 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
 int uv_async_send(uv_async_t* handle) {
   int r;
 
-  handle->pending = 1; /* XXX needs a memory barrier? */
+  if (uv__async_make_pending(&handle->pending))
+    return 0; /* already pending */
 
   do
     r = write(handle->loop->async_pipefd[1], "x", 1);

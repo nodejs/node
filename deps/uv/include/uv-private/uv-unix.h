@@ -40,16 +40,9 @@
 #include <termios.h>
 #include <pwd.h>
 
+#include <semaphore.h>
 #include <pthread.h>
 #include <signal.h>
-
-#if defined(__APPLE__) && defined(__MACH__)
-# include <mach/mach.h>
-# include <mach/task.h>
-# include <mach/semaphore.h>
-#else
-# include <semaphore.h>
-#endif
 
 #if __sun
 # include <sys/port.h>
@@ -74,11 +67,7 @@ typedef pthread_once_t uv_once_t;
 typedef pthread_t uv_thread_t;
 typedef pthread_mutex_t uv_mutex_t;
 typedef pthread_rwlock_t uv_rwlock_t;
-#if defined(__APPLE__) && defined(__MACH__)
-typedef semaphore_t uv_sem_t;
-#else
 typedef sem_t uv_sem_t;
-#endif
 
 /* Platform-specific definitions for uv_spawn support. */
 typedef gid_t uv_gid_t;
@@ -113,7 +102,7 @@ struct uv__io_s {
   int inotify_fd;
 #elif defined(PORT_SOURCE_FILE)
 # define UV_LOOP_PRIVATE_PLATFORM_FIELDS              \
-  ev_io fs_event_watcher;                             \
+  uv__io_t fs_event_watcher;                          \
   int fs_fd;
 #else
 # define UV_LOOP_PRIVATE_PLATFORM_FIELDS
@@ -303,7 +292,6 @@ struct uv__io_s {
 
 #ifdef PORT_SOURCE_FILE
 # define UV_FS_EVENT_PRIVATE_FIELDS \
-  ev_io event_watcher; \
   uv_fs_event_cb cb; \
   file_obj_t fo; \
   int fd;

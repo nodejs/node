@@ -69,6 +69,56 @@
 # endif
 #endif /* __NR_eventfd2 */
 
+#ifndef __NR_epoll_create
+# if __x86_64__
+#  define __NR_epoll_create 213
+# elif __i386__
+#  define __NR_epoll_create 254
+# elif __arm__
+#  define __NR_epoll_create (UV_SYSCALL_BASE + 250)
+# endif
+#endif /* __NR_epoll_create */
+
+#ifndef __NR_epoll_create1
+# if __x86_64__
+#  define __NR_epoll_create1 291
+# elif __i386__
+#  define __NR_epoll_create1 329
+# elif __arm__
+#  define __NR_epoll_create1 (UV_SYSCALL_BASE + 357)
+# endif
+#endif /* __NR_epoll_create1 */
+
+#ifndef __NR_epoll_ctl
+# if __x86_64__
+#  define __NR_epoll_ctl 233 /* used to be 214 */
+# elif __i386__
+#  define __NR_epoll_ctl 255
+# elif __arm__
+#  define __NR_epoll_ctl (UV_SYSCALL_BASE + 251)
+# endif
+#endif /* __NR_epoll_ctl */
+
+#ifndef __NR_epoll_wait
+# if __x86_64__
+#  define __NR_epoll_wait 232 /* used to be 215 */
+# elif __i386__
+#  define __NR_epoll_wait 256
+# elif __arm__
+#  define __NR_epoll_wait (UV_SYSCALL_BASE + 252)
+# endif
+#endif /* __NR_epoll_wait */
+
+#ifndef __NR_epoll_pwait
+# if __x86_64__
+#  define __NR_epoll_pwait 281
+# elif __i386__
+#  define __NR_epoll_pwait 319
+# elif __arm__
+#  define __NR_epoll_pwait (UV_SYSCALL_BASE + 346)
+# endif
+#endif /* __NR_epoll_pwait */
+
 #ifndef __NR_inotify_init
 # if __x86_64__
 #  define __NR_inotify_init 253
@@ -191,6 +241,64 @@ int uv__eventfd(unsigned int count) {
 int uv__eventfd2(unsigned int count, int flags) {
 #if __NR_eventfd2
   return syscall(__NR_eventfd2, count, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__epoll_create(void) {
+#if __NR_epoll_create
+  return syscall(__NR_epoll_create);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__epoll_create1(int flags) {
+#if __NR_epoll_create1
+  return syscall(__NR_epoll_create1, flags);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__epoll_ctl(int epfd, int op, int fd, struct uv__epoll_event* events) {
+#if __NR_epoll_ctl
+  return syscall(__NR_epoll_ctl, epfd, op, fd, events);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__epoll_wait(int epfd,
+                   struct uv__epoll_event* events,
+                   int nevents,
+                   int timeout) {
+#if __NR_epoll_wait
+  return syscall(__NR_epoll_wait, epfd, events, nevents, timeout);
+#else
+  return errno = ENOSYS, -1;
+#endif
+}
+
+
+int uv__epoll_pwait(int epfd,
+                    struct uv__epoll_event* events,
+                    int nevents,
+                    int timeout,
+                    const sigset_t* sigmask) {
+#if __NR_epoll_pwait
+  return syscall(__NR_epoll_pwait,
+                 epfd,
+                 events,
+                 nevents,
+                 timeout,
+                 sigmask,
+                 sizeof(*sigmask));
 #else
   return errno = ENOSYS, -1;
 #endif
