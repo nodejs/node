@@ -180,6 +180,13 @@ var tests = [
     },
     result: false
   },
+  {
+    host: 'localhost', cert: {
+      subjectaltname: 'DNS:a.com',
+      subject: { CN: 'localhost' }
+    },
+    result: true
+  },
 ];
 
 tests.forEach(function(test, i) {
