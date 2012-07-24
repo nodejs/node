@@ -524,6 +524,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
     if (!type->prototype()->IsJSObject()) return false;
     // Go up the prototype chain, recording where we are currently.
     holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
+    if (!holder_->HasFastProperties()) return false;
     type = Handle<Map>(holder()->map());
   }
 }
