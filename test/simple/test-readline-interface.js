@@ -31,6 +31,7 @@ function FakeInput() {
 }
 inherits(FakeInput, EventEmitter);
 FakeInput.prototype.resume = function() {};
+FakeInput.prototype.pause = function() {};
 
 var fi;
 var rli;
@@ -67,6 +68,7 @@ rli.on('line', function(line) {
 });
 fi.emit('data', 'a');
 assert.ok(!called);
+rli.close();
 
 // sending a single character with no newline and then a newline
 fi = new FakeInput();
@@ -80,6 +82,7 @@ fi.emit('data', 'a');
 assert.ok(!called);
 fi.emit('data', '\n');
 assert.ok(called);
+rli.close();
 
 // sending multiple newlines at once
 fi = new FakeInput();
@@ -92,6 +95,7 @@ rli.on('line', function(line) {
 });
 fi.emit('data', expectedLines.join(''));
 assert.equal(callCount, expectedLines.length);
+rli.close();
 
 // sending multiple newlines at once that does not end with a new line
 fi = new FakeInput();
@@ -104,6 +108,7 @@ rli.on('line', function(line) {
 });
 fi.emit('data', expectedLines.join(''));
 assert.equal(callCount, expectedLines.length - 1);
+rli.close();
 
 // sending a multi-byte utf8 char over multiple writes
 var buf = Buffer('☮', 'utf8');
@@ -120,3 +125,7 @@ rli.on('line', function(line) {
 assert.equal(callCount, 0);
 fi.emit('data', '\n');
 assert.equal(callCount, 1);
+rli.close();
+
+assert.deepEqual(fi.listeners('end'), []);
+assert.deepEqual(fi.listeners('data'), []);
