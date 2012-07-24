@@ -37,6 +37,34 @@ function adduser (args, cb) {
 
 function readUsername (c, u, cb) {
   read({prompt: "Username: ", default: c.u}, function (er, un) {
+    if (er) {
+      return cb(er.message === "cancelled" ? er.message : er)
+    }
+
+    // make sure it's valid.  we have to do this here, because
+    // couchdb will only ever say "bad password" with a 401 when
+    // you try to PUT a _users record that the validate_doc_update
+    // rejects for *any* reason.
+
+    if (!un) {
+      return readUsername(c, u, cb)
+    }
+
+    if (un !== un.toLowerCase()) {
+      log.warn('Username must be lowercase')
+      return readUsername(c, u, cb)
+    }
+
+    if (un !== encodeURIComponent(un)) {
+      log.warn('Username may not contain non-url-safe chars')
+      return readUsername(c, u, cb)
+    }
+
+    if (un.charAt(0) === '.') {
+      log.warn('Username may not start with "."')
+      return readUsername(c, u, cb)
+    }
+
     c.changed = c.u !== un
     u.u = un
     cb(er)
@@ -49,6 +77,19 @@ function readPassword (c, u, cb) {
     return cb()
   }
   read({prompt: "Password: ", silent: true}, function (er, pw) {
+    if (er) {
+      return cb(er.message === "cancelled" ? er.message : er)
+    }
+
+    if (!pw) {
+      return readPassword(c, u, cb)
+    }
+
+    if (pw.match(/['!:@"]/)) {
+      log.warn('Sorry, passwords cannot contain these characters: \'!:@"')
+      return readPassword(c, u, cb)
+    }
+
     u.p = pw
     cb(er)
   })
@@ -56,6 +97,19 @@ function readPassword (c, u, cb) {
 
 function readEmail (c, u, cb) {
   read({prompt: "Email: ", default: c.e}, function (er, em) {
+    if (er) {
+      return cb(er.message === "cancelled" ? er.message : er)
+    }
+
+    if (!em) {
+      return readEmail(c, u, cb)
+    }
+
+    if (!em.match(/^.+@.+\..+$/)) {
+      log.warn('Email must be an email address')
+      return readEmail(c, u, cb)
+    }
+
     u.e = em
     cb(er)
   })

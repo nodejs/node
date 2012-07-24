@@ -1,5 +1,8 @@
 # promzard
 
+A prompting wizard for building files from specialized PromZard modules.
+Used by `npm init`.
+
 A reimplementation of @SubStack's
 [prompter](https://github.com/substack/node-prompter), which does not
 use AST traversal.

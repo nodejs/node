@@ -69,6 +69,7 @@ function exit (code, noLog) {
 
 
 function errorHandler (er) {
+  var printStack = false
   // console.error("errorHandler", er)
   if (!ini.resolved) {
     // logging won't work unless we pretend that it's ready
@@ -93,13 +94,13 @@ function errorHandler (er) {
   var m = er.code || er.message.match(/^(?:Error: )?(E[A-Z]+)/)
   if (m && !er.code) er.code = m
 
-  var didStack = false
   switch (er.code) {
   case "ECONNREFUSED":
     log.error("", er)
     log.error("", ["\nIf you are behind a proxy, please make sure that the"
               ,"'proxy' config is set properly.  See: 'npm help config'"
               ].join("\n"))
+    printStack = true
     break
 
   case "EACCES":
@@ -107,6 +108,7 @@ function errorHandler (er) {
     log.error("", er)
     log.error("", ["\nPlease try running this command again as root/Administrator."
               ].join("\n"))
+    printStack = true
     break
 
   case "ELIFECYCLE":
@@ -209,13 +211,13 @@ function errorHandler (er) {
     } // else passthrough
 
   default:
-    didStack = true
     log.error("", er.stack || er.message || er)
     log.error("", ["If you need help, you may report this log at:"
                   ,"    <http://github.com/isaacs/npm/issues>"
                   ,"or email it to:"
                   ,"    <npm-@googlegroups.com>"
                   ].join("\n"))
+    printStack = false
     break
   }
 
@@ -246,7 +248,7 @@ function errorHandler (er) {
     ].forEach(function (k) {
       var v = er[k]
       if (k === "stack") {
-        if (didStack) return
+        if (!printStack) return
         if (!v) v = er.message
       }
       if (!v) return

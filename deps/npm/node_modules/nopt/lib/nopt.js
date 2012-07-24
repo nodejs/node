@@ -41,9 +41,9 @@ function nopt (types, shorthands, args, slice) {
   // now data is full
   clean(data, types, exports.typeDefs)
   data.argv = {remain:remain,cooked:cooked,original:original}
-  data.argv.toString = function () {
+  Object.defineProperty(data.argv, 'toString', { value: function () {
     return this.original.map(JSON.stringify).join(" ")
-  }
+  }, enumerable: false })
   return data
 }
 
@@ -235,8 +235,10 @@ function parse (args, data, remain, types, shorthands) {
       args[i] = "--"
       break
     }
+    var hadEq = false
     if (arg.charAt(0) === "-") {
       if (arg.indexOf("=") !== -1) {
+        hadEq = true
         var v = arg.split("=")
         arg = v.shift()
         v = v.join("=")
@@ -255,7 +257,7 @@ function parse (args, data, remain, types, shorthands) {
         }
       }
       arg = arg.replace(/^-+/, "")
-      var no = false
+      var no = null
       while (arg.toLowerCase().indexOf("no-") === 0) {
         no = !no
         arg = arg.substr(3)
@@ -269,9 +271,10 @@ function parse (args, data, remain, types, shorthands) {
       var val
         , la = args[i + 1]
 
-      var isBool = no ||
+      var isBool = typeof no === 'boolean' ||
         types[arg] === Boolean ||
         Array.isArray(types[arg]) && types[arg].indexOf(Boolean) !== -1 ||
+        (typeof types[arg] === 'undefined' && !hadEq) ||
         (la === "false" &&
          (types[arg] === null ||
           Array.isArray(types[arg]) && ~types[arg].indexOf(null)))
@@ -472,7 +475,7 @@ var assert = require("assert")
     "-no-body-can-do-the-boogaloo-like-I-do"
    ,{"body-can-do-the-boogaloo-like-I-do":false}, []]
   ,["we are -no-strangers-to-love "+
-    "--you-know the-rules --and so-do-i "+
+    "--you-know=the-rules --and=so-do-i "+
     "---im-thinking-of=a-full-commitment "+
     "--no-you-would-get-this-from-any-other-guy "+
     "--no-gonna-give-you-up "+
@@ -524,7 +527,7 @@ var assert = require("assert")
   ,["--nullstream false"
    ,{nullstream:null}
    ,[]]
-  ,["--notadate 2011-01-25"
+  ,["--notadate=2011-01-25"
    ,{notadate: "2011-01-25"}
    ,[]]
   ,["--date 2011-01-25"

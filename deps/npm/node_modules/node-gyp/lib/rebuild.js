@@ -7,16 +7,10 @@ var log = require('npmlog')
 
 function rebuild (gyp, argv, callback) {
 
-  // first "clean"
-  gyp.commands.clean([], function (err) {
-    if (err) {
-      // don't bail
-      log.info('rebuild clean failed', err.stack);
-    }
-
-    gyp.commands.configure([], function (err) {
-      if (err) return callback(err);
-      gyp.commands.build([], callback);
-    });
-  });
+  gyp.todo.push(
+      { name: 'clean', args: [] }
+    , { name: 'configure', args: [] }
+    , { name: 'build', args: [] }
+  )
+  process.nextTick(callback)
 }

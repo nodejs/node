@@ -18,28 +18,34 @@ version.usage = "npm version [<newversion> | major | minor | patch | build]\n"
               + "published version\n"
               + "'npm ls' to inspect current package/dependency versions"
 
-function version (args, cb) {
-  if (args.length !== 1) return cb(version.usage)
+function version (args, silent, cb_) {
+  if (typeof cb_ !== "function") cb_ = silent, silent = false
+  if (args.length !== 1) return cb_(version.usage)
   fs.readFile(path.join(process.cwd(), "package.json"), function (er, data) {
     if (er) {
       log.error("version", "No package.json found")
-      return cb(er)
+      return cb_(er)
     }
 
     try {
       data = JSON.parse(data)
     } catch (er) {
       log.error("version", "Bad package.json data")
-      return cb(er)
+      return cb_(er)
     }
 
 		var newVer = semver.valid(args[0])
 		if (!newVer) newVer = semver.inc(data.version, args[0])
-		if (!newVer) return cb(version.usage)
-    if (data.version === newVer) return cb(new Error("Version not changed"))
+		if (!newVer) return cb_(version.usage)
+    if (data.version === newVer) return cb_(new Error("Version not changed"))
     data.version = newVer
 
     fs.stat(path.join(process.cwd(), ".git"), function (er, s) {
+      function cb (er) {
+        if (!er && !silent) console.log("v" + newVer)
+        cb_(er)
+      }
+
       var doGit = !er && s.isDirectory()
       if (!doGit) return write(data, cb)
       else checkGit(data, cb)

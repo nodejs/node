@@ -112,15 +112,31 @@ proto.parseArgv = function parseOpts (argv) {
   this.opts = nopt(this.configDefs, this.shorthands, argv)
   this.argv = this.opts.argv.remain.slice()
 
-  var commands = []
-  this.argv.slice().forEach(function (arg) {
-    if (arg in this.commands || arg in this.aliases) {
-      this.argv.splice(this.argv.indexOf(arg), 1)
-      commands.push(arg)
+  var commands = this.todo = []
+
+  // create a copy of the argv array with aliases mapped
+  var argv = this.argv.map(function (arg) {
+    // is this an alias?
+    if (arg in this.aliases) {
+      arg = this.aliases[arg]
     }
+    return arg
   }, this)
 
-  this.todo = commands
+  // process the mapped args into "command" objects ("name" and "args" props)
+  argv.slice().forEach(function (arg) {
+    if (arg in this.commands) {
+      var args = argv.splice(0, argv.indexOf(arg))
+      argv.shift()
+      if (commands.length > 0) {
+        commands[commands.length - 1].args = args
+      }
+      commands.push({ name: arg, args: [] })
+    }
+  }, this)
+  if (commands.length > 0) {
+    commands[commands.length - 1].args = argv.splice(0)
+  }
 
   // support for inheriting config env variables from npm
   var npm_config_prefix = 'npm_config_'

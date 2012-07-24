@@ -1,1 +1,3 @@
 test/fixtures/cache
+node_modules
+npm-debug.log

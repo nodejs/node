@@ -323,7 +323,7 @@ function load (npm, conf, cb) {
 
       // save the token cookie in the config file
       if (npm.registry.couchLogin) {
-        npm.registry.couchLogin.tokenSet = function (tok, cb) {
+        npm.registry.couchLogin.tokenSet = function (tok) {
           ini.set("_token", JSON.stringify(tok), "user")
           // ignore save error.  best effort.
           ini.save("user", function () {})

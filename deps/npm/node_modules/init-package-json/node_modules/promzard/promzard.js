@@ -211,6 +211,6 @@ PromZard.prototype.prompt = function (pdt, cb) {
     }}(cb).bind(this)
   }
 
-  read({ prompt: prompt + ': ' , default: def }, cb)
+  read({ prompt: prompt + ':' , default: def }, cb)
 }
 
