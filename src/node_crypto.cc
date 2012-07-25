@@ -4192,7 +4192,9 @@ class DiffieHellman : public ObjectWrap {
   DH* dh;
 };
 
+
 struct pbkdf2_req {
+  uv_work_t work_req;
   int err;
   char* pass;
   size_t passlen;
@@ -4204,60 +4206,65 @@ struct pbkdf2_req {
   Persistent<Function> callback;
 };
 
-void
-EIO_PBKDF2(uv_work_t* req) {
-  pbkdf2_req* request = (pbkdf2_req*)req->data;
-  request->err = PKCS5_PBKDF2_HMAC_SHA1(
-    request->pass,
-    request->passlen,
-    (unsigned char*)request->salt,
-    request->saltlen,
-    request->iter,
-    request->keylen,
-    (unsigned char*)request->key);
-  memset(request->pass, 0, request->passlen);
-  memset(request->salt, 0, request->saltlen);
+
+void EIO_PBKDF2(pbkdf2_req* req) {
+  req->err = PKCS5_PBKDF2_HMAC_SHA1(
+    req->pass,
+    req->passlen,
+    (unsigned char*)req->salt,
+    req->saltlen,
+    req->iter,
+    req->keylen,
+    (unsigned char*)req->key);
+  memset(req->pass, 0, req->passlen);
+  memset(req->salt, 0, req->saltlen);
 }
 
-void
-EIO_PBKDF2After(uv_work_t* req) {
-  HandleScope scope;
 
-  pbkdf2_req* request = (pbkdf2_req*)req->data;
-  delete req;
+void EIO_PBKDF2(uv_work_t* work_req) {
+  pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
+  EIO_PBKDF2(req);
+}
 
-  Local<Value> argv[2];
-  if (request->err) {
+
+void EIO_PBKDF2After(pbkdf2_req* req, Local<Value> argv[2]) {
+  if (req->err) {
     argv[0] = Local<Value>::New(Undefined());
-    argv[1] = Encode(request->key, request->keylen, BINARY);
-    memset(request->key, 0, request->keylen);
+    argv[1] = Encode(req->key, req->keylen, BINARY);
+    memset(req->key, 0, req->keylen);
   } else {
     argv[0] = Exception::Error(String::New("PBKDF2 error"));
     argv[1] = Local<Value>::New(Undefined());
   }
 
-  // XXX There should be an object connected to this that
-  // we can attach a domain onto.
-  MakeCallback(Context::GetCurrent()->Global(),
-               request->callback,
-               ARRAY_SIZE(argv), argv);
-
-  delete[] request->pass;
-  delete[] request->salt;
-  delete[] request->key;
-  request->callback.Dispose();
-
-  delete request;
+  delete[] req->pass;
+  delete[] req->salt;
+  delete[] req->key;
+  delete req;
 }
 
-Handle<Value>
-PBKDF2(const Arguments& args) {
+
+void EIO_PBKDF2After(uv_work_t* work_req) {
+  pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
+
+  HandleScope scope;
+  Local<Value> argv[2];
+  Persistent<Function> cb = req->callback;
+  EIO_PBKDF2After(req, argv);
+
+  // XXX There should be an object connected to this that
+  // we can attach a domain onto.
+  MakeCallback(Context::GetCurrent()->Global(), cb, ARRAY_SIZE(argv), argv);
+  cb.Dispose();
+}
+
+
+Handle<Value> PBKDF2(const Arguments& args) {
   HandleScope scope;
 
   const char* type_error = NULL;
   char* pass = NULL;
   char* salt = NULL;
-  char* key = NULL;
   ssize_t passlen = -1;
   ssize_t saltlen = -1;
   ssize_t keylen = -1;
@@ -4265,10 +4272,9 @@ PBKDF2(const Arguments& args) {
   ssize_t salt_written = -1;
   ssize_t iter = -1;
   Local<Function> callback;
-  pbkdf2_req* request = NULL;
-  uv_work_t* req = NULL;
+  pbkdf2_req* req = NULL;
 
-  if (args.Length() != 5) {
+  if (args.Length() != 4 && args.Length() != 5) {
     type_error = "Bad parameter";
     goto err;
   }
@@ -4317,33 +4323,33 @@ PBKDF2(const Arguments& args) {
     goto err;
   }
 
-  key = new char[keylen];
+  req = new pbkdf2_req;
+  req->err = 0;
+  req->pass = pass;
+  req->passlen = passlen;
+  req->salt = salt;
+  req->saltlen = saltlen;
+  req->iter = iter;
+  req->key = new char[keylen];
+  req->keylen = keylen;
 
-  if (!args[4]->IsFunction()) {
-    type_error = "Callback not a function";
-    goto err;
+  if (args[4]->IsFunction()) {
+    callback = Local<Function>::Cast(args[4]);
+    req->callback = Persistent<Function>::New(callback);
+    uv_queue_work(uv_default_loop(),
+                  &req->work_req,
+                  EIO_PBKDF2,
+                  EIO_PBKDF2After);
+    return Undefined();
+  } else {
+    Local<Value> argv[2];
+    EIO_PBKDF2(req);
+    EIO_PBKDF2After(req, argv);
+    if (argv[0]->IsObject()) return ThrowException(argv[0]);
+    return scope.Close(argv[1]);
   }
 
-  callback = Local<Function>::Cast(args[4]);
-
-  request = new pbkdf2_req;
-  request->err = 0;
-  request->pass = pass;
-  request->passlen = passlen;
-  request->salt = salt;
-  request->saltlen = saltlen;
-  request->iter = iter;
-  request->key = key;
-  request->keylen = keylen;
-  request->callback = Persistent<Function>::New(callback);
-
-  req = new uv_work_t();
-  req->data = request;
-  uv_queue_work(uv_default_loop(), req, EIO_PBKDF2, EIO_PBKDF2After);
-  return Undefined();
-
 err:
-  delete[] key;
   delete[] salt;
   delete[] pass;
   return ThrowException(Exception::TypeError(String::New(type_error)));
