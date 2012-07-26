@@ -4,6 +4,11 @@ BUILDTYPE ?= Release
 PYTHON ?= python
 DESTDIR ?=
 
+# Default to verbose builds.
+# To do quiet/pretty builds, run `make V=` to set V to an empty string,
+# or set the V environment variable to an empty string.
+V ?= 1
+
 # BUILDTYPE=Debug builds both release and debug builds. If you want to compile
 # just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
@@ -17,18 +22,18 @@ endif
 .PHONY: node node_g
 
 node: config.gypi
-	$(MAKE) -C out BUILDTYPE=Release
+	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	ln -fs out/Release/node node
 
 node_g: config.gypi
-	$(MAKE) -C out BUILDTYPE=Debug
+	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	ln -fs out/Debug/node node_g
 
 config.gypi: configure
 	./configure
 
 out/Debug/node:
-	$(MAKE) -C out BUILDTYPE=Debug
+	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
 	$(PYTHON) tools/gyp_node -f make
@@ -201,10 +206,10 @@ $(PKG):
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
 	./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
-	$(MAKE) install
+	$(MAKE) install V=$(V)
 	rm -rf out/deps out/Release
 	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
-	$(MAKE) install
+	$(MAKE) install V=$(V)
 	lipo $(PKGDIR)/32/usr/local/bin/node \
 		$(PKGDIR)/usr/local/bin/node \
 		-output $(PKGDIR)/usr/local/bin/node-universal \
@@ -260,6 +265,9 @@ bench-idle:
 	./node benchmark/idle_server.js &
 	sleep 1
 	./node benchmark/idle_clients.js &
+
+jslintfix:
+	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/fixjsstyle.py --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 
 jslint:
 	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js

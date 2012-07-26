@@ -150,9 +150,14 @@ function install (gyp, argv, callback) {
           // permission to create the dev dir. As a fallback, make the tmpdir() be
           // the dev dir for this installation. This is not ideal, but at least
           // the compilation will succeed...
-          gyp.devDir = path.resolve(osenv.tmpdir(), '.node-gyp')
+          var tmpdir = osenv.tmpdir()
+          gyp.devDir = path.resolve(tmpdir, '.node-gyp')
           log.warn(err.code, 'user "%s" does not have permission to create dev dir "%s"', osenv.user(), devDir)
           log.warn(err.code, 'attempting to reinstall using temporary dev dir "%s"', gyp.devDir)
+          if (process.cwd() == tmpdir) {
+            log.verbose('tmpdir == cwd', 'automatically will remove dev files after to save disk space')
+            gyp.todo.push({ name: 'remove', args: argv })
+          }
           gyp.commands.install(argv, cb)
         } else {
           cb(err)

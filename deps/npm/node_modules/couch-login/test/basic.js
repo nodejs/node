@@ -5,7 +5,7 @@ var tap = require('tap')
 
 var auth = { name: 'testuser', password: 'test' }
 , newAuth = { name: 'testuser', password: 'asdfasdf' }
-, couch = new CouchLogin('https://isaacs-staging.couch.xxx/')
+, couch = new CouchLogin('https://isaacs-staging.iriscouch.com/')
 , u = '/_users/org.couchdb.user:' + auth.name
 , userRecordMarker
 

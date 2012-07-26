@@ -21,6 +21,25 @@
 * Fix #3521 Make process.env more like a regular Object (isaacs)
 
 
+2012.07.25, Version 0.8.4 (Stable)
+
+* V8: Upgrade to 3.11.10.17
+
+* npm: Upgrade to 1.1.45
+
+* net: fix Socket({ fd: 42 }) api (Ben Noordhuis)
+
+* readline: Remove event listeners on close (isaacs)
+
+* windows: correctly prep long path for fs.exists(Sync) (Bert Belder)
+
+* debugger: wake up the event loop when a debugger command is dispatched (Peter Rybin)
+
+* tls: verify server's identity (Fedor Indutny)
+
+* net: ignore socket.setTimeout(Infinity or NaN) (Fedor Indutny)
+
+
 2012.07.19, Version 0.8.3 (Stable), 60bf2d6cb33e4ce55604f73889ab840a9de8bdab
 
 * V8: upgrade to 3.11.10.15

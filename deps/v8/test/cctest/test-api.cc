@@ -16811,3 +16811,46 @@ TEST(TryFinallyMessage) {
     CHECK_EQ(6, message->GetLineNumber());
   }
 }
+
+
+THREADED_TEST(Regress137002a) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("foo"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  // Turn monomorphic on slow object with native accessor, then turn
+  // polymorphic, finally optimize to create negative lookup and fail.
+  CompileRun("function f(x) { return x.foo; }"
+             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+             "obj.__proto__ = null;"
+             "f(obj); f(obj); f({});"
+             "%OptimizeFunctionOnNextCall(f);"
+             "var result = f(obj);");
+  CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
+}
+
+
+THREADED_TEST(Regress137002b) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("foo"),
+                     GetterWhichReturns42,
+                     SetterWhichSetsYOnThisTo23);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+
+  // Turn monomorphic on slow object with native accessor, then just
+  // delete the property and fail.
+  CompileRun("function f(x) { return x.foo; }"
+             "%OptimizeObjectForAddingMultipleProperties(obj, 1);"
+             "obj.__proto__ = null;"
+             "f(obj); f(obj); delete obj.foo;"
+             "var result = f(obj);");
+  CHECK(context->Global()->Get(v8_str("result"))->IsUndefined());
+}
