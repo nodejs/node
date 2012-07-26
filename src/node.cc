@@ -129,8 +129,6 @@ static int max_stack_size = 0;
 // used by C++ modules as well
 bool no_deprecation = false;
 
-static uv_check_t check_tick_watcher;
-static uv_prepare_t prepare_tick_watcher;
 static uv_idle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
@@ -263,6 +261,7 @@ static void Spin(uv_idle_t* handle, int status) {
   Tick();
 }
 
+
 static void StartTickSpinner() {
   need_tick_cb = true;
   // TODO: this tick_spinner shouldn't be necessary. An ev_prepare should be
@@ -273,23 +272,12 @@ static void StartTickSpinner() {
   uv_idle_start(&tick_spinner, Spin);
 }
 
+
 static Handle<Value> NeedTickCallback(const Arguments& args) {
   StartTickSpinner();
   return Undefined();
 }
 
-static void PrepareTick(uv_prepare_t* handle, int status) {
-  assert(handle == &prepare_tick_watcher);
-  assert(status == 0);
-  Tick();
-}
-
-
-static void CheckTick(uv_check_t* handle, int status) {
-  assert(handle == &check_tick_watcher);
-  assert(status == 0);
-  Tick();
-}
 
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
@@ -2763,14 +2751,6 @@ char** Init(int argc, char *argv[]) {
   RegisterSignalHandler(SIGINT, SignalExit);
   RegisterSignalHandler(SIGTERM, SignalExit);
 #endif // __POSIX__
-
-  uv_prepare_init(uv_default_loop(), &prepare_tick_watcher);
-  uv_prepare_start(&prepare_tick_watcher, PrepareTick);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&prepare_tick_watcher));
-
-  uv_check_init(uv_default_loop(), &check_tick_watcher);
-  uv_check_start(&check_tick_watcher, node::CheckTick);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&check_tick_watcher));
 
   uv_idle_init(uv_default_loop(), &tick_spinner);
 
