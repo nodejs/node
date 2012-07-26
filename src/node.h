@@ -212,9 +212,9 @@ node_module_struct* get_builtin_module(const char *name);
  * When this version number is changed, node.js will refuse
  * to load older modules.  This should be done whenever
  * an API is broken in the C++ side, including in v8 or
- * other dependencies
+ * other dependencies.
  */
-#define NODE_MODULE_VERSION (1)
+#define NODE_MODULE_VERSION 0x000A /* v0.10 */
 
 #define NODE_STANDARD_MODULE_STUFF \
           NODE_MODULE_VERSION,     \
