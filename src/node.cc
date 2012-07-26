@@ -1690,7 +1690,6 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   HandleScope scope;
   char symbol[1024], *base, *pos;
   uv_lib_t lib;
-  node_module_struct compat_mod;
   int r;
 
   if (args.Length() < 2) {
@@ -1744,27 +1743,20 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     return ThrowException(exception);
   }
 
-  // Get the init() function from the dynamically shared object.
   node_module_struct *mod;
   if (uv_dlsym(&lib, symbol, reinterpret_cast<void**>(&mod))) {
-    /* Start Compatibility hack: Remove once everyone is using NODE_MODULE macro */
-    memset(&compat_mod, 0, sizeof compat_mod);
-
-    mod = &compat_mod;
-    mod->version = NODE_MODULE_VERSION;
-
-    if (uv_dlsym(&lib, "init", reinterpret_cast<void**>(&mod->register_func))) {
-      Local<String> errmsg = String::New(uv_dlerror(&lib));
-      uv_dlclose(&lib);
-      return ThrowException(Exception::Error(errmsg));
-    }
-    /* End Compatibility hack */
+    char errmsg[1024];
+    snprintf(errmsg, sizeof(errmsg), "Symbol %s not found.", symbol);
+    return ThrowError(errmsg);
   }
 
   if (mod->version != NODE_MODULE_VERSION) {
-    Local<Value> exception = Exception::Error(
-        String::New("Module version mismatch, refusing to load."));
-    return ThrowException(exception);
+    char errmsg[1024];
+    snprintf(errmsg,
+             sizeof(errmsg),
+             "Module version mismatch. Expected %d, got %d.",
+             NODE_MODULE_VERSION, mod->version);
+    return ThrowError(errmsg);
   }
 
   // Execute the C++ module
