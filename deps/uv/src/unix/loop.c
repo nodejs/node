@@ -54,7 +54,7 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   eio_channel_init(&loop->uv_eio_channel, loop);
 
 #if __linux__
-  RB_INIT(&loop->inotify_watchers);
+  loop->inotify_watchers = NULL;
   loop->inotify_fd = -1;
 #endif
 #if HAVE_PORTS_FS
