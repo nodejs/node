@@ -198,9 +198,9 @@ thrown will be routed to the domain's `error` event.
     var d = domain.create();
 
     function readSomeFile(filename, cb) {
-      fs.readFile(filename, d.bind(function(er, data) {
+      fs.readFile(filename, 'utf8', d.bind(function(er, data) {
         // if this throws, it will also be passed to the domain
-        return cb(er, JSON.parse(data));
+        return cb(er, data ? JSON.parse(data) : null);
       }));
     }
 
@@ -227,7 +227,7 @@ with a single error handler in a single place.
     var d = domain.create();
 
     function readSomeFile(filename, cb) {
-      fs.readFile(filename, d.intercept(function(data) {
+      fs.readFile(filename, 'utf8', d.intercept(function(data) {
         // note, the first argument is never passed to the
         // callback since it is assumed to be the 'Error' argument
         // and thus intercepted by the domain.
