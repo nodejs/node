@@ -517,7 +517,6 @@ leaner than `child_process.exec`. It has the same options.
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
-  * `timeout` {Number} (Default: 0)
 * Return: ChildProcess object
 
 This is a special case of the `spawn()` functionality for spawning Node
