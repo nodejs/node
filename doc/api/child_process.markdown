@@ -449,8 +449,7 @@ See also: `child_process.exec()` and `child_process.fork()`
 
 Runs a command in a shell and buffers the output.
 
-    var util = require('util'),
-        exec = require('child_process').exec,
+    var exec = require('child_process').exec,
         child;
 
     child = exec('cat *.js bad_file | wc -l',
