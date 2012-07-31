@@ -26,7 +26,7 @@ If there is no listener for it, then the default action is to print a stack
 trace and exit the program.
 
 All EventEmitters emit the event `'newListener'` when new listeners are
-added.
+added and `'removeListener'` when a listener is removed.
 
 ### emitter.addListener(event, listener)
 ### emitter.on(event, listener)

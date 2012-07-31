@@ -24,6 +24,17 @@ var assert = require('assert');
 var events = require('events');
 
 
+function expect(expected) {
+  var actual = [];
+  process.on('exit', function() {
+    assert.deepEqual(actual.sort(), expected.sort());
+  });
+  function listener(name) {
+    actual.push(name)
+  }
+  return common.mustCall(listener, expected.length);
+}
+
 function listener() {}
 
 var e1 = new events.EventEmitter();
@@ -34,6 +45,7 @@ e1.on('baz', listener);
 var fooListeners = e1.listeners('foo');
 var barListeners = e1.listeners('bar');
 var bazListeners = e1.listeners('baz');
+e1.on('removeListener', expect(['bar', 'baz', 'baz']));
 e1.removeAllListeners('bar');
 e1.removeAllListeners('baz');
 assert.deepEqual(e1.listeners('foo'), [listener]);
@@ -52,6 +64,9 @@ assert.notEqual(e1.listeners('baz'), bazListeners);
 var e2 = new events.EventEmitter();
 e2.on('foo', listener);
 e2.on('bar', listener);
+// expect LIFO order
+e2.on('removeListener', expect(['foo', 'bar', 'removeListener']));
+e2.on('removeListener', expect(['foo', 'bar']));
 e2.removeAllListeners();
 console.error(e2);
 assert.deepEqual([], e2.listeners('foo'));
