@@ -330,6 +330,13 @@ int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
 
         /* Make an inheritable duplicate of the handle. */
         if (uv__duplicate_fd(loop, fdopt.data.fd, &child_handle) < 0) {
+          /* If fdopt.data.fd is not valid and fd fd <= 2, then ignore the */
+          /* error. */
+          if (fdopt.data.fd <= 2 && loop->last_err.code == UV_EBADF) {
+            CHILD_STDIO_CRT_FLAGS(buffer, i) = 0;
+            CHILD_STDIO_HANDLE(buffer, i) = NULL;
+            break;
+          }
           goto error;
         }
 
