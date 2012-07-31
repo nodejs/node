@@ -528,6 +528,9 @@ By default the spawned Node process will have the stdout, stderr associated
 with the parent's. To change this behavior set the `silent` property in the
 `options` object to `true`.
 
+The child process does not automatically exit once it's done, you need to call
+`process.exit()` explicitly. This limitation may be lifted in the future.
+
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many
 thousands of them.
