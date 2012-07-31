@@ -1,10 +1,10 @@
 var assert = require('assert');
 
-process.on('message', function(m) {
+function onmessage(m) {
   console.log('CHILD got message:', m);
   assert.ok(m.hello);
-  // Note that we have to force exit.
-  process.exit();
-});
+  process.removeListener('message', onmessage);
+}
 
+process.on('message', onmessage);
 process.send({ foo: 'bar' });
