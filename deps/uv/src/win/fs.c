@@ -390,7 +390,7 @@ void fs__open(uv_fs_t* req) {
   DWORD access;
   DWORD share;
   DWORD disposition;
-  DWORD attributes;
+  DWORD attributes = 0;
   HANDLE file;
   int result, current_umask;
   int flags = req->file_flags;
@@ -404,6 +404,7 @@ void fs__open(uv_fs_t* req) {
   switch (flags & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
   case _O_RDONLY:
     access = FILE_GENERIC_READ;
+    attributes |= FILE_FLAG_BACKUP_SEMANTICS;
     break;
   case _O_WRONLY:
     access = FILE_GENERIC_WRITE;
@@ -419,6 +420,7 @@ void fs__open(uv_fs_t* req) {
   if (flags & _O_APPEND) {
     access &= ~FILE_WRITE_DATA;
     access |= FILE_APPEND_DATA;
+    attributes &= ~FILE_FLAG_BACKUP_SEMANTICS;
   }
 
   /*
@@ -453,7 +455,7 @@ void fs__open(uv_fs_t* req) {
     goto end;
   }
 
-  attributes = FILE_ATTRIBUTE_NORMAL;
+  attributes |= FILE_ATTRIBUTE_NORMAL;
   if (flags & _O_CREAT) {
     if (!((req->mode & ~current_umask) & _S_IWRITE)) {
       attributes |= FILE_ATTRIBUTE_READONLY;

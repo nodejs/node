@@ -334,7 +334,7 @@ int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
           /* error. */
           if (fdopt.data.fd <= 2 && loop->last_err.code == UV_EBADF) {
             CHILD_STDIO_CRT_FLAGS(buffer, i) = 0;
-            CHILD_STDIO_HANDLE(buffer, i) = NULL;
+            CHILD_STDIO_HANDLE(buffer, i) = INVALID_HANDLE_VALUE;
             break;
           }
           goto error;
