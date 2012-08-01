@@ -86,6 +86,11 @@ var file2 = fs.createReadStream(fn);
 file2.destroy(function(err) {
   assert.ok(!err);
   callbacks.destroy++;
+
+  file2.destroy(function(err) {
+    assert.ok(!err);
+    callbacks.destroy++;
+  });
 });
 
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
@@ -107,7 +112,7 @@ file3.on('close', function() {
 process.on('exit', function() {
   assert.equal(1, callbacks.open);
   assert.equal(1, callbacks.end);
-  assert.equal(1, callbacks.destroy);
+  assert.equal(2, callbacks.destroy);
 
   assert.equal(2, callbacks.close);
 
