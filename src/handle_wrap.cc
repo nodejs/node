@@ -23,6 +23,12 @@
 #include "ngx-queue.h"
 #include "handle_wrap.h"
 
+#define UNWRAP_NO_ABORT(type)                                               \
+  assert(!args.Holder().IsEmpty());                                         \
+  assert(args.Holder()->InternalFieldCount() > 0);                          \
+  type* wrap =                                                              \
+      static_cast<type*>(args.Holder()->GetPointerFromInternalField(0));
+
 namespace node {
 
 using v8::Array;
@@ -53,10 +59,12 @@ void HandleWrap::Initialize(Handle<Object> target) {
 Handle<Value> HandleWrap::Ref(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP(HandleWrap)
+  UNWRAP_NO_ABORT(HandleWrap)
 
-  uv_ref(wrap->handle__);
-  wrap->unref_ = false;
+  if (wrap) {
+    uv_ref(wrap->handle__);
+    wrap->unref_ = false;
+  }
 
   return v8::Undefined();
 }
@@ -65,10 +73,12 @@ Handle<Value> HandleWrap::Ref(const Arguments& args) {
 Handle<Value> HandleWrap::Unref(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP(HandleWrap)
+  UNWRAP_NO_ABORT(HandleWrap)
 
-  uv_unref(wrap->handle__);
-  wrap->unref_ = true;
+  if (wrap) {
+    uv_unref(wrap->handle__);
+    wrap->unref_ = true;
+  }
 
   return v8::Undefined();
 }
