@@ -53,7 +53,7 @@ function remove(files) {
 function shebang(line, npmDir) {
   var script = JSON.stringify(path.join(npmDir, 'scripts/relocate.sh'));
   var bin = JSON.stringify(path.join(npmDir, 'bin/npm-cli.js'));
-  queue.push('bash ' + script + ' ' + line);
+  queue.push('/bin/sh ' + script + ' ' + line);
 }
 
 // Run every command in queue, one-by-one
