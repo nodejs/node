@@ -39,10 +39,10 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/z
 	$(PYTHON) tools/gyp_node -f make
 
 install: all
-	out/Release/node tools/installer.js install $(DESTDIR)
+	$(PYTHON) tools/install.py $@ $(DESTDIR)
 
 uninstall:
-	out/Release/node tools/installer.js uninstall
+	$(PYTHON) tools/install.py $@ $(DESTDIR)
 
 clean:
 	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node blog.html email.md
