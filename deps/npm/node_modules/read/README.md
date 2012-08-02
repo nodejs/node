@@ -22,6 +22,7 @@ Every option is optional.
 
 * `prompt` What to write to stdout before reading input.
 * `silent` Don't echo the output as the user types it.
+* `replace` Replace silenced characters with the supplied character value.
 * `timeout` Number of ms to wait for user input before giving up.
 * `default` The default value if the user enters nothing.
 * `edit` Allow the user to edit the default value.

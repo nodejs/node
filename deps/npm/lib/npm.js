@@ -294,9 +294,14 @@ function load (npm, conf, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
-      var token
-      try { token = JSON.parse(npm.config.get("_token")) }
-      catch (er) { token = null }
+      var token = npm.config.get("_token")
+      if (typeof token === "string") {
+        try {
+          token = JSON.parse(token)
+          npm.config.set("_token", token, "user")
+          ini.save("user", function () {})
+        } catch (e) { token = null }
+      }
 
       npm.registry = new RegClient(
         { registry: npm.config.get("registry")
@@ -324,7 +329,7 @@ function load (npm, conf, cb) {
       // save the token cookie in the config file
       if (npm.registry.couchLogin) {
         npm.registry.couchLogin.tokenSet = function (tok) {
-          ini.set("_token", JSON.stringify(tok), "user")
+          ini.set("_token", tok, "user")
           // ignore save error.  best effort.
           ini.save("user", function () {})
         }
@@ -424,8 +429,8 @@ function setUser (cl, dc, cb) {
 
 npm.config =
   { get : function (key) { return ini.get(key) }
-  , set : function (key, val) { return ini.set(key, val, "cli") }
-  , del : function (key, val) { return ini.del(key, val, "cli") }
+  , set : function (key, val, which) { return ini.set(key, val, which) }
+  , del : function (key, val, which) { return ini.del(key, val, which) }
   }
 
 Object.defineProperty(npm, "prefix",

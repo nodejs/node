@@ -2,7 +2,7 @@
 var tap = require("tap")
 , child_process = require("child_process")
 // just some gnarly pattern with lots of matches
-, pattern = "test/a/symlink/a/b/c/a/b/c/a/b/c//a/b/c////a/b/c/**/b/c/**"
+, pattern = "test/a/!(symlink)/**"
 , glob = require("../")
 , Glob = glob.Glob
 , path = require("path")
@@ -57,7 +57,7 @@ tap.test("get bash output", function (t) {
   cp.stderr.on("data", function (c) {
     process.stderr.write(c)
   })
-  cp.stdout.on("close", function () {
+  cp.on("close", function () {
     bashResults = flatten(out)
     if (!bashResults) return t.fail("Didn't get results from bash")
     else {
@@ -74,12 +74,20 @@ tap.test("use a Glob object, and pause/resume it", function (t) {
   , paused = false
   , res = []
 
+  g.on("pause", function () {
+    console.error("pause")
+  })
+
+  g.on("resume", function () {
+    console.error("resume")
+  })
+
   g.on("match", function (m) {
     t.notOk(g.paused, "must not be paused")
     globResults.push(m)
     g.pause()
     t.ok(g.paused, "must be paused")
-    setTimeout(g.resume.bind(g), 1)
+    setTimeout(g.resume.bind(g), 10)
   })
 
   g.on("end", function (matches) {

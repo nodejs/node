@@ -1,0 +1,62 @@
+[stdin]
+
+[stdin]:1
+with(this){__filename}
+^^^^
+SyntaxError: Strict mode code may not include a with statement
+    at Object.<anonymous> ([stdin]-wrapper:6:22)
+    at Module._compile (module.js:449:26)
+    at evalScript (node.js:282:25)
+    at Socket.<anonymous> (node.js:152:11)
+    at Socket.EventEmitter.emit (events.js:85:17)
+    at Pipe.onread (net.js:424:51)
+42
+42
+
+[stdin]:1
+throw new Error("hello")
+      ^
+Error: hello
+    at [stdin]:1:7
+    at Object.<anonymous> ([stdin]-wrapper:6:22)
+    at Module._compile (module.js:449:26)
+    at evalScript (node.js:282:25)
+    at Socket.<anonymous> (node.js:152:11)
+    at Socket.EventEmitter.emit (events.js:85:17)
+    at Pipe.onread (net.js:424:51)
+
+[stdin]:1
+throw new Error("hello")
+      ^
+Error: hello
+    at [stdin]:1:7
+    at Object.<anonymous> ([stdin]-wrapper:6:22)
+    at Module._compile (module.js:449:26)
+    at evalScript (node.js:282:25)
+    at Socket.<anonymous> (node.js:152:11)
+    at Socket.EventEmitter.emit (events.js:85:17)
+    at Pipe.onread (net.js:424:51)
+100
+
+[stdin]:1
+var x = 100; y = x;
+               ^
+ReferenceError: y is not defined
+    at [stdin]:1:16
+    at Object.<anonymous> ([stdin]-wrapper:6:22)
+    at Module._compile (module.js:449:26)
+    at evalScript (node.js:282:25)
+    at Socket.<anonymous> (node.js:152:11)
+    at Socket.EventEmitter.emit (events.js:85:17)
+    at Pipe.onread (net.js:424:51)
+
+[stdin]:1
+var ______________________________________________; throw 10
+                                                    ^
+10
+
+[stdin]:1
+var ______________________________________________; throw 10
+                                                    ^
+10
+done

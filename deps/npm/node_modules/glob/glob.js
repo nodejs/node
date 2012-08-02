@@ -44,7 +44,6 @@ var fs = require("graceful-fs")
 , path = require("path")
 , isDir = {}
 , assert = require("assert").ok
-, EOF = {}
 
 function glob (pattern, options, cb) {
   if (typeof options === "function") cb = options, options = {}
@@ -94,6 +93,9 @@ function Glob (pattern, options, cb) {
   }
 
   options = options || {}
+
+  this.EOF = {}
+  this._emitQueue = []
 
   this.maxDepth = options.maxDepth || 1000
   this.maxLength = options.maxLength || Infinity
@@ -211,8 +213,8 @@ Glob.prototype._finish = function () {
 
   if (this.debug) console.error("emitting end", all)
 
-  EOF = this.found = all
-  this.emitMatch(EOF)
+  this.EOF = this.found = all
+  this.emitMatch(this.EOF)
 }
 
 function alphasorti (a, b) {
@@ -244,32 +246,31 @@ Glob.prototype.resume = function () {
     this.emit("error", new Error("Can't pause/resume sync glob"))
   this.paused = false
   this.emit("resume")
+  this._processEmitQueue()
+  //process.nextTick(this.emit.bind(this, "resume"))
 }
-
 
 Glob.prototype.emitMatch = function (m) {
-  if (!this.paused) {
-    this.emit(m === EOF ? "end" : "match", m)
-    return
-  }
-
-  if (!this._emitQueue) {
-    this._emitQueue = []
-    this.once("resume", function () {
-      var q = this._emitQueue
-      this._emitQueue = null
-      q.forEach(function (m) {
-        this.emitMatch(m)
-      }, this)
-    })
-  }
-
   this._emitQueue.push(m)
-
-  //this.once("resume", this.emitMatch.bind(this, m))
+  this._processEmitQueue()
 }
 
-
+Glob.prototype._processEmitQueue = function (m) {
+  while (!this._processingEmitQueue &&
+         !this.paused) {
+    this._processingEmitQueue = true
+    var m = this._emitQueue.shift()
+    if (!m) {
+      this._processingEmitQueue = false
+      break
+    }
+    if (this.debug) {
+      console.error('emit!', m === this.EOF ? "end" : "match")
+    }
+    this.emit(m === this.EOF ? "end" : "match", m)
+    this._processingEmitQueue = false
+  }
+}
 
 Glob.prototype._process = function (pattern, depth, index, cb_) {
   assert(this instanceof Glob)

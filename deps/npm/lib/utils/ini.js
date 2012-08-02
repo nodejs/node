@@ -163,6 +163,7 @@ function unParseField (f, k) {
       }
     }
   }
+  return (!f || typeof f !== "object") ? ini.safe(f) : f
   return ini.safe(f)
 }
 
@@ -220,7 +221,6 @@ function encryptAuth (config, cb) {
 }
 
 function parseAuth (config) {
-  //console.error("parsing config %j", config)
   if (!config._auth) return config
   var b = new Buffer(config._auth, "base64")
     , unpw = b.toString().split(":")
@@ -347,5 +347,6 @@ function set (key, value, which) {
   if (configList.length === 1) {
     return new Error("trying to set before loading")
   }
-  return configList.list[TRANS[which]][key] = value
+  configList.list[TRANS[which]][key] = value
+  return value
 }
