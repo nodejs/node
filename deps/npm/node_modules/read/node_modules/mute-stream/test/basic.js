@@ -133,3 +133,62 @@ tap.test('pause/resume incoming', function (t) {
   t.equal(expect.length, 0, 'saw all events')
   t.end()
 })
+
+tap.test('replace with *', function (t) {
+  var str = new PassThrough
+  var ms = new MS({replace: '*'})
+  str.pipe(ms)
+  var expect = ['foo', '*****', 'bar', '***', 'baz', 'boo', '**', '****']
+
+  ms.on('data', function (c) {
+    t.equal(c, expect.shift())
+  })
+
+  str.write('foo')
+  ms.mute()
+  str.write('12345')
+  ms.unmute()
+  str.write('bar')
+  ms.mute()
+  str.write('baz')
+  ms.unmute()
+  str.write('baz')
+  str.write('boo')
+  ms.mute()
+  str.write('xy')
+  str.write('xyzΩ')
+
+  t.equal(expect.length, 0)
+  t.end()
+})
+
+tap.test('replace with ~YARG~', function (t) {
+  var str = new PassThrough
+  var ms = new MS({replace: '~YARG~'})
+  str.pipe(ms)
+  var expect = ['foo', '~YARG~~YARG~~YARG~~YARG~~YARG~', 'bar',
+                '~YARG~~YARG~~YARG~', 'baz', 'boo', '~YARG~~YARG~',
+                '~YARG~~YARG~~YARG~~YARG~']
+
+  ms.on('data', function (c) {
+    t.equal(c, expect.shift())
+  })
+
+  // also throw some unicode in there, just for good measure.
+  str.write('foo')
+  ms.mute()
+  str.write('ΩΩ')
+  ms.unmute()
+  str.write('bar')
+  ms.mute()
+  str.write('Ω')
+  ms.unmute()
+  str.write('baz')
+  str.write('boo')
+  ms.mute()
+  str.write('Ω')
+  str.write('ΩΩ')
+
+  t.equal(expect.length, 0)
+  t.end()
+})

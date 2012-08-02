@@ -11,7 +11,7 @@ function read (opts, cb) {
 
   var input = opts.input || process.stdin
   var output = opts.output || process.stdout
-  var m = new Mute()
+  var m = new Mute({ replace: opts.replace })
   m.pipe(output)
   output = m
   var def = opts.default || ''
