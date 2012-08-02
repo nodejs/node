@@ -1,4 +1,41 @@
-2012.07.25, Version 0.8.4 (Stable)
+2012.08.02, Version 0.8.5 (Stable)
+
+* node: tag Encode and friends NODE_EXTERN (Ben Noordhuis)
+
+* fs: fix ReadStream / WriteStream missing callback (Gil Pedersen)
+
+* fs: fix readFileSync("/proc/cpuinfo") regression (Ben Noordhuis)
+
+* installer: don't assume bash is installed (Ben Noordhuis)
+
+* Report errors properly from --eval and stdin (isaacs)
+
+* assert: fix throws() throws an error without message property (koichik)
+
+* cluster: fix libuv assert in net.listen() (Ben Noordhuis)
+
+* build: always link sunos builds with libumem (Trent Mick)
+
+* build: improve armv7 / hard-float detection (Adam Malcontenti-Wilson)
+
+* https: Use host header as effective servername (isaacs)
+
+* sunos: work around OS bug to prevent fs.watch() from spinning (Bryan Cantrill)
+
+* linux: fix 'two watchers, one path' segfault (Ben Noordhuis)
+
+* windows: fix memory leaks in many fs functions (Bert Belder)
+
+* windows: don't allow directories to be opened for writing/appending (Bert Belder)
+
+* windows: make fork() work even when not all stdio handles are valid (Bert Belder)
+
+* windows: make unlink() not remove mount points, and improve performance (Bert Belder)
+
+* build: Sign pkg installer for OS X (isaacs)
+
+
+2012.07.25, Version 0.8.4 (Stable), f98562fcd7d1cab573ca4dc1612157d6999befd4
 
 * V8: Upgrade to 3.11.10.17
 
