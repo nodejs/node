@@ -230,12 +230,12 @@ inline static void __ev_unref(void) {
 }
 
 
-inline static double __ev_now(/* variadic */) {
+inline static double __ev_now(...) {
   return uv_hrtime() / 1e9;
 }
 
 
-inline static void __ev_set_priority(/* variadic */) {
+inline static void __ev_set_priority(...) {
 }
 
 

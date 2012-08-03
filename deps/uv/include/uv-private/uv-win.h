@@ -23,6 +23,12 @@
 # define _WIN32_WINNT   0x0502
 #endif
 
+#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
+typedef intptr_t ssize_t;
+# define _SSIZE_T_
+# define _SSIZE_T_DEFINED
+#endif
+
 #include <process.h>
 #include <stdint.h>
 #include <winsock2.h>
@@ -470,15 +476,16 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   int flags;                              \
   DWORD sys_errno_;                       \
   union {                                 \
-    wchar_t* pathw;                       \
-    int file;                             \
+    /* TODO: remove me in 0.9. */         \
+    WCHAR* pathw;                         \
+    int fd;                               \
   };                                      \
   union {                                 \
     struct {                              \
       int mode;                           \
-      wchar_t* new_pathw;                 \
+      WCHAR* new_pathw;                   \
       int file_flags;                     \
-      int file_out;                       \
+      int fd_out;                         \
       void* buf;                          \
       size_t length;                      \
       int64_t offset;                     \

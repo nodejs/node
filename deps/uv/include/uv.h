@@ -57,12 +57,6 @@ extern "C" {
 
 #include "ares.h"
 
-#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
-  typedef intptr_t ssize_t;
-# define _SSIZE_T_
-# define _SSIZE_T_DEFINED
-#endif
-
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
 # include "uv-private/uv-unix.h"
 #else
@@ -1427,8 +1421,8 @@ struct uv_fs_s {
   uv_fs_cb cb;
   ssize_t result;
   void* ptr;
-  char* path;
-  int errorno;
+  const char* path;
+  uv_err_code errorno;
   UV_FS_PRIVATE_FIELDS
 };
 

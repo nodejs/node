@@ -11,8 +11,8 @@ It's incredibly easy to visualize where your Node program spends its time using 
     <li>Run your Node.js program as usual.</li>
     <li>In another terminal, run:
         <pre>
-$ dtrace -o stacks.out -n 'profile-97/execname == "node" &amp;&amp; arg1/{
-    @[jstack(100, 8000)] = count(); } tick-60s { exit(0); }'</pre>
+$ dtrace -n 'profile-97/execname == "node" &amp;&amp; arg1/{
+    @[jstack(150, 8000)] = count(); } tick-60s { exit(0); }' &gt; stacks.out</pre>
         This will sample about 100 times per second for 60 seconds and emit results to stacks.out. <strong>Note that this will sample all running programs called "node".  If you want a specific process, replace <code>execname == "node"</code> with <code>pid == 12345</code> (the process id).</strong>
     </li>
     <li>Use the "stackvis" tool to transform this directly into a flame graph. First, install it:

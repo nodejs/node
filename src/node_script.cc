@@ -417,6 +417,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   if (output_flag == returnResult) {
     result = script->Run();
     if (result.IsEmpty()) {
+      if (display_error) DisplayExceptionLine(try_catch);
       return try_catch.ReThrow();
     }
   } else {

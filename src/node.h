@@ -133,18 +133,18 @@ enum encoding ParseEncoding(v8::Handle<v8::Value> encoding_v,
 NODE_EXTERN void FatalException(v8::TryCatch &try_catch);
 void DisplayExceptionLine(v8::TryCatch &try_catch); // hack
 
-v8::Local<v8::Value> Encode(const void *buf, size_t len,
-                            enum encoding encoding = BINARY);
+NODE_EXTERN v8::Local<v8::Value> Encode(const void *buf, size_t len,
+                                        enum encoding encoding = BINARY);
 
 // Returns -1 if the handle was not valid for decoding
-ssize_t DecodeBytes(v8::Handle<v8::Value>,
-                    enum encoding encoding = BINARY);
+NODE_EXTERN ssize_t DecodeBytes(v8::Handle<v8::Value>,
+                                enum encoding encoding = BINARY);
 
 // returns bytes written.
-ssize_t DecodeWrite(char *buf,
-                    size_t buflen,
-                    v8::Handle<v8::Value>,
-                    enum encoding encoding = BINARY);
+NODE_EXTERN ssize_t DecodeWrite(char *buf,
+                                size_t buflen,
+                                v8::Handle<v8::Value>,
+                                enum encoding encoding = BINARY);
 
 v8::Local<v8::Object> BuildStatsObject(const uv_statbuf_t* s);
 

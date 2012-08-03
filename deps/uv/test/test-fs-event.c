@@ -85,6 +85,13 @@ static void close_cb(uv_handle_t* handle) {
   close_cb_called++;
 }
 
+static void fail_cb(uv_fs_event_t* handle,
+                    const char* path,
+                    int events,
+                    int status) {
+  ASSERT(0 && "fail_cb called");
+}
+
 static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   int events, int status) {
   ++fs_event_cb_called;
@@ -159,6 +166,13 @@ static void timer_cb_touch(uv_timer_t* timer, int status) {
   timer_cb_touch_called++;
 }
 
+static void timer_cb_watch_twice(uv_timer_t* handle, int status) {
+  uv_fs_event_t* handles = handle->data;
+  uv_close((uv_handle_t*) (handles + 0), NULL);
+  uv_close((uv_handle_t*) (handles + 1), NULL);
+  uv_close((uv_handle_t*) handle, NULL);
+}
+
 TEST_IMPL(fs_event_watch_dir) {
   uv_fs_t fs_req;
   uv_loop_t* loop = uv_default_loop();
@@ -221,6 +235,24 @@ TEST_IMPL(fs_event_watch_file) {
   r = uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
   r = uv_fs_unlink(loop, &fs_req, "watch_dir/file2", NULL);
   r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+
+  return 0;
+}
+
+TEST_IMPL(fs_event_watch_file_twice) {
+  const char path[] = "test/fixtures/empty_file";
+  uv_fs_event_t watchers[2];
+  uv_timer_t timer;
+  uv_loop_t* loop;
+
+  loop = uv_default_loop();
+  timer.data = watchers;
+
+  ASSERT(0 == uv_fs_event_init(loop, watchers + 0, path, fail_cb, 0));
+  ASSERT(0 == uv_fs_event_init(loop, watchers + 1, path, fail_cb, 0));
+  ASSERT(0 == uv_timer_init(loop, &timer));
+  ASSERT(0 == uv_timer_start(&timer, timer_cb_watch_twice, 10, 0));
+  ASSERT(0 == uv_run(loop));
 
   return 0;
 }

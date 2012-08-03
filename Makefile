@@ -3,6 +3,7 @@
 BUILDTYPE ?= Release
 PYTHON ?= python
 DESTDIR ?=
+SIGN ?=
 
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
@@ -39,10 +40,10 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/z
 	$(PYTHON) tools/gyp_node -f make
 
 install: all
-	out/Release/node tools/installer.js install $(DESTDIR)
+	$(PYTHON) tools/install.py $@ $(DESTDIR)
 
 uninstall:
-	out/Release/node tools/installer.js uninstall
+	$(PYTHON) tools/install.py $@ $(DESTDIR)
 
 clean:
 	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node blog.html email.md
@@ -210,6 +211,7 @@ $(PKG):
 	rm -rf out/deps out/Release
 	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
 	$(MAKE) install V=$(V)
+	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/node \
 		$(PKGDIR)/usr/local/bin/node \
 		-output $(PKGDIR)/usr/local/bin/node-universal \
@@ -217,9 +219,10 @@ $(PKG):
 	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
 	rm -rf $(PKGDIR)/32
 	$(packagemaker) \
-		--id "org.nodejs.NodeJS-$(VERSION)" \
+		--id "org.nodejs.Node" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
+	SIGN="$(SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
 $(TARBALL): node doc
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \

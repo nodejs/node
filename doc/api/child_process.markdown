@@ -449,8 +449,7 @@ See also: `child_process.exec()` and `child_process.fork()`
 
 Runs a command in a shell and buffers the output.
 
-    var util = require('util'),
-        exec = require('child_process').exec,
+    var exec = require('child_process').exec,
         child;
 
     child = exec('cat *.js bad_file | wc -l',
@@ -517,7 +516,6 @@ leaner than `child_process.exec`. It has the same options.
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
-  * `timeout` {Number} (Default: 0)
 * Return: ChildProcess object
 
 This is a special case of the `spawn()` functionality for spawning Node
@@ -528,6 +526,9 @@ instance, the returned object has a communication channel built-in. See
 By default the spawned Node process will have the stdout, stderr associated
 with the parent's. To change this behavior set the `silent` property in the
 `options` object to `true`.
+
+The child process does not automatically exit once it's done, you need to call
+`process.exit()` explicitly. This limitation may be lifted in the future.
 
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many

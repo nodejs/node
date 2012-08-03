@@ -22,7 +22,12 @@ var completed = false
 prog.parseArgv(process.argv)
 
 if (prog.todo.length === 0) {
-  return prog.usageAndExit()
+  if (~process.argv.indexOf('-v') || ~process.argv.indexOf('--version')) {
+    console.log('v%s', prog.version)
+  } else {
+    console.log('%s', prog.usage())
+  }
+  return process.exit(0)
 }
 
 log.info('it worked if it ends with', 'ok')

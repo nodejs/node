@@ -1,3 +1,4 @@
+// vim: set softtabstop=16 shiftwidth=16:
 var tap = require("tap")
 var readJson = require("../")
 var path = require("path")

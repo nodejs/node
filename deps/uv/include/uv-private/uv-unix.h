@@ -94,11 +94,8 @@ struct uv__io_s {
 
 #if __linux__
 # define UV_LOOP_PRIVATE_PLATFORM_FIELDS              \
-  /* RB_HEAD(uv__inotify_watchers, uv_fs_event_s) */  \
-  struct uv__inotify_watchers {                       \
-    struct uv_fs_event_s* rbh_root;                   \
-  } inotify_watchers;                                 \
   uv__io_t inotify_read_watcher;                      \
+  void* inotify_watchers;                             \
   int inotify_fd;
 #elif defined(PORT_SOURCE_FILE)
 # define UV_LOOP_PRIVATE_PLATFORM_FIELDS              \
@@ -266,15 +263,11 @@ struct uv__io_s {
 #if defined(__linux__)
 
 #define UV_FS_EVENT_PRIVATE_FIELDS    \
-  /* RB_ENTRY(fs_event_s) node; */    \
-  struct {                            \
-    struct uv_fs_event_s* rbe_left;   \
-    struct uv_fs_event_s* rbe_right;  \
-    struct uv_fs_event_s* rbe_parent; \
-    int rbe_color;                    \
-  } node;                             \
+  ngx_queue_t watchers;               \
   uv_fs_event_cb cb;                  \
-  int fd;                             \
+  int wd;                             \
+  void* pad0;                         \
+  void* pad1;                         \
 
 #elif defined(__APPLE__)  \
   || defined(__FreeBSD__) \

@@ -10,7 +10,7 @@ silently dropped, rather than being passed through.
 ```javascript
 var MuteStream = require('mute-stream')
 
-var ms = new MuteStream
+var ms = new MuteStream(options)
 
 ms.pipe(process.stdout)
 ms.write('foo') // writes 'foo' to stdout
@@ -33,6 +33,14 @@ input.emit('data', 'bar') // does not log 'bar'
 ms.unmute()
 input.emit('data', 'baz') // logs 'baz'
 ```
+
+## Options
+
+All options are optional.
+
+* `replace` Set to a string to replace each character with the
+  specified string when muted.  (So you can show `****` instead of the
+  password, for example.)
 
 ## ms.mute()
 

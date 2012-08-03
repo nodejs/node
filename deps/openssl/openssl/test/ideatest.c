@@ -1,1 +1,0 @@
-../crypto/idea/ideatest.c

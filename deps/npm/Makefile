@@ -113,13 +113,21 @@ publish: link doc
 
 docpublish: doc-publish
 doc-publish: doc
-	rsync -vazu --stats --no-implied-dirs --delete html/doc/ npmjs.org:/var/www/npmjs.org/public/doc
-	rsync -vazu --stats --no-implied-dirs --delete html/api/ npmjs.org:/var/www/npmjs.org/public/api
-	rsync -vazu --stats --no-implied-dirs --delete html/webfonts/ npmjs.org:/var/www/npmjs.org/public/webfonts
-	scp html/style.css npmjs.org:/var/www/npmjs.org/public/
+	rsync -vazu --stats --no-implied-dirs --delete \
+		html/doc/ \
+		node@npmjs.org:/home/node/npm-www/doc
+	rsync -vazu --stats --no-implied-dirs --delete \
+		html/api/ \
+		node@npmjs.org:/home/node/npm-www/api
+	rsync -vazu --stats --no-implied-dirs --delete \
+		html/webfonts/ \
+		node@npmjs.org:/home/node/npm-www/static/webfonts
+	rsync -vazu --stats --no-implied-dirs --delete \
+		html/style.css \
+		node@npmjs.org:/home/node/npm-www/static/
 
 zip-publish: release
-	scp release/* npmjs.org:/var/www/npmjs.org/public/dist/
+	scp release/* izs.me:/var/www/izs.me/static/public/npm/
 
 release:
 	@bash scripts/release.sh

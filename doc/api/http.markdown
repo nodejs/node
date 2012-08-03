@@ -426,6 +426,10 @@ header information and the first body to the client. The second time
 data, and sends that separately. That is, the response is buffered up to the
 first chunk of body.
 
+Returns `true` if the entire data was flushed successfully to the kernel
+buffer. Returns `false` if all or part of the data was queued in user memory.
+`'drain'` will be emitted when the buffer is again free.
+
 ### response.addTrailers(headers)
 
 This method adds HTTP trailing headers (a header but at the end of the

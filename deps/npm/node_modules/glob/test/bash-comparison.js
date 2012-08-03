@@ -5,8 +5,7 @@ var tap = require("tap")
 
 // put more patterns here.
 , globs =
-  [
-  "test/a/*/+(c|g)/./d"
+  ["test/a/*/+(c|g)/./d"
   ,"test/a/**/[cg]/../[cg]"
   ,"test/a/{b,c,d,e,f}/**/g"
   ,"test/a/b/**"
@@ -53,7 +52,7 @@ globs.forEach(function (pattern) {
     cp.stderr.on("data", function (c) {
       process.stderr.write(c)
     })
-    cp.stdout.on("close", function () {
+    cp.on("close", function () {
       echoOutput = flatten(out)
       if (!echoOutput) echoOutput = []
       else {

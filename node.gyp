@@ -226,6 +226,7 @@
         [ 'OS=="solaris"', {
           'libraries': [
             '-lkstat',
+            '-lumem',
           ],
         }],
       ],
