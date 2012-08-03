@@ -1,4 +1,11 @@
-2012.07.10 Version 0.6.20 (maintenance)
+2012.08.03 Version 0.6.21 (maintenance)
+
+* sunos: work around OS bug to prevent fs.watch() from spinning (Bryan Cantrill)
+
+* net: make pause/resume work with connecting sockets (Bert Belder)
+
+
+2012.07.10 Version 0.6.20 (maintenance), 952e513379169ec1b40909d1db056e9bf4294899
 
 * npm: Upgrade to 1.1.37 (isaacs)
 
