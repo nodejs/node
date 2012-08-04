@@ -181,7 +181,7 @@ Here is an example of sending a server:
       child.send('server', server);
     });
 
-And the child would the recive the server object as:
+And the child would the receive the server object as:
 
     process.on('message', function(m, server) {
       if (m === 'server') {
@@ -196,7 +196,7 @@ that some connections will be handled by the parent and some by the child.
 
 **send socket object**
 
-Here is an example of sending a socket. It will spawn two childs and handle
+Here is an example of sending a socket. It will spawn two children and handle
 connections with the remote address `74.125.127.100` as VIP by sending the
 socket to a "special" child process. Other sockets will go to a "normal" process.
 
@@ -228,7 +228,7 @@ The `child.js` could look like this:
 Note that once a single socket has been sent to a child the parent can no
 longer keep track of when the socket is destroyed. To indicate this condition
 the `.connections` property becomes `null`.
-It is also recomended not to use `.maxConnections` in this condition.
+It is also recommended not to use `.maxConnections` in this condition.
 
 ### child.disconnect()
 
