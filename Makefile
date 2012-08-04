@@ -265,7 +265,7 @@ tar: $(TARBALL)
 $(BINARYTAR):
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
-	./configure --prefix=/ --without-snapshot
+	./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
