@@ -486,7 +486,7 @@ static Handle<Value> Rename(const Arguments& args) {
   }
 }
 
-static Handle<Value> Truncate(const Arguments& args) {
+static Handle<Value> FTruncate(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() < 2 || !args[0]->IsInt32()) {
@@ -941,7 +941,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "fdatasync", Fdatasync);
   NODE_SET_METHOD(target, "fsync", Fsync);
   NODE_SET_METHOD(target, "rename", Rename);
-  NODE_SET_METHOD(target, "truncate", Truncate);
+  NODE_SET_METHOD(target, "ftruncate", FTruncate);
   NODE_SET_METHOD(target, "rmdir", RMDir);
   NODE_SET_METHOD(target, "mkdir", MKDir);
   NODE_SET_METHOD(target, "sendfile", SendFile);

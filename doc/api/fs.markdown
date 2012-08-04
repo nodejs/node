@@ -71,14 +71,23 @@ to the completion callback.
 
 Synchronous rename(2).
 
-## fs.truncate(fd, len, [callback])
+## fs.ftruncate(fd, len, [callback])
 
 Asynchronous ftruncate(2). No arguments other than a possible exception are
 given to the completion callback.
 
-## fs.truncateSync(fd, len)
+## fs.ftruncateSync(fd, len)
 
 Synchronous ftruncate(2).
+
+## fs.truncate(path, len, [callback])
+
+Asynchronous truncate(2). No arguments other than a possible exception are
+given to the completion callback.
+
+## fs.truncateSync(path, len)
+
+Synchronous truncate(2).
 
 ## fs.chown(path, uid, gid, [callback])
 
