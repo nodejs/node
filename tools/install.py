@@ -91,7 +91,9 @@ def waf_files(action):
           'tools/wafadmin/Scripting.py',
           'tools/wafadmin/TaskGen.py',
           'tools/wafadmin/Task.py',
-          'tools/wafadmin/Tools/ar.py',
+          'tools/wafadmin/Utils.py'],
+          'lib/node/wafadmin/')
+  action(['tools/wafadmin/Tools/ar.py',
           'tools/wafadmin/Tools/cc.py',
           'tools/wafadmin/Tools/ccroot.py',
           'tools/wafadmin/Tools/compiler_cc.py',
@@ -123,9 +125,8 @@ def waf_files(action):
           'tools/wafadmin/Tools/unittestw.py',
           'tools/wafadmin/Tools/winres.py',
           'tools/wafadmin/Tools/xlc.py',
-          'tools/wafadmin/Tools/xlcxx.py',
-          'tools/wafadmin/Utils.py'],
-          'lib/node/wafadmin/')
+          'tools/wafadmin/Tools/xlcxx.py'],
+          'lib/node/wafadmin/Tools/')
 
 def update_shebang(path, shebang):
   print 'updating shebang of %s to %s' % (path, shebang)
