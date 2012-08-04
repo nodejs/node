@@ -260,6 +260,8 @@ $(TARBALL): node doc
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
 
+tar: $(TARBALL)
+
 $(BINARYTAR):
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
@@ -296,4 +298,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar
