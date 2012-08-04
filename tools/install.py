@@ -128,7 +128,7 @@ def waf_files(action):
           'lib/node/wafadmin/')
 
 def update_shebang(path, shebang):
-  print 'updating shebang of %s' % path
+  print 'updating shebang of %s to %s' % (path, shebang)
   s = open(path, 'r').read()
   s = re.sub(r'#!.*\n', '#!' + shebang + '\n', s)
   open(path, 'w').write(s)
@@ -153,7 +153,8 @@ def npm_files(action):
     action([link_path], 'bin/npm')
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-    update_shebang(link_path, node_prefix + '/bin/node')
+    shebang = os.path.join(node_prefix, 'bin/node')
+    update_shebang(link_path, shebang)
   else:
     assert(0) # unhandled action type
 
