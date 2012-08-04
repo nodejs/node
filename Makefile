@@ -274,6 +274,8 @@ $(BINARYTAR):
 	rm -rf $(BINARYNAME)
 	gzip -f -9 $(BINARYNAME).tar
 
+binary: $(BINARYTAR)
+
 dist-upload: $(TARBALL) $(PKG)
 	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
 	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
@@ -298,4 +300,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary
