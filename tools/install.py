@@ -125,7 +125,7 @@ def waf_files(action):
           'tools/wafadmin/Tools/xlc.py',
           'tools/wafadmin/Tools/xlcxx.py',
           'tools/wafadmin/Utils.py'],
-          'lib/node/')
+          'lib/node/wafadmin/')
 
 def update_shebang(path, shebang):
   print 'updating shebang of %s' % path
