@@ -188,8 +188,8 @@ def files(action):
   # with dtrace support now (oracle's "unbreakable" linux)
   action(['src/node.d'], 'lib/dtrace/')
 
-  if variables.get('node_install_waf'): waf_files(action)
-  if variables.get('node_install_npm'): npm_files(action)
+  if 'true' == variables.get('node_install_waf'): waf_files(action)
+  if 'true' == variables.get('node_install_npm'): npm_files(action)
 
 def run(args):
   global dst_dir, node_prefix, target_defaults, variables
@@ -202,7 +202,7 @@ def run(args):
   target_defaults = conf['target_defaults']
 
   # argv[2] is a custom install prefix for packagers (think DESTDIR)
-  dst_dir = node_prefix = variables.get('node_prefix', '/usr/local')
+  dst_dir = node_prefix = variables.get('node_prefix') or '/usr/local'
   if len(args) > 2: dst_dir = abspath(args[2] + '/' + dst_dir)
 
   cmd = args[1] if len(args) > 1 else 'install'
