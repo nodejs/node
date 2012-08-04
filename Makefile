@@ -192,8 +192,12 @@ docclean:
 	-rm -rf out/doc
 
 VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
+PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
+ARCH=$(shell uname -m)
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
+BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
+BINARYTAR=$(BINARYNAME).tar.gz
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
@@ -255,6 +259,18 @@ $(TARBALL): node doc
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
+
+$(BINARYTAR):
+	rm -rf $(BINARYNAME)
+	rm -rf out/deps out/Release
+	./configure --prefix=/ --without-snapshot
+	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
+	cp README.md $(BINARYNAME)
+	cp LICENSE $(BINARYNAME)
+	cp ChangeLog $(BINARYNAME)
+	tar -cf $(BINARYNAME).tar $(BINARYNAME)
+	rm -rf $(BINARYNAME)
+	gzip -f -9 $(BINARYNAME).tar
 
 dist-upload: $(TARBALL) $(PKG)
 	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
