@@ -59,7 +59,7 @@ distclean:
 
 test: all
 	$(PYTHON) tools/test.py --mode=release simple message
-	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
+	$(MAKE) jslint
 
 test-http1: all
 	$(PYTHON) tools/test.py --mode=release --use-http1 simple message
