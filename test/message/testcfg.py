@@ -43,7 +43,7 @@ class MessageTestCase(test.TestCase):
 
   def IgnoreLine(self, str):
     """Ignore empty lines and valgrind output."""
-    if not str: return True
+    if not str.strip(): return True
     else: return str.startswith('==') or str.startswith('**')
 
   def IsFailureOutput(self, output):
@@ -66,9 +66,22 @@ class MessageTestCase(test.TestCase):
     raw_lines = (output.stdout + output.stderr).split('\n')
     outlines = [ s for s in raw_lines if not self.IgnoreLine(s) ]
     if len(outlines) != len(patterns):
+      print "length differs."
+      print "expect=%d" % len(patterns)
+      print "actual=%d" % len(outlines)
+      print "patterns:"
+      for i in xrange(len(patterns)):
+        print "pattern = %s" % patterns[i]
+      print "outlines:"
+      for i in xrange(len(outlines)):
+        print "outline = %s" % outlines[i]
       return True
     for i in xrange(len(patterns)):
       if not re.match(patterns[i], outlines[i]):
+        print "match failed"
+        print "line=%d" % i
+        print "expect=%s" % patterns[i]
+        print "actual=%s" % outlines[i]
         return True
     return False
 
