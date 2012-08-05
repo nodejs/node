@@ -170,7 +170,7 @@ Returns `true` if the given "object" is an `Error`. `false` otherwise.
 
 ## util.pump(readableStream, writableStream, [callback])
 
-Experimental
+**Deprecated**
 
 Read the data from `readableStream` and send it to the `writableStream`.
 When `writableStream.write(data)` returns `false` `readableStream` will be
