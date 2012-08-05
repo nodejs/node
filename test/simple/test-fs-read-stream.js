@@ -34,7 +34,7 @@ var fs = require('fs');
 var fn = path.join(common.fixturesDir, 'elipses.txt');
 var rangeFile = path.join(common.fixturesDir, 'x.txt');
 
-var callbacks = { open: 0, end: 0, close: 0, destroy: 0 };
+var callbacks = { open: 0, end: 0, close: 0 };
 
 var paused = false;
 
@@ -82,17 +82,6 @@ file.on('close', function() {
   //assert.equal(fs.readFileSync(fn), fileContent);
 });
 
-var file2 = fs.createReadStream(fn);
-file2.destroy(function(err) {
-  assert.ok(!err);
-  callbacks.destroy++;
-
-  file2.destroy(function(err) {
-    assert.ok(!err);
-    callbacks.destroy++;
-  });
-});
-
 var file3 = fs.createReadStream(fn, {encoding: 'utf8'});
 file3.length = 0;
 file3.on('data', function(data) {
@@ -112,10 +101,7 @@ file3.on('close', function() {
 process.on('exit', function() {
   assert.equal(1, callbacks.open);
   assert.equal(1, callbacks.end);
-  assert.equal(2, callbacks.destroy);
-
   assert.equal(2, callbacks.close);
-
   assert.equal(30000, file.length);
   assert.equal(10000, file3.length);
 });
