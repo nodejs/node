@@ -127,7 +127,7 @@ static void uv__fs_event_rearm(uv_fs_event_t *handle) {
 
 
 static void uv__fs_event_read(uv_loop_t* loop, uv__io_t* w, int revents) {
-  uv_fs_event_t *handle;
+  uv_fs_event_t *handle = NULL;
   timespec_t timeout;
   port_event_t pe;
   int events;
@@ -137,14 +137,23 @@ static void uv__fs_event_read(uv_loop_t* loop, uv__io_t* w, int revents) {
   (void) revents;
 
   do {
-    /* TODO use port_getn() */
+    uint_t n = 1;
+
+    /*
+     * Note that our use of port_getn() here (and not port_get()) is deliberate:
+     * there is a bug in event ports (Sun bug 6456558) whereby a zeroed timeout
+     * causes port_get() to return success instead of ETIME when there aren't
+     * actually any events (!); by using port_getn() in lieu of port_get(),
+     * we can at least workaround the bug by checking for zero returned events
+     * and treating it as we would ETIME.
+     */
     do {
       memset(&timeout, 0, sizeof timeout);
-      r = port_get(loop->fs_fd, &pe, &timeout);
+      r = port_getn(loop->fs_fd, &pe, 1, &n, &timeout);
     }
     while (r == -1 && errno == EINTR);
 
-    if (r == -1 && errno == ETIME)
+    if ((r == -1 && errno == ETIME) || n == 0)
       break;
 
     handle = (uv_fs_event_t *)pe.portev_user;
@@ -161,7 +170,7 @@ static void uv__fs_event_read(uv_loop_t* loop, uv__io_t* w, int revents) {
   }
   while (handle->fd != PORT_DELETED);
 
-  if (handle->fd != PORT_DELETED)
+  if (handle != NULL && handle->fd != PORT_DELETED)
     uv__fs_event_rearm(handle);
 }
 

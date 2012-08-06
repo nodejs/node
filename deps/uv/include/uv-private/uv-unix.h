@@ -40,9 +40,16 @@
 #include <termios.h>
 #include <pwd.h>
 
-#include <semaphore.h>
 #include <pthread.h>
 #include <signal.h>
+
+#if defined(__APPLE__) && defined(__MACH__)
+# include <mach/mach.h>
+# include <mach/task.h>
+# include <mach/semaphore.h>
+#else
+# include <semaphore.h>
+#endif
 
 #if __sun
 # include <sys/port.h>
@@ -67,7 +74,11 @@ typedef pthread_once_t uv_once_t;
 typedef pthread_t uv_thread_t;
 typedef pthread_mutex_t uv_mutex_t;
 typedef pthread_rwlock_t uv_rwlock_t;
+#if defined(__APPLE__) && defined(__MACH__)
+typedef semaphore_t uv_sem_t;
+#else
 typedef sem_t uv_sem_t;
+#endif
 
 /* Platform-specific definitions for uv_spawn support. */
 typedef gid_t uv_gid_t;
@@ -173,8 +184,9 @@ struct uv__io_s {
   int fd; \
 
 
-/* UV_TCP */
-#define UV_TCP_PRIVATE_FIELDS
+/* UV_TCP, idle_handle is for UV_TCP_SINGLE_ACCEPT handles */
+#define UV_TCP_PRIVATE_FIELDS         \
+  uv_idle_t* idle_handle;             \
 
 
 /* UV_UDP */

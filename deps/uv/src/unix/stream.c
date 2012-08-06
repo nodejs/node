@@ -120,7 +120,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
   if (stream->connect_req) {
     uv__req_unregister(stream->loop, stream->connect_req);
-    uv__set_artificial_error(stream->loop, UV_EINTR);
+    uv__set_artificial_error(stream->loop, UV_ECANCELED);
     stream->connect_req->cb(stream->connect_req, -1);
     stream->connect_req = NULL;
   }
@@ -136,7 +136,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
       free(req->bufs);
 
     if (req->cb) {
-      uv__set_artificial_error(req->handle->loop, UV_EINTR);
+      uv__set_artificial_error(req->handle->loop, UV_ECANCELED);
       req->cb(req, -1);
     }
   }
@@ -156,10 +156,20 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
   if (stream->shutdown_req) {
     uv__req_unregister(stream->loop, stream->shutdown_req);
-    uv__set_artificial_error(stream->loop, UV_EINTR);
+    uv__set_artificial_error(stream->loop, UV_ECANCELED);
     stream->shutdown_req->cb(stream->shutdown_req, -1);
     stream->shutdown_req = NULL;
   }
+}
+
+
+static void uv__next_accept(uv_idle_t* idle, int status) {
+  uv_stream_t* stream = idle->data;
+
+  uv_idle_stop(idle);
+
+  if (stream->accepted_fd == -1)
+    uv__io_start(stream->loop, &stream->read_watcher);
 }
 
 
@@ -198,13 +208,43 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
       }
     } else {
       stream->accepted_fd = fd;
-      stream->connection_cb((uv_stream_t*)stream, 0);
-      if (stream->accepted_fd >= 0) {
+      stream->connection_cb(stream, 0);
+
+      if (stream->accepted_fd != -1 ||
+          (stream->type == UV_TCP && stream->flags == UV_TCP_SINGLE_ACCEPT)) {
         /* The user hasn't yet accepted called uv_accept() */
         uv__io_stop(stream->loop, &stream->read_watcher);
-        return;
+        break;
       }
     }
+  }
+
+  if (stream->fd != -1 &&
+      stream->accepted_fd == -1 &&
+      (stream->type == UV_TCP && stream->flags == UV_TCP_SINGLE_ACCEPT))
+  {
+    /* Defer the next accept() syscall to the next event loop tick.
+     * This lets us guarantee fair load balancing in in multi-process setups.
+     * The problem is as follows:
+     *
+     *  1. Multiple processes listen on the same socket.
+     *  2. The OS scheduler commonly gives preference to one process to
+     *     avoid task switches.
+     *  3. That process therefore accepts most of the new connections,
+     *     leading to a (sometimes very) unevenly distributed load.
+     *
+     * Here is how we mitigate this issue:
+     *
+     *  1. Accept a connection.
+     *  2. Start an idle watcher.
+     *  3. Don't accept new connections until the idle callback fires.
+     *
+     * This works because the callback only fires when there have been
+     * no recent events, i.e. none of the watched file descriptors have
+     * recently been readable or writable.
+     */
+    uv_tcp_t* tcp = (uv_tcp_t*) stream;
+    uv_idle_start(tcp->idle_handle, uv__next_accept);
   }
 }
 
@@ -784,9 +824,6 @@ static void uv__stream_connect(uv_stream_t* stream) {
   if (error == EINPROGRESS)
     return;
 
-  if (error == 0)
-    uv__io_start(stream->loop, &stream->read_watcher);
-
   stream->connect_req = NULL;
   uv__req_unregister(stream->loop, req);
 
@@ -794,65 +831,6 @@ static void uv__stream_connect(uv_stream_t* stream) {
     uv__set_sys_error(stream->loop, error);
     req->cb(req, error ? -1 : 0);
   }
-}
-
-
-int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
-    socklen_t addrlen, uv_connect_cb cb) {
-  int sockfd;
-  int r;
-
-  if (stream->type != UV_TCP)
-    return uv__set_sys_error(stream->loop, ENOTSOCK);
-
-  if (stream->connect_req)
-    return uv__set_sys_error(stream->loop, EALREADY);
-
-  if (stream->fd <= 0) {
-    sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0);
-
-    if (sockfd == -1)
-      return uv__set_sys_error(stream->loop, errno);
-
-    if (uv__stream_open(stream,
-                        sockfd,
-                        UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
-      close(sockfd);
-      return -1;
-    }
-  }
-
-  stream->delayed_error = 0;
-
-  do
-    r = connect(stream->fd, addr, addrlen);
-  while (r == -1 && errno == EINTR);
-
-  if (r == -1) {
-    if (errno == EINPROGRESS)
-      ; /* not an error */
-    else if (errno == ECONNREFUSED)
-    /* If we get a ECONNREFUSED wait until the next tick to report the
-     * error. Solaris wants to report immediately--other unixes want to
-     * wait.
-     */
-      stream->delayed_error = errno;
-    else
-      return uv__set_sys_error(stream->loop, errno);
-  }
-
-  uv__req_init(stream->loop, req, UV_CONNECT);
-  req->cb = cb;
-  req->handle = stream;
-  ngx_queue_init(&req->queue);
-  stream->connect_req = req;
-
-  uv__io_start(stream->loop, &stream->write_watcher);
-
-  if (stream->delayed_error)
-    uv__io_feed(stream->loop, &stream->write_watcher, UV__IO_WRITE);
-
-  return 0;
 }
 
 

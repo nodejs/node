@@ -139,9 +139,23 @@ char** uv_setup_args(int argc, char** argv) {
 
 
 uv_err_t uv_set_process_title(const char* title) {
+  int oid[4];
+
   if (process_title) free(process_title);
   process_title = strdup(title);
-  setproctitle(title);
+
+  oid[0] = CTL_KERN;
+  oid[1] = KERN_PROC;
+  oid[2] = KERN_PROC_ARGS;
+  oid[3] = getpid();
+
+  sysctl(oid,
+         ARRAY_SIZE(oid),
+         NULL,
+         NULL,
+         process_title,
+         strlen(process_title) + 1);
+
   return uv_ok_;
 }
 
@@ -261,7 +275,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return uv__new_sys_error(ENOMEM);
   }
 
-  if (sysctlbyname("kern.cp_times", &cp_times, &size, NULL, 0) < 0) {
+  if (sysctlbyname("kern.cp_times", cp_times, &size, NULL, 0) < 0) {
     free(cp_times);
     free(*cpu_infos);
     return uv__new_sys_error(errno);

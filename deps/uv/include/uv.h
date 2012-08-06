@@ -121,7 +121,8 @@ extern "C" {
   XX( 54, ENOSPC, "no space left on device") \
   XX( 55, EIO, "i/o error") \
   XX( 56, EROFS, "read-only file system" ) \
-  XX( 57, ENODEV, "no such device" )
+  XX( 57, ENODEV, "no such device" ) \
+  XX( 58, ECANCELED, "operation canceled" )
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,
@@ -427,6 +428,10 @@ UV_EXTERN void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg);
  * Note that handles that wrap file descriptors are closed immediately but
  * close_cb will still be deferred to the next iteration of the event loop.
  * It gives you a chance to free up any resources associated with the handle.
+ *
+ * In-progress requests, like uv_connect_t or uv_write_t, are cancelled and
+ * have their callbacks called asynchronously with status=-1 and the error code
+ * set to UV_ECANCELED.
  */
 UV_EXTERN void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
 
@@ -528,9 +533,12 @@ UV_EXTERN int uv_read2_start(uv_stream_t*, uv_alloc_cb alloc_cb,
  *     { .base = "4", .len = 1 }
  *   };
  *
+ *   uv_write_t req1;
+ *   uv_write_t req2;
+ *
  *   // writes "1234"
- *   uv_write(req, stream, a, 2);
- *   uv_write(req, stream, b, 2);
+ *   uv_write(&req1, stream, a, 2);
+ *   uv_write(&req2, stream, b, 2);
  *
  */
 UV_EXTERN int uv_write(uv_write_t* req, uv_stream_t* handle,
@@ -1613,6 +1621,12 @@ UV_EXTERN struct sockaddr_in6 uv_ip6_addr(const char* ip, int port);
 /* Convert binary addresses to strings */
 UV_EXTERN int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size);
 UV_EXTERN int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
+
+/* Cross-platform IPv6-capable implementation of the 'standard' inet_ntop */
+/* and inet_pton functions. On success they return UV_OK. If an error */
+/* the target of the `dst` pointer is unmodified. */
+uv_err_t uv_inet_ntop(int af, const void* src, char* dst, size_t size);
+uv_err_t uv_inet_pton(int af, const char* src, void* dst);
 
 /* Gets the executable path */
 UV_EXTERN int uv_exepath(char* buffer, size_t* size);

@@ -157,7 +157,6 @@ int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
 
 void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   int status;
-  int sys_error;
   unsigned int i;
   uv_tcp_accept_t* req;
 
@@ -169,19 +168,16 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
 
     if (handle->flags & UV_HANDLE_CLOSING) {
       status = -1;
-      sys_error = WSAEINTR;
+      uv__set_artificial_error(loop, UV_ECANCELED);
     } else if (shutdown(handle->socket, SD_SEND) != SOCKET_ERROR) {
       status = 0;
       handle->flags |= UV_HANDLE_SHUT;
     } else {
       status = -1;
-      sys_error = WSAGetLastError();
+      uv__set_sys_error(loop, WSAGetLastError());
     }
 
     if (handle->shutdown_req->cb) {
-      if (status == -1) {
-        uv__set_sys_error(loop, sys_error);
-      }
       handle->shutdown_req->cb(handle->shutdown_req, status);
     }
 

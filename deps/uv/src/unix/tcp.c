@@ -22,6 +22,7 @@
 #include "uv.h"
 #include "internal.h"
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
@@ -30,6 +31,27 @@
 int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
   uv__stream_init(loop, (uv_stream_t*)tcp, UV_TCP);
   loop->counters.tcp_init++;
+  tcp->idle_handle = NULL;
+  return 0;
+}
+
+
+static int maybe_new_socket(uv_tcp_t* handle, int domain, int flags) {
+  int sockfd;
+
+  if (handle->fd != -1)
+    return 0;
+
+  sockfd = uv__socket(domain, SOCK_STREAM, 0);
+
+  if (sockfd == -1)
+    return uv__set_sys_error(handle->loop, errno);
+
+  if (uv__stream_open((uv_stream_t*)handle, sockfd, flags)) {
+    close(sockfd);
+    return -1;
+  }
+
   return 0;
 }
 
@@ -44,23 +66,8 @@ static int uv__bind(uv_tcp_t* tcp,
   saved_errno = errno;
   status = -1;
 
-  if (tcp->fd < 0) {
-    if ((tcp->fd = uv__socket(domain, SOCK_STREAM, 0)) == -1) {
-      uv__set_sys_error(tcp->loop, errno);
-      goto out;
-    }
-
-    if (uv__stream_open((uv_stream_t*)tcp,
-                        tcp->fd,
-                        UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
-      close(tcp->fd);
-      tcp->fd = -1;
-      status = -2;
-      goto out;
-    }
-  }
-
-  assert(tcp->fd >= 0);
+  if (maybe_new_socket(tcp, domain, UV_STREAM_READABLE|UV_STREAM_WRITABLE))
+    return -1;
 
   tcp->delayed_error = 0;
   if (bind(tcp->fd, addr, addrsize) == -1) {
@@ -76,6 +83,58 @@ static int uv__bind(uv_tcp_t* tcp,
 out:
   errno = saved_errno;
   return status;
+}
+
+
+static int uv__connect(uv_connect_t* req,
+                       uv_tcp_t* handle,
+                       struct sockaddr* addr,
+                       socklen_t addrlen,
+                       uv_connect_cb cb) {
+  int r;
+
+  assert(handle->type == UV_TCP);
+
+  if (handle->connect_req)
+    return uv__set_sys_error(handle->loop, EALREADY);
+
+  if (maybe_new_socket(handle,
+                       addr->sa_family,
+                       UV_STREAM_READABLE|UV_STREAM_WRITABLE)) {
+    return -1;
+  }
+
+  handle->delayed_error = 0;
+
+  do
+    r = connect(handle->fd, addr, addrlen);
+  while (r == -1 && errno == EINTR);
+
+  if (r == -1) {
+    if (errno == EINPROGRESS)
+      ; /* not an error */
+    else if (errno == ECONNREFUSED)
+    /* If we get a ECONNREFUSED wait until the next tick to report the
+     * error. Solaris wants to report immediately--other unixes want to
+     * wait.
+     */
+      handle->delayed_error = errno;
+    else
+      return uv__set_sys_error(handle->loop, errno);
+  }
+
+  uv__req_init(handle->loop, req, UV_CONNECT);
+  req->cb = cb;
+  req->handle = (uv_stream_t*) handle;
+  ngx_queue_init(&req->queue);
+  handle->connect_req = req;
+
+  uv__io_start(handle->loop, &handle->write_watcher);
+
+  if (handle->delayed_error)
+    uv__io_feed(handle->loop, &handle->write_watcher, UV__IO_WRITE);
+
+  return 0;
 }
 
 
@@ -170,33 +229,34 @@ out:
 
 
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
-  int r;
+  static int single_accept = -1;
 
-  if (tcp->delayed_error) {
-    uv__set_sys_error(tcp->loop, tcp->delayed_error);
+  if (tcp->delayed_error)
+    return uv__set_sys_error(tcp->loop, tcp->delayed_error);
+
+  if (single_accept == -1) {
+    const char* val = getenv("UV_TCP_SINGLE_ACCEPT");
+    single_accept = (val == NULL) || (atoi(val) != 0); /* on by default */
+  }
+
+  if (!single_accept)
+    goto no_single_accept;
+
+  tcp->idle_handle = malloc(sizeof(*tcp->idle_handle));
+  if (tcp->idle_handle == NULL)
+    return uv__set_sys_error(tcp->loop, ENOMEM);
+
+  if (uv_idle_init(tcp->loop, tcp->idle_handle))
+    abort();
+
+  tcp->flags |= UV_TCP_SINGLE_ACCEPT;
+
+no_single_accept:
+  if (maybe_new_socket(tcp, AF_INET, UV_STREAM_READABLE))
     return -1;
-  }
 
-  if (tcp->fd < 0) {
-    if ((tcp->fd = uv__socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-      uv__set_sys_error(tcp->loop, errno);
-      return -1;
-    }
-
-    if (uv__stream_open((uv_stream_t*)tcp, tcp->fd, UV_STREAM_READABLE)) {
-      close(tcp->fd);
-      tcp->fd = -1;
-      return -1;
-    }
-  }
-
-  assert(tcp->fd >= 0);
-
-  r = listen(tcp->fd, backlog);
-  if (r < 0) {
-    uv__set_sys_error(tcp->loop, errno);
-    return -1;
-  }
+  if (listen(tcp->fd, backlog))
+    return uv__set_sys_error(tcp->loop, errno);
 
   tcp->connection_cb = cb;
 
@@ -209,37 +269,31 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
 
 int uv__tcp_connect(uv_connect_t* req,
-                   uv_tcp_t* handle,
-                   struct sockaddr_in address,
-                   uv_connect_cb cb) {
-  int saved_errno = errno;
+                    uv_tcp_t* handle,
+                    struct sockaddr_in addr,
+                    uv_connect_cb cb) {
+  int saved_errno;
   int status;
 
-  status = uv__connect(req,
-                       (uv_stream_t*)handle,
-                       (struct sockaddr*)&address,
-                       sizeof address,
-                       cb);
-
+  saved_errno = errno;
+  status = uv__connect(req, handle, (struct sockaddr*)&addr, sizeof addr, cb);
   errno = saved_errno;
+
   return status;
 }
 
 
 int uv__tcp_connect6(uv_connect_t* req,
-                    uv_tcp_t* handle,
-                    struct sockaddr_in6 address,
-                    uv_connect_cb cb) {
-  int saved_errno = errno;
+                     uv_tcp_t* handle,
+                     struct sockaddr_in6 addr,
+                     uv_connect_cb cb) {
+  int saved_errno;
   int status;
 
-  status = uv__connect(req,
-                       (uv_stream_t*)handle,
-                       (struct sockaddr*)&address,
-                       sizeof address,
-                       cb);
-
+  saved_errno = errno;
+  status = uv__connect(req, handle, (struct sockaddr*)&addr, sizeof addr, cb);
   errno = saved_errno;
+
   return status;
 }
 
@@ -324,5 +378,17 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
 
 
 int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
+  if (enable)
+    handle->flags |= UV_TCP_SINGLE_ACCEPT;
+  else
+    handle->flags &= ~UV_TCP_SINGLE_ACCEPT;
   return 0;
+}
+
+
+void uv__tcp_close(uv_tcp_t* handle) {
+  if (handle->idle_handle)
+    uv_close((uv_handle_t*)handle->idle_handle, (uv_close_cb)free);
+
+  uv__stream_close((uv_stream_t*)handle);
 }

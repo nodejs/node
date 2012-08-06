@@ -1751,7 +1751,7 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
     /* TTY shutdown is really just a no-op */
     if (handle->shutdown_req->cb) {
       if (handle->flags & UV_HANDLE_CLOSING) {
-        uv__set_sys_error(loop, WSAEINTR);
+        uv__set_artificial_error(loop, UV_ECANCELED);
         handle->shutdown_req->cb(handle->shutdown_req, -1);
       } else {
         handle->shutdown_req->cb(handle->shutdown_req, 0);

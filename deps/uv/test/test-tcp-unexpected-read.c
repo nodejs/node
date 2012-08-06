@@ -49,6 +49,8 @@ static void timer_cb(uv_timer_t* handle, int status) {
 
 static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
   ASSERT(0 && "alloc_cb should not have been called");
+  /* Satisfy the compiler. */
+  return uv_buf_init(NULL, 0);
 }
 
 

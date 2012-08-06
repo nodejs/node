@@ -86,6 +86,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_INVALID_REPARSE_DATA:        return UV_ENOENT;
     case ERROR_MOD_NOT_FOUND:               return UV_ENOENT;
     case ERROR_PATH_NOT_FOUND:              return UV_ENOENT;
+    case WSANO_DATA:                        return UV_ENOENT;
     case ERROR_ACCESS_DENIED:               return UV_EPERM;
     case ERROR_PRIVILEGE_NOT_HELD:          return UV_EPERM;
     case ERROR_NOACCESS:                    return UV_EACCES;

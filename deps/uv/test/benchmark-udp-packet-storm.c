@@ -91,7 +91,7 @@ static void recv_cb(uv_udp_t* handle,
     return;
 
   if (nread == -1) {
-    ASSERT(uv_last_error(loop).code == UV_EINTR); /* FIXME change error code */
+    ASSERT(uv_last_error(loop).code == UV_ECANCELED);
     return;
   }
 

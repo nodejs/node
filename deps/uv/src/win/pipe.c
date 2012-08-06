@@ -300,7 +300,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
       /* Already closing. Cancel the shutdown. */
       if (req->cb) {
-        uv__set_sys_error(loop, WSAEINTR);
+        uv__set_artificial_error(loop, UV_ECANCELED);
         req->cb(req, -1);
       }
 

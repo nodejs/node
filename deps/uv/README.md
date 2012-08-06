@@ -39,8 +39,10 @@ http://nodejs.org/
 
 ## Documentation
 
-See `include/uv.h`.
-
+ * [include/uv.h](https://github.com/joyent/libuv/blob/master/include/uv.h)
+   &mdash; API documentation in the form of detailed header comments.
+ * [An Introduction to libuv](http://nikhilm.github.com/uvbook/) &mdash; An
+   overview of libuv with tutorials.
 
 ## Build Instructions
 
