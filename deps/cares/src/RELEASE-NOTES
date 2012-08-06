@@ -1,0 +1,16 @@
+c-ares version 1.9.0
+
+Changed:
+
+ o Added ares_parse_soa_reply
+
+Fixed:
+
+ o libcares.pc generation for static MingW* cross builds
+ o ares_dup: UDP and TCP port byte order in saved options
+ 
+Thanks go to these friendly people for their efforts and contributions:
+
+ Yang Tse, Nick Alcock, Marko Kreen
+
+Have fun!

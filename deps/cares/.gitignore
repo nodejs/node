@@ -1,0 +1,15 @@
+/Debug/
+/out/
+/Release/
+
+/cares.Makefile
+/cares.target.mk
+/Makefile
+
+/*.opensdf
+/*.sdf
+/*.sln
+/*.suo
+/*.vcxproj
+/*.vcxproj.filters
+/*.vcxproj.user
