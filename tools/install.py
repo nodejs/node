@@ -154,7 +154,7 @@ def npm_files(action):
     action([link_path], 'bin/npm')
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-    if os.environ['PORTABLE']:
+    if os.environ.get('PORTABLE'):
       # This crazy hack is necessary to make the shebang execute the copy
       # of node relative to the same directory as the npm script. The precompiled
       # binary tarballs use a prefix of "/" which gets translated to "/bin/node"
