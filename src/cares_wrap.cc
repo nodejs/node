@@ -20,11 +20,16 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <assert.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define CARES_STATICLIB
+#include "ares.h"
 #include "node.h"
 #include "req_wrap.h"
+#include "tree.h"
 #include "uv.h"
-
-#include <string.h>
 
 #if defined(__OpenBSD__) || defined(__MINGW32__) || defined(_MSC_VER)
 # include <nameser.h>
@@ -69,9 +74,139 @@ using v8::Value;
 
 typedef class ReqWrap<uv_getaddrinfo_t> GetAddrInfoReqWrap;
 
-static Persistent<String> oncomplete_sym;
+struct ares_task_t {
+  UV_HANDLE_FIELDS
+  ares_socket_t sock;
+  uv_poll_t poll_watcher;
+  RB_ENTRY(ares_task_t) node;
+};
 
+
+static Persistent<String> oncomplete_sym;
 static ares_channel ares_channel;
+static uv_timer_t ares_timer;
+static RB_HEAD(ares_task_list, ares_task_t) ares_tasks;
+
+
+static int cmp_ares_tasks(const ares_task_t* a, const ares_task_t* b) {
+  if (a->sock < b->sock) return -1;
+  if (a->sock > b->sock) return 1;
+  return 0;
+}
+
+
+RB_GENERATE_STATIC(ares_task_list, ares_task_t, node, cmp_ares_tasks)
+
+
+
+/* This is called once per second by loop->timer. It is used to constantly */
+/* call back into c-ares for possibly processing timeouts. */
+static void ares_timeout(uv_timer_t* handle, int status) {
+  assert(!RB_EMPTY(&ares_tasks));
+  ares_process_fd(ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+}
+
+
+static void ares_poll_cb(uv_poll_t* watcher, int status, int events) {
+  ares_task_t* task = container_of(watcher, ares_task_t, poll_watcher);
+
+  /* Reset the idle timer */
+  uv_timer_again(&ares_timer);
+
+  if (status < 0) {
+    /* An error happened. Just pretend that the socket is both readable and */
+    /* writable. */
+    ares_process_fd(ares_channel, task->sock, task->sock);
+    return;
+  }
+
+  /* Process DNS responses */
+  ares_process_fd(ares_channel,
+                  events & UV_READABLE ? task->sock : ARES_SOCKET_BAD,
+                  events & UV_WRITABLE ? task->sock : ARES_SOCKET_BAD);
+}
+
+
+static void ares_poll_close_cb(uv_handle_t* watcher) {
+  ares_task_t* task = container_of(watcher, ares_task_t, poll_watcher);
+  free(task);
+}
+
+
+/* Allocates and returns a new ares_task_t */
+static ares_task_t* ares_task_create(uv_loop_t* loop, ares_socket_t sock) {
+  ares_task_t* task = (ares_task_t*) malloc(sizeof *task);
+
+  if (task == NULL) {
+    /* Out of memory. */
+    return NULL;
+  }
+
+  task->loop = loop;
+  task->sock = sock;
+
+  if (uv_poll_init_socket(loop, &task->poll_watcher, sock) < 0) {
+    /* This should never happen. */
+    free(task);
+    return NULL;
+  }
+
+  return task;
+}
+
+
+/* Callback from ares when socket operation is started */
+static void ares_sockstate_cb(void* data, ares_socket_t sock,
+    int read, int write) {
+  uv_loop_t* loop = (uv_loop_t*) data;
+  ares_task_t* task;
+
+  ares_task_t lookup_task;
+  lookup_task.sock = sock;
+  task = RB_FIND(ares_task_list, &ares_tasks, &lookup_task);
+
+  if (read || write) {
+    if (!task) {
+      /* New socket */
+
+      /* If this is the first socket then start the timer. */
+      if (!uv_is_active((uv_handle_t*) &ares_timer)) {
+        assert(RB_EMPTY(&ares_tasks));
+        uv_timer_start(&ares_timer, ares_timeout, 1000, 1000);
+      }
+
+      task = ares_task_create(loop, sock);
+      if (task == NULL) {
+        /* This should never happen unless we're out of memory or something */
+        /* is seriously wrong. The socket won't be polled, but the the query */
+        /* will eventually time out. */
+        return;
+      }
+
+      RB_INSERT(ares_task_list, &ares_tasks, task);
+    }
+
+    /* This should never fail. If it fails anyway, the query will eventually */
+    /* time out. */
+    uv_poll_start(&task->poll_watcher,
+                  (read ? UV_READABLE : 0) | (write ? UV_WRITABLE : 0),
+                  ares_poll_cb);
+
+  } else {
+    /* read == 0 and write == 0 this is c-ares's way of notifying us that */
+    /* the socket is now closed. We must free the data associated with */
+    /* socket. */
+    assert(task &&
+           "When an ares socket is closed we should have a handle for it");
+
+    RB_REMOVE(ares_task_list, &ares_tasks, task);
+    uv_close((uv_handle_t*) &task->poll_watcher, ares_poll_close_cb);
+
+    if (RB_EMPTY(&ares_tasks)) {
+      uv_timer_stop(&ares_timer);
+    }
+  }
+}
 
 
 static Local<Array> HostentToAddresses(struct hostent* host) {
@@ -736,8 +871,16 @@ static void Initialize(Handle<Object> target) {
   assert(r == ARES_SUCCESS);
 
   struct ares_options options;
-  uv_ares_init_options(uv_default_loop(), &ares_channel, &options, 0);
-  assert(r == 0);
+  options.sock_state_cb = ares_sockstate_cb;
+  options.sock_state_cb_data = uv_default_loop();
+
+  /* We do the call to ares_init_option for caller. */
+  r = ares_init_options(&ares_channel, &options, ARES_OPT_SOCK_STATE_CB);
+  assert(r == ARES_SUCCESS);
+
+  /* Initialize the timeout timer. The timer won't be started until the */
+  /* first socket is opened. */
+  uv_timer_init(uv_default_loop(), &ares_timer);
 
   NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);
   NODE_SET_METHOD(target, "queryAaaa", Query<QueryAaaaWrap>);

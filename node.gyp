@@ -57,6 +57,7 @@
       'type': 'executable',
 
       'dependencies': [
+        'deps/cares/cares.gyp:cares',
         'deps/http_parser/http_parser.gyp:http_parser',
         'deps/uv/uv.gyp:uv',
         'node_js2c#host',
@@ -117,6 +118,7 @@
         'src/req_wrap.h',
         'src/slab_allocator.h',
         'src/stream_wrap.h',
+        'src/tree.h',
         'src/v8_typed_array.h',
         'deps/http_parser/http_parser.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
