@@ -1,4 +1,27 @@
-2012.08.02, Version 0.8.5 (Stable)
+2012.08.07, Version 0.8.6 (Stable)
+
+* npm: Upgrade to v1.1.48
+
+* Add 'make binary' to build binary tarballs for all Unixes (Nathan Rajlich)
+
+* zlib: Emit 'close' on destroy(). (Dominic Tarr)
+
+* child_process: Fix stdout=null when stdio=['pipe'] (Tyler Neylon)
+
+* installer: prevent ETXTBSY errors (Ben Noordhuis)
+
+* installer: honor --without-npm, default install path (Ben Noordhuis)
+
+* net: make pause work with connecting sockets (Bert Belder)
+
+* installer: fix cross-compile installs (Ben Noordhuis)
+
+* net: fix .listen({fd:0}) (Ben Noordhuis)
+
+* windows: map WSANO_DATA to UV_ENOENT (Bert Belder)
+
+
+2012.08.02, Version 0.8.5 (Stable), 9b86a4453f0c76f2707a75c0b2343aba33ec63bc
 
 * node: tag Encode and friends NODE_EXTERN (Ben Noordhuis)
 
