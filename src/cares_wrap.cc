@@ -37,21 +37,6 @@
 # include <arpa/nameser.h>
 #endif
 
-// Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
-#if defined(__MINGW32__) || defined(_MSC_VER)
-  extern "C" {
-#   include <inet_net_pton.h>
-#   include <inet_ntop.h>
-  }
-# define uv_inet_pton ares_inet_pton
-# define uv_inet_ntop ares_inet_ntop
-
-#else // __POSIX__
-# include <arpa/inet.h>
-# define uv_inet_pton inet_pton
-# define uv_inet_ntop inet_ntop
-#endif
-
 
 namespace node {
 
@@ -627,10 +612,10 @@ class GetHostByAddrWrap: public QueryWrap {
     int length, family;
     char address_buffer[sizeof(struct in6_addr)];
 
-    if (uv_inet_pton(AF_INET, name, &address_buffer) == 1) {
+    if (uv_inet_pton(AF_INET, name, &address_buffer).code == UV_OK) {
       length = sizeof(struct in_addr);
       family = AF_INET;
-    } else if (uv_inet_pton(AF_INET6, name, &address_buffer) == 1) {
+    } else if (uv_inet_pton(AF_INET6, name, &address_buffer).code == UV_OK) {
       length = sizeof(struct in6_addr);
       family = AF_INET6;
     } else {
@@ -772,11 +757,15 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       if (address->ai_family == AF_INET) {
         // Juggle pointers
         addr = (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr;
-        const char* c = uv_inet_ntop(address->ai_family, addr, ip,
-            INET6_ADDRSTRLEN);
+        uv_err_t err = uv_inet_ntop(address->ai_family,
+                                    addr,
+                                    ip,
+                                    INET6_ADDRSTRLEN);
+        if (err.code != UV_OK)
+          continue;
 
         // Create JavaScript string
-        Local<String> s = String::New(c);
+        Local<String> s = String::New(ip);
         results->Set(n, s);
         n++;
       }
@@ -794,11 +783,15 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       if (address->ai_family == AF_INET6) {
         // Juggle pointers
         addr = (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr;
-        const char* c = uv_inet_ntop(address->ai_family, addr, ip,
-            INET6_ADDRSTRLEN);
+        uv_err_t err = uv_inet_ntop(address->ai_family,
+                                    addr,
+                                    ip,
+                                    INET6_ADDRSTRLEN);
+        if (err.code != UV_OK)
+          continue;
 
         // Create JavaScript string
-        Local<String> s = String::New(c);
+        Local<String> s = String::New(ip);
         results->Set(n, s);
         n++;
       }
