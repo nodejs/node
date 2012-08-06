@@ -191,9 +191,8 @@ And the child would the recive the server object as:
       }
     });
 
-Note that the server is now shared between the parent and child. This means
-that any connections will be load balanced between the servers provided there
-is a `connection` listener.
+Note that the server is now shared between the parent and child, this means
+that some connections will be handled by the parent and some by the child.
 
 **send socket object**
 
@@ -358,9 +357,9 @@ index corresponds to a fd in the child.  The value is one of the following:
    ignored node will open `/dev/null` and attach it to the child's fd.
 4. `Stream` object - Share a readable or writable stream that refers to a tty,
    file, socket, or a pipe with the child process. The stream's underlying
-   file descriptor is duplicated in the child process to the fd that
+   file descriptor is duplicated in the child process to the fd that 
    corresponds to the index in the `stdio` array.
-5. Positive integer - The integer value is interpreted as a file descriptor
+5. Positive integer - The integer value is interpreted as a file descriptor 
    that is is currently open in the parent process. It is shared with the child
    process, similar to how `Stream` objects can be shared.
 6. `null`, `undefined` - Use default value. For stdio fds 0, 1 and 2 (in other
@@ -389,7 +388,7 @@ Example:
     spawn('prg', [], { stdio: ['pipe', null, null, null, 'pipe'] });
 
 If the `detached` option is set, the child process will be made the leader of a
-new process group.  This makes it possible for the child to continue running
+new process group.  This makes it possible for the child to continue running 
 after the parent exits.
 
 By default, the parent will wait for the detached child to exit.  To prevent

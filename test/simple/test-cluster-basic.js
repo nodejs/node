@@ -136,7 +136,8 @@ else if (cluster.isMaster) {
           assert.equal(arguments.length, 1);
           var expect = { address: '127.0.0.1',
                          port: common.PORT,
-                         family: 'IPv4'};
+                         addressType: 4,
+                         fd: undefined };
           assert.deepEqual(arguments[0], expect);
           break;
 
