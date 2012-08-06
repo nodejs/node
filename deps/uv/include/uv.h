@@ -30,16 +30,14 @@ extern "C" {
 #ifdef _WIN32
   /* Windows - set up dll import/export decorators. */
 # if defined(BUILDING_UV_SHARED)
-    /* Building shared library. Export everything from c-ares as well. */
+    /* Building shared library. */
 #   define UV_EXTERN __declspec(dllexport)
-#   define CARES_BUILDING_LIBRARY 1
 # elif defined(USING_UV_SHARED)
-    /* Using shared library. Use shared c-ares as well. */
+    /* Using shared library. */
 #   define UV_EXTERN __declspec(dllimport)
 # else
-    /* Building static library. Build c-ares statically as well. */
+    /* Building static library. */
 #   define UV_EXTERN /* nothing */
-#   define CARES_STATICLIB 1
 # endif
 #elif __GNUC__ >= 4
 # define UV_EXTERN __attribute__((visibility("default")))
@@ -54,8 +52,6 @@ extern "C" {
 
 #include <stdint.h> /* int64_t */
 #include <sys/types.h> /* size_t */
-
-#include "ares.h"
 
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
 # include "uv-private/uv-unix.h"
@@ -161,7 +157,6 @@ typedef enum {
 #define XX(uc, lc) UV_##uc,
   UV_HANDLE_TYPE_MAP(XX)
 #undef XX
-  UV_ARES_TASK,
   UV_FILE,
   UV_HANDLE_TYPE_MAX
 } uv_handle_type;
@@ -178,7 +173,6 @@ typedef enum {
 
 /* Handle types. */
 typedef struct uv_loop_s uv_loop_t;
-typedef struct uv_ares_task_s uv_ares_task_t;
 typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
 typedef struct uv_stream_s uv_stream_t;
@@ -1137,14 +1131,6 @@ UV_EXTERN void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat);
 UV_EXTERN int64_t uv_timer_get_repeat(uv_timer_t* timer);
 
 
-/* c-ares integration initialize and terminate */
-UV_EXTERN  int uv_ares_init_options(uv_loop_t*,
-    ares_channel *channelptr, struct ares_options *options, int optmask);
-
-/* TODO remove the loop argument from this function? */
-UV_EXTERN void uv_ares_destroy(uv_loop_t*, ares_channel channel);
-
-
 /*
  * uv_getaddrinfo_t is a subclass of uv_req_t
  *
@@ -1786,13 +1772,6 @@ struct uv_counters_s {
 
 struct uv_loop_s {
   UV_LOOP_PRIVATE_FIELDS
-  ares_channel channel;
-  /* While the channel is active this timer is called once per second to be */
-  /* sure that we're always calling ares_process. See the warning above the */
-  /* definition of ares_timeout(). */
-  uv_timer_t ares_timer; \
-  /* RB_HEAD(uv__ares_tasks, uv_ares_task_t) */
-  struct uv__ares_tasks { uv_ares_task_t* rbh_root; } ares_handles;
   /* Diagnostic counters */
   uv_counters_t counters;
   /* The last error */

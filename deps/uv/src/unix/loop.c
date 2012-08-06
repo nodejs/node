@@ -36,7 +36,6 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
 
   memset(loop, 0, sizeof(*loop));
 
-  RB_INIT(&loop->ares_handles);
   RB_INIT(&loop->timer_handles);
   ngx_queue_init(&loop->active_reqs);
   ngx_queue_init(&loop->idle_handles);
@@ -45,7 +44,6 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   ngx_queue_init(&loop->prepare_handles);
   ngx_queue_init(&loop->handle_queue);
   loop->closing_handles = NULL;
-  loop->channel = NULL;
   loop->time = uv_hrtime() / 1000000;
   loop->async_pipefd[0] = -1;
   loop->async_pipefd[1] = -1;
@@ -65,7 +63,6 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
 
 
 void uv__loop_delete(uv_loop_t* loop) {
-  uv_ares_destroy(loop, loop->channel);
   ev_loop_destroy(loop->ev);
 #if __linux__
   if (loop->inotify_fd != -1) {

@@ -47,7 +47,7 @@ OBJS += src/unix/udp.o
 ifeq (SunOS,$(uname_S))
 EV_CONFIG=config_sunos.h
 EIO_CONFIG=config_sunos.h
-CPPFLAGS += -Isrc/ares/config_sunos -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
+CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LINKFLAGS+=-lsocket -lnsl -lkstat
 OBJS += src/unix/sunos.o
 endif
@@ -55,7 +55,7 @@ endif
 ifeq (Darwin,$(uname_S))
 EV_CONFIG=config_darwin.h
 EIO_CONFIG=config_darwin.h
-CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1 -Isrc/ares/config_darwin
+CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 LINKFLAGS+=-framework CoreServices
 OBJS += src/unix/darwin.o
 OBJS += src/unix/kqueue.o
@@ -65,7 +65,6 @@ ifeq (Linux,$(uname_S))
 EV_CONFIG=config_linux.h
 EIO_CONFIG=config_linux.h
 CSTDFLAG += -D_GNU_SOURCE
-CPPFLAGS += -Isrc/ares/config_linux
 LINKFLAGS+=-ldl -lrt
 OBJS += src/unix/linux/linux-core.o \
         src/unix/linux/inotify.o    \
@@ -75,7 +74,6 @@ endif
 ifeq (FreeBSD,$(uname_S))
 EV_CONFIG=config_freebsd.h
 EIO_CONFIG=config_freebsd.h
-CPPFLAGS += -Isrc/ares/config_freebsd
 LINKFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
@@ -84,7 +82,6 @@ endif
 ifeq (DragonFly,$(uname_S))
 EV_CONFIG=config_freebsd.h
 EIO_CONFIG=config_freebsd.h
-CPPFLAGS += -Isrc/ares/config_freebsd
 LINKFLAGS+=
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
@@ -93,7 +90,6 @@ endif
 ifeq (NetBSD,$(uname_S))
 EV_CONFIG=config_netbsd.h
 EIO_CONFIG=config_netbsd.h
-CPPFLAGS += -Isrc/ares/config_netbsd
 LINKFLAGS+=
 OBJS += src/unix/netbsd.o
 OBJS += src/unix/kqueue.o
@@ -102,7 +98,6 @@ endif
 ifeq (OpenBSD,$(uname_S))
 EV_CONFIG=config_openbsd.h
 EIO_CONFIG=config_openbsd.h
-CPPFLAGS += -Isrc/ares/config_openbsd
 LINKFLAGS+=-lkvm
 OBJS += src/unix/openbsd.o
 OBJS += src/unix/kqueue.o
@@ -113,7 +108,6 @@ EV_CONFIG=config_cygwin.h
 EIO_CONFIG=config_cygwin.h
 # We drop the --std=c89, it hides CLOCK_MONOTONIC on cygwin
 CSTDFLAG = -D_GNU_SOURCE
-CPPFLAGS += -Isrc/ares/config_cygwin
 LINKFLAGS+=
 OBJS += src/unix/cygwin.o
 endif
@@ -131,7 +125,7 @@ endif
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: $(OBJS) src/cares.o src/fs-poll.o src/inet.o src/uv-common.o src/unix/ev/ev.o src/unix/uv-eio.o src/unix/eio/eio.o $(CARES_OBJS)
+uv.a: $(OBJS) src/fs-poll.o src/inet.o src/uv-common.o src/unix/ev/ev.o src/unix/uv-eio.o src/unix/eio/eio.o
 	$(AR) rcs uv.a $^
 
 src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
@@ -157,7 +151,6 @@ src/unix/uv-eio.o: src/unix/uv-eio.c
 
 
 clean-platform:
-	-rm -f src/ares/*.o
 	-rm -f src/unix/*.o
 	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/eio/*.o
@@ -165,7 +158,6 @@ clean-platform:
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM
 
 distclean-platform:
-	-rm -f src/ares/*.o
 	-rm -f src/unix/*.o
 	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/eio/*.o

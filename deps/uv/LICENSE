@@ -33,8 +33,6 @@ The externally maintained libraries used by libuv are:
 
   - ngx_queue.h (from Nginx), copyright Igor Sysoev. Two clause BSD license.
 
-  - c-ares, copyright Daniel Stenberg and others. MIT licensed.
-
   - libev, located at ev/ is copyright Marc Alexander Lehmann, and
     dual-licensed under the MIT license and GPL2.
 

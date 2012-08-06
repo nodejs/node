@@ -42,7 +42,6 @@ BENCHMARK_DECLARE (udp_packet_storm_10v1000)
 BENCHMARK_DECLARE (udp_packet_storm_100v100)
 BENCHMARK_DECLARE (udp_packet_storm_100v1000)
 BENCHMARK_DECLARE (udp_packet_storm_1000v1000)
-BENCHMARK_DECLARE (gethostbyname)
 BENCHMARK_DECLARE (getaddrinfo)
 BENCHMARK_DECLARE (fs_stat)
 BENCHMARK_DECLARE (async1)
@@ -108,9 +107,6 @@ TASK_LIST_START
   BENCHMARK_ENTRY  (udp_packet_storm_100v100)
   BENCHMARK_ENTRY  (udp_packet_storm_100v1000)
   BENCHMARK_ENTRY  (udp_packet_storm_1000v1000)
-
-  BENCHMARK_ENTRY  (gethostbyname)
-  BENCHMARK_HELPER (gethostbyname, dns_server)
 
   BENCHMARK_ENTRY  (getaddrinfo)
 

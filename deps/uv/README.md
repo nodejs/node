@@ -18,7 +18,7 @@ http://nodejs.org/
 
  * Child process spawning
 
- * Asynchronous DNS via c-ares or `uv_getaddrinfo`.
+ * Asynchronous DNS via `uv_getaddrinfo`.
 
  * Asynchronous file system APIs `uv_fs_*`
 

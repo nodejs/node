@@ -24,54 +24,7 @@ ifdef MSVC
 uname_S := MINGW
 endif
 
-CPPFLAGS += -Iinclude -Iinclude/uv-private -Isrc/ares
-
-CARES_OBJS =
-CARES_OBJS += src/ares/ares__close_sockets.o
-CARES_OBJS += src/ares/ares__get_hostent.o
-CARES_OBJS += src/ares/ares__read_line.o
-CARES_OBJS += src/ares/ares__timeval.o
-CARES_OBJS += src/ares/ares_cancel.o
-CARES_OBJS += src/ares/ares_data.o
-CARES_OBJS += src/ares/ares_destroy.o
-CARES_OBJS += src/ares/ares_expand_name.o
-CARES_OBJS += src/ares/ares_expand_string.o
-CARES_OBJS += src/ares/ares_fds.o
-CARES_OBJS += src/ares/ares_free_hostent.o
-CARES_OBJS += src/ares/ares_free_string.o
-CARES_OBJS += src/ares/ares_gethostbyaddr.o
-CARES_OBJS += src/ares/ares_gethostbyname.o
-CARES_OBJS += src/ares/ares_getnameinfo.o
-CARES_OBJS += src/ares/ares_getopt.o
-CARES_OBJS += src/ares/ares_getsock.o
-CARES_OBJS += src/ares/ares_init.o
-CARES_OBJS += src/ares/ares_library_init.o
-CARES_OBJS += src/ares/ares_llist.o
-CARES_OBJS += src/ares/ares_mkquery.o
-CARES_OBJS += src/ares/ares_nowarn.o
-CARES_OBJS += src/ares/ares_options.o
-CARES_OBJS += src/ares/ares_parse_a_reply.o
-CARES_OBJS += src/ares/ares_parse_aaaa_reply.o
-CARES_OBJS += src/ares/ares_parse_mx_reply.o
-CARES_OBJS += src/ares/ares_parse_naptr_reply.o
-CARES_OBJS += src/ares/ares_parse_ns_reply.o
-CARES_OBJS += src/ares/ares_parse_ptr_reply.o
-CARES_OBJS += src/ares/ares_parse_soa_reply.o
-CARES_OBJS += src/ares/ares_parse_srv_reply.o
-CARES_OBJS += src/ares/ares_parse_txt_reply.o
-CARES_OBJS += src/ares/ares_process.o
-CARES_OBJS += src/ares/ares_query.o
-CARES_OBJS += src/ares/ares_search.o
-CARES_OBJS += src/ares/ares_send.o
-CARES_OBJS += src/ares/ares_strcasecmp.o
-CARES_OBJS += src/ares/ares_strdup.o
-CARES_OBJS += src/ares/ares_strerror.o
-CARES_OBJS += src/ares/ares_timeout.o
-CARES_OBJS += src/ares/ares_version.o
-CARES_OBJS += src/ares/ares_writev.o
-CARES_OBJS += src/ares/bitncmp.o
-CARES_OBJS += src/ares/inet_net_pton.o
-CARES_OBJS += src/ares/inet_ntop.o
+CPPFLAGS += -Iinclude -Iinclude/uv-private
 
 ifneq (,$(findstring MINGW,$(uname_S)))
 include config-mingw.mk
@@ -83,9 +36,6 @@ TESTS=test/blackhole-server.c test/echo-server.c test/test-*.c
 BENCHMARKS=test/blackhole-server.c test/echo-server.c test/dns-server.c test/benchmark-*.c
 
 all: uv.a
-
-$(CARES_OBJS): %.o: %.c
-	$(CC) -o $*.o -c $(CFLAGS) $(CPPFLAGS) $< -DHAVE_CONFIG_H
 
 test/run-tests$(E): test/*.h test/run-tests.c $(RUNNER_SRC) test/runner-unix.c $(TESTS) uv.a
 	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o test/run-tests test/run-tests.c \

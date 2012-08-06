@@ -29,7 +29,6 @@
         'include',
         'include/uv-private',
         'src/',
-        'src/ares',
       ],
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ],
@@ -40,93 +39,18 @@
         ],
       },
 
-      'defines': [
-        'HAVE_CONFIG_H'
-      ],
       'sources': [
         'common.gypi',
-        'include/ares.h',
-        'include/ares_version.h',
         'include/uv.h',
         'include/uv-private/ngx-queue.h',
         'include/uv-private/tree.h',
-        'src/cares.c',
         'src/fs-poll.c',
         'src/inet.c',
         'src/uv-common.c',
         'src/uv-common.h',
-        'src/ares/ares_cancel.c',
-        'src/ares/ares__close_sockets.c',
-        'src/ares/ares_data.c',
-        'src/ares/ares_data.h',
-        'src/ares/ares_destroy.c',
-        'src/ares/ares_dns.h',
-        'src/ares/ares_expand_name.c',
-        'src/ares/ares_expand_string.c',
-        'src/ares/ares_fds.c',
-        'src/ares/ares_free_hostent.c',
-        'src/ares/ares_free_string.c',
-        'src/ares/ares_getenv.h',
-        'src/ares/ares_gethostbyaddr.c',
-        'src/ares/ares_gethostbyname.c',
-        'src/ares/ares__get_hostent.c',
-        'src/ares/ares_getnameinfo.c',
-        'src/ares/ares_getopt.c',
-        'src/ares/ares_getopt.h',
-        'src/ares/ares_getsock.c',
-        'src/ares/ares_init.c',
-        'src/ares/ares_ipv6.h',
-        'src/ares/ares_library_init.c',
-        'src/ares/ares_library_init.h',
-        'src/ares/ares_llist.c',
-        'src/ares/ares_llist.h',
-        'src/ares/ares_mkquery.c',
-        'src/ares/ares_nowarn.c',
-        'src/ares/ares_nowarn.h',
-        'src/ares/ares_options.c',
-        'src/ares/ares_parse_aaaa_reply.c',
-        'src/ares/ares_parse_a_reply.c',
-        'src/ares/ares_parse_mx_reply.c',
-        'src/ares/ares_parse_naptr_reply.c',
-        'src/ares/ares_parse_ns_reply.c',
-        'src/ares/ares_parse_ptr_reply.c',
-        'src/ares/ares_parse_soa_reply.c',
-        'src/ares/ares_parse_srv_reply.c',
-        'src/ares/ares_parse_txt_reply.c',
-        'src/ares/ares_platform.h',
-        'src/ares/ares_private.h',
-        'src/ares/ares_process.c',
-        'src/ares/ares_query.c',
-        'src/ares/ares__read_line.c',
-        'src/ares/ares_rules.h',
-        'src/ares/ares_search.c',
-        'src/ares/ares_send.c',
-        'src/ares/ares_setup.h',
-        'src/ares/ares_strcasecmp.c',
-        'src/ares/ares_strcasecmp.h',
-        'src/ares/ares_strdup.c',
-        'src/ares/ares_strdup.h',
-        'src/ares/ares_strerror.c',
-        'src/ares/ares_timeout.c',
-        'src/ares/ares__timeval.c',
-        'src/ares/ares_version.c',
-        'src/ares/ares_writev.c',
-        'src/ares/ares_writev.h',
-        'src/ares/bitncmp.c',
-        'src/ares/bitncmp.h',
-        'src/ares/inet_net_pton.c',
-        'src/ares/inet_net_pton.h',
-        'src/ares/inet_ntop.c',
-        'src/ares/inet_ntop.h',
-        'src/ares/nameser.h',
-        'src/ares/setup_once.h',
-        'src/ares/windows_port.c',
       ],
       'conditions': [
         [ 'OS=="win"', {
-          'include_dirs': [
-            'src/ares/config_win32'
-          ],
           'defines': [
             '_WIN32_WINNT=0x0600',
             'EIO_STACKSIZE=262144',
@@ -134,11 +58,6 @@
           ],
           'sources': [
             'include/uv-private/uv-win.h',
-            'src/ares/config_win32/ares_config.h',
-            'src/ares/windows_port.c',
-            'src/ares/ares_getenv.c',
-            'src/ares/ares_iphlpapi.h',
-            'src/ares/ares_platform.c',
             'src/win/async.c',
             'src/win/core.c',
             'src/win/dl.c',
@@ -221,7 +140,6 @@
           'libraries': [ '-lm' ]
         }],
         [ 'OS=="mac"', {
-          'include_dirs': [ 'src/ares/config_darwin' ],
           'sources': [ 'src/unix/darwin.c' ],
           'direct_dependent_settings': {
             'libraries': [
@@ -235,7 +153,6 @@
           ]
         }],
         [ 'OS=="linux"', {
-          'include_dirs': [ 'src/ares/config_linux' ],
           'sources': [
             'src/unix/linux/linux-core.c',
             'src/unix/linux/inotify.c',
@@ -251,7 +168,6 @@
           },
         }],
         [ 'OS=="solaris"', {
-          'include_dirs': [ 'src/ares/config_sunos' ],
           'sources': [ 'src/unix/sunos.c' ],
           'defines': [
             '__EXTENSIONS__',
@@ -268,7 +184,6 @@
           },
         }],
         [ 'OS=="freebsd"', {
-          'include_dirs': [ 'src/ares/config_freebsd' ],
           'sources': [ 'src/unix/freebsd.c' ],
           'defines': [
             'EV_CONFIG_H="config_freebsd.h"',
@@ -281,7 +196,6 @@
           },
         }],
         [ 'OS=="openbsd"', {
-          'include_dirs': [ 'src/ares/config_openbsd' ],
           'sources': [ 'src/unix/openbsd.c' ],
           'defines': [
             'EV_CONFIG_H="config_openbsd.h"',
@@ -320,7 +234,6 @@
         'test/test-get-currentexe.c',
         'test/test-get-memory.c',
         'test/test-getaddrinfo.c',
-        'test/test-gethostbyname.c',
         'test/test-getsockname.c',
         'test/test-hrtime.c',
         'test/test-idle.c',
@@ -408,7 +321,6 @@
       'type': 'executable',
       'dependencies': [ 'uv' ],
       'sources': [
-        'test/benchmark-ares.c',
         'test/benchmark-async.c',
         'test/benchmark-async-pummel.c',
         'test/benchmark-fs-stat.c',

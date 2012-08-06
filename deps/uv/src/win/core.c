@@ -92,9 +92,6 @@ static void uv_loop_init(uv_loop_t* loop) {
 
   memset(&loop->poll_peer_sockets, 0, sizeof loop->poll_peer_sockets);
 
-  loop->channel = NULL;
-  RB_INIT(&loop->ares_handles);
-
   loop->active_tcp_streams = 0;
   loop->active_udp_streams = 0;
 

@@ -119,7 +119,6 @@ TEST_DECLARE   (get_memory)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_basic)
 TEST_DECLARE   (getaddrinfo_concurrent)
-TEST_DECLARE   (gethostbyname)
 TEST_DECLARE   (getsockname_tcp)
 TEST_DECLARE   (getsockname_udp)
 TEST_DECLARE   (fail_always)
@@ -343,8 +342,6 @@ TASK_LIST_START
 
   TEST_ENTRY  (getaddrinfo_basic)
   TEST_ENTRY  (getaddrinfo_concurrent)
-
-  TEST_ENTRY  (gethostbyname)
 
   TEST_ENTRY  (getsockname_tcp)
   TEST_ENTRY  (getsockname_udp)
