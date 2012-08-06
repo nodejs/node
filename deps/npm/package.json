@@ -1,5 +1,5 @@
 {
-  "version": "1.1.46",
+  "version": "1.1.47",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -108,11 +108,11 @@
     "couch-login"
   ],
   "devDependencies": {
-    "ronn": "https://github.com/isaacs/ronnjs/tarball/master",
+    "ronn": "~0.3.6",
     "tap": "~0.2.5"
   },
   "engines": {
-    "node": ">0.6",
+    "node": ">=0.8",
     "npm": "1"
   },
   "scripts": {

@@ -16,15 +16,15 @@
 
 <p>to open these documents in your default web browser rather than <code>man</code>.</p>
 
-<h2 id="It-didn-t-work">It didn't work.</h2>
+<h2 id="It-didn-t-work">It didn&#39;t work.</h2>
 
-<p>That's not really a question.</p>
+<p>That&#39;s not really a question.</p>
 
-<h2 id="Why-didn-t-it-work">Why didn't it work?</h2>
+<h2 id="Why-didn-t-it-work">Why didn&#39;t it work?</h2>
 
-<p>I don't know yet.</p>
+<p>I don&#39;t know yet.</p>
 
-<p>Read the error output, and if you can't figure out what it means,
+<p>Read the error output, and if you can&#39;t figure out what it means,
 do what it says and post a bug with all the information it asks for.</p>
 
 <h2 id="Where-does-npm-put-stuff">Where does npm put stuff?</h2>
@@ -44,22 +44,22 @@ and its modules go in <code>npm root -g</code>.</li></ul>
 is especially important for command line utilities that need to add
 their bins to the global system <code>PATH</code>.)</p>
 
-<h2 id="I-installed-something-globally-but-I-can-t-require-it">I installed something globally, but I can't `require()` it</h2>
+<h2 id="I-installed-something-globally-but-I-can-t-require-it">I installed something globally, but I can&#39;t <code>require()</code> it</h2>
 
 <p>Install it locally.</p>
 
 <p>The global install location is a place for command-line utilities
-to put their bins in the system <code>PATH</code>.  It's not for use with <code>require()</code>.</p>
+to put their bins in the system <code>PATH</code>.  It&#39;s not for use with <code>require()</code>.</p>
 
-<p>If you <code>require()</code> a module in your code, then that means it's a
+<p>If you <code>require()</code> a module in your code, then that means it&#39;s a
 dependency, and a part of your program.  You need to install it locally
 in your program.</p>
 
-<h2 id="Why-can-t-npm-just-put-everything-in-one-place-like-other-package-managers">Why can't npm just put everything in one place, like other package managers?</h2>
+<h2 id="Why-can-t-npm-just-put-everything-in-one-place-like-other-package-managers">Why can&#39;t npm just put everything in one place, like other package managers?</h2>
 
 <p>Not every change is an improvement, but every improvement is a change.
-This would be like asking git to do network IO for every commit.  It's
-not going to happen, because it's a terrible idea that causes more
+This would be like asking git to do network IO for every commit.  It&#39;s
+not going to happen, because it&#39;s a terrible idea that causes more
 problems than it solves.</p>
 
 <p>It is much harder to avoid dependency conflicts without nesting
@@ -69,16 +69,16 @@ more details.</p>
 
 <p>If you want a package to be installed in one place, and have all your
 programs reference the same copy of it, then use the <code>npm link</code> command.
-That's what it's for.  Install it globally, then link it into each
+That&#39;s what it&#39;s for.  Install it globally, then link it into each
 program that uses it.</p>
 
-<h2 id="Whatever-I-really-want-the-old-style-everything-global-style">Whatever, I really want the old style 'everything global' style.</h2>
+<h2 id="Whatever-I-really-want-the-old-style-everything-global-style">Whatever, I really want the old style &#39;everything global&#39; style.</h2>
 
-<p>Write your own package manager, then.  It's not that hard.</p>
+<p>Write your own package manager, then.  It&#39;s not that hard.</p>
 
 <p>npm will not help you do something that is known to be a bad idea.</p>
 
-<h2 id="Should-I-check-my-node_modules-folder-into-git">Should I check my `node_modules` folder into git?</h2>
+<h2 id="Should-I-check-my-node_modules-folder-into-git">Should I check my <code>node_modules</code> folder into git?</h2>
 
 <p>Mikeal Rogers answered this question very well:</p>
 
@@ -91,33 +91,33 @@ websites and apps.</li><li>Do not check <code>node_modules</code> into git for l
 intended to be reused.</li><li>Use npm to manage dependencies in your dev environment, but not in
 your deployment scripts.</li></ul>
 
-<h2 id="Is-it-npm-or-NPM-or-Npm">Is it 'npm' or 'NPM' or 'Npm'?</h2>
+<h2 id="Is-it-npm-or-NPM-or-Npm">Is it &#39;npm&#39; or &#39;NPM&#39; or &#39;Npm&#39;?</h2>
 
 <p>npm should never be capitalized unless it is being displayed in a
 location that is customarily all-caps (such as the title of man pages.)</p>
 
-<h2 id="If-npm-is-an-acronym-why-is-it-never-capitalized">If 'npm' is an acronym, why is it never capitalized?</h2>
+<h2 id="If-npm-is-an-acronym-why-is-it-never-capitalized">If &#39;npm&#39; is an acronym, why is it never capitalized?</h2>
 
-<p>Contrary to the belief of many, "npm" is not in fact an abbreviation for
-"Node Package Manager".  It is a recursive bacronymic abbreviation for
-"npm is not an acronym".  (If it was "ninaa", then it would be an
+<p>Contrary to the belief of many, &quot;npm&quot; is not in fact an abbreviation for
+&quot;Node Package Manager&quot;.  It is a recursive bacronymic abbreviation for
+&quot;npm is not an acronym&quot;.  (If it was &quot;ninaa&quot;, then it would be an
 acronym, and thus incorrectly named.)</p>
 
-<p>"NPM", however, <em>is</em> an acronym (more precisely, a capitonym) for the
+<p>&quot;NPM&quot;, however, <em>is</em> an acronym (more precisely, a capitonym) for the
 National Association of Pastoral Musicians.  You can learn more
 about them at <a href="http://npm.org/">http://npm.org/</a>.</p>
 
-<p>In software, "NPM" is a Non-Parametric Mapping utility written by
+<p>In software, &quot;NPM&quot; is a Non-Parametric Mapping utility written by
 Chris Rorden.  You can analyze pictures of brains with it.  Learn more
 about the (capitalized) NPM program at <a href="http://www.cabiatl.com/mricro/npm/">http://www.cabiatl.com/mricro/npm/</a>.</p>
 
 <p>The first seed that eventually grew into this flower was a bash utility
-named "pm", which was a shortened descendent of "pkgmakeinst", a
+named &quot;pm&quot;, which was a shortened descendent of &quot;pkgmakeinst&quot;, a
 bash function that was used to install various different things on different
-platforms, most often using Yahoo's <code>yinst</code>.  If <code>npm</code> was ever an
+platforms, most often using Yahoo&#39;s <code>yinst</code>.  If <code>npm</code> was ever an
 acronym for anything, it was <code>node pm</code> or maybe <code>new pm</code>.</p>
 
-<p>So, in all seriousness, the "npm" project is named after its command-line
+<p>So, in all seriousness, the &quot;npm&quot; project is named after its command-line
 utility, which was organically selected to be easily typed by a right-handed
 programmer using a US QWERTY keyboard layout, ending with the
 right-ring-finger in a postition to type the <code>-</code> key for flags and
@@ -150,11 +150,11 @@ command.)</p>
 
 <pre><code>curl http://npmjs.org/install.sh | sh</code></pre>
 
-<h2 id="What-is-a-package">What is a `package`?</h2>
+<h2 id="What-is-a-package">What is a <code>package</code>?</h2>
 
 <p>A package is:</p>
 
-<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li><li>g) a <code>git</code> url that, when cloned, results in (a).</li></ul>
+<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a &quot;latest&quot; tag satisfying (e)</li><li>g) a <code>git</code> url that, when cloned, results in (a).</li></ul>
 
 <p>Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
@@ -173,7 +173,7 @@ an argument to <code>git checkout</code>.  The default is <code>master</code>.</
 
 <h2 id="How-do-I-install-node-with-npm">How do I install node with npm?</h2>
 
-<p>You don't.  Try one of these:</p>
+<p>You don&#39;t.  Try one of these:</p>
 
 <ul><li><a href="http://github.com/isaacs/nave">http://github.com/isaacs/nave</a></li><li><a href="http://github.com/visionmedia/n">http://github.com/visionmedia/n</a></li><li><a href="http://github.com/creationix/nvm">http://github.com/creationix/nvm</a></li></ul>
 
@@ -181,7 +181,7 @@ an argument to <code>git checkout</code>.  The default is <code>master</code>.</
 
 <p>See <code><a href="../doc/developers.html">developers(1)</a></code> and <code><a href="../doc/json.html">json(1)</a></code>.</p>
 
-<p>You'll most likely want to <code>npm link</code> your development folder.  That's
+<p>You&#39;ll most likely want to <code>npm link</code> your development folder.  That&#39;s
 awesomely handy.</p>
 
 <p>To set up your own private registry, check out <code><a href="../doc/registry.html">registry(1)</a></code>.</p>
@@ -190,9 +190,9 @@ awesomely handy.</p>
 
 <p>Yes.  It should be a url to a gzipped tarball containing a single folder
 that has a package.json in its root, or a git url.
-(See "what is a package?" above.)</p>
+(See &quot;what is a package?&quot; above.)</p>
 
-<h2 id="How-do-I-symlink-to-a-dev-folder-so-I-don-t-have-to-keep-re-installing">How do I symlink to a dev folder so I don't have to keep re-installing?</h2>
+<h2 id="How-do-I-symlink-to-a-dev-folder-so-I-don-t-have-to-keep-re-installing">How do I symlink to a dev folder so I don&#39;t have to keep re-installing?</h2>
 
 <p>See <code><a href="../doc/link.html">link(1)</a></code></p>
 
@@ -200,18 +200,18 @@ that has a package.json in its root, or a git url.
 
 <p>See <code><a href="../doc/registry.html">registry(1)</a></code>.</p>
 
-<h2 id="What-s-up-with-the-insecure-channel-warnings">What's up with the insecure channel warnings?</h2>
+<h2 id="What-s-up-with-the-insecure-channel-warnings">What&#39;s up with the insecure channel warnings?</h2>
 
 <p>Until node 0.4.10, there were problems sending big files over HTTPS.  That
 means that publishes go over HTTP by default in those versions of node.</p>
 
-<h2 id="I-forgot-my-password-and-can-t-publish-How-do-I-reset-it">I forgot my password, and can't publish.  How do I reset it?</h2>
+<h2 id="I-forgot-my-password-and-can-t-publish-How-do-I-reset-it">I forgot my password, and can&#39;t publish.  How do I reset it?</h2>
 
 <p>Go to <a href="http://admin.npmjs.org/reset">http://admin.npmjs.org/reset</a>.</p>
 
-<h2 id="I-get-ECONNREFUSED-a-lot-What-s-up">I get ECONNREFUSED a lot.  What's up?</h2>
+<h2 id="I-get-ECONNREFUSED-a-lot-What-s-up">I get ECONNREFUSED a lot.  What&#39;s up?</h2>
 
-<p>Either the registry is down, or node's DNS isn't able to reach out.</p>
+<p>Either the registry is down, or node&#39;s DNS isn&#39;t able to reach out.</p>
 
 <p>To check if the registry is down, open up
 <a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a>
@@ -219,7 +219,7 @@ in a web browser.  This will also tell you if you are just unable to
 access the internet for some reason.</p>
 
 <p>If the registry IS down, let me know by emailing or posting an issue.
-We'll have someone kick it or something.</p>
+We&#39;ll have someone kick it or something.</p>
 
 <h2 id="Who-does-npm">Who does npm?</h2>
 
@@ -241,7 +241,7 @@ We'll have someone kick it or something.</p>
 
 <ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li></ul>
 </div>
-<p id="footer">faq &mdash; npm@1.1.46</p>
+<p id="footer">faq &mdash; npm@1.1.47</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -414,7 +414,7 @@ function gitEnv () {
   if (gitEnv_) return gitEnv_
   gitEnv_ = {}
   for (var k in process.env) {
-    if (k.match(/^GIT/)) continue
+    if (!~['GIT_PROXY_COMMAND'].indexOf(k) && k.match(/^GIT/)) continue
     gitEnv_[k] = process.env[k]
   }
   return gitEnv_

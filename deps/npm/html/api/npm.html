@@ -10,21 +10,21 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>var npm = require("npm")
+<pre><code>var npm = require(&quot;npm&quot;)
 npm.load(configObject, function (er, npm) {
-  // use the npm object, now that it's loaded.
+  // use the npm object, now that it&#39;s loaded.
 
   npm.config.set(key, val)
   val = npm.config.get(key)
 
-  console.log("prefix = %s", npm.prefix)
+  console.log(&quot;prefix = %s&quot;, npm.prefix)
 
-  npm.commands.install(["package"], cb)
+  npm.commands.install([&quot;package&quot;], cb)
 })</code></pre>
 
 <h2 id="VERSION">VERSION</h2>
 
-<p>1.1.46</p>
+<p>1.1.47</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -32,7 +32,7 @@ npm.load(configObject, function (er, npm) {
 To find documentation of the command line
 client, see <code><a href="../doc/npm.html">npm(1)</a></code>.</p>
 
-<p>Prior to using npm's commands,
+<p>Prior to using npm&#39;s commands,
 <code>npm.load()</code> must be called with an object hash of
 top-level configs.  In the npm command line client,
 this set of configs is parsed from the command line options.  Additional
@@ -57,9 +57,9 @@ command.</p>
 
 <ul><li><p><code>npm.load(configs, cb)</code></p><p>Load the configuration params, and call the <code>cb</code> function once the
 globalconfig and userconfig files have been loaded as well, or on
-nextTick if they've already been loaded.</p></li><li><p><code>npm.config</code></p><p>An object for accessing npm configuration parameters.</p><ul><li><p><code>npm.config.get(key)</code></p></li><li><code>npm.config.set(key, val)</code></li><li><p><code>npm.config.del(key)</code></p></li></ul></li><li><p><code>npm.dir</code> or <code>npm.root</code></p><p>The <code>node_modules</code> directory where npm will operate.</p></li><li><p><code>npm.prefix</code></p><p>The prefix where npm is operating.  (Most often the current working
+nextTick if they&#39;ve already been loaded.</p></li><li><p><code>npm.config</code></p><p>An object for accessing npm configuration parameters.</p><ul><li><p><code>npm.config.get(key)</code></p></li><li><code>npm.config.set(key, val)</code></li><li><p><code>npm.config.del(key)</code></p></li></ul></li><li><p><code>npm.dir</code> or <code>npm.root</code></p><p>The <code>node_modules</code> directory where npm will operate.</p></li><li><p><code>npm.prefix</code></p><p>The prefix where npm is operating.  (Most often the current working
 directory.)</p></li><li><p><code>npm.cache</code></p><p>The place where npm keeps JSON and tarballs it fetches from the
-registry (or uploads to the registry).</p></li><li><p><code>npm.tmp</code></p><p>npm's temporary working directory.</p></li><li><p><code>npm.deref</code></p><p>Get the "real" name for a command that has either an alias or
+registry (or uploads to the registry).</p></li><li><p><code>npm.tmp</code></p><p>npm&#39;s temporary working directory.</p></li><li><p><code>npm.deref</code></p><p>Get the &quot;real&quot; name for a command that has either an alias or
 abbreviation.</p></li></ul>
 
 <h2 id="MAGIC">MAGIC</h2>
@@ -74,11 +74,11 @@ the error or results.</p>
 
 <p>For example, this would work in a node repl:</p>
 
-<pre><code>&gt; npm = require("npm")
+<pre><code>&gt; npm = require(&quot;npm&quot;)
 &gt; npm.load()  // wait a sec...
-&gt; npm.install("dnode", "express")</code></pre>
+&gt; npm.install(&quot;dnode&quot;, &quot;express&quot;)</code></pre>
 
-<p>Note that that <em>won't</em> work in a node program, since the <code>install</code>
+<p>Note that that <em>won&#39;t</em> work in a node program, since the <code>install</code>
 method will get called before the configuration load is completed.</p>
 
 <h2 id="ABBREVS">ABBREVS</h2>
@@ -89,9 +89,9 @@ method names.  Use the <code>npm.deref</code> method to find the real name.</p>
 
 <p>For example:</p>
 
-<pre><code>var cmd = npm.deref("unp") // cmd === "unpublish"</code></pre>
+<pre><code>var cmd = npm.deref(&quot;unp&quot;) // cmd === &quot;unpublish&quot;</code></pre>
 </div>
-<p id="footer">npm &mdash; npm@1.1.46</p>
+<p id="footer">npm &mdash; npm@1.1.47</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -6,11 +6,11 @@
 
   <body>
     <div id="wrapper">
-<h1><a href="../doc/scripts.html">scripts</a></h1> <p>How npm handles the "scripts" field</p>
+<h1><a href="../doc/scripts.html">scripts</a></h1> <p>How npm handles the &quot;scripts&quot; field</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p>npm supports the "scripts" member of the package.json script, for the
+<p>npm supports the &quot;scripts&quot; member of the package.json script, for the
 following scripts:</p>
 
 <ul><li>preinstall:
@@ -35,8 +35,8 @@ stop and start scripts if no <code>restart</code> script is provided.</li></ul>
 
 <p>npm will default some script values based on package contents.</p>
 
-<ul><li><p><code>"start": "node server.js"</code>:</p><p>If there is a <code>server.js</code> file in the root of your package, then npm
-will default the <code>start</code> command to <code>node server.js</code>.</p></li><li><p><code>"preinstall": "node-waf clean || true; node-waf configure build"</code>:</p><p>If there is a <code>wscript</code> file in the root of your package, npm will
+<ul><li><p><code>&quot;start&quot;: &quot;node server.js&quot;</code>:</p><p>If there is a <code>server.js</code> file in the root of your package, then npm
+will default the <code>start</code> command to <code>node server.js</code>.</p></li><li><p><code>&quot;preinstall&quot;: &quot;node-waf clean || true; node-waf configure build&quot;</code>:</p><p>If there is a <code>wscript</code> file in the root of your package, npm will
 default the <code>preinstall</code> command to compile using node-waf.</p></li></ul>
 
 <h2 id="USER">USER</h2>
@@ -58,9 +58,9 @@ process.</p>
 then those executables will be added to the <code>PATH</code> for executing the scripts.
 So, if your package.json has this:</p>
 
-<pre><code>{ "name" : "foo"
-, "dependencies" : { "bar" : "0.1.x" }
-, "scripts": { "start" : "bar ./test" } }</code></pre>
+<pre><code>{ &quot;name&quot; : &quot;foo&quot;
+, &quot;dependencies&quot; : { &quot;bar&quot; : &quot;0.1.x&quot; }
+, &quot;scripts&quot;: { &quot;start&quot; : &quot;bar ./test&quot; } }</code></pre>
 
 <p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is exported
 into the <code>node_modules/.bin</code> directory on <code>npm install</code>.</p>
@@ -68,9 +68,9 @@ into the <code>node_modules/.bin</code> directory on <code>npm install</code>.</
 <h3 id="package-json-vars">package.json vars</h3>
 
 <p>The package.json fields are tacked onto the <code>npm_package_</code> prefix. So, for
-instance, if you had <code>{"name":"foo", "version":"1.2.5"}</code> in your package.json
+instance, if you had <code>{&quot;name&quot;:&quot;foo&quot;, &quot;version&quot;:&quot;1.2.5&quot;}</code> in your package.json
 file, then your package scripts would have the <code>npm_package_name</code> environment
-variable set to "foo", and the <code>npm_package_version</code> set to "1.2.5"</p>
+variable set to &quot;foo&quot;, and the <code>npm_package_version</code> set to &quot;1.2.5&quot;</p>
 
 <h3 id="configuration">configuration</h3>
 
@@ -78,15 +78,15 @@ variable set to "foo", and the <code>npm_package_version</code> set to "1.2.5"</
 prefix. For instance, you can view the effective <code>root</code> config by checking the
 <code>npm_config_root</code> environment variable.</p>
 
-<h3 id="Special-package-json-config-hash">Special: package.json "config" hash</h3>
+<h3 id="Special-package-json-config-hash">Special: package.json &quot;config&quot; hash</h3>
 
-<p>The package.json "config" keys are overwritten in the environment if
+<p>The package.json &quot;config&quot; keys are overwritten in the environment if
 there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if
 the package.json has this:</p>
 
-<pre><code>{ "name" : "foo"
-, "config" : { "port" : "8080" }
-, "scripts" : { "start" : "node server.js" } }</code></pre>
+<pre><code>{ &quot;name&quot; : &quot;foo&quot;
+, &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; }
+, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }</code></pre>
 
 <p>and the server.js is this:</p>
 
@@ -100,23 +100,23 @@ the package.json has this:</p>
 
 <p>Lastly, the <code>npm_lifecycle_event</code> environment variable is set to whichever
 stage of the cycle is being executed. So, you could have a single script used
-for different parts of the process which switches based on what's currently
+for different parts of the process which switches based on what&#39;s currently
 happening.</p>
 
 <p>Objects are flattened following this format, so if you had
-<code>{"scripts":{"install":"foo.js"}}</code> in your package.json, then you'd see this
+<code>{&quot;scripts&quot;:{&quot;install&quot;:&quot;foo.js&quot;}}</code> in your package.json, then you&#39;d see this
 in the script:</p>
 
-<pre><code>process.env.npm_package_scripts_install === "foo.js"</code></pre>
+<pre><code>process.env.npm_package_scripts_install === &quot;foo.js&quot;</code></pre>
 
 <h2 id="EXAMPLES">EXAMPLES</h2>
 
 <p>For example, if your package.json contains this:</p>
 
-<pre><code>{ "scripts" :
-  { "install" : "scripts/install.js"
-  , "postinstall" : "scripts/install.js"
-  , "uninstall" : "scripts/uninstall.js"
+<pre><code>{ &quot;scripts&quot; :
+  { &quot;install&quot; : &quot;scripts/install.js&quot;
+  , &quot;postinstall&quot; : &quot;scripts/install.js&quot;
+  , &quot;uninstall&quot; : &quot;scripts/uninstall.js&quot;
   }
 }</code></pre>
 
@@ -128,10 +128,10 @@ for three different phases, it would be wise in this case to look at the
 
 <p>If you want to run a make command, you can do so.  This works just fine:</p>
 
-<pre><code>{ "scripts" :
-  { "preinstall" : "./configure"
-  , "install" : "make &amp;&amp; make install"
-  , "test" : "make test"
+<pre><code>{ &quot;scripts&quot; :
+  { &quot;preinstall&quot; : &quot;./configure&quot;
+  , &quot;install&quot; : &quot;make &amp;&amp; make install&quot;
+  , &quot;test&quot; : &quot;make test&quot;
   }
 }</code></pre>
 
@@ -142,7 +142,7 @@ for three different phases, it would be wise in this case to look at the
 <p>If the script exits with a code other than 0, then this will abort the
 process.</p>
 
-<p>Note that these script files don't have to be nodejs or even javascript
+<p>Note that these script files don&#39;t have to be nodejs or even javascript
 programs. They just have to be some kind of executable file.</p>
 
 <h2 id="HOOK-SCRIPTS">HOOK SCRIPTS</h2>
@@ -150,7 +150,7 @@ programs. They just have to be some kind of executable file.</p>
 <p>If you want to run a specific script at a specific lifecycle event for ALL
 packages, then you can use a hook script.</p>
 
-<p>Place an executable file at <code>node_modules/.hooks/{eventname}</code>, and it'll get
+<p>Place an executable file at <code>node_modules/.hooks/{eventname}</code>, and it&#39;ll get
 run for all packages when they are going through that point in the package
 lifecycle for any packages installed in that root.</p>
 
@@ -159,25 +159,25 @@ they are in a separate child process, with the env described above.</p>
 
 <h2 id="BEST-PRACTICES">BEST PRACTICES</h2>
 
-<ul><li>Don't exit with a non-zero error code unless you <em>really</em> mean it.
+<ul><li>Don&#39;t exit with a non-zero error code unless you <em>really</em> mean it.
 Except for uninstall scripts, this will cause the npm action
 to fail, and potentially be rolled back.  If the failure is minor or
-only will prevent some optional features, then it's better to just
+only will prevent some optional features, then it&#39;s better to just
 print a warning and exit successfully.</li><li>Try not to use scripts to do what npm can do for you.  Read through
 <code><a href="../doc/json.html">json(1)</a></code> to see all the things that you can specify and enable
 by simply describing your package appropriately.  In general, this will
 lead to a more robust and consistent state.</li><li>Inspect the env to determine where to put things.  For instance, if
-the <code>npm_config_binroot</code> environ is set to <code>/home/user/bin</code>, then don't
+the <code>npm_config_binroot</code> environ is set to <code>/home/user/bin</code>, then don&#39;t
 try to install executables into <code>/usr/local/bin</code>.  The user probably
-set it up that way for a reason.</li><li>Don't prefix your script commands with "sudo".  If root permissions are
-required for some reason, then it'll fail with that error, and the user
+set it up that way for a reason.</li><li>Don&#39;t prefix your script commands with &quot;sudo&quot;.  If root permissions are
+required for some reason, then it&#39;ll fail with that error, and the user
 will sudo the npm command in question.</li></ul>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../doc/run-script.html">run-script(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/install.html">install(1)</a></li></ul>
 </div>
-<p id="footer">scripts &mdash; npm@1.1.46</p>
+<p id="footer">scripts &mdash; npm@1.1.47</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

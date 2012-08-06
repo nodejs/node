@@ -86,14 +86,6 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   if (packageLifecycle) {
     // define this here so it's available to all scripts.
     env.npm_lifecycle_script = pkg.scripts[stage]
-    // if the command is "node-gyp <args>", then call ours instead.
-    try {
-      var ourGyp = require.resolve("node-gyp/bin/node-gyp.js")
-    } catch (er) {
-      return cb(new Error("No gyp installed with npm"))
-    }
-    var gyp = path.execPath + " " + JSON.stringify(ourGyp)
-    pkg.scripts[stage] = pkg.scripts[stage].replace(/^node-gyp( |$)/, gyp)
   }
 
   if (failOk) {

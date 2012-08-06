@@ -24,7 +24,7 @@ symbolic link from <code>prefix/package-name</code> to the current folder.</p>
 folder to the global symlink.</p>
 
 <p>When creating tarballs for <code>npm publish</code>, the linked packages are
-"snapshotted" to their current state by resolving the symbolic links.</p>
+&quot;snapshotted&quot; to their current state by resolving the symbolic links.</p>
 
 <p>This is
 handy for installing your own stuff, so that you can work on it and test it
@@ -34,12 +34,12 @@ iteratively without having to continually rebuild.</p>
 
 <pre><code>npm.commands.link(cb)           # creates global link from the cwd
                                 # (say redis package)
-npm.commands.link('redis', cb)  # link-install the package</code></pre>
+npm.commands.link(&#39;redis&#39;, cb)  # link-install the package</code></pre>
 
 <p>Now, any changes to the redis package will be reflected in
 the package in the current working directory</p>
 </div>
-<p id="footer">link &mdash; npm@1.1.46</p>
+<p id="footer">link &mdash; npm@1.1.47</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

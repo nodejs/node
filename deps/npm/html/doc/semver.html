@@ -18,12 +18,12 @@
 
 <pre><code>$ npm install semver
 
-semver.valid('1.2.3') // true
-semver.valid('a.b.c') // false
-semver.clean('  =v1.2.3   ') // '1.2.3'
-semver.satisfies('1.2.3', '1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3') // true
-semver.gt('1.2.3', '9.8.7') // false
-semver.lt('1.2.3', '9.8.7') // true</code></pre>
+semver.valid(&#39;1.2.3&#39;) // true
+semver.valid(&#39;a.b.c&#39;) // false
+semver.clean(&#39;  =v1.2.3   &#39;) // &#39;1.2.3&#39;
+semver.satisfies(&#39;1.2.3&#39;, &#39;1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3&#39;) // true
+semver.gt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // false
+semver.lt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // true</code></pre>
 
 <p>As a command-line utility:</p>
 
@@ -52,7 +52,7 @@ multiple versions to the utility will just sort them.</code></pre>
 <ul><li>a number (Major)</li><li>a period</li><li>a number (minor)</li><li>a period</li><li>a number (patch)</li><li>OPTIONAL: a hyphen, followed by a number (build)</li><li>OPTIONAL: a collection of pretty much any non-whitespace characters
 (tag)</li></ul>
 
-<p>A leading <code>"="</code> or <code>"v"</code> character is stripped off and ignored.</p>
+<p>A leading <code>&quot;=&quot;</code> or <code>&quot;v&quot;</code> character is stripped off and ignored.</p>
 
 <h2 id="Comparisons">Comparisons</h2>
 
@@ -67,7 +67,7 @@ build number.  <code>2.3.4-0 &gt; 2.3.4</code></li><li>If they both have build n
 different, then take the one with the bigger build number.
 <code>2.3.4-10 &gt; 2.3.4-9</code></li><li>If only one of them has a tag, then take the one without the tag.
 <code>2.3.4 &gt; 2.3.4-beta</code></li><li>If they both have tags, then take the one with the lexicographically
-larger tag.  <code>2.3.4-beta &gt; 2.3.4-alpha</code></li><li>At this point, they're equal.</li></ul>
+larger tag.  <code>2.3.4-beta &gt; 2.3.4-alpha</code></li><li>At this point, they&#39;re equal.</li></ul>
 
 <h2 id="Ranges">Ranges</h2>
 
@@ -75,20 +75,20 @@ larger tag.  <code>2.3.4-beta &gt; 2.3.4-alpha</code></li><li>At this point, the
 
 <ul><li><code>&gt;1.2.3</code> Greater than a specific version.</li><li><code>&lt;1.2.3</code> Less than</li><li><code>1.2.3 - 2.3.4</code> := <code>&gt;=1.2.3 &lt;=2.3.4</code></li><li><code>~1.2.3</code> := <code>&gt;=1.2.3 &lt;1.3.0</code></li><li><code>~1.2</code> := <code>&gt;=1.2.0 &lt;2.0.0</code></li><li><code>~1</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li><li><code>1.2.x</code> := <code>&gt;=1.2.0 &lt;1.3.0</code></li><li><code>1.x</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li></ul>
 
-<p>Ranges can be joined with either a space (which implies "and") or a
-<code>||</code> (which implies "or").</p>
+<p>Ranges can be joined with either a space (which implies &quot;and&quot;) or a
+<code>||</code> (which implies &quot;or&quot;).</p>
 
 <h2 id="Functions">Functions</h2>
 
-<ul><li>valid(v): Return the parsed version, or null if it's not valid.</li><li>inc(v, release): Return the version incremented by the release type
-(major, minor, patch, or build), or null if it's not valid.</li></ul>
+<ul><li>valid(v): Return the parsed version, or null if it&#39;s not valid.</li><li>inc(v, release): Return the version incremented by the release type
+(major, minor, patch, or build), or null if it&#39;s not valid.</li></ul>
 
 <h3 id="Comparison">Comparison</h3>
 
-<ul><li>gt(v1, v2): <code>v1 &gt; v2</code></li><li>gte(v1, v2): <code>v1 &gt;= v2</code></li><li>lt(v1, v2): <code>v1 &lt; v2</code></li><li>lte(v1, v2): <code>v1 &lt;= v2</code></li><li>eq(v1, v2): <code>v1 == v2</code> This is true if they're logically equivalent,
-even if they're not the exact same string.  You already know how to
-compare strings.</li><li>neq(v1, v2): <code>v1 != v2</code> The opposite of eq.</li><li>cmp(v1, comparator, v2): Pass in a comparison string, and it'll call
-the corresponding function above.  <code>"==="</code> and <code>"!=="</code> do simple
+<ul><li>gt(v1, v2): <code>v1 &gt; v2</code></li><li>gte(v1, v2): <code>v1 &gt;= v2</code></li><li>lt(v1, v2): <code>v1 &lt; v2</code></li><li>lte(v1, v2): <code>v1 &lt;= v2</code></li><li>eq(v1, v2): <code>v1 == v2</code> This is true if they&#39;re logically equivalent,
+even if they&#39;re not the exact same string.  You already know how to
+compare strings.</li><li>neq(v1, v2): <code>v1 != v2</code> The opposite of eq.</li><li>cmp(v1, comparator, v2): Pass in a comparison string, and it&#39;ll call
+the corresponding function above.  <code>&quot;===&quot;</code> and <code>&quot;!==&quot;</code> do simple
 string comparison, but are included for completeness.  Throws if an
 invalid comparison string is provided.</li><li>compare(v1, v2): Return 0 if v1 == v2, or 1 if v1 is greater, or -1 if
 v2 is greater.  Sorts in ascending order if passed to Array.sort().</li><li>rcompare(v1, v2): The reverse of compare.  Sorts an array of versions
@@ -96,7 +96,7 @@ in descending order when passed to Array.sort().</li></ul>
 
 <h3 id="Ranges">Ranges</h3>
 
-<ul><li>validRange(range): Return the valid range or null if it's not valid</li><li>satisfies(version, range): Return true if the version satisfies the
+<ul><li>validRange(range): Return the valid range or null if it&#39;s not valid</li><li>satisfies(version, range): Return true if the version satisfies the
 range.</li><li>maxSatisfying(versions, range): Return the highest version in the list
 that satisfies the range, or null if none of them do.</li></ul>
 
@@ -104,7 +104,7 @@ that satisfies the range, or null if none of them do.</li></ul>
 
 <ul><li><a href="../doc/json.html">json(1)</a></li></ul>
 </div>
-<p id="footer">semver &mdash; npm@1.1.46</p>
+<p id="footer">semver &mdash; npm@1.1.47</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

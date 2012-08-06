@@ -14,7 +14,7 @@
 that implements the CommonJS Package Registry specification for reading
 package info.</p>
 
-<p>Additionally, npm's package registry implementation supports several
+<p>Additionally, npm&#39;s package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.</p>
 
@@ -26,7 +26,7 @@ are CouchDB users, stored in the <a href="http://isaacs.iriscouch.com/_users">ht
 database.</p>
 
 <p>The registry URL is supplied by the <code>registry</code> config parameter.  See
-<code><a href="../doc/config.html">config(1)</a></code> for more on managing npm's configuration.</p>
+<code><a href="../doc/config.html">config(1)</a></code> for more on managing npm&#39;s configuration.</p>
 
 <h2 id="Can-I-run-my-own-private-registry">Can I run my own private registry?</h2>
 
@@ -36,17 +36,17 @@ database.</p>
 similar) design doc to implement the APIs.</p>
 
 <p>If you set up continuous replication from the official CouchDB, and then
-set your internal CouchDB as the registry config, then you'll be able
+set your internal CouchDB as the registry config, then you&#39;ll be able
 to read any published packages, in addition to your private ones, and by
 default will only publish internally.  If you then want to publish a
 package for the whole world to see, you can simply override the
 <code>--registry</code> config for that command.</p>
 
-<h2 id="I-don-t-want-my-package-published-in-the-official-registry-It-s-private">I don't want my package published in the official registry. It's private.</h2>
+<h2 id="I-don-t-want-my-package-published-in-the-official-registry-It-s-private">I don&#39;t want my package published in the official registry. It&#39;s private.</h2>
 
-<p>Set <code>"private": true</code> in your package.json to prevent it from being
+<p>Set <code>&quot;private&quot;: true</code> in your package.json to prevent it from being
 published at all, or
-<code>"publishConfig":{"registry":"http://my-internal-registry.local"}</code>
+<code>&quot;publishConfig&quot;:{&quot;registry&quot;:&quot;http://my-internal-registry.local&quot;}</code>
 to force it to be published only to your internal registry.</p>
 
 <p>See <code><a href="../doc/json.html">json(1)</a></code> for more info on what goes in the package.json file.</p>
@@ -59,11 +59,11 @@ otherwise.</p>
 
 <h2 id="Do-I-have-to-use-couchdb-to-build-a-registry-that-npm-can-talk-to">Do I have to use couchdb to build a registry that npm can talk to?</h2>
 
-<p>No, but it's way easier.</p>
+<p>No, but it&#39;s way easier.</p>
 
 <h2 id="I-published-something-elsewhere-and-want-to-tell-the-npm-registry-about-it">I published something elsewhere, and want to tell the npm registry about it.</h2>
 
-<p>That is supported, but not using the npm client.  You'll have to get
+<p>That is supported, but not using the npm client.  You&#39;ll have to get
 your hands dirty and do some HTTP.  The request looks something like
 this:</p>
 
@@ -72,19 +72,19 @@ content-type:application/json
 accept:application/json
 authorization:Basic $base_64_encoded
 
-{ "name":"my-foreign-package"
-, "maintainers":["owner","usernames"]
-, "description":"A package that is hosted elsewhere"
-, "keywords":["nih","my cheese smells the best"]
-, "url":"http://my-different-registry.com/blerg/my-local-package"
+{ &quot;name&quot;:&quot;my-foreign-package&quot;
+, &quot;maintainers&quot;:[&quot;owner&quot;,&quot;usernames&quot;]
+, &quot;description&quot;:&quot;A package that is hosted elsewhere&quot;
+, &quot;keywords&quot;:[&quot;nih&quot;,&quot;my cheese smells the best&quot;]
+, &quot;url&quot;:&quot;http://my-different-registry.com/blerg/my-local-package&quot;
 }</code></pre>
 
 <p>(Keywords and description are optional, but recommended.  Name,
 maintainers, and url are required.)</p>
 
-<p>Then, when a user tries to install "my-foreign-package", it'll redirect
-to your registry.  If that doesn't resolve to a valid package entry,
-then it'll fail, so please make sure that you understand the spec, and
+<p>Then, when a user tries to install &quot;my-foreign-package&quot;, it&#39;ll redirect
+to your registry.  If that doesn&#39;t resolve to a valid package entry,
+then it&#39;ll fail, so please make sure that you understand the spec, and
 ask for help on the <a href="mailto:npm-@googlegroups.com">npm-@googlegroups.com</a> mailing list.</p>
 
 <h2 id="Is-there-a-website-or-something-to-see-package-docs-and-such">Is there a website or something to see package docs and such?</h2>
@@ -97,7 +97,7 @@ ask for help on the <a href="mailto:npm-@googlegroups.com">npm-@googlegroups.com
 
 <ul><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/disputes.html">disputes(1)</a></li></ul>
 </div>
-<p id="footer">registry &mdash; npm@1.1.46</p>
+<p id="footer">registry &mdash; npm@1.1.47</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
