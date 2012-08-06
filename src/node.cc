@@ -23,6 +23,7 @@
 #include "req_wrap.h"
 #include "handle_wrap.h"
 
+#include "ares.h"
 #include "uv.h"
 
 #include "v8-debug.h"
