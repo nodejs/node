@@ -91,7 +91,9 @@ def waf_files(action):
           'tools/wafadmin/Scripting.py',
           'tools/wafadmin/TaskGen.py',
           'tools/wafadmin/Task.py',
-          'tools/wafadmin/Tools/ar.py',
+          'tools/wafadmin/Utils.py'],
+          'lib/node/wafadmin/')
+  action(['tools/wafadmin/Tools/ar.py',
           'tools/wafadmin/Tools/cc.py',
           'tools/wafadmin/Tools/ccroot.py',
           'tools/wafadmin/Tools/compiler_cc.py',
@@ -123,12 +125,11 @@ def waf_files(action):
           'tools/wafadmin/Tools/unittestw.py',
           'tools/wafadmin/Tools/winres.py',
           'tools/wafadmin/Tools/xlc.py',
-          'tools/wafadmin/Tools/xlcxx.py',
-          'tools/wafadmin/Utils.py'],
-          'lib/node/')
+          'tools/wafadmin/Tools/xlcxx.py'],
+          'lib/node/wafadmin/Tools/')
 
 def update_shebang(path, shebang):
-  print 'updating shebang of %s' % path
+  print 'updating shebang of %s to %s' % (path, shebang)
   s = open(path, 'r').read()
   s = re.sub(r'#!.*\n', '#!' + shebang + '\n', s)
   open(path, 'w').write(s)
@@ -153,7 +154,16 @@ def npm_files(action):
     action([link_path], 'bin/npm')
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-    update_shebang(link_path, node_prefix + '/bin/node')
+    if os.environ['PORTABLE']:
+      # This crazy hack is necessary to make the shebang execute the copy
+      # of node relative to the same directory as the npm script. The precompiled
+      # binary tarballs use a prefix of "/" which gets translated to "/bin/node"
+      # in the regular shebang modifying logic, which is incorrect since the
+      # precompiled bundle should be able to be extracted anywhere and "just work"
+      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/node" "$0" "$@"'
+    else:
+      shebang = os.path.join(node_prefix, 'bin/node')
+    update_shebang(link_path, shebang)
   else:
     assert(0) # unhandled action type
 

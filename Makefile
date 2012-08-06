@@ -192,8 +192,20 @@ docclean:
 	-rm -rf out/doc
 
 VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
+PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
+ifeq ($(DESTCPU),x64)
+ARCH=x86_64
+else
+ifeq ($(DESTCPU),ia32)
+ARCH=i386
+else
+ARCH=$(shell uname -m)
+endif
+endif
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
+BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
+BINARYTAR=$(BINARYNAME).tar.gz
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
@@ -201,30 +213,7 @@ dist: doc $(TARBALL) $(PKG)
 
 PKGDIR=out/dist-osx
 
-pkg: $(PKG)
-
-$(PKG):
-	rm -rf $(PKGDIR)
-	rm -rf out/deps out/Release
-	./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
-	$(MAKE) install V=$(V)
-	rm -rf out/deps out/Release
-	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
-	$(MAKE) install V=$(V)
-	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
-	lipo $(PKGDIR)/32/usr/local/bin/node \
-		$(PKGDIR)/usr/local/bin/node \
-		-output $(PKGDIR)/usr/local/bin/node-universal \
-		-create
-	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
-	rm -rf $(PKGDIR)/32
-	$(packagemaker) \
-		--id "org.nodejs.Node" \
-		--doc tools/osx-pkg.pmdoc \
-		--out $(PKG)
-	SIGN="$(SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
-
-$(TARBALL): node doc
+release-only:
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
 		exit 0 ; \
 	else \
@@ -245,6 +234,31 @@ $(TARBALL): node doc
 	  echo "" >&2 ; \
 		exit 1 ; \
 	fi
+
+pkg: $(PKG)
+
+$(PKG): release-only
+	rm -rf $(PKGDIR)
+	rm -rf out/deps out/Release
+	./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
+	$(MAKE) install V=$(V)
+	rm -rf out/deps out/Release
+	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
+	$(MAKE) install V=$(V)
+	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
+	lipo $(PKGDIR)/32/usr/local/bin/node \
+		$(PKGDIR)/usr/local/bin/node \
+		-output $(PKGDIR)/usr/local/bin/node-universal \
+		-create
+	mv $(PKGDIR)/usr/local/bin/node-universal $(PKGDIR)/usr/local/bin/node
+	rm -rf $(PKGDIR)/32
+	$(packagemaker) \
+		--id "org.nodejs.Node" \
+		--doc tools/osx-pkg.pmdoc \
+		--out $(PKG)
+	SIGN="$(SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
+
+$(TARBALL): release-only node doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
@@ -255,6 +269,22 @@ $(TARBALL): node doc
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
+
+tar: $(TARBALL)
+
+$(BINARYTAR): release-only
+	rm -rf $(BINARYNAME)
+	rm -rf out/deps out/Release
+	./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU)
+	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
+	cp README.md $(BINARYNAME)
+	cp LICENSE $(BINARYNAME)
+	cp ChangeLog $(BINARYNAME)
+	tar -cf $(BINARYNAME).tar $(BINARYNAME)
+	rm -rf $(BINARYNAME)
+	gzip -f -9 $(BINARYNAME).tar
+
+binary: $(BINARYTAR)
 
 dist-upload: $(TARBALL) $(PKG)
 	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
@@ -280,4 +310,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary release-only
