@@ -4,8 +4,7 @@ module.exports = publish
 var path = require("path")
   , url = require("url")
 
-function publish (data, tarball, readme, cb) {
-  if (typeof cb !== "function") cb = readme, readme = ""
+function publish (data, tarball, cb) {
 
   if (!this.email || !this.auth || !this.username) {
     return cb(new Error("auth and email required for publishing"))
@@ -18,15 +17,13 @@ function publish (data, tarball, readme, cb) {
   // PUT the data to {config.registry}/{data.name}/{data.version}
   var registry = this.registry
 
-  readme = readme ? "" + readme : ""
-
   var fullData =
     { _id : data.name
     , name : data.name
     , description : data.description
     , "dist-tags" : {}
     , versions : {}
-    , readme: readme
+    , readme: data.readme || ""
     , maintainers :
       [ { name : this.username
         , email : this.email
@@ -71,12 +68,6 @@ function publish (data, tarball, readme, cb) {
 
       var exists = fullData.versions && fullData.versions[data.version]
       if (exists) return cb(conflictError.call(this, data._id))
-
-      // this way, it'll also get attached to packages that were previously
-      // published with a version of npm that lacked this feature.
-      if (!fullData.readme) {
-        data.readme = readme
-      }
 
       this.request("PUT", dataURI, data, function (er) {
         if (er) {
