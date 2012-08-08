@@ -27,7 +27,7 @@ var net = require('net');
 
 var ROUNDS = 5;
 var ATTEMPTS_PER_ROUND = 200;
-var rounds = 0;
+var rounds = 1;
 var reqs = 0;
 
 pummel();
@@ -39,21 +39,20 @@ function pummel() {
     net.createConnection(common.PORT).on('error', function(err) {
       assert.equal(err.code, 'ECONNREFUSED');
       if (--pending > 0) return;
-      if (++rounds < ROUNDS) return pummel();
-      check();
+      if (rounds == ROUNDS) return check();
+      rounds++;
+      pummel();
     });
     reqs++;
   }
 }
 
 function check() {
-  process.nextTick(function() {
-    process.nextTick(function() {
-      assert.equal(process._getActiveRequests().length, 0);
-      assert.equal(process._getActiveHandles().length, 0);
-      check_called = true;
-    });
-  });
+  setTimeout(function() {
+    assert.equal(process._getActiveRequests().length, 0);
+    assert.equal(process._getActiveHandles().length, 1); // the timer
+    check_called = true;
+  }, 0);
 }
 var check_called = false;
 
