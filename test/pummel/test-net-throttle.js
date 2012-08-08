@@ -26,7 +26,7 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var N = 160 * 1024;
+var N = 1024 * 1024;
 var part_N = N / 3;
 var chars_recved = 0;
 var npauses = 0;
