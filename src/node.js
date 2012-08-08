@@ -184,6 +184,16 @@
       var t = NativeModule.require('timers');
       return t.clearInterval.apply(this, arguments);
     };
+
+    global.setImmediate = function() {
+      var t = NativeModule.require('timers');
+      return t.setImmediate.apply(this, arguments);
+    };
+
+    global.clearImmediate = function() {
+      var t = NativeModule.require('timers');
+      return t.clearImmediate.apply(this, arguments);
+    };
   };
 
   startup.globalConsole = function() {
