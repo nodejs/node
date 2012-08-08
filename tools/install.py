@@ -157,9 +157,7 @@ def npm_files(action):
     assert(0) # unhandled action type
 
 def files(action):
-  action(['deps/uv/include/ares.h',
-          'deps/uv/include/ares_version.h',
-          'deps/uv/include/uv.h',
+  action(['deps/uv/include/uv.h',
           'deps/v8/include/v8-debug.h',
           'deps/v8/include/v8-preparser.h',
           'deps/v8/include/v8-profiler.h',
