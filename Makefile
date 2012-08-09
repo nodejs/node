@@ -192,15 +192,17 @@ docclean:
 	-rm -rf out/doc
 
 VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
+RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
 PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
-ifeq ($(DESTCPU),x64)
-ARCH=x86_64
+ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
+DESTCPU ?= x64
 else
-ifeq ($(DESTCPU),ia32)
-ARCH=i386
-else
-ARCH=$(shell uname -m)
+DESTCPU ?= ia32
 endif
+ifeq ($(DESTCPU),x64)
+ARCH=x64
+else
+ARCH=x86
 endif
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
@@ -225,11 +227,11 @@ release-only:
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ $(shell ./node --version) = "$(VERSION)" ]; then \
+	@if [ "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
 	  echo "" >&2 ; \
-		echo "$(shell ./node --version) doesn't match $(VERSION)." >&2 ; \
+		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
 	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
 	  echo "" >&2 ; \
 		exit 1 ; \
