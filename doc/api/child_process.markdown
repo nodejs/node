@@ -266,8 +266,7 @@ Use `env` to specify environment variables that will be visible to the new proce
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
-    var util  = require('util'),
-        spawn = require('child_process').spawn,
+    var spawn = require('child_process').spawn,
         ls    = spawn('ls', ['-lh', '/usr']);
 
     ls.stdout.on('data', function (data) {
@@ -285,8 +284,7 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
 
 Example: A very elaborate way to run 'ps ax | grep ssh'
 
-    var util  = require('util'),
-        spawn = require('child_process').spawn,
+    var spawn = require('child_process').spawn,
         ps    = spawn('ps', ['ax']),
         grep  = spawn('grep', ['ssh']);
 
