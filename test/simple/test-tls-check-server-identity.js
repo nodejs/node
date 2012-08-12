@@ -34,6 +34,14 @@ var tests = [
   // No wildcards in CN
   { host: 'b.a.com', cert: { subject: { CN: '*.a.com' } }, result: false },
 
+  // Multiple CN fields
+  {
+    host: 'foo.com', cert: {
+      subject: { CN: ['foo.com', 'bar.com'] } // CN=foo.com; CN=bar.com;
+    },
+    result: true
+  },
+
   // DNS names and CN
   {
     host: 'a.com', cert: {
