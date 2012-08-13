@@ -29,7 +29,7 @@
         lightweight and efficient, perfect for data-intensive real-time
         applications that run across distributed devices.</p>
 
-        <a href="#download" class="button" id="downloadbutton">Download</a>
+        <a href="download/" class="button" id="downloadbutton">Download</a>
         <a href="api/" class="button" id="docsbutton">Docs</a>
         <p class="version">__VERSION__</p>
 
@@ -76,81 +76,6 @@
             <span>Sr. Product Manger, Cocktail</span></p></li>
         </ul>
     </div>
-
-    <div id="download">
-        <a href="#" id="download-close">X</a>
-        <img id="download-logo" src="http://nodejs.org/images/download-logo.png" alt="node.js">
-        <ul id="installers" class="clearfix">
-            <li><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi">Windows Installer</a><br>node-__VERSION__-x86.msi</li>
-            <li><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.pkg">Macintosh Installer</a><br>node-__VERSION__.pkg</li>
-            <li id="source"><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz">Source Code</a><br>node-__VERSION__.tar.gz</li>
-        </ul>
-        <ul id="documentation">
-            <li><a href="https://raw.github.com/joyent/node/__VERSION__/ChangeLog">Change Log</a></li>
-            <li><a href="http://nodejs.org/docs/__VERSION__/api/">Documentation</a></li>
-            <li><a href="http://nodejs.org/dist/__VERSION__">Other release files</a></li>
-            <li><a href="http://nodejs.org/dist/__VERSION__/x64/node-__VERSION__-x64.msi">Windows x64 Installer</a></li>
-            <li><a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">License</a></li>
-            <li><a href="https://github.com/joyent/node">Git Repository</a></li>
-            <li><a href="https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager">Installing
-            with a Package Manager</a>
-        </ul>
-    </div>
-
-    <script>;(function() {
-      // attach as soon as the required elements are in the DOM.
-      // don't need to wait for entire document to be ready, since we're
-      // not adding any *new* nodes to the <body>, so there's no threat
-      // of 'Invalid operation' errors in old MSIE 6.
-      document.getElementById('downloadbutton').onclick = function(e) {
-        e = e || window.event;
-        e.stopPropagation && e.stopPropagation();
-        e.cancelBubble = true;
-        // need to give the hash a tick to update
-        setTimeout(downloadDialogUpdate, 0);
-      };
-
-      document.getElementById('download-close').onclick =
-      document.documentElement.onclick = function(e) {
-        e = e || window.event;
-        if (location.hash === '#download') location.hash = '';
-        downloadDialogUpdate();
-      };
-
-      document.getElementById('download').onclick = function(e) {
-        e = e || window.event;
-        e.stopPropagation && e.stopPropagation();
-        e.cancelBubble = true;
-      };
-
-      // I keep expecting <Esc> to close the dialog...
-      document.documentElement.onkeydown = function(e) {
-        e = e || window.event;
-        var k = e.which || e.keyCode || e.keyIdentifier;
-        if (typeof k === 'string') k = k.charCodeAt(0);
-        if (k === 27) document.documentElement.onclick(e);
-      };
-
-      // hacky workaround for old ie browsers that don't support :target css.
-      function downloadDialogUpdate () {
-        var div = document.getElementById('download');
-        if (!div) return;
-        var expect = location.hash === '#download' ? 'block' : 'none';
-        var actual = div.currentStyle ? div.currentStyle.display
-                   : window.getComputedStyle
-                     ? document.defaultView.getComputedStyle(div, null).getPropertyValue('display')
-                   : null;
-
-        // it looks like a string, but it might not actually be a string.
-        // explicitly cast for MSIE 6 and 7.
-        actual = '' + actual;
-        expect = '' + expect;
-        if (actual !== expect) {
-          div.style.display = expect;
-        }
-      }
-      downloadDialogUpdate();
-    })();</script>
 
     <div id="content" class="clearfix">
             <div id="column1">
@@ -204,7 +129,7 @@ server.listen(1337, '127.0.0.1');</pre>
     <div id="footer">
         <ul class="clearfix">
             <li><a href="/">Node.js</a></li>
-            <li><a href="/#download">Download</a></li>
+            <li><a href="/download/">Download</a></li>
             <li><a href="/about/">About</a></li>
             <li><a href="http://search.npmjs.org/">npm Registry</a></li>
             <li><a href="http://nodejs.org/api/">Docs</a></li>
@@ -222,6 +147,12 @@ server.listen(1337, '127.0.0.1');</pre>
     <script src="sh_main.js"></script>
     <script src="sh_javascript.min.js"></script>
     <script>highlight(undefined, undefined, 'pre');</script>
+
+    <script type="text/javascript">
+      if (location.hash === '#download') {
+        location.href = 'download/';
+      }
+    </script>
 
     <script>
       window._gaq = [['_setAccount', 'UA-10874194-2'], ['_trackPageview']];

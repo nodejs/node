@@ -114,7 +114,7 @@ apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
           $(addprefix out/,$(apidoc_sources:.markdown=.json))
 
-apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets out/doc/about out/doc/community out/doc/logos out/doc/images
+apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets out/doc/about out/doc/community out/doc/download out/doc/logos out/doc/images
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
@@ -132,6 +132,7 @@ website_files = \
 	out/doc/pipe.css \
 	out/doc/about/index.html \
 	out/doc/community/index.html \
+	out/doc/download/index.html \
 	out/doc/logos/index.html \
 	out/doc/changelog.html \
 	$(doc_images)
