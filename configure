@@ -339,8 +339,13 @@ def configure_node(o):
     o['variables']['v8_use_arm_eabi_hardfloat'] = b(hard_float)
     o['variables']['armv7'] = 1 if is_arch_armv7() else 0
 
-  # clang has always supported -fvisibility=hidden, right?
   cc_version, is_clang = compiler_version()
+  o['variables']['clang'] = 1 if is_clang else 0
+
+  if not is_clang:
+    o['variables']['gcc_version'] = 10 * cc_version[0] + cc_version[1]
+
+  # clang has always supported -fvisibility=hidden, right?
   if not is_clang and cc_version < (4,0,0):
     o['variables']['visibility'] = ''
 
