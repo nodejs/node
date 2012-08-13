@@ -181,6 +181,20 @@ static int uv__create_stdio_pipe_pair(uv_loop_t* loop, uv_pipe_t* server_pipe,
 static int uv__duplicate_handle(uv_loop_t* loop, HANDLE handle, HANDLE* dup) {
   HANDLE current_process;
 
+
+  /* _get_osfhandle will sometimes return -2 in case of an error. This seems */
+  /* to happen when fd <= 2 and the process' corresponding stdio handle is */
+  /* set to NULL. Unfortunately DuplicateHandle will happily duplicate /*
+  /* (HANDLE) -2, so this situation goes unnoticed until someone tries to */
+  /* use the duplicate. Therefore we filter out known-invalid handles here. */
+  if (handle == INVALID_HANDLE_VALUE ||
+      handle == NULL ||
+      handle == (HANDLE) -2) {
+    *dup = INVALID_HANDLE_VALUE;
+    uv__set_artificial_error(loop, UV_EBADF);
+    return -1;
+  }
+
   current_process = GetCurrentProcess();
 
   if (!DuplicateHandle(current_process,
@@ -208,7 +222,7 @@ static int uv__duplicate_fd(uv_loop_t* loop, int fd, HANDLE* dup) {
     return -1;
   }
 
-  handle = (HANDLE)_get_osfhandle(fd);
+  handle = (HANDLE) _get_osfhandle(fd);
   return uv__duplicate_handle(loop, handle, dup);
 }
 
@@ -355,7 +369,7 @@ int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
             break;
 
           case FILE_TYPE_UNKNOWN:
-            if (GetLastError != 0) {
+            if (GetLastError() != 0) {
               uv__set_sys_error(loop, GetLastError());
               CloseHandle(child_handle);
               goto error;
