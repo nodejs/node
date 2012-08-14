@@ -73,59 +73,6 @@ def try_remove(path, dst):
 def install(paths, dst): map(lambda path: try_copy(path, dst), paths)
 def uninstall(paths, dst): map(lambda path: try_remove(path, dst), paths)
 
-def waf_files(action):
-  action(['tools/node-waf'], 'bin/node-waf')
-  action(['tools/wafadmin/ansiterm.py',
-          'tools/wafadmin/Build.py',
-          'tools/wafadmin/Configure.py',
-          'tools/wafadmin/Constants.py',
-          'tools/wafadmin/Environment.py',
-          'tools/wafadmin/__init__.py',
-          'tools/wafadmin/Logs.py',
-          'tools/wafadmin/Node.py',
-          'tools/wafadmin/Options.py',
-          'tools/wafadmin/pproc.py',
-          'tools/wafadmin/py3kfixes.py',
-          'tools/wafadmin/Runner.py',
-          'tools/wafadmin/Scripting.py',
-          'tools/wafadmin/TaskGen.py',
-          'tools/wafadmin/Task.py',
-          'tools/wafadmin/Tools/ar.py',
-          'tools/wafadmin/Tools/cc.py',
-          'tools/wafadmin/Tools/ccroot.py',
-          'tools/wafadmin/Tools/compiler_cc.py',
-          'tools/wafadmin/Tools/compiler_cxx.py',
-          'tools/wafadmin/Tools/compiler_d.py',
-          'tools/wafadmin/Tools/config_c.py',
-          'tools/wafadmin/Tools/cxx.py',
-          'tools/wafadmin/Tools/dmd.py',
-          'tools/wafadmin/Tools/d.py',
-          'tools/wafadmin/Tools/gas.py',
-          'tools/wafadmin/Tools/gcc.py',
-          'tools/wafadmin/Tools/gdc.py',
-          'tools/wafadmin/Tools/gnu_dirs.py',
-          'tools/wafadmin/Tools/gob2.py',
-          'tools/wafadmin/Tools/gxx.py',
-          'tools/wafadmin/Tools/icc.py',
-          'tools/wafadmin/Tools/icpc.py',
-          'tools/wafadmin/Tools/__init__.py',
-          'tools/wafadmin/Tools/intltool.py',
-          'tools/wafadmin/Tools/libtool.py',
-          'tools/wafadmin/Tools/misc.py',
-          'tools/wafadmin/Tools/nasm.py',
-          'tools/wafadmin/Tools/node_addon.py',
-          'tools/wafadmin/Tools/osx.py',
-          'tools/wafadmin/Tools/preproc.py',
-          'tools/wafadmin/Tools/python.py',
-          'tools/wafadmin/Tools/suncc.py',
-          'tools/wafadmin/Tools/suncxx.py',
-          'tools/wafadmin/Tools/unittestw.py',
-          'tools/wafadmin/Tools/winres.py',
-          'tools/wafadmin/Tools/xlc.py',
-          'tools/wafadmin/Tools/xlcxx.py',
-          'tools/wafadmin/Utils.py'],
-          'lib/node/')
-
 def update_shebang(path, shebang):
   print 'updating shebang of %s' % path
   s = open(path, 'r').read()
@@ -186,7 +133,6 @@ def files(action):
   # with dtrace support now (oracle's "unbreakable" linux)
   action(['src/node.d'], 'lib/dtrace/')
 
-  if variables.get('node_install_waf'): waf_files(action)
   if variables.get('node_install_npm'): npm_files(action)
 
 def run(args):
