@@ -1,0 +1,35 @@
+{
+  "name": "once",
+  "version": "1.1.1",
+  "description": "Run a function exactly one time",
+  "main": "once.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "~0.3.0"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/once"
+  },
+  "keywords": [
+    "once",
+    "function",
+    "one",
+    "single"
+  ],
+  "author": {
+    "name": "Isaac Z. Schlueter",
+    "email": "i@izs.me",
+    "url": "http://blog.izs.me/"
+  },
+  "license": "BSD",
+  "readme": "# once\n\nOnly call a function once.\n\n## usage\n\n```javascript\nvar once = require('once')\n\nfunction load (file, cb) {\n  cb = once(cb)\n  loader.load('file')\n  loader.once('load', cb)\n  loader.once('error', cb)\n}\n```\n\nOr add to the Function.prototype in a responsible way:\n\n```javascript\n// only has to be done once\nrequire('once').proto()\n\nfunction load (file, cb) {\n  cb = cb.once()\n  loader.load('file')\n  loader.once('load', cb)\n  loader.once('error', cb)\n}\n```\n\nIronically, the prototype feature makes this module twice as\ncomplicated as necessary.\n",
+  "_id": "once@1.1.1",
+  "_from": "once"
+}

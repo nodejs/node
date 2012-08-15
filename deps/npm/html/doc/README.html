@@ -42,31 +42,18 @@ paths, etc.) then read on.</p>
 
 <h2 id="Fancy-Install-Unix">Fancy Install (Unix)</h2>
 
-<p>To install npm with one command, do this:</p>
-
-<pre><code>curl http://npmjs.org/install.sh | sh</code></pre>
-
-<p>To skip the npm 0.x cleanup, do this:</p>
-
-<pre><code>curl http://npmjs.org/install.sh | clean=no sh</code></pre>
-
-<p>To say &quot;yes&quot; to the 0.x cleanup, but skip the prompt:</p>
-
-<pre><code>curl http://npmjs.org/install.sh | clean=yes sh</code></pre>
-
-<p>If you get permission errors, you&#39;ll need to <strong>run</strong> the script as root.
-(Note, just putting <code>sudo</code> in front of the <code>curl</code> will <strong>fetch</strong> the script
-as root.)</p>
+<p>There&#39;s a pretty robust install script at
+<a href="https://npmjs.org/install.sh">https://npmjs.org/install.sh</a>.  You can download that and run it.</p>
 
 <h3 id="Slightly-Fancier">Slightly Fancier</h3>
 
 <p>You can set any npm configuration params with that script:</p>
 
-<pre><code>curl http://npmjs.org/install.sh | npm_config_prefix=/some/path sh</code></pre>
+<p>npm<em>config</em>prefix=/some/path sh install.sh</p>
 
 <p>Or, you can run it in uber-debuggery mode:</p>
 
-<pre><code>curl http://npmjs.org/install.sh | npm_debug=1 sh</code></pre>
+<p>npm_debug=1 sh install.sh</p>
 
 <h3 id="Even-Fancier">Even Fancier</h3>
 
@@ -89,21 +76,6 @@ git, and mess with it directly.</p>
 <h2 id="Installing-on-Cygwin">Installing on Cygwin</h2>
 
 <p>No.</p>
-
-<h2 id="Dev-Install">Dev Install</h2>
-
-<p>To install the latest <strong>unstable</strong> development version from git:</p>
-
-<pre><code>git clone https://github.com/isaacs/npm.git
-cd npm
-sudo make install     # (or: `node cli.js install -gf`)</code></pre>
-
-<p>If you&#39;re sitting in the code folder reading this document in your
-terminal, then you&#39;ve already got the code.  Just do:</p>
-
-<pre><code>sudo make install</code></pre>
-
-<p>and npm will install itself.</p>
 
 <h2 id="Permissions-when-Using-npm-to-Install-Other-Stuff">Permissions when Using npm to Install Other Stuff</h2>
 
@@ -169,6 +141,14 @@ you have chosen.</p>
 <p>If you would like to use npm programmatically, you can do that.
 It&#39;s not very well documented, but it <em>is</em> rather simple.</p>
 
+<p>Most of the time, unless you actually want to do all the things that
+npm does, you should try using one of npm&#39;s dependencies rather than
+using npm itself, if possible.</p>
+
+<p>Eventually, npm will be just a thin cli wrapper around the modules
+that it depends on, but for now, there are some things that you must
+use npm itself to do.</p>
+
 <pre><code>var npm = require(&quot;npm&quot;)
 npm.load(myConfigObject, function (er) {
   if (er) return handlError(er)
@@ -201,8 +181,7 @@ especially the <a href="http://npmjs.org/doc/faq.html">faq</a>.</p>
 <p>You can use the <code>npm help</code> command to read any of them.</p>
 
 <p>If you&#39;re a developer, and you want to use npm to publish your program,
-you should
-<a href="http://npmjs.org/doc/developers.html">read this</a></p>
+you should <a href="http://npmjs.org/doc/developers.html">read this</a></p>
 
 <h2 id="Legal-Stuff">Legal Stuff</h2>
 
@@ -261,7 +240,7 @@ will no doubt tell you to put the output in a gist or email.</p>
 
 <ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/index.html">index(1)</a></li></ul>
 </div>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.48</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.49</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

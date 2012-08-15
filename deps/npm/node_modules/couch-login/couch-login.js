@@ -20,6 +20,7 @@ function CouchLogin (couch, tok) {
   if (tok === 'anonymous') tok = NaN
   this.token = tok
   this.couch = url.format(couch)
+  this.proxy = null
 
   this.maxAge = YEAR
 }
@@ -98,6 +99,9 @@ function makeReq (meth, body, f) { return function madeReq (p, d, cb) {
 
   if (this.token) {
     h.cookie = 'AuthSession=' + this.token.AuthSession
+  }
+  if (this.proxy) {
+    req.proxy = this.proxy
   }
 
   request(req, function (er, res, data) {

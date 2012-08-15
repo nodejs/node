@@ -35,31 +35,18 @@ paths, etc.) then read on.
 
 ## Fancy Install (Unix)
 
-To install npm with one command, do this:
-
-    curl http://npmjs.org/install.sh | sh
-
-To skip the npm 0.x cleanup, do this:
-
-    curl http://npmjs.org/install.sh | clean=no sh
-
-To say "yes" to the 0.x cleanup, but skip the prompt:
-
-    curl http://npmjs.org/install.sh | clean=yes sh
-
-If you get permission errors, you'll need to **run** the script as root.
-(Note, just putting `sudo` in front of the `curl` will **fetch** the script
-as root.)
+There's a pretty robust install script at
+<https://npmjs.org/install.sh>.  You can download that and run it.
 
 ### Slightly Fancier
 
 You can set any npm configuration params with that script:
 
-    curl http://npmjs.org/install.sh | npm_config_prefix=/some/path sh
+npm_config_prefix=/some/path sh install.sh
 
 Or, you can run it in uber-debuggery mode:
 
-    curl http://npmjs.org/install.sh | npm_debug=1 sh
+npm_debug=1 sh install.sh
 
 ### Even Fancier
 
@@ -82,21 +69,6 @@ git, and mess with it directly.
 ## Installing on Cygwin
 
 No.
-
-## Dev Install
-
-To install the latest **unstable** development version from git:
-
-    git clone https://github.com/isaacs/npm.git
-    cd npm
-    sudo make install     # (or: `node cli.js install -gf`)
-
-If you're sitting in the code folder reading this document in your
-terminal, then you've already got the code.  Just do:
-
-    sudo make install
-
-and npm will install itself.
 
 ## Permissions when Using npm to Install Other Stuff
 
@@ -163,6 +135,14 @@ you have chosen.
 If you would like to use npm programmatically, you can do that.
 It's not very well documented, but it *is* rather simple.
 
+Most of the time, unless you actually want to do all the things that
+npm does, you should try using one of npm's dependencies rather than
+using npm itself, if possible.
+
+Eventually, npm will be just a thin cli wrapper around the modules
+that it depends on, but for now, there are some things that you must
+use npm itself to do.
+
     var npm = require("npm")
     npm.load(myConfigObject, function (er) {
       if (er) return handlError(er)
@@ -195,8 +175,7 @@ especially the [faq](http://npmjs.org/doc/faq.html).
 You can use the `npm help` command to read any of them.
 
 If you're a developer, and you want to use npm to publish your program,
-you should
-[read this](http://npmjs.org/doc/developers.html)
+you should [read this](http://npmjs.org/doc/developers.html)
 
 ## Legal Stuff
 

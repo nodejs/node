@@ -17,7 +17,7 @@ require("path").SPLIT_CHAR = process.platform === "win32" ? "\\" : "/"
 var EventEmitter = require("events").EventEmitter
   , npm = module.exports = new EventEmitter
   , config = require("./config.js")
-  , ini = require("./utils/ini.js")
+  , npmconf = require("npmconf")
   , log = require("npmlog")
   , fs = require("graceful-fs")
   , path = require("path")
@@ -30,6 +30,8 @@ var EventEmitter = require("events").EventEmitter
   , slide = require("slide")
   , chain = slide.chain
   , RegClient = require("npm-registry-client")
+
+npm.config = {loaded: false}
 
 // /usr/local is often a read-only fs, which is not
 // well handled by node or mkdirp.  Just double-check
@@ -223,11 +225,10 @@ function loadCb (er) {
   loadListeners.length = 0
 }
 
-
-npm.load = function (conf, cb_) {
-  if (!cb_ && typeof conf === "function") cb_ = conf , conf = {}
+npm.load = function (cli, cb_) {
+  if (!cb_ && typeof cli === "function") cb_ = cli , cli = {}
   if (!cb_) cb_ = function () {}
-  if (!conf) conf = {}
+  if (!cli) cli = {}
   loadListeners.push(cb_)
   if (loaded || loadErr) return cb(loadErr)
   if (loading) return
@@ -236,6 +237,7 @@ npm.load = function (conf, cb_) {
 
   function cb (er) {
     if (loadErr) return
+    npm.config.loaded = true
     loaded = true
     loadCb(loadErr = er)
     if (onload = onload && npm.config.get("onload-script")) {
@@ -246,11 +248,10 @@ npm.load = function (conf, cb_) {
 
   log.pause()
 
-  load(npm, conf, cb)
+  load(npm, cli, cb)
 }
 
-
-function load (npm, conf, cb) {
+function load (npm, cli, cb) {
   which(process.argv[0], function (er, node) {
     if (!er && node.toUpperCase() !== process.execPath.toUpperCase()) {
       log.verbose("node symlink", node)
@@ -261,12 +262,16 @@ function load (npm, conf, cb) {
     // look up configs
     //console.error("about to look up configs")
 
-    ini.resolveConfigs(conf, function (er) {
-      var color = npm.config.get("color")
+    npmconf.load(cli, function (er, conf) {
+      if (er === conf) er = null
 
-      log.level = npm.config.get("loglevel")
+      npm.config = conf
+
+      var color = conf.get("color")
+
+      log.level = conf.get("loglevel")
       log.heading = "npm"
-      log.stream = npm.config.get("logstream")
+      log.stream = conf.get("logstream")
       switch (color) {
         case "always": log.enableColor(); break
         case false: log.disableColor(); break
@@ -294,12 +299,12 @@ function load (npm, conf, cb) {
 
       // at this point the configs are all set.
       // go ahead and spin up the registry client.
-      var token = npm.config.get("_token")
+      var token = conf.get("_token")
       if (typeof token === "string") {
         try {
           token = JSON.parse(token)
-          npm.config.set("_token", token, "user")
-          ini.save("user", function () {})
+          conf.set("_token", token, "user")
+          conf.save("user")
         } catch (e) { token = null }
       }
 
@@ -329,20 +334,20 @@ function load (npm, conf, cb) {
       // save the token cookie in the config file
       if (npm.registry.couchLogin) {
         npm.registry.couchLogin.tokenSet = function (tok) {
-          ini.set("_token", tok, "user")
+          npm.config.set("_token", tok, "user")
           // ignore save error.  best effort.
-          ini.save("user", function () {})
+          npm.config.save("user")
         }
       }
 
-      var umask = parseInt(conf.umask, 8)
+      var umask = parseInt(cli.umask, 8)
       npm.modes = { exec: 0777 & (~umask)
                   , file: 0666 & (~umask)
                   , umask: umask }
 
-      chain([ [ loadPrefix, npm, conf ]
-            , [ setUser, ini.configList, ini.defaultConfig ]
-            , [ loadUid, npm, conf ]
+      chain([ [ loadPrefix, npm, cli ]
+            , [ setUser, conf, conf.root ]
+            , [ loadUid, npm ]
             ], cb)
     })
   })
@@ -352,7 +357,7 @@ function loadPrefix (npm, conf, cb) {
   // try to guess at a good node_modules location.
   var p
     , gp
-  if (!conf.hasOwnProperty("prefix")) {
+  if (!Object.prototype.hasOwnProperty.call(conf, "prefix")) {
     p = process.cwd()
   } else {
     p = npm.config.get("prefix")
@@ -393,7 +398,7 @@ function loadPrefix (npm, conf, cb) {
 }
 
 
-function loadUid (npm, conf, cb) {
+function loadUid (npm, cb) {
   // if we're not in unsafe-perm mode, then figure out who
   // to run stuff as.  Do this first, to support `npm update npm -g`
   if (!npm.config.get("unsafe-perm")) {
@@ -426,12 +431,6 @@ function setUser (cl, dc, cb) {
   })
 }
 
-
-npm.config =
-  { get : function (key) { return ini.get(key) }
-  , set : function (key, val, which) { return ini.set(key, val, which) }
-  , del : function (key, val, which) { return ini.del(key, val, which) }
-  }
 
 Object.defineProperty(npm, "prefix",
   { get : function () {
@@ -497,7 +496,7 @@ Object.defineProperty(npm, "tmp",
 
 // the better to repl you with
 Object.getOwnPropertyNames(npm.commands).forEach(function (n) {
-  if (npm.hasOwnProperty(n)) return
+  if (npm.hasOwnProperty(n) || n === "config") return
 
   Object.defineProperty(npm, n, { get: function () {
     return function () {

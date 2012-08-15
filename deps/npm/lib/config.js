@@ -9,13 +9,13 @@ config.usage = "npm config set <key> <value>"
              + "\nnpm set <key> <value>"
              + "\nnpm get [<key>]"
 
-var ini = require("./utils/ini.js")
-  , log = require("npmlog")
+var log = require("npmlog")
   , npm = require("./npm.js")
   , exec = require("./utils/exec.js")
   , fs = require("graceful-fs")
-  , dc
-  , types = require("./utils/config-defs.js").types
+  , npmconf = require("npmconf")
+  , types = npmconf.defs.types
+  , ini = require("ini")
 
 config.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
@@ -59,18 +59,17 @@ function config (args, cb) {
 }
 
 function edit (cb) {
-  var e = ini.get("editor")
-    , which = ini.get("global") ? "global" : "user"
-    , f = ini.get(which + "config")
+  var e = npm.config.get("editor")
+    , which = npm.config.get("global") ? "global" : "user"
+    , f = npm.config.get(which + "config")
     , eol = process.platform === "win32" ? "\r\n" : "\n"
   if (!e) return cb(new Error("No EDITOR config or environ set."))
-  ini.save(which, function (er) {
+  npm.config.save(which, function (er) {
     if (er) return cb(er)
     fs.readFile(f, "utf8", function (er, data) {
       if (er) data = ""
-      dc = dc || require("./utils/config-defs.js").defaults
       data = [ ";;;;"
-             , "; npm "+(ini.get("global") ?
+             , "; npm "+(npm.config.get("global") ?
                          "globalconfig" : "userconfig")+" file"
              , "; this is a simple ini-formatted file"
              , "; lines that start with semi-colons are comments."
@@ -83,8 +82,8 @@ function edit (cb) {
                        , ";;;;"
                        ]
                      )
-              .concat(Object.keys(dc).map(function (k) {
-                return "; " + k + " = " + ini.unParseField(dc[k],k)
+              .concat(Object.keys(npmconf.defaults).map(function (k) {
+                return "; " + k + " = " + npmconf.defaults[k]
               }))
               .concat([""])
               .join(eol)
@@ -94,13 +93,7 @@ function edit (cb) {
         , "utf8"
         , function (er) {
             if (er) return cb(er)
-            exec(e, [f], function (er) {
-              if (er) return cb(er)
-              ini.resolveConfigs(function (er) {
-                if (er) return cb(er)
-                ini.save(which, cb)
-              })
-            })
+            exec(e, [f], cb)
           }
         )
     })
@@ -109,8 +102,9 @@ function edit (cb) {
 
 function del (key, cb) {
   if (!key) return cb(new Error("no key provided"))
-  ini.del(key)
-  ini.save(ini.get("global") ? "global" : "user", cb)
+  var where = npm.config.get("global") ? "global" : "user"
+  npm.config.del(key, where)
+  npm.config.save(where, cb)
 }
 
 function set (key, val, cb) {
@@ -129,9 +123,9 @@ function set (key, val, cb) {
   key = key.trim()
   val = val.trim()
   log.info("config", "set %j %j", key, val)
-  var where = ini.get("global") ? "global" : "user"
-  ini.set(key, val, where)
-  ini.save(where, cb)
+  var where = npm.config.get("global") ? "global" : "user"
+  npm.config.set(key, val, where)
+  npm.config.save(where, cb)
 }
 
 function get (key, cb) {
@@ -151,140 +145,127 @@ function reverse (a, b) {
   return a > b ? -1 : 1
 }
 
+function public (k) {
+  return !(k.charAt(0) === "_" || types[k] !== types[k])
+}
+
+function getKeys (data) {
+  return Object.keys(data).filter(public).sort(sort)
+}
+
 function list (cb) {
   var msg = ""
     , long = npm.config.get("long")
 
-  // cli configs.
-  // show any that aren't secret
-  var cli = ini.configList.list[ini.TRANS.cli]
-    , eol = process.platform === "win32" ? "\r\n" : "\n"
-    , cliKeys = Object.keys(cli).filter(function (k) {
-        return !(k.charAt(0) === "_" || types[k] !== types[k])
-      }).sort(function (a, b) {
-        return a > b ? 1 : -1
-      })
+  var cli = npm.config.sources.cli.data
+    , cliKeys = getKeys(cli)
   if (cliKeys.length) {
-    msg += "; cli configs" + eol
+    msg += "; cli configs\n"
     cliKeys.forEach(function (k) {
       if (cli[k] && typeof cli[k] === "object") return
       if (k === "argv") return
-      msg += k + " = " + JSON.stringify(cli[k]) + eol
+      msg += k + " = " + JSON.stringify(cli[k]) + "\n"
     })
-    msg += eol
+    msg += "\n"
   }
 
   // env configs
-  var env = ini.configList.list[ini.TRANS.env]
-    , envKeys = Object.keys(env).filter(function (k) {
-        return !(k.charAt(0) === "_" || types[k] !== types[k])
-      }).sort(function (a, b) {
-        return a > b ? 1 : -1
-      })
+  var env = npm.config.sources.env.data
+    , envKeys = getKeys(env)
   if (envKeys.length) {
-    msg += "; environment configs" + eol
+    msg += "; environment configs\n"
     envKeys.forEach(function (k) {
-      if (env[k] !== ini.get(k)) {
+      if (env[k] !== npm.config.get(k)) {
         if (!long) return
         msg += "; " + k + " = " + JSON.stringify(env[k])
-            + " (overridden)" + eol
-      } else msg += k + " = " + JSON.stringify(env[k]) + eol
+            + " (overridden)\n"
+      } else msg += k + " = " + JSON.stringify(env[k]) + "\n"
     })
-    msg += eol
+    msg += "\n"
   }
 
   // user config file
-  var uconf = ini.configList.list[ini.TRANS.user]
-    , uconfKeys = Object.keys(uconf).filter(function (k) {
-        return types[k] === types[k]
-      }).sort(function (a, b) {
-        return a > b ? 1 : -1
-      })
+  var uconf = npm.config.sources.user.data
+    , uconfKeys = getKeys(uconf)
   if (uconfKeys.length) {
-    msg += "; userconfig " + ini.get("userconfig") + eol
+    msg += "; userconfig " + npm.config.get("userconfig") + "\n"
     uconfKeys.forEach(function (k) {
       var val = (k.charAt(0) === "_")
               ? "---sekretz---"
               : JSON.stringify(uconf[k])
-      if (uconf[k] !== ini.get(k)) {
+      if (uconf[k] !== npm.config.get(k)) {
         if (!long) return
         msg += "; " + k + " = " + val
-            + " (overridden)" + eol
-      } else msg += k + " = " + val + eol
+            + " (overridden)\n"
+      } else msg += k + " = " + val + "\n"
     })
-    msg += eol
+    msg += "\n"
   }
 
   // global config file
-  var gconf = ini.configList.list[ini.TRANS.global]
-    , gconfKeys = Object.keys(gconf).filter(function (k) {
-        return types[k] === types[k]
-      }).sort(function (a, b) {
-        return a > b ? 1 : -1
-      })
+  var gconf = npm.config.sources.global.data
+    , gconfKeys = getKeys(gconf)
   if (gconfKeys.length) {
-    msg += "; globalconfig " + ini.get("globalconfig") + eol
+    msg += "; globalconfig " + npm.config.get("globalconfig") + "\n"
     gconfKeys.forEach(function (k) {
       var val = (k.charAt(0) === "_")
               ? "---sekretz---"
               : JSON.stringify(gconf[k])
-      if (gconf[k] !== ini.get(k)) {
+      if (gconf[k] !== npm.config.get(k)) {
         if (!long) return
         msg += "; " + k + " = " + val
-            + " (overridden)" + eol
-      } else msg += k + " = " + val + eol
+            + " (overridden)\n"
+      } else msg += k + " = " + val + "\n"
     })
-    msg += eol
+    msg += "\n"
   }
 
   // builtin config file
-  var bconf = ini.configList.list[ini.TRANS.builtin]
-    , bconfKeys = Object.keys(bconf).filter(function (k) {
-        return types[k] === types[k]
-      }).sort(function (a, b) {
-        return a > b ? 1 : -1
+  var builtin = npm.config.sources.builtin || {}
+  if (builtin && builtin.data) {
+    var bconf = builtin.data
+      , bpath = builtin.path
+      , bconfKeys = getKeys(bconf)
+    if (bconfKeys.length) {
+      var path = require("path")
+      msg += "; builtin config " + bpath + "\n"
+      bconfKeys.forEach(function (k) {
+        var val = (k.charAt(0) === "_")
+                ? "---sekretz---"
+                : JSON.stringify(bconf[k])
+        if (bconf[k] !== npm.config.get(k)) {
+          if (!long) return
+          msg += "; " + k + " = " + val
+              + " (overridden)\n"
+        } else msg += k + " = " + val + "\n"
       })
-  if (bconfKeys.length) {
-    var path = require("path")
-    msg += "; builtin config " + path.resolve(__dirname, "../npmrc") + eol
-    bconfKeys.forEach(function (k) {
-      var val = (k.charAt(0) === "_")
-              ? "---sekretz---"
-              : JSON.stringify(bconf[k])
-      if (bconf[k] !== ini.get(k)) {
-        if (!long) return
-        msg += "; " + k + " = " + val
-            + " (overridden)" + eol
-      } else msg += k + " = " + val + eol
-    })
-    msg += eol
+      msg += "\n"
+    }
   }
 
   // only show defaults if --long
   if (!long) {
-    msg += "; node install prefix = " + process.installPrefix + eol
-         + "; node bin location = " + process.execPath + eol
-         + "; cwd = " + process.cwd() + eol
-         + "; HOME = " + process.env.HOME + eol
-         + "; 'npm config ls -l' to show all defaults." + eol
+    msg += "; node bin location = " + process.execPath + "\n"
+         + "; cwd = " + process.cwd() + "\n"
+         + "; HOME = " + process.env.HOME + "\n"
+         + "; 'npm config ls -l' to show all defaults.\n"
 
     console.log(msg)
     return cb()
   }
 
-  var defaults = ini.defaultConfig
-    , defKeys = Object.keys(defaults)
-  msg += "; default values" + eol
+  var defaults = npmconf.defaults
+    , defKeys = getKeys(defaults)
+  msg += "; default values\n"
   defKeys.forEach(function (k) {
     if (defaults[k] && typeof defaults[k] === "object") return
     var val = JSON.stringify(defaults[k])
-    if (defaults[k] !== ini.get(k)) {
-      if (!long) return
+    if (defaults[k] !== npm.config.get(k)) {
       msg += "; " + k + " = " + val
-          + " (overridden)" + eol
-    } else msg += k + " = " + val + eol
+          + " (overridden)\n"
+    } else msg += k + " = " + val + "\n"
   })
-  msg += eol
+  msg += "\n"
 
   console.log(msg)
   return cb()

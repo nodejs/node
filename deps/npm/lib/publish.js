@@ -36,9 +36,6 @@ function publish (args, isRetry, cb) {
     // the prepublish script, since that gets run when adding a folder
     // to the cache.
     if (er) return cacheAddPublish(arg, false, isRetry, cb)
-
-    data._npmUser = { name: npm.config.get("username")
-                    , email: npm.config.get("email") }
     cacheAddPublish(arg, true, isRetry, cb)
   })
 }
@@ -70,6 +67,10 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
       npm.config.set(k, data.publishConfig[k])
     })
   }
+
+  data._npmVersion = npm.version
+  data._npmUser = { name: npm.config.get("username")
+                  , email: npm.config.get("email") }
 
   delete data.modules
   if (data.private) return cb(new Error

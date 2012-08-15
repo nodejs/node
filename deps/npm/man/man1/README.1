@@ -36,69 +36,19 @@ If you want a more fancy pants install (a different version, customized
 paths, etc\.) then read on\.
 .
 .SH "Fancy Install (Unix)"
-To install npm with one command, do this:
-.
-.IP "" 4
-.
-.nf
-curl http://npmjs\.org/install\.sh | sh
-.
-.fi
-.
-.IP "" 0
-.
-.P
-To skip the npm 0\.x cleanup, do this:
-.
-.IP "" 4
-.
-.nf
-curl http://npmjs\.org/install\.sh | clean=no sh
-.
-.fi
-.
-.IP "" 0
-.
-.P
-To say "yes" to the 0\.x cleanup, but skip the prompt:
-.
-.IP "" 4
-.
-.nf
-curl http://npmjs\.org/install\.sh | clean=yes sh
-.
-.fi
-.
-.IP "" 0
-.
-.P
-If you get permission errors, you\'ll need to \fBrun\fR the script as root\.
-(Note, just putting \fBsudo\fR in front of the \fBcurl\fR will \fBfetch\fR the script
-as root\.)
+There\'s a pretty robust install script at \fIhttps://npmjs\.org/install\.sh\fR\|\.  You can download that and run it\.
 .
 .SS "Slightly Fancier"
 You can set any npm configuration params with that script:
 .
-.IP "" 4
-.
-.nf
-curl http://npmjs\.org/install\.sh | npm_config_prefix=/some/path sh
-.
-.fi
-.
-.IP "" 0
+.P
+npm\fIconfig\fRprefix=/some/path sh install\.sh
 .
 .P
 Or, you can run it in uber\-debuggery mode:
 .
-.IP "" 4
-.
-.nf
-curl http://npmjs\.org/install\.sh | npm_debug=1 sh
-.
-.fi
-.
-.IP "" 0
+.P
+npm_debug=1 sh install\.sh
 .
 .SS "Even Fancier"
 Get the code with git\.  Use \fBmake\fR to build the docs and do other stuff\.
@@ -120,36 +70,6 @@ git, and mess with it directly\.
 .
 .SH "Installing on Cygwin"
 No\.
-.
-.SH "Dev Install"
-To install the latest \fBunstable\fR development version from git:
-.
-.IP "" 4
-.
-.nf
-git clone https://github\.com/isaacs/npm\.git
-cd npm
-sudo make install     # (or: `node cli\.js install \-gf`)
-.
-.fi
-.
-.IP "" 0
-.
-.P
-If you\'re sitting in the code folder reading this document in your
-terminal, then you\'ve already got the code\.  Just do:
-.
-.IP "" 4
-.
-.nf
-sudo make install
-.
-.fi
-.
-.IP "" 0
-.
-.P
-and npm will install itself\.
 .
 .SH "Permissions when Using npm to Install Other Stuff"
 \fBtl;dr\fR
@@ -257,6 +177,16 @@ you have chosen\.
 .SH "Using npm Programmatically"
 If you would like to use npm programmatically, you can do that\.
 It\'s not very well documented, but it \fIis\fR rather simple\.
+.
+.P
+Most of the time, unless you actually want to do all the things that
+npm does, you should try using one of npm\'s dependencies rather than
+using npm itself, if possible\.
+.
+.P
+Eventually, npm will be just a thin cli wrapper around the modules
+that it depends on, but for now, there are some things that you must
+use npm itself to do\.
 .
 .IP "" 4
 .

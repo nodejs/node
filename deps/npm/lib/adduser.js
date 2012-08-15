@@ -1,8 +1,7 @@
 
 module.exports = adduser
 
-var ini = require("./utils/ini.js")
-  , log = require("npmlog")
+var log = require("npmlog")
   , npm = require("./npm.js")
   , registry = npm.registry
   , read = require("read")
@@ -130,10 +129,10 @@ function save (c, u, cb) {
     registry.username = u.u
     registry.password = u.p
     registry.email = u.e
-    ini.set("username", u.u, "user")
-    ini.set("_password", u.p, "user")
-    ini.set("email", u.e, "user")
+    npm.config.set("username", u.u, "user")
+    npm.config.set("_password", u.p, "user")
+    npm.config.set("email", u.e, "user")
     log.info("adduser", "Authorized user %s", u.u)
-    ini.save("user", cb)
+    npm.config.save("user", cb)
   })
 }
