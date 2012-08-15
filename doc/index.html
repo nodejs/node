@@ -150,7 +150,8 @@ server.listen(1337, '127.0.0.1');</pre>
 
     <script type="text/javascript">
       if (location.hash === '#download') {
-        location.href = 'download/';
+        var n = location.href.replace(/(index.html)?#download/, 'download/$1')
+        location.replace(n);
       }
     </script>
 

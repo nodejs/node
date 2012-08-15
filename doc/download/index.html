@@ -18,7 +18,7 @@
           href="http://feeds.feedburner.com/nodejs/123123123">
     <title>node.js</title>
   </head>
-  <body class="int">
+  <body class="int" id="download-page">
     <div id="intro" class="interior">
       <a href="/" title="Go back to the home page">
         <img id="logo" src="http://nodejs.org/images/logo.png" alt="node.js">
@@ -40,46 +40,92 @@
         <p class="twitter"><a href="http://twitter.com/nodejs">@nodejs</a></p>
       </div>
       <div id="column1" class="interior row">
-        <p>
-          Download the Node.js source code or a pre-built installer for your platform, and start developing today.
-        </p>
-      </div>
-      <div id="column1" class="interior row">
-        <h2 id="installers" class="installers">Installers</h2>
-        <p>
-          To install Node.js and npm use the appropriate installer for your platform, or discover <a href="https://raw.github.com/joyent/node/__VERSION__/ChangeLog">what's new</a> in <strong>Node.js __VERSION__</strong>.
-        </p>
-        <p>
-          <strong>Mac OS X Installer</strong>: <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.pkg">32- and 64-bit (.pkg)</a><br />
-          <strong>Windows Installer</strong>: <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi">32-bit (.msi)</a> or 
-          <a href="http://nodejs.org/dist/__VERSION__/x64/node-__VERSION__-x64.msi">64-bit (.msi)</a><br />
-          <strong>Linux Binaries</strong>: <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-linux-x86.tar.gz">32-bit (.tar.gz)</a> or
-          <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-linux-x64.tar.gz">64-bit (.tar.gz)</a><br />
-          <strong>Solaris Binaries</strong>: <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-sunos-x86.tar.gz">32-bit (.tar.gz)</a> or
-          <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-sunos-x64.tar.gz">64-bit (.tar.gz)</a>
-        </p>
-        <p>
-          Alternatively, you can install Node.js using various <a href="https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager">package managers</a>.
-        </p>
-      </div>
-      <div id="column1" class="interior row">
-        <h2 id="apiDocumentationAndSourceCode">API Documentation and Source Code</h2>
-        <p>
-          If you are unsure about how to use Node.js, the <a href="http://nodejs.org/docs/__VERSION__/api/">API documentation</a> is there to help.
-        </p>
-        <p>
-          You can also have a look at the <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz">source code</a>, or contribute to Node.js by
-          forking the <a href="https://github.com/joyent/node">GitHub repository</a> and creating pull requests.
-        </p>
-        <p>
-          There exist some <a href="http://nodejs.org/dist/__VERSION__">other release files</a> as well.
-        </p>
-      </div>
-      <div id="column1" class="interior row">
-        <h2 id="license">License</h2>
-        <p>
-          You may also be interested in the <a href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">license</a> of Node.js.
-        </p>
+        <div class="interior row">
+          <p>
+            Download the Node.js source code or a pre-built installer for your platform, and start developing today.
+          </p>
+          <p>Current version: <b>__VERSION__</b></p>
+        </div>
+        <div class="interior row">
+          <ul id="installers" class="clearfix">
+            <li><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi">Windows Installer</a><br>node-__VERSION__-x86.msi</li>
+            <li><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.pkg">Macintosh Installer</a><br>node-__VERSION__.pkg</li>
+            <li id="source"><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz">Source Code</a><br>node-__VERSION__.tar.gz</li>
+          </ul>
+        </div>
+
+        <div class="interior row">
+          <h2 id="binaries" class="installers">Downloads</h2>
+          <p>
+            To install Node.js and npm use the appropriate installer for your platform, or discover <a href="https://raw.github.com/joyent/node/__VERSION__/ChangeLog">what's new</a> in <strong>Node.js __VERSION__</strong>.
+          </p>
+
+          <table style="font-size:14px">
+            <tr>
+              <th>Windows Installer (.msi)</th>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi">32-bit</a></td>
+              <td><a href="http://nodejs.org/dist/__VERSION__/x64/node-__VERSION__-x64.msi">64-bit</a></td>
+            </tr>
+
+            <tr>
+              <th>Windows Binary (.exe)</th>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node.exe">32-bit</a></td>
+              <td><a href="http://nodejs.org/dist/__VERSION__/x64/node.exe">64-bit</a></td>
+            </tr>
+
+            <tr>
+              <th>Mac OS X Installer (.pkg)</th>
+              <td colspan=2><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.pkg">Universal</a></td>
+            </tr>
+
+            <tr>
+              <th>Mac OS X Binaries (.tar.gz)</strong></th>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-darwin-x86.tar.gz">32-bit</a></td>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-darwin-x64.tar.gz">64-bit</a></td>
+            </tr>
+
+            <tr>
+              <th>Linux Binaries (.tar.gz)</th>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-linux-x86.tar.gz">32-bit</a></td>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-linux-x64.tar.gz">64-bit</a></td>
+            </tr>
+
+            <tr>
+              <th>SunOS Binaries (.tar.gz)</th>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-sunos-x86.tar.gz">32-bit</a></td>
+              <td><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-sunos-x64.tar.gz">64-bit</a</td>
+            </tr>
+
+            <tr>
+              <th>Source Code</th>
+              <td colspan=2>
+                <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz">node-__VERSION__.tar.gz</a>
+              </td>
+            </tr>
+          </table>
+
+          <h2 style="margin-top:1em" id=other-info>Other Info</h2>
+          <ul>
+            <li><a href="http://nodejs.org/dist/__VERSION__/SHASUMS.txt">Shasums</a></li>
+            <li><a href="https://raw.github.com/joyent/node/__VERSION__/ChangeLog">Change Log</a></li>
+
+            <li><a href="http://nodejs.org/docs/__VERSION__/api/">Documentation</a></li>
+
+            <li><a href="https://github.com/joyent/node">Git Repository</a></li>
+            <li><a href="https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager">Installing from package managers</a>
+
+            <li><a href="http://nodejs.org/dist/__VERSION__">Other release files</a></li>
+        </ul>
+        </div>
+
+        <div class="interior row">
+          <h2 id="license">License</h2>
+          <p>
+            Node.js is released under the MIT
+            license, and bundles other liberally licensed OSS components.
+          <a
+            href="https://raw.github.com/joyent/node/__VERSION__/LICENSE">Download the license</a></p>
+        </div>
       </div>
     </div>
   </body>

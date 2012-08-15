@@ -179,10 +179,81 @@ h1 a, h2 a, h3 a, h4 a
     float: left;
 }
 
-#content p {
+#content p,
+#content ul {
     font-size: 14px;
     line-height:24px;
 }
+
+#content ul {
+  margin-top:1em;
+}
+
+#content table {
+  font-size:14px;
+  line-height:24px;
+  width:100%;
+}
+
+
+
+#download-page ul#installers {
+  width: auto;
+  text-align: center;
+  margin: 0 auto;
+  background: url(http://nodejs.org/images/platform-icons.png) no-repeat center 20px white;
+  padding-top: 92px;
+  padding-bottom: 45px;
+  padding-left: 29px;
+}
+
+#download-page ul#installers li {
+  list-style-type: none;
+  width: 165px;
+  padding-left: 18px;
+  float: left;
+  display: block;
+  color: #33342D;
+  font-size: 10px;
+}
+
+#download-page ul#installers li#source {
+    padding-left: 0;
+}
+
+#download-page ul#installers li a {
+    font-size: 16px;
+    padding-top: 80px;
+    margin-top: -80px;
+}
+
+#download-page #content th {
+  text-align:left;
+  width:35%;
+}
+
+#download-page #content table {
+  table-collapse:separate;
+}
+
+#download-page #content td,
+#download-page #content th {
+  border:1px solid #666;
+}
+
+#download-page #content td a {
+  display:block;
+  height:100%;
+  width:100%;
+  text-align:center;
+}
+
+#download-page #content td a:hover,
+#download-page #content td a:active {
+  background:#666;
+  color: #8cc84b;
+}
+
 #front #content p {
   font-size:12px;
 }
