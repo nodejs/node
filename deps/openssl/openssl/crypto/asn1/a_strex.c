@@ -566,6 +566,7 @@ int ASN1_STRING_to_UTF8(unsigned char **out, ASN1_STRING *in)
 	mbflag = tag2nbyte[type];
 	if(mbflag == -1) return -1;
 	mbflag |= MBSTRING_FLAG;
+	memset(&stmp, 0, sizeof(stmp));
 	stmp.data = NULL;
 	ret = ASN1_mbstring_copy(&str, in->data, in->length, mbflag, B_ASN1_UTF8STRING);
 	if(ret < 0) return ret;
