@@ -46,19 +46,36 @@
           </p>
           <p>Current version: <b>__VERSION__</b></p>
         </div>
-        <div class="interior row">
-          <ul id="installers" class="clearfix">
-            <li><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi">Windows Installer</a><br>node-__VERSION__-x86.msi</li>
-            <li><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.pkg">Macintosh Installer</a><br>node-__VERSION__.pkg</li>
-            <li id="source"><a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz">Source Code</a><br>node-__VERSION__.tar.gz</li>
-          </ul>
-        </div>
 
         <div class="interior row">
-          <h2 id="binaries" class="installers">Downloads</h2>
-          <p>
-            To install Node.js and npm use the appropriate installer for your platform, or discover <a href="https://raw.github.com/joyent/node/__VERSION__/ChangeLog">what's new</a> in <strong>Node.js __VERSION__</strong>.
-          </p>
+          <div id="installers">
+            <ul>
+              <li>
+                <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__-x86.msi">
+                  <img src="http://nodejs.org/images/platform-icon-win.png"
+                    height=50 width=45 alt="">
+                  Windows Installer
+                  <small>node-__VERSION__-x86.msi</small>
+                </a>
+              </li>
+              <li>
+                <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.pkg">
+                  <img src="http://nodejs.org/images/platform-icon-osx.png"
+                    height=50 width=45 alt="">
+                  Macintosh Installer
+                  <small>node-__VERSION__.pkg</small>
+                </a>
+              </li>
+              <li id="source">
+                <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz">
+                  <img src="http://nodejs.org/images/platform-icon-generic.png"
+                    height=50 width=45 alt="">
+                  Source Code
+                  <small>node-__VERSION__.tar.gz</small>
+                </a>
+              </li>
+            </ul>
+          </div>
 
           <table style="font-size:14px">
             <tr>

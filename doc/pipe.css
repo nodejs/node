@@ -195,41 +195,53 @@ h1 a, h2 a, h3 a, h4 a
   width:100%;
 }
 
+#download-page #installers {
+  width:600px;
+  display:table;
+  margin-bottom:1em;
+}
 
-
-#download-page ul#installers {
+#download-page #installers ul {
   width: auto;
   text-align: center;
   margin: 0 auto;
-  background: url(http://nodejs.org/images/platform-icons.png) no-repeat center 20px white;
-  padding-top: 92px;
-  padding-bottom: 45px;
-  padding-left: 29px;
+  display:table-row;
+  width:600px;
 }
 
-#download-page ul#installers li {
-  list-style-type: none;
-  width: 165px;
-  padding-left: 18px;
-  float: left;
-  display: block;
-  color: #33342D;
+#download-page #installers ul img {
+  display:block;
+  margin:0 auto;
+}
+
+#download-page #installers ul a {
+  display:block;
+  width:100%;
+  text-decoration:none;
+  font-size: 16px;
+  padding-top:1em;
+}
+
+#download-page #installers ul a:hover,
+#download-page #installers ul a:active {
+  background:#666;
+  color: #8cc84b;
+}
+
+
+#download-page #installers ul li {
+  width:33%;
+  display:table-cell;
+}
+#download-page #installers a small {
   font-size: 10px;
-}
-
-#download-page ul#installers li#source {
-    padding-left: 0;
-}
-
-#download-page ul#installers li a {
-    font-size: 16px;
-    padding-top: 80px;
-    margin-top: -80px;
+  display:block;
+  color:#eee;
 }
 
 #download-page #content th {
   text-align:left;
-  width:35%;
+  width:33%;
 }
 
 #download-page #content table {
