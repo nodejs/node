@@ -26,6 +26,12 @@
 #include "v8.h"
 #include <assert.h>
 
+// Explicitly instantiate some template classes, so we're sure they will be
+// present in the binary / shared object. There isn't much doubt that they will
+// be, but MSVC tends to complain about these things.
+template class NODE_EXTERN v8::Persistent<v8::Object>;
+template class NODE_EXTERN v8::Persistent<v8::FunctionTemplate>;
+
 namespace node {
 
 class NODE_EXTERN ObjectWrap {
