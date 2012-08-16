@@ -342,7 +342,7 @@ def configure_node(o):
   cc_version, is_clang = compiler_version()
   o['variables']['clang'] = 1 if is_clang else 0
 
-  if not is_clang:
+  if not is_clang and cc_version != 0:
     o['variables']['gcc_version'] = 10 * cc_version[0] + cc_version[1]
 
   # clang has always supported -fvisibility=hidden, right?

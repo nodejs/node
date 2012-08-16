@@ -1,4 +1,27 @@
-2012.08.07, Version 0.8.6 (Stable)
+2012.08.15, Version 0.8.7 (Stable)
+
+* npm: Upgrade to 1.1.49
+
+* website: download page (Golo Roden)
+
+* crypto: fix uninitialized memory access in openssl (Ben Noordhuis)
+
+* buffer, crypto: fix buffer decoding (Ben Noordhuis)
+
+* build: compile with -fno-tree-vrp when gcc >= 4.0 (Ben Noordhuis)
+
+* tls: handle multiple CN fields when verifying cert (Ben Noordhuis)
+
+* doc: remove unused util from child_process (Kyle Robinson Young)
+
+* build: rework -fvisibility=hidden detection (Ben Noordhuis)
+
+* windows: don't duplicate invalid stdio handles (Bert Belder)
+
+* windows: fix typos in process-stdio.c (Bert Belder)
+
+
+2012.08.07, Version 0.8.6 (Stable), 0544a586ca6b6b900a42e164033dbf350765700a
 
 * npm: Upgrade to v1.1.48
 
