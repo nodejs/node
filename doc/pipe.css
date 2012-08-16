@@ -413,6 +413,7 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #explore li {
+    font-size:12px;
     list-style-type: none;
     color: #d2d8ba;
     line-height: 14px;
