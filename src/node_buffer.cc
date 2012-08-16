@@ -206,7 +206,8 @@ void Buffer::Replace(char *data, size_t length,
     callback_(data_, callback_hint_);
   } else if (length_) {
     delete [] data_;
-    V8::AdjustAmountOfExternalAllocatedMemory(-(sizeof(Buffer) + length_));
+    V8::AdjustAmountOfExternalAllocatedMemory(
+        -static_cast<intptr_t>(sizeof(Buffer) + length_));
   }
 
   length_ = length;
