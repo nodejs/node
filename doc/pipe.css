@@ -65,18 +65,13 @@ h1 a, h2 a, h3 a, h4 a
     margin: 0 auto;
     text-align: center;
 	color: #d2d8ba;
-
-  /* preload platform-icons.png */
-  background-image: url(http://nodejs.org/images/platform-icons.png);
-  background-repeat: no-repeat;
-  background-position: -999em -999em;
 }
 
 #intro p {
     width: 680px;
     line-height: 180%;
     padding-top: 30px;
-    margin: 0 auto 30px auto;
+    margin: 0 auto;
     font-size: 14px;
 }
 
@@ -89,17 +84,27 @@ h1 a, h2 a, h3 a, h4 a
     font-size: 12px;
 }
 
+#intro .buttons {
+  height:auto;
+  overflow:hidden;
+  _zoom:1;
+  width:300px;
+  margin:0 auto;
+}
+
 #intro .button {
   font-weight: bold;
-  font-size: 14px;
-  text-transform: uppercase;
-  padding: 6px 12px;
+  font-size: 12px;
+  padding: 6px 0;
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;
-  margin: 0 1px;
+  margin: 30px 4px 0;
+
+  display:inline-block;
   color: #46483e;
   background-color: #9a9f8b;
+  width:96px;
 }
 
 #intro .forkme {
@@ -114,11 +119,17 @@ h1 a, h2 a, h3 a, h4 a
   background-color: #aab293;
 }
 
-#intro #downloadbutton {
-  background-color: #8BC84B;
+#intro #docsbutton {
+  clear:left;
 }
 
-#intro #downloadbutton:hover {
+#intro .downloadbutton {
+  background-color: #8BC84B;
+  width:200px;
+  font-size:14px;
+}
+
+#intro .downloadbutton:hover {
   background-color: #73a53e;
 }
 

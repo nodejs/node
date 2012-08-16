@@ -29,12 +29,51 @@
         lightweight and efficient, perfect for data-intensive real-time
         applications that run across distributed devices.</p>
 
-        <a href="download/" class="button" id="downloadbutton">Download</a>
-        <a href="api/" class="button" id="docsbutton">Docs</a>
-        <p class="version">__VERSION__</p>
+        <div class=buttons>
+        <a href="http://nodejs.org/dist/__VERSION__/node-__VERSION__.tar.gz" class="button downloadbutton" id="downloadbutton">INSTALL</a>
+
+        <a href="download/" class=button id="all-dl-options">Downloads</a
+        ><a href="api/" class="button" id="docsbutton">API Docs</a>
+        </div>
 
         <a href="http://github.com/joyent/node"><img class="forkme" src="images/forkme.png" alt="Fork me on GitHub"></a>
     </div>
+
+    <script>;(function(d,n){
+    var os = n.platform.match(/(Win|Mac|Linux)/);
+    var x = n.userAgent.match(/x86_64|Win64|WOW64/) || n.cpuClass === 'x64' ?
+            'x64' : 'x86';
+    var base = 'http://nodejs.org/dist/__VERSION__/';
+    var href = 'node-__VERSION__.tar.gz';
+    var db = d.getElementById('downloadbutton');
+    var d2;
+    switch (os && os[1]) {
+      case 'Mac':
+        href = 'node-__VERSION__.pkg';
+        break;
+      case 'Win':
+        href = 'node-__VERSION__-x' + x + '.msi';
+        break;
+
+      // TODO uncomment when we have these
+      // case 'Linux':
+      //   // two buttons: .deb and .rpm
+      //   href = 'node-__VERSION__-' + x + '.rpm';
+      //   var d2 = document.createElement('a');
+      //   d2.href = base + 'node-__VERSION__-' + x + '.deb';
+      //   d2.className = 'button downloadbutton';
+      //   d2.innerHTML = 'INSTALL .deb';
+      //   db.innerHTML = 'INSTALL .rpm';
+      //   db.parentNode.insertBefore(d2, db);
+      //   break;
+    }
+
+    db.href = base + href;
+    // if there's one download option, then download it at #download
+    if (location.hash === '#download' && !d2)
+      location.replace(b.href);
+    })(document,navigator);</script>
+
     <div id="quotes" class="clearfix">
         <h2>Node.js in the Industry</h2>
         <ul>
@@ -147,13 +186,6 @@ server.listen(1337, '127.0.0.1');</pre>
     <script src="sh_main.js"></script>
     <script src="sh_javascript.min.js"></script>
     <script>highlight(undefined, undefined, 'pre');</script>
-
-    <script type="text/javascript">
-      if (location.hash === '#download') {
-        var n = location.href.replace(/(index.html)?#download/, 'download/$1')
-        location.replace(n);
-      }
-    </script>
 
     <script>
       window._gaq = [['_setAccount', 'UA-10874194-2'], ['_trackPageview']];
