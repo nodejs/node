@@ -37,7 +37,7 @@ if (process.argv[2] === 'server') {
     });
   });
 
-  server.listen(1234, '127.0.0.1', function() {
+  server.listen(common.PORT, '127.0.0.1', function() {
     console.log('Server running.');
   });
 
@@ -49,7 +49,7 @@ if (process.argv[2] === 'server') {
   serverProcess.stderr.pipe(process.stdout);
 
   serverProcess.stdout.once('data', function() {
-    var client = net.createConnection(1234, '127.0.0.1');
+    var client = net.createConnection(common.PORT, '127.0.0.1');
     client.on('connect', function() {
       var alot = new Buffer(1024),
           alittle = new Buffer(1);
