@@ -54,8 +54,8 @@ var server = net.createServer(function(socket) {
 });
 
 
-server.listen(8888, function() {
-  var s = net.connect(8888);
+server.listen(common.PORT, function() {
+  var s = net.connect(common.PORT);
   s.pipe(process.stdout);
 });
 
