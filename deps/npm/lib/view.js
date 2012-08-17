@@ -41,7 +41,6 @@ view.completion = function (opts, cb) {
 
 var npm = require("./npm.js")
   , registry = npm.registry
-  , ini = require("ini")
   , log = require("npmlog")
   , util = require("util")
   , semver = require("semver")

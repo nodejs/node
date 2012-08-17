@@ -25,7 +25,7 @@ npm set &lt;key&gt; &lt;value&gt; [--global]</code></pre>
 <h3 id="Command-Line-Flags">Command Line Flags</h3>
 
 <p>Putting <code>--foo bar</code> on the command line sets the
-<code>foo</code> configuration parameter to <code>"bar"</code>.  A <code>--</code> argument tells the cli
+<code>foo</code> configuration parameter to <code>&quot;bar&quot;</code>.  A <code>--</code> argument tells the cli
 parser to stop reading flags.  A <code>--flag</code> parameter that is at the <em>end</em> of
 the command will be given the value of <code>true</code>.</p>
 
@@ -53,7 +53,7 @@ This file is an ini-file formatted list of <code>key = value</code> parameters</
 
 <p><code>path/to/npm/itself/npmrc</code></p>
 
-<p>This is an unchangeable "builtin"
+<p>This is an unchangeable &quot;builtin&quot;
 configuration file that npm keeps consistent across updates.  Set
 fields in here using the <code>./configure</code> script that comes with npm.
 This is primarily for distribution maintainers to override default
@@ -74,7 +74,7 @@ defaults if nothing else is specified.</p>
 
 <p>Sets the config key to the value.</p>
 
-<p>If value is omitted, then it sets it to "true".</p>
+<p>If value is omitted, then it sets it to &quot;true&quot;.</p>
 
 <h3 id="get">get</h3>
 
@@ -127,13 +127,13 @@ npm ls --global --parseable --long --loglevel info</code></pre>
 <h2 id="Per-Package-Config-Settings">Per-Package Config Settings</h2>
 
 <p>When running scripts (see <code><a href="../doc/scripts.html">scripts(1)</a></code>)
-the package.json "config" keys are overwritten in the environment if
+the package.json &quot;config&quot; keys are overwritten in the environment if
 there is a config param of <code>&lt;name&gt;[@&lt;version&gt;]:&lt;key&gt;</code>.  For example, if
 the package.json has this:</p>
 
-<pre><code>{ "name" : "foo"
-, "config" : { "port" : "8080" }
-, "scripts" : { "start" : "node server.js" } }</code></pre>
+<pre><code>{ &quot;name&quot; : &quot;foo&quot;
+, &quot;config&quot; : { &quot;port&quot; : &quot;8080&quot; }
+, &quot;scripts&quot; : { &quot;start&quot; : &quot;node server.js&quot; } }</code></pre>
 
 <p>and the server.js is this:</p>
 
@@ -154,7 +154,7 @@ even for <code>GET</code> requests.</p>
 
 <h3 id="browser">browser</h3>
 
-<ul><li>Default: OS X: <code>"open"</code>, others: <code>"google-chrome"</code></li><li>Type: String</li></ul>
+<ul><li>Default: OS X: <code>&quot;open&quot;</code>, others: <code>&quot;google-chrome&quot;</code></li><li>Type: String</li></ul>
 
 <p>The browser that is called by the <code>npm docs</code> command to open websites.</p>
 
@@ -165,7 +165,7 @@ even for <code>GET</code> requests.</p>
 <p>The Certificate Authority signing certificate that is trusted for SSL
 connections to the registry.</p>
 
-<p>Set to <code>null</code> to only allow "known" registrars, or to a specific CA cert
+<p>Set to <code>null</code> to only allow &quot;known&quot; registrars, or to a specific CA cert
 to trust only that specific signing authority.</p>
 
 <p>See also the <code>strict-ssl</code> config.</p>
@@ -174,7 +174,7 @@ to trust only that specific signing authority.</p>
 
 <ul><li>Default: Windows: <code>%APPDATA%\npm-cache</code>, Posix: <code>~/.npm</code></li><li>Type: path</li></ul>
 
-<p>The location of npm's cache directory.  See <code><a href="../doc/cache.html">cache(1)</a></code></p>
+<p>The location of npm&#39;s cache directory.  See <code><a href="../doc/cache.html">cache(1)</a></code></p>
 
 <h3 id="cache-lock-stale">cache-lock-stale</h3>
 
@@ -216,9 +216,9 @@ explicitly used, and that only GET requests use the cache.</p>
 
 <h3 id="color">color</h3>
 
-<ul><li>Default: true on Posix, false on Windows</li><li>Type: Boolean or <code>"always"</code></li></ul>
+<ul><li>Default: true on Posix, false on Windows</li><li>Type: Boolean or <code>&quot;always&quot;</code></li></ul>
 
-<p>If false, never shows colors.  If <code>"always"</code> then always shows colors.
+<p>If false, never shows colors.  If <code>&quot;always&quot;</code> then always shows colors.
 If true, then only prints color codes for tty file descriptors.</p>
 
 <h3 id="coverage">coverage</h3>
@@ -252,8 +252,8 @@ set.</p>
 
 <h3 id="editor">editor</h3>
 
-<ul><li>Default: <code>EDITOR</code> environment variable if set, or <code>"vi"</code> on Posix,
-or <code>"notepad"</code> on Windows.</li><li>Type: path</li></ul>
+<ul><li>Default: <code>EDITOR</code> environment variable if set, or <code>&quot;vi&quot;</code> on Posix,
+or <code>&quot;notepad&quot;</code> on Windows.</li><li>Type: path</li></ul>
 
 <p>The command to run for <code>npm edit</code> or <code>npm config edit</code>.</p>
 
@@ -277,33 +277,33 @@ the current Node.js version.</p>
 
 <ul><li>Default: 2</li><li>Type: Number</li></ul>
 
-<p>The "retries" config for the <code>retry</code> module to use when fetching
+<p>The &quot;retries&quot; config for the <code>retry</code> module to use when fetching
 packages from the registry.</p>
 
 <h3 id="fetch-retry-factor">fetch-retry-factor</h3>
 
 <ul><li>Default: 10</li><li>Type: Number</li></ul>
 
-<p>The "factor" config for the <code>retry</code> module to use when fetching
+<p>The &quot;factor&quot; config for the <code>retry</code> module to use when fetching
 packages.</p>
 
 <h3 id="fetch-retry-mintimeout">fetch-retry-mintimeout</h3>
 
 <ul><li>Default: 10000 (10 seconds)</li><li>Type: Number</li></ul>
 
-<p>The "minTimeout" config for the <code>retry</code> module to use when fetching
+<p>The &quot;minTimeout&quot; config for the <code>retry</code> module to use when fetching
 packages.</p>
 
 <h3 id="fetch-retry-maxtimeout">fetch-retry-maxtimeout</h3>
 
 <ul><li>Default: 60000 (1 minute)</li><li>Type: Number</li></ul>
 
-<p>The "maxTimeout" config for the <code>retry</code> module to use when fetching
+<p>The &quot;maxTimeout&quot; config for the <code>retry</code> module to use when fetching
 packages.</p>
 
 <h3 id="git">git</h3>
 
-<ul><li>Default: <code>"git"</code></li><li>Type: String</li></ul>
+<ul><li>Default: <code>&quot;git&quot;</code></li><li>Type: String</li></ul>
 
 <p>The command to use for git commands.  If git is installed on the
 computer, but is not in the <code>PATH</code>, then set this to the full path to
@@ -313,7 +313,7 @@ the git binary.</p>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
-<p>Operates in "global" mode, so that packages are installed into the
+<p>Operates in &quot;global&quot; mode, so that packages are installed into the
 <code>prefix</code> folder instead of the current working directory.  See
 <code><a href="../doc/folders.html">folders(1)</a></code> for more on the differences in behavior.</p>
 
@@ -333,7 +333,7 @@ current working directory.</li><li>bin files are linked to <code>prefix/bin</cod
 <p>The config file to read for global ignore patterns to apply to all users
 and all projects.</p>
 
-<p>If not found, but there is a "gitignore" file in the
+<p>If not found, but there is a &quot;gitignore&quot; file in the
 same directory, then that will be used instead.</p>
 
 <h3 id="group">group</h3>
@@ -358,7 +358,7 @@ user.</p>
 
 <h3 id="ignore">ignore</h3>
 
-<ul><li>Default: ""</li><li>Type: string</li></ul>
+<ul><li>Default: &quot;&quot;</li><li>Type: string</li></ul>
 
 <p>A white-space separated list of glob patterns of files to always exclude
 from packages when building tarballs.</p>
@@ -374,27 +374,27 @@ for more information, or <a href="../doc/init.html">init(1)</a>.</p>
 
 <h3 id="init-version">init.version</h3>
 
-<ul><li>Default: "0.0.0"</li><li>Type: semver</li></ul>
+<ul><li>Default: &quot;0.0.0&quot;</li><li>Type: semver</li></ul>
 
 <p>The value <code>npm init</code> should use by default for the package version.</p>
 
 <h3 id="init-author-name">init.author.name</h3>
 
-<ul><li>Default: ""</li><li>Type: String</li></ul>
+<ul><li>Default: &quot;&quot;</li><li>Type: String</li></ul>
 
-<p>The value <code>npm init</code> should use by default for the package author's name.</p>
+<p>The value <code>npm init</code> should use by default for the package author&#39;s name.</p>
 
 <h3 id="init-author-email">init.author.email</h3>
 
-<ul><li>Default: ""</li><li>Type: String</li></ul>
+<ul><li>Default: &quot;&quot;</li><li>Type: String</li></ul>
 
-<p>The value <code>npm init</code> should use by default for the package author's email.</p>
+<p>The value <code>npm init</code> should use by default for the package author&#39;s email.</p>
 
 <h3 id="init-author-url">init.author.url</h3>
 
-<ul><li>Default: ""</li><li>Type: String</li></ul>
+<ul><li>Default: &quot;&quot;</li><li>Type: String</li></ul>
 
-<p>The value <code>npm init</code> should use by default for the package author's homepage.</p>
+<p>The value <code>npm init</code> should use by default for the package author&#39;s homepage.</p>
 
 <h3 id="json">json</h3>
 
@@ -422,13 +422,13 @@ being installed locally.</li></ul>
 
 <h3 id="loglevel">loglevel</h3>
 
-<ul><li>Default: "http"</li><li>Type: String</li><li>Values: "silent", "win", "error", "warn", "http", "info", "verbose", "silly"</li></ul>
+<ul><li>Default: &quot;http&quot;</li><li>Type: String</li><li>Values: &quot;silent&quot;, &quot;win&quot;, &quot;error&quot;, &quot;warn&quot;, &quot;http&quot;, &quot;info&quot;, &quot;verbose&quot;, &quot;silly&quot;</li></ul>
 
 <p>What level of logs to report.  On failure, <em>all</em> logs are written to
 <code>npm-debug.log</code> in the current working directory.</p>
 
 <p>Any logs of a higher level than the setting are shown.
-The default is "http", which shows http, warn, and error output.</p>
+The default is &quot;http&quot;, which shows http, warn, and error output.</p>
 
 <h3 id="logstream">logstream</h3>
 
@@ -452,17 +452,17 @@ colored output if it is a TTY.</p>
 
 <h3 id="message">message</h3>
 
-<ul><li>Default: "%s"</li><li>Type: String</li></ul>
+<ul><li>Default: &quot;%s&quot;</li><li>Type: String</li></ul>
 
 <p>Commit message which is used by <code>npm version</code> when creating version commit.</p>
 
-<p>Any "%s" in the message will be replaced with the version number.</p>
+<p>Any &quot;%s&quot; in the message will be replaced with the version number.</p>
 
 <h3 id="node-version">node-version</h3>
 
 <ul><li>Default: process.version</li><li>Type: semver or false</li></ul>
 
-<p>The node version to use when checking package's "engines" hash.</p>
+<p>The node version to use when checking package&#39;s &quot;engines&quot; hash.</p>
 
 <h3 id="npat">npat</h3>
 
@@ -493,7 +493,7 @@ standard output.</p>
 
 <h3 id="prefix">prefix</h3>
 
-<ul><li>Default: node's process.installPrefix</li><li>Type: path</li></ul>
+<ul><li>Default: node&#39;s process.installPrefix</li><li>Type: path</li></ul>
 
 <p>The location to install global items.  If set on the command line, then
 it forces non-global commands to run in the specified folder.</p>
@@ -502,10 +502,10 @@ it forces non-global commands to run in the specified folder.</p>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
 
-<p>Set to true to run in "production" mode.</p>
+<p>Set to true to run in &quot;production&quot; mode.</p>
 
 <ol><li>devDependencies are not installed at the topmost level when running
-local <code>npm install</code> without any arguments.</li><li>Set the NODE_ENV="production" for lifecycle scripts.</li></ol>
+local <code>npm install</code> without any arguments.</li><li>Set the NODE_ENV=&quot;production&quot; for lifecycle scripts.</li></ol>
 
 <h3 id="proprietary-attribs">proprietary-attribs</h3>
 
@@ -588,27 +588,27 @@ hash.</p>
 
 <h3 id="searchopts">searchopts</h3>
 
-<ul><li>Default: ""</li><li>Type: String</li></ul>
+<ul><li>Default: &quot;&quot;</li><li>Type: String</li></ul>
 
 <p>Space-separated options that are always passed to search.</p>
 
 <h3 id="searchexclude">searchexclude</h3>
 
-<ul><li>Default: ""</li><li>Type: String</li></ul>
+<ul><li>Default: &quot;&quot;</li><li>Type: String</li></ul>
 
 <p>Space-separated options that limit the results from search.</p>
 
 <h3 id="searchsort">searchsort</h3>
 
-<ul><li>Default: "name"</li><li>Type: String</li><li>Values: "name", "-name", "date", "-date", "description",
-"-description", "keywords", "-keywords"</li></ul>
+<ul><li>Default: &quot;name&quot;</li><li>Type: String</li><li>Values: &quot;name&quot;, &quot;-name&quot;, &quot;date&quot;, &quot;-date&quot;, &quot;description&quot;,
+&quot;-description&quot;, &quot;keywords&quot;, &quot;-keywords&quot;</li></ul>
 
 <p>Indication of which field to sort search results by.  Prefix with a <code>-</code>
 character to indicate reverse sort.</p>
 
 <h3 id="shell">shell</h3>
 
-<ul><li>Default: SHELL environment variable, or "bash" on Posix, or "cmd" on
+<ul><li>Default: SHELL environment variable, or &quot;bash&quot; on Posix, or &quot;cmd&quot; on
 Windows</li><li>Type: path</li></ul>
 
 <p>The shell to run for the <code>npm explore</code> command.</p>
@@ -636,7 +636,7 @@ registry via https.</p>
 
 <ul><li>Default: latest</li><li>Type: String</li></ul>
 
-<p>If you ask npm to install a package and don't tell it a specific version, then
+<p>If you ask npm to install a package and don&#39;t tell it a specific version, then
 it will install the specified tag.</p>
 
 <p>Also the tag that is added to the package@version specified by the <code>npm
@@ -644,7 +644,7 @@ tag</code> command, if no explicit tag is given.</p>
 
 <h3 id="tmp">tmp</h3>
 
-<ul><li>Default: TMPDIR environment variable, or "/tmp"</li><li>Type: path</li></ul>
+<ul><li>Default: TMPDIR environment variable, or &quot;/tmp&quot;</li><li>Type: path</li></ul>
 
 <p>Where to store temporary files and folders.  All temp files are deleted
 on success, but left behind on failure for forensic purposes.</p>
@@ -673,7 +673,7 @@ instead of complete help when doing <code><a href="../doc/help.html">help(1)</a>
 
 <h3 id="user">user</h3>
 
-<ul><li>Default: "nobody"</li><li>Type: String or Number</li></ul>
+<ul><li>Default: &quot;nobody&quot;</li><li>Type: String or Number</li></ul>
 
 <p>The UID to set to when running package scripts as root.</p>
 
@@ -702,7 +702,7 @@ that will be used instead.</p>
 
 <ul><li>Default: 022</li><li>Type: Octal numeric string</li></ul>
 
-<p>The "umask" value to use when setting the file creation mode on files
+<p>The &quot;umask&quot; value to use when setting the file creation mode on files
 and folders.</p>
 
 <p>Folders and executables are given a mode which is <code>0777</code> masked against
@@ -721,18 +721,18 @@ this value.  Thus, the defaults are <code>0755</code> and <code>0644</code> resp
 
 <ul><li>Default: false</li><li>Type: boolean</li></ul>
 
-<p>If true, output the npm version as well as node's <code>process.versions</code>
+<p>If true, output the npm version as well as node&#39;s <code>process.versions</code>
 hash, and exit successfully.</p>
 
 <p>Only relevant when specified explicitly on the command line.</p>
 
 <h3 id="viewer">viewer</h3>
 
-<ul><li>Default: "man" on Posix, "browser" on Windows</li><li>Type: path</li></ul>
+<ul><li>Default: &quot;man&quot; on Posix, &quot;browser&quot; on Windows</li><li>Type: path</li></ul>
 
 <p>The program to use to view help content.</p>
 
-<p>Set to <code>"browser"</code> to view html help content in the default web browser.</p>
+<p>Set to <code>&quot;browser&quot;</code> to view html help content in the default web browser.</p>
 
 <h3 id="yes">yes</h3>
 
@@ -741,14 +741,14 @@ hash, and exit successfully.</p>
 <p>If set to <code>null</code>, then prompt the user for responses in some
 circumstances.</p>
 
-<p>If set to <code>true</code>, then answer "yes" to any prompt.  If set to <code>false</code>
-then answer "no" to any prompt.</p>
+<p>If set to <code>true</code>, then answer &quot;yes&quot; to any prompt.  If set to <code>false</code>
+then answer &quot;no&quot; to any prompt.</p>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.46</p>
+<p id="footer">config &mdash; npm@1.1.49</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

@@ -116,6 +116,7 @@ function install (gyp, argv, callback) {
   function download (url) {
     log.http('GET', url)
 
+    var req = null
     var requestOpts = {
         uri: url
     }
@@ -126,13 +127,25 @@ function install (gyp, argv, callback) {
                 || process.env.HTTP_PROXY
                 || process.env.npm_config_proxy
     if (proxyUrl) {
-      log.verbose('proxy', proxyUrl)
-      requestOpts.proxy = proxyUrl
+      if (/^https?:\/\//i.test(proxyUrl)) {
+        log.verbose('download', 'using proxy url: "%s"', proxyUrl)
+        requestOpts.proxy = proxyUrl
+      } else {
+        log.warn('download', 'ignoring invalid "proxy" config setting: "%s"', proxyUrl)
+      }
     }
-    var req = request(requestOpts)
-    req.on('response', function (res) {
-      log.http(res.statusCode, url)
-    })
+    try {
+      // The "request" constructor can throw sometimes apparently :(
+      // See: https://github.com/TooTallNate/node-gyp/issues/114
+      req = request(requestOpts)
+    } catch (e) {
+      cb(e)
+    }
+    if (req) {
+      req.on('response', function (res) {
+        log.http(res.statusCode, url)
+      })
+    }
     return req
   }
 
@@ -201,6 +214,7 @@ function install (gyp, argv, callback) {
 
       // download the tarball, gunzip and extract!
       var req = download(tarballUrl)
+      if (!req) return
 
       // something went wrong downloading the tarball?
       req.on('error', function (err) {
@@ -307,6 +321,7 @@ function install (gyp, argv, callback) {
           log.verbose('streaming 32-bit node.lib to:', nodeLibPath32)
 
           var req = download(nodeLibUrl32)
+          if (!req) return
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
@@ -327,6 +342,7 @@ function install (gyp, argv, callback) {
           log.verbose('streaming 64-bit node.lib to:', nodeLibPath64)
 
           var req = download(nodeLibUrl64)
+          if (!req) return
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {

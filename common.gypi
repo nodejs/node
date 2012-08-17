@@ -7,6 +7,8 @@
     'library%': 'static_library',    # allow override to 'shared_library' for DLL/.so builds
     'component%': 'static_library',  # NB. these names match with what V8 expects
     'msvs_multi_core_compile': '0',  # we do enable multicore compiles, but not using the V8 way
+    'gcc_version%': 'unknown',
+    'clang%': 0,
 
     # Turn on optimizations that may trigger compiler bugs.
     # Use at your own risk. Do *NOT* report bugs if this option is enabled.
@@ -53,7 +55,7 @@
             'cflags': [ '-O3', '-ffunction-sections', '-fdata-sections' ],
             'ldflags': [ '-Wl,--gc-sections' ],
           }, {
-            'cflags': [ '-O2', '-fno-strict-aliasing', '-fno-tree-vrp' ],
+            'cflags': [ '-O2', '-fno-strict-aliasing' ],
             'cflags!': [ '-O3', '-fstrict-aliasing' ],
             'conditions': [
               # Required by the dtrace post-processor. Unfortunately,
@@ -63,6 +65,9 @@
                 'cflags': [ '-ffunction-sections', '-fdata-sections' ],
               }, {
                 'cflags!': [ '-ffunction-sections', '-fdata-sections' ],
+              }],
+              ['clang==1 or gcc_version >= 40', {
+                'cflags': [ '-fno-tree-vrp' ],
               }],
             ],
           }],

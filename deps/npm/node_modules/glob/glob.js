@@ -178,7 +178,7 @@ Glob.prototype._finish = function () {
       if (this.nonull) {
         var literal = this.minimatch.globSet[i]
         if (nou) all.push(literal)
-        else nou[literal] = true
+        else all[literal] = true
       }
     } else {
       // had matches

@@ -74,7 +74,7 @@ function install (args, cb_) {
   function cb (er, installed) {
     if (er) return cb_(er)
 
-    var tree = treeify(installed)
+    var tree = treeify(installed || [])
       , pretty = prettify(tree, installed).trim()
 
     if (pretty) console.log(pretty)

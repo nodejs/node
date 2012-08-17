@@ -23,6 +23,11 @@ npm will default some values based on package contents.
   If there is a `wscript` file in the root of your package, npm will
   default the `preinstall` command to compile using node-waf.
 
+* `"scripts":{"preinstall": "node-gyp rebuild"}`
+
+  If there is a `binding.gyp` file in the root of your package, npm will
+  default the `preinstall` command to compile using node-gyp.
+
 * `"contributors": [...]`
 
   If there is an `AUTHORS` file in the root of your package, npm will

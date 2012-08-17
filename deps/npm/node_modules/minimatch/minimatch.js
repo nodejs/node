@@ -30,7 +30,7 @@ if (!require) {
 minimatch.Minimatch = Minimatch
 
 var LRU = require("lru-cache")
-  , cache = minimatch.cache = new LRU(100)
+  , cache = minimatch.cache = new LRU({max: 100})
   , GLOBSTAR = minimatch.GLOBSTAR = Minimatch.GLOBSTAR = {}
 
 var path = require("path")

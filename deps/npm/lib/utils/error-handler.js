@@ -7,14 +7,13 @@ var cbCalled = false
   , rm = require("rimraf")
   , itWorked = false
   , path = require("path")
-  , ini = require("./ini.js")
   , wroteLogFile = false
   , exitCode = 0
 
 
 process.on("exit", function (code) {
   // console.error("exit", code)
-  if (!ini.resolved) return
+  if (!npm.config.loaded) return
   if (code) itWorked = false
   if (itWorked) log.info("ok")
   else {
@@ -71,7 +70,7 @@ function exit (code, noLog) {
 function errorHandler (er) {
   var printStack = false
   // console.error("errorHandler", er)
-  if (!ini.resolved) {
+  if (!npm.config.loaded) {
     // logging won't work unless we pretend that it's ready
     er = er || new Error("Exit prior to config file resolving.")
     console.error(er.stack || er.message)

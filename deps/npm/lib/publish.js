@@ -36,9 +36,6 @@ function publish (args, isRetry, cb) {
     // the prepublish script, since that gets run when adding a folder
     // to the cache.
     if (er) return cacheAddPublish(arg, false, isRetry, cb)
-
-    data._npmUser = { name: npm.config.get("username")
-                    , email: npm.config.get("email") }
     cacheAddPublish(arg, true, isRetry, cb)
   })
 }
@@ -71,6 +68,10 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
     })
   }
 
+  data._npmVersion = npm.version
+  data._npmUser = { name: npm.config.get("username")
+                  , email: npm.config.get("email") }
+
   delete data.modules
   if (data.private) return cb(new Error
     ("This package has been marked as private\n"
@@ -80,25 +81,18 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
 }
 
 function regPublish (data, isRetry, arg, cachedir, cb) {
-  // check to see if there's a README.md in there.
-  var readme = path.resolve(cachedir, "README.md")
-    , tarball = cachedir + ".tgz"
-
-  fs.readFile(readme, function (er, readme) {
-    // ignore error.  it's an optional feature
-
-    registry.publish(data, tarball, readme, function (er) {
-      if (er && er.code === "EPUBLISHCONFLICT"
-          && npm.config.get("force") && !isRetry) {
-        log.warn("publish", "Forced publish over "+data._id)
-        return npm.commands.unpublish([data._id], function (er) {
-          // ignore errors.  Use the force.  Reach out with your feelings.
-          publish([arg], true, cb)
-        })
-      }
-      if (er) return cb(er)
-      console.log("+ " + data._id)
-      cb()
-    })
+  var tarball = cachedir + ".tgz"
+  registry.publish(data, tarball, function (er) {
+    if (er && er.code === "EPUBLISHCONFLICT"
+        && npm.config.get("force") && !isRetry) {
+      log.warn("publish", "Forced publish over "+data._id)
+      return npm.commands.unpublish([data._id], function (er) {
+        // ignore errors.  Use the force.  Reach out with your feelings.
+        publish([arg], true, cb)
+      })
+    }
+    if (er) return cb(er)
+    console.log("+ " + data._id)
+    cb()
   })
 }

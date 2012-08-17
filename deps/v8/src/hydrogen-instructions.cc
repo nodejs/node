@@ -1631,6 +1631,7 @@ static bool PrototypeChainCanNeverResolve(
     if (current->IsJSGlobalProxy() ||
         current->IsGlobalObject() ||
         !current->IsJSObject() ||
+        JSObject::cast(current)->map()->has_named_interceptor() ||
         JSObject::cast(current)->IsAccessCheckNeeded() ||
         !JSObject::cast(current)->HasFastProperties()) {
       return false;
@@ -1685,7 +1686,8 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           types_.Add(types->at(i), zone);
           break;
         case MAP_TRANSITION:
-          if (PrototypeChainCanNeverResolve(map, name)) {
+          if (!map->has_named_interceptor() &&
+              PrototypeChainCanNeverResolve(map, name)) {
             negative_lookups.Add(types->at(i), zone);
           }
           break;
@@ -1693,7 +1695,8 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
           break;
       }
     } else if (lookup.IsCacheable()) {
-      if (PrototypeChainCanNeverResolve(map, name)) {
+      if (!map->has_named_interceptor() &&
+          PrototypeChainCanNeverResolve(map, name)) {
         negative_lookups.Add(types->at(i), zone);
       }
     }

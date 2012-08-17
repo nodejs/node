@@ -1,4 +1,4 @@
-.\" Generated with Ronnjs/v0.1
+.\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
 .TH "NPM\-JSON" "1" "August 2012" "" ""
@@ -30,6 +30,13 @@ will default the \fBstart\fR command to \fBnode server\.js\fR\|\.
 .IP
 If there is a \fBwscript\fR file in the root of your package, npm will
 default the \fBpreinstall\fR command to compile using node\-waf\.
+.
+.IP "\(bu" 4
+\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fR
+.
+.IP
+If there is a \fBbinding\.gyp\fR file in the root of your package, npm will
+default the \fBpreinstall\fR command to compile using node\-gyp\.
 .
 .IP "\(bu" 4
 \fB"contributors": [\.\.\.]\fR

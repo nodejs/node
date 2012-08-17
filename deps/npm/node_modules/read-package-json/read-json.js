@@ -21,7 +21,7 @@ try {
 module.exports = readJson
 
 var LRU = require("lru-cache")
-readJson.cache = new LRU(1000)
+readJson.cache = new LRU({max: 1000})
 var path = require("path")
 var glob = require("glob")
 var slide = require("slide")

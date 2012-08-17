@@ -68,6 +68,7 @@ function RegClient (options) {
     // session, and use that.
     this.token = options.token
     this.couchLogin = new CouchLogin(this.registry, this.token)
+    this.couchLogin.proxy = this.proxy
   }
 
   this.email = options.email || null

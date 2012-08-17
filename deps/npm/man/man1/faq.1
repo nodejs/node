@@ -1,4 +1,4 @@
-.\" Generated with Ronnjs/v0.1
+.\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
 .TH "NPM\-FAQ" "1" "August 2012" "" ""
@@ -21,10 +21,10 @@ npm config set viewer browser
 .P
 to open these documents in your default web browser rather than \fBman\fR\|\.
 .
-.SH "It didn\'t work\."
+.SH "It didn&#39;t work\."
 That\'s not really a question\.
 .
-.SH "Why didn\'t it work?"
+.SH "Why didn&#39;t it work?"
 I don\'t know yet\.
 .
 .P
@@ -53,7 +53,7 @@ Install it globally by tacking \fB\-g\fR or \fB\-\-global\fR to the command\.  (
 is especially important for command line utilities that need to add
 their bins to the global system \fBPATH\fR\|\.)
 .
-.SH "I installed something globally, but I can\'t `require()` it"
+.SH "I installed something globally, but I can&#39;t "
 Install it locally\.
 .
 .P
@@ -65,7 +65,7 @@ If you \fBrequire()\fR a module in your code, then that means it\'s a
 dependency, and a part of your program\.  You need to install it locally
 in your program\.
 .
-.SH "Why can\'t npm just put everything in one place, like other package managers?"
+.SH "Why can&#39;t npm just put everything in one place, like other package managers?"
 Not every change is an improvement, but every improvement is a change\.
 This would be like asking git to do network IO for every commit\.  It\'s
 not going to happen, because it\'s a terrible idea that causes more
@@ -83,13 +83,13 @@ programs reference the same copy of it, then use the \fBnpm link\fR command\.
 That\'s what it\'s for\.  Install it globally, then link it into each
 program that uses it\.
 .
-.SH "Whatever, I really want the old style \'everything global\' style\."
+.SH "Whatever, I really want the old style &#39;everything global&#39; style\."
 Write your own package manager, then\.  It\'s not that hard\.
 .
 .P
 npm will not help you do something that is known to be a bad idea\.
 .
-.SH "Should I check my `node_modules` folder into git?"
+.SH "Should I check my "
 Mikeal Rogers answered this question very well:
 .
 .P
@@ -112,11 +112,11 @@ your deployment scripts\.
 .
 .IP "" 0
 .
-.SH "Is it \'npm\' or \'NPM\' or \'Npm\'?"
+.SH "Is it &#39;npm&#39; or &#39;NPM&#39; or &#39;Npm&#39;?"
 npm should never be capitalized unless it is being displayed in a
 location that is customarily all\-caps (such as the title of man pages\.)
 .
-.SH "If \'npm\' is an acronym, why is it never capitalized?"
+.SH "If &#39;npm&#39; is an acronym, why is it never capitalized?"
 Contrary to the belief of many, "npm" is not in fact an abbreviation for
 "Node Package Manager"\.  It is a recursive bacronymic abbreviation for
 "npm is not an acronym"\.  (If it was "ninaa", then it would be an
@@ -185,7 +185,7 @@ curl http://npmjs\.org/install\.sh | sh
 .
 .IP "" 0
 .
-.SH "What is a `package`?"
+.SH "What is a "
 A package is:
 .
 .IP "\(bu" 4
@@ -265,20 +265,20 @@ Yes\.  It should be a url to a gzipped tarball containing a single folder
 that has a package\.json in its root, or a git url\.
 (See "what is a package?" above\.)
 .
-.SH "How do I symlink to a dev folder so I don\'t have to keep re\-installing?"
+.SH "How do I symlink to a dev folder so I don&#39;t have to keep re\-installing?"
 See \fBnpm help link\fR
 .
 .SH "The package registry website\.  What is that exactly?"
 See \fBnpm help registry\fR\|\.
 .
-.SH "What\'s up with the insecure channel warnings?"
+.SH "What&#39;s up with the insecure channel warnings?"
 Until node 0\.4\.10, there were problems sending big files over HTTPS\.  That
 means that publishes go over HTTP by default in those versions of node\.
 .
-.SH "I forgot my password, and can\'t publish\.  How do I reset it?"
+.SH "I forgot my password, and can&#39;t publish\.  How do I reset it?"
 Go to \fIhttp://admin\.npmjs\.org/reset\fR\|\.
 .
-.SH "I get ECONNREFUSED a lot\.  What\'s up?"
+.SH "I get ECONNREFUSED a lot\.  What&#39;s up?"
 Either the registry is down, or node\'s DNS isn\'t able to reach out\.
 .
 .P

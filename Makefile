@@ -114,7 +114,7 @@ apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html)) \
           $(addprefix out/,$(apidoc_sources:.markdown=.json))
 
-apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets out/doc/about out/doc/community out/doc/logos out/doc/images
+apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets out/doc/about out/doc/community out/doc/download out/doc/logos out/doc/images
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
@@ -132,6 +132,7 @@ website_files = \
 	out/doc/pipe.css \
 	out/doc/about/index.html \
 	out/doc/community/index.html \
+	out/doc/download/index.html \
 	out/doc/logos/index.html \
 	out/doc/changelog.html \
 	$(doc_images)
@@ -192,8 +193,22 @@ docclean:
 	-rm -rf out/doc
 
 VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
+RELEASE=$(shell $(PYTHON) tools/getnodeisrelease.py)
+PLATFORM=$(shell uname | tr '[:upper:]' '[:lower:]')
+ifeq ($(findstring x86_64,$(shell uname -m)),x86_64)
+DESTCPU ?= x64
+else
+DESTCPU ?= ia32
+endif
+ifeq ($(DESTCPU),x64)
+ARCH=x64
+else
+ARCH=x86
+endif
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
+BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
+BINARYTAR=$(BINARYNAME).tar.gz
 PKG=out/$(TARNAME).pkg
 packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
@@ -201,9 +216,31 @@ dist: doc $(TARBALL) $(PKG)
 
 PKGDIR=out/dist-osx
 
+release-only:
+	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
+		exit 0 ; \
+	else \
+	  echo "" >&2 ; \
+		echo "The git repository is not clean." >&2 ; \
+		echo "Please commit changes before building release tarball." >&2 ; \
+		echo "" >&2 ; \
+		git status --porcelain | egrep -v '^\?\?' >&2 ; \
+		echo "" >&2 ; \
+		exit 1 ; \
+	fi
+	@if [ "$(RELEASE)" = "1" ]; then \
+		exit 0; \
+	else \
+	  echo "" >&2 ; \
+		echo "#NODE_VERSION_IS_RELEASE is set to $(RELEASE)." >&2 ; \
+	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
+	  echo "" >&2 ; \
+		exit 1 ; \
+	fi
+
 pkg: $(PKG)
 
-$(PKG):
+$(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
 	./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
@@ -224,27 +261,7 @@ $(PKG):
 		--out $(PKG)
 	SIGN="$(SIGN)" PKG="$(PKG)" bash tools/osx-productsign.sh
 
-$(TARBALL): node doc
-	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
-		exit 0 ; \
-	else \
-	  echo "" >&2 ; \
-		echo "The git repository is not clean." >&2 ; \
-		echo "Please commit changes before building release tarball." >&2 ; \
-		echo "" >&2 ; \
-		git status --porcelain | egrep -v '^\?\?' >&2 ; \
-		echo "" >&2 ; \
-		exit 1 ; \
-	fi
-	@if [ $(shell ./node --version) = "$(VERSION)" ]; then \
-		exit 0; \
-	else \
-	  echo "" >&2 ; \
-		echo "$(shell ./node --version) doesn't match $(VERSION)." >&2 ; \
-	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
-	  echo "" >&2 ; \
-		exit 1 ; \
-	fi
+$(TARBALL): release-only node doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc/api
 	cp doc/node.1 $(TARNAME)/doc/node.1
@@ -255,6 +272,22 @@ $(TARBALL): node doc
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
+
+tar: $(TARBALL)
+
+$(BINARYTAR): release-only
+	rm -rf $(BINARYNAME)
+	rm -rf out/deps out/Release
+	./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU)
+	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
+	cp README.md $(BINARYNAME)
+	cp LICENSE $(BINARYNAME)
+	cp ChangeLog $(BINARYNAME)
+	tar -cf $(BINARYNAME).tar $(BINARYNAME)
+	rm -rf $(BINARYNAME)
+	gzip -f -9 $(BINARYNAME).tar
+
+binary: $(BINARYTAR)
 
 dist-upload: $(TARBALL) $(PKG)
 	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
@@ -280,4 +313,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary release-only

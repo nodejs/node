@@ -80,7 +80,12 @@ function owner (args, cb) {
 }
 
 function ls (pkg, cb) {
-  if (!pkg) return cb(owner.usage)
+  if (!pkg) return readLocalPkg(function (er, pkg) {
+    if (er) return cb(er)
+    if (!pkg) return cb(owner.usage)
+    ls(pkg, cb)
+  })
+
   registry.get(pkg, function (er, data) {
     var msg = ""
     if (er) {
@@ -96,7 +101,8 @@ function ls (pkg, cb) {
 }
 
 function add (user, pkg, cb) {
-  if (!pkg) readLocalPkg(function (er, pkg) {
+  if (!user) return cb(owner.usage)
+  if (!pkg) return readLocalPkg(function (er, pkg) {
     if (er) return cb(er)
     if (!pkg) return cb(new Error(owner.usage))
     add(user, pkg, cb)
@@ -119,7 +125,7 @@ function add (user, pkg, cb) {
 }
 
 function rm (user, pkg, cb) {
-  if (!pkg) readLocalPkg(function (er, pkg) {
+  if (!pkg) return readLocalPkg(function (er, pkg) {
     if (er) return cb(er)
     if (!pkg) return cb(new Error(owner.usage))
     rm(user, pkg, cb)

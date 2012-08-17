@@ -5,7 +5,9 @@ completion.usage = "npm completion >> ~/.bashrc\n"
                  + "npm completion >> ~/.zshrc\n"
                  + "source <(npm completion)"
 
-var configDefs = require("./utils/config-defs.js")
+var npm = require("./npm.js")
+  , npmconf = require("npmconf")
+  , configDefs = npmconf.defs
   , configTypes = configDefs.types
   , shorthands = configDefs.shorthands
   , nopt = require("nopt")

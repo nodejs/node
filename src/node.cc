@@ -1158,7 +1158,25 @@ ssize_t DecodeWrite(char *buf,
     return -1;
   }
 
-  Local<String> str = val->ToString();
+  bool is_buffer = Buffer::HasInstance(val);
+
+  if (is_buffer && encoding == BINARY) { // fast path, copy buffer data
+    const char* data = Buffer::Data(val.As<Object>());
+    size_t size = Buffer::Length(val.As<Object>());
+    size_t len = size < buflen ? size : buflen;
+    memcpy(buf, data, len);
+    return len;
+  }
+
+  Local<String> str;
+
+  if (is_buffer) { // slow path, convert to binary string
+    Local<Value> arg = String::New("binary");
+    str = MakeCallback(val.As<Object>(), "toString", 1, &arg)->ToString();
+  }
+  else {
+    str = val->ToString();
+  }
 
   if (encoding == UTF8) {
     str->WriteUtf8(buf, buflen, NULL, String::HINT_MANY_WRITES_EXPECTED);

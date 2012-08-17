@@ -28,7 +28,7 @@ by that. See <a href="../doc/shrinkwrap.html">shrinkwrap(1)</a>.</p>
 
 <p>A <code>package</code> is:</p>
 
-<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li><li>g) a <code>&lt;git remote url&gt;</code> that resolves to (b)</li></ul>
+<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a &quot;latest&quot; tag satisfying (e)</li><li>g) a <code>&lt;git remote url&gt;</code> that resolves to (b)</li></ul>
 
 <p>Even if you never publish your package, you can still get a lot of
 benefits of using npm if you just want to write a node program (a), and
@@ -40,7 +40,7 @@ it installs the current package context (ie, the current working
 directory) as a global package.</p></li><li><p><code>npm install &lt;folder&gt;</code>:</p><p>Install a package that is sitting in a folder on the filesystem.</p></li><li><p><code>npm install &lt;tarball file&gt;</code>:</p><p>Install a package that is sitting on the filesystem.  Note: if you just want
 to link a dev directory into your npm root, you can do this more easily by
 using <code>npm link</code>.</p><p>Example:</p><pre><code>  npm install ./package.tgz</code></pre></li><li><p><code>npm install &lt;tarball url&gt;</code>:</p><p>Fetch the tarball url, and then install it.  In order to distinguish between
-this and other options, the argument must start with "http://" or "https://"</p><p>Example:</p><pre><code>  npm install https://github.com/indexzero/forever/tarball/v0.5.6</code></pre></li><li><p><code>npm install &lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p><p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the "tag" config. (See
+this and other options, the argument must start with &quot;http://&quot; or &quot;https://&quot;</p><p>Example:</p><pre><code>  npm install https://github.com/indexzero/forever/tarball/v0.5.6</code></pre></li><li><p><code>npm install &lt;name&gt; [--save|--save-dev|--save-optional]</code>:</p><p>Do a <code>&lt;name&gt;@&lt;tag&gt;</code> install, where <code>&lt;tag&gt;</code> is the &quot;tag&quot; config. (See
 <code><a href="../doc/config.html">config(1)</a></code>.)</p><p>In most cases, this will install the latest version
 of the module published on npm.</p><p>Example:</p><p>      npm install sax</p><p><code>npm install</code> takes 3 exclusive, optional flags which save or update
 the package version in your main package.json:</p><ul><li><p><code>--save</code>: Package will appear in your <code>dependencies</code>.</p></li><li><p><code>--save-dev</code>: Package will appear in your <code>devDependencies</code>.</p></li><li><p><code>--save-optional</code>: Package will appear in your <code>optionalDependencies</code>.</p><p>Examples:</p><p>  npm install sax --save
@@ -52,7 +52,7 @@ If the tag does not exist in the registry data for that package, then this
 will fail.</p><p>Example:</p><pre><code>  npm install sax@latest</code></pre></li><li><p><code>npm install &lt;name&gt;@&lt;version&gt;</code>:</p><p>Install the specified version of the package.  This will fail if the version
 has not been published to the registry.</p><p>Example:</p><pre><code>  npm install sax@0.1.1</code></pre></li><li><p><code>npm install &lt;name&gt;@&lt;version range&gt;</code>:</p><p>Install a version of the package matching the specified version range.  This
 will follow the same rules for resolving dependencies described in <code><a href="../doc/json.html">json(1)</a></code>.</p><p>Note that most version ranges must be put in quotes so that your shell will
-treat it as a single argument.</p><p>Example:</p><p>      npm install sax@"&gt;=0.1.0 &lt;0.2.0"</p></li><li><p><code>npm install &lt;git remote url&gt;</code>:</p><p>Install a package by cloning a git remote url.  The format of the git
+treat it as a single argument.</p><p>Example:</p><p>      npm install sax@&quot;&gt;=0.1.0 &lt;0.2.0&quot;</p></li><li><p><code>npm install &lt;git remote url&gt;</code>:</p><p>Install a package by cloning a git remote url.  The format of the git
 url is:</p><p>      &lt;protocol&gt;://[&lt;user&gt;@]&lt;hostname&gt;&lt;separator&gt;&lt;path&gt;[#&lt;commit-ish&gt;]</p><p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, or
 <code>git+https</code>.  If no <code>&lt;commit-ish&gt;</code> is specified, then <code>master</code> is
 used.</p><p>Examples:</p><pre><code>  git+ssh://git@github.com:isaacs/npm.git#v1.0.27
@@ -62,7 +62,7 @@ used.</p><p>Examples:</p><pre><code>  git+ssh://git@github.com:isaacs/npm.git#v1
 <p>You may combine multiple arguments, and even multiple types of arguments.
 For example:</p>
 
-<pre><code>npm install sax@"&gt;=0.1.0 &lt;0.2.0" bench supervisor</code></pre>
+<pre><code>npm install sax@&quot;&gt;=0.1.0 &lt;0.2.0&quot; bench supervisor</code></pre>
 
 <p>The <code>--tag</code> argument will apply to all of the specified install targets.</p>
 
@@ -78,7 +78,7 @@ rather than locally.  See <code><a href="../doc/folders.html">folders(1)</a></co
 local space in some cases.</p>
 
 <p>See <code><a href="../doc/config.html">config(1)</a></code>.  Many of the configuration params have some
-effect on installation, since that's most of what npm does.</p>
+effect on installation, since that&#39;s most of what npm does.</p>
 
 <h2 id="ALGORITHM">ALGORITHM</h2>
 
@@ -108,18 +108,18 @@ already caused C to be installed at a higher level.</p>
 <p>See <a href="../doc/folders.html">folders(1)</a> for a more detailed description of the specific
 folder structures that npm creates.</p>
 
-<h3 id="Limitations-of-npm-s-Install-Algorithm">Limitations of npm's Install Algorithm</h3>
+<h3 id="Limitations-of-npm-s-Install-Algorithm">Limitations of npm&#39;s Install Algorithm</h3>
 
 <p>There are some very rare and pathological edge-cases where a cycle can
 cause npm to try to install a never-ending tree of packages.  Here is
 the simplest case:</p>
 
-<pre><code>A -&gt; B -&gt; A' -&gt; B' -&gt; A -&gt; B -&gt; A' -&gt; B' -&gt; A -&gt; ...</code></pre>
+<pre><code>A -&gt; B -&gt; A&#39; -&gt; B&#39; -&gt; A -&gt; B -&gt; A&#39; -&gt; B&#39; -&gt; A -&gt; ...</code></pre>
 
-<p>where <code>A</code> is some version of a package, and <code>A'</code> is a different version
+<p>where <code>A</code> is some version of a package, and <code>A&#39;</code> is a different version
 of the same package.  Because <code>B</code> depends on a different version of <code>A</code>
 than the one that is already in the tree, it must install a separate
-copy.  The same is true of <code>A'</code>, which must install <code>B'</code>.  Because <code>B'</code>
+copy.  The same is true of <code>A&#39;</code>, which must install <code>B&#39;</code>.  Because <code>B&#39;</code>
 depends on the original version of <code>A</code>, which has been overridden, the
 cycle falls into infinite regress.</p>
 
@@ -133,7 +133,7 @@ affects a real use-case, it will be investigated.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/update.html">update(1)</a></li><li><a href="../doc/link.html">link(1)</a></li><li><a href="../doc/rebuild.html">rebuild(1)</a></li><li><a href="../doc/scripts.html">scripts(1)</a></li><li><a href="../doc/build.html">build(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/registry.html">registry(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/tag.html">tag(1)</a></li><li><a href="../doc/rm.html">rm(1)</a></li><li><a href="../doc/shrinkwrap.html">shrinkwrap(1)</a></li></ul>
 </div>
-<p id="footer">install &mdash; npm@1.1.46</p>
+<p id="footer">install &mdash; npm@1.1.49</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

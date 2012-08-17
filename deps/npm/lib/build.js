@@ -1,4 +1,3 @@
-
 // npm build command
 
 // everything about the installation after the creation of
@@ -62,8 +61,11 @@ function build_ (global, didPre, didRB) { return function (folder, cb) {
 function writeBuiltinConf (folder, cb) {
   // the builtin config is "sticky". Any time npm installs itself,
   // it puts its builtin config file there, as well.
-  var ini = require("./utils/ini.js")
-  ini.saveConfig("builtin", path.resolve(folder, "npmrc"), cb)
+  if (!npm.config.usingBuiltin
+      || folder !== path.dirname(__dirname)) {
+    return cb()
+  }
+  npm.config.save("builtin", cb)
 }
 
 function linkStuff (pkg, folder, global, didRB, cb) {

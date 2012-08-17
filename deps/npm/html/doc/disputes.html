@@ -10,7 +10,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<ol><li>Get the author email with <code>npm owner ls &lt;pkgname&gt;</code></li><li>Email the author, CC <a href="mailto:i@izs.me">i@izs.me</a>.</li><li>After a few weeks, if there's no resolution, we'll sort it out.</li></ol>
+<ol><li>Get the author email with <code>npm owner ls &lt;pkgname&gt;</code></li><li>Email the author, CC <a href="mailto:i@izs.me">i@izs.me</a>.</li><li>After a few weeks, if there&#39;s no resolution, we&#39;ll sort it out.</li></ol>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -19,14 +19,14 @@ later, some other user wants to use that name.  Here are some common
 ways that happens (each of these is based on actual events.)</p>
 
 <ol><li>Bob writes a JavaScript module <code>foo</code>, which is not node-specific.
-Bob doesn't use node at all.  Joe wants to use <code>foo</code> in node, so he
+Bob doesn&#39;t use node at all.  Joe wants to use <code>foo</code> in node, so he
 wraps it in an npm module.  Some time later, Bob starts using node,
 and wants to take over management of his program.</li><li>Bob writes an npm module <code>foo</code>, and publishes it.  Perhaps much
 later, Joe finds a bug in <code>foo</code>, and fixes it.  He sends a pull
-request to Bob, but Bob doesn't have the time to deal with it,
+request to Bob, but Bob doesn&#39;t have the time to deal with it,
 because he has a new job and a new baby and is focused on his new
 erlang project, and kind of not involved with node any more.  Joe
-would like to publish a new <code>foo</code>, but can't, because the name is
+would like to publish a new <code>foo</code>, but can&#39;t, because the name is
 taken.</li><li>Bob writes a 10-line flow-control library, and calls it <code>foo</code>, and
 publishes it to the npm registry.  Being a simple little thing, it
 never really has to be updated.  Joe works for Foo Inc, the makers
@@ -35,10 +35,10 @@ toolkit framework.  They publish it to npm as <code>foojs</code>, but people are
 routinely confused when <code>npm install foo</code> is some different thing.</li><li>Bob writes a parser for the widely-known <code>foo</code> file format, because
 he needs it for work.  Then, he gets a new job, and never updates the
 prototype.  Later on, Joe writes a much more complete <code>foo</code> parser,
-but can't publish, because Bob's <code>foo</code> is in the way.</li></ol>
+but can&#39;t publish, because Bob&#39;s <code>foo</code> is in the way.</li></ol>
 
-<p>The validity of Joe's claim in each situation can be debated.  However,
-Joe's appropriate course of action in each case is the same.</p>
+<p>The validity of Joe&#39;s claim in each situation can be debated.  However,
+Joe&#39;s appropriate course of action in each case is the same.</p>
 
 <ol><li><code>npm owner ls foo</code>.  This will tell Joe the email address of the
 owner (Bob).</li><li>Joe emails Bob, explaining the situation <strong>as respecfully as possible</strong>,
@@ -46,15 +46,15 @@ and what he would like to do with the module name.  He adds
 isaacs <a href="mailto:i@izs.me">i@izs.me</a> to the CC list of the email.  Mention in the email
 that Bob can run <code>npm owner add joe foo</code> to add Joe as an owner of
 the <code>foo</code> package.</li><li>After a reasonable amount of time, if Bob has not responded, or if
-Bob and Joe can't come to any sort of resolution, email isaacs
-<a href="mailto:i@izs.me">i@izs.me</a> and we'll sort it out.</li></ol>
+Bob and Joe can&#39;t come to any sort of resolution, email isaacs
+<a href="mailto:i@izs.me">i@izs.me</a> and we&#39;ll sort it out.</li></ol>
 
 <h2 id="REASONING">REASONING</h2>
 
 <p>In almost every case so far, the parties involved have been able to reach
 an amicable resolution without any major intervention.  Most people
 really do want to be reasonable, and are probably not even aware that
-they're in your way.</p>
+they&#39;re in your way.</p>
 
 <p>Module ecosystems are most vibrant and powerful when they are as
 self-directed as possible.  If an admin one day deletes something you
@@ -80,7 +80,7 @@ license statement)</li><li>Illegal content.</li></ol>
 
 <ul><li><a href="../doc/registry.html">registry(1)</a></li><li><a href="../doc/owner.html">owner(1)</a></li></ul>
 </div>
-<p id="footer">disputes &mdash; npm@1.1.46</p>
+<p id="footer">disputes &mdash; npm@1.1.49</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

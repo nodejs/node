@@ -20,8 +20,26 @@ version.usage = "npm version [<newversion> | major | minor | patch | build]\n"
 
 function version (args, silent, cb_) {
   if (typeof cb_ !== "function") cb_ = silent, silent = false
-  if (args.length !== 1) return cb_(version.usage)
+  if (args.length > 1) return cb_(version.usage)
   fs.readFile(path.join(process.cwd(), "package.json"), function (er, data) {
+    if (!args.length) {
+      var v = {}
+      Object.keys(process.versions).forEach(function (k) {
+        v[k] = process.versions[k]
+      })
+      v.npm = npm.version
+      try {
+        data = JSON.parse(data.toString())
+      } catch (er) {
+        data = null
+      }
+      if (data && data.name && data.version) {
+        v[data.name] = data.version
+      }
+      console.log(v)
+      return cb_()
+    }
+
     if (er) {
       log.error("version", "No package.json found")
       return cb_(er)
