@@ -45,7 +45,7 @@ immediated.on('error', function(e) {
 });
 
 immediated.run(function() {
-  setImmedaite(function() {
+  setImmediate(function() {
     throw new Error('Immediate Error');
   });
 });
