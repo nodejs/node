@@ -265,8 +265,8 @@ void MacroAssembler::Move(Register dst, Register src, Condition cond) {
 
 
 void MacroAssembler::Move(DoubleRegister dst, DoubleRegister src) {
-  ASSERT(CpuFeatures::IsSupported(VFP3));
-  CpuFeatures::Scope scope(VFP3);
+  ASSERT(CpuFeatures::IsSupported(VFP2));
+  CpuFeatures::Scope scope(VFP2);
   if (!dst.is(src)) {
     vmov(dst, src);
   }
@@ -778,7 +778,7 @@ void MacroAssembler::VFPCompareAndLoadFlags(const DwVfpRegister src1,
 void MacroAssembler::Vmov(const DwVfpRegister dst,
                           const double imm,
                           const Condition cond) {
-  ASSERT(CpuFeatures::IsEnabled(VFP3));
+  ASSERT(CpuFeatures::IsEnabled(VFP2));
   static const DoubleRepresentation minus_zero(-0.0);
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value(imm);
@@ -930,6 +930,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
 }
 
 void MacroAssembler::GetCFunctionDoubleResult(const DoubleRegister dst) {
+  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(dst, d0);
   } else {
@@ -1967,7 +1968,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   // scratch1 is now effective address of the double element
 
   FloatingPointHelper::Destination destination;
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFP2)) {
     destination = FloatingPointHelper::kVFPRegisters;
   } else {
     destination = FloatingPointHelper::kCoreRegisters;
@@ -1984,7 +1985,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                           scratch4,
                                           s2);
   if (destination == FloatingPointHelper::kVFPRegisters) {
-    CpuFeatures::Scope scope(VFP3);
+    CpuFeatures::Scope scope(VFP2);
     vstr(d0, scratch1, 0);
   } else {
     str(mantissa_reg, MemOperand(scratch1, 0));
@@ -2331,8 +2332,8 @@ void MacroAssembler::ConvertToInt32(Register source,
                                     Register scratch2,
                                     DwVfpRegister double_scratch,
                                     Label *not_int32) {
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
     sub(scratch, source, Operand(kHeapObjectTag));
     vldr(double_scratch, scratch, HeapNumber::kValueOffset);
     vcvt_s32_f64(double_scratch.low(), double_scratch);
@@ -2427,8 +2428,8 @@ void MacroAssembler::EmitVFPTruncate(VFPRoundingMode rounding_mode,
                                      Register scratch1,
                                      Register scratch2,
                                      CheckForInexactConversion check_inexact) {
-  ASSERT(CpuFeatures::IsSupported(VFP3));
-  CpuFeatures::Scope scope(VFP3);
+  ASSERT(CpuFeatures::IsSupported(VFP2));
+  CpuFeatures::Scope scope(VFP2);
   Register prev_fpscr = scratch1;
   Register scratch = scratch2;
 
@@ -2546,7 +2547,7 @@ void MacroAssembler::EmitECMATruncate(Register result,
                                       Register scratch,
                                       Register input_high,
                                       Register input_low) {
-  CpuFeatures::Scope scope(VFP3);
+  CpuFeatures::Scope scope(VFP2);
   ASSERT(!input_high.is(result));
   ASSERT(!input_low.is(result));
   ASSERT(!input_low.is(input_high));
@@ -3332,6 +3333,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
 
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
+  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(d0, dreg);
   } else {
@@ -3342,6 +3344,7 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg) {
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
                                              DoubleRegister dreg2) {
+  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     if (dreg2.is(d0)) {
       ASSERT(!dreg1.is(d1));
@@ -3360,6 +3363,7 @@ void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg1,
 
 void MacroAssembler::SetCallCDoubleArguments(DoubleRegister dreg,
                                              Register reg) {
+  ASSERT(CpuFeatures::IsSupported(VFP2));
   if (use_eabi_hardfloat()) {
     Move(d0, dreg);
     Move(r0, reg);

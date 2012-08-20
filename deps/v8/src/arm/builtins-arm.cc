@@ -1246,10 +1246,7 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
 
 void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   CpuFeatures::TryForceFeatureScope scope(VFP3);
-  if (!CpuFeatures::IsSupported(VFP3)) {
-    __ Abort("Unreachable code: Cannot optimize without VFP3 support.");
-    return;
-  }
+  ASSERT(CPU::SupportsCrankshaft());
 
   // Lookup the function in the JavaScript frame and push it as an
   // argument to the on-stack replacement function.
