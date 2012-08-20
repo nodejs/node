@@ -43,7 +43,7 @@
     # access is allowed for all CPUs.
     'v8_can_use_unaligned_accesses%': 'default',
 
-    # Setting 'v8_can_use_vfp_instructions' to 'true' will enable use of ARM VFP
+    # Setting 'v8_can_use_vfp2_instructions' to 'true' will enable use of ARM VFP
     # instructions in the V8 generated code. VFP instructions will be enabled
     # both for the snapshot and for the ARM target. Leaving the default value
     # of 'false' will avoid VFP instructions in the snapshot and use CPU feature
@@ -139,7 +139,7 @@
           [ 'v8_use_arm_eabi_hardfloat=="true"', {
             'defines': [
               'USE_EABI_HARDFLOAT=1',
-              'CAN_USE_VFP_INSTRUCTIONS',
+              'CAN_USE_VFP2_INSTRUCTIONS',
             ],
             'target_conditions': [
               ['_toolset=="target"', {
