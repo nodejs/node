@@ -29,8 +29,11 @@
 // Explicitly instantiate some template classes, so we're sure they will be
 // present in the binary / shared object. There isn't much doubt that they will
 // be, but MSVC tends to complain about these things.
-template class NODE_EXTERN v8::Persistent<v8::Object>;
-template class NODE_EXTERN v8::Persistent<v8::FunctionTemplate>;
+#ifdef _MSC_VER
+  template class NODE_EXTERN v8::Persistent<v8::Object>;
+  template class NODE_EXTERN v8::Persistent<v8::FunctionTemplate>;
+#endif
+
 
 namespace node {
 
