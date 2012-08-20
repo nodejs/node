@@ -791,6 +791,10 @@ void DefineConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, SIGTSTP);
 #endif
 
+#ifdef SIGBREAK
+  NODE_DEFINE_CONSTANT(target, SIGBREAK);
+#endif
+
 #ifdef SIGTTIN
   NODE_DEFINE_CONSTANT(target, SIGTTIN);
 #endif

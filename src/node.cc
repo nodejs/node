@@ -694,6 +694,10 @@ const char *signo_string(int signo) {
   SIGNO_CASE(SIGTSTP);
 #endif
 
+#ifdef SIGBREAK
+  SIGNO_CASE(SIGBREAK);
+#endif
+
 #ifdef SIGTTIN
   SIGNO_CASE(SIGTTIN);
 #endif

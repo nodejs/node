@@ -87,6 +87,7 @@
         'src/node_string.cc',
         'src/node_zlib.cc',
         'src/pipe_wrap.cc',
+        'src/signal_wrap.cc',
         'src/stream_wrap.cc',
         'src/slab_allocator.cc',
         'src/tcp_wrap.cc',
@@ -205,7 +206,6 @@
         }, { # POSIX
           'defines': [ '__POSIX__' ],
           'sources': [
-            'src/node_signal_watcher.cc',
             'src/node_io_watcher.cc',
           ],
         }],

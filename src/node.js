@@ -562,40 +562,47 @@
   startup.processSignalHandlers = function() {
     // Load events module in order to access prototype elements on process like
     // process.addListener.
-    var signalWatchers = {};
+    var signalWraps = {};
     var addListener = process.addListener;
     var removeListener = process.removeListener;
 
     function isSignal(event) {
-      return event.slice(0, 3) === 'SIG' && startup.lazyConstants()[event];
+      return event.slice(0, 3) === 'SIG' &&
+             startup.lazyConstants().hasOwnProperty(event);
     }
 
     // Wrap addListener for the special signal types
     process.on = process.addListener = function(type, listener) {
-      var ret = addListener.apply(this, arguments);
-      if (isSignal(type)) {
-        if (!signalWatchers.hasOwnProperty(type)) {
-          var b = process.binding('signal_watcher');
-          var w = new b.SignalWatcher(startup.lazyConstants()[type]);
-          w.callback = function() { process.emit(type); };
-          signalWatchers[type] = w;
-          w.start();
+      if (isSignal(type) &&
+          !signalWraps.hasOwnProperty(type)) {
+        var Signal = process.binding('signal_wrap').Signal;
+        var wrap = new Signal();
 
-        } else if (this.listeners(type).length === 1) {
-          signalWatchers[type].start();
+        wrap.unref();
+
+        wrap.onsignal = function () { process.emit(type); };
+
+        var signum = startup.lazyConstants()[type];
+        var r = wrap.start(signum);
+        if (r) {
+          wrap.close();
+          throw errnoException(errno, "uv_signal_start");
         }
+
+        signalWraps[type] = wrap;
       }
 
-      return ret;
+      return addListener.apply(this, arguments);
     };
 
     process.removeListener = function(type, listener) {
       var ret = removeListener.apply(this, arguments);
       if (isSignal(type)) {
-        assert(signalWatchers.hasOwnProperty(type));
+        assert(signalWraps.hasOwnProperty(type));
 
         if (this.listeners(type).length === 0) {
-          signalWatchers[type].stop();
+          signalWraps[type].close();
+          delete signalWraps[type];
         }
       }
 
