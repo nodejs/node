@@ -68,9 +68,6 @@ typedef int mode_t;
 #endif
 #include "node_file.h"
 #include "node_http_parser.h"
-#ifdef __POSIX__
-# include "node_signal_watcher.h"
-#endif
 #include "node_constants.h"
 #include "node_javascript.h"
 #include "node_version.h"
