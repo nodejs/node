@@ -35,7 +35,7 @@
 uint64_t uv_hrtime() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (ts.tv_sec * NANOSEC + ts.tv_nsec);
+  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
 
 void uv_loadavg(double avg[3]) {

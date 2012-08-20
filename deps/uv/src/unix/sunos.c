@@ -346,8 +346,10 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
       cpu_info->model = NULL;
     } else {
       knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clock_MHz");
-      assert(knp->data_type == KSTAT_DATA_INT32);
-      cpu_info->speed = knp->value.i32;
+      assert(knp->data_type == KSTAT_DATA_INT32 ||
+             knp->data_type == KSTAT_DATA_INT64);
+      cpu_info->speed = (knp->data_type == KSTAT_DATA_INT32) ? knp->value.i32
+                                                             : knp->value.i64;
 
       knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"brand");
       assert(knp->data_type == KSTAT_DATA_STRING);

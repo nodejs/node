@@ -46,7 +46,7 @@ static char *process_title;
 uint64_t uv_hrtime(void) {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (ts.tv_sec * NANOSEC + ts.tv_nsec);
+  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
 
 

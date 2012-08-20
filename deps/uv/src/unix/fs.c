@@ -85,7 +85,7 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   if (req->cb)
     uv__req_unregister(req->loop, req);
 
-  free(req->path);
+  free((void*)req->path);
   req->path = NULL;
 
   switch (req->fs_type) {
