@@ -63,9 +63,6 @@ typedef int mode_t;
 #endif
 
 #include "node_buffer.h"
-#ifdef __POSIX__
-# include "node_io_watcher.h"
-#endif
 #include "node_file.h"
 #include "node_http_parser.h"
 #include "node_constants.h"
@@ -1861,13 +1858,6 @@ static Handle<Value> Binding(const Arguments& args) {
     exports = Object::New();
     DefineConstants(exports);
     binding_cache->Set(module, exports);
-
-#ifdef __POSIX__
-  } else if (!strcmp(*module_v, "io_watcher")) {
-    exports = Object::New();
-    IOWatcher::Initialize(exports);
-    binding_cache->Set(module, exports);
-#endif
 
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();

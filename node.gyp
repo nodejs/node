@@ -205,9 +205,6 @@
           'libraries': [ '-lpsapi.lib' ]
         }, { # POSIX
           'defines': [ '__POSIX__' ],
-          'sources': [
-            'src/node_io_watcher.cc',
-          ],
         }],
         [ 'OS=="mac"', {
           'libraries': [ '-framework Carbon' ],
