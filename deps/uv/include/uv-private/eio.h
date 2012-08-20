@@ -251,7 +251,7 @@ struct eio_req
 
   eio_channel *channel; /* data used to direct poll callbacks arising from this req */
 
-#if __i386 || __amd64
+#if defined(__i386) || defined(__amd64)
   unsigned char cancelled;
 #else
   sig_atomic_t cancelled;

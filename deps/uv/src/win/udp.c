@@ -135,8 +135,6 @@ int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
   handle->recv_req.type = UV_UDP_RECV;
   handle->recv_req.data = handle;
 
-  loop->counters.udp_init++;
-
   return 0;
 }
 

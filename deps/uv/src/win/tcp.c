@@ -149,8 +149,6 @@ int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
   handle->func_connectex = NULL;
   handle->processed_accepts = 0;
 
-  loop->counters.tcp_init++;
-
   return 0;
 }
 

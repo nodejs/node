@@ -57,8 +57,6 @@ void uv__stream_init(uv_loop_t* loop,
                      uv_stream_t* stream,
                      uv_handle_type type) {
   uv__handle_init(loop, (uv_handle_t*)stream, type);
-  loop->counters.stream_init++;
-
   stream->alloc_cb = NULL;
   stream->close_cb = NULL;
   stream->connection_cb = NULL;
@@ -489,7 +487,6 @@ start:
   } else {
     /* Successful write */
 
-    /* Update the counters. */
     while (n >= 0) {
       uv_buf_t* buf = &(req->bufs[req->write_index]);
       size_t len = buf->len;
@@ -834,9 +831,15 @@ static void uv__stream_connect(uv_stream_t* stream) {
 }
 
 
-int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
-    uv_stream_t* send_handle, uv_write_cb cb) {
+int uv_write2(uv_write_t* req,
+              uv_stream_t* stream,
+              uv_buf_t bufs[],
+              int bufcnt,
+              uv_stream_t* send_handle,
+              uv_write_cb cb) {
   int empty_queue;
+
+  assert(bufcnt > 0);
 
   assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
       stream->type == UV_TTY) &&
@@ -864,7 +867,7 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
   req->send_handle = send_handle;
   ngx_queue_init(&req->queue);
 
-  if (bufcnt <= UV_REQ_BUFSML_SIZE)
+  if (bufcnt <= (int) ARRAY_SIZE(req->bufsml))
     req->bufs = req->bufsml;
   else
     req->bufs = malloc(sizeof(uv_buf_t) * bufcnt);

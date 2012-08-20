@@ -37,13 +37,13 @@
     int ai_socktype;
     int ai_protocol;
     size_t ai_addrlen;
-    wchar_t* ai_canonname;
+    WCHAR* ai_canonname;
     struct sockaddr* ai_addr;
     struct addrinfoW* ai_next;
   } ADDRINFOW, *PADDRINFOW;
 
-  DECLSPEC_IMPORT int WSAAPI GetAddrInfoW(const wchar_t* node,
-                                          const wchar_t* service,
+  DECLSPEC_IMPORT int WSAAPI GetAddrInfoW(const WCHAR* node,
+                                          const WCHAR* service,
                                           const ADDRINFOW* hints,
                                           PADDRINFOW* result);
 
@@ -271,7 +271,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   /* calculate required memory size for all input values */
   if (node != NULL) {
-    nodesize = ALIGNED_SIZE(uv_utf8_to_utf16(node, NULL, 0) * sizeof(wchar_t));
+    nodesize = ALIGNED_SIZE(uv_utf8_to_utf16(node, NULL, 0) * sizeof(WCHAR));
     if (nodesize == 0) {
       uv__set_sys_error(loop, GetLastError());
       goto error;
@@ -280,7 +280,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
   if (service != NULL) {
     servicesize = ALIGNED_SIZE(uv_utf8_to_utf16(service, NULL, 0) *
-                               sizeof(wchar_t));
+                               sizeof(WCHAR));
     if (servicesize == 0) {
       uv__set_sys_error(loop, GetLastError());
       goto error;
@@ -303,10 +303,10 @@ int uv_getaddrinfo(uv_loop_t* loop,
   /* convert node string to UTF16 into allocated memory and save pointer in */
   /* the reques. */
   if (node != NULL) {
-    req->node = (wchar_t*)alloc_ptr;
+    req->node = (WCHAR*)alloc_ptr;
     if (uv_utf8_to_utf16(node,
-                         (wchar_t*) alloc_ptr,
-                         nodesize / sizeof(wchar_t)) == 0) {
+                         (WCHAR*) alloc_ptr,
+                         nodesize / sizeof(WCHAR)) == 0) {
       uv__set_sys_error(loop, GetLastError());
       goto error;
     }
@@ -318,10 +318,10 @@ int uv_getaddrinfo(uv_loop_t* loop,
   /* convert service string to UTF16 into allocated memory and save pointer */
   /* in the req. */
   if (service != NULL) {
-    req->service = (wchar_t*)alloc_ptr;
+    req->service = (WCHAR*)alloc_ptr;
     if (uv_utf8_to_utf16(service,
-                         (wchar_t*) alloc_ptr,
-                         servicesize / sizeof(wchar_t)) == 0) {
+                         (WCHAR*) alloc_ptr,
+                         servicesize / sizeof(WCHAR)) == 0) {
       uv__set_sys_error(loop, GetLastError());
       goto error;
     }

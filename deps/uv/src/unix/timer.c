@@ -39,8 +39,6 @@ RB_GENERATE_STATIC(uv__timers, uv_timer_s, tree_entry, uv__timer_cmp)
 
 
 int uv_timer_init(uv_loop_t* loop, uv_timer_t* handle) {
-  loop->counters.timer_init++;
-
   uv__handle_init(loop, (uv_handle_t*)handle, UV_TIMER);
   handle->timer_cb = NULL;
 

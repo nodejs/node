@@ -19,49 +19,22 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_WIN_STREAM_INL_H_
-#define UV_WIN_STREAM_INL_H_
+#ifndef UV_SUNOS_H
+#define UV_SUNOS_H
 
-#include <assert.h>
+#include <sys/port.h>
+#include <port.h>
 
-#include "uv.h"
-#include "internal.h"
-#include "handle-inl.h"
-#include "req-inl.h"
+#if defined(PORT_SOURCE_FILE)
 
+# define UV_PLATFORM_LOOP_FIELDS                                              \
+  uv__io_t fs_event_watcher;                                                  \
+  int fs_fd;                                                                  \
 
-INLINE static void uv_stream_init(uv_loop_t* loop,
-                                  uv_stream_t* handle,
-                                  uv_handle_type type) {
-  uv__handle_init(loop, (uv_handle_t*) handle, type);
-  handle->write_queue_size = 0;
-  handle->activecnt = 0;
-}
+# define UV_PLATFORM_FS_EVENT_FIELDS                                          \
+  file_obj_t fo;                                                              \
+  int fd;                                                                     \
 
+#endif /* defined(PORT_SOURCE_FILE) */
 
-INLINE static void uv_connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
-  handle->write_reqs_pending = 0;
-
-  uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
-  handle->read_req.event_handle = NULL;
-  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
-  handle->read_req.type = UV_READ;
-  handle->read_req.data = handle;
-
-  handle->shutdown_req = NULL;
-}
-
-
-INLINE static size_t uv_count_bufs(uv_buf_t bufs[], int count) {
-  size_t bytes = 0;
-  int i;
-
-  for (i = 0; i < count; i++) {
-    bytes += (size_t)bufs[i].len;
-  }
-
-  return bytes;
-}
-
-#endif /* UV_WIN_STREAM_INL_H_ */
+#endif /* UV_SUNOS_H */

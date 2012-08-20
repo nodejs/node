@@ -34,7 +34,6 @@ static void uv__pipe_accept(uv_loop_t* loop, uv__io_t* w, int events);
 
 int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   uv__stream_init(loop, (uv_stream_t*)handle, UV_NAMED_PIPE);
-  loop->counters.pipe_init++;
   handle->shutdown_req = NULL;
   handle->connect_req = NULL;
   handle->pipe_fname = NULL;

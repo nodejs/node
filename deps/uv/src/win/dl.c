@@ -26,7 +26,7 @@ static int uv__dlerror(uv_lib_t* lib, int errorno);
 
 
 int uv_dlopen(const char* filename, uv_lib_t* lib) {
-  wchar_t filename_w[32768];
+  WCHAR filename_w[32768];
 
   lib->handle = NULL;
   lib->errmsg = NULL;

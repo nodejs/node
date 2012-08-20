@@ -50,7 +50,6 @@ static void close_cb(uv_handle_t* handle) {
 static void do_accept(uv_timer_t* timer_handle, int status) {
   uv_tcp_t* server;
   uv_tcp_t* accepted_handle = (uv_tcp_t*)malloc(sizeof *accepted_handle);
-  uint64_t tcpcnt;
   int r;
 
   ASSERT(timer_handle != NULL);
@@ -60,14 +59,9 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
   r = uv_tcp_init(uv_default_loop(), accepted_handle);
   ASSERT(r == 0);
 
-  /* Test to that uv_default_loop()->counters.tcp_init does not increase across the uv_accept. */
-  tcpcnt = uv_default_loop()->counters.tcp_init;
-
   server = (uv_tcp_t*)timer_handle->data;
   r = uv_accept((uv_stream_t*)server, (uv_stream_t*)accepted_handle);
   ASSERT(r == 0);
-
-  ASSERT(uv_default_loop()->counters.tcp_init == tcpcnt);
 
   do_accept_called++;
 
@@ -115,9 +109,6 @@ static void start_server() {
 
   r = uv_tcp_init(uv_default_loop(), server);
   ASSERT(r == 0);
-  ASSERT(uv_default_loop()->counters.tcp_init == 1);
-  ASSERT(uv_default_loop()->counters.handle_init == 1);
-
   r = uv_tcp_bind(server, addr);
   ASSERT(r == 0);
 

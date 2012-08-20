@@ -83,8 +83,8 @@ static void uv__eio_init(void) {
 
 
 void uv_eio_init(uv_loop_t* loop) {
-  if (loop->counters.eio_init) return;
-  loop->counters.eio_init = 1;
+  if (loop->flags & UV_LOOP_EIO_INITIALIZED) return;
+  loop->flags |= UV_LOOP_EIO_INITIALIZED;
 
   uv_idle_init(loop, &loop->uv_eio_poller);
   uv_idle_start(&loop->uv_eio_poller, uv_eio_do_poll);

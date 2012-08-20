@@ -55,8 +55,6 @@ static void uv_fs_event_init_handle(uv_loop_t* loop, uv_fs_event_t* handle,
   }
 
   uv__handle_start(handle);
-
-  loop->counters.fs_event_init++;
 }
 
 
@@ -90,15 +88,15 @@ static void uv_fs_event_queue_readdirchanges(uv_loop_t* loop,
 }
 
 
-static int uv_split_path(const wchar_t* filename, wchar_t** dir,
-    wchar_t** file) {
+static int uv_split_path(const WCHAR* filename, WCHAR** dir,
+    WCHAR** file) {
   int len = wcslen(filename);
   int i = len;
   while (i > 0 && filename[--i] != '\\' && filename[i] != '/');
 
   if (i == 0) {
     if (dir) {
-      *dir = (wchar_t*)malloc((MAX_PATH + 1) * sizeof(wchar_t));
+      *dir = (WCHAR*)malloc((MAX_PATH + 1) * sizeof(WCHAR));
       if (!*dir) {
         uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
       }
@@ -113,7 +111,7 @@ static int uv_split_path(const wchar_t* filename, wchar_t** dir,
     *file = wcsdup(filename);
   } else {
     if (dir) {
-      *dir = (wchar_t*)malloc((i + 1) * sizeof(wchar_t));
+      *dir = (WCHAR*)malloc((i + 1) * sizeof(WCHAR));
       if (!*dir) {
         uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
       }
@@ -121,7 +119,7 @@ static int uv_split_path(const wchar_t* filename, wchar_t** dir,
       (*dir)[i] = L'\0';
     }
 
-    *file = (wchar_t*)malloc((len - i) * sizeof(wchar_t));
+    *file = (WCHAR*)malloc((len - i) * sizeof(WCHAR));
     if (!*file) {
       uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
     }
@@ -137,8 +135,8 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     const char* filename, uv_fs_event_cb cb, int flags) {
   int name_size, is_path_dir;
   DWORD attr, last_error;
-  wchar_t* dir = NULL, *dir_to_watch, *filenamew = NULL;
-  wchar_t short_path[MAX_PATH];
+  WCHAR* dir = NULL, *dir_to_watch, *filenamew = NULL;
+  WCHAR short_path[MAX_PATH];
 
   /* We don't support any flags yet. */
   assert(!flags);
@@ -146,14 +144,14 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
   uv_fs_event_init_handle(loop, handle, filename, cb);
 
   /* Convert name to UTF16. */
-  name_size = uv_utf8_to_utf16(filename, NULL, 0) * sizeof(wchar_t);
-  filenamew = (wchar_t*)malloc(name_size);
+  name_size = uv_utf8_to_utf16(filename, NULL, 0) * sizeof(WCHAR);
+  filenamew = (WCHAR*)malloc(name_size);
   if (!filenamew) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
   if (!uv_utf8_to_utf16(filename, filenamew,
-      name_size / sizeof(wchar_t))) {
+      name_size / sizeof(WCHAR))) {
     uv__set_sys_error(loop, GetLastError());
     return -1;
   }
@@ -294,7 +292,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
   FILE_NOTIFY_INFORMATION* file_info;
   int sizew, size, result;
   char* filename = NULL;
-  wchar_t* filenamew, *long_filenamew = NULL;
+  WCHAR* filenamew, *long_filenamew = NULL;
   DWORD offset = 0;
 
   assert(req->type == UV_FS_EVENT_REQ);
@@ -323,9 +321,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
          */
         if (handle->dirw ||
           _wcsnicmp(handle->filew, file_info->FileName,
-            file_info->FileNameLength / sizeof(wchar_t)) == 0 ||
+            file_info->FileNameLength / sizeof(WCHAR)) == 0 ||
           _wcsnicmp(handle->short_filew, file_info->FileName,
-            file_info->FileNameLength / sizeof(wchar_t)) == 0) {
+            file_info->FileNameLength / sizeof(WCHAR)) == 0) {
 
           if (handle->dirw) {
             /*
@@ -337,9 +335,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
               file_info->Action != FILE_ACTION_RENAMED_OLD_NAME) {
               /* Construct a full path to the file. */
               size = wcslen(handle->dirw) +
-                file_info->FileNameLength / sizeof(wchar_t) + 2;
+                file_info->FileNameLength / sizeof(WCHAR) + 2;
 
-              filenamew = (wchar_t*)malloc(size * sizeof(wchar_t));
+              filenamew = (WCHAR*)malloc(size * sizeof(WCHAR));
               if (!filenamew) {
                 uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
               }
@@ -353,7 +351,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
               size = GetLongPathNameW(filenamew, NULL, 0);
 
               if (size) {
-                long_filenamew = (wchar_t*)malloc(size * sizeof(wchar_t));
+                long_filenamew = (WCHAR*)malloc(size * sizeof(WCHAR));
                 if (!long_filenamew) {
                   uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
                 }
@@ -388,7 +386,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
                */
               if (!long_filenamew) {
                 filenamew = file_info->FileName;
-                sizew = file_info->FileNameLength / sizeof(wchar_t);
+                sizew = file_info->FileNameLength / sizeof(WCHAR);
               }
             } else {
               /* Removed or renamed callbacks don't provide filename. */

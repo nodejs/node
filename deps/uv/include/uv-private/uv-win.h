@@ -29,12 +29,14 @@ typedef intptr_t ssize_t;
 # define _SSIZE_T_DEFINED
 #endif
 
-#include <process.h>
-#include <stdint.h>
 #include <winsock2.h>
 #include <mswsock.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+
+#include <process.h>
+#include <signal.h>
+#include <stdint.h>
 #include <sys/stat.h>
 
 #include "tree.h"
@@ -43,32 +45,50 @@ typedef intptr_t ssize_t;
 #define MAX_PIPENAME_LEN 256
 
 #ifndef S_IFLNK
-# define S_IFLNK          0xA000
+# define S_IFLNK 0xA000
 #endif
+
+/* Additional signals supported by uv_signal and or uv_kill. The CRT defines
+ * the following signals already:
+ *
+ *   #define SIGINT           2
+ *   #define SIGILL           4
+ *   #define SIGABRT_COMPAT   6
+ *   #define SIGFPE           8
+ *   #define SIGSEGV         11
+ *   #define SIGTERM         15
+ *   #define SIGBREAK        21
+ *   #define SIGABRT         22
+ *
+ * The additional signals have values that are common on other Unix
+ * variants (Linux and Darwin)
+ */
+#define SIGHUP                1
+#define SIGKILL               9
 
 /*
  * Guids and typedefs for winsock extension functions
  * Mingw32 doesn't have these :-(
  */
 #ifndef WSAID_ACCEPTEX
-# define WSAID_ACCEPTEX                                        \
-         {0xb5367df1, 0xcbac, 0x11cf,                          \
+# define WSAID_ACCEPTEX                                                       \
+         {0xb5367df1, 0xcbac, 0x11cf,                                         \
          {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}}
 
-# define WSAID_CONNECTEX                                       \
-         {0x25a207b9, 0xddf3, 0x4660,                          \
+# define WSAID_CONNECTEX                                                      \
+         {0x25a207b9, 0xddf3, 0x4660,                                         \
          {0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e}}
 
-# define WSAID_GETACCEPTEXSOCKADDRS                            \
-         {0xb5367df2, 0xcbac, 0x11cf,                          \
+# define WSAID_GETACCEPTEXSOCKADDRS                                           \
+         {0xb5367df2, 0xcbac, 0x11cf,                                         \
          {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}}
 
-# define WSAID_DISCONNECTEX                                    \
-         {0x7fda2e11, 0x8630, 0x436f,                          \
+# define WSAID_DISCONNECTEX                                                   \
+         {0x7fda2e11, 0x8630, 0x436f,                                         \
          {0xa0, 0x31, 0xf5, 0x36, 0xa6, 0xee, 0xc1, 0x57}}
 
-# define WSAID_TRANSMITFILE                                    \
-         {0xb5367df0, 0xcbac, 0x11cf,                          \
+# define WSAID_TRANSMITFILE                                                   \
+         {0xb5367df0, 0xcbac, 0x11cf,                                         \
          {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}}
 
   typedef BOOL PASCAL (*LPFN_ACCEPTEX)
@@ -246,272 +266,281 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   /* Counter to keep track of active udp streams */                           \
   unsigned int active_udp_streams;
 
-#define UV_REQ_TYPE_PRIVATE               \
-  /* TODO: remove the req suffix */       \
-  UV_ACCEPT,                              \
-  UV_FS_EVENT_REQ,                        \
-  UV_POLL_REQ,                            \
-  UV_PROCESS_EXIT,                        \
-  UV_PROCESS_CLOSE,                       \
-  UV_READ,                                \
-  UV_UDP_RECV,                            \
-  UV_WAKEUP,
+#define UV_REQ_TYPE_PRIVATE                                                   \
+  /* TODO: remove the req suffix */                                           \
+  UV_ACCEPT,                                                                  \
+  UV_FS_EVENT_REQ,                                                            \
+  UV_POLL_REQ,                                                                \
+  UV_PROCESS_EXIT,                                                            \
+  UV_READ,                                                                    \
+  UV_UDP_RECV,                                                                \
+  UV_WAKEUP,                                                                  \
+  UV_SIGNAL_REQ,
 
-#define UV_REQ_PRIVATE_FIELDS             \
-  union {                                 \
-    /* Used by I/O operations */          \
-    struct {                              \
-      OVERLAPPED overlapped;              \
-      size_t queued_bytes;                \
-    };                                    \
-  };                                      \
+#define UV_REQ_PRIVATE_FIELDS                                                 \
+  union {                                                                     \
+    /* Used by I/O operations */                                              \
+    struct {                                                                  \
+      OVERLAPPED overlapped;                                                  \
+      size_t queued_bytes;                                                    \
+    };                                                                        \
+  };                                                                          \
   struct uv_req_s* next_req;
 
-#define UV_WRITE_PRIVATE_FIELDS           \
-  int ipc_header;                         \
-  uv_buf_t write_buffer;                  \
-  HANDLE event_handle;                    \
+#define UV_WRITE_PRIVATE_FIELDS                                               \
+  int ipc_header;                                                             \
+  uv_buf_t write_buffer;                                                      \
+  HANDLE event_handle;                                                        \
   HANDLE wait_handle;
 
-#define UV_CONNECT_PRIVATE_FIELDS         \
+#define UV_CONNECT_PRIVATE_FIELDS                                             \
   /* empty */
 
-#define UV_SHUTDOWN_PRIVATE_FIELDS        \
+#define UV_SHUTDOWN_PRIVATE_FIELDS                                            \
   /* empty */
 
-#define UV_UDP_SEND_PRIVATE_FIELDS        \
+#define UV_UDP_SEND_PRIVATE_FIELDS                                            \
   /* empty */
 
-#define UV_PRIVATE_REQ_TYPES              \
-  typedef struct uv_pipe_accept_s {       \
-    UV_REQ_FIELDS                         \
-    HANDLE pipeHandle;                    \
-    struct uv_pipe_accept_s* next_pending; \
-  } uv_pipe_accept_t;                     \
-                                          \
-  typedef struct uv_tcp_accept_s {        \
-    UV_REQ_FIELDS                         \
-    SOCKET accept_socket;                 \
-    char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32]; \
-    HANDLE event_handle;                  \
-    HANDLE wait_handle;                   \
-    struct uv_tcp_accept_s* next_pending; \
-  } uv_tcp_accept_t;                      \
-                                          \
-  typedef struct uv_read_s {              \
-    UV_REQ_FIELDS                         \
-    HANDLE event_handle;                  \
-    HANDLE wait_handle;                   \
+#define UV_PRIVATE_REQ_TYPES                                                  \
+  typedef struct uv_pipe_accept_s {                                           \
+    UV_REQ_FIELDS                                                             \
+    HANDLE pipeHandle;                                                        \
+    struct uv_pipe_accept_s* next_pending;                                    \
+  } uv_pipe_accept_t;                                                         \
+                                                                              \
+  typedef struct uv_tcp_accept_s {                                            \
+    UV_REQ_FIELDS                                                             \
+    SOCKET accept_socket;                                                     \
+    char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32];             \
+    HANDLE event_handle;                                                      \
+    HANDLE wait_handle;                                                       \
+    struct uv_tcp_accept_s* next_pending;                                     \
+  } uv_tcp_accept_t;                                                          \
+                                                                              \
+  typedef struct uv_read_s {                                                  \
+    UV_REQ_FIELDS                                                             \
+    HANDLE event_handle;                                                      \
+    HANDLE wait_handle;                                                       \
   } uv_read_t;
 
-#define uv_stream_connection_fields       \
-  unsigned int write_reqs_pending;        \
+#define uv_stream_connection_fields                                           \
+  unsigned int write_reqs_pending;                                            \
   uv_shutdown_t* shutdown_req;
 
-#define uv_stream_server_fields           \
+#define uv_stream_server_fields                                               \
   uv_connection_cb connection_cb;
 
-#define UV_STREAM_PRIVATE_FIELDS          \
-  unsigned int reqs_pending;              \
-  int activecnt;                          \
-  uv_read_t read_req;                     \
-  union {                                 \
-    struct { uv_stream_connection_fields };  \
-    struct { uv_stream_server_fields     };  \
+#define UV_STREAM_PRIVATE_FIELDS                                              \
+  unsigned int reqs_pending;                                                  \
+  int activecnt;                                                              \
+  uv_read_t read_req;                                                         \
+  union {                                                                     \
+    struct { uv_stream_connection_fields };                                   \
+    struct { uv_stream_server_fields     };                                   \
   };
 
-#define uv_tcp_server_fields              \
-  uv_tcp_accept_t* accept_reqs;           \
-  unsigned int processed_accepts;         \
-  uv_tcp_accept_t* pending_accepts;       \
+#define uv_tcp_server_fields                                                  \
+  uv_tcp_accept_t* accept_reqs;                                               \
+  unsigned int processed_accepts;                                             \
+  uv_tcp_accept_t* pending_accepts;                                           \
   LPFN_ACCEPTEX func_acceptex;
 
-#define uv_tcp_connection_fields          \
-  uv_buf_t read_buffer;                   \
+#define uv_tcp_connection_fields                                              \
+  uv_buf_t read_buffer;                                                       \
   LPFN_CONNECTEX func_connectex;
 
-#define UV_TCP_PRIVATE_FIELDS             \
-  SOCKET socket;                          \
-  int bind_error;                         \
-  union {                                 \
-    struct { uv_tcp_server_fields };      \
-    struct { uv_tcp_connection_fields };  \
+#define UV_TCP_PRIVATE_FIELDS                                                 \
+  SOCKET socket;                                                              \
+  int bind_error;                                                             \
+  union {                                                                     \
+    struct { uv_tcp_server_fields };                                          \
+    struct { uv_tcp_connection_fields };                                      \
   };
 
-#define UV_UDP_PRIVATE_FIELDS             \
-  SOCKET socket;                          \
-  unsigned int reqs_pending;              \
-  int activecnt;                          \
-  uv_req_t recv_req;                      \
-  uv_buf_t recv_buffer;                   \
-  struct sockaddr_storage recv_from;      \
-  int recv_from_len;                      \
-  uv_udp_recv_cb recv_cb;                 \
-  uv_alloc_cb alloc_cb;                   \
-  LPFN_WSARECV func_wsarecv;              \
+#define UV_UDP_PRIVATE_FIELDS                                                 \
+  SOCKET socket;                                                              \
+  unsigned int reqs_pending;                                                  \
+  int activecnt;                                                              \
+  uv_req_t recv_req;                                                          \
+  uv_buf_t recv_buffer;                                                       \
+  struct sockaddr_storage recv_from;                                          \
+  int recv_from_len;                                                          \
+  uv_udp_recv_cb recv_cb;                                                     \
+  uv_alloc_cb alloc_cb;                                                       \
+  LPFN_WSARECV func_wsarecv;                                                  \
   LPFN_WSARECVFROM func_wsarecvfrom;
 
-#define uv_pipe_server_fields             \
-  int pending_instances;                  \
-  uv_pipe_accept_t* accept_reqs;          \
+#define uv_pipe_server_fields                                                 \
+  int pending_instances;                                                      \
+  uv_pipe_accept_t* accept_reqs;                                              \
   uv_pipe_accept_t* pending_accepts;
 
-#define uv_pipe_connection_fields         \
-  uv_timer_t* eof_timer;                  \
-  uv_write_t ipc_header_write_req;        \
-  int ipc_pid;                            \
-  uint64_t remaining_ipc_rawdata_bytes;   \
-  unsigned char reserved[sizeof(void*)];  \
-  struct {                                \
-    WSAPROTOCOL_INFOW* socket_info;       \
-    int tcp_connection;                   \
-  } pending_ipc_info;                     \
+#define uv_pipe_connection_fields                                             \
+  uv_timer_t* eof_timer;                                                      \
+  uv_write_t ipc_header_write_req;                                            \
+  int ipc_pid;                                                                \
+  uint64_t remaining_ipc_rawdata_bytes;                                       \
+  unsigned char reserved[sizeof(void*)];                                      \
+  struct {                                                                    \
+    WSAPROTOCOL_INFOW* socket_info;                                           \
+    int tcp_connection;                                                       \
+  } pending_ipc_info;                                                         \
   uv_write_t* non_overlapped_writes_tail;
 
-#define UV_PIPE_PRIVATE_FIELDS            \
-  HANDLE handle;                          \
-  wchar_t* name;                          \
-  union {                                 \
-    struct { uv_pipe_server_fields };     \
-    struct { uv_pipe_connection_fields }; \
+#define UV_PIPE_PRIVATE_FIELDS                                                \
+  HANDLE handle;                                                              \
+  WCHAR* name;                                                                \
+  union {                                                                     \
+    struct { uv_pipe_server_fields };                                         \
+    struct { uv_pipe_connection_fields };                                     \
   };
 
 /* TODO: put the parser states in an union - TTY handles are always */
 /* half-duplex so read-state can safely overlap write-state. */
-#define UV_TTY_PRIVATE_FIELDS             \
-  HANDLE handle;                          \
-  HANDLE read_line_handle;                \
-  uv_buf_t read_line_buffer;              \
-  HANDLE read_raw_wait;                   \
-  DWORD original_console_mode;            \
-  /* Fields used for translating win */   \
-  /* keystrokes into vt100 characters */  \
-  char last_key[8];                       \
-  unsigned char last_key_offset;          \
-  unsigned char last_key_len;             \
-  INPUT_RECORD last_input_record;         \
-  WCHAR last_utf16_high_surrogate;        \
-  /* utf8-to-utf16 conversion state */    \
-  unsigned char utf8_bytes_left;          \
-  unsigned int utf8_codepoint;            \
-  /* eol conversion state */              \
-  unsigned char previous_eol;             \
-  /* ansi parser state */                 \
-  unsigned char ansi_parser_state;        \
-  unsigned char ansi_csi_argc;            \
-  unsigned short ansi_csi_argv[4];        \
-  COORD saved_position;                   \
-  WORD saved_attributes;
-
-#define UV_POLL_PRIVATE_FIELDS            \
-  SOCKET socket;                          \
-  /* Used in fast mode */                 \
-  SOCKET peer_socket;                     \
-  AFD_POLL_INFO afd_poll_info_1;          \
-  AFD_POLL_INFO afd_poll_info_2;          \
-  /* Used in fast and slow mode. */       \
-  uv_req_t poll_req_1;                    \
-  uv_req_t poll_req_2;                    \
-  unsigned char submitted_events_1;       \
-  unsigned char submitted_events_2;       \
-  unsigned char mask_events_1;            \
-  unsigned char mask_events_2;            \
-  unsigned char events;
-
-#define UV_TIMER_PRIVATE_FIELDS           \
-  RB_ENTRY(uv_timer_s) tree_entry;        \
-  int64_t due;                            \
-  int64_t repeat;                         \
-  uv_timer_cb timer_cb;
-
-#define UV_ASYNC_PRIVATE_FIELDS           \
-  struct uv_req_s async_req;              \
-  uv_async_cb async_cb;                   \
-  /* char to avoid alignment issues */    \
-  char volatile async_sent;
-
-#define UV_PREPARE_PRIVATE_FIELDS         \
-  uv_prepare_t* prepare_prev;             \
-  uv_prepare_t* prepare_next;             \
-  uv_prepare_cb prepare_cb;
-
-#define UV_CHECK_PRIVATE_FIELDS           \
-  uv_check_t* check_prev;                 \
-  uv_check_t* check_next;                 \
-  uv_check_cb check_cb;
-
-#define UV_IDLE_PRIVATE_FIELDS            \
-  uv_idle_t* idle_prev;                   \
-  uv_idle_t* idle_next;                   \
-  uv_idle_cb idle_cb;
-
-#define UV_HANDLE_PRIVATE_FIELDS          \
-  uv_handle_t* endgame_next;              \
-  unsigned int flags;
-
-#define UV_GETADDRINFO_PRIVATE_FIELDS     \
-  uv_getaddrinfo_cb getaddrinfo_cb;       \
-  void* alloc;                            \
-  wchar_t* node;                          \
-  wchar_t* service;                       \
-  struct addrinfoW* hints;                \
-  struct addrinfoW* res;                  \
-  int retcode;
-
-#define UV_PROCESS_PRIVATE_FIELDS         \
-  struct uv_process_exit_s {              \
-    UV_REQ_FIELDS                         \
-  } exit_req;                             \
-  struct uv_process_close_s {             \
-    UV_REQ_FIELDS                         \
-  } close_req;                            \
-  BYTE* child_stdio_buffer;               \
-  int exit_signal;                        \
-  DWORD spawn_errno;                      \
-  HANDLE wait_handle;                     \
-  HANDLE process_handle;                  \
-  HANDLE close_handle;
-
-#define UV_FS_PRIVATE_FIELDS              \
-  int flags;                              \
-  DWORD sys_errno_;                       \
-  union {                                 \
-    /* TODO: remove me in 0.9. */         \
-    WCHAR* pathw;                         \
-    int fd;                               \
-  };                                      \
-  union {                                 \
-    struct {                              \
-      int mode;                           \
-      WCHAR* new_pathw;                   \
-      int file_flags;                     \
-      int fd_out;                         \
-      void* buf;                          \
-      size_t length;                      \
-      int64_t offset;                     \
-    };                                    \
-    struct _stati64 stat;                 \
-    struct {                              \
-      double atime;                       \
-      double mtime;                       \
-    };                                    \
+#define UV_TTY_PRIVATE_FIELDS                                                 \
+  HANDLE handle;                                                              \
+  union {                                                                     \
+    struct {                                                                  \
+      /* Used for readable TTY handles */                                     \
+      HANDLE read_line_handle;                                                \
+      uv_buf_t read_line_buffer;                                              \
+      HANDLE read_raw_wait;                                                   \
+      DWORD original_console_mode;                                            \
+      /* Fields used for translating win keystrokes into vt100 characters */  \
+      char last_key[8];                                                       \
+      unsigned char last_key_offset;                                          \
+      unsigned char last_key_len;                                             \
+      WCHAR last_utf16_high_surrogate;                                        \
+      INPUT_RECORD last_input_record;                                         \
+    };                                                                        \
+    struct {                                                                  \
+      /* Used for writable TTY handles */                                     \
+      /* utf8-to-utf16 conversion state */                                    \
+      unsigned int utf8_codepoint;                                            \
+      unsigned char utf8_bytes_left;                                          \
+      /* eol conversion state */                                              \
+      unsigned char previous_eol;                                             \
+      /* ansi parser state */                                                 \
+      unsigned char ansi_parser_state;                                        \
+      unsigned char ansi_csi_argc;                                            \
+      unsigned short ansi_csi_argv[4];                                        \
+      COORD saved_position;                                                   \
+      WORD saved_attributes;                                                  \
+    };                                                                        \
   };
 
-#define UV_WORK_PRIVATE_FIELDS            \
+#define UV_POLL_PRIVATE_FIELDS                                                \
+  SOCKET socket;                                                              \
+  /* Used in fast mode */                                                     \
+  SOCKET peer_socket;                                                         \
+  AFD_POLL_INFO afd_poll_info_1;                                              \
+  AFD_POLL_INFO afd_poll_info_2;                                              \
+  /* Used in fast and slow mode. */                                           \
+  uv_req_t poll_req_1;                                                        \
+  uv_req_t poll_req_2;                                                        \
+  unsigned char submitted_events_1;                                           \
+  unsigned char submitted_events_2;                                           \
+  unsigned char mask_events_1;                                                \
+  unsigned char mask_events_2;                                                \
+  unsigned char events;
 
-#define UV_FS_EVENT_PRIVATE_FIELDS        \
-  struct uv_fs_event_req_s {              \
-    UV_REQ_FIELDS                         \
-  } req;                                  \
-  HANDLE dir_handle;                      \
-  int req_pending;                        \
-  uv_fs_event_cb cb;                      \
-  wchar_t* filew;                         \
-  wchar_t* short_filew;                   \
-  wchar_t* dirw;                          \
+#define UV_TIMER_PRIVATE_FIELDS                                               \
+  RB_ENTRY(uv_timer_s) tree_entry;                                            \
+  int64_t due;                                                                \
+  int64_t repeat;                                                             \
+  uv_timer_cb timer_cb;
+
+#define UV_ASYNC_PRIVATE_FIELDS                                               \
+  struct uv_req_s async_req;                                                  \
+  uv_async_cb async_cb;                                                       \
+  /* char to avoid alignment issues */                                        \
+  char volatile async_sent;
+
+#define UV_PREPARE_PRIVATE_FIELDS                                             \
+  uv_prepare_t* prepare_prev;                                                 \
+  uv_prepare_t* prepare_next;                                                 \
+  uv_prepare_cb prepare_cb;
+
+#define UV_CHECK_PRIVATE_FIELDS                                               \
+  uv_check_t* check_prev;                                                     \
+  uv_check_t* check_next;                                                     \
+  uv_check_cb check_cb;
+
+#define UV_IDLE_PRIVATE_FIELDS                                                \
+  uv_idle_t* idle_prev;                                                       \
+  uv_idle_t* idle_next;                                                       \
+  uv_idle_cb idle_cb;
+
+#define UV_HANDLE_PRIVATE_FIELDS                                              \
+  uv_handle_t* endgame_next;                                                  \
+  unsigned int flags;
+
+#define UV_GETADDRINFO_PRIVATE_FIELDS                                         \
+  uv_getaddrinfo_cb getaddrinfo_cb;                                           \
+  void* alloc;                                                                \
+  WCHAR* node;                                                                \
+  WCHAR* service;                                                             \
+  struct addrinfoW* hints;                                                    \
+  struct addrinfoW* res;                                                      \
+  int retcode;
+
+#define UV_PROCESS_PRIVATE_FIELDS                                             \
+  struct uv_process_exit_s {                                                  \
+    UV_REQ_FIELDS                                                             \
+  } exit_req;                                                                 \
+  BYTE* child_stdio_buffer;                                                   \
+  uv_err_t spawn_error;                                                       \
+  int exit_signal;                                                            \
+  HANDLE wait_handle;                                                         \
+  HANDLE process_handle;                                                      \
+  volatile char exit_cb_pending;
+
+#define UV_FS_PRIVATE_FIELDS                                                  \
+  int flags;                                                                  \
+  DWORD sys_errno_;                                                           \
+  union {                                                                     \
+    /* TODO: remove me in 0.9. */                                             \
+    WCHAR* pathw;                                                             \
+    int fd;                                                                   \
+  };                                                                          \
+  union {                                                                     \
+    struct {                                                                  \
+      int mode;                                                               \
+      WCHAR* new_pathw;                                                       \
+      int file_flags;                                                         \
+      int fd_out;                                                             \
+      void* buf;                                                              \
+      size_t length;                                                          \
+      int64_t offset;                                                         \
+    };                                                                        \
+    struct _stati64 stat;                                                     \
+    struct {                                                                  \
+      double atime;                                                           \
+      double mtime;                                                           \
+    };                                                                        \
+  };
+
+#define UV_WORK_PRIVATE_FIELDS                                                \
+
+#define UV_FS_EVENT_PRIVATE_FIELDS                                            \
+  struct uv_fs_event_req_s {                                                  \
+    UV_REQ_FIELDS                                                             \
+  } req;                                                                      \
+  HANDLE dir_handle;                                                          \
+  int req_pending;                                                            \
+  uv_fs_event_cb cb;                                                          \
+  WCHAR* filew;                                                               \
+  WCHAR* short_filew;                                                         \
+  WCHAR* dirw;                                                                \
   char* buffer;
 
-int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
+#define UV_SIGNAL_PRIVATE_FIELDS                                              \
+  RB_ENTRY(uv_signal_s) tree_entry;                                           \
+  struct uv_req_s signal_req;                                                 \
+  unsigned long pending_signum;
+
+int uv_utf16_to_utf8(const WCHAR* utf16Buffer, size_t utf16Size,
     char* utf8Buffer, size_t utf8Size);
-int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer,
+int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
     size_t utf16Size);

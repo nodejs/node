@@ -71,8 +71,6 @@ int uv_timer_init(uv_loop_t* loop, uv_timer_t* handle) {
   handle->timer_cb = NULL;
   handle->repeat = 0;
 
-  loop->counters.timer_init++;
-
   return 0;
 }
 

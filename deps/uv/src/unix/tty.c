@@ -45,7 +45,6 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
     tty->flags |= UV_STREAM_BLOCKING;
   }
 
-  loop->counters.tty_init++;
   tty->mode = 0;
   return 0;
 }

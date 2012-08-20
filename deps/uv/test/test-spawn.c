@@ -65,7 +65,7 @@ static void exit_cb_failure_expected(uv_process_t* process, int exit_status,
     int term_signal) {
   printf("exit_cb\n");
   exit_cb_called++;
-  ASSERT(exit_status == 127);
+  ASSERT(exit_status == -1);
   ASSERT(term_signal == 0);
   uv_close((uv_handle_t*)process, close_cb);
 }
@@ -142,6 +142,17 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
 static void timer_cb(uv_timer_t* handle, int status) {
   uv_process_kill(&process, /* SIGTERM */ 15);
   uv_close((uv_handle_t*)handle, close_cb);
+}
+
+
+TEST_IMPL(spawn_fails) {
+  init_process_options("", exit_cb_failure_expected);
+  options.file = options.args[0] = "program-that-had-better-not-exist";
+  ASSERT(0 == uv_spawn(uv_default_loop(), &process, options));
+  ASSERT(0 != uv_is_active((uv_handle_t*)&process));
+  ASSERT(0 == uv_run(uv_default_loop()));
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ENOENT);
+  return 0;
 }
 
 
@@ -578,11 +589,11 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
 }
 
 
-wchar_t* make_program_args(char** args, int verbatim_arguments);
-wchar_t* quote_cmd_arg(const wchar_t *source, wchar_t *target);
+uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr);
+WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target);
 
 TEST_IMPL(argument_escaping) {
-  const wchar_t* test_str[] = {
+  const WCHAR* test_str[] = {
     L"HelloWorld",
     L"Hello World",
     L"Hello\"World",
@@ -594,12 +605,13 @@ TEST_IMPL(argument_escaping) {
     L"c:\\path\\to\\node.exe --eval \"require('c:\\\\path\\\\to\\\\test.js')\""
   };
   const int count = sizeof(test_str) / sizeof(*test_str);
-  wchar_t** test_output;
-  wchar_t* command_line;
-  wchar_t** cracked;
+  WCHAR** test_output;
+  WCHAR* command_line;
+  WCHAR** cracked;
   size_t total_size = 0;
   int i;
   int num_args;
+  uv_err_t result;
 
   char* verbatim[] = {
     "cmd.exe",
@@ -607,18 +619,18 @@ TEST_IMPL(argument_escaping) {
     "c:\\path\\to\\node.exe --eval \"require('c:\\\\path\\\\to\\\\test.js')\"",
     NULL
   };
-  wchar_t* verbatim_output;
-  wchar_t* non_verbatim_output;
+  WCHAR* verbatim_output;
+  WCHAR* non_verbatim_output;
 
-  test_output = calloc(count, sizeof(wchar_t*));
+  test_output = calloc(count, sizeof(WCHAR*));
   for (i = 0; i < count; ++i) {
-    test_output[i] = calloc(2 * (wcslen(test_str[i]) + 2), sizeof(wchar_t));
+    test_output[i] = calloc(2 * (wcslen(test_str[i]) + 2), sizeof(WCHAR));
     quote_cmd_arg(test_str[i], test_output[i]);
     wprintf(L"input : %s\n", test_str[i]);
     wprintf(L"output: %s\n", test_output[i]);
     total_size += wcslen(test_output[i]) + 1;
   }
-  command_line = calloc(total_size + 1, sizeof(wchar_t));
+  command_line = calloc(total_size + 1, sizeof(WCHAR));
   for (i = 0; i < count; ++i) {
     wcscat(command_line, test_output[i]);
     wcscat(command_line, L" ");
@@ -638,8 +650,10 @@ TEST_IMPL(argument_escaping) {
     free(test_output[i]);
   }
 
-  verbatim_output = make_program_args(verbatim, 1);
-  non_verbatim_output = make_program_args(verbatim, 0);
+  result = make_program_args(verbatim, 1, &verbatim_output);
+  ASSERT(result.code == UV_OK);
+  result = make_program_args(verbatim, 0, &non_verbatim_output);
+  ASSERT(result.code == UV_OK);
 
   wprintf(L"    verbatim_output: %s\n", verbatim_output);
   wprintf(L"non_verbatim_output: %s\n", non_verbatim_output);
@@ -653,7 +667,7 @@ TEST_IMPL(argument_escaping) {
   return 0;
 }
 
-wchar_t* make_program_env(char** env_block);
+WCHAR* make_program_env(char** env_block);
 
 TEST_IMPL(environment_creation) {
   int i;
@@ -666,22 +680,22 @@ TEST_IMPL(environment_creation) {
     NULL
   };
 
-  wchar_t expected[512];
-  wchar_t* ptr = expected;
-  wchar_t* result;
-  wchar_t* str;
+  WCHAR expected[512];
+  WCHAR* ptr = expected;
+  WCHAR* result;
+  WCHAR* str;
 
   for (i = 0; i < sizeof(environment) / sizeof(environment[0]) - 1; i++) {
     ptr += uv_utf8_to_utf16(environment[i], ptr, expected + sizeof(expected) - ptr);
   }
 
   memcpy(ptr, L"SYSTEMROOT=", sizeof(L"SYSTEMROOT="));
-  ptr += sizeof(L"SYSTEMROOT=")/sizeof(wchar_t) - 1;
+  ptr += sizeof(L"SYSTEMROOT=")/sizeof(WCHAR) - 1;
   ptr += GetEnvironmentVariableW(L"SYSTEMROOT", ptr, expected + sizeof(expected) - ptr);
   ++ptr;
 
   memcpy(ptr, L"SYSTEMDRIVE=", sizeof(L"SYSTEMDRIVE="));
-  ptr += sizeof(L"SYSTEMDRIVE=")/sizeof(wchar_t) - 1;
+  ptr += sizeof(L"SYSTEMDRIVE=")/sizeof(WCHAR) - 1;
   ptr += GetEnvironmentVariableW(L"SYSTEMDRIVE", ptr, expected + sizeof(expected) - ptr);
   ++ptr;
   *ptr = '\0';

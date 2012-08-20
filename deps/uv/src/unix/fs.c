@@ -72,6 +72,7 @@ static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req, uv_fs_type fs_type,
   req->result = 0;
   req->ptr = NULL;
   req->path = path ? strdup(path) : NULL;
+  req->file = -1;
   req->errorno = 0;
   req->eio = NULL;
 
@@ -85,7 +86,7 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
   if (req->cb)
     uv__req_unregister(req->loop, req);
 
-  free(req->path);
+  free((void*)req->path);
   req->path = NULL;
 
   switch (req->fs_type) {
@@ -445,6 +446,20 @@ int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 }
 
 
+#if defined(__APPLE__) && defined(F_FULLFSYNC)
+ssize_t uv__fs_fdatasync(uv_file file) {
+  return fcntl(file, F_FULLFSYNC);
+}
+
+
+void uv__fs_fdatasync_work(eio_req* eio) {
+  uv_fs_t* req = eio->data;
+
+  eio->result = uv__fs_fdatasync(req->file);
+}
+#endif
+
+
 int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
   char* path = NULL;
 #if defined(__FreeBSD__) \
@@ -453,6 +468,31 @@ int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
    * do a full fsync instead.
    */
   WRAP_EIO(UV_FS_FDATASYNC, eio_fdatasync, fsync, ARGS1(file))
+#elif defined(__APPLE__) && defined(F_FULLFSYNC)
+  /* OSX >= 10.6 does have fdatasync, but better use fcntl anyway */
+  uv_fs_req_init(loop, req, UV_FS_FDATASYNC, path, cb);
+  req->file = file;
+
+  if (cb) {
+    /* async */
+    req->eio = eio_custom(uv__fs_fdatasync_work,
+                          EIO_PRI_DEFAULT,
+                          uv__fs_after,
+                          req,
+                          &loop->uv_eio_channel);
+    if (req->eio == NULL) {
+      uv__set_sys_error(loop, ENOMEM);
+      return -1;
+    }
+  } else {
+    /* sync */
+    req->result = uv__fs_fdatasync(file);
+    if (req->result) {
+      uv__set_sys_error(loop, errno);
+    }
+    return req->result;
+  }
+  return 0;
 #else
   WRAP_EIO(UV_FS_FDATASYNC, eio_fdatasync, fdatasync, ARGS1(file))
 #endif

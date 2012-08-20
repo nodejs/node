@@ -22,13 +22,16 @@
 #include "uv.h"
 #include "internal.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include <errno.h>
+
+#include <sys/types.h>
 #include <sys/wait.h>
-#include <poll.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #ifdef __APPLE__
 # include <TargetConditionals.h>
@@ -42,26 +45,71 @@ extern char **environ;
 #endif
 
 
-static void uv__chld(EV_P_ ev_child* watcher, int revents) {
-  int status = watcher->rstatus;
-  int exit_status = 0;
-  int term_signal = 0;
-  uv_process_t *process = watcher->data;
+static ngx_queue_t* uv__process_queue(uv_loop_t* loop, int pid) {
+  assert(pid > 0);
+  return loop->process_handles + pid % ARRAY_SIZE(loop->process_handles);
+}
 
-  assert(&process->child_watcher == watcher);
-  assert(revents & EV_CHILD);
 
-  ev_child_stop(EV_A_ &process->child_watcher);
+static uv_process_t* uv__process_find(uv_loop_t* loop, int pid) {
+  uv_process_t* handle;
+  ngx_queue_t* h;
+  ngx_queue_t* q;
 
-  if (WIFEXITED(status)) {
-    exit_status = WEXITSTATUS(status);
+  h = uv__process_queue(loop, pid);
+
+  ngx_queue_foreach(q, h) {
+    handle = ngx_queue_data(q, uv_process_t, queue);
+    if (handle->pid == pid) return handle;
   }
 
-  if (WIFSIGNALED(status)) {
-    term_signal = WTERMSIG(status);
-  }
+  return NULL;
+}
 
-  if (process->exit_cb) {
+
+static void uv__chld(uv_signal_t* handle, int signum) {
+  uv_process_t* process;
+  int exit_status;
+  int term_signal;
+  int status;
+  pid_t pid;
+
+  assert(signum == SIGCHLD);
+
+  for (;;) {
+    pid = waitpid(-1, &status, WNOHANG);
+
+    if (pid == 0)
+      return;
+
+    if (pid == -1) {
+      if (errno == ECHILD)
+        return; /* XXX stop signal watcher? */
+      else
+        abort();
+    }
+
+    process = uv__process_find(handle->loop, pid);
+    if (process == NULL)
+      continue; /* XXX bug? abort? */
+
+    if (process->exit_cb == NULL)
+      continue;
+
+    exit_status = 0;
+    term_signal = 0;
+
+    if (WIFEXITED(status))
+      exit_status = WEXITSTATUS(status);
+
+    if (WIFSIGNALED(status))
+      term_signal = WTERMSIG(status);
+
+    if (process->errorno) {
+      uv__set_sys_error(process->loop, process->errorno);
+      exit_status = -1; /* execve() failed */
+    }
+
     process->exit_cb(process, exit_status, term_signal);
   }
 }
@@ -122,8 +170,7 @@ int uv__make_pipe(int fds[2], int flags) {
  * Used for initializing stdio streams like options.stdin_stream. Returns
  * zero on success.
  */
-static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2],
-                                  int writable) {
+static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
   int fd = -1;
   switch (container->flags & (UV_IGNORE | UV_CREATE_PIPE | UV_INHERIT_FD |
                               UV_INHERIT_STREAM)) {
@@ -151,7 +198,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2],
         return -1;
       }
 
-      fds[writable ? 1 : 0] = fd;
+      fds[1] = fd;
 
       return 0;
     default:
@@ -174,16 +221,19 @@ static int uv__process_stdio_flags(uv_stdio_container_t* container,
 }
 
 
-static int uv__process_open_stream(uv_stdio_container_t* container, int fds[2],
+static int uv__process_open_stream(uv_stdio_container_t* container,
+                                   int fds[2],
                                    int writable) {
-  int fd = fds[writable ? 1 : 0];
-  int child_fd = fds[writable ? 0 : 1];
+  int child_fd;
   int flags;
+  int fd;
+
+  fd = fds[0];
+  child_fd = fds[1];
 
   /* No need to create stream */
-  if (!(container->flags & UV_CREATE_PIPE) || fd < 0) {
+  if (!(container->flags & UV_CREATE_PIPE) || fd < 0)
     return 0;
-  }
 
   assert(child_fd >= 0);
   close(child_fd);
@@ -197,62 +247,78 @@ static int uv__process_open_stream(uv_stdio_container_t* container, int fds[2],
 
 static void uv__process_close_stream(uv_stdio_container_t* container) {
   if (!(container->flags & UV_CREATE_PIPE)) return;
-
   uv__stream_close((uv_stream_t*)container->data.stream);
+}
+
+
+static void uv__write_int(int fd, int val) {
+  ssize_t n;
+
+  do
+    n = write(fd, &val, sizeof(val));
+  while (n == -1 && errno == EINTR);
+
+  if (n == -1 && errno == EPIPE)
+    return; /* parent process has quit */
+
+  assert(n == sizeof(val));
 }
 
 
 static void uv__process_child_init(uv_process_options_t options,
                                    int stdio_count,
-                                   int* pipes) {
+                                   int (*pipes)[2],
+                                   int error_fd) {
+  int close_fd;
+  int use_fd;
   int i;
 
-  if (options.flags & UV_PROCESS_DETACHED) {
+  if (options.flags & UV_PROCESS_DETACHED)
     setsid();
-  }
 
-  /* Dup fds */
   for (i = 0; i < stdio_count; i++) {
-    /*
-     * stdin has swapped ends of pipe
-     * (it's the only one readable stream)
-     */
-    int close_fd = i == 0 ? pipes[i * 2 + 1] : pipes[i * 2];
-    int use_fd = i == 0 ? pipes[i * 2] : pipes[i * 2 + 1];
+    close_fd = pipes[i][0];
+    use_fd = pipes[i][1];
 
-    if (use_fd >= 0) {
+    if (use_fd >= 0)
       close(close_fd);
-    } else if (i < 3) {
-      /* `/dev/null` stdin, stdout, stderr even if they've flag UV_IGNORE */
+    else if (i >= 3)
+      continue;
+    else {
+      /* redirect stdin, stdout and stderr to /dev/null even if UV_IGNORE is
+       * set
+       */
       use_fd = open("/dev/null", i == 0 ? O_RDONLY : O_RDWR);
 
-      if (use_fd < 0) {
+      if (use_fd == -1) {
+        uv__write_int(error_fd, errno);
         perror("failed to open stdio");
         _exit(127);
       }
-    } else {
-      continue;
     }
 
-    if (i != use_fd) {
+    if (i == use_fd)
+      uv__cloexec(use_fd, 0);
+    else {
       dup2(use_fd, i);
       close(use_fd);
-    } else {
-      uv__cloexec(use_fd, 0);
     }
   }
 
   if (options.cwd && chdir(options.cwd)) {
+    uv__write_int(error_fd, errno);
     perror("chdir()");
     _exit(127);
   }
 
   if ((options.flags & UV_PROCESS_SETGID) && setgid(options.gid)) {
+    uv__write_int(error_fd, errno);
     perror("setgid()");
     _exit(127);
   }
 
   if ((options.flags & UV_PROCESS_SETUID) && setuid(options.uid)) {
+    uv__write_int(error_fd, errno);
     perror("setuid()");
     _exit(127);
   }
@@ -260,38 +326,22 @@ static void uv__process_child_init(uv_process_options_t options,
   environ = options.env;
 
   execvp(options.file, options.args);
+  uv__write_int(error_fd, errno);
   perror("execvp()");
   _exit(127);
 }
 
 
-#ifndef SPAWN_WAIT_EXEC
-# define SPAWN_WAIT_EXEC 1
-#endif
-
-int uv_spawn(uv_loop_t* loop, uv_process_t* process,
-    uv_process_options_t options) {
-  /*
-   * Save environ in the case that we get it clobbered
-   * by the child process.
-   */
-  char** save_our_env = environ;
-
-  int stdio_count = options.stdio_count < 3 ? 3 : options.stdio_count;
-  int* pipes = malloc(2 * stdio_count * sizeof(int));
-
-#if SPAWN_WAIT_EXEC
+int uv_spawn(uv_loop_t* loop,
+             uv_process_t* process,
+             const uv_process_options_t options) {
   int signal_pipe[2] = { -1, -1 };
-  struct pollfd pfd;
-#endif
-  int status;
+  int (*pipes)[2];
+  int stdio_count;
+  ngx_queue_t* q;
+  ssize_t r;
   pid_t pid;
   int i;
-
-  if (pipes == NULL) {
-    errno = ENOMEM;
-    goto error;
-  }
 
   assert(options.file != NULL);
   assert(!(options.flags & ~(UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
@@ -299,24 +349,34 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
                              UV_PROCESS_SETGID |
                              UV_PROCESS_SETUID)));
 
-
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
-  loop->counters.process_init++;
-  uv__handle_start(process);
+  ngx_queue_init(&process->queue);
 
-  process->exit_cb = options.exit_cb;
+  stdio_count = options.stdio_count;
+  if (stdio_count < 3)
+    stdio_count = 3;
 
-  /* Init pipe pairs */
-  for (i = 0; i < stdio_count; i++) {
-    pipes[i * 2] = -1;
-    pipes[i * 2 + 1] = -1;
+  pipes = malloc(stdio_count * sizeof(*pipes));
+  if (pipes == NULL) {
+    errno = ENOMEM;
+    goto error;
   }
 
-  /* Create socketpairs/pipes, or use raw fd */
-  for (i = 0; i < options.stdio_count; i++) {
-    if (uv__process_init_stdio(&options.stdio[i], pipes + i * 2, i != 0)) {
+  for (i = 0; i < stdio_count; i++) {
+    pipes[i][0] = -1;
+    pipes[i][1] = -1;
+  }
+
+  for (i = 0; i < options.stdio_count; i++)
+    if (uv__process_init_stdio(options.stdio + i, pipes[i]))
       goto error;
-    }
+
+  /* swap stdin file descriptors, it's the only writable stream */
+  {
+    int* p = pipes[0];
+    int t = p[0];
+    p[0] = p[1];
+    p[1] = t;
   }
 
   /* This pipe is used by the parent to wait until
@@ -337,81 +397,68 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
    *
    * To avoid ambiguity, we create a pipe with both ends
    * marked close-on-exec. Then, after the call to `fork()`,
-   * the parent polls the read end until it sees POLLHUP.
+   * the parent polls the read end until it EOFs or errors with EPIPE.
    */
-#if SPAWN_WAIT_EXEC
-  if (uv__make_pipe(signal_pipe, UV__F_NONBLOCK))
+  if (uv__make_pipe(signal_pipe, 0))
     goto error;
-#endif
+
+  uv_signal_start(&loop->child_watcher, uv__chld, SIGCHLD);
 
   pid = fork();
 
   if (pid == -1) {
-#if SPAWN_WAIT_EXEC
     close(signal_pipe[0]);
     close(signal_pipe[1]);
-#endif
-    environ = save_our_env;
     goto error;
   }
 
   if (pid == 0) {
-    /* Child */
-    uv__process_child_init(options, stdio_count, pipes);
-
-    /* Execution never reaches here. */
+    uv__process_child_init(options, stdio_count, pipes, signal_pipe[1]);
+    abort();
   }
 
-  /* Parent. */
-
-  /* Restore environment. */
-  environ = save_our_env;
-
-#if SPAWN_WAIT_EXEC
-  /* POLLHUP signals child has exited or execve()'d. */
   close(signal_pipe[1]);
-  do {
-    pfd.fd = signal_pipe[0];
-    pfd.events = POLLIN|POLLHUP;
-    pfd.revents = 0;
-    errno = 0, status = poll(&pfd, 1, -1);
-  }
-  while (status == -1 && (errno == EINTR || errno == ENOMEM));
 
-  assert((status == 1) && "poll() on pipe read end failed");
+  process->errorno = 0;
+  do
+    r = read(signal_pipe[0], &process->errorno, sizeof(process->errorno));
+  while (r == -1 && errno == EINTR);
+
+  if (r == 0)
+    ; /* okay, EOF */
+  else if (r == sizeof(process->errorno))
+    ; /* okay, read errorno */
+  else if (r == -1 && errno == EPIPE)
+    ; /* okay, got EPIPE */
+  else
+    abort();
+
   close(signal_pipe[0]);
-#endif
-
-  process->pid = pid;
-
-  ev_child_init(&process->child_watcher, uv__chld, pid, 0);
-  ev_child_start(process->loop->ev, &process->child_watcher);
-  process->child_watcher.data = process;
 
   for (i = 0; i < options.stdio_count; i++) {
-    if (uv__process_open_stream(&options.stdio[i], pipes + i * 2, i == 0)) {
-      int j;
-      /* Close all opened streams */
-      for (j = 0; j < i; j++) {
-        uv__process_close_stream(&options.stdio[j]);
-      }
-
+    if (uv__process_open_stream(options.stdio + i, pipes[i], i == 0)) {
+      while (i--) uv__process_close_stream(options.stdio + i);
       goto error;
     }
   }
 
-  free(pipes);
+  q = uv__process_queue(loop, pid);
+  ngx_queue_insert_tail(q, &process->queue);
 
+  process->pid = pid;
+  process->exit_cb = options.exit_cb;
+  uv__handle_start(process);
+
+  free(pipes);
   return 0;
 
 error:
   uv__set_sys_error(process->loop, errno);
 
   for (i = 0; i < stdio_count; i++) {
-    close(pipes[i * 2]);
-    close(pipes[i * 2 + 1]);
+    close(pipes[i][0]);
+    close(pipes[i][1]);
   }
-
   free(pipes);
 
   return -1;
@@ -442,6 +489,7 @@ uv_err_t uv_kill(int pid, int signum) {
 
 
 void uv__process_close(uv_process_t* handle) {
-  ev_child_stop(handle->loop->ev, &handle->child_watcher);
+  /* TODO stop signal watcher when this is the last handle */
+  ngx_queue_remove(&handle->queue);
   uv__handle_stop(handle);
 }

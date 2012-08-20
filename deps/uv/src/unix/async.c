@@ -65,8 +65,6 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
     return uv__set_sys_error(loop, errno);
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_ASYNC);
-  loop->counters.async_init++;
-
   handle->async_cb = async_cb;
   handle->pending = 0;
 

@@ -74,7 +74,7 @@ void uv__util_init() {
 }
 
 
-int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
+int uv_utf16_to_utf8(const WCHAR* utf16Buffer, size_t utf16Size,
     char* utf8Buffer, size_t utf8Size) {
   return WideCharToMultiByte(CP_UTF8,
                              0,
@@ -87,7 +87,7 @@ int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
 }
 
 
-int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer,
+int uv_utf8_to_utf16(const char* utf8Buffer, WCHAR* utf16Buffer,
     size_t utf16Size) {
   return MultiByteToWideChar(CP_UTF8,
                              0,
@@ -113,7 +113,7 @@ int uv_exepath(char* buffer, size_t* size_ptr) {
     utf16_buffer_len = (int) *size_ptr;
   }
 
-  utf16_buffer = (wchar_t*) malloc(sizeof(WCHAR) * utf16_buffer_len);
+  utf16_buffer = (WCHAR*) malloc(sizeof(WCHAR) * utf16_buffer_len);
   if (!utf16_buffer) {
     return -1;
   }
@@ -340,7 +340,7 @@ char** uv_setup_args(int argc, char** argv) {
 uv_err_t uv_set_process_title(const char* title) {
   uv_err_t err;
   int length;
-  wchar_t* title_w = NULL;
+  WCHAR* title_w = NULL;
 
   uv__once_init();
 
@@ -352,7 +352,7 @@ uv_err_t uv_set_process_title(const char* title) {
   }
 
   /* Convert to wide-char string */
-  title_w = (wchar_t*)malloc(sizeof(wchar_t) * length);
+  title_w = (WCHAR*)malloc(sizeof(WCHAR) * length);
   if (!title_w) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
@@ -387,7 +387,7 @@ done:
 
 
 static int uv__get_process_title() {
-  wchar_t title_w[MAX_TITLE_LENGTH];
+  WCHAR title_w[MAX_TITLE_LENGTH];
   int length;
 
   if (!GetConsoleTitleW(title_w, sizeof(title_w) / sizeof(WCHAR))) {

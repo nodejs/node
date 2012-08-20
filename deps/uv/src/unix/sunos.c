@@ -63,6 +63,19 @@
 #endif
 
 
+int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+  loop->fs_fd = -1;
+  return 0;
+}
+
+
+void uv__platform_loop_delete(uv_loop_t* loop) {
+  if (loop->fs_fd == -1) return;
+  close(loop->fs_fd);
+  loop->fs_fd = -1;
+}
+
+
 uint64_t uv_hrtime() {
   return (gethrtime());
 }
@@ -183,8 +196,6 @@ int uv_fs_event_init(uv_loop_t* loop,
   int portfd;
   int first_run = 0;
 
-  loop->counters.fs_event_init++;
-
   /* We don't support any flags yet. */
   assert(!flags);
   if (loop->fs_fd == -1) {
@@ -233,7 +244,6 @@ int uv_fs_event_init(uv_loop_t* loop,
                      const char* filename,
                      uv_fs_event_cb cb,
                      int flags) {
-  loop->counters.fs_event_init++;
   uv__set_sys_error(loop, ENOSYS);
   return -1;
 }
@@ -344,8 +354,10 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
       cpu_info->model = NULL;
     } else {
       knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clock_MHz");
-      assert(knp->data_type == KSTAT_DATA_INT32);
-      cpu_info->speed = knp->value.i32;
+      assert(knp->data_type == KSTAT_DATA_INT32 ||
+             knp->data_type == KSTAT_DATA_INT64);
+      cpu_info->speed = (knp->data_type == KSTAT_DATA_INT32) ? knp->value.i32
+                                                             : knp->value.i64;
 
       knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"brand");
       assert(knp->data_type == KSTAT_DATA_STRING);

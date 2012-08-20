@@ -558,8 +558,6 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
   handle->poll_req_2.type = UV_POLL_REQ;
   handle->poll_req_2.data = handle;
 
-  loop->counters.poll_init++;
-
   return 0;
 }
 

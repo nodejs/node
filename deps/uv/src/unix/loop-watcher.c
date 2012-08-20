@@ -25,7 +25,6 @@
 #define UV_LOOP_WATCHER_DEFINE(name, type)                                    \
   int uv_##name##_init(uv_loop_t* loop, uv_##name##_t* handle) {              \
     uv__handle_init(loop, (uv_handle_t*)handle, UV_##type);                   \
-    loop->counters.name##_init++;                                             \
     handle->name##_cb = NULL;                                                 \
     return 0;                                                                 \
   }                                                                           \

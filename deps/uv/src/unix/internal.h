@@ -82,7 +82,7 @@
 #define UV__IO_WRITE EV_WRITE
 #define UV__IO_ERROR EV_ERROR
 
-/* flags */
+/* handle flags */
 enum {
   UV_CLOSING          = 0x01,   /* uv_close() called but not finished. */
   UV_CLOSED           = 0x02,   /* close(2) finished. */
@@ -97,10 +97,14 @@ enum {
   UV_TCP_SINGLE_ACCEPT = 0x400  /* Only accept() when idle. */
 };
 
+/* loop flags */
+enum {
+  UV_LOOP_EIO_INITIALIZED = 1
+};
+
 inline static void uv__req_init(uv_loop_t* loop,
                                 uv_req_t* req,
                                 uv_req_type type) {
-  loop->counters.req_init++;
   req->type = type;
   uv__req_register(loop, req);
 }
@@ -152,6 +156,14 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 /* timer */
 void uv__run_timers(uv_loop_t* loop);
 unsigned int uv__next_timeout(uv_loop_t* loop);
+
+/* signal */
+void uv__signal_close(uv_signal_t* handle);
+void uv__signal_unregister(uv_loop_t* loop);
+
+/* platform specific */
+int uv__platform_loop_init(uv_loop_t* loop, int default_loop);
+void uv__platform_loop_delete(uv_loop_t* loop);
 
 /* various */
 void uv__async_close(uv_async_t* handle);

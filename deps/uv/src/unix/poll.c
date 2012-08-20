@@ -54,8 +54,6 @@ static void uv__poll_io(uv_loop_t* loop, uv__io_t* w, int events) {
 
 int uv_poll_init(uv_loop_t* loop, uv_poll_t* handle, int fd) {
   uv__handle_init(loop, (uv_handle_t*) handle, UV_POLL);
-  loop->counters.poll_init++;
-
   handle->fd = fd;
   handle->poll_cb = NULL;
   uv__io_init(&handle->io_watcher, uv__poll_io, fd, 0);

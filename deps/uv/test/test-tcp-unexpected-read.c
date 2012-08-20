@@ -107,7 +107,7 @@ TEST_IMPL(tcp_unexpected_read) {
    * start busy looping when the server sends a message and the client isn't
    * reading.
    */
-  ASSERT(ticks <= 10);
+  ASSERT(ticks <= 20);
 
   return 0;
 }

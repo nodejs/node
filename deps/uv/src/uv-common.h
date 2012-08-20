@@ -158,7 +158,6 @@ UNUSED static void uv__handle_unref(uv_handle_t* h) {
 UNUSED static void uv__handle_init(uv_loop_t* loop,
                                    uv_handle_t* handle,
                                    uv_handle_type type) {
-  loop->counters.handle_init++;
   handle->loop = loop;
   handle->type = type;
   handle->flags = UV__HANDLE_REF; /* ref the loop when active */

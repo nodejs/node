@@ -30,7 +30,6 @@
 
 int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
   uv__stream_init(loop, (uv_stream_t*)tcp, UV_TCP);
-  loop->counters.tcp_init++;
   tcp->idle_handle = NULL;
   return 0;
 }

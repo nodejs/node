@@ -42,7 +42,7 @@ const char* fmt(double d) {
   char* p;
 
   p = (char *) calloc(1, 32) + 31; /* leaks memory */
-  v = d;
+  v = (uint64_t) d;
 
 #if 0 /* works but we don't care about fractional precision */
   if (d - v >= 0.01) {

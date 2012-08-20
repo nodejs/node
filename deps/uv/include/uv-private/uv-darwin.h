@@ -19,49 +19,19 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_WIN_STREAM_INL_H_
-#define UV_WIN_STREAM_INL_H_
+#ifndef UV_DARWIN_H
+#define UV_DARWIN_H
 
-#include <assert.h>
+#if defined(__APPLE__) && defined(__MACH__)
+# include <mach/mach.h>
+# include <mach/task.h>
+# include <mach/semaphore.h>
+# define UV_PLATFORM_SEM_T semaphore_t
+#endif
 
-#include "uv.h"
-#include "internal.h"
-#include "handle-inl.h"
-#include "req-inl.h"
+#define UV_PLATFORM_FS_EVENT_FIELDS                                           \
+  ev_io event_watcher;                                                        \
+  int fflags;                                                                 \
+  int fd;                                                                     \
 
-
-INLINE static void uv_stream_init(uv_loop_t* loop,
-                                  uv_stream_t* handle,
-                                  uv_handle_type type) {
-  uv__handle_init(loop, (uv_handle_t*) handle, type);
-  handle->write_queue_size = 0;
-  handle->activecnt = 0;
-}
-
-
-INLINE static void uv_connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
-  handle->write_reqs_pending = 0;
-
-  uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
-  handle->read_req.event_handle = NULL;
-  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
-  handle->read_req.type = UV_READ;
-  handle->read_req.data = handle;
-
-  handle->shutdown_req = NULL;
-}
-
-
-INLINE static size_t uv_count_bufs(uv_buf_t bufs[], int count) {
-  size_t bytes = 0;
-  int i;
-
-  for (i = 0; i < count; i++) {
-    bytes += (size_t)bufs[i].len;
-  }
-
-  return bytes;
-}
-
-#endif /* UV_WIN_STREAM_INL_H_ */
+#endif /* UV_DARWIN_H */

@@ -28,10 +28,13 @@
 
 
 int uv__loop_init(uv_loop_t* loop, int default_loop) {
+  unsigned int i;
+  int flags;
+
 #if HAVE_KQUEUE
-  int flags = EVBACKEND_KQUEUE;
+  flags = EVBACKEND_KQUEUE;
 #else
-  int flags = EVFLAG_AUTO;
+  flags = EVFLAG_AUTO;
 #endif
 
   memset(loop, 0, sizeof(*loop));
@@ -44,6 +47,7 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   ngx_queue_init(&loop->prepare_handles);
   ngx_queue_init(&loop->handle_queue);
   loop->closing_handles = NULL;
+  loop->signal_ctx = NULL;
   loop->time = uv_hrtime() / 1000000;
   loop->async_pipefd[0] = -1;
   loop->async_pipefd[1] = -1;
@@ -51,28 +55,22 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   ev_set_userdata(loop->ev, loop);
   eio_channel_init(&loop->uv_eio_channel, loop);
 
-#if __linux__
-  loop->inotify_watchers = NULL;
-  loop->inotify_fd = -1;
-#endif
-#if HAVE_PORTS_FS
-  loop->fs_fd = -1;
-#endif
+  uv_signal_init(loop, &loop->child_watcher);
+  uv__handle_unref(&loop->child_watcher);
+  loop->child_watcher.flags |= UV__HANDLE_INTERNAL;
+
+  for (i = 0; i < ARRAY_SIZE(loop->process_handles); i++)
+    ngx_queue_init(loop->process_handles + i);
+
+  if (uv__platform_loop_init(loop, default_loop))
+    return -1;
+
   return 0;
 }
 
 
 void uv__loop_delete(uv_loop_t* loop) {
+  uv__platform_loop_delete(loop);
+  uv__signal_unregister(loop);
   ev_loop_destroy(loop->ev);
-#if __linux__
-  if (loop->inotify_fd != -1) {
-    uv__io_stop(loop, &loop->inotify_read_watcher);
-    close(loop->inotify_fd);
-    loop->inotify_fd = -1;
-  }
-#endif
-#if HAVE_PORTS_FS
-  if (loop->fs_fd != -1)
-    close(loop->fs_fd);
-#endif
 }

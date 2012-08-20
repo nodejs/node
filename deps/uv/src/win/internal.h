@@ -74,9 +74,10 @@
 #define UV_HANDLE_PIPESERVER                    0x02000000
 
 /* Only used by uv_tty_t handles. */
-#define UV_HANDLE_TTY_RAW                       0x01000000
-#define UV_HANDLE_TTY_SAVED_POSITION            0x02000000
-#define UV_HANDLE_TTY_SAVED_ATTRIBUTES          0x04000000
+#define UV_HANDLE_TTY_READABLE                  0x01000000
+#define UV_HANDLE_TTY_RAW                       0x02000000
+#define UV_HANDLE_TTY_SAVED_POSITION            0x04000000
+#define UV_HANDLE_TTY_SAVED_ATTRIBUTES          0x08000000
 
 /* Only used by uv_poll_t handles. */
 #define UV_HANDLE_POLL_SLOW                     0x02000000
@@ -134,7 +135,7 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle);
 /*
  * Pipes
  */
-int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
+uv_err_t uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
     char* name, size_t nameSize);
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
@@ -232,10 +233,22 @@ void uv_process_async_wakeup_req(uv_loop_t* loop, uv_async_t* handle,
 
 
 /*
+ * Signal watcher
+ */
+void uv_signals_init();
+int uv__signal_dispatch(int signum);
+
+void uv_signal_close(uv_loop_t* loop, uv_signal_t* handle);
+void uv_signal_endgame(uv_loop_t* loop, uv_signal_t* handle);
+
+void uv_process_signal_req(uv_loop_t* loop, uv_signal_t* handle,
+    uv_req_t* req);
+
+
+/*
  * Spawn
  */
 void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle);
-void uv_process_proc_close(uv_loop_t* loop, uv_process_t* handle);
 void uv_process_close(uv_loop_t* loop, uv_process_t* handle);
 void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle);
 
@@ -287,7 +300,7 @@ uv_err_code uv_translate_sys_error(int sys_errno);
 /*
  * Process stdio handles.
  */
-int uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
+uv_err_t uv__stdio_create(uv_loop_t* loop, uv_process_options_t* options,
     BYTE** buffer_ptr);
 void uv__stdio_destroy(BYTE* buffer);
 void uv__stdio_noinherit(BYTE* buffer);

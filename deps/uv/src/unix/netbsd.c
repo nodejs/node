@@ -35,10 +35,19 @@
 #define NANOSEC ((uint64_t) 1e9)
 
 
+int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+  return 0;
+}
+
+
+void uv__platform_loop_delete(uv_loop_t* loop) {
+}
+
+
 uint64_t uv_hrtime(void) {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (ts.tv_sec * NANOSEC + ts.tv_nsec);
+  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
 
 void uv_loadavg(double avg[3]) {

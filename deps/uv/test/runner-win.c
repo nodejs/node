@@ -103,8 +103,8 @@ int process_start(char *name, char *part, process_info_t *p) {
     goto error;
 
   if (part) {
-    if (_snwprintf((wchar_t*)args,
-                   sizeof(args) / sizeof(wchar_t),
+    if (_snwprintf((WCHAR*)args,
+                   sizeof(args) / sizeof(WCHAR),
                    L"\"%s\" %S %S",
                    image,
                    name,
@@ -112,8 +112,8 @@ int process_start(char *name, char *part, process_info_t *p) {
       goto error;
     }
   } else {
-    if (_snwprintf((wchar_t*)args,
-                   sizeof(args) / sizeof(wchar_t),
+    if (_snwprintf((WCHAR*)args,
+                   sizeof(args) / sizeof(WCHAR),
                    L"\"%s\" %S",
                    image,
                    name) < 0) {

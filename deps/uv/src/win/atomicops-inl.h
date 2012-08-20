@@ -19,49 +19,38 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_WIN_STREAM_INL_H_
-#define UV_WIN_STREAM_INL_H_
-
-#include <assert.h>
+#ifndef UV_WIN_ATOMICOPS_INL_H_
+#define UV_WIN_ATOMICOPS_INL_H_
 
 #include "uv.h"
-#include "internal.h"
-#include "handle-inl.h"
-#include "req-inl.h"
 
 
-INLINE static void uv_stream_init(uv_loop_t* loop,
-                                  uv_stream_t* handle,
-                                  uv_handle_type type) {
-  uv__handle_init(loop, (uv_handle_t*) handle, type);
-  handle->write_queue_size = 0;
-  handle->activecnt = 0;
+/* Atomic set operation on char */
+#ifdef _MSC_VER /* MSVC */
+
+/* _InterlockedOr8 is supported by MSVC on x32 and x64. It is  slightly less */
+/* efficient than InterlockedExchange, but InterlockedExchange8 does not */
+/* exist, and interlocked operations on larger targets might require the */
+/* target to be aligned. */
+#pragma intrinsic(_InterlockedOr8)
+
+static char __declspec(inline) uv__atomic_exchange_set(char volatile* target) {
+  return _InterlockedOr8(target, 1);
 }
 
+#else /* GCC */
 
-INLINE static void uv_connection_init(uv_stream_t* handle) {
-  handle->flags |= UV_HANDLE_CONNECTION;
-  handle->write_reqs_pending = 0;
-
-  uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
-  handle->read_req.event_handle = NULL;
-  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
-  handle->read_req.type = UV_READ;
-  handle->read_req.data = handle;
-
-  handle->shutdown_req = NULL;
+/* Mingw-32 version, hopefully this works for 64-bit gcc as well. */
+static inline char uv__atomic_exchange_set(char volatile* target) {
+  const char one = 1;
+  char old_value;
+  __asm__ __volatile__ ("lock xchgb %0, %1\n\t"
+                        : "=r"(old_value), "=m"(*target)
+                        : "0"(one), "m"(*target)
+                        : "memory");
+  return old_value;
 }
 
+#endif
 
-INLINE static size_t uv_count_bufs(uv_buf_t bufs[], int count) {
-  size_t bytes = 0;
-  int i;
-
-  for (i = 0; i < count; i++) {
-    bytes += (size_t)bufs[i].len;
-  }
-
-  return bytes;
-}
-
-#endif /* UV_WIN_STREAM_INL_H_ */
+#endif /* UV_WIN_ATOMICOPS_INL_H_ */

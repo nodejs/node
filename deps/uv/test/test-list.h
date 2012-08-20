@@ -123,6 +123,7 @@ TEST_DECLARE   (getsockname_tcp)
 TEST_DECLARE   (getsockname_udp)
 TEST_DECLARE   (fail_always)
 TEST_DECLARE   (pass_always)
+TEST_DECLARE   (spawn_fails)
 TEST_DECLARE   (spawn_exit_code)
 TEST_DECLARE   (spawn_stdout)
 TEST_DECLARE   (spawn_stdin)
@@ -174,11 +175,12 @@ TEST_DECLARE   (thread_rwlock)
 TEST_DECLARE   (thread_create)
 TEST_DECLARE   (strlcpy)
 TEST_DECLARE   (strlcat)
-TEST_DECLARE   (counters_init)
 TEST_DECLARE   (dlerror)
 TEST_DECLARE   (poll_duplex)
 TEST_DECLARE   (poll_unidirectional)
 TEST_DECLARE   (poll_close)
+TEST_DECLARE   (we_get_signal)
+TEST_DECLARE   (we_get_signals)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -350,6 +352,7 @@ TASK_LIST_START
   TEST_ENTRY  (poll_unidirectional)
   TEST_ENTRY  (poll_close)
 
+  TEST_ENTRY  (spawn_fails)
   TEST_ENTRY  (spawn_exit_code)
   TEST_ENTRY  (spawn_stdout)
   TEST_ENTRY  (spawn_stdin)
@@ -364,6 +367,10 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_stdout_to_file)
   TEST_ENTRY  (fs_poll)
   TEST_ENTRY  (kill)
+
+  TEST_ENTRY  (we_get_signal)
+  TEST_ENTRY  (we_get_signals)
+
 #ifdef _WIN32
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
   TEST_ENTRY  (argument_escaping)
@@ -411,7 +418,6 @@ TASK_LIST_START
   TEST_ENTRY  (thread_create)
   TEST_ENTRY  (strlcpy)
   TEST_ENTRY  (strlcat)
-  TEST_ENTRY  (counters_init)
   TEST_ENTRY  (dlerror)
 #if 0
   /* These are for testing the test runner. */

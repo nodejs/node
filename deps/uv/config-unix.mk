@@ -37,6 +37,7 @@ OBJS += src/unix/loop-watcher.o
 OBJS += src/unix/pipe.o
 OBJS += src/unix/poll.o
 OBJS += src/unix/process.o
+OBJS += src/unix/signal.o
 OBJS += src/unix/stream.o
 OBJS += src/unix/tcp.o
 OBJS += src/unix/thread.o

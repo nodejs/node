@@ -55,6 +55,9 @@ static void uv_init(void) {
   /* Initialize FS */
   uv_fs_init();
 
+  /* Initialize signal stuff */
+  uv_signals_init();
+
   /* Initialize console */
   uv_console_init();
 
@@ -96,8 +99,6 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->active_udp_streams = 0;
 
   loop->last_err = uv_ok_;
-
-  memset(&loop->counters, 0, sizeof loop->counters);
 }
 
 

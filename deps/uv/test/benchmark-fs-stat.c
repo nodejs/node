@@ -26,7 +26,7 @@
 #include <stdlib.h>
 
 #define NUM_SYNC_REQS         (10 * 1e5)
-#define NUM_ASYNC_REQS        (1 * 1e5)
+#define NUM_ASYNC_REQS        (1 * (int) 1e5)
 #define MAX_CONCURRENT_REQS   32
 
 #define sync_stat(req, path)                                                  \
