@@ -117,6 +117,11 @@ static void uv__chld(uv_signal_t* handle, int signum) {
 
 int uv__make_socketpair(int fds[2], int flags) {
 #if __linux__
+  static __read_mostly int no_cloexec;
+
+  if (no_cloexec)
+    goto skip;
+
   if (socketpair(AF_UNIX, SOCK_STREAM | UV__SOCK_CLOEXEC | flags, 0, fds) == 0)
     return 0;
 
@@ -125,6 +130,10 @@ int uv__make_socketpair(int fds[2], int flags) {
    */
   if (errno != EINVAL)
     return -1;
+
+  no_cloexec = 1;
+
+skip:
 #endif
 
   if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
@@ -144,11 +153,20 @@ int uv__make_socketpair(int fds[2], int flags) {
 
 int uv__make_pipe(int fds[2], int flags) {
 #if __linux__
+  static __read_mostly int no_pipe2;
+
+  if (no_pipe2)
+    goto skip;
+
   if (uv__pipe2(fds, flags | UV__O_CLOEXEC) == 0)
     return 0;
 
   if (errno != ENOSYS)
     return -1;
+
+  no_pipe2 = 1;
+
+skip:
 #endif
 
   if (pipe(fds))

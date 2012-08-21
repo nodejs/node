@@ -49,10 +49,14 @@
 
 #ifdef __APPLE__
 # include <mach-o/dyld.h> /* _NSGetExecutablePath */
+# include <sys/filio.h>
+# include <sys/ioctl.h>
 #endif
 
 #ifdef __FreeBSD__
 # include <sys/sysctl.h>
+# include <sys/filio.h>
+# include <sys/ioctl.h>
 # include <sys/wait.h>
 #endif
 
@@ -459,7 +463,7 @@ int uv__accept(int sockfd) {
 
   while (1) {
 #if __linux__
-    static int no_accept4;
+    static __read_mostly int no_accept4;
 
     if (no_accept4)
       goto skip;
@@ -503,7 +507,7 @@ skip:
 }
 
 
-#if __linux__
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)
 
 int uv__nonblock(int fd, int set) {
   int r;
@@ -526,7 +530,7 @@ int uv__cloexec(int fd, int set) {
   return r;
 }
 
-#else /* !__linux__ */
+#else /* !(defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__)) */
 
 int uv__nonblock(int fd, int set) {
   int flags;
@@ -575,7 +579,7 @@ int uv__cloexec(int fd, int set) {
   return r;
 }
 
-#endif /* __linux__ */
+#endif /* defined(__linux__) || defined(__FreeBSD__) || defined(__APPLE__) */
 
 
 /* This function is not execve-safe, there is a race window

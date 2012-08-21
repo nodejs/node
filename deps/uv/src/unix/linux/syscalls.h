@@ -89,7 +89,7 @@ struct uv__mmsghdr {
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags);
 int uv__eventfd(unsigned int count);
-int uv__epoll_create(void);
+int uv__epoll_create(int size);
 int uv__epoll_create1(int flags);
 int uv__epoll_ctl(int epfd, int op, int fd, struct uv__epoll_event *ev);
 int uv__epoll_wait(int epfd,

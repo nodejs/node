@@ -28,7 +28,13 @@
 #include <assert.h>
 #include <stdlib.h> /* abort */
 
-#if __STRICT_ANSI__
+#if defined(__GNUC__)
+# define __read_mostly __attribute__((__section__(".data.read_mostly")))
+#else
+# define __read_mostly
+#endif
+
+#if defined(__STRICT_ANSI__)
 # define inline __inline
 #endif
 

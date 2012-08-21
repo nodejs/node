@@ -82,6 +82,8 @@ static int uv_tty_virtual_width = -1;
 
 static CRITICAL_SECTION uv_tty_output_lock;
 
+static HANDLE uv_tty_output_handle = INVALID_HANDLE_VALUE;
+
 
 void uv_console_init() {
   InitializeCriticalSection(&uv_tty_output_lock);
@@ -113,10 +115,17 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
       return -1;
     }
 
-    /* Update the virtual window. We must hold the tty_output_lock because the */
-    /* virtual window state is shared between all uv_tty handles. */
+    /* Obtain the the tty_output_lock because the virtual window state is */
+    /* shared between all uv_tty_t handles. */
     EnterCriticalSection(&uv_tty_output_lock);
+
+    /* Store the global tty output handle. This handle is used by TTY read */
+    /* streams to update the virtual window when a CONSOLE_BUFFER_SIZE_EVENT */
+    /* is received. */
+    uv_tty_output_handle = handle;
+
     uv_tty_update_virtual_window(&screen_buffer_info);
+
     LeaveCriticalSection(&uv_tty_output_lock);
   }
 
@@ -513,7 +522,20 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
       }
       records_left--;
 
-      /* Ignore events that are not keyboard events */
+      /* If the window was resized, recompute the virtual window size. This */
+      /* will trigger a SIGWINCH signal if the window size changed in an */
+      /* way that matters to libuv. */
+      if (handle->last_input_record.EventType == WINDOW_BUFFER_SIZE_EVENT) {
+        CONSOLE_SCREEN_BUFFER_INFO info;
+        if (uv_tty_output_handle == INVALID_HANDLE_VALUE)
+          continue;
+        if (!GetConsoleScreenBufferInfo(uv_tty_output_handle, &info))
+          continue;
+        uv_tty_update_virtual_window(&info);
+        continue;
+      }
+
+      /* Ignore other events that are not key or resize events. */
       if (handle->last_input_record.EventType != KEY_EVENT) {
         continue;
       }
@@ -835,8 +857,11 @@ int uv_tty_read_stop(uv_tty_t* handle) {
 
 
 static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info) {
-  uv_tty_virtual_height = info->srWindow.Bottom - info->srWindow.Top + 1;
+  int old_virtual_width = uv_tty_virtual_width;
+  int old_virtual_height = uv_tty_virtual_height;
+
   uv_tty_virtual_width = info->dwSize.X;
+  uv_tty_virtual_height = info->srWindow.Bottom - info->srWindow.Top + 1;
 
   /* Recompute virtual window offset row. */
   if (uv_tty_virtual_offset == -1) {
@@ -853,6 +878,14 @@ static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info) {
   }
   if (uv_tty_virtual_offset < 0) {
     uv_tty_virtual_offset = 0;
+  }
+
+  /* If the virtual window size changed, emit a SIGWINCH signal. Don't emit */
+  /* if this was the first time the virtual window size was computed. */
+  if (old_virtual_width != -1 && old_virtual_height != -1 &&
+      (uv_tty_virtual_width != old_virtual_width ||
+       uv_tty_virtual_height != old_virtual_height)) {
+    uv__signal_dispatch(SIGWINCH);
   }
 }
 

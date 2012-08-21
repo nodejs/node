@@ -65,6 +65,7 @@ typedef intptr_t ssize_t;
  */
 #define SIGHUP                1
 #define SIGKILL               9
+#define SIGWINCH             28
 
 /*
  * Guids and typedefs for winsock extension functions

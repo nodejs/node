@@ -79,6 +79,10 @@ struct uv__io_s {
 # define UV_PLATFORM_FS_EVENT_FIELDS /* empty */
 #endif
 
+#ifndef UV_STREAM_PRIVATE_PLATFORM_FIELDS
+# define UV_STREAM_PRIVATE_PLATFORM_FIELDS /* empty */
+#endif
+
 /* Note: May be cast to struct iovec. See writev(2). */
 typedef struct {
   char* base;
@@ -178,6 +182,7 @@ typedef struct {
   int delayed_error;                                                          \
   int accepted_fd;                                                            \
   int fd;                                                                     \
+  UV_STREAM_PRIVATE_PLATFORM_FIELDS                                           \
 
 #define UV_TCP_PRIVATE_FIELDS                                                 \
   uv_idle_t* idle_handle;  /* for UV_TCP_SINGLE_ACCEPT handles */             \

@@ -169,6 +169,10 @@ static uv_err_t uv__signal_register(int signum) {
     case SIGHUP:
       return uv__signal_register_control_handler();
 
+    case SIGWINCH:
+      /* SIGWINCH is generated in tty.c. No need to register anything. */
+      return uv_ok_;
+
     case SIGILL:
     case SIGABRT_COMPAT:
     case SIGFPE:
@@ -191,6 +195,10 @@ static void uv__signal_unregister(int signum) {
     case SIGBREAK:
     case SIGHUP:
       uv__signal_unregister_control_handler();
+      return;
+
+    case SIGWINCH:
+      /* SIGWINCH is generated in tty.c. No need to unregister anything. */
       return;
 
     case SIGILL:

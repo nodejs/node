@@ -34,4 +34,7 @@
   int fflags;                                                                 \
   int fd;                                                                     \
 
+#define UV_STREAM_PRIVATE_PLATFORM_FIELDS                                     \
+  void* select;                                                               \
+
 #endif /* UV_DARWIN_H */

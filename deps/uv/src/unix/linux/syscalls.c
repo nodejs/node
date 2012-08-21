@@ -247,9 +247,9 @@ int uv__eventfd2(unsigned int count, int flags) {
 }
 
 
-int uv__epoll_create(void) {
+int uv__epoll_create(int size) {
 #if __NR_epoll_create
-  return syscall(__NR_epoll_create);
+  return syscall(__NR_epoll_create, size);
 #else
   return errno = ENOSYS, -1;
 #endif

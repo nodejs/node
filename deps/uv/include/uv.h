@@ -1608,6 +1608,13 @@ UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
  *   program is given approximately 10 seconds to perform cleanup. After that
  *   Windows will unconditionally terminate it.
  *
+ *   SIGWINCH is raised whenever libuv detects that the console has been
+ *   resized. SIGWINCH is emulated by libuv when the program uses an uv_tty_t
+ *   handle to write to the console. SIGWINCH may not always be delivered in a
+ *   timely manner; libuv will only detect size changes when the cursor is
+ *   being moved. When a readable uv_tty_handle is used in raw mode, resizing
+ *   the console buffer will also trigger a SIGWINCH signal.
+ *
  * Watchers for other signals can be successfully created, but these signals
  * are never generated. These signals are: SIGILL, SIGABRT, SIGFPE, SIGSEGV,
  * SIGTERM and SIGKILL.
