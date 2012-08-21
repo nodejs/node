@@ -361,7 +361,7 @@ server. An alternative wound be to execute `worker.destroy()` after 2 seconds, b
 that would normally not allow the worker to do any cleanup if needed.
 
     if (cluster.isMaster) {
-      var worker = cluser.fork();
+      var worker = cluster.fork();
       var timeout;
 
       worker.on('listening', function(address) {
