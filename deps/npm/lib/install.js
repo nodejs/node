@@ -104,11 +104,10 @@ function install (args, cb_) {
     // install dependencies locally by default,
     // or install current folder globally
     if (!args.length) {
+      var opt = { dev: npm.config.get("dev") || !npm.config.get("production") }
+
       if (npm.config.get("global")) args = ["."]
-      else return readDependencies( null
-                                  , where
-                                  , { dev: !npm.config.get("production") }
-                                  , function (er, data) {
+      else return readDependencies(null, where, opt, function (er, data) {
         if (er) {
           log.error("install", "Couldn't read dependencies")
           return cb(er)
@@ -181,6 +180,12 @@ function readDependencies (context, where, opts, cb) {
       if (!data.dependencies) data.dependencies = {};
       Object.keys(data.devDependencies || {}).forEach(function (k) {
         data.dependencies[k] = data.devDependencies[k]
+      })
+    }
+
+    if (!npm.config.get("optional") && data.optionalDependencies) {
+      Object.keys(data.optionalDependencies).forEach(function (d) {
+        delete data.dependencies[d]
       })
     }
 
@@ -456,7 +461,8 @@ function installMany (what, where, context, cb) {
   // dependencies we'll iterate below comes from an existing shrinkwrap from a
   // parent level, a new shrinkwrap at this level, or package.json at this
   // level, as well as which shrinkwrap (if any) our dependencies should use.
-  readDependencies(context, where, {}, function (er, data, wrap) {
+  var opt = { dev: npm.config.get("dev") }
+  readDependencies(context, where, opt, function (er, data, wrap) {
     if (er) data = {}
 
     var parent = data
@@ -888,7 +894,8 @@ function write (target, targetFolder, context, cb_) {
       if (er) return cb(er)
 
       // before continuing to installing dependencies, check for a shrinkwrap.
-      readDependencies(context, targetFolder, {}, function (er, data, wrap) {
+      var opt = { dev: npm.config.get("dev") }
+      readDependencies(context, targetFolder, opt, function (er, data, wrap) {
         var deps = Object.keys(data.dependencies || {})
 
         // don't install bundleDependencies, unless they're missing.

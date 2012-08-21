@@ -484,6 +484,14 @@ colored output if it is a TTY.</p>
 <p>A node module to <code>require()</code> when npm loads.  Useful for programmatic
 usage.</p>
 
+<h3 id="optional">optional</h3>
+
+<ul><li>Default: true</li><li>Type: Boolean</li></ul>
+
+<p>Attempt to install packages in the <code>optionalDependencies</code> hash.  Note
+that if these packages fail to install, the overall installation
+process is not aborted.</p>
+
 <h3 id="parseable">parseable</h3>
 
 <ul><li>Default: false</li><li>Type: Boolean</li></ul>
@@ -748,7 +756,7 @@ then answer &quot;no&quot; to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.55</p>
+<p id="footer">config &mdash; npm@1.1.56</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

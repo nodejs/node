@@ -1,5 +1,5 @@
 {
-  "version": "1.1.55",
+  "version": "1.1.56",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -68,7 +68,7 @@
     "retry": "~0.6.0",
     "couch-login": "~0.1.9",
     "once": "~1.1.1",
-    "npmconf": "~0.0.6"
+    "npmconf": "0.0.9"
   },
   "bundleDependencies": [
     "semver",

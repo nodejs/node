@@ -176,6 +176,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , npaturl : "http://npat.npmjs.org/"
     , npat : false
     , "onload-script" : false
+    , optional: true
     , parseable : false
     , pre: false
     , prefix : globalPrefix
@@ -266,6 +267,7 @@ exports.types =
   , npaturl : url
   , npat : Boolean
   , "onload-script" : [null, String]
+  , optional: Boolean
   , parseable : Boolean
   , pre: Boolean
   , prefix: path
