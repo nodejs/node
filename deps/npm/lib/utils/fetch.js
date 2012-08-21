@@ -65,9 +65,10 @@ function makeRequest (remote, fstr, headers) {
       "Auth required and none provided. Please run 'npm adduser'"))
   }
 
-  var proxy = npm.config.get( remote.protocol === "https:"
-                            ? "https-proxy"
-                            : "proxy")
+  var proxy
+  if (remote.protocol !== "https:" || !(proxy = npm.config.get("https-proxy"))) {
+    proxy = npm.config.get("proxy")
+  }
 
   var opts = { url: remote
              , proxy: proxy

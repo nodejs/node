@@ -83,6 +83,7 @@ proto.configDefs = {
   , proxy: String     // 'install'
   , nodedir: String   // 'configure'
   , loglevel: String  // everywhere
+  , python: String    // 'configure'
 }
 
 /**

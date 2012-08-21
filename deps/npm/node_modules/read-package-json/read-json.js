@@ -254,7 +254,7 @@ function mans (file, data, cb) {
 function mans_ (file, data, mans, cb) {
                 var m = data.directories && data.directories.man
                 data.man = mans.map(function (mf) {
-                                return path.resolve(m, mf)
+                                return path.resolve(path.dirname(file), m, mf)
                 })
                 return cb(null, data)
 }

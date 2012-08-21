@@ -2,7 +2,7 @@
 module.exports = star
 
 function star (package, starred, cb) {
-  if (!this.username) return cb(new Error(
+  if (!this.conf.get('username')) return cb(new Error(
     "Must be logged in to star/unstar packages"))
 
   var users = {}
@@ -16,10 +16,10 @@ function star (package, starred, cb) {
 
     if (starred) {
       this.log.info("starring", fullData._id)
-      fullData.users[this.username] = true
+      fullData.users[this.conf.get('username')] = true
       this.log.verbose("starring", fullData)
     } else {
-      delete fullData.users[this.username]
+      delete fullData.users[this.conf.get('username')]
       this.log.info("unstarring", fullData._id)
       this.log.verbose("unstarring", fullData)
     }

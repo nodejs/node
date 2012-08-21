@@ -1,6 +1,11 @@
 var tap = require('tap')
 var read = require('../lib/read.js')
 
+var CLOSE = 'close'
+if (process.version.match(/^v0\.6/)) {
+  CLOSE = 'exit'
+}
+
 if (process.argv[2] === 'child') {
   return child()
 }
@@ -68,7 +73,7 @@ tap.test('many reads', function (t) {
     output += c
     console.error('' + c)
   })
-  child.on('close', function (c) {
+  child.on(CLOSE, function (c) {
     t.equal(output, expect)
     t.equal(n, 19)
     t.end()

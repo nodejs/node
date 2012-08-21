@@ -5,9 +5,9 @@ var pkg = { _id: 'some-package@1.2.3',
             name: 'some-package',
             version: '1.2.3' }
 var client = new RC({
-    retries: 6
-  , retryMinTimeout: 10
-  , retryMaxTimeout: 100
+    'fetch-retries': 6
+  , 'fetch-retry-mintimeout': 10
+  , 'fetch-retry-maxtimeout': 100
   , cache: __dirname + '/fixtures/cache'
   , registry: 'http://localhost:' + server.port })
 

@@ -61,8 +61,39 @@ s.listen(s.port, function () {
   request.defaults({headers:{foo:"bar"}}).head({uri: s.url + '/head'}, function (e, r, b){
     if (e) throw e;
     counter += 1;
-    console.log(counter.toString() + " tests passed.")
-    s.close()
   });
 
+  s.on('/get_custom', function(req, resp) {
+    assert.equal(req.headers.foo, 'bar');
+    assert.equal(req.headers.x, 'y');
+    resp.writeHead(200, {'Content-Type': 'text/plain'});
+    resp.end();
+  });
+
+  // test custom request handler function
+  var defaultRequest = request.defaults({
+    headers:{foo:"bar"}
+    , body: 'TESTING!'
+  }, function(uri, options, callback) {
+    var params = request.initParams(uri, options, callback);
+    options = params.options;
+    options.headers.x = 'y';
+
+    return request(params.uri, params.options, params.callback);
+  });
+
+  var msg = 'defaults test failed. head request should throw earlier';
+  assert.throws(function() {
+    defaultRequest.head(s.url + '/get_custom', function(e, r, b) {
+      throw new Error(msg);
+    });
+    counter+=1;
+  }, msg);
+
+  defaultRequest.get(s.url + '/get_custom', function(e, r, b) {
+    if(e) throw e;
+    counter += 1;
+    console.log(counter.toString() + " tests passed.");
+    s.close();
+  });
 })

@@ -89,17 +89,29 @@ tap.test('outgoing', function (t) {
 tap.test('isTTY', function (t) {
   var str = new PassThrough
   str.isTTY = true
+  str.columns=80
+  str.rows=24
 
   var ms = new MS
   t.equal(ms.isTTY, false)
+  t.equal(ms.columns, undefined)
+  t.equal(ms.rows, undefined)
   ms.pipe(str)
   t.equal(ms.isTTY, true)
+  t.equal(ms.columns, 80)
+  t.equal(ms.rows, 24)
   str.isTTY = false
   t.equal(ms.isTTY, false)
+  t.equal(ms.columns, 80)
+  t.equal(ms.rows, 24)
   str.isTTY = true
   t.equal(ms.isTTY, true)
+  t.equal(ms.columns, 80)
+  t.equal(ms.rows, 24)
   ms.isTTY = false
   t.equal(ms.isTTY, false)
+  t.equal(ms.columns, 80)
+  t.equal(ms.rows, 24)
 
   ms = new MS
   t.equal(ms.isTTY, false)

@@ -197,6 +197,12 @@ function errorHandler (er) {
               ,"Move it away, and try again."].join("\n"))
     break
 
+  case "ENEEDAUTH":
+    log.error("need auth", [er.message
+              ,"You need to authorize this machine using `npm adduser`"
+              ].join("\n"))
+    break
+
   case "ENOTSUP":
     if (er.required) {
       log.error("notsup", [er.message

@@ -8,7 +8,7 @@ It handles all the caching and HTTP calls.
 
 ```javascript
 var RegClient = require('npm-registry-client')
-var client = new RegClient(options)
+var client = new RegClient(config)
 
 client.get("npm", "latest", 1000, function (er, data, raw, res) {
   // error is an error if there was a problem.
@@ -18,29 +18,43 @@ client.get("npm", "latest", 1000, function (er, data, raw, res) {
 })
 ```
 
-# Options
+# Configuration
+
+This program is designed to work with
+[npmconf](https://npmjs.org/package/npmconf), but you can also pass in
+a plain-jane object with the appropriate configs, and it'll shim it
+for you.  Any configuration thingie that has get/set/del methods will
+also be accepted.
 
 * `registry` **Required** {String} URL to the registry
 * `cache` **Required** {String} Path to the cache folder
-* `alwaysAuth` {Boolean} Auth even for GET requests.
+* `always-auth` {Boolean} Auth even for GET requests.
 * `auth` {String} A base64-encoded `username:password`
 * `email` {String} User's email address
 * `tag` {String} The default tag to use when publishing new packages.
   Default = `"latest"`
 * `ca` {String} Cerficate signing authority certificates to trust.
-* `strictSSL` {Boolean} Whether or not to be strict with SSL
+* `strict-ssl` {Boolean} Whether or not to be strict with SSL
   certificates.  Default = `true`
-* `userAgent` {String} User agent header to send.  Default =
+* `user-agent` {String} User agent header to send.  Default =
   `"node/{process.version}"`
 * `log` {Object} The logger to use.  Defaults to `require("npmlog")` if
   that works, otherwise logs are disabled.
-* `retries` {Number} Number of times to retry on GET failures.
+* `fetch-retries` {Number} Number of times to retry on GET failures.
   Default=2
-* `retryFactor` {Number} `factor` setting for `node-retry`. Default=10
-* `retryMinTimeout` {Number} `minTimeout` setting for `node-retry`.
+* `fetch-retry-factor` {Number} `factor` setting for `node-retry`. Default=10
+* `fetch-retry-mintimeout` {Number} `minTimeout` setting for `node-retry`.
   Default=10000 (10 seconds)
-* `retryMaxTimeout` {Number} `maxTimeout` setting for `node-retry`.
+* `fetch-retry-maxtimeout` {Number} `maxTimeout` setting for `node-retry`.
   Default=60000 (60 seconds)
+* `proxy` {URL} The url to proxy requests through.
+* `https-proxy` {URL} The url to proxy https requests through.
+  Defaults to be the same as `proxy` if unset.
+* `_auth` {String} The base64-encoded authorization header.
+* `username` `_password` {String} Username/password to use to generate
+  `_auth` if not supplied.
+* `_token` {Object} A token for use with
+  [couch-login](https://npmjs.org/package/couch-login)
 
 # client.request(method, where, [what], [etag], [nofollow], cb)
 

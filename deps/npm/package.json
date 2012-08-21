@@ -1,5 +1,5 @@
 {
-  "version": "1.1.49",
+  "version": "1.1.55",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -41,7 +41,6 @@
     "graceful-fs": "~1.1.1",
     "minimatch": "~0.2.6",
     "nopt": "~2.0",
-    "node-uuid": "~1.3",
     "rimraf": "2",
     "request": "~2.9",
     "which": "1",
@@ -50,7 +49,7 @@
     "block-stream": "*",
     "inherits": "1",
     "mkdirp": "~0.3.3",
-    "read": "~1.0.3",
+    "read": "~1.0.4",
     "lru-cache": "~2.0.0",
     "node-gyp": "~0.6.4",
     "fstream-npm": "0.1",
@@ -59,7 +58,7 @@
     "chownr": "0",
     "npmlog": "0",
     "ansi": "~0.1.2",
-    "npm-registry-client": "~0.1.4",
+    "npm-registry-client": "~0.2.4",
     "read-package-json": "~0.1.3",
     "read-installed": "0",
     "glob": "~3.1.12",
@@ -79,7 +78,6 @@
     "graceful-fs",
     "minimatch",
     "nopt",
-    "node-uuid",
     "rimraf",
     "request",
     "which",
@@ -114,7 +112,7 @@
     "tap": "~0.2.5"
   },
   "engines": {
-    "node": ">=0.8",
+    "node": ">=0.6",
     "npm": "1"
   },
   "scripts": {

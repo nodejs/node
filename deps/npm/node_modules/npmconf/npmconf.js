@@ -9,6 +9,7 @@ var path = require('path')
 var nopt = require('nopt')
 var ini = require('ini')
 var Octal = configDefs.Octal
+var mkdirp = require('mkdirp')
 
 exports.load = load
 exports.Conf = Conf
@@ -174,18 +175,23 @@ Conf.prototype.save = function (where, cb) {
   then = then.bind(this)
   done = done.bind(this)
   this._saving ++
+
   var mode = where === 'user' ? 0600 : 0666
   if (!data.trim())
     fs.unlink(target.path, done)
   else {
-    fs.writeFile(target.path, data, 'utf8', function (er) {
+    mkdirp(path.dirname(target.path), function (er) {
       if (er)
         return then(er)
-      if (where === 'user' && myUid && myGid)
-        fs.chown(target.path, +myUid, +myGid, then)
-      else
-        then()
-    }.bind(this))
+      fs.writeFile(target.path, data, 'utf8', function (er) {
+        if (er)
+          return then(er)
+        if (where === 'user' && myUid && myGid)
+          fs.chown(target.path, +myUid, +myGid, then)
+        else
+          then()
+      })
+    })
   }
 
   function then (er) {

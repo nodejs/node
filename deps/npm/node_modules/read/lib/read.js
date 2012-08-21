@@ -23,7 +23,13 @@ function read (opts, cb) {
   var def = opts.default || ''
   var terminal = !!(opts.terminal || output.isTTY)
   var rlOpts = { input: input, output: output, terminal: terminal }
-  var rl = readline.createInterface(rlOpts)
+
+  if (process.version.match(/^v0\.6/)) {
+    var rl = readline.createInterface(rlOpts.input, rlOpts.output)
+  } else {
+    var rl = readline.createInterface(rlOpts)
+  }
+
   var prompt = (opts.prompt || '').trim() + ' '
   var silent = opts.silent
   var editDef = false
@@ -69,6 +75,13 @@ function read (opts, cb) {
   function done () {
     called = true
     rl.close()
+
+    if (process.version.match(/^v0\.6/)) {
+      rl.input.removeAllListeners('data')
+      rl.input.removeAllListeners('keypress')
+      rl.input.pause()
+    }
+
     clearTimeout(timer)
     output.mute()
     output.end()
