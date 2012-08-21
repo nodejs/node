@@ -222,8 +222,8 @@ call `.setupMaster()` with no arguments.
   * `silent` {Boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
 
-The `setupMaster` is used to change the default 'fork' behavior. It takes
-one option object argument.
+`setupMaster` is used to change the default 'fork' behavior. The new settings
+are effective immediately and permanently, they cannot be changed later on.
 
 Example:
 
