@@ -101,24 +101,34 @@ automatically set as a listener for the [secureConnection][] event.  The
   - `crl` : Either a string or list of strings of PEM encoded CRLs (Certificate
     Revocation List)
 
-  - `ciphers`: A string describing the ciphers to use or exclude. Consult
-    <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT> for
-    details on the format.
-    To mitigate [BEAST attacks]
-    (http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html),
-    it is recommended that you use this option in conjunction with the
-    `honorCipherOrder` option described below to prioritize the RC4 algorithm,
-    since it is a non-CBC cipher. A recommended cipher list follows:
-    `ECDHE-RSA-AES256-SHA:AES256-SHA:RC4-SHA:RC4:HIGH:!MD5:!aNULL:!EDH:!AESGCM`
+  - `ciphers`: A string describing the ciphers to use or exclude.
 
-  - `honorCipherOrder` :
-	When choosing a cipher, use the server's preferences instead of the client
-	preferences.
-	Note that if SSLv2 is used, the server will send its list of preferences
-	to the client, and the client chooses the cipher.
-	Although, this option is disabled by default, it is *recommended* that you
-	use this option in conjunction with the `ciphers` option to mitigate
-	BEAST attacks.
+    To mitigate [BEAST attacks] it is recommended that you use this option in
+    conjunction with the `honorCipherOrder` option described below to
+    prioritize the non-CBC cipher.
+
+    Defaults to
+    `ECDHE-RSA-AES128-SHA256:AES128-GCM-SHA256:RC4:HIGH:!MD5:!aNULL:!EDH`.
+    Consult the [OpenSSL cipher list format documentation] for details on the
+    format.
+
+    `ECDHE-RSA-AES128-SHA256` and `AES128-GCM-SHA256` are used when node.js is
+    linked against OpenSSL 1.0.1 or newer and the client speaks TLS 1.2, RC4 is
+    used as a secure fallback.
+
+    **NOTE**: Previous revisions of this section suggested `AES256-SHA` as an
+    acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
+    susceptible to BEAST attacks. Do *not* use it.
+
+  - `honorCipherOrder` : When choosing a cipher, use the server's preferences
+    instead of the client preferences.
+
+    Note that if SSLv2 is used, the server will send its list of preferences
+    to the client, and the client chooses the cipher.
+
+    Although, this option is disabled by default, it is *recommended* that you
+    use this option in conjunction with the `ciphers` option to mitigate
+    BEAST attacks.
 
   - `requestCert`: If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Default:
@@ -488,6 +498,8 @@ The string representation of the remote IP address. For example,
 
 The numeric representation of the remote port. For example, `443`.
 
+[OpenSSL cipher list format documentation]: http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT
+[BEAST attacks]: http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html
 [CleartextStream]: #tls_class_tls_cleartextstream
 [net.Server.address()]: net.html#net_server_address
 ['secureConnect']: #tls_event_secureconnect
