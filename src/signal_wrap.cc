@@ -72,7 +72,7 @@ class SignalWrap : public HandleWrap {
     assert(args.IsConstructCall());
 
     HandleScope scope;
-    SignalWrap* wrap = new SignalWrap(args.This());
+    new SignalWrap(args.This());
 
     return scope.Close(args.This());
   }
