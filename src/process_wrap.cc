@@ -294,9 +294,14 @@ class ProcessWrap : public HandleWrap {
       String::New(signo_string(term_signal))
     };
 
+    if (exit_status == -1) {
+      SetErrno(uv_last_error(uv_default_loop()));
+    }
+
     if (onexit_sym.IsEmpty()) {
       onexit_sym = NODE_PSYMBOL("onexit");
     }
+
     MakeCallback(wrap->object_, onexit_sym, ARRAY_SIZE(argv), argv);
   }
 

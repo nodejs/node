@@ -53,6 +53,8 @@ function testCwd(options, forCode, forData) {
   });
 
   returns++;
+
+  return child;
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
@@ -64,8 +66,19 @@ if (process.platform == 'win32') {
   testCwd({cwd: '/'}, 0, '/');
 }
 
-// Assume this doesn't exist, we expect exitcode=127
-testCwd({cwd: 'does-not-exist'}, 127);
+// Assume does-not-exist doesn't exist, expect exitCode=-1 and errno=ENOENT
+(function() {
+  var errors = 0;
+
+  testCwd({cwd: 'does-not-exist'}, -1).on('error', function(e) {
+    assert.equal(e.code, 'ENOENT');
+    errors++;
+  });
+
+  process.on('exit', function() {
+    assert.equal(errors, 1);
+  });
+})();
 
 // Spawn() shouldn't try to chdir() so this should just work
 testCwd(undefined, 0);
