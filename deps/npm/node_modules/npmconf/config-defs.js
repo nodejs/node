@@ -306,6 +306,7 @@ exports.types =
   , viewer: String
   , yes: [false, null, Boolean]
   , _exit : Boolean
+  , _password: String
   }
 
 exports.shorthands =

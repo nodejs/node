@@ -265,7 +265,8 @@ function load (npm, cli, cb) {
     // look up configs
     //console.error("about to look up configs")
 
-    npmconf.load(cli, function (er, conf) {
+    var builtin = path.resolve(__dirname, "..", "npmrc")
+    npmconf.load(cli, builtin, function (er, conf) {
       if (er === conf) er = null
 
       npm.config = conf
