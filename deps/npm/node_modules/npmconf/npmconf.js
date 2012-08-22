@@ -144,14 +144,22 @@ function Conf (base) {
 
 Conf.prototype.save = function (where, cb) {
   var target = this.sources[where]
-  if (!target || !(target.path || target.source) || !target.data)
-    return this.emit('error', new Error('bad save target: '+where))
+  if (!target || !(target.path || target.source) || !target.data) {
+    if (where !== 'builtin')
+      var er = new Error('bad save target: '+where)
+    if (cb) {
+      process.nextTick(cb.bind(null, er))
+      return this
+    }
+    return this.emit('error', er)
+  }
 
   if (target.source) {
     var pref = target.prefix || ''
     Object.keys(target.data).forEach(function (k) {
       target.source[pref + k] = target.data[k]
     })
+    if (cb) process.nextTick(cb)
     return this
   }
 
