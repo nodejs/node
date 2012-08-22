@@ -34,5 +34,3 @@
 * [OS](os.html)
 * [Debugger](debugger.html)
 * [Cluster](cluster.html)
-* Appendixes
-  * [Appendix 1: Recommended Third-party Modules](appendix_1.html)
