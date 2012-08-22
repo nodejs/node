@@ -13,6 +13,9 @@ import os
 import shutil
 import subprocess
 import sys
+import win32con
+import win32file
+import pywintypes
 
 
 def main(args):
@@ -20,6 +23,22 @@ def main(args):
   exit_code = executor.Dispatch(args)
   if exit_code is not None:
     sys.exit(exit_code)
+
+
+class LinkLock(object):
+  """A flock-style lock to limit the number of concurrent links to one. Based on
+  http://code.activestate.com/recipes/65203-portalocker-cross-platform-posixnt-api-for-flock-s/
+  """
+  def __enter__(self):
+    self.file = open('LinkLock', 'w+')
+    self.file_handle = win32file._get_osfhandle(self.file.fileno())
+    win32file.LockFileEx(self.file_handle, win32con.LOCKFILE_EXCLUSIVE_LOCK,
+                         0, -0x10000, pywintypes.OVERLAPPED())
+
+  def __exit__(self, type, value, traceback):
+    win32file.UnlockFileEx(
+        self.file_handle, 0, -0x10000, pywintypes.OVERLAPPED())
+    self.file.close()
 
 
 class WinTool(object):
@@ -68,12 +87,26 @@ class WinTool(object):
     '   Creating library ui.dll.lib and object ui.dll.exp'
     This happens when there are exports from the dll or exe.
     """
+    with LinkLock():
+      env = self._GetEnv(arch)
+      popen = subprocess.Popen(args, shell=True, env=env,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      out, _ = popen.communicate()
+      for line in out.splitlines():
+        if not line.startswith('   Creating library '):
+          print line
+      return popen.returncode
+
+  def ExecManifestWrapper(self, arch, *args):
+    """Run manifest tool with environment set. Strip out undesirable warning
+    (some XML blocks are recognized by the OS loader, but not the manifest
+    tool)."""
     env = self._GetEnv(arch)
     popen = subprocess.Popen(args, shell=True, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     out, _ = popen.communicate()
     for line in out.splitlines():
-      if not line.startswith('   Creating library '):
+      if line and 'manifest authoring warning 81010002' not in line:
         print line
     return popen.returncode
 

@@ -21,13 +21,14 @@
 # toplevel Makefile.  It may make sense to generate some .mk files on
 # the side to keep the the files readable.
 
+import os
+import re
+import sys
 import gyp
 import gyp.common
 import gyp.system_test
 import gyp.xcode_emulation
-import os
-import re
-import sys
+from gyp.common import GetEnvironFallback
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -60,7 +61,6 @@ generator_extra_sources_for_rules = []
 
 def CalculateVariables(default_variables, params):
   """Calculate additional variables for use in the build (called by gyp)."""
-  cc_target = os.environ.get('CC.target', os.environ.get('CC', 'cc'))
   flavor = gyp.common.GetFlavor(params)
   if flavor == 'mac':
     default_variables.setdefault('OS', 'mac')
@@ -255,11 +255,11 @@ all_deps :=
 # This will allow make to invoke N linker processes as specified in -jN.
 LINK ?= %(flock)s $(builddir)/linker.lock $(CXX)
 
-CC.target ?= $(CC)
+CC.target ?= %(CC.target)s
 CFLAGS.target ?= $(CFLAGS)
-CXX.target ?= $(CXX)
+CXX.target ?= %(CXX.target)s
 CXXFLAGS.target ?= $(CXXFLAGS)
-LINK.target ?= $(LINK)
+LINK.target ?= %(LINK.target)s
 LDFLAGS.target ?= $(LDFLAGS)
 AR.target ?= $(AR)
 ARFLAGS.target ?= %(ARFLAGS.target)s
@@ -268,13 +268,13 @@ ARFLAGS.target ?= %(ARFLAGS.target)s
 # in gyp's make.py where ARFLAGS.host etc. is computed.
 # TODO(evan): move all cross-compilation logic to gyp-time so we don't need
 # to replicate this environment fallback in make as well.
-CC.host ?= gcc
+CC.host ?= %(CC.host)s
 CFLAGS.host ?=
-CXX.host ?= g++
+CXX.host ?= %(CXX.host)s
 CXXFLAGS.host ?=
-LINK.host ?= g++
+LINK.host ?= %(LINK.host)s
 LDFLAGS.host ?=
-AR.host ?= ar
+AR.host ?= %(AR.host)s
 ARFLAGS.host := %(ARFLAGS.host)s
 
 # Define a dir function that can handle spaces.
@@ -1590,18 +1590,19 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                            phony = True)
 
 
-  def WriteList(self, list, variable=None, prefix='', quoter=QuoteIfNecessary):
+  def WriteList(self, value_list, variable=None, prefix='',
+                quoter=QuoteIfNecessary):
     """Write a variable definition that is a list of values.
 
     E.g. WriteList(['a','b'], 'foo', prefix='blah') writes out
          foo = blaha blahb
     but in a pretty-printed style.
     """
-    self.fp.write(variable + " := ")
-    if list:
-      list = [quoter(prefix + l) for l in list]
-      self.fp.write(" \\\n\t".join(list))
-    self.fp.write("\n\n")
+    values = ''
+    if value_list:
+      value_list = [quoter(prefix + l) for l in value_list]
+      values = ' \\\n\t' + ' \\\n\t'.join(value_list)
+    self.fp.write('%s :=%s\n\n' % (variable, values))
 
 
   def WriteDoCmd(self, outputs, inputs, command, part_of_all, comment=None,
@@ -1810,8 +1811,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     """Convert a path to its output directory form."""
     if '$(' in path:
       path = path.replace('$(obj)/', '$(obj).%s/$(TARGET)/' % self.toolset)
-      return path
-    return '$(obj).%s/$(TARGET)/%s' % (self.toolset, path)
+    if not '$(obj)' in path:
+      path = '$(obj).%s/$(TARGET)/%s' % (self.toolset, path)
+    return path
 
 
   def Pchify(self, path, lang):
@@ -1890,8 +1892,8 @@ def RunSystemTests(flavor):
   # Compute flags used for building static archives.
   # N.B.: this fallback logic should match the logic in SHARED_HEADER.
   # See comment there for more details.
-  ar_target = os.environ.get('AR.target', os.environ.get('AR', 'ar'))
-  cc_target = os.environ.get('CC.target', os.environ.get('CC', 'cc'))
+  ar_target = GetEnvironFallback(('AR_target', 'AR'), 'ar')
+  cc_target = GetEnvironFallback(('CC_target', 'CC'), 'cc')
   arflags_target = 'crs'
   # ar -T enables thin archives on Linux. OS X's ar supports a -T flag, but it
   # does something useless (it limits filenames in the archive to 15 chars).
@@ -1899,12 +1901,12 @@ def RunSystemTests(flavor):
                                                          cc_command=cc_target):
     arflags_target = 'crsT'
 
-  ar_host = os.environ.get('AR.host', 'ar')
-  cc_host = os.environ.get('CC.host', 'gcc')
+  ar_host = os.environ.get('AR_host', 'ar')
+  cc_host = os.environ.get('CC_host', 'gcc')
   arflags_host = 'crs'
   # It feels redundant to compute this again given that most builds aren't
-  # cross-compiles, but due to quirks of history CC.host defaults to 'gcc'
-  # while CC.target defaults to 'cc', so the commands really are different
+  # cross-compiles, but due to quirks of history CC_host defaults to 'gcc'
+  # while CC_target defaults to 'cc', so the commands really are different
   # even though they're nearly guaranteed to run the same code underneath.
   if flavor != 'mac' and gyp.system_test.TestArSupportsT(ar_command=ar_host,
                                                          cc_command=cc_host):
@@ -1993,18 +1995,29 @@ def GenerateOutput(target_list, target_dicts, data, params):
     header_params.update({
         'flock': 'lockf',
     })
+
   header_params.update(RunSystemTests(flavor))
+  header_params.update({
+    'CC.target':   GetEnvironFallback(('CC_target', 'CC'), '$(CC)'),
+    'AR.target':   GetEnvironFallback(('AR_target', 'AR'), '$(AR)'),
+    'CXX.target':  GetEnvironFallback(('CXX_target', 'CXX'), '$(CXX)'),
+    'LINK.target': GetEnvironFallback(('LD_target', 'LD'), '$(LINK)'),
+    'CC.host':     GetEnvironFallback(('CC_host',), 'gcc'),
+    'AR.host':     GetEnvironFallback(('AR_host',), 'ar'),
+    'CXX.host':    GetEnvironFallback(('CXX_host',), 'g++'),
+    'LINK.host':   GetEnvironFallback(('LD_host',), 'g++'),
+  })
 
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
-  make_global_settings_dict = data[build_file].get('make_global_settings', {})
+  make_global_settings_array = data[build_file].get('make_global_settings', [])
   make_global_settings = ''
-  for key, value in make_global_settings_dict:
+  for key, value in make_global_settings_array:
     if value[0] != '$':
       value = '$(abspath %s)' % value
     if key == 'LINK':
       make_global_settings += ('%s ?= %s $(builddir)/linker.lock %s\n' %
                                (key, flock_command, value))
-    elif key in ['CC', 'CXX']:
+    elif key in ('CC', 'CC.host', 'CXX', 'CXX.host'):
       make_global_settings += (
           'ifneq (,$(filter $(origin %s), undefined default))\n' % key)
       # Let gyp-time envvars win over global settings.
@@ -2046,8 +2059,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     build_file, target, toolset = gyp.common.ParseQualifiedTarget(
         qualified_target)
 
-    this_make_global_settings = data[build_file].get('make_global_settings', {})
-    assert make_global_settings_dict == this_make_global_settings, (
+    this_make_global_settings = data[build_file].get('make_global_settings', [])
+    assert make_global_settings_array == this_make_global_settings, (
         "make_global_settings needs to be the same for all targets.")
 
     build_files.add(gyp.common.RelativePath(build_file, options.toplevel_dir))
@@ -2123,7 +2136,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     root_makefile.write("endif\n")
   root_makefile.write('\n')
 
-  if generator_flags.get('auto_regeneration', True):
+  if (not generator_flags.get('standalone')
+      and generator_flags.get('auto_regeneration', True)):
     WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
 
   root_makefile.write(SHARED_FOOTER)

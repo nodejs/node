@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2011 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -39,9 +39,16 @@ def FindBuildFiles():
   files = os.listdir(os.getcwd())
   build_files = []
   for file in files:
-    if file[-len(extension):] == extension:
+    if file.endswith(extension):
       build_files.append(file)
   return build_files
+
+
+class GypError(Exception):
+  """Error class representing an error, which is to be presented
+  to the user.  The main entry point will catch and display this.
+  """
+  pass
 
 
 def Load(build_files, format, default_variables={},
@@ -66,7 +73,22 @@ def Load(build_files, format, default_variables={},
   # avoiding collisions with user and automatic variables.
   default_variables['GENERATOR'] = format
 
-  generator_name = 'gyp.generator.' + format
+  # Format can be a custom python file, or by default the name of a module
+  # within gyp.generator.
+  if format.endswith('.py'):
+    generator_name = os.path.splitext(format)[0]
+    path, generator_name = os.path.split(generator_name)
+
+    # Make sure the path to the custom generator is in sys.path
+    # Don't worry about removing it once we are done.  Keeping the path
+    # to each generator that is used in sys.path is likely harmless and
+    # arguably a good idea.
+    path = os.path.abspath(path)
+    if path not in sys.path:
+      sys.path.insert(0, path)
+  else:
+    generator_name = 'gyp.generator.' + format
+
   # These parameters are passed in order (as opposed to by key)
   # because ActivePython cannot handle key parameters to __import__.
   generator = __import__(generator_name, globals(), locals(), generator_name)
@@ -157,7 +179,10 @@ def RegenerateAppendFlag(flag, values, predicate, env_name, options):
   flags = []
   if options.use_environment and env_name:
     for flag_value in ShlexEnv(env_name):
-      flags.append(FormatOpt(flag, predicate(flag_value)))
+      value = FormatOpt(flag, predicate(flag_value))
+      if value in flags:
+        flags.remove(value)
+      flags.append(value)
   if values:
     for flag_value in values:
       flags.append(FormatOpt(flag, predicate(flag_value)))
@@ -254,7 +279,7 @@ class RegeneratableOptionParser(optparse.OptionParser):
     values._regeneration_metadata = self.__regeneratable_options
     return values, args
 
-def main(args):
+def gyp_main(args):
   my_name = os.path.basename(sys.argv[0])
 
   parser = RegeneratableOptionParser()
@@ -366,9 +391,8 @@ def main(args):
   if not build_files:
     build_files = FindBuildFiles()
   if not build_files:
-    print >>sys.stderr, (usage + '\n\n%s: error: no build_file') % \
-                        (my_name, my_name)
-    return 1
+    raise GypError((usage + '\n\n%s: error: no build_file') %
+                   (my_name, my_name))
 
   # TODO(mark): Chromium-specific hack!
   # For Chromium, the gyp "depth" variable should always be a relative path
@@ -393,10 +417,9 @@ def main(args):
         break
 
     if not options.depth:
-      raise Exception, \
-            'Could not automatically locate src directory.  This is a ' + \
-            'temporary Chromium feature that will be removed.  Use ' + \
-            '--depth as a workaround.'
+      raise GypError('Could not automatically locate src directory.  This is'
+                     'a temporary Chromium feature that will be removed.  Use'
+                     '--depth as a workaround.')
 
   # If toplevel-dir is not set, we assume that depth is the root of our source
   # tree.
@@ -482,6 +505,13 @@ def main(args):
   # Done
   return 0
 
+
+def main(args):
+  try:
+    return gyp_main(args)
+  except GypError, e:
+    sys.stderr.write("gyp: %s\n" % e)
+    return 1
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv[1:]))

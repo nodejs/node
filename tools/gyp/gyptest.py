@@ -153,6 +153,8 @@ def main(argv=None):
             help="chdir to the specified directory")
   parser.add_option("-f", "--format", action="store", default='',
             help="run tests with the specified formats")
+  parser.add_option("-G", '--gyp_option', action="append", default=[],
+            help="Add -G options to the gyp command line")
   parser.add_option("-l", "--list", action="store_true",
             help="list available tests and exit")
   parser.add_option("-n", "--no-exec", action="store_true",
@@ -220,8 +222,14 @@ def main(argv=None):
     if not opts.quiet:
       sys.stdout.write('TESTGYP_FORMAT=%s\n' % format)
 
+    gyp_options = []
+    for option in opts.gyp_option:
+      gyp_options += ['-G', option]
+    if gyp_options and not opts.quiet:
+      sys.stdout.write('Extra Gyp options: %s\n' % gyp_options)
+
     for test in tests:
-      status = cr.run([sys.executable, test],
+      status = cr.run([sys.executable, test] + gyp_options,
                       stdout=sys.stdout,
                       stderr=sys.stderr)
       if status == 2:

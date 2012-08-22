@@ -1,4 +1,4 @@
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -15,7 +15,7 @@ MSBuild install directory, e.g. c:\Program Files (x86)\MSBuild
 """
 
 import sys
-
+import re
 
 # Dictionaries of settings validators. The key is the tool name, the value is
 # a dictionary mapping setting names to validation functions.
@@ -362,6 +362,24 @@ def _CustomGeneratePreprocessedFile(tool, msvs_name):
   _msvs_to_msbuild_converters[tool.msvs_name][msvs_name] = _Translate
 
 
+fix_vc_macro_slashes_regex_list = ('IntDir', 'OutDir')
+fix_vc_macro_slashes_regex = re.compile(
+  r'(\$\((?:%s)\))(?:[\\/]+)' % "|".join(fix_vc_macro_slashes_regex_list)
+)
+
+def FixVCMacroSlashes(s):
+  """Replace macros which have excessive following slashes.
+
+  These macros are known to have a built-in trailing slash. Furthermore, many
+  scripts hiccup on processing paths with extra slashes in the middle.
+
+  This list is probably not exhaustive.  Add as needed.
+  """
+  if '$' in s:
+    s = fix_vc_macro_slashes_regex.sub(r'\1', s)
+  return s
+
+
 def ConvertVCMacrosToMSBuild(s):
   """Convert the the MSVS macros found in the string to the MSBuild equivalent.
 
@@ -378,14 +396,10 @@ def ConvertVCMacrosToMSBuild(s):
         '$(ParentName)': '$(ProjectFileName)',
         '$(PlatformName)': '$(Platform)',
         '$(SafeInputName)': '%(Filename)',
-
-        '$(IntDir)\\': '$(IntDir)',
-        '$(OutDir)\\': '$(OutDir)',
-        '$(IntDir)/': '$(IntDir)',
-        '$(OutDir)/': '$(OutDir)',
     }
     for old, new in replace_map.iteritems():
       s = s.replace(old, new)
+    s = FixVCMacroSlashes(s)
   return s
 
 

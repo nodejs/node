@@ -35,7 +35,7 @@ class Writer(object):
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None,
-             generator=False, restat=False, deplist=None, rspfile=None,
+             generator=False, restat=False, rspfile=None,
              rspfile_content=None):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
@@ -43,8 +43,6 @@ class Writer(object):
             self.variable('description', description, indent=1)
         if depfile:
             self.variable('depfile', depfile, indent=1)
-        if deplist:
-            self.variable('deplist', deplist, indent=1)
         if generator:
             self.variable('generator', '1', indent=1)
         if restat:
