@@ -13,7 +13,7 @@ function get (uri, timeout, nofollow, staleOk, cb) {
   if (typeof cb !== "function") cb = version, version = null
 
   timeout = Math.min(timeout, this.conf.get('cache-max') || 0)
-  timeout = Math.max(timeout, this.conf.get('cache-min') || Infinity)
+  timeout = Math.max(timeout, this.conf.get('cache-min') || -Infinity)
 
   if (!this.conf.get('registry')) timeout = Infinity
 
