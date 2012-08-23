@@ -26,6 +26,11 @@ img {
   border: 0;
 }
 
+ul {
+  margin: 0px;
+  padding: 0px;
+}
+
 @media all and (min-height: 650px) {
   #toc {
     position: fixed;
