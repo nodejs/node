@@ -650,8 +650,12 @@
         }],
         ['target_arch=="ia32"', {
           'variables': {'openssl_config_path': 'config/piii'},
-        }, {
+        }],
+        ['target_arch=="x64"', {
           'variables': {'openssl_config_path': 'config/k8'},
+        }],
+        ['target_arch=="arm"', {
+          'variables': {'openssl_config_path': 'config/android'},
         }],
       ],
       'include_dirs': [
