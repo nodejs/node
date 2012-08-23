@@ -3,7 +3,8 @@
   font-style: normal;
 }
 
-.sh_sourceCode .sh_symbol , .sh_sourceCode .sh_cbracket {
+.sh_sourceCode .sh_symbol,
+.sh_sourceCode .sh_cbracket {
   color: #333;
 }
 
@@ -11,13 +12,13 @@
   color: #c96;
 }
 
-.sh_sourceCode .sh_string, .sh_sourceCode .sh_regexp, .sh_sourceCode .sh_number,
-.sh_sourceCode .sh_specialchar
-{
+.sh_sourceCode .sh_string,
+.sh_sourceCode .sh_regexp,
+.sh_sourceCode .sh_number,
+.sh_sourceCode .sh_specialchar {
   color: #690;
 }
 
 .sh_sourceCode .sh_comment {
   color: #666;
 }
-
