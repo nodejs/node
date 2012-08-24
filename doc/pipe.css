@@ -1,5 +1,6 @@
 html {
   -webkit-font-smoothing: antialiased;
+  -webkit-text-stroke: .1px;
 }
 
 body {
@@ -105,13 +106,21 @@ h1 a, h2 a, h3 a, h4 a {
 }
 
 #intro .button {
-  font-weight: bold;
+  font-family: helvetica,arial,sans-serif;
   font-size: 12px;
-  padding: 6px 0;
-  -webkit-border-radius: 4px;
-  -moz-border-radius: 4px;
-  border-radius: 4px;
-  margin: 30px 4px 0;
+  line-height: 36px;
+  -webkit-text-transform: uppercase;
+  -moz-text-transform: uppercase;
+  text-transform: uppercase;
+  -webkit-border-radius: 2px;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+
+  -webkit-transition: .2s all ease-in-out;
+  -moz-transition: .2s all ease-in-out;
+  transition: .2s all ease-in-out;
+
+  margin: 10px 4px;
   display: inline-block;
   color: #46483e;
   background-color: #9a9f8b;
@@ -138,6 +147,9 @@ h1 a, h2 a, h3 a, h4 a {
   background-color: #8BC84B;
   width: 200px;
   font-size: 14px;
+  font-weight: bold;
+  display: block;
+  margin: 30px auto 0px auto;
 }
 
 #intro .downloadbutton:hover {
