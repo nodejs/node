@@ -227,7 +227,7 @@ static const struct _native natives[] = {
 
 %(native_lines)s\
 
-  { NULL, NULL } /* sentinel */
+  { NULL, NULL, 0 } /* sentinel */
 
 };
 
