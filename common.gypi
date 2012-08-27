@@ -66,7 +66,7 @@
               }, {
                 'cflags!': [ '-ffunction-sections', '-fdata-sections' ],
               }],
-              ['clang==1 or gcc_version >= 40', {
+              ['clang == 0 and gcc_version >= 40', {
                 'cflags': [ '-fno-tree-vrp' ],
               }],
             ],
