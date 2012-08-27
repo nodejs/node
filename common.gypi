@@ -69,6 +69,9 @@
               ['clang == 0 and gcc_version >= 40', {
                 'cflags': [ '-fno-tree-vrp' ],
               }],
+              ['clang == 0 and gcc_version <= 44', {
+                'cflags': [ '-fno-tree-sink' ],
+              }],
             ],
           }],
           ['OS=="solaris"', {
