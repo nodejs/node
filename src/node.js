@@ -580,13 +580,13 @@
 
         wrap.unref();
 
-        wrap.onsignal = function () { process.emit(type); };
+        wrap.onsignal = function() { process.emit(type); };
 
         var signum = startup.lazyConstants()[type];
         var r = wrap.start(signum);
         if (r) {
           wrap.close();
-          throw errnoException(errno, "uv_signal_start");
+          throw errnoException(errno, 'uv_signal_start');
         }
 
         signalWraps[type] = wrap;
