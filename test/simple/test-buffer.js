@@ -727,3 +727,24 @@ assert.equal(b.toString(), 'xxx');
 
 // issue GH-3416
 Buffer(Buffer(0), 0, 0);
+
+
+[ 'hex',
+  'utf8',
+  'utf-8',
+  'ascii',
+  'binary',
+  'base64',
+  'ucs2',
+  'ucs-2',
+  'utf16le',
+  'utf-16le' ].forEach(function(enc) {
+    assert.equal(Buffer.isEncoding(enc), true);
+  });
+
+[ 'utf9',
+  'utf-7',
+  'Unicode-FTW',
+  'new gnu gun'  ].forEach(function(enc) {
+    assert.equal(Buffer.isEncoding(enc), false);
+  });

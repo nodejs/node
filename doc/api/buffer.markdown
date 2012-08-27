@@ -65,6 +65,13 @@ Allocates a new buffer using an `array` of octets.
 Allocates a new buffer containing the given `str`.
 `encoding` defaults to `'utf8'`.
 
+### Class Method: Buffer.isEncoding(encoding)
+
+* `encoding` {String} The encoding string to test
+
+Returns true if the `encoding` is a valid encoding argument, or false
+otherwise.
+
 ### buf.write(string, [offset], [length], [encoding])
 
 * `string` String - data to be written to buffer
