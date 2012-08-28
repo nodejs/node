@@ -36,5 +36,10 @@ function test(fun, code) {
   });
 }
 
-test(child_process.exec, 127); // exit code of /bin/sh or cmd.exe
+if (process.platform === 'win32') {
+  test(child_process.exec, 1); // exit code of cmd.exe
+} else {
+  test(child_process.exec, 127); // exit code of /bin/sh
+}
+
 test(child_process.execFile, 'ENOENT');
