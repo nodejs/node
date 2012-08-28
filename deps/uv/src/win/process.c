@@ -37,9 +37,9 @@
 typedef struct env_var {
   const char* narrow;
   const WCHAR* wide;
-  int len; /* including null or '=' */
+  size_t len; /* including null or '=' */
+  DWORD value_len;
   int supplied;
-  int value_len;
 } env_var_t;
 
 #define E_V(str) { str "=", L##str, sizeof(str), 0, 0 }
@@ -102,13 +102,13 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
  * Helper function for search_path
  */
 static WCHAR* search_path_join_test(const WCHAR* dir,
-                                      int dir_len,
-                                      const WCHAR* name,
-                                      int name_len,
-                                      const WCHAR* ext,
-                                      int ext_len,
-                                      const WCHAR* cwd,
-                                      int cwd_len) {
+                                    size_t dir_len,
+                                    const WCHAR* name,
+                                    size_t name_len,
+                                    const WCHAR* ext,
+                                    size_t ext_len,
+                                    const WCHAR* cwd,
+                                    size_t cwd_len) {
   WCHAR *result, *result_pos;
   DWORD attrs;
 
@@ -193,12 +193,12 @@ static WCHAR* search_path_join_test(const WCHAR* dir,
  * Helper function for search_path
  */
 static WCHAR* path_search_walk_ext(const WCHAR *dir,
-                                     int dir_len,
-                                     const WCHAR *name,
-                                     int name_len,
-                                     WCHAR *cwd,
-                                     int cwd_len,
-                                     int name_has_ext) {
+                                   size_t dir_len,
+                                   const WCHAR *name,
+                                   size_t name_len,
+                                   WCHAR *cwd,
+                                   size_t cwd_len,
+                                   int name_has_ext) {
   WCHAR* result;
 
   /* If the name itself has a nonempty extension, try this extension first */
@@ -281,11 +281,11 @@ static WCHAR* search_path(const WCHAR *file,
   WCHAR *file_name_start;
   WCHAR *dot;
   const WCHAR *dir_start, *dir_end, *dir_path;
-  int dir_len;
+  size_t dir_len;
   int name_has_ext;
 
-  int file_len = wcslen(file);
-  int cwd_len = wcslen(cwd);
+  size_t file_len = wcslen(file);
+  size_t cwd_len = wcslen(cwd);
 
   /* If the caller supplies an empty filename,
    * we're not gonna return c:\windows\.exe -- GFY!
@@ -380,8 +380,9 @@ static WCHAR* search_path(const WCHAR *file,
  * Returns a pointer to the end (next char to be written) of the buffer
  */
 WCHAR* quote_cmd_arg(const WCHAR *source, WCHAR *target) {
-  int len = wcslen(source),
-      i, quote_hit;
+  size_t len = wcslen(source);
+  size_t i;
+  int quote_hit;
   WCHAR* start;
 
   /*
@@ -512,7 +513,7 @@ uv_err_t make_program_args(char** args, int verbatim_arguments, WCHAR** dst_ptr)
                                   *arg,
                                   -1,
                                   temp_buffer,
-                                  dst + dst_len - pos);
+                                  (int) (dst + dst_len - pos));
     if (arg_len == 0) {
       goto error;
     }
@@ -548,10 +549,10 @@ error:
  * issues associated with that solution; this is the caller's
  * char**, and modifying it is rude.
  */
-static void check_required_vars_contains_var(env_var_t* required, int size,
+static void check_required_vars_contains_var(env_var_t* required, int count,
     const char* var) {
   int i;
-  for (i = 0; i < size; ++i) {
+  for (i = 0; i < count; ++i) {
     if (_strnicmp(required[i].narrow, var, required[i].len) == 0) {
       required[i].supplied =  1;
       return;
@@ -571,11 +572,11 @@ static void check_required_vars_contains_var(env_var_t* required, int size,
  * these get defined if the input environment block does not contain any
  * values for them.
  */
-WCHAR* make_program_env(char** env_block) {
+uv_err_t make_program_env(char* env_block[], WCHAR** dst_ptr) {
   WCHAR* dst;
   WCHAR* ptr;
   char** env;
-  int env_len = 1 * sizeof(WCHAR); /* room for closing null */
+  size_t env_len = 1; /* room for closing null */
   int len;
   int i;
   DWORD var_size;
@@ -587,36 +588,53 @@ WCHAR* make_program_env(char** env_block) {
   };
 
   for (env = env_block; *env; env++) {
+    int len;
     check_required_vars_contains_var(required_vars,
                                      ARRAY_SIZE(required_vars),
                                      *env);
-    env_len += (uv_utf8_to_utf16(*env, NULL, 0) * sizeof(WCHAR));
+
+    len = MultiByteToWideChar(CP_UTF8,
+                              0,
+                              *env,
+                              -1,
+                              NULL,
+                              0);
+    if (len <= 0) {
+      return uv__new_sys_error(GetLastError());
+    }
+
+    env_len += len;
   }
 
   for (i = 0; i < ARRAY_SIZE(required_vars); ++i) {
     if (!required_vars[i].supplied) {
-      env_len += required_vars[i].len * sizeof(WCHAR);
+      env_len += required_vars[i].len;
       var_size = GetEnvironmentVariableW(required_vars[i].wide, NULL, 0);
       if (var_size == 0) {
-        uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
+        return uv__new_sys_error(GetLastError());
       }
-      required_vars[i].value_len = (int)var_size;
-      env_len += (int)var_size * sizeof(WCHAR);
+      required_vars[i].value_len = var_size;
+      env_len += var_size;
     }
   }
 
-  dst = malloc(env_len);
+  dst = malloc(env_len * sizeof(WCHAR));
   if (!dst) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    return uv__new_artificial_error(UV_ENOMEM);
   }
 
   ptr = dst;
 
   for (env = env_block; *env; env++, ptr += len) {
-    len = uv_utf8_to_utf16(*env, ptr, (size_t)(env_len - (ptr - dst)));
-    if (!len) {
+    len = MultiByteToWideChar(CP_UTF8,
+                              0,
+                              *env,
+                              -1,
+                              ptr,
+                              (int) (env_len - (ptr - dst)));
+    if (len <= 0) {
       free(dst);
-      return NULL;
+      return uv__new_sys_error(GetLastError());
     }
   }
 
@@ -635,8 +653,11 @@ WCHAR* make_program_env(char** env_block) {
     }
   }
 
+  /* Terminate with an extra NULL. */
   *ptr = L'\0';
-  return dst;
+
+  *dst_ptr = dst;
+  return uv_ok_;
 }
 
 
@@ -739,7 +760,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   WCHAR* path = NULL;
   BOOL result;
   WCHAR* application_path = NULL, *application = NULL, *arguments = NULL,
-           *env = NULL, *cwd = NULL;
+         *env = NULL, *cwd = NULL;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
   DWORD process_flags;
@@ -773,6 +794,12 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
                           &arguments);
   if (err.code != UV_OK)
     goto done;
+
+  if (options.env) {
+     err = make_program_env(options.env, &env);
+     if (err.code != UV_OK)
+       goto done;
+  }
 
   if (options.cwd) {
     /* Explicit cwd */
