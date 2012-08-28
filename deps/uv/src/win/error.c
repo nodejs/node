@@ -81,6 +81,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_OPEN_FAILED:                 return UV_EIO;
     case ERROR_SETMARK_DETECTED:            return UV_EIO;
     case ERROR_SIGNAL_REFUSED:              return UV_EIO;
+    case ERROR_DIRECTORY:                   return UV_ENOENT;
     case ERROR_FILE_NOT_FOUND:              return UV_ENOENT;
     case ERROR_INVALID_NAME:                return UV_ENOENT;
     case ERROR_INVALID_REPARSE_DATA:        return UV_ENOENT;
