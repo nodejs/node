@@ -172,7 +172,9 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
   Isolate* isolate = new_object->GetIsolate();
   Factory* factory = isolate->factory();
   return Map::UpdateCodeCache(known_map_,
-                              factory->compare_ic_symbol(),
+                              strict() ?
+                                  factory->strict_compare_ic_symbol() :
+                                  factory->compare_ic_symbol(),
                               new_object);
 }
 
@@ -183,10 +185,16 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   Code::Flags flags = Code::ComputeFlags(
       static_cast<Code::Kind>(GetCodeKind()),
       UNINITIALIZED);
+  ASSERT(op_ == Token::EQ || op_ == Token::EQ_STRICT);
   Handle<Object> probe(
-      known_map_->FindInCodeCache(*factory->compare_ic_symbol(), flags));
+      known_map_->FindInCodeCache(
+        strict() ?
+            *factory->strict_compare_ic_symbol() :
+            *factory->compare_ic_symbol(),
+        flags));
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
+    ASSERT(op_ == (*code_out)->compare_operation());
     return true;
   }
   return false;

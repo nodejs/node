@@ -240,7 +240,8 @@ namespace internal {
   V(use_strict, "use strict")                                            \
   V(dot_symbol, ".")                                                     \
   V(anonymous_function_symbol, "(anonymous function)")                   \
-  V(compare_ic_symbol, ".compare_ic")                                    \
+  V(compare_ic_symbol, "==")                                             \
+  V(strict_compare_ic_symbol, "===")                                     \
   V(infinity_symbol, "Infinity")                                         \
   V(minus_infinity_symbol, "-Infinity")                                  \
   V(hidden_stack_trace_symbol, "v8::hidden_stack_trace")                 \

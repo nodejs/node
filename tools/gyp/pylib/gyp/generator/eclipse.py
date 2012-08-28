@@ -17,6 +17,7 @@ still result in a few indexer issues here and there.
 This generator has no automated tests, so expect it to be broken.
 """
 
+from xml.sax.saxutils import escape
 import os.path
 import subprocess
 import gyp
@@ -36,7 +37,8 @@ for unused in ['RULE_INPUT_PATH', 'RULE_INPUT_ROOT', 'RULE_INPUT_NAME',
                'RULE_INPUT_DIRNAME', 'RULE_INPUT_EXT',
                'EXECUTABLE_PREFIX', 'EXECUTABLE_SUFFIX',
                'STATIC_LIB_PREFIX', 'STATIC_LIB_SUFFIX',
-               'SHARED_LIB_PREFIX', 'SHARED_LIB_SUFFIX']:
+               'SHARED_LIB_PREFIX', 'SHARED_LIB_SUFFIX',
+               'CONFIGURATION_NAME']:
   generator_default_variables[unused] = ''
 
 # Include dirs will occasionaly use the SHARED_INTERMEDIATE_DIR variable as
@@ -216,7 +218,7 @@ def WriteMacros(out, eclipse_langs, defines):
     out.write('    <language name="%s">\n' % lang)
     for key in sorted(defines.iterkeys()):
       out.write('      <macro><name>%s</name><value>%s</value></macro>\n' %
-                (key, defines[key]))
+                (escape(key), escape(defines[key])))
     out.write('    </language>\n')
   out.write('  </section>\n')
 

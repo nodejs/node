@@ -652,10 +652,17 @@
           'sources': [
             'openssl/crypto/bn/bn_asm.c',
           ]
-        }, {
+        }],
+        ['target_arch=="x64"', {
           'variables': {'openssl_config_path': 'config/k8'},
           'sources': [
             'openssl/crypto/bn/asm/x86_64-gcc.c',
+          ]
+        }],
+        ['target_arch=="arm"', {
+          'variables': {'openssl_config_path': 'config/android'},
+          'sources': [
+            'openssl/crypto/bn/bn_asm.c',
           ]
         }]
       ],

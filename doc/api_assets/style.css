@@ -1,40 +1,44 @@
 /*--------------------- Layout and Typography ----------------------------*/
 html {
-	-webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
   font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
-	font-size: 14px;
+  font-size: 14px;
   line-height: 180%;
   color: black;
   margin: 0; padding: 49px 0 0 0;
   border-top: 6px #8CC84B solid;
 }
+
 a {
   color: #480;
   text-decoration: underline;
 }
-  a:visited {
-    color: #46483e;
-    text-decoration: underline;
-  }
-  a:hover, a:focus {
-    text-decoration: none;
-  }
 
-    code a:hover {
-      background: none;
-      color: #b950b7;
-    }
+a:visited {
+  color: #46483e;
+  text-decoration: underline;
+}
+
+a:hover,
+a:focus {
+  text-decoration: none;
+}
+
+code a:hover {
+  background: none;
+  color: #b950b7;
+}
 
 #changelog #gtoc {
   display: none;
 }
 
 #gtoc p {
-  margin:0;
-  font-size:18px;
+  margin: 0;
+  font-size: 18px;
   line-height: 30px;
 }
 
@@ -45,21 +49,22 @@ a {
 }
 
 #gtoc a:hover {
-    color: #669900;
-    text-decoration: underline;
+  color: #669900;
+  text-decoration: underline;
 }
 
 .notice {
   display: block;
   padding: 1em;
   margin: 1.4667em 0 2.9334em;
-  background:#FFF6BF;
-  color:#514721;
-  border:1px solid #FFD324;
+  background: #FFF6BF;
+  color: #514721;
+  border: 1px solid #FFD324;
 }
-  .notice p {
-    margin: 0;
-  }
+
+.notice p {
+  margin: 0;
+}
 
 ul.plain {
   list-style: none;
@@ -75,7 +80,8 @@ p {
   text-rendering: optimizeLegibility;
 }
 
-.apidoc #apicontent p, .apidoc #apicontent li {
+.apidoc #apicontent p,
+.apidoc #apicontent li {
   font-size: 15px;
   line-height: 22px;
   color: #000;
@@ -93,14 +99,15 @@ dl ul, dl ol, dl dl {
   margin-bottom: 0;
 }
 
-ol p:first-child, ul p:first-child, dl p:first-child {
+ol p:first-child,
+ul p:first-child,
+dl p:first-child {
   margin-bottom: 0;
 }
 
 ul, ol {
   margin-left: 2em;
 }
-
 
 dl dt {
   position: relative;
@@ -139,8 +146,8 @@ h1 {
 }
 
 #toc + h1 {
-  margin-top:1em;
-  padding-top:0;
+  margin-top: 1em;
+  padding-top: 0;
 }
 
 h2 {
@@ -163,37 +170,40 @@ h3 + h3 {
   margin: 0 0 0.5em;
 }
 
-  h2, h3, h4 {
-    position:relative;
-    padding-right:40px;
-  }
-  h1 span, h2 span, h3 span, h4 span {
-    font-size:25px;
-    position:absolute;
-    display:block;
-    top:0;
-    right:0;
-    opacity: 0.3;
-  }
-  h1 span:hover, h2 span:hover, h3 span:hover, h4 span:hover {
-    opacity: 1;
-  }
-  h1 span a, h2 span a, h3 span a, h4 span a {
-    font-size: 0.8em;
-    color: #000;
-    text-decoration: none;
-    font-family: Helvetica, Arial, sans-serif;
-    font-weight:bold;
-  }
+h2, h3, h4 {
+  position: relative;
+  padding-right: 40px;
+}
 
-  h1 span a.top, h3 span a.top, h3 span a.top, h4 span a.top {
-    /* XXX Get an image and clean up these two links
-     * so that they look nice next to one another.
-     * http://www.chrisglass.com/work/nodejs/website/v05/docs.html
-     * -isaacs
-     */
-    display:none;
-  }
+h1 span, h2 span, h3 span, h4 span {
+  font-size: 25px;
+  position: absolute;
+  display: block;
+  top: 0;
+  right: 0;
+  opacity: 0.3;
+}
+
+h1 span:hover, h2 span:hover, h3 span:hover, h4 span:hover {
+  opacity: 1;
+}
+
+h1 span a, h2 span a, h3 span a, h4 span a {
+  font-size: 0.8em;
+  color: #000;
+  text-decoration: none;
+  font-family: Helvetica, Arial, sans-serif;
+  font-weight: bold;
+}
+
+h1 span a.top, h2 span a.top, h3 span a.top, h4 span a.top {
+  /* XXX Get an image and clean up these two links
+  * so that they look nice next to one another.
+  * http://www.chrisglass.com/work/nodejs/website/v05/docs.html
+  * -isaacs
+  */
+  display: none;
+}
 
 h5 {
   font-size: 1.125em;
@@ -205,43 +215,42 @@ h6 {
   line-height: 1.4667em;
 }
 
-  pre, tt, code {
-    font-size: 14px;
-    line-height: 1.5438em;
-    font-family: Monaco, Consolas, "Lucida Console", monospace;
-    margin: 0; padding: 0;
-  }
+pre, tt, code {
+  font-size: 14px;
+  line-height: 1.5438em;
+  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  margin: 0; padding: 0;
+}
 
-  .pre {
-    font-family: Monaco, Consolas, "Lucida Console", monospace;
-    line-height: 1.5438em;
-    font-size: 0.95em;
-  }
+.pre {
+  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  line-height: 1.5438em;
+  font-size: 0.95em;
+}
 
-  pre {
-    padding: 1em 1.6em 1em 1.2em;
-    vertical-align: top;
-    background: #f8f8f8;
-    border: 1px solid #e8e8e8;
-    border-width: 1px 1px 1px 6px;
-    margin: -0.5em 0 1.1em;
-    overflow-x:auto;
-  }
+pre {
+  padding: 1em 1.6em 1em 1.2em;
+  vertical-align: top;
+  background: #f8f8f8;
+  border: 1px solid #e8e8e8;
+  border-width: 1px 1px 1px 6px;
+  margin: -0.5em 0 1.1em;
+  overflow-x: auto;
+}
 
-  pre + h3 {
-    margin-top: 2.225em;
-  }
+pre + h3 {
+  margin-top: 2.225em;
+}
 
 code.pre {
   white-space: pre;
 }
 
 #intro {
-    width: 775px;
-    margin: 0 auto;
-    text-align: center;
-	color: #d2d8ba;
-
+  width: 775px;
+  margin: 0 auto;
+  text-align: center;
+  color: #d2d8ba;
   /* preload platform-icons.png */
   background-image: url(http://nodejs.org/images/platform-icons.png);
   background-repeat: no-repeat;
@@ -249,8 +258,8 @@ code.pre {
 }
 
 #intro.interior #logo {
-    margin-left: -298px;
-    border:0;
+  margin-left: -298px;
+  border: 0;
 }
 
 hr {
@@ -261,86 +270,90 @@ hr {
 }
 
 #toc {
-  font-size:15px;
-  line-height:1.5em;
+  font-size: 15px;
+  line-height: 1.5em;
   line-height: 22px;
-  padding-top:4px;
+  padding-top: 4px;
 }
 
-  #toc h2 {
-    font-size: 15px;
-    line-height: 21px;
-    margin: 0 0 0.5em;
-  }
+#toc h2 {
+  font-size: 15px;
+  line-height: 21px;
+  margin: 0 0 0.5em;
+}
 
-  #toc h2 a {
-    float: right;
-  }
+#toc h2 a {
+  float: right;
+}
 
-  #toc hr {
-    margin: 1em 0 2em;
-  }
+#toc hr {
+  margin: 1em 0 2em;
+}
 
-  #toc ul, #api-section-index #apicontent ul li, #api-section-index #apicontent ul {
-    font-family: Georgia, FreeSerif, Times, serif;
-    color:#666!important;
-  }
+#toc ul,
+#api-section-index #apicontent ul li,
+#api-section-index #apicontent ul {
+  font-family: Georgia, FreeSerif, Times, serif;
+  color: #666 !important;
+}
 
-  #toc ul a {
-    text-decoration:none;
-    border-bottom:1px dotted #480;
-  }
-  #toc ul a:hover, #toc ul a:focus {
-    border-bottom:1px dotted #fff;
-    color:#000;
-  }
+#toc ul a {
+  text-decoration: none;
+  border-bottom: 1px dotted #480;
+}
 
+#toc ul a:hover,
+#toc ul a:focus {
+  border-bottom: 1px dotted #fff;
+  color: #000;
+}
 
-p tt, p code {
+p tt,
+p code {
   background: #f8f8ff;
   border: 1px solid #dedede;
   padding: 0 0.2em;
 }
 
 #content {
-    width: 953px;
-    margin: 0 auto;
-    overflow: visible;
-    clear: both;
-    display: block;
+  width: 953px;
+  margin: 0 auto;
+  overflow: visible;
+  clear: both;
+  display: block;
 }
 
 #column1.interior {
-    width: 749px;
-    float: right;
-    padding-top: 7px;
-    padding-top: 11px;
-    font-size:18px;
+  width: 749px;
+  float: right;
+  padding-top: 7px;
+  padding-top: 11px;
+  font-size: 18px;
 }
 
 #column2.interior {
-    width: 140px;
-    float: left;
-    margin-top: -55px;
-    overflow: visible;
+  width: 140px;
+  float: left;
+  margin-top: -55px;
+  overflow: visible;
 }
 
 #column2.interior ul {
-    margin-left: 0;
+  margin-left: 0;
 }
 
 #column2.interior li {
-    list-style-type: none;
+  list-style-type: none;
 }
 
 #column2.interior li a {
-    display: block;
-    padding: 0 0 0 35px;
-    color: #878b78;
-    text-transform: uppercase;
-    text-decoration: none;
-    font-size: 11px;
-    line-height: 23px;
+  display: block;
+  padding: 0 0 0 35px;
+  color: #878b78;
+  text-transform: uppercase;
+  text-decoration: none;
+  font-size: 11px;
+  line-height: 23px;
 }
 
 #column2.interior li a.home { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px 3px; }
@@ -351,7 +364,7 @@ p tt, p code {
 #column2.interior li a.blog { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -117px; }
 #column2.interior li a.community { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -141px; }
 #column2.interior li a.logos { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -165px; }
-#column2.interior li a.jobs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -189px; } 
+#column2.interior li a.jobs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -189px; }
 
 #column2.interior li a.home.current { background-position: 2px 3px; }
 #column2.interior li a.download.current { background-position: 2px -21px; }
@@ -362,7 +375,6 @@ p tt, p code {
 #column2.interior li a.community.current { background-position: 2px -141px; }
 #column2.interior li a.logos.current { background-position: 2px -165px; }
 #column2.interior li a.jobs.current { background-position: 2px -189px; }
-#column2.interior li a.current { color: #8cc84b; font-weight: bold; }
 
 #column2.interior li a.home:hover { background-position: -331px 3px; }
 #column2.interior li a.download:hover { background-position: -331px -21px; }
@@ -373,23 +385,33 @@ p tt, p code {
 #column2.interior li a.community:hover { background-position: -331px -141px; }
 #column2.interior li a.logos:hover { background-position: -331px -165px; }
 #column2.interior li a.jobs:hover { background-position: -331px -189px; }
-#column2.interior li a:hover { color: #000000; text-decoration: none; }
+
+#column2.interior li a.current {
+  color: #8cc84b;
+  font-weight: bold;
+}
+
+#column2.interior li a:hover {
+  color: #000000;
+  text-decoration: none;
+}
 
 #column2.interior li + li {
-    border-top: 1px solid #c1c7ac;
+  border-top: 1px solid #c1c7ac;
 }
+
 #column2.interior p.twitter {
-    padding-top: 20px;
+  padding-top: 20px;
 }
 
 #column2.interior p.twitter a {
-    background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 0 4px;
-    padding-left: 37px;
-    text-decoration: none;
+  background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 0 4px;
+  padding-left: 37px;
+  text-decoration: none;
 }
 
 #column2.interior p.twitter a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
 
 a.totop {
@@ -412,82 +434,84 @@ a.anchor {
   width: 13px;
   border-bottom: 1px solid #cccccc;
 }
+
 #footer {
-    width: 942px;
-    margin: 150px auto 55px auto;
-    padding:0;
+  width: 942px;
+  margin: 150px auto 55px auto;
+  padding: 0;
 }
 
 #footer p {
-    font-size: 11px;
-    line-height:1em;
-    padding: 0 0 0 195px;
-    color: #666;
+  font-size: 11px;
+  line-height: 1em;
+  padding: 0 0 0 195px;
+  color: #666;
 }
 
-#footer p, #footer li {
-    font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+#footer p,
+#footer li {
+  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
 }
 
 #footer a {
-  text-decoration:none;
-  border:none;
+  text-decoration: none;
+  border: none;
   color: #480;
 }
+
 #footer a:hover {
-  color:#000;
+  color: #000;
 }
 
 #footer p a {
-    border-bottom:1px dotted #480;
-    color: #878b78;
+  border-bottom: 1px dotted #480;
+  color: #878b78;
 }
 
 #footer ul {
-    background: url(http://nodejs.org/images/footer-logo-alt.png) left 17px no-repeat;
-    padding: 23px 0 0 195px;
-    height: 26px;
-    margin-left: -1px;
-    border-top: 1px solid #626557;
+  background: url(http://nodejs.org/images/footer-logo-alt.png) left 17px no-repeat;
+  padding: 23px 0 0 195px;
+  height: 26px;
+  margin-left: -1px;
+  border-top: 1px solid #626557;
 }
 
 #footer ul li {
-    list-style-type: none;
-    float: left;
-    font-size: 12px;
-    margin:0!important;
-    padding:0;
-    height: 12px;
+  list-style-type: none;
+  float: left;
+  font-size: 12px;
+  margin: 0 !important;
+  padding: 0;
+  height: 12px;
 }
 
 #footer ul li a {
-    margin: 0;
-    padding: 0 6px 0 0;
-    display: block;
-    height:12px;
-    line-height:12px;
+  margin: 0;
+  padding: 0 6px 0 0;
+  display: block;
+  height: 12px;
+  line-height: 12px;
 }
 
 #footer ul li + li {
-    margin-left: 3px;
+  margin-left: 3px;
 }
 
 #footer ul li + li a {
-    padding: 0 6px 0 6px;
-    border-left: 1px solid #878b78;
+  padding: 0 6px 0 6px;
+  border-left: 1px solid #878b78;
 }
 
 #footer ul li a.twitter  {
-    background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 5px 0px;
-    padding-left: 25px;
+  background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 5px 0px;
+  padding-left: 25px;
 }
 
 /* simpler clearfix */
 .clearfix:after {
-    content: ".";
-    display: block;
-    height: 0;
-    clear: both;
-    visibility: hidden;
+  content: ".";
+  display: block;
+  height: 0;
+  clear: both;
+  visibility: hidden;
 }
-

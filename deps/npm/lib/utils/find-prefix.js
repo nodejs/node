@@ -14,7 +14,6 @@ function findPrefix (p, cb_) {
   }
 
   p = path.resolve(p)
-  if (npm.config.get("global")) return cb(null, p)
   // if there's no node_modules folder, then
   // walk up until we hopefully find one.
   // if none anywhere, then use cwd.

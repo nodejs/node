@@ -550,6 +550,15 @@ The url to report npat test results.
 A node module to `require()` when npm loads.  Useful for programmatic
 usage.
 
+### optional
+
+* Default: true
+* Type: Boolean
+
+Attempt to install packages in the `optionalDependencies` hash.  Note
+that if these packages fail to install, the overall installation
+process is not aborted.
+
 ### parseable
 
 * Default: false

@@ -286,6 +286,8 @@ function findUnmet (obj) {
                   +found.path+",\nwhich is version "+found.version
                   )
           found.invalid = true
+        } else {
+          found.extraneous = false
         }
         deps[d] = found
       }

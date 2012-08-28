@@ -283,7 +283,7 @@ function logout (cb) {
   , req = { uri: u, headers: h, json: true }
 
   request.del(req, function (er, res, data) {
-    if (er || res.statusCode !== 200) {
+    if (er || (res.statusCode !== 200 && res.statusCode !== 404)) {
       return cb(er, res, data)
     }
 

@@ -151,7 +151,7 @@ The first argument can be either a url or an options object. The only required o
 * `headers` - http headers, defaults to {}
 * `body` - entity body for POST and PUT requests. Must be buffer or string.
 * `form` - sets `body` but to querystring representation of value and adds `Content-type: application/x-www-form-urlencoded; charset=utf-8` header.
-* `json` - sets `body` but to JSON representation of value and adds `Content-type: application/json` header.
+* `json` - sets `body` but to JSON representation of value and adds `Content-type: application/json` header.  Additionally, parses the response body as json.
 * `multipart` - (experimental) array of objects which contains their own headers and `body` attribute. Sends `multipart/related` request. See example below.
 * `followRedirect` - follow HTTP 3xx responses as redirects. defaults to true.
 * `followAllRedirects` - follow non-GET HTTP 3xx responses as redirects. defaults to false.

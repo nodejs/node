@@ -5,6 +5,11 @@ if (process.argv[2] === 'child') {
   return child()
 }
 
+var CLOSE = 'close'
+if (process.version.match(/^v0\.6/)) {
+  CLOSE = 'exit'
+}
+
 var spawn = require('child_process').spawn
 
 tap.test('basic', function (t) {
@@ -31,7 +36,7 @@ tap.test('basic', function (t) {
     console.error('result %j', c.toString())
   })
 
-  child.on('close', function () {
+  child.on(CLOSE, function () {
     result = JSON.parse(result)
     t.same(result, {"user":"a user","pass":"a password","verify":"a password","passMatch":true})
     t.equal(output, 'Username: (test-user) Password: (<default hidden>) Password again: (<default hidden>) ')

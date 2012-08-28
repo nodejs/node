@@ -947,6 +947,21 @@ Type: path
 A node module to \fBrequire()\fR when npm loads\.  Useful for programmatic
 usage\.
 .
+.SS "optional"
+.
+.IP "\(bu" 4
+Default: true
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Attempt to install packages in the \fBoptionalDependencies\fR hash\.  Note
+that if these packages fail to install, the overall installation
+process is not aborted\.
+.
 .SS "parseable"
 .
 .IP "\(bu" 4

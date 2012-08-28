@@ -95,6 +95,15 @@ def BuildFile(fully_qualified_target):
   return ParseQualifiedTarget(fully_qualified_target)[0]
 
 
+def GetEnvironFallback(var_list, default):
+  """Look up a key in the environment, with fallback to secondary keys
+  and finally falling back to a default value."""
+  for var in var_list:
+    if var in os.environ:
+      return os.environ[var]
+  return default
+
+
 def QualifiedTarget(build_file, target, toolset):
   # "Qualified" means the file that a target was defined in and the target
   # name, separated by a colon, suffixed by a # and the toolset name:

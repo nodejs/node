@@ -21,7 +21,32 @@
 * Fix #3521 Make process.env more like a regular Object (isaacs)
 
 
-2012.08.15, Version 0.8.7 (Stable)
+2012.08.22, Version 0.8.8 (Stable)
+
+* V8: upgrade to 3.11.10.19
+
+* npm: upgrade to 1.1.59
+
+* windows: fix uninitialized memory access in uv_update_time() (Bert Belder)
+
+* unix, windows: fix memory corruption in fs-poll.c (Ben Noordhuis)
+
+* unix: fix integer overflow in uv_hrtime (Tim Holy)
+
+* sunos: fix uv_cpu_info() on x86_64 (Ben Noordhuis)
+
+* tls: update default cipher list (Ben Noordhuis)
+
+* unix: Fix llvm and older gcc duplicate symbol warnings (Bert Belder)
+
+* fs: fix use after free in stat watcher (Ben Noordhuis)
+
+* build: Fix using manually compiled gcc on OS X (Nathan Rajlich)
+
+* windows: make junctions work again (Bert Belder)
+
+
+2012.08.15, Version 0.8.7 (Stable), f640c5d35cba96634cd8176a525a1d876e361a61
 
 * npm: Upgrade to 1.1.49
 

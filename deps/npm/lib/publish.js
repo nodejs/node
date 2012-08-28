@@ -2,7 +2,6 @@
 module.exports = publish
 
 var npm = require("./npm.js")
-  , registry = npm.registry
   , log = require("npmlog")
   , tar = require("./utils/tar.js")
   , path = require("path")
@@ -10,6 +9,8 @@ var npm = require("./npm.js")
   , fs = require("graceful-fs")
   , lifecycle = require("./utils/lifecycle.js")
   , chain = require("slide").chain
+  , Conf = require("npmconf").Conf
+  , RegClient = require("npm-registry-client")
 
 publish.usage = "npm publish <tarball>"
               + "\nnpm publish <folder>"
@@ -61,11 +62,11 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
   if (!data) return cb(new Error("no package.json file found"))
 
   // check for publishConfig hash
+  var registry = npm.registry
   if (data.publishConfig) {
-    Object.keys(data.publishConfig).forEach(function (k) {
-      log.info("publishConfig", k + "=" + data.publishConfig[k])
-      npm.config.set(k, data.publishConfig[k])
-    })
+    var pubConf = new Conf(npm.config)
+    pubConf.unshift(data.publishConfig)
+    registry = new RegClient(pubConf)
   }
 
   data._npmVersion = npm.version
@@ -77,10 +78,6 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
     ("This package has been marked as private\n"
     +"Remove the 'private' field from the package.json to publish it."))
 
-  regPublish(data, isRetry, arg, cachedir, cb)
-}
-
-function regPublish (data, isRetry, arg, cachedir, cb) {
   var tarball = cachedir + ".tgz"
   registry.publish(data, tarball, function (er) {
     if (er && er.code === "EPUBLISHCONFLICT"

@@ -1,4 +1,4 @@
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -1199,11 +1199,9 @@ class PBXGroup(XCHierarchicalElement):
     is_dir = False
     if path.endswith('/'):
       is_dir = True
-    normpath = posixpath.normpath(path)
+    path = posixpath.normpath(path)
     if is_dir:
-      normpath = path + '/'
-    else:
-      normpath = path
+      path = path + '/'
 
     # Adding or getting a variant?  Variants are files inside directories
     # with an ".lproj" extension.  Xcode uses variants for localization.  For
@@ -1232,7 +1230,7 @@ class PBXGroup(XCHierarchicalElement):
       # this PBXGroup, no recursion necessary.
       if variant_name is None:
         # Add or get a PBXFileReference.
-        file_ref = self.GetChildByPath(normpath)
+        file_ref = self.GetChildByPath(path)
         if file_ref != None:
           assert file_ref.__class__ == PBXFileReference
         else:

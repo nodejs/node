@@ -1,4 +1,0 @@
-language: node_js
-before_install: "make &>out || cat out; rm out"
-node_js:
-  - 0.8

@@ -39,10 +39,10 @@ generator_default_variables = {
     'STATIC_LIB_SUFFIX': '.lib',
     'SHARED_LIB_SUFFIX': '.dll',
     'INTERMEDIATE_DIR': '$(IntDir)',
-    'SHARED_INTERMEDIATE_DIR': '$(OutDir)/obj/global_intermediate',
+    'SHARED_INTERMEDIATE_DIR': '$(OutDir)obj/global_intermediate',
     'OS': 'win',
     'PRODUCT_DIR': '$(OutDir)',
-    'LIB_DIR': '$(OutDir)\\lib',
+    'LIB_DIR': '$(OutDir)lib',
     'RULE_INPUT_ROOT': '$(InputName)',
     'RULE_INPUT_DIRNAME': '$(InputDir)',
     'RULE_INPUT_EXT': '$(InputExt)',
@@ -268,8 +268,7 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
       direct_cmd = [i.replace('$(InputPath)',
                               '`cygpath -m "${INPUTPATH}"`')
                     for i in direct_cmd]
-    direct_cmd = ['"%s"' % i for i in direct_cmd]
-    direct_cmd = [i.replace('"', '\\"') for i in direct_cmd]
+    direct_cmd = ['\\"%s\\"' % i.replace('"', '\\\\\\"') for i in direct_cmd]
     #direct_cmd = gyp.common.EncodePOSIXShellList(direct_cmd)
     direct_cmd = ' '.join(direct_cmd)
     # TODO(quote):  regularize quoting path names throughout the module
@@ -295,10 +294,19 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
       command = ['type']
     else:
       command = [cmd[0].replace('/', '\\')]
+    # Add call before command to ensure that commands can be tied together one
+    # after the other without aborting in Incredibuild, since IB makes a bat
+    # file out of the raw command string, and some commands (like python) are
+    # actually batch files themselves.
+    command.insert(0, 'call')
     # Fix the paths
-    # If the argument starts with a slash, it's probably a command line switch
-    arguments = [i.startswith('/') and i or _FixPath(i) for i in cmd[1:]]
+    # TODO(quote): This is a really ugly heuristic, and will miss path fixing
+    #              for arguments like "--arg=path" or "/opt:path".
+    # If the argument starts with a slash or dash, it's probably a command line
+    # switch
+    arguments = [i if (i[:1] in "/-") else _FixPath(i) for i in cmd[1:]]
     arguments = [i.replace('$(InputDir)','%INPUTDIR%') for i in arguments]
+    arguments = [MSVSSettings.FixVCMacroSlashes(i) for i in arguments]
     if quote_cmd:
       # Support a mode for using cmd directly.
       # Convert any paths to native form (first element is used directly).
@@ -830,18 +838,22 @@ def _GetGuidOfProject(proj_path, spec):
   return guid
 
 
-def _GetMsbuildToolsetOfProject(proj_path, spec):
+def _GetMsbuildToolsetOfProject(proj_path, spec, version):
   """Get the platform toolset for the project.
 
   Arguments:
     proj_path: Path of the vcproj or vcxproj file to generate.
     spec: The target dictionary containing the properties of the target.
+    version: The MSVSVersion object.
   Returns:
     the platform toolset string or None.
   """
   # Pluck out the default configuration.
   default_config = _GetDefaultConfiguration(spec)
-  return default_config.get('msbuild_toolset')
+  toolset = default_config.get('msbuild_toolset')
+  if not toolset and version.DefaultToolset():
+    toolset = version.DefaultToolset()
+  return toolset
 
 
 def _GenerateProject(project, options, version, generator_flags):
@@ -896,7 +908,8 @@ def _GenerateMSVSProject(project, options, version, generator_flags):
 
   # Prepare list of sources and excluded sources.
   gyp_file = os.path.split(project.build_file)[1]
-  sources, excluded_sources = _PrepareListOfSources(spec, gyp_file)
+  sources, excluded_sources = _PrepareListOfSources(spec, generator_flags,
+                                                    gyp_file)
 
   # Add rules.
   actions_to_add = {}
@@ -1046,7 +1059,7 @@ def _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config):
               defines)
   # Change program database directory to prevent collisions.
   _ToolAppend(tools, 'VCCLCompilerTool', 'ProgramDataBaseFileName',
-              '$(IntDir)\\$(ProjectName)\\vc80.pdb', only_if_unset=True)
+              '$(IntDir)$(ProjectName)\\vc80.pdb', only_if_unset=True)
   # Add disabled warnings.
   _ToolAppend(tools, 'VCCLCompilerTool',
               'DisableSpecificWarnings', disabled_warnings)
@@ -1133,10 +1146,10 @@ def _GetOutputFilePathAndTool(spec):
   vc_tool = ''
   msbuild_tool = ''
   output_file_map = {
-      'executable': ('VCLinkerTool', 'Link', '$(OutDir)\\', '.exe'),
-      'shared_library': ('VCLinkerTool', 'Link', '$(OutDir)\\', '.dll'),
-      'loadable_module': ('VCLinkerTool', 'Link', '$(OutDir)\\', '.dll'),
-      'static_library': ('VCLibrarianTool', 'Lib', '$(OutDir)\\lib\\', '.lib'),
+      'executable': ('VCLinkerTool', 'Link', '$(OutDir)', '.exe'),
+      'shared_library': ('VCLinkerTool', 'Link', '$(OutDir)', '.dll'),
+      'loadable_module': ('VCLinkerTool', 'Link', '$(OutDir)', '.dll'),
+      'static_library': ('VCLibrarianTool', 'Lib', '$(OutDir)lib\\', '.lib'),
   }
   output_file_props = output_file_map.get(spec['type'])
   if output_file_props and int(spec.get('msvs_auto_output_file', 1)):
@@ -1249,9 +1262,13 @@ def _GetMSVSAttributes(spec, config, config_type):
   prepared_attrs['ConfigurationType'] = config_type
   output_dir = prepared_attrs.get('OutputDirectory',
                                   '$(SolutionDir)$(ConfigurationName)')
-  prepared_attrs['OutputDirectory'] = output_dir
+  prepared_attrs['OutputDirectory'] = _FixPath(output_dir) + '\\'
   if 'IntermediateDirectory' not in prepared_attrs:
     intermediate = '$(ConfigurationName)\\obj\\$(ProjectName)'
+    prepared_attrs['IntermediateDirectory'] = _FixPath(intermediate) + '\\'
+  else:
+    intermediate = _FixPath(prepared_attrs['IntermediateDirectory']) + '\\'
+    intermediate = MSVSSettings.FixVCMacroSlashes(intermediate)
     prepared_attrs['IntermediateDirectory'] = intermediate
   return prepared_attrs
 
@@ -1261,7 +1278,7 @@ def _AddNormalizedSources(sources_set, sources_array):
   sources_set.update(set(sources))
 
 
-def _PrepareListOfSources(spec, gyp_file):
+def _PrepareListOfSources(spec, generator_flags, gyp_file):
   """Prepare list of sources and excluded sources.
 
   Besides the sources specified directly in the spec, adds the gyp file so
@@ -1280,7 +1297,8 @@ def _PrepareListOfSources(spec, gyp_file):
   _AddNormalizedSources(sources, spec.get('sources', []))
   excluded_sources = set()
   # Add in the gyp file.
-  sources.add(gyp_file)
+  if not generator_flags.get('standalone'):
+    sources.add(gyp_file)
 
   # Add in 'action' inputs and outputs.
   for a in spec.get('actions', []):
@@ -1598,7 +1616,7 @@ def _GetPathOfProject(qualified_target, spec, options, msvs_version):
                      msvs_version.ProjectExtension())
 
   build_file = gyp.common.BuildFile(qualified_target)
-  proj_path = os.path.join(os.path.split(build_file)[0], proj_filename)
+  proj_path = os.path.join(os.path.dirname(build_file), proj_filename)
   fix_prefix = None
   if options.generator_output:
     project_dir_path = os.path.dirname(os.path.abspath(proj_path))
@@ -1657,7 +1675,8 @@ def _CreateProjectObjects(target_list, target_dicts, options, msvs_version):
         fixpath_prefix=fixpath_prefix)
     # Set project toolset if any (MS build only)
     if msvs_version.UsesVcxproj():
-      obj.set_msbuild_toolset(_GetMsbuildToolsetOfProject(proj_path, spec))
+      obj.set_msbuild_toolset(
+          _GetMsbuildToolsetOfProject(proj_path, spec, msvs_version))
     projects[qualified_target] = obj
   # Set all the dependencies
   for project in projects.values():
@@ -1804,9 +1823,9 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   for build_file in data:
     # Validate build_file extension
-    if build_file[-4:] != '.gyp':
+    if not build_file.endswith('.gyp'):
       continue
-    sln_path = build_file[:-4] + options.suffix + '.sln'
+    sln_path = os.path.splitext(build_file)[0] + options.suffix + '.sln'
     if options.generator_output:
       sln_path = os.path.join(options.generator_output, sln_path)
     # Get projects in the solution, and their dependents.
@@ -1856,7 +1875,7 @@ def _GenerateMSBuildFiltersFile(filters_path, source_files,
                ['ItemGroup'] + filter_group,
                ['ItemGroup'] + source_group
               ]
-    easy_xml.WriteXmlIfChanged(content, filters_path)
+    easy_xml.WriteXmlIfChanged(content, filters_path, pretty=True, win32=True)
   elif os.path.exists(filters_path):
     # We don't need this filter anymore.  Delete the old filter file.
     os.unlink(filters_path)
@@ -2057,7 +2076,7 @@ def _GenerateMSBuildRulePropsFile(props_path, msbuild_rules):
          ],
         ]
     ])
-  easy_xml.WriteXmlIfChanged(content, props_path)
+  easy_xml.WriteXmlIfChanged(content, props_path, pretty=True, win32=True)
 
 
 def _GenerateMSBuildRuleTargetsFile(targets_path, msbuild_rules):
@@ -2219,7 +2238,7 @@ def _GenerateMSBuildRuleTargetsFile(targets_path, msbuild_rules):
          ]
         ],
     ])
-  easy_xml.WriteXmlIfChanged(content, targets_path)
+  easy_xml.WriteXmlIfChanged(content, targets_path, pretty=True, win32=True)
 
 
 def _GenerateMSBuildRuleXmlFile(xml_path, msbuild_rules):
@@ -2397,7 +2416,7 @@ def _GenerateMSBuildRuleXmlFile(xml_path, msbuild_rules):
          }
         ]
     ])
-  easy_xml.WriteXmlIfChanged(content, xml_path)
+  easy_xml.WriteXmlIfChanged(content, xml_path, pretty=True, win32=True)
 
 
 def _GetConfigurationAndPlatform(name, settings):
@@ -2505,9 +2524,6 @@ def _GetMSBuildPropertySheets(configurations):
     return sheets
 
 def _ConvertMSVSBuildAttributes(spec, config, build_file):
-
-
-
   config_type = _GetMSVSConfigurationType(spec, build_file)
   msvs_attributes = _GetMSVSAttributes(spec, config, config_type)
   msbuild_attributes = {}
@@ -2558,10 +2574,10 @@ def _GetMSBuildAttributes(spec, config, build_file):
     msbuild_attributes['ConfigurationType'] = config_type
     output_dir = msbuild_attributes.get('OutputDirectory',
                                       '$(SolutionDir)$(Configuration)\\')
-    msbuild_attributes['OutputDirectory'] = output_dir
+    msbuild_attributes['OutputDirectory'] = _FixPath(output_dir)
     if 'IntermediateDirectory' not in msbuild_attributes:
       intermediate = '$(Configuration)\\'
-      msbuild_attributes['IntermediateDirectory'] = intermediate
+      msbuild_attributes['IntermediateDirectory'] = _FixPath(intermediate)
     if 'CharacterSet' in msbuild_attributes:
       msbuild_attributes['CharacterSet'] = _ConvertMSVSCharacterSet(
           msbuild_attributes['CharacterSet'])
@@ -2584,7 +2600,7 @@ def _GetMSBuildAttributes(spec, config, build_file):
     msbuild_settings = config['finalized_msbuild_settings']
     out_file = msbuild_settings[msbuild_tool].get('OutputFile')
     if out_file:
-      msbuild_attributes['TargetPath'] = out_file
+      msbuild_attributes['TargetPath'] = _FixPath(out_file)
 
   return msbuild_attributes
 
@@ -2960,7 +2976,8 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
   relative_path_of_gyp_file = gyp.common.RelativePath(gyp_path, project_dir)
 
   gyp_file = os.path.split(project.build_file)[1]
-  sources, excluded_sources = _PrepareListOfSources(spec, gyp_file)
+  sources, excluded_sources = _PrepareListOfSources(spec, generator_flags,
+                                                    gyp_file)
   # Add rules.
   actions_to_add = {}
   props_files_of_rules = set()
@@ -3034,7 +3051,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
   # TODO(jeanluc) File a bug to get rid of runas.  We had in MSVS:
   # has_run_as = _WriteMSVSUserFile(project.path, version, spec)
 
-  easy_xml.WriteXmlIfChanged(content, project.path)
+  easy_xml.WriteXmlIfChanged(content, project.path, pretty=True, win32=True)
 
   return missing_sources
 

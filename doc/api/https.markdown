@@ -48,8 +48,12 @@ Or
 
 ## https.request(options, callback)
 
-Makes a request to a secure web server.  All options from [http.request()][]
-are valid.
+Makes a request to a secure web server.
+
+`options` can be an object or a string. If `options` is a string, it is
+automatically parsed with [url.parse()](url.html#url.parse).
+
+All options from [http.request()][] are valid.
 
 Example:
 
@@ -157,11 +161,14 @@ Example:
 
 Like `http.get()` but for HTTPS.
 
+`options` can be an object or a string. If `options` is a string, it is
+automatically parsed with [url.parse()](url.html#url.parse).
+
 Example:
 
     var https = require('https');
 
-    https.get({ host: 'encrypted.google.com', path: '/' }, function(res) {
+    https.get('https://encrypted.google.com/', function(res) {
       console.log("statusCode: ", res.statusCode);
       console.log("headers: ", res.headers);
 

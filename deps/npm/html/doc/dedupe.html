@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <title>dedupe</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="../static/style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../doc/dedupe.html">dedupe</a></h1> <p>Reduce duplication</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<pre><code>npm dedupe [package names...]</code></pre>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Searches the local package tree and attempts to simplify the overall
+structure by moving dependencies further up the tree, where they can
+be more effectively shared by multiple dependent packages.</p>
+
+<p>For example, consider this dependency graph:</p>
+
+<pre><code>a
++-- b &lt;-- depends on c@1.0.x
+|   `-- c@1.0.3
+`-- d &lt;-- depends on c@~1.0.9
+    `-- c@1.0.10</code></pre>
+
+<p>In this case, <code><a href="../doc/dedupe.html">dedupe(1)</a></code> will transform the tree to:</p>
+
+<pre><code>a
++-- b
++-- d
+`-- c@1.0.10</code></pre>
+
+<p>Because of the hierarchical nature of node&#39;s module lookup, b and d
+will both get their dependency met by the single c package at the root
+level of the tree.</p>
+
+<p>If a suitable version exists at the target location in the tree
+already, then it will be left untouched, but the other duplicates will
+be deleted.</p>
+
+<p>If no suitable version can be found, then a warning is printed, and
+nothing is done.</p>
+
+<p>If any arguments are supplied, then they are filters, and only the
+named packages will be touched.</p>
+
+<p>Note that this operation transforms the dependency tree, and may
+result in packages getting updated versions, perhaps from the npm
+registry.</p>
+
+<p>This feature is experimental, and may change in future versions.</p>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<ul><li><a href="../doc/ls.html">ls(1)</a></li><li><a href="../doc/update.html">update(1)</a></li><li><a href="../doc/install.html">install(1)</a></li></ul>
+</div>
+<p id="footer">dedupe &mdash; npm@1.1.59</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>
+</body></html>

@@ -33,6 +33,21 @@ Every option is optional.
 If silent is true, and the input is a TTY, then read will set raw
 mode, and read character by character.
 
+## COMPATIBILITY
+
+This module works sort of with node 0.6.  It does not work with node
+versions less than 0.6.  It is best on node 0.8.
+
+On node version 0.6, it will remove all listeners on the input
+stream's `data` and `keypress` events, because the readline module did
+not fully clean up after itself in that version of node, and did not
+make it possible to clean up after it in a way that has no potential
+for side effects.
+
+Additionally, some of the readline options (like `terminal`) will not
+function in versions of node before 0.8, because they were not
+implemented in the builtin readline module.
+
 ## CONTRIBUTING
 
 Patches welcome.

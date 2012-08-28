@@ -5,8 +5,8 @@
 #ifndef OPENSSL_DOING_MAKEDEPEND
 
 
-#ifndef OPENSSL_NO_CAST
-# define OPENSSL_NO_CAST
+#ifndef OPENSSL_NO_CAMELLIA
+# define OPENSSL_NO_CAMELLIA
 #endif
 #ifndef OPENSSL_NO_GMP
 # define OPENSSL_NO_GMP
@@ -20,8 +20,11 @@
 #ifndef OPENSSL_NO_KRB5
 # define OPENSSL_NO_KRB5
 #endif
-#ifndef OPENSSL_NO_MD2
-# define OPENSSL_NO_MD2
+#ifndef OPENSSL_NO_MDC2
+# define OPENSSL_NO_MDC2
+#endif
+#ifndef OPENSSL_NO_CMS
+# define OPENSSL_NO_CMS
 #endif
 #ifndef OPENSSL_NO_RC5
 # define OPENSSL_NO_RC5
@@ -34,9 +37,6 @@
 #endif
 #ifndef OPENSSL_NO_SHA0
 # define OPENSSL_NO_SHA0
-#endif
-#ifndef OPENSSL_NO_STORE
-# define OPENSSL_NO_STORE
 #endif
 #ifndef OPENSSL_NO_WHRLPOOL
 # define OPENSSL_NO_WHRLPOOL
@@ -91,6 +91,9 @@
 # endif
 # if defined(OPENSSL_NO_WHRLPOOL) && !defined(NO_WHRLPOOL)
 #  define NO_WHRLPOOL
+# endif
+# if defined(OPENSSL_NO_MDC2) && !defined(NO_MDC2)
+#  define NO_MDC2
 # endif
 #endif
 

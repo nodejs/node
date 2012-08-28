@@ -3,18 +3,19 @@
 # found in the LICENSE file.
 
 import copy
+import hashlib
+import os.path
+import re
+import subprocess
+import sys
 import gyp
 import gyp.common
 import gyp.msvs_emulation
 import gyp.MSVSVersion
 import gyp.system_test
 import gyp.xcode_emulation
-import hashlib
-import os.path
-import re
-import subprocess
-import sys
 
+from gyp.common import GetEnvironFallback
 import gyp.ninja_syntax as ninja_syntax
 
 generator_default_variables = {
@@ -27,14 +28,18 @@ generator_default_variables = {
   # Gyp expects the following variables to be expandable by the build
   # system to the appropriate locations.  Ninja prefers paths to be
   # known at gyp time.  To resolve this, introduce special
-  # variables starting with $! (which begin with a $ so gyp knows it
-  # should be treated as a path, but is otherwise an invalid
+  # variables starting with $! and $| (which begin with a $ so gyp knows it
+  # should be treated specially, but is otherwise an invalid
   # ninja/shell variable) that are passed to gyp here but expanded
   # before writing out into the target .ninja files; see
   # ExpandSpecial.
+  # $! is used for variables that represent a path and that can only appear at
+  # the start of a string, while $| is used for variables that can appear
+  # anywhere in a string.
   'INTERMEDIATE_DIR': '$!INTERMEDIATE_DIR',
   'SHARED_INTERMEDIATE_DIR': '$!PRODUCT_DIR/gen',
   'PRODUCT_DIR': '$!PRODUCT_DIR',
+  'CONFIGURATION_NAME': '$|CONFIGURATION_NAME',
 
   # Special variables that may be used by gyp 'rule' targets.
   # We generate definitions for these variables on the fly when processing a
@@ -54,7 +59,12 @@ generator_extra_sources_for_rules = []
 # TODO: figure out how to not build extra host objects in the non-cross-compile
 # case when this is enabled, and enable unconditionally.
 generator_supports_multiple_toolsets = (
-  os.environ.get('AR_target') or os.environ.get('CC_target') or
+  os.environ.get('GYP_CROSSCOMPILE') or
+  os.environ.get('AR_host') or
+  os.environ.get('CC_host') or
+  os.environ.get('CXX_host') or
+  os.environ.get('AR_target') or
+  os.environ.get('CC_target') or
   os.environ.get('CXX_target'))
 
 
@@ -258,6 +268,10 @@ class NinjaWriter:
       # so insert product_dir in front if it is provided.
       path = path.replace(INTERMEDIATE_DIR,
                           os.path.join(product_dir or '', int_dir))
+
+    CONFIGURATION_NAME = '$|CONFIGURATION_NAME'
+    path = path.replace(CONFIGURATION_NAME, self.config_name)
+
     return path
 
   def ExpandRuleVariables(self, path, root, dirname, source, ext, name):
@@ -287,6 +301,8 @@ class NinjaWriter:
       if self.flavor == 'win':
         expanded = os.path.normpath(expanded)
       return expanded
+    if '$|' in path:
+      path =  self.ExpandSpecial(path)
     assert '$' not in path, path
     return os.path.normpath(os.path.join(self.build_to_base, path))
 
@@ -695,11 +711,11 @@ class NinjaWriter:
   def WriteSources(self, config_name, config, sources, predepends,
                    precompiled_header):
     """Write build rules to compile all of |sources|."""
-    if self.toolset == 'target':
-      self.ninja.variable('ar', '$ar_target')
-      self.ninja.variable('cc', '$cc_target')
-      self.ninja.variable('cxx', '$cxx_target')
-      self.ninja.variable('ld', '$ld_target')
+    if self.toolset == 'host':
+      self.ninja.variable('ar', '$ar_host')
+      self.ninja.variable('cc', '$cc_host')
+      self.ninja.variable('cxx', '$cxx_host')
+      self.ninja.variable('ld', '$ld_host')
 
     extra_defines = []
     if self.flavor == 'mac':
@@ -875,8 +891,12 @@ class NinjaWriter:
                                                 self.GypPathToNinja)
       self.WriteVariableList(
           'libflags', gyp.common.uniquer(map(self.ExpandSpecial, libflags)))
-      ldflags = self.msvs_settings.GetLdflags(config_name,
-          self.GypPathToNinja, self.ExpandSpecial)
+      is_executable = spec['type'] == 'executable'
+      manifest_name = self.GypPathToUniqueOutput(
+          self.ComputeOutputFileName(spec))
+      ldflags, manifest_files = self.msvs_settings.GetLdflags(config_name,
+          self.GypPathToNinja, self.ExpandSpecial, manifest_name, is_executable)
+      self.WriteVariableList('manifests', manifest_files)
     else:
       ldflags = config.get('ldflags', [])
     self.WriteVariableList('ldflags',
@@ -1182,7 +1202,6 @@ def CalculateVariables(default_variables, params):
   """Calculate additional variables for use in the build (called by gyp)."""
   global generator_additional_non_configuration_keys
   global generator_additional_path_sections
-  cc_target = os.environ.get('CC.target', os.environ.get('CC', 'cc'))
   flavor = gyp.common.GetFlavor(params)
   if flavor == 'mac':
     default_variables.setdefault('OS', 'mac')
@@ -1274,41 +1293,92 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   gyp.common.CopyTool(flavor, toplevel_build)
 
   # Grab make settings for CC/CXX.
+  # The rules are
+  # - The priority from low to high is gcc/g++, the 'make_global_settings' in
+  #   gyp, the environment variable.
+  # - If there is no 'make_global_settings' for CC.host/CXX.host or
+  #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
+  #   to cc/cxx.
   if flavor == 'win':
-    cc = cxx = 'cl.exe'
+    cc = 'cl.exe'
+    cxx = 'cl.exe'
+    ld = 'link.exe'
     gyp.msvs_emulation.GenerateEnvironmentFiles(
         toplevel_build, generator_flags, OpenOutput)
+    ld_host = '$ld'
   else:
-    cc, cxx = 'gcc', 'g++'
+    cc = 'gcc'
+    cxx = 'g++'
+    ld = '$cxx'
+    ld_host = '$cxx_host'
+
+  cc_host = None
+  cxx_host = None
+  cc_host_global_setting = None
+  cxx_host_global_setting = None
+
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
   make_global_settings = data[build_file].get('make_global_settings', [])
   build_to_root = InvertRelativePath(build_dir)
   for key, value in make_global_settings:
-    if key == 'CC': cc = os.path.join(build_to_root, value)
-    if key == 'CXX': cxx = os.path.join(build_to_root, value)
+    if key == 'CC':
+      cc = os.path.join(build_to_root, value)
+    if key == 'CXX':
+      cxx = os.path.join(build_to_root, value)
+    if key == 'LD':
+      ld = os.path.join(build_to_root, value)
+    if key == 'CC.host':
+      cc_host = os.path.join(build_to_root, value)
+      cc_host_global_setting = value
+    if key == 'CXX.host':
+      cxx_host = os.path.join(build_to_root, value)
+      cxx_host_global_setting = value
+    if key == 'LD.host':
+      ld_host = os.path.join(build_to_root, value)
 
   flock = 'flock'
   if flavor == 'mac':
     flock = './gyp-mac-tool flock'
-  master_ninja.variable('cc', os.environ.get('CC', cc))
-  master_ninja.variable('cxx', os.environ.get('CXX', cxx))
+  cc = GetEnvironFallback(['CC_target', 'CC'], cc)
+  master_ninja.variable('cc', cc)
+  cxx = GetEnvironFallback(['CXX_target', 'CXX'], cxx)
+  master_ninja.variable('cxx', cxx)
+  ld = GetEnvironFallback(['LD_target', 'LD'], ld)
+
+  if not cc_host:
+    cc_host = cc
+  if not cxx_host:
+    cxx_host = cxx
+
   if flavor == 'win':
-    master_ninja.variable('ld', 'link.exe')
+    master_ninja.variable('ld', ld)
     master_ninja.variable('idl', 'midl.exe')
     master_ninja.variable('ar', 'lib.exe')
     master_ninja.variable('rc', 'rc.exe')
     master_ninja.variable('asm', 'ml.exe')
+    master_ninja.variable('mt', 'mt.exe')
+    master_ninja.variable('use_dep_database', '1')
   else:
-    master_ninja.variable('ld', flock + ' linker.lock $cxx')
-    master_ninja.variable('ar', os.environ.get('AR', 'ar'))
+    master_ninja.variable('ld', flock + ' linker.lock ' + ld)
+    master_ninja.variable('ar', GetEnvironFallback(['AR_target', 'AR'], 'ar'))
 
-  master_ninja.variable('ar_target', os.environ.get('AR_target', '$ar'))
-  master_ninja.variable('cc_target', os.environ.get('CC_target', '$cc'))
-  master_ninja.variable('cxx_target', os.environ.get('CXX_target', '$cxx'))
+  master_ninja.variable('ar_host', GetEnvironFallback(['AR_host'], 'ar'))
+  cc_host = GetEnvironFallback(['CC_host'], cc_host)
+  cxx_host = GetEnvironFallback(['CXX_host'], cxx_host)
+  ld_host = GetEnvironFallback(['LD_host'], ld_host)
+
+  # The environment variable could be used in 'make_global_settings', like
+  # ['CC.host', '$(CC)'] or ['CXX.host', '$(CXX)'], transform them here.
+  if '$(CC)' in cc_host and cc_host_global_setting:
+    cc_host = cc_host_global_setting.replace('$(CC)', cc)
+  if '$(CXX)' in cxx_host and cxx_host_global_setting:
+    cxx_host = cxx_host_global_setting.replace('$(CXX)', cxx)
+  master_ninja.variable('cc_host', cc_host)
+  master_ninja.variable('cxx_host', cxx_host)
   if flavor == 'win':
-    master_ninja.variable('ld_target', os.environ.get('LD_target', '$ld'))
+    master_ninja.variable('ld_host', ld_host)
   else:
-    master_ninja.variable('ld_target', flock + ' linker.lock $cxx_target')
+    master_ninja.variable('ld_host', flock + ' linker.lock ' + ld_host)
 
   if flavor == 'mac':
     master_ninja.variable('mac_tool', os.path.join('.', 'gyp-mac-tool'))
@@ -1348,28 +1418,28 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       'cc',
       description='CC $out',
       command=cc_template % {'outspec': '/Fo$out'},
-      deplist='$out.dl',
+      depfile='$out.dl',
       rspfile='$out.rsp',
       rspfile_content='$defines $includes $cflags $cflags_c')
     master_ninja.rule(
       'cc_pch',
       description='CC PCH $out',
       command=cc_template % {'outspec': '/Fp$out /Fo$out.obj'},
-      deplist='$out.dl',
+      depfile='$out.dl',
       rspfile='$out.rsp',
       rspfile_content='$defines $includes $cflags $cflags_c')
     master_ninja.rule(
       'cxx',
       description='CXX $out',
       command=cxx_template % {'outspec': '/Fo$out'},
-      deplist='$out.dl',
+      depfile='$out.dl',
       rspfile='$out.rsp',
       rspfile_content='$defines $includes $cflags $cflags_cc')
     master_ninja.rule(
       'cxx_pch',
       description='CXX PCH $out',
       command=cxx_template % {'outspec': '/Fp$out /Fo$out.obj'},
-      deplist='$out.dl',
+      depfile='$out.dl',
       rspfile='$out.rsp',
       rspfile_content='$defines $includes $cflags $cflags_cc')
     master_ninja.rule(
@@ -1446,6 +1516,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     dllcmd = ('%s gyp-win-tool link-wrapper $arch '
               '$ld /nologo /IMPLIB:$implib /DLL /OUT:$dll '
               '/PDB:$dll.pdb @$dll.rsp' % sys.executable)
+    dllcmd += (' && %s gyp-win-tool manifest-wrapper $arch '
+               '$mt -nologo -manifest $manifests -out:$dll.manifest' %
+               sys.executable)
     master_ninja.rule('solink', description=dlldesc, command=dllcmd,
                       rspfile='$dll.rsp',
                       rspfile_content='$libs $in_newline $ldflags',
@@ -1460,8 +1533,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         'link',
         description='LINK $out',
         command=('%s gyp-win-tool link-wrapper $arch '
-                 '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
-                 sys.executable),
+                 '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp && '
+                 '%s gyp-win-tool manifest-wrapper $arch '
+                 '$mt -nologo -manifest $manifests -out:$out.manifest' %
+                 (sys.executable, sys.executable)),
         rspfile='$out.rsp',
         rspfile_content='$in_newline $libs $ldflags')
   else:

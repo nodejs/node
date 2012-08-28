@@ -27,28 +27,16 @@ function mkdirP (p, mode, f, made) {
                 });
                 break;
 
-            case 'EISDIR':
-            case 'EPERM':
-                // Operation not permitted or already is a dir.
-                // This is the error you get when trying to mkdir('c:/')
-                // on windows, or mkdir('/') on unix.  Make sure it's a
-                // dir by falling through to the EEXIST case.
-            case 'EROFS':
-                // a read-only file system.
-                // However, the dir could already exist, in which case
-                // the EROFS error will be obscuring a EEXIST!
-                // Fallthrough to that case.
-            case 'EEXIST':
+            // In the case of any other error, just see if there's a dir
+            // there already.  If so, then hooray!  If not, then something
+            // is borked.
+            default:
                 fs.stat(p, function (er2, stat) {
                     // if the stat fails, then that's super weird.
                     // let the original error be the failure reason.
                     if (er2 || !stat.isDirectory()) cb(er, made)
                     else cb(null, made);
                 });
-                break;
-
-            default:
-                cb(er, made);
                 break;
         }
     });
@@ -74,7 +62,10 @@ mkdirP.sync = function sync (p, mode, made) {
                 sync(p, mode, made);
                 break;
 
-            case 'EEXIST' :
+            // In the case of any other error, just see if there's a dir
+            // there already.  If so, then hooray!  If not, then something
+            // is borked.
+            default:
                 var stat;
                 try {
                     stat = fs.statSync(p);
@@ -83,9 +74,6 @@ mkdirP.sync = function sync (p, mode, made) {
                     throw err0;
                 }
                 if (!stat.isDirectory()) throw err0;
-                break;
-            default :
-                throw err0
                 break;
         }
     }

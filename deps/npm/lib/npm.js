@@ -101,6 +101,8 @@ var commandCache = {}
               , "login": "adduser"
               , "add-user": "adduser"
               , "tst": "test"
+              , "find-dupes": "dedupe"
+              , "ddp": "dedupe"
               }
 
   , aliasNames = Object.keys(aliases)
@@ -116,6 +118,7 @@ var commandCache = {}
               , "prune"
               , "submodule"
               , "pack"
+              , "dedupe"
 
               , "rebuild"
               , "link"
@@ -262,7 +265,8 @@ function load (npm, cli, cb) {
     // look up configs
     //console.error("about to look up configs")
 
-    npmconf.load(cli, function (er, conf) {
+    var builtin = path.resolve(__dirname, "..", "npmrc")
+    npmconf.load(cli, builtin, function (er, conf) {
       if (er === conf) er = null
 
       npm.config = conf
@@ -308,28 +312,7 @@ function load (npm, cli, cb) {
         } catch (e) { token = null }
       }
 
-      npm.registry = new RegClient(
-        { registry: npm.config.get("registry")
-        , cache: npm.config.get("cache")
-        , auth: npm.config.get("_auth")
-        , token: token
-        , alwaysAuth: npm.config.get("always-auth")
-        , email: npm.config.get("email")
-        , proxy: npm.config.get("proxy")
-        , tag: npm.config.get("tag")
-        , ca: npm.config.get("ca")
-        , strictSSL: npm.config.get("strict-ssl")
-        , userAgent: npm.config.get("user-agent")
-        , E404: npm.E404
-        , EPUBLISHCONFLICT: npm.EPUBLISHCONFLICT
-        , log: log
-        , retries: npm.config.get("fetch-retries")
-        , retryFactor: npm.config.get("fetch-retry-factor")
-        , retryMinTimeout: npm.config.get("fetch-retry-mintimeout")
-        , retryMaxTimeout: npm.config.get("fetch-retry-maxtimeout")
-        , cacheMin: npm.config.get("cache-min")
-        , cacheMax: npm.config.get("cache-max")
-        })
+      npm.registry = new RegClient(npm.config)
 
       // save the token cookie in the config file
       if (npm.registry.couchLogin) {
@@ -378,15 +361,15 @@ function loadPrefix (npm, conf, cb) {
     }
   })
 
-  findPrefix(gp, function (er, gp) {
-    Object.defineProperty(npm, "globalPrefix",
-      { get : function () { return gp }
-      , set : function (r) { return gp = r }
-      , enumerable : true
-      })
-    // the prefix MUST exist, or else nothing works.
-    mkdir(gp, next)
-  })
+  gp = path.resolve(gp)
+  Object.defineProperty(npm, "globalPrefix",
+    { get : function () { return gp }
+    , set : function (r) { return gp = r }
+    , enumerable : true
+    })
+  // the prefix MUST exist, or else nothing works.
+  mkdir(gp, next)
+
 
   var i = 2
     , errState = null
