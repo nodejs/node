@@ -59,12 +59,27 @@
   } while (0)
 
 
+#define uv__handle_closing(handle)                                      \
+  do {                                                                  \
+    assert(!((handle)->flags & UV__HANDLE_CLOSING));                    \
+    (handle)->flags |= UV__HANDLE_CLOSING;                              \
+    if ((handle)->flags & UV__HANDLE_ACTIVE) {                          \
+      (handle)->flags &= ~UV__HANDLE_ACTIVE;                            \
+    } else if ((handle)->flags & UV__HANDLE_REF) {                      \
+      uv__active_handle_add((uv_handle_t*) (handle));                   \
+    }                                                                   \
+  } while (0)
+
+
 #define uv__handle_close(handle)                                        \
   do {                                                                  \
     ngx_queue_remove(&(handle)->handle_queue);                          \
     (handle)->flags |= UV_HANDLE_CLOSED;                                \
+    if (handle->flags & UV__HANDLE_REF) {                               \
+      uv__active_handle_rm((uv_handle_t*) (handle));                    \
+    }                                                                   \
     if ((handle)->close_cb) {                                           \
-      (handle)->close_cb((uv_handle_t*)(handle));                       \
+      (handle)->close_cb((uv_handle_t*) (handle));                      \
     }                                                                   \
   } while (0)
 

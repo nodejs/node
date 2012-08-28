@@ -30,7 +30,6 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
-    uv__handle_stop(handle);
     uv__handle_close(handle);
   }
 }

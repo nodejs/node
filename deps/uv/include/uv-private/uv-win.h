@@ -67,6 +67,12 @@ typedef intptr_t ssize_t;
 #define SIGKILL               9
 #define SIGWINCH             28
 
+/* The CRT defines SIGABRT_COMPAT as 6, which equals SIGABRT on many */
+/* unix-like platforms. However MinGW doesn't define it, so we do. */
+#ifndef SIGABRT_COMPAT
+# define SIGABRT_COMPAT       6
+#endif
+
 /*
  * Guids and typedefs for winsock extension functions
  * Mingw32 doesn't have these :-(

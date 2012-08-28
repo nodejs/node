@@ -86,6 +86,10 @@ void uv__udp_finish_close(uv_udp_t* handle) {
     req = ngx_queue_data(q, uv_udp_send_t, queue);
     uv__req_unregister(handle->loop, req);
 
+    if (req->bufs != req->bufsml)
+      free(req->bufs);
+    req->bufs = NULL;
+
     if (req->send_cb) {
       /* FIXME proper error code like UV_EABORTED */
       uv__set_artificial_error(handle->loop, UV_EINTR);
@@ -171,6 +175,7 @@ static void uv__udp_run_completed(uv_udp_t* handle) {
 
     if (req->bufs != req->bufsml)
       free(req->bufs);
+    req->bufs = NULL;
 
     if (req->send_cb == NULL)
       continue;
@@ -375,7 +380,7 @@ out:
 
 
 static int uv__udp_maybe_deferred_bind(uv_udp_t* handle, int domain) {
-  struct sockaddr_storage taddr;
+  unsigned char taddr[sizeof(struct sockaddr_in6)];
   socklen_t addrlen;
 
   assert(domain == AF_INET || domain == AF_INET6);

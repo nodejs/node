@@ -120,9 +120,10 @@ extern "C" {
   XX( 53, ENOTEMPTY, "directory not empty")                                   \
   XX( 54, ENOSPC, "no space left on device")                                  \
   XX( 55, EIO, "i/o error")                                                   \
-  XX( 56, EROFS, "read-only file system" )                                    \
-  XX( 57, ENODEV, "no such device" )                                          \
-  XX( 58, ECANCELED, "operation canceled" )
+  XX( 56, EROFS, "read-only file system")                                     \
+  XX( 57, ENODEV, "no such device")                                           \
+  XX( 58, ESPIPE, "invalid seek")                                             \
+  XX( 59, ECANCELED, "operation canceled")                                    \
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,

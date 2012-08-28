@@ -469,8 +469,9 @@ static unsigned long read_cpufreq(unsigned int cpunum) {
   if (fp == NULL)
     return 0;
 
-  val = 0;
-  fscanf(fp, "%lu", &val);
+  if (fscanf(fp, "%lu", &val) != 1)
+    val = 0;
+
   fclose(fp);
 
   return val;

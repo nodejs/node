@@ -230,7 +230,7 @@ static int uv__fast_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
 
 static void uv__fast_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
   handle->events = 0;
-  uv__handle_start(handle);
+  uv__handle_closing(handle);
 
   if (handle->submitted_events_1 == 0 &&
       handle->submitted_events_2 == 0) {
@@ -477,7 +477,7 @@ static int uv__slow_poll_set(uv_loop_t* loop, uv_poll_t* handle, int events) {
 
 static void uv__slow_poll_close(uv_loop_t* loop, uv_poll_t* handle) {
   handle->events = 0;
-  uv__handle_start(handle);
+  uv__handle_closing(handle);
 
   if (handle->submitted_events_1 == 0 &&
       handle->submitted_events_2 == 0) {
@@ -611,6 +611,5 @@ void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle) {
   assert(handle->submitted_events_1 == 0);
   assert(handle->submitted_events_2 == 0);
 
-  uv__handle_stop(handle);
   uv__handle_close(handle);
 }

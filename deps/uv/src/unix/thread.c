@@ -170,7 +170,10 @@ void uv_once(uv_once_t* guard, void (*callback)(void)) {
 #if defined(__APPLE__) && defined(__MACH__)
 
 int uv_sem_init(uv_sem_t* sem, unsigned int value) {
-  return semaphore_create(mach_task_self(), sem, SYNC_POLICY_FIFO, value);
+  if (semaphore_create(mach_task_self(), sem, SYNC_POLICY_FIFO, value))
+    return -1;
+  else
+    return 0;
 }
 
 
@@ -187,7 +190,13 @@ void uv_sem_post(uv_sem_t* sem) {
 
 
 void uv_sem_wait(uv_sem_t* sem) {
-  if (semaphore_wait(*sem))
+  int r;
+
+  do
+    r = semaphore_wait(*sem);
+  while (r == KERN_ABORTED);
+
+  if (r != KERN_SUCCESS)
     abort();
 }
 

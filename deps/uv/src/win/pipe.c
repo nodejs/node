@@ -357,7 +357,6 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    uv__handle_stop(handle);
 
     if (handle->flags & UV_HANDLE_CONNECTION) {
       if (handle->pending_ipc_info.socket_info) {
@@ -660,7 +659,7 @@ void uv_pipe_close(uv_loop_t* loop, uv_pipe_t* handle) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
   }
 
-  uv__handle_start(handle);
+  uv__handle_closing(handle);
 }
 
 

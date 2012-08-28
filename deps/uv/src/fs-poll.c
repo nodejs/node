@@ -238,7 +238,6 @@ static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b) {
 void uv__fs_poll_endgame(uv_loop_t* loop, uv_fs_poll_t* handle) {
   assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
-  uv__handle_stop(handle);
   uv__handle_close(handle);
 }
 

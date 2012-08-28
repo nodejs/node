@@ -655,7 +655,13 @@ start:
     cmsg->cmsg_level = SOL_SOCKET;
     cmsg->cmsg_type = SCM_RIGHTS;
     cmsg->cmsg_len = msg.msg_controllen;
-    *(int*) CMSG_DATA(cmsg) = fd_to_send;
+
+    /* silence aliasing warning */
+    {
+      void* pv = CMSG_DATA(cmsg);
+      int* pi = pv;
+      *pi = fd_to_send;
+    }
 
     do {
       n = sendmsg(stream->fd, &msg, 0);
@@ -909,7 +915,12 @@ static void uv__read(uv_stream_t* stream) {
               fprintf(stderr, "(libuv) ignoring extra FD received\n");
             }
 
-            stream->accepted_fd = *(int *) CMSG_DATA(cmsg);
+            /* silence aliasing warning */
+            {
+              void* pv = CMSG_DATA(cmsg);
+              int* pi = pv;
+              stream->accepted_fd = *pi;
+            }
 
           } else {
             fprintf(stderr, "ignoring non-SCM_RIGHTS ancillary data: %d\n",

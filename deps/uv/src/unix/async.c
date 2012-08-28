@@ -55,7 +55,7 @@ inline static int uv__async_make_pending(volatile sig_atomic_t* ptr) {
   return __sync_val_compare_and_swap(ptr, 0, 1) != 0;
 #else
   *ptr = 1;
-  return 1;
+  return 0;
 #endif
 }
 

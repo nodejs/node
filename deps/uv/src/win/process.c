@@ -700,7 +700,7 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
 
 
 void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
-  uv__handle_start(handle);
+  uv__handle_closing(handle);
 
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
     /* This blocks until either the wait was cancelled, or the callback has */
@@ -724,8 +724,6 @@ void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
   assert(!handle->exit_cb_pending);
   assert(handle->flags & UV_HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
-
-  uv__handle_stop(handle);
 
   /* Clean-up the process handle. */
   CloseHandle(handle->process_handle);

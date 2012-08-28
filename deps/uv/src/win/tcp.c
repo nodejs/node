@@ -187,7 +187,6 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    uv__handle_stop(handle);
 
     if (!(handle->flags & UV_HANDLE_TCP_SOCKET_CLOSED)) {
       closesocket(handle->socket);
@@ -1386,7 +1385,7 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     tcp->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
   }
 
-  uv__handle_start(tcp);
+  uv__handle_closing(tcp);
 
   if (tcp->reqs_pending == 0) {
     uv_want_endgame(tcp->loop, (uv_handle_t*)tcp);

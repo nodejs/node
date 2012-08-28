@@ -143,7 +143,7 @@ void uv_udp_close(uv_loop_t* loop, uv_udp_t* handle) {
   uv_udp_recv_stop(handle);
   closesocket(handle->socket);
 
-  uv__handle_start(handle);
+  uv__handle_closing(handle);
 
   if (handle->reqs_pending == 0) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
@@ -155,7 +155,6 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    uv__handle_stop(handle);
     uv__handle_close(handle);
   }
 }

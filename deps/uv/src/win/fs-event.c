@@ -470,7 +470,7 @@ void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle) {
     uv_want_endgame(loop, (uv_handle_t*)handle);
   }
 
-  uv__handle_start(handle);
+  uv__handle_closing(handle);
 }
 
 
@@ -478,7 +478,6 @@ void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       !handle->req_pending) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
-    uv__handle_stop(handle);
 
     if (handle->buffer) {
       _aligned_free(handle->buffer);

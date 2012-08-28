@@ -71,7 +71,6 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
     return;
   }
 
-  handle->flags |= UV_HANDLE_CLOSING;
   handle->close_cb = cb;
 
   /* Handle-specific close actions */
@@ -98,25 +97,25 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
 
     case UV_TIMER:
       uv_timer_stop((uv_timer_t*)handle);
-      uv__handle_start(handle);
+      uv__handle_closing(handle);
       uv_want_endgame(loop, handle);
       return;
 
     case UV_PREPARE:
       uv_prepare_stop((uv_prepare_t*)handle);
-      uv__handle_start(handle);
+      uv__handle_closing(handle);
       uv_want_endgame(loop, handle);
       return;
 
     case UV_CHECK:
       uv_check_stop((uv_check_t*)handle);
-      uv__handle_start(handle);
+      uv__handle_closing(handle);
       uv_want_endgame(loop, handle);
       return;
 
     case UV_IDLE:
       uv_idle_stop((uv_idle_t*)handle);
-      uv__handle_start(handle);
+      uv__handle_closing(handle);
       uv_want_endgame(loop, handle);
       return;
 
@@ -138,7 +137,7 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
 
     case UV_FS_POLL:
       uv__fs_poll_close((uv_fs_poll_t*) handle);
-      uv__handle_start(handle);
+      uv__handle_closing(handle);
       uv_want_endgame(loop, handle);
       return;
 
