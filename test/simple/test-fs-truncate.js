@@ -45,7 +45,7 @@ assert.equal(stat.size, 0);
 
 // ftruncateSync
 fs.writeFileSync(filename, data);
-var fd = fs.openSync(filename, 'a');
+var fd = fs.openSync(filename, 'r+');
 
 stat = fs.statSync(filename);
 assert.equal(stat.size, 1024 * 16);
