@@ -2,3 +2,4 @@
 #   git log --all --reverse --format='%aN <%aE>' | perl -ne 'BEGIN{print "# Authors ordered by first contribution.\n"} print unless $h{$_}; $h{$_} = 1' > AUTHORS
 Ryan Dahl <ry@tinyclouds.org>
 Salman Haq <salman.haq@asti-usa.com>
+Simon Zimmermann <simonz05@gmail.com>
