@@ -228,6 +228,14 @@
             '-lkstat',
             '-lumem',
           ],
+          'defines!': [
+            'PLATFORM="solaris"',
+          ],
+          'defines': [
+            # we need to use node's preferred "sunos"
+            # rather than gyp's preferred "solaris"
+            'PLATFORM="sunos"',
+          ],
         }],
       ],
       'msvs-settings': {
