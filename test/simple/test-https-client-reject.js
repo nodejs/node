@@ -47,21 +47,21 @@ var server = https.createServer(options, function(req, res) {
 
 function unauthorized() {
   var req = https.request({
-    port: common.PORT
+    port: common.PORT,
+    rejectUnauthorized: false
   }, function(res) {
     assert(!req.socket.authorized);
     rejectUnauthorized();
   });
   req.on('error', function(err) {
-    assert(false);
+    throw err;
   });
   req.end();
 }
 
 function rejectUnauthorized() {
   var options = {
-    port: common.PORT,
-    rejectUnauthorized: true
+    port: common.PORT
   };
   options.agent = new https.Agent(options);
   var req = https.request(options, function(res) {
@@ -76,7 +76,6 @@ function rejectUnauthorized() {
 function authorized() {
   var options = {
     port: common.PORT,
-    rejectUnauthorized: true,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
   };
   options.agent = new https.Agent(options);

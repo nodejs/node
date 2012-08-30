@@ -19,7 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Called by test/simple/test-regress-GH-892.js
+// Called by test/pummel/test-regress-GH-892.js
+
+// disable strict server certificate validation by the client
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var https = require('https');
 var fs = require('fs');

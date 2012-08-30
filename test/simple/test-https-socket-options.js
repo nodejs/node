@@ -27,6 +27,9 @@ if (!process.versions.openssl) {
   process.exit(0);
 }
 
+// disable strict server certificate validation by the client
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 var common = require('../common');
 var assert = require('assert');
 

@@ -240,7 +240,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `rejectUnauthorized`: If `true`, the server certificate is verified against
     the list of supplied CAs. An `'error'` event is emitted if verification
-    fails. Default: `false`.
+    fails. Default: `true`.
 
   - `NPNProtocols`: An array of string or `Buffer` containing supported NPN
     protocols. `Buffer` should have following format: `0x05hello0x05world`,
