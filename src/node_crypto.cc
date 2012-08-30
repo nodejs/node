@@ -90,12 +90,16 @@ static Persistent<FunctionTemplate> secure_context_constructor;
 static uv_rwlock_t* locks;
 
 
-static unsigned long crypto_id_cb(void) {
+static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
+  unsigned long val;
+
 #ifdef _WIN32
-  return (unsigned long) GetCurrentThreadId();
-#else /* !_WIN32 */
-  return (unsigned long) pthread_self();
-#endif /* !_WIN32 */
+  val = static_cast<unsigned long>(GetCurrentThreadId());
+#else
+  val = static_cast<unsigned long>(pthread_self());
+#endif
+
+  CRYPTO_THREADID_set_numeric(tid, val);
 }
 
 
@@ -4498,7 +4502,7 @@ void InitCrypto(Handle<Object> target) {
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);
-  CRYPTO_set_id_callback(crypto_id_cb);
+  CRYPTO_THREADID_set_callback(crypto_threadid_cb);
 
   // Turn off compression. Saves memory - do it in userland.
 #if !defined(OPENSSL_NO_COMP)
