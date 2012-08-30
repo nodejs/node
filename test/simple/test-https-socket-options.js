@@ -19,16 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
 if (!process.versions.openssl) {
   console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
-
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
 var assert = require('assert');
@@ -56,7 +50,10 @@ var server_http = http.createServer(function(req, res) {
 
 
 server_http.listen(common.PORT, function() {
-  var req = http.request({ port: common.PORT }, function(res) {
+  var req = http.request({
+    port: common.PORT,
+    rejectUnauthorized: false
+  }, function(res) {
     server_http.close();
   });
   // These methods should exist on the request and get passed down to the socket
@@ -75,7 +72,10 @@ var server_https = https.createServer(options, function(req, res) {
 });
 
 server_https.listen(common.PORT+1, function() {
-  var req = https.request({ port: common.PORT+1 }, function(res) {
+  var req = https.request({
+    port: common.PORT + 1,
+    rejectUnauthorized: false
+  }, function(res) {
     server_https.close();
   });
   // These methods should exist on the request and get passed down to the socket

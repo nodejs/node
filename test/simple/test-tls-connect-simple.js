@@ -19,9 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common');
 var assert = require('assert');
 var tls = require('tls');
@@ -42,12 +39,18 @@ var server = tls.Server(options, function(socket) {
 });
 
 server.listen(common.PORT, function() {
-  var client1 = tls.connect({port: common.PORT}, function() {
+  var client1 = tls.connect({
+    port: common.PORT,
+    rejectUnauthorized: false
+  }, function() {
     ++clientConnected;
     client1.end();
   });
 
-  var client2 = tls.connect({port: common.PORT});
+  var client2 = tls.connect({
+    port: common.PORT,
+    rejectUnauthorized: false
+  });
   client2.on('secureConnect', function() {
     ++clientConnected;
     client2.end();

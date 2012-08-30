@@ -28,9 +28,6 @@ if (!process.features.tls_sni) {
   process.exit(0);
 }
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common'),
     assert = require('assert'),
     fs = require('fs'),
@@ -67,19 +64,22 @@ var clientsOptions = [{
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
-  servername: 'a.example.com'
+  servername: 'a.example.com',
+  rejectUnauthorized: false
 },{
   port: serverPort,
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
-  servername: 'b.test.com'
+  servername: 'b.test.com',
+  rejectUnauthorized: false
 },{
   port: serverPort,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
-  servername: 'c.wrong.com'
+  servername: 'c.wrong.com',
+  rejectUnauthorized: false
 }];
 
 var serverResults = [],

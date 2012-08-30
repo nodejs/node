@@ -19,9 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common');
 var assert = require('assert');
 
@@ -53,7 +50,10 @@ var count = 0;
 var gotResEnd = false;
 
 server.listen(common.PORT, function() {
-  https.get({ port: common.PORT }, function(res) {
+  https.get({
+    port: common.PORT,
+    rejectUnauthorized: false
+  }, function(res) {
     console.log('response!');
 
     res.on('data', function(d) {

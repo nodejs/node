@@ -19,16 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
 if (!process.versions.openssl) {
   console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
-
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
 var assert = require('assert');
@@ -55,7 +49,11 @@ server.listen(common.PORT, function() {
   for (var i = 0; i < N; i++) {
     setTimeout(function() {
       for (var j = 0; j < M; j++) {
-        https.get({ port: common.PORT, path: '/' }, function(res) {
+        https.get({
+          path: '/',
+          port: common.PORT,
+          rejectUnauthorized: false
+        }, function(res) {
           console.log(res.statusCode);
           if (++responses == N * M) server.close();
         }).on('error', function(e) {

@@ -19,16 +19,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
 if (!process.versions.openssl) {
   console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
-
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 var common = require('../common');
 var assert = require('assert');
@@ -153,7 +147,8 @@ proxy.listen(proxyPort, function() {
       key: key,
       cert: cert,
       socket: socket,  // reuse the socket
-      agent: false
+      agent: false,
+      rejectUnauthorized: false
     }, function(res) {
       assert.equal(200, res.statusCode);
 

@@ -19,9 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common');
 var assert = require('assert');
 var https = require('https');
@@ -35,12 +32,13 @@ var options = {
   path: '/',
   pfx: pfx,
   passphrase: 'sample',
-  requestCert: true
+  requestCert: true,
+  rejectUnauthorized: false
 };
 
 var server = https.createServer(options, function(req, res) {
   assert.equal(req.socket.authorized, false); // not a client cert
-  assert.equal(req.socket.authorizationError, 'UNABLE_TO_GET_ISSUER_CERT');
+  assert.equal(req.socket.authorizationError, 'DEPTH_ZERO_SELF_SIGNED_CERT');
   res.writeHead(200);
   res.end('OK');
 });

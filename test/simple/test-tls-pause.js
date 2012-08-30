@@ -24,9 +24,6 @@ if (!process.versions.openssl) {
   process.exit(0);
 }
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common');
 var assert = require('assert');
 var tls = require('tls');
@@ -48,7 +45,10 @@ var server = tls.Server(options, function(socket) {
 
 server.listen(common.PORT, function() {
   var resumed = false;
-  var client = tls.connect({port: common.PORT}, function() {
+  var client = tls.connect({
+    port: common.PORT,
+    rejectUnauthorized: false
+  }, function() {
     client.pause();
     common.debug('paused');
     send();

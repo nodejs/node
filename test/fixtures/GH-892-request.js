@@ -21,9 +21,6 @@
 
 // Called by test/pummel/test-regress-GH-892.js
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var https = require('https');
 var fs = require('fs');
 var assert = require('assert');
@@ -35,7 +32,8 @@ var gotResponse = false;
 
 var options = {
   method: 'POST',
-  port: PORT
+  port: PORT,
+  rejectUnauthorized: false
 };
 
 var req = https.request(options, function(res) {

@@ -59,9 +59,6 @@ var testCases =
     ];
 
 
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
@@ -137,7 +134,8 @@ function runTest(testIndex) {
     port: common.PORT,
     ca: tcase.ca.map(loadPEM),
     key: loadPEM(tcase.key),
-    cert: loadPEM(tcase.cert)
+    cert: loadPEM(tcase.cert),
+    rejectUnauthorized: false
   };
 
 

@@ -27,9 +27,6 @@ if (!process.versions.openssl) {
 var https = require('https');
 var assert = require('assert');
 var fs = require('fs');
-// disable strict server certificate validation by the client
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 var common = require('../common');
 
 var options = {
@@ -46,9 +43,10 @@ var server = https.createServer(options, function(req, res) {
 
 server.listen(common.PORT, function() {
   https.get({
+    agent: false,
     path: '/',
     port: common.PORT,
-    agent: false
+    rejectUnauthorized: false
   }, function(res) {
     console.error(res.statusCode);
     gotCallback = true;
