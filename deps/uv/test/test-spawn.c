@@ -667,7 +667,7 @@ TEST_IMPL(argument_escaping) {
   return 0;
 }
 
-WCHAR* make_program_env(char** env_block);
+uv_err_t make_program_env(char** env_block, WCHAR** dst_ptr);
 
 TEST_IMPL(environment_creation) {
   int i;
@@ -682,8 +682,9 @@ TEST_IMPL(environment_creation) {
 
   WCHAR expected[512];
   WCHAR* ptr = expected;
-  WCHAR* result;
+  uv_err_t result;
   WCHAR* str;
+  WCHAR* env;
 
   for (i = 0; i < sizeof(environment) / sizeof(environment[0]) - 1; i++) {
     ptr += uv_utf8_to_utf16(environment[i], ptr, expected + sizeof(expected) - ptr);
@@ -700,13 +701,14 @@ TEST_IMPL(environment_creation) {
   ++ptr;
   *ptr = '\0';
 
-  result = make_program_env(environment);
+  result = make_program_env(environment, &env);
+  ASSERT(result.code == UV_OK);
 
-  for (str = result; *str; str += wcslen(str) + 1) {
+  for (str = env; *str; str += wcslen(str) + 1) {
     wprintf(L"%s\n", str);
   }
 
-  ASSERT(wcscmp(expected, result) == 0);
+  ASSERT(wcscmp(expected, env) == 0);
 
   return 0;
 }
