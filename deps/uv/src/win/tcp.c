@@ -547,7 +547,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
 
   if(!handle->accept_reqs) {
     handle->accept_reqs = (uv_tcp_accept_t*)
-      malloc(simultaneous_accepts * sizeof(uv_tcp_accept_t));
+      malloc(uv_simultaneous_server_accepts * sizeof(uv_tcp_accept_t));
     if (!handle->accept_reqs) {
       uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
     }
@@ -570,6 +570,18 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
       }
 
       uv_tcp_queue_accept(handle, req);
+    }
+
+    /* Initialize other unused requests too, because uv_tcp_endgame */
+    /* doesn't know how how many requests were intialized, so it will */
+    /* try to clean up {uv_simultaneous_server_accepts} requests. */
+    for (i = simultaneous_accepts; i < uv_simultaneous_server_accepts; i++) {
+      req = &handle->accept_reqs[i];
+      uv_req_init(loop, (uv_req_t*) req);
+      req->type = UV_ACCEPT;
+      req->accept_socket = INVALID_SOCKET;
+      req->data = handle;
+      req->wait_handle = INVALID_HANDLE_VALUE;
     }
   }
 

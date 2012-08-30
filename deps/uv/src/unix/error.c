@@ -68,6 +68,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case EAFNOSUPPORT: return UV_EAFNOSUPPORT;
     case EBADF: return UV_EBADF;
     case EPIPE: return UV_EPIPE;
+    case ESPIPE: return UV_ESPIPE;
     case EAGAIN: return UV_EAGAIN;
 #if EWOULDBLOCK != EAGAIN
     case EWOULDBLOCK: return UV_EAGAIN;

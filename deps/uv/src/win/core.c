@@ -70,6 +70,9 @@ static void uv_loop_init(uv_loop_t* loop) {
     uv_fatal_error(GetLastError(), "CreateIoCompletionPort");
   }
 
+  /* To prevent uninitialized memory access, loop->time must be intialized */
+  /* to zero before calling uv_update_time for the first time. */
+  loop->time = 0;
   uv_update_time(loop);
 
   ngx_queue_init(&loop->handle_queue);
