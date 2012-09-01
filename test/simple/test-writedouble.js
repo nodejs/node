@@ -123,6 +123,69 @@ function test(clazz) {
   ASSERT.equal(0x00, buffer[13]);
   ASSERT.equal(0x00, buffer[14]);
   ASSERT.equal(0x80, buffer[15]);
+
+  buffer.writeDoubleBE(Infinity, 0);
+  buffer.writeDoubleLE(Infinity, 8);
+  ASSERT.equal(0x7F, buffer[0]);
+  ASSERT.equal(0xF0, buffer[1]);
+  ASSERT.equal(0x00, buffer[2]);
+  ASSERT.equal(0x00, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x00, buffer[5]);
+  ASSERT.equal(0x00, buffer[6]);
+  ASSERT.equal(0x00, buffer[7]);
+  ASSERT.equal(0x00, buffer[8]);
+  ASSERT.equal(0x00, buffer[9]);
+  ASSERT.equal(0x00, buffer[10]);
+  ASSERT.equal(0x00, buffer[11]);
+  ASSERT.equal(0x00, buffer[12]);
+  ASSERT.equal(0x00, buffer[13]);
+  ASSERT.equal(0xF0, buffer[14]);
+  ASSERT.equal(0x7F, buffer[15]);
+  ASSERT.equal(Infinity, buffer.readDoubleBE(0));
+  ASSERT.equal(Infinity, buffer.readDoubleLE(8));
+
+  buffer.writeDoubleBE(-Infinity, 0);
+  buffer.writeDoubleLE(-Infinity, 8);
+  ASSERT.equal(0xFF, buffer[0]);
+  ASSERT.equal(0xF0, buffer[1]);
+  ASSERT.equal(0x00, buffer[2]);
+  ASSERT.equal(0x00, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x00, buffer[5]);
+  ASSERT.equal(0x00, buffer[6]);
+  ASSERT.equal(0x00, buffer[7]);
+  ASSERT.equal(0x00, buffer[8]);
+  ASSERT.equal(0x00, buffer[9]);
+  ASSERT.equal(0x00, buffer[10]);
+  ASSERT.equal(0x00, buffer[11]);
+  ASSERT.equal(0x00, buffer[12]);
+  ASSERT.equal(0x00, buffer[13]);
+  ASSERT.equal(0xF0, buffer[14]);
+  ASSERT.equal(0xFF, buffer[15]);
+  ASSERT.equal(-Infinity, buffer.readDoubleBE(0));
+  ASSERT.equal(-Infinity, buffer.readDoubleLE(8));
+
+  buffer.writeDoubleBE(NaN, 0);
+  buffer.writeDoubleLE(NaN, 8);
+  ASSERT.equal(0x7F, buffer[0]);
+  ASSERT.equal(0xF0, buffer[1]);
+  ASSERT.equal(0x00, buffer[2]);
+  ASSERT.equal(0x00, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x00, buffer[5]);
+  ASSERT.equal(0x00, buffer[6]);
+  ASSERT.equal(0x01, buffer[7]);
+  ASSERT.equal(0x01, buffer[8]);
+  ASSERT.equal(0x00, buffer[9]);
+  ASSERT.equal(0x00, buffer[10]);
+  ASSERT.equal(0x00, buffer[11]);
+  ASSERT.equal(0x00, buffer[12]);
+  ASSERT.equal(0x00, buffer[13]);
+  ASSERT.equal(0xF0, buffer[14]);
+  ASSERT.equal(0x7F, buffer[15]);
+  ASSERT.ok(isNaN(buffer.readDoubleBE(0)));
+  ASSERT.ok(isNaN(buffer.readDoubleLE(8)));
 }
 
 
