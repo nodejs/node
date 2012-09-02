@@ -96,7 +96,7 @@ static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
 #ifdef _WIN32
   val = static_cast<unsigned long>(GetCurrentThreadId());
 #else
-  val = static_cast<unsigned long>(pthread_self());
+  val = (unsigned long) pthread_self();
 #endif
 
   CRYPTO_THREADID_set_numeric(tid, val);
