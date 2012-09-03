@@ -4201,7 +4201,7 @@ struct pbkdf2_req {
   size_t iter;
   char* key;
   size_t keylen;
-  Persistent<Function> callback;
+  Persistent<Object> obj;
 };
 
 void
@@ -4236,16 +4236,13 @@ EIO_PBKDF2After(uv_work_t* req) {
     argv[1] = Local<Value>::New(Undefined());
   }
 
-  // XXX There should be an object connected to this that
-  // we can attach a domain onto.
-  MakeCallback(Context::GetCurrent()->Global(),
-               request->callback,
-               ARRAY_SIZE(argv), argv);
+  MakeCallback(request->obj, "ondone", ARRAY_SIZE(argv), argv);
 
   delete[] request->pass;
   delete[] request->salt;
   delete[] request->key;
-  request->callback.Dispose();
+  request->obj.Dispose();
+  request->obj.Clear();
 
   delete request;
 }
@@ -4267,6 +4264,7 @@ PBKDF2(const Arguments& args) {
   Local<Function> callback;
   pbkdf2_req* request = NULL;
   uv_work_t* req = NULL;
+  Persistent<Object> obj;
 
   if (args.Length() != 5) {
     type_error = "Bad parameter";
@@ -4324,7 +4322,8 @@ PBKDF2(const Arguments& args) {
     goto err;
   }
 
-  callback = Local<Function>::Cast(args[4]);
+  obj = Persistent<Object>::New(Object::New());
+  obj->Set(String::New("ondone"), args[4]);
 
   request = new pbkdf2_req;
   request->err = 0;
@@ -4335,7 +4334,7 @@ PBKDF2(const Arguments& args) {
   request->iter = iter;
   request->key = key;
   request->keylen = keylen;
-  request->callback = Persistent<Function>::New(callback);
+  request->obj = obj;
 
   req = new uv_work_t();
   req->data = request;
