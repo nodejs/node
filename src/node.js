@@ -462,6 +462,10 @@
   };
 
   startup.processSignalHandlers = function() {
+    // Not supported on Windows.
+    if (process.platform === 'win32')
+      return;
+
     // Load events module in order to access prototype elements on process like
     // process.addListener.
     var signalWatchers = {};
