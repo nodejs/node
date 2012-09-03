@@ -4354,7 +4354,7 @@ typedef int (*RandomBytesGenerator)(unsigned char* buf, int size);
 
 struct RandomBytesRequest {
   ~RandomBytesRequest();
-  Persistent<Function> callback_;
+  Persistent<Object> obj_;
   unsigned long error_; // openssl error code or zero
   uv_work_t work_req_;
   size_t size_;
@@ -4363,10 +4363,9 @@ struct RandomBytesRequest {
 
 
 RandomBytesRequest::~RandomBytesRequest() {
-  if (!callback_.IsEmpty()) {
-    callback_.Dispose();
-    callback_.Clear();
-  }
+  if (obj_.IsEmpty()) return;
+  obj_.Dispose();
+  obj_.Clear();
 }
 
 
@@ -4427,12 +4426,7 @@ void RandomBytesAfter(uv_work_t* work_req) {
   HandleScope scope;
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
-
-  // XXX There should be an object connected to this that
-  // we can attach a domain onto.
-  MakeCallback(Context::GetCurrent()->Global(),
-               req->callback_,
-               ARRAY_SIZE(argv), argv);
+  MakeCallback(req->obj_, "ondone", ARRAY_SIZE(argv), argv);
 
   delete req;
 }
@@ -4457,15 +4451,15 @@ Handle<Value> RandomBytes(const Arguments& args) {
   req->size_ = size;
 
   if (args[1]->IsFunction()) {
-    Local<Function> callback_v = Local<Function>(Function::Cast(*args[1]));
-    req->callback_ = Persistent<Function>::New(callback_v);
+    req->obj_ = Persistent<Object>::New(Object::New());
+    req->obj_->Set(String::New("ondone"), args[1]);
 
     uv_queue_work(uv_default_loop(),
                   &req->work_req_,
                   RandomBytesWork<generator>,
                   RandomBytesAfter<generator>);
 
-    return Undefined();
+    return req->obj_;
   }
   else {
     Local<Value> argv[2];
