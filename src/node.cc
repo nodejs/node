@@ -2384,20 +2384,18 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
-    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0 ||
-        strcmp(arg, "-pe") == 0) {
+    } else if (strcmp(arg, "--eval") == 0   ||
+               strcmp(arg, "-e") == 0       ||
+               strcmp(arg, "--print") == 0  ||
+               strcmp(arg, "-pe") == 0      ||
+               strcmp(arg, "-p") == 0) {
       if (argc <= i + 1) {
-        fprintf(stderr, "Error: --eval requires an argument\n");
+        fprintf(stderr, "Error: %s requires an argument\n", arg);
         exit(1);
       }
-      if (arg[1] == 'p') {
-        print_eval = true;
-      }
+      print_eval = print_eval || strchr(arg, 'p') != NULL;
       argv[i] = const_cast<char*>("");
       eval_string = argv[++i];
-    } else if (strcmp(arg, "--print") == 0 || strcmp(arg, "-p") == 0) {
-      print_eval = true;
-      argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
       force_repl = true;
       argv[i] = const_cast<char*>("");
