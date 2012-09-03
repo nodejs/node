@@ -110,7 +110,7 @@ class Connection : ObjectWrap {
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-  v8::Persistent<v8::Function> sniCallback_;
+  v8::Persistent<v8::Object> sniObject_;
   v8::Persistent<v8::Value> sniContext_;
   v8::Persistent<v8::String> servername_;
 #endif
@@ -185,7 +185,7 @@ class Connection : ObjectWrap {
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-   if (!sniCallback_.IsEmpty()) sniCallback_.Dispose();
+   if (!sniObject_.IsEmpty()) sniObject_.Dispose();
    if (!sniContext_.IsEmpty()) sniContext_.Dispose();
    if (!servername_.IsEmpty()) servername_.Dispose();
 #endif
