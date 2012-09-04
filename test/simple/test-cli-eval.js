@@ -48,7 +48,7 @@ child.exec(nodejs + ' --eval "console.error(42)"',
     });
 
 // assert that the expected output is written to stdout
-'--print -pe -p'.split(' ').forEach(function(s) {
+['--print', '-p -e', '-pe', '-p'].forEach(function(s) {
   var cmd = nodejs + ' ' + s + ' ';
 
   child.exec(cmd + '42',
@@ -79,3 +79,9 @@ child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
   assert.equal(stdout, '');
   assert.equal(stderr, '');
 });
+
+// "\\-42" should be interpreted as an escaped expression, not a switch
+child.exec(nodejs + ' -p "\\-42"',
+    function(err, stdout, stderr) {
+      assert.equal(stdout, '-42\n');
+    });

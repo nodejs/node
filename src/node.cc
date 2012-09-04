@@ -2389,13 +2389,31 @@ static void ParseArgs(int argc, char **argv) {
                strcmp(arg, "--print") == 0  ||
                strcmp(arg, "-pe") == 0      ||
                strcmp(arg, "-p") == 0) {
-      if (argc <= i + 1) {
+      bool is_eval = strchr(arg, 'e') != NULL;
+      bool is_print = strchr(arg, 'p') != NULL;
+
+      // argument to -p and --print is optional
+      if (is_eval == true && i + 1 >= argc) {
         fprintf(stderr, "Error: %s requires an argument\n", arg);
         exit(1);
       }
-      print_eval = print_eval || strchr(arg, 'p') != NULL;
+
+      print_eval = print_eval || is_print;
       argv[i] = const_cast<char*>("");
+
+      // --eval, -e and -pe always require an argument
+      if (is_eval == true) {
+        eval_string = argv[++i];
+        continue;
+      }
+
+      // next arg is the expression to evaluate unless it starts with:
+      //  - a dash, then it's another switch
+      //  - "\\-", then it's an escaped expression, drop the backslash
+      if (argv[i + 1] == NULL) continue;
+      if (argv[i + 1][0] == '-') continue;
       eval_string = argv[++i];
+      if (strncmp(eval_string, "\\-", 2) == 0) ++eval_string;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
       force_repl = true;
       argv[i] = const_cast<char*>("");
