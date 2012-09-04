@@ -942,23 +942,20 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
     }
     p->servername_ = Persistent<String>::New(String::New(servername));
 
-    // Call sniCallback_ and use it's return value as context
-    if (!p->sniCallback_.IsEmpty()) {
+    // Call the SNI callback and use its return value as context
+    if (!p->sniObject_.IsEmpty()) {
       if (!p->sniContext_.IsEmpty()) {
         p->sniContext_.Dispose();
       }
 
       // Get callback init args
       Local<Value> argv[1] = {*p->servername_};
-      Local<Function> callback = *p->sniCallback_;
 
       // Call it
-      //
-      // XXX There should be an object connected to this that
-      // we can attach a domain onto.
-      Local<Value> ret;
-      ret = Local<Value>::New(MakeCallback(Context::GetCurrent()->Global(),
-                                           callback, ARRAY_SIZE(argv), argv));
+      Local<Value> ret = Local<Value>::New(MakeCallback(p->sniObject_,
+                                                        "onselect",
+                                                        ARRAY_SIZE(argv),
+                                                        argv));
 
       // If ret is SecureContext
       if (secure_context_constructor->HasInstance(ret)) {
@@ -1778,11 +1775,11 @@ Handle<Value> Connection::SetSNICallback(const Arguments& args) {
   }
 
   // Release old handle
-  if (!ss->sniCallback_.IsEmpty()) {
-    ss->sniCallback_.Dispose();
+  if (!ss->sniObject_.IsEmpty()) {
+    ss->sniObject_.Dispose();
   }
-  ss->sniCallback_ = Persistent<Function>::New(
-                            Local<Function>::Cast(args[0]));
+  ss->sniObject_ = Persistent<Object>::New(Object::New());
+  ss->sniObject_->Set(String::New("onselect"), args[0]);
 
   return True();
 }
@@ -4207,7 +4204,7 @@ struct pbkdf2_req {
   size_t iter;
   char* key;
   size_t keylen;
-  Persistent<Function> callback;
+  Persistent<Object> obj;
 };
 
 
@@ -4253,13 +4250,10 @@ void EIO_PBKDF2After(uv_work_t* work_req) {
 
   HandleScope scope;
   Local<Value> argv[2];
-  Persistent<Function> cb = req->callback;
+  Persistent<Object> obj = req->obj;
   EIO_PBKDF2After(req, argv);
-
-  // XXX There should be an object connected to this that
-  // we can attach a domain onto.
-  MakeCallback(Context::GetCurrent()->Global(), cb, ARRAY_SIZE(argv), argv);
-  cb.Dispose();
+  MakeCallback(obj, "ondone", ARRAY_SIZE(argv), argv);
+  obj.Dispose();
 }
 
 
@@ -4275,7 +4269,6 @@ Handle<Value> PBKDF2(const Arguments& args) {
   ssize_t pass_written = -1;
   ssize_t salt_written = -1;
   ssize_t iter = -1;
-  Local<Function> callback;
   pbkdf2_req* req = NULL;
 
   if (args.Length() != 4 && args.Length() != 5) {
@@ -4338,8 +4331,8 @@ Handle<Value> PBKDF2(const Arguments& args) {
   req->keylen = keylen;
 
   if (args[4]->IsFunction()) {
-    callback = Local<Function>::Cast(args[4]);
-    req->callback = Persistent<Function>::New(callback);
+    req->obj = Persistent<Object>::New(Object::New());
+    req->obj->Set(String::New("ondone"), args[4]);
     uv_queue_work(uv_default_loop(),
                   &req->work_req,
                   EIO_PBKDF2,
@@ -4364,7 +4357,7 @@ typedef int (*RandomBytesGenerator)(unsigned char* buf, int size);
 
 struct RandomBytesRequest {
   ~RandomBytesRequest();
-  Persistent<Function> callback_;
+  Persistent<Object> obj_;
   unsigned long error_; // openssl error code or zero
   uv_work_t work_req_;
   size_t size_;
@@ -4373,10 +4366,9 @@ struct RandomBytesRequest {
 
 
 RandomBytesRequest::~RandomBytesRequest() {
-  if (!callback_.IsEmpty()) {
-    callback_.Dispose();
-    callback_.Clear();
-  }
+  if (obj_.IsEmpty()) return;
+  obj_.Dispose();
+  obj_.Clear();
 }
 
 
@@ -4437,12 +4429,7 @@ void RandomBytesAfter(uv_work_t* work_req) {
   HandleScope scope;
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
-
-  // XXX There should be an object connected to this that
-  // we can attach a domain onto.
-  MakeCallback(Context::GetCurrent()->Global(),
-               req->callback_,
-               ARRAY_SIZE(argv), argv);
+  MakeCallback(req->obj_, "ondone", ARRAY_SIZE(argv), argv);
 
   delete req;
 }
@@ -4467,15 +4454,15 @@ Handle<Value> RandomBytes(const Arguments& args) {
   req->size_ = size;
 
   if (args[1]->IsFunction()) {
-    Local<Function> callback_v = Local<Function>(Function::Cast(*args[1]));
-    req->callback_ = Persistent<Function>::New(callback_v);
+    req->obj_ = Persistent<Object>::New(Object::New());
+    req->obj_->Set(String::New("ondone"), args[1]);
 
     uv_queue_work(uv_default_loop(),
                   &req->work_req_,
                   RandomBytesWork<generator>,
                   RandomBytesAfter<generator>);
 
-    return Undefined();
+    return req->obj_;
   }
   else {
     Local<Value> argv[2];

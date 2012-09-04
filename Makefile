@@ -22,11 +22,11 @@ endif
 # to check for changes.
 .PHONY: node node_g
 
-node: config.gypi
+node: config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	ln -fs out/Release/node node
 
-node_g: config.gypi
+node_g: config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
 	ln -fs out/Debug/node node_g
 

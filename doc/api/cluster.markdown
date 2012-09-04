@@ -357,7 +357,7 @@ the worker finally die.
 
 Because there might be long living connections, it is useful to implement a timeout.
 This example ask the worker to disconnect and after 2 seconds it will destroy the
-server. An alternative wound be to execute `worker.destroy()` after 2 seconds, but
+server. An alternative would be to execute `worker.destroy()` after 2 seconds, but
 that would normally not allow the worker to do any cleanup if needed.
 
     if (cluster.isMaster) {
