@@ -143,7 +143,7 @@ def files(action):
   # with dtrace support now (oracle's "unbreakable" linux)
   action(['src/node.d'], 'lib/dtrace/')
 
-  if variables.get('node_install_npm'): npm_files(action)
+  if 'true' == variables.get('node_install_npm'): npm_files(action)
 
 def run(args):
   global dst_dir, node_prefix, target_defaults, variables
