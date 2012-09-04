@@ -2,6 +2,7 @@
 
 BUILDTYPE ?= Release
 PYTHON ?= python
+NINJA ?= ninja
 DESTDIR ?=
 SIGN ?=
 
@@ -22,22 +23,34 @@ endif
 # to check for changes.
 .PHONY: node node_g
 
+ifeq ($(USE_NINJA),1)
+node: config.gypi
+	$(NINJA) -C out/Release/
+	ln -fs out/Release/node node
+
+node_g: config.gypi
+	$(NINJA) -C out/Debug/
+	ln -fs out/Debug/node $@
+else
 node: config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Release V=$(V)
 	ln -fs out/Release/node node
 
 node_g: config.gypi out/Makefile
 	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-	ln -fs out/Debug/node node_g
+	ln -fs out/Debug/node $@
+endif
+
+out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
+ifeq ($(USE_NINJA),1)
+	touch out/Makefile
+	$(PYTHON) tools/gyp_node -f ninja
+else
+	$(PYTHON) tools/gyp_node -f make
+endif
 
 config.gypi: configure
 	./configure
-
-out/Debug/node:
-	$(MAKE) -C out BUILDTYPE=Debug V=$(V)
-
-out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
-	$(PYTHON) tools/gyp_node -f make
 
 install: all
 	$(PYTHON) tools/install.py $@ $(DESTDIR)
