@@ -21,11 +21,11 @@ slug: version-0-7-6-unstable
 - Handle cases where an optionalDependency fails to build<br>
 </p>
 </li>
-<li><p>events: newListener emit correct fn when using &apos;once&apos; (Roly Fentanes)</p>
+<li><p>events: newListener emit correct fn when using &#39;once&#39; (Roly Fentanes)</p>
 </li>
 <li><p>url: Ignore empty port component (Łukasz Walukiewicz)</p>
 </li>
-<li><p>module: replace &apos;children&apos; array (isaacs)</p>
+<li><p>module: replace &#39;children&#39; array (isaacs)</p>
 </li>
 <li><p>tls: parse multiple values of a key in ssl certificate (Sambasiva Suda)</p>
 </li>

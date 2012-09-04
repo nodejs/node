@@ -18,7 +18,7 @@ slug: version-0-6-11-stable
 </li>
 <li><p>tls: mitigate session renegotiation attacks (Ben Noordhuis)</p>
 </li>
-<li><p>tcp, pipe: don&apos;t assert on uv_accept() errors (Ben Noordhuis)</p>
+<li><p>tcp, pipe: don&#39;t assert on uv_accept() errors (Ben Noordhuis)</p>
 </li>
 <li><p>tls: Allow establishing secure connection on the existing socket (koichik)</p>
 </li>
@@ -38,13 +38,13 @@ slug: version-0-6-11-stable
 </li>
 <li><p>dtrace: add missing translator (Dave Pacheco)</p>
 </li>
-<li><p>unix: don&apos;t flush tty on switch to raw mode (Ben Noordhuis)</p>
+<li><p>unix: don&#39;t flush tty on switch to raw mode (Ben Noordhuis)</p>
 </li>
 <li><p>windows: reset brightness when reverting to default text color (Bert Belder)</p>
 </li>
 <li><p>npm: update to 1.1.1</p>
 
-<p>- Update which, fstream, mkdirp, request, and rimraf<br>- Fix #2123 Set path properly for lifecycle scripts on windows<br>- Mark the root as seen, so we don&apos;t recurse into it. Fixes #1838. (Martin Cooper)</p>
+<p>- Update which, fstream, mkdirp, request, and rimraf<br>- Fix #2123 Set path properly for lifecycle scripts on windows<br>- Mark the root as seen, so we don&#39;t recurse into it. Fixes #1838. (Martin Cooper)</p>
 
 </li>
 </ul>

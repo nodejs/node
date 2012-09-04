@@ -34,7 +34,7 @@ slug: version-0-6-16-stable
 </li>
 <li><p>http_parser: Eat CRLF between requests, even on connection:close. (Ben Noordhuis)</p>
 </li>
-<li><p>don&apos;t check return value of unsetenv (Ben Noordhuis)</p>
+<li><p>don&#39;t check return value of unsetenv (Ben Noordhuis)</p>
 </li>
 </ul>
 <p>Source Code: <a href="http://nodejs.org/dist/v0.6.16/node-v0.6.16.tar.gz">http://nodejs.org/dist/v0.6.16/node-v0.6.16.tar.gz</a>

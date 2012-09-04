@@ -24,15 +24,15 @@ slug: version-0-6-18-stable
 </li>
 <li><p>#3258: fs.ReadStream.pause() emits duplicate data event (koichik)</p>
 </li>
-<li><p>pipe_wrap: don&apos;t assert() on pipe accept errors (Ben Noordhuis)</p>
+<li><p>pipe_wrap: don&#39;t assert() on pipe accept errors (Ben Noordhuis)</p>
 </li>
 <li><p>Better exception output for module load and process.nextTick (Felix Geisendörfer)</p>
 </li>
 <li><p>zlib: fix error reporting (Ben Noordhuis)</p>
 </li>
-<li><p>http: Don&apos;t destroy on timeout (isaacs)</p>
+<li><p>http: Don&#39;t destroy on timeout (isaacs)</p>
 </li>
-<li><p>#3231: http: Don&apos;t try to emit error on a null&apos;ed req object (isaacs)</p>
+<li><p>#3231: http: Don&#39;t try to emit error on a null&#39;ed req object (isaacs)</p>
 </li>
 <li><p>#3236: http: Refactor ClientRequest.onSocket (isaacs)</p>
 </li>

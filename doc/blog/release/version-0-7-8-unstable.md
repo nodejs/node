@@ -30,11 +30,11 @@ slug: version-0-7-8-unstable
 </li>
 <li><p>typed arrays: unexport SizeOfArrayElementForType() (Aaron Jacobs)</p>
 </li>
-<li><p>net: honor &apos;enable&apos; flag in .setNoDelay() (Ben Noordhuis)</p>
+<li><p>net: honor &#39;enable&#39; flag in .setNoDelay() (Ben Noordhuis)</p>
 </li>
 <li><p>child_process: emit error when .kill fails (Andreas Madsen)</p>
 </li>
-<li><p>gyp: fix &apos;argument list too long&apos; build error (Ben Noordhuis)</p>
+<li><p>gyp: fix &#39;argument list too long&#39; build error (Ben Noordhuis)</p>
 </li>
 <li><p>fs.WriteStream: Handle modifications to fs.open (isaacs)</p>
 </li>

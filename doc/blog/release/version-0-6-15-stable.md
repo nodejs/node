@@ -18,13 +18,13 @@ slug: version-0-6-15-stable
 </li>
 <li><p>add 64bit offset fs functions (Igor Zinkovsky)</p>
 </li>
-<li><p>windows: don&apos;t report ENOTSOCK when attempting to bind an udp handle twice (Bert Belder)</p>
+<li><p>windows: don&#39;t report ENOTSOCK when attempting to bind an udp handle twice (Bert Belder)</p>
 </li>
 <li><p>windows: backport pipe-connect-to-file fixes from master (Bert Belder)</p>
 </li>
 <li><p>windows: never call fs event callbacks after closing the watcher (Bert Belder)</p>
 </li>
-<li><p>fs.readFile: don&apos;t make the callback before the fd is closed (Bert Belder)</p>
+<li><p>fs.readFile: don&#39;t make the callback before the fd is closed (Bert Belder)</p>
 </li>
 <li><p>windows: use 64bit offsets for uv_fs apis (Igor Zinkovsky)</p>
 </li>

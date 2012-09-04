@@ -18,7 +18,7 @@ slug: version-0-6-12-stable
 </li>
 <li><p>#2827 net: fix race write() before and after connect() (koichik)</p>
 </li>
-<li><p>#2554 #2567 throw if fs args for &apos;start&apos; or &apos;end&apos; are strings (AJ ONeal)</p>
+<li><p>#2554 #2567 throw if fs args for &#39;start&#39; or &#39;end&#39; are strings (AJ ONeal)</p>
 </li>
 <li><p>punycode: Update to v1.0.0 (Mathias Bynens)</p>
 </li>
@@ -45,7 +45,7 @@ slug: version-0-6-12-stable
 - install: support --save with url install targets<br>
 - shrinkwrap: behave properly with url-installed modules<br>
 - support installing uncompressed tars or single file modules from urls etc.<br>
-- don&apos;t run make clean on rebuild<br>
+- don&#39;t run make clean on rebuild<br>
 - support HTTPS-over-HTTP proxy tunneling<br>
 </p>
 </li>

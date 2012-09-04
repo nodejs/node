@@ -28,7 +28,7 @@ slug: version-0-7-7-unstable
 </li>
 <li><p>cluster: add graceful disconnect support (Andreas Madsen)</p>
 </li>
-<li><p>child_process: Separate &apos;close&apos; event from &apos;exit&apos; (Charlie McConnell)</p>
+<li><p>child_process: Separate &#39;close&#39; event from &#39;exit&#39; (Charlie McConnell)</p>
 </li>
 <li><p>typed arrays: add Uint8ClampedArray (Mikael Bourges-Sevenier)</p>
 </li>
@@ -38,11 +38,11 @@ slug: version-0-7-7-unstable
 </li>
 <li><p>Expose http parse error codes (Felix Geisendörfer)</p>
 </li>
-<li><p>events: don&apos;t delete the listeners array (Ben Noordhuis, Nathan Rajlich)</p>
+<li><p>events: don&#39;t delete the listeners array (Ben Noordhuis, Nathan Rajlich)</p>
 </li>
-<li><p>process: add process.config to view node&apos;s ./configure settings (Nathan Rajlich)</p>
+<li><p>process: add process.config to view node&#39;s ./configure settings (Nathan Rajlich)</p>
 </li>
-<li><p>process: process.execArgv to see node&apos;s arguments (Micheil Smith)</p>
+<li><p>process: process.execArgv to see node&#39;s arguments (Micheil Smith)</p>
 </li>
 <li><p>process: fix process.title setter (Ben Noordhuis)</p>
 </li>
