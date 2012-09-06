@@ -999,8 +999,8 @@ void BinaryOpStub::GenerateSmiCode(
     SmiCodeGenerateHeapNumberResults allow_heapnumber_results) {
 
   // Arguments to BinaryOpStub are in rdx and rax.
-  Register left = rdx;
-  Register right = rax;
+  const Register left = rdx;
+  const Register right = rax;
 
   // We only generate heapnumber answers for overflowing calculations
   // for the four basic arithmetic operations and logical right shift by 0.
@@ -1042,20 +1042,16 @@ void BinaryOpStub::GenerateSmiCode(
 
     case Token::DIV:
       // SmiDiv will not accept left in rdx or right in rax.
-      left = rcx;
-      right = rbx;
       __ movq(rbx, rax);
       __ movq(rcx, rdx);
-      __ SmiDiv(rax, left, right, &use_fp_on_smis);
+      __ SmiDiv(rax, rcx, rbx, &use_fp_on_smis);
       break;
 
     case Token::MOD:
       // SmiMod will not accept left in rdx or right in rax.
-      left = rcx;
-      right = rbx;
       __ movq(rbx, rax);
       __ movq(rcx, rdx);
-      __ SmiMod(rax, left, right, &use_fp_on_smis);
+      __ SmiMod(rax, rcx, rbx, &use_fp_on_smis);
       break;
 
     case Token::BIT_OR: {

@@ -1654,7 +1654,9 @@ function NewFunction(arg1) {  // length == 1
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  var f = %CompileString(source)();
+  var global_receiver = %GlobalReceiver(global);
+  var f = %_CallFunction(global_receiver, %CompileString(source));
+
   %FunctionMarkNameShouldPrintAsAnonymous(f);
   return %SetNewFunctionAttributes(f);
 }
