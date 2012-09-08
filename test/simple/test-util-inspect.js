@@ -107,3 +107,10 @@ assert.doesNotThrow(function() {
 // GH-2225
 var x = { inspect: util.inspect };
 assert.ok(util.inspect(x).indexOf('inspect') != -1);
+
+// an object with "hasOwnProperty" overwritten should not throw
+assert.doesNotThrow(function() {
+  util.inspect({
+    hasOwnProperty: null
+  });
+});
