@@ -748,3 +748,7 @@ Buffer(Buffer(0), 0, 0);
   'new gnu gun'  ].forEach(function(enc) {
     assert.equal(Buffer.isEncoding(enc), false);
   });
+
+
+// GH-3905
+assert.equal(JSON.stringify(Buffer('test')), '[116,101,115,116]');

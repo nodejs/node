@@ -108,6 +108,25 @@ Decodes and returns a string from buffer data encoded with `encoding`
 See `buffer.write()` example, above.
 
 
+### buf.toJSON()
+
+Returns a JSON-representation of the Buffer instance, which is identical to the
+output for JSON Arrays. `JSON.stringify` implictly calls this function when
+stringifying a Buffer instance.
+
+Example:
+
+    var buf = new Buffer('test');
+    var json = JSON.stringify(buf);
+
+    console.log(json);
+    // '[116,101,115,116]'
+
+    var copy = new Buffer(JSON.parse(json));
+
+    console.log(copy);
+    // <Buffer 74 65 73 74>
+
 ### buf[index]
 
 <!--type=property-->
