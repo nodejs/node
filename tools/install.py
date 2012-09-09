@@ -114,27 +114,6 @@ def npm_files(action):
     assert(0) # unhandled action type
 
 def files(action):
-  action(['deps/uv/include/uv.h',
-          'deps/v8/include/v8-debug.h',
-          'deps/v8/include/v8-preparser.h',
-          'deps/v8/include/v8-profiler.h',
-          'deps/v8/include/v8-testing.h',
-          'deps/v8/include/v8.h',
-          'deps/v8/include/v8stdint.h',
-          'src/eio-emul.h',
-          'src/ev-emul.h',
-          'src/node.h',
-          'src/node_buffer.h',
-          'src/node_object_wrap.h',
-          'src/node_version.h'],
-          'include/node/')
-  action(['deps/uv/include/uv-private/eio.h',
-          'deps/uv/include/uv-private/ev.h',
-          'deps/uv/include/uv-private/ngx-queue.h',
-          'deps/uv/include/uv-private/tree.h',
-          'deps/uv/include/uv-private/uv-unix.h',
-          'deps/uv/include/uv-private/uv-win.h'],
-          'include/node/uv-private/')
   action(['doc/node.1'], 'share/man/man1/')
   action(['out/Release/node'], 'bin/node')
 
