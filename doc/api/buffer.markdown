@@ -111,7 +111,7 @@ See `buffer.write()` example, above.
 ### buf.toJSON()
 
 Returns a JSON-representation of the Buffer instance, which is identical to the
-output for JSON Arrays. `JSON.stringify` implictly calls this function when
+output for JSON Arrays. `JSON.stringify` implicitly calls this function when
 stringifying a Buffer instance.
 
 Example:
