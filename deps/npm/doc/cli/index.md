@@ -106,7 +106,7 @@ npm-index(1) -- Index of all npm documentation
 
  Symlink a package folder
 
-## npm-list(1)
+## npm-ls(1)
 
  List installed packages
 

@@ -16,6 +16,7 @@ var fs = require('graceful-fs')
   , cp = require('child_process')
   , exec = cp.exec
   , spawn = cp.spawn
+  , execFile = cp.execFile
   , win = process.platform == 'win32'
 
 exports.usage = 'Generates ' + (win ? 'MSVC project files' : 'a Makefile') + ' for the current module'
@@ -86,21 +87,12 @@ function configure (gyp, argv, callback) {
   }
 
   function checkPythonVersion () {
-    exec(python + ' --version', function (err, stdout, stderr) {
+    execFile(python, ['-c', 'import platform; print platform.python_version();'], function (err, stdout) {
       if (err) {
         return callback(err)
       }
-      log.verbose('check python version', '`%s --version` returned: %j', python, stderr)
-      var version = stderr.trim().replace(/[^\d\.]+/g, '')
-      var numDots = 0
-      version.replace(/\./g, function () {
-        numDots++
-      })
-      while (numDots < 2) {
-        version += '.0'
-        numDots++
-      }
-      log.verbose('check python version', 'using version %j to check', version)
+      log.verbose('check python version', '`%s -c "import platform; print platform.python_version();"` returned: %j', python, stdout)
+      var version = stdout.trim()
       if (semver.gte(version, '2.5.0') && semver.lt(version, '3.0.0')) {
         getNodeDir()
       } else {

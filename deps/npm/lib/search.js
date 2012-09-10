@@ -181,7 +181,7 @@ function prettify (data, args) {
         l._undent = l._undent || []
         l._undent[i] = len - longest[i]
       }
-      l[i] = l[i].replace(/\s+/g, " ")
+      l[i] = ('' + l[i]).replace(/\s+/g, " ")
     })
     return l
   }).sort(function (a, b) {

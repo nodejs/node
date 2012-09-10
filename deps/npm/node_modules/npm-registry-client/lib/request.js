@@ -111,10 +111,16 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
 
   var self = this
   operation.attempt(function (currentAttempt) {
-    self.log.info("retry", "registry request attempt " + currentAttempt
+    self.log.info("trying", "registry request attempt " + currentAttempt
         + " at " + (new Date()).toLocaleTimeString())
     makeRequest.call(self, method, remote, where, what, etag, nofollow, token
                      , function (er, parsed, raw, response) {
+      if (!er || er.message.match(/^SSL Error/)) {
+        if (er)
+          er.code = 'ESSL'
+        return cb(er, parsed, raw, response)
+      }
+
       // Only retry on 408, 5xx or no `response`.
       var statusCode = response && response.statusCode
       var reauth = statusCode === 401

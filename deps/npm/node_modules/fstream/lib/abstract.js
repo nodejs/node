@@ -54,9 +54,7 @@ Abstract.prototype.warn = function (msg, code) {
 }
 
 Abstract.prototype.info = function (msg, code) {
-  var me = this
-  if (!me.listeners("info")) return
-  me.emit("info", msg, code)
+  this.emit("info", msg, code)
 }
 
 Abstract.prototype.error = function (msg, code, th) {

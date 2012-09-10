@@ -1,0 +1,24 @@
+{
+        "name"    : "uglify-js",
+
+        "description" : "JavaScript parser and compressor/beautifier toolkit",
+
+        "author"  : {
+                "name"  : "Mihai Bazon",
+                "email" : "mihai.bazon@gmail.com",
+                "url"   : "http://mihai.bazon.net/blog"
+        },
+
+        "version" : "1.2.3",
+
+        "main"    : "./uglify-js.js",
+
+        "bin"     : {
+                "uglifyjs" : "./bin/uglifyjs"
+        },
+
+        "repository": {
+                "type": "git",
+                "url": "git@github.com:mishoo/UglifyJS.git"
+        }
+}
