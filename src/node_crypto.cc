@@ -2153,66 +2153,6 @@ static int LengthWithoutIncompleteUtf8(char* buffer, int len) {
 }
 
 
-// local decrypt final without strict padding check
-// to work with php mcrypt
-// see http://www.mail-archive.com/openssl-dev@openssl.org/msg19927.html
-int local_EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx,
-                              unsigned char *out,
-                              int *outl) {
-  int i,b;
-  int n;
-
-  *outl=0;
-  b=ctx->cipher->block_size;
-
-  if (ctx->flags & EVP_CIPH_NO_PADDING) {
-    if(ctx->buf_len) {
-      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_DATA_NOT_MULTIPLE_OF_BLOCK_LENGTH);
-      return 0;
-    }
-    *outl = 0;
-    return 1;
-  }
-
-  if (b > 1) {
-    if (ctx->buf_len || !ctx->final_used) {
-      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_WRONG_FINAL_BLOCK_LENGTH);
-      return(0);
-    }
-
-    if (b > (int)(sizeof(ctx->final) / sizeof(ctx->final[0]))) {
-      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
-      return(0);
-    }
-
-    n=ctx->final[b-1];
-
-    if (n > b) {
-      EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
-      return(0);
-    }
-
-    for (i=0; i<n; i++) {
-      if (ctx->final[--b] != n) {
-        EVPerr(EVP_F_EVP_DECRYPTFINAL,EVP_R_BAD_DECRYPT);
-        return(0);
-      }
-    }
-
-    n=ctx->cipher->block_size-n;
-
-    for (i=0; i<n; i++) {
-      out[i]=ctx->final[i];
-    }
-    *outl=n;
-  } else {
-    *outl=0;
-  }
-
-  return(1);
-}
-
-
 class Cipher : public ObjectWrap {
  public:
   static void Initialize (v8::Handle<v8::Object> target) {
@@ -2618,9 +2558,8 @@ class Decipher : public ObjectWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "init", DecipherInit);
     NODE_SET_PROTOTYPE_METHOD(t, "initiv", DecipherInitIv);
     NODE_SET_PROTOTYPE_METHOD(t, "update", DecipherUpdate);
-    NODE_SET_PROTOTYPE_METHOD(t, "final", DecipherFinal<false>);
-    // This is completely undocumented:
-    NODE_SET_PROTOTYPE_METHOD(t, "finaltol", DecipherFinal<true>);
+    NODE_SET_PROTOTYPE_METHOD(t, "final", DecipherFinal);
+    NODE_SET_PROTOTYPE_METHOD(t, "finaltol", DecipherFinal); // remove someday
     NODE_SET_PROTOTYPE_METHOD(t, "setAutoPadding", SetAutoPadding);
 
     target->Set(String::NewSymbol("Decipher"), t->GetFunction());
@@ -2710,7 +2649,6 @@ class Decipher : public ObjectWrap {
   }
 
   // coverity[alloc_arg]
-  template <bool TOLERATE_PADDING>
   int DecipherFinal(unsigned char** out, int *out_len) {
     int r;
 
@@ -2721,11 +2659,7 @@ class Decipher : public ObjectWrap {
     }
 
     *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
-    if (TOLERATE_PADDING) {
-      r = local_EVP_DecryptFinal_ex(&ctx,*out,out_len);
-    } else {
-      r = EVP_CipherFinal_ex(&ctx,*out,out_len);
-    }
+    r = EVP_CipherFinal_ex(&ctx,*out,out_len);
     EVP_CIPHER_CTX_cleanup(&ctx);
     initialised_ = false;
     return r;
@@ -2975,7 +2909,6 @@ class Decipher : public ObjectWrap {
     return Undefined();
   }
 
-  template <bool TOLERATE_PADDING>
   static Handle<Value> DecipherFinal(const Arguments& args) {
     HandleScope scope;
 
@@ -2985,7 +2918,7 @@ class Decipher : public ObjectWrap {
     int out_len = -1;
     Local<Value> outString;
 
-    int r = cipher->DecipherFinal<TOLERATE_PADDING>(&out_value, &out_len);
+    int r = cipher->DecipherFinal(&out_value, &out_len);
 
     assert(out_value != NULL);
     assert(out_len != -1);
