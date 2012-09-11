@@ -72,16 +72,21 @@ class NODE_EXTERN Buffer: public ObjectWrap {
 
   static bool HasInstance(v8::Handle<v8::Value> val);
 
-  static inline char* Data(v8::Handle<v8::Object> obj) {
-    return (char*)obj->GetIndexedPropertiesExternalArrayData();
+  static inline char* Data(v8::Handle<v8::Value> val) {
+    assert(val->IsObject());
+    void* data = val.As<v8::Object>()->GetIndexedPropertiesExternalArrayData();
+    return reinterpret_cast<char*>(data);
   }
 
   static inline char* Data(Buffer *b) {
     return Buffer::Data(b->handle_);
   }
 
-  static inline size_t Length(v8::Handle<v8::Object> obj) {
-    return (size_t)obj->GetIndexedPropertiesExternalArrayDataLength();
+  static inline size_t Length(v8::Handle<v8::Value> val) {
+    assert(val->IsObject());
+    int len = val.As<v8::Object>()
+              ->GetIndexedPropertiesExternalArrayDataLength();
+    return static_cast<size_t>(len);
   }
 
   static inline size_t Length(Buffer *b) {
