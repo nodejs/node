@@ -638,6 +638,9 @@ struct ssl_session_st
  * TLS only.)  "Released" buffers are put onto a free-list in the context
  * or just freed (depending on the context's setting for freelist_max_len). */
 #define SSL_MODE_RELEASE_BUFFERS 0x00000010L
+/* Use small read and write buffers: (a) lazy allocate read buffers for
+ * large incoming records, and (b) limit the size of outgoing records. */
+#define SSL_MODE_SMALL_BUFFERS 0x00000020L
 
 /* Note: SSL[_CTX]_set_{options,mode} use |= op on the previous value,
  * they cannot be used to clear bits. */

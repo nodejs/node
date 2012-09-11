@@ -444,8 +444,13 @@ int ssl23_get_client_hello(SSL *s)
 		v[0] = p[3]; /* == SSL3_VERSION_MAJOR */
 		v[1] = p[4];
 
+/* The SSL2 protocol allows n to be larger, just pick
+ * a reasonable buffer size. */
+#if SSL3_RT_DEFAULT_PACKET_SIZE < 1024*4 - SSL3_RT_DEFAULT_WRITE_OVERHEAD
+#error "SSL3_RT_DEFAULT_PACKET_SIZE is too small."
+#endif
 		n=((p[0]&0x7f)<<8)|p[1];
-		if (n > (1024*4))
+		if (n > SSL3_RT_DEFAULT_PACKET_SIZE - 2)
 			{
 			SSLerr(SSL_F_SSL23_GET_CLIENT_HELLO,SSL_R_RECORD_TOO_LARGE);
 			goto err;
