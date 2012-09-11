@@ -4199,9 +4199,22 @@ int ssl3_write(SSL *s, const void *buf, int len)
 
 static int ssl3_read_internal(SSL *s, void *buf, int len, int peek)
 	{
-	int ret;
+	int n,ret;
 	
 	clear_sys_error();
+	if ((s->s3->flags & SSL3_FLAGS_POP_BUFFER) && (s->wbio == s->bbio))
+		{
+		/* Deal with an application that calls SSL_read() when handshake data
+		 * is yet to be written.
+		 */
+		if (BIO_wpending(s->wbio) > 0)
+			{
+			s->rwstate=SSL_WRITING;
+			n=BIO_flush(s->wbio);
+			if (n <= 0) return(n);
+			s->rwstate=SSL_NOTHING;
+			}
+		}
 	if (s->s3->renegotiate) ssl3_renegotiate_check(s);
 	s->s3->in_read_app_data=1;
 	ret=s->method->ssl_read_bytes(s,SSL3_RT_APPLICATION_DATA,buf,len,peek);

@@ -641,6 +641,10 @@ struct ssl_session_st
 /* Use small read and write buffers: (a) lazy allocate read buffers for
  * large incoming records, and (b) limit the size of outgoing records. */
 #define SSL_MODE_SMALL_BUFFERS 0x00000020L
+/* When set, clients may send application data before receipt of CCS
+ * and Finished.  This mode enables full-handshakes to 'complete' in
+ * one RTT. */
+#define SSL_MODE_HANDSHAKE_CUTTHROUGH 0x00000040L
 
 /* Note: SSL[_CTX]_set_{options,mode} use |= op on the previous value,
  * they cannot be used to clear bits. */
@@ -1409,10 +1413,12 @@ extern "C" {
 /* Is the SSL_connection established? */
 #define SSL_get_state(a)		SSL_state(a)
 #define SSL_is_init_finished(a)		(SSL_state(a) == SSL_ST_OK)
-#define SSL_in_init(a)			(SSL_state(a)&SSL_ST_INIT)
+#define SSL_in_init(a)			((SSL_state(a)&SSL_ST_INIT) && \
+                                  !SSL_cutthrough_complete(a))
 #define SSL_in_before(a)		(SSL_state(a)&SSL_ST_BEFORE)
 #define SSL_in_connect_init(a)		(SSL_state(a)&SSL_ST_CONNECT)
 #define SSL_in_accept_init(a)		(SSL_state(a)&SSL_ST_ACCEPT)
+int SSL_cutthrough_complete(const SSL *s);
 
 /* The following 2 states are kept in ssl->rstate when reads fail,
  * you should not need these */

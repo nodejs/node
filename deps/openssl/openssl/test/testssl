@@ -79,6 +79,9 @@ $ssltest -server_auth -client_auth -s_small_records $CA $extra || exit 1
 echo test sslv2/sslv3 with both client and server authentication and small client and server buffers
 $ssltest -server_auth -client_auth -c_small_records -s_small_records $CA $extra || exit 1
 
+echo test sslv2/sslv3 with both client and server authentication and handshake cutthrough
+$ssltest -server_auth -client_auth -cutthrough $CA $extra || exit 1
+
 echo test sslv2 via BIO pair
 $ssltest -bio_pair -ssl2 $extra || exit 1
 

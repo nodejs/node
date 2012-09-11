@@ -3211,6 +3211,19 @@ void SSL_set_msg_callback(SSL *ssl, void (*cb)(int write_p, int version, int con
 	SSL_callback_ctrl(ssl, SSL_CTRL_SET_MSG_CALLBACK, (void (*)(void))cb);
 	}
 
+int SSL_cutthrough_complete(const SSL *s)
+	{
+	return (!s->server &&                 /* cutthrough only applies to clients */
+		!s->hit &&                        /* full-handshake */
+		s->version >= SSL3_VERSION &&
+		s->s3->in_read_app_data == 0 &&   /* cutthrough only applies to write() */
+		(SSL_get_mode((SSL*)s) & SSL_MODE_HANDSHAKE_CUTTHROUGH) &&  /* cutthrough enabled */
+		SSL_get_cipher_bits(s, NULL) >= 128 &&                      /* strong cipher choosen */
+		s->s3->previous_server_finished_len == 0 &&                 /* not a renegotiation handshake */
+		(s->state == SSL3_ST_CR_SESSION_TICKET_A ||                 /* ready to write app-data*/
+			s->state == SSL3_ST_CR_FINISHED_A));
+	}
+
 /* Allocates new EVP_MD_CTX and sets pointer to it into given pointer
  * vairable, freeing  EVP_MD_CTX previously stored in that variable, if
  * any. If EVP_MD pointer is passed, initializes ctx with this md
