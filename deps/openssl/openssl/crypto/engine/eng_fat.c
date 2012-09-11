@@ -176,6 +176,7 @@ int ENGINE_register_all_complete(void)
 	ENGINE *e;
 
 	for(e=ENGINE_get_first() ; e ; e=ENGINE_get_next(e))
-		ENGINE_register_complete(e);
+		if (!(e->flags & ENGINE_FLAGS_NO_REGISTER_ALL))
+			ENGINE_register_complete(e);
 	return 1;
 	}

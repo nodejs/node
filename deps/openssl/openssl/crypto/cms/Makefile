@@ -18,9 +18,11 @@ APPS=
 
 LIB=$(TOP)/libcrypto.a
 LIBSRC= cms_lib.c cms_asn1.c cms_att.c cms_io.c cms_smime.c cms_err.c \
-	cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c
+	cms_sd.c cms_dd.c cms_cd.c cms_env.c cms_enc.c cms_ess.c \
+	cms_pwri.c
 LIBOBJ= cms_lib.o cms_asn1.o cms_att.o cms_io.o cms_smime.o cms_err.o \
-	cms_sd.o cms_dd.o cms_cd.o cms_env.o cms_enc.o cms_ess.o
+	cms_sd.o cms_dd.o cms_cd.o cms_env.o cms_enc.o cms_ess.o \
+	cms_pwri.o
 
 SRC= $(LIBSRC)
 
@@ -230,6 +232,24 @@ cms_lib.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
 cms_lib.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 cms_lib.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h cms.h
 cms_lib.o: cms_lcl.h cms_lib.c
+cms_pwri.o: ../../e_os.h ../../include/openssl/aes.h
+cms_pwri.o: ../../include/openssl/asn1.h ../../include/openssl/asn1t.h
+cms_pwri.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
+cms_pwri.o: ../../include/openssl/cms.h ../../include/openssl/conf.h
+cms_pwri.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+cms_pwri.o: ../../include/openssl/ec.h ../../include/openssl/ecdh.h
+cms_pwri.o: ../../include/openssl/ecdsa.h ../../include/openssl/err.h
+cms_pwri.o: ../../include/openssl/evp.h ../../include/openssl/lhash.h
+cms_pwri.o: ../../include/openssl/obj_mac.h ../../include/openssl/objects.h
+cms_pwri.o: ../../include/openssl/opensslconf.h
+cms_pwri.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+cms_pwri.o: ../../include/openssl/pem.h ../../include/openssl/pem2.h
+cms_pwri.o: ../../include/openssl/pkcs7.h ../../include/openssl/rand.h
+cms_pwri.o: ../../include/openssl/safestack.h ../../include/openssl/sha.h
+cms_pwri.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
+cms_pwri.o: ../../include/openssl/x509.h ../../include/openssl/x509_vfy.h
+cms_pwri.o: ../../include/openssl/x509v3.h ../asn1/asn1_locl.h ../cryptlib.h
+cms_pwri.o: cms_lcl.h cms_pwri.c
 cms_sd.o: ../../e_os.h ../../include/openssl/asn1.h
 cms_sd.o: ../../include/openssl/asn1t.h ../../include/openssl/bio.h
 cms_sd.o: ../../include/openssl/buffer.h ../../include/openssl/cms.h

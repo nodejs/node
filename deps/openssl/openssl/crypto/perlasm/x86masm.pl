@@ -14,9 +14,11 @@ sub ::generic
 { my ($opcode,@arg)=@_;
 
     # fix hexadecimal constants
-    for (@arg) { s/0x([0-9a-f]+)/0$1h/oi; }
+    for (@arg) { s/(?<![\w\$\.])0x([0-9a-f]+)/0$1h/oi; }
 
-    if ($opcode !~ /movq/)
+    if ($opcode =~ /lea/ && @arg[1] =~ s/.*PTR\s+(\(.*\))$/OFFSET $1/)	# no []
+    {	$opcode="mov";	}
+    elsif ($opcode !~ /movq/)
     {	# fix xmm references
 	$arg[0] =~ s/\b[A-Z]+WORD\s+PTR/XMMWORD PTR/i if ($arg[1]=~/\bxmm[0-7]\b/i);
 	$arg[1] =~ s/\b[A-Z]+WORD\s+PTR/XMMWORD PTR/i if ($arg[0]=~/\bxmm[0-7]\b/i);
@@ -65,6 +67,7 @@ sub get_mem
   $ret;
 }
 sub ::BP	{ &get_mem("BYTE",@_);  }
+sub ::WP	{ &get_mem("WORD",@_);	}
 sub ::DWP	{ &get_mem("DWORD",@_); }
 sub ::QWP	{ &get_mem("QWORD",@_); }
 sub ::BC	{ "@_";  }
@@ -129,7 +132,7 @@ ___
     if (grep {/\b${nmdecor}OPENSSL_ia32cap_P\b/i} @out)
     {	my $comm=<<___;
 .bss	SEGMENT 'BSS'
-COMM	${nmdecor}OPENSSL_ia32cap_P:DWORD
+COMM	${nmdecor}OPENSSL_ia32cap_P:QWORD
 .bss	ENDS
 ___
 	# comment out OPENSSL_ia32cap_P declarations
@@ -156,6 +159,9 @@ sub ::public_label
 sub ::data_byte
 {   push(@out,("DB\t").join(',',@_)."\n");	}
 
+sub ::data_short
+{   push(@out,("DW\t").join(',',@_)."\n");	}
+
 sub ::data_word
 {   push(@out,("DD\t").join(',',@_)."\n");	}
 
@@ -180,5 +186,12 @@ ___
 
 sub ::dataseg
 {   push(@out,"$segment\tENDS\n_DATA\tSEGMENT\n"); $segment="_DATA";   }
+
+sub ::safeseh
+{ my $nm=shift;
+    push(@out,"IF \@Version GE 710\n");
+    push(@out,".SAFESEH	".&::LABEL($nm,$nmdecor.$nm)."\n");
+    push(@out,"ENDIF\n");
+}
 
 1;

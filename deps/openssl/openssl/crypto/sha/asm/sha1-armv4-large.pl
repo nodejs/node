@@ -47,6 +47,10 @@
 # Cortex A8 core and in absolute terms ~870 cycles per input block
 # [or 13.6 cycles per byte].
 
+# February 2011.
+#
+# Profiler-assisted and platform-specific optimization resulted in 10%
+# improvement on Cortex A8 core and 12.2 cycles per byte.
 
 while (($output=shift) && ($output!~/^\w[\w\-]*\.\w+$/)) {}
 open STDOUT,">$output";
@@ -76,31 +80,41 @@ $code.=<<___;
 	add	$e,$K,$e,ror#2			@ E+=K_xx_xx
 	ldr	$t3,[$Xi,#2*4]
 	eor	$t0,$t0,$t1
-	eor	$t2,$t2,$t3
+	eor	$t2,$t2,$t3			@ 1 cycle stall
 	eor	$t1,$c,$d			@ F_xx_xx
 	mov	$t0,$t0,ror#31
 	add	$e,$e,$a,ror#27			@ E+=ROR(A,27)
 	eor	$t0,$t0,$t2,ror#31
+	str	$t0,[$Xi,#-4]!
 	$opt1					@ F_xx_xx
 	$opt2					@ F_xx_xx
 	add	$e,$e,$t0			@ E+=X[i]
-	str	$t0,[$Xi,#-4]!
 ___
 }
 
 sub BODY_00_15 {
 my ($a,$b,$c,$d,$e)=@_;
 $code.=<<___;
-	ldrb	$t0,[$inp],#4
-	ldrb	$t1,[$inp,#-1]
-	ldrb	$t2,[$inp,#-2]
+#if __ARM_ARCH__<7
+	ldrb	$t1,[$inp,#2]
+	ldrb	$t0,[$inp,#3]
+	ldrb	$t2,[$inp,#1]
 	add	$e,$K,$e,ror#2			@ E+=K_00_19
-	ldrb	$t3,[$inp,#-3]
-	add	$e,$e,$a,ror#27			@ E+=ROR(A,27)
-	orr	$t0,$t1,$t0,lsl#24
+	ldrb	$t3,[$inp],#4
+	orr	$t0,$t0,$t1,lsl#8
 	eor	$t1,$c,$d			@ F_xx_xx
-	orr	$t0,$t0,$t2,lsl#8
-	orr	$t0,$t0,$t3,lsl#16
+	orr	$t0,$t0,$t2,lsl#16
+	add	$e,$e,$a,ror#27			@ E+=ROR(A,27)
+	orr	$t0,$t0,$t3,lsl#24
+#else
+	ldr	$t0,[$inp],#4			@ handles unaligned
+	add	$e,$K,$e,ror#2			@ E+=K_00_19
+	eor	$t1,$c,$d			@ F_xx_xx
+	add	$e,$e,$a,ror#27			@ E+=ROR(A,27)
+#ifdef __ARMEL__
+	rev	$t0,$t0				@ byte swap
+#endif
+#endif
 	and	$t1,$b,$t1,ror#2
 	add	$e,$e,$t0			@ E+=X[i]
 	eor	$t1,$t1,$d,ror#2		@ F_00_19(B,C,D)
@@ -136,6 +150,8 @@ ___
 }
 
 $code=<<___;
+#include "arm_arch.h"
+
 .text
 
 .global	sha1_block_data_order
@@ -161,7 +177,6 @@ for($i=0;$i<5;$i++) {
 $code.=<<___;
 	teq	$Xi,sp
 	bne	.L_00_15		@ [((11+4)*5+2)*3]
-	sub	sp,sp,#5*4
 ___
 	&BODY_00_15(@V);	unshift(@V,pop(@V));
 	&BODY_16_19(@V);	unshift(@V,pop(@V));
@@ -171,7 +186,7 @@ ___
 $code.=<<___;
 
 	ldr	$K,.LK_20_39		@ [+15+16*4]
-	sub	sp,sp,#20*4
+	sub	sp,sp,#25*4
 	cmn	sp,#0			@ [+3], clear carry to denote 20_39
 .L_20_39_or_60_79:
 ___
@@ -210,10 +225,14 @@ $code.=<<___;
 	teq	$inp,$len
 	bne	.Lloop			@ [+18], total 1307
 
+#if __ARM_ARCH__>=5
+	ldmia	sp!,{r4-r12,pc}
+#else
 	ldmia	sp!,{r4-r12,lr}
 	tst	lr,#1
 	moveq	pc,lr			@ be binary compatible with V4, yet
 	bx	lr			@ interoperable with Thumb ISA:-)
+#endif
 .align	2
 .LK_00_19:	.word	0x5a827999
 .LK_20_39:	.word	0x6ed9eba1

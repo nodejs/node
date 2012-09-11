@@ -1,6 +1,6 @@
 /* crypto/ec/ec_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,6 +70,7 @@
 
 static ERR_STRING_DATA EC_str_functs[]=
 	{
+{ERR_FUNC(EC_F_BN_TO_FELEM),	"BN_TO_FELEM"},
 {ERR_FUNC(EC_F_COMPUTE_WNAF),	"COMPUTE_WNAF"},
 {ERR_FUNC(EC_F_D2I_ECPARAMETERS),	"d2i_ECParameters"},
 {ERR_FUNC(EC_F_D2I_ECPKPARAMETERS),	"d2i_ECPKParameters"},
@@ -112,6 +113,15 @@ static ERR_STRING_DATA EC_str_functs[]=
 {ERR_FUNC(EC_F_EC_GFP_MONT_FIELD_SQR),	"ec_GFp_mont_field_sqr"},
 {ERR_FUNC(EC_F_EC_GFP_MONT_GROUP_SET_CURVE),	"ec_GFp_mont_group_set_curve"},
 {ERR_FUNC(EC_F_EC_GFP_MONT_GROUP_SET_CURVE_GFP),	"EC_GFP_MONT_GROUP_SET_CURVE_GFP"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP224_GROUP_SET_CURVE),	"ec_GFp_nistp224_group_set_curve"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP224_POINTS_MUL),	"ec_GFp_nistp224_points_mul"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP224_POINT_GET_AFFINE_COORDINATES),	"ec_GFp_nistp224_point_get_affine_coordinates"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP256_GROUP_SET_CURVE),	"ec_GFp_nistp256_group_set_curve"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP256_POINTS_MUL),	"ec_GFp_nistp256_points_mul"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP256_POINT_GET_AFFINE_COORDINATES),	"ec_GFp_nistp256_point_get_affine_coordinates"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP521_GROUP_SET_CURVE),	"ec_GFp_nistp521_group_set_curve"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP521_POINTS_MUL),	"ec_GFp_nistp521_points_mul"},
+{ERR_FUNC(EC_F_EC_GFP_NISTP521_POINT_GET_AFFINE_COORDINATES),	"ec_GFp_nistp521_point_get_affine_coordinates"},
 {ERR_FUNC(EC_F_EC_GFP_NIST_FIELD_MUL),	"ec_GFp_nist_field_mul"},
 {ERR_FUNC(EC_F_EC_GFP_NIST_FIELD_SQR),	"ec_GFp_nist_field_sqr"},
 {ERR_FUNC(EC_F_EC_GFP_NIST_GROUP_SET_CURVE),	"ec_GFp_nist_group_set_curve"},
@@ -154,6 +164,7 @@ static ERR_STRING_DATA EC_str_functs[]=
 {ERR_FUNC(EC_F_EC_KEY_NEW),	"EC_KEY_new"},
 {ERR_FUNC(EC_F_EC_KEY_PRINT),	"EC_KEY_print"},
 {ERR_FUNC(EC_F_EC_KEY_PRINT_FP),	"EC_KEY_print_fp"},
+{ERR_FUNC(EC_F_EC_KEY_SET_PUBLIC_KEY_AFFINE_COORDINATES),	"EC_KEY_set_public_key_affine_coordinates"},
 {ERR_FUNC(EC_F_EC_POINTS_MAKE_AFFINE),	"EC_POINTs_make_affine"},
 {ERR_FUNC(EC_F_EC_POINT_ADD),	"EC_POINT_add"},
 {ERR_FUNC(EC_F_EC_POINT_CMP),	"EC_POINT_cmp"},
@@ -184,6 +195,9 @@ static ERR_STRING_DATA EC_str_functs[]=
 {ERR_FUNC(EC_F_I2D_ECPKPARAMETERS),	"i2d_ECPKParameters"},
 {ERR_FUNC(EC_F_I2D_ECPRIVATEKEY),	"i2d_ECPrivateKey"},
 {ERR_FUNC(EC_F_I2O_ECPUBLICKEY),	"i2o_ECPublicKey"},
+{ERR_FUNC(EC_F_NISTP224_PRE_COMP_NEW),	"NISTP224_PRE_COMP_NEW"},
+{ERR_FUNC(EC_F_NISTP256_PRE_COMP_NEW),	"NISTP256_PRE_COMP_NEW"},
+{ERR_FUNC(EC_F_NISTP521_PRE_COMP_NEW),	"NISTP521_PRE_COMP_NEW"},
 {ERR_FUNC(EC_F_O2I_ECPUBLICKEY),	"o2i_ECPublicKey"},
 {ERR_FUNC(EC_F_OLD_EC_PRIV_DECODE),	"OLD_EC_PRIV_DECODE"},
 {ERR_FUNC(EC_F_PKEY_EC_CTRL),	"PKEY_EC_CTRL"},
@@ -199,12 +213,15 @@ static ERR_STRING_DATA EC_str_reasons[]=
 	{
 {ERR_REASON(EC_R_ASN1_ERROR)             ,"asn1 error"},
 {ERR_REASON(EC_R_ASN1_UNKNOWN_FIELD)     ,"asn1 unknown field"},
+{ERR_REASON(EC_R_BIGNUM_OUT_OF_RANGE)    ,"bignum out of range"},
 {ERR_REASON(EC_R_BUFFER_TOO_SMALL)       ,"buffer too small"},
+{ERR_REASON(EC_R_COORDINATES_OUT_OF_RANGE),"coordinates out of range"},
 {ERR_REASON(EC_R_D2I_ECPKPARAMETERS_FAILURE),"d2i ecpkparameters failure"},
 {ERR_REASON(EC_R_DECODE_ERROR)           ,"decode error"},
 {ERR_REASON(EC_R_DISCRIMINANT_IS_ZERO)   ,"discriminant is zero"},
 {ERR_REASON(EC_R_EC_GROUP_NEW_BY_NAME_FAILURE),"ec group new by name failure"},
 {ERR_REASON(EC_R_FIELD_TOO_LARGE)        ,"field too large"},
+{ERR_REASON(EC_R_GF2M_NOT_SUPPORTED)     ,"gf2m not supported"},
 {ERR_REASON(EC_R_GROUP2PKPARAMETERS_FAILURE),"group2pkparameters failure"},
 {ERR_REASON(EC_R_I2D_ECPKPARAMETERS_FAILURE),"i2d ecpkparameters failure"},
 {ERR_REASON(EC_R_INCOMPATIBLE_OBJECTS)   ,"incompatible objects"},
@@ -239,6 +256,7 @@ static ERR_STRING_DATA EC_str_reasons[]=
 {ERR_REASON(EC_R_UNKNOWN_GROUP)          ,"unknown group"},
 {ERR_REASON(EC_R_UNKNOWN_ORDER)          ,"unknown order"},
 {ERR_REASON(EC_R_UNSUPPORTED_FIELD)      ,"unsupported field"},
+{ERR_REASON(EC_R_WRONG_CURVE_PARAMETERS) ,"wrong curve parameters"},
 {ERR_REASON(EC_R_WRONG_ORDER)            ,"wrong order"},
 {0,NULL}
 	};

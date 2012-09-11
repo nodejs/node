@@ -23,7 +23,7 @@ extern void *OPENSSL_UplinkTable[];
 #define UP_fileno (*(int (*)(void *))OPENSSL_UplinkTable[APPLINK_FILENO])
 
 #define UP_open   (*(int (*)(const char *,int,...))OPENSSL_UplinkTable[APPLINK_OPEN])
-#define UP_read   (*(ssize_t (*)(int,void *,size_t))OPENSSL_UplinkTable[APPLINK_READ])
-#define UP_write  (*(ssize_t (*)(int,const void *,size_t))OPENSSL_UplinkTable[APPLINK_WRITE])
+#define UP_read   (*(ossl_ssize_t (*)(int,void *,size_t))OPENSSL_UplinkTable[APPLINK_READ])
+#define UP_write  (*(ossl_ssize_t (*)(int,const void *,size_t))OPENSSL_UplinkTable[APPLINK_WRITE])
 #define UP_lseek  (*(long (*)(int,long,int))OPENSSL_UplinkTable[APPLINK_LSEEK])
 #define UP_close  (*(int (*)(int))OPENSSL_UplinkTable[APPLINK_CLOSE])

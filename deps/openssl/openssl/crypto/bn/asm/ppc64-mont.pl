@@ -45,23 +45,40 @@
 # on 1.8GHz PPC970, it's only 5-55% faster. Still far from impressive
 # in absolute terms, but it's apparently the way Power 6 is...
 
+# December 2009
+
+# Adapted for 32-bit build this module delivers 25-120%, yes, more
+# than *twice* for longer keys, performance improvement over 32-bit
+# ppc-mont.pl on 1.8GHz PPC970. However! This implementation utilizes
+# even 64-bit integer operations and the trouble is that most PPC
+# operating systems don't preserve upper halves of general purpose
+# registers upon 32-bit signal delivery. They do preserve them upon
+# context switch, but not signalling:-( This means that asynchronous
+# signals have to be blocked upon entry to this subroutine. Signal
+# masking (and of course complementary unmasking) has quite an impact
+# on performance, naturally larger for shorter keys. It's so severe
+# that 512-bit key performance can be as low as 1/3 of expected one.
+# This is why this routine can be engaged for longer key operations
+# only on these OSes, see crypto/ppccap.c for further details. MacOS X
+# is an exception from this and doesn't require signal masking, and
+# that's where above improvement coefficients were collected. For
+# others alternative would be to break dependence on upper halves of
+# GPRs by sticking to 32-bit integer operations...
+
 $flavour = shift;
 
 if ($flavour =~ /32/) {
 	$SIZE_T=4;
 	$RZONE=	224;
-	$FRAME=	$SIZE_T*12+8*12;
-	$fname=	"bn_mul_mont_ppc64";
+	$fname=	"bn_mul_mont_fpu64";
 
 	$STUX=	"stwux";	# store indexed and update
 	$PUSH=	"stw";
 	$POP=	"lwz";
-	die "not implemented yet";
 } elsif ($flavour =~ /64/) {
 	$SIZE_T=8;
 	$RZONE=	288;
-	$FRAME=	$SIZE_T*12+8*12;
-	$fname=	"bn_mul_mont";
+	$fname=	"bn_mul_mont_fpu64";
 
 	# same as above, but 64-bit mnemonics...
 	$STUX=	"stdux";	# store indexed and update
@@ -76,7 +93,7 @@ die "can't locate ppc-xlate.pl";
 
 open STDOUT,"| $^X $xlate $flavour ".shift || die "can't call $xlate: $!";
 
-$FRAME=($FRAME+63)&~63;
+$FRAME=64;	# padded frame header
 $TRANSFER=16*8;
 
 $carry="r0";
@@ -93,16 +110,16 @@ $tp="r10";
 $j="r11";
 $i="r12";
 # non-volatile registers
-$nap_d="r14";	# interleaved ap and np in double format
-$a0="r15";	# ap[0]
-$t0="r16";	# temporary registers
-$t1="r17";
-$t2="r18";
-$t3="r19";
-$t4="r20";
-$t5="r21";
-$t6="r22";
-$t7="r23";
+$nap_d="r22";	# interleaved ap and np in double format
+$a0="r23";	# ap[0]
+$t0="r24";	# temporary registers
+$t1="r25";
+$t2="r26";
+$t3="r27";
+$t4="r28";
+$t5="r29";
+$t6="r30";
+$t7="r31";
 
 # PPC offers enough register bank capacity to unroll inner loops twice
 #
@@ -132,28 +149,17 @@ $ba="f0";	$bb="f1";	$bc="f2";	$bd="f3";
 $na="f4";	$nb="f5";	$nc="f6";	$nd="f7";
 $dota="f8";	$dotb="f9";
 $A0="f10";	$A1="f11";	$A2="f12";	$A3="f13";
-$N0="f14";	$N1="f15";	$N2="f16";	$N3="f17";
-$T0a="f18";	$T0b="f19";
-$T1a="f20";	$T1b="f21";
-$T2a="f22";	$T2b="f23";
-$T3a="f24";	$T3b="f25";
+$N0="f20";	$N1="f21";	$N2="f22";	$N3="f23";
+$T0a="f24";	$T0b="f25";
+$T1a="f26";	$T1b="f27";
+$T2a="f28";	$T2b="f29";
+$T3a="f30";	$T3b="f31";
 
 # sp----------->+-------------------------------+
 #		| saved sp			|
 #		+-------------------------------+
-#		|				|
-#		+-------------------------------+
-#		| 10 saved gpr, r14-r23		|
 #		.				.
-#		.				.
-#   +12*size_t	+-------------------------------+
-#		| 12 saved fpr, f14-f25		|
-#		.				.
-#		.				.
-#   +12*8	+-------------------------------+
-#		| padding to 64 byte boundary	|
-#		.				.
-#   +X		+-------------------------------+
+#   +64		+-------------------------------+
 #		| 16 gpr<->fpr transfer zone	|
 #		.				.
 #		.				.
@@ -173,6 +179,16 @@ $T3a="f24";	$T3b="f25";
 #		.				.
 #		.				.
 #		+-------------------------------+
+#		.				.
+#   -12*size_t	+-------------------------------+
+#		| 10 saved gpr, r22-r31		|
+#		.				.
+#		.				.
+#   -12*8	+-------------------------------+
+#		| 12 saved fpr, f20-f31		|
+#		.				.
+#		.				.
+#		+-------------------------------+
 
 $code=<<___;
 .machine "any"
@@ -181,14 +197,14 @@ $code=<<___;
 .globl	.$fname
 .align	5
 .$fname:
-	cmpwi	$num,4
+	cmpwi	$num,`3*8/$SIZE_T`
 	mr	$rp,r3		; $rp is reassigned
 	li	r3,0		; possible "not handled" return code
 	bltlr-
-	andi.	r0,$num,1	; $num has to be even
+	andi.	r0,$num,`16/$SIZE_T-1`		; $num has to be "even"
 	bnelr-
 
-	slwi	$num,$num,3	; num*=8
+	slwi	$num,$num,`log($SIZE_T)/log(2)`	; num*=sizeof(BN_LONG)
 	li	$i,-4096
 	slwi	$tp,$num,2	; place for {an}p_{lh}[num], i.e. 4*num
 	add	$tp,$tp,$num	; place for tp[num+1]
@@ -196,35 +212,50 @@ $code=<<___;
 	subf	$tp,$tp,$sp	; $sp-$tp
 	and	$tp,$tp,$i	; minimize TLB usage
 	subf	$tp,$sp,$tp	; $tp-$sp
+	mr	$i,$sp
 	$STUX	$sp,$sp,$tp	; alloca
 
-	$PUSH	r14,`2*$SIZE_T`($sp)
-	$PUSH	r15,`3*$SIZE_T`($sp)
-	$PUSH	r16,`4*$SIZE_T`($sp)
-	$PUSH	r17,`5*$SIZE_T`($sp)
-	$PUSH	r18,`6*$SIZE_T`($sp)
-	$PUSH	r19,`7*$SIZE_T`($sp)
-	$PUSH	r20,`8*$SIZE_T`($sp)
-	$PUSH	r21,`9*$SIZE_T`($sp)
-	$PUSH	r22,`10*$SIZE_T`($sp)
-	$PUSH	r23,`11*$SIZE_T`($sp)
-	stfd	f14,`12*$SIZE_T+0`($sp)
-	stfd	f15,`12*$SIZE_T+8`($sp)
-	stfd	f16,`12*$SIZE_T+16`($sp)
-	stfd	f17,`12*$SIZE_T+24`($sp)
-	stfd	f18,`12*$SIZE_T+32`($sp)
-	stfd	f19,`12*$SIZE_T+40`($sp)
-	stfd	f20,`12*$SIZE_T+48`($sp)
-	stfd	f21,`12*$SIZE_T+56`($sp)
-	stfd	f22,`12*$SIZE_T+64`($sp)
-	stfd	f23,`12*$SIZE_T+72`($sp)
-	stfd	f24,`12*$SIZE_T+80`($sp)
-	stfd	f25,`12*$SIZE_T+88`($sp)
-
+	$PUSH	r22,`-12*8-10*$SIZE_T`($i)
+	$PUSH	r23,`-12*8-9*$SIZE_T`($i)
+	$PUSH	r24,`-12*8-8*$SIZE_T`($i)
+	$PUSH	r25,`-12*8-7*$SIZE_T`($i)
+	$PUSH	r26,`-12*8-6*$SIZE_T`($i)
+	$PUSH	r27,`-12*8-5*$SIZE_T`($i)
+	$PUSH	r28,`-12*8-4*$SIZE_T`($i)
+	$PUSH	r29,`-12*8-3*$SIZE_T`($i)
+	$PUSH	r30,`-12*8-2*$SIZE_T`($i)
+	$PUSH	r31,`-12*8-1*$SIZE_T`($i)
+	stfd	f20,`-12*8`($i)
+	stfd	f21,`-11*8`($i)
+	stfd	f22,`-10*8`($i)
+	stfd	f23,`-9*8`($i)
+	stfd	f24,`-8*8`($i)
+	stfd	f25,`-7*8`($i)
+	stfd	f26,`-6*8`($i)
+	stfd	f27,`-5*8`($i)
+	stfd	f28,`-4*8`($i)
+	stfd	f29,`-3*8`($i)
+	stfd	f30,`-2*8`($i)
+	stfd	f31,`-1*8`($i)
+___
+$code.=<<___ if ($SIZE_T==8);
 	ld	$a0,0($ap)	; pull ap[0] value
 	ld	$n0,0($n0)	; pull n0[0] value
 	ld	$t3,0($bp)	; bp[0]
-
+___
+$code.=<<___ if ($SIZE_T==4);
+	mr	$t1,$n0
+	lwz	$a0,0($ap)	; pull ap[0,1] value
+	lwz	$t0,4($ap)
+	lwz	$n0,0($t1)	; pull n0[0,1] value
+	lwz	$t1,4($t1)
+	lwz	$t3,0($bp)	; bp[0,1]
+	lwz	$t2,4($bp)
+	insrdi	$a0,$t0,32,0
+	insrdi	$n0,$t1,32,0
+	insrdi	$t3,$t2,32,0
+___
+$code.=<<___;
 	addi	$tp,$sp,`$FRAME+$TRANSFER+8+64`
 	li	$i,-64
 	add	$nap_d,$tp,$num
@@ -258,6 +289,8 @@ $code=<<___;
 	std	$t5,`$FRAME+40`($sp)
 	std	$t6,`$FRAME+48`($sp)
 	std	$t7,`$FRAME+56`($sp)
+___
+$code.=<<___ if ($SIZE_T==8);
 	lwz	$t0,4($ap)		; load a[j] as 32-bit word pair
 	lwz	$t1,0($ap)
 	lwz	$t2,12($ap)		; load a[j+1] as 32-bit word pair
@@ -266,6 +299,18 @@ $code=<<___;
 	lwz	$t5,0($np)
 	lwz	$t6,12($np)		; load n[j+1] as 32-bit word pair
 	lwz	$t7,8($np)
+___
+$code.=<<___ if ($SIZE_T==4);
+	lwz	$t0,0($ap)		; load a[j..j+3] as 32-bit word pairs
+	lwz	$t1,4($ap)
+	lwz	$t2,8($ap)
+	lwz	$t3,12($ap)
+	lwz	$t4,0($np)		; load n[j..j+3] as 32-bit word pairs
+	lwz	$t5,4($np)
+	lwz	$t6,8($np)
+	lwz	$t7,12($np)
+___
+$code.=<<___;
 	lfd	$ba,`$FRAME+0`($sp)
 	lfd	$bb,`$FRAME+8`($sp)
 	lfd	$bc,`$FRAME+16`($sp)
@@ -374,6 +419,8 @@ $code=<<___;
 
 .align	5
 L1st:
+___
+$code.=<<___ if ($SIZE_T==8);
 	lwz	$t0,4($ap)		; load a[j] as 32-bit word pair
 	lwz	$t1,0($ap)
 	lwz	$t2,12($ap)		; load a[j+1] as 32-bit word pair
@@ -382,6 +429,18 @@ L1st:
 	lwz	$t5,0($np)
 	lwz	$t6,12($np)		; load n[j+1] as 32-bit word pair
 	lwz	$t7,8($np)
+___
+$code.=<<___ if ($SIZE_T==4);
+	lwz	$t0,0($ap)		; load a[j..j+3] as 32-bit word pairs
+	lwz	$t1,4($ap)
+	lwz	$t2,8($ap)
+	lwz	$t3,12($ap)
+	lwz	$t4,0($np)		; load n[j..j+3] as 32-bit word pairs
+	lwz	$t5,4($np)
+	lwz	$t6,8($np)
+	lwz	$t7,12($np)
+___
+$code.=<<___;
 	std	$t0,`$FRAME+64`($sp)
 	std	$t1,`$FRAME+72`($sp)
 	std	$t2,`$FRAME+80`($sp)
@@ -559,7 +618,17 @@ L1st:
 	li	$i,8			; i=1
 .align	5
 Louter:
+___
+$code.=<<___ if ($SIZE_T==8);
 	ldx	$t3,$bp,$i	; bp[i]
+___
+$code.=<<___ if ($SIZE_T==4);
+	add	$t0,$bp,$i
+	lwz	$t3,0($t0)		; bp[i,i+1]
+	lwz	$t0,4($t0)
+	insrdi	$t3,$t0,32,0
+___
+$code.=<<___;
 	ld	$t6,`$FRAME+$TRANSFER+8`($sp)	; tp[0]
 	mulld	$t7,$a0,$t3	; ap[0]*bp[i]
 
@@ -761,6 +830,13 @@ Linner:
 	stfd	$T0b,`$FRAME+8`($sp)
 	 add	$t7,$t7,$carry
 	 addc	$t3,$t0,$t1
+___
+$code.=<<___ if ($SIZE_T==4);		# adjust XER[CA]
+	extrdi	$t0,$t0,32,0
+	extrdi	$t1,$t1,32,0
+	adde	$t0,$t0,$t1
+___
+$code.=<<___;
 	stfd	$T1a,`$FRAME+16`($sp)
 	stfd	$T1b,`$FRAME+24`($sp)
 	 insrdi	$t4,$t7,16,0		; 64..127 bits
@@ -768,6 +844,13 @@ Linner:
 	stfd	$T2a,`$FRAME+32`($sp)
 	stfd	$T2b,`$FRAME+40`($sp)
 	 adde	$t5,$t4,$t2
+___
+$code.=<<___ if ($SIZE_T==4);		# adjust XER[CA]
+	extrdi	$t4,$t4,32,0
+	extrdi	$t2,$t2,32,0
+	adde	$t4,$t4,$t2
+___
+$code.=<<___;
 	stfd	$T3a,`$FRAME+48`($sp)
 	stfd	$T3b,`$FRAME+56`($sp)
 	 addze	$carry,$carry
@@ -816,7 +899,21 @@ Linner:
 	ld	$t7,`$FRAME+72`($sp)
 
 	addc	$t3,$t0,$t1
+___
+$code.=<<___ if ($SIZE_T==4);		# adjust XER[CA]
+	extrdi	$t0,$t0,32,0
+	extrdi	$t1,$t1,32,0
+	adde	$t0,$t0,$t1
+___
+$code.=<<___;
 	adde	$t5,$t4,$t2
+___
+$code.=<<___ if ($SIZE_T==4);		# adjust XER[CA]
+	extrdi	$t4,$t4,32,0
+	extrdi	$t2,$t2,32,0
+	adde	$t4,$t4,$t2
+___
+$code.=<<___;
 	addze	$carry,$carry
 
 	std	$t3,-16($tp)		; tp[j-1]
@@ -835,7 +932,9 @@ Linner:
 	subf	$nap_d,$t7,$nap_d	; rewind pointer
 	cmpw	$i,$num
 	blt-	Louter
+___
 
+$code.=<<___ if ($SIZE_T==8);
 	subf	$np,$num,$np	; rewind np
 	addi	$j,$j,1		; restore counter
 	subfc	$i,$i,$i	; j=0 and "clear" XER[CA]
@@ -883,34 +982,105 @@ Lcopy:				; copy or in-place refresh
 	stdx	$i,$t4,$i
 	addi	$i,$i,16
 	bdnz-	Lcopy
+___
+$code.=<<___ if ($SIZE_T==4);
+	subf	$np,$num,$np	; rewind np
+	addi	$j,$j,1		; restore counter
+	subfc	$i,$i,$i	; j=0 and "clear" XER[CA]
+	addi	$tp,$sp,`$FRAME+$TRANSFER`
+	addi	$np,$np,-4
+	addi	$rp,$rp,-4
+	addi	$ap,$sp,`$FRAME+$TRANSFER+4`
+	mtctr	$j
+
+.align	4
+Lsub:	ld	$t0,8($tp)	; load tp[j..j+3] in 64-bit word order
+	ldu	$t2,16($tp)
+	lwz	$t4,4($np)	; load np[j..j+3] in 32-bit word order
+	lwz	$t5,8($np)
+	lwz	$t6,12($np)
+	lwzu	$t7,16($np)
+	extrdi	$t1,$t0,32,0
+	extrdi	$t3,$t2,32,0
+	subfe	$t4,$t4,$t0	; tp[j]-np[j]
+	 stw	$t0,4($ap)	; save tp[j..j+3] in 32-bit word order
+	subfe	$t5,$t5,$t1	; tp[j+1]-np[j+1]
+	 stw	$t1,8($ap)
+	subfe	$t6,$t6,$t2	; tp[j+2]-np[j+2]
+	 stw	$t2,12($ap)
+	subfe	$t7,$t7,$t3	; tp[j+3]-np[j+3]
+	 stwu	$t3,16($ap)
+	stw	$t4,4($rp)
+	stw	$t5,8($rp)
+	stw	$t6,12($rp)
+	stwu	$t7,16($rp)
+	bdnz-	Lsub
+
+	li	$i,0
+	subfe	$ovf,$i,$ovf	; handle upmost overflow bit
+	addi	$tp,$sp,`$FRAME+$TRANSFER+4`
+	subf	$rp,$num,$rp	; rewind rp
+	and	$ap,$tp,$ovf
+	andc	$np,$rp,$ovf
+	or	$ap,$ap,$np	; ap=borrow?tp:rp
+	addi	$tp,$sp,`$FRAME+$TRANSFER`
+	mtctr	$j
+
+.align	4
+Lcopy:				; copy or in-place refresh
+	lwz	$t0,4($ap)
+	lwz	$t1,8($ap)
+	lwz	$t2,12($ap)
+	lwzu	$t3,16($ap)
+	std	$i,8($nap_d)	; zap nap_d
+	std	$i,16($nap_d)
+	std	$i,24($nap_d)
+	std	$i,32($nap_d)
+	std	$i,40($nap_d)
+	std	$i,48($nap_d)
+	std	$i,56($nap_d)
+	stdu	$i,64($nap_d)
+	stw	$t0,4($rp)
+	stw	$t1,8($rp)
+	stw	$t2,12($rp)
+	stwu	$t3,16($rp)
+	std	$i,8($tp)	; zap tp at once
+	stdu	$i,16($tp)
+	bdnz-	Lcopy
+___
 
-	$POP	r14,`2*$SIZE_T`($sp)
-	$POP	r15,`3*$SIZE_T`($sp)
-	$POP	r16,`4*$SIZE_T`($sp)
-	$POP	r17,`5*$SIZE_T`($sp)
-	$POP	r18,`6*$SIZE_T`($sp)
-	$POP	r19,`7*$SIZE_T`($sp)
-	$POP	r20,`8*$SIZE_T`($sp)
-	$POP	r21,`9*$SIZE_T`($sp)
-	$POP	r22,`10*$SIZE_T`($sp)
-	$POP	r23,`11*$SIZE_T`($sp)
-	lfd	f14,`12*$SIZE_T+0`($sp)
-	lfd	f15,`12*$SIZE_T+8`($sp)
-	lfd	f16,`12*$SIZE_T+16`($sp)
-	lfd	f17,`12*$SIZE_T+24`($sp)
-	lfd	f18,`12*$SIZE_T+32`($sp)
-	lfd	f19,`12*$SIZE_T+40`($sp)
-	lfd	f20,`12*$SIZE_T+48`($sp)
-	lfd	f21,`12*$SIZE_T+56`($sp)
-	lfd	f22,`12*$SIZE_T+64`($sp)
-	lfd	f23,`12*$SIZE_T+72`($sp)
-	lfd	f24,`12*$SIZE_T+80`($sp)
-	lfd	f25,`12*$SIZE_T+88`($sp)
-	$POP	$sp,0($sp)
+$code.=<<___;
+	$POP	$i,0($sp)
 	li	r3,1	; signal "handled"
+	$POP	r22,`-12*8-10*$SIZE_T`($i)
+	$POP	r23,`-12*8-9*$SIZE_T`($i)
+	$POP	r24,`-12*8-8*$SIZE_T`($i)
+	$POP	r25,`-12*8-7*$SIZE_T`($i)
+	$POP	r26,`-12*8-6*$SIZE_T`($i)
+	$POP	r27,`-12*8-5*$SIZE_T`($i)
+	$POP	r28,`-12*8-4*$SIZE_T`($i)
+	$POP	r29,`-12*8-3*$SIZE_T`($i)
+	$POP	r30,`-12*8-2*$SIZE_T`($i)
+	$POP	r31,`-12*8-1*$SIZE_T`($i)
+	lfd	f20,`-12*8`($i)
+	lfd	f21,`-11*8`($i)
+	lfd	f22,`-10*8`($i)
+	lfd	f23,`-9*8`($i)
+	lfd	f24,`-8*8`($i)
+	lfd	f25,`-7*8`($i)
+	lfd	f26,`-6*8`($i)
+	lfd	f27,`-5*8`($i)
+	lfd	f28,`-4*8`($i)
+	lfd	f29,`-3*8`($i)
+	lfd	f30,`-2*8`($i)
+	lfd	f31,`-1*8`($i)
+	mr	$sp,$i
 	blr
 	.long	0
-.asciz  "Montgomery Multiplication for PPC64, CRYPTOGAMS by <appro\@fy.chalmers.se>"
+	.byte	0,12,4,0,0x8c,10,6,0
+	.long	0
+
+.asciz  "Montgomery Multiplication for PPC64, CRYPTOGAMS by <appro\@openssl.org>"
 ___
 
 $code =~ s/\`([^\`]*)\`/eval $1/gem;

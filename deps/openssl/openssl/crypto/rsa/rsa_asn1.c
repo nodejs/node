@@ -60,6 +60,7 @@
 #include "cryptlib.h"
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
+#include <openssl/x509.h>
 #include <openssl/asn1t.h>
 
 /* Override the default free and new methods */
@@ -95,6 +96,15 @@ ASN1_SEQUENCE_cb(RSAPublicKey, rsa_cb) = {
 	ASN1_SIMPLE(RSA, n, BIGNUM),
 	ASN1_SIMPLE(RSA, e, BIGNUM),
 } ASN1_SEQUENCE_END_cb(RSA, RSAPublicKey)
+
+ASN1_SEQUENCE(RSA_PSS_PARAMS) = {
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, hashAlgorithm, X509_ALGOR,0),
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, maskGenAlgorithm, X509_ALGOR,1),
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, saltLength, ASN1_INTEGER,2),
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, trailerField, ASN1_INTEGER,3)
+} ASN1_SEQUENCE_END(RSA_PSS_PARAMS)
+
+IMPLEMENT_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(RSA, RSAPrivateKey, RSAPrivateKey)
 

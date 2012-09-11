@@ -59,6 +59,7 @@
 #include <stdio.h>
 #include "md5_locl.h"
 #include <openssl/opensslv.h>
+#include <openssl/crypto.h>
 
 const char MD5_version[]="MD5" OPENSSL_VERSION_PTEXT;
 
@@ -70,7 +71,7 @@ const char MD5_version[]="MD5" OPENSSL_VERSION_PTEXT;
 #define INIT_DATA_C (unsigned long)0x98badcfeL
 #define INIT_DATA_D (unsigned long)0x10325476L
 
-int MD5_Init(MD5_CTX *c)
+fips_md_init(MD5)
 	{
 	memset (c,0,sizeof(*c));
 	c->A=INIT_DATA_A;

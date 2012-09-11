@@ -73,6 +73,8 @@ BIO *cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec)
 	const EVP_CIPHER *ciph;
 	X509_ALGOR *calg = ec->contentEncryptionAlgorithm;
 	unsigned char iv[EVP_MAX_IV_LENGTH], *piv = NULL;
+	unsigned char *tkey = NULL;
+	size_t tkeylen;
 
 	int ok = 0;
 
@@ -137,32 +139,57 @@ BIO *cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec)
 				CMS_R_CIPHER_PARAMETER_INITIALISATION_ERROR);
 		goto err;
 		}
-
-
-	if (enc && !ec->key)
+	tkeylen = EVP_CIPHER_CTX_key_length(ctx);
+	/* Generate random session key */
+	if (!enc || !ec->key)
 		{
-		/* Generate random key */
-		if (!ec->keylen)
-			ec->keylen = EVP_CIPHER_CTX_key_length(ctx);
-		ec->key = OPENSSL_malloc(ec->keylen);
-		if (!ec->key)
+		tkey = OPENSSL_malloc(tkeylen);
+		if (!tkey)
 			{
 			CMSerr(CMS_F_CMS_ENCRYPTEDCONTENT_INIT_BIO,
 							ERR_R_MALLOC_FAILURE);
 			goto err;
 			}
-		if (EVP_CIPHER_CTX_rand_key(ctx, ec->key) <= 0)
+		if (EVP_CIPHER_CTX_rand_key(ctx, tkey) <= 0)
 			goto err;
-		keep_key = 1;
 		}
-	else if (ec->keylen != (unsigned int)EVP_CIPHER_CTX_key_length(ctx))
+
+	if (!ec->key)
+		{
+		ec->key = tkey;
+		ec->keylen = tkeylen;
+		tkey = NULL;
+		if (enc)
+			keep_key = 1;
+		else
+			ERR_clear_error();
+		
+		}
+
+	if (ec->keylen != tkeylen)
 		{
 		/* If necessary set key length */
 		if (EVP_CIPHER_CTX_set_key_length(ctx, ec->keylen) <= 0)
 			{
-			CMSerr(CMS_F_CMS_ENCRYPTEDCONTENT_INIT_BIO,
-				CMS_R_INVALID_KEY_LENGTH);
-			goto err;
+			/* Only reveal failure if debugging so we don't
+			 * leak information which may be useful in MMA.
+			 */
+			if (enc || ec->debug)
+				{
+				CMSerr(CMS_F_CMS_ENCRYPTEDCONTENT_INIT_BIO,
+						CMS_R_INVALID_KEY_LENGTH);
+				goto err;
+				}
+			else
+				{
+				/* Use random key */
+				OPENSSL_cleanse(ec->key, ec->keylen);
+				OPENSSL_free(ec->key);
+				ec->key = tkey;
+				ec->keylen = tkeylen;
+				tkey = NULL;
+				ERR_clear_error();
+				}
 			}
 		}
 
@@ -197,6 +224,11 @@ BIO *cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec)
 		OPENSSL_cleanse(ec->key, ec->keylen);
 		OPENSSL_free(ec->key);
 		ec->key = NULL;
+		}
+	if (tkey)
+		{
+		OPENSSL_cleanse(tkey, tkeylen);
+		OPENSSL_free(tkey);
 		}
 	if (ok)
 		return b;

@@ -57,8 +57,9 @@
  */
 
 #include <stdio.h>
-#include "md4_locl.h"
 #include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#include "md4_locl.h"
 
 const char MD4_version[]="MD4" OPENSSL_VERSION_PTEXT;
 
@@ -70,7 +71,7 @@ const char MD4_version[]="MD4" OPENSSL_VERSION_PTEXT;
 #define INIT_DATA_C (unsigned long)0x98badcfeL
 #define INIT_DATA_D (unsigned long)0x10325476L
 
-int MD4_Init(MD4_CTX *c)
+fips_md_init(MD4)
 	{
 	memset (c,0,sizeof(*c));
 	c->A=INIT_DATA_A;

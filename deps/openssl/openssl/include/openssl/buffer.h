@@ -1,1 +1,1 @@
-#include "../../crypto/buffer/buffer.h"
+../../crypto/buffer/buffer.h

@@ -111,6 +111,7 @@ DECLARE_ASN1_PRINT_FUNCTION(CMS_ContentInfo)
 #define CMS_PARTIAL			0x4000
 #define CMS_REUSE_DIGEST		0x8000
 #define CMS_USE_KEYID			0x10000
+#define CMS_DEBUG_DECRYPT		0x20000
 
 const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
 
@@ -184,6 +185,8 @@ int CMS_decrypt_set1_pkey(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert);
 int CMS_decrypt_set1_key(CMS_ContentInfo *cms, 
 				unsigned char *key, size_t keylen,
 				unsigned char *id, size_t idlen);
+int CMS_decrypt_set1_password(CMS_ContentInfo *cms, 
+				unsigned char *pass, ossl_ssize_t passlen);
 
 STACK_OF(CMS_RecipientInfo) *CMS_get0_RecipientInfos(CMS_ContentInfo *cms);
 int CMS_RecipientInfo_type(CMS_RecipientInfo *ri);
@@ -218,6 +221,16 @@ int CMS_RecipientInfo_set0_key(CMS_RecipientInfo *ri,
 
 int CMS_RecipientInfo_kekri_id_cmp(CMS_RecipientInfo *ri, 
 					const unsigned char *id, size_t idlen);
+
+int CMS_RecipientInfo_set0_password(CMS_RecipientInfo *ri, 
+					unsigned char *pass,
+					ossl_ssize_t passlen);
+
+CMS_RecipientInfo *CMS_add0_recipient_password(CMS_ContentInfo *cms,
+					int iter, int wrap_nid, int pbe_nid,
+					unsigned char *pass,
+					ossl_ssize_t passlen,
+					const EVP_CIPHER *kekciph);
 
 int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri);
 	
@@ -330,6 +343,7 @@ void ERR_load_CMS_strings(void);
 #define CMS_F_CHECK_CONTENT				 99
 #define CMS_F_CMS_ADD0_CERT				 164
 #define CMS_F_CMS_ADD0_RECIPIENT_KEY			 100
+#define CMS_F_CMS_ADD0_RECIPIENT_PASSWORD		 165
 #define CMS_F_CMS_ADD1_RECEIPTREQUEST			 158
 #define CMS_F_CMS_ADD1_RECIPIENT_CERT			 101
 #define CMS_F_CMS_ADD1_SIGNER				 102
@@ -344,6 +358,7 @@ void ERR_load_CMS_strings(void);
 #define CMS_F_CMS_DATAINIT				 111
 #define CMS_F_CMS_DECRYPT				 112
 #define CMS_F_CMS_DECRYPT_SET1_KEY			 113
+#define CMS_F_CMS_DECRYPT_SET1_PASSWORD			 166
 #define CMS_F_CMS_DECRYPT_SET1_PKEY			 114
 #define CMS_F_CMS_DIGESTALGORITHM_FIND_CTX		 115
 #define CMS_F_CMS_DIGESTALGORITHM_INIT_BIO		 116
@@ -378,7 +393,9 @@ void ERR_load_CMS_strings(void);
 #define CMS_F_CMS_RECIPIENTINFO_KTRI_ENCRYPT		 141
 #define CMS_F_CMS_RECIPIENTINFO_KTRI_GET0_ALGS		 142
 #define CMS_F_CMS_RECIPIENTINFO_KTRI_GET0_SIGNER_ID	 143
+#define CMS_F_CMS_RECIPIENTINFO_PWRI_CRYPT		 167
 #define CMS_F_CMS_RECIPIENTINFO_SET0_KEY		 144
+#define CMS_F_CMS_RECIPIENTINFO_SET0_PASSWORD		 168
 #define CMS_F_CMS_RECIPIENTINFO_SET0_PKEY		 145
 #define CMS_F_CMS_SET1_SIGNERIDENTIFIER			 146
 #define CMS_F_CMS_SET_DETACHED				 147
@@ -419,6 +436,7 @@ void ERR_load_CMS_strings(void);
 #define CMS_R_ERROR_SETTING_KEY				 115
 #define CMS_R_ERROR_SETTING_RECIPIENTINFO		 116
 #define CMS_R_INVALID_ENCRYPTED_KEY_LENGTH		 117
+#define CMS_R_INVALID_KEY_ENCRYPTION_PARAMETER		 176
 #define CMS_R_INVALID_KEY_LENGTH			 118
 #define CMS_R_MD_BIO_INIT_ERROR				 119
 #define CMS_R_MESSAGEDIGEST_ATTRIBUTE_WRONG_LENGTH	 120
@@ -431,6 +449,7 @@ void ERR_load_CMS_strings(void);
 #define CMS_R_NOT_ENCRYPTED_DATA			 122
 #define CMS_R_NOT_KEK					 123
 #define CMS_R_NOT_KEY_TRANSPORT				 124
+#define CMS_R_NOT_PWRI					 177
 #define CMS_R_NOT_SUPPORTED_FOR_THIS_KEY_TYPE		 125
 #define CMS_R_NO_CIPHER					 126
 #define CMS_R_NO_CONTENT				 127
@@ -443,6 +462,7 @@ void ERR_load_CMS_strings(void);
 #define CMS_R_NO_MATCHING_RECIPIENT			 132
 #define CMS_R_NO_MATCHING_SIGNATURE			 166
 #define CMS_R_NO_MSGSIGDIGEST				 167
+#define CMS_R_NO_PASSWORD				 178
 #define CMS_R_NO_PRIVATE_KEY				 133
 #define CMS_R_NO_PUBLIC_KEY				 134
 #define CMS_R_NO_RECEIPT_REQUEST			 168
@@ -466,10 +486,12 @@ void ERR_load_CMS_strings(void);
 #define CMS_R_UNSUPPORTED_COMPRESSION_ALGORITHM		 151
 #define CMS_R_UNSUPPORTED_CONTENT_TYPE			 152
 #define CMS_R_UNSUPPORTED_KEK_ALGORITHM			 153
+#define CMS_R_UNSUPPORTED_KEY_ENCRYPTION_ALGORITHM	 179
 #define CMS_R_UNSUPPORTED_RECIPIENT_TYPE		 154
 #define CMS_R_UNSUPPORTED_RECPIENTINFO_TYPE		 155
 #define CMS_R_UNSUPPORTED_TYPE				 156
 #define CMS_R_UNWRAP_ERROR				 157
+#define CMS_R_UNWRAP_FAILURE				 180
 #define CMS_R_VERIFICATION_FAILURE			 158
 #define CMS_R_WRAP_ERROR				 159
 

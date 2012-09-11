@@ -26,7 +26,7 @@ OPENSSL_atomic_add:
 { .mii;	mov		ar.ccv=r2
 	add		r8=r2,r33
 	mov		r3=r2		};;
-{ .mmi;	mf
+{ .mmi;	mf;;
 	cmpxchg4.acq	r2=[r32],r8,ar.ccv
 	nop.i		0		};;
 { .mib;	cmp.ne		p6,p0=r2,r3

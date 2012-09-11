@@ -386,8 +386,8 @@ long ASN1_INTEGER_get(const ASN1_INTEGER *a)
 	
 	if (a->length > (int)sizeof(long))
 		{
-		/* hmm... a bit ugly */
-		return(0xffffffffL);
+		/* hmm... a bit ugly, return all ones */
+		return -1;
 		}
 	if (a->data == NULL)
 		return 0;

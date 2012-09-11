@@ -316,7 +316,7 @@ int (*UI_method_get_writer(UI_METHOD *method))(UI*,UI_STRING*);
 int (*UI_method_get_flusher(UI_METHOD *method))(UI*);
 int (*UI_method_get_reader(UI_METHOD *method))(UI*,UI_STRING*);
 int (*UI_method_get_closer(UI_METHOD *method))(UI*);
-char* (*UI_method_get_prompt_constructor(UI_METHOD *method))(UI*, const char*, const char*);
+char * (*UI_method_get_prompt_constructor(UI_METHOD *method))(UI*, const char*, const char*);
 
 /* The following functions are helpers for method writers to access relevant
    data from a UI_STRING. */

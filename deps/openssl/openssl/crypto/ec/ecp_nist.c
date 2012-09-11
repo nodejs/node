@@ -67,9 +67,17 @@
 #include <openssl/obj_mac.h>
 #include "ec_lcl.h"
 
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
+
 const EC_METHOD *EC_GFp_nist_method(void)
 	{
+#ifdef OPENSSL_FIPS
+	return fips_ec_gfp_nist_method();
+#else
 	static const EC_METHOD ret = {
+		EC_FLAGS_DEFAULT_OCT,
 		NID_X9_62_prime_field,
 		ec_GFp_simple_group_init,
 		ec_GFp_simple_group_finish,
@@ -88,9 +96,7 @@ const EC_METHOD *EC_GFp_nist_method(void)
 		ec_GFp_simple_get_Jprojective_coordinates_GFp,
 		ec_GFp_simple_point_set_affine_coordinates,
 		ec_GFp_simple_point_get_affine_coordinates,
-		ec_GFp_simple_set_compressed_coordinates,
-		ec_GFp_simple_point2oct,
-		ec_GFp_simple_oct2point,
+		0,0,0,
 		ec_GFp_simple_add,
 		ec_GFp_simple_dbl,
 		ec_GFp_simple_invert,
@@ -110,6 +116,7 @@ const EC_METHOD *EC_GFp_nist_method(void)
 		0 /* field_set_to_one */ };
 
 	return &ret;
+#endif
 	}
 
 int ec_GFp_nist_group_copy(EC_GROUP *dest, const EC_GROUP *src)

@@ -71,6 +71,8 @@
 
 #include "ec_lcl.h"
 
+#ifndef OPENSSL_NO_EC2M
+
 
 /* Compute the x-coordinate x/z for the point 2*(x/z) in Montgomery projective 
  * coordinates.
@@ -384,3 +386,5 @@ int ec_GF2m_have_precompute_mult(const EC_GROUP *group)
 	{
 	return ec_wNAF_have_precompute_mult(group);
  	}
+
+#endif

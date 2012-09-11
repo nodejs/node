@@ -179,7 +179,6 @@ static int dtls1_record_needs_buffering(SSL *s, SSL3_RECORD *rr,
 static int dtls1_buffer_record(SSL *s, record_pqueue *q,
 	unsigned char *priority);
 static int dtls1_process_record(SSL *s);
-static void dtls1_clear_timeouts(SSL *s);
 
 /* copy buffered record into SSL structure */
 static int
@@ -231,6 +230,14 @@ dtls1_buffer_record(SSL *s, record_pqueue *queue, unsigned char *priority)
 	memcpy(&(rdata->rrec), &(s->s3->rrec), sizeof(SSL3_RECORD));
 
 	item->data = rdata;
+
+#ifndef OPENSSL_NO_SCTP
+	/* Store bio_dgram_sctp_rcvinfo struct */
+	if (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
+	    (s->state == SSL3_ST_SR_FINISHED_A || s->state == SSL3_ST_CR_FINISHED_A)) {
+		BIO_ctrl(SSL_get_rbio(s), BIO_CTRL_DGRAM_SCTP_GET_RCVINFO, sizeof(rdata->recordinfo), &rdata->recordinfo);
+	}
+#endif
 
 	/* insert should not fail, since duplicates are dropped */
 	if (pqueue_insert(queue->q, item) == NULL)
@@ -376,6 +383,7 @@ dtls1_process_record(SSL *s)
 	unsigned int mac_size;
 	unsigned char md[EVP_MAX_MD_SIZE];
 	int decryption_failed_or_bad_record_mac = 0;
+	unsigned char *mac = NULL;
 
 
 	rr= &(s->s3->rrec);
@@ -447,19 +455,15 @@ printf("\n");
 #endif			
 			}
 		/* check the MAC for rr->input (it's in mac_size bytes at the tail) */
-		if (rr->length < mac_size)
+		if (rr->length >= mac_size)
 			{
-#if 0 /* OK only for stream ciphers */
-			al=SSL_AD_DECODE_ERROR;
-			SSLerr(SSL_F_DTLS1_PROCESS_RECORD,SSL_R_LENGTH_TOO_SHORT);
-			goto f_err;
-#else
-			decryption_failed_or_bad_record_mac = 1;
-#endif
+			rr->length -= mac_size;
+			mac = &rr->data[rr->length];
 			}
-		rr->length-=mac_size;
+		else
+			rr->length = 0;
 		i=s->method->ssl3_enc->mac(s,md,0);
-		if (i < 0 || memcmp(md,&(rr->data[rr->length]),mac_size) != 0)
+		if (i < 0 || mac == NULL || memcmp(md, mac, mac_size) != 0)
 			{
 			decryption_failed_or_bad_record_mac = 1;
 			}
@@ -610,24 +614,6 @@ again:
 			goto again;
 			}
 
-		/* If we receive a valid record larger than the current buffer size,
-		 * allocate some memory for it.
-		 */
-		if (rr->length > s->s3->rbuf.len - DTLS1_RT_HEADER_LENGTH)
-			{
-			unsigned char *pp;
-			unsigned int newlen = rr->length + DTLS1_RT_HEADER_LENGTH;
-			if ((pp=OPENSSL_realloc(s->s3->rbuf.buf, newlen))==NULL)
-				{
-				SSLerr(SSL_F_DTLS1_GET_RECORD,ERR_R_MALLOC_FAILURE);
-				return(-1);
-				}
-			p = pp + (p - s->s3->rbuf.buf);
-			s->s3->rbuf.buf=pp;
-			s->s3->rbuf.len=newlen;
-			s->packet= &(s->s3->rbuf.buf[0]);
-			}
-
 		/* now s->rstate == SSL_ST_READ_BODY */
 		}
 
@@ -662,20 +648,28 @@ again:
 		goto again;   /* get another record */
 		}
 
-	/* Check whether this is a repeat, or aged record.
-	 * Don't check if we're listening and this message is
-	 * a ClientHello. They can look as if they're replayed,
-	 * since they arrive from different connections and
-	 * would be dropped unnecessarily.
-	 */
-	if (!(s->d1->listen && rr->type == SSL3_RT_HANDSHAKE &&
-		*p == SSL3_MT_CLIENT_HELLO) &&
-		!dtls1_record_replay_check(s, bitmap))
-		{
-		rr->length = 0;
-		s->packet_length=0; /* dump this record */
-		goto again;     /* get another record */
-		}
+#ifndef OPENSSL_NO_SCTP
+	/* Only do replay check if no SCTP bio */
+	if (!BIO_dgram_is_sctp(SSL_get_rbio(s)))
+  		{
+#endif
+		/* Check whether this is a repeat, or aged record.
+		 * Don't check if we're listening and this message is
+		 * a ClientHello. They can look as if they're replayed,
+		 * since they arrive from different connections and
+		 * would be dropped unnecessarily.
+		 */
+		if (!(s->d1->listen && rr->type == SSL3_RT_HANDSHAKE &&
+		    *p == SSL3_MT_CLIENT_HELLO) &&
+		    !dtls1_record_replay_check(s, bitmap))
+			{
+			rr->length = 0;
+			s->packet_length=0; /* dump this record */
+			goto again;     /* get another record */
+			}
+#ifndef OPENSSL_NO_SCTP
+  		}
+#endif
 
 	/* just read a 0 length packet */
 	if (rr->length == 0) goto again;
@@ -703,7 +697,6 @@ again:
 		goto again;   /* get another record */
 		}
 
-	dtls1_clear_timeouts(s);  /* done waiting */
 	return(1);
 
 	}
@@ -761,7 +754,17 @@ int dtls1_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
 
 	/* Now s->d1->handshake_fragment_len == 0 if type == SSL3_RT_HANDSHAKE. */
 
+#ifndef OPENSSL_NO_SCTP
+	/* Continue handshake if it had to be interrupted to read
+	 * app data with SCTP.
+	 */
+	if ((!s->in_handshake && SSL_in_init(s)) ||
+	    (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
+	     (s->state == DTLS1_SCTP_ST_SR_READ_SOCK || s->state == DTLS1_SCTP_ST_CR_READ_SOCK) &&
+	     s->s3->in_read_app_data != 2))
+#else
 	if (!s->in_handshake && SSL_in_init(s))
+#endif
 		{
 		/* type == SSL3_RT_APPLICATION_DATA */
 		i=s->handshake_func(s);
@@ -792,6 +795,15 @@ start:
 		item = pqueue_pop(s->d1->buffered_app_data.q);
 		if (item)
 			{
+#ifndef OPENSSL_NO_SCTP
+			/* Restore bio_dgram_sctp_rcvinfo struct */
+			if (BIO_dgram_is_sctp(SSL_get_rbio(s)))
+				{
+				DTLS1_RECORD_DATA *rdata = (DTLS1_RECORD_DATA *) item->data;
+				BIO_ctrl(SSL_get_rbio(s), BIO_CTRL_DGRAM_SCTP_SET_RCVINFO, sizeof(rdata->recordinfo), &rdata->recordinfo);
+				}
+#endif
+
 			dtls1_copy_record(s, item);
 
 			OPENSSL_free(item->data);
@@ -874,6 +886,31 @@ start:
 				rr->off=0;
 				}
 			}
+
+#ifndef OPENSSL_NO_SCTP
+			/* We were about to renegotiate but had to read
+			 * belated application data first, so retry.
+			 */
+			if (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
+			    rr->type == SSL3_RT_APPLICATION_DATA &&
+			    (s->state == DTLS1_SCTP_ST_SR_READ_SOCK || s->state == DTLS1_SCTP_ST_CR_READ_SOCK))
+				{
+				s->rwstate=SSL_READING;
+				BIO_clear_retry_flags(SSL_get_rbio(s));
+				BIO_set_retry_read(SSL_get_rbio(s));
+				}
+
+			/* We might had to delay a close_notify alert because
+			 * of reordered app data. If there was an alert and there
+			 * is no message to read anymore, finally set shutdown.
+			 */
+			if (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
+			    s->d1->shutdown_received && !BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)))
+				{
+				s->shutdown |= SSL_RECEIVED_SHUTDOWN;
+				return(0);
+				}
+#endif			
 		return(n);
 		}
 
@@ -901,6 +938,19 @@ start:
 			dest = s->d1->alert_fragment;
 			dest_len = &s->d1->alert_fragment_len;
 			}
+#ifndef OPENSSL_NO_HEARTBEATS
+		else if (rr->type == TLS1_RT_HEARTBEAT)
+			{
+			dtls1_process_heartbeat(s);
+
+			/* Exit and notify application to read again */
+			rr->length = 0;
+			s->rwstate=SSL_READING;
+			BIO_clear_retry_flags(SSL_get_rbio(s));
+			BIO_set_retry_read(SSL_get_rbio(s));
+			return(-1);
+			}
+#endif
 		/* else it's a CCS message, or application data or wrong */
 		else if (rr->type != SSL3_RT_CHANGE_CIPHER_SPEC)
 			{
@@ -984,6 +1034,7 @@ start:
 			!(s->s3->flags & SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS) &&
 			!s->s3->renegotiate)
 			{
+			s->new_session = 1;
 			ssl3_renegotiate(s);
 			if (ssl3_renegotiate_check(s))
 				{
@@ -1045,6 +1096,21 @@ start:
 			s->s3->warn_alert = alert_descr;
 			if (alert_descr == SSL_AD_CLOSE_NOTIFY)
 				{
+#ifndef OPENSSL_NO_SCTP
+				/* With SCTP and streams the socket may deliver app data
+				 * after a close_notify alert. We have to check this
+				 * first so that nothing gets discarded.
+				 */
+				if (BIO_dgram_is_sctp(SSL_get_rbio(s)) &&
+					BIO_dgram_sctp_msg_waiting(SSL_get_rbio(s)))
+					{
+					s->d1->shutdown_received = 1;
+					s->rwstate=SSL_READING;
+					BIO_clear_retry_flags(SSL_get_rbio(s));
+					BIO_set_retry_read(SSL_get_rbio(s));
+					return -1;
+					}
+#endif
 				s->shutdown |= SSL_RECEIVED_SHUTDOWN;
 				return(0);
 				}
@@ -1151,6 +1217,15 @@ start:
 		if (s->version == DTLS1_BAD_VER)
 			s->d1->handshake_read_seq++;
 
+#ifndef OPENSSL_NO_SCTP
+		/* Remember that a CCS has been received,
+		 * so that an old key of SCTP-Auth can be
+		 * deleted when a CCS is sent. Will be ignored
+		 * if no SCTP is used
+		 */
+		BIO_ctrl(SSL_get_wbio(s), BIO_CTRL_DGRAM_SCTP_AUTH_CCS_RCVD, 1, NULL);
+#endif
+
 		goto start;
 		}
 
@@ -1173,6 +1248,9 @@ start:
 		 */
 		if (msg_hdr.type == SSL3_MT_FINISHED)
 			{
+			if (dtls1_check_timeout_num(s) < 0)
+				return -1;
+
 			dtls1_retransmit_buffered_messages(s);
 			rr->length = 0;
 			goto start;
@@ -1190,6 +1268,7 @@ start:
 #else
 			s->state = s->server ? SSL_ST_ACCEPT : SSL_ST_CONNECT;
 #endif
+			s->renegotiate=1;
 			s->new_session=1;
 			}
 		i=s->handshake_func(s);
@@ -1286,7 +1365,16 @@ dtls1_write_app_data_bytes(SSL *s, int type, const void *buf_, int len)
 	{
 	int i;
 
-	if (SSL_in_init(s) && !s->in_handshake)
+#ifndef OPENSSL_NO_SCTP
+		/* Check if we have to continue an interrupted handshake
+		 * for reading belated app data with SCTP.
+		 */
+		if ((SSL_in_init(s) && !s->in_handshake) ||
+		    (BIO_dgram_is_sctp(SSL_get_wbio(s)) &&
+		     (s->state == DTLS1_SCTP_ST_SR_READ_SOCK || s->state == DTLS1_SCTP_ST_CR_READ_SOCK)))
+#else
+		if (SSL_in_init(s) && !s->in_handshake)
+#endif
 		{
 		i=s->handshake_func(s);
 		if (i < 0) return(i);
@@ -1364,7 +1452,6 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf, unsigned int len,
 	SSL3_BUFFER *wb;
 	SSL_SESSION *sess;
 	int bs;
-	unsigned int len_with_overhead = len + SSL3_RT_DEFAULT_WRITE_OVERHEAD;
 
 	/* first check if there is a SSL3_BUFFER still being written
 	 * out.  This will happen with non blocking IO */
@@ -1372,16 +1459,6 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf, unsigned int len,
 		{
 		OPENSSL_assert(0); /* XDTLS:  want to see if we ever get here */
 		return(ssl3_write_pending(s,type,buf,len));
-		}
-
-	if (s->s3->wbuf.len < len_with_overhead)
-		{
-		if ((p=OPENSSL_realloc(s->s3->wbuf.buf, len_with_overhead)) == NULL) {
-			SSLerr(SSL_F_DO_DTLS1_WRITE,ERR_R_MALLOC_FAILURE);
-			goto err;
-		}
-		s->s3->wbuf.buf = p;
-		s->s3->wbuf.len = len_with_overhead;
 		}
 
 	/* If we have an alert to send, lets send it */
@@ -1796,11 +1873,4 @@ dtls1_reset_seq_numbers(SSL *s, int rw)
 		}
 
 	memset(seq, 0x00, seq_bytes);
-	}
-
-
-static void
-dtls1_clear_timeouts(SSL *s)
-	{
-	memset(&(s->d1->timeout), 0x00, sizeof(struct dtls1_timeout_st));
 	}

@@ -177,31 +177,26 @@ err:
 static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
 	{
 	BIGNUM *n;
-	BN_ULONG *ap,*np,*rp,n0,v,*nrp;
-	int al,nl,max,i,x,ri;
+	BN_ULONG *ap,*np,*rp,n0,v,carry;
+	int nl,max,i;
 
 	n= &(mont->N);
-	/* mont->ri is the size of mont->N in bits (rounded up
-	   to the word size) */
-	al=ri=mont->ri/BN_BITS2;
-
 	nl=n->top;
-	if ((al == 0) || (nl == 0)) { ret->top=0; return(1); }
+	if (nl == 0) { ret->top=0; return(1); }
 
-	max=(nl+al+1); /* allow for overflow (no?) XXX */
+	max=(2*nl); /* carry is stored separately */
 	if (bn_wexpand(r,max) == NULL) return(0);
 
 	r->neg^=n->neg;
 	np=n->d;
 	rp=r->d;
-	nrp= &(r->d[nl]);
 
 	/* clear the top words of T */
 #if 1
 	for (i=r->top; i<max; i++) /* memset? XXX */
-		r->d[i]=0;
+		rp[i]=0;
 #else
-	memset(&(r->d[r->top]),0,(max-r->top)*sizeof(BN_ULONG)); 
+	memset(&(rp[r->top]),0,(max-r->top)*sizeof(BN_ULONG)); 
 #endif
 
 	r->top=max;
@@ -210,7 +205,7 @@ static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
 #ifdef BN_COUNT
 	fprintf(stderr,"word BN_from_montgomery_word %d * %d\n",nl,nl);
 #endif
-	for (i=0; i<nl; i++)
+	for (carry=0, i=0; i<nl; i++, rp++)
 		{
 #ifdef __TANDEM
                 {
@@ -228,61 +223,33 @@ static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
 #else
 		v=bn_mul_add_words(rp,np,nl,(rp[0]*n0)&BN_MASK2);
 #endif
-		nrp++;
-		rp++;
-		if (((nrp[-1]+=v)&BN_MASK2) >= v)
-			continue;
-		else
-			{
-			if (((++nrp[0])&BN_MASK2) != 0) continue;
-			if (((++nrp[1])&BN_MASK2) != 0) continue;
-			for (x=2; (((++nrp[x])&BN_MASK2) == 0); x++) ;
-			}
+		v = (v+carry+rp[nl])&BN_MASK2;
+		carry |= (v != rp[nl]);
+		carry &= (v <= rp[nl]);
+		rp[nl]=v;
 		}
-	bn_correct_top(r);
 
-	/* mont->ri will be a multiple of the word size and below code
-	 * is kind of BN_rshift(ret,r,mont->ri) equivalent */
-	if (r->top <= ri)
-		{
-		ret->top=0;
-		return(1);
-		}
-	al=r->top-ri;
-
-#define BRANCH_FREE 1
-#if BRANCH_FREE
-	if (bn_wexpand(ret,ri) == NULL) return(0);
-	x=0-(((al-ri)>>(sizeof(al)*8-1))&1);
-	ret->top=x=(ri&~x)|(al&x);	/* min(ri,al) */
+	if (bn_wexpand(ret,nl) == NULL) return(0);
+	ret->top=nl;
 	ret->neg=r->neg;
 
 	rp=ret->d;
-	ap=&(r->d[ri]);
+	ap=&(r->d[nl]);
 
+#define BRANCH_FREE 1
+#if BRANCH_FREE
 	{
-	size_t m1,m2;
+	BN_ULONG *nrp;
+	size_t m;
 
-	v=bn_sub_words(rp,ap,np,ri);
-	/* this ----------------^^ works even in al<ri case
-	 * thanks to zealous zeroing of top of the vector in the
-	 * beginning. */
-
-	/* if (al==ri && !v) || al>ri) nrp=rp; else nrp=ap; */
-	/* in other words if subtraction result is real, then
+	v=bn_sub_words(rp,ap,np,nl)-carry;
+	/* if subtraction result is real, then
 	 * trick unconditional memcpy below to perform in-place
 	 * "refresh" instead of actual copy. */
-	m1=0-(size_t)(((al-ri)>>(sizeof(al)*8-1))&1);	/* al<ri */
-	m2=0-(size_t)(((ri-al)>>(sizeof(al)*8-1))&1);	/* al>ri */
-	m1|=m2;			/* (al!=ri) */
-	m1|=(0-(size_t)v);	/* (al!=ri || v) */
-	m1&=~m2;		/* (al!=ri || v) && !al>ri */
-	nrp=(BN_ULONG *)(((PTR_SIZE_INT)rp&~m1)|((PTR_SIZE_INT)ap&m1));
-	}
+	m=(0-(size_t)v);
+	nrp=(BN_ULONG *)(((PTR_SIZE_INT)rp&~m)|((PTR_SIZE_INT)ap&m));
 
-	/* 'i<ri' is chosen to eliminate dependency on input data, even
-	 * though it results in redundant copy in al<ri case. */
-	for (i=0,ri-=4; i<ri; i+=4)
+	for (i=0,nl-=4; i<nl; i+=4)
 		{
 		BN_ULONG t1,t2,t3,t4;
 		
@@ -295,40 +262,15 @@ static int BN_from_montgomery_word(BIGNUM *ret, BIGNUM *r, BN_MONT_CTX *mont)
 		rp[i+2]=t3;
 		rp[i+3]=t4;
 		}
-	for (ri+=4; i<ri; i++)
+	for (nl+=4; i<nl; i++)
 		rp[i]=nrp[i], ap[i]=0;
+	}
+#else
+	if (bn_sub_words (rp,ap,np,nl)-carry)
+		memcpy(rp,ap,nl*sizeof(BN_ULONG));
+#endif
 	bn_correct_top(r);
 	bn_correct_top(ret);
-#else
-	if (bn_wexpand(ret,al) == NULL) return(0);
-	ret->top=al;
-	ret->neg=r->neg;
-
-	rp=ret->d;
-	ap=&(r->d[ri]);
-	al-=4;
-	for (i=0; i<al; i+=4)
-		{
-		BN_ULONG t1,t2,t3,t4;
-		
-		t1=ap[i+0];
-		t2=ap[i+1];
-		t3=ap[i+2];
-		t4=ap[i+3];
-		rp[i+0]=t1;
-		rp[i+1]=t2;
-		rp[i+2]=t3;
-		rp[i+3]=t4;
-		}
-	al+=4;
-	for (; i<al; i++)
-		rp[i]=ap[i];
-
-	if (BN_ucmp(ret, &(mont->N)) >= 0)
-		{
-		if (!BN_usub(ret,ret,&(mont->N))) return(0);
-		}
-#endif
 	bn_check_top(ret);
 
 	return(1);

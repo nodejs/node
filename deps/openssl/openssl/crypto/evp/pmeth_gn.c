@@ -199,7 +199,7 @@ int EVP_PKEY_CTX_get_keygen_info(EVP_PKEY_CTX *ctx, int idx)
 	}
 
 EVP_PKEY *EVP_PKEY_new_mac_key(int type, ENGINE *e,
-				unsigned char *key, int keylen)
+				const unsigned char *key, int keylen)
 	{
 	EVP_PKEY_CTX *mac_ctx = NULL;
 	EVP_PKEY *mac_key = NULL;
@@ -209,7 +209,8 @@ EVP_PKEY *EVP_PKEY_new_mac_key(int type, ENGINE *e,
 	if (EVP_PKEY_keygen_init(mac_ctx) <= 0)
 		goto merr;
 	if (EVP_PKEY_CTX_ctrl(mac_ctx, -1, EVP_PKEY_OP_KEYGEN,
-				EVP_PKEY_CTRL_SET_MAC_KEY, keylen, key) <= 0)
+				EVP_PKEY_CTRL_SET_MAC_KEY,
+				keylen, (void *)key) <= 0)
 		goto merr;
 	if (EVP_PKEY_keygen(mac_ctx, &mac_key) <= 0)
 		goto merr;

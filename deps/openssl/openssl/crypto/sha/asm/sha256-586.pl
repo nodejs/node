@@ -14,8 +14,8 @@
 #		Pentium	PIII	P4	AMD K8	Core2
 # gcc		46	36	41	27	26
 # icc		57	33	38	25	23	
-# x86 asm	40	30	35	20	20
-# x86_64 asm(*)	-	-	21	15.8	16.5
+# x86 asm	40	30	33	20	18
+# x86_64 asm(*)	-	-	21	16	16
 #
 # (*) x86_64 assembler performance is presented for reference
 #     purposes.
@@ -48,20 +48,19 @@ sub BODY_00_15() {
     my $in_16_63=shift;
 
 	&mov	("ecx",$E);
-	 &add	($T,&DWP(4*(8+15+16-9),"esp"))	if ($in_16_63);	# T += X[-7]
-	&ror	("ecx",6);
-	&mov	("edi",$E);
-	&ror	("edi",11);
+	 &add	($T,"edi")			if ($in_16_63);	# T += sigma1(X[-2])
+	&ror	("ecx",25-11);
 	 &mov	("esi",$Foff);
-	&xor	("ecx","edi");
-	&ror	("edi",25-11);
+	&xor	("ecx",$E);
+	&ror	("ecx",11-6);
 	 &mov	(&DWP(4*(8+15),"esp"),$T)	if ($in_16_63);	# save X[0]
-	&xor	("ecx","edi");	# Sigma1(e)
+	&xor	("ecx",$E);
+	&ror	("ecx",6);	# Sigma1(e)
 	 &mov	("edi",$Goff);
 	&add	($T,"ecx");	# T += Sigma1(e)
-	 &mov	($Eoff,$E);	# modulo-scheduled
 
 	&xor	("esi","edi");
+	 &mov	($Eoff,$E);	# modulo-scheduled
 	 &mov	("ecx",$A);
 	&and	("esi",$E);
 	 &mov	($E,$Doff);	# e becomes d, which is e in next iteration
@@ -69,14 +68,14 @@ sub BODY_00_15() {
 	 &mov	("edi",$A);
 	&add	($T,"esi");	# T += Ch(e,f,g)
 
-	&ror	("ecx",2);
+	&ror	("ecx",22-13);
 	 &add	($T,$Hoff);	# T += h
-	&ror	("edi",13);
+	&xor	("ecx",$A);
+	&ror	("ecx",13-2);
 	 &mov	("esi",$Boff);
-	&xor	("ecx","edi");
-	&ror	("edi",22-13);
+	&xor	("ecx",$A);
+	&ror	("ecx",2);	# Sigma0(a)
 	 &add	($E,$T);	# d += T
-	&xor	("ecx","edi");	# Sigma0(a)
 	 &mov	("edi",$Coff);
 
 	&add	($T,"ecx");	# T += Sigma0(a)
@@ -168,23 +167,22 @@ sub BODY_00_15() {
 &set_label("16_63",16);
 	&mov	("esi",$T);
 	 &mov	("ecx",&DWP(4*(8+15+16-14),"esp"));
-	&shr	($T,3);
-	&ror	("esi",7);
-	&xor	($T,"esi");
 	&ror	("esi",18-7);
 	 &mov	("edi","ecx");
-	&xor	($T,"esi");			# T = sigma0(X[-15])
+	&xor	("esi",$T);
+	&ror	("esi",7);
+	&shr	($T,3);
 
-	&shr	("ecx",10);
-	 &mov	("esi",&DWP(4*(8+15+16),"esp"));
-	&ror	("edi",17);
-	&xor	("ecx","edi");
 	&ror	("edi",19-17);
-	 &add	($T,"esi");			# T += X[-16]
-	&xor	("edi","ecx")			# sigma1(X[-2])
+	 &xor	($T,"esi");			# T = sigma0(X[-15])
+	&xor	("edi","ecx");
+	&ror	("edi",17);
+	&shr	("ecx",10);
+	 &add	($T,&DWP(4*(8+15+16),"esp"));	# T += X[-16]
+	&xor	("edi","ecx");			# sigma1(X[-2])
 
-	&add	($T,"edi");			# T += sigma1(X[-2])
-	# &add	($T,&DWP(4*(8+15+16-9),"esp"));	# T += X[-7], moved to BODY_00_15(1)
+	 &add	($T,&DWP(4*(8+15+16-9),"esp"));	# T += X[-7]
+	# &add	($T,"edi");			# T += sigma1(X[-2])
 	# &mov	(&DWP(4*(8+15),"esp"),$T);	# save X[0]
 
 	&BODY_00_15(1);

@@ -167,6 +167,7 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
 				goto err;
 			}
 		}
+#ifndef OPENSSL_NO_EC2M
 		else /* NID_X9_62_characteristic_two_field */
 		{
 			if (!EC_POINT_get_affine_coordinates_GF2m(group,
@@ -176,6 +177,7 @@ static int ecdsa_sign_setup(EC_KEY *eckey, BN_CTX *ctx_in, BIGNUM **kinvp,
 				goto err;
 			}
 		}
+#endif
 		if (!BN_nnmod(r, X, order, ctx))
 		{
 			ECDSAerr(ECDSA_F_ECDSA_SIGN_SETUP, ERR_R_BN_LIB);
@@ -454,6 +456,7 @@ static int ecdsa_do_verify(const unsigned char *dgst, int dgst_len,
 			goto err;
 		}
 	}
+#ifndef OPENSSL_NO_EC2M
 	else /* NID_X9_62_characteristic_two_field */
 	{
 		if (!EC_POINT_get_affine_coordinates_GF2m(group,
@@ -463,7 +466,7 @@ static int ecdsa_do_verify(const unsigned char *dgst, int dgst_len,
 			goto err;
 		}
 	}
-	
+#endif	
 	if (!BN_nnmod(u1, X, order, ctx))
 	{
 		ECDSAerr(ECDSA_F_ECDSA_DO_VERIFY, ERR_R_BN_LIB);

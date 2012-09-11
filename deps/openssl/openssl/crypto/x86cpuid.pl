@@ -19,9 +19,9 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&pushf	();
 	&pop	("eax");
 	&xor	("ecx","eax");
-	&bt	("ecx",21);
-	&jnc	(&label("done"));
 	&xor	("eax","eax");
+	&bt	("ecx",21);
+	&jnc	(&label("nocpuid"));
 	&cpuid	();
 	&mov	("edi","eax");		# max value for standard query level
 
@@ -51,7 +51,14 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	# AMD specific
 	&mov	("eax",0x80000000);
 	&cpuid	();
-	&cmp	("eax",0x80000008);
+	&cmp	("eax",0x80000001);
+	&jb	(&label("intel"));
+	&mov	("esi","eax");
+	&mov	("eax",0x80000001);
+	&cpuid	();
+	&or	("ebp","ecx");
+	&and	("ebp",1<<11|1);	# isolate XOP bit
+	&cmp	("esi",0x80000008);
 	&jb	(&label("intel"));
 
 	&mov	("eax",0x80000008);
@@ -62,13 +69,13 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&mov	("eax",1);
 	&cpuid	();
 	&bt	("edx",28);
-	&jnc	(&label("done"));
+	&jnc	(&label("generic"));
 	&shr	("ebx",16);
 	&and	("ebx",0xff);
 	&cmp	("ebx","esi");
-	&ja	(&label("done"));
+	&ja	(&label("generic"));
 	&and	("edx",0xefffffff);	# clear hyper-threading bit
-	&jmp	(&label("done"));
+	&jmp	(&label("generic"));
 	
 &set_label("intel");
 	&cmp	("edi",4);
@@ -85,27 +92,51 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 &set_label("nocacheinfo");
 	&mov	("eax",1);
 	&cpuid	();
+	&and	("edx",0xbfefffff);	# force reserved bits #20, #30 to 0
 	&cmp	("ebp",0);
-	&jne	(&label("notP4"));
+	&jne	(&label("notintel"));
+	&or	("edx",1<<30);		# set reserved bit#30 on Intel CPUs
 	&and	(&HB("eax"),15);	# familiy ID
 	&cmp	(&HB("eax"),15);	# P4?
-	&jne	(&label("notP4"));
-	&or	("edx",1<<20);		# use reserved bit to engage RC4_CHAR
-&set_label("notP4");
+	&jne	(&label("notintel"));
+	&or	("edx",1<<20);		# set reserved bit#20 to engage RC4_CHAR
+&set_label("notintel");
 	&bt	("edx",28);		# test hyper-threading bit
-	&jnc	(&label("done"));
+	&jnc	(&label("generic"));
 	&and	("edx",0xefffffff);
 	&cmp	("edi",0);
-	&je	(&label("done"));
+	&je	(&label("generic"));
 
 	&or	("edx",0x10000000);
 	&shr	("ebx",16);
 	&cmp	(&LB("ebx"),1);
-	&ja	(&label("done"));
+	&ja	(&label("generic"));
 	&and	("edx",0xefffffff);	# clear hyper-threading bit if not
+
+&set_label("generic");
+	&and	("ebp",1<<11);		# isolate AMD XOP flag
+	&and	("ecx",0xfffff7ff);	# force 11th bit to 0
+	&mov	("esi","edx");
+	&or	("ebp","ecx");		# merge AMD XOP flag
+
+	&bt	("ecx",27);		# check OSXSAVE bit
+	&jnc	(&label("clear_avx"));
+	&xor	("ecx","ecx");
+	&data_byte(0x0f,0x01,0xd0);	# xgetbv
+	&and	("eax",6);
+	&cmp	("eax",6);
+	&je	(&label("done"));
+	&cmp	("eax",2);
+	&je	(&label("clear_avx"));
+&set_label("clear_xmm");
+	&and	("ebp",0xfdfffffd);	# clear AESNI and PCLMULQDQ bits
+	&and	("esi",0xfeffffff);	# clear FXSR
+&set_label("clear_avx");
+	&and	("ebp",0xefffe7ff);	# clear AVX, FMA and AMD XOP bits
 &set_label("done");
-	&mov	("eax","edx");
-	&mov	("edx","ecx");
+	&mov	("eax","esi");
+	&mov	("edx","ebp");
+&set_label("nocpuid");
 &function_end("OPENSSL_ia32_cpuid");
 
 &external_label("OPENSSL_ia32cap_P");
@@ -199,8 +230,9 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&bt	(&DWP(0,"ecx"),1);
 	&jnc	(&label("no_x87"));
 	if ($sse2) {
-		&bt	(&DWP(0,"ecx"),26);
-		&jnc	(&label("no_sse2"));
+		&and	("ecx",1<<26|1<<24);	# check SSE2 and FXSR bits
+		&cmp	("ecx",1<<26|1<<24);
+		&jne	(&label("no_sse2"));
 		&pxor	("xmm0","xmm0");
 		&pxor	("xmm1","xmm1");
 		&pxor	("xmm2","xmm2");
@@ -306,6 +338,18 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&jne	(&label("little"));
 	&ret	();
 &function_end_B("OPENSSL_cleanse");
+
+&function_begin_B("OPENSSL_ia32_rdrand");
+	&mov	("ecx",8);
+&set_label("loop");
+	&rdrand	("eax");
+	&jc	(&label("break"));
+	&loop	(&label("loop"));
+&set_label("break");
+	&cmp	("eax",0);
+	&cmove	("eax","ecx");
+	&ret	();
+&function_end_B("OPENSSL_ia32_rdrand");
 
 &initseg("OPENSSL_cpuid_setup");
 

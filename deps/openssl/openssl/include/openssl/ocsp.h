@@ -1,1 +1,1 @@
-#include "../../crypto/ocsp/ocsp.h"
+../../crypto/ocsp/ocsp.h

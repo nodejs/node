@@ -265,6 +265,147 @@ static int rsa_priv_print(BIO *bp, const EVP_PKEY *pkey, int indent,
 	return do_rsa_print(bp, pkey->pkey.rsa, indent, 1);
 	}
 
+static RSA_PSS_PARAMS *rsa_pss_decode(const X509_ALGOR *alg,
+					X509_ALGOR **pmaskHash)
+	{
+	const unsigned char *p;
+	int plen;
+	RSA_PSS_PARAMS *pss;
+
+	*pmaskHash = NULL;
+
+	if (!alg->parameter || alg->parameter->type != V_ASN1_SEQUENCE)
+		return NULL;
+	p = alg->parameter->value.sequence->data;
+	plen = alg->parameter->value.sequence->length;
+	pss = d2i_RSA_PSS_PARAMS(NULL, &p, plen);
+
+	if (!pss)
+		return NULL;
+	
+	if (pss->maskGenAlgorithm)
+		{
+		ASN1_TYPE *param = pss->maskGenAlgorithm->parameter;
+		if (OBJ_obj2nid(pss->maskGenAlgorithm->algorithm) == NID_mgf1
+			&& param->type == V_ASN1_SEQUENCE)
+			{
+			p = param->value.sequence->data;
+			plen = param->value.sequence->length;
+			*pmaskHash = d2i_X509_ALGOR(NULL, &p, plen);
+			}
+		}
+
+	return pss;
+	}
+
+static int rsa_pss_param_print(BIO *bp, RSA_PSS_PARAMS *pss, 
+				X509_ALGOR *maskHash, int indent)
+	{
+	int rv = 0;
+	if (!pss)
+		{
+		if (BIO_puts(bp, " (INVALID PSS PARAMETERS)\n") <= 0)
+			return 0;
+		return 1;
+		}
+	if (BIO_puts(bp, "\n") <= 0)
+		goto err;
+	if (!BIO_indent(bp, indent, 128))
+		goto err;
+	if (BIO_puts(bp, "Hash Algorithm: ") <= 0)
+		goto err;
+
+	if (pss->hashAlgorithm)
+		{
+		if (i2a_ASN1_OBJECT(bp, pss->hashAlgorithm->algorithm) <= 0)
+			goto err;
+		}
+	else if (BIO_puts(bp, "sha1 (default)") <= 0)
+		goto err;
+
+	if (BIO_puts(bp, "\n") <= 0)
+		goto err;
+
+	if (!BIO_indent(bp, indent, 128))
+		goto err;
+
+	if (BIO_puts(bp, "Mask Algorithm: ") <= 0)
+			goto err;
+	if (pss->maskGenAlgorithm)
+		{
+		if (i2a_ASN1_OBJECT(bp, pss->maskGenAlgorithm->algorithm) <= 0)
+			goto err;
+		if (BIO_puts(bp, " with ") <= 0)
+			goto err;
+		if (maskHash)
+			{
+			if (i2a_ASN1_OBJECT(bp, maskHash->algorithm) <= 0)
+			goto err;
+			}
+		else if (BIO_puts(bp, "INVALID") <= 0)
+			goto err;
+		}
+	else if (BIO_puts(bp, "mgf1 with sha1 (default)") <= 0)
+		goto err;
+	BIO_puts(bp, "\n");
+
+	if (!BIO_indent(bp, indent, 128))
+		goto err;
+	if (BIO_puts(bp, "Salt Length: ") <= 0)
+			goto err;
+	if (pss->saltLength)
+		{
+		if (i2a_ASN1_INTEGER(bp, pss->saltLength) <= 0)
+			goto err;
+		}
+	else if (BIO_puts(bp, "20 (default)") <= 0)
+		goto err;
+	BIO_puts(bp, "\n");
+
+	if (!BIO_indent(bp, indent, 128))
+		goto err;
+	if (BIO_puts(bp, "Trailer Field: ") <= 0)
+			goto err;
+	if (pss->trailerField)
+		{
+		if (i2a_ASN1_INTEGER(bp, pss->trailerField) <= 0)
+			goto err;
+		}
+	else if (BIO_puts(bp, "0xbc (default)") <= 0)
+		goto err;
+	BIO_puts(bp, "\n");
+	
+	rv = 1;
+
+	err:
+	return rv;
+
+	}
+
+static int rsa_sig_print(BIO *bp, const X509_ALGOR *sigalg,
+					const ASN1_STRING *sig,
+					int indent, ASN1_PCTX *pctx)
+	{
+	if (OBJ_obj2nid(sigalg->algorithm) == NID_rsassaPss)
+		{
+		int rv;
+		RSA_PSS_PARAMS *pss;
+		X509_ALGOR *maskHash;
+		pss = rsa_pss_decode(sigalg, &maskHash);
+		rv = rsa_pss_param_print(bp, pss, maskHash, indent);
+		if (pss)
+			RSA_PSS_PARAMS_free(pss);
+		if (maskHash)
+			X509_ALGOR_free(maskHash);
+		if (!rv)
+			return 0;
+		}
+	else if (!sig && BIO_puts(bp, "\n") <= 0)
+		return 0;
+	if (sig)
+		return X509_signature_dump(bp, sig, indent);
+	return 1;
+	}
 
 static int rsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 	{
@@ -310,6 +451,211 @@ static int rsa_pkey_ctrl(EVP_PKEY *pkey, int op, long arg1, void *arg2)
 
 	}
 
+/* Customised RSA item verification routine. This is called 
+ * when a signature is encountered requiring special handling. We 
+ * currently only handle PSS.
+ */
+
+
+static int rsa_item_verify(EVP_MD_CTX *ctx, const ASN1_ITEM *it, void *asn,
+			X509_ALGOR *sigalg, ASN1_BIT_STRING *sig,
+			EVP_PKEY *pkey)
+	{
+	int rv = -1;
+	int saltlen;
+	const EVP_MD *mgf1md = NULL, *md = NULL;
+	RSA_PSS_PARAMS *pss;
+	X509_ALGOR *maskHash;
+	EVP_PKEY_CTX *pkctx;
+	/* Sanity check: make sure it is PSS */
+	if (OBJ_obj2nid(sigalg->algorithm) != NID_rsassaPss)
+		{
+		RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_UNSUPPORTED_SIGNATURE_TYPE);
+		return -1;
+		}
+	/* Decode PSS parameters */
+	pss = rsa_pss_decode(sigalg, &maskHash);
+
+	if (pss == NULL)
+		{
+		RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_INVALID_PSS_PARAMETERS);
+		goto err;
+		}
+	/* Check mask and lookup mask hash algorithm */
+	if (pss->maskGenAlgorithm)
+		{
+		if (OBJ_obj2nid(pss->maskGenAlgorithm->algorithm) != NID_mgf1)
+			{
+			RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_UNSUPPORTED_MASK_ALGORITHM);
+			goto err;
+			}
+		if (!maskHash)
+			{
+			RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_UNSUPPORTED_MASK_PARAMETER);
+			goto err;
+			}
+		mgf1md = EVP_get_digestbyobj(maskHash->algorithm);
+		if (mgf1md == NULL)
+			{
+			RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_UNKNOWN_MASK_DIGEST);
+			goto err;
+			}
+		}
+	else
+		mgf1md = EVP_sha1();
+
+	if (pss->hashAlgorithm)
+		{
+		md = EVP_get_digestbyobj(pss->hashAlgorithm->algorithm);
+		if (md == NULL)
+			{
+			RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_UNKNOWN_PSS_DIGEST);
+			goto err;
+			}
+		}
+	else
+		md = EVP_sha1();
+
+	if (pss->saltLength)
+		{
+		saltlen = ASN1_INTEGER_get(pss->saltLength);
+
+		/* Could perform more salt length sanity checks but the main
+		 * RSA routines will trap other invalid values anyway.
+		 */
+		if (saltlen < 0)
+			{
+			RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_INVALID_SALT_LENGTH);
+			goto err;
+			}
+		}
+	else
+		saltlen = 20;
+
+	/* low-level routines support only trailer field 0xbc (value 1)
+	 * and PKCS#1 says we should reject any other value anyway.
+	 */
+	if (pss->trailerField && ASN1_INTEGER_get(pss->trailerField) != 1)
+		{
+		RSAerr(RSA_F_RSA_ITEM_VERIFY, RSA_R_INVALID_TRAILER);
+		goto err;
+		}
+
+	/* We have all parameters now set up context */
+
+	if (!EVP_DigestVerifyInit(ctx, &pkctx, md, NULL, pkey))
+		goto err;
+
+	if (EVP_PKEY_CTX_set_rsa_padding(pkctx, RSA_PKCS1_PSS_PADDING) <= 0)
+		goto err;
+
+	if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, saltlen) <= 0)
+		goto err;
+
+	if (EVP_PKEY_CTX_set_rsa_mgf1_md(pkctx, mgf1md) <= 0)
+		goto err;
+	/* Carry on */
+	rv = 2;
+
+	err:
+	RSA_PSS_PARAMS_free(pss);
+	if (maskHash)
+		X509_ALGOR_free(maskHash);
+	return rv;
+	}
+
+static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, void *asn,
+				X509_ALGOR *alg1, X509_ALGOR *alg2, 
+				ASN1_BIT_STRING *sig)
+	{
+	int pad_mode;
+	EVP_PKEY_CTX *pkctx = ctx->pctx;
+	if (EVP_PKEY_CTX_get_rsa_padding(pkctx, &pad_mode) <= 0)
+		return 0;
+	if (pad_mode == RSA_PKCS1_PADDING)
+		return 2;
+	if (pad_mode == RSA_PKCS1_PSS_PADDING)
+		{
+		const EVP_MD *sigmd, *mgf1md;
+		RSA_PSS_PARAMS *pss = NULL;
+		X509_ALGOR *mgf1alg = NULL;
+		ASN1_STRING *os1 = NULL, *os2 = NULL;
+		EVP_PKEY *pk = EVP_PKEY_CTX_get0_pkey(pkctx);
+		int saltlen, rv = 0;
+		sigmd = EVP_MD_CTX_md(ctx);
+		if (EVP_PKEY_CTX_get_rsa_mgf1_md(pkctx, &mgf1md) <= 0)
+			goto err;
+		if (!EVP_PKEY_CTX_get_rsa_pss_saltlen(pkctx, &saltlen))
+			goto err;
+		if (saltlen == -1)
+			saltlen = EVP_MD_size(sigmd);
+		else if (saltlen == -2)
+			{
+			saltlen = EVP_PKEY_size(pk) - EVP_MD_size(sigmd) - 2;
+			if (((EVP_PKEY_bits(pk) - 1) & 0x7) == 0)
+				saltlen--;
+			}
+		pss = RSA_PSS_PARAMS_new();
+		if (!pss)
+			goto err;
+		if (saltlen != 20)
+			{
+			pss->saltLength = ASN1_INTEGER_new();
+			if (!pss->saltLength)
+				goto err;
+			if (!ASN1_INTEGER_set(pss->saltLength, saltlen))
+				goto err;
+			}
+		if (EVP_MD_type(sigmd) != NID_sha1)
+			{
+			pss->hashAlgorithm = X509_ALGOR_new();
+			if (!pss->hashAlgorithm)
+				goto err;
+			X509_ALGOR_set_md(pss->hashAlgorithm, sigmd);
+			}
+		if (EVP_MD_type(mgf1md) != NID_sha1)
+			{
+			ASN1_STRING *stmp = NULL;
+			/* need to embed algorithm ID inside another */
+			mgf1alg = X509_ALGOR_new();
+			X509_ALGOR_set_md(mgf1alg, mgf1md);
+			if (!ASN1_item_pack(mgf1alg, ASN1_ITEM_rptr(X509_ALGOR),
+									&stmp))
+					goto err;
+			pss->maskGenAlgorithm = X509_ALGOR_new();
+			if (!pss->maskGenAlgorithm)
+				goto err;
+			X509_ALGOR_set0(pss->maskGenAlgorithm,
+					OBJ_nid2obj(NID_mgf1),
+					V_ASN1_SEQUENCE, stmp);
+			}
+		/* Finally create string with pss parameter encoding. */
+		if (!ASN1_item_pack(pss, ASN1_ITEM_rptr(RSA_PSS_PARAMS), &os1))
+			goto err;
+		if (alg2)
+			{
+			os2 = ASN1_STRING_dup(os1);
+			if (!os2)
+				goto err;
+			X509_ALGOR_set0(alg2, OBJ_nid2obj(NID_rsassaPss),
+						V_ASN1_SEQUENCE, os2);
+			}
+		X509_ALGOR_set0(alg1, OBJ_nid2obj(NID_rsassaPss),
+					V_ASN1_SEQUENCE, os1);
+		os1 = os2 = NULL;
+		rv = 3;
+		err:
+		if (mgf1alg)
+			X509_ALGOR_free(mgf1alg);
+		if (pss)
+			RSA_PSS_PARAMS_free(pss);
+		if (os1)
+			ASN1_STRING_free(os1);
+		return rv;
+		
+		}
+	return 2;
+	}
 
 const EVP_PKEY_ASN1_METHOD rsa_asn1_meths[] = 
 	{
@@ -335,10 +681,13 @@ const EVP_PKEY_ASN1_METHOD rsa_asn1_meths[] =
 
 		0,0,0,0,0,0,
 
+		rsa_sig_print,
 		int_rsa_free,
 		rsa_pkey_ctrl,
 		old_rsa_priv_decode,
-		old_rsa_priv_encode
+		old_rsa_priv_encode,
+		rsa_item_verify,
+		rsa_item_sign
 		},
 
 		{

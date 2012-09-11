@@ -73,7 +73,7 @@ $ if f$parse("wrk_sslxexe:") .eqs. "" then -
 $ if f$parse("wrk_sslxlib:") .eqs. "" then -
    create /directory /log wrk_sslxlib:
 $!
-$ exheader := ssl.h, ssl2.h, ssl3.h, ssl23.h, tls1.h, dtls1.h, kssl.h
+$ exheader := ssl.h, ssl2.h, ssl3.h, ssl23.h, tls1.h, dtls1.h, kssl.h, srtp.h
 $ e_exe := ssl_task
 $ libs := ssl_libssl
 $!

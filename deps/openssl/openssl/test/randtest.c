@@ -1,0 +1,1 @@
+../crypto/rand/randtest.c

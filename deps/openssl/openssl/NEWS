@@ -5,6 +5,46 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1b and OpenSSL 1.0.1c:
+
+      o Fix TLS/DTLS record length checking bug CVE-2012-2333
+      o Don't attempt to use non-FIPS composite ciphers in FIPS mode.
+
+  Major changes between OpenSSL 1.0.1a and OpenSSL 1.0.1b:
+
+      o Fix compilation error on non-x86 platforms.
+      o Make FIPS capable OpenSSL ciphers work in non-FIPS mode.
+      o Fix SSL_OP_NO_TLSv1_1 clash with SSL_OP_ALL in OpenSSL 1.0.0
+
+  Major changes between OpenSSL 1.0.1 and OpenSSL 1.0.1a:
+
+      o Fix for ASN1 overflow bug CVE-2012-2110
+      o Workarounds for some servers that hang on long client hellos.
+      o Fix SEGV in AES code.
+
+  Major changes between OpenSSL 1.0.0h and OpenSSL 1.0.1:
+
+      o TLS/DTLS heartbeat support.
+      o SCTP support.
+      o RFC 5705 TLS key material exporter.
+      o RFC 5764 DTLS-SRTP negotiation.
+      o Next Protocol Negotiation.
+      o PSS signatures in certificates, requests and CRLs.
+      o Support for password based recipient info for CMS.
+      o Support TLS v1.2 and TLS v1.1.
+      o Preliminary FIPS capability for unvalidated 2.0 FIPS module.
+      o SRP support.
+
+  Major changes between OpenSSL 1.0.0g and OpenSSL 1.0.0h:
+
+      o Fix for CMS/PKCS#7 MMA CVE-2012-0884
+      o Corrected fix for CVE-2011-4619
+      o Various DTLS fixes.
+
+  Major changes between OpenSSL 1.0.0f and OpenSSL 1.0.0g:
+
+      o Fix for DTLS DoS issue CVE-2012-0050
+
   Major changes between OpenSSL 1.0.0e and OpenSSL 1.0.0f:
 
       o Fix for DTLS plaintext recovery attack CVE-2011-4108

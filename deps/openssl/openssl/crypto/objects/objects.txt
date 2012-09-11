@@ -166,6 +166,10 @@ pkcs1 3			: RSA-MD4		: md4WithRSAEncryption
 pkcs1 4			: RSA-MD5		: md5WithRSAEncryption
 pkcs1 5			: RSA-SHA1		: sha1WithRSAEncryption
 # According to PKCS #1 version 2.1
+pkcs1 7			: RSAES-OAEP		: rsaesOaep
+pkcs1 8			: MGF1			: mgf1
+pkcs1 10		: RSASSA-PSS		: rsassaPss
+
 pkcs1 11		: RSA-SHA256		: sha256WithRSAEncryption
 pkcs1 12		: RSA-SHA384		: sha384WithRSAEncryption
 pkcs1 13		: RSA-SHA512		: sha512WithRSAEncryption
@@ -299,6 +303,7 @@ id-smime-alg 4		: id-smime-alg-RC2wrap
 id-smime-alg 5		: id-smime-alg-ESDH
 id-smime-alg 6		: id-smime-alg-CMS3DESwrap
 id-smime-alg 7		: id-smime-alg-CMSRC2wrap
+id-smime-alg 9		: id-alg-PWRI-KEK
 
 # S/MIME Certificate Distribution
 id-smime-cd 1		: id-smime-cd-ldap
@@ -770,6 +775,10 @@ id-ce 55		: targetInformation	: X509v3 AC Targeting
 !Cname no-rev-avail
 id-ce 56		: noRevAvail		: X509v3 No Revocation Available
 
+# From RFC5280
+ext-key-usage 0		: anyExtendedKeyUsage	: Any Extended Key Usage
+
+
 !Cname netscape
 2 16 840 1 113730	: Netscape		: Netscape Communications Corp.
 !Cname netscape-cert-extension
@@ -846,6 +855,10 @@ aes 2			: AES-128-CBC		: aes-128-cbc
 aes 3			: AES-128-OFB		: aes-128-ofb
 !Cname aes-128-cfb128
 aes 4			: AES-128-CFB		: aes-128-cfb
+aes 5			: id-aes128-wrap
+aes 6			: id-aes128-GCM		: aes-128-gcm
+aes 7			: id-aes128-CCM		: aes-128-ccm
+aes 8			: id-aes128-wrap-pad
 
 aes 21			: AES-192-ECB		: aes-192-ecb
 aes 22			: AES-192-CBC		: aes-192-cbc
@@ -853,6 +866,10 @@ aes 22			: AES-192-CBC		: aes-192-cbc
 aes 23			: AES-192-OFB		: aes-192-ofb
 !Cname aes-192-cfb128
 aes 24			: AES-192-CFB		: aes-192-cfb
+aes 25			: id-aes192-wrap
+aes 26			: id-aes192-GCM		: aes-192-gcm
+aes 27			: id-aes192-CCM		: aes-192-ccm
+aes 28			: id-aes192-wrap-pad
 
 aes 41			: AES-256-ECB		: aes-256-ecb
 aes 42			: AES-256-CBC		: aes-256-cbc
@@ -860,6 +877,10 @@ aes 42			: AES-256-CBC		: aes-256-cbc
 aes 43			: AES-256-OFB		: aes-256-ofb
 !Cname aes-256-cfb128
 aes 44			: AES-256-CFB		: aes-256-cfb
+aes 45			: id-aes256-wrap
+aes 46			: id-aes256-GCM		: aes-256-gcm
+aes 47			: id-aes256-CCM		: aes-256-ccm
+aes 48			: id-aes256-wrap-pad
 
 # There are no OIDs for these modes...
 
@@ -869,14 +890,15 @@ aes 44			: AES-256-CFB		: aes-256-cfb
 			: AES-128-CFB8		: aes-128-cfb8
 			: AES-192-CFB8		: aes-192-cfb8
 			: AES-256-CFB8		: aes-256-cfb8
+			: AES-128-CTR		: aes-128-ctr
+			: AES-192-CTR		: aes-192-ctr
+			: AES-256-CTR		: aes-256-ctr
+			: AES-128-XTS		: aes-128-xts
+			: AES-256-XTS		: aes-256-xts
 			: DES-CFB1		: des-cfb1
 			: DES-CFB8		: des-cfb8
 			: DES-EDE3-CFB1		: des-ede3-cfb1
 			: DES-EDE3-CFB8		: des-ede3-cfb8
-
-aes 5			: id-aes128-wrap 
-aes 25			: id-aes192-wrap 
-aes 45			: id-aes256-wrap 
 
 # OIDs for SHA224, SHA256, SHA385 and SHA512, according to x9.84.
 !Alias nist_hashalgs nistAlgorithms 2
@@ -1211,6 +1233,9 @@ cryptocom 1 8 1		: id-GostR3410-2001-ParamSet-cc : GOST R 3410-2001 Parameter Se
 1 2 392 200011 61 1 1 1 2 : CAMELLIA-128-CBC		: camellia-128-cbc
 1 2 392 200011 61 1 1 1 3 : CAMELLIA-192-CBC		: camellia-192-cbc
 1 2 392 200011 61 1 1 1 4 : CAMELLIA-256-CBC		: camellia-256-cbc
+1 2 392 200011 61 1 1 3 2 : id-camellia128-wrap
+1 2 392 200011 61 1 1 3 3 : id-camellia192-wrap
+1 2 392 200011 61 1 1 3 4 : id-camellia256-wrap
 
 # Definitions for Camellia cipher - ECB, CFB, OFB MODE
 
@@ -1257,3 +1282,11 @@ kisa 1 6                : SEED-OFB      : seed-ofb
 # There is no OID that just denotes "HMAC" oddly enough...
 
 			: HMAC				: hmac
+# Nor CMAC either
+			: CMAC				: cmac
+
+# Synthetic composite ciphersuites
+			: RC4-HMAC-MD5			: rc4-hmac-md5
+			: AES-128-CBC-HMAC-SHA1		: aes-128-cbc-hmac-sha1
+			: AES-192-CBC-HMAC-SHA1		: aes-192-cbc-hmac-sha1
+			: AES-256-CBC-HMAC-SHA1		: aes-256-cbc-hmac-sha1

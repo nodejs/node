@@ -94,6 +94,8 @@
 #include "cryptlib.h"
 #include "bn_lcl.h"
 
+#ifndef OPENSSL_NO_EC2M
+
 /* Maximum number of iterations before BN_GF2m_mod_solve_quad_arr should fail. */
 #define MAX_ITERATIONS 50
 
@@ -122,6 +124,7 @@ static const BN_ULONG SQR_tb[16] =
     SQR_tb[(w) >>  4 & 0xF] <<  8 | SQR_tb[(w)       & 0xF]
 #endif
 
+#if !defined(OPENSSL_BN_ASM_GF2m)
 /* Product of two polynomials a, b each with degree < BN_BITS2 - 1,
  * result is a polynomial r with degree < 2 * BN_BITS - 1
  * The caller MUST ensure that the variables have the right amount
@@ -216,7 +219,9 @@ static void bn_GF2m_mul_2x2(BN_ULONG *r, const BN_ULONG a1, const BN_ULONG a0, c
 	r[2] ^= m1 ^ r[1] ^ r[3];  /* h0 ^= m1 ^ l1 ^ h1; */
 	r[1] = r[3] ^ r[2] ^ r[0] ^ m1 ^ m0;  /* l1 ^= l0 ^ h0 ^ m0; */
 	}
-
+#else
+void bn_GF2m_mul_2x2(BN_ULONG *r, BN_ULONG a1, BN_ULONG a0, BN_ULONG b1, BN_ULONG b0);
+#endif 
 
 /* Add polynomials a and b and store result in r; r could be a or b, a and b 
  * could be equal; r is the bitwise XOR of a and b.
@@ -360,21 +365,17 @@ int BN_GF2m_mod_arr(BIGNUM *r, const BIGNUM *a, const int p[])
 int	BN_GF2m_mod(BIGNUM *r, const BIGNUM *a, const BIGNUM *p)
 	{
 	int ret = 0;
-	const int max = BN_num_bits(p) + 1;
-	int *arr=NULL;
+	int arr[6];
 	bn_check_top(a);
 	bn_check_top(p);
-	if ((arr = (int *)OPENSSL_malloc(sizeof(int) * max)) == NULL) goto err;
-	ret = BN_GF2m_poly2arr(p, arr, max);
-	if (!ret || ret > max)
+	ret = BN_GF2m_poly2arr(p, arr, sizeof(arr)/sizeof(arr[0]));
+	if (!ret || ret > (int)(sizeof(arr)/sizeof(arr[0])))
 		{
 		BNerr(BN_F_BN_GF2M_MOD,BN_R_INVALID_LENGTH);
-		goto err;
+		return 0;
 		}
 	ret = BN_GF2m_mod_arr(r, a, arr);
 	bn_check_top(r);
-err:
-	if (arr) OPENSSL_free(arr);
 	return ret;
 	}
 
@@ -521,7 +522,7 @@ err:
  */
 int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
 	{
-	BIGNUM *b, *c, *u, *v, *tmp;
+	BIGNUM *b, *c = NULL, *u = NULL, *v = NULL, *tmp;
 	int ret = 0;
 
 	bn_check_top(a);
@@ -529,17 +530,17 @@ int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
 
 	BN_CTX_start(ctx);
 	
-	b = BN_CTX_get(ctx);
-	c = BN_CTX_get(ctx);
-	u = BN_CTX_get(ctx);
-	v = BN_CTX_get(ctx);
-	if (v == NULL) goto err;
+	if ((b = BN_CTX_get(ctx))==NULL) goto err;
+	if ((c = BN_CTX_get(ctx))==NULL) goto err;
+	if ((u = BN_CTX_get(ctx))==NULL) goto err;
+	if ((v = BN_CTX_get(ctx))==NULL) goto err;
 
-	if (!BN_one(b)) goto err;
 	if (!BN_GF2m_mod(u, a, p)) goto err;
-	if (!BN_copy(v, p)) goto err;
-
 	if (BN_is_zero(u)) goto err;
+
+	if (!BN_copy(v, p)) goto err;
+#if 0
+	if (!BN_one(b)) goto err;
 
 	while (1)
 		{
@@ -565,13 +566,89 @@ int BN_GF2m_mod_inv(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
 		if (!BN_GF2m_add(u, u, v)) goto err;
 		if (!BN_GF2m_add(b, b, c)) goto err;
 		}
+#else
+	{
+	int i,	ubits = BN_num_bits(u),
+		vbits = BN_num_bits(v),	/* v is copy of p */
+		top = p->top;
+	BN_ULONG *udp,*bdp,*vdp,*cdp;
 
+	bn_wexpand(u,top);	udp = u->d;
+				for (i=u->top;i<top;i++) udp[i] = 0;
+				u->top = top;
+	bn_wexpand(b,top);	bdp = b->d;
+				bdp[0] = 1;
+				for (i=1;i<top;i++) bdp[i] = 0;
+				b->top = top;
+	bn_wexpand(c,top);	cdp = c->d;
+				for (i=0;i<top;i++) cdp[i] = 0;
+				c->top = top;
+	vdp = v->d;	/* It pays off to "cache" *->d pointers, because
+			 * it allows optimizer to be more aggressive.
+			 * But we don't have to "cache" p->d, because *p
+			 * is declared 'const'... */
+	while (1)
+		{
+		while (ubits && !(udp[0]&1))
+			{
+			BN_ULONG u0,u1,b0,b1,mask;
+
+			u0   = udp[0];
+			b0   = bdp[0];
+			mask = (BN_ULONG)0-(b0&1);
+			b0  ^= p->d[0]&mask;
+			for (i=0;i<top-1;i++)
+				{
+				u1 = udp[i+1];
+				udp[i] = ((u0>>1)|(u1<<(BN_BITS2-1)))&BN_MASK2;
+				u0 = u1;
+				b1 = bdp[i+1]^(p->d[i+1]&mask);
+				bdp[i] = ((b0>>1)|(b1<<(BN_BITS2-1)))&BN_MASK2;
+				b0 = b1;
+				}
+			udp[i] = u0>>1;
+			bdp[i] = b0>>1;
+			ubits--;
+			}
+
+		if (ubits<=BN_BITS2 && udp[0]==1) break;
+
+		if (ubits<vbits)
+			{
+			i = ubits; ubits = vbits; vbits = i;
+			tmp = u; u = v; v = tmp;
+			tmp = b; b = c; c = tmp;
+			udp = vdp; vdp = v->d;
+			bdp = cdp; cdp = c->d;
+			}
+		for(i=0;i<top;i++)
+			{
+			udp[i] ^= vdp[i];
+			bdp[i] ^= cdp[i];
+			}
+		if (ubits==vbits)
+			{
+			BN_ULONG ul;
+			int utop = (ubits-1)/BN_BITS2;
+
+			while ((ul=udp[utop])==0 && utop) utop--;
+			ubits = utop*BN_BITS2 + BN_num_bits_word(ul);
+			}
+		}
+	bn_correct_top(b);
+	}
+#endif
 
 	if (!BN_copy(r, b)) goto err;
 	bn_check_top(r);
 	ret = 1;
 
 err:
+#ifdef BN_DEBUG /* BN_CTX_end would complain about the expanded form */
+        bn_correct_top(c);
+        bn_correct_top(u);
+        bn_correct_top(v);
+#endif
   	BN_CTX_end(ctx);
 	return ret;
 	}
@@ -1033,3 +1110,4 @@ int BN_GF2m_arr2poly(const int p[], BIGNUM *a)
 	return 1;
 	}
 
+#endif

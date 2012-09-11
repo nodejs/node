@@ -56,6 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
+#include <openssl/crypto.h>
 #include <openssl/rc2.h>
 #include "rc2_locl.h"
 
@@ -95,6 +96,13 @@ static const unsigned char key_table[256]={
  * the same as specifying 1024 for the 'bits' parameter.  Bsafe uses
  * a version where the bits parameter is the same as len*8 */
 void RC2_set_key(RC2_KEY *key, int len, const unsigned char *data, int bits)
+#ifdef OPENSSL_FIPS
+	{
+	fips_cipher_abort(RC2);
+	private_RC2_set_key(key, len, data, bits);
+	}
+void private_RC2_set_key(RC2_KEY *key, int len, const unsigned char *data, int bits)
+#endif
 	{
 	int i,j;
 	unsigned char *k;

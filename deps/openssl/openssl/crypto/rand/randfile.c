@@ -137,7 +137,7 @@ int RAND_load_file(const char *file, long bytes)
 	in=fopen(file,"rb");
 #endif
 	if (in == NULL) goto err;
-#if defined(S_IFBLK) && defined(S_IFCHR) && !defined(OPNESSL_NO_POSIX_IO)
+#if defined(S_IFBLK) && defined(S_IFCHR) && !defined(OPENSSL_NO_POSIX_IO)
 	if (sb.st_mode & (S_IFBLK | S_IFCHR)) {
 	  /* this file is a device. we don't want read an infinite number
 	   * of bytes from a random device, nor do we want to use buffered

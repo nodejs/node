@@ -1,1 +1,1 @@
-#include "../../crypto/ui/ui_compat.h"
+../../crypto/ui/ui_compat.h

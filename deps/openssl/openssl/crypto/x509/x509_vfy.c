@@ -153,7 +153,6 @@ static int x509_subject_cmp(X509 **a, X509 **b)
 int X509_verify_cert(X509_STORE_CTX *ctx)
 	{
 	X509 *x,*xtmp,*chain_ss=NULL;
-	X509_NAME *xn;
 	int bad_chain = 0;
 	X509_VERIFY_PARAM *param = ctx->param;
 	int depth,i,ok=0;
@@ -205,7 +204,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		                         */
 
 		/* If we are self signed, we break */
-		xn=X509_get_issuer_name(x);
 		if (ctx->check_issued(ctx, x,x)) break;
 
 		/* If we were passed a cert chain, use it first */
@@ -242,7 +240,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 
 	i=sk_X509_num(ctx->chain);
 	x=sk_X509_value(ctx->chain,i-1);
-	xn = X509_get_subject_name(x);
 	if (ctx->check_issued(ctx, x, x))
 		{
 		/* we have a self signed certificate */
@@ -291,7 +288,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		if (depth < num) break;
 
 		/* If we are self signed, we break */
-		xn=X509_get_issuer_name(x);
 		if (ctx->check_issued(ctx,x,x)) break;
 
 		ok = ctx->get_issuer(&xtmp, ctx, x);
@@ -310,7 +306,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		}
 
 	/* we now have our chain, lets check it... */
-	xn=X509_get_issuer_name(x);
 
 	/* Is last certificate looked up self signed? */
 	if (!ctx->check_issued(ctx,x,x))

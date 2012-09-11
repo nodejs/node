@@ -176,7 +176,6 @@
 #define SSL_CTX_set_default_passwd_cb_userdata  SSL_CTX_set_def_passwd_cb_ud
 #undef SSL_COMP_get_compression_methods
 #define SSL_COMP_get_compression_methods	SSL_COMP_get_compress_methods
-
 #undef ssl_add_clienthello_renegotiate_ext
 #define ssl_add_clienthello_renegotiate_ext	ssl_add_clienthello_reneg_ext
 #undef ssl_add_serverhello_renegotiate_ext
@@ -185,6 +184,26 @@
 #define ssl_parse_clienthello_renegotiate_ext	ssl_parse_clienthello_reneg_ext
 #undef ssl_parse_serverhello_renegotiate_ext
 #define ssl_parse_serverhello_renegotiate_ext	ssl_parse_serverhello_reneg_ext
+#undef SSL_srp_server_param_with_username
+#define SSL_srp_server_param_with_username	SSL_srp_server_param_with_un
+#undef SSL_CTX_set_srp_client_pwd_callback
+#define SSL_CTX_set_srp_client_pwd_callback	SSL_CTX_set_srp_client_pwd_cb
+#undef SSL_CTX_set_srp_verify_param_callback
+#define SSL_CTX_set_srp_verify_param_callback	SSL_CTX_set_srp_vfy_param_cb
+#undef SSL_CTX_set_srp_username_callback
+#define SSL_CTX_set_srp_username_callback	SSL_CTX_set_srp_un_cb
+#undef ssl_add_clienthello_use_srtp_ext
+#define ssl_add_clienthello_use_srtp_ext ssl_add_clihello_use_srtp_ext
+#undef ssl_add_serverhello_use_srtp_ext
+#define ssl_add_serverhello_use_srtp_ext ssl_add_serhello_use_srtp_ext
+#undef ssl_parse_clienthello_use_srtp_ext
+#define ssl_parse_clienthello_use_srtp_ext ssl_parse_clihello_use_srtp_ext
+#undef ssl_parse_serverhello_use_srtp_ext
+#define ssl_parse_serverhello_use_srtp_ext ssl_parse_serhello_use_srtp_ext
+#undef SSL_CTX_set_next_protos_advertised_cb
+#define SSL_CTX_set_next_protos_advertised_cb SSL_CTX_set_next_protos_adv_cb
+#undef SSL_CTX_set_next_proto_select_cb
+#define SSL_CTX_set_next_proto_select_cb SSL_CTX_set_next_proto_sel_cb
 
 /* Hack some long ENGINE names */
 #undef ENGINE_get_default_BN_mod_exp_crt
@@ -238,6 +257,9 @@
 #define EC_GROUP_get_point_conversion_form	EC_GROUP_get_point_conv_form
 #undef EC_GROUP_clear_free_all_extra_data
 #define EC_GROUP_clear_free_all_extra_data	EC_GROUP_clr_free_all_xtra_data
+#undef EC_KEY_set_public_key_affine_coordinates
+#define EC_KEY_set_public_key_affine_coordinates \
+						EC_KEY_set_pub_key_aff_coords
 #undef EC_POINT_set_Jprojective_coordinates_GFp
 #define EC_POINT_set_Jprojective_coordinates_GFp \
                                                 EC_POINT_set_Jproj_coords_GFp
@@ -398,6 +420,12 @@
 /* Hack some long DTLS1 names */
 #undef dtls1_retransmit_buffered_messages
 #define dtls1_retransmit_buffered_messages	dtls1_retransmit_buffered_msgs
+
+/* Hack some long SRP names */
+#undef SRP_generate_server_master_secret
+#define SRP_generate_server_master_secret	SRP_gen_server_master_secret
+#undef SRP_generate_client_master_secret
+#define SRP_generate_client_master_secret	SRP_gen_client_master_secret
 
 /* Hack some long UI names */
 #undef UI_method_get_prompt_constructor

@@ -189,7 +189,9 @@ static int pkey_dsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 		    EVP_MD_type((const EVP_MD *)p2) != NID_dsa    &&
 		    EVP_MD_type((const EVP_MD *)p2) != NID_dsaWithSHA    &&
 		    EVP_MD_type((const EVP_MD *)p2) != NID_sha224 &&
-		    EVP_MD_type((const EVP_MD *)p2) != NID_sha256)
+		    EVP_MD_type((const EVP_MD *)p2) != NID_sha256 &&
+		    EVP_MD_type((const EVP_MD *)p2) != NID_sha384 &&
+		    EVP_MD_type((const EVP_MD *)p2) != NID_sha512)
 			{
 			DSAerr(DSA_F_PKEY_DSA_CTRL, DSA_R_INVALID_DIGEST_TYPE);
 			return 0;
@@ -253,7 +255,7 @@ static int pkey_dsa_paramgen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 	if (!dsa)
 		return 0;
 	ret = dsa_builtin_paramgen(dsa, dctx->nbits, dctx->qbits, dctx->pmd,
-	                           NULL, 0, NULL, NULL, pcb);
+	                           NULL, 0, NULL, NULL, NULL, pcb);
 	if (ret)
 		EVP_PKEY_assign_DSA(pkey, dsa);
 	else

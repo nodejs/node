@@ -170,6 +170,7 @@ static int ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
 #endif
 	k=0;
 	EVP_MD_CTX_init(&m5);
+	EVP_MD_CTX_set_flags(&m5, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 	EVP_MD_CTX_init(&s1);
 	for (i=0; (int)i<num; i+=MD5_DIGEST_LENGTH)
 		{
@@ -571,12 +572,12 @@ void ssl3_free_digest_list(SSL *s)
 	OPENSSL_free(s->s3->handshake_dgst);
 	s->s3->handshake_dgst=NULL;
 	}	
-		
+
 
 
 void ssl3_finish_mac(SSL *s, const unsigned char *buf, int len)
 	{
-	if (s->s3->handshake_buffer) 
+	if (s->s3->handshake_buffer && !(s->s3->flags & TLS1_FLAGS_KEEP_HANDSHAKE)) 
 		{
 		BIO_write (s->s3->handshake_buffer,(void *)buf,len);
 		} 
@@ -613,9 +614,16 @@ int ssl3_digest_cached_records(SSL *s)
 	/* Loop through bitso of algorithm2 field and create MD_CTX-es */
 	for (i=0;ssl_get_handshake_digest(i,&mask,&md); i++) 
 		{
-		if ((mask & s->s3->tmp.new_cipher->algorithm2) && md) 
+		if ((mask & ssl_get_algorithm2(s)) && md) 
 			{
 			s->s3->handshake_dgst[i]=EVP_MD_CTX_create();
+#ifdef OPENSSL_FIPS
+			if (EVP_MD_nid(md) == NID_md5)
+				{
+				EVP_MD_CTX_set_flags(s->s3->handshake_dgst[i],
+						EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
+				}
+#endif
 			EVP_DigestInit_ex(s->s3->handshake_dgst[i],md,NULL);
 			EVP_DigestUpdate(s->s3->handshake_dgst[i],hdata,hdatalen);
 			} 
@@ -624,9 +632,12 @@ int ssl3_digest_cached_records(SSL *s)
 			s->s3->handshake_dgst[i]=NULL;
 			}
 		}
-	/* Free handshake_buffer BIO */
-	BIO_free(s->s3->handshake_buffer);
-	s->s3->handshake_buffer = NULL;
+	if (!(s->s3->flags & TLS1_FLAGS_KEEP_HANDSHAKE))
+		{
+		/* Free handshake_buffer BIO */
+		BIO_free(s->s3->handshake_buffer);
+		s->s3->handshake_buffer = NULL;
+		}
 
 	return 1;
 	}
@@ -672,6 +683,7 @@ static int ssl3_handshake_mac(SSL *s, int md_nid,
 		return 0;
 	}	
 	EVP_MD_CTX_init(&ctx);
+	EVP_MD_CTX_set_flags(&ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 	EVP_MD_CTX_copy_ex(&ctx,d);
 	n=EVP_MD_CTX_size(&ctx);
 	if (n < 0)

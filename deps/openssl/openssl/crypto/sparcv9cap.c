@@ -19,7 +19,8 @@ int bn_mul_mont(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp, const BN_U
 	int bn_mul_mont_fpu(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp, const BN_ULONG *np,const BN_ULONG *n0, int num);
 	int bn_mul_mont_int(BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp, const BN_ULONG *np,const BN_ULONG *n0, int num);
 
-	if ((OPENSSL_sparcv9cap_P&(SPARCV9_PREFER_FPU|SPARCV9_VIS1)) ==
+	if (num>=8 && !(num&1) &&
+	    (OPENSSL_sparcv9cap_P&(SPARCV9_PREFER_FPU|SPARCV9_VIS1)) ==
 		(SPARCV9_PREFER_FPU|SPARCV9_VIS1))
 		return bn_mul_mont_fpu(rp,ap,bp,np,n0,num);
 	else
@@ -169,7 +170,6 @@ void OPENSSL_cpuid_setup(void)
 	char *e;
 	struct sigaction	common_act,ill_oact,bus_oact;
 	sigset_t		all_masked,oset;
-	int			sig;
 	static int trigger=0;
 
 	if (trigger) return;

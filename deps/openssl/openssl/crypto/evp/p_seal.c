@@ -110,6 +110,7 @@ int EVP_SealFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 	{
 	int i;
 	i = EVP_EncryptFinal_ex(ctx,out,outl);
-	EVP_EncryptInit_ex(ctx,NULL,NULL,NULL,NULL);
+	if (i) 
+		i = EVP_EncryptInit_ex(ctx,NULL,NULL,NULL,NULL);
 	return i;
 	}

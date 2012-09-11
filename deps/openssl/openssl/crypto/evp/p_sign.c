@@ -80,18 +80,20 @@ int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret, unsigned int *siglen,
 	{
 	unsigned char m[EVP_MAX_MD_SIZE];
 	unsigned int m_len;
-	int i,ok=0,v;
+	int i=0,ok=0,v;
 	EVP_MD_CTX tmp_ctx;
+	EVP_PKEY_CTX *pkctx = NULL;
 
 	*siglen=0;
 	EVP_MD_CTX_init(&tmp_ctx);
-	EVP_MD_CTX_copy_ex(&tmp_ctx,ctx);   
-	EVP_DigestFinal_ex(&tmp_ctx,&(m[0]),&m_len);
+	if (!EVP_MD_CTX_copy_ex(&tmp_ctx,ctx))
+		goto err;  
+	if (!EVP_DigestFinal_ex(&tmp_ctx,&(m[0]),&m_len))
+		goto err;
 	EVP_MD_CTX_cleanup(&tmp_ctx);
 
 	if (ctx->digest->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE)
 		{
-		EVP_PKEY_CTX *pkctx = NULL;
 		size_t sltmp = (size_t)EVP_PKEY_size(pkey);
 		i = 0;
 		pkctx = EVP_PKEY_CTX_new(pkey, NULL);

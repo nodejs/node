@@ -38,10 +38,12 @@ static const nid_triple sigoid_srt[] =
 	{NID_id_GostR3411_94_with_GostR3410_94, NID_id_GostR3411_94, NID_id_GostR3410_94},
 	{NID_id_GostR3411_94_with_GostR3410_94_cc, NID_id_GostR3411_94, NID_id_GostR3410_94_cc},
 	{NID_id_GostR3411_94_with_GostR3410_2001_cc, NID_id_GostR3411_94, NID_id_GostR3410_2001_cc},
+	{NID_rsassaPss, NID_undef, NID_rsaEncryption},
 	};
 
 static const nid_triple * const sigoid_srt_xref[] =
 	{
+	&sigoid_srt[29],
 	&sigoid_srt[17],
 	&sigoid_srt[18],
 	&sigoid_srt[0],

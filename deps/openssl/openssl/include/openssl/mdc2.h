@@ -1,1 +1,1 @@
-#include "../../crypto/mdc2/mdc2.h"
+../../crypto/mdc2/mdc2.h

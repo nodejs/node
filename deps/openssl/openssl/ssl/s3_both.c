@@ -204,8 +204,7 @@ int ssl3_send_finished(SSL *s, int a, int b, const char *sender, int slen)
 
 #ifndef OPENSSL_NO_NEXTPROTONEG
 /* ssl3_take_mac calculates the Finished MAC for the handshakes messages seen to far. */
-static void ssl3_take_mac(SSL *s)
-	{
+static void ssl3_take_mac(SSL *s) {
 	const char *sender;
 	int slen;
 
@@ -222,7 +221,7 @@ static void ssl3_take_mac(SSL *s)
 
 	s->s3->tmp.peer_finish_md_len = s->method->ssl3_enc->final_finish_mac(s,
 		sender,slen,s->s3->tmp.peer_finish_md);
-	}
+}
 #endif
 
 int ssl3_get_finished(SSL *s, int a, int b)
@@ -232,9 +231,8 @@ int ssl3_get_finished(SSL *s, int a, int b)
 	unsigned char *p;
 
 #ifdef OPENSSL_NO_NEXTPROTONEG
-	/* the mac has already been generated when we received the
-	 * change cipher spec message and is in s->s3->tmp.peer_finish_md
-	 */ 
+	/* the mac has already been generated when we received the change
+	 * cipher spec message and is in s->s3->tmp.peer_finish_md. */
 #endif
 
 	n=s->method->ssl_get_message(s,
@@ -347,11 +345,8 @@ unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
 	unsigned long l=7;
 	BUF_MEM *buf;
 	int no_chain;
-	STACK_OF(X509) *cert_chain;
 
-	cert_chain = SSL_get_certificate_chain(s, x);
-
-	if ((s->mode & SSL_MODE_NO_AUTO_CHAIN) || s->ctx->extra_certs || cert_chain)
+	if ((s->mode & SSL_MODE_NO_AUTO_CHAIN) || s->ctx->extra_certs)
 		no_chain = 1;
 	else
 		no_chain = 0;
@@ -402,10 +397,6 @@ unsigned long ssl3_output_cert_chain(SSL *s, X509 *x)
 		if (ssl3_add_cert_to_buf(buf, &l, x))
 			return(0);
 		}
-
-	for (i=0; i<sk_X509_num(cert_chain); i++)
-		if (ssl3_add_cert_to_buf(buf, &l, sk_X509_value(cert_chain,i)))
-			return(0);
 
 	l-=7;
 	p=(unsigned char *)&(buf->data[4]);
@@ -546,14 +537,12 @@ long ssl3_get_message(SSL *s, int st1, int stn, int mt, long max, int *ok)
 		s->init_num += i;
 		n -= i;
 		}
-
 #ifndef OPENSSL_NO_NEXTPROTONEG
 	/* If receiving Finished, record MAC of prior handshake messages for
 	 * Finished verification. */
 	if (*s->init_buf->data == SSL3_MT_FINISHED)
 		ssl3_take_mac(s);
 #endif
-
 	/* Feed this message into MAC computation. */
 	ssl3_finish_mac(s, (unsigned char *)s->init_buf->data, s->init_num + 4);
 	if (s->msg_callback)
@@ -756,20 +745,13 @@ int ssl3_setup_read_buffer(SSL *s)
 
 	if (s->s3->rbuf.buf == NULL)
 		{
-		if (SSL_get_mode(s) & SSL_MODE_SMALL_BUFFERS)
+		len = SSL3_RT_MAX_PLAIN_LENGTH
+			+ SSL3_RT_MAX_ENCRYPTED_OVERHEAD
+			+ headerlen + align;
+		if (s->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER)
 			{
-			len = SSL3_RT_DEFAULT_PACKET_SIZE;
-			}
-  		else
-			{
-			len = SSL3_RT_MAX_PLAIN_LENGTH
-				+ SSL3_RT_MAX_ENCRYPTED_OVERHEAD
-				+ headerlen + align;
-			if (s->options & SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER)
-				{
-				s->s3->init_extra = 1;
-				len += SSL3_RT_MAX_EXTRA;
-				}
+			s->s3->init_extra = 1;
+			len += SSL3_RT_MAX_EXTRA;
 			}
 #ifndef OPENSSL_NO_COMP
 		if (!(s->options & SSL_OP_NO_COMPRESSION))
@@ -805,15 +787,7 @@ int ssl3_setup_write_buffer(SSL *s)
 
 	if (s->s3->wbuf.buf == NULL)
 		{
-		if (SSL_get_mode(s) & SSL_MODE_SMALL_BUFFERS)
-			{
-			len = SSL3_RT_DEFAULT_PACKET_SIZE;
-			}
-  		else
-			{
-			len = s->max_send_fragment;
-			}
-		len += 0
+		len = s->max_send_fragment
 			+ SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD
 			+ headerlen + align;
 #ifndef OPENSSL_NO_COMP
@@ -823,6 +797,7 @@ int ssl3_setup_write_buffer(SSL *s)
 		if (!(s->options & SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS))
 			len += headerlen + align
 				+ SSL3_RT_SEND_MAX_ENCRYPTED_OVERHEAD;
+
 		if ((p=freelist_extract(s->ctx, 0, len)) == NULL)
 			goto err;
 		s->s3->wbuf.buf = p;
@@ -865,3 +840,4 @@ int ssl3_release_read_buffer(SSL *s)
 		}
 	return 1;
 	}
+

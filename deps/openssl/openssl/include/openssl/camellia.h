@@ -1,1 +1,1 @@
-#include "../../crypto/camellia/camellia.h"
+../../crypto/camellia/camellia.h

@@ -99,7 +99,7 @@ int BN_lshift1(BIGNUM *r, const BIGNUM *a)
 int BN_rshift1(BIGNUM *r, const BIGNUM *a)
 	{
 	BN_ULONG *ap,*rp,t,c;
-	int i;
+	int i,j;
 
 	bn_check_top(r);
 	bn_check_top(a);
@@ -109,22 +109,25 @@ int BN_rshift1(BIGNUM *r, const BIGNUM *a)
 		BN_zero(r);
 		return(1);
 		}
+	i = a->top;
+	ap= a->d;
+	j = i-(ap[i-1]==1);
 	if (a != r)
 		{
-		if (bn_wexpand(r,a->top) == NULL) return(0);
-		r->top=a->top;
+		if (bn_wexpand(r,j) == NULL) return(0);
 		r->neg=a->neg;
 		}
-	ap=a->d;
 	rp=r->d;
-	c=0;
-	for (i=a->top-1; i>=0; i--)
+	t=ap[--i];
+	c=(t&1)?BN_TBIT:0;
+	if (t>>=1) rp[i]=t;
+	while (i>0)
 		{
-		t=ap[i];
+		t=ap[--i];
 		rp[i]=((t>>1)&BN_MASK2)|c;
 		c=(t&1)?BN_TBIT:0;
 		}
-	bn_correct_top(r);
+	r->top=j;
 	bn_check_top(r);
 	return(1);
 	}
@@ -182,10 +185,11 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 		BN_zero(r);
 		return(1);
 		}
+	i = (BN_num_bits(a)-n+(BN_BITS2-1))/BN_BITS2;
 	if (r != a)
 		{
 		r->neg=a->neg;
-		if (bn_wexpand(r,a->top-nw+1) == NULL) return(0);
+		if (bn_wexpand(r,i) == NULL) return(0);
 		}
 	else
 		{
@@ -196,7 +200,7 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 	f= &(a->d[nw]);
 	t=r->d;
 	j=a->top-nw;
-	r->top=j;
+	r->top=i;
 
 	if (rb == 0)
 		{
@@ -212,9 +216,8 @@ int BN_rshift(BIGNUM *r, const BIGNUM *a, int n)
 			l= *(f++);
 			*(t++) =(tmp|(l<<lb))&BN_MASK2;
 			}
-		*(t++) =(l>>rb)&BN_MASK2;
+		if ((l = (l>>rb)&BN_MASK2)) *(t) = l;
 		}
-	bn_correct_top(r);
 	bn_check_top(r);
 	return(1);
 	}

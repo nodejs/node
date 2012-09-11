@@ -1,12 +1,15 @@
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
+ * project 2010.
+ */
 /* ====================================================================
- * Copyright (c) 2001 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2010 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer. 
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -16,12 +19,12 @@
  * 3. All advertising materials mentioning features or use of this
  *    software must display the following acknowledgment:
  *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *    for use in the OpenSSL Toolkit. (http://www.OpenSSL.org/)"
  *
  * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
  *    endorse or promote products derived from this software without
  *    prior written permission. For written permission, please contact
- *    openssl-core@openssl.org.
+ *    licensing@OpenSSL.org.
  *
  * 5. Products derived from this software may not be called "OpenSSL"
  *    nor may "OpenSSL" appear in their names without prior written
@@ -30,7 +33,7 @@
  * 6. Redistributions of any form whatsoever must retain the following
  *    acknowledgment:
  *    "This product includes software developed by the OpenSSL Project
- *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *    for use in the OpenSSL Toolkit (http://www.OpenSSL.org/)"
  *
  * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
  * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -45,51 +48,50 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  * ====================================================================
- *
- * This product includes cryptographic software written by Eric Young
- * (eay@cryptsoft.com).  This product includes software written by Tim
- * Hudson (tjh@cryptsoft.com).
- *
  */
 
-
-#include <openssl/e_os2.h>
-#include <evp.h>
-#include "ui_locl.h"
+#include <stdio.h>
 #include "cryptlib.h"
+#include <openssl/evp.h>
+#include <openssl/cmac.h>
+#include "asn1_locl.h"
 
-#ifdef OPENSSL_NO_TTY
+/* CMAC "ASN1" method. This is just here to indicate the
+ * maximum CMAC output length and to free up a CMAC
+ * key.
+ */
 
-static int dummy_read_write_string(UI *ui, UI_STRING *uis);
-static int dummy_open_close(UI *ui);
-
-static UI_METHOD ui_dummy =
+static int cmac_size(const EVP_PKEY *pkey)
 	{
-	"Dummy user interface",
-	dummy_open_close,
-	dummy_read_write_string,
-	NULL,
-	dummy_read_write_string,
-	dummy_open_close,
-	NULL
+	return EVP_MAX_BLOCK_LENGTH;
+	}
+
+static void cmac_key_free(EVP_PKEY *pkey)
+	{
+	CMAC_CTX *cmctx = (CMAC_CTX *)pkey->pkey.ptr;
+	if (cmctx)
+		CMAC_CTX_free(cmctx);
+	}
+
+const EVP_PKEY_ASN1_METHOD cmac_asn1_meth = 
+	{
+	EVP_PKEY_CMAC,
+	EVP_PKEY_CMAC,
+	0,
+
+	"CMAC",
+	"OpenSSL CMAC method",
+
+	0,0,0,0,
+
+	0,0,0,
+
+	cmac_size,
+	0,
+	0,0,0,0,0,0,0,
+
+	cmac_key_free,
+	0,
+	0,0
 	};
 
-UI_METHOD *UI_OpenSSL(void)
-	{
-	return &ui_dummy;
-	}
-
-static int dummy_open_close(UI *ui)
-	{
-  /* Pretend that opening and closing the dummy UI succeeds. */
-  return 1;
-	}
-
-static int dummy_read_write_string(UI *ui, UI_STRING *uis)
-	{
-  /* Writing to and reading from the dummy UI is not possible. */
-	return 0;
-	}
-
-
-#endif
