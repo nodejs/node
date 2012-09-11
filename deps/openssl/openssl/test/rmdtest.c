@@ -1,1 +1,1 @@
-../crypto/ripemd/rmdtest.c
+#include "../crypto/ripemd/rmdtest.c"

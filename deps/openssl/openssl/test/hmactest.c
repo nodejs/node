@@ -1,1 +1,1 @@
-../crypto/hmac/hmactest.c
+#include "../crypto/hmac/hmactest.c"

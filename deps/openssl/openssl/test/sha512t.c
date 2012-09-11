@@ -1,1 +1,1 @@
-../crypto/sha/sha512t.c
+#include "../crypto/sha/sha512t.c"

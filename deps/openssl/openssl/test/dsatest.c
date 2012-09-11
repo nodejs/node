@@ -1,1 +1,1 @@
-../crypto/dsa/dsatest.c
+#include "../crypto/dsa/dsatest.c"

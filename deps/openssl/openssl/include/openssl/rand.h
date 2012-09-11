@@ -1,1 +1,1 @@
-../../crypto/rand/rand.h
+#include "../../crypto/rand/rand.h"

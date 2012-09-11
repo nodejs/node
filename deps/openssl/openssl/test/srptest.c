@@ -1,1 +1,1 @@
-../crypto/srp/srptest.c
+#include "../crypto/srp/srptest.c"

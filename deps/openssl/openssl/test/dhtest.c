@@ -1,1 +1,1 @@
-../crypto/dh/dhtest.c
+#include "../crypto/dh/dhtest.c"

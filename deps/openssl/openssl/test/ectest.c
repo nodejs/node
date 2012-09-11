@@ -1,1 +1,1 @@
-../crypto/ec/ectest.c
+#include "../crypto/ec/ectest.c"

@@ -1,1 +1,1 @@
-../crypto/md4/md4test.c
+#include "../crypto/md4/md4test.c"

@@ -1,1 +1,1 @@
-../crypto/ecdh/ecdhtest.c
+#include "../crypto/ecdh/ecdhtest.c"

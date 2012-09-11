@@ -1,1 +1,1 @@
-../crypto/cast/casttest.c
+#include "../crypto/cast/casttest.c"

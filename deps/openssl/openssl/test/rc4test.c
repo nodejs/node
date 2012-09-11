@@ -1,1 +1,1 @@
-../crypto/rc4/rc4test.c
+#include "../crypto/rc4/rc4test.c"
