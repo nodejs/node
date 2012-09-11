@@ -718,7 +718,7 @@ void OPENSSL_cpuid_setup(void)
 unsigned long *OPENSSL_ia32cap_loc(void) { return NULL; }
 #endif
 int OPENSSL_NONPIC_relocated = 0;
-#if !defined(OPENSSL_CPUID_SETUP) && !defined(OPENSSL_CPUID_OBJ)
+#if !defined(OPENSSL_CPUID_SETUP)
 void OPENSSL_cpuid_setup(void) {}
 #endif
 
