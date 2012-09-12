@@ -676,6 +676,10 @@
             'OPENSSLDIR="/etc/ssl"',
             'TERMIOS',
           ],
+          'cflags': [
+            '-Wno-missing-field-initializers',
+            '-Wno-old-style-declaration',
+          ],
         }],
         ['OS=="solaris"', {
           'defines': ['__EXTENSIONS__'],
