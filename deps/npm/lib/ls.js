@@ -217,7 +217,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
       }
       data = unmet + " " + d + " " + data
     } else {
-      data = d+"@"+ data +" (max depth reached)"
+      data = d+"@"+ data
     }
     return data
   }
@@ -249,6 +249,7 @@ function makeArchy_ (data, long, dir, depth, parent, d) {
     if (dir === data.path) out.label += "\n" + dir
     out.label += "\n" + getExtras(data, dir)
   } else if (dir === data.path) {
+    if (out.label) out.label += " "
     out.label += dir
   }
 

@@ -135,6 +135,7 @@ DirReader.prototype._read = function () {
       if (entry._paused) entry.once("resume", function () {
         me.emit("entryStat", entry, props)
       })
+      else me.emit("entryStat", entry, props)
     })
 
     entry.on("ready", function EMITCHILD () {

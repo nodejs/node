@@ -211,19 +211,28 @@ means that publishes go over HTTP by default in those versions of node.
 
 ## I forgot my password, and can't publish.  How do I reset it?
 
-Go to <http://admin.npmjs.org/reset>.
+Go to <https://npmjs.org/forgot>.
 
 ## I get ECONNREFUSED a lot.  What's up?
 
 Either the registry is down, or node's DNS isn't able to reach out.
 
-To check if the registry is down, open up
-<http://registry.npmjs.org/>
+To check if the registry is down, open up <http://registry.npmjs.org/>
 in a web browser.  This will also tell you if you are just unable to
 access the internet for some reason.
 
 If the registry IS down, let me know by emailing or posting an issue.
 We'll have someone kick it or something.
+
+## Why no namespaces?
+
+Please see this discussion: <https://github.com/isaacs/npm/issues/798>
+
+tl;dr - It doesn't actually make things better, and can make them worse.
+
+If you want to namespace your own packages, you may: simply use the
+`-` character to separate the names.  npm is a mostly anarchic system.
+There is not sufficient need to impose namespace rules on everyone.
 
 ## Who does npm?
 

@@ -992,7 +992,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
         if (callback->IsAccessorInfo()) {
           Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
           if (v8::ToCData<Address>(info->getter()) == 0) return;
-          if (!receiver->HasFastProperties()) return;
+          if (!holder->HasFastProperties()) return;
           if (!info->IsCompatibleReceiver(*receiver)) return;
           code = isolate()->stub_cache()->ComputeLoadCallback(
               name, receiver, holder, info);
@@ -1000,7 +1000,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
           Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter());
           if (!getter->IsJSFunction()) return;
           if (holder->IsGlobalObject()) return;
-          if (!receiver->HasFastProperties()) return;
+          if (!holder->HasFastProperties()) return;
           code = isolate()->stub_cache()->ComputeLoadViaGetter(
               name, receiver, holder, Handle<JSFunction>::cast(getter));
         } else {
@@ -1269,7 +1269,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
         Handle<AccessorInfo> callback =
             Handle<AccessorInfo>::cast(callback_object);
         if (v8::ToCData<Address>(callback->getter()) == 0) return;
-        if (!receiver->HasFastProperties()) return;
+        if (!holder->HasFastProperties()) return;
         if (!callback->IsCompatibleReceiver(*receiver)) return;
         code = isolate()->stub_cache()->ComputeKeyedLoadCallback(
             name, receiver, holder, callback);
@@ -1487,9 +1487,10 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     case CALLBACKS: {
       Handle<Object> callback(lookup->GetCallbackObject());
       if (callback->IsAccessorInfo()) {
+        ASSERT(*holder == *receiver);  // LookupForWrite checks this.
         Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->setter()) == 0) return;
-        if (!receiver->HasFastProperties()) return;
+        if (!holder->HasFastProperties()) return;
         ASSERT(info->IsCompatibleReceiver(*receiver));
         code = isolate()->stub_cache()->ComputeStoreCallback(
             name, receiver, info, strict_mode);
@@ -1497,7 +1498,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
         Handle<Object> setter(Handle<AccessorPair>::cast(callback)->setter());
         if (!setter->IsJSFunction()) return;
         if (holder->IsGlobalObject()) return;
-        if (!receiver->HasFastProperties()) return;
+        if (!holder->HasFastProperties()) return;
         code = isolate()->stub_cache()->ComputeStoreViaSetter(
             name, receiver, Handle<JSFunction>::cast(setter), strict_mode);
       } else {

@@ -281,8 +281,8 @@ function parseField (f, k, emptyIsFalse) {
   var isPath = -1 !== typeList.indexOf(path)
   var isBool = -1 !== typeList.indexOf(Boolean)
   var isString = -1 !== typeList.indexOf(String)
-  var isNumber = -1 !== typeList.indexOf(Number) ||
-                 -1 !== typeList.indexOf(Octal)
+  var isOctal = -1 !== typeList.indexOf(Octal)
+  var isNumber = isOctal || (-1 !== typeList.indexOf(Number))
 
   f = (''+f).trim()
 
@@ -310,7 +310,7 @@ function parseField (f, k, emptyIsFalse) {
   }
 
   if (isNumber && !isNaN(f))
-    f = +f
+    f = isOctal ? parseInt(f, 8) : +f
 
   return f
 }

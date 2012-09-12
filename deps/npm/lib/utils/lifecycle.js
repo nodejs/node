@@ -252,7 +252,7 @@ function makeEnv (data, prefix, env) {
       return
     }
     var value = npm.config.get(i)
-    if (value instanceof Stream) return
+    if (value instanceof Stream || Array.isArray(value)) return
     if (!value) value = ""
     else if (typeof value !== "string") value = JSON.stringify(value)
 

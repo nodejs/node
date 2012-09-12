@@ -300,6 +300,13 @@ function final (file, data, cb) {
                 unParsePeople(file, data)
                 parsePeople(file, data)
 
+                if (data.description &&
+                    typeof data.description !== 'string') {
+                                warn(file, data,
+                                     "'description' field should be a string")
+                                delete data.description
+                }
+
                 if (data.readme && !data.description)
                                 readmeDescription(file, data)
 

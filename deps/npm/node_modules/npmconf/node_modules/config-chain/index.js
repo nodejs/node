@@ -75,7 +75,7 @@ var env = exports.env = function (prefix, env) {
   var obj = {}
   var l = prefix.length
   for(var k in env) {
-    if((i =k.indexOf(prefix)) === 0)
+    if(k.indexOf(prefix) === 0)
       obj[k.substring(l)] = env[k]
   }
 

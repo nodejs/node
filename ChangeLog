@@ -86,7 +86,52 @@
 * Fix #3521 Make process.env more like a regular Object (isaacs)
 
 
-2012.08.22, Version 0.8.8 (Stable)
+2012.09.11, Version 0.8.9 (Stable), b88c3902b241cf934e75443b934f2033ad3915b1
+
+* v8: upgrade to 3.11.10.22
+
+* GYP: upgrade to r1477
+
+* npm: Upgrade to 1.1.61
+
+* npm: Don't create world-writable files (isaacs)
+
+* windows: fix single-accept mode for shared server sockets (Bert Belder)
+
+* windows: fix uninitialized memory access in uv_update_time() (Bert Belder)
+
+* windows: don't throw when a signal handler is attached (Bert Belder)
+
+* unix: fix memory leak in udp (Ben Noordhuis)
+
+* unix: map errno ESPIPE (Ben Noordhuis)
+
+* unix, windows: fix memory corruption in fs-poll.c (Ben Noordhuis)
+
+* sunos: fix os.cpus() on x86_64 (Ben Noordhuis)
+
+* child process: fix processes with IPC channel don't emit 'close' (Bert Belder)
+
+* build: add a "--dest-os" option to force a gyp "flavor" (Nathan Rajlich)
+
+* build: set `process.platform` to "sunos" on SunOS (Nathan Rajlich)
+
+* build: fix `make -j` fails after `make clean` (Bearice Ren)
+
+* build: fix openssl configuration for "arm" builds (Nathan Rajlich)
+
+* tls: support unix domain socket/named pipe in tls.connect (Shigeki Ohtsu)
+
+* https: make https.get() accept a URL (koichik)
+
+* http: respect HTTP/1.0 TE header (Ben Noordhuis)
+
+* crypto, tls: Domainify setSNICallback, pbkdf2, randomBytes (Ben Noordhuis)
+
+* stream.pipe: Don't call destroy() unless it's a function (isaacs)
+
+
+2012.08.22, Version 0.8.8 (Stable), a299c97bbc701f4d460e91214d7bfe7a9589d361
 
 * V8: upgrade to 3.11.10.19
 

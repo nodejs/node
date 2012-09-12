@@ -172,7 +172,9 @@ function LRUCache (options) {
 
   function lruWalk () {
     // lru has been deleted, hop up to the next hit.
-    lru = Object.keys(lruList)[0]
+		for (var key in lruList) {
+			return key
+    }
   }
 
   function trim () {

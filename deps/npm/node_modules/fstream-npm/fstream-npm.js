@@ -136,6 +136,7 @@ Packer.prototype.applyIgnores = function (entry, partial, entryObj) {
     // if this entry has already been bundled, and is a symlink,
     // and it is the *same* symlink as this one, then exclude it.
     if (pp && pp.bundleLinks && this.bundleLinks &&
+        pp.bundleLinks[entry] &&
         pp.bundleLinks[entry] === this.bundleLinks[entry]) {
       return false
     }

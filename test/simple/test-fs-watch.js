@@ -108,7 +108,7 @@ try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
 assert.doesNotThrow(
     function() {
       var watcher = fs.watch(testsubdir, function(event, filename) {
-        var renameEv = process.platform === 'solaris' ? 'change' : 'rename';
+        var renameEv = process.platform === 'sunos' ? 'change' : 'rename';
         assert.equal(renameEv, event);
         if (expectFilePath) {
           assert.equal('newfile.txt', filename);

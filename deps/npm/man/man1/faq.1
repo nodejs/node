@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-FAQ" "1" "August 2012" "" ""
+.TH "NPM\-FAQ" "1" "September 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-faq\fR \-\- Frequently Asked Questions
@@ -276,7 +276,7 @@ Until node 0\.4\.10, there were problems sending big files over HTTPS\.  That
 means that publishes go over HTTP by default in those versions of node\.
 .
 .SH "I forgot my password, and can&#39;t publish\.  How do I reset it?"
-Go to \fIhttp://admin\.npmjs\.org/reset\fR\|\.
+Go to \fIhttps://npmjs\.org/forgot\fR\|\.
 .
 .SH "I get ECONNREFUSED a lot\.  What&#39;s up?"
 Either the registry is down, or node\'s DNS isn\'t able to reach out\.
@@ -289,6 +289,16 @@ access the internet for some reason\.
 .P
 If the registry IS down, let me know by emailing or posting an issue\.
 We\'ll have someone kick it or something\.
+.
+.SH "Why no namespaces?"
+Please see this discussion: \fIhttps://github\.com/isaacs/npm/issues/798\fR
+.
+.P
+tl;dr \- It doesn\'t actually make things better, and can make them worse\.
+.
+.P
+If you want to namespace your own packages, you may: simply use the \fB\-\fR character to separate the names\.  npm is a mostly anarchic system\.
+There is not sufficient need to impose namespace rules on everyone\.
 .
 .SH "Who does npm?"
 \fBnpm view npm author\fR

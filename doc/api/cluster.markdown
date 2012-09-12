@@ -252,12 +252,29 @@ die graceful if no other event is waiting.
 
 The method takes an optional callback argument which will be called when finished.
 
+## cluster.worker
+
+* {Object}
+
+A reference to the current worker object. Not available in the master process.
+
+    var cluster = require('cluster');
+
+    if (cluster.isMaster) {
+      console.log('I am master');
+      cluster.fork();
+      cluster.fork();
+    } else if (cluster.isWorker) {
+      console.log('I am worker #' + cluster.worker.id);
+    }
+
 ## cluster.workers
 
 * {Object}
 
 A hash that stores the active worker objects, keyed by `id` field. Makes it
-easy to loop through all the workers.
+easy to loop through all the workers. It is only available in the master
+process.
 
     // Go through all workers
     function eachWorker(callback) {

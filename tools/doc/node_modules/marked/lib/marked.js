@@ -611,7 +611,7 @@ var escape = function(html, encode) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replace(/'/g, '&#39;');
 };
 
 var mangle = function(text) {

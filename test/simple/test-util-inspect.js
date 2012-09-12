@@ -130,3 +130,10 @@ test_color_style('null', null);
 test_color_style('string', 'test string');
 test_color_style('date', new Date);
 test_color_style('regexp', /regexp/);
+
+// an object with "hasOwnProperty" overwritten should not throw
+assert.doesNotThrow(function() {
+  util.inspect({
+    hasOwnProperty: null
+  });
+});

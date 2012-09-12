@@ -446,7 +446,7 @@ The synchronous version of `fs.appendFile`.
 
 ## fs.watchFile(filename, [options], listener)
 
-    Stability: 2 - Unstable.  Use fs.watch instead, if available.
+    Stability: 2 - Unstable.  Use fs.watch instead, if possible.
 
 Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
@@ -483,7 +483,7 @@ no-op, not an error.
 
 ## fs.watch(filename, [options], [listener])
 
-    Stability: 2 - Unstable.  Not available on all platforms.
+    Stability: 2 - Unstable.
 
 Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is a [fs.FSWatcher](#fs_class_fs_fswatcher).
@@ -517,9 +517,12 @@ to be notified of filesystem changes.
 * On Windows systems, this feature depends on `ReadDirectoryChangesW`.
 
 If the underlying functionality is not available for some reason, then
-`fs.watch` will not be able to function.  You can still use
-`fs.watchFile`, which uses stat polling, but it is slower and less
-reliable.
+`fs.watch` will not be able to function.  For example, watching files or
+directories on network file systems (NFS, SMB, etc.) often doesn't work
+reliably or at all.
+
+You can still use `fs.watchFile`, which uses stat polling, but it is slower and
+less reliable.
 
 #### Filename Argument
 

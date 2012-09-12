@@ -207,19 +207,28 @@ means that publishes go over HTTP by default in those versions of node.</p>
 
 <h2 id="I-forgot-my-password-and-can-t-publish-How-do-I-reset-it">I forgot my password, and can&#39;t publish.  How do I reset it?</h2>
 
-<p>Go to <a href="http://admin.npmjs.org/reset">http://admin.npmjs.org/reset</a>.</p>
+<p>Go to <a href="https://npmjs.org/forgot">https://npmjs.org/forgot</a>.</p>
 
 <h2 id="I-get-ECONNREFUSED-a-lot-What-s-up">I get ECONNREFUSED a lot.  What&#39;s up?</h2>
 
 <p>Either the registry is down, or node&#39;s DNS isn&#39;t able to reach out.</p>
 
-<p>To check if the registry is down, open up
-<a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a>
+<p>To check if the registry is down, open up <a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a>
 in a web browser.  This will also tell you if you are just unable to
 access the internet for some reason.</p>
 
 <p>If the registry IS down, let me know by emailing or posting an issue.
 We&#39;ll have someone kick it or something.</p>
+
+<h2 id="Why-no-namespaces">Why no namespaces?</h2>
+
+<p>Please see this discussion: <a href="https://github.com/isaacs/npm/issues/798">https://github.com/isaacs/npm/issues/798</a></p>
+
+<p>tl;dr - It doesn&#39;t actually make things better, and can make them worse.</p>
+
+<p>If you want to namespace your own packages, you may: simply use the
+<code>-</code> character to separate the names.  npm is a mostly anarchic system.
+There is not sufficient need to impose namespace rules on everyone.</p>
 
 <h2 id="Who-does-npm">Who does npm?</h2>
 
@@ -241,7 +250,7 @@ We&#39;ll have someone kick it or something.</p>
 
 <ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li></ul>
 </div>
-<p id="footer">faq &mdash; npm@1.1.59</p>
+<p id="footer">faq &mdash; npm@1.1.61</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

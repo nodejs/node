@@ -755,6 +755,9 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
     caller = potential_caller;
     potential_caller = it.next();
   }
+  if (!caller->shared()->native() && potential_caller != NULL) {
+    caller = potential_caller;
+  }
   // If caller is bound, return null. This is compatible with JSC, and
   // allows us to make bound functions use the strict function map
   // and its associated throwing caller and arguments.

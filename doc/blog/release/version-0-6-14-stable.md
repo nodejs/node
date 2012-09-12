@@ -10,7 +10,7 @@ slug: version-0-6-14-stable
 
 </p>
 <ul>
-<li><p>net: don&apos;t crash when queued write fails (Igor Zinkovsky)</p>
+<li><p>net: don&#39;t crash when queued write fails (Igor Zinkovsky)</p>
 </li>
 <li><p>sunos: fix EMFILE on process.memoryUsage() (Bryan Cantrill)</p>
 </li>
@@ -26,9 +26,9 @@ slug: version-0-6-14-stable
 <p>
 - upgrade node-gyp to 0.3.7<br>
 - work around AV-locked directories on Windows<br>
-- Fix isaacs/npm#2293 Don&apos;t try to &apos;uninstall&apos; /<br>
+- Fix isaacs/npm#2293 Don&#39;t try to &#39;uninstall&#39; /<br>
 - Exclude symbolic links from packages.<br>
-- Fix isaacs/npm#2275 Spurious &apos;unresolvable cycle&apos; error.<br>
+- Fix isaacs/npm#2275 Spurious &#39;unresolvable cycle&#39; error.<br>
 - Exclude/include dot files as if they were normal files
 </p>
 </li>

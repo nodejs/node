@@ -40,7 +40,7 @@ slug: version-0-7-5-unstable
 </li>
 <li><p>build: Make a fat binary for the OS X <code>make pkg</code>. (Nathan Rajlich)</p>
 </li>
-<li><p>jslint src/ and lib/ on &apos;make test&apos; (isaacs)</p>
+<li><p>jslint src/ and lib/ on &#39;make test&#39; (isaacs)</p>
 </li>
 </ul>
 <p>Source Code: <a href="http://nodejs.org/dist/v0.7.5/node-v0.7.5.tar.gz">http://nodejs.org/dist/v0.7.5/node-v0.7.5.tar.gz</a>

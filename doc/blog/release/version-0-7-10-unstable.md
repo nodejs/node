@@ -44,7 +44,7 @@ on the API before it is locked down for stability.
 </li>
 <li><p>windows/msi: add start menu links when installing (Jeroen Janssen)</p>
 </li>
-<li><p>windows: don&apos;t install x64 version into the &apos;program files (x86)&apos; folder (Matt Gollob)</p>
+<li><p>windows: don&#39;t install x64 version into the &#39;program files (x86)&#39; folder (Matt Gollob)</p>
 </li>
 <li><p>domain: Fix #3379 domain.intercept no longer passes error arg to cb (Marc Harter)</p>
 </li>

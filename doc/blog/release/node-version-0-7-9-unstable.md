@@ -22,7 +22,7 @@ slug: node-version-0-7-9-unstable
 </li>
 <li><p>fs: 64bit offsets for fs calls (Igor Zinkovsky)</p>
 </li>
-<li><p>fs: add sync open flags &apos;rs&apos; and &apos;rs+&apos; (Kevin Bowman)</p>
+<li><p>fs: add sync open flags &#39;rs&#39; and &#39;rs+&#39; (Kevin Bowman)</p>
 </li>
 <li><p>windows: enable creating directory junctions with fs.symlink (Igor Zinkovsky, Bert Belder)</p>
 </li>

@@ -323,7 +323,7 @@ function load (npm, cli, cb) {
         }
       }
 
-      var umask = parseInt(cli.umask, 8)
+      var umask = npm.config.get("umask")
       npm.modes = { exec: 0777 & (~umask)
                   , file: 0666 & (~umask)
                   , umask: umask }

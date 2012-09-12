@@ -28,7 +28,7 @@ on the github issue tracker.
 </li>
 <li><p>Fix #3425: removeAllListeners should delete array (Reid Burke)</p>
 </li>
-<li><p>cluster: don&apos;t silently drop messages when the write queue gets big (Bert Belder)</p>
+<li><p>cluster: don&#39;t silently drop messages when the write queue gets big (Bert Belder)</p>
 </li>
 <li><p>Add Buffer.concat method (isaacs)</p>
 </li>
@@ -40,7 +40,7 @@ on the github issue tracker.
 </li>
 <li><p>Windows: Enable ETW events on Windows for existing DTrace probes. (Igor Zinkovsky)</p>
 </li>
-<li><p>test: bundle node-weak in test/gc so that it doesn&apos;t need to be downloaded (Nathan Rajlich)</p>
+<li><p>test: bundle node-weak in test/gc so that it doesn&#39;t need to be downloaded (Nathan Rajlich)</p>
 </li>
 <li><p>Make many tests pass on Windows (Bert Belder)</p>
 </li>
