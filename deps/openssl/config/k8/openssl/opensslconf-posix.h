@@ -41,9 +41,6 @@
 #ifndef OPENSSL_NO_SEED
 # define OPENSSL_NO_SEED
 #endif
-#ifndef OPENSSL_NO_ASM
-# define OPENSSL_NO_ASM
-#endif
 
 #endif /* OPENSSL_DOING_MAKEDEPEND */
 
