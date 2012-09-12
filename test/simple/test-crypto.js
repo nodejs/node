@@ -369,6 +369,7 @@ var a0 = crypto.createHash('sha1').update('Test123').digest('hex');
 var a1 = crypto.createHash('md5').update('Test123').digest('binary');
 var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
 var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
+var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 assert.equal(a0, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
 assert.equal(a1, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
@@ -381,6 +382,9 @@ assert.equal(a3, '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
                  '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
                  '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
              'Test SHA512 as assumed binary');
+assert.deepEqual(a4,
+                 new Buffer('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
+                 'Test SHA1');
 
 // Test multiple updates to same hash
 var h1 = crypto.createHash('sha1').update('Test123').digest('hex');
@@ -423,6 +427,15 @@ var verified = crypto.createVerify('RSA-SHA256')
                      .update('123')
                      .verify(certPem, s2); // binary
 assert.strictEqual(verified, true, 'sign and verify (binary)');
+
+var s3 = crypto.createSign('RSA-SHA1')
+               .update('Test123')
+               .sign(keyPem, 'buffer');
+var verified = crypto.createVerify('RSA-SHA1')
+                     .update('Test')
+                     .update('123')
+                     .verify(certPem, s3);
+assert.strictEqual(verified, true, 'sign and verify (buffer)');
 
 
 function testCipher1(key) {
@@ -484,6 +497,24 @@ function testCipher3(key, iv) {
 }
 
 
+function testCipher4(key, iv) {
+  // Test encyrption and decryption with explicit key and iv
+  var plaintext =
+      '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
+      'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
+      'jAfaFg**';
+  var cipher = crypto.createCipheriv('des-ede3-cbc', key, iv);
+  var ciph = cipher.update(plaintext, 'utf8', 'buffer');
+  ciph = Buffer.concat([ciph, cipher.final('buffer')]);
+
+  var decipher = crypto.createDecipheriv('des-ede3-cbc', key, iv);
+  var txt = decipher.update(ciph, 'buffer', 'utf8');
+  txt += decipher.final('utf8');
+
+  assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
+}
+
+
 testCipher1('MySecretKey123');
 testCipher1(new Buffer('MySecretKey123'));
 
@@ -495,6 +526,8 @@ testCipher3('0123456789abcd0123456789', new Buffer('12345678'));
 testCipher3(new Buffer('0123456789abcd0123456789'), '12345678');
 testCipher3(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
 
+testCipher4(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
+
 
 // update() should only take buffers / strings
 assert.throws(function() {
@@ -505,18 +538,18 @@ assert.throws(function() {
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
 var dh1 = crypto.createDiffieHellman(256);
-var p1 = dh1.getPrime('base64');
+var p1 = dh1.getPrime('buffer');
 var dh2 = crypto.createDiffieHellman(p1, 'base64');
 var key1 = dh1.generateKeys();
 var key2 = dh2.generateKeys('hex');
 var secret1 = dh1.computeSecret(key2, 'hex', 'base64');
-var secret2 = dh2.computeSecret(key1, 'binary', 'base64');
+var secret2 = dh2.computeSecret(key1, 'binary', 'buffer');
 
-assert.equal(secret1, secret2);
+assert.equal(secret1, secret2.toString('base64'));
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
-var dh3 = crypto.createDiffieHellman(p1, 'base64');
+var dh3 = crypto.createDiffieHellman(p1, 'buffer');
 var privkey1 = dh1.getPrivateKey();
 dh3.setPublicKey(key1);
 dh3.setPrivateKey(privkey1);

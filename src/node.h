@@ -127,7 +127,7 @@ void SetPrototypeMethod(target_t target,
 #define NODE_SET_METHOD node::SetMethod
 #define NODE_SET_PROTOTYPE_METHOD node::SetPrototypeMethod
 
-enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX};
+enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX, BUFFER};
 enum encoding ParseEncoding(v8::Handle<v8::Value> encoding_v,
                             enum encoding _default = BINARY);
 NODE_EXTERN void FatalException(v8::TryCatch &try_catch);
