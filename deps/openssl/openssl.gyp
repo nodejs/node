@@ -686,6 +686,9 @@
         }],
         ['target_arch=="ia32"', {
           'variables': {'openssl_config_path': 'config/piii'},
+          'defines': [
+            'OPENSSL_NO_EC_NISTP_64_GCC_128'
+          ],
           'sources': [
             'openssl/crypto/bn/bn_asm.c',
           ]
