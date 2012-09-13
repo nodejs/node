@@ -43,13 +43,137 @@
 
 static char *process_title;
 
+/* Forward declarations */
+void uv__cf_loop_runner(void* arg);
+void uv__cf_loop_cb(void* arg);
+
+typedef struct uv__cf_loop_signal_s uv__cf_loop_signal_t;
+struct uv__cf_loop_signal_s {
+  void* arg;
+  cf_loop_signal_cb cb;
+  ngx_queue_t member;
+};
+
 
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+  CFRunLoopSourceContext ctx;
+  int r;
+
+  loop->cf_loop = NULL;
+  if ((r = uv_mutex_init(&loop->cf_mutex)))
+    return r;
+  if ((r = uv_sem_init(&loop->cf_sem, 0)))
+    return r;
+  ngx_queue_init(&loop->cf_signals);
+
+  memset(&ctx, 0, sizeof(ctx));
+  ctx.info = loop;
+  ctx.perform = uv__cf_loop_cb;
+  loop->cf_cb = CFRunLoopSourceCreate(NULL, 0, &ctx);
+
+  if ((r = uv_thread_create(&loop->cf_thread, uv__cf_loop_runner, loop)))
+    return r;
+
+  /* Synchronize threads */
+  uv_sem_wait(&loop->cf_sem);
+  assert(((volatile CFRunLoopRef) loop->cf_loop) != NULL);
+
   return 0;
 }
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
+  ngx_queue_t* item;
+  uv__cf_loop_signal_t* s;
+
+  assert(loop->cf_loop != NULL);
+  CFRunLoopStop(loop->cf_loop);
+  uv_thread_join(&loop->cf_thread);
+  loop->cf_loop = NULL;
+
+  uv_sem_destroy(&loop->cf_sem);
+  uv_mutex_destroy(&loop->cf_mutex);
+
+  /* Free any remaining data */
+  while (!ngx_queue_empty(&loop->cf_signals)) {
+    item = ngx_queue_head(&loop->cf_signals);
+
+    s = ngx_queue_data(item, uv__cf_loop_signal_t, member);
+
+    ngx_queue_remove(item);
+    free(s);
+  }
+}
+
+
+void uv__cf_loop_runner(void* arg) {
+  uv_loop_t* loop;
+
+  loop = arg;
+
+  /* Get thread's loop */
+  *((volatile CFRunLoopRef*)&loop->cf_loop) = CFRunLoopGetCurrent();
+
+  CFRunLoopAddSource(loop->cf_loop,
+                     loop->cf_cb,
+                     kCFRunLoopDefaultMode);
+
+  uv_sem_post(&loop->cf_sem);
+
+  CFRunLoopRun();
+
+  CFRunLoopRemoveSource(loop->cf_loop,
+                        loop->cf_cb,
+                        kCFRunLoopDefaultMode);
+}
+
+
+void uv__cf_loop_cb(void* arg) {
+  uv_loop_t* loop;
+  ngx_queue_t* item;
+  ngx_queue_t split_head;
+  uv__cf_loop_signal_t* s;
+
+  loop = arg;
+
+  uv_mutex_lock(&loop->cf_mutex);
+  ngx_queue_init(&split_head);
+  if (!ngx_queue_empty(&loop->cf_signals)) {
+    ngx_queue_t* split_pos = ngx_queue_next(&loop->cf_signals);
+    ngx_queue_split(&loop->cf_signals, split_pos, &split_head);
+  }
+  uv_mutex_unlock(&loop->cf_mutex);
+
+  while (!ngx_queue_empty(&split_head)) {
+    item = ngx_queue_head(&split_head);
+
+    s = ngx_queue_data(item, uv__cf_loop_signal_t, member);
+    s->cb(s->arg);
+
+    ngx_queue_remove(item);
+    free(s);
+  }
+}
+
+
+void uv__cf_loop_signal(uv_loop_t* loop, cf_loop_signal_cb cb, void* arg) {
+  uv__cf_loop_signal_t* item;
+
+  item = malloc(sizeof(*item));
+  /* XXX: Fail */
+  if (item == NULL)
+    abort();
+
+  item->arg = arg;
+  item->cb = cb;
+
+  uv_mutex_lock(&loop->cf_mutex);
+  ngx_queue_insert_tail(&loop->cf_signals, &item->member);
+  uv_mutex_unlock(&loop->cf_mutex);
+
+  assert(loop->cf_loop != NULL);
+  CFRunLoopSourceSignal(loop->cf_cb);
+  CFRunLoopWakeUp(loop->cf_loop);
 }
 
 

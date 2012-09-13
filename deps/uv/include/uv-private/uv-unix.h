@@ -137,6 +137,7 @@ typedef struct {
   uint64_t time;                                                              \
   void* signal_ctx;                                                           \
   uv_signal_t child_watcher;                                                  \
+  int emfile_fd;                                                              \
   UV_PLATFORM_LOOP_FIELDS                                                     \
 
 #define UV_REQ_TYPE_PRIVATE /* empty */

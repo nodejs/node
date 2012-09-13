@@ -89,6 +89,9 @@ int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_cb cb,
                      int flags) {
   int fd;
+#if defined(__APPLE__)
+  struct stat statbuf;
+#endif /* defined(__APPLE__) */
 
   /* We don't support any flags yet. */
   assert(!flags);
@@ -105,6 +108,22 @@ int uv_fs_event_init(uv_loop_t* loop,
   handle->fflags = 0;
   handle->cb = cb;
   handle->fd = fd;
+
+#if defined(__APPLE__)
+  /* Nullify field to perform checks later */
+  handle->cf_eventstream = NULL;
+
+  if (fstat(fd, &statbuf))
+    goto fallback;
+  /* FSEvents works only with directories */
+  if (!(statbuf.st_mode & S_IFDIR))
+    goto fallback;
+
+  return uv__fsevents_init(handle);
+
+fallback:
+#endif /* defined(__APPLE__) */
+
   uv__fs_event_start(handle);
 
   return 0;
@@ -112,7 +131,13 @@ int uv_fs_event_init(uv_loop_t* loop,
 
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
+#if defined(__APPLE__)
+  if (uv__fsevents_close(handle))
+    uv__fs_event_stop(handle);
+#else
   uv__fs_event_stop(handle);
+#endif /* defined(__APPLE__) */
+
   uv__handle_stop(handle);
   free(handle->filename);
   close(handle->fd);

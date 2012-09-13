@@ -51,6 +51,7 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   loop->time = uv_hrtime() / 1000000;
   loop->async_pipefd[0] = -1;
   loop->async_pipefd[1] = -1;
+  loop->emfile_fd = -1;
   loop->ev = (default_loop ? ev_default_loop : ev_loop_new)(flags);
   ev_set_userdata(loop->ev, loop);
   eio_channel_init(&loop->uv_eio_channel, loop);
@@ -73,4 +74,9 @@ void uv__loop_delete(uv_loop_t* loop) {
   uv__platform_loop_delete(loop);
   uv__signal_unregister(loop);
   ev_loop_destroy(loop->ev);
+
+  if (loop->emfile_fd != -1) {
+    close(loop->emfile_fd);
+    loop->emfile_fd = -1;
+  }
 }

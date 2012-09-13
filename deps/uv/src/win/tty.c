@@ -140,7 +140,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   if (readable) {
     /* Initialize TTY input specific fields. */
     tty->original_console_mode = original_console_mode;
-    tty->flags |= UV_HANDLE_TTY_READABLE;
+    tty->flags |= UV_HANDLE_TTY_READABLE | UV_HANDLE_READABLE;
     tty->read_line_handle = NULL;
     tty->read_line_buffer = uv_null_buf_;
     tty->read_raw_wait = NULL;
@@ -152,6 +152,8 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
     memset(&tty->last_input_record, 0, sizeof tty->last_input_record);
   } else {
     /* TTY output specific fields. */
+    tty->flags |= UV_HANDLE_READABLE;
+
     /* Init utf8-to-utf16 conversion state. */
     tty->utf8_bytes_left = 0;
     tty->utf8_codepoint = 0;
@@ -826,15 +828,9 @@ int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
 
 int uv_tty_read_stop(uv_tty_t* handle) {
   uv_loop_t* loop = handle->loop;
-  if (!(handle->flags & UV_HANDLE_TTY_READABLE)) {
-    uv__set_artificial_error(handle->loop, UV_EINVAL);
-    return -1;
-  }
 
-  if (handle->flags & UV_HANDLE_READING) {
-    handle->flags &= ~UV_HANDLE_READING;
-    DECREASE_ACTIVE_COUNT(loop, handle);
-  }
+  handle->flags &= ~UV_HANDLE_READING;
+  DECREASE_ACTIVE_COUNT(loop, handle);
 
   /* Cancel raw read */
   if ((handle->flags & UV_HANDLE_READ_PENDING) &&
@@ -1750,17 +1746,6 @@ int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
     uv_buf_t bufs[], int bufcnt, uv_write_cb cb) {
   DWORD error;
 
-  if (handle->flags & UV_HANDLE_TTY_READABLE) {
-    uv__set_artificial_error(handle->loop, UV_EINVAL);
-    return -1;
-  }
-
-  if ((handle->flags & UV_HANDLE_SHUTTING) ||
-      (handle->flags & UV_HANDLE_CLOSING)) {
-    uv__set_sys_error(loop, WSAESHUTDOWN);
-    return -1;
-  }
-
   uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_WRITE;
   req->handle = (uv_stream_t*) handle;
@@ -1796,7 +1781,7 @@ void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
   }
 
   handle->write_reqs_pending--;
-  if (handle->flags & UV_HANDLE_SHUTTING &&
+  if (handle->shutdown_req != NULL &&
       handle->write_reqs_pending == 0) {
     uv_want_endgame(loop, (uv_handle_t*)handle);
   }
@@ -1808,14 +1793,10 @@ void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
 void uv_tty_close(uv_tty_t* handle) {
   CloseHandle(handle->handle);
 
-  if (handle->flags & UV_HANDLE_TTY_READABLE) {
-    /* Readable TTY handle */
+  if (handle->flags & UV_HANDLE_READING)
     uv_tty_read_stop(handle);
-  } else {
-    /* Writable TTY handle */
-    handle->flags |= UV_HANDLE_SHUTTING;
-  }
 
+  handle->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   uv__handle_closing(handle);
 
   if (handle->reqs_pending == 0) {

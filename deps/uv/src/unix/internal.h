@@ -28,12 +28,6 @@
 #include <assert.h>
 #include <stdlib.h> /* abort */
 
-#if defined(__GNUC__)
-# define __read_mostly __attribute__((__section__(".data.read_mostly")))
-#else
-# define __read_mostly
-#endif
-
 #if defined(__STRICT_ANSI__)
 # define inline __inline
 #endif
@@ -108,9 +102,9 @@ enum {
   UV_LOOP_EIO_INITIALIZED = 1
 };
 
-inline static void uv__req_init(uv_loop_t* loop,
-                                uv_req_t* req,
-                                uv_req_type type) {
+__attribute__((unused))
+__attribute__((always_inline))
+static void uv__req_init(uv_loop_t* loop, uv_req_t* req, uv_req_type type) {
   req->type = type;
   uv__req_register(loop, req);
 }
@@ -194,5 +188,33 @@ void uv__udp_finish_close(uv_udp_t* handle);
 
 int uv__make_socketpair(int fds[2], int flags);
 int uv__make_pipe(int fds[2], int flags);
+
+#if defined(__APPLE__)
+typedef void (*cf_loop_signal_cb)(void*);
+
+void uv__cf_loop_signal(uv_loop_t* loop, cf_loop_signal_cb cb, void* arg);
+
+int uv__fsevents_init(uv_fs_event_t* handle);
+int uv__fsevents_close(uv_fs_event_t* handle);
+
+/* OSX < 10.7 has no file events, polyfill them */
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070
+
+static const int kFSEventStreamCreateFlagFileEvents = 0x00000010;
+static const int kFSEventStreamEventFlagItemCreated = 0x00000100;
+static const int kFSEventStreamEventFlagItemRemoved = 0x00000200;
+static const int kFSEventStreamEventFlagItemInodeMetaMod = 0x00000400;
+static const int kFSEventStreamEventFlagItemRenamed = 0x00000800;
+static const int kFSEventStreamEventFlagItemModified = 0x00001000;
+static const int kFSEventStreamEventFlagItemFinderInfoMod = 0x00002000;
+static const int kFSEventStreamEventFlagItemChangeOwner = 0x00004000;
+static const int kFSEventStreamEventFlagItemXattrMod = 0x00008000;
+static const int kFSEventStreamEventFlagItemIsFile = 0x00010000;
+static const int kFSEventStreamEventFlagItemIsDir = 0x00020000;
+static const int kFSEventStreamEventFlagItemIsSymlink = 0x00040000;
+
+#endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070 */
+
+#endif /* defined(__APPLE__) */
 
 #endif /* UV_UNIX_INTERNAL_H_ */

@@ -144,6 +144,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_BAD_PIPE:                    return UV_EPIPE;
     case ERROR_NO_DATA:                     return UV_EPIPE;
     case ERROR_PIPE_NOT_CONNECTED:          return UV_EPIPE;
+    case WSAESHUTDOWN:                      return UV_EPIPE;
     case ERROR_PIPE_BUSY:                   return UV_EBUSY;
     case ERROR_SEM_TIMEOUT:                 return UV_ETIMEDOUT;
     case WSAETIMEDOUT:                      return UV_ETIMEDOUT;

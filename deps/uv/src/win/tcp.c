@@ -169,7 +169,6 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
       uv__set_artificial_error(loop, UV_ECANCELED);
     } else if (shutdown(handle->socket, SD_SEND) != SOCKET_ERROR) {
       status = 0;
-      handle->flags |= UV_HANDLE_SHUT;
     } else {
       status = -1;
       uv__set_sys_error(loop, WSAGetLastError());
@@ -605,7 +604,7 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
   } else {
     uv_connection_init((uv_stream_t*) client);
     /* AcceptEx() implicitly binds the accepted socket. */
-    client->flags |= UV_HANDLE_BOUND;
+    client->flags |= UV_HANDLE_BOUND | UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
   }
 
   /* Prepare the req to pick up a new connection */
@@ -645,21 +644,6 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
 int uv_tcp_read_start(uv_tcp_t* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb) {
   uv_loop_t* loop = handle->loop;
-
-  if (!(handle->flags & UV_HANDLE_CONNECTION)) {
-    uv__set_sys_error(loop, WSAEINVAL);
-    return -1;
-  }
-
-  if (handle->flags & UV_HANDLE_READING) {
-    uv__set_sys_error(loop, WSAEALREADY);
-    return -1;
-  }
-
-  if (handle->flags & UV_HANDLE_EOF) {
-    uv__set_sys_error(loop, WSAESHUTDOWN);
-    return -1;
-  }
 
   handle->flags |= UV_HANDLE_READING;
   handle->read_cb = read_cb;
@@ -855,16 +839,6 @@ int uv_tcp_write(uv_loop_t* loop, uv_write_t* req, uv_tcp_t* handle,
   int result;
   DWORD bytes;
 
-  if (!(handle->flags & UV_HANDLE_CONNECTION)) {
-    uv__set_sys_error(loop, WSAEINVAL);
-    return -1;
-  }
-
-  if (handle->flags & UV_HANDLE_SHUTTING) {
-    uv__set_sys_error(loop, WSAESHUTDOWN);
-    return -1;
-  }
-
   uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_WRITE;
   req->handle = (uv_stream_t*) handle;
@@ -970,7 +944,7 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           handle->flags &= ~UV_HANDLE_READING;
           DECREASE_ACTIVE_COUNT(loop, handle);
         }
-        handle->flags |= UV_HANDLE_EOF;
+        handle->flags &= ~UV_HANDLE_READABLE;
 
         uv__set_error(loop, UV_EOF, ERROR_SUCCESS);
         buf.base = 0;
@@ -1001,9 +975,8 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           }
         } else {
           /* Connection closed */
-          handle->flags &= ~UV_HANDLE_READING;
+          handle->flags &= ~(UV_HANDLE_READING | UV_HANDLE_READABLE);
           DECREASE_ACTIVE_COUNT(loop, handle);
-          handle->flags |= UV_HANDLE_EOF;
 
           uv__set_error(loop, UV_EOF, ERROR_SUCCESS);
           handle->read_cb((uv_stream_t*)handle, -1, buf);
@@ -1070,7 +1043,7 @@ void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   handle->write_reqs_pending--;
-  if (handle->flags & UV_HANDLE_SHUTTING &&
+  if (handle->shutdown_req != NULL &&
       handle->write_reqs_pending == 0) {
     uv_want_endgame(loop, (uv_handle_t*)handle);
   }
@@ -1139,6 +1112,7 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
                     NULL,
                     0) == 0) {
       uv_connection_init((uv_stream_t*)handle);
+      handle->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
       loop->active_tcp_streams++;
       ((uv_connect_cb)req->cb)(req, 0);
     } else {
@@ -1181,6 +1155,7 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info,
 
   if (tcp_connection) {
     uv_connection_init((uv_stream_t*)tcp);
+    tcp->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
   }
 
   tcp->flags |= UV_HANDLE_BOUND;
@@ -1342,7 +1317,6 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     if (!(tcp->flags & UV_HANDLE_SHARED_TCP_SOCKET)) {
       /* Just do shutdown on non-shared sockets, which ensures graceful close. */
       shutdown(tcp->socket, SD_SEND);
-      tcp->flags |= UV_HANDLE_SHUT;
 
     } else if (uv_tcp_try_cancel_io(tcp) == 0) {
       /* In case of a shared socket, we try to cancel all outstanding I/O, */
@@ -1397,6 +1371,7 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     tcp->flags |= UV_HANDLE_TCP_SOCKET_CLOSED;
   }
 
+  tcp->flags &= ~(UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   uv__handle_closing(tcp);
 
   if (tcp->reqs_pending == 0) {

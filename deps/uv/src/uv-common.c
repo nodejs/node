@@ -314,6 +314,15 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
 }
 
 
+unsigned long uv_thread_self(void) {
+#ifdef _WIN32
+  return (unsigned long) GetCurrentThreadId();
+#else
+  return (unsigned long) pthread_self();
+#endif
+}
+
+
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
   ngx_queue_t* q;
   uv_handle_t* h;

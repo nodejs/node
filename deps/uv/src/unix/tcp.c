@@ -247,6 +247,7 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
   if (uv_idle_init(tcp->loop, tcp->idle_handle))
     abort();
+  tcp->idle_handle->flags |= UV__HANDLE_INTERNAL;
 
   tcp->flags |= UV_TCP_SINGLE_ACCEPT;
 
@@ -331,7 +332,10 @@ int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
   }
 #endif
 
-#ifdef TCP_KEEPALIVE
+  /* Solaris/SmartOS, if you don't support keep-alive,
+   * then don't advertise it in your system headers...
+   */
+#if defined(TCP_KEEPALIVE) && !defined(__sun)
   if (enable && setsockopt(handle->fd,
                            IPPROTO_TCP,
                            TCP_KEEPALIVE,

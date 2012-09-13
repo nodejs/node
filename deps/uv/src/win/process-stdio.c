@@ -163,6 +163,9 @@ static uv_err_t uv__create_stdio_pipe_pair(uv_loop_t* loop,
     }
   }
 
+  /* The server end is now readable and writable. */
+  server_pipe->flags |= UV_HANDLE_READABLE | UV_HANDLE_WRITABLE;
+
   *child_pipe_ptr = child_pipe;
   return uv_ok_;
 

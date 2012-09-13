@@ -29,10 +29,23 @@
 # define UV_PLATFORM_SEM_T semaphore_t
 #endif
 
+#define UV_PLATFORM_LOOP_FIELDS                                               \
+  uv_thread_t cf_thread;                                                      \
+  void* cf_cb;                                                                \
+  void* cf_loop;                                                              \
+  uv_mutex_t cf_mutex;                                                        \
+  uv_sem_t cf_sem;                                                            \
+  ngx_queue_t cf_signals;                                                     \
+
 #define UV_PLATFORM_FS_EVENT_FIELDS                                           \
   ev_io event_watcher;                                                        \
   int fflags;                                                                 \
   int fd;                                                                     \
+  void* cf_eventstream;                                                       \
+  uv_async_t* cf_cb;                                                          \
+  ngx_queue_t cf_events;                                                      \
+  uv_sem_t cf_sem;                                                            \
+  uv_mutex_t cf_mutex;                                                        \
 
 #define UV_STREAM_PRIVATE_PLATFORM_FIELDS                                     \
   void* select;                                                               \

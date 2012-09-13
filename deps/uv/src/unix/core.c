@@ -463,7 +463,7 @@ int uv__accept(int sockfd) {
 
   while (1) {
 #if __linux__
-    static __read_mostly int no_accept4;
+    static int no_accept4;
 
     if (no_accept4)
       goto skip;

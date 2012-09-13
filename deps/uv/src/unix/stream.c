@@ -62,6 +62,29 @@ static void uv__read(uv_stream_t* stream);
 static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, int events);
 
 
+/* Used by the accept() EMFILE party trick. */
+static int uv__open_cloexec(const char* path, int flags) {
+  int fd;
+
+#if defined(__linux__)
+  fd = open(path, flags | UV__O_CLOEXEC);
+  if (fd != -1)
+    return fd;
+
+  if (errno != EINVAL)
+    return -1;
+
+  /* O_CLOEXEC not supported. */
+#endif
+
+  fd = open(path, flags);
+  if (fd != -1)
+    uv__cloexec(fd, 1);
+
+  return fd;
+}
+
+
 static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
   size_t total = 0;
   int i;
@@ -89,6 +112,9 @@ void uv__stream_init(uv_loop_t* loop,
   ngx_queue_init(&stream->write_queue);
   ngx_queue_init(&stream->write_completed_queue);
   stream->write_queue_size = 0;
+
+  if (loop->emfile_fd == -1)
+    loop->emfile_fd = uv__open_cloexec("/", O_RDONLY);
 
 #if defined(__APPLE__)
   stream->select = NULL;
@@ -370,10 +396,56 @@ static void uv__next_accept(uv_idle_t* idle, int status) {
 }
 
 
-void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
+/* Implements a best effort approach to mitigating accept() EMFILE errors.
+ * We have a spare file descriptor stashed away that we close to get below
+ * the EMFILE limit. Next, we accept all pending connections and close them
+ * immediately to signal the clients that we're overloaded - and we are, but
+ * we still keep on trucking.
+ *
+ * There is one caveat: it's not reliable in a multi-threaded environment.
+ * The file descriptor limit is per process. Our party trick fails if another
+ * thread opens a file or creates a socket in the time window between us
+ * calling close() and accept().
+ */
+static int uv__emfile_trick(uv_loop_t* loop, int accept_fd) {
   int fd;
-  uv_stream_t* stream = container_of(w, uv_stream_t, read_watcher);
+  int r;
 
+  if (loop->emfile_fd == -1)
+    return -1;
+
+  close(loop->emfile_fd);
+
+  for (;;) {
+    fd = uv__accept(accept_fd);
+
+    if (fd != -1) {
+      close(fd);
+      continue;
+    }
+
+    if (errno == EINTR)
+      continue;
+
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+      r = 0;
+    else
+      r = -1;
+
+    loop->emfile_fd = uv__open_cloexec("/", O_RDONLY);
+
+    return r;
+  }
+}
+
+
+void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
+  static int use_emfile_trick = -1;
+  uv_stream_t* stream;
+  int fd;
+  int r;
+
+  stream = container_of(w, uv_stream_t, read_watcher);
   assert(events == UV__IO_READ);
   assert(!(stream->flags & UV_CLOSING));
 
@@ -389,30 +461,47 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
     assert(stream->accepted_fd < 0);
     fd = uv__accept(stream->fd);
 
-    if (fd < 0) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        /* No problem. */
-        return;
-      } else if (errno == EMFILE) {
-        /* TODO special trick. unlock reserved socket, accept, close. */
-        return;
-      } else if (errno == ECONNABORTED) {
-        /* ignore */
-        continue;
-      } else {
-        uv__set_sys_error(stream->loop, errno);
-        stream->connection_cb((uv_stream_t*)stream, -1);
-      }
-    } else {
-      stream->accepted_fd = fd;
-      stream->connection_cb(stream, 0);
+    if (fd == -1) {
+      switch (errno) {
+#if EWOULDBLOCK != EAGAIN
+      case EWOULDBLOCK:
+#endif
+      case EAGAIN:
+        return; /* Not an error. */
 
-      if (stream->accepted_fd != -1 ||
-          (stream->type == UV_TCP && stream->flags == UV_TCP_SINGLE_ACCEPT)) {
-        /* The user hasn't yet accepted called uv_accept() */
-        uv__io_stop(stream->loop, &stream->read_watcher);
-        break;
+      case ECONNABORTED:
+        continue; /* Ignore. */
+
+      case EMFILE:
+      case ENFILE:
+        if (use_emfile_trick == -1) {
+          const char* val = getenv("UV_ACCEPT_EMFILE_TRICK");
+          use_emfile_trick = (val == NULL || atoi(val) != 0);
+        }
+
+        if (use_emfile_trick) {
+          SAVE_ERRNO(r = uv__emfile_trick(loop, stream->fd));
+          if (r == 0)
+            continue;
+        }
+
+        /* Fall through. */
+
+      default:
+        uv__set_sys_error(loop, errno);
+        stream->connection_cb(stream, -1);
+        continue;
       }
+    }
+
+    stream->accepted_fd = fd;
+    stream->connection_cb(stream, 0);
+
+    if (stream->accepted_fd != -1 ||
+        (stream->type == UV_TCP && stream->flags == UV_TCP_SINGLE_ACCEPT)) {
+      /* The user hasn't yet accepted called uv_accept() */
+      uv__io_stop(loop, &stream->read_watcher);
+      break;
     }
   }
 
