@@ -33,16 +33,7 @@
 #endif
 
 #include <stdlib.h>
-
 #include <errno.h>
-
-/* Sigh. */
-#ifdef _WIN32
-# include <windows.h>
-#else
-# include <pthread.h>
-#endif
-
 
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
 # define OPENSSL_CONST const
@@ -94,15 +85,7 @@ static uv_rwlock_t* locks;
 
 
 static void crypto_threadid_cb(CRYPTO_THREADID* tid) {
-  unsigned long val;
-
-#ifdef _WIN32
-  val = static_cast<unsigned long>(GetCurrentThreadId());
-#else
-  val = (unsigned long) pthread_self();
-#endif
-
-  CRYPTO_THREADID_set_numeric(tid, val);
+  CRYPTO_THREADID_set_numeric(tid, uv_thread_self());
 }
 
 
