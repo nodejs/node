@@ -102,10 +102,14 @@ class NODE_EXTERN Buffer: public ObjectWrap {
   static v8::Handle<v8::Object> New(v8::Handle<v8::String> string);
 
   static void Initialize(v8::Handle<v8::Object> target);
-  static Buffer* New(size_t length); // public constructor
-  static Buffer* New(char *data, size_t len); // public constructor
+
+  // public constructor
+  static Buffer* New(size_t length);
+  // public constructor - data is copied
+  static Buffer* New(const char *data, size_t len);
+  // public constructor
   static Buffer* New(char *data, size_t length,
-                     free_callback callback, void *hint); // public constructor
+                     free_callback callback, void *hint);
 
   private:
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
