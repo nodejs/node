@@ -33,9 +33,8 @@ function benchmark(name, fun) {
   timestamp = process.hrtime(timestamp);
 
   var seconds = timestamp[0];
-  var millis = timestamp[1]; // actually nanoseconds
-  while (millis > 1000) millis /= 10;
-  var time = (seconds * 1000 + millis) / 1000;
+  var nanos = timestamp[1];
+  var time = seconds + nanos / 1e9;
 
   process.stdout.write(util.format('%s sec\n', time.toFixed(3)));
 }
