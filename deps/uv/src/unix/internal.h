@@ -63,6 +63,10 @@
 # define HAVE_KQUEUE 1
 #endif
 
+#if defined(__APPLE__) && !defined(TARGET_OS_IPHONE)
+# include <CoreServices/CoreServices.h>
+#endif
+
 #define UNREACHABLE()                                                         \
   do {                                                                        \
     assert(0 && "unreachable code");                                          \
@@ -198,7 +202,7 @@ int uv__fsevents_init(uv_fs_event_t* handle);
 int uv__fsevents_close(uv_fs_event_t* handle);
 
 /* OSX < 10.7 has no file events, polyfill them */
-#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070
+#ifndef MAC_OS_X_VERSION_10_7
 
 static const int kFSEventStreamCreateFlagFileEvents = 0x00000010;
 static const int kFSEventStreamEventFlagItemCreated = 0x00000100;
