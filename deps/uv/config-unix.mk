@@ -53,6 +53,14 @@ LINKFLAGS+=-lsocket -lnsl -lkstat
 OBJS += src/unix/sunos.o
 endif
 
+ifeq (AIX,$(uname_S))
+EV_CONFIG=config_aix.h
+EIO_CONFIG=config_aix.h
+CPPFLAGS += -Isrc/ares/config_aix -D_ALL_SOURCE -D_XOPEN_SOURCE=500
+LINKFLAGS+= -lperfstat
+OBJS += src/unix/aix.o
+endif
+
 ifeq (Darwin,$(uname_S))
 EV_CONFIG=config_darwin.h
 EIO_CONFIG=config_darwin.h

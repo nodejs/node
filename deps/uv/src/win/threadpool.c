@@ -68,7 +68,7 @@ int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb,
 
 
 void uv_process_work_req(uv_loop_t* loop, uv_work_t* req) {
-  assert(req->after_work_cb);
   uv__req_unregister(loop, req);
-  req->after_work_cb(req);
+  if(req->after_work_cb)
+    req->after_work_cb(req);
 }

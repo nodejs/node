@@ -595,7 +595,7 @@ etp_start_thread (void)
 
   X_LOCK (wrklock);
 
-  if (thread_create (&wrk->tid, etp_proc, (void *)wrk))
+  if (xthread_create (&wrk->tid, etp_proc, (void *)wrk))
     {
       wrk->prev = &wrk_first;
       wrk->next = wrk_first.next;

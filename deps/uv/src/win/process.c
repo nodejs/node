@@ -689,7 +689,7 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
 
   /* If we're closing, don't call the exit callback. Just schedule a close */
   /* callback now. */
-  if (handle->flags & UV_HANDLE_CLOSING) {
+  if (handle->flags & UV__HANDLE_CLOSING) {
     uv_want_endgame(loop, (uv_handle_t*) handle);
     return;
   }
@@ -743,7 +743,7 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
 
 void uv_process_endgame(uv_loop_t* loop, uv_process_t* handle) {
   assert(!handle->exit_cb_pending);
-  assert(handle->flags & UV_HANDLE_CLOSING);
+  assert(handle->flags & UV__HANDLE_CLOSING);
   assert(!(handle->flags & UV_HANDLE_CLOSED));
 
   /* Clean-up the process handle. */

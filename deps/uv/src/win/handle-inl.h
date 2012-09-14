@@ -31,7 +31,7 @@
 #define DECREASE_ACTIVE_COUNT(loop, handle)                             \
   do {                                                                  \
     if (--(handle)->activecnt == 0 &&                                   \
-        !((handle)->flags & UV_HANDLE_CLOSING)) {                       \
+        !((handle)->flags & UV__HANDLE_CLOSING)) {                      \
       uv__handle_stop((handle));                                        \
     }                                                                   \
     assert((handle)->activecnt >= 0);                                   \
@@ -52,7 +52,7 @@
     assert(handle->reqs_pending > 0);                                   \
     handle->reqs_pending--;                                             \
                                                                         \
-    if (handle->flags & UV_HANDLE_CLOSING &&                            \
+    if (handle->flags & UV__HANDLE_CLOSING &&                           \
         handle->reqs_pending == 0) {                                    \
       uv_want_endgame(loop, (uv_handle_t*)handle);                      \
     }                                                                   \

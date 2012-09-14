@@ -57,7 +57,8 @@ extern "C" {
 # define __unix__
 #endif
 
-#if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
+#if defined(__unix__) || defined(__POSIX__) || \
+    defined(__APPLE__) || defined(_AIX)
 # include "uv-private/uv-unix.h"
 #else
 # include "uv-private/uv-win.h"

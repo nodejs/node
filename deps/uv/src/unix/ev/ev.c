@@ -3912,8 +3912,8 @@ ev_walk (EV_P_ int types, void (*cb)(EV_P_ int type, void *w))
           wl = wn;
         }
 #endif
-/* EV_STAT     0x00001000 /* stat data changed */
-/* EV_EMBED    0x00010000 /* embedded event loop needs sweep */
+/* EV_STAT     0x00001000 *//* stat data changed */
+/* EV_EMBED    0x00010000 *//* embedded event loop needs sweep */
 }
 #endif
 

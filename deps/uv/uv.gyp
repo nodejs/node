@@ -190,6 +190,21 @@
             ],
           },
         }],
+        [ 'OS=="aix"', {
+          'include_dirs': [ 'src/ares/config_aix' ],
+          'sources': [ 'src/unix/aix.c' ],
+          'defines': [
+            '_ALL_SOURCE',
+            '_XOPEN_SOURCE=500',
+            'EV_CONFIG_H="config_aix.h"',
+            'EIO_CONFIG_H="config_aix.h"',
+          ],
+          'direct_dependent_settings': {
+            'libraries': [
+              '-lperfstat',
+            ],
+          },
+        }],
         [ 'OS=="freebsd"', {
           'sources': [ 'src/unix/freebsd.c' ],
           'defines': [
@@ -326,6 +341,12 @@
         [ 'OS=="solaris"', { # make test-fs.c compile, needs _POSIX_C_SOURCE
           'defines': [
             '__EXTENSIONS__',
+            '_XOPEN_SOURCE=500',
+          ],
+        }],
+        [ 'OS=="aix"', {     # make test-fs.c compile, needs _POSIX_C_SOURCE
+          'defines': [
+            '_ALL_SOURCE',
             '_XOPEN_SOURCE=500',
           ],
         }],

@@ -152,7 +152,7 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
     memset(&tty->last_input_record, 0, sizeof tty->last_input_record);
   } else {
     /* TTY output specific fields. */
-    tty->flags |= UV_HANDLE_READABLE;
+    tty->flags |= UV_HANDLE_WRITABLE;
 
     /* Init utf8-to-utf16 conversion state. */
     tty->utf8_bytes_left = 0;
@@ -1011,10 +1011,10 @@ static int uv_tty_reset(uv_tty_t* handle, DWORD* error) {
   count = info.dwSize.X * info.dwSize.Y;
 
   if (!(FillConsoleOutputCharacterW(handle->handle,
-                              L'\x20',
-                              count,
-                              origin,
-                              &written) &&
+                                    L'\x20',
+                                    count,
+                                    origin,
+                                    &written) &&
         FillConsoleOutputAttribute(handle->handle,
                                    char_attrs,
                                    written,
@@ -1813,7 +1813,7 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
 
     /* TTY shutdown is really just a no-op */
     if (handle->shutdown_req->cb) {
-      if (handle->flags & UV_HANDLE_CLOSING) {
+      if (handle->flags & UV__HANDLE_CLOSING) {
         uv__set_artificial_error(loop, UV_ECANCELED);
         handle->shutdown_req->cb(handle->shutdown_req, -1);
       } else {
@@ -1827,7 +1827,7 @@ void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle) {
     return;
   }
 
-  if (handle->flags & UV_HANDLE_CLOSING &&
+  if (handle->flags & UV__HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     /* The console handle duplicate used for line reading should be destroyed */
     /* by uv_tty_read_stop. */

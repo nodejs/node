@@ -19,9 +19,6 @@
  * IN THE SOFTWARE.
  */
 
-/* FIXME we shouldn't need to branch in this file */
-#define UNIX (defined(__unix__) || defined(__POSIX__) || defined(__APPLE__))
-
 #include "uv.h"
 #include "task.h"
 
@@ -30,8 +27,9 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 
-
-#if UNIX
+/* FIXME we shouldn't need to branch in this file */
+#if defined(__unix__) || defined(__POSIX__) || \
+    defined(__APPLE__) || defined(_AIX)
 #include <unistd.h> /* unlink, rmdir, etc. */
 #else
 # include <direct.h>
@@ -545,7 +543,7 @@ static void check_utime(const char* path, double atime, double mtime) {
   ASSERT(req.result == 0);
   s = req.ptr;
 
-#if _WIN32
+#if defined(_WIN32) || defined(_AIX)
   ASSERT(s->st_atime == atime);
   ASSERT(s->st_mtime == mtime);
 #elif !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)

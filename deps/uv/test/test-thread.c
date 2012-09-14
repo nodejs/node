@@ -42,7 +42,7 @@ struct fs_req {
 };
 
 
-struct thread {
+struct test_thread {
   uv_thread_t thread_id;
   volatile int thread_called;
 };
@@ -109,7 +109,7 @@ static void do_work(void* arg) {
   uv_loop_t* loop;
   size_t i;
   int r;
-  struct thread* thread = arg;
+  struct test_thread* thread = arg;
 
   loop = uv_loop_new();
   ASSERT(loop != NULL);
@@ -162,7 +162,7 @@ TEST_IMPL(thread_create) {
  * that each "finished" callback is run in its originating thread.
  */
 TEST_IMPL(threadpool_multiple_event_loops) {
-  struct thread threads[8];
+  struct test_thread threads[8];
   size_t i;
   int r;
 

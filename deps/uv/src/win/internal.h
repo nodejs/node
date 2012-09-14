@@ -36,14 +36,14 @@
  */
 
 /* Used by all handles. */
-#define UV_HANDLE_CLOSING                       0x00000001
 #define UV_HANDLE_CLOSED                        0x00000002
 #define UV_HANDLE_ENDGAME_QUEUED                0x00000004
 #define UV_HANDLE_ACTIVE                        0x00000010
 
+/* uv-common.h: #define UV__HANDLE_CLOSING      0x00000001 */
 /* uv-common.h: #define UV__HANDLE_ACTIVE       0x00000040 */
 /* uv-common.h: #define UV__HANDLE_REF          0x00000020 */
-/* reserved: #define UV_HANDLE_INTERNAL         0x00000080 */
+/* uv-common.h: #define UV_HANDLE_INTERNAL      0x00000080 */
 
 /* Used by streams and UDP handles. */
 #define UV_HANDLE_READING                       0x00000100

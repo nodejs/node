@@ -60,11 +60,6 @@ static NOINLINE void uv__once_inner(uv_once_t* guard,
     void (*callback)(void)) {
   DWORD result;
   HANDLE existing_event, created_event;
-  HANDLE* event_ptr;
-
-  /* Fetch and align event_ptr */
-  event_ptr = (HANDLE*) (((uintptr_t) &guard->event + (sizeof(HANDLE) - 1)) &
-    ~(sizeof(HANDLE) - 1));
 
   created_event = CreateEvent(NULL, 1, 0, NULL);
   if (created_event == 0) {
@@ -72,7 +67,7 @@ static NOINLINE void uv__once_inner(uv_once_t* guard,
     uv_fatal_error(GetLastError(), "CreateEvent");
   }
 
-  existing_event = InterlockedCompareExchangePointer(event_ptr,
+  existing_event = InterlockedCompareExchangePointer(&guard->event,
                                                      created_event,
                                                      NULL);
 
