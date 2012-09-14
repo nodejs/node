@@ -166,12 +166,17 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 Handle<Value> FSEventWrap::Close(const Arguments& args) {
   HandleScope scope;
 
-  UNWRAP(FSEventWrap)
+  // Unwrap manually here. The UNWRAP() macro asserts that wrap != NULL.
+  // That usually indicates an error but not here: double closes are possible
+  // and legal, HandleWrap::Close() deals with them the same way.
+  assert(!args.Holder().IsEmpty());
+  assert(args.Holder()->InternalFieldCount() > 0);
+  void* ptr = args.Holder()->GetPointerFromInternalField(0);
+  FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
-  if (!wrap->initialized_)
-    return Undefined();
-
+  if (wrap == NULL || wrap->initialized_ == false) return Undefined();
   wrap->initialized_ = false;
+
   return HandleWrap::Close(args);
 }
 
