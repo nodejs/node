@@ -1,4 +1,47 @@
-2012.08.28, Version 0.9.1 (Unstable)
+2012.09.17, Version 0.9.2 (Unstable)
+
+* http_parser: upgrade to ad3b631
+
+* openssl: upgrade 1.0.1c
+
+* darwin: use FSEvents to watch directory changes (Fedor Indutny)
+
+* unix: support missing API on NetBSD (Shigeki Ohtsu)
+
+* unix: fix EMFILE busy loop (Ben Noordhuis)
+
+* windows: un-break writable tty handles (Bert Belder)
+
+* windows: map WSAESHUTDOWN to UV_EPIPE (Bert Belder)
+
+* windows: make spawn with custom environment work again (Bert Belder)
+
+* windows: map ERROR_DIRECTORY to UV_ENOENT (Bert Belder)
+
+* tls, https: validate server certificate by default (Ben Noordhuis)
+
+* tls, https: throw exception on missing key/cert (Ben Noordhuis)
+
+* tls: async session storage (Fedor Indutny)
+
+* installer: don't install header files (Ben Noordhuis)
+
+* buffer: implement Buffer.prototype.toJSON() (Nathan Rajlich)
+
+* buffer: added support for writing NaN and Infinity (koichik)
+
+* http: make http.ServerResponse emit 'end' (Ben Noordhuis)
+
+* build: ./configure --ninja (Ben Noordhuis, Timothy J Fontaine)
+
+* installer: fix --without-npm (Ben Noordhuis)
+
+* cli: make -p equivalent to -pe (Ben Noordhuis)
+
+* url: Go much faster by using Url class (isaacs)
+
+
+2012.08.28, Version 0.9.1 (Unstable), e6ce259d2caf338fec991c2dd447de763ce99ab7
 
 * buffer: Add Buffer.isEncoding(enc) to test for valid encoding values (isaacs)
 
