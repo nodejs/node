@@ -185,8 +185,7 @@ typedef struct {
   int fd;                                                                     \
   UV_STREAM_PRIVATE_PLATFORM_FIELDS                                           \
 
-#define UV_TCP_PRIVATE_FIELDS                                                 \
-  uv_idle_t* idle_handle;  /* for UV_TCP_SINGLE_ACCEPT handles */             \
+#define UV_TCP_PRIVATE_FIELDS /* empty */
 
 #define UV_UDP_PRIVATE_FIELDS                                                 \
   int fd;                                                                     \

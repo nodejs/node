@@ -153,7 +153,6 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
           hdrbuf_remaining = DNSREC_LEN - readbuf_remaining;
           break;
         } else {
-          short int reclen_n;
           /* save header */
           memcpy(&hdrbuf[DNSREC_LEN - hdrbuf_remaining], dnsreq, hdrbuf_remaining);
           dnsreq += hdrbuf_remaining;
@@ -161,8 +160,8 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
           hdrbuf_remaining = 0;
 
           /* get record length */
-          reclen_n = *((short int*)hdrbuf);
-          rec_remaining = ntohs(reclen_n) - (DNSREC_LEN - 2);
+          rec_remaining = (unsigned) hdrbuf[0] * 256 + (unsigned) hdrbuf[1];
+          rec_remaining -= (DNSREC_LEN - 2);
         }
       }
 

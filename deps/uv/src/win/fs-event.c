@@ -138,9 +138,6 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
   WCHAR* dir = NULL, *dir_to_watch, *filenamew = NULL;
   WCHAR short_path[MAX_PATH];
 
-  /* We don't support any flags yet. */
-  assert(!flags);
-
   uv_fs_event_init_handle(loop, handle, filename, cb);
 
   /* Convert name to UTF16. */

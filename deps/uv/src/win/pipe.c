@@ -1634,12 +1634,13 @@ static void eof_timer_close_cb(uv_handle_t* handle) {
 }
 
 
-void uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
+int uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   HANDLE os_handle = (HANDLE)_get_osfhandle(file);
 
   if (os_handle == INVALID_HANDLE_VALUE ||
       uv_set_pipe_handle(pipe->loop, pipe, os_handle, 0) == -1) {
-    return;
+    uv__set_sys_error(pipe->loop, WSAEINVAL);
+    return -1;
   }
 
   uv_pipe_connection_init(pipe);
@@ -1651,4 +1652,5 @@ void uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
     pipe->ipc_pid = uv_parent_pid();
     assert(pipe->ipc_pid != -1);
   }
+  return 0;
 }

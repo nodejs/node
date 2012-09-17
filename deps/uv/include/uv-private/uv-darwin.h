@@ -41,6 +41,9 @@
   ev_io event_watcher;                                                        \
   int fflags;                                                                 \
   int fd;                                                                     \
+  char* realpath;                                                             \
+  int realpath_len;                                                           \
+  int cf_flags;                                                               \
   void* cf_eventstream;                                                       \
   uv_async_t* cf_cb;                                                          \
   ngx_queue_t cf_events;                                                      \

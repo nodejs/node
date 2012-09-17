@@ -176,9 +176,6 @@ int uv_fs_event_init(uv_loop_t* loop,
   int events;
   int wd;
 
-  /* We don't support any flags yet. */
-  assert(!flags);
-
   if (init_inotify(loop)) return -1;
 
   events = UV__IN_ATTRIB

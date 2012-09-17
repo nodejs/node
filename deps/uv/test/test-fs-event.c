@@ -98,8 +98,7 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_RENAME);
-  ASSERT(filename == NULL || strcmp(filename, "file1") == 0 ||
-         strstr(filename, "watch_dir") != NULL);
+  ASSERT(filename == NULL || strcmp(filename, "file1") == 0);
   uv_close((uv_handle_t*)handle, close_cb);
 }
 

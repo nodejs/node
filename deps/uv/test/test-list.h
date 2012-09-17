@@ -40,6 +40,7 @@ TEST_DECLARE   (pipe_ping_pong)
 TEST_DECLARE   (delayed_accept)
 TEST_DECLARE   (multiple_listen)
 TEST_DECLARE   (tcp_writealot)
+TEST_DECLARE   (tcp_open)
 TEST_DECLARE   (tcp_connect_error_after_write)
 TEST_DECLARE   (tcp_shutdown_after_write)
 TEST_DECLARE   (tcp_bind_error_addrinuse)
@@ -69,6 +70,7 @@ TEST_DECLARE   (udp_dgram_too_big)
 TEST_DECLARE   (udp_dual_stack)
 TEST_DECLARE   (udp_ipv6_only)
 TEST_DECLARE   (udp_options)
+TEST_DECLARE   (udp_open)
 TEST_DECLARE   (pipe_bind_error_addrinuse)
 TEST_DECLARE   (pipe_bind_error_addrnotavail)
 TEST_DECLARE   (pipe_bind_error_inval)
@@ -237,6 +239,9 @@ TASK_LIST_START
   TEST_ENTRY  (tcp_writealot)
   TEST_HELPER (tcp_writealot, tcp4_echo_server)
 
+  TEST_ENTRY  (tcp_open)
+  TEST_HELPER (tcp_open, tcp4_echo_server)
+
   TEST_ENTRY  (tcp_shutdown_after_write)
   TEST_HELPER (tcp_shutdown_after_write, tcp4_echo_server)
 
@@ -270,6 +275,9 @@ TASK_LIST_START
   TEST_ENTRY  (udp_options)
   TEST_ENTRY  (udp_multicast_join)
   TEST_ENTRY  (udp_multicast_ttl)
+
+  TEST_ENTRY  (udp_open)
+  TEST_HELPER (udp_open, udp4_echo_server)
 
   TEST_ENTRY  (pipe_bind_error_addrinuse)
   TEST_ENTRY  (pipe_bind_error_addrnotavail)

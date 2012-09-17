@@ -653,6 +653,28 @@ int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
 }
 
 
+int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
+  int r;
+  DWORD yes = 1;
+
+  if (uv_udp_set_socket(handle->loop, handle, sock) == -1) {
+    return -1;
+  }
+
+  r = setsockopt(handle->socket,
+                 SOL_SOCKET,
+                 SO_REUSEADDR,
+                 (char*) &yes,
+                 sizeof yes);
+  if (r == SOCKET_ERROR) {
+    uv__set_sys_error(handle->loop, WSAGetLastError());
+    return -1;
+  }
+
+  return 0;
+}
+
+
 #define SOCKOPT_SETTER(name, option4, option6, validate)                      \
   int uv_udp_set_##name(uv_udp_t* handle, int value) {                        \
     DWORD optval = (DWORD) value;                                             \

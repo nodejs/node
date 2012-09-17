@@ -196,8 +196,6 @@ int uv_fs_event_init(uv_loop_t* loop,
   int portfd;
   int first_run = 0;
 
-  /* We don't support any flags yet. */
-  assert(!flags);
   if (loop->fs_fd == -1) {
     if ((portfd = port_create()) == -1) {
       uv__set_sys_error(loop, errno);
