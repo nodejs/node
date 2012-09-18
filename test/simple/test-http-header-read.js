@@ -30,7 +30,9 @@ var s = http.createServer(function(req, res) {
   var contentType = 'Content-Type';
   var plain = 'text/plain';
   res.setHeader(contentType, plain);
+  assert.ok(!res.headersSent);
   res.writeHead(200);
+  assert.ok(res.headersSent);
   res.end('hello world\n');
   // This checks that after the headers have been sent, getHeader works
   // and does not throw an exception (Issue 752)

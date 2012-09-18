@@ -398,6 +398,10 @@ or
 
     response.setHeader("Set-Cookie", ["type=ninja", "language=javascript"]);
 
+### response.headersSent
+
+Boolean (read-only). True if headers were sent, false otherwise.
+
 ### response.sendDate
 
 When true, the Date header will be automatically generated and sent in 
