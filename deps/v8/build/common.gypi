@@ -259,7 +259,6 @@
           'WIN32',
         ],
         'msvs_configuration_attributes': {
-          'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
@@ -344,7 +343,7 @@
         },
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
-            'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
           ['OS=="android"', {
@@ -367,10 +366,6 @@
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="android"', {
-            'cflags!': [
-              '-O2',
-              '-Os',
-            ],
             'cflags': [
               '-fdata-sections',
               '-ffunction-sections',
