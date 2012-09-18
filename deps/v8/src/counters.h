@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -169,8 +169,7 @@ struct StatsCounter {
  protected:
   // Returns the cached address of this counter location.
   int* GetPtr() {
-    if (lookup_done_)
-      return ptr_;
+    if (lookup_done_) return ptr_;
     lookup_done_ = true;
     ptr_ = FindLocationInStatsTable();
     return ptr_;
@@ -199,25 +198,30 @@ struct StatsCounterTimer {
   }
 };
 
-// A HistogramTimer allows distributions of results to be created
-// HistogramTimer t = { L"foo", NULL, false, 0, 0 };
-struct HistogramTimer {
+// A Histogram represents a dynamically created histogram in the StatsTable.
+//
+// This class is designed to be POD initialized.  It will be registered with
+// the histogram system on first use.  For example:
+//   Histogram h = { "myhist", 0, 10000, 50, NULL, false };
+struct Histogram {
   const char* name_;
+  int min_;
+  int max_;
+  int num_buckets_;
   void* histogram_;
   bool lookup_done_;
 
-  int64_t start_time_;
-  int64_t stop_time_;
+  // Add a single sample to this histogram.
+  void AddSample(int sample);
 
-  // Start the timer.
-  void Start();
+  // Returns true if this histogram is enabled.
+  bool Enabled() {
+    return GetHistogram() != NULL;
+  }
 
-  // Stop the timer and record the results.
-  void Stop();
-
-  // Returns true if the timer is running.
-  bool Running() {
-    return (histogram_ != NULL) && (start_time_ != 0) && (stop_time_ == 0);
+  // Reset the cached internal pointer.
+  void Reset() {
+    lookup_done_ = false;
   }
 
  protected:
@@ -232,6 +236,30 @@ struct HistogramTimer {
 
  private:
   void* CreateHistogram() const;
+};
+
+// A HistogramTimer allows distributions of results to be created
+// HistogramTimer t = { {L"foo", 0, 10000, 50, NULL, false}, 0, 0 };
+struct HistogramTimer {
+  Histogram histogram_;
+
+  int64_t start_time_;
+  int64_t stop_time_;
+
+  // Start the timer.
+  void Start();
+
+  // Stop the timer and record the results.
+  void Stop();
+
+  // Returns true if the timer is running.
+  bool Running() {
+    return histogram_.Enabled() && (start_time_ != 0) && (stop_time_ == 0);
+  }
+
+  void Reset() {
+    histogram_.Reset();
+  }
 };
 
 // Helper class for scoping a HistogramTimer.

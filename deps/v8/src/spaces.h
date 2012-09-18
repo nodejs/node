@@ -2496,6 +2496,10 @@ class LargeObjectSpace : public Space {
     return objects_size_;
   }
 
+  intptr_t CommittedMemory() {
+    return Size();
+  }
+
   int PageCount() {
     return page_count_;
   }

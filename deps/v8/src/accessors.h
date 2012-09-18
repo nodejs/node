@@ -85,6 +85,10 @@ class Accessors : public AllStatic {
                                                       void*);
   static MaybeObject* FunctionGetArguments(Object* object, void*);
 
+  // Accessor infos.
+  static Handle<AccessorInfo> MakeModuleExport(
+      Handle<String> name, int index, PropertyAttributes attributes);
+
  private:
   // Accessor functions only used through the descriptor.
   static MaybeObject* FunctionGetLength(Object* object, void*);

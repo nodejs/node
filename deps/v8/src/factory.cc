@@ -115,8 +115,7 @@ Handle<ObjectHashTable> Factory::NewObjectHashTable(int at_least_space_for) {
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(isolate(),
-                     DescriptorArray::Allocate(number_of_descriptors,
-                                               DescriptorArray::MAY_BE_SHARED),
+                     DescriptorArray::Allocate(number_of_descriptors),
                      DescriptorArray);
 }
 
@@ -285,19 +284,27 @@ Handle<String> Factory::NewExternalStringFromTwoByte(
 }
 
 
-Handle<Context> Factory::NewGlobalContext() {
+Handle<Context> Factory::NewNativeContext() {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateGlobalContext(),
+      isolate()->heap()->AllocateNativeContext(),
       Context);
 }
 
 
-Handle<Context> Factory::NewModuleContext(Handle<Context> previous,
+Handle<Context> Factory::NewGlobalContext(Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateModuleContext(*previous, *scope_info),
+      isolate()->heap()->AllocateGlobalContext(*function, *scope_info),
+      Context);
+}
+
+
+Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateModuleContext(*scope_info),
       Context);
 }
 
@@ -466,14 +473,15 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 }
 
 
-Handle<Map> Factory::CopyMapDropDescriptors(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->CopyDropDescriptors(), Map);
+Handle<Map> Factory::CopyWithPreallocatedFieldDescriptors(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(
+      isolate(), src->CopyWithPreallocatedFieldDescriptors(), Map);
 }
 
 
 Handle<Map> Factory::CopyMap(Handle<Map> src,
                              int extra_inobject_properties) {
-  Handle<Map> copy = CopyMapDropDescriptors(src);
+  Handle<Map> copy = CopyWithPreallocatedFieldDescriptors(src);
   // Check that we do not overflow the instance size when adding the
   // extra inobject properties.
   int instance_size_delta = extra_inobject_properties * kPointerSize;
@@ -496,10 +504,8 @@ Handle<Map> Factory::CopyMap(Handle<Map> src,
 }
 
 
-Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     src->CopyDropTransitions(DescriptorArray::MAY_BE_SHARED),
-                     Map);
+Handle<Map> Factory::CopyMap(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(isolate(), src->Copy(), Map);
 }
 
 
@@ -554,18 +560,27 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   }
 
   result->set_context(*context);
-  if (!function_info->bound()) {
+
+  int index = function_info->SearchOptimizedCodeMap(context->native_context());
+  if (!function_info->bound() && index < 0) {
     int number_of_literals = function_info->num_literals();
     Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
     if (number_of_literals > 0) {
-      // Store the object, regexp and array functions in the literals
-      // array prefix.  These functions will be used when creating
-      // object, regexp and array literals in this function.
-      literals->set(JSFunction::kLiteralGlobalContextIndex,
-                    context->global_context());
+      // Store the native context in the literals array prefix. This
+      // context will be used when creating object, regexp and array
+      // literals in this function.
+      literals->set(JSFunction::kLiteralNativeContextIndex,
+                    context->native_context());
     }
     result->set_literals(*literals);
   }
+
+  if (index > 0) {
+    // Caching of optimized code enabled and optimized code found.
+    function_info->InstallFromOptimizedCodeMap(*result, index);
+    return result;
+  }
+
   if (V8::UseCrankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&
@@ -699,7 +714,7 @@ Handle<String> Factory::EmergencyNewError(const char* type,
         MaybeObject* maybe_arg = args->GetElement(i);
         Handle<String> arg_str(reinterpret_cast<String*>(maybe_arg));
         const char* arg = *arg_str->ToCString();
-        Vector<char> v2(p, space);
+        Vector<char> v2(p, static_cast<int>(space));
         OS::StrNCpy(v2, arg, space);
         space -= Min(space, strlen(arg));
         p = &buffer[kBufferSize] - space;
@@ -879,94 +894,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code, Vector<byte> reloc_info) {
 }
 
 
-MUST_USE_RESULT static inline MaybeObject* DoCopyInsert(
-    DescriptorArray* array,
-    String* key,
-    Object* value,
-    PropertyAttributes attributes) {
-  CallbacksDescriptor desc(key, value, attributes);
-  MaybeObject* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-  return obj;
-}
-
-
-// Allocate the new array.
-Handle<DescriptorArray> Factory::CopyAppendForeignDescriptor(
-    Handle<DescriptorArray> array,
-    Handle<String> key,
-    Handle<Object> value,
-    PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     DoCopyInsert(*array, *key, *value, attributes),
-                     DescriptorArray);
-}
-
-
 Handle<String> Factory::SymbolFromString(Handle<String> value) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->LookupSymbol(*value), String);
-}
-
-
-Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
-    Handle<DescriptorArray> array,
-    Handle<Object> descriptors) {
-  v8::NeanderArray callbacks(descriptors);
-  int nof_callbacks = callbacks.length();
-  Handle<DescriptorArray> result =
-      NewDescriptorArray(array->number_of_descriptors() + nof_callbacks);
-
-  // Number of descriptors added to the result so far.
-  int descriptor_count = 0;
-
-  // Ensure that marking will not progress and change color of objects.
-  DescriptorArray::WhitenessWitness witness(*result);
-
-  // Copy the descriptors from the array.
-  for (int i = 0; i < array->number_of_descriptors(); i++) {
-    if (!array->IsNullDescriptor(i)) {
-      DescriptorArray::CopyFrom(result, descriptor_count++, array, i, witness);
-    }
-  }
-
-  // Number of duplicates detected.
-  int duplicates = 0;
-
-  // Fill in new callback descriptors.  Process the callbacks from
-  // back to front so that the last callback with a given name takes
-  // precedence over previously added callbacks with that name.
-  for (int i = nof_callbacks - 1; i >= 0; i--) {
-    Handle<AccessorInfo> entry =
-        Handle<AccessorInfo>(AccessorInfo::cast(callbacks.get(i)));
-    // Ensure the key is a symbol before writing into the instance descriptor.
-    Handle<String> key =
-        SymbolFromString(Handle<String>(String::cast(entry->name())));
-    // Check if a descriptor with this name already exists before writing.
-    if (result->LinearSearch(EXPECT_UNSORTED, *key, descriptor_count) ==
-        DescriptorArray::kNotFound) {
-      CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Set(descriptor_count, &desc, witness);
-      descriptor_count++;
-    } else {
-      duplicates++;
-    }
-  }
-
-  // If duplicates were detected, allocate a result of the right size
-  // and transfer the elements.
-  if (duplicates > 0) {
-    int number_of_descriptors = result->number_of_descriptors() - duplicates;
-    Handle<DescriptorArray> new_result =
-        NewDescriptorArray(number_of_descriptors);
-    for (int i = 0; i < number_of_descriptors; i++) {
-      DescriptorArray::CopyFrom(new_result, i, result, i, witness);
-    }
-    result = new_result;
-  }
-
-  // Sort the result before returning.
-  result->Sort(witness);
-  return result;
 }
 
 
@@ -978,10 +908,11 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 }
 
 
-Handle<JSModule> Factory::NewJSModule() {
+Handle<JSModule> Factory::NewJSModule(Handle<Context> context,
+                                      Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateJSModule(), JSModule);
+      isolate()->heap()->AllocateJSModule(*context, *scope_info), JSModule);
 }
 
 
@@ -1088,7 +1019,7 @@ void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
 }
 
 
-void Factory::SetIdentityHash(Handle<JSObject> object, Object* hash) {
+void Factory::SetIdentityHash(Handle<JSObject> object, Smi* hash) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
       object->SetIdentityHash(hash, ALLOW_CREATION));
@@ -1188,7 +1119,7 @@ Handle<JSFunction> Factory::NewFunctionHelper(Handle<String> name,
 Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         Handle<Object> prototype) {
   Handle<JSFunction> fun = NewFunctionHelper(name, prototype);
-  fun->set_context(isolate()->context()->global_context());
+  fun->set_context(isolate()->context()->native_context());
   return fun;
 }
 
@@ -1214,7 +1145,7 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
     LanguageMode language_mode) {
   Handle<JSFunction> fun =
       NewFunctionWithoutPrototypeHelper(name, language_mode);
-  fun->set_context(isolate()->context()->global_context());
+  fun->set_context(isolate()->context()->native_context());
   return fun;
 }
 
@@ -1225,8 +1156,8 @@ Handle<Object> Factory::ToObject(Handle<Object> object) {
 
 
 Handle<Object> Factory::ToObject(Handle<Object> object,
-                                 Handle<Context> global_context) {
-  CALL_HEAP_FUNCTION(isolate(), object->ToObject(*global_context), Object);
+                                 Handle<Context> native_context) {
+  CALL_HEAP_FUNCTION(isolate(), object->ToObject(*native_context), Object);
 }
 
 
@@ -1353,19 +1284,14 @@ Handle<JSFunction> Factory::CreateApiFunction(
   result->shared()->DontAdaptArguments();
 
   // Recursively copy parent templates' accessors, 'data' may be modified.
-  Handle<DescriptorArray> array =
-      Handle<DescriptorArray>(map->instance_descriptors());
   while (true) {
     Handle<Object> props = Handle<Object>(obj->property_accessors());
     if (!props->IsUndefined()) {
-      array = CopyAppendCallbackDescriptors(array, props);
+      Map::CopyAppendCallbackDescriptors(map, props);
     }
     Handle<Object> parent = Handle<Object>(obj->parent_template());
     if (parent->IsUndefined()) break;
     obj = Handle<FunctionTemplateInfo>::cast(parent);
-  }
-  if (!array->IsEmpty()) {
-    map->set_instance_descriptors(*array);
   }
 
   ASSERT(result->shared()->IsApiFunction());
@@ -1403,7 +1329,7 @@ Handle<MapCache> Factory::AddToMapCache(Handle<Context> context,
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
                                                Handle<FixedArray> keys) {
   if (context->map_cache()->IsUndefined()) {
-    // Allocate the new map cache for the global context.
+    // Allocate the new map cache for the native context.
     Handle<MapCache> new_cache = NewMapCache(24);
     context->set_map_cache(*new_cache);
   }

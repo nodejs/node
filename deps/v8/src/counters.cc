@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -64,9 +64,20 @@ void StatsCounterTimer::Stop() {
   counter_.Increment(milliseconds);
 }
 
+void Histogram::AddSample(int sample) {
+  if (Enabled()) {
+    Isolate::Current()->stats_table()->AddHistogramSample(histogram_, sample);
+  }
+}
+
+void* Histogram::CreateHistogram() const {
+  return Isolate::Current()->stats_table()->
+      CreateHistogram(name_, min_, max_, num_buckets_);
+}
+
 // Start the timer.
 void HistogramTimer::Start() {
-  if (GetHistogram() != NULL) {
+  if (histogram_.Enabled()) {
     stop_time_ = 0;
     start_time_ = OS::Ticks();
   }
@@ -74,20 +85,13 @@ void HistogramTimer::Start() {
 
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {
-  if (histogram_ != NULL) {
+  if (histogram_.Enabled()) {
     stop_time_ = OS::Ticks();
 
     // Compute the delta between start and stop, in milliseconds.
     int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-    Isolate::Current()->stats_table()->
-        AddHistogramSample(histogram_, milliseconds);
+    histogram_.AddSample(milliseconds);
   }
-}
-
-
-void* HistogramTimer::CreateHistogram() const {
-  return Isolate::Current()->stats_table()->
-      CreateHistogram(name_, 0, 10000, 50);
 }
 
 } }  // namespace v8::internal

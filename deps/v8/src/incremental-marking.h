@@ -53,6 +53,8 @@ class IncrementalMarking {
 
   explicit IncrementalMarking(Heap* heap);
 
+  static void Initialize();
+
   void TearDown();
 
   State state() {
@@ -215,8 +217,9 @@ class IncrementalMarking {
     if (IsMarking()) {
       if (allocation_marking_factor_ < kFastMarking) {
         if (FLAG_trace_gc) {
-          PrintF("Increasing marking speed to %d due to high promotion rate\n",
-                 static_cast<int>(kFastMarking));
+          PrintPID("Increasing marking speed to %d "
+                   "due to high promotion rate\n",
+                   static_cast<int>(kFastMarking));
         }
         allocation_marking_factor_ = kFastMarking;
       }
@@ -257,8 +260,6 @@ class IncrementalMarking {
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
   void EnsureMarkingDequeIsCommitted();
-
-  void VisitGlobalContext(Context* ctx, ObjectVisitor* v);
 
   Heap* heap_;
 

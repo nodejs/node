@@ -52,7 +52,7 @@ void TestSeeds(Handle<JSFunction> fun,
                uint32_t state0,
                uint32_t state1) {
   bool has_pending_exception;
-  Handle<JSObject> global(context->global());
+  Handle<JSObject> global(context->global_object());
   Handle<ByteArray> seeds(context->random_seed());
 
   SetSeeds(seeds, state0, state1);
@@ -77,7 +77,7 @@ TEST(CrankshaftRandom) {
   env->Enter();
 
   Handle<Context> context(Isolate::Current()->context());
-  Handle<JSObject> global(context->global());
+  Handle<JSObject> global(context->global_object());
   Handle<ByteArray> seeds(context->random_seed());
   bool has_pending_exception;
 
@@ -85,7 +85,7 @@ TEST(CrankshaftRandom) {
 
   Object* symbol = FACTORY->LookupAsciiSymbol("f")->ToObjectChecked();
   MaybeObject* fun_object =
-      context->global()->GetProperty(String::cast(symbol));
+      context->global_object()->GetProperty(String::cast(symbol));
   Handle<JSFunction> fun(JSFunction::cast(fun_object->ToObjectChecked()));
 
   // Optimize function.

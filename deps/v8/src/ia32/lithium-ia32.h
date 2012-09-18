@@ -102,6 +102,7 @@ class LCodeGen;
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
+  V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsNilAndBranch)                             \
@@ -109,7 +110,6 @@ class LCodeGen;
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
-  V(StringCompareAndBranch)                     \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -126,11 +126,15 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
+  V(MapEnumLength)                              \
+  V(MathFloorOfDiv)                             \
+  V(MathMinMax)                                 \
   V(MathPowHalf)                                \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
+  V(NumberTagU)                                 \
   V(NumberUntagD)                               \
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
@@ -157,6 +161,7 @@ class LCodeGen;
   V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
+  V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -252,8 +257,6 @@ class LInstruction: public ZoneObject {
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
 
-  virtual int InputCount() = 0;
-  virtual LOperand* InputAt(int i) = 0;
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
@@ -265,6 +268,11 @@ class LInstruction: public ZoneObject {
 #endif
 
  private:
+  // Iterator support.
+  friend class InputIterator;
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
@@ -284,7 +292,6 @@ class LTemplateInstruction: public LInstruction {
   void set_result(LOperand* operand) { results_[0] = operand; }
   LOperand* result() { return results_[0]; }
 
-  int InputCount() { return I; }
   LOperand* InputAt(int i) { return inputs_[i]; }
 
   int TempCount() { return T; }
@@ -294,6 +301,9 @@ class LTemplateInstruction: public LInstruction {
   EmbeddedContainer<LOperand*, R> results_;
   EmbeddedContainer<LOperand*, I> inputs_;
   EmbeddedContainer<LOperand*, T> temps_;
+
+ private:
+  virtual int InputCount() { return I; }
 };
 
 
@@ -543,6 +553,21 @@ class LDivI: public LTemplateInstruction<1, 2, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(Div)
+};
+
+
+class LMathFloorOfDiv: public LTemplateInstruction<1, 2, 1> {
+ public:
+  LMathFloorOfDiv(LOperand* left,
+                  LOperand* right,
+                  LOperand* temp = NULL) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFloorOfDiv, "math-floor-of-div")
+  DECLARE_HYDROGEN_ACCESSOR(MathFloorOfDiv)
 };
 
 
@@ -856,6 +881,7 @@ class LBoundsCheck: public LTemplateInstruction<0, 2, 0> {
   LOperand* length() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck, "bounds-check")
+  DECLARE_HYDROGEN_ACCESSOR(BoundsCheck)
 };
 
 
@@ -994,6 +1020,16 @@ class LFixedArrayBaseLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LMapEnumLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMapEnumLength(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength, "map-enum-length")
+};
+
+
 class LElementsKind: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LElementsKind(LOperand* value) {
@@ -1068,6 +1104,18 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LMathMinMax: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LMathMinMax(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "min-max")
+  DECLARE_HYDROGEN_ACCESSOR(MathMinMax)
 };
 
 
@@ -1259,6 +1307,19 @@ class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
   LOperand* key() { return inputs_[1]; }
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
+
+
+inline static bool ExternalArrayOpRequiresTemp(
+    Representation key_representation,
+    ElementsKind elements_kind) {
+  // Operations that require the key to be divided by two to be converted into
+  // an index cannot fold the scale operation into a load and need an extra
+  // temp register to do the work.
+  return key_representation.IsTagged() &&
+      (elements_kind == EXTERNAL_BYTE_ELEMENTS ||
+       elements_kind == EXTERNAL_UNSIGNED_BYTE_ELEMENTS ||
+       elements_kind == EXTERNAL_PIXEL_ELEMENTS);
+}
 
 
 class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
@@ -1628,6 +1689,17 @@ class LInteger32ToDouble: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LUint32ToDouble: public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LUint32ToDouble(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
+};
+
+
 class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LNumberTagI(LOperand* value) {
@@ -1635,6 +1707,17 @@ class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagI, "number-tag-i")
+};
+
+
+class LNumberTagU: public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LNumberTagU(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(NumberTagU, "number-tag-u")
 };
 
 
@@ -2303,74 +2386,19 @@ class LLoadFieldByIndex: public LTemplateInstruction<1, 2, 0> {
 
 
 class LChunkBuilder;
-class LChunk: public ZoneObject {
+class LPlatformChunk: public LChunk {
  public:
-  LChunk(CompilationInfo* info, HGraph* graph)
-    : spill_slot_count_(0),
-      num_double_slots_(0),
-      info_(info),
-      graph_(graph),
-      instructions_(32, graph->zone()),
-      pointer_maps_(8, graph->zone()),
-      inlined_closures_(1, graph->zone()) { }
-
-  void AddInstruction(LInstruction* instruction, HBasicBlock* block);
-  LConstantOperand* DefineConstantOperand(HConstant* constant);
-  Handle<Object> LookupLiteral(LConstantOperand* operand) const;
-  Representation LookupLiteralRepresentation(LConstantOperand* operand) const;
+  LPlatformChunk(CompilationInfo* info, HGraph* graph)
+      : LChunk(info, graph),
+        num_double_slots_(0) { }
 
   int GetNextSpillIndex(bool is_double);
   LOperand* GetNextSpillSlot(bool is_double);
 
-  int ParameterAt(int index);
-  int GetParameterStackSlot(int index) const;
-  int spill_slot_count() const { return spill_slot_count_; }
   int num_double_slots() const { return num_double_slots_; }
-  CompilationInfo* info() const { return info_; }
-  HGraph* graph() const { return graph_; }
-  const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
-  void AddGapMove(int index, LOperand* from, LOperand* to);
-  LGap* GetGapAt(int index) const;
-  bool IsGapAt(int index) const;
-  int NearestGapPos(int index) const;
-  void MarkEmptyBlocks();
-  const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
-  LLabel* GetLabel(int block_id) const {
-    HBasicBlock* block = graph_->blocks()->at(block_id);
-    int first_instruction = block->first_instruction_index();
-    return LLabel::cast(instructions_[first_instruction]);
-  }
-  int LookupDestination(int block_id) const {
-    LLabel* cur = GetLabel(block_id);
-    while (cur->replacement() != NULL) {
-      cur = cur->replacement();
-    }
-    return cur->block_id();
-  }
-  Label* GetAssemblyLabel(int block_id) const {
-    LLabel* label = GetLabel(block_id);
-    ASSERT(!label->HasReplacement());
-    return label->label();
-  }
-
-  const ZoneList<Handle<JSFunction> >* inlined_closures() const {
-    return &inlined_closures_;
-  }
-
-  void AddInlinedClosure(Handle<JSFunction> closure) {
-    inlined_closures_.Add(closure, zone());
-  }
-
-  Zone* zone() const { return graph_->zone(); }
 
  private:
-  int spill_slot_count_;
   int num_double_slots_;
-  CompilationInfo* info_;
-  HGraph* const graph_;
-  ZoneList<LInstruction*> instructions_;
-  ZoneList<LPointerMap*> pointer_maps_;
-  ZoneList<Handle<JSFunction> > inlined_closures_;
 };
 
 
@@ -2389,15 +2417,18 @@ class LChunkBuilder BASE_EMBEDDED {
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(AstNode::kNoNumber) { }
+        pending_deoptimization_ast_id_(BailoutId::None()) { }
 
   // Build the sequence for the graph.
-  LChunk* Build();
+  LPlatformChunk* Build();
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
+
+  static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* val);
+  static HValue* SimplifiedDivisorForMathFloorOfDiv(HValue* val);
 
  private:
   enum Status {
@@ -2407,7 +2438,7 @@ class LChunkBuilder BASE_EMBEDDED {
     ABORTED
   };
 
-  LChunk* chunk() const { return chunk_; }
+  LPlatformChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
@@ -2417,7 +2448,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* format, ...);
+  void Abort(const char* reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
@@ -2511,7 +2542,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LInstruction* DoArithmeticT(Token::Value op,
                               HArithmeticBinaryOperation* instr);
 
-  LChunk* chunk_;
+  LPlatformChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
   Zone* zone_;
@@ -2523,7 +2554,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LAllocator* allocator_;
   int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
-  int pending_deoptimization_ast_id_;
+  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

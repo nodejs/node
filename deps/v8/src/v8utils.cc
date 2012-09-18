@@ -53,6 +53,15 @@ void PrintF(FILE* out, const char* format, ...) {
 }
 
 
+void PrintPID(const char* format, ...) {
+  OS::Print("[%d] ", OS::GetCurrentProcessId());
+  va_list arguments;
+  va_start(arguments, format);
+  OS::VPrint(format, arguments);
+  va_end(arguments);
+}
+
+
 void Flush(FILE* out) {
   fflush(out);
 }

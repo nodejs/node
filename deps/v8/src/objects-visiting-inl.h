@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -56,7 +56,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
 
-  table_.Register(kVisitGlobalContext,
+  table_.Register(kVisitNativeContext,
                   &FixedBodyVisitor<StaticVisitor,
                   Context::ScavengeBodyDescriptor,
                   int>::Visit);
@@ -90,6 +90,182 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
   table_.template RegisterSpecializations<StructVisitor,
                                           kVisitStruct,
                                           kVisitStructGeneric>();
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::Initialize() {
+  table_.Register(kVisitShortcutCandidate,
+                  &FixedBodyVisitor<StaticVisitor,
+                  ConsString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitConsString,
+                  &FixedBodyVisitor<StaticVisitor,
+                  ConsString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitSlicedString,
+                  &FixedBodyVisitor<StaticVisitor,
+                  SlicedString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitFixedArray,
+                  &FlexibleBodyVisitor<StaticVisitor,
+                  FixedArray::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitNativeContext, &VisitNativeContext);
+
+  table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
+
+  table_.Register(kVisitJSWeakMap, &StaticVisitor::VisitJSWeakMap);
+
+  table_.Register(kVisitOddball,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Oddball::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitMap,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Map::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitCode, &StaticVisitor::VisitCode);
+
+  // Registration for kVisitSharedFunctionInfo is done by StaticVisitor.
+
+  // Registration for kVisitJSFunction is done by StaticVisitor.
+
+  // Registration for kVisitJSRegExp is done by StaticVisitor.
+
+  table_.Register(kVisitPropertyCell,
+                  &FixedBodyVisitor<StaticVisitor,
+                  JSGlobalPropertyCell::BodyDescriptor,
+                  void>::Visit);
+
+  table_.template RegisterSpecializations<DataObjectVisitor,
+                                          kVisitDataObject,
+                                          kVisitDataObjectGeneric>();
+
+  table_.template RegisterSpecializations<JSObjectVisitor,
+                                          kVisitJSObject,
+                                          kVisitJSObjectGeneric>();
+
+  table_.template RegisterSpecializations<StructObjectVisitor,
+                                          kVisitStruct,
+                                          kVisitStructGeneric>();
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCodeEntry(
+    Heap* heap, Address entry_address) {
+  Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
+  heap->mark_compact_collector()->RecordCodeEntrySlot(entry_address, code);
+  StaticVisitor::MarkObject(heap, code);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  ASSERT(!rinfo->target_object()->IsConsString());
+  HeapObject* object = HeapObject::cast(rinfo->target_object());
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
+  StaticVisitor::MarkObject(heap, object);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitGlobalPropertyCell(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(rinfo->rmode() == RelocInfo::GLOBAL_PROPERTY_CELL);
+  JSGlobalPropertyCell* cell = rinfo->target_cell();
+  StaticVisitor::MarkObject(heap, cell);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+          rinfo->IsPatchedReturnSequence()) ||
+         (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
+          rinfo->IsPatchedDebugBreakSlotSequence()));
+  Code* target = Code::GetCodeFromTargetAddress(rinfo->call_address());
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  StaticVisitor::MarkObject(heap, target);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
+    Heap* heap, RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  // Monomorphic ICs are preserved when possible, but need to be flushed
+  // when they might be keeping a Context alive, or when the heap is about
+  // to be serialized.
+  if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
+      && (target->ic_state() == MEGAMORPHIC || Serializer::enabled() ||
+          heap->isolate()->context_exit_happened() ||
+          target->ic_age() != heap->global_ic_age())) {
+    IC::Clear(rinfo->pc());
+    target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+  }
+  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
+  StaticVisitor::MarkObject(heap, target);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
+    Map* map, HeapObject* object) {
+  FixedBodyVisitor<StaticVisitor,
+                   Context::MarkCompactBodyDescriptor,
+                   void>::Visit(map, object);
+
+  MarkCompactCollector* collector = map->GetHeap()->mark_compact_collector();
+  for (int idx = Context::FIRST_WEAK_SLOT;
+       idx < Context::NATIVE_CONTEXT_SLOTS;
+       ++idx) {
+    Object** slot =
+        HeapObject::RawField(object, FixedArray::OffsetOfElementAt(idx));
+    collector->RecordSlot(slot, slot, *slot);
+  }
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitCode(
+    Map* map, HeapObject* object) {
+  Heap* heap = map->GetHeap();
+  Code* code = Code::cast(object);
+  if (FLAG_cleanup_code_caches_at_gc) {
+    code->ClearTypeFeedbackCells(heap);
+  }
+  code->CodeIterateBody<StaticVisitor>(heap);
+}
+
+
+template<typename StaticVisitor>
+void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(
+    Map* map, HeapObject* object) {
+  int last_property_offset =
+      JSRegExp::kSize + kPointerSize * map->inobject_properties();
+  StaticVisitor::VisitPointers(map->GetHeap(),
+      HeapObject::RawField(object, JSRegExp::kPropertiesOffset),
+      HeapObject::RawField(object, last_property_offset));
 }
 
 

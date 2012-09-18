@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -154,6 +154,7 @@ var FUNCTION_TYPE = 'function';
 var REGEXP_TYPE = 'regexp';
 var ERROR_TYPE = 'error';
 var PROPERTY_TYPE = 'property';
+var INTERNAL_PROPERTY_TYPE = 'internalProperty';
 var FRAME_TYPE = 'frame';
 var SCRIPT_TYPE = 'script';
 var CONTEXT_TYPE = 'context';
@@ -176,10 +177,8 @@ PropertyType.ConstantFunction        = 2;
 PropertyType.Callbacks               = 3;
 PropertyType.Handler                 = 4;
 PropertyType.Interceptor             = 5;
-PropertyType.MapTransition           = 6;
-PropertyType.ExternalArrayTransition = 7;
-PropertyType.ConstantTransition      = 8;
-PropertyType.NullDescriptor          = 9;
+PropertyType.Transition              = 6;
+PropertyType.Nonexistent             = 7;
 
 
 // Different attributes for a property.
@@ -214,6 +213,7 @@ var ScopeType = { Global: 0,
 //         - RegExpMirror
 //         - ErrorMirror
 //     - PropertyMirror
+//     - InternalPropertyMirror
 //     - FrameMirror
 //     - ScriptMirror
 
@@ -356,6 +356,15 @@ Mirror.prototype.isError = function() {
  */
 Mirror.prototype.isProperty = function() {
   return this instanceof PropertyMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects an internal property.
+ * @returns {boolean} True if the mirror reflects an internal property
+ */
+Mirror.prototype.isInternalProperty = function() {
+  return this instanceof InternalPropertyMirror;
 };
 
 
@@ -596,23 +605,6 @@ ObjectMirror.prototype.protoObject = function() {
 };
 
 
-/**
- * Return the primitive value if this is object of Boolean, Number or String
- * type (but not Date). Otherwise return undefined.
- */
-ObjectMirror.prototype.primitiveValue = function() {
-  if (!IS_STRING_WRAPPER(this.value_) && !IS_NUMBER_WRAPPER(this.value_) &&
-      !IS_BOOLEAN_WRAPPER(this.value_)) {
-    return void 0;
-  }
-  var primitiveValue = %_ValueOf(this.value_);
-  if (IS_UNDEFINED(primitiveValue)) {
-    return void 0;
-  }
-  return MakeMirror(primitiveValue);
-};
-
-
 ObjectMirror.prototype.hasNamedInterceptor = function() {
   // Get information on interceptors for this object.
   var x = %GetInterceptorInfo(this.value_);
@@ -703,7 +695,7 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
  * Return the properties for this object as an array of PropertyMirror objects.
  * @param {number} kind Indicate whether named, indexed or both kinds of
  *     properties are requested
- * @param {number} limit Limit the number of properties returend to the
+ * @param {number} limit Limit the number of properties returned to the
        specified value
  * @return {Array} Property mirrors for this object
  */
@@ -716,6 +708,16 @@ ObjectMirror.prototype.properties = function(kind, limit) {
 
   return properties;
 };
+
+
+/**
+ * Return the internal properties for this object as an array of
+ * InternalPropertyMirror objects.
+ * @return {Array} Property mirrors for this object
+ */
+ObjectMirror.prototype.internalProperties = function() {
+  return ObjectMirror.GetInternalProperties(this.value_);
+}
 
 
 ObjectMirror.prototype.property = function(name) {
@@ -789,6 +791,37 @@ ObjectMirror.prototype.toText = function() {
   }
   return '#<' + name + '>';
 };
+
+
+/**
+ * Return the internal properties of the value, such as [[PrimitiveValue]] of
+ * scalar wrapper objects and properties of the bound function.
+ * This method is done static to be accessible from Debug API with the bare
+ * values without mirrors.
+ * @return {Array} array (possibly empty) of InternalProperty instances
+ */
+ObjectMirror.GetInternalProperties = function(value) {
+  if (IS_STRING_WRAPPER(value) || IS_NUMBER_WRAPPER(value) ||
+      IS_BOOLEAN_WRAPPER(value)) {
+    var primitiveValue = %_ValueOf(value);
+    return [new InternalPropertyMirror("[[PrimitiveValue]]", primitiveValue)];
+  } else if (IS_FUNCTION(value)) {
+    var bindings = %BoundFunctionGetBindings(value);
+    var result = [];
+    if (bindings && IS_ARRAY(bindings)) {
+      result.push(new InternalPropertyMirror("[[TargetFunction]]",
+                                             bindings[0]));
+      result.push(new InternalPropertyMirror("[[BoundThis]]", bindings[1]));
+      var boundArgs = [];
+      for (var i = 2; i < bindings.length; i++) {
+        boundArgs.push(bindings[i]);
+      }
+      result.push(new InternalPropertyMirror("[[BoundArgs]]", boundArgs));
+    }
+    return result;
+  }
+  return [];
+}
 
 
 /**
@@ -1267,6 +1300,33 @@ PropertyMirror.prototype.isNative = function() {
   return (this.propertyType() == PropertyType.Interceptor) ||
          ((this.propertyType() == PropertyType.Callbacks) &&
           !this.hasGetter() && !this.hasSetter());
+};
+
+
+/**
+ * Mirror object for internal properties. Internal property reflects properties
+ * not accessible from user code such as [[BoundThis]] in bound function.
+ * Their names are merely symbolic.
+ * @param {string} name The name of the property
+ * @param {value} property value
+ * @constructor
+ * @extends Mirror
+ */
+function InternalPropertyMirror(name, value) {
+  %_CallFunction(this, INTERNAL_PROPERTY_TYPE, Mirror);
+  this.name_ = name;
+  this.value_ = value;
+}
+inherits(InternalPropertyMirror, Mirror);
+
+
+InternalPropertyMirror.prototype.name = function() {
+  return this.name_;
+};
+
+
+InternalPropertyMirror.prototype.value = function() {
+  return MakeMirror(this.value_, false);
 };
 
 
@@ -1750,6 +1810,15 @@ FrameMirror.prototype.localsText = function() {
 };
 
 
+FrameMirror.prototype.restart = function() {
+  var result = %LiveEditRestartFrame(this.break_id_, this.index_);
+  if (IS_UNDEFINED(result)) {
+    result = "Failed to find requested frame";
+  }
+  return result;
+};
+
+
 FrameMirror.prototype.toText = function(opt_locals) {
   var result = '';
   result += '#' + (this.index() <= 9 ? '0' : '') + this.index();
@@ -2195,7 +2264,8 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
       break;
 
     case PROPERTY_TYPE:
-      throw new Error('PropertyMirror cannot be serialized independeltly');
+    case INTERNAL_PROPERTY_TYPE:
+      throw new Error('PropertyMirror cannot be serialized independently');
       break;
 
     case FRAME_TYPE:
@@ -2271,7 +2341,8 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
  *    "prototypeObject":{"ref":<number>},
  *    "namedInterceptor":<boolean>,
  *    "indexedInterceptor":<boolean>,
- *    "properties":[<properties>]}
+ *    "properties":[<properties>],
+ *    "internalProperties":[<internal properties>]}
  */
 JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
                                                              details) {
@@ -2281,11 +2352,6 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
       this.serializeReference(mirror.constructorFunction());
   content.protoObject = this.serializeReference(mirror.protoObject());
   content.prototypeObject = this.serializeReference(mirror.prototypeObject());
-
-  var primitiveValue = mirror.primitiveValue();
-  if (!IS_UNDEFINED(primitiveValue)) {
-    content.primitiveValue = this.serializeReference(primitiveValue);
-  }
 
   // Add flags to indicate whether there are interceptors.
   if (mirror.hasNamedInterceptor()) {
@@ -2348,6 +2414,15 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
     }
   }
   content.properties = p;
+
+  var internalProperties = mirror.internalProperties();
+  if (internalProperties.length > 0) {
+    var ip = [];
+    for (var i = 0; i < internalProperties.length; i++) {
+      ip.push(this.serializeInternalProperty_(internalProperties[i]));
+    }
+    content.internalProperties = ip;
+  }
 };
 
 
@@ -2409,6 +2484,33 @@ JSONProtocolSerializer.prototype.serializeProperty_ = function(propertyMirror) {
     if (propertyMirror.propertyType() != PropertyType.Normal) {
       result.propertyType = propertyMirror.propertyType();
     }
+    result.ref = propertyValue.handle();
+  }
+  return result;
+};
+
+
+/**
+ * Serialize internal property information to the following JSON format for
+ * building the array of properties.
+ *
+ *   {"name":"<property name>",
+ *    "ref":<number>}
+ *
+ *   {"name":"[[BoundThis]]","ref":117}
+ *
+ * @param {InternalPropertyMirror} propertyMirror The property to serialize.
+ * @returns {Object} Protocol object representing the property.
+ */
+JSONProtocolSerializer.prototype.serializeInternalProperty_ =
+    function(propertyMirror) {
+  var result = {};
+
+  result.name = propertyMirror.name();
+  var propertyValue = propertyMirror.value();
+  if (this.inlineRefs_() && propertyValue.isValue()) {
+    result.value = this.serializeReferenceWithDisplayData_(propertyValue);
+  } else {
     result.ref = propertyValue.handle();
   }
   return result;

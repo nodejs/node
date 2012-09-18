@@ -149,25 +149,31 @@ T** HandleScope::CreateHandle(T* value, Isolate* isolate) {
 
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation() {
+  Isolate* isolate = Isolate::Current();
   v8::ImplementationUtilities::HandleScopeData* current =
-      Isolate::Current()->handle_scope_data();
+      isolate->handle_scope_data();
 
-  // Shrink the current handle scope to make it impossible to do
-  // handle allocations without an explicit handle scope.
-  current->limit = current->next;
+  active_ = !isolate->optimizing_compiler_thread()->IsOptimizerThread();
+  if (active_) {
+    // Shrink the current handle scope to make it impossible to do
+    // handle allocations without an explicit handle scope.
+    current->limit = current->next;
 
-  level_ = current->level;
-  current->level = 0;
+    level_ = current->level;
+    current->level = 0;
+  }
 }
 
 
 inline NoHandleAllocation::~NoHandleAllocation() {
-  // Restore state in current handle scope to re-enable handle
-  // allocations.
-  v8::ImplementationUtilities::HandleScopeData* data =
-      Isolate::Current()->handle_scope_data();
-  ASSERT_EQ(0, data->level);
-  data->level = level_;
+  if (active_) {
+    // Restore state in current handle scope to re-enable handle
+    // allocations.
+    v8::ImplementationUtilities::HandleScopeData* data =
+        Isolate::Current()->handle_scope_data();
+    ASSERT_EQ(0, data->level);
+    data->level = level_;
+  }
 }
 #endif
 

@@ -57,6 +57,9 @@ namespace internal {
 void PRINTF_CHECKING PrintF(const char* format, ...);
 void FPRINTF_CHECKING PrintF(FILE* out, const char* format, ...);
 
+// Prepends the current process ID to the output.
+void PRINTF_CHECKING PrintPID(const char* format, ...);
+
 // Our version of fflush.
 void Flush(FILE* out);
 

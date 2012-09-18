@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,19 +49,19 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
       JSON.stringify(serializer.serializeReferencedObjects()));
 
   // Check the mirror hierachy.
-  assertTrue(mirror instanceof debug.Mirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror instanceof debug.ValueMirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror instanceof debug.ObjectMirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror instanceof debug.Mirror, 'Unexpected mirror hierarchy');
+  assertTrue(mirror instanceof debug.ValueMirror, 'Unexpected mirror hierarchy');
+  assertTrue(mirror instanceof debug.ObjectMirror, 'Unexpected mirror hierarchy');
 
   // Check the mirror properties.
   assertTrue(mirror.isObject(), 'Unexpected mirror');
   assertEquals('object', mirror.type(), 'Unexpected mirror type');
   assertFalse(mirror.isPrimitive(), 'Unexpected primitive mirror');
   assertEquals(cls_name, mirror.className(), 'Unexpected mirror class name');
-  assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror, 'Unexpected mirror hierarchy');
   assertEquals(ctor_name, mirror.constructorFunction().name(), 'Unexpected constructor function name');
-  assertTrue(mirror.protoObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror.prototypeObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror.protoObject() instanceof debug.Mirror, 'Unexpected mirror hierarchy');
+  assertTrue(mirror.prototypeObject() instanceof debug.Mirror, 'Unexpected mirror hierarchy');
   assertFalse(mirror.hasNamedInterceptor(), 'No named interceptor expected');
   assertFalse(mirror.hasIndexedInterceptor(), 'No indexed interceptor expected');
 
@@ -69,10 +69,17 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
   var properties = mirror.properties();
   assertEquals(names.length, properties.length);
   for (var i = 0; i < properties.length; i++) {
-    assertTrue(properties[i] instanceof debug.Mirror, 'Unexpected mirror hierachy');
-    assertTrue(properties[i] instanceof debug.PropertyMirror, 'Unexpected mirror hierachy');
+    assertTrue(properties[i] instanceof debug.Mirror, 'Unexpected mirror hierarchy');
+    assertTrue(properties[i] instanceof debug.PropertyMirror, 'Unexpected mirror hierarchy');
     assertEquals('property', properties[i].type(), 'Unexpected mirror type');
     assertEquals(names[i], properties[i].name(), 'Unexpected property name');
+  }
+
+  var internalProperties = mirror.internalProperties();
+  for (var i = 0; i < internalProperties.length; i++) {
+    assertTrue(internalProperties[i] instanceof debug.Mirror, 'Unexpected mirror hierarchy');
+    assertTrue(internalProperties[i] instanceof debug.InternalPropertyMirror, 'Unexpected mirror hierarchy');
+    assertEquals('internalProperty', internalProperties[i].type(), 'Unexpected mirror type');
   }
 
   for (var p in obj) {
@@ -172,6 +179,7 @@ testObjectMirror(this, 'global', '', true);  // Global object has special proper
 testObjectMirror(this.__proto__, 'Object', '');
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
+testObjectMirror(Object(17), 'Number', 'Number');
 
 // Test circular references.
 o = {};
@@ -230,3 +238,29 @@ assertTrue(mirror.property('length').isNative());
 assertEquals('a', mirror.property(0).value().value());
 assertEquals('b', mirror.property(1).value().value());
 assertEquals('c', mirror.property(2).value().value());
+
+// Test value wrapper internal properties.
+mirror = debug.MakeMirror(Object("Capybara"));
+var ip = mirror.internalProperties();
+assertEquals(1, ip.length);
+assertEquals("[[PrimitiveValue]]", ip[0].name());
+assertEquals("string", ip[0].value().type());
+assertEquals("Capybara", ip[0].value().value());
+
+// Test bound function internal properties.
+mirror = debug.MakeMirror(Number.bind(Array, 2));
+ip = mirror.internalProperties();
+assertEquals(3, ip.length);
+var property_map = {};
+for (var i = 0; i < ip.length; i++) {
+  property_map[ip[i].name()] = ip[i];
+}
+assertTrue("[[BoundThis]]" in property_map);
+assertEquals("function", property_map["[[BoundThis]]"].value().type());
+assertEquals(Array, property_map["[[BoundThis]]"].value().value());
+assertTrue("[[TargetFunction]]" in property_map);
+assertEquals("function", property_map["[[TargetFunction]]"].value().type());
+assertEquals(Number, property_map["[[TargetFunction]]"].value().value());
+assertTrue("[[BoundArgs]]" in property_map);
+assertEquals("object", property_map["[[BoundArgs]]"].value().type());
+assertEquals(1, property_map["[[BoundArgs]]"].value().value().length);

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -46,71 +46,70 @@ namespace internal {
 // Base class for all static visitors.
 class StaticVisitorBase : public AllStatic {
  public:
+#define VISITOR_ID_LIST(V)    \
+  V(SeqAsciiString)           \
+  V(SeqTwoByteString)         \
+  V(ShortcutCandidate)        \
+  V(ByteArray)                \
+  V(FreeSpace)                \
+  V(FixedArray)               \
+  V(FixedDoubleArray)         \
+  V(NativeContext)            \
+  V(DataObject2)              \
+  V(DataObject3)              \
+  V(DataObject4)              \
+  V(DataObject5)              \
+  V(DataObject6)              \
+  V(DataObject7)              \
+  V(DataObject8)              \
+  V(DataObject9)              \
+  V(DataObjectGeneric)        \
+  V(JSObject2)                \
+  V(JSObject3)                \
+  V(JSObject4)                \
+  V(JSObject5)                \
+  V(JSObject6)                \
+  V(JSObject7)                \
+  V(JSObject8)                \
+  V(JSObject9)                \
+  V(JSObjectGeneric)          \
+  V(Struct2)                  \
+  V(Struct3)                  \
+  V(Struct4)                  \
+  V(Struct5)                  \
+  V(Struct6)                  \
+  V(Struct7)                  \
+  V(Struct8)                  \
+  V(Struct9)                  \
+  V(StructGeneric)            \
+  V(ConsString)               \
+  V(SlicedString)             \
+  V(Oddball)                  \
+  V(Code)                     \
+  V(Map)                      \
+  V(PropertyCell)             \
+  V(SharedFunctionInfo)       \
+  V(JSFunction)               \
+  V(JSWeakMap)                \
+  V(JSRegExp)
+
+  // For data objects, JS objects and structs along with generic visitor which
+  // can visit object of any size we provide visitors specialized by
+  // object size in words.
+  // Ids of specialized visitors are declared in a linear order (without
+  // holes) starting from the id of visitor specialized for 2 words objects
+  // (base visitor id) and ending with the id of generic visitor.
+  // Method GetVisitorIdForSize depends on this ordering to calculate visitor
+  // id of specialized visitor from given instance size, base visitor id and
+  // generic visitor's id.
   enum VisitorId {
-    kVisitSeqAsciiString = 0,
-    kVisitSeqTwoByteString,
-    kVisitShortcutCandidate,
-    kVisitByteArray,
-    kVisitFreeSpace,
-    kVisitFixedArray,
-    kVisitFixedDoubleArray,
-    kVisitGlobalContext,
-
-    // For data objects, JS objects and structs along with generic visitor which
-    // can visit object of any size we provide visitors specialized by
-    // object size in words.
-    // Ids of specialized visitors are declared in a linear order (without
-    // holes) starting from the id of visitor specialized for 2 words objects
-    // (base visitor id) and ending with the id of generic visitor.
-    // Method GetVisitorIdForSize depends on this ordering to calculate visitor
-    // id of specialized visitor from given instance size, base visitor id and
-    // generic visitor's id.
-
-    kVisitDataObject,
-    kVisitDataObject2 = kVisitDataObject,
-    kVisitDataObject3,
-    kVisitDataObject4,
-    kVisitDataObject5,
-    kVisitDataObject6,
-    kVisitDataObject7,
-    kVisitDataObject8,
-    kVisitDataObject9,
-    kVisitDataObjectGeneric,
-
-    kVisitJSObject,
-    kVisitJSObject2 = kVisitJSObject,
-    kVisitJSObject3,
-    kVisitJSObject4,
-    kVisitJSObject5,
-    kVisitJSObject6,
-    kVisitJSObject7,
-    kVisitJSObject8,
-    kVisitJSObject9,
-    kVisitJSObjectGeneric,
-
-    kVisitStruct,
-    kVisitStruct2 = kVisitStruct,
-    kVisitStruct3,
-    kVisitStruct4,
-    kVisitStruct5,
-    kVisitStruct6,
-    kVisitStruct7,
-    kVisitStruct8,
-    kVisitStruct9,
-    kVisitStructGeneric,
-
-    kVisitConsString,
-    kVisitSlicedString,
-    kVisitOddball,
-    kVisitCode,
-    kVisitMap,
-    kVisitPropertyCell,
-    kVisitSharedFunctionInfo,
-    kVisitJSFunction,
-    kVisitJSWeakMap,
-    kVisitJSRegExp,
-
+#define VISITOR_ID_ENUM_DECL(id)  kVisit##id,
+    VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
+#undef VISITOR_ID_ENUM_DECL
     kVisitorIdCount,
+    kVisitDataObject = kVisitDataObject2,
+    kVisitJSObject = kVisitJSObject2,
+    kVisitStruct = kVisitStruct2,
     kMinObjectSizeInWords = 2
   };
 
@@ -361,7 +360,74 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 
 template<typename StaticVisitor>
 VisitorDispatchTable<typename StaticNewSpaceVisitor<StaticVisitor>::Callback>
-  StaticNewSpaceVisitor<StaticVisitor>::table_;
+    StaticNewSpaceVisitor<StaticVisitor>::table_;
+
+
+// Base class for visitors used to transitively mark the entire heap.
+// IterateBody returns nothing.
+// Certain types of objects might not be handled by this base class and
+// no visitor function is registered by the generic initialization. A
+// specialized visitor function needs to be provided by the inheriting
+// class itself for those cases.
+//
+// This class is intended to be used in the following way:
+//
+//   class SomeVisitor : public StaticMarkingVisitor<SomeVisitor> {
+//     ...
+//   }
+//
+// This is an example of Curiously recurring template pattern.
+template<typename StaticVisitor>
+class StaticMarkingVisitor : public StaticVisitorBase {
+ public:
+  static void Initialize();
+
+  static inline void IterateBody(Map* map, HeapObject* obj) {
+    table_.GetVisitor(map)(map, obj);
+  }
+
+  static inline void VisitCodeEntry(Heap* heap, Address entry_address);
+  static inline void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitGlobalPropertyCell(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitDebugTarget(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo);
+  static inline void VisitExternalReference(RelocInfo* rinfo) { }
+  static inline void VisitRuntimeEntry(RelocInfo* rinfo) { }
+
+  // TODO(mstarzinger): This should be made protected once refactoring is done.
+  static inline void VisitNativeContext(Map* map, HeapObject* object);
+
+ protected:
+  static inline void VisitCode(Map* map, HeapObject* object);
+  static inline void VisitJSRegExp(Map* map, HeapObject* object);
+
+  class DataObjectVisitor {
+   public:
+    template<int size>
+    static inline void VisitSpecialized(Map* map, HeapObject* object) {
+    }
+
+    static inline void Visit(Map* map, HeapObject* object) {
+    }
+  };
+
+  typedef FlexibleBodyVisitor<StaticVisitor,
+                              JSObject::BodyDescriptor,
+                              void> JSObjectVisitor;
+
+  typedef FlexibleBodyVisitor<StaticVisitor,
+                              StructBodyDescriptor,
+                              void> StructObjectVisitor;
+
+  typedef void (*Callback)(Map* map, HeapObject* object);
+
+  static VisitorDispatchTable<Callback> table_;
+};
+
+
+template<typename StaticVisitor>
+VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
+    StaticMarkingVisitor<StaticVisitor>::table_;
 
 
 } }  // namespace v8::internal

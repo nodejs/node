@@ -193,7 +193,8 @@ int ScopeInfo::ContextLength() {
     bool has_context = context_locals > 0 ||
         function_name_context_slot ||
         Type() == WITH_SCOPE ||
-        (Type() == FUNCTION_SCOPE && CallsEval());
+        (Type() == FUNCTION_SCOPE && CallsEval()) ||
+        Type() == MODULE_SCOPE;
     if (has_context) {
       return Context::MIN_CONTEXT_SLOTS + context_locals +
           (function_name_context_slot ? 1 : 0);
@@ -222,11 +223,7 @@ bool ScopeInfo::HasHeapAllocatedLocals() {
 
 
 bool ScopeInfo::HasContext() {
-  if (length() > 0) {
-    return ContextLength() > 0;
-  } else {
-    return false;
-  }
+  return ContextLength() > 0;
 }
 
 

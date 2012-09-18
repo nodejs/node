@@ -28,6 +28,8 @@
 // Test dictionary -> double elements -> dictionary elements round trip
 
 // Flags: --allow-natives-syntax --unbox-double-arrays --expose-gc
+// Flags: --noparallel-recompilation
+
 var large_array_size = 100000;
 var approx_dict_to_elements_threshold = 70000;
 

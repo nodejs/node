@@ -396,7 +396,7 @@ void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   Code::Flags flags = Code::ComputeFlags(kind,
                                          MONOMORPHIC,
                                          extra_state,
-                                         NORMAL,
+                                         Code::NORMAL,
                                          argc);
   Isolate::Current()->stub_cache()->GenerateProbe(
       masm, flags, r1, r2, r3, r4, r5, r6);

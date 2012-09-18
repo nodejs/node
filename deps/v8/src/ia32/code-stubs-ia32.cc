@@ -66,8 +66,12 @@ void ToNumberStub::Generate(MacroAssembler* masm) {
 void FastNewClosureStub::Generate(MacroAssembler* masm) {
   // Create a new closure from the given function info in new
   // space. Set the context to the current context in esi.
+  Counters* counters = masm->isolate()->counters();
+
   Label gc;
   __ AllocateInNewSpace(JSFunction::kSize, eax, ebx, ecx, &gc, TAG_OBJECT);
+
+  __ IncrementCounter(counters->fast_new_closure_total(), 1);
 
   // Get the function info from the stack.
   __ mov(edx, Operand(esp, 1 * kPointerSize));
@@ -76,12 +80,12 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
       ? Context::FUNCTION_MAP_INDEX
       : Context::STRICT_MODE_FUNCTION_MAP_INDEX;
 
-  // Compute the function map in the current global context and set that
+  // Compute the function map in the current native context and set that
   // as the map of the allocated object.
-  __ mov(ecx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalContextOffset));
-  __ mov(ecx, Operand(ecx, Context::SlotOffset(map_index)));
-  __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
+  __ mov(ecx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(ecx, FieldOperand(ecx, GlobalObject::kNativeContextOffset));
+  __ mov(ebx, Operand(ecx, Context::SlotOffset(map_index)));
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), ebx);
 
   // Initialize the rest of the function. We don't have to update the
   // write barrier because the allocated object is in new space.
@@ -94,17 +98,88 @@ void FastNewClosureStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset), edx);
   __ mov(FieldOperand(eax, JSFunction::kContextOffset), esi);
   __ mov(FieldOperand(eax, JSFunction::kLiteralsOffset), ebx);
-  __ mov(FieldOperand(eax, JSFunction::kNextFunctionLinkOffset),
-         Immediate(factory->undefined_value()));
 
   // Initialize the code pointer in the function to be the one
   // found in the shared function info object.
+  // But first check if there is an optimized version for our context.
+  Label check_optimized;
+  Label install_unoptimized;
+  if (FLAG_cache_optimized_code) {
+    __ mov(ebx, FieldOperand(edx, SharedFunctionInfo::kOptimizedCodeMapOffset));
+    __ test(ebx, ebx);
+    __ j(not_zero, &check_optimized, Label::kNear);
+  }
+  __ bind(&install_unoptimized);
+  __ mov(FieldOperand(eax, JSFunction::kNextFunctionLinkOffset),
+         Immediate(factory->undefined_value()));
   __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
   __ mov(FieldOperand(eax, JSFunction::kCodeEntryOffset), edx);
 
   // Return and remove the on-stack parameter.
   __ ret(1 * kPointerSize);
+
+  __ bind(&check_optimized);
+
+  __ IncrementCounter(counters->fast_new_closure_try_optimized(), 1);
+
+  // ecx holds native context, ebx points to fixed array of 3-element entries
+  // (native context, optimized code, literals).
+  // Map must never be empty, so check the first elements.
+  Label install_optimized;
+  // Speculatively move code object into edx.
+  __ mov(edx, FieldOperand(ebx, FixedArray::kHeaderSize + kPointerSize));
+  __ cmp(ecx, FieldOperand(ebx, FixedArray::kHeaderSize));
+  __ j(equal, &install_optimized);
+
+  // Iterate through the rest of map backwards.  edx holds an index as a Smi.
+  Label loop;
+  Label restore;
+  __ mov(edx, FieldOperand(ebx, FixedArray::kLengthOffset));
+  __ bind(&loop);
+  // Do not double check first entry.
+  __ cmp(edx, Immediate(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
+  __ j(equal, &restore);
+  __ sub(edx, Immediate(Smi::FromInt(
+      SharedFunctionInfo::kEntryLength)));  // Skip an entry.
+  __ cmp(ecx, CodeGenerator::FixedArrayElementOperand(ebx, edx, 0));
+  __ j(not_equal, &loop, Label::kNear);
+  // Hit: fetch the optimized code.
+  __ mov(edx, CodeGenerator::FixedArrayElementOperand(ebx, edx, 1));
+
+  __ bind(&install_optimized);
+  __ IncrementCounter(counters->fast_new_closure_install_optimized(), 1);
+
+  // TODO(fschneider): Idea: store proper code pointers in the optimized code
+  // map and either unmangle them on marking or do nothing as the whole map is
+  // discarded on major GC anyway.
+  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+  __ mov(FieldOperand(eax, JSFunction::kCodeEntryOffset), edx);
+
+  // Now link a function into a list of optimized functions.
+  __ mov(edx, ContextOperand(ecx, Context::OPTIMIZED_FUNCTIONS_LIST));
+
+  __ mov(FieldOperand(eax, JSFunction::kNextFunctionLinkOffset), edx);
+  // No need for write barrier as JSFunction (eax) is in the new space.
+
+  __ mov(ContextOperand(ecx, Context::OPTIMIZED_FUNCTIONS_LIST), eax);
+  // Store JSFunction (eax) into edx before issuing write barrier as
+  // it clobbers all the registers passed.
+  __ mov(edx, eax);
+  __ RecordWriteContextSlot(
+      ecx,
+      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST),
+      edx,
+      ebx,
+      kDontSaveFPRegs);
+
+  // Return and remove the on-stack parameter.
+  __ ret(1 * kPointerSize);
+
+  __ bind(&restore);
+  // Restore SharedFunctionInfo into edx.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  __ jmp(&install_unoptimized);
 
   // Create a new closure through the slower runtime call.
   __ bind(&gc);
@@ -142,8 +217,8 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(eax, Context::SlotOffset(Context::EXTENSION_INDEX)), ebx);
 
   // Copy the global object from the previous context.
-  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_INDEX)), ebx);
+  __ mov(ebx, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(Operand(eax, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)), ebx);
 
   // Initialize the rest of the slots to undefined.
   __ mov(ebx, factory->undefined_value());
@@ -186,9 +261,9 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ mov(FieldOperand(eax, Context::kLengthOffset),
          Immediate(Smi::FromInt(length)));
 
-  // If this block context is nested in the global context we get a smi
+  // If this block context is nested in the native context we get a smi
   // sentinel instead of a function. The block context should get the
-  // canonical empty function of the global context as its closure which
+  // canonical empty function of the native context as its closure which
   // we still have to look up.
   Label after_sentinel;
   __ JumpIfNotSmi(ecx, &after_sentinel, Label::kNear);
@@ -198,7 +273,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
     __ Assert(equal, message);
   }
   __ mov(ecx, GlobalObjectOperand());
-  __ mov(ecx, FieldOperand(ecx, GlobalObject::kGlobalContextOffset));
+  __ mov(ecx, FieldOperand(ecx, GlobalObject::kNativeContextOffset));
   __ mov(ecx, ContextOperand(ecx, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
@@ -208,8 +283,8 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ mov(ContextOperand(eax, Context::EXTENSION_INDEX), ebx);
 
   // Copy the global object from the previous context.
-  __ mov(ebx, ContextOperand(esi, Context::GLOBAL_INDEX));
-  __ mov(ContextOperand(eax, Context::GLOBAL_INDEX), ebx);
+  __ mov(ebx, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
+  __ mov(ContextOperand(eax, Context::GLOBAL_OBJECT_INDEX), ebx);
 
   // Initialize the rest of the slots to the hole value.
   if (slots_ == 1) {
@@ -3359,10 +3434,10 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   // esp[0] = mapped parameter count (tagged)
   // esp[8] = parameter count (tagged)
   // esp[12] = address of receiver argument
-  // Get the arguments boilerplate from the current (global) context into edi.
+  // Get the arguments boilerplate from the current native context into edi.
   Label has_mapped_parameters, copy;
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
+  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
   __ mov(ebx, Operand(esp, 0 * kPointerSize));
   __ test(ebx, ebx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
@@ -3552,9 +3627,9 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Do the allocation of both objects in one go.
   __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
 
-  // Get the arguments boilerplate from the current (global) context.
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  __ mov(edi, FieldOperand(edi, GlobalObject::kGlobalContextOffset));
+  // Get the arguments boilerplate from the current native context.
+  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ mov(edi, FieldOperand(edi, GlobalObject::kNativeContextOffset));
   const int offset =
       Context::SlotOffset(Context::STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX);
   __ mov(edi, Operand(edi, offset));
@@ -3673,7 +3748,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
   __ add(edx, Immediate(2));  // edx was a smi.
   // Check that the static offsets vector buffer is large enough.
-  __ cmp(edx, OffsetsVector::kStaticOffsetsVectorSize);
+  __ cmp(edx, Isolate::kJSRegexpStaticOffsetsVectorSize);
   __ j(above, &runtime);
 
   // ecx: RegExp data (FixedArray)
@@ -4067,11 +4142,11 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Set empty properties FixedArray.
   // Set elements to point to FixedArray allocated right after the JSArray.
   // Interleave operations for better latency.
-  __ mov(edx, ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ mov(edx, ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX));
   Factory* factory = masm->isolate()->factory();
   __ mov(ecx, Immediate(factory->empty_fixed_array()));
   __ lea(ebx, Operand(eax, JSRegExpResult::kSize));
-  __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalContextOffset));
+  __ mov(edx, FieldOperand(edx, GlobalObject::kNativeContextOffset));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset), ecx);
   __ mov(edx, ContextOperand(edx, Context::REGEXP_RESULT_MAP_INDEX));
@@ -7073,6 +7148,8 @@ static const AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { REG(edx), REG(eax), REG(edi), EMIT_REMEMBERED_SET},
   // StoreArrayLiteralElementStub::Generate
   { REG(ebx), REG(eax), REG(ecx), EMIT_REMEMBERED_SET},
+  // FastNewClosureStub
+  { REG(ecx), REG(edx), REG(ebx), EMIT_REMEMBERED_SET},
   // Null termination.
   { REG(no_reg), REG(no_reg), REG(no_reg), EMIT_REMEMBERED_SET}
 };
@@ -7394,6 +7471,38 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                                  &slow_elements_from_double,
                                  false);
   __ pop(edx);
+  __ ret(0);
+}
+
+
+void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
+  if (entry_hook_ != NULL) {
+    ProfileEntryHookStub stub;
+    masm->CallStub(&stub);
+  }
+}
+
+
+void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
+  // Ecx is the only volatile register we must save.
+  __ push(ecx);
+
+  // Calculate and push the original stack pointer.
+  __ lea(eax, Operand(esp, kPointerSize));
+  __ push(eax);
+
+  // Calculate and push the function address.
+  __ mov(eax, Operand(eax, 0));
+  __ sub(eax, Immediate(Assembler::kCallInstructionLength));
+  __ push(eax);
+
+  // Call the entry hook.
+  int32_t hook_location = reinterpret_cast<int32_t>(&entry_hook_);
+  __ call(Operand(hook_location, RelocInfo::NONE));
+  __ add(esp, Immediate(2 * kPointerSize));
+
+  // Restore ecx.
+  __ pop(ecx);
   __ ret(0);
 }
 

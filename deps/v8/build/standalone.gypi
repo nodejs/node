@@ -33,6 +33,7 @@
     'component%': 'static_library',
     'visibility%': 'hidden',
     'msvs_multi_core_compile%': '1',
+    'mac_deployment_target%': '10.5',
     'variables': {
       'variables': {
         'variables': {
@@ -45,7 +46,7 @@
               # to gyp.
               'host_arch%':
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
-                  s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mips/")',
+                  s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mipsel/")',
             }, {
               # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
               # OS!="netbsd" and OS!="mac"
@@ -66,8 +67,9 @@
     'werror%': '-Werror',
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
-        (v8_target_arch=="mips" and host_arch!="mips") or \
-        (v8_target_arch=="x64" and host_arch!="x64")', {
+        (v8_target_arch=="mipsel" and host_arch!="mipsel") or \
+        (v8_target_arch=="x64" and host_arch!="x64") or \
+        (OS=="android")', {
         'want_separate_host_toolset': 1,
       }, {
         'want_separate_host_toolset': 0,
@@ -191,7 +193,8 @@
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
-          'MACOSX_DEPLOYMENT_TARGET': '10.4',       # -mmacosx-version-min=10.4
+          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
+          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'SYMROOT': '<(DEPTH)/xcodebuild',
           'USE_HEADERMAP': 'NO',

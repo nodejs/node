@@ -285,4 +285,4 @@ for reserved_word in reserved_words + strict_reserved_words:
 # Future reserved words in strict mode behave like normal identifiers
 # in a non strict context.
 for reserved_word in strict_reserved_words:
-  non_strict_use({"id": id}, None)
+  non_strict_use({"id": reserved_word}, None)

@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 
-obj = new PixelArray(10);
+obj = new Uint8ClampedArray(10);
 
 // Test that undefined gets properly clamped in Crankshafted pixel array
 // assignments.

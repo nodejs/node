@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -65,9 +65,11 @@ TestInvalidCalls(new WeakMap);
 // Test expected behavior for Sets
 function TestSet(set, key) {
   assertFalse(set.has(key));
-  set.add(key);
+  assertSame(undefined, set.add(key));
   assertTrue(set.has(key));
-  set.delete(key);
+  assertTrue(set.delete(key));
+  assertFalse(set.has(key));
+  assertFalse(set.delete(key));
   assertFalse(set.has(key));
 }
 function TestSetBehavior(set) {
@@ -87,7 +89,7 @@ TestSetBehavior(new Set);
 
 // Test expected mapping behavior for Maps and WeakMaps
 function TestMapping(map, key, value) {
-  map.set(key, value);
+  assertSame(undefined, map.set(key, value));
   assertSame(value, map.get(key));
 }
 function TestMapBehavior1(m) {
@@ -117,12 +119,12 @@ TestMapBehavior2(new Map);
 // Test expected querying behavior of Maps and WeakMaps
 function TestQuery(m) {
   var key = new Object;
-  TestMapping(m, key, 'to-be-present');
-  assertTrue(m.has(key));
-  assertFalse(m.has(new Object));
-  TestMapping(m, key, undefined);
-  assertFalse(m.has(key));
-  assertFalse(m.has(new Object));
+  var values = [ 'x', 0, +Infinity, -Infinity, true, false, null, undefined ];
+  for (var i = 0; i < values.length; i++) {
+    TestMapping(m, key, values[i]);
+    assertTrue(m.has(key));
+    assertFalse(m.has(new Object));
+  }
 }
 TestQuery(new Map);
 TestQuery(new WeakMap);

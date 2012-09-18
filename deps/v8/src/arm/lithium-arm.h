@@ -108,6 +108,7 @@ class LCodeGen;
   V(InstanceOfKnownGlobal)                      \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
+  V(Uint32ToDouble)                             \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
   V(IsNilAndBranch)                             \
@@ -115,7 +116,6 @@ class LCodeGen;
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
-  V(StringCompareAndBranch)                     \
   V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
@@ -132,11 +132,14 @@ class LCodeGen;
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
+  V(MapEnumLength)                              \
   V(MathFloorOfDiv)                             \
+  V(MathMinMax)                                 \
   V(ModI)                                       \
   V(MulI)                                       \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
+  V(NumberTagU)                                 \
   V(NumberUntagD)                               \
   V(ObjectLiteral)                              \
   V(OsrEntry)                                   \
@@ -163,6 +166,7 @@ class LCodeGen;
   V(StringAdd)                                  \
   V(StringCharCodeAt)                           \
   V(StringCharFromCode)                         \
+  V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
   V(TaggedToI)                                  \
@@ -257,8 +261,6 @@ class LInstruction: public ZoneObject {
   virtual bool HasResult() const = 0;
   virtual LOperand* result() = 0;
 
-  virtual int InputCount() = 0;
-  virtual LOperand* InputAt(int i) = 0;
   virtual int TempCount() = 0;
   virtual LOperand* TempAt(int i) = 0;
 
@@ -270,6 +272,11 @@ class LInstruction: public ZoneObject {
 #endif
 
  private:
+  // Iterator support.
+  friend class InputIterator;
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+
   LEnvironment* environment_;
   SetOncePointer<LPointerMap> pointer_map_;
   HValue* hydrogen_value_;
@@ -289,7 +296,6 @@ class LTemplateInstruction: public LInstruction {
   void set_result(LOperand* operand) { results_[0] = operand; }
   LOperand* result() { return results_[0]; }
 
-  int InputCount() { return I; }
   LOperand* InputAt(int i) { return inputs_[i]; }
 
   int TempCount() { return T; }
@@ -299,6 +305,9 @@ class LTemplateInstruction: public LInstruction {
   EmbeddedContainer<LOperand*, R> results_;
   EmbeddedContainer<LOperand*, I> inputs_;
   EmbeddedContainer<LOperand*, T> temps_;
+
+ private:
+  virtual int InputCount() { return I; }
 };
 
 
@@ -859,6 +868,7 @@ class LBoundsCheck: public LTemplateInstruction<0, 2, 0> {
   LOperand* length() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(BoundsCheck, "bounds-check")
+  DECLARE_HYDROGEN_ACCESSOR(BoundsCheck)
 };
 
 
@@ -993,6 +1003,16 @@ class LFixedArrayBaseLength: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LMapEnumLength: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMapEnumLength(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength, "map-enum-length")
+};
+
+
 class LElementsKind: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LElementsKind(LOperand* value) {
@@ -1080,6 +1100,18 @@ class LAddI: public LTemplateInstruction<1, 2, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(AddI, "add-i")
   DECLARE_HYDROGEN_ACCESSOR(Add)
+};
+
+
+class LMathMinMax: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LMathMinMax(LOperand* left, LOperand* right) {
+    inputs_[0] = left;
+    inputs_[1] = right;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "min-max")
+  DECLARE_HYDROGEN_ACCESSOR(MathMinMax)
 };
 
 
@@ -1591,6 +1623,16 @@ class LInteger32ToDouble: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LUint32ToDouble: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LUint32ToDouble(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(Uint32ToDouble, "uint32-to-double")
+};
+
+
 class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LNumberTagI(LOperand* value) {
@@ -1598,6 +1640,16 @@ class LNumberTagI: public LTemplateInstruction<1, 1, 0> {
   }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagI, "number-tag-i")
+};
+
+
+class LNumberTagU: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LNumberTagU(LOperand* value) {
+    inputs_[0] = value;
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(NumberTagU, "number-tag-u")
 };
 
 
@@ -2177,13 +2229,15 @@ class LForInPrepareMap: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LForInCacheArray: public LTemplateInstruction<1, 1, 0> {
+class LForInCacheArray: public LTemplateInstruction<1, 1, 1> {
  public:
-  explicit LForInCacheArray(LOperand* map) {
+  explicit LForInCacheArray(LOperand* map, LOperand* scratch) {
     inputs_[0] = map;
+    temps_[0] = scratch;
   }
 
   LOperand* map() { return inputs_[0]; }
+  LOperand* scratch() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(ForInCacheArray, "for-in-cache-array")
 
@@ -2222,65 +2276,13 @@ class LLoadFieldByIndex: public LTemplateInstruction<1, 2, 0> {
 
 
 class LChunkBuilder;
-class LChunk: public ZoneObject {
+class LPlatformChunk: public LChunk {
  public:
-  explicit LChunk(CompilationInfo* info, HGraph* graph);
-
-  void AddInstruction(LInstruction* instruction, HBasicBlock* block);
-  LConstantOperand* DefineConstantOperand(HConstant* constant);
-  Handle<Object> LookupLiteral(LConstantOperand* operand) const;
-  Representation LookupLiteralRepresentation(LConstantOperand* operand) const;
+  LPlatformChunk(CompilationInfo* info, HGraph* graph)
+      : LChunk(info, graph) { }
 
   int GetNextSpillIndex(bool is_double);
   LOperand* GetNextSpillSlot(bool is_double);
-
-  int ParameterAt(int index);
-  int GetParameterStackSlot(int index) const;
-  int spill_slot_count() const { return spill_slot_count_; }
-  CompilationInfo* info() const { return info_; }
-  HGraph* graph() const { return graph_; }
-  const ZoneList<LInstruction*>* instructions() const { return &instructions_; }
-  void AddGapMove(int index, LOperand* from, LOperand* to);
-  LGap* GetGapAt(int index) const;
-  bool IsGapAt(int index) const;
-  int NearestGapPos(int index) const;
-  void MarkEmptyBlocks();
-  const ZoneList<LPointerMap*>* pointer_maps() const { return &pointer_maps_; }
-  LLabel* GetLabel(int block_id) const {
-    HBasicBlock* block = graph_->blocks()->at(block_id);
-    int first_instruction = block->first_instruction_index();
-    return LLabel::cast(instructions_[first_instruction]);
-  }
-  int LookupDestination(int block_id) const {
-    LLabel* cur = GetLabel(block_id);
-    while (cur->replacement() != NULL) {
-      cur = cur->replacement();
-    }
-    return cur->block_id();
-  }
-  Label* GetAssemblyLabel(int block_id) const {
-    LLabel* label = GetLabel(block_id);
-    ASSERT(!label->HasReplacement());
-    return label->label();
-  }
-
-  const ZoneList<Handle<JSFunction> >* inlined_closures() const {
-    return &inlined_closures_;
-  }
-
-  void AddInlinedClosure(Handle<JSFunction> closure) {
-    inlined_closures_.Add(closure, zone());
-  }
-
-  Zone* zone() const { return graph_->zone(); }
-
- private:
-  int spill_slot_count_;
-  CompilationInfo* info_;
-  HGraph* const graph_;
-  ZoneList<LInstruction*> instructions_;
-  ZoneList<LPointerMap*> pointer_maps_;
-  ZoneList<Handle<JSFunction> > inlined_closures_;
 };
 
 
@@ -2299,10 +2301,10 @@ class LChunkBuilder BASE_EMBEDDED {
         allocator_(allocator),
         position_(RelocInfo::kNoPosition),
         instruction_pending_deoptimization_environment_(NULL),
-        pending_deoptimization_ast_id_(AstNode::kNoNumber) { }
+        pending_deoptimization_ast_id_(BailoutId::None()) { }
 
   // Build the sequence for the graph.
-  LChunk* Build();
+  LPlatformChunk* Build();
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
@@ -2321,7 +2323,7 @@ class LChunkBuilder BASE_EMBEDDED {
     ABORTED
   };
 
-  LChunk* chunk() const { return chunk_; }
+  LPlatformChunk* chunk() const { return chunk_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
@@ -2331,7 +2333,7 @@ class LChunkBuilder BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  void Abort(const char* format, ...);
+  void Abort(const char* reason);
 
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
@@ -2421,7 +2423,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LInstruction* DoArithmeticT(Token::Value op,
                               HArithmeticBinaryOperation* instr);
 
-  LChunk* chunk_;
+  LPlatformChunk* chunk_;
   CompilationInfo* info_;
   HGraph* const graph_;
   Zone* zone_;
@@ -2433,7 +2435,7 @@ class LChunkBuilder BASE_EMBEDDED {
   LAllocator* allocator_;
   int position_;
   LInstruction* instruction_pending_deoptimization_environment_;
-  int pending_deoptimization_ast_id_;
+  BailoutId pending_deoptimization_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(LChunkBuilder);
 };

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -238,9 +238,15 @@ static int ArchiveSpacePerThread() {
 ThreadState::ThreadState(ThreadManager* thread_manager)
     : id_(ThreadId::Invalid()),
       terminate_on_restore_(false),
+      data_(NULL),
       next_(this),
       previous_(this),
       thread_manager_(thread_manager) {
+}
+
+
+ThreadState::~ThreadState() {
+  DeleteArray<char>(data_);
 }
 
 
@@ -306,8 +312,19 @@ ThreadManager::ThreadManager()
 
 ThreadManager::~ThreadManager() {
   delete mutex_;
-  delete free_anchor_;
-  delete in_use_anchor_;
+  DeleteThreadStateList(free_anchor_);
+  DeleteThreadStateList(in_use_anchor_);
+}
+
+
+void ThreadManager::DeleteThreadStateList(ThreadState* anchor) {
+  // The list starts and ends with the anchor.
+  for (ThreadState* current = anchor->next_; current != anchor;) {
+    ThreadState* next = current->next_;
+    delete current;
+    current = next;
+  }
+  delete anchor;
 }
 
 

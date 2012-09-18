@@ -110,17 +110,18 @@ class MacroAssembler: public Assembler {
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   static int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  static int CallSize(Address target,
-                      RelocInfo::Mode rmode,
-                      Condition cond = al);
+  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  static int CallSizeNotPredictableCodeSize(Address target,
+                                            RelocInfo::Mode rmode,
+                                            Condition cond = al);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
-  static int CallSize(Handle<Code> code,
-                      RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-                      unsigned ast_id = kNoASTId,
-                      Condition cond = al);
+  int CallSize(Handle<Code> code,
+               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+               TypeFeedbackId ast_id = TypeFeedbackId::None(),
+               Condition cond = al);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            unsigned ast_id = kNoASTId,
+            TypeFeedbackId ast_id = TypeFeedbackId::None(),
             Condition cond = al);
   void Ret(Condition cond = al);
 
@@ -499,8 +500,8 @@ class MacroAssembler: public Assembler {
   void LoadContext(Register dst, int context_chain_length);
 
   // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the global context if the map in register
-  // map_in_out is the cached Array map in the global context of
+  // transitioned_kind from the native context if the map in register
+  // map_in_out is the cached Array map in the native context of
   // expected_kind.
   void LoadTransitionedArrayMapConditional(
       ElementsKind expected_kind,
@@ -1268,7 +1269,10 @@ class MacroAssembler: public Assembler {
                           DoubleRegister temp_double_reg);
 
 
-  void LoadInstanceDescriptors(Register map, Register descriptors);
+  void LoadInstanceDescriptors(Register map,
+                               Register descriptors,
+                               Register scratch);
+  void EnumLength(Register dst, Register map);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1376,7 +1380,7 @@ inline MemOperand ContextOperand(Register context, int index) {
 
 
 inline MemOperand GlobalObjectOperand()  {
-  return ContextOperand(cp, Context::GLOBAL_INDEX);
+  return ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX);
 }
 
 

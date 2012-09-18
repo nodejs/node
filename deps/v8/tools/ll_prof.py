@@ -68,14 +68,8 @@ Examples:
 """
 
 
-# Must match kGcFakeMmap.
-V8_GC_FAKE_MMAP = "/tmp/__v8_gc__"
-
 JS_ORIGIN = "js"
 JS_SNAPSHOT_ORIGIN = "js-snapshot"
-
-OBJDUMP_BIN = disasm.OBJDUMP_BIN
-
 
 class Code(object):
   """Code object."""
@@ -639,7 +633,7 @@ class TraceReader(object):
     # Read null-terminated filename.
     filename = self.trace[offset + self.header_size + ctypes.sizeof(mmap_info):
                           offset + header.size]
-    mmap_info.filename = filename[:filename.find(chr(0))]
+    mmap_info.filename = HOST_ROOT + filename[:filename.find(chr(0))]
     return mmap_info
 
   def ReadSample(self, header, offset):
@@ -858,6 +852,15 @@ if __name__ == "__main__":
                     default=False,
                     action="store_true",
                     help="no auxiliary messages [default: %default]")
+  parser.add_option("--gc-fake-mmap",
+                    default="/tmp/__v8_gc__",
+                    help="gc fake mmap file [default: %default]")
+  parser.add_option("--objdump",
+                    default="/usr/bin/objdump",
+                    help="objdump tool to use [default: %default]")
+  parser.add_option("--host-root",
+                    default="",
+                    help="Path to the host root [default: %default]")
   options, args = parser.parse_args()
 
   if not options.quiet:
@@ -868,6 +871,14 @@ if __name__ == "__main__":
     else:
       print "V8 log: %s, %s.ll (no snapshot)" % (options.log, options.log)
     print "Perf trace file: %s" % options.trace
+
+  V8_GC_FAKE_MMAP = options.gc_fake_mmap
+  HOST_ROOT = options.host_root
+  if os.path.exists(options.objdump):
+    disasm.OBJDUMP_BIN = options.objdump
+    OBJDUMP_BIN = options.objdump
+  else:
+    print "Cannot find %s, falling back to default objdump" % options.objdump
 
   # Stats.
   events = 0
@@ -905,7 +916,7 @@ if __name__ == "__main__":
     if header.type == PERF_RECORD_MMAP:
       start = time.time()
       mmap_info = trace_reader.ReadMmap(header, offset)
-      if mmap_info.filename == V8_GC_FAKE_MMAP:
+      if mmap_info.filename == HOST_ROOT + V8_GC_FAKE_MMAP:
         log_reader.ReadUpToGC()
       else:
         library_repo.Load(mmap_info, code_map, options)

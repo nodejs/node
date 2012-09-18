@@ -81,8 +81,8 @@ class ListDiffOutputWriter : public Comparator::Output {
     (*next_chunk_pointer_) = NULL;
   }
   void AddChunk(int pos1, int pos2, int len1, int len2) {
-    current_chunk_ =
-        new(Isolate::Current()->zone()) DiffChunkStruct(pos1, pos2, len1, len2);
+    current_chunk_ = new(Isolate::Current()->runtime_zone()) DiffChunkStruct(
+        pos1, pos2, len1, len2);
     (*next_chunk_pointer_) = current_chunk_;
     next_chunk_pointer_ = &current_chunk_->next;
   }
@@ -96,7 +96,7 @@ void CompareStringsOneWay(const char* s1, const char* s2,
                           int expected_diff_parameter = -1) {
   StringCompareInput input(s1, s2);
 
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
 
   DiffChunkStruct* first_chunk;
   ListDiffOutputWriter writer(&first_chunk);

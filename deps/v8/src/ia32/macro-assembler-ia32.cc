@@ -85,7 +85,7 @@ void MacroAssembler::RememberedSetHelper(
     SaveFPRegsMode save_fp,
     MacroAssembler::RememberedSetFinalAction and_then) {
   Label done;
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, scratch, &ok, Label::kNear);
     int3();
@@ -134,10 +134,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   Set(result_reg, Immediate(0));
   ucomisd(input_reg, scratch_reg);
   j(below, &done, Label::kNear);
-  ExternalReference half_ref = ExternalReference::address_of_one_half();
-  movdbl(scratch_reg, Operand::StaticVariable(half_ref));
-  addsd(scratch_reg, input_reg);
-  cvttsd2si(result_reg, Operand(scratch_reg));
+  cvtsd2si(result_reg, input_reg);
   test(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   Set(result_reg, Immediate(255));
@@ -151,6 +148,24 @@ void MacroAssembler::ClampUint8(Register reg) {
   j(zero, &done, Label::kNear);
   setcc(negative, reg);  // 1 if negative, 0 if positive.
   dec_b(reg);  // 0 if negative, 255 if positive.
+  bind(&done);
+}
+
+
+static double kUint32Bias =
+    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
+
+
+void MacroAssembler::LoadUint32(XMMRegister dst,
+                                Register src,
+                                XMMRegister scratch) {
+  Label done;
+  cmp(src, Immediate(0));
+  movdbl(scratch,
+         Operand(reinterpret_cast<int32_t>(&kUint32Bias), RelocInfo::NONE));
+  cvtsi2sd(dst, src);
+  j(not_sign, &done, Label::kNear);
+  addsd(dst, scratch);
   bind(&done);
 }
 
@@ -317,7 +332,7 @@ void MacroAssembler::RecordWrite(Register object,
     return;
   }
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     cmp(value, Operand(address, 0));
     j(equal, &ok, Label::kNear);
@@ -982,23 +997,24 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     cmp(scratch, Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
-  // Load the global context of the current context.
-  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  // Load the native context of the current context.
+  int offset =
+      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   mov(scratch, FieldOperand(scratch, offset));
-  mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     push(scratch);
-    // Read the first word and compare to global_context_map.
+    // Read the first word and compare to native_context_map.
     mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-    cmp(scratch, isolate()->factory()->global_context_map());
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    cmp(scratch, isolate()->factory()->native_context_map());
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
     pop(scratch);
   }
 
   // Check if both contexts are the same.
-  cmp(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  cmp(scratch, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   j(equal, &same_contexts);
 
   // Compare security tokens, save holder_reg on the stack so we can use it
@@ -1009,18 +1025,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // Check that the security token in the calling global object is
   // compatible with the security token in the receiving global
   // object.
-  mov(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  mov(holder_reg,
+      FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     cmp(holder_reg, isolate()->factory()->null_value());
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
     push(holder_reg);
-    // Read the first word and compare to global_context_map(),
+    // Read the first word and compare to native_context_map(),
     mov(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    cmp(holder_reg, isolate()->factory()->global_context_map());
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    cmp(holder_reg, isolate()->factory()->native_context_map());
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
     pop(holder_reg);
   }
 
@@ -1707,7 +1724,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
+void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.
   call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
@@ -1922,15 +1939,52 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   cmp(Operand::StaticVariable(scheduled_exception_address),
       Immediate(isolate()->factory()->the_hole_value()));
   j(not_equal, &promote_scheduled_exception);
+
+#if ENABLE_EXTRA_CHECKS
+  // Check if the function returned a valid JavaScript value.
+  Label ok;
+  Register return_value = eax;
+  Register map = ecx;
+
+  JumpIfSmi(return_value, &ok, Label::kNear);
+  mov(map, FieldOperand(return_value, HeapObject::kMapOffset));
+
+  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+  j(below, &ok, Label::kNear);
+
+  CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+  j(above_equal, &ok, Label::kNear);
+
+  cmp(map, isolate()->factory()->heap_number_map());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->undefined_value());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->true_value());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->false_value());
+  j(equal, &ok, Label::kNear);
+
+  cmp(return_value, isolate()->factory()->null_value());
+  j(equal, &ok, Label::kNear);
+
+  Abort("API call returned invalid object");
+
+  bind(&ok);
+#endif
+
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
-  bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   bind(&empty_handle);
   // It was zero; the result is undefined.
   mov(eax, isolate()->factory()->undefined_value());
   jmp(&prologue);
+
+  bind(&promote_scheduled_exception);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   ExternalReference delete_extensions =
@@ -2169,7 +2223,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
   // Load the JavaScript builtin function from the builtins object.
-  mov(target, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  mov(target, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   mov(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
   mov(target, FieldOperand(target,
                            JSBuiltinsObject::OffsetOfFunctionWithId(id)));
@@ -2218,8 +2272,8 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register scratch,
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
-  mov(scratch, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  mov(scratch, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  mov(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   mov(scratch, Operand(scratch,
@@ -2264,10 +2318,11 @@ void MacroAssembler::LoadInitialArrayMap(
 
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
-  mov(function, Operand(esi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
-  mov(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
+  mov(function,
+      Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the native context from the global or builtins object.
+  mov(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
+  // Load the function from the native context.
   mov(function, Operand(function, Context::SlotOffset(index)));
 }
 
@@ -2518,12 +2573,19 @@ void MacroAssembler::Abort(const char* msg) {
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  mov(descriptors,
-      FieldOperand(map, Map::kInstanceDescriptorsOrBitField3Offset));
-  Label not_smi;
-  JumpIfNotSmi(descriptors, &not_smi);
+  Register temp = descriptors;
+  mov(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
+
+  Label ok, fail;
+  CheckMap(temp,
+           isolate()->factory()->fixed_array_map(),
+           &fail,
+           DONT_DO_SMI_CHECK);
+  mov(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
+  jmp(&ok);
+  bind(&fail);
   mov(descriptors, isolate()->factory()->empty_descriptor_array());
-  bind(&not_smi);
+  bind(&ok);
 }
 
 
@@ -2786,7 +2848,7 @@ void MacroAssembler::EnsureNotWhite(
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
   j(not_zero, &done, Label::kNear);
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check for impossible bit pattern.
     Label ok;
     push(mask_scratch);
@@ -2861,7 +2923,7 @@ void MacroAssembler::EnsureNotWhite(
   and_(bitmap_scratch, Immediate(~Page::kPageAlignmentMask));
   add(Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset),
       length);
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     mov(length, Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
     cmp(length, Operand(bitmap_scratch, MemoryChunk::kSizeOffset));
     Check(less_equal, "Live Bytes Count overflow chunk size");
@@ -2871,40 +2933,43 @@ void MacroAssembler::EnsureNotWhite(
 }
 
 
+void MacroAssembler::EnumLength(Register dst, Register map) {
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  mov(dst, FieldOperand(map, Map::kBitField3Offset));
+  and_(dst, Immediate(Smi::FromInt(Map::EnumLengthBits::kMask)));
+}
+
+
 void MacroAssembler::CheckEnumCache(Label* call_runtime) {
-  Label next;
+  Label next, start;
   mov(ecx, eax);
-  bind(&next);
 
-  // Check that there are no elements.  Register ecx contains the
-  // current JS object we've reached through the prototype chain.
-  cmp(FieldOperand(ecx, JSObject::kElementsOffset),
-      isolate()->factory()->empty_fixed_array());
-  j(not_equal, call_runtime);
-
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in ebx for the subsequent
-  // prototype load.
+  // Check if the enum length field is properly initialized, indicating that
+  // there is an enum cache.
   mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
-  mov(edx, FieldOperand(ebx, Map::kInstanceDescriptorsOrBitField3Offset));
-  JumpIfSmi(edx, call_runtime);
 
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (edx).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
-  JumpIfSmi(edx, call_runtime);
+  EnumLength(edx, ebx);
+  cmp(edx, Immediate(Smi::FromInt(Map::kInvalidEnumCache)));
+  j(equal, call_runtime);
+
+  jmp(&start);
+
+  bind(&next);
+  mov(ebx, FieldOperand(ecx, HeapObject::kMapOffset));
 
   // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  cmp(ecx, eax);
-  j(equal, &check_prototype, Label::kNear);
-  mov(edx, FieldOperand(edx, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  cmp(edx, isolate()->factory()->empty_fixed_array());
+  EnumLength(edx, ebx);
+  cmp(edx, Immediate(Smi::FromInt(0)));
   j(not_equal, call_runtime);
 
-  // Load the prototype from the map and loop if non-null.
-  bind(&check_prototype);
+  bind(&start);
+
+  // Check that there are no elements. Register rcx contains the current JS
+  // object we've reached through the prototype chain.
+  mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
+  cmp(ecx, isolate()->factory()->empty_fixed_array());
+  j(not_equal, call_runtime);
+
   mov(ecx, FieldOperand(ebx, Map::kPrototypeOffset));
   cmp(ecx, isolate()->factory()->null_value());
   j(not_equal, &next);

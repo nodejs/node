@@ -703,6 +703,9 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
       case 4:
         mnem = "mul";
         break;
+      case 5:
+        mnem = "imul";
+        break;
       case 7:
         mnem = "idiv";
         break;

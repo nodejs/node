@@ -116,6 +116,11 @@ x
 ,
 y
 
+var
+x
+,
+y
+
 export
 var
 v1 = 1

@@ -145,7 +145,7 @@ class Profiler: public Thread {
 //
 // StackTracer implementation
 //
-void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
+DISABLE_ASAN void StackTracer::Trace(Isolate* isolate, TickSample* sample) {
   ASSERT(isolate->IsInitialized());
 
   // Avoid collecting traces while doing GC.
@@ -526,6 +526,7 @@ Logger::Logger()
     name_buffer_(new NameBuffer),
     address_to_name_map_(NULL),
     is_initialized_(false),
+    code_event_handler_(NULL),
     last_address_(NULL),
     prev_sp_(NULL),
     prev_function_(NULL),
@@ -538,6 +539,52 @@ Logger::~Logger() {
   delete address_to_name_map_;
   delete name_buffer_;
   delete log_;
+}
+
+
+void Logger::IssueCodeAddedEvent(Code* code,
+                                 const char* name,
+                                 size_t name_len) {
+  JitCodeEvent event;
+  event.type = JitCodeEvent::CODE_ADDED;
+  event.code_start = code->instruction_start();
+  event.code_len = code->instruction_size();
+  event.name.str = name;
+  event.name.len = name_len;
+
+  code_event_handler_(&event);
+}
+
+
+void Logger::IssueCodeMovedEvent(Address from, Address to) {
+  Code* from_code = Code::cast(HeapObject::FromAddress(from));
+
+  JitCodeEvent event;
+  event.type = JitCodeEvent::CODE_MOVED;
+  event.code_start = from_code->instruction_start();
+  event.code_len = from_code->instruction_size();
+
+  // Calculate the header size.
+  const size_t header_size =
+      from_code->instruction_start() - reinterpret_cast<byte*>(from_code);
+
+  // Calculate the new start address of the instructions.
+  event.new_code_start =
+      reinterpret_cast<byte*>(HeapObject::FromAddress(to)) + header_size;
+
+  code_event_handler_(&event);
+}
+
+
+void Logger::IssueCodeRemovedEvent(Address from) {
+  Code* from_code = Code::cast(HeapObject::FromAddress(from));
+
+  JitCodeEvent event;
+  event.type = JitCodeEvent::CODE_REMOVED;
+  event.code_start = from_code->instruction_start();
+  event.code_len = from_code->instruction_size();
+
+  code_event_handler_(&event);
 }
 
 
@@ -864,13 +911,17 @@ void Logger::SetterCallbackEvent(String* name, Address entry_point) {
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              const char* comment) {
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof || Serializer::enabled()) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
     name_buffer_->AppendBytes(comment);
   }
+  if (code_event_handler_ != NULL) {
+    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+  }
+  if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
     LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -899,13 +950,17 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              String* name) {
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof || Serializer::enabled()) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
     name_buffer_->AppendString(name);
   }
+  if (code_event_handler_ != NULL) {
+    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+  }
+  if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
     LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -940,14 +995,18 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
                              String* name) {
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof || Serializer::enabled()) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
     name_buffer_->AppendBytes(ComputeMarker(code));
     name_buffer_->AppendString(name);
   }
+  if (code_event_handler_ != NULL) {
+    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+  }
+  if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
     LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -981,8 +1040,8 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
                              Code* code,
                              SharedFunctionInfo* shared,
                              String* source, int line) {
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof || Serializer::enabled()) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
@@ -993,6 +1052,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
     name_buffer_->AppendByte(':');
     name_buffer_->AppendInt(line);
   }
+  if (code_event_handler_ != NULL) {
+    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+  }
+  if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
     LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -1022,13 +1085,17 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
 
 
 void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof || Serializer::enabled()) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[tag]);
     name_buffer_->AppendByte(':');
     name_buffer_->AppendInt(args_count);
   }
+  if (code_event_handler_ != NULL) {
+    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+  }
+  if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
     LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -1055,13 +1122,17 @@ void Logger::CodeMovingGCEvent() {
 
 
 void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
-  if (!log_->IsEnabled()) return;
-  if (FLAG_ll_prof || Serializer::enabled()) {
+  if (!is_logging_code_events()) return;
+  if (FLAG_ll_prof || Serializer::enabled() || code_event_handler_ != NULL) {
     name_buffer_->Reset();
     name_buffer_->AppendBytes(kLogEventsNames[REG_EXP_TAG]);
     name_buffer_->AppendByte(':');
     name_buffer_->AppendString(source);
   }
+  if (code_event_handler_ != NULL) {
+    IssueCodeAddedEvent(code, name_buffer_->get(), name_buffer_->size());
+  }
+  if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) {
     LowLevelCodeCreateEvent(code, name_buffer_->get(), name_buffer_->size());
   }
@@ -1083,6 +1154,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
 
 
 void Logger::CodeMoveEvent(Address from, Address to) {
+  if (code_event_handler_ != NULL) IssueCodeMovedEvent(from, to);
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) LowLevelCodeMoveEvent(from, to);
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
@@ -1093,6 +1165,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 
 
 void Logger::CodeDeleteEvent(Address from) {
+  if (code_event_handler_ != NULL) IssueCodeRemovedEvent(from);
   if (!log_->IsEnabled()) return;
   if (FLAG_ll_prof) LowLevelCodeDeleteEvent(from);
   if (Serializer::enabled() && address_to_name_map_ != NULL) {
@@ -1392,7 +1465,7 @@ static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis,
 
 
 void Logger::LogCodeObject(Object* object) {
-  if (FLAG_log_code || FLAG_ll_prof) {
+  if (FLAG_log_code || FLAG_ll_prof || is_logging_code_events()) {
     Code* code_object = Code::cast(object);
     LogEventsAndTags tag = Logger::STUB_TAG;
     const char* description = "Unknown code from the snapshot";
@@ -1673,6 +1746,18 @@ bool Logger::SetUp() {
   }
 
   return true;
+}
+
+
+void Logger::SetCodeEventHandler(uint32_t options,
+                                 JitCodeEventHandler event_handler) {
+  code_event_handler_ = event_handler;
+
+  if (code_event_handler_ != NULL && (options & kJitCodeEventEnumExisting)) {
+    HandleScope scope;
+    LogCodeObjects();
+    LogCompiledFunctions();
+  }
 }
 
 

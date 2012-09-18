@@ -163,12 +163,30 @@ class Simulator {
   // Support for VFP.
   void set_s_register(int reg, unsigned int value);
   unsigned int get_s_register(int reg) const;
-  void set_d_register_from_double(int dreg, const double& dbl);
-  double get_double_from_d_register(int dreg);
-  void set_s_register_from_float(int sreg, const float dbl);
-  float get_float_from_s_register(int sreg);
-  void set_s_register_from_sinteger(int reg, const int value);
-  int get_sinteger_from_s_register(int reg);
+
+  void set_d_register_from_double(int dreg, const double& dbl) {
+    SetVFPRegister<double, 2>(dreg, dbl);
+  }
+
+  double get_double_from_d_register(int dreg) {
+    return GetFromVFPRegister<double, 2>(dreg);
+  }
+
+  void set_s_register_from_float(int sreg, const float flt) {
+    SetVFPRegister<float, 1>(sreg, flt);
+  }
+
+  float get_float_from_s_register(int sreg) {
+    return GetFromVFPRegister<float, 1>(sreg);
+  }
+
+  void set_s_register_from_sinteger(int sreg, const int sint) {
+    SetVFPRegister<int, 1>(sreg, sint);
+  }
+
+  int get_sinteger_from_s_register(int sreg) {
+    return GetFromVFPRegister<int, 1>(sreg);
+  }
 
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int32_t value);
@@ -331,6 +349,12 @@ class Simulator {
   void GetFpArgs(double* x, int32_t* y);
   void SetFpResult(const double& result);
   void TrashCallerSaveRegisters();
+
+  template<class ReturnType, int register_size>
+      ReturnType GetFromVFPRegister(int reg_index);
+
+  template<class InputType, int register_size>
+      void SetVFPRegister(int reg_index, const InputType& value);
 
   // Architecture state.
   // Saturating instructions require a Q flag to indicate saturation.

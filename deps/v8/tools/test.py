@@ -140,9 +140,9 @@ def EscapeCommand(command):
   parts = []
   for part in command:
     if ' ' in part:
-      # Escape spaces.  We may need to escape more characters for this
-      # to work properly.
-      parts.append('"%s"' % part)
+      # Escape spaces and double quotes. We may need to escape more characters
+      # for this to work properly.
+      parts.append('"%s"' % part.replace('"', '\\"'))
     else:
       parts.append(part)
   return " ".join(parts)
@@ -299,8 +299,6 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
       'status_line': "[%(mins)02i:%(secs)02i|%%%(remaining) 4d|+%(passed) 4d|-%(failed) 4d]: %(test)s",
       'stdout': '%s',
       'stderr': '%s',
-      'clear': lambda last_line_length: ("\r" + (" " * last_line_length) + "\r"),
-      'max_length': 78
     }
     super(MonochromeProgressIndicator, self).__init__(cases, templates)
 
@@ -1283,7 +1281,7 @@ def ProcessOptions(options):
     options.scons_flags.append("arch=" + options.arch)
   # Simulators are slow, therefore allow a longer default timeout.
   if options.timeout == -1:
-    if options.arch == 'arm' or options.arch == 'mips':
+    if options.arch in ['android', 'arm', 'mipsel']:
       options.timeout = 2 * TIMEOUT_DEFAULT;
     else:
       options.timeout = TIMEOUT_DEFAULT;

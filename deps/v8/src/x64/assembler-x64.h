@@ -455,6 +455,7 @@ class CpuFeatures : public AllStatic {
     ASSERT(initialized_);
     if (f == SSE2 && !FLAG_enable_sse2) return false;
     if (f == SSE3 && !FLAG_enable_sse3) return false;
+    if (f == SSE4_1 && !FLAG_enable_sse4_1) return false;
     if (f == CMOV && !FLAG_enable_cmov) return false;
     if (f == RDTSC && !FLAG_enable_rdtsc) return false;
     if (f == SAHF && !FLAG_enable_sahf) return false;
@@ -559,6 +560,11 @@ class Assembler : public AssemblerBase {
 
   // Overrides the default provided by FLAG_debug_code.
   void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
+  // Avoids using instructions that vary in size in unpredictable ways between
+  // the snapshot and the running VM.  This is needed by the full compiler so
+  // that it can recompile code with debug support and fix the PC.
+  void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -1201,7 +1207,7 @@ class Assembler : public AssemblerBase {
   void call(Label* L);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            unsigned ast_id = kNoASTId);
+            TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // Calls directly to the given address using a relative offset.
   // Should only ever be used in Code objects for calls within the
@@ -1432,6 +1438,7 @@ class Assembler : public AssemblerBase {
 
  protected:
   bool emit_debug_code() const { return emit_debug_code_; }
+  bool predictable_code_size() const { return predictable_code_size_; }
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
@@ -1451,7 +1458,7 @@ class Assembler : public AssemblerBase {
   inline void emitw(uint16_t x);
   inline void emit_code_target(Handle<Code> target,
                                RelocInfo::Mode rmode,
-                               unsigned ast_id = kNoASTId);
+                               TypeFeedbackId ast_id = TypeFeedbackId::None());
   void emit(Immediate x) { emitl(x.value_); }
 
   // Emits a REX prefix that encodes a 64-bit operand size and
@@ -1636,6 +1643,7 @@ class Assembler : public AssemblerBase {
   PositionsRecorder positions_recorder_;
 
   bool emit_debug_code_;
+  bool predictable_code_size_;
 
   friend class PositionsRecorder;
 };

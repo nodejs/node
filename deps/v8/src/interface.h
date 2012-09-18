@@ -36,25 +36,41 @@ namespace internal {
 
 // This class implements the following abstract grammar of interfaces
 // (i.e. module types):
-//   interface ::= UNDETERMINED | VALUE | MODULE(exports)
+//   interface ::= UNDETERMINED | VALUE | CONST | MODULE(exports)
 //   exports ::= {name : interface, ...}
-// A frozen module type is one that is fully determined. Unification does not
-// allow adding additional exports to frozen interfaces.
-// Otherwise, unifying modules merges their exports.
+// A frozen type is one that is fully determined. Unification does not
+// allow to turn non-const values into const, or adding additional exports to
+// frozen interfaces. Otherwise, unifying modules merges their exports.
 // Undetermined types are unification variables that can be unified freely.
+// There is a natural subsort lattice that reflects the increase of knowledge:
+//
+//            undetermined
+//           //     |    \\                                                    .
+//       value  (frozen)  module
+//      //   \\  /    \  //
+//  const   fr.value  fr.module
+//      \\    /
+//     fr.const
+//
+// where the bold lines are the only transitions allowed.
 
 class Interface : public ZoneObject {
  public:
   // ---------------------------------------------------------------------------
   // Factory methods.
 
+  static Interface* NewUnknown(Zone* zone) {
+    return new(zone) Interface(NONE);
+  }
+
   static Interface* NewValue() {
     static Interface value_interface(VALUE + FROZEN);  // Cached.
     return &value_interface;
   }
 
-  static Interface* NewUnknown(Zone* zone) {
-    return new(zone) Interface(NONE);
+  static Interface* NewConst() {
+    static Interface value_interface(VALUE + CONST + FROZEN);  // Cached.
+    return &value_interface;
   }
 
   static Interface* NewModule(Zone* zone) {
@@ -78,6 +94,12 @@ class Interface : public ZoneObject {
   void MakeValue(bool* ok) {
     *ok = !IsModule();
     if (*ok) Chase()->flags_ |= VALUE;
+  }
+
+  // Determine this interface to be an immutable interface.
+  void MakeConst(bool* ok) {
+    *ok = !IsModule() && (IsConst() || !IsFrozen());
+    if (*ok) Chase()->flags_ |= VALUE + CONST;
   }
 
   // Determine this interface to be a module interface.
@@ -106,6 +128,9 @@ class Interface : public ZoneObject {
 
   // Check whether this is a value type.
   bool IsValue() { return Chase()->flags_ & VALUE; }
+
+  // Check whether this is a constant type.
+  bool IsConst() { return Chase()->flags_ & CONST; }
 
   // Check whether this is a module type.
   bool IsModule() { return Chase()->flags_ & MODULE; }
@@ -161,8 +186,9 @@ class Interface : public ZoneObject {
   enum Flags {    // All flags are monotonic
     NONE = 0,
     VALUE = 1,    // This type describes a value
-    MODULE = 2,   // This type describes a module
-    FROZEN = 4    // This type is fully determined
+    CONST = 2,    // This type describes a constant
+    MODULE = 4,   // This type describes a module
+    FROZEN = 8    // This type is fully determined
   };
 
   int flags_;

@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "debug.h"
 #include "runtime.h"
 #include "cctest.h"
 
@@ -87,10 +88,10 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
+  Isolate::Current()->debug()->PrepareForBreakPoints();
   Object* shared_func_info_ptr =
-      Runtime::FindSharedFunctionInfoInScript(Isolate::Current(),
-                                              i_script,
-                                              func_pos);
+      Isolate::Current()->debug()->FindSharedFunctionInfoInScript(i_script,
+                                                                  func_pos);
   CHECK(shared_func_info_ptr != HEAP->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));
@@ -398,7 +399,9 @@ TEST(AssignmentAndCall) {
   // The inferred name is empty, because this is an assignment of a result.
   CheckFunctionName(script, "return 1", "");
   // See MultipleAssignments test.
-  CheckFunctionName(script, "return 2", "Enclosing.Bar");
+  // TODO(2276): Lazy compiling the enclosing outer closure would yield
+  // in "Enclosing.Bar" being the inferred name here.
+  CheckFunctionName(script, "return 2", "Bar");
 }
 
 

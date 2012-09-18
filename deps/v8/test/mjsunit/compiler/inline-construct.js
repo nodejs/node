@@ -29,63 +29,72 @@
 
 // Test inlining of constructor calls.
 
-function TestInlinedConstructor(closure) {
+function TestInlinedConstructor(constructor, closure) {
   var result;
   var counter = { value:0 };
-  result = closure(11, 12, counter);
-  assertEquals(23, result);
+  var noDeopt = { deopt:0 };
+  var forceDeopt = { /*empty*/ };
+
+  result = closure(constructor, 11, noDeopt, counter);
+  assertEquals(11, result);
   assertEquals(1, counter.value);
-  result = closure(23, 19, counter);
-  assertEquals(42, result);
+
+  result = closure(constructor, 23, noDeopt, counter);
+  assertEquals(23, result);
   assertEquals(2, counter.value);
+
   %OptimizeFunctionOnNextCall(closure);
-  result = closure(1, 42, counter)
-  assertEquals(43, result);
+  result = closure(constructor, 42, noDeopt, counter);
+  assertEquals(42, result);
   assertEquals(3, counter.value);
-  result = closure("foo", "bar", counter)
-  assertEquals("foobar", result)
+
+  result = closure(constructor, 127, forceDeopt, counter);
+  assertEquals(127, result)
   assertEquals(4, counter.value);
+
+  %DeoptimizeFunction(closure);
+  %ClearFunctionTypeFeedback(closure);
+  %ClearFunctionTypeFeedback(constructor);
+}
+
+function value_context(constructor, val, deopt, counter) {
+  var obj = new constructor(val, deopt, counter);
+  return obj.x;
+}
+
+function test_context(constructor, val, deopt, counter) {
+  if (!new constructor(val, deopt, counter)) {
+    assertUnreachable("should not happen");
+  }
+  return val;
+}
+
+function effect_context(constructor, val, deopt, counter) {
+  new constructor(val, deopt, counter);
+  return val;
 }
 
 function TestInAllContexts(constructor) {
-  function value_context(a, b, counter) {
-    var obj = new constructor(a, b, counter);
-    return obj.x;
-  }
-  function test_context(a, b, counter) {
-    if (!new constructor(a, b, counter)) {
-      assertUnreachable("should not happen");
-    }
-    return a + b;
-  }
-  function effect_context(a, b, counter) {
-    new constructor(a, b, counter);
-    return a + b;
-  }
-  TestInlinedConstructor(value_context);
-  TestInlinedConstructor(test_context);
-  TestInlinedConstructor(effect_context);
-  %DeoptimizeFunction(value_context);
-  %DeoptimizeFunction(test_context);
-  %DeoptimizeFunction(effect_context);
-  %ClearFunctionTypeFeedback(value_context);
-  %ClearFunctionTypeFeedback(test_context);
-  %ClearFunctionTypeFeedback(effect_context);
+  TestInlinedConstructor(constructor, value_context);
+  TestInlinedConstructor(constructor, test_context);
+  TestInlinedConstructor(constructor, effect_context);
 }
 
 
 // Test constructor returning nothing in all contexts.
-function c1(a, b, counter) {
-  this.x = a + b;
+function c1(val, deopt, counter) {
+  deopt.deopt;
+  this.x = val;
   counter.value++;
 }
 TestInAllContexts(c1);
 
 
 // Test constructor returning an object in all contexts.
-function c2(a, b, counter) {
-  var obj = new Object();
-  obj.x = a + b;
+function c2(val, deopt, counter) {
+  var obj = {};
+  deopt.deopt;
+  obj.x = val;
   counter.value++;
   return obj;
 }
@@ -93,8 +102,9 @@ TestInAllContexts(c2);
 
 
 // Test constructor returning a primitive value in all contexts.
-function c3(a, b, counter) {
-  this.x = a + b;
+function c3(val, deopt, counter) {
+  deopt.deopt;
+  this.x = val;
   counter.value++;
   return "not an object";
 }
@@ -133,9 +143,10 @@ assertEquals("foo1", f_too_few("foo"))
 
 
 // Test constructor that cannot be inlined.
-function c_unsupported_syntax(a, b, counter) {
+function c_unsupported_syntax(val, deopt, counter) {
   try {
-    this.x = a + b;
+    deopt.deopt;
+    this.x = val;
     counter.value++;
   } catch(e) {
     throw new Error();
@@ -146,9 +157,10 @@ TestInAllContexts(c_unsupported_syntax);
 
 // Regression test: Inlined constructors called as functions do not get their
 // implicit receiver object set to undefined, even in strict mode.
-function c_strict(a, b, counter) {
+function c_strict(val, deopt, counter) {
   "use strict";
-  this.x = a + b;
+  deopt.deopt;
+  this.x = val;
   counter.value++;
 }
 TestInAllContexts(c_strict);

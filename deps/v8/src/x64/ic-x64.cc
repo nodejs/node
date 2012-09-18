@@ -135,7 +135,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
                                                      r0,
                                                      r1);
 
-  // If probing finds an entry in the dictionary, r0 contains the
+  // If probing finds an entry in the dictionary, r1 contains the
   // index into the dictionary. Check that the value is a normal
   // property.
   __ bind(&done);
@@ -178,10 +178,9 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   //
   // value - holds the value to store and is unchanged.
   //
-  // scratch0 - used for index into the property dictionary and is clobbered.
+  // scratch0 - used during the positive dictionary lookup and is clobbered.
   //
-  // scratch1 - used to hold the capacity of the property dictionary and is
-  //            clobbered.
+  // scratch1 - used for index into the property dictionary and is clobbered.
   Label done;
 
   // Probe the dictionary.
@@ -823,7 +822,7 @@ void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   Code::Flags flags = Code::ComputeFlags(kind,
                                          MONOMORPHIC,
                                          extra_state,
-                                         NORMAL,
+                                         Code::NORMAL,
                                          argc);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rdx, rcx, rbx,
                                                   rax);

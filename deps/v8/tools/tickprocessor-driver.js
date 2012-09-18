@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -50,7 +50,7 @@ if (params.snapshotLogFileName) {
   snapshotLogProcessor.processLogFile(params.snapshotLogFileName);
 }
 var tickProcessor = new TickProcessor(
-  new (entriesProviders[params.platform])(params.nm),
+  new (entriesProviders[params.platform])(params.nm, params.targetRootFS),
   params.separateIc,
   params.callGraphSize,
   params.ignoreUnknown,

@@ -79,12 +79,13 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 // Load the built-in InternalArray function from the current context.
 static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
                                               Register result) {
-  // Load the global context.
+  // Load the native context.
 
-  __ lw(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ lw(result,
-        FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
-  // Load the InternalArray function from the global context.
+        MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ lw(result,
+        FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  // Load the InternalArray function from the native context.
   __ lw(result,
          MemOperand(result,
                     Context::SlotOffset(
@@ -94,12 +95,13 @@ static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
 
 // Load the built-in Array function from the current context.
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the global context.
+  // Load the native context.
 
-  __ lw(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ lw(result,
-        FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
-  // Load the Array function from the global context.
+        MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ lw(result,
+        FieldMemOperand(result, GlobalObject::kNativeContextOffset));
+  // Load the Array function from the native context.
   __ lw(result,
         MemOperand(result,
                    Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
@@ -710,6 +712,43 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNewStringWrapper, 1);
   }
   __ Ret();
+}
+
+
+static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
+  __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kCodeOffset));
+  __ Addu(at, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Jump(at);
+}
+
+
+void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  GenerateTailCallToSharedCode(masm);
+}
+
+
+void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Push a copy of the function onto the stack.
+    __ push(a1);
+    // Push call kind information.
+    __ push(t1);
+
+    __ push(a1);  // Function is also the parameter to the runtime call.
+    __ CallRuntime(Runtime::kParallelRecompile, 1);
+
+    // Restore call kind information.
+    __ pop(t1);
+    // Restore receiver.
+    __ pop(a1);
+
+    // Tear down internal frame.
+  }
+
+  GenerateTailCallToSharedCode(masm);
 }
 
 
@@ -1393,9 +1432,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ lw(a2, FieldMemOperand(cp, kGlobalIndex));
-    __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalContextOffset));
+    __ lw(a2, FieldMemOperand(a2, GlobalObject::kNativeContextOffset));
     __ lw(a2, FieldMemOperand(a2, kGlobalIndex));
     __ lw(a2, FieldMemOperand(a2, GlobalObject::kGlobalReceiverOffset));
 
@@ -1586,9 +1625,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ lw(a0, FieldMemOperand(cp, kGlobalOffset));
-    __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
+    __ lw(a0, FieldMemOperand(a0, GlobalObject::kNativeContextOffset));
     __ lw(a0, FieldMemOperand(a0, kGlobalOffset));
     __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalReceiverOffset));
 

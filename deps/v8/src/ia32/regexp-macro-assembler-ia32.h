@@ -34,14 +34,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
- public:
-  RegExpMacroAssemblerIA32() { }
-  virtual ~RegExpMacroAssemblerIA32() { }
-};
-
-#else  // V8_INTERPRETED_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save, Zone* zone);

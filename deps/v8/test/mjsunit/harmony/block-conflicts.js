@@ -35,7 +35,8 @@
 function CheckException(e) {
   var string = e.toString();
   assertTrue(string.indexOf("has already been declared") >= 0 ||
-             string.indexOf("redeclaration") >= 0);  return 'Conflict';
+             string.indexOf("redeclaration") >= 0);
+  return 'Conflict';
 }
 
 

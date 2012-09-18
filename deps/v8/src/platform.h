@@ -71,6 +71,24 @@ int signbit(double x);
 
 int strncasecmp(const char* s1, const char* s2, int n);
 
+inline int lrint(double flt) {
+  int intgr;
+#if defined(V8_TARGET_ARCH_IA32)
+  __asm {
+    fld flt
+    fistp intgr
+  };
+#else
+  intgr = static_cast<int>(flt + 0.5);
+  if ((intgr & 1) != 0 && intgr - flt == 0.5) {
+    // If the number is halfway between two integers, round to the even one.
+    intgr--;
+  }
+#endif
+  return intgr;
+}
+
+
 #endif  // _MSC_VER
 
 // Random is missing on both Visual Studio and MinGW.
@@ -316,6 +334,8 @@ class OS {
   }
   static const int kMinComplexMemCopy = 256;
 #endif  // V8_TARGET_ARCH_IA32
+
+  static int GetCurrentProcessId();
 
  private:
   static const int msPerSecond = 1000;

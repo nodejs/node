@@ -143,7 +143,7 @@ assertKind(elements_kind.external_int,            new Int32Array(0xF));
 assertKind(elements_kind.external_unsigned_int,   new Uint32Array(23));
 assertKind(elements_kind.external_float,          new Float32Array(7));
 assertKind(elements_kind.external_double,         new Float64Array(0));
-assertKind(elements_kind.external_pixel,          new PixelArray(512));
+assertKind(elements_kind.external_pixel,          new Uint8ClampedArray(512));
 
 // Crankshaft support for smi-only array elements.
 function monomorphic(array) {

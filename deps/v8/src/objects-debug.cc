@@ -302,8 +302,15 @@ void Map::MapVerify() {
           instance_size() < HEAP->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
+  DescriptorArray* descriptors = instance_descriptors();
+  for (int i = 0; i < NumberOfOwnDescriptors(); ++i) {
+    ASSERT_EQ(i, descriptors->GetDetails(i).descriptor_index() - 1);
+  }
   SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
-  SLOW_ASSERT(instance_descriptors()->IsConsistentWithBackPointers(this));
+  if (HasTransitionArray()) {
+    SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
+    SLOW_ASSERT(transitions()->IsConsistentWithBackPointers(this));
+  }
 }
 
 
@@ -334,8 +341,8 @@ void PolymorphicCodeCache::PolymorphicCodeCacheVerify() {
 
 
 void TypeFeedbackInfo::TypeFeedbackInfoVerify() {
-  VerifyObjectField(kIcTotalCountOffset);
-  VerifyObjectField(kIcWithTypeinfoCountOffset);
+  VerifyObjectField(kStorage1Offset);
+  VerifyObjectField(kStorage2Offset);
   VerifyHeapPointer(type_feedback_cells());
 }
 
@@ -371,11 +378,10 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
 
 
 void JSModule::JSModuleVerify() {
-  Object* v = context();
-  if (v->IsHeapObject()) {
-    VerifyHeapPointer(v);
-  }
-  CHECK(v->IsUndefined() || v->IsModuleContext());
+  VerifyObjectField(kContextOffset);
+  VerifyObjectField(kScopeInfoOffset);
+  CHECK(context()->IsUndefined() ||
+        Context::cast(context())->IsModuleContext());
 }
 
 
@@ -502,6 +508,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
   VerifyObjectField(kNameOffset);
   VerifyObjectField(kCodeOffset);
+  VerifyObjectField(kOptimizedCodeMapOffset);
   VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kInstanceClassNameOffset);
   VerifyObjectField(kFunctionDataOffset);
@@ -513,7 +520,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 void JSGlobalProxy::JSGlobalProxyVerify() {
   CHECK(IsJSGlobalProxy());
   JSObjectVerify();
-  VerifyObjectField(JSGlobalProxy::kContextOffset);
+  VerifyObjectField(JSGlobalProxy::kNativeContextOffset);
   // Make sure that this object has no properties, elements.
   CHECK_EQ(0, properties()->length());
   CHECK(HasFastObjectElements());
@@ -898,15 +905,36 @@ bool DescriptorArray::IsSortedNoDuplicates() {
   String* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    String* key = GetKey(i);
+    String* key = GetSortedKey(i);
     if (key == current_key) {
       PrintDescriptors();
       return false;
     }
     current_key = key;
-    uint32_t hash = GetKey(i)->Hash();
+    uint32_t hash = GetSortedKey(i)->Hash();
     if (hash < current) {
       PrintDescriptors();
+      return false;
+    }
+    current = hash;
+  }
+  return true;
+}
+
+
+bool TransitionArray::IsSortedNoDuplicates() {
+  String* current_key = NULL;
+  uint32_t current = 0;
+  for (int i = 0; i < number_of_transitions(); i++) {
+    String* key = GetSortedKey(i);
+    if (key == current_key) {
+      PrintTransitions();
+      return false;
+    }
+    current_key = key;
+    uint32_t hash = GetSortedKey(i)->Hash();
+    if (hash < current) {
+      PrintTransitions();
       return false;
     }
     current = hash;
@@ -920,36 +948,13 @@ static bool CheckOneBackPointer(Map* current_map, Object* target) {
 }
 
 
-bool DescriptorArray::IsConsistentWithBackPointers(Map* current_map) {
-  for (int i = 0; i < number_of_descriptors(); ++i) {
-    switch (GetType(i)) {
-      case MAP_TRANSITION:
-      case CONSTANT_TRANSITION:
-        if (!CheckOneBackPointer(current_map, GetValue(i))) {
-          return false;
-        }
-        break;
-      case CALLBACKS: {
-        Object* object = GetValue(i);
-        if (object->IsAccessorPair()) {
-          AccessorPair* accessors = AccessorPair::cast(object);
-          if (!CheckOneBackPointer(current_map, accessors->getter())) {
-            return false;
-          }
-          if (!CheckOneBackPointer(current_map, accessors->setter())) {
-            return false;
-          }
-        }
-        break;
-      }
-      case NORMAL:
-      case FIELD:
-      case CONSTANT_FUNCTION:
-      case HANDLER:
-      case INTERCEPTOR:
-      case NULL_DESCRIPTOR:
-        break;
-    }
+bool TransitionArray::IsConsistentWithBackPointers(Map* current_map) {
+  if (HasElementsTransition() &&
+      !CheckOneBackPointer(current_map, elements_transition())) {
+    return false;
+  }
+  for (int i = 0; i < number_of_transitions(); ++i) {
+    if (!CheckOneBackPointer(current_map, GetTarget(i))) return false;
   }
   return true;
 }
@@ -996,17 +1001,16 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 }
 
 
-void Map::ZapInstanceDescriptors() {
-  DescriptorArray* descriptors = instance_descriptors();
-  if (descriptors == GetHeap()->empty_descriptor_array()) return;
-  MemsetPointer(descriptors->data_start(),
+void Map::ZapTransitions() {
+  TransitionArray* transition_array = transitions();
+  MemsetPointer(transition_array->data_start(),
                 GetHeap()->the_hole_value(),
-                descriptors->length());
+                transition_array->length());
 }
 
 
 void Map::ZapPrototypeTransitions() {
-  FixedArray* proto_transitions = prototype_transitions();
+  FixedArray* proto_transitions = GetPrototypeTransitions();
   MemsetPointer(proto_transitions->data_start(),
                 GetHeap()->the_hole_value(),
                 proto_transitions->length());

@@ -38,12 +38,12 @@ namespace internal {
 
 class Processor: public AstVisitor {
  public:
-  explicit Processor(Variable* result)
+  Processor(Variable* result, Zone* zone)
       : result_(result),
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(isolate()) { }
+        factory_(isolate(), zone) { }
 
   virtual ~Processor() { }
 
@@ -230,8 +230,8 @@ EXPRESSION_NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
 
-// Assumes code has been parsed and scopes have been analyzed.  Mutates the
-// AST, so the AST should not continue to be used in the case of failure.
+// Assumes code has been parsed.  Mutates the AST, so the AST should not
+// continue to be used in the case of failure.
 bool Rewriter::Rewrite(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
   ASSERT(function != NULL);
@@ -243,7 +243,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
   if (!body->is_empty()) {
     Variable* result = scope->NewTemporary(
         info->isolate()->factory()->result_symbol());
-    Processor processor(result);
+    Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 
@@ -257,12 +257,12 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // coincides with the end of the with scope which is the position of '1'.
       int position = function->end_position();
       VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->name(), false, position);
+          result->name(), false, Interface::NewValue(), position);
       result_proxy->BindTo(result);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy);
       result_statement->set_statement_pos(position);
-      body->Add(result_statement, info->isolate()->zone());
+      body->Add(result_statement, info->zone());
     }
   }
 

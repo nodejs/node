@@ -29,6 +29,7 @@
 #define V8_UNICODE_INL_H_
 
 #include "unicode.h"
+#include "checks.h"
 
 namespace unibrow {
 
@@ -144,6 +145,7 @@ uchar CharacterStream::GetNext() {
   } else {
     remaining_--;
   }
+  ASSERT(BoundsCheck(cursor_));
   return result;
 }
 

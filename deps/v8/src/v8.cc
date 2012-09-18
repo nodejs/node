@@ -106,12 +106,15 @@ void V8::TearDown() {
 
   if (!has_been_set_up_ || has_been_disposed_) return;
 
+  // The isolate has to be torn down before clearing the LOperand
+  // caches so that the optimizing compiler thread (if running)
+  // doesn't see an inconsistent view of the lithium instructions.
+  isolate->TearDown();
+  delete isolate;
+
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
   RegisteredExtension::UnregisterAll();
-
-  isolate->TearDown();
-  delete isolate;
 
   is_running_ = false;
   has_been_disposed_ = true;
@@ -166,7 +169,7 @@ void V8::SetReturnAddressLocationResolver(
 
 // Used by JavaScript APIs
 uint32_t V8::Random(Context* context) {
-  ASSERT(context->IsGlobalContext());
+  ASSERT(context->IsNativeContext());
   ByteArray* seed = context->random_seed();
   return random_base(reinterpret_cast<uint32_t*>(seed->GetDataStartAddress()));
 }

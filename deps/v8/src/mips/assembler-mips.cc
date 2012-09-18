@@ -273,6 +273,7 @@ static const int kMinimalBufferSize = 4 * KB;
 
 Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
+      recorded_ast_id_(TypeFeedbackId::None()),
       positions_recorder_(this),
       emit_debug_code_(FLAG_debug_code) {
   if (buffer == NULL) {
@@ -2046,7 +2047,10 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // Too late to grow buffer here.
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId(), NULL);
+      RelocInfo reloc_info_with_ast_id(pc_,
+                                       rmode,
+                                       RecordedAstId().ToInt(),
+                                       NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {

@@ -25,7 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --expose-gc --allow-natives-syntax --inline-construct
+// Flags: --expose-debug-as debug --expose-gc --allow-natives-syntax
+// Flags: --inline-construct
+
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
@@ -35,11 +37,16 @@ var exception = false;
 var testingConstructCall = false;
 
 var expected = [
-  { locals: {a0: 1, b0: 2}, args: { names: ["i", "x0", "y0"], values: [0, 3, 4] } },
-  { locals: {a1: 3, b1: 4}, args: { names: ["i", "x1", "y1"], values: [1, 5, 6] } },
-  { locals: {a2: 5, b2: 6}, args: { names: ["i"], values: [2] } },
-  { locals: {a3: 7, b3: 8}, args: { names: ["i", "x3", "y3", "z3"], values: [3, 9, 10, undefined] } },
-  { locals: {a4: 9, b4: 10}, args: { names: ["i", "x4", "y4"], values: [4, 11, 12] } }
+  { locals: {a0: 1, b0: 2},
+    args: { names: ["i", "x0", "y0"], values: [0, 3, 4] } },
+  { locals: {a1: 3, b1: 4},
+    args: { names: ["i", "x1", "y1"], values: [1, 5, 6] } },
+  { locals: {a2: 5, b2: 6},
+    args: { names: ["i"], values: [2] } },
+  { locals: {a3: 7, b3: 8},
+    args: { names: ["i", "x3", "y3", "z3"], values: [3, 9, 10, undefined] } },
+  { locals: {a4: 9, b4: 10},
+    args: { names: ["i", "x4", "y4"], values: [4, 11, 12] } }
 ];
 
 function arraySum(arr) {
@@ -68,7 +75,8 @@ function listener(event, exec_state, event_data, data) {
           // All frames except the bottom one have expected arguments.
           for (var j = 0; j < expected_args.names.length; j++) {
             assertEquals(expected_args.names[j], frame.argumentName(j));
-            assertEquals(expected_args.values[j], frame.argumentValue(j).value());
+            assertEquals(expected_args.values[j],
+                         frame.argumentValue(j).value());
           }
 
           // All frames except the bottom one have two scopes.
@@ -77,13 +85,15 @@ function listener(event, exec_state, event_data, data) {
           assertEquals(debug.ScopeType.Global, frame.scope(1).scopeType());
 
           Object.keys(expected_locals).forEach(function (name) {
-            assertEquals(expected_locals[name], frame.scope(0).scopeObject().value()[name]);
+            assertEquals(expected_locals[name],
+                         frame.scope(0).scopeObject().value()[name]);
           });
 
           for (var j = 0; j < expected_args.names.length; j++) {
             var arg_name = expected_args.names[j];
             var arg_value = expected_args.values[j];
-            assertEquals(arg_value, frame.scope(0).scopeObject().value()[arg_name]);
+            assertEquals(arg_value,
+                         frame.scope(0).scopeObject().value()[arg_name]);
           }
 
           // Evaluate in the inlined frame.
@@ -104,7 +114,8 @@ function listener(event, exec_state, event_data, data) {
                        map(function (k) { return expected_locals[k]; }));
 
           assertEquals(expected_locals_sum + expected_args_sum,
-                       frame.evaluate(Object.keys(expected_locals).join('+') + ' + ' +
+                       frame.evaluate(Object.keys(expected_locals).join('+') +
+                                      ' + ' +
                                       expected_args.names.join('+')).value());
 
           var arguments_sum = expected_args.names.map(function(_, idx) {

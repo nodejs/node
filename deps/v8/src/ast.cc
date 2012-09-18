@@ -85,8 +85,8 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
 VariableProxy::VariableProxy(Isolate* isolate,
                              Handle<String> name,
                              bool is_this,
-                             int position,
-                             Interface* interface)
+                             Interface* interface,
+                             int position)
     : Expression(isolate),
       name_(name),
       var_(NULL),
@@ -125,7 +125,6 @@ Assignment::Assignment(Isolate* isolate,
       value_(value),
       pos_(pos),
       binary_operation_(NULL),
-      compound_load_id_(kNoNumber),
       assignment_id_(GetNextId(isolate)),
       block_start_(false),
       block_end_(false),
@@ -153,6 +152,11 @@ Token::Value Assignment::binary_op() const {
 
 bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
+}
+
+
+bool FunctionLiteral::AllowsLazyCompilationWithoutContext() {
+  return scope()->AllowsLazyCompilationWithoutContext();
 }
 
 
@@ -429,7 +433,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                         zone);
   } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
+    oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
   }
 }
 
@@ -438,7 +442,8 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                                     Zone* zone) {
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
+  TypeFeedbackId id = AssignmentFeedbackId();
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
   receiver_types_.Clear();
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
@@ -447,24 +452,26 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     oracle->StoreReceiverTypes(this, name, &receiver_types_);
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
+  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
+    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
 }
 
 
 void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                                         Zone* zone) {
-  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
+  TypeFeedbackId id = CountStoreFeedbackId();
+  is_monomorphic_ = oracle->StoreIsMonomorphicNormal(id);
   receiver_types_.Clear();
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
+    receiver_types_.Add(
+        oracle->StoreMonomorphicReceiverType(id), zone);
+  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
-    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
+    oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
 }
 
@@ -498,7 +505,7 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
   }
   LookupResult lookup(type->GetIsolate());
   while (true) {
-    type->LookupInDescriptors(NULL, *name, &lookup);
+    type->LookupDescriptor(NULL, *name, &lookup);
     if (lookup.IsFound()) {
       switch (lookup.type()) {
         case CONSTANT_FUNCTION:
@@ -513,10 +520,9 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
         case INTERCEPTOR:
           // We don't know the target.
           return false;
-        case MAP_TRANSITION:
-        case CONSTANT_TRANSITION:
-        case NULL_DESCRIPTOR:
-          // Perhaps something interesting is up in the prototype chain...
+        case TRANSITION:
+        case NONEXISTENT:
+          UNREACHABLE();
           break;
       }
     }
@@ -1027,6 +1033,14 @@ CaseClause::CaseClause(Isolate* isolate,
     increase_node_count(); \
     add_flag(kDontSelfOptimize); \
   }
+#define DONT_CACHE_NODE(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+    add_flag(kDontOptimize); \
+    add_flag(kDontInline); \
+    add_flag(kDontSelfOptimize); \
+    add_flag(kDontCache); \
+  }
 
 REGULAR_NODE(VariableDeclaration)
 REGULAR_NODE(FunctionDeclaration)
@@ -1041,6 +1055,7 @@ REGULAR_NODE(SwitchStatement)
 REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
 REGULAR_NODE(ObjectLiteral)
+REGULAR_NODE(RegExpLiteral)
 REGULAR_NODE(Assignment)
 REGULAR_NODE(Throw)
 REGULAR_NODE(Property)
@@ -1057,10 +1072,13 @@ REGULAR_NODE(CallNew)
 // LOOKUP variables only result from constructs that cannot be inlined anyway.
 REGULAR_NODE(VariableProxy)
 
+// We currently do not optimize any modules. Note in particular, that module
+// instance objects associated with ModuleLiterals are allocated during
+// scope resolution, and references to them are embedded into the code.
+// That code may hence neither be cached nor re-compiled.
 DONT_OPTIMIZE_NODE(ModuleDeclaration)
 DONT_OPTIMIZE_NODE(ImportDeclaration)
 DONT_OPTIMIZE_NODE(ExportDeclaration)
-DONT_OPTIMIZE_NODE(ModuleLiteral)
 DONT_OPTIMIZE_NODE(ModuleVariable)
 DONT_OPTIMIZE_NODE(ModulePath)
 DONT_OPTIMIZE_NODE(ModuleUrl)
@@ -1070,14 +1088,15 @@ DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
 DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
 
-DONT_INLINE_NODE(FunctionLiteral)
-DONT_INLINE_NODE(RegExpLiteral)  // TODO(1322): Allow materialized literals.
 DONT_INLINE_NODE(ArrayLiteral)  // TODO(1322): Allow materialized literals.
+DONT_INLINE_NODE(FunctionLiteral)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
 DONT_SELFOPTIMIZE_NODE(ForStatement)
 DONT_SELFOPTIMIZE_NODE(ForInStatement)
+
+DONT_CACHE_NODE(ModuleLiteral)
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
@@ -1099,6 +1118,7 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 #undef DONT_OPTIMIZE_NODE
 #undef DONT_INLINE_NODE
 #undef DONT_SELFOPTIMIZE_NODE
+#undef DONT_CACHE_NODE
 
 
 Handle<String> Literal::ToString() {

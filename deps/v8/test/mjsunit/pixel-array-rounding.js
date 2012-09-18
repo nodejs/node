@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 
-var pixels = new PixelArray(8);
+var pixels = new Uint8ClampedArray(8);
 
 function f() {
   for (var i = 0; i < 8; i++) {

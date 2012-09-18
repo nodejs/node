@@ -63,15 +63,16 @@
 #else  // _WIN32
 
 // Setup for Linux shared library export.
-#if defined(__GNUC__) && (__GNUC__ >= 4) && defined(V8_SHARED)
+#if defined(__GNUC__) && ((__GNUC__ >= 4) || \
+    (__GNUC__ == 3 && __GNUC_MINOR__ >= 3)) && defined(V8_SHARED)
 #ifdef BUILDING_V8_SHARED
 #define V8EXPORT __attribute__ ((visibility("default")))
 #else
 #define V8EXPORT
 #endif
-#else  // defined(__GNUC__) && (__GNUC__ >= 4)
+#else
 #define V8EXPORT
-#endif  // defined(__GNUC__) && (__GNUC__ >= 4)
+#endif
 
 #endif  // _WIN32
 
@@ -1064,7 +1065,8 @@ class String : public Primitive {
   enum WriteOptions {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
-    NO_NULL_TERMINATION = 2
+    NO_NULL_TERMINATION = 2,
+    PRESERVE_ASCII_NULL = 4
   };
 
   // 16-bit character codes.
@@ -1549,6 +1551,12 @@ class Object : public Value {
    * user-defined toString function. This one does not.
    */
   V8EXPORT Local<String> ObjectProtoToString();
+
+  /**
+   * Returns the function invoked as a constructor for this object.
+   * May be the null value.
+   */
+  V8EXPORT Local<Value> GetConstructor();
 
   /**
    * Returns the name of the function invoked as a constructor for this object.
@@ -2909,13 +2917,82 @@ typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
  * resolving the location of a return address on the stack. Profilers that
  * change the return address on the stack can use this to resolve the stack
  * location to whereever the profiler stashed the original return address.
- * When invoked, return_addr_location will point to a location on stack where
- * a machine return address resides, this function should return either the
- * same pointer, or a pointer to the profiler's copy of the original return
- * address.
+ *
+ * \param return_addr_location points to a location on stack where a machine
+ *    return address resides.
+ * \returns either return_addr_location, or else a pointer to the profiler's
+ *    copy of the original return address.
+ *
+ * \note the resolver function must not cause garbage collection.
  */
 typedef uintptr_t (*ReturnAddressLocationResolver)(
     uintptr_t return_addr_location);
+
+
+/**
+ * FunctionEntryHook is the type of the profile entry hook called at entry to
+ * any generated function when function-level profiling is enabled.
+ *
+ * \param function the address of the function that's being entered.
+ * \param return_addr_location points to a location on stack where the machine
+ *    return address resides. This can be used to identify the caller of
+ *    \p function, and/or modified to divert execution when \p function exits.
+ *
+ * \note the entry hook must not cause garbage collection.
+ */
+typedef void (*FunctionEntryHook)(uintptr_t function,
+                                  uintptr_t return_addr_location);
+
+
+/**
+ * A JIT code event is issued each time code is added, moved or removed.
+ *
+ * \note removal events are not currently issued.
+ */
+struct JitCodeEvent {
+  enum EventType {
+    CODE_ADDED,
+    CODE_MOVED,
+    CODE_REMOVED
+  };
+
+  // Type of event.
+  EventType type;
+  // Start of the instructions.
+  void* code_start;
+  // Size of the instructions.
+  size_t code_len;
+
+  union {
+    // Only valid for CODE_ADDED.
+    struct {
+      // Name of the object associated with the code, note that the string is
+      // not zero-terminated.
+      const char* str;
+      // Number of chars in str.
+      size_t len;
+    } name;
+    // New location of instructions. Only valid for CODE_MOVED.
+    void* new_code_start;
+  };
+};
+
+/**
+ * Option flags passed to the SetJitCodeEventHandler function.
+ */
+enum JitCodeEventOptions {
+  kJitCodeEventDefault = 0,
+  // Generate callbacks for already existent code.
+  kJitCodeEventEnumExisting = 1
+};
+
+
+/**
+ * Callback function passed to SetJitCodeEventHandler.
+ *
+ * \param event code add, move or removal event.
+ */
+typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
 
 
 /**
@@ -3177,6 +3254,43 @@ class V8EXPORT V8 {
    */
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver return_address_resolver);
+
+  /**
+   * Allows the host application to provide the address of a function that's
+   * invoked on entry to every V8-generated function.
+   * Note that \p entry_hook is invoked at the very start of each
+   * generated function.
+   *
+   * \param entry_hook a function that will be invoked on entry to every
+   *   V8-generated function.
+   * \returns true on success on supported platforms, false on failure.
+   * \note Setting a new entry hook function when one is already active will
+   *   fail.
+   */
+  static bool SetFunctionEntryHook(FunctionEntryHook entry_hook);
+
+  /**
+   * Allows the host application to provide the address of a function that is
+   * notified each time code is added, moved or removed.
+   *
+   * \param options options for the JIT code event handler.
+   * \param event_handler the JIT code event handler, which will be invoked
+   *     each time code is added, moved or removed.
+   * \note \p event_handler won't get notified of existent code.
+   * \note since code removal notifications are not currently issued, the
+   *     \p event_handler may get notifications of code that overlaps earlier
+   *     code notifications. This happens when code areas are reused, and the
+   *     earlier overlapping code areas should therefore be discarded.
+   * \note the events passed to \p event_handler and the strings they point to
+   *     are not guaranteed to live past each call. The \p event_handler must
+   *     copy strings and other parameters it needs to keep around.
+   * \note the set of events declared in JitCodeEvent::EventType is expected to
+   *     grow over time, and the JitCodeEvent structure is expected to accrue
+   *     new members. The \p event_handler function must ignore event codes
+   *     it does not recognize to maintain future compatibility.
+   */
+  static void SetJitCodeEventHandler(JitCodeEventOptions options,
+                                     JitCodeEventHandler event_handler);
 
   /**
    * Adjusts the amount of registered external memory.  Used to give
@@ -3928,7 +4042,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptySymbolRootIndex = 128;
+  static const int kEmptySymbolRootIndex = 116;
 
   static const int kJSObjectType = 0xaa;
   static const int kFirstNonstringType = 0x80;

@@ -247,22 +247,23 @@ function BasicSerializeObject(value, stack, builder) {
   }
   builder.push("{");
   var first = true;
-  for (var p in value) {
-    if (%HasLocalProperty(value, p)) {
-      if (!first) {
-        builder.push(%QuoteJSONStringComma(p));
-      } else {
-        builder.push(%QuoteJSONString(p));
-      }
-      builder.push(":");
-      var before = builder.length;
-      BasicJSONSerialize(p, value[p], stack, builder);
-      if (before == builder.length) {
-        builder.pop();
-        builder.pop();
-      } else {
-        first = false;
-      }
+  var keys = %ObjectKeys(value);
+  var len = keys.length;
+  for (var i = 0; i < len; i++) {
+    var p = keys[i];
+    if (!first) {
+      builder.push(%QuoteJSONStringComma(p));
+    } else {
+      builder.push(%QuoteJSONString(p));
+    }
+    builder.push(":");
+    var before = builder.length;
+    BasicJSONSerialize(p, value[p], stack, builder);
+    if (before == builder.length) {
+      builder.pop();
+      builder.pop();
+    } else {
+      first = false;
     }
   }
   stack.pop();

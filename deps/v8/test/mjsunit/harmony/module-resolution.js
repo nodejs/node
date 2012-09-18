@@ -33,6 +33,7 @@
 
 print("begin.")
 
+
 export let x = print("0")
 
 export module B = A.B
@@ -44,15 +45,25 @@ export module A {
     module BB = B
     export BB, x
     let x = print("2")
-    let y = print("3")
+    var y = print("3")
     let Ax = A.x
+    try { A.y } catch (e) {}  // throws
+    let Az = A.z  // undefined
+    let Az2 = z  // undefined
+    A.g()  // hoisted
+    g()  // hoisted
     let ABx = A.B.x
-    let Ay = A.y
+    let ABy = A.B.y
+    let Bx = B.x
+    let By = B.y
     let BBx = BB.x
+    let BBy = BB.y
     let Af = A.f
     function f(x,y) { return x }
   }
   export let y = print("4")
+  export var z = print("4.1")
+  export function g() {}
   let Ax = A.x
   let Bx = B.x
   let ABx = A.B.x
@@ -92,6 +103,8 @@ export module E {
   let Bx = B.x
   // TODO(rossberg): Handle import *.
   // import A.*
+  module B = A.B
+  let y = A.y
 }
 
 export module M1 {

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -351,7 +351,7 @@ Handle<Value> JsHttpRequestProcessor::MapGet(Local<String> name,
 
   // Otherwise fetch the value and wrap it in a JavaScript string
   const string& value = (*iter).second;
-  return String::New(value.c_str(), value.length());
+  return String::New(value.c_str(), static_cast<int>(value.length()));
 }
 
 
@@ -443,7 +443,7 @@ Handle<Value> JsHttpRequestProcessor::GetPath(Local<String> name,
   const string& path = request->Path();
 
   // Wrap the result in a JavaScript string and return it.
-  return String::New(path.c_str(), path.length());
+  return String::New(path.c_str(), static_cast<int>(path.length()));
 }
 
 
@@ -451,7 +451,7 @@ Handle<Value> JsHttpRequestProcessor::GetReferrer(Local<String> name,
                                                   const AccessorInfo& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Referrer();
-  return String::New(path.c_str(), path.length());
+  return String::New(path.c_str(), static_cast<int>(path.length()));
 }
 
 
@@ -459,7 +459,7 @@ Handle<Value> JsHttpRequestProcessor::GetHost(Local<String> name,
                                               const AccessorInfo& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Host();
-  return String::New(path.c_str(), path.length());
+  return String::New(path.c_str(), static_cast<int>(path.length()));
 }
 
 
@@ -467,7 +467,7 @@ Handle<Value> JsHttpRequestProcessor::GetUserAgent(Local<String> name,
                                                    const AccessorInfo& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->UserAgent();
-  return String::New(path.c_str(), path.length());
+  return String::New(path.c_str(), static_cast<int>(path.length()));
 }
 
 
@@ -557,7 +557,7 @@ Handle<String> ReadFile(const string& name) {
   char* chars = new char[size + 1];
   chars[size] = '\0';
   for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
+    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
     i += read;
   }
   fclose(file);

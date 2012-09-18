@@ -1373,7 +1373,7 @@ void Assembler::bind_to(Label* L, int pos) {
     ASSERT(offset_to_next <= 0);
     // Relative address, relative to point after address.
     int disp = pos - fixup_pos - sizeof(int8_t);
-    ASSERT(0 <= disp && disp <= 127);
+    CHECK(0 <= disp && disp <= 127);
     set_byte_at(fixup_pos, disp);
     if (offset_to_next < 0) {
       L->link_to(fixup_pos + offset_to_next, Label::kNear);
@@ -1440,7 +1440,7 @@ int Assembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void Assembler::call(Handle<Code> code,
                      RelocInfo::Mode rmode,
-                     unsigned ast_id) {
+                     TypeFeedbackId ast_id) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
@@ -1938,6 +1938,16 @@ void Assembler::cvttsd2si(Register dst, const Operand& src) {
 }
 
 
+void Assembler::cvtsd2si(Register dst, XMMRegister src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x2D);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtsi2sd(XMMRegister dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
@@ -2040,6 +2050,15 @@ void Assembler::andpd(XMMRegister dst, XMMRegister src) {
   EMIT(0x66);
   EMIT(0x0F);
   EMIT(0x54);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::orpd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x56);
   emit_sse_operand(dst, src);
 }
 

@@ -67,20 +67,20 @@ class Segment {
 };
 
 
-Zone::Zone()
+Zone::Zone(Isolate* isolate)
     : zone_excess_limit_(256 * MB),
       segment_bytes_allocated_(0),
       position_(0),
       limit_(0),
       scope_nesting_(0),
-      segment_head_(NULL) {
+      segment_head_(NULL),
+      isolate_(isolate) {
 }
 unsigned Zone::allocation_size_ = 0;
 
 ZoneScope::~ZoneScope() {
-  ASSERT_EQ(Isolate::Current(), isolate_);
-  if (ShouldDeleteOnExit()) isolate_->zone()->DeleteAll();
-  isolate_->zone()->scope_nesting_--;
+  if (ShouldDeleteOnExit()) zone_->DeleteAll();
+  zone_->scope_nesting_--;
 }
 
 

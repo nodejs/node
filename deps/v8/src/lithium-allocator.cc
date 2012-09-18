@@ -1064,7 +1064,7 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
 
 bool LAllocator::Allocate(LChunk* chunk) {
   ASSERT(chunk_ == NULL);
-  chunk_ = chunk;
+  chunk_ = static_cast<LPlatformChunk*>(chunk);
   MeetRegisterConstraints();
   if (!AllocationOk()) return false;
   ResolvePhis();

@@ -117,6 +117,10 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   if (!function->IsOptimized()) return;
 
+  // The optimized code is going to be patched, so we cannot use it
+  // any more.  Play safe and reset the whole cache.
+  function->shared()->ClearOptimizedCodeMap();
+
   Isolate* isolate = function->GetIsolate();
   HandleScope scope(isolate);
   AssertNoAllocation no_allocation;
@@ -194,8 +198,19 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // ignore all slots that might have been recorded on it.
   isolate->heap()->mark_compact_collector()->InvalidateCode(code);
 
-  // Set the code for the function to non-optimized version.
-  function->ReplaceCode(function->shared()->code());
+  // Iterate over all the functions which share the same code object
+  // and make them use unoptimized version.
+  Context* context = function->context()->native_context();
+  Object* element = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
+  SharedFunctionInfo* shared = function->shared();
+  while (!element->IsUndefined()) {
+    JSFunction* func = JSFunction::cast(element);
+    // Grab element before code replacement as ReplaceCode alters the list.
+    element = func->next_function_link();
+    if (func->code() == code) {
+      func->ReplaceCode(shared->code());
+    }
+  }
 
   if (FLAG_trace_deopt) {
     PrintF("[forced deoptimization: ");
@@ -284,11 +299,11 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 }
 
 
-static int LookupBailoutId(DeoptimizationInputData* data, unsigned ast_id) {
+static int LookupBailoutId(DeoptimizationInputData* data, BailoutId ast_id) {
   ByteArray* translations = data->TranslationByteArray();
   int length = data->DeoptCount();
   for (int i = 0; i < length; i++) {
-    if (static_cast<unsigned>(data->AstId(i)->value()) == ast_id) {
+    if (data->AstId(i) == ast_id) {
       TranslationIterator it(translations,  data->TranslationIndex(i)->value());
       int value = it.Next();
       ASSERT(Translation::BEGIN == static_cast<Translation::Opcode>(value));
@@ -310,7 +325,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   // the ast id. Confusing.
   ASSERT(bailout_id_ == ast_id);
 
-  int bailout_id = LookupBailoutId(data, ast_id);
+  int bailout_id = LookupBailoutId(data, BailoutId(ast_id));
   unsigned translation_index = data->TranslationIndex(bailout_id)->value();
   ByteArray* translations = data->TranslationByteArray();
 
@@ -330,9 +345,9 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   unsigned node_id = iterator.Next();
   USE(node_id);
   ASSERT(node_id == ast_id);
-  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator.Next()));
-  USE(function);
-  ASSERT(function == function_);
+  int closure_id = iterator.Next();
+  USE(closure_id);
+  ASSERT_EQ(Translation::kSelfLiteralId, closure_id);
   unsigned height = iterator.Next();
   unsigned height_in_bytes = height * kPointerSize;
   USE(height_in_bytes);
@@ -456,15 +471,15 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0]->SetPc(pc);
   }
   Code* continuation =
-      function->GetIsolate()->builtins()->builtin(Builtins::kNotifyOSR);
+      function_->GetIsolate()->builtins()->builtin(Builtins::kNotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<uint32_t>(continuation->entry()));
 
   if (FLAG_trace_osr) {
     PrintF("[on-stack replacement translation %s: 0x%08" V8PRIxPTR " ",
            ok ? "finished" : "aborted",
-           reinterpret_cast<intptr_t>(function));
-    function->PrintName();
+           reinterpret_cast<intptr_t>(function_));
+    function_->PrintName();
     PrintF(" => pc=0x%0x]\n", output_[0]->GetPc());
   }
 }
@@ -679,16 +694,143 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
 }
 
 
+void Deoptimizer::DoComputeAccessorStubFrame(TranslationIterator* iterator,
+                                             int frame_index,
+                                             bool is_setter_stub_frame) {
+  JSFunction* accessor = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  // The receiver (and the implicit return value, if any) are expected in
+  // registers by the LoadIC/StoreIC, so they don't belong to the output stack
+  // frame. This means that we have to use a height of 0.
+  unsigned height = 0;
+  unsigned height_in_bytes = height * kPointerSize;
+  const char* kind = is_setter_stub_frame ? "setter" : "getter";
+  if (FLAG_trace_deopt) {
+    PrintF("  translating %s stub => height=%u\n", kind, height_in_bytes);
+  }
+
+  // We need 1 stack entry for the return address + 4 stack entries from
+  // StackFrame::INTERNAL (FP, context, frame type, code object, see
+  // MacroAssembler::EnterFrame). For a setter stub frame we need one additional
+  // entry for the implicit return value, see
+  // StoreStubCompiler::CompileStoreViaSetter.
+  unsigned fixed_frame_entries = 1 + 4 + (is_setter_stub_frame ? 1 : 0);
+  unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
+  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+
+  // Allocate and store the output frame description.
+  FrameDescription* output_frame =
+      new(output_frame_size) FrameDescription(output_frame_size, accessor);
+  output_frame->SetFrameType(StackFrame::INTERNAL);
+
+  // A frame for an accessor stub can not be the topmost or bottommost one.
+  ASSERT(frame_index > 0 && frame_index < output_count_ - 1);
+  ASSERT(output_[frame_index] == NULL);
+  output_[frame_index] = output_frame;
+
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
+  intptr_t top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  output_frame->SetTop(top_address);
+
+  unsigned output_offset = output_frame_size;
+
+  // Read caller's PC from the previous frame.
+  output_offset -= kPointerSize;
+  intptr_t callers_pc = output_[frame_index - 1]->GetPc();
+  output_frame->SetFrameSlot(output_offset, callers_pc);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
+           " ; caller's pc\n",
+           top_address + output_offset, output_offset, callers_pc);
+  }
+
+  // Read caller's FP from the previous frame, and set this frame's FP.
+  output_offset -= kPointerSize;
+  intptr_t value = output_[frame_index - 1]->GetFp();
+  output_frame->SetFrameSlot(output_offset, value);
+  intptr_t fp_value = top_address + output_offset;
+  output_frame->SetFp(fp_value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
+           " ; caller's fp\n",
+           fp_value, output_offset, value);
+  }
+
+  // The context can be gotten from the previous frame.
+  output_offset -= kPointerSize;
+  value = output_[frame_index - 1]->GetContext();
+  output_frame->SetFrameSlot(output_offset, value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
+           " ; context\n",
+           top_address + output_offset, output_offset, value);
+  }
+
+  // A marker value is used in place of the function.
+  output_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::INTERNAL));
+  output_frame->SetFrameSlot(output_offset, value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
+           " ; function (%s sentinel)\n",
+           top_address + output_offset, output_offset, value, kind);
+  }
+
+  // Get Code object from accessor stub.
+  output_offset -= kPointerSize;
+  Builtins::Name name = is_setter_stub_frame ?
+      Builtins::kStoreIC_Setter_ForDeopt :
+      Builtins::kLoadIC_Getter_ForDeopt;
+  Code* accessor_stub = isolate_->builtins()->builtin(name);
+  value = reinterpret_cast<intptr_t>(accessor_stub);
+  output_frame->SetFrameSlot(output_offset, value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08" V8PRIxPTR ": [top + %u] <- 0x%08" V8PRIxPTR
+           " ; code object\n",
+           top_address + output_offset, output_offset, value);
+  }
+
+  // Skip receiver.
+  Translation::Opcode opcode =
+      static_cast<Translation::Opcode>(iterator->Next());
+  iterator->Skip(Translation::NumberOfOperandsFor(opcode));
+
+  if (is_setter_stub_frame) {
+    // The implicit return value was part of the artificial setter stub
+    // environment.
+    output_offset -= kPointerSize;
+    DoTranslateCommand(iterator, frame_index, output_offset);
+  }
+
+  ASSERT(0 == output_offset);
+
+  Smi* offset = is_setter_stub_frame ?
+      isolate_->heap()->setter_stub_deopt_pc_offset() :
+      isolate_->heap()->getter_stub_deopt_pc_offset();
+  intptr_t pc = reinterpret_cast<intptr_t>(
+      accessor_stub->instruction_start() + offset->value());
+  output_frame->SetPc(pc);
+}
+
+
 void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
                                    int frame_index) {
-  int node_id = iterator->Next();
-  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  BailoutId node_id = BailoutId(iterator->Next());
+  JSFunction* function;
+  if (frame_index != 0) {
+    function = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  } else {
+    int closure_id = iterator->Next();
+    USE(closure_id);
+    ASSERT_EQ(Translation::kSelfLiteralId, closure_id);
+    function = function_;
+  }
   unsigned height = iterator->Next();
   unsigned height_in_bytes = height * kPointerSize;
   if (FLAG_trace_deopt) {
     PrintF("  translating ");
     function->PrintName();
-    PrintF(" => node=%d, height=%d\n", node_id, height_in_bytes);
+    PrintF(" => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and

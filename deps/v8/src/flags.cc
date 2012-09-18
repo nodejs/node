@@ -31,7 +31,7 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "smart-array-pointer.h"
+#include "smart-pointers.h"
 #include "string-stream.h"
 
 
@@ -343,6 +343,7 @@ static Flag* FindFlag(const char* name) {
 int FlagList::SetFlagsFromCommandLine(int* argc,
                                       char** argv,
                                       bool remove_flags) {
+  int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
     int j = i;  // j > 0
@@ -368,7 +369,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         } else {
           fprintf(stderr, "Error: unrecognized flag %s\n"
                   "Try --help for options\n", arg);
-          return j;
+          return_code = j;
+          break;
         }
       }
 
@@ -382,7 +384,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           fprintf(stderr, "Error: missing value for flag %s of type %s\n"
                   "Try --help for options\n",
                   arg, Type2String(flag->type()));
-          return j;
+          return_code = j;
+          break;
         }
       }
 
@@ -424,7 +427,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         fprintf(stderr, "Error: illegal value for flag %s of type %s\n"
                 "Try --help for options\n",
                 arg, Type2String(flag->type()));
-        return j;
+        return_code = j;
+        break;
       }
 
       // remove the flag & value from the command
@@ -451,7 +455,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
     exit(0);
   }
   // parsed all flags successfully
-  return 0;
+  return return_code;
 }
 
 

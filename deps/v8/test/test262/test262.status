@@ -41,10 +41,6 @@ S15.12.2_A1: FAIL
 
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-# We deliberately treat arguments to parseInt() with a leading zero as
-# octal numbers in order to not break the web.
-S15.1.2.2_A5.1_T1: FAIL_OK
-
 # This tests precision of Math.tan and Math.sin.  The implementation for those
 # trigonometric functions are platform/compiler dependent.  Furthermore, the
 # expectation values by far deviates from the actual result given by an
@@ -75,33 +71,19 @@ S15.9.3.1_A5_T6: PASS || FAIL_OK
 ############################ SKIPPED TESTS #############################
 
 # These tests take a looong time to run in debug mode.
-S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
 S15.1.3.1_A2.5_T1: PASS, SKIP if $mode == debug
+S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
 
-[ $arch == arm ]
+[ $arch == arm || $arch == mipsel ]
+
+# TODO(mstarzinger): Causes stack overflow on simulators due to eager
+# compilation of parenthesized function literals. Needs investigation.
+S13.2.1_A1_T1: SKIP
 
 # BUG(3251225): Tests that timeout with --nocrankshaft.
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
 S15.1.3.1_A2.4_T1: SKIP
 S15.1.3.1_A2.5_T1: SKIP
 S15.1.3.2_A2.4_T1: SKIP
 S15.1.3.2_A2.5_T1: SKIP
 S15.1.3.3_A2.3_T1: SKIP
 S15.1.3.4_A2.3_T1: SKIP
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-
-[ $arch == mips ]
-
-# BUG(3251225): Tests that timeout with --nocrankshaft.
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-S15.1.3.1_A2.4_T1: SKIP
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.4_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-S15.1.3.3_A2.3_T1: SKIP
-S15.1.3.4_A2.3_T1: SKIP
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP

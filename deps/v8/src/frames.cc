@@ -789,7 +789,7 @@ void JavaScriptFrame::PrintTop(FILE* file,
                                          ROBUST_STRING_TRAVERSAL);
               PrintF(file, " at %s:%d", *c_script_name, line);
             } else {
-              PrintF(file, "at <unknown>:%d", line);
+              PrintF(file, " at <unknown>:%d", line);
             }
           } else {
             PrintF(file, " at <unknown>:<unknown>");
@@ -832,12 +832,23 @@ void FrameSummary::Print() {
 }
 
 
+JSFunction* OptimizedFrame::LiteralAt(FixedArray* literal_array,
+                                      int literal_id) {
+  if (literal_id == Translation::kSelfLiteralId) {
+    return JSFunction::cast(function());
+  }
+
+  return JSFunction::cast(literal_array->get(literal_id));
+}
+
+
 void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   ASSERT(frames->length() == 0);
   ASSERT(is_optimized());
 
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
+  FixedArray* literal_array = data->LiteralArray();
 
   // BUG(3243555): Since we don't have a lazy-deopt registered at
   // throw-statements, we can't use the translation at the call-site of
@@ -864,11 +875,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
     opcode = static_cast<Translation::Opcode>(it.Next());
     if (opcode == Translation::JS_FRAME) {
       i--;
-      int ast_id = it.Next();
-      int function_id = it.Next();
+      BailoutId ast_id = BailoutId(it.Next());
+      JSFunction* function = LiteralAt(literal_array, it.Next());
       it.Next();  // Skip height.
-      JSFunction* function =
-          JSFunction::cast(data->LiteralArray()->get(function_id));
 
       // The translation commands are ordered and the receiver is always
       // at the first position. Since we are always at a call when we need
@@ -975,6 +984,7 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
 
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
+  FixedArray* literal_array = data->LiteralArray();
 
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
@@ -990,10 +1000,8 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
     if (opcode == Translation::JS_FRAME) {
       jsframe_count--;
       it.Next();  // Skip ast id.
-      int function_id = it.Next();
+      JSFunction* function = LiteralAt(literal_array, it.Next());
       it.Next();  // Skip height.
-      JSFunction* function =
-          JSFunction::cast(data->LiteralArray()->get(function_id));
       functions->Add(function);
     } else {
       // Skip over operands to advance to the next opcode.

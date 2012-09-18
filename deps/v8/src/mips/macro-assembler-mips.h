@@ -108,7 +108,7 @@ inline MemOperand ContextOperand(Register context, int index) {
 
 
 inline MemOperand GlobalObjectOperand()  {
-  return ContextOperand(cp, Context::GLOBAL_INDEX);
+  return ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX);
 }
 
 
@@ -182,11 +182,11 @@ class MacroAssembler: public Assembler {
   void Call(Address target, RelocInfo::Mode rmode, COND_ARGS);
   static int CallSize(Handle<Code> code,
                       RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-                      unsigned ast_id = kNoASTId,
+                      TypeFeedbackId ast_id = TypeFeedbackId::None(),
                       COND_ARGS);
   void Call(Handle<Code> code,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-            unsigned ast_id = kNoASTId,
+            TypeFeedbackId ast_id = TypeFeedbackId::None(),
             COND_ARGS);
   void Ret(COND_ARGS);
   inline void Ret(BranchDelaySlot bd, Condition cond = al,
@@ -806,8 +806,8 @@ class MacroAssembler: public Assembler {
   void LoadContext(Register dst, int context_chain_length);
 
   // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the global context if the map in register
-  // map_in_out is the cached Array map in the global context of
+  // transitioned_kind from the native context if the map in register
+  // map_in_out is the cached Array map in the native context of
   // expected_kind.
   void LoadTransitionedArrayMapConditional(
       ElementsKind expected_kind,
@@ -1396,7 +1396,10 @@ class MacroAssembler: public Assembler {
                           DoubleRegister temp_double_reg);
 
 
-  void LoadInstanceDescriptors(Register map, Register descriptors);
+  void LoadInstanceDescriptors(Register map,
+                               Register descriptors,
+                               Register scratch);
+  void EnumLength(Register dst, Register map);
 
 
   // Activation support.

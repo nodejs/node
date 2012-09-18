@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -151,12 +151,21 @@ TEST(StressJS) {
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
   Handle<Foreign> foreign = FACTORY->NewForeign(&kDescriptor);
-  instance_descriptors = FACTORY->CopyAppendForeignDescriptor(
-      instance_descriptors,
-      FACTORY->NewStringFromAscii(Vector<const char>("get", 3)),
-      foreign,
-      static_cast<PropertyAttributes>(0));
-  map->set_instance_descriptors(*instance_descriptors);
+  Handle<String> name =
+      FACTORY->NewStringFromAscii(Vector<const char>("get", 3));
+  ASSERT(instance_descriptors->IsEmpty());
+
+  Handle<DescriptorArray> new_descriptors = FACTORY->NewDescriptorArray(1);
+
+  v8::internal::DescriptorArray::WhitenessWitness witness(*new_descriptors);
+  v8::internal::Map::SetDescriptors(map, new_descriptors);
+
+  CallbacksDescriptor d(*name,
+                        *foreign,
+                        static_cast<PropertyAttributes>(0),
+                        v8::internal::PropertyDetails::kInitialIndex);
+  map->AppendDescriptor(&d, witness);
+
   // Add the Foo constructor the global object.
   env->Global()->Set(v8::String::New("Foo"), v8::Utils::ToLocal(function));
   // Call the accessor through JavaScript.

@@ -29,10 +29,10 @@ assertEquals(0, parseInt('0'));
 assertEquals(0, parseInt(' 0'));
 assertEquals(0, parseInt(' 0 '));
 
-assertEquals(63, parseInt('077'));
-assertEquals(63, parseInt('  077'));
-assertEquals(63, parseInt('  077   '));
-assertEquals(-63, parseInt('  -077'));
+assertEquals(77, parseInt('077'));
+assertEquals(77, parseInt('  077'));
+assertEquals(77, parseInt('  077   '));
+assertEquals(-77, parseInt('  -077'));
 
 assertEquals(3, parseInt('11', 2));
 assertEquals(4, parseInt('11', 3));

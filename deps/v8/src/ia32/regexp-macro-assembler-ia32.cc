@@ -316,6 +316,11 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
   // uncaptured. In either case succeed immediately.
   __ j(equal, &fallthrough);
 
+  // Check that there are sufficient characters left in the input.
+  __ mov(eax, edi);
+  __ add(eax, ebx);
+  BranchOrBacktrack(greater, on_no_match);
+
   if (mode_ == ASCII) {
     Label success;
     Label fail;

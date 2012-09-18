@@ -714,9 +714,9 @@ TEST(HeapSnapshotObjectsStats) {
   LocalContext env;
 
   v8::HeapProfiler::StartHeapObjectsTracking();
-  // We have to call GC 5 times. In other case the garbage will be
+  // We have to call GC 6 times. In other case the garbage will be
   // the reason of flakiness.
-  for (int i = 0; i < 5; ++i) {
+  for (int i = 0; i < 6; ++i) {
     HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   }
 
@@ -1449,6 +1449,36 @@ TEST(FastCaseGetter) {
   CHECK_NE(NULL, setterFunction);
 }
 
+TEST(HiddenPropertiesFastCase) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun(
+      "function C(x) { this.a = this; this.b = x; }\n"
+      "c = new C(2012);\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("HiddenPropertiesFastCase1"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* c =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
+  CHECK_NE(NULL, c);
+  const v8::HeapGraphNode* hidden_props =
+      GetProperty(c, v8::HeapGraphEdge::kInternal, "hidden_properties");
+  CHECK_EQ(NULL, hidden_props);
+
+  v8::Handle<v8::Value> cHandle = env->Global()->Get(v8::String::New("c"));
+  CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
+  cHandle->ToObject()->SetHiddenValue(v8_str("key"), v8_str("val"));
+
+  snapshot = v8::HeapProfiler::TakeSnapshot(
+      v8_str("HiddenPropertiesFastCase2"));
+  global = GetGlobalObject(snapshot);
+  c = GetProperty(global, v8::HeapGraphEdge::kProperty, "c");
+  CHECK_NE(NULL, c);
+  hidden_props = GetProperty(c, v8::HeapGraphEdge::kInternal,
+      "hidden_properties");
+  CHECK_NE(NULL, hidden_props);
+}
 
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
   for (int i = 0; i < node->GetChildrenCount(); ++i) {
@@ -1491,7 +1521,7 @@ TEST(WeakGlobalHandle) {
 }
 
 
-TEST(WeakGlobalContextRefs) {
+TEST(WeakNativeContextRefs) {
   v8::HandleScope scope;
   LocalContext env;
 
@@ -1503,10 +1533,10 @@ TEST(WeakGlobalContextRefs) {
   const v8::HeapGraphNode* global_handles = GetNode(
       gc_roots, v8::HeapGraphNode::kObject, "(Global handles)");
   CHECK_NE(NULL, global_handles);
-  const v8::HeapGraphNode* global_context = GetNode(
-      global_handles, v8::HeapGraphNode::kHidden, "system / GlobalContext");
-  CHECK_NE(NULL, global_context);
-  CHECK(HasWeakEdge(global_context));
+  const v8::HeapGraphNode* native_context = GetNode(
+      global_handles, v8::HeapGraphNode::kHidden, "system / NativeContext");
+  CHECK_NE(NULL, native_context);
+  CHECK(HasWeakEdge(native_context));
 }
 
 
@@ -1529,6 +1559,7 @@ TEST(SfiAndJsFunctionWeakRefs) {
 }
 
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 TEST(NoDebugObjectInSnapshot) {
   v8::HandleScope scope;
   LocalContext env;
@@ -1551,6 +1582,7 @@ TEST(NoDebugObjectInSnapshot) {
   }
   CHECK_EQ(1, globals_count);
 }
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 
 TEST(PersistentHandleCount) {
@@ -1625,4 +1657,26 @@ TEST(NoRefsToNonEssentialEntries) {
   const v8::HeapGraphNode* elements =
       GetProperty(global_object, v8::HeapGraphEdge::kInternal, "elements");
   CHECK_EQ(NULL, elements);
+}
+
+
+TEST(MapHasDescriptorsAndTransitions) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun("obj = { a: 10 };\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("snapshot"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* global_object =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "obj");
+  CHECK_NE(NULL, global_object);
+  const v8::HeapGraphNode* map =
+      GetProperty(global_object, v8::HeapGraphEdge::kInternal, "map");
+  CHECK_NE(NULL, map);
+  const v8::HeapGraphNode* descriptors =
+      GetProperty(map, v8::HeapGraphEdge::kInternal, "descriptors");
+  CHECK_NE(NULL, descriptors);
+  const v8::HeapGraphNode* transitions =
+      GetProperty(map, v8::HeapGraphEdge::kInternal, "transitions");
+  CHECK_NE(NULL, transitions);
 }

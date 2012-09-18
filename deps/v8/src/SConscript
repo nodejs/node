@@ -43,8 +43,8 @@ SOURCES = {
     assembler.cc
     ast.cc
     atomicops_internals_x86_gcc.cc
-    bignum.cc
     bignum-dtoa.cc
+    bignum.cc
     bootstrapper.cc
     builtins.cc
     cached-powers.cc
@@ -67,27 +67,30 @@ SOURCES = {
     disassembler.cc
     diy-fp.cc
     dtoa.cc
-    elements.cc
     elements-kind.cc
+    elements.cc
     execution.cc
+    extensions/externalize-string-extension.cc
+    extensions/gc-extension.cc
+    extensions/statistics-extension.cc
     factory.cc
+    fast-dtoa.cc
+    fixed-dtoa.cc
     flags.cc
     frames.cc
     full-codegen.cc
     func-name-inferrer.cc
     gdb-jit.cc
     global-handles.cc
-    fast-dtoa.cc
-    fixed-dtoa.cc
     handles.cc
     heap-profiler.cc
     heap.cc
-    hydrogen.cc
     hydrogen-instructions.cc
+    hydrogen.cc
     ic.cc
     incremental-marking.cc
-    interface.cc
     inspector.cc
+    interface.cc
     interpreter-irregexp.cc
     isolate.cc
     jsregexp.cc
@@ -99,34 +102,37 @@ SOURCES = {
     log.cc
     mark-compact.cc
     messages.cc
-    objects.cc
     objects-printer.cc
     objects-visiting.cc
+    objects.cc
     once.cc
+    optimizing-compiler-thread.cc
     parser.cc
-    preparser.cc
     preparse-data.cc
+    preparser.cc
     profile-generator.cc
     property.cc
     regexp-macro-assembler-irregexp.cc
     regexp-macro-assembler.cc
     regexp-stack.cc
     rewriter.cc
-    runtime.cc
     runtime-profiler.cc
+    runtime.cc
     safepoint-table.cc
-    scanner.cc
     scanner-character-streams.cc
+    scanner.cc
     scopeinfo.cc
     scopes.cc
     serialize.cc
     snapshot-common.cc
     spaces.cc
+    store-buffer.cc
     string-search.cc
     string-stream.cc
     strtod.cc
     stub-cache.cc
     token.cc
+    transitions.cc
     type-info.cc
     unicode.cc
     utils.cc
@@ -137,10 +143,7 @@ SOURCES = {
     v8utils.cc
     variables.cc
     version.cc
-    store-buffer.cc
     zone.cc
-    extensions/gc-extension.cc
-    extensions/externalize-string-extension.cc
     """),
   'arch:arm': Split("""
     arm/builtins-arm.cc

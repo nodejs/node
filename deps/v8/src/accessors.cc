@@ -92,9 +92,9 @@ MaybeObject* Accessors::ArrayGetLength(Object* object, void*) {
 Object* Accessors::FlattenNumber(Object* value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
   JSValue* wrapper = JSValue::cast(value);
-  ASSERT(Isolate::Current()->context()->global_context()->number_function()->
+  ASSERT(Isolate::Current()->context()->native_context()->number_function()->
       has_initial_map());
-  Map* number_map = Isolate::Current()->context()->global_context()->
+  Map* number_map = Isolate::Current()->context()->native_context()->
       number_function()->initial_map();
   if (wrapper->map() == number_map) return wrapper->value();
   return value;
@@ -804,5 +804,70 @@ const AccessorDescriptor Accessors::ObjectPrototype = {
   ObjectSetPrototype,
   0
 };
+
+
+//
+// Accessors::MakeModuleExport
+//
+
+static v8::Handle<v8::Value> ModuleGetExport(
+    v8::Local<v8::String> property,
+    const v8::AccessorInfo& info) {
+  JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
+  Context* context = Context::cast(instance->context());
+  ASSERT(context->IsModuleContext());
+  int slot = info.Data()->Int32Value();
+  Object* value = context->get(slot);
+  if (value->IsTheHole()) {
+    Handle<String> name = v8::Utils::OpenHandle(*property);
+    Isolate* isolate = instance->GetIsolate();
+    isolate->ScheduleThrow(
+        *isolate->factory()->NewReferenceError("not_defined",
+                                               HandleVector(&name, 1)));
+    return v8::Handle<v8::Value>();
+  }
+  return v8::Utils::ToLocal(Handle<Object>(value));
+}
+
+
+static void ModuleSetExport(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> value,
+    const v8::AccessorInfo& info) {
+  JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
+  Context* context = Context::cast(instance->context());
+  ASSERT(context->IsModuleContext());
+  int slot = info.Data()->Int32Value();
+  Object* old_value = context->get(slot);
+  if (old_value->IsTheHole()) {
+    Handle<String> name = v8::Utils::OpenHandle(*property);
+    Isolate* isolate = instance->GetIsolate();
+    isolate->ScheduleThrow(
+        *isolate->factory()->NewReferenceError("not_defined",
+                                               HandleVector(&name, 1)));
+    return;
+  }
+  context->set(slot, *v8::Utils::OpenHandle(*value));
+}
+
+
+Handle<AccessorInfo> Accessors::MakeModuleExport(
+    Handle<String> name,
+    int index,
+    PropertyAttributes attributes) {
+  Factory* factory = name->GetIsolate()->factory();
+  Handle<AccessorInfo> info = factory->NewAccessorInfo();
+  info->set_property_attributes(attributes);
+  info->set_all_can_read(true);
+  info->set_all_can_write(true);
+  info->set_name(*name);
+  info->set_data(Smi::FromInt(index));
+  Handle<Object> getter = v8::FromCData(&ModuleGetExport);
+  Handle<Object> setter = v8::FromCData(&ModuleSetExport);
+  info->set_getter(*getter);
+  if (!(attributes & ReadOnly)) info->set_setter(*setter);
+  return info;
+}
+
 
 } }  // namespace v8::internal

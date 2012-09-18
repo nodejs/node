@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -122,6 +122,10 @@ class LiveEdit : AllStatic {
   // if possible and if do_drop is true.
   static Handle<JSArray> CheckAndDropActivations(
       Handle<JSArray> shared_info_array, bool do_drop, Zone* zone);
+
+  // Restarts the call frame and completely drops all frames above it.
+  // Return error message or NULL.
+  static const char* RestartFrame(JavaScriptFrame* frame, Zone* zone);
 
   // A copy of this is in liveedit-debugger.js.
   enum FunctionPatchabilityStatus {

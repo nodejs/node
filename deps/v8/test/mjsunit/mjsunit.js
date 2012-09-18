@@ -321,7 +321,7 @@ var assertUnreachable;
   assertInstanceof = function assertInstanceof(obj, type) {
     if (!(obj instanceof type)) {
       var actualTypeName = null;
-      var actualConstructor = Object.prototypeOf(obj).constructor;
+      var actualConstructor = Object.getPrototypeOf(obj).constructor;
       if (typeof actualConstructor == "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }

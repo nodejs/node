@@ -1077,6 +1077,7 @@ bool Scanner::ScanRegExpFlags() {
       if (!ScanLiteralUnicodeEscape()) {
         break;
       }
+      Advance();
     }
   }
   literal.Complete();

@@ -72,24 +72,26 @@ using namespace v8::internal;
 static bool CheckParse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
-  return v8::internal::RegExpParser::ParseRegExp(&reader, false, &result);
+  return v8::internal::RegExpParser::ParseRegExp(
+      &reader, false, &result, Isolate::Current()->runtime_zone());
 }
 
 
 static SmartArrayPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
+  CHECK(v8::internal::RegExpParser::ParseRegExp(
+      &reader, false, &result, Isolate::Current()->runtime_zone()));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   SmartArrayPointer<const char> output =
-      result.tree->ToString(Isolate::Current()->zone());
+      result.tree->ToString(Isolate::Current()->runtime_zone());
   return output;
 }
 
@@ -97,10 +99,11 @@ static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
+  CHECK(v8::internal::RegExpParser::ParseRegExp(
+      &reader, false, &result, Isolate::Current()->runtime_zone()));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   return result.simple;
@@ -115,10 +118,11 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
+  CHECK(v8::internal::RegExpParser::ParseRegExp(
+      &reader, false, &result, Isolate::Current()->runtime_zone()));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   int min_match = result.tree->min_match();
@@ -263,6 +267,7 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
   CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
+  CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);
   CHECK_SIMPLE("a|b", false);
   CHECK_SIMPLE("a\\n", false);
@@ -386,10 +391,11 @@ static void ExpectError(const char* input,
                         const char* expected) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
-  CHECK(!v8::internal::RegExpParser::ParseRegExp(&reader, false, &result));
+  CHECK(!v8::internal::RegExpParser::ParseRegExp(
+      &reader, false, &result, Isolate::Current()->runtime_zone()));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
@@ -469,8 +475,8 @@ static bool NotWord(uc16 c) {
 
 
 static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
-  ZoneScope scope(Isolate::Current(), DELETE_ON_EXIT);
-  Zone* zone = Isolate::Current()->zone();
+  ZoneScope scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* ranges =
       new(zone) ZoneList<CharacterRange>(2, zone);
   CharacterRange::AddClassEscape(c, ranges, zone);
@@ -503,7 +509,8 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
   if (!v8::internal::RegExpParser::ParseRegExp(&reader, multiline,
-                                               &compile_data))
+                                               &compile_data,
+                                               isolate->runtime_zone()))
     return NULL;
   Handle<String> pattern = isolate->factory()->
       NewStringFromUtf8(CStrVector(input));
@@ -516,7 +523,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
                         pattern,
                         sample_subject,
                         is_ascii,
-                        isolate->zone());
+                        isolate->runtime_zone());
   return compile_data.node;
 }
 
@@ -526,7 +533,7 @@ static void Execute(const char* input,
                     bool is_ascii,
                     bool dot_output = false) {
   v8::HandleScope scope;
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   RegExpNode* node = Compile(input, multiline, is_ascii);
   USE(node);
 #ifdef DEBUG
@@ -566,8 +573,8 @@ static unsigned PseudoRandom(int i, int j) {
 TEST(SplayTreeSimple) {
   v8::internal::V8::Initialize(NULL);
   static const unsigned kLimit = 1000;
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  ZoneSplayTree<TestConfig> tree(Isolate::Current()->zone());
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneSplayTree<TestConfig> tree(Isolate::Current()->runtime_zone());
   bool seen[kLimit];
   for (unsigned i = 0; i < kLimit; i++) seen[i] = false;
 #define CHECK_MAPS_EQUAL() do {                                      \
@@ -634,13 +641,13 @@ TEST(DispatchTableConstruction) {
     }
   }
   // Enter test data into dispatch table.
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  DispatchTable table(Isolate::Current()->zone());
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  DispatchTable table(Isolate::Current()->runtime_zone());
   for (int i = 0; i < kRangeCount; i++) {
     uc16* range = ranges[i];
     for (int j = 0; j < 2 * kRangeSize; j += 2)
       table.AddRange(CharacterRange(range[j], range[j + 1]), i,
-                     Isolate::Current()->zone());
+                     Isolate::Current()->runtime_zone());
   }
   // Check that the table looks as we would expect
   for (int p = 0; p < kLimit; p++) {
@@ -702,7 +709,8 @@ typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
 class ContextInitializer {
  public:
   ContextInitializer()
-      : env_(), scope_(), zone_(Isolate::Current(), DELETE_ON_EXIT) {
+      : env_(), scope_(), zone_(Isolate::Current()->runtime_zone(),
+                                DELETE_ON_EXIT) {
     env_ = v8::Context::New();
     env_->Enter();
   }
@@ -741,7 +749,7 @@ TEST(MacroAssemblerNativeSuccess) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   m.Succeed();
 
@@ -777,7 +785,7 @@ TEST(MacroAssemblerNativeSimple) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   uc16 foo_chars[3] = {'f', 'o', 'o'};
   Vector<const uc16> foo(foo_chars, 3);
@@ -835,7 +843,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::UC16, 4,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   uc16 foo_chars[3] = {'f', 'o', 'o'};
   Vector<const uc16> foo(foo_chars, 3);
@@ -898,7 +906,7 @@ TEST(MacroAssemblerNativeBacktrack) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 0,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   Label fail;
   Label backtrack;
@@ -937,7 +945,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(2);
@@ -985,7 +993,7 @@ TEST(MacroAssemblerNativeBackReferenceUC16) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::UC16, 4,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(2);
@@ -1036,7 +1044,7 @@ TEST(MacroAssemblernativeAtStart) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 0,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   Label not_at_start, newline, fail;
   m.CheckNotAtStart(&not_at_start);
@@ -1094,7 +1102,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 4,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   Label fail, succ;
 
@@ -1152,7 +1160,7 @@ TEST(MacroAssemblerNativeRegisters) {
   Factory* factory = Isolate::Current()->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 6,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   uc16 foo_chars[3] = {'f', 'o', 'o'};
   Vector<const uc16> foo(foo_chars, 3);
@@ -1255,7 +1263,7 @@ TEST(MacroAssemblerStackOverflow) {
   Factory* factory = isolate->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 0,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   Label loop;
   m.Bind(&loop);
@@ -1294,7 +1302,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   Factory* factory = isolate->factory();
 
   ArchRegExpMacroAssembler m(NativeRegExpMacroAssembler::ASCII, 2,
-                             Isolate::Current()->zone());
+                             Isolate::Current()->runtime_zone());
 
   // At least 2048, to ensure the allocated space for registers
   // span one full page.
@@ -1341,7 +1349,8 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
 TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
-  RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024));
+  RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024),
+                                 Isolate::Current()->runtime_zone());
   // ^f(o)o.
   Label fail, fail2, start;
   uc16 foo_chars[3];
@@ -1411,8 +1420,8 @@ TEST(AddInverseToTable) {
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
   for (int t = 0; t < 10; t++) {
-    ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-    Zone* zone = Isolate::Current()->zone();
+    ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+    Zone* zone = Isolate::Current()->runtime_zone();
     ZoneList<CharacterRange>* ranges =
         new(zone)
         ZoneList<CharacterRange>(kRangeCount, zone);
@@ -1423,7 +1432,8 @@ TEST(AddInverseToTable) {
       ranges->Add(CharacterRange(from, to), zone);
     }
     DispatchTable table(zone);
-    DispatchTableConstructor cons(&table, false, Isolate::Current()->zone());
+    DispatchTableConstructor cons(&table, false,
+                                  Isolate::Current()->runtime_zone());
     cons.set_choice_index(0);
     cons.AddInverse(ranges);
     for (int i = 0; i < kLimit; i++) {
@@ -1434,13 +1444,14 @@ TEST(AddInverseToTable) {
       CHECK_EQ(is_on, set->Get(0) == false);
     }
   }
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  Zone* zone = Isolate::Current()->zone();
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* ranges =
       new(zone) ZoneList<CharacterRange>(1, zone);
   ranges->Add(CharacterRange(0xFFF0, 0xFFFE), zone);
   DispatchTable table(zone);
-  DispatchTableConstructor cons(&table, false, Isolate::Current()->zone());
+  DispatchTableConstructor cons(&table, false,
+                                Isolate::Current()->runtime_zone());
   cons.set_choice_index(0);
   cons.AddInverse(ranges);
   CHECK(!table.Get(0xFFFE)->Get(0));
@@ -1548,8 +1559,8 @@ TEST(UncanonicalizeEquivalence) {
 
 static void TestRangeCaseIndependence(CharacterRange input,
                                       Vector<CharacterRange> expected) {
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  Zone* zone = Isolate::Current()->zone();
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Zone* zone = Isolate::Current()->runtime_zone();
   int count = expected.length();
   ZoneList<CharacterRange>* list =
       new(zone) ZoneList<CharacterRange>(count, zone);
@@ -1614,8 +1625,8 @@ static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
 
 TEST(CharClassDifference) {
   v8::internal::V8::Initialize(NULL);
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  Zone* zone = Isolate::Current()->zone();
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* base =
       new(zone) ZoneList<CharacterRange>(1, zone);
   base->Add(CharacterRange::Everything(), zone);
@@ -1623,7 +1634,7 @@ TEST(CharClassDifference) {
   ZoneList<CharacterRange>* included = NULL;
   ZoneList<CharacterRange>* excluded = NULL;
   CharacterRange::Split(base, overlay, &included, &excluded,
-                        Isolate::Current()->zone());
+                        Isolate::Current()->runtime_zone());
   for (int i = 0; i < (1 << 16); i++) {
     bool in_base = InClass(i, base);
     if (in_base) {
@@ -1644,8 +1655,8 @@ TEST(CharClassDifference) {
 
 TEST(CanonicalizeCharacterSets) {
   v8::internal::V8::Initialize(NULL);
-  ZoneScope scope(Isolate::Current(), DELETE_ON_EXIT);
-  Zone* zone = Isolate::Current()->zone();
+  ZoneScope scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  Zone* zone = Isolate::Current()->runtime_zone();
   ZoneList<CharacterRange>* list =
       new(zone) ZoneList<CharacterRange>(4, zone);
   CharacterSet set(list);
@@ -1707,10 +1718,10 @@ TEST(CanonicalizeCharacterSets) {
 
 TEST(CharacterRangeMerge) {
   v8::internal::V8::Initialize(NULL);
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  ZoneList<CharacterRange> l1(4, Isolate::Current()->zone());
-  ZoneList<CharacterRange> l2(4, Isolate::Current()->zone());
-  Zone* zone = Isolate::Current()->zone();
+  ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
+  ZoneList<CharacterRange> l1(4, Isolate::Current()->runtime_zone());
+  ZoneList<CharacterRange> l2(4, Isolate::Current()->runtime_zone());
+  Zone* zone = Isolate::Current()->runtime_zone();
   // Create all combinations of intersections of ranges, both singletons and
   // longer.
 
@@ -1788,9 +1799,9 @@ TEST(CharacterRangeMerge) {
   ASSERT(CharacterRange::IsCanonical(&l1));
   ASSERT(CharacterRange::IsCanonical(&l2));
 
-  ZoneList<CharacterRange> first_only(4, Isolate::Current()->zone());
-  ZoneList<CharacterRange> second_only(4, Isolate::Current()->zone());
-  ZoneList<CharacterRange> both(4, Isolate::Current()->zone());
+  ZoneList<CharacterRange> first_only(4, Isolate::Current()->runtime_zone());
+  ZoneList<CharacterRange> second_only(4, Isolate::Current()->runtime_zone());
+  ZoneList<CharacterRange> both(4, Isolate::Current()->runtime_zone());
 }
 
 

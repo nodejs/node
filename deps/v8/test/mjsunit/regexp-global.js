@@ -139,3 +139,116 @@ str = str.replace(/\b(?=u(p))/g, function(match, capture) {
                                   });
 
 assertEquals("1up 1up 1up 1up", str);
+
+
+// Create regexp that has a *lot* of captures.
+var re_string = "(a)";
+for (var i = 0; i < 500; i++) {
+  re_string = "(" + re_string + ")";
+}
+re_string = re_string + "1";
+// re_string = "(((...((a))...)))1"
+
+var regexps = new Array();
+var last_match_expectations = new Array();
+var first_capture_expectations = new Array();
+
+// Atomic regexp.
+regexps.push(/a1/g);
+last_match_expectations.push("a1");
+first_capture_expectations.push("");
+// Small regexp (no capture);
+regexps.push(/\w1/g);
+last_match_expectations.push("a1");
+first_capture_expectations.push("");
+// Small regexp (one capture).
+regexps.push(/(a)1/g);
+last_match_expectations.push("a1");
+first_capture_expectations.push("a");
+// Large regexp (a lot of captures).
+regexps.push(new RegExp(re_string, "g"));
+last_match_expectations.push("a1");
+first_capture_expectations.push("a");
+
+function test_replace(result_expectation,
+                      subject,
+                      regexp,
+                      replacement) {
+  for (var i = 0; i < regexps.length; i++) {
+    // Overwrite last match info.
+    "deadbeef".replace(/(dead)beef/, "$1holeycow");
+    // Conduct tests.
+    assertEquals(result_expectation, subject.replace(regexps[i], replacement));
+    if (subject.length == 0) {
+      assertEquals("deadbeef", RegExp.lastMatch);
+      assertEquals("dead", RegExp["$1"]);
+    } else {
+      assertEquals(last_match_expectations[i], RegExp.lastMatch);
+      assertEquals(first_capture_expectations[i], RegExp["$1"]);
+    }
+  }
+}
+
+
+function test_match(result_expectation,
+                    subject,
+                    regexp) {
+  for (var i = 0; i < regexps.length; i++) {
+    // Overwrite last match info.
+    "deadbeef".replace(/(dead)beef/, "$1holeycow");
+    // Conduct tests.
+    if (result_expectation == null) {
+      assertNull(subject.match(regexps[i]));
+    } else {
+      assertArrayEquals(result_expectation, subject.match(regexps[i]));
+    }
+    if (subject.length == 0) {
+      assertEquals("deadbeef", RegExp.lastMatch);
+      assertEquals("dead", RegExp["$1"]);
+    } else {
+      assertEquals(last_match_expectations[i], RegExp.lastMatch);
+      assertEquals(first_capture_expectations[i], RegExp["$1"]);
+    }
+  }
+}
+
+
+// Test for different number of matches.
+for (var m = 0; m < 200; m++) {
+  // Create string that matches m times.
+  var subject = "";
+  var test_1_expectation = "";
+  var test_2_expectation = "";
+  var test_3_expectation = (m == 0) ? null : new Array();
+  for (var i = 0; i < m; i++) {
+    subject += "a11";
+    test_1_expectation += "x1";
+    test_2_expectation += "1";
+    test_3_expectation.push("a1");
+  }
+
+  // Test 1a: String.replace with string.
+  test_replace(test_1_expectation, subject, /a1/g, "x");
+
+  // Test 1b: String.replace with function.
+  function f() { return "x"; }
+  test_replace(test_1_expectation, subject, /a1/g, f);
+
+  // Test 2a: String.replace with empty string.
+  test_replace(test_2_expectation, subject, /a1/g, "");
+
+  // Test 3a: String.match.
+  test_match(test_3_expectation, subject, /a1/g);
+}
+
+
+// Test String hashing (compiling regular expression includes hashing).
+var crosscheck = "\x80";
+for (var i = 0; i < 12; i++) crosscheck += crosscheck;
+new RegExp(crosscheck);
+
+var subject = "ascii~only~string~here~";
+var replacement = "\x80";
+var result = subject.replace(/~/g, replacement);
+for (var i = 0; i < 5; i++) result += result;
+new RegExp(result);

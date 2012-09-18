@@ -74,7 +74,7 @@ typedef int (*RawComparer)(const void*, const void*);
   v(SeqAsciiString, "unexpected: SeqAsciiString") \
   v(SeqString, "unexpected: SeqString") \
   v(JSFunctionResultCache, "unexpected: JSFunctionResultCache") \
-  v(GlobalContext, "unexpected: GlobalContext") \
+  v(NativeContext, "unexpected: NativeContext") \
   v(MapCache, "unexpected: MapCache") \
   v(CodeCacheHashTable, "unexpected: CodeCacheHashTable") \
   v(CompilationCacheTable, "unexpected: CompilationCacheTable") \
@@ -1951,7 +1951,7 @@ MaybeObject* LiveObjectList::GetObjRetainers(int obj_id,
 
   // Get the constructor function for context extension and arguments array.
   JSObject* arguments_boilerplate =
-      isolate->context()->global_context()->arguments_boilerplate();
+      isolate->context()->native_context()->arguments_boilerplate();
   JSFunction* arguments_function =
       JSFunction::cast(arguments_boilerplate->map()->constructor());
 

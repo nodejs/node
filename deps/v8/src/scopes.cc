@@ -29,6 +29,7 @@
 
 #include "scopes.h"
 
+#include "accessors.h"
 #include "bootstrapper.h"
 #include "compiler.h"
 #include "messages.h"
@@ -117,10 +118,8 @@ Scope::Scope(Scope* outer_scope, ScopeType type, Zone* zone)
       already_resolved_(false),
       zone_(zone) {
   SetDefaults(type, outer_scope, Handle<ScopeInfo>::null());
-  // At some point we might want to provide outer scopes to
-  // eval scopes (by walking the stack and reading the scope info).
-  // In that case, the ASSERT below needs to be adjusted.
-  ASSERT_EQ(type == GLOBAL_SCOPE, outer_scope == NULL);
+  // The outermost scope must be a global scope.
+  ASSERT(type == GLOBAL_SCOPE || outer_scope != NULL);
   ASSERT(!HasIllegalRedeclaration());
 }
 
@@ -214,7 +213,7 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
   Scope* current_scope = NULL;
   Scope* innermost_scope = NULL;
   bool contains_with = false;
-  while (!context->IsGlobalContext()) {
+  while (!context->IsNativeContext()) {
     if (context->IsWithContext()) {
       Scope* with_scope = new(zone) Scope(current_scope,
                                           WITH_SCOPE,
@@ -226,6 +225,18 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
       for (Scope* s = innermost_scope; s != NULL; s = s->outer_scope()) {
         s->scope_inside_with_ = true;
       }
+    } else if (context->IsGlobalContext()) {
+      ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
+      current_scope = new(zone) Scope(current_scope,
+                                      GLOBAL_SCOPE,
+                                      Handle<ScopeInfo>(scope_info),
+                                      zone);
+    } else if (context->IsModuleContext()) {
+      ScopeInfo* scope_info = ScopeInfo::cast(context->module()->scope_info());
+      current_scope = new(zone) Scope(current_scope,
+                                      MODULE_SCOPE,
+                                      Handle<ScopeInfo>(scope_info),
+                                      zone);
     } else if (context->IsFunctionContext()) {
       ScopeInfo* scope_info = context->closure()->shared()->scope_info();
       current_scope = new(zone) Scope(current_scope,
@@ -274,7 +285,8 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->isolate());
+    AstNodeFactory<AstNullVisitor> ast_node_factory(info->isolate(),
+                                                    info->zone());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 
@@ -473,17 +485,14 @@ Variable* Scope::DeclareLocal(Handle<String> name,
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
-  ASSERT(mode == VAR ||
-         mode == CONST ||
-         mode == CONST_HARMONY ||
-         mode == LET);
+  ASSERT(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
   return variables_.Declare(
       this, name, mode, true, Variable::NORMAL, init_flag, interface);
 }
 
 
-Variable* Scope::DeclareGlobal(Handle<String> name) {
+Variable* Scope::DeclareDynamicGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
   return variables_.Declare(this,
                             name,
@@ -586,6 +595,21 @@ VariableProxy* Scope::CheckAssignmentToConst() {
 }
 
 
+class VarAndOrder {
+ public:
+  VarAndOrder(Variable* var, int order) : var_(var), order_(order) { }
+  Variable* var() const { return var_; }
+  int order() const { return order_; }
+  static int Compare(const VarAndOrder* a, const VarAndOrder* b) {
+    return a->order_ - b->order_;
+  }
+
+ private:
+  Variable* var_;
+  int order_;
+};
+
+
 void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
                                          ZoneList<Variable*>* context_locals) {
   ASSERT(stack_locals != NULL);
@@ -600,17 +624,25 @@ void Scope::CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
     }
   }
 
+  ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
+
   // Collect declared local variables.
   for (VariableMap::Entry* p = variables_.Start();
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
     if (var->is_used()) {
-      if (var->IsStackLocal()) {
-        stack_locals->Add(var, zone());
-      } else if (var->IsContextSlot()) {
-        context_locals->Add(var, zone());
-      }
+      vars.Add(VarAndOrder(var, p->order), zone());
+    }
+  }
+  vars.Sort(VarAndOrder::Compare);
+  int var_count = vars.length();
+  for (int i = 0; i < var_count; i++) {
+    Variable* var = vars[i].var();
+    if (var->IsStackLocal()) {
+      stack_locals->Add(var, zone());
+    } else if (var->IsContextSlot()) {
+      context_locals->Add(var, zone());
     }
   }
 }
@@ -633,12 +665,13 @@ bool Scope::AllocateVariables(CompilationInfo* info,
   // 3) Allocate variables.
   AllocateVariablesRecursively();
 
+  // 4) Allocate and link module instance objects.
+  if (FLAG_harmony_modules && (is_global_scope() || is_module_scope())) {
+    AllocateModules(info);
+    LinkModules(info);
+  }
+
   return true;
-}
-
-
-bool Scope::AllowsLazyCompilation() const {
-  return !force_eager_compilation_ && HasTrivialOuterContext();
 }
 
 
@@ -666,23 +699,36 @@ bool Scope::HasTrivialOuterContext() const {
 }
 
 
-bool Scope::AllowsLazyRecompilation() const {
-  return !force_eager_compilation_ &&
-         !TrivialDeclarationScopesBeforeWithScope();
+bool Scope::HasLazyCompilableOuterContext() const {
+  Scope* outer = outer_scope_;
+  if (outer == NULL) return true;
+  // There are several reasons that prevent lazy compilation:
+  // - This scope is inside a with scope and all declaration scopes between
+  //   them have empty contexts. Such declaration scopes become invisible
+  //   during scope info deserialization.
+  // - This scope is inside a strict eval scope with variables that are
+  //   potentially context allocated in an artificial function scope that
+  //   is not deserialized correctly.
+  outer = outer->DeclarationScope();
+  bool found_non_trivial_declarations = false;
+  for (const Scope* scope = outer; scope != NULL; scope = scope->outer_scope_) {
+    if (scope->is_eval_scope()) return false;
+    if (scope->is_with_scope() && !found_non_trivial_declarations) return false;
+    if (scope->is_declaration_scope() && scope->num_heap_slots() > 0) {
+      found_non_trivial_declarations = true;
+    }
+  }
+  return true;
 }
 
 
-bool Scope::TrivialDeclarationScopesBeforeWithScope() const {
-  Scope* outer = outer_scope_;
-  if (outer == NULL) return false;
-  outer = outer->DeclarationScope();
-  while (outer != NULL) {
-    if (outer->is_with_scope()) return true;
-    if (outer->is_declaration_scope() && outer->num_heap_slots() > 0)
-      return false;
-    outer = outer->outer_scope_;
-  }
-  return false;
+bool Scope::AllowsLazyCompilation() const {
+  return !force_eager_compilation_ && HasLazyCompilableOuterContext();
+}
+
+
+bool Scope::AllowsLazyCompilationWithoutContext() const {
+  return !force_eager_compilation_ && HasTrivialOuterContext();
 }
 
 
@@ -990,7 +1036,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       // gave up on it (e.g. by encountering a local with the same in the outer
       // scope which was not promoted to a context, this can happen if we use
       // debugger to evaluate arbitrary expressions at a break point).
-      if (var->is_global()) {
+      if (var->IsGlobalObjectProperty()) {
         var = NonLocal(proxy->name(), DYNAMIC_GLOBAL);
       } else if (var->is_dynamic()) {
         var = NonLocal(proxy->name(), DYNAMIC);
@@ -1002,8 +1048,8 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       break;
 
     case UNBOUND:
-      // No binding has been found. Declare a variable in global scope.
-      var = info->global_scope()->DeclareGlobal(proxy->name());
+      // No binding has been found. Declare a variable on the global object.
+      var = info->global_scope()->DeclareDynamicGlobal(proxy->name());
       break;
 
     case UNBOUND_EVAL_SHADOWED:
@@ -1110,11 +1156,13 @@ bool Scope::MustAllocate(Variable* var) {
        inner_scope_calls_eval_ ||
        scope_contains_with_ ||
        is_catch_scope() ||
-       is_block_scope())) {
+       is_block_scope() ||
+       is_module_scope() ||
+       is_global_scope())) {
     var->set_is_used(true);
   }
   // Global variables do not need to be allocated.
-  return !var->is_global() && var->is_used();
+  return !var->IsGlobalObjectProperty() && var->is_used();
 }
 
 
@@ -1128,11 +1176,11 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // catch-bound variables are always allocated in a context.
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope() || is_block_scope() || is_module_scope()) return true;
+  if (is_global_scope() && IsLexicalVariableMode(var->mode())) return true;
   return var->has_forced_context_allocation() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||
-      scope_contains_with_ ||
-      var->is_global();
+      scope_contains_with_;
 }
 
 
@@ -1233,11 +1281,19 @@ void Scope::AllocateNonParameterLocals() {
     AllocateNonParameterLocal(temps_[i]);
   }
 
+  ZoneList<VarAndOrder> vars(variables_.occupancy(), zone());
+
   for (VariableMap::Entry* p = variables_.Start();
        p != NULL;
        p = variables_.Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
-    AllocateNonParameterLocal(var);
+    vars.Add(VarAndOrder(var, p->order), zone());
+  }
+
+  vars.Sort(VarAndOrder::Compare);
+  int var_count = vars.length();
+  for (int i = 0; i < var_count; i++) {
+    AllocateNonParameterLocal(vars[i].var());
   }
 
   // For now, function_ must be allocated at the very end.  If it gets
@@ -1297,5 +1353,78 @@ int Scope::ContextLocalCount() const {
   return num_heap_slots() - Context::MIN_CONTEXT_SLOTS -
       (function_ != NULL && function_->proxy()->var()->IsContextSlot() ? 1 : 0);
 }
+
+
+void Scope::AllocateModules(CompilationInfo* info) {
+  ASSERT(is_global_scope() || is_module_scope());
+
+  if (is_module_scope()) {
+    ASSERT(interface_->IsFrozen());
+    ASSERT(scope_info_.is_null());
+
+    // TODO(rossberg): This has to be the initial compilation of this code.
+    // We currently do not allow recompiling any module definitions.
+    Handle<ScopeInfo> scope_info = GetScopeInfo();
+    Factory* factory = info->isolate()->factory();
+    Handle<Context> context = factory->NewModuleContext(scope_info);
+    Handle<JSModule> instance = factory->NewJSModule(context, scope_info);
+    context->set_module(*instance);
+
+    bool ok;
+    interface_->MakeSingleton(instance, &ok);
+    ASSERT(ok);
+  }
+
+  // Allocate nested modules.
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    Scope* inner_scope = inner_scopes_.at(i);
+    if (inner_scope->is_module_scope()) {
+      inner_scope->AllocateModules(info);
+    }
+  }
+}
+
+
+void Scope::LinkModules(CompilationInfo* info) {
+  ASSERT(is_global_scope() || is_module_scope());
+
+  if (is_module_scope()) {
+    Handle<JSModule> instance = interface_->Instance();
+
+    // Populate the module instance object.
+    const PropertyAttributes ro_attr =
+        static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE | DONT_ENUM);
+    const PropertyAttributes rw_attr =
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM);
+    for (Interface::Iterator it = interface_->iterator();
+         !it.done(); it.Advance()) {
+      if (it.interface()->IsModule()) {
+        Handle<Object> value = it.interface()->Instance();
+        ASSERT(!value.is_null());
+        JSReceiver::SetProperty(
+            instance, it.name(), value, ro_attr, kStrictMode);
+      } else {
+        Variable* var = LocalLookup(it.name());
+        ASSERT(var != NULL && var->IsContextSlot());
+        PropertyAttributes attr = var->is_const_mode() ? ro_attr : rw_attr;
+        Handle<AccessorInfo> info =
+            Accessors::MakeModuleExport(it.name(), var->index(), attr);
+        Handle<Object> result = SetAccessor(instance, info);
+        ASSERT(!(result.is_null() || result->IsUndefined()));
+        USE(result);
+      }
+    }
+    USE(JSObject::PreventExtensions(instance));
+  }
+
+  // Link nested modules.
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    Scope* inner_scope = inner_scopes_.at(i);
+    if (inner_scope->is_module_scope()) {
+      inner_scope->LinkModules(info);
+    }
+  }
+}
+
 
 } }  // namespace v8::internal

@@ -232,18 +232,18 @@ class UnaryOperation;
 class ForInStatement;
 
 
-class TypeFeedbackOracle BASE_EMBEDDED {
+class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
-                     Handle<Context> global_context,
+                     Handle<Context> native_context,
                      Isolate* isolate,
                      Zone* zone);
 
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsUninitialized(Property* expr);
   bool LoadIsMegamorphicWithTypeInfo(Property* expr);
-  bool StoreIsMonomorphicNormal(Expression* expr);
-  bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
+  bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
+  bool StoreIsMegamorphicWithTypeInfo(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
   bool ObjectLiteralStoreIsMonomorphic(ObjectLiteral::Property* prop);
@@ -251,7 +251,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool IsForInFastCase(ForInStatement* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
-  Handle<Map> StoreMonomorphicReceiverType(Expression* expr);
+  Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId ast_id);
 
   void LoadReceiverTypes(Property* expr,
                          Handle<String> name,
@@ -263,12 +263,12 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                          Handle<String> name,
                          CallKind call_kind,
                          SmallMapList* types);
-  void CollectKeyedReceiverTypes(unsigned ast_id,
+  void CollectKeyedReceiverTypes(TypeFeedbackId ast_id,
                                  SmallMapList* types);
 
-  static bool CanRetainOtherContext(Map* map, Context* global_context);
+  static bool CanRetainOtherContext(Map* map, Context* native_context);
   static bool CanRetainOtherContext(JSFunction* function,
-                                    Context* global_context);
+                                    Context* native_context);
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
@@ -283,7 +283,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cylces in our headers. Death to tons of implementations in
   // headers!! :-P
-  byte ToBooleanTypes(unsigned ast_id);
+  byte ToBooleanTypes(TypeFeedbackId ast_id);
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);
@@ -297,12 +297,12 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Zone* zone() const { return zone_; }
 
  private:
-  void CollectReceiverTypes(unsigned ast_id,
+  void CollectReceiverTypes(TypeFeedbackId ast_id,
                             Handle<String> name,
                             Code::Flags flags,
                             SmallMapList* types);
 
-  void SetInfo(unsigned ast_id, Object* target);
+  void SetInfo(TypeFeedbackId ast_id, Object* target);
 
   void BuildDictionary(Handle<Code> code);
   void GetRelocInfos(Handle<Code> code, ZoneList<RelocInfo>* infos);
@@ -315,9 +315,9 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
-  Handle<Object> GetInfo(unsigned ast_id);
+  Handle<Object> GetInfo(TypeFeedbackId ast_id);
 
-  Handle<Context> global_context_;
+  Handle<Context> native_context_;
   Isolate* isolate_;
   Handle<UnseededNumberDictionary> dictionary_;
   Zone* zone_;

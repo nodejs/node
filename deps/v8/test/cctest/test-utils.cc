@@ -55,6 +55,22 @@ TEST(Utils1) {
   CHECK_EQ(-2, -8 >> 2);
   CHECK_EQ(-2, static_cast<int8_t>(-8) >> 2);
   CHECK_EQ(-2, static_cast<int>(static_cast<intptr_t>(-8) >> 2));
+
+  CHECK_EQ(-1000000, FastD2IChecked(-1000000.0));
+  CHECK_EQ(-1, FastD2IChecked(-1.0));
+  CHECK_EQ(0, FastD2IChecked(0.0));
+  CHECK_EQ(1, FastD2IChecked(1.0));
+  CHECK_EQ(1000000, FastD2IChecked(1000000.0));
+
+  CHECK_EQ(-1000000, FastD2IChecked(-1000000.123));
+  CHECK_EQ(-1, FastD2IChecked(-1.234));
+  CHECK_EQ(0, FastD2IChecked(0.345));
+  CHECK_EQ(1, FastD2IChecked(1.234));
+  CHECK_EQ(1000000, FastD2IChecked(1000000.123));
+
+  CHECK_EQ(INT_MAX, FastD2IChecked(1.0e100));
+  CHECK_EQ(INT_MIN, FastD2IChecked(-1.0e100));
+  CHECK_EQ(INT_MIN, FastD2IChecked(OS::nan_value()));
 }
 
 

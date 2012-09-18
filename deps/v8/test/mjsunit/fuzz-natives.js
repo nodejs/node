@@ -149,6 +149,7 @@ var knownProblems = {
   "PushBlockContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
+  "ParallelRecompile": true,
   "NotifyDeoptimized": true,
   "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,

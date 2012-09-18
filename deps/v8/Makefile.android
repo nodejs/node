@@ -1,0 +1,92 @@
+# Copyright 2012 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Those definitions should be consistent with the main Makefile
+ANDROID_ARCHES = android_ia32 android_arm
+MODES = release debug
+
+# Generates all combinations of ANDROID ARCHES and MODES,
+# e.g. "android_ia32.release" or "android_arm.release"
+ANDROID_BUILDS = $(foreach mode,$(MODES), \
+                   $(addsuffix .$(mode),$(ANDROID_ARCHES)))
+
+HOST_OS = $(shell uname -s | sed -e 's/Linux/linux/;s/Darwin/mac/')
+ifeq ($(HOST_OS), linux)
+  TOOLCHAIN_DIR = linux-x86
+else
+  ifeq ($(HOST_OS), mac)
+    TOOLCHAIN_DIR = darwin-x86
+  else
+    $(error Host platform "${HOST_OS}" is not supported)
+  endif
+endif
+
+ifeq ($(ARCH), android_arm)
+  DEFINES  = target_arch=arm v8_target_arch=arm android_target_arch=arm
+  DEFINES += arm_neon=0 armv7=1
+  TOOLCHAIN_ARCH = arm-linux-androideabi-4.4.3
+else
+  ifeq ($(ARCH), android_ia32)
+    DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86
+    TOOLCHAIN_ARCH = x86-4.4.3
+  else
+    $(error Target architecture "${ARCH}" is not supported)
+  endif
+endif
+
+TOOLCHAIN_PATH = ${ANDROID_NDK_ROOT}/toolchains/${TOOLCHAIN_ARCH}/prebuilt
+ANDROID_TOOLCHAIN ?= ${TOOLCHAIN_PATH}/${TOOLCHAIN_DIR}
+ifeq ($(wildcard $(ANDROID_TOOLCHAIN)),)
+  $(error Cannot find Android toolchain in "${ANDROID_TOOLCHAIN}")
+endif
+
+# For mksnapshot host generation.
+DEFINES += host_os=${HOST_OS}
+
+.SECONDEXPANSION:
+$(ANDROID_BUILDS): $(OUTDIR)/Makefile.$$(basename $$@)
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile.$(basename $@) \
+	            CXX="$(ANDROID_TOOLCHAIN)/bin/*-g++" \
+	            AR="$(ANDROID_TOOLCHAIN)/bin/*-ar" \
+	            RANLIB="$(ANDROID_TOOLCHAIN)/bin/*-ranlib" \
+	            CC="$(ANDROID_TOOLCHAIN)/bin/*-gcc" \
+	            LD="$(ANDROID_TOOLCHAIN)/bin/*-ld" \
+	            LINK="$(ANDROID_TOOLCHAIN)/bin/*-g++" \
+	            BUILDTYPE=$(shell echo $(subst .,,$(suffix $@)) | \
+	                        python -c "print raw_input().capitalize()") \
+	            builddir="$(shell pwd)/$(OUTDIR)/$@"
+
+# Android GYP file generation targets.
+ANDROID_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(ANDROID_ARCHES))
+$(ANDROID_MAKEFILES):
+	@GYP_GENERATORS=make-android \
+	GYP_DEFINES="${DEFINES}" \
+	CC="${ANDROID_TOOLCHAIN}/bin/*-gcc" \
+	CXX="${ANDROID_TOOLCHAIN}/bin/*-g++" \
+	build/gyp/gyp --generator-output="${OUTDIR}" build/all.gyp \
+	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
+	              -S.${ARCH} ${GYPFLAGS}

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -46,6 +46,8 @@ Debug.LiveEdit = new function() {
 
   // Forward declaration for minifier.
   var FunctionStatus;
+
+  var NEEDS_STEP_IN_PROPERTY_NAME = "stack_update_needs_step_in";
 
   // Applies the change to the script.
   // The change is in form of list of chunks encoded in a single array as
@@ -161,7 +163,7 @@ Debug.LiveEdit = new function() {
 
     // Our current implementation requires client to manually issue "step in"
     // command for correct stack state.
-    preview_description.stack_update_needs_step_in =
+    preview_description[NEEDS_STEP_IN_PROPERTY_NAME] =
         preview_description.stack_modified;
 
     // Start with breakpoints. Convert their line/column positions and
@@ -1078,6 +1080,18 @@ Debug.LiveEdit = new function() {
     return ProcessOldNode(old_code_tree);
   }
 
+  // Restarts call frame and returns value similar to what LiveEdit returns.
+  function RestartFrame(frame_mirror) {
+    var result = frame_mirror.restart();
+    if (IS_STRING(result)) {
+      throw new Failure("Failed to restart frame: " + result);
+    }
+    var result = {};
+    result[NEEDS_STEP_IN_PROPERTY_NAME] = true;
+    return result;
+  }
+  // Function is public.
+  this.RestartFrame = RestartFrame;
 
   // Functions are public for tests.
   this.TestApi = {

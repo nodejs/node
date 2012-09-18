@@ -159,6 +159,27 @@ class RegisteredExtension {
 };
 
 
+#define OPEN_HANDLE_LIST(V)                    \
+  V(Template, TemplateInfo)                    \
+  V(FunctionTemplate, FunctionTemplateInfo)    \
+  V(ObjectTemplate, ObjectTemplateInfo)        \
+  V(Signature, SignatureInfo)                  \
+  V(AccessorSignature, FunctionTemplateInfo)   \
+  V(TypeSwitch, TypeSwitchInfo)                \
+  V(Data, Object)                              \
+  V(RegExp, JSRegExp)                          \
+  V(Object, JSObject)                          \
+  V(Array, JSArray)                            \
+  V(String, String)                            \
+  V(Script, Object)                            \
+  V(Function, JSFunction)                      \
+  V(Message, JSObject)                         \
+  V(Context, Context)                          \
+  V(External, Foreign)                         \
+  V(StackTrace, JSArray)                       \
+  V(StackFrame, JSObject)
+
+
 class Utils {
  public:
   static bool ReportApiFailure(const char* location, const char* message);
@@ -205,42 +226,13 @@ class Utils {
   static inline Local<TypeSwitch> ToLocal(
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
 
-  static inline v8::internal::Handle<v8::internal::TemplateInfo>
-      OpenHandle(const Template* that);
-  static inline v8::internal::Handle<v8::internal::FunctionTemplateInfo>
-      OpenHandle(const FunctionTemplate* that);
-  static inline v8::internal::Handle<v8::internal::ObjectTemplateInfo>
-      OpenHandle(const ObjectTemplate* that);
-  static inline v8::internal::Handle<v8::internal::Object>
-      OpenHandle(const Data* data);
-  static inline v8::internal::Handle<v8::internal::JSRegExp>
-      OpenHandle(const RegExp* data);
-  static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(const v8::Object* data);
-  static inline v8::internal::Handle<v8::internal::JSArray>
-      OpenHandle(const v8::Array* data);
-  static inline v8::internal::Handle<v8::internal::String>
-      OpenHandle(const String* data);
-  static inline v8::internal::Handle<v8::internal::Object>
-      OpenHandle(const Script* data);
-  static inline v8::internal::Handle<v8::internal::JSFunction>
-      OpenHandle(const Function* data);
-  static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(const Message* message);
-  static inline v8::internal::Handle<v8::internal::JSArray>
-      OpenHandle(const StackTrace* stack_trace);
-  static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(const StackFrame* stack_frame);
-  static inline v8::internal::Handle<v8::internal::Context>
-      OpenHandle(const v8::Context* context);
-  static inline v8::internal::Handle<v8::internal::SignatureInfo>
-      OpenHandle(const v8::Signature* sig);
-  static inline v8::internal::Handle<v8::internal::FunctionTemplateInfo>
-      OpenHandle(const v8::AccessorSignature* sig);
-  static inline v8::internal::Handle<v8::internal::TypeSwitchInfo>
-      OpenHandle(const v8::TypeSwitch* that);
-  static inline v8::internal::Handle<v8::internal::Foreign>
-      OpenHandle(const v8::External* that);
+#define DECLARE_OPEN_HANDLE(From, To) \
+  static inline v8::internal::Handle<v8::internal::To> \
+      OpenHandle(const From* that, bool allow_empty_handle = false);
+
+OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
+
+#undef DECLARE_OPEN_HANDLE
 };
 
 
@@ -257,7 +249,7 @@ v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
   if (!is_null()) {
     handle = *this;
   }
-  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)));
+  return Utils::OpenHandle(*scope->Close(Utils::ToLocal(handle)), true);
 }
 
 
@@ -294,33 +286,18 @@ MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 
 // Implementations of OpenHandle
 
-#define MAKE_OPEN_HANDLE(From, To) \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(\
-    const v8::From* that) { \
-    return v8::internal::Handle<v8::internal::To>( \
+#define MAKE_OPEN_HANDLE(From, To)                                          \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                 \
+    const v8::From* that, bool allow_empty_handle) {                        \
+    EXTRA_CHECK(allow_empty_handle || that != NULL);                        \
+    return v8::internal::Handle<v8::internal::To>(                          \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }
 
-MAKE_OPEN_HANDLE(Template, TemplateInfo)
-MAKE_OPEN_HANDLE(FunctionTemplate, FunctionTemplateInfo)
-MAKE_OPEN_HANDLE(ObjectTemplate, ObjectTemplateInfo)
-MAKE_OPEN_HANDLE(Signature, SignatureInfo)
-MAKE_OPEN_HANDLE(AccessorSignature, FunctionTemplateInfo)
-MAKE_OPEN_HANDLE(TypeSwitch, TypeSwitchInfo)
-MAKE_OPEN_HANDLE(Data, Object)
-MAKE_OPEN_HANDLE(RegExp, JSRegExp)
-MAKE_OPEN_HANDLE(Object, JSObject)
-MAKE_OPEN_HANDLE(Array, JSArray)
-MAKE_OPEN_HANDLE(String, String)
-MAKE_OPEN_HANDLE(Script, Object)
-MAKE_OPEN_HANDLE(Function, JSFunction)
-MAKE_OPEN_HANDLE(Message, JSObject)
-MAKE_OPEN_HANDLE(Context, Context)
-MAKE_OPEN_HANDLE(External, Foreign)
-MAKE_OPEN_HANDLE(StackTrace, JSArray)
-MAKE_OPEN_HANDLE(StackFrame, JSObject)
+OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 #undef MAKE_OPEN_HANDLE
+#undef OPEN_HANDLE_LIST
 
 
 namespace internal {
@@ -392,6 +369,32 @@ class StringTracker {
 };
 
 
+class DeferredHandles {
+ public:
+  ~DeferredHandles();
+
+ private:
+  DeferredHandles(Object** first_block_limit, Isolate* isolate)
+      : next_(NULL),
+        previous_(NULL),
+        first_block_limit_(first_block_limit),
+        isolate_(isolate) {
+    isolate->LinkDeferredHandles(this);
+  }
+
+  void Iterate(ObjectVisitor* v);
+
+  List<Object**> blocks_;
+  DeferredHandles* next_;
+  DeferredHandles* previous_;
+  Object** first_block_limit_;
+  Isolate* isolate_;
+
+  friend class HandleScopeImplementer;
+  friend class Isolate;
+};
+
+
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
 // neat in some ways, but it would expose internal implementation details in
@@ -409,7 +412,8 @@ class HandleScopeImplementer {
         entered_contexts_(0),
         saved_contexts_(0),
         spare_(NULL),
-        call_depth_(0) { }
+        call_depth_(0),
+        last_handle_before_deferred_block_(NULL) { }
 
   ~HandleScopeImplementer() {
     DeleteArray(spare_);
@@ -445,6 +449,13 @@ class HandleScopeImplementer {
   inline bool HasSavedContexts();
 
   inline List<internal::Object**>* blocks() { return &blocks_; }
+  Isolate* isolate() const { return isolate_; }
+
+  void ReturnBlock(Object** block) {
+    ASSERT(block != NULL);
+    if (spare_ != NULL) DeleteArray(spare_);
+    spare_ = block;
+  }
 
  private:
   void ResetAfterArchive() {
@@ -452,6 +463,7 @@ class HandleScopeImplementer {
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
     spare_ = NULL;
+    last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
   }
 
@@ -469,6 +481,9 @@ class HandleScopeImplementer {
     ASSERT(call_depth_ == 0);
   }
 
+  void BeginDeferredScope();
+  DeferredHandles* Detach(Object** prev_limit);
+
   Isolate* isolate_;
   List<internal::Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
@@ -477,12 +492,16 @@ class HandleScopeImplementer {
   List<Context*> saved_contexts_;
   Object** spare_;
   int call_depth_;
+  Object** last_handle_before_deferred_block_;
   // This is only used for threading support.
   v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 
   void IterateThis(ObjectVisitor* v);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
+
+  friend class DeferredHandles;
+  friend class DeferredHandleScope;
 
   DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };

@@ -37,7 +37,8 @@ using namespace v8;
 
 enum Expectations {
   EXPECT_RESULT,
-  EXPECT_EXCEPTION
+  EXPECT_EXCEPTION,
+  EXPECT_ERROR
 };
 
 
@@ -72,6 +73,10 @@ class DeclarationContext {
 
   void InitializeIfNeeded();
 
+  // Perform optional initialization steps on the context after it has
+  // been created. Defaults to none but may be overwritten.
+  virtual void PostInitializeContext(Handle<Context> context) {}
+
   // Get the holder for the interceptor. Default to the instance template
   // but may be overwritten.
   virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
@@ -91,7 +96,6 @@ class DeclarationContext {
  private:
   bool is_initialized_;
   Persistent<Context> context_;
-  Local<String> property_;
 
   int get_count_;
   int set_count_;
@@ -120,6 +124,7 @@ void DeclarationContext::InitializeIfNeeded() {
   context_ = Context::New(0, function->InstanceTemplate(), Local<Value>());
   context_->Enter();
   is_initialized_ = true;
+  PostInitializeContext(context_);
 }
 
 
@@ -134,7 +139,13 @@ void DeclarationContext::Check(const char* source,
   HandleScope scope;
   TryCatch catcher;
   catcher.SetVerbose(true);
-  Local<Value> result = Script::Compile(String::New(source))->Run();
+  Local<Script> script = Script::Compile(String::New(source));
+  if (expectations == EXPECT_ERROR) {
+    CHECK(script.IsEmpty());
+    return;
+  }
+  CHECK(!script.IsEmpty());
+  Local<Value> result = script->Run();
   CHECK_EQ(get, get_count());
   CHECK_EQ(set, set_count());
   CHECK_EQ(query, query_count());
@@ -536,9 +547,9 @@ TEST(ExistsInPrototype) {
 
   { ExistsInPrototypeContext context;
     context.Check("var x; x",
-                  0,  // get
                   0,
-                  0,  // declaration
+                  0,
+                  0,
                   EXPECT_RESULT, Undefined());
   }
 
@@ -546,7 +557,7 @@ TEST(ExistsInPrototype) {
     context.Check("var x = 0; x",
                   0,
                   0,
-                  0,  // declaration
+                  0,
                   EXPECT_RESULT, Number::New(0));
   }
 
@@ -554,7 +565,7 @@ TEST(ExistsInPrototype) {
     context.Check("const x; x",
                   0,
                   0,
-                  0,  // declaration
+                  0,
                   EXPECT_RESULT, Undefined());
   }
 
@@ -562,7 +573,7 @@ TEST(ExistsInPrototype) {
     context.Check("const x = 0; x",
                   0,
                   0,
-                  0,  // declaration
+                  0,
                   EXPECT_RESULT, Number::New(0));
   }
 }
@@ -591,7 +602,305 @@ TEST(AbsentInPrototype) {
     context.Check("if (false) { var x = 0; }; x",
                   0,
                   0,
-                  0,  // declaration
+                  0,
                   EXPECT_RESULT, Undefined());
+  }
+}
+
+
+
+class ExistsInHiddenPrototypeContext: public DeclarationContext {
+ public:
+  ExistsInHiddenPrototypeContext() {
+    hidden_proto_ = FunctionTemplate::New();
+    hidden_proto_->SetHiddenPrototype(true);
+  }
+
+ protected:
+  virtual v8::Handle<Integer> Query(Local<String> key) {
+    // Let it seem that the property exists in the hidden prototype object.
+    return Integer::New(v8::None);
+  }
+
+  // Install the hidden prototype after the global object has been created.
+  virtual void PostInitializeContext(Handle<Context> context) {
+    Local<Object> global_object = context->Global();
+    Local<Object> hidden_proto = hidden_proto_->GetFunction()->NewInstance();
+    context->DetachGlobal();
+    context->Global()->SetPrototype(hidden_proto);
+    context->ReattachGlobal(global_object);
+  }
+
+  // Use the hidden prototype as the holder for the interceptors.
+  virtual Local<ObjectTemplate> GetHolder(Local<FunctionTemplate> function) {
+    return hidden_proto_->InstanceTemplate();
+  }
+
+ private:
+  Local<FunctionTemplate> hidden_proto_;
+};
+
+
+TEST(ExistsInHiddenPrototype) {
+  i::FLAG_es52_globals = true;
+  HandleScope scope;
+
+  { ExistsInHiddenPrototypeContext context;
+    context.Check("var x; x",
+                  1,  // access
+                  0,
+                  2,  // declaration + initialization
+                  EXPECT_EXCEPTION);  // x is not defined!
+  }
+
+  { ExistsInHiddenPrototypeContext context;
+    context.Check("var x = 0; x",
+                  1,  // access
+                  1,  // initialization
+                  2,  // declaration + initialization
+                  EXPECT_RESULT, Number::New(0));
+  }
+
+  { ExistsInHiddenPrototypeContext context;
+    context.Check("function x() { }; x",
+                  0,
+                  0,
+                  0,
+                  EXPECT_RESULT);
+  }
+
+  // TODO(mstarzinger): The semantics of global const is vague.
+  { ExistsInHiddenPrototypeContext context;
+    context.Check("const x; x",
+                  0,
+                  0,
+                  1,  // (re-)declaration
+                  EXPECT_RESULT, Undefined());
+  }
+
+  // TODO(mstarzinger): The semantics of global const is vague.
+  { ExistsInHiddenPrototypeContext context;
+    context.Check("const x = 0; x",
+                  0,
+                  0,
+                  1,  // (re-)declaration
+                  EXPECT_RESULT, Number::New(0));
+  }
+}
+
+
+
+class SimpleContext {
+ public:
+  SimpleContext() {
+    context_ = Context::New(0);
+    context_->Enter();
+  }
+
+  virtual ~SimpleContext() {
+    context_->Exit();
+    context_.Dispose();
+  }
+
+  void Check(const char* source,
+             Expectations expectations,
+             v8::Handle<Value> value = Local<Value>()) {
+    HandleScope scope;
+    TryCatch catcher;
+    catcher.SetVerbose(true);
+    Local<Script> script = Script::Compile(String::New(source));
+    if (expectations == EXPECT_ERROR) {
+      CHECK(script.IsEmpty());
+      return;
+    }
+    CHECK(!script.IsEmpty());
+    Local<Value> result = script->Run();
+    if (expectations == EXPECT_RESULT) {
+      CHECK(!catcher.HasCaught());
+      if (!value.IsEmpty()) {
+        CHECK_EQ(value, result);
+      }
+    } else {
+      CHECK(expectations == EXPECT_EXCEPTION);
+      CHECK(catcher.HasCaught());
+      if (!value.IsEmpty()) {
+        CHECK_EQ(value, catcher.Exception());
+      }
+    }
+  }
+
+ private:
+  Persistent<Context> context_;
+};
+
+
+TEST(MultiScriptConflicts) {
+  HandleScope scope;
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(3));
+    context.Check("const x = 4; x",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("x = 5; x",
+                  EXPECT_RESULT, Number::New(5));
+    context.Check("var x = 6; x",
+                  EXPECT_RESULT, Number::New(6));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(6));
+    context.Check("function x() { return 7 }; x()",
+                  EXPECT_RESULT, Number::New(7));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",  // assignment ignored
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("x = 4; x",  // assignment ignored
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 5; x",  // assignment ignored
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 7 }; x",
+                  EXPECT_EXCEPTION);
+  }
+
+  i::FLAG_use_strict = true;
+  i::FLAG_harmony_scoping = true;
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(1));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 4 }; x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("this.x()",
+                  EXPECT_RESULT, Number::New(4));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(2));
+    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
+    // bindings on the global object. However, this will probably change, in
+    // which case we reactivate the following test.
+    // context.Check("this.x",
+    //               EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(3));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(3));
+    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
+    // bindings on the global object. However, this will probably change, in
+    // which case we reactivate the following test.
+    // context.Check("this.x",
+    //              EXPECT_RESULT, Number::New(3));
+  }
+
+  // TODO(rossberg): All of the below should actually be errors in Harmony.
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 1 }; x()",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 1 }; x()",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 2 }; x()",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 2 }; x()",
+                  EXPECT_ERROR);
   }
 }

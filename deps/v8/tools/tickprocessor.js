@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -608,10 +608,11 @@ CppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function UnixCppEntriesProvider(nmExec) {
+function UnixCppEntriesProvider(nmExec, targetRootFS) {
   this.symbols = [];
   this.parsePos = 0;
   this.nmExec = nmExec;
+  this.targetRootFS = targetRootFS;
   this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ([0-9a-fA-F]{8,16} )?[tTwW] (.*)$/;
 };
 inherits(UnixCppEntriesProvider, CppEntriesProvider);
@@ -619,6 +620,7 @@ inherits(UnixCppEntriesProvider, CppEntriesProvider);
 
 UnixCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
+  libName = this.targetRootFS + libName;
   try {
     this.symbols = [
       os.system(this.nmExec, ['-C', '-n', '-S', libName], -1, -1),
@@ -656,8 +658,8 @@ UnixCppEntriesProvider.prototype.parseNextLine = function() {
 };
 
 
-function MacCppEntriesProvider(nmExec) {
-  UnixCppEntriesProvider.call(this, nmExec);
+function MacCppEntriesProvider(nmExec, targetRootFS) {
+  UnixCppEntriesProvider.call(this, nmExec, targetRootFS);
   // Note an empty group. It is required, as UnixCppEntriesProvider expects 3 groups.
   this.FUNC_RE = /^([0-9a-fA-F]{8,16}) ()[iItT] (.*)$/;
 };
@@ -666,6 +668,7 @@ inherits(MacCppEntriesProvider, UnixCppEntriesProvider);
 
 MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
   this.parsePos = 0;
+  libName = this.targetRootFS + libName;
   try {
     this.symbols = [os.system(this.nmExec, ['-n', '-f', libName], -1, -1), ''];
   } catch (e) {
@@ -675,7 +678,8 @@ MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
 };
 
 
-function WindowsCppEntriesProvider() {
+function WindowsCppEntriesProvider(_ignored_nmExec, targetRootFS) {
+  this.targetRootFS = targetRootFS;
   this.symbols = '';
   this.parsePos = 0;
 };
@@ -698,6 +702,7 @@ WindowsCppEntriesProvider.EXE_IMAGE_BASE = 0x00400000;
 
 
 WindowsCppEntriesProvider.prototype.loadSymbols = function(libName) {
+  libName = this.targetRootFS + libName;
   var fileNameFields = libName.match(WindowsCppEntriesProvider.FILENAME_RE);
   if (!fileNameFields) return;
   var mapFileName = fileNameFields[1] + '.map';
@@ -785,6 +790,8 @@ function ArgumentsProcessor(args) {
         'Specify that we are running on Mac OS X platform'],
     '--nm': ['nm', 'nm',
         'Specify the \'nm\' executable to use (e.g. --nm=/my_dir/nm)'],
+    '--target': ['targetRootFS', '',
+        'Specify the target root directory for cross environment'],
     '--snapshot-log': ['snapshotLogFileName', 'snapshot.log',
         'Specify snapshot log file to use (e.g. --snapshot-log=snapshot.log)']
   };
@@ -804,6 +811,7 @@ ArgumentsProcessor.DEFAULTS = {
   callGraphSize: 5,
   ignoreUnknown: false,
   separateIc: false,
+  targetRootFS: '',
   nm: 'nm'
 };
 

@@ -239,8 +239,8 @@ class MacroAssembler: public Assembler {
   void LoadContext(Register dst, int context_chain_length);
 
   // Conditionally load the cached Array transitioned map of type
-  // transitioned_kind from the global context if the map in register
-  // map_in_out is the cached Array map in the global context of
+  // transitioned_kind from the native context if the map in register
+  // map_in_out is the cached Array map in the native context of
   // expected_kind.
   void LoadTransitionedArrayMapConditional(
       ElementsKind expected_kind,
@@ -467,6 +467,8 @@ class MacroAssembler: public Assembler {
     j(not_carry, is_smi);
   }
 
+  void LoadUint32(XMMRegister dst, Register src, XMMRegister scratch);
+
   // Jump the register contains a smi.
   inline void JumpIfSmi(Register value,
                         Label* smi_label,
@@ -490,7 +492,15 @@ class MacroAssembler: public Assembler {
   }
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
+  void EnumLength(Register dst, Register map);
 
+  template<typename Field>
+  void DecodeField(Register reg) {
+    static const int full_shift = Field::kShift + kSmiTagSize;
+    static const int low_mask = Field::kMask >> Field::kShift;
+    sar(reg, full_shift);
+    and_(reg, Immediate(low_mask));
+  }
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
   // Abort execution if argument is not a number. Used in debug code.
@@ -688,7 +698,7 @@ class MacroAssembler: public Assembler {
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
-  void CallStub(CodeStub* stub, unsigned ast_id = kNoASTId);
+  void CallStub(CodeStub* stub, TypeFeedbackId ast_id = TypeFeedbackId::None());
 
   // Tail call a code stub (jump).  Generate the code if necessary.
   void TailCallStub(CodeStub* stub);
@@ -961,7 +971,7 @@ inline Operand ContextOperand(Register context, int index) {
 
 
 inline Operand GlobalObjectOperand() {
-  return ContextOperand(esi, Context::GLOBAL_INDEX);
+  return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
 
 

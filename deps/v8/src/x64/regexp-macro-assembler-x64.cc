@@ -353,6 +353,14 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
   // In either case succeed immediately.
   __ j(equal, &fallthrough);
 
+  // -----------------------
+  // rdx - Start of capture
+  // rbx - length of capture
+  // Check that there are sufficient characters left in the input.
+  __ movl(rax, rdi);
+  __ addl(rax, rbx);
+  BranchOrBacktrack(greater, on_no_match);
+
   if (mode_ == ASCII) {
     Label loop_increment;
     if (on_no_match == NULL) {

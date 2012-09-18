@@ -93,7 +93,8 @@ class CcTestConfiguration(test.TestConfiguration):
       if utils.IsWindows():
         executable += '.exe'
       executable = join(self.context.buildspace, executable)
-    output = test.Execute([executable, '--list'], self.context)
+    full_command = self.context.processor([executable, '--list'])
+    output = test.Execute(full_command, self.context)
     if output.exit_code != 0:
       print output.stdout
       print output.stderr

@@ -94,6 +94,7 @@ const uint32_t kDebugZapValue = 0xbadbaddb;
 const uint32_t kFreeListZapValue = 0xfeed1eaf;
 #endif
 
+const int kCodeZapValue = 0xbadc0de;
 
 // Number of bits to represent the page size for paged spaces. The value of 20
 // gives 1Mb bytes per page.
@@ -126,6 +127,7 @@ class Debugger;
 class DebugInfo;
 class Descriptor;
 class DescriptorArray;
+class TransitionArray;
 class ExternalReference;
 class FixedArray;
 class FunctionTemplateInfo;
@@ -311,14 +313,6 @@ typedef void (*StoreBufferCallback)(Heap* heap,
                                     StoreBufferEvent event);
 
 
-// Whether to remove map transitions and constant transitions from a
-// DescriptorArray.
-enum TransitionFlag {
-  REMOVE_TRANSITIONS,
-  KEEP_TRANSITIONS
-};
-
-
 // Union used for fast testing of specific double values.
 union DoubleRepresentation {
   double  value;
@@ -366,11 +360,12 @@ struct AccessorDescriptor {
 // VMState object leaves a state by popping the current state from the
 // stack.
 
-#define STATE_TAG_LIST(V) \
-  V(JS)                   \
-  V(GC)                   \
-  V(COMPILER)             \
-  V(OTHER)                \
+#define STATE_TAG_LIST(V)                       \
+  V(JS)                                         \
+  V(GC)                                         \
+  V(COMPILER)                                   \
+  V(PARALLEL_COMPILER_PROLOGUE)                 \
+  V(OTHER)                                      \
   V(EXTERNAL)
 
 enum StateTag {
@@ -442,6 +437,7 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   CPUID = 10,  // x86
                   VFP3 = 1,    // ARM
                   ARMv7 = 2,   // ARM
+                  VFP2 = 3,    // ARM
                   SAHF = 0,    // x86
                   FPU = 1};    // MIPS
 
@@ -483,15 +479,16 @@ const uint64_t kLastNonNaNInt64 =
     (static_cast<uint64_t>(kNaNOrInfinityLowerBoundUpper32) << 32);
 
 
+// The order of this enum has to be kept in sync with the predicates below.
 enum VariableMode {
   // User declared variables:
   VAR,             // declared via 'var', and 'function' declarations
 
   CONST,           // declared via 'const' declarations
 
-  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
-
   LET,             // declared via 'let' declarations
+
+  CONST_HARMONY,   // declared via 'const' declarations in harmony mode
 
   // Variables introduced by the compiler:
   DYNAMIC,         // always require dynamic lookup (we don't know
@@ -512,6 +509,26 @@ enum VariableMode {
   TEMPORARY        // temporary variables (not user-visible), never
                    // in a context
 };
+
+
+inline bool IsDynamicVariableMode(VariableMode mode) {
+  return mode >= DYNAMIC && mode <= DYNAMIC_LOCAL;
+}
+
+
+inline bool IsDeclaredVariableMode(VariableMode mode) {
+  return mode >= VAR && mode <= CONST_HARMONY;
+}
+
+
+inline bool IsLexicalVariableMode(VariableMode mode) {
+  return mode >= LET && mode <= CONST_HARMONY;
+}
+
+
+inline bool IsImmutableVariableMode(VariableMode mode) {
+  return mode == CONST || mode == CONST_HARMONY;
+}
 
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable

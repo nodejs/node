@@ -48,7 +48,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  explicit RegExpMacroAssemblerIrregexp(Vector<byte>);
+  RegExpMacroAssemblerIrregexp(Vector<byte>, Zone* zone);
   virtual ~RegExpMacroAssemblerIrregexp();
   // The byte-code interpreter checks on each push anyway.
   virtual int stack_limit_slack() { return 1; }

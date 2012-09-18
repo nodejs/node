@@ -123,7 +123,7 @@ check_test_minus(7,false);
 // ALWAYS: 3
 // NEVER: 4
 
-if (false) {
+// Test that we still deopt on failed bound checks
 test_base(5,true);
 test_base(6,true);
 test_base(5,false);
@@ -139,7 +139,21 @@ test_base(6,false);
 %OptimizeFunctionOnNextCall(test_base);
 test_base(2048,true);
 assertTrue(%GetOptimizationStatus(test_base) != 1);
+
+// Specific test on negative offsets
+var short_a = new Array(100);
+for (var i = 0; i < short_a.length; i++) short_a[i] = 0;
+function short_test(a, i) {
+  a[i + 9] = 0;
+  a[i - 10] = 0;
 }
+short_test(short_a, 50);
+short_test(short_a, 50);
+%OptimizeFunctionOnNextCall(short_test);
+short_a.length = 10;
+short_test(a, 0);
+assertTrue(%GetOptimizationStatus(short_test) != 1);
+
 
 gc();
 

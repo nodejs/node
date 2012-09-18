@@ -1,3 +1,330 @@
+2012-09-11: Version 3.13.7
+
+        Enable/disable LiveEdit using the (C++) debug API.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-09-06: Version 3.13.6
+
+        Added validity checking to API functions and calls.
+
+        Disabled accessor inlining (Chromium issue 134609).
+
+        Fixed bug in Math.min/max in optimized code (Chromium issue 145961).
+
+        Directly use %ObjectKeys in json stringify (Chromium issue 2312).
+
+        Fixed VS2005 build (issue 2313).
+
+        Activated fixed ES5 readonly semantics by default.
+
+        Added hardfp flag to the Makefile.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-29: Version 3.13.5
+
+        Release stack trace data after firing Error.stack accessor.
+        (issue 2308)
+
+        Added a new API V8::SetJitCodeEventHandler to push code name and
+        location to users such as profilers.
+
+        Allocate block-scoped global bindings to global context.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-28: Version 3.13.4
+
+        Print reason for disabling optimization. Kill --trace-bailout flag.
+
+        Provided option to disable full DEBUG build on Android.
+
+        Introduced global contexts to represent lexical global scope(s).
+
+        Fixed rounding in Uint8ClampedArray setter. (issue 2294)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-21: Version 3.13.3
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-20: Version 3.13.2
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-16: Version 3.13.1
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-10: Version 3.13.0
+
+        Added histograms for total allocated/live heap size, as well as
+        allocated size and percentage of total for map and cell space.
+
+        Fixed parseInt's octal parsing behavior (ECMA-262 Annex E 15.1.2.2).
+        (issue 1645)
+
+        Added checks for interceptors to negative lookup code in Crankshaft.
+        (Chromium issue 140473)
+
+        Made incremental marking clear ICs and type feedback cells.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-08-01: Version 3.12.19
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-30: Version 3.12.18
+
+        Forced using bit-pattern for signed zero double. (issue 2239)
+
+        Made sure double to int conversion is correct. (issue 2260)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-27: Version 3.12.17
+
+        Always set the callee's context when calling a function from optimized
+        code.
+        (Chromium issue 138887)
+
+        Fixed building with GCC 3.x
+        (issue 2016, 2017)
+
+        Improved API calls that return empty handles.
+        (issue 2245)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-25: Version 3.12.16
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-24: Version 3.12.15
+
+        Added PRESERVE_ASCII_NULL option to String::WriteAscii.
+        (issue 2252)
+
+        Added dependency to HLoadKeyed* instructions to prevent invalid
+        hoisting. (Chromium issue 137768)
+
+        Enabled building d8 for Android on Mac.
+
+        Interpret negative hexadecimal literals as NaN.
+        (issue 2240)
+
+        Expose counters in javascript when using --track-gc-object-stats.
+
+        Enabled building and testing V8 on Android IA.
+
+        Added --trace-parse flag to parser.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-18: Version 3.12.14
+
+        Deactivated optimization of packed arrays.
+        (Chromium issue 137768)
+
+        Fixed broken accessor transition.
+        (Chromium issue 137689)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-17: Version 3.12.13
+
+        Fixed missing tagging of stack value in finally block.
+        (Chromium issue 137496)
+
+        Added more support for heap analysis.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-16: Version 3.12.12
+
+        Added an option to the tickprocessor to specify the directory for lib
+        lookup.
+
+        Fixed ICs for slow objects with native accessor (Chromium issue 137002).
+
+        Fixed transcendental cache on ARM in optimized code (issue 2234).
+
+        New heap inspection tools: counters for object sizes and counts,
+        histograms for external fragmentation.
+
+        Incorporated constness into inferred interfaces (in preparation for
+        handling imports) (issue 1569).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-12: Version 3.12.11
+
+        Renamed "mips" arch to "mipsel" in the GYP build.
+
+        Fixed computation of call targets on prototypes in Crankshaft.
+        (Chromium issue 125148)
+
+        Removed use of __lookupGetter__ when generating stack trace.
+        (issue 1591)
+
+        Turned on ES 5.2 globals semantics by default.
+        (issue 1991, Chromium issue 80591)
+
+        Synced preparser and parser wrt syntax error in switch..case.
+        (issue 2210)
+
+        Fixed reporting of octal literals in strict mode when preparsing.
+        (issue 2220)
+
+        Fixed inline constructors for Harmony Proxy prototypes.
+        (issue 2225)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-10: Version 3.12.10
+
+        Re-enabled and fixed issue with array bounds check elimination
+        (Chromium issue 132114).
+
+        Fixed Debug::Break crash. (Chromium issue 131642)
+
+        Added optimizing compiler support for JavaScript getters.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-06: Version 3.12.9
+
+        Correctly advance the scanner when scanning unicode regexp flag.
+        (Chromium issue 136084)
+
+        Fixed unhandlified code calling Harmony Proxy traps.
+        (issue 2219)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-05: Version 3.12.8
+
+        Implemented TypedArray.set and ArrayBuffer.slice in d8.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-07-03: Version 3.12.7
+
+        Fixed lazy compilation for strict eval scopes.
+        (Chromium issue 135066)
+
+        Made MACOSX_DEPLOYMENT_TARGET configurable in GYP.
+        (issue 2151)
+
+        Report "hidden properties" in heap profiler for properties case.
+        (issue 2212)
+
+        Activated optimization of packed arrays by default.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-06-29: Version 3.12.6
+
+        Cleaned up hardfp ABI detection for ARM (V8 issue 2140).
+
+        Extended TypedArray support in d8.
+
+
+2012-06-28: Version 3.12.5
+
+        Fixed lazy parsing heuristics to respect outer scope.
+        (Chromium issue 135008)
+
+        Allow using test-wrapper-gypbuild.py on Windows when no python
+        interpreter is registered.
+
+        Performance and stability improvements on all platforms.
+
+
+2012-06-27: Version 3.12.4
+
+        Removed -fomit-frame-pointer flag from Release builds to make
+        the stack walkable by TCMalloc (Chromium issue 133723).
+
+        Ported r7868 (constant masking) to x64 (issue 1374).
+
+        Expose more detailed memory statistics (issue 2201).
+
+        Fixed Harmony Maps and WeakMaps for undefined values
+        (Chromium issue 132744).
+
+        Correctly throw reference error in strict mode with ICs disabled
+        (issue 2119).
+
+        Performance and stability improvements on all platforms.
+
+
+2012-06-25: Version 3.12.3
+
+        Reverted r11835 'Unify promotion and allocation limit computation' due
+        to V8 Splay performance regression on Mac.  (Chromium issue 134183)
+
+        Fixed sharing of literal boilerplates for optimized code.  (issue 2193)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-06-22: Version 3.12.2
+
+        Made near-jump check more strict in LoadNamedFieldPolymorphic on
+        ia32/x64. (Chromium issue 134055)
+
+        Fixed lazy sweeping heuristics to prevent old-space expansion.
+        (issue 2194)
+
+        Performance and stability improvements on all platforms.
+
+
+2012-06-21: Version 3.12.1
+
+        Performance and stability improvements on all platforms.
+
+
+2012-06-20: Version 3.12.0
+
+        Fixed Chromium issues:
+        115100, 129628, 131994, 132727, 132741, 132742, 133211
+
+        Fixed V8 issues:
+        915, 1914, 2034, 2087, 2094, 2134, 2156, 2166, 2172, 2177, 2179, 2185
+
+        Added --extra-code flag to mksnapshot to load JS code into the VM
+        before creating the snapshot.
+
+        Support 'restart call frame' command in the debugger.
+
+        Performance and stability improvements on all platforms.
+
+
 2012-06-13: Version 3.11.10
 
         Implemented heap profiler memory usage reporting.

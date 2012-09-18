@@ -268,20 +268,29 @@ void Deoptimizer::DeoptimizeGlobalObject(JSObject* object) {
 
 void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     Context* context, OptimizedFunctionVisitor* visitor) {
+  Isolate* isolate = context->GetIsolate();
+  ZoneScope zone_scope(isolate->runtime_zone(), DELETE_ON_EXIT);
   AssertNoAllocation no_allocation;
 
-  ASSERT(context->IsGlobalContext());
+  ASSERT(context->IsNativeContext());
 
   visitor->EnterContext(context);
-  // Run through the list of optimized functions and deoptimize them.
+
+  // Create a snapshot of the optimized functions list. This is needed because
+  // visitors might remove more than one link from the list at once.
+  ZoneList<JSFunction*> snapshot(1, isolate->runtime_zone());
   Object* element = context->OptimizedFunctionsListHead();
   while (!element->IsUndefined()) {
     JSFunction* element_function = JSFunction::cast(element);
-    // Get the next link before deoptimizing as deoptimizing will clear the
-    // next link.
+    snapshot.Add(element_function, isolate->runtime_zone());
     element = element_function->next_function_link();
-    visitor->VisitFunction(element_function);
   }
+
+  // Run through the snapshot of optimized functions and visit them.
+  for (int i = 0; i < snapshot.length(); ++i) {
+    visitor->VisitFunction(snapshot.at(i));
+  }
+
   visitor->LeaveContext(context);
 }
 
@@ -294,10 +303,10 @@ void Deoptimizer::VisitAllOptimizedFunctionsForGlobalObject(
     Object* proto = object->GetPrototype();
     ASSERT(proto->IsJSGlobalObject());
     VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(proto)->global_context(), visitor);
+        GlobalObject::cast(proto)->native_context(), visitor);
   } else if (object->IsGlobalObject()) {
     VisitAllOptimizedFunctionsForContext(
-        GlobalObject::cast(object)->global_context(), visitor);
+        GlobalObject::cast(object)->native_context(), visitor);
   }
 }
 
@@ -306,12 +315,12 @@ void Deoptimizer::VisitAllOptimizedFunctions(
     OptimizedFunctionVisitor* visitor) {
   AssertNoAllocation no_allocation;
 
-  // Run through the list of all global contexts and deoptimize.
-  Object* context = Isolate::Current()->heap()->global_contexts_list();
+  // Run through the list of all native contexts and deoptimize.
+  Object* context = Isolate::Current()->heap()->native_contexts_list();
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the global field of the context can be undefined.
-    Object* global = Context::cast(context)->get(Context::GLOBAL_INDEX);
+    Object* global = Context::cast(context)->get(Context::GLOBAL_OBJECT_INDEX);
     if (!global->IsUndefined()) {
       VisitAllOptimizedFunctionsForGlobalObject(JSObject::cast(global),
                                                 visitor);
@@ -484,19 +493,18 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
 
 
 int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
-                               unsigned id,
+                               BailoutId id,
                                SharedFunctionInfo* shared) {
   // TODO(kasperl): For now, we do a simple linear search for the PC
   // offset associated with the given node id. This should probably be
   // changed to a binary search.
   int length = data->DeoptPoints();
-  Smi* smi_id = Smi::FromInt(id);
   for (int i = 0; i < length; i++) {
-    if (data->AstId(i) == smi_id) {
+    if (data->AstId(i) == id) {
       return data->PcAndState(i)->value();
     }
   }
-  PrintF("[couldn't find pc offset for node=%u]\n", id);
+  PrintF("[couldn't find pc offset for node=%d]\n", id.ToInt());
   PrintF("[method: %s]\n", *shared->DebugName()->ToCString());
   // Print the source code if available.
   HeapStringAllocator string_allocator;
@@ -543,7 +551,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // described by the input data.
   DeoptimizationInputData* input_data =
       DeoptimizationInputData::cast(optimized_code_->deoptimization_data());
-  unsigned node_id = input_data->AstId(bailout_id_)->value();
+  BailoutId node_id = input_data->AstId(bailout_id_);
   ByteArray* translations = input_data->TranslationByteArray();
   unsigned translation_index =
       input_data->TranslationIndex(bailout_id_)->value();
@@ -581,7 +589,24 @@ void Deoptimizer::DoComputeOutputFrames() {
       case Translation::CONSTRUCT_STUB_FRAME:
         DoComputeConstructStubFrame(&iterator, i);
         break;
-      default:
+      case Translation::GETTER_STUB_FRAME:
+        DoComputeAccessorStubFrame(&iterator, i, false);
+        break;
+      case Translation::SETTER_STUB_FRAME:
+        DoComputeAccessorStubFrame(&iterator, i, true);
+        break;
+      case Translation::BEGIN:
+      case Translation::REGISTER:
+      case Translation::INT32_REGISTER:
+      case Translation::UINT32_REGISTER:
+      case Translation::DOUBLE_REGISTER:
+      case Translation::STACK_SLOT:
+      case Translation::INT32_STACK_SLOT:
+      case Translation::UINT32_STACK_SLOT:
+      case Translation::DOUBLE_STACK_SLOT:
+      case Translation::LITERAL:
+      case Translation::ARGUMENTS_OBJECT:
+      case Translation::DUPLICATE:
         UNREACHABLE();
         break;
     }
@@ -595,9 +620,9 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintF("[deoptimizing: end 0x%08" V8PRIxPTR " ",
            reinterpret_cast<intptr_t>(function));
     function->PrintName();
-    PrintF(" => node=%u, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
+    PrintF(" => node=%d, pc=0x%08" V8PRIxPTR ", state=%s, alignment=%s,"
            " took %0.3f ms]\n",
-           node_id,
+           node_id.ToInt(),
            output_[index]->GetPc(),
            FullCodeGenerator::State2String(
                static_cast<FullCodeGenerator::State>(
@@ -700,6 +725,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
+    case Translation::GETTER_STUB_FRAME:
+    case Translation::SETTER_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();
       return;
@@ -743,6 +770,34 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
         // temporary placeholder in the frame.
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<int32_t>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
+      return;
+    }
+
+    case Translation::UINT32_REGISTER: {
+      int input_reg = iterator->Next();
+      uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (FLAG_trace_deopt) {
+        PrintF(
+            "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIuPTR
+            " ; uint %s (%s)\n",
+            output_[frame_index]->GetTop() + output_offset,
+            output_offset,
+            value,
+            converter.NameOfCPURegister(input_reg),
+            is_smi ? "smi" : "heap number");
+      }
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else {
+        // We save the untagged value on the side and store a GC-safe
+        // temporary placeholder in the frame.
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
+                       static_cast<double>(static_cast<uint32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
       }
       return;
@@ -813,6 +868,36 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       return;
     }
 
+    case Translation::UINT32_STACK_SLOT: {
+      int input_slot_index = iterator->Next();
+      unsigned input_offset =
+          input_->GetOffsetFromSlotIndex(input_slot_index);
+      uintptr_t value =
+          static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
+      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      if (FLAG_trace_deopt) {
+        PrintF("    0x%08" V8PRIxPTR ": ",
+               output_[frame_index]->GetTop() + output_offset);
+        PrintF("[top + %d] <- %" V8PRIuPTR " ; [sp + %d] (uint32 %s)\n",
+               output_offset,
+               value,
+               input_offset,
+               is_smi ? "smi" : "heap number");
+      }
+      if (is_smi) {
+        intptr_t tagged_value =
+            reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else {
+        // We save the untagged value on the side and store a GC-safe
+        // temporary placeholder in the frame.
+        AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
+                       static_cast<double>(static_cast<uint32_t>(value)));
+        output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
+      }
+      return;
+    }
+
     case Translation::DOUBLE_STACK_SLOT: {
       int input_slot_index = iterator->Next();
       unsigned input_offset =
@@ -865,6 +950,56 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
 }
 
 
+static bool ObjectToInt32(Object* obj, int32_t* value) {
+  if (obj->IsSmi()) {
+    *value = Smi::cast(obj)->value();
+    return true;
+  }
+
+  if (obj->IsHeapNumber()) {
+    double num = HeapNumber::cast(obj)->value();
+    if (FastI2D(FastD2I(num)) != num) {
+      if (FLAG_trace_osr) {
+        PrintF("**** %g could not be converted to int32 ****\n",
+               HeapNumber::cast(obj)->value());
+      }
+      return false;
+    }
+
+    *value = FastD2I(num);
+    return true;
+  }
+
+  return false;
+}
+
+
+static bool ObjectToUint32(Object* obj, uint32_t* value) {
+  if (obj->IsSmi()) {
+    if (Smi::cast(obj)->value() < 0) return false;
+
+    *value = static_cast<uint32_t>(Smi::cast(obj)->value());
+    return true;
+  }
+
+  if (obj->IsHeapNumber()) {
+    double num = HeapNumber::cast(obj)->value();
+    if ((num < 0) || (FastUI2D(FastD2UI(num)) != num)) {
+      if (FLAG_trace_osr) {
+        PrintF("**** %g could not be converted to uint32 ****\n",
+               HeapNumber::cast(obj)->value());
+      }
+      return false;
+    }
+
+    *value = FastD2UI(num);
+    return true;
+  }
+
+  return false;
+}
+
+
 bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
                                         int* input_offset) {
   disasm::NameConverter converter;
@@ -887,6 +1022,8 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
+    case Translation::GETTER_STUB_FRAME:
+    case Translation::SETTER_STUB_FRAME:
     case Translation::DUPLICATE:
       UNREACHABLE();  // Malformed input.
        return false;
@@ -904,22 +1041,10 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
      }
 
     case Translation::INT32_REGISTER: {
-      // Abort OSR if we don't have a number.
-      if (!input_object->IsNumber()) return false;
+      int32_t int32_value = 0;
+      if (!ObjectToInt32(input_object, &int32_value)) return false;
 
       int output_reg = iterator->Next();
-      int int32_value = input_object->IsSmi()
-          ? Smi::cast(input_object)->value()
-          : FastD2I(input_object->Number());
-      // Abort the translation if the conversion lost information.
-      if (!input_object->IsSmi() &&
-          FastI2D(int32_value) != input_object->Number()) {
-        if (FLAG_trace_osr) {
-          PrintF("**** %g could not be converted to int32 ****\n",
-                 input_object->Number());
-        }
-        return false;
-      }
       if (FLAG_trace_osr) {
         PrintF("    %s <- %d (int32) ; [sp + %d]\n",
                converter.NameOfCPURegister(output_reg),
@@ -929,6 +1054,21 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       output->SetRegister(output_reg, int32_value);
       break;
     }
+
+    case Translation::UINT32_REGISTER: {
+      uint32_t uint32_value = 0;
+      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+
+      int output_reg = iterator->Next();
+      if (FLAG_trace_osr) {
+        PrintF("    %s <- %u (uint32) ; [sp + %d]\n",
+               converter.NameOfCPURegister(output_reg),
+               uint32_value,
+               *input_offset);
+      }
+      output->SetRegister(output_reg, static_cast<int32_t>(uint32_value));
+    }
+
 
     case Translation::DOUBLE_REGISTER: {
       // Abort OSR if we don't have a number.
@@ -963,24 +1103,12 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
     }
 
     case Translation::INT32_STACK_SLOT: {
-      // Abort OSR if we don't have a number.
-      if (!input_object->IsNumber()) return false;
+      int32_t int32_value = 0;
+      if (!ObjectToInt32(input_object, &int32_value)) return false;
 
       int output_index = iterator->Next();
       unsigned output_offset =
           output->GetOffsetFromSlotIndex(output_index);
-      int int32_value = input_object->IsSmi()
-          ? Smi::cast(input_object)->value()
-          : DoubleToInt32(input_object->Number());
-      // Abort the translation if the conversion lost information.
-      if (!input_object->IsSmi() &&
-          FastI2D(int32_value) != input_object->Number()) {
-        if (FLAG_trace_osr) {
-          PrintF("**** %g could not be converted to int32 ****\n",
-                 input_object->Number());
-        }
-        return false;
-      }
       if (FLAG_trace_osr) {
         PrintF("    [sp + %d] <- %d (int32) ; [sp + %d]\n",
                output_offset,
@@ -988,6 +1116,23 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
                *input_offset);
       }
       output->SetFrameSlot(output_offset, int32_value);
+      break;
+    }
+
+    case Translation::UINT32_STACK_SLOT: {
+      uint32_t uint32_value = 0;
+      if (!ObjectToUint32(input_object, &uint32_value)) return false;
+
+      int output_index = iterator->Next();
+      unsigned output_offset =
+          output->GetOffsetFromSlotIndex(output_index);
+      if (FLAG_trace_osr) {
+        PrintF("    [sp + %d] <- %u (uint32) ; [sp + %d]\n",
+               output_offset,
+               uint32_value,
+               *input_offset);
+      }
+      output->SetFrameSlot(output_offset, static_cast<int32_t>(uint32_value));
       break;
     }
 
@@ -1342,6 +1487,18 @@ void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
 }
 
 
+void Translation::BeginGetterStubFrame(int literal_id) {
+  buffer_->Add(GETTER_STUB_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+}
+
+
+void Translation::BeginSetterStubFrame(int literal_id) {
+  buffer_->Add(SETTER_STUB_FRAME, zone());
+  buffer_->Add(literal_id, zone());
+}
+
+
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
   buffer_->Add(ARGUMENTS_ADAPTOR_FRAME, zone());
   buffer_->Add(literal_id, zone());
@@ -1349,9 +1506,11 @@ void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
 }
 
 
-void Translation::BeginJSFrame(int node_id, int literal_id, unsigned height) {
+void Translation::BeginJSFrame(BailoutId node_id,
+                               int literal_id,
+                               unsigned height) {
   buffer_->Add(JS_FRAME, zone());
-  buffer_->Add(node_id, zone());
+  buffer_->Add(node_id.ToInt(), zone());
   buffer_->Add(literal_id, zone());
   buffer_->Add(height, zone());
 }
@@ -1365,6 +1524,12 @@ void Translation::StoreRegister(Register reg) {
 
 void Translation::StoreInt32Register(Register reg) {
   buffer_->Add(INT32_REGISTER, zone());
+  buffer_->Add(reg.code(), zone());
+}
+
+
+void Translation::StoreUint32Register(Register reg) {
+  buffer_->Add(UINT32_REGISTER, zone());
   buffer_->Add(reg.code(), zone());
 }
 
@@ -1383,6 +1548,12 @@ void Translation::StoreStackSlot(int index) {
 
 void Translation::StoreInt32StackSlot(int index) {
   buffer_->Add(INT32_STACK_SLOT, zone());
+  buffer_->Add(index, zone());
+}
+
+
+void Translation::StoreUint32StackSlot(int index) {
+  buffer_->Add(UINT32_STACK_SLOT, zone());
   buffer_->Add(index, zone());
 }
 
@@ -1414,11 +1585,15 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case ARGUMENTS_OBJECT:
     case DUPLICATE:
       return 0;
+    case GETTER_STUB_FRAME:
+    case SETTER_STUB_FRAME:
     case REGISTER:
     case INT32_REGISTER:
+    case UINT32_REGISTER:
     case DOUBLE_REGISTER:
     case STACK_SLOT:
     case INT32_STACK_SLOT:
+    case UINT32_STACK_SLOT:
     case DOUBLE_STACK_SLOT:
     case LITERAL:
       return 1;
@@ -1446,16 +1621,24 @@ const char* Translation::StringFor(Opcode opcode) {
       return "ARGUMENTS_ADAPTOR_FRAME";
     case CONSTRUCT_STUB_FRAME:
       return "CONSTRUCT_STUB_FRAME";
+    case GETTER_STUB_FRAME:
+      return "GETTER_STUB_FRAME";
+    case SETTER_STUB_FRAME:
+      return "SETTER_STUB_FRAME";
     case REGISTER:
       return "REGISTER";
     case INT32_REGISTER:
       return "INT32_REGISTER";
+    case UINT32_REGISTER:
+      return "UINT32_REGISTER";
     case DOUBLE_REGISTER:
       return "DOUBLE_REGISTER";
     case STACK_SLOT:
       return "STACK_SLOT";
     case INT32_STACK_SLOT:
       return "INT32_STACK_SLOT";
+    case UINT32_STACK_SLOT:
+      return "UINT32_STACK_SLOT";
     case DOUBLE_STACK_SLOT:
       return "DOUBLE_STACK_SLOT";
     case LITERAL:
@@ -1502,6 +1685,8 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
     case Translation::JS_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
+    case Translation::GETTER_STUB_FRAME:
+    case Translation::SETTER_STUB_FRAME:
       // Peeled off before getting here.
       break;
 
@@ -1511,6 +1696,7 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
 
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
+    case Translation::UINT32_REGISTER:
     case Translation::DOUBLE_REGISTER:
     case Translation::DUPLICATE:
       // We are at safepoint which corresponds to call.  All registers are
@@ -1528,6 +1714,12 @@ SlotRef SlotRef::ComputeSlotForNextArgument(TranslationIterator* iterator,
       int slot_index = iterator->Next();
       Address slot_addr = SlotAddress(frame, slot_index);
       return SlotRef(slot_addr, SlotRef::INT32);
+    }
+
+    case Translation::UINT32_STACK_SLOT: {
+      int slot_index = iterator->Next();
+      Address slot_addr = SlotAddress(frame, slot_index);
+      return SlotRef(slot_addr, SlotRef::UINT32);
     }
 
     case Translation::DOUBLE_STACK_SLOT: {
@@ -1569,7 +1761,7 @@ Vector<SlotRef> SlotRef::ComputeSlotMappingForArguments(
     int inlined_jsframe_index,
     int formal_parameter_count) {
   AssertNoAllocation no_gc;
-  int deopt_index = AstNode::kNoNumber;
+  int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data =
       static_cast<OptimizedFrame*>(frame)->GetDeoptimizationData(&deopt_index);
   TranslationIterator it(data->TranslationByteArray(),

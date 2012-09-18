@@ -321,7 +321,7 @@ class EXPORT Debug {
   * \endcode
   */
   static Local<Value> Call(v8::Handle<v8::Function> fun,
-                            Handle<Value> data = Handle<Value>());
+                           Handle<Value> data = Handle<Value>());
 
   /**
    * Returns a mirror object for the given object.
@@ -388,6 +388,14 @@ class EXPORT Debug {
    * to change.
    */
   static Local<Context> GetDebugContext();
+
+
+  /**
+   * Enable/disable LiveEdit functionality for the given Isolate
+   * (default Isolate if not provided). V8 will abort if LiveEdit is
+   * unexpectedly used. LiveEdit is enabled by default.
+   */
+  static void SetLiveEditEnabled(bool enable, Isolate* isolate = NULL);
 };
 
 

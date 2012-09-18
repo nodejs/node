@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --count-based-interrupts --interrupt-budget=10 --weighted-back-edges --allow-natives-syntax
+// Flags: --count-based-interrupts --interrupt-budget=10 --weighted-back-edges
+// Flags: --allow-natives-syntax --noparallel-recompilation
 
 // Test that OSR works properly when using count-based interrupting/profiling.
 

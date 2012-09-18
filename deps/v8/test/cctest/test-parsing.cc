@@ -354,7 +354,8 @@ TEST(Regress928) {
   v8::HandleScope handles;
   i::Handle<i::String> source(
       FACTORY->NewStringFromAscii(i::CStrVector(program)));
-  i::ScriptDataImpl* data = i::ParserApi::PartialPreParse(source, NULL, false);
+  i::GenericStringUtf16CharacterStream stream(source, 0, source->length());
+  i::ScriptDataImpl* data = i::ParserApi::PreParse(&stream, NULL, false);
   CHECK(!data->HasError());
 
   data->Initialize();
@@ -1016,12 +1017,11 @@ TEST(ScopePositions) {
         FACTORY->NewStringFromUtf8(i::CStrVector(program.start())));
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = FACTORY->NewScript(source);
-    i::Parser parser(script, i::kAllowLazy | i::EXTENDED_MODE, NULL, NULL,
-                     i::Isolate::Current()->zone());
-    i::CompilationInfo info(script);
+    i::CompilationInfoWithZone info(script);
+    i::Parser parser(&info, i::kAllowLazy | i::EXTENDED_MODE, NULL, NULL);
     info.MarkAsGlobal();
     info.SetLanguageMode(source_data[i].language_mode);
-    i::FunctionLiteral* function = parser.ParseProgram(&info);
+    i::FunctionLiteral* function = parser.ParseProgram();
     CHECK(function != NULL);
 
     // Check scope types and positions.
@@ -1061,10 +1061,10 @@ void TestParserSync(i::Handle<i::String> source, int flags) {
   i::Handle<i::Script> script = FACTORY->NewScript(source);
   bool save_harmony_scoping = i::FLAG_harmony_scoping;
   i::FLAG_harmony_scoping = harmony_scoping;
-  i::Parser parser(script, flags, NULL, NULL, i::Isolate::Current()->zone());
-  i::CompilationInfo info(script);
+  i::CompilationInfoWithZone info(script);
+  i::Parser parser(&info, flags, NULL, NULL);
   info.MarkAsGlobal();
-  i::FunctionLiteral* function = parser.ParseProgram(&info);
+  i::FunctionLiteral* function = parser.ParseProgram();
   i::FLAG_harmony_scoping = save_harmony_scoping;
 
   i::String* type_string = NULL;
@@ -1148,6 +1148,7 @@ TEST(ParserSync) {
     { "with ({})", "" },
     { "switch (12) { case 12: ", "}" },
     { "switch (12) { default: ", "}" },
+    { "switch (12) { ", "case 12: }" },
     { "label2: ", "" },
     { NULL, NULL }
   };
@@ -1236,4 +1237,27 @@ TEST(ParserSync) {
       }
     }
   }
+}
+
+
+TEST(PreparserStrictOctal) {
+  // Test that syntax error caused by octal literal is reported correctly as
+  // such (issue 2220).
+  v8::internal::FLAG_min_preparse_length = 1;  // Force preparsing.
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  v8::Context::Scope context_scope(v8::Context::New());
+  v8::TryCatch try_catch;
+  const char* script =
+      "\"use strict\";       \n"
+      "a = function() {      \n"
+      "  b = function() {    \n"
+      "    01;               \n"
+      "  };                  \n"
+      "};                    \n";
+  v8::Script::Compile(v8::String::New(script));
+  CHECK(try_catch.HasCaught());
+  v8::String::Utf8Value exception(try_catch.Exception());
+  CHECK_EQ("SyntaxError: Octal literals are not allowed in strict mode.",
+           *exception);
 }

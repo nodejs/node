@@ -197,10 +197,9 @@ static bool HasDebugInfo(v8::Handle<v8::Function> fun) {
 // number.
 static int SetBreakPoint(Handle<v8::internal::JSFunction> fun, int position) {
   static int break_point = 0;
-  Handle<v8::internal::SharedFunctionInfo> shared(fun->shared());
   v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
   debug->SetBreakPoint(
-      shared,
+      fun,
       Handle<Object>(v8::internal::Smi::FromInt(++break_point)),
       &position);
   return break_point;
@@ -515,7 +514,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   // there
   ClearBreakPoint(bp);
   CHECK(!debug->HasDebugInfo(shared));
-  CHECK(debug->EnsureDebugInfo(shared));
+  CHECK(debug->EnsureDebugInfo(shared, fun));
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
   it2.FindBreakLocationFromPosition(position);
   actual_mode = it2.it()->rinfo()->rmode();
@@ -4274,9 +4273,9 @@ TEST(InterceptorPropertyMirror) {
                  "named_values[%d] instanceof debug.PropertyMirror", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
 
-    // 5 is PropertyType.Interceptor
     OS::SNPrintF(buffer, "named_values[%d].propertyType()", i);
-    CHECK_EQ(5, CompileRun(buffer.start())->Int32Value());
+    CHECK_EQ(v8::internal::INTERCEPTOR,
+             CompileRun(buffer.start())->Int32Value());
 
     OS::SNPrintF(buffer, "named_values[%d].isNative()", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
@@ -7392,5 +7391,52 @@ TEST(Regress131642) {
 
   v8::Debug::SetDebugEventListener(NULL);
 }
+
+
+// Import from test-heap.cc
+int CountNativeContexts();
+
+
+static void NopListener(v8::DebugEvent event,
+                        v8::Handle<v8::Object> exec_state,
+                        v8::Handle<v8::Object> event_data,
+                        v8::Handle<v8::Value> data) {
+}
+
+
+TEST(DebuggerCreatesContextIffActive) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  CHECK_EQ(1, CountNativeContexts());
+
+  v8::Debug::SetDebugEventListener(NULL);
+  CompileRun("debugger;");
+  CHECK_EQ(1, CountNativeContexts());
+
+  v8::Debug::SetDebugEventListener(NopListener);
+  CompileRun("debugger;");
+  CHECK_EQ(2, CountNativeContexts());
+
+  v8::Debug::SetDebugEventListener(NULL);
+}
+
+
+TEST(LiveEditEnabled) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Debug::SetLiveEditEnabled(true);
+  CompileRun("%LiveEditCompareStrings('', '')");
+}
+
+
+TEST(LiveEditDisabled) {
+  v8::internal::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Debug::SetLiveEditEnabled(false);
+  CompileRun("%LiveEditCompareStrings('', '')");
+}
+
 
 #endif  // ENABLE_DEBUGGER_SUPPORT

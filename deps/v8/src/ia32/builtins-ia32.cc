@@ -74,6 +74,43 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
+static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
+  __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(eax, FieldOperand(eax, SharedFunctionInfo::kCodeOffset));
+  __ lea(eax, FieldOperand(eax, Code::kHeaderSize));
+  __ jmp(eax);
+}
+
+
+void Builtins::Generate_InRecompileQueue(MacroAssembler* masm) {
+  GenerateTailCallToSharedCode(masm);
+}
+
+
+void Builtins::Generate_ParallelRecompile(MacroAssembler* masm) {
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Push a copy of the function onto the stack.
+    __ push(edi);
+    // Push call kind information.
+    __ push(ecx);
+
+    __ push(edi);  // Function is also the parameter to the runtime call.
+    __ CallRuntime(Runtime::kParallelRecompile, 1);
+
+    // Restore call kind information.
+    __ pop(ecx);
+    // Restore receiver.
+    __ pop(edi);
+
+    // Tear down internal frame.
+  }
+
+  GenerateTailCallToSharedCode(masm);
+}
+
+
 static void Generate_JSConstructStubHelper(MacroAssembler* masm,
                                            bool is_api_function,
                                            bool count_constructions) {
@@ -641,9 +678,9 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     // receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalIndex));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
     __ mov(ebx, FieldOperand(ebx, kGlobalIndex));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
@@ -819,9 +856,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     // Use the current global receiver object as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalOffset =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+        Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalOffset));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalContextOffset));
+    __ mov(ebx, FieldOperand(ebx, GlobalObject::kNativeContextOffset));
     __ mov(ebx, FieldOperand(ebx, kGlobalOffset));
     __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 

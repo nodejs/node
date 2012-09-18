@@ -46,26 +46,25 @@ class SafepointGenerator;
 
 class LCodeGen BASE_EMBEDDED {
  public:
-  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info,
-           Zone* zone)
-      : chunk_(chunk),
+  LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
+      : zone_(info->zone()),
+        chunk_(static_cast<LPlatformChunk*>(chunk)),
         masm_(assembler),
         info_(info),
         current_block_(-1),
         current_instruction_(-1),
         instructions_(chunk->instructions()),
-        deoptimizations_(4, zone),
-        deoptimization_literals_(8, zone),
+        deoptimizations_(4, info->zone()),
+        deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
         status_(UNUSED),
-        translations_(zone),
-        deferred_(8, zone),
+        translations_(info->zone()),
+        deferred_(8, info->zone()),
         dynamic_frame_alignment_(false),
         osr_pc_offset_(-1),
         last_lazy_deopt_pc_(0),
-        safepoints_(zone),
-        zone_(zone),
+        safepoints_(info->zone()),
         resolver_(this),
         expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
@@ -106,7 +105,12 @@ class LCodeGen BASE_EMBEDDED {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
-  void DoDeferredNumberTagI(LNumberTagI* instr);
+
+  enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
+  void DoDeferredNumberTagI(LInstruction* instr,
+                            LOperand* value,
+                            IntegerSignedness signedness);
+
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
   void DoDeferredStackCheck(LStackCheck* instr);
@@ -151,7 +155,7 @@ class LCodeGen BASE_EMBEDDED {
     return info()->is_classic_mode() ? kNonStrictMode : kStrictMode;
   }
 
-  LChunk* chunk() const { return chunk_; }
+  LPlatformChunk* chunk() const { return chunk_; }
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
 
@@ -167,7 +171,7 @@ class LCodeGen BASE_EMBEDDED {
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
   int GetParameterCount() const { return scope()->num_parameters(); }
 
-  void Abort(const char* format, ...);
+  void Abort(const char* reason);
   void Comment(const char* format, ...);
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
@@ -234,7 +238,8 @@ class LCodeGen BASE_EMBEDDED {
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,
-                        bool is_tagged);
+                        bool is_tagged,
+                        bool is_uint32);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
@@ -247,6 +252,7 @@ class LCodeGen BASE_EMBEDDED {
   double ToDouble(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
+                                Representation key_representation,
                                 ElementsKind elements_kind,
                                 uint32_t offset,
                                 uint32_t additional_index = 0);
@@ -283,6 +289,10 @@ class LCodeGen BASE_EMBEDDED {
                         bool deoptimize_on_undefined,
                         bool deoptimize_on_minus_zero,
                         LEnvironment* env);
+
+  void DeoptIfTaggedButNotSmi(LEnvironment* environment,
+                              HValue* value,
+                              LOperand* operand);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -330,7 +340,8 @@ class LCodeGen BASE_EMBEDDED {
   // register, or a stack slot operand.
   void EmitPushTaggedOperand(LOperand* operand);
 
-  LChunk* const chunk_;
+  Zone* zone_;
+  LPlatformChunk* const chunk_;
   MacroAssembler* const masm_;
   CompilationInfo* const info_;
 
@@ -351,8 +362,6 @@ class LCodeGen BASE_EMBEDDED {
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
   SafepointTableBuilder safepoints_;
-
-  Zone* zone_;
 
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;

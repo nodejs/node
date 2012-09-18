@@ -25,3 +25,10 @@ TEST(VirtualMemory) {
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
 }
+
+
+TEST(GetCurrentProcessId) {
+  OS::SetUp();
+  CHECK_EQ(static_cast<int>(::GetCurrentProcessId()),
+           OS::GetCurrentProcessId());
+}

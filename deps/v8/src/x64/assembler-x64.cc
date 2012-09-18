@@ -75,6 +75,7 @@ void CpuFeatures::Probe() {
   // Save old rsp, since we are going to modify the stack.
   __ push(rbp);
   __ pushfq();
+  __ push(rdi);
   __ push(rcx);
   __ push(rbx);
   __ movq(rbp, rsp);
@@ -128,6 +129,7 @@ void CpuFeatures::Probe() {
   __ movq(rsp, rbp);
   __ pop(rbx);
   __ pop(rcx);
+  __ pop(rdi);
   __ popfq();
   __ pop(rbp);
   __ ret(0);
@@ -348,7 +350,8 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
     : AssemblerBase(arg_isolate),
       code_targets_(100),
       positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code) {
+      emit_debug_code_(FLAG_debug_code),
+      predictable_code_size_(false) {
   if (buffer == NULL) {
     // Do our own buffer management.
     if (buffer_size <= kMinimalBufferSize) {
@@ -467,7 +470,7 @@ void Assembler::bind_to(Label* L, int pos) {
         static_cast<int>(*reinterpret_cast<int8_t*>(addr_at(fixup_pos)));
     ASSERT(offset_to_next <= 0);
     int disp = pos - (fixup_pos + sizeof(int8_t));
-    ASSERT(is_int8(disp));
+    CHECK(is_int8(disp));
     set_byte_at(fixup_pos, disp);
     if (offset_to_next < 0) {
       L->link_to(fixup_pos + offset_to_next, Label::kNear);
@@ -875,7 +878,7 @@ void Assembler::call(Label* L) {
 
 void Assembler::call(Handle<Code> target,
                      RelocInfo::Mode rmode,
-                     unsigned ast_id) {
+                     TypeFeedbackId ast_id) {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   // 1110 1000 #32-bit disp.
@@ -1232,7 +1235,16 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
     const int long_size  = 6;
     int offs = L->pos() - pc_offset();
     ASSERT(offs <= 0);
-    if (is_int8(offs - short_size)) {
+    // Determine whether we can use 1-byte offsets for backwards branches,
+    // which have a max range of 128 bytes.
+
+    // We also need to check the predictable_code_size_ flag here, because
+    // on x64, when the full code generator recompiles code for debugging, some
+    // places need to be padded out to a certain size. The debugger is keeping
+    // track of how often it did this so that it can adjust return addresses on
+    // the stack, but if the size of jump instructions can also change, that's
+    // not enough and the calculated offsets would be incorrect.
+    if (is_int8(offs - short_size) && !predictable_code_size_) {
       // 0111 tttn #8-bit disp.
       emit(0x70 | cc);
       emit((offs - short_size) & 0xFF);
@@ -1289,7 +1301,7 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   if (L->is_bound()) {
     int offs = L->pos() - pc_offset() - 1;
     ASSERT(offs <= 0);
-    if (is_int8(offs - short_size)) {
+    if (is_int8(offs - short_size) && !predictable_code_size_) {
       // 1110 1011 #8-bit disp.
       emit(0xEB);
       emit((offs - short_size) & 0xFF);

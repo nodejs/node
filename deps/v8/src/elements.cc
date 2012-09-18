@@ -800,7 +800,7 @@ class FastElementsAccessor
         }
       } else {
         // Otherwise, fill the unused tail with holes.
-        int old_length = FastD2I(array->length()->Number());
+        int old_length = FastD2IChecked(array->length()->Number());
         for (int i = length; i < old_length; i++) {
           backing_store->set_the_hole(i);
         }

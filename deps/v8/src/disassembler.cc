@@ -244,8 +244,8 @@ static int DecodeIt(FILE* f,
           out.AddFormatted(" %s, %s", Code::Kind2String(kind),
               Code::ICState2String(ic_state));
           if (ic_state == MONOMORPHIC) {
-            PropertyType type = code->type();
-            out.AddFormatted(", %s", Code::PropertyType2String(type));
+            Code::StubType type = code->type();
+            out.AddFormatted(", %s", Code::StubType2String(type));
           }
           if (kind == Code::CALL_IC || kind == Code::KEYED_CALL_IC) {
             out.AddFormatted(", argc = %d", code->arguments_count());

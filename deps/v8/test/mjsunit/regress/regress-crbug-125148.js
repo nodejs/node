@@ -27,26 +27,64 @@
 
 // Flags: --allow-natives-syntax
 
-var A = {
-  foo: function() { assertUnreachable(); }
+function ToDictionaryMode(x) {
+  %OptimizeObjectForAddingMultipleProperties(x, 100);
 }
 
-var B = {
-  b: 2,
-  foo: function() { return 1; }
-}
-B.__proto__ = A;
+var A, B, C;
 
-var C = {};
-C.__proto__ = B;
+// The initial bug report was about calling a know function...
+A = {};
+Object.defineProperty(A, "foo", { value: function() { assertUnreachable(); }});
 
-function bar(x) {
-  return x.foo();
-}
+B = Object.create(A);
+Object.defineProperty(B, "foo", { value: function() { return 111; }});
 
-for (var i = 0; i < 3; i++) {
-  assertEquals(1, bar(C));
-}
-%OptimizeObjectForAddingMultipleProperties(B, 100);  // Force dictionary mode.
+C = Object.create(B);
+
+function bar(x) { return x.foo(); }
+
+assertEquals(111, bar(C));
+assertEquals(111, bar(C));
+ToDictionaryMode(B);
 %OptimizeFunctionOnNextCall(bar);
-assertEquals(1, bar(C));
+assertEquals(111, bar(C));
+
+// Although this was not in the initial bug report: The same for getters...
+A = {};
+Object.defineProperty(A, "baz", { get: function() { assertUnreachable(); }});
+
+B = Object.create(A);
+Object.defineProperty(B, "baz", { get: function() { return 111; }});
+
+C = Object.create(B);
+
+function boo(x) { return x.baz; }
+
+assertEquals(111, boo(C));
+assertEquals(111, boo(C));
+ToDictionaryMode(B);
+%OptimizeFunctionOnNextCall(boo);
+assertEquals(111, boo(C));
+
+// And once more for setters...
+A = {};
+Object.defineProperty(A, "huh", { set: function(x) { assertUnreachable(); }});
+
+B = Object.create(A);
+var setterValue;
+Object.defineProperty(B, "huh", { set: function(x) { setterValue = x; }});
+
+C = Object.create(B);
+
+function fuu(x) {
+  setterValue = 222;
+  x.huh = 111;
+  return setterValue;
+}
+
+assertEquals(111, fuu(C));
+assertEquals(111, fuu(C));
+ToDictionaryMode(B);
+%OptimizeFunctionOnNextCall(fuu);
+assertEquals(111, fuu(C));

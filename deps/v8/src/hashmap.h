@@ -59,7 +59,8 @@ class TemplateHashMapImpl {
   struct Entry {
     void* key;
     void* value;
-    uint32_t hash;  // the full hash value for key
+    uint32_t hash;  // The full hash value for key
+    int order;  // If you never remove entries this is the insertion order.
   };
 
   // If an entry with matching key is found, Lookup()
@@ -140,6 +141,7 @@ TemplateHashMapImpl<AllocationPolicy>::Lookup(
     p->key = key;
     p->value = NULL;
     p->hash = hash;
+    p->order = occupancy_;
     occupancy_++;
 
     // Grow the map if we reached >= 80% occupancy.
@@ -297,7 +299,9 @@ void TemplateHashMapImpl<AllocationPolicy>::Resize(AllocationPolicy allocator) {
   // Rehash all current entries.
   for (Entry* p = map; n > 0; p++) {
     if (p->key != NULL) {
-      Lookup(p->key, p->hash, true, allocator)->value = p->value;
+      Entry* entry = Lookup(p->key, p->hash, true, allocator);
+      entry->value = p->value;
+      entry->order = p->order;
       n--;
     }
   }

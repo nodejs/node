@@ -42,7 +42,8 @@ enum InterruptFlag {
   PREEMPT = 1 << 3,
   TERMINATE = 1 << 4,
   RUNTIME_PROFILER_TICK = 1 << 5,
-  GC_REQUEST = 1 << 6
+  GC_REQUEST = 1 << 6,
+  CODE_READY = 1 << 7
 };
 
 
@@ -195,6 +196,8 @@ class StackGuard {
   void TerminateExecution();
   bool IsRuntimeProfilerTick();
   void RequestRuntimeProfilerTick();
+  bool IsCodeReadyEvent();
+  void RequestCodeReadyEvent();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   bool IsDebugBreak();
   void DebugBreak();

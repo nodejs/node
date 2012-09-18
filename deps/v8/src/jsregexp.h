@@ -71,15 +71,15 @@ class RegExpImpl {
   // Returns false if compilation fails.
   static Handle<Object> Compile(Handle<JSRegExp> re,
                                 Handle<String> pattern,
-                                Handle<String> flags);
+                                Handle<String> flags,
+                                Zone* zone);
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   static Handle<Object> Exec(Handle<JSRegExp> regexp,
                              Handle<String> subject,
                              int index,
-                             Handle<JSArray> lastMatchInfo,
-                             Zone* zone);
+                             Handle<JSArray> lastMatchInfo);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -93,6 +93,14 @@ class RegExpImpl {
                           JSRegExp::Flags flags,
                           Handle<String> match_pattern);
 
+
+  static int AtomExecRaw(Handle<JSRegExp> regexp,
+                         Handle<String> subject,
+                         int index,
+                         int32_t* output,
+                         int output_size);
+
+
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  int index,
@@ -105,17 +113,10 @@ class RegExpImpl {
   // This ensures that the regexp is compiled for the subject, and that
   // the subject is flat.
   // Returns the number of integer spaces required by IrregexpExecOnce
-  // as its "registers" argument. If the regexp cannot be compiled,
+  // as its "registers" argument.  If the regexp cannot be compiled,
   // an exception is set as pending, and this function returns negative.
   static int IrregexpPrepare(Handle<JSRegExp> regexp,
-                             Handle<String> subject,
-                             Zone* zone);
-
-  // Calculate the size of offsets vector for the case of global regexp
-  // and the number of matches this vector is able to store.
-  static int GlobalOffsetsVectorSize(Handle<JSRegExp> regexp,
-                                     int registers_per_match,
-                                     int* max_matches);
+                             Handle<String> subject);
 
   // Execute a regular expression on the subject, starting from index.
   // If matching succeeds, return the number of matches.  This can be larger
@@ -126,18 +127,56 @@ class RegExpImpl {
   static int IrregexpExecRaw(Handle<JSRegExp> regexp,
                              Handle<String> subject,
                              int index,
-                             Vector<int> registers,
-                             Zone* zone);
+                             int32_t* output,
+                             int output_size);
 
   // Execute an Irregexp bytecode pattern.
   // On a successful match, the result is a JSArray containing
-  // captured positions. On a failure, the result is the null value.
+  // captured positions.  On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      int index,
-                                     Handle<JSArray> lastMatchInfo,
-                                     Zone* zone);
+                                     Handle<JSArray> lastMatchInfo);
+
+  // Set last match info.  If match is NULL, then setting captures is omitted.
+  static Handle<JSArray> SetLastMatchInfo(Handle<JSArray> last_match_info,
+                                          Handle<String> subject,
+                                          int capture_count,
+                                          int32_t* match);
+
+
+  class GlobalCache {
+   public:
+    GlobalCache(Handle<JSRegExp> regexp,
+                Handle<String> subject,
+                bool is_global,
+                Isolate* isolate);
+
+    ~GlobalCache();
+
+    // Fetch the next entry in the cache for global regexp match results.
+    // This does not set the last match info.  Upon failure, NULL is returned.
+    // The cause can be checked with Result().  The previous
+    // result is still in available in memory when a failure happens.
+    int32_t* FetchNext();
+
+    int32_t* LastSuccessfulMatch();
+
+    inline bool HasException() { return num_matches_ < 0; }
+
+   private:
+    int num_matches_;
+    int max_matches_;
+    int current_match_index_;
+    int registers_per_match_;
+    // Pointer to the last set of captures.
+    int32_t* register_array_;
+    int register_array_size_;
+    Handle<JSRegExp> regexp_;
+    Handle<String> subject_;
+  };
+
 
   // Array index in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
@@ -198,32 +237,10 @@ class RegExpImpl {
   static const int kRegWxpCompiledLimit = 1 * MB;
 
  private:
-  static String* last_ascii_string_;
-  static String* two_byte_cached_string_;
-
   static bool CompileIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
-      Zone* zone);
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
   static inline bool EnsureCompiledIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii,
-      Zone* zone);
-
-
-  // Set the subject cache.  The previous string buffer is not deleted, so the
-  // caller should ensure that it doesn't leak.
-  static void SetSubjectCache(String* subject,
-                              char* utf8_subject,
-                              int uft8_length,
-                              int character_position,
-                              int utf8_position);
-
-  // A one element cache of the last utf8_subject string and its length.  The
-  // subject JS String object is cached in the heap.  We also cache a
-  // translation between position and utf8 position.
-  static char* utf8_subject_cache_;
-  static int utf8_length_cache_;
-  static int utf8_position_;
-  static int character_position_;
+      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
 };
 
 
@@ -1624,40 +1641,6 @@ class RegExpEngine: public AllStatic {
                                    bool is_ascii, Zone* zone);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
-};
-
-
-class OffsetsVector {
- public:
-  inline OffsetsVector(int num_registers, Isolate* isolate)
-      : offsets_vector_length_(num_registers) {
-    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-      vector_ = NewArray<int>(offsets_vector_length_);
-    } else {
-      vector_ = isolate->jsregexp_static_offsets_vector();
-    }
-  }
-  inline ~OffsetsVector() {
-    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
-      DeleteArray(vector_);
-      vector_ = NULL;
-    }
-  }
-  inline int* vector() { return vector_; }
-  inline int length() { return offsets_vector_length_; }
-
-  static const int kStaticOffsetsVectorSize =
-      Isolate::kJSRegexpStaticOffsetsVectorSize;
-
- private:
-  static Address static_offsets_vector_address(Isolate* isolate) {
-    return reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector());
-  }
-
-  int* vector_;
-  int offsets_vector_length_;
-
-  friend class ExternalReference;
 };
 
 

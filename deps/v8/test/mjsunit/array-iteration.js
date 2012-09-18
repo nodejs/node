@@ -40,7 +40,7 @@
   // Simple use.
   var a = [0,1];
   assertArrayEquals([0], a.filter(function(n) { return n == 0; }));
-  assertArrayEquals(a, a);
+  assertArrayEquals([0,1], a);
 
   // Use specified object as this object when calling the function.
   var o = { value: 42 }

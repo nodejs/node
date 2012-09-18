@@ -107,7 +107,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   //  -- r4    : scratch (elements)
   // -----------------------------------
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
-  bool vfp3_supported = CpuFeatures::IsSupported(VFP3);
+  bool vfp2_supported = CpuFeatures::IsSupported(VFP2);
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
@@ -121,15 +121,34 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // r5: number of elements (smi-tagged)
 
   // Allocate new FixedDoubleArray.
-  __ mov(lr, Operand(FixedDoubleArray::kHeaderSize));
-  __ add(lr, lr, Operand(r5, LSL, 2));
+  // Use lr as a temporary register.
+  __ mov(lr, Operand(r5, LSL, 2));
+  __ add(lr, lr, Operand(FixedDoubleArray::kHeaderSize + kPointerSize));
   __ AllocateInNewSpace(lr, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
-  // r6: destination FixedDoubleArray, not tagged as heap object
+  // r6: destination FixedDoubleArray, not tagged as heap object.
+
+  // Align the array conveniently for doubles.
+  // Store a filler value in the unused memory.
+  Label aligned, aligned_done;
+  __ tst(r6, Operand(kDoubleAlignmentMask));
+  __ mov(ip, Operand(masm->isolate()->factory()->one_pointer_filler_map()));
+  __ b(eq, &aligned);
+  // Store at the beginning of the allocated memory and update the base pointer.
+  __ str(ip, MemOperand(r6, kPointerSize, PostIndex));
+  __ b(&aligned_done);
+
+  __ bind(&aligned);
+  // Store the filler at the end of the allocated memory.
+  __ sub(lr, lr, Operand(kPointerSize));
+  __ str(ip, MemOperand(r6, lr));
+
+  __ bind(&aligned_done);
+
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(r9, Heap::kFixedDoubleArrayMapRootIndex);
   __ str(r5, MemOperand(r6, FixedDoubleArray::kLengthOffset));
-  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
   // Update receiver's map.
+  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
 
   __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ RecordWriteField(r2,
@@ -163,7 +182,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // r5: kHoleNanUpper32
   // r6: end of destination FixedDoubleArray, not tagged
   // r7: begin of FixedDoubleArray element fields, not tagged
-  if (!vfp3_supported) __ Push(r1, r0);
+  if (!vfp2_supported) __ Push(r1, r0);
 
   __ b(&entry);
 
@@ -191,8 +210,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ UntagAndJumpIfNotSmi(r9, r9, &convert_hole);
 
   // Normal smi, convert to double and store.
-  if (vfp3_supported) {
-    CpuFeatures::Scope scope(VFP3);
+  if (vfp2_supported) {
+    CpuFeatures::Scope scope(VFP2);
     __ vmov(s0, r9);
     __ vcvt_f64_s32(d0, s0);
     __ vstr(d0, r7, 0);
@@ -225,7 +244,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ cmp(r7, r6);
   __ b(lt, &loop);
 
-  if (!vfp3_supported) __ Pop(r1, r0);
+  if (!vfp2_supported) __ Pop(r1, r0);
   __ pop(lr);
   __ bind(&done);
 }

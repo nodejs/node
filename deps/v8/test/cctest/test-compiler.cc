@@ -101,14 +101,14 @@ static void InitializeVM() {
 
 static MaybeObject* GetGlobalProperty(const char* name) {
   Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
-  return Isolate::Current()->context()->global()->GetProperty(*symbol);
+  return Isolate::Current()->context()->global_object()->GetProperty(*symbol);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
   Handle<Object> object(value);
   Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   SetProperty(global, symbol, object, NONE, kNonStrictMode);
 }
 
@@ -120,12 +120,13 @@ static Handle<JSFunction> Compile(const char* source) {
                         Handle<String>(),
                         0,
                         0,
+                        Handle<Context>(Isolate::Current()->native_context()),
                         NULL,
                         NULL,
                         Handle<String>::null(),
                         NOT_NATIVES_CODE);
   return FACTORY->NewFunctionFromSharedFunctionInfo(shared_function,
-      Isolate::Current()->global_context());
+      Isolate::Current()->native_context());
 }
 
 
@@ -138,7 +139,7 @@ static double Inc(int x) {
   if (fun.is_null()) return -1;
 
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -159,7 +160,7 @@ static double Add(int x, int y) {
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -179,7 +180,7 @@ static double Abs(int x) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -200,7 +201,7 @@ static double Sum(int n) {
 
   SetGlobalProperty("n", Smi::FromInt(n));
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   return GetGlobalProperty("result")->ToObjectChecked()->Number();
@@ -221,7 +222,7 @@ TEST(Print) {
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 }
@@ -254,7 +255,7 @@ TEST(Stuff) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
   CHECK_EQ(511.0, GetGlobalProperty("r")->ToObjectChecked()->Number());
@@ -269,7 +270,7 @@ TEST(UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
   CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
@@ -294,12 +295,12 @@ TEST(C2JSFrames) {
 
   // Run the generated code to populate the global object with 'foo'.
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global());
+  Handle<JSObject> global(Isolate::Current()->context()->global_object());
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
   Object* foo_symbol = FACTORY->LookupAsciiSymbol("foo")->ToObjectChecked();
-  MaybeObject* fun1_object = Isolate::Current()->context()->global()->
+  MaybeObject* fun1_object = Isolate::Current()->context()->global_object()->
       GetProperty(String::cast(foo_symbol));
   Handle<Object> fun1(fun1_object->ToObjectChecked());
   CHECK(fun1->IsJSFunction());
@@ -352,6 +353,38 @@ TEST(GetScriptLineNumber) {
 }
 
 
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run in the same context.
+TEST(OptimizedCodeSharing) {
+  // Skip test if --cache-optimized-code is not activated by default because
+  // FastNewClosureStub that is baked into the snapshot is incorrect.
+  if (!FLAG_cache_optimized_code) return;
+  FLAG_allow_natives_syntax = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  for (int i = 0; i < 10; i++) {
+    LocalContext env;
+    env->Global()->Set(v8::String::New("x"), v8::Integer::New(i));
+    CompileRun("function MakeClosure() {"
+               "  return function() { return x; };"
+               "}"
+               "var closure0 = MakeClosure();"
+               "%DebugPrint(closure0());"
+               "%OptimizeFunctionOnNextCall(closure0);"
+               "%DebugPrint(closure0());"
+               "var closure1 = MakeClosure();"
+               "var closure2 = MakeClosure();");
+    Handle<JSFunction> fun1 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure1"))));
+    Handle<JSFunction> fun2 = v8::Utils::OpenHandle(
+        *v8::Local<v8::Function>::Cast(env->Global()->Get(v8_str("closure2"))));
+    CHECK(fun1->IsOptimized() || !fun1->IsOptimizable());
+    CHECK(fun2->IsOptimized() || !fun2->IsOptimizable());
+    CHECK_EQ(fun1->code(), fun2->code());
+  }
+}
+
+
 #ifdef ENABLE_DISASSEMBLER
 static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
                                  const char* property_name) {
@@ -374,15 +407,16 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     Address end = pc + decode_size;
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
+    v8::internal::EmbeddedVector<char, 128> smi_hex_buffer;
+    Smi* smi = Smi::FromInt(12345678);
+    OS::SNPrintF(smi_hex_buffer, "0x%lx", reinterpret_cast<intptr_t>(smi));
     while (pc < end) {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
         pc += (num_const + 1) * kPointerSize;
       } else {
         pc += d.InstructionDecode(decode_buffer, pc);
-        CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
-        CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
-        CHECK(strstr(decode_buffer.start(), "0x178c29c") == NULL);
+        CHECK(strstr(decode_buffer.start(), smi_hex_buffer.start()) == NULL);
       }
     }
   }

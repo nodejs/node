@@ -107,7 +107,7 @@ void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
       // trace it.  In this case we switch to non-incremental marking in
       // order to finish off this marking phase.
       if (FLAG_trace_gc) {
-        PrintF("Hurrying incremental marking because of lack of progress\n");
+        PrintPID("Hurrying incremental marking because of lack of progress\n");
       }
       allocation_marking_factor_ = kMaxAllocationMarkingFactor;
     }

@@ -29,6 +29,26 @@
 
 // Test that we can inline functions containing materialized literals.
 
+function a2(b, c) {
+  return [b, c, b + c];
+}
+
+function a1(a, b, c) {
+  return [a, a2(b, c)];
+}
+
+function TestArrayLiteral(a, b, c) {
+  var expected = [a, [b, c, b + c]];
+  var result = a1(a, b, c);
+  assertEquals(expected, result, "TestArrayLiteral");
+}
+
+TestArrayLiteral(1, 2, 3);
+TestArrayLiteral(1, 2, 3);
+%OptimizeFunctionOnNextCall(TestArrayLiteral);
+TestArrayLiteral(1, 2, 3);
+TestArrayLiteral('a', 'b', 'c');
+
 function o2(b, c) {
   return { 'b':b, 'c':c, 'y':b + c };
 }
@@ -48,3 +68,22 @@ TestObjectLiteral(1, 2, 3);
 %OptimizeFunctionOnNextCall(TestObjectLiteral);
 TestObjectLiteral(1, 2, 3);
 TestObjectLiteral('a', 'b', 'c');
+
+function r2(s, x, y) {
+  return s.replace(/a/, x + y);
+}
+
+function r1(s, x, y) {
+  return r2(s, x, y).replace(/b/, y + x);
+}
+
+function TestRegExpLiteral(s, x, y, expected) {
+  var result = r1(s, x, y);
+  assertEquals(expected, result, "TestRegExpLiteral");
+}
+
+TestRegExpLiteral("a-", "reg", "exp", "regexp-");
+TestRegExpLiteral("-b", "reg", "exp", "-expreg");
+%OptimizeFunctionOnNextCall(TestRegExpLiteral);
+TestRegExpLiteral("ab", "reg", "exp", "regexpexpreg");
+TestRegExpLiteral("ab", 12345, 54321, "6666666666");

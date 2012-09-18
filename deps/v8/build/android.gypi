@@ -33,35 +33,40 @@
   'variables': {
     # Location of Android NDK.
     'variables': {
-      'variables': {
-        'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
-        'android_target_arch%': 'arm',  # target_arch in android terms.
-
-        # Switch between different build types, currently only '0' is
-        # supported.
-        'android_build_type%': 0,
-      },
-      'android_ndk_root%': '<(android_ndk_root)',
-      'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(android_target_arch)',
-      'android_build_type%': '<(android_build_type)',
+      'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
+      'android_toolchain%': '<!(/bin/echo -n $ANDROID_TOOLCHAIN)',
+      # Switch between different build types, currently only '0' is
+      # supported.
+      'android_build_type%': 0,
     },
-    'android_ndk_root%': '<(android_ndk_root)',
-    'android_ndk_sysroot': '<(android_ndk_sysroot)',
-    'android_ndk_include': '<(android_ndk_sysroot)/usr/include',
-    'android_ndk_lib': '<(android_ndk_sysroot)/usr/lib',
+    'conditions': [
+      ['android_ndk_root==""', {
+        'variables': {
+          'android_sysroot': '<(android_toolchain)/sysroot/',
+          'android_stlport': '<(android_toolchain)/sources/cxx-stl/stlport/',
+        },
+        'android_include': '<(android_sysroot)/usr/include',
+        'android_lib': '<(android_sysroot)/usr/lib',
+        'android_stlport_include': '<(android_stlport)/stlport',
+        'android_stlport_libs': '<(android_stlport)/libs',
+      }, {
+        'variables': {
+          'android_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(android_target_arch)',
+          'android_stlport': '<(android_ndk_root)/sources/cxx-stl/stlport/',
+        },
+        'android_include': '<(android_sysroot)/usr/include',
+        'android_lib': '<(android_sysroot)/usr/lib',
+        'android_stlport_include': '<(android_stlport)/stlport',
+        'android_stlport_libs': '<(android_stlport)/libs',
+      }],
+    ],
     # Enable to use the system stlport, otherwise statically
     # link the NDK one?
     'use_system_stlport%': '<(android_build_type)',
     'android_stlport_library': 'stlport_static',
     # Copy it out one scope.
     'android_build_type%': '<(android_build_type)',
-
     'OS': 'android',
-    'target_arch': 'arm',
-    'v8_target_arch': 'arm',
-    'armv7': 1,
-    'arm_neon': 0,
-    'arm_fpu': 'vfpv3',
   },  # variables
   'target_defaults': {
     'defines': [
@@ -100,10 +105,7 @@
           '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
           # Note: This include is in cflags to ensure that it comes after
           # all of the includes.
-          '-I<(android_ndk_include)',
-          '-march=armv7-a',
-          '-mtune=cortex-a8',
-          '-mfpu=vfp3',
+          '-I<(android_include)',
         ],
         'defines': [
           'ANDROID',
@@ -120,7 +122,6 @@
         'ldflags': [
           '-nostdlib',
           '-Wl,--no-undefined',
-          '-Wl,--icf=safe',  # Enable identical code folding to reduce size
           # Don't export symbols from statically linked libraries.
           '-Wl,--exclude-libs=ALL',
         ],
@@ -144,8 +145,21 @@
         'conditions': [
           ['android_build_type==0', {
             'ldflags': [
-              '-Wl,-rpath-link=<(android_ndk_lib)',
-              '-L<(android_ndk_lib)',
+              '-Wl,-rpath-link=<(android_lib)',
+              '-L<(android_lib)',
+            ],
+          }],
+          ['target_arch == "arm"', {
+            'ldflags': [
+              # Enable identical code folding to reduce size.
+              '-Wl,--icf=safe',
+            ],
+          }],
+          ['target_arch=="arm" and armv7==1', {
+            'cflags': [
+              '-march=armv7-a',
+              '-mtune=cortex-a8',
+              '-mfpu=vfp3',
             ],
           }],
           # NOTE: The stlport header include paths below are specified in
@@ -156,22 +170,22 @@
           # The include ordering here is important; change with caution.
           ['use_system_stlport==0', {
             'cflags': [
-              '-I<(android_ndk_root)/sources/cxx-stl/stlport/stlport',
+              '-I<(android_stlport_include)',
             ],
             'conditions': [
               ['target_arch=="arm" and armv7==1', {
                 'ldflags': [
-                  '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/armeabi-v7a',
+                  '-L<(android_stlport_libs)/armeabi-v7a',
                 ],
               }],
               ['target_arch=="arm" and armv7==0', {
                 'ldflags': [
-                  '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/armeabi',
+                  '-L<(android_stlport_libs)/armeabi',
                 ],
               }],
               ['target_arch=="ia32"', {
                 'ldflags': [
-                  '-L<(android_ndk_root)/sources/cxx-stl/stlport/libs/x86',
+                  '-L<(android_stlport_libs)/x86',
                 ],
               }],
             ],
@@ -194,12 +208,12 @@
               '-Wl,--gc-sections',
               '-Wl,-z,nocopyreloc',
               # crtbegin_dynamic.o should be the last item in ldflags.
-              '<(android_ndk_lib)/crtbegin_dynamic.o',
+              '<(android_lib)/crtbegin_dynamic.o',
             ],
             'libraries': [
               # crtend_android.o needs to be the last item in libraries.
               # Do not add any libraries after this!
-              '<(android_ndk_lib)/crtend_android.o',
+              '<(android_lib)/crtend_android.o',
             ],
           }],
           ['_type=="shared_library"', {

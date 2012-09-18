@@ -157,7 +157,8 @@ TEST(HeapObjects) {
 
   String* object_symbol = String::cast(HEAP->Object_symbol());
   CHECK(
-      Isolate::Current()->context()->global()->HasLocalProperty(object_symbol));
+      Isolate::Current()->context()->global_object()->HasLocalProperty(
+          object_symbol));
 
   // Check ToString for oddballs
   CheckOddball(HEAP->true_value(), "true");
@@ -213,7 +214,7 @@ TEST(GarbageCollection) {
     Handle<Map> initial_map =
         FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
     function->set_initial_map(*initial_map);
-    Isolate::Current()->context()->global()->SetProperty(
+    Isolate::Current()->context()->global_object()->SetProperty(
         *name, *function, NONE, kNonStrictMode)->ToObjectChecked();
     // Allocate an object.  Unrooted after leaving the scope.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
@@ -229,9 +230,10 @@ TEST(GarbageCollection) {
   HEAP->CollectGarbage(NEW_SPACE);
 
   // Function should be alive.
-  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*name));
+  CHECK(Isolate::Current()->context()->global_object()->
+        HasLocalProperty(*name));
   // Check function is retained.
-  Object* func_value = Isolate::Current()->context()->global()->
+  Object* func_value = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -240,7 +242,7 @@ TEST(GarbageCollection) {
     HandleScope inner_scope;
     // Allocate another object, make it reachable from global.
     Handle<JSObject> obj = FACTORY->NewJSObject(function);
-    Isolate::Current()->context()->global()->SetProperty(
+    Isolate::Current()->context()->global_object()->SetProperty(
         *obj_name, *obj, NONE, kNonStrictMode)->ToObjectChecked();
     obj->SetProperty(
         *prop_name, Smi::FromInt(23), NONE, kNonStrictMode)->ToObjectChecked();
@@ -249,10 +251,11 @@ TEST(GarbageCollection) {
   // After gc, it should survive.
   HEAP->CollectGarbage(NEW_SPACE);
 
-  CHECK(Isolate::Current()->context()->global()->HasLocalProperty(*obj_name));
-  CHECK(Isolate::Current()->context()->global()->
+  CHECK(Isolate::Current()->context()->global_object()->
+        HasLocalProperty(*obj_name));
+  CHECK(Isolate::Current()->context()->global_object()->
         GetProperty(*obj_name)->ToObjectChecked()->IsJSObject());
-  Object* obj = Isolate::Current()->context()->global()->
+  Object* obj = Isolate::Current()->context()->global_object()->
       GetProperty(*obj_name)->ToObjectChecked();
   JSObject* js_obj = JSObject::cast(obj);
   CHECK_EQ(Smi::FromInt(23), js_obj->GetProperty(*prop_name));
@@ -415,6 +418,7 @@ TEST(WeakGlobalHandlesMark) {
   global_handles->Destroy(h1.location());
 }
 
+
 TEST(DeleteWeakGlobalHandle) {
   InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
@@ -444,6 +448,7 @@ TEST(DeleteWeakGlobalHandle) {
 
   CHECK(WeakPointerCleared);
 }
+
 
 static const char* not_so_random_string_table[] = {
   "abstract",
@@ -561,7 +566,7 @@ TEST(ObjectProperties) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  Object* raw_object = Isolate::Current()->context()->global()->
+  Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(object_symbol)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -658,7 +663,7 @@ TEST(JSArray) {
 
   v8::HandleScope sc;
   Handle<String> name = FACTORY->LookupAsciiSymbol("Array");
-  Object* raw_object = Isolate::Current()->context()->global()->
+  Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(*name)->ToObjectChecked();
   Handle<JSFunction> function = Handle<JSFunction>(
       JSFunction::cast(raw_object));
@@ -705,7 +710,7 @@ TEST(JSObjectCopy) {
 
   v8::HandleScope sc;
   String* object_symbol = String::cast(HEAP->Object_symbol());
-  Object* raw_object = Isolate::Current()->context()->global()->
+  Object* raw_object = Isolate::Current()->context()->global_object()->
       GetProperty(object_symbol)->ToObjectChecked();
   JSFunction* object_function = JSFunction::cast(raw_object);
   Handle<JSFunction> constructor(object_function);
@@ -874,7 +879,7 @@ TEST(Regression39128) {
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
   Handle<JSFunction> object_ctor(
-      Isolate::Current()->global_context()->object_function());
+      Isolate::Current()->native_context()->object_function());
   CHECK(object_ctor->has_initial_map());
   Handle<Map> object_map(object_ctor->initial_map());
   // Create a map with single inobject property.
@@ -954,7 +959,7 @@ TEST(TestCodeFlushing) {
   }
 
   // Check function is compiled.
-  Object* func_value = Isolate::Current()->context()->global()->
+  Object* func_value = Isolate::Current()->context()->global_object()->
       GetProperty(*foo_name)->ToObjectChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(func_value));
@@ -983,10 +988,10 @@ TEST(TestCodeFlushing) {
 }
 
 
-// Count the number of global contexts in the weak list of global contexts.
-static int CountGlobalContexts() {
+// Count the number of native contexts in the weak list of native contexts.
+int CountNativeContexts() {
   int count = 0;
-  Object* object = HEAP->global_contexts_list();
+  Object* object = HEAP->native_contexts_list();
   while (!object->IsUndefined()) {
     count++;
     object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
@@ -996,7 +1001,7 @@ static int CountGlobalContexts() {
 
 
 // Count the number of user functions in the weak list of optimized
-// functions attached to a global context.
+// functions attached to a native context.
 static int CountOptimizedUserFunctions(v8::Handle<v8::Context> context) {
   int count = 0;
   Handle<Context> icontext = v8::Utils::OpenHandle(*context);
@@ -1017,7 +1022,7 @@ TEST(TestInternalWeakLists) {
   v8::HandleScope scope;
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
-  CHECK_EQ(0, CountGlobalContexts());
+  CHECK_EQ(0, CountNativeContexts());
 
   // Create a number of global contests which gets linked together.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1025,7 +1030,7 @@ TEST(TestInternalWeakLists) {
 
     bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
 
-    CHECK_EQ(i + 1, CountGlobalContexts());
+    CHECK_EQ(i + 1, CountNativeContexts());
 
     ctx[i]->Enter();
 
@@ -1085,7 +1090,7 @@ TEST(TestInternalWeakLists) {
   // Force compilation cache cleanup.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
-  // Dispose the global contexts one by one.
+  // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i].Dispose();
     ctx[i].Clear();
@@ -1093,23 +1098,23 @@ TEST(TestInternalWeakLists) {
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
       HEAP->PerformScavenge();
-      CHECK_EQ(kNumTestContexts - i, CountGlobalContexts());
+      CHECK_EQ(kNumTestContexts - i, CountNativeContexts());
     }
 
     // Mark compact handles the weak references.
     HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-    CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
+    CHECK_EQ(kNumTestContexts - i - 1, CountNativeContexts());
   }
 
-  CHECK_EQ(0, CountGlobalContexts());
+  CHECK_EQ(0, CountNativeContexts());
 }
 
 
-// Count the number of global contexts in the weak list of global contexts
+// Count the number of native contexts in the weak list of native contexts
 // causing a GC after the specified number of elements.
-static int CountGlobalContextsWithGC(int n) {
+static int CountNativeContextsWithGC(int n) {
   int count = 0;
-  Handle<Object> object(HEAP->global_contexts_list());
+  Handle<Object> object(HEAP->native_contexts_list());
   while (!object->IsUndefined()) {
     count++;
     if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1121,7 +1126,7 @@ static int CountGlobalContextsWithGC(int n) {
 
 
 // Count the number of user functions in the weak list of optimized
-// functions attached to a global context causing a GC after the
+// functions attached to a native context causing a GC after the
 // specified number of elements.
 static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
                                              int n) {
@@ -1147,14 +1152,14 @@ TEST(TestInternalWeakListsTraverseWithGC) {
   v8::HandleScope scope;
   v8::Persistent<v8::Context> ctx[kNumTestContexts];
 
-  CHECK_EQ(0, CountGlobalContexts());
+  CHECK_EQ(0, CountNativeContexts());
 
   // Create an number of contexts and check the length of the weak list both
   // with and without GCs while iterating the list.
   for (int i = 0; i < kNumTestContexts; i++) {
     ctx[i] = v8::Context::New();
-    CHECK_EQ(i + 1, CountGlobalContexts());
-    CHECK_EQ(i + 1, CountGlobalContextsWithGC(i / 2 + 1));
+    CHECK_EQ(i + 1, CountNativeContexts());
+    CHECK_EQ(i + 1, CountNativeContextsWithGC(i / 2 + 1));
   }
 
   bool opt = (FLAG_always_opt && i::V8::UseCrankshaft());
@@ -1194,6 +1199,7 @@ TEST(TestSizeOfObjects) {
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
@@ -1267,6 +1273,7 @@ static void FillUpNewSpace(NewSpace* new_space) {
   // that the scavenger does not undo the filling.
   v8::HandleScope scope;
   AlwaysAllocateScope always_allocate;
+  LinearAllocationScope allocate_linearly;
   intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
   intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
   for (intptr_t i = 0; i < number_of_fillers; i++) {
@@ -1279,7 +1286,8 @@ TEST(GrowAndShrinkNewSpace) {
   InitializeVM();
   NewSpace* new_space = HEAP->new_space();
 
-  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
+  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize() ||
+      HEAP->MaxSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
     // The max size cannot exceed the reserved size, since semispaces must be
     // always within the reserved space.  We can't test new space growing and
     // shrinking if the reserved size is the same as the minimum (initial) size.
@@ -1327,7 +1335,8 @@ TEST(GrowAndShrinkNewSpace) {
 TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   InitializeVM();
 
-  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
+  if (HEAP->ReservedSemiSpaceSize() == HEAP->InitialSemiSpaceSize() ||
+      HEAP->MaxSemiSpaceSize() == HEAP->InitialSemiSpaceSize()) {
     // The max size cannot exceed the reserved size, since semispaces must be
     // always within the reserved space.  We can't test new space growing and
     // shrinking if the reserved size is the same as the minimum (initial) size.
@@ -1360,7 +1369,7 @@ static int NumberOfGlobalObjects() {
 
 // Test that we don't embed maps from foreign contexts into
 // optimized code.
-TEST(LeakGlobalContextViaMap) {
+TEST(LeakNativeContextViaMap) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1397,7 +1406,7 @@ TEST(LeakGlobalContextViaMap) {
 
 // Test that we don't embed functions from foreign contexts into
 // optimized code.
-TEST(LeakGlobalContextViaFunction) {
+TEST(LeakNativeContextViaFunction) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1432,7 +1441,7 @@ TEST(LeakGlobalContextViaFunction) {
 }
 
 
-TEST(LeakGlobalContextViaMapKeyed) {
+TEST(LeakNativeContextViaMapKeyed) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1467,7 +1476,7 @@ TEST(LeakGlobalContextViaMapKeyed) {
 }
 
 
-TEST(LeakGlobalContextViaMapProto) {
+TEST(LeakNativeContextViaMapProto) {
   i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
@@ -1586,7 +1595,7 @@ TEST(PrototypeTransitionClearing) {
   CHECK_EQ(transitions, baseObject->map()->NumberOfProtoTransitions());
 
   // Verify that prototype transitions array was compacted.
-  FixedArray* trans = baseObject->map()->prototype_transitions();
+  FixedArray* trans = baseObject->map()->GetPrototypeTransitions();
   for (int i = 0; i < transitions; i++) {
     int j = Map::kProtoTransitionHeaderSize +
         i * Map::kProtoTransitionElementsPerEntry;
@@ -1607,7 +1616,8 @@ TEST(PrototypeTransitionClearing) {
   // clearing correctly records slots in prototype transition array.
   i::FLAG_always_compact = true;
   Handle<Map> map(baseObject->map());
-  CHECK(!space->LastPage()->Contains(map->prototype_transitions()->address()));
+  CHECK(!space->LastPage()->Contains(
+      map->GetPrototypeTransitions()->address()));
   CHECK(space->LastPage()->Contains(prototype->address()));
   baseObject->SetPrototype(*prototype, false)->ToObjectChecked();
   CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
@@ -1742,14 +1752,20 @@ TEST(OptimizedAllocationAlwaysInNewSpace) {
 
 
 static int CountMapTransitions(Map* map) {
-  int result = 0;
-  DescriptorArray* descs = map->instance_descriptors();
-  for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (descs->IsTransitionOnly(i)) {
-      result++;
-    }
+  return map->transitions()->number_of_transitions();
+}
+
+
+// Go through all incremental marking steps in one swoop.
+static void SimulateIncrementalMarking() {
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  CHECK(marking->IsStopped());
+  marking->Start();
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
   }
-  return result;
+  CHECK(marking->IsComplete());
 }
 
 
@@ -1760,14 +1776,18 @@ TEST(Regress1465) {
   i::FLAG_trace_incremental_marking = true;
   InitializeVM();
   v8::HandleScope scope;
+  static const int transitions_count = 256;
 
-  #define TRANSITION_COUNT 256
-  for (int i = 0; i < TRANSITION_COUNT; i++) {
-    EmbeddedVector<char, 64> buffer;
-    OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
-    CompileRun(buffer.start());
+  {
+    AlwaysAllocateScope always_allocate;
+    for (int i = 0; i < transitions_count; i++) {
+      EmbeddedVector<char, 64> buffer;
+      OS::SNPrintF(buffer, "var o = new Object; o.prop%d = %d;", i, i);
+      CompileRun(buffer.start());
+    }
+    CompileRun("var root = new Object;");
   }
-  CompileRun("var root = new Object;");
+
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
           *v8::Handle<v8::Object>::Cast(
@@ -1776,19 +1796,10 @@ TEST(Regress1465) {
   // Count number of live transitions before marking.
   int transitions_before = CountMapTransitions(root->map());
   CompileRun("%DebugPrint(root);");
-  CHECK_EQ(TRANSITION_COUNT, transitions_before);
+  CHECK_EQ(transitions_count, transitions_before);
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -1810,15 +1821,7 @@ TEST(Regress2143a) {
              "root.foo = 0;"
              "root = new Object;");
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
 
   // Compile a StoreIC that performs the prepared map transition. This
   // will restart incremental marking and should make sure the root is
@@ -1834,7 +1837,6 @@ TEST(Regress2143a) {
 
   // Explicitly request GC to perform final marking step and sweeping.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
@@ -1860,15 +1862,7 @@ TEST(Regress2143b) {
              "root.foo = 0;"
              "root = new Object;");
 
-  // Go through all incremental marking steps in one swoop.
-  IncrementalMarking* marking = HEAP->incremental_marking();
-  CHECK(marking->IsStopped());
-  marking->Start();
-  CHECK(marking->IsMarking());
-  while (!marking->IsComplete()) {
-    marking->Step(MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  }
-  CHECK(marking->IsComplete());
+  SimulateIncrementalMarking();
 
   // Compile an optimized LStoreNamedField that performs the prepared
   // map transition. This will restart incremental marking and should
@@ -1887,7 +1881,6 @@ TEST(Regress2143b) {
 
   // Explicitly request GC to perform final marking step and sweeping.
   HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  CHECK(marking->IsStopped());
 
   Handle<JSObject> root =
       v8::Utils::OpenHandle(
@@ -1906,6 +1899,9 @@ void SimulateFullSpace(PagedSpace* space);
 
 TEST(ReleaseOverReservedPages) {
   i::FLAG_trace_gc = true;
+  // The optimizer can allocate stuff, messing up the test.
+  i::FLAG_crankshaft = false;
+  i::FLAG_always_opt = false;
   InitializeVM();
   v8::HandleScope scope;
   static const int number_of_test_pages = 20;
@@ -1936,4 +1932,309 @@ TEST(ReleaseOverReservedPages) {
   // to the OS so that other processes can seize the memory.
   HEAP->CollectAllAvailableGarbage("triggered really hard");
   CHECK_EQ(1, old_pointer_space->CountTotalPages());
+}
+
+
+TEST(Regress2237) {
+  InitializeVM();
+  v8::HandleScope scope;
+  Handle<String> slice(HEAP->empty_string());
+
+  {
+    // Generate a parent that lives in new-space.
+    v8::HandleScope inner_scope;
+    const char* c = "This text is long enough to trigger sliced strings.";
+    Handle<String> s = FACTORY->NewStringFromAscii(CStrVector(c));
+    CHECK(s->IsSeqAsciiString());
+    CHECK(HEAP->InNewSpace(*s));
+
+    // Generate a sliced string that is based on the above parent and
+    // lives in old-space.
+    FillUpNewSpace(HEAP->new_space());
+    AlwaysAllocateScope always_allocate;
+    Handle<String> t;
+    // TODO(mstarzinger): Unfortunately FillUpNewSpace() still leaves
+    // some slack, so we need to allocate a few sliced strings.
+    for (int i = 0; i < 16; i++) {
+      t = FACTORY->NewProperSubString(s, 5, 35);
+    }
+    CHECK(t->IsSlicedString());
+    CHECK(!HEAP->InNewSpace(*t));
+    *slice.location() = *t.location();
+  }
+
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqAsciiString());
+}
+
+
+#ifdef OBJECT_PRINT
+TEST(PrintSharedFunctionInfo) {
+  InitializeVM();
+  v8::HandleScope scope;
+  const char* source = "f = function() { return 987654321; }\n"
+                       "g = function() { return 123456789; }\n";
+  CompileRun(source);
+  Handle<JSFunction> g =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("g"))));
+
+  AssertNoAllocation no_alloc;
+  g->shared()->PrintLn();
+}
+#endif  // OBJECT_PRINT
+
+
+TEST(Regress2211) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::String> value = v8_str("val string");
+  Smi* hash = Smi::FromInt(321);
+  Heap* heap = Isolate::Current()->heap();
+
+  for (int i = 0; i < 2; i++) {
+    // Store identity hash first and common hidden property second.
+    v8::Handle<v8::Object> obj = v8::Object::New();
+    Handle<JSObject> internal_obj = v8::Utils::OpenHandle(*obj);
+    CHECK(internal_obj->HasFastProperties());
+
+    // In the first iteration, set hidden value first and identity hash second.
+    // In the second iteration, reverse the order.
+    if (i == 0) obj->SetHiddenValue(v8_str("key string"), value);
+    MaybeObject* maybe_obj = internal_obj->SetIdentityHash(hash,
+                                                           ALLOW_CREATION);
+    CHECK(!maybe_obj->IsFailure());
+    if (i == 1) obj->SetHiddenValue(v8_str("key string"), value);
+
+    // Check values.
+    CHECK_EQ(hash,
+             internal_obj->GetHiddenProperty(heap->identity_hash_symbol()));
+    CHECK(value->Equals(obj->GetHiddenValue(v8_str("key string"))));
+
+    // Check size.
+    DescriptorArray* descriptors = internal_obj->map()->instance_descriptors();
+    ObjectHashTable* hashtable = ObjectHashTable::cast(
+        internal_obj->FastPropertyAt(descriptors->GetFieldIndex(0)));
+    // HashTable header (5) and 4 initial entries (8).
+    CHECK_LE(hashtable->SizeFor(hashtable->length()), 13 * kPointerSize);
+  }
+}
+
+
+TEST(IncrementalMarkingClearsTypeFeedbackCells) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::Local<v8::Value> fun1, fun2;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() {};");
+    fun1 = env->Global()->Get(v8_str("fun"));
+  }
+
+  {
+    LocalContext env;
+    CompileRun("function fun() {};");
+    fun2 = env->Global()->Get(v8_str("fun"));
+  }
+
+  // Prepare function f that contains type feedback for closures
+  // originating from two different native contexts.
+  v8::Context::GetCurrent()->Global()->Set(v8_str("fun1"), fun1);
+  v8::Context::GetCurrent()->Global()->Set(v8_str("fun2"), fun2);
+  CompileRun("function f(a, b) { a(); b(); } f(fun1, fun2);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+  Handle<TypeFeedbackCells> cells(TypeFeedbackInfo::cast(
+      f->shared()->code()->type_feedback_info())->type_feedback_cells());
+
+  CHECK_EQ(2, cells->CellCount());
+  CHECK(cells->Cell(0)->value()->IsJSFunction());
+  CHECK(cells->Cell(1)->value()->IsJSFunction());
+
+  SimulateIncrementalMarking();
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  CHECK_EQ(2, cells->CellCount());
+  CHECK(cells->Cell(0)->value()->IsTheHole());
+  CHECK(cells->Cell(1)->value()->IsTheHole());
+}
+
+
+static Code* FindFirstIC(Code* code, Code::Kind kind) {
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+             RelocInfo::ModeMask(RelocInfo::CONSTRUCT_CALL) |
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_WITH_ID) |
+             RelocInfo::ModeMask(RelocInfo::CODE_TARGET_CONTEXT);
+  for (RelocIterator it(code, mask); !it.done(); it.next()) {
+    RelocInfo* info = it.rinfo();
+    Code* target = Code::GetCodeFromTargetAddress(info->target_address());
+    if (target->is_inline_cache_stub() && target->kind() == kind) {
+      return target;
+    }
+  }
+  return NULL;
+}
+
+
+TEST(IncrementalMarkingPreservesMonomorhpicIC) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Prepare function f that contains a monomorphic IC for object
+  // originating from the same native context.
+  CompileRun("function fun() { this.x = 1; }; var obj = new fun();"
+             "function f(o) { return o.x; } f(obj); f(obj);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == MONOMORPHIC);
+
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
+  SimulateIncrementalMarking();
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == MONOMORPHIC);
+}
+
+
+TEST(IncrementalMarkingClearsMonomorhpicIC) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::Local<v8::Value> obj1;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
+    obj1 = env->Global()->Get(v8_str("obj"));
+  }
+
+  // Prepare function f that contains a monomorphic IC for object
+  // originating from a different native context.
+  v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
+  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == MONOMORPHIC);
+
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
+  SimulateIncrementalMarking();
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == UNINITIALIZED);
+}
+
+
+TEST(IncrementalMarkingClearsPolymorhpicIC) {
+  if (i::FLAG_always_opt) return;
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::Local<v8::Value> obj1, obj2;
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 1; }; var obj = new fun();");
+    obj1 = env->Global()->Get(v8_str("obj"));
+  }
+
+  {
+    LocalContext env;
+    CompileRun("function fun() { this.x = 2; }; var obj = new fun();");
+    obj2 = env->Global()->Get(v8_str("obj"));
+  }
+
+  // Prepare function f that contains a polymorphic IC for objects
+  // originating from two different native contexts.
+  v8::Context::GetCurrent()->Global()->Set(v8_str("obj1"), obj1);
+  v8::Context::GetCurrent()->Global()->Set(v8_str("obj2"), obj2);
+  CompileRun("function f(o) { return o.x; } f(obj1); f(obj1); f(obj2);");
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  Code* ic_before = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_before->ic_state() == MEGAMORPHIC);
+
+  // Fire context dispose notification.
+  v8::V8::ContextDisposedNotification();
+  SimulateIncrementalMarking();
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+  Code* ic_after = FindFirstIC(f->shared()->code(), Code::LOAD_IC);
+  CHECK(ic_after->ic_state() == UNINITIALIZED);
+}
+
+
+class SourceResource: public v8::String::ExternalAsciiStringResource {
+ public:
+  explicit SourceResource(const char* data)
+    : data_(data), length_(strlen(data)) { }
+
+  virtual void Dispose() {
+    i::DeleteArray(data_);
+    data_ = NULL;
+  }
+
+  const char* data() const { return data_; }
+
+  size_t length() const { return length_; }
+
+  bool IsDisposed() { return data_ == NULL; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+
+TEST(ReleaseStackTraceData) {
+  // Test that the data retained by the Error.stack accessor is released
+  // after the first time the accessor is fired.  We use external string
+  // to check whether the data is being released since the external string
+  // resource's callback is fired when the external string is GC'ed.
+  InitializeVM();
+  v8::HandleScope scope;
+  static const char* source = "var error = 1;       "
+                              "try {                "
+                              "  throw new Error(); "
+                              "} catch (e) {        "
+                              "  error = e;         "
+                              "}                    ";
+  SourceResource* resource = new SourceResource(i::StrDup(source));
+  {
+    v8::HandleScope scope;
+    v8::Handle<v8::String> source_string = v8::String::NewExternal(resource);
+    v8::Script::Compile(source_string)->Run();
+    CHECK(!resource->IsDisposed());
+  }
+  HEAP->CollectAllAvailableGarbage();
+  // External source is being retained by the stack trace.
+  CHECK(!resource->IsDisposed());
+
+  CompileRun("error.stack; error.stack;");
+  HEAP->CollectAllAvailableGarbage();
+  // External source has been released.
+  CHECK(resource->IsDisposed());
+
+  delete resource;
 }

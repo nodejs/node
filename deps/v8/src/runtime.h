@@ -86,6 +86,7 @@ namespace internal {
   F(NewStrictArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
+  F(ParallelRecompile, 1, 1)     \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
@@ -283,6 +284,9 @@ namespace internal {
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \
+  /* Harmony modules */ \
+  F(IsJSModule, 1, 1) \
+  \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
   F(CreateJSFunctionProxy, 4, 1) \
@@ -302,11 +306,15 @@ namespace internal {
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
   F(MapGet, 2, 1) \
+  F(MapHas, 2, 1) \
+  F(MapDelete, 2, 1) \
   F(MapSet, 3, 1) \
   \
   /* Harmony weakmaps */ \
   F(WeakMapInitialize, 1, 1) \
   F(WeakMapGet, 2, 1) \
+  F(WeakMapHas, 2, 1) \
+  F(WeakMapDelete, 2, 1) \
   F(WeakMapSet, 3, 1) \
   \
   /* Statements */ \
@@ -317,16 +325,18 @@ namespace internal {
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \
   F(ThrowReferenceError, 1, 1) \
+  F(ThrowNotDateError, 0, 1) \
   F(StackGuard, 0, 1) \
   F(Interrupt, 0, 1) \
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
+  F(NewGlobalContext, 2, 1) \
   F(NewFunctionContext, 1, 1) \
   F(PushWithContext, 2, 1) \
   F(PushCatchContext, 3, 1) \
   F(PushBlockContext, 2, 1) \
-  F(PushModuleContext, 2, 1) \
+  F(PushModuleContext, 1, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
@@ -442,6 +452,7 @@ namespace internal {
   F(LiveEditPatchFunctionPositions, 2, 1) \
   F(LiveEditCheckAndDropActivations, 2, 1) \
   F(LiveEditCompareStrings, 2, 1) \
+  F(LiveEditRestartFrame, 2, 1) \
   F(GetFunctionCodePositionFromSource, 2, 1) \
   F(ExecuteInDebugContext, 2, 1) \
   \
@@ -637,13 +648,6 @@ class Runtime : public AllStatic {
   // Get the intrinsic function with the given FunctionId.
   static const Function* FunctionForId(FunctionId id);
 
-  static Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
-                                                       Handle<String> subject,
-                                                       Handle<String> search,
-                                                       Handle<String> replace,
-                                                       bool* found,
-                                                       int recursion_limit);
-
   // General-purpose helper functions for runtime system.
   static int StringMatch(Isolate* isolate,
                          Handle<String> sub,
@@ -685,11 +689,6 @@ class Runtime : public AllStatic {
       Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key);
-
-  // This function is used in FunctionNameUsing* tests.
-  static Object* FindSharedFunctionInfoInScript(Isolate* isolate,
-                                                Handle<Script> script,
-                                                int position);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);

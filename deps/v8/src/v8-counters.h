@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,6 +30,7 @@
 
 #include "allocation.h"
 #include "counters.h"
+#include "objects.h"
 #include "v8globals.h"
 
 namespace v8 {
@@ -48,6 +49,36 @@ namespace internal {
   HT(compile, V8.Compile)                                             \
   HT(compile_eval, V8.CompileEval)                                    \
   HT(compile_lazy, V8.CompileLazy)
+
+
+#define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
+  HP(external_fragmentation_total,                                    \
+     V8.MemoryExternalFragmentationTotal)                             \
+  HP(external_fragmentation_old_pointer_space,                        \
+     V8.MemoryExternalFragmentationOldPointerSpace)                   \
+  HP(external_fragmentation_old_data_space,                           \
+     V8.MemoryExternalFragmentationOldDataSpace)                      \
+  HP(external_fragmentation_code_space,                               \
+     V8.MemoryExternalFragmentationCodeSpace)                         \
+  HP(external_fragmentation_map_space,                                \
+     V8.MemoryExternalFragmentationMapSpace)                          \
+  HP(external_fragmentation_cell_space,                               \
+     V8.MemoryExternalFragmentationCellSpace)                         \
+  HP(external_fragmentation_lo_space,                                 \
+     V8.MemoryExternalFragmentationLoSpace)                           \
+  HP(heap_fraction_map_space,                                         \
+     V8.MemoryHeapFractionMapSpace)                                   \
+  HP(heap_fraction_cell_space,                                        \
+     V8.MemoryHeapFractionCellSpace)                                  \
+
+
+#define HISTOGRAM_MEMORY_LIST(HM)                                     \
+  HM(heap_sample_total_committed, V8.MemoryHeapSampleTotalCommitted)  \
+  HM(heap_sample_total_used, V8.MemoryHeapSampleTotalUsed)            \
+  HM(heap_sample_map_space_committed,                                 \
+     V8.MemoryHeapSampleMapSpaceCommitted)                            \
+  HM(heap_sample_cell_space_committed,                                \
+     V8.MemoryHeapSampleCellSpaceCommitted)
 
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC
@@ -210,6 +241,9 @@ namespace internal {
   SC(compute_entry_frame, V8.ComputeEntryFrame)                       \
   SC(generic_binary_stub_calls, V8.GenericBinaryStubCalls)            \
   SC(generic_binary_stub_calls_regs, V8.GenericBinaryStubCallsRegs)   \
+  SC(fast_new_closure_total, V8.FastNewClosureTotal)                  \
+  SC(fast_new_closure_try_optimized, V8.FastNewClosureTryOptimized)   \
+  SC(fast_new_closure_install_optimized, V8.FastNewClosureInstallOptimized) \
   SC(string_add_runtime, V8.StringAddRuntime)                         \
   SC(string_add_native, V8.StringAddNative)                           \
   SC(string_add_runtime_ext_to_ascii, V8.StringAddRuntimeExtToAscii)  \
@@ -240,14 +274,33 @@ namespace internal {
   SC(transcendental_cache_miss, V8.TranscendentalCacheMiss)           \
   SC(stack_interrupts, V8.StackInterrupts)                            \
   SC(runtime_profiler_ticks, V8.RuntimeProfilerTicks)                 \
-  SC(other_ticks, V8.OtherTicks)                                      \
-  SC(js_opt_ticks, V8.JsOptTicks)                                     \
-  SC(js_non_opt_ticks, V8.JsNonoptTicks)                              \
-  SC(js_other_ticks, V8.JsOtherTicks)                                 \
   SC(smi_checks_removed, V8.SmiChecksRemoved)                         \
   SC(map_checks_removed, V8.MapChecksRemoved)                         \
   SC(quote_json_char_count, V8.QuoteJsonCharacterCount)               \
-  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)
+  SC(quote_json_char_recount, V8.QuoteJsonCharacterReCount)           \
+  SC(new_space_bytes_available, V8.MemoryNewSpaceBytesAvailable)      \
+  SC(new_space_bytes_committed, V8.MemoryNewSpaceBytesCommitted)      \
+  SC(new_space_bytes_used, V8.MemoryNewSpaceBytesUsed)                \
+  SC(old_pointer_space_bytes_available,                               \
+     V8.MemoryOldPointerSpaceBytesAvailable)                          \
+  SC(old_pointer_space_bytes_committed,                               \
+     V8.MemoryOldPointerSpaceBytesCommitted)                          \
+  SC(old_pointer_space_bytes_used, V8.MemoryOldPointerSpaceBytesUsed) \
+  SC(old_data_space_bytes_available, V8.MemoryOldDataSpaceBytesAvailable) \
+  SC(old_data_space_bytes_committed, V8.MemoryOldDataSpaceBytesCommitted) \
+  SC(old_data_space_bytes_used, V8.MemoryOldDataSpaceBytesUsed)       \
+  SC(code_space_bytes_available, V8.MemoryCodeSpaceBytesAvailable)    \
+  SC(code_space_bytes_committed, V8.MemoryCodeSpaceBytesCommitted)    \
+  SC(code_space_bytes_used, V8.MemoryCodeSpaceBytesUsed)              \
+  SC(map_space_bytes_available, V8.MemoryMapSpaceBytesAvailable)      \
+  SC(map_space_bytes_committed, V8.MemoryMapSpaceBytesCommitted)      \
+  SC(map_space_bytes_used, V8.MemoryMapSpaceBytesUsed)                \
+  SC(cell_space_bytes_available, V8.MemoryCellSpaceBytesAvailable)    \
+  SC(cell_space_bytes_committed, V8.MemoryCellSpaceBytesCommitted)    \
+  SC(cell_space_bytes_used, V8.MemoryCellSpaceBytesUsed)              \
+  SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)        \
+  SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)        \
+  SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)
 
 
 // This file contains all the v8 counters that are in use.
@@ -258,19 +311,68 @@ class Counters {
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define HP(name, caption) \
+  Histogram* name() { return &name##_; }
+  HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+
+#define HM(name, caption) \
+  Histogram* name() { return &name##_; }
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
 #define SC(name, caption) \
   StatsCounter* name() { return &name##_; }
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
 #undef SC
 
+#define SC(name) \
+  StatsCounter* count_of_##name() { return &count_of_##name##_; } \
+  StatsCounter* size_of_##name() { return &size_of_##name##_; }
+  INSTANCE_TYPE_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter* count_of_CODE_TYPE_##name() \
+    { return &count_of_CODE_TYPE_##name##_; } \
+  StatsCounter* size_of_CODE_TYPE_##name() \
+    { return &size_of_CODE_TYPE_##name##_; }
+  CODE_KIND_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter* count_of_FIXED_ARRAY_##name() \
+    { return &count_of_FIXED_ARRAY_##name##_; } \
+  StatsCounter* size_of_FIXED_ARRAY_##name() \
+    { return &size_of_FIXED_ARRAY_##name##_; }
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
+#undef SC
+
   enum Id {
 #define RATE_ID(name, caption) k_##name,
     HISTOGRAM_TIMER_LIST(RATE_ID)
 #undef RATE_ID
+#define PERCENTAGE_ID(name, caption) k_##name,
+    HISTOGRAM_PERCENTAGE_LIST(PERCENTAGE_ID)
+#undef PERCENTAGE_ID
+#define MEMORY_ID(name, caption) k_##name,
+    HISTOGRAM_MEMORY_LIST(MEMORY_ID)
+#undef MEMORY_ID
 #define COUNTER_ID(name, caption) k_##name,
     STATS_COUNTER_LIST_1(COUNTER_ID)
     STATS_COUNTER_LIST_2(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOf##name, kSizeOf##name,
+    INSTANCE_TYPE_LIST(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOfCODE_TYPE_##name, \
+    kSizeOfCODE_TYPE_##name,
+    CODE_KIND_LIST(COUNTER_ID)
+#undef COUNTER_ID
+#define COUNTER_ID(name) kCountOfFIXED_ARRAY__##name, \
+    kSizeOfFIXED_ARRAY__##name,
+    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
 #undef COUNTER_ID
 #define COUNTER_ID(name) k_##name,
     STATE_TAG_LIST(COUNTER_ID)
@@ -282,16 +384,46 @@ class Counters {
     return &state_counters_[state];
   }
 
+  void ResetHistograms();
+
  private:
 #define HT(name, caption) \
   HistogramTimer name##_;
   HISTOGRAM_TIMER_LIST(HT)
 #undef HT
 
+#define HP(name, caption) \
+  Histogram name##_;
+  HISTOGRAM_PERCENTAGE_LIST(HP)
+#undef HP
+
+#define HM(name, caption) \
+  Histogram name##_;
+  HISTOGRAM_MEMORY_LIST(HM)
+#undef HM
+
 #define SC(name, caption) \
   StatsCounter name##_;
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_##name##_; \
+  StatsCounter count_of_##name##_;
+  INSTANCE_TYPE_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_CODE_TYPE_##name##_; \
+  StatsCounter count_of_CODE_TYPE_##name##_;
+  CODE_KIND_LIST(SC)
+#undef SC
+
+#define SC(name) \
+  StatsCounter size_of_FIXED_ARRAY_##name##_; \
+  StatsCounter count_of_FIXED_ARRAY_##name##_;
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
   enum {

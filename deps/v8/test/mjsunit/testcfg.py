@@ -56,9 +56,9 @@ class MjsunitTestCase(test.TestCase):
 
   def GetVmCommand(self, source):
     result = self.config.context.GetVmCommand(self, self.mode)
-    flags_match = FLAGS_PATTERN.search(source)
-    if flags_match:
-      result += flags_match.group(1).strip().split()
+    flags_match = re.findall(FLAGS_PATTERN, source);
+    for match in flags_match:
+      result += match.strip().split()
     return result
 
   def GetVmArguments(self, source):

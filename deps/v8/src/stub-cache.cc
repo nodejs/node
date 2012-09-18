@@ -44,7 +44,7 @@ namespace internal {
 
 
 StubCache::StubCache(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), zone_(zone) {
+    : isolate_(isolate) {
   ASSERT(isolate == Isolate::Current());
 }
 
@@ -119,7 +119,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<String> name,
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::LOAD_IC, NONEXISTENT);
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::NONEXISTENT);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*cache_name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -138,7 +138,7 @@ Handle<Code> StubCache::ComputeLoadField(Handle<String> name,
                                          Handle<JSObject> holder,
                                          int field_index) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, FIELD);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::FIELD);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -158,7 +158,8 @@ Handle<Code> StubCache::ComputeLoadCallback(Handle<String> name,
                                             Handle<AccessorInfo> callback) {
   ASSERT(v8::ToCData<Address>(callback->getter()) != 0);
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, CALLBACKS);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -177,7 +178,8 @@ Handle<Code> StubCache::ComputeLoadViaGetter(Handle<String> name,
                                              Handle<JSObject> holder,
                                              Handle<JSFunction> getter) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, CALLBACKS);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -197,7 +199,7 @@ Handle<Code> StubCache::ComputeLoadConstant(Handle<String> name,
                                             Handle<JSFunction> value) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::LOAD_IC, CONSTANT_FUNCTION);
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::CONSTANT_FUNCTION);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -215,7 +217,8 @@ Handle<Code> StubCache::ComputeLoadInterceptor(Handle<String> name,
                                                Handle<JSObject> receiver,
                                                Handle<JSObject> holder) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, INTERCEPTOR);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::INTERCEPTOR);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -240,7 +243,8 @@ Handle<Code> StubCache::ComputeLoadGlobal(Handle<String> name,
                                           Handle<JSGlobalPropertyCell> cell,
                                           bool is_dont_delete) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::LOAD_IC, Code::NORMAL);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -259,7 +263,8 @@ Handle<Code> StubCache::ComputeKeyedLoadField(Handle<String> name,
                                               Handle<JSObject> holder,
                                               int field_index) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, FIELD);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::FIELD);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -278,8 +283,8 @@ Handle<Code> StubCache::ComputeKeyedLoadConstant(Handle<String> name,
                                                  Handle<JSObject> holder,
                                                  Handle<JSFunction> value) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CONSTANT_FUNCTION);
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC,
+                                                    Code::CONSTANT_FUNCTION);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -298,7 +303,7 @@ Handle<Code> StubCache::ComputeKeyedLoadInterceptor(Handle<String> name,
                                                     Handle<JSObject> holder) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, INTERCEPTOR);
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::INTERCEPTOR);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -318,7 +323,7 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
     Handle<AccessorInfo> callback) {
   ASSERT(IC::GetCodeCacheForObject(*receiver, *holder) == OWN_MAP);
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -335,7 +340,7 @@ Handle<Code> StubCache::ComputeKeyedLoadCallback(
 Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
                                                     Handle<JSArray> receiver) {
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -351,7 +356,7 @@ Handle<Code> StubCache::ComputeKeyedLoadArrayLength(Handle<String> name,
 Handle<Code> StubCache::ComputeKeyedLoadStringLength(Handle<String> name,
                                                      Handle<String> receiver) {
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::CALLBACKS);
   Handle<Map> map(receiver->map());
   Handle<Object> probe(map->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -369,7 +374,7 @@ Handle<Code> StubCache::ComputeKeyedLoadFunctionPrototype(
     Handle<String> name,
     Handle<JSFunction> receiver) {
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
+      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, Code::CALLBACKS);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -387,7 +392,8 @@ Handle<Code> StubCache::ComputeStoreField(Handle<String> name,
                                           int field_index,
                                           Handle<Map> transition,
                                           StrictModeFlag strict_mode) {
-  PropertyType type = (transition.is_null()) ? FIELD : MAP_TRANSITION;
+  Code::StubType type =
+      (transition.is_null()) ? Code::FIELD : Code::MAP_TRANSITION;
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::STORE_IC, type, strict_mode);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
@@ -415,7 +421,7 @@ Handle<Code> StubCache::ComputeKeyedLoadOrStoreElement(
       Code::ComputeMonomorphicFlags(
           stub_kind == KeyedIC::LOAD ? Code::KEYED_LOAD_IC
                                      : Code::KEYED_STORE_IC,
-          NORMAL,
+          Code::NORMAL,
           extra_state);
   Handle<String> name;
   switch (stub_kind) {
@@ -483,7 +489,7 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<String> name,
                                            Handle<JSGlobalPropertyCell> cell,
                                            StrictModeFlag strict_mode) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, NORMAL, strict_mode);
+      Code::STORE_IC, Code::NORMAL, strict_mode);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -498,16 +504,18 @@ Handle<Code> StubCache::ComputeStoreGlobal(Handle<String> name,
 
 Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
                                              Handle<JSObject> receiver,
+                                             Handle<JSObject> holder,
                                              Handle<AccessorInfo> callback,
                                              StrictModeFlag strict_mode) {
   ASSERT(v8::ToCData<Address>(callback->setter()) != 0);
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, CALLBACKS, strict_mode);
+      Code::STORE_IC, Code::CALLBACKS, strict_mode);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code = compiler.CompileStoreCallback(receiver, callback, name);
+  Handle<Code> code =
+      compiler.CompileStoreCallback(name, receiver, holder, callback);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
@@ -517,15 +525,17 @@ Handle<Code> StubCache::ComputeStoreCallback(Handle<String> name,
 
 Handle<Code> StubCache::ComputeStoreViaSetter(Handle<String> name,
                                               Handle<JSObject> receiver,
+                                              Handle<JSObject> holder,
                                               Handle<JSFunction> setter,
                                               StrictModeFlag strict_mode) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, CALLBACKS, strict_mode);
+      Code::STORE_IC, Code::CALLBACKS, strict_mode);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   StoreStubCompiler compiler(isolate_, strict_mode);
-  Handle<Code> code = compiler.CompileStoreViaSetter(receiver, setter, name);
+  Handle<Code> code =
+      compiler.CompileStoreViaSetter(name, receiver, holder, setter);
   PROFILE(isolate_, CodeCreateEvent(Logger::STORE_IC_TAG, *code, *name));
   GDBJIT(AddCode(GDBJITInterface::STORE_IC, *name, *code));
   JSObject::UpdateMapCodeCache(receiver, name, code);
@@ -537,7 +547,7 @@ Handle<Code> StubCache::ComputeStoreInterceptor(Handle<String> name,
                                                 Handle<JSObject> receiver,
                                                 StrictModeFlag strict_mode) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
-      Code::STORE_IC, INTERCEPTOR, strict_mode);
+      Code::STORE_IC, Code::INTERCEPTOR, strict_mode);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
@@ -554,7 +564,8 @@ Handle<Code> StubCache::ComputeKeyedStoreField(Handle<String> name,
                                                int field_index,
                                                Handle<Map> transition,
                                                StrictModeFlag strict_mode) {
-  PropertyType type = (transition.is_null()) ? FIELD : MAP_TRANSITION;
+  Code::StubType type =
+      (transition.is_null()) ? Code::FIELD : Code::MAP_TRANSITION;
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::KEYED_STORE_IC, type, strict_mode);
   Handle<Object> probe(receiver->map()->FindInCodeCache(*name, flags));
@@ -597,7 +608,7 @@ Handle<Code> StubCache::ComputeCallConstant(int argc,
   }
 
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind, CONSTANT_FUNCTION, extra_state,
+      Code::ComputeMonomorphicFlags(kind, Code::CONSTANT_FUNCTION, extra_state,
                                     cache_holder, argc);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -635,7 +646,7 @@ Handle<Code> StubCache::ComputeCallField(int argc,
   }
 
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind, FIELD, extra_state,
+      Code::ComputeMonomorphicFlags(kind, Code::FIELD, extra_state,
                                     cache_holder, argc);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -672,7 +683,7 @@ Handle<Code> StubCache::ComputeCallInterceptor(int argc,
   }
 
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind, INTERCEPTOR, extra_state,
+      Code::ComputeMonomorphicFlags(kind, Code::INTERCEPTOR, extra_state,
                                     cache_holder, argc);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -702,7 +713,7 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
       IC::GetCodeCacheForObject(*receiver, *holder);
   Handle<JSObject> map_holder(IC::GetCodeCacheHolder(*receiver, cache_holder));
   Code::Flags flags =
-      Code::ComputeMonomorphicFlags(kind, NORMAL, extra_state,
+      Code::ComputeMonomorphicFlags(kind, Code::NORMAL, extra_state,
                                     cache_holder, argc);
   Handle<Object> probe(map_holder->map()->FindInCodeCache(*name, flags));
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -735,7 +746,7 @@ Code* StubCache::FindCallInitialize(int argc,
       CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
       CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT);
   Code::Flags flags =
-      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, NORMAL, argc);
+      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
 
   // Use raw_unchecked... so we don't get assert failures during GC.
   UnseededNumberDictionary* dictionary =
@@ -756,7 +767,7 @@ Handle<Code> StubCache::ComputeCallInitialize(int argc,
       CallICBase::StringStubState::encode(DEFAULT_STRING_STUB) |
       CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT);
   Code::Flags flags =
-      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, NORMAL, argc);
+      Code::ComputeFlags(kind, UNINITIALIZED, extra_state, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -785,7 +796,7 @@ Handle<Code> StubCache::ComputeCallPreMonomorphic(
     Code::Kind kind,
     Code::ExtraICState extra_state) {
   Code::Flags flags =
-      Code::ComputeFlags(kind, PREMONOMORPHIC, extra_state, NORMAL, argc);
+      Code::ComputeFlags(kind, PREMONOMORPHIC, extra_state, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -802,7 +813,7 @@ Handle<Code> StubCache::ComputeCallNormal(int argc,
                                           Code::Kind kind,
                                           Code::ExtraICState extra_state) {
   Code::Flags flags =
-      Code::ComputeFlags(kind, MONOMORPHIC, extra_state, NORMAL, argc);
+      Code::ComputeFlags(kind, MONOMORPHIC, extra_state, Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -819,7 +830,7 @@ Handle<Code> StubCache::ComputeCallArguments(int argc, Code::Kind kind) {
   ASSERT(kind == Code::KEYED_CALL_IC);
   Code::Flags flags =
       Code::ComputeFlags(kind, MEGAMORPHIC, Code::kNoExtraICState,
-                         NORMAL, argc);
+                         Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -838,7 +849,7 @@ Handle<Code> StubCache::ComputeCallMegamorphic(
     Code::ExtraICState extra_state) {
   Code::Flags flags =
       Code::ComputeFlags(kind, MEGAMORPHIC, extra_state,
-                         NORMAL, argc);
+                         Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -858,7 +869,7 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
   // and monomorphic stubs are not mixed up together in the stub cache.
   Code::Flags flags =
       Code::ComputeFlags(kind, MONOMORPHIC_PROTOTYPE_FAILURE, extra_state,
-                         NORMAL, argc, OWN_MAP);
+                         Code::NORMAL, argc, OWN_MAP);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -878,7 +889,7 @@ Handle<Code> StubCache::ComputeCallDebugBreak(int argc,
   // the actual call ic to carry out the work.
   Code::Flags flags =
       Code::ComputeFlags(kind, DEBUG_BREAK, Code::kNoExtraICState,
-                         NORMAL, argc);
+                         Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -897,7 +908,7 @@ Handle<Code> StubCache::ComputeCallDebugPrepareStepIn(int argc,
   // the actual call ic to carry out the work.
   Code::Flags flags =
       Code::ComputeFlags(kind, DEBUG_PREPARE_STEP_IN, Code::kNoExtraICState,
-                         NORMAL, argc);
+                         Code::NORMAL, argc);
   Handle<UnseededNumberDictionary> cache =
       isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
@@ -927,7 +938,8 @@ void StubCache::Clear() {
 void StubCache::CollectMatchingMaps(SmallMapList* types,
                                     String* name,
                                     Code::Flags flags,
-                                    Handle<Context> global_context) {
+                                    Handle<Context> native_context,
+                                    Zone* zone) {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     if (primary_[i].key == name) {
       Map* map = primary_[i].value->FindFirstMap();
@@ -937,8 +949,8 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 
       int offset = PrimaryOffset(name, flags, map);
       if (entry(primary_, offset) == &primary_[i] &&
-          !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map), zone());
+          !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
+        types->Add(Handle<Map>(map), zone);
       }
     }
   }
@@ -961,8 +973,8 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       // Lookup in secondary table and add matches.
       int offset = SecondaryOffset(name, flags, primary_offset);
       if (entry(secondary_, offset) == &secondary_[i] &&
-          !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
-        types->Add(Handle<Map>(map), zone());
+          !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
+        types->Add(Handle<Map>(map), zone);
       }
     }
   }
@@ -993,7 +1005,9 @@ RUNTIME_FUNCTION(MaybeObject*, LoadCallbackProperty) {
   }
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);
   if (result.IsEmpty()) return HEAP->undefined_value();
-  return *v8::Utils::OpenHandle(*result);
+  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+  result_internal->VerifyApiCallResultType();
+  return *result_internal;
 }
 
 
@@ -1058,6 +1072,8 @@ RUNTIME_FUNCTION(MaybeObject*, LoadPropertyWithInterceptorOnly) {
     }
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
+      Handle<Object> result = v8::Utils::OpenHandle(*r);
+      result->VerifyApiCallResultType();
       return *v8::Utils::OpenHandle(*r);
     }
   }
@@ -1114,7 +1130,9 @@ static MaybeObject* LoadWithInterceptor(Arguments* args,
     RETURN_IF_SCHEDULED_EXCEPTION(isolate);
     if (!r.IsEmpty()) {
       *attrs = NONE;
-      return *v8::Utils::OpenHandle(*r);
+      Handle<Object> result = v8::Utils::OpenHandle(*r);
+      result->VerifyApiCallResultType();
+      return *result;
     }
   }
 
@@ -1351,16 +1369,14 @@ void StubCompiler::LookupPostInterceptor(Handle<JSObject> holder,
                                          Handle<String> name,
                                          LookupResult* lookup) {
   holder->LocalLookupRealNamedProperty(*name, lookup);
-  if (lookup->IsProperty()) return;
-
-  lookup->NotFound();
+  if (lookup->IsFound()) return;
   if (holder->GetPrototype()->IsNull()) return;
-
   holder->GetPrototype()->Lookup(*name, lookup);
 }
 
 
-Handle<Code> LoadStubCompiler::GetCode(PropertyType type, Handle<String> name) {
+Handle<Code> LoadStubCompiler::GetCode(Code::StubType type,
+                                       Handle<String> name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_IC_TAG, *code, *name));
@@ -1369,7 +1385,7 @@ Handle<Code> LoadStubCompiler::GetCode(PropertyType type, Handle<String> name) {
 }
 
 
-Handle<Code> KeyedLoadStubCompiler::GetCode(PropertyType type,
+Handle<Code> KeyedLoadStubCompiler::GetCode(Code::StubType type,
                                             Handle<String> name,
                                             InlineCacheState state) {
   Code::Flags flags = Code::ComputeFlags(
@@ -1381,7 +1397,7 @@ Handle<Code> KeyedLoadStubCompiler::GetCode(PropertyType type,
 }
 
 
-Handle<Code> StoreStubCompiler::GetCode(PropertyType type,
+Handle<Code> StoreStubCompiler::GetCode(Code::StubType type,
                                         Handle<String> name) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::STORE_IC, type, strict_mode_);
@@ -1392,7 +1408,7 @@ Handle<Code> StoreStubCompiler::GetCode(PropertyType type,
 }
 
 
-Handle<Code> KeyedStoreStubCompiler::GetCode(PropertyType type,
+Handle<Code> KeyedStoreStubCompiler::GetCode(Code::StubType type,
                                              Handle<String> name,
                                              InlineCacheState state) {
   Code::ExtraICState extra_state =
@@ -1470,7 +1486,8 @@ Handle<Code> CallStubCompiler::CompileCustomCall(
 }
 
 
-Handle<Code> CallStubCompiler::GetCode(PropertyType type, Handle<String> name) {
+Handle<Code> CallStubCompiler::GetCode(Code::StubType type,
+                                       Handle<String> name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(kind_,
                                                     type,
@@ -1486,7 +1503,7 @@ Handle<Code> CallStubCompiler::GetCode(Handle<JSFunction> function) {
   if (function->shared()->name()->IsString()) {
     function_name = Handle<String>(String::cast(function->shared()->name()));
   }
-  return GetCode(CONSTANT_FUNCTION, function_name);
+  return GetCode(Code::CONSTANT_FUNCTION, function_name);
 }
 
 

@@ -158,6 +158,30 @@ test_toarr(toarr1);
 test_toarr(toarr2);
 
 // Test that arguments access from inlined function uses correct values.
+// TODO(mstarzinger): Tests disabled, see bug 2261
+/*
+(function () {
+  function inner(x, y) {
+    "use strict";
+    x = 10;
+    y = 20;
+    for (var i = 0; i < 1; i++) {
+      for (var j = 1; j <= arguments.length; j++) {
+        return arguments[arguments.length - j];
+      }
+    }
+  }
+
+  function outer(x, y) {
+    return inner(x, y);
+  }
+
+  %OptimizeFunctionOnNextCall(outer);
+  %OptimizeFunctionOnNextCall(inner);
+  assertEquals(2, outer(1, 2));
+})();
+
+
 (function () {
   function inner(x, y) {
     "use strict";
@@ -180,3 +204,4 @@ test_toarr(toarr2);
   %OptimizeFunctionOnNextCall(outer);
   assertEquals(2, outer(1, 2));
 })();
+*/

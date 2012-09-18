@@ -51,7 +51,6 @@ class ApiFunction;
 namespace internal {
 
 struct StatsCounter;
-const unsigned kNoASTId = -1;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
@@ -204,14 +203,19 @@ class RelocInfo BASE_EMBEDDED {
     EXTERNAL_REFERENCE,  // The address of an external C++ function.
     INTERNAL_REFERENCE,  // An address inside the same function.
 
+    // Marks a constant pool. Only used on ARM.
+    // It uses a custom noncompact encoding.
+    CONST_POOL,
+
     // add more as needed
     // Pseudo-types
-    NUMBER_OF_MODES,  // There are at most 14 modes with noncompact encoding.
+    NUMBER_OF_MODES,  // There are at most 15 modes with noncompact encoding.
     NONE,  // never recorded
     LAST_CODE_ENUM = DEBUG_BREAK,
     LAST_GCED_ENUM = GLOBAL_PROPERTY_CELL,
     // Modes <= LAST_COMPACT_ENUM are guaranteed to have compact encoding.
-    LAST_COMPACT_ENUM = CODE_TARGET_WITH_ID
+    LAST_COMPACT_ENUM = CODE_TARGET_WITH_ID,
+    LAST_STANDARD_NONCOMPACT_ENUM = INTERNAL_REFERENCE
   };
 
 
@@ -239,6 +243,9 @@ class RelocInfo BASE_EMBEDDED {
   }
   static inline bool IsComment(Mode mode) {
     return mode == COMMENT;
+  }
+  static inline bool IsConstPool(Mode mode) {
+    return mode == CONST_POOL;
   }
   static inline bool IsPosition(Mode mode) {
     return mode == POSITION || mode == STATEMENT_POSITION;
@@ -416,6 +423,7 @@ class RelocInfoWriter BASE_EMBEDDED {
   inline void WriteTaggedPC(uint32_t pc_delta, int tag);
   inline void WriteExtraTaggedPC(uint32_t pc_delta, int extra_tag);
   inline void WriteExtraTaggedIntData(int data_delta, int top_tag);
+  inline void WriteExtraTaggedConstPoolData(int data);
   inline void WriteExtraTaggedData(intptr_t data_delta, int top_tag);
   inline void WriteTaggedData(intptr_t data_delta, int tag);
   inline void WriteExtraTag(int extra_tag, int top_tag);
@@ -466,6 +474,7 @@ class RelocIterator: public Malloced {
   void ReadTaggedPC();
   void AdvanceReadPC();
   void AdvanceReadId();
+  void AdvanceReadConstPoolData();
   void AdvanceReadPosition();
   void AdvanceReadData();
   void AdvanceReadVariableLengthPCJump();

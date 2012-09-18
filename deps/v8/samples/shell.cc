@@ -205,7 +205,7 @@ v8::Handle<v8::String> ReadFile(const char* name) {
   char* chars = new char[size + 1];
   chars[size] = '\0';
   for (int i = 0; i < size;) {
-    int read = fread(&chars[i], 1, size - i, file);
+    int read = static_cast<int>(fread(&chars[i], 1, size - i, file));
     i += read;
   }
   fclose(file);

@@ -53,9 +53,17 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 }
 
 
-static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
+static const int kInvalidRootRegisterDelta = -1;
+
+
+intptr_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
+  if (predictable_code_size() &&
+      (other.address() < reinterpret_cast<Address>(isolate()) ||
+       other.address() >= reinterpret_cast<Address>(isolate() + 1))) {
+    return kInvalidRootRegisterDelta;
+  }
   Address roots_register_value = kRootRegisterBias +
-      reinterpret_cast<Address>(isolate->heap()->roots_array_start());
+      reinterpret_cast<Address>(isolate()->heap()->roots_array_start());
   intptr_t delta = other.address() - roots_register_value;
   return delta;
 }
@@ -64,8 +72,8 @@ static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
 Operand MacroAssembler::ExternalOperand(ExternalReference target,
                                         Register scratch) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(target, isolate());
-    if (is_int32(delta)) {
+    intptr_t delta = RootRegisterDelta(target);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       return Operand(kRootRegister, static_cast<int32_t>(delta));
     }
@@ -77,8 +85,8 @@ Operand MacroAssembler::ExternalOperand(ExternalReference target,
 
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source, isolate());
-    if (is_int32(delta)) {
+    intptr_t delta = RootRegisterDelta(source);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       movq(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
@@ -96,8 +104,8 @@ void MacroAssembler::Load(Register destination, ExternalReference source) {
 
 void MacroAssembler::Store(ExternalReference destination, Register source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(destination, isolate());
-    if (is_int32(delta)) {
+    intptr_t delta = RootRegisterDelta(destination);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       movq(Operand(kRootRegister, static_cast<int32_t>(delta)), source);
       return;
@@ -116,8 +124,8 @@ void MacroAssembler::Store(ExternalReference destination, Register source) {
 void MacroAssembler::LoadAddress(Register destination,
                                  ExternalReference source) {
   if (root_array_available_ && !Serializer::enabled()) {
-    intptr_t delta = RootRegisterDelta(source, isolate());
-    if (is_int32(delta)) {
+    intptr_t delta = RootRegisterDelta(source);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       lea(destination, Operand(kRootRegister, static_cast<int32_t>(delta)));
       return;
@@ -133,8 +141,8 @@ int MacroAssembler::LoadAddressSize(ExternalReference source) {
     // This calculation depends on the internals of LoadAddress.
     // It's correctness is ensured by the asserts in the Call
     // instruction below.
-    intptr_t delta = RootRegisterDelta(source, isolate());
-    if (is_int32(delta)) {
+    intptr_t delta = RootRegisterDelta(source);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
       Serializer::TooLateToEnableNow();
       // Operand is lea(scratch, Operand(kRootRegister, delta));
       // Opcodes : REX.W 8D ModRM Disp8/Disp32  - 4 or 7.
@@ -216,7 +224,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register scratch,
                                          SaveFPRegsMode save_fp,
                                          RememberedSetFinalAction and_then) {
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, scratch, &ok, Label::kNear);
     int3();
@@ -397,7 +405,7 @@ void MacroAssembler::RecordWrite(Register object,
     return;
   }
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     cmpq(value, Operand(address, 0));
     j(equal, &ok, Label::kNear);
@@ -538,7 +546,7 @@ void MacroAssembler::Abort(const char* msg) {
 }
 
 
-void MacroAssembler::CallStub(CodeStub* stub, unsigned ast_id) {
+void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   ASSERT(AllowThisStubCall(stub));  // Calls are not allowed in some stubs
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);
 }
@@ -743,16 +751,51 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   Cmp(Operand(rsi, 0), factory->the_hole_value());
   j(not_equal, &promote_scheduled_exception);
 
+#if ENABLE_EXTRA_CHECKS
+  // Check if the function returned a valid JavaScript value.
+  Label ok;
+  Register return_value = rax;
+  Register map = rcx;
+
+  JumpIfSmi(return_value, &ok, Label::kNear);
+  movq(map, FieldOperand(return_value, HeapObject::kMapOffset));
+
+  CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+  j(below, &ok, Label::kNear);
+
+  CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+  j(above_equal, &ok, Label::kNear);
+
+  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kUndefinedValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kTrueValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kFalseValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  CompareRoot(return_value, Heap::kNullValueRootIndex);
+  j(equal, &ok, Label::kNear);
+
+  Abort("API call returned invalid object");
+
+  bind(&ok);
+#endif
+
   LeaveApiExitFrame();
   ret(stack_space * kPointerSize);
 
-  bind(&promote_scheduled_exception);
-  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
-
   bind(&empty_result);
   // It was zero; the result is undefined.
-  Move(rax, factory->undefined_value());
+  LoadRoot(rax, Heap::kUndefinedValueRootIndex);
   jmp(&prologue);
+
+  bind(&promote_scheduled_exception);
+  TailCallRuntime(Runtime::kPromoteScheduledException, 0, 1);
 
   // HandleScope limit has changed. Delete allocated extensions.
   bind(&delete_allocated_handles);
@@ -798,7 +841,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
 void MacroAssembler::GetBuiltinFunction(Register target,
                                         Builtins::JavaScript id) {
   // Load the builtins object into target register.
-  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  movq(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   movq(target, FieldOperand(target, GlobalObject::kBuiltinsOffset));
   movq(target, FieldOperand(target,
                             JSBuiltinsObject::OffsetOfFunctionWithId(id)));
@@ -891,6 +934,38 @@ void MacroAssembler::Set(const Operand& dst, int64_t x) {
     movq(dst, kScratchRegister);
   }
 }
+
+
+bool MacroAssembler::IsUnsafeInt(const int x) {
+  static const int kMaxBits = 17;
+  return !is_intn(x, kMaxBits);
+}
+
+
+void MacroAssembler::SafeMove(Register dst, Smi* src) {
+  ASSERT(!dst.is(kScratchRegister));
+  ASSERT(kSmiValueSize == 32);  // JIT cookie can be converted to Smi.
+  if (IsUnsafeInt(src->value()) && jit_cookie() != 0) {
+    Move(dst, Smi::FromInt(src->value() ^ jit_cookie()));
+    Move(kScratchRegister, Smi::FromInt(jit_cookie()));
+    xor_(dst, kScratchRegister);
+  } else {
+    Move(dst, src);
+  }
+}
+
+
+void MacroAssembler::SafePush(Smi* src) {
+  ASSERT(kSmiValueSize == 32);  // JIT cookie can be converted to Smi.
+  if (IsUnsafeInt(src->value()) && jit_cookie() != 0) {
+    Push(Smi::FromInt(src->value() ^ jit_cookie()));
+    Move(kScratchRegister, Smi::FromInt(jit_cookie()));
+    xor_(Operand(rsp, 0), kScratchRegister);
+  } else {
+    Push(src);
+  }
+}
+
 
 // ----------------------------------------------------------------------------
 // Smi tagging, untagging and tag detection.
@@ -2377,7 +2452,7 @@ void MacroAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 
 void MacroAssembler::Call(Handle<Code> code_object,
                           RelocInfo::Mode rmode,
-                          unsigned ast_id) {
+                          TypeFeedbackId ast_id) {
 #ifdef DEBUG
   int end_position = pc_offset() + CallSize(code_object);
 #endif
@@ -2458,6 +2533,12 @@ MacroAssembler::kSafepointPushRegisterIndices[Register::kNumRegisters] = {
     9,
     10
 };
+
+
+void MacroAssembler::StoreToSafepointRegisterSlot(Register dst,
+                                                  const Immediate& imm) {
+  movq(SafepointRegisterSlot(dst), imm);
+}
 
 
 void MacroAssembler::StoreToSafepointRegisterSlot(Register dst, Register src) {
@@ -2806,11 +2887,7 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
   xorps(temp_xmm_reg, temp_xmm_reg);
   ucomisd(input_reg, temp_xmm_reg);
   j(below, &done, Label::kNear);
-  uint64_t one_half = BitCast<uint64_t, double>(0.5);
-  Set(temp_reg, one_half);
-  movq(temp_xmm_reg, temp_reg);
-  addsd(temp_xmm_reg, input_reg);
-  cvttsd2si(result_reg, temp_xmm_reg);
+  cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
   Set(result_reg, 255);
@@ -2818,14 +2895,49 @@ void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
 }
 
 
+static double kUint32Bias =
+    static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
+
+
+void MacroAssembler::LoadUint32(XMMRegister dst,
+                                Register src,
+                                XMMRegister scratch) {
+  Label done;
+  cmpl(src, Immediate(0));
+  movq(kScratchRegister,
+       reinterpret_cast<int64_t>(&kUint32Bias),
+       RelocInfo::NONE);
+  movsd(scratch, Operand(kScratchRegister, 0));
+  cvtlsi2sd(dst, src);
+  j(not_sign, &done, Label::kNear);
+  addsd(dst, scratch);
+  bind(&done);
+}
+
+
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  movq(descriptors, FieldOperand(map,
-                                 Map::kInstanceDescriptorsOrBitField3Offset));
-  Label not_smi;
-  JumpIfNotSmi(descriptors, &not_smi, Label::kNear);
+  Register temp = descriptors;
+  movq(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
+
+  Label ok, fail;
+  CheckMap(temp,
+           isolate()->factory()->fixed_array_map(),
+           &fail,
+           DONT_DO_SMI_CHECK);
+  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
+  jmp(&ok);
+  bind(&fail);
   Move(descriptors, isolate()->factory()->empty_descriptor_array());
-  bind(&not_smi);
+  bind(&ok);
+}
+
+
+void MacroAssembler::EnumLength(Register dst, Register map) {
+  STATIC_ASSERT(Map::EnumLengthBits::kShift == 0);
+  movq(dst, FieldOperand(map, Map::kBitField3Offset));
+  Move(kScratchRegister, Smi::FromInt(Map::EnumLengthBits::kMask));
+  and_(dst, kScratchRegister);
 }
 
 
@@ -3395,20 +3507,21 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     cmpq(scratch, Immediate(0));
     Check(not_equal, "we should not have an empty lexical context");
   }
-  // Load the global context of the current context.
-  int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+  // Load the native context of the current context.
+  int offset =
+      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
   movq(scratch, FieldOperand(scratch, offset));
-  movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  movq(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     Cmp(FieldOperand(scratch, HeapObject::kMapOffset),
-        isolate()->factory()->global_context_map());
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+        isolate()->factory()->native_context_map());
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
   }
 
   // Check if both contexts are the same.
-  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+  cmpq(scratch, FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   j(equal, &same_contexts);
 
   // Compare security tokens.
@@ -3416,23 +3529,24 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // compatible with the security token in the receiving global
   // object.
 
-  // Check the context is a global context.
+  // Check the context is a native context.
   if (emit_debug_code()) {
     // Preserve original value of holder_reg.
     push(holder_reg);
-    movq(holder_reg, FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+    movq(holder_reg,
+         FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
     CompareRoot(holder_reg, Heap::kNullValueRootIndex);
     Check(not_equal, "JSGlobalProxy::context() should not be null.");
 
-    // Read the first word and compare to global_context_map(),
+    // Read the first word and compare to native_context_map(),
     movq(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
-    CompareRoot(holder_reg, Heap::kGlobalContextMapRootIndex);
-    Check(equal, "JSGlobalObject::global_context should be a global context.");
+    CompareRoot(holder_reg, Heap::kNativeContextMapRootIndex);
+    Check(equal, "JSGlobalObject::native_context should be a native context.");
     pop(holder_reg);
   }
 
   movq(kScratchRegister,
-       FieldOperand(holder_reg, JSGlobalProxy::kContextOffset));
+       FieldOperand(holder_reg, JSGlobalProxy::kNativeContextOffset));
   int token_offset =
       Context::kHeaderSize + Context::SECURITY_TOKEN_INDEX * kPointerSize;
   movq(scratch, FieldOperand(scratch, token_offset));
@@ -3954,7 +4068,7 @@ void MacroAssembler::CopyBytes(Register destination,
                                int min_length,
                                Register scratch) {
   ASSERT(min_length >= 0);
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     cmpl(length, Immediate(min_length));
     Assert(greater_equal, "Invalid min_length");
   }
@@ -4052,8 +4166,9 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register scratch,
     Label* no_map_match) {
   // Load the global or builtins object from the current context.
-  movq(scratch, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  movq(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
+  movq(scratch,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  movq(scratch, FieldOperand(scratch, GlobalObject::kNativeContextOffset));
 
   // Check that the function's map is the same as the expected cached map.
   movq(scratch, Operand(scratch,
@@ -4103,10 +4218,11 @@ static const int kRegisterPassedArguments = 6;
 
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
-  movq(function, Operand(rsi, Context::SlotOffset(Context::GLOBAL_INDEX)));
-  // Load the global context from the global or builtins object.
-  movq(function, FieldOperand(function, GlobalObject::kGlobalContextOffset));
-  // Load the function from the global context.
+  movq(function,
+       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  // Load the native context from the global or builtins object.
+  movq(function, FieldOperand(function, GlobalObject::kNativeContextOffset));
+  // Load the function from the native context.
   movq(function, Operand(function, Context::SlotOffset(index)));
 }
 
@@ -4331,7 +4447,7 @@ void MacroAssembler::EnsureNotWhite(
   testq(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
   j(not_zero, &done, Label::kNear);
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check for impossible bit pattern.
     Label ok;
     push(mask_scratch);
@@ -4406,44 +4522,38 @@ void MacroAssembler::EnsureNotWhite(
 
 
 void MacroAssembler::CheckEnumCache(Register null_value, Label* call_runtime) {
-  Label next;
+  Label next, start;
   Register empty_fixed_array_value = r8;
   LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
-  Register empty_descriptor_array_value = r9;
-  LoadRoot(empty_descriptor_array_value,
-              Heap::kEmptyDescriptorArrayRootIndex);
   movq(rcx, rax);
+
+  // Check if the enum length field is properly initialized, indicating that
+  // there is an enum cache.
+  movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
+
+  EnumLength(rdx, rbx);
+  Cmp(rdx, Smi::FromInt(Map::kInvalidEnumCache));
+  j(equal, call_runtime);
+
+  jmp(&start);
+
   bind(&next);
 
-  // Check that there are no elements.  Register rcx contains the
-  // current JS object we've reached through the prototype chain.
+  movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
+
+  // For all objects but the receiver, check that the cache is empty.
+  EnumLength(rdx, rbx);
+  Cmp(rdx, Smi::FromInt(0));
+  j(not_equal, call_runtime);
+
+  bind(&start);
+
+  // Check that there are no elements. Register rcx contains the current JS
+  // object we've reached through the prototype chain.
   cmpq(empty_fixed_array_value,
        FieldOperand(rcx, JSObject::kElementsOffset));
   j(not_equal, call_runtime);
 
-  // Check that instance descriptors are not empty so that we can
-  // check for an enum cache.  Leave the map in rbx for the subsequent
-  // prototype load.
-  movq(rbx, FieldOperand(rcx, HeapObject::kMapOffset));
-  movq(rdx, FieldOperand(rbx, Map::kInstanceDescriptorsOrBitField3Offset));
-  JumpIfSmi(rdx, call_runtime);
-
-  // Check that there is an enum cache in the non-empty instance
-  // descriptors (rdx).  This is the case if the next enumeration
-  // index field does not contain a smi.
-  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumerationIndexOffset));
-  JumpIfSmi(rdx, call_runtime);
-
-  // For all objects but the receiver, check that the cache is empty.
-  Label check_prototype;
-  cmpq(rcx, rax);
-  j(equal, &check_prototype, Label::kNear);
-  movq(rdx, FieldOperand(rdx, DescriptorArray::kEnumCacheBridgeCacheOffset));
-  cmpq(rdx, empty_fixed_array_value);
-  j(not_equal, call_runtime);
-
-  // Load the prototype from the map and loop if non-null.
-  bind(&check_prototype);
   movq(rcx, FieldOperand(rbx, Map::kPrototypeOffset));
   cmpq(rcx, null_value);
   j(not_equal, &next);

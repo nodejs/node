@@ -77,8 +77,7 @@ class FullCodeGenerator: public AstVisitor {
     TOS_REG
   };
 
-  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info,
-                    Zone* zone)
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
       : masm_(masm),
         info_(info),
         scope_(info->scope()),
@@ -87,12 +86,18 @@ class FullCodeGenerator: public AstVisitor {
         globals_(NULL),
         context_(NULL),
         bailout_entries_(info->HasDeoptimizationSupport()
-                         ? info->function()->ast_node_count() : 0, zone),
-        stack_checks_(2, zone),  // There's always at least one.
+                         ? info->function()->ast_node_count() : 0,
+                         info->zone()),
+        stack_checks_(2, info->zone()),  // There's always at least one.
         type_feedback_cells_(info->HasDeoptimizationSupport()
-                             ? info->function()->ast_node_count() : 0, zone),
+                             ? info->function()->ast_node_count() : 0,
+                             info->zone()),
         ic_total_count_(0),
-        zone_(zone) { }
+        zone_(info->zone()) {
+    Initialize();
+  }
+
+  void Initialize();
 
   static bool MakeCode(CompilationInfo* info);
 
@@ -111,6 +116,21 @@ class FullCodeGenerator: public AstVisitor {
   }
 
   Zone* zone() const { return zone_; }
+
+  static const int kMaxBackEdgeWeight = 127;
+
+#if V8_TARGET_ARCH_IA32
+  static const int kBackEdgeDistanceUnit = 100;
+#elif V8_TARGET_ARCH_X64
+  static const int kBackEdgeDistanceUnit = 162;
+#elif V8_TARGET_ARCH_ARM
+  static const int kBackEdgeDistanceUnit = 142;
+#elif V8_TARGET_ARCH_MIPS
+  static const int kBackEdgeDistanceUnit = 142;
+#else
+#error Unsupported target architecture.
+#endif
+
 
  private:
   class Breakable;
@@ -397,11 +417,12 @@ class FullCodeGenerator: public AstVisitor {
 
   // Bailout support.
   void PrepareForBailout(Expression* node, State state);
-  void PrepareForBailoutForId(unsigned id, State state);
+  void PrepareForBailoutForId(BailoutId id, State state);
 
   // Cache cell support.  This associates AST ids with global property cells
   // that will be cleared during GC and collected by the type-feedback oracle.
-  void RecordTypeFeedbackCell(unsigned id, Handle<JSGlobalPropertyCell> cell);
+  void RecordTypeFeedbackCell(TypeFeedbackId id,
+                              Handle<JSGlobalPropertyCell> cell);
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
@@ -428,7 +449,7 @@ class FullCodeGenerator: public AstVisitor {
   // of code inside the loop.
   void EmitStackCheck(IterationStatement* stmt, Label* back_edge_target);
   // Record the OSR AST id corresponding to a stack check in the code.
-  void RecordStackCheck(unsigned osr_ast_id);
+  void RecordStackCheck(BailoutId osr_ast_id);
   // Emit a table of stack check ids and pcs into the code stream.  Return
   // the offset of the start of the table.
   unsigned EmitStackCheckTable();
@@ -519,7 +540,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void CallIC(Handle<Code> code,
               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
-              unsigned ast_id = kNoASTId);
+              TypeFeedbackId id = TypeFeedbackId::None());
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -590,12 +611,12 @@ class FullCodeGenerator: public AstVisitor {
   Handle<FixedArray> handler_table() { return handler_table_; }
 
   struct BailoutEntry {
-    unsigned id;
+    BailoutId id;
     unsigned pc_and_state;
   };
 
   struct TypeFeedbackCellEntry {
-    unsigned ast_id;
+    TypeFeedbackId ast_id;
     Handle<JSGlobalPropertyCell> cell;
   };
 
@@ -790,6 +811,7 @@ class FullCodeGenerator: public AstVisitor {
   int ic_total_count_;
   Handle<FixedArray> handler_table_;
   Handle<JSGlobalPropertyCell> profiling_counter_;
+  bool generate_debug_code_;
   Zone* zone_;
 
   friend class NestedStatement;

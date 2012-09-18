@@ -284,4 +284,12 @@ extern bool FLAG_enable_slow_asserts;
 
 #define ASSERT_NOT_NULL(p)  ASSERT_NE(NULL, p)
 
+// "Extra checks" are lightweight checks that are enabled in some release
+// builds.
+#ifdef ENABLE_EXTRA_CHECKS
+#define EXTRA_CHECK(condition) CHECK(condition)
+#else
+#define EXTRA_CHECK(condition) ((void) 0)
+#endif
+
 #endif  // V8_CHECKS_H_

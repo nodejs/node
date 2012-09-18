@@ -250,18 +250,22 @@ static void Serialize() {
 
 // Test that the whole heap can be serialized.
 TEST(Serialize) {
-  Serializer::Enable();
-  v8::V8::Initialize();
-  Serialize();
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
+    Serializer::Enable();
+    v8::V8::Initialize();
+    Serialize();
+  }
 }
 
 
 // Test that heap serialization is non-destructive.
 TEST(SerializeTwice) {
-  Serializer::Enable();
-  v8::V8::Initialize();
-  Serialize();
-  Serialize();
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
+    Serializer::Enable();
+    v8::V8::Initialize();
+    Serialize();
+    Serialize();
+  }
 }
 
 
@@ -278,8 +282,8 @@ static void SanityCheck() {
 #ifdef DEBUG
   HEAP->Verify();
 #endif
-  CHECK(Isolate::Current()->global()->IsJSObject());
-  CHECK(Isolate::Current()->global_context()->IsContext());
+  CHECK(Isolate::Current()->global_object()->IsJSObject());
+  CHECK(Isolate::Current()->native_context()->IsContext());
   CHECK(HEAP->symbol_table()->IsSymbolTable());
   CHECK(!FACTORY->LookupAsciiSymbol("Empty")->IsFailure());
 }
@@ -289,7 +293,7 @@ DEPENDENT_TEST(Deserialize, Serialize) {
   // The serialize-deserialize tests only work if the VM is built without
   // serialization.  That doesn't matter.  We don't need to be able to
   // serialize a snapshot in a VM that is booted from a snapshot.
-  if (!Snapshot::IsEnabled()) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
     v8::HandleScope scope;
     Deserialize();
 
@@ -302,7 +306,7 @@ DEPENDENT_TEST(Deserialize, Serialize) {
 
 
 DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
-  if (!Snapshot::IsEnabled()) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
     v8::HandleScope scope;
     Deserialize();
 
@@ -315,7 +319,7 @@ DEPENDENT_TEST(DeserializeFromSecondSerialization, SerializeTwice) {
 
 
 DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
-  if (!Snapshot::IsEnabled()) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
     v8::HandleScope scope;
     Deserialize();
 
@@ -332,7 +336,7 @@ DEPENDENT_TEST(DeserializeAndRunScript2, Serialize) {
 
 DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
                SerializeTwice) {
-  if (!Snapshot::IsEnabled()) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
     v8::HandleScope scope;
     Deserialize();
 
@@ -348,52 +352,55 @@ DEPENDENT_TEST(DeserializeFromSecondSerializationAndRunScript2,
 
 
 TEST(PartialSerialization) {
-  Serializer::Enable();
-  v8::V8::Initialize();
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
+    Serializer::Enable();
+    v8::V8::Initialize();
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  ASSERT(!env.IsEmpty());
-  env->Enter();
-  // Make sure all builtin scripts are cached.
-  { HandleScope scope;
-    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-      Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+    v8::Persistent<v8::Context> env = v8::Context::New();
+    ASSERT(!env.IsEmpty());
+    env->Enter();
+    // Make sure all builtin scripts are cached.
+    { HandleScope scope;
+      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+        Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+      }
     }
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+    Object* raw_foo;
+    {
+      v8::HandleScope handle_scope;
+      v8::Local<v8::String> foo = v8::String::New("foo");
+      ASSERT(!foo.IsEmpty());
+      raw_foo = *(v8::Utils::OpenHandle(*foo));
+    }
+
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+    env->Exit();
+    env.Dispose();
+
+    FileByteSink startup_sink(startup_name.start());
+    startup_name.Dispose();
+    StartupSerializer startup_serializer(&startup_sink);
+    startup_serializer.SerializeStrongReferences();
+
+    FileByteSink partial_sink(FLAG_testing_serialization_file);
+    PartialSerializer p_ser(&startup_serializer, &partial_sink);
+    p_ser.Serialize(&raw_foo);
+    startup_serializer.SerializeWeakReferences();
+    partial_sink.WriteSpaceUsed(
+        p_ser.CurrentAllocationAddress(NEW_SPACE),
+        p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+        p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+        p_ser.CurrentAllocationAddress(CODE_SPACE),
+        p_ser.CurrentAllocationAddress(MAP_SPACE),
+        p_ser.CurrentAllocationAddress(CELL_SPACE),
+        p_ser.CurrentAllocationAddress(LO_SPACE));
   }
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-
-  Object* raw_foo;
-  {
-    v8::HandleScope handle_scope;
-    v8::Local<v8::String> foo = v8::String::New("foo");
-    ASSERT(!foo.IsEmpty());
-    raw_foo = *(v8::Utils::OpenHandle(*foo));
-  }
-
-  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
-
-  env->Exit();
-  env.Dispose();
-
-  FileByteSink startup_sink(startup_name.start());
-  startup_name.Dispose();
-  StartupSerializer startup_serializer(&startup_sink);
-  startup_serializer.SerializeStrongReferences();
-
-  FileByteSink partial_sink(FLAG_testing_serialization_file);
-  PartialSerializer p_ser(&startup_serializer, &partial_sink);
-  p_ser.Serialize(&raw_foo);
-  startup_serializer.SerializeWeakReferences();
-  partial_sink.WriteSpaceUsed(p_ser.CurrentAllocationAddress(NEW_SPACE),
-                              p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-                              p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-                              p_ser.CurrentAllocationAddress(CODE_SPACE),
-                              p_ser.CurrentAllocationAddress(MAP_SPACE),
-                              p_ser.CurrentAllocationAddress(CELL_SPACE),
-                              p_ser.CurrentAllocationAddress(LO_SPACE));
 }
 
 
@@ -471,53 +478,56 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
 
 
 TEST(ContextSerialization) {
-  Serializer::Enable();
-  v8::V8::Initialize();
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
+    Serializer::Enable();
+    v8::V8::Initialize();
 
-  v8::Persistent<v8::Context> env = v8::Context::New();
-  ASSERT(!env.IsEmpty());
-  env->Enter();
-  // Make sure all builtin scripts are cached.
-  { HandleScope scope;
-    for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-      Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+    v8::Persistent<v8::Context> env = v8::Context::New();
+    ASSERT(!env.IsEmpty());
+    env->Enter();
+    // Make sure all builtin scripts are cached.
+    { HandleScope scope;
+      for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
+        Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
+      }
     }
+    // If we don't do this then we end up with a stray root pointing at the
+    // context even after we have disposed of env.
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+
+    int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
+    Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
+    OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
+
+    env->Exit();
+
+    Object* raw_context = *(v8::Utils::OpenHandle(*env));
+
+    env.Dispose();
+
+    FileByteSink startup_sink(startup_name.start());
+    startup_name.Dispose();
+    StartupSerializer startup_serializer(&startup_sink);
+    startup_serializer.SerializeStrongReferences();
+
+    FileByteSink partial_sink(FLAG_testing_serialization_file);
+    PartialSerializer p_ser(&startup_serializer, &partial_sink);
+    p_ser.Serialize(&raw_context);
+    startup_serializer.SerializeWeakReferences();
+    partial_sink.WriteSpaceUsed(
+        p_ser.CurrentAllocationAddress(NEW_SPACE),
+        p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+        p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+        p_ser.CurrentAllocationAddress(CODE_SPACE),
+        p_ser.CurrentAllocationAddress(MAP_SPACE),
+        p_ser.CurrentAllocationAddress(CELL_SPACE),
+        p_ser.CurrentAllocationAddress(LO_SPACE));
   }
-  // If we don't do this then we end up with a stray root pointing at the
-  // context even after we have disposed of env.
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
-
-  int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
-  Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
-  OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
-
-  env->Exit();
-
-  Object* raw_context = *(v8::Utils::OpenHandle(*env));
-
-  env.Dispose();
-
-  FileByteSink startup_sink(startup_name.start());
-  startup_name.Dispose();
-  StartupSerializer startup_serializer(&startup_sink);
-  startup_serializer.SerializeStrongReferences();
-
-  FileByteSink partial_sink(FLAG_testing_serialization_file);
-  PartialSerializer p_ser(&startup_serializer, &partial_sink);
-  p_ser.Serialize(&raw_context);
-  startup_serializer.SerializeWeakReferences();
-  partial_sink.WriteSpaceUsed(p_ser.CurrentAllocationAddress(NEW_SPACE),
-                              p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-                              p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-                              p_ser.CurrentAllocationAddress(CODE_SPACE),
-                              p_ser.CurrentAllocationAddress(MAP_SPACE),
-                              p_ser.CurrentAllocationAddress(CELL_SPACE),
-                              p_ser.CurrentAllocationAddress(LO_SPACE));
 }
 
 
 DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
-  if (!Snapshot::IsEnabled()) {
+  if (!Snapshot::HaveASnapshotToStartFrom()) {
     int file_name_length = StrLength(FLAG_testing_serialization_file) + 10;
     Vector<char> startup_name = Vector<char>::New(file_name_length + 1);
     OS::SNPrintF(startup_name, "%s.startup", FLAG_testing_serialization_file);
@@ -574,6 +584,7 @@ TEST(LinearAllocation) {
         HEAP->cell_space()->RoundSizeDownToObjectAlignment(paged_space_size),
         size);             // Large object space.
     LinearAllocationScope linear_allocation_scope;
+    DisallowAllocationFailure disallow_allocation_failure;
     const int kSmallFixedArrayLength = 4;
     const int kSmallFixedArraySize =
         FixedArray::kHeaderSize + kSmallFixedArrayLength * kPointerSize;

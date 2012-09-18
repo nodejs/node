@@ -469,7 +469,7 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
       Add("(Function context is outside heap)\n");
       return;
     }
-    Object* token = context->global_context()->security_token();
+    Object* token = context->native_context()->security_token();
     if (token != isolate->string_stream_current_security_token()) {
       Add("Security context: %o\n", token);
       isolate->set_string_stream_current_security_token(token);

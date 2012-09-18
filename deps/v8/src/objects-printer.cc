@@ -273,18 +273,12 @@ void JSObject::PrintProperties(FILE* out) {
           descs->GetCallbacksObject(i)->ShortPrint(out);
           PrintF(out, " (callback)\n");
           break;
-        case MAP_TRANSITION:
-          PrintF(out, "(map transition)\n");
-          break;
-        case CONSTANT_TRANSITION:
-          PrintF(out, "(constant transition)\n");
-          break;
-        case NULL_DESCRIPTOR:
-          PrintF(out, "(null descriptor)\n");
-          break;
         case NORMAL:  // only in slow mode
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
+        // There are no transitions in the descriptor array.
+        case TRANSITION:
+        case NONEXISTENT:
           UNREACHABLE();
           break;
       }
@@ -410,6 +404,37 @@ void JSObject::PrintElements(FILE* out) {
 }
 
 
+void JSObject::PrintTransitions(FILE* out) {
+  if (!map()->HasTransitionArray()) return;
+  TransitionArray* transitions = map()->transitions();
+  for (int i = 0; i < transitions->number_of_transitions(); i++) {
+    PrintF(out, "   ");
+    transitions->GetKey(i)->StringPrint(out);
+    PrintF(out, ": ");
+    switch (transitions->GetTargetDetails(i).type()) {
+      case FIELD: {
+        PrintF(out, " (transition to field)\n");
+        break;
+      }
+      case CONSTANT_FUNCTION:
+        PrintF(out, " (transition to constant function)\n");
+        break;
+      case CALLBACKS:
+        PrintF(out, " (transition to callback)\n");
+        break;
+      // Values below are never in the target descriptor array.
+      case NORMAL:
+      case HANDLER:
+      case INTERCEPTOR:
+      case TRANSITION:
+      case NONEXISTENT:
+        UNREACHABLE();
+        break;
+    }
+  }
+}
+
+
 void JSObject::JSObjectPrint(FILE* out) {
   PrintF(out, "%p: [JSObject]\n", reinterpret_cast<void*>(this));
   PrintF(out, " - map = %p [", reinterpret_cast<void*>(map()));
@@ -419,11 +444,9 @@ void JSObject::JSObjectPrint(FILE* out) {
   PrintF(out,
          "]\n - prototype = %p\n",
          reinterpret_cast<void*>(GetPrototype()));
-  PrintF(out,
-         " - elements transition to = %p\n",
-         reinterpret_cast<void*>(map()->elements_transition_map()));
   PrintF(out, " {\n");
   PrintProperties(out);
+  PrintTransitions(out);
   PrintElements(out);
   PrintF(out, " }\n");
 }
@@ -434,6 +457,8 @@ void JSModule::JSModulePrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - context = ");
   context()->Print(out);
+  PrintF(out, " - scope_info = ");
+  scope_info()->ShortPrint(out);
   PrintElementsKind(out, this->map()->elements_kind());
   PrintF(out, " {\n");
   PrintProperties(out);
@@ -539,6 +564,10 @@ void Map::MapPrint(FILE* out) {
   }
   PrintF(out, " - instance descriptors: ");
   instance_descriptors()->ShortPrint(out);
+  if (HasTransitionArray()) {
+    PrintF(out, "\n - transitions: ");
+    transitions()->ShortPrint(out);
+  }
   PrintF(out, "\n - prototype: ");
   prototype()->ShortPrint(out);
   PrintF(out, "\n - constructor: ");
@@ -567,9 +596,9 @@ void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
 
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "TypeFeedbackInfo");
-  PrintF(out, "\n - ic_total_count: %d, ic_with_type_info_count: %d",
+  PrintF(out, " - ic_total_count: %d, ic_with_type_info_count: %d\n",
          ic_total_count(), ic_with_type_info_count());
-  PrintF(out, "\n - type_feedback_cells: ");
+  PrintF(out, " - type_feedback_cells: ");
   type_feedback_cells()->FixedArrayPrint(out);
 }
 
@@ -741,6 +770,8 @@ void JSFunction::JSFunctionPrint(FILE* out) {
   shared()->name()->Print(out);
   PrintF(out, "\n - context = ");
   unchecked_context()->ShortPrint(out);
+  PrintF(out, "\n - literals = ");
+  literals()->ShortPrint(out);
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
   PrintF(out, "\n");
@@ -761,8 +792,17 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
   instance_class_name()->Print(out);
   PrintF(out, "\n - code = ");
   code()->ShortPrint(out);
-  PrintF(out, "\n - source code = ");
-  GetSourceCode()->ShortPrint(out);
+  if (HasSourceCode()) {
+    PrintF(out, "\n - source code = ");
+    String* source = String::cast(Script::cast(script())->source());
+    int start = start_position();
+    int length = end_position() - start;
+    SmartArrayPointer<char> source_string =
+        source->ToCString(DISALLOW_NULLS,
+                          FAST_STRING_TRAVERSAL,
+                          start, length, NULL);
+    PrintF(out, "%s", *source_string);
+  }
   // Script files are often large, hard to read.
   // PrintF(out, "\n - script =");
   // script()->Print(out);
@@ -782,10 +822,10 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(FILE* out) {
 
 
 void JSGlobalProxy::JSGlobalProxyPrint(FILE* out) {
-  PrintF(out, "global_proxy");
+  PrintF(out, "global_proxy ");
   JSObjectPrint(out);
-  PrintF(out, "context : ");
-  context()->ShortPrint(out);
+  PrintF(out, "native context : ");
+  native_context()->ShortPrint(out);
   PrintF(out, "\n");
 }
 
@@ -793,8 +833,8 @@ void JSGlobalProxy::JSGlobalProxyPrint(FILE* out) {
 void JSGlobalObject::JSGlobalObjectPrint(FILE* out) {
   PrintF(out, "global ");
   JSObjectPrint(out);
-  PrintF(out, "global context : ");
-  global_context()->ShortPrint(out);
+  PrintF(out, "native context : ");
+  native_context()->ShortPrint(out);
   PrintF(out, "\n");
 }
 
@@ -1017,6 +1057,37 @@ void DescriptorArray::PrintDescriptors(FILE* out) {
     Descriptor desc;
     Get(i, &desc);
     desc.Print(out);
+  }
+  PrintF(out, "\n");
+}
+
+
+void TransitionArray::PrintTransitions(FILE* out) {
+  PrintF(out, "Transition array  %d\n", number_of_transitions());
+  for (int i = 0; i < number_of_transitions(); i++) {
+    PrintF(out, " %d: ", i);
+    GetKey(i)->StringPrint(out);
+    PrintF(out, ": ");
+    switch (GetTargetDetails(i).type()) {
+      case FIELD: {
+        PrintF(out, " (transition to field)\n");
+        break;
+      }
+      case CONSTANT_FUNCTION:
+        PrintF(out, " (transition to constant function)\n");
+        break;
+      case CALLBACKS:
+        PrintF(out, " (transition to callback)\n");
+        break;
+      // Values below are never in the target descriptor array.
+      case NORMAL:
+      case HANDLER:
+      case INTERCEPTOR:
+      case TRANSITION:
+      case NONEXISTENT:
+        UNREACHABLE();
+        break;
+    }
   }
   PrintF(out, "\n");
 }

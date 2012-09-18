@@ -40,7 +40,7 @@ namespace internal {
 
 
 inline void* Zone::New(int size) {
-  ASSERT(ZoneScope::nesting() > 0);
+  ASSERT(scope_nesting_ > 0);
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
 
@@ -100,7 +100,7 @@ void* ZoneObject::operator new(size_t size, Zone* zone) {
 
 inline void* ZoneAllocationPolicy::New(size_t size) {
   ASSERT(zone_);
-  return zone_->New(size);
+  return zone_->New(static_cast<int>(size));
 }
 
 
@@ -110,19 +110,14 @@ void* ZoneList<T>::operator new(size_t size, Zone* zone) {
 }
 
 
-ZoneScope::ZoneScope(Isolate* isolate, ZoneScopeMode mode)
-    : isolate_(isolate), mode_(mode) {
-  isolate_->zone()->scope_nesting_++;
+ZoneScope::ZoneScope(Zone* zone, ZoneScopeMode mode)
+    : zone_(zone), mode_(mode) {
+  zone_->scope_nesting_++;
 }
 
 
 bool ZoneScope::ShouldDeleteOnExit() {
-  return isolate_->zone()->scope_nesting_ == 1 && mode_ == DELETE_ON_EXIT;
-}
-
-
-int ZoneScope::nesting() {
-  return Isolate::Current()->zone()->scope_nesting_;
+  return zone_->scope_nesting_ == 1 && mode_ == DELETE_ON_EXIT;
 }
 
 

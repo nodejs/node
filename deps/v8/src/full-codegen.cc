@@ -36,6 +36,7 @@
 #include "prettyprinter.h"
 #include "scopes.h"
 #include "scopeinfo.h"
+#include "snapshot.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -303,7 +304,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   masm.positions_recorder()->StartGDBJITLineInfoRecording();
 #endif
 
-  FullCodeGenerator cgen(&masm, info, isolate->zone());
+  FullCodeGenerator cgen(&masm, info);
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     ASSERT(!isolate->has_pending_exception());
@@ -315,7 +316,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable() &&
                         !info->function()->flags()->Contains(kDontOptimize) &&
-                        info->function()->scope()->AllowsLazyRecompilation());
+                        info->function()->scope()->AllowsLazyCompilation());
   cgen.PopulateDeoptimizationData(code);
   cgen.PopulateTypeFeedbackInfo(code);
   cgen.PopulateTypeFeedbackCells(code);
@@ -352,7 +353,7 @@ unsigned FullCodeGenerator::EmitStackCheckTable() {
   unsigned length = stack_checks_.length();
   __ dd(length);
   for (unsigned i = 0; i < length; ++i) {
-    __ dd(stack_checks_[i].id);
+    __ dd(stack_checks_[i].id.ToInt());
     __ dd(stack_checks_[i].pc_and_state);
   }
   return offset;
@@ -367,7 +368,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   Handle<DeoptimizationOutputData> data = isolate()->factory()->
       NewDeoptimizationOutputData(length, TENURED);
   for (int i = 0; i < length; i++) {
-    data->SetAstId(i, Smi::FromInt(bailout_entries_[i].id));
+    data->SetAstId(i, bailout_entries_[i].id);
     data->SetPcAndState(i, Smi::FromInt(bailout_entries_[i].pc_and_state));
   }
   code->set_deoptimization_data(*data);
@@ -382,6 +383,20 @@ void FullCodeGenerator::PopulateTypeFeedbackInfo(Handle<Code> code) {
 }
 
 
+void FullCodeGenerator::Initialize() {
+  // The generation of debug code must match between the snapshot code and the
+  // code that is generated later.  This is assumed by the debugger when it is
+  // calculating PC offsets after generating a debug version of code.  Therefore
+  // we disable the production of debug code in the full compiler if we are
+  // either generating a snapshot or we booted from a snapshot.
+  generate_debug_code_ = FLAG_debug_code &&
+                         !Serializer::enabled() &&
+                         !Snapshot::HaveASnapshotToStartFrom();
+  masm_->set_emit_debug_code(generate_debug_code_);
+  masm_->set_predictable_code_size(true);
+}
+
+
 void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
   if (type_feedback_cells_.is_empty()) return;
   int length = type_feedback_cells_.length();
@@ -389,7 +404,7 @@ void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
   Handle<TypeFeedbackCells> cache = Handle<TypeFeedbackCells>::cast(
       isolate()->factory()->NewFixedArray(array_size, TENURED));
   for (int i = 0; i < length; i++) {
-    cache->SetAstId(i, Smi::FromInt(type_feedback_cells_[i].ast_id));
+    cache->SetAstId(i, type_feedback_cells_[i].ast_id);
     cache->SetCell(i, *type_feedback_cells_[i].cell);
   }
   TypeFeedbackInfo::cast(code->type_feedback_info())->set_type_feedback_cells(
@@ -420,7 +435,7 @@ void FullCodeGenerator::RecordJSReturnSite(Call* call) {
 }
 
 
-void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
+void FullCodeGenerator::PrepareForBailoutForId(BailoutId id, State state) {
   // There's no need to prepare this code for bailouts from already optimized
   // code or code that can't be optimized.
   if (!info_->HasDeoptimizationSupport()) return;
@@ -445,13 +460,13 @@ void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
 
 
 void FullCodeGenerator::RecordTypeFeedbackCell(
-    unsigned id, Handle<JSGlobalPropertyCell> cell) {
+    TypeFeedbackId id, Handle<JSGlobalPropertyCell> cell) {
   TypeFeedbackCellEntry entry = { id, cell };
   type_feedback_cells_.Add(entry, zone());
 }
 
 
-void FullCodeGenerator::RecordStackCheck(unsigned ast_id) {
+void FullCodeGenerator::RecordStackCheck(BailoutId ast_id) {
   // The pc offset does not need to be encoded and packed together with a
   // state.
   ASSERT(masm_->pc_offset() > 0);
@@ -589,27 +604,20 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
-  Handle<JSModule> instance = module->interface()->Instance();
-  ASSERT(!instance.is_null());
-
   // Allocate a module context statically.
   Block* block = module->body();
   Scope* saved_scope = scope();
   scope_ = block->scope();
-  Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+  Interface* interface = module->interface();
+  Handle<JSModule> instance = interface->Instance();
 
-  // Generate code for module creation and linking.
   Comment cmnt(masm_, "[ ModuleLiteral");
   SetStatementPosition(block);
 
-  if (scope_info->HasContext()) {
-    // Set up module context.
-    __ Push(scope_info);
-    __ Push(instance);
-    __ CallRuntime(Runtime::kPushModuleContext, 2);
-    StoreToFrameField(
-        StandardFrameConstants::kContextOffset, context_register());
-  }
+  // Set up module context.
+  __ Push(instance);
+  __ CallRuntime(Runtime::kPushModuleContext, 1);
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 
   {
     Comment cmnt(masm_, "[ Declarations");
@@ -617,42 +625,21 @@ void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
   }
 
   scope_ = saved_scope;
-  if (scope_info->HasContext()) {
-    // Pop module context.
-    LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-    // Update local stack frame context field.
-    StoreToFrameField(
-        StandardFrameConstants::kContextOffset, context_register());
-  }
-
-  // Populate module instance object.
-  const PropertyAttributes attr =
-      static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE | DONT_ENUM);
-  for (Interface::Iterator it = module->interface()->iterator();
-       !it.done(); it.Advance()) {
-    if (it.interface()->IsModule()) {
-      Handle<Object> value = it.interface()->Instance();
-      ASSERT(!value.is_null());
-      JSReceiver::SetProperty(instance, it.name(), value, attr, kStrictMode);
-    } else {
-      // TODO(rossberg): set proper getters instead of undefined...
-      // instance->DefineAccessor(*it.name(), ACCESSOR_GETTER, *getter, attr);
-      Handle<Object> value(isolate()->heap()->undefined_value());
-      JSReceiver::SetProperty(instance, it.name(), value, attr, kStrictMode);
-    }
-  }
-  USE(instance->PreventExtensions());
+  // Pop module context.
+  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+  // Update local stack frame context field.
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
 
 void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
-  // Noting to do.
+  // Nothing to do.
   // The instance object is resolved statically through the module's interface.
 }
 
 
 void FullCodeGenerator::VisitModulePath(ModulePath* module) {
-  // Noting to do.
+  // Nothing to do.
   // The instance object is resolved statically through the module's interface.
 }
 
@@ -822,7 +809,7 @@ void FullCodeGenerator::VisitLogicalExpression(BinaryOperation* expr) {
   Comment cmnt(masm_, is_logical_and ? "[ Logical AND" :  "[ Logical OR");
   Expression* left = expr->left();
   Expression* right = expr->right();
-  int right_id = expr->RightId();
+  BailoutId right_id = expr->RightId();
   Label done;
 
   if (context()->IsTest()) {
@@ -916,25 +903,36 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   Scope* saved_scope = scope();
   // Push a block context when entering a block with block scoped variables.
   if (stmt->scope() != NULL) {
-    { Comment cmnt(masm_, "[ Extend block context");
-      scope_ = stmt->scope();
-      Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
-      int heap_slots = scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
-      __ Push(scope_info);
-      PushFunctionArgumentForContextAllocation();
-      if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
-        FastNewBlockContextStub stub(heap_slots);
-        __ CallStub(&stub);
-      } else {
-        __ CallRuntime(Runtime::kPushBlockContext, 2);
-      }
+    scope_ = stmt->scope();
+    if (scope_->is_module_scope()) {
+      // If this block is a module body, then we have already allocated and
+      // initialized the declarations earlier. Just push the context.
+      ASSERT(!scope_->interface()->Instance().is_null());
+      __ Push(scope_->interface()->Instance());
+      __ CallRuntime(Runtime::kPushModuleContext, 1);
+      StoreToFrameField(
+          StandardFrameConstants::kContextOffset, context_register());
+    } else {
+      { Comment cmnt(masm_, "[ Extend block context");
+        Handle<ScopeInfo> scope_info = scope_->GetScopeInfo();
+        int heap_slots =
+            scope_info->ContextLength() - Context::MIN_CONTEXT_SLOTS;
+        __ Push(scope_info);
+        PushFunctionArgumentForContextAllocation();
+        if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
+          FastNewBlockContextStub stub(heap_slots);
+          __ CallStub(&stub);
+        } else {
+          __ CallRuntime(Runtime::kPushBlockContext, 2);
+        }
 
-      // Replace the context stored in the frame.
-      StoreToFrameField(StandardFrameConstants::kContextOffset,
-                        context_register());
-    }
-    { Comment cmnt(masm_, "[ Declarations");
-      VisitDeclarations(scope_->declarations());
+        // Replace the context stored in the frame.
+        StoreToFrameField(StandardFrameConstants::kContextOffset,
+                          context_register());
+      }
+      { Comment cmnt(masm_, "[ Declarations");
+        VisitDeclarations(scope_->declarations());
+      }
     }
   }
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);

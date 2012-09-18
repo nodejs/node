@@ -53,6 +53,13 @@
 #include <errno.h>
 #include <stdarg.h>
 
+// GLibc on ARM defines mcontext_t has a typedef for 'struct sigcontext'.
+// Old versions of the C library <signal.h> didn't define the type.
+#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T) && \
+    defined(__arm__) && !defined(__BIONIC_HAVE_STRUCT_SIGCONTEXT)
+#include <asm/sigcontext.h>
+#endif
+
 #undef MAP_TYPE
 
 #include "v8.h"
@@ -132,6 +139,9 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
   // facility is universally available on the ARM architectures,
   // so it's up to individual OSes to provide such.
   switch (feature) {
+    case VFP2:
+      search_string = "vfp";
+      break;
     case VFP3:
       search_string = "vfpv3";
       break;
@@ -161,48 +171,43 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
 }
 
 
-// Simple helper function to detect whether the C code is compiled with
-// option -mfloat-abi=hard. The register d0 is loaded with 1.0 and the register
-// pair r0, r1 is loaded with 0.0. If -mfloat-abi=hard is pased to GCC then
-// calling this will return 1.0 and otherwise 0.0.
-static void ArmUsingHardFloatHelper() {
-  asm("mov r0, #0":::"r0");
-#if defined(__VFP_FP__) && !defined(__SOFTFP__)
-  // Load 0x3ff00000 into r1 using instructions available in both ARM
-  // and Thumb mode.
-  asm("mov r1, #3":::"r1");
-  asm("mov r2, #255":::"r2");
-  asm("lsl r1, r1, #8":::"r1");
-  asm("orr r1, r1, r2":::"r1");
-  asm("lsl r1, r1, #20":::"r1");
-  // For vmov d0, r0, r1 use ARM mode.
-#ifdef __thumb__
-  asm volatile(
-    "@   Enter ARM Mode  \n\t"
-    "    adr r3, 1f      \n\t"
-    "    bx  r3          \n\t"
-    "    .ALIGN 4        \n\t"
-    "    .ARM            \n"
-    "1:  vmov d0, r0, r1 \n\t"
-    "@   Enter THUMB Mode\n\t"
-    "    adr r3, 2f+1    \n\t"
-    "    bx  r3          \n\t"
-    "    .THUMB          \n"
-    "2:                  \n\t":::"r3");
-#else
-  asm("vmov d0, r0, r1");
-#endif  // __thumb__
-#endif  // defined(__VFP_FP__) && !defined(__SOFTFP__)
-  asm("mov r1, #0":::"r1");
-}
-
-
 bool OS::ArmUsingHardFloat() {
-  // Cast helper function from returning void to returning double.
-  typedef double (*F)();
-  F f = FUNCTION_CAST<F>(FUNCTION_ADDR(ArmUsingHardFloatHelper));
-  return f() == 1.0;
+  // GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
+  // the Floating Point ABI used (PCS stands for Procedure Call Standard).
+  // We use these as well as a couple of other defines to statically determine
+  // what FP ABI used.
+  // GCC versions 4.4 and below don't support hard-fp.
+  // GCC versions 4.5 may support hard-fp without defining __ARM_PCS or
+  // __ARM_PCS_VFP.
+
+#define GCC_VERSION (__GNUC__ * 10000                                          \
+                     + __GNUC_MINOR__ * 100                                    \
+                     + __GNUC_PATCHLEVEL__)
+#if GCC_VERSION >= 40600
+#if defined(__ARM_PCS_VFP)
+  return true;
+#else
+  return false;
+#endif
+
+#elif GCC_VERSION < 40500
+  return false;
+
+#else
+#if defined(__ARM_PCS_VFP)
+  return true;
+#elif defined(__ARM_PCS) || defined(__SOFTFP) || !defined(__VFP_FP__)
+  return false;
+#else
+#error "Your version of GCC does not report the FP ABI compiled for."          \
+       "Please report it on this issue"                                        \
+       "http://code.google.com/p/v8/issues/detail?id=2140"
+
+#endif
+#endif
+#undef GCC_VERSION
 }
+
 #endif  // def __arm__
 
 
@@ -507,9 +512,6 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-static const char kGCFakeMmap[] = "/tmp/__v8_gc__";
-
-
 void OS::SignalCodeMovingGC() {
   // Support for ll_prof.py.
   //
@@ -520,7 +522,7 @@ void OS::SignalCodeMovingGC() {
   // by the kernel and allows us to synchronize V8 code log and the
   // kernel log.
   int size = sysconf(_SC_PAGESIZE);
-  FILE* f = fopen(kGCFakeMmap, "w+");
+  FILE* f = fopen(FLAG_gc_fake_mmap, "w+");
   void* addr = mmap(OS::GetRandomMmapAddr(),
                     size,
                     PROT_READ | PROT_EXEC,
@@ -909,32 +911,30 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-#if !defined(__GLIBC__) && (defined(__arm__) || defined(__thumb__))
-// Android runs a fairly new Linux kernel, so signal info is there,
-// but the C library doesn't have the structs defined.
+#if defined(__ANDROID__) && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
-struct sigcontext {
-  uint32_t trap_no;
-  uint32_t error_code;
-  uint32_t oldmask;
-  uint32_t gregs[16];
-  uint32_t arm_cpsr;
-  uint32_t fault_address;
-};
-typedef uint32_t __sigset_t;
+// Not all versions of Android's C library provide ucontext_t.
+// Detect this and provide custom but compatible definitions. Note that these
+// follow the GLibc naming convention to access register values from
+// mcontext_t.
+//
+// See http://code.google.com/p/android/issues/detail?id=34784
+
+#if defined(__arm__)
+
 typedef struct sigcontext mcontext_t;
+
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
+  // Other fields are not used by V8, don't define them here.
 } ucontext_t;
-enum ArmRegisters {R15 = 15, R13 = 13, R11 = 11};
 
-#elif !defined(__GLIBC__) && defined(__mips__)
+#elif defined(__mips__)
 // MIPS version of sigcontext, for Android bionic.
-struct sigcontext {
+typedef struct {
   uint32_t regmask;
   uint32_t status;
   uint64_t pc;
@@ -953,44 +953,44 @@ struct sigcontext {
   uint32_t lo2;
   uint32_t hi3;
   uint32_t lo3;
-};
-typedef uint32_t __sigset_t;
-typedef struct sigcontext mcontext_t;
+} mcontext_t;
+
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
+  // Other fields are not used by V8, don't define them here.
 } ucontext_t;
 
-#elif !defined(__GLIBC__) && defined(__i386__)
+#elif defined(__i386__)
 // x86 version for Android.
-struct sigcontext {
+typedef struct {
   uint32_t gregs[19];
   void* fpregs;
   uint32_t oldmask;
   uint32_t cr2;
-};
+} mcontext_t;
 
-typedef uint32_t __sigset_t;
-typedef struct sigcontext mcontext_t;
+typedef uint32_t kernel_sigset_t[2];  // x86 kernel uses 64-bit signal masks
 typedef struct ucontext {
   uint32_t uc_flags;
   struct ucontext* uc_link;
   stack_t uc_stack;
   mcontext_t uc_mcontext;
-  __sigset_t uc_sigmask;
+  // Other fields are not used by V8, don't define them here.
 } ucontext_t;
 enum { REG_EBP = 6, REG_ESP = 7, REG_EIP = 14 };
 #endif
 
+#endif  // __ANDROID__ && !defined(__BIONIC_HAVE_UCONTEXT_T)
 
 static int GetThreadID() {
-  // Glibc doesn't provide a wrapper for gettid(2).
-#if defined(ANDROID)
-  return syscall(__NR_gettid);
+#if defined(__ANDROID__)
+  // Android's C library provides gettid(2).
+  return gettid();
 #else
+  // Glibc doesn't provide a wrapper for gettid(2).
   return syscall(SYS_gettid);
 #endif
 }
@@ -1029,8 +1029,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_RSP]);
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_RBP]);
 #elif V8_HOST_ARCH_ARM
-// An undefined macro evaluates to 0, so this applies to Android's Bionic also.
-#if (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#if defined(__GLIBC__) && !defined(__UCLIBC__) && \
+    (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+  // Old GLibc ARM versions used a gregs[] array to access the register
+  // values from mcontext_t.
   sample->pc = reinterpret_cast<Address>(mcontext.gregs[R15]);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[R13]);
   sample->fp = reinterpret_cast<Address>(mcontext.gregs[R11]);
@@ -1038,7 +1040,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->pc = reinterpret_cast<Address>(mcontext.arm_pc);
   sample->sp = reinterpret_cast<Address>(mcontext.arm_sp);
   sample->fp = reinterpret_cast<Address>(mcontext.arm_fp);
-#endif  // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
+#endif  // defined(__GLIBC__) && !defined(__UCLIBC__) &&
+        // (__GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ <= 3))
 #elif V8_HOST_ARCH_MIPS
   sample->pc = reinterpret_cast<Address>(mcontext.pc);
   sample->sp = reinterpret_cast<Address>(mcontext.gregs[29]);

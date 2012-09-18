@@ -139,6 +139,7 @@ Heap::Heap()
       previous_survival_rate_trend_(Heap::STABLE),
       survival_rate_trend_(Heap::STABLE),
       max_gc_pause_(0),
+      total_gc_time_ms_(0),
       max_alive_after_gc_(0),
       min_in_mutator_(kMaxInt),
       alive_after_last_gc_(0),
@@ -155,7 +156,8 @@ Heap::Heap()
       scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       promotion_queue_(this),
       configured_(false),
-      chunks_queued_for_free_(NULL) {
+      chunks_queued_for_free_(NULL),
+      relocation_mutex_(NULL) {
   // Allow build-time customization of the max semispace size. Building
   // V8 with snapshots and a non-default max semispace size is much
   // easier if you can define it as part of the build environment.
@@ -173,12 +175,14 @@ Heap::Heap()
   }
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
-  global_contexts_list_ = NULL;
+  native_contexts_list_ = NULL;
   mark_compact_collector_.heap_ = this;
   external_string_table_.heap_ = this;
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
+
+  ClearObjectStats(true);
 }
 
 
@@ -320,48 +324,53 @@ void Heap::ReportStatisticsBeforeGC() {
 
 void Heap::PrintShortHeapStatistics() {
   if (!FLAG_trace_gc_verbose) return;
-  PrintF("Memory allocator,   used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         isolate_->memory_allocator()->Size(),
-         isolate_->memory_allocator()->Available());
-  PrintF("New space,          used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         Heap::new_space_.Size(),
-         new_space_.Available());
-  PrintF("Old pointers,       used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         old_pointer_space_->Size(),
-         old_pointer_space_->Available(),
-         old_pointer_space_->Waste());
-  PrintF("Old data space,     used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         old_data_space_->Size(),
-         old_data_space_->Available(),
-         old_data_space_->Waste());
-  PrintF("Code space,         used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         code_space_->Size(),
-         code_space_->Available(),
-         code_space_->Waste());
-  PrintF("Map space,          used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         map_space_->Size(),
-         map_space_->Available(),
-         map_space_->Waste());
-  PrintF("Cell space,         used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d"
-             ", waste: %8" V8_PTR_PREFIX "d\n",
-         cell_space_->Size(),
-         cell_space_->Available(),
-         cell_space_->Waste());
-  PrintF("Large object space, used: %8" V8_PTR_PREFIX "d"
-             ", available: %8" V8_PTR_PREFIX "d\n",
-         lo_space_->Size(),
-         lo_space_->Available());
+  PrintPID("Memory allocator,   used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB\n",
+           isolate_->memory_allocator()->Size() / KB,
+           isolate_->memory_allocator()->Available() / KB);
+  PrintPID("New space,          used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           new_space_.Size() / KB,
+           new_space_.Available() / KB,
+           new_space_.CommittedMemory() / KB);
+  PrintPID("Old pointers,       used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           old_pointer_space_->SizeOfObjects() / KB,
+           old_pointer_space_->Available() / KB,
+           old_pointer_space_->CommittedMemory() / KB);
+  PrintPID("Old data space,     used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           old_data_space_->SizeOfObjects() / KB,
+           old_data_space_->Available() / KB,
+           old_data_space_->CommittedMemory() / KB);
+  PrintPID("Code space,         used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           code_space_->SizeOfObjects() / KB,
+           code_space_->Available() / KB,
+           code_space_->CommittedMemory() / KB);
+  PrintPID("Map space,          used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           map_space_->SizeOfObjects() / KB,
+           map_space_->Available() / KB,
+           map_space_->CommittedMemory() / KB);
+  PrintPID("Cell space,         used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           cell_space_->SizeOfObjects() / KB,
+           cell_space_->Available() / KB,
+           cell_space_->CommittedMemory() / KB);
+  PrintPID("Large object space, used: %6" V8_PTR_PREFIX "d KB"
+               ", available: %6" V8_PTR_PREFIX "d KB"
+               ", committed: %6" V8_PTR_PREFIX "d KB\n",
+           lo_space_->SizeOfObjects() / KB,
+           lo_space_->Available() / KB,
+           lo_space_->CommittedMemory() / KB);
+  PrintPID("Total time spent in GC  : %d ms\n", total_gc_time_ms_);
 }
 
 
@@ -440,6 +449,56 @@ void Heap::GarbageCollectionEpilogue() {
       symbol_table()->Capacity());
   isolate_->counters()->number_of_symbols()->Set(
       symbol_table()->NumberOfElements());
+
+  if (CommittedMemory() > 0) {
+    isolate_->counters()->external_fragmentation_total()->AddSample(
+        static_cast<int>(100 - (SizeOfObjects() * 100.0) / CommittedMemory()));
+
+    isolate_->counters()->heap_fraction_map_space()->AddSample(
+        static_cast<int>(
+            (map_space()->CommittedMemory() * 100.0) / CommittedMemory()));
+    isolate_->counters()->heap_fraction_cell_space()->AddSample(
+        static_cast<int>(
+            (cell_space()->CommittedMemory() * 100.0) / CommittedMemory()));
+
+    isolate_->counters()->heap_sample_total_committed()->AddSample(
+        static_cast<int>(CommittedMemory() / KB));
+    isolate_->counters()->heap_sample_total_used()->AddSample(
+        static_cast<int>(SizeOfObjects() / KB));
+    isolate_->counters()->heap_sample_map_space_committed()->AddSample(
+        static_cast<int>(map_space()->CommittedMemory() / KB));
+    isolate_->counters()->heap_sample_cell_space_committed()->AddSample(
+        static_cast<int>(cell_space()->CommittedMemory() / KB));
+  }
+
+#define UPDATE_COUNTERS_FOR_SPACE(space)                                       \
+  isolate_->counters()->space##_bytes_available()->Set(                        \
+      static_cast<int>(space()->Available()));                                 \
+  isolate_->counters()->space##_bytes_committed()->Set(                        \
+      static_cast<int>(space()->CommittedMemory()));                           \
+  isolate_->counters()->space##_bytes_used()->Set(                             \
+      static_cast<int>(space()->SizeOfObjects()));
+#define UPDATE_FRAGMENTATION_FOR_SPACE(space)                                  \
+  if (space()->CommittedMemory() > 0) {                                        \
+    isolate_->counters()->external_fragmentation_##space()->AddSample(         \
+        static_cast<int>(100 -                                                 \
+            (space()->SizeOfObjects() * 100.0) / space()->CommittedMemory())); \
+  }
+#define UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(space)                     \
+  UPDATE_COUNTERS_FOR_SPACE(space)                                             \
+  UPDATE_FRAGMENTATION_FOR_SPACE(space)
+
+  UPDATE_COUNTERS_FOR_SPACE(new_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_pointer_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(old_data_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(code_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(map_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(cell_space)
+  UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE(lo_space)
+#undef UPDATE_COUNTERS_FOR_SPACE
+#undef UPDATE_FRAGMENTATION_FOR_SPACE
+#undef UPDATE_COUNTERS_AND_FRAGMENTATION_FOR_SPACE
+
 #if defined(DEBUG)
   ReportStatisticsAfterGC();
 #endif  // DEBUG
@@ -696,7 +755,7 @@ void Heap::EnsureFromSpaceIsCommitted() {
 void Heap::ClearJSFunctionResultCaches() {
   if (isolate_->bootstrapper()->IsActive()) return;
 
-  Object* context = global_contexts_list_;
+  Object* context = native_contexts_list_;
   while (!context->IsUndefined()) {
     // Get the caches for this context. GC can happen when the context
     // is not fully initialized, so the caches can be undefined.
@@ -723,7 +782,7 @@ void Heap::ClearNormalizedMapCaches() {
     return;
   }
 
-  Object* context = global_contexts_list_;
+  Object* context = native_contexts_list_;
   while (!context->IsUndefined()) {
     // GC can happen when the context is not fully initialized,
     // so the cache can be undefined.
@@ -852,8 +911,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // have to limit maximal capacity of the young generation.
     new_space_high_promotion_mode_active_ = true;
     if (FLAG_trace_gc) {
-      PrintF("Limited new space size due to high promotion rate: %d MB\n",
-             new_space_.InitialCapacity() / MB);
+      PrintPID("Limited new space size due to high promotion rate: %d MB\n",
+               new_space_.InitialCapacity() / MB);
     }
   } else if (new_space_high_promotion_mode_active_ &&
       IsStableOrDecreasingSurvivalTrend() &&
@@ -863,8 +922,8 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     // to grow again.
     new_space_high_promotion_mode_active_ = false;
     if (FLAG_trace_gc) {
-      PrintF("Unlimited new space size due to low promotion rate: %d MB\n",
-             new_space_.MaximumCapacity() / MB);
+      PrintPID("Unlimited new space size due to low promotion rate: %d MB\n",
+               new_space_.MaximumCapacity() / MB);
     }
   }
 
@@ -943,7 +1002,8 @@ void Heap::MarkCompactPrologue() {
   isolate_->keyed_lookup_cache()->Clear();
   isolate_->context_slot_cache()->Clear();
   isolate_->descriptor_lookup_cache()->Clear();
-  StringSplitCache::Clear(string_split_cache());
+  RegExpResultsCache::Clear(string_split_cache());
+  RegExpResultsCache::Clear(regexp_multiple_cache());
 
   isolate_->compilation_cache()->MarkCompactPrologue();
 
@@ -1159,6 +1219,7 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
 
 
 void Heap::Scavenge() {
+  RelocationLock relocation_lock(this);
 #ifdef DEBUG
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
@@ -1225,18 +1286,18 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from cells by scavenging cell values directly.
   HeapObjectIterator cell_iterator(cell_space_);
-  for (HeapObject* cell = cell_iterator.Next();
-       cell != NULL; cell = cell_iterator.Next()) {
-    if (cell->IsJSGlobalPropertyCell()) {
-      Address value_address =
-          reinterpret_cast<Address>(cell) +
-          (JSGlobalPropertyCell::kValueOffset - kHeapObjectTag);
+  for (HeapObject* heap_object = cell_iterator.Next();
+       heap_object != NULL;
+       heap_object = cell_iterator.Next()) {
+    if (heap_object->IsJSGlobalPropertyCell()) {
+      JSGlobalPropertyCell* cell = JSGlobalPropertyCell::cast(heap_object);
+      Address value_address = cell->ValueAddress();
       scavenge_visitor.VisitPointer(reinterpret_cast<Object**>(value_address));
     }
   }
 
-  // Scavenge object reachable from the global contexts list directly.
-  scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
+  // Scavenge object reachable from the native contexts list directly.
+  scavenge_visitor.VisitPointer(BitCast<Object**>(&native_contexts_list_));
 
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
   isolate_->global_handles()->IdentifyNewSpaceWeakIndependentHandles(
@@ -1396,7 +1457,7 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
   Object* undefined = undefined_value();
   Object* head = undefined;
   Context* tail = NULL;
-  Object* candidate = global_contexts_list_;
+  Object* candidate = native_contexts_list_;
 
   // We don't record weak slots during marking or scavenges.
   // Instead we do it once when we complete mark-compact cycle.
@@ -1469,7 +1530,7 @@ void Heap::ProcessWeakReferences(WeakObjectRetainer* retainer) {
   }
 
   // Update the head of the list of contexts.
-  global_contexts_list_ = head;
+  native_contexts_list_ = head;
 }
 
 
@@ -1595,7 +1656,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
     table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
 
-    table_.Register(kVisitGlobalContext,
+    table_.Register(kVisitNativeContext,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<Context::kSize>);
 
@@ -1681,7 +1742,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       RecordCopiedObject(heap, target);
       HEAP_PROFILE(heap, ObjectMoveEvent(source->address(), target->address()));
       Isolate* isolate = heap->isolate();
-      if (isolate->logger()->is_logging() ||
+      if (isolate->logger()->is_logging_code_events() ||
           CpuProfiler::is_profiling(isolate)) {
         if (target->IsSharedFunctionInfo()) {
           PROFILE(isolate, SharedFunctionInfoMoveEvent(
@@ -1989,9 +2050,8 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
                                       int instance_size) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawMap();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawMap();
+  if (!maybe_result->ToObject(&result)) return maybe_result;
 
   // Map::cast cannot be used due to uninitialized map field.
   reinterpret_cast<Map*>(result)->set_map(raw_unchecked_meta_map());
@@ -2004,6 +2064,7 @@ MaybeObject* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   reinterpret_cast<Map*>(result)->set_bit_field(0);
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
+  reinterpret_cast<Map*>(result)->set_bit_field3(0);
   return result;
 }
 
@@ -2012,9 +2073,8 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
                                int instance_size,
                                ElementsKind elements_kind) {
   Object* result;
-  { MaybeObject* maybe_result = AllocateRawMap();
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_result = AllocateRawMap();
+  if (!maybe_result->To(&result)) return maybe_result;
 
   Map* map = reinterpret_cast<Map*>(result);
   map->set_map_no_write_barrier(meta_map());
@@ -2026,12 +2086,13 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   map->set_instance_size(instance_size);
   map->set_inobject_properties(0);
   map->set_pre_allocated_property_fields(0);
-  map->init_instance_descriptors();
   map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  map->init_prototype_transitions(undefined_value());
+  map->init_back_pointer(undefined_value());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
+  int bit_field3 = Map::EnumLengthBits::encode(Map::kInvalidEnumCache);
+  map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
@@ -2076,8 +2137,7 @@ MaybeObject* Heap::AllocateTypeFeedbackInfo() {
   { MaybeObject* maybe_info = AllocateStruct(TYPE_FEEDBACK_INFO_TYPE);
     if (!maybe_info->To(&info)) return maybe_info;
   }
-  info->set_ic_total_count(0);
-  info->set_ic_with_type_info_count(0);
+  info->initialize_storage();
   info->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
                                 SKIP_WRITE_BARRIER);
   return info;
@@ -2165,17 +2225,14 @@ bool Heap::CreateInitialMaps() {
   set_empty_descriptor_array(DescriptorArray::cast(obj));
 
   // Fix the instance_descriptors for the existing maps.
-  meta_map()->init_instance_descriptors();
   meta_map()->set_code_cache(empty_fixed_array());
-  meta_map()->init_prototype_transitions(undefined_value());
+  meta_map()->init_back_pointer(undefined_value());
 
-  fixed_array_map()->init_instance_descriptors();
   fixed_array_map()->set_code_cache(empty_fixed_array());
-  fixed_array_map()->init_prototype_transitions(undefined_value());
+  fixed_array_map()->init_back_pointer(undefined_value());
 
-  oddball_map()->init_instance_descriptors();
   oddball_map()->set_code_cache(empty_fixed_array());
-  oddball_map()->init_prototype_transitions(undefined_value());
+  oddball_map()->init_back_pointer(undefined_value());
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -2383,9 +2440,16 @@ bool Heap::CreateInitialMaps() {
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
-  Map* global_context_map = Map::cast(obj);
-  global_context_map->set_visitor_id(StaticVisitorBase::kVisitGlobalContext);
-  set_global_context_map(global_context_map);
+  set_global_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  Map* native_context_map = Map::cast(obj);
+  native_context_map->set_dictionary_map(true);
+  native_context_map->set_visitor_id(StaticVisitorBase::kVisitNativeContext);
+  set_native_context_map(native_context_map);
 
   { MaybeObject* maybe_obj = AllocateMap(SHARED_FUNCTION_INFO_TYPE,
                                          SharedFunctionInfo::kAlignedSize);
@@ -2698,11 +2762,17 @@ bool Heap::CreateInitialObjects() {
   set_single_character_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for string split.
-  { MaybeObject* maybe_obj =
-        AllocateFixedArray(StringSplitCache::kStringSplitCacheSize, TENURED);
+  { MaybeObject* maybe_obj = AllocateFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, TENURED);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_string_split_cache(FixedArray::cast(obj));
+
+  { MaybeObject* maybe_obj = AllocateFixedArray(
+      RegExpResultsCache::kRegExpResultsCacheSize, TENURED);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_regexp_multiple_cache(FixedArray::cast(obj));
 
   // Allocate cache for external strings pointing to native source code.
   { MaybeObject* maybe_obj = AllocateFixedArray(Natives::GetBuiltinsCount());
@@ -2729,70 +2799,98 @@ bool Heap::CreateInitialObjects() {
 }
 
 
-Object* StringSplitCache::Lookup(
-    FixedArray* cache, String* string, String* pattern) {
-  if (!string->IsSymbol() || !pattern->IsSymbol()) return Smi::FromInt(0);
-  uint32_t hash = string->Hash();
-  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
+Object* RegExpResultsCache::Lookup(Heap* heap,
+                                   String* key_string,
+                                   Object* key_pattern,
+                                   ResultsCacheType type) {
+  FixedArray* cache;
+  if (!key_string->IsSymbol()) return Smi::FromInt(0);
+  if (type == STRING_SPLIT_SUBSTRINGS) {
+    ASSERT(key_pattern->IsString());
+    if (!key_pattern->IsSymbol()) return Smi::FromInt(0);
+    cache = heap->string_split_cache();
+  } else {
+    ASSERT(type == REGEXP_MULTIPLE_INDICES);
+    ASSERT(key_pattern->IsFixedArray());
+    cache = heap->regexp_multiple_cache();
+  }
+
+  uint32_t hash = key_string->Hash();
+  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == string &&
-      cache->get(index + kPatternOffset) == pattern) {
+  if (cache->get(index + kStringOffset) == key_string &&
+      cache->get(index + kPatternOffset) == key_pattern) {
     return cache->get(index + kArrayOffset);
   }
-  index = ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
-  if (cache->get(index + kStringOffset) == string &&
-      cache->get(index + kPatternOffset) == pattern) {
+  index =
+      ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
+  if (cache->get(index + kStringOffset) == key_string &&
+      cache->get(index + kPatternOffset) == key_pattern) {
     return cache->get(index + kArrayOffset);
   }
   return Smi::FromInt(0);
 }
 
 
-void StringSplitCache::Enter(Heap* heap,
-                             FixedArray* cache,
-                             String* string,
-                             String* pattern,
-                             FixedArray* array) {
-  if (!string->IsSymbol() || !pattern->IsSymbol()) return;
-  uint32_t hash = string->Hash();
-  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
+void RegExpResultsCache::Enter(Heap* heap,
+                               String* key_string,
+                               Object* key_pattern,
+                               FixedArray* value_array,
+                               ResultsCacheType type) {
+  FixedArray* cache;
+  if (!key_string->IsSymbol()) return;
+  if (type == STRING_SPLIT_SUBSTRINGS) {
+    ASSERT(key_pattern->IsString());
+    if (!key_pattern->IsSymbol()) return;
+    cache = heap->string_split_cache();
+  } else {
+    ASSERT(type == REGEXP_MULTIPLE_INDICES);
+    ASSERT(key_pattern->IsFixedArray());
+    cache = heap->regexp_multiple_cache();
+  }
+
+  uint32_t hash = key_string->Hash();
+  uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
-    cache->set(index + kStringOffset, string);
-    cache->set(index + kPatternOffset, pattern);
-    cache->set(index + kArrayOffset, array);
+    cache->set(index + kStringOffset, key_string);
+    cache->set(index + kPatternOffset, key_pattern);
+    cache->set(index + kArrayOffset, value_array);
   } else {
     uint32_t index2 =
-        ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+        ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
     if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
-      cache->set(index2 + kStringOffset, string);
-      cache->set(index2 + kPatternOffset, pattern);
-      cache->set(index2 + kArrayOffset, array);
+      cache->set(index2 + kStringOffset, key_string);
+      cache->set(index2 + kPatternOffset, key_pattern);
+      cache->set(index2 + kArrayOffset, value_array);
     } else {
       cache->set(index2 + kStringOffset, Smi::FromInt(0));
       cache->set(index2 + kPatternOffset, Smi::FromInt(0));
       cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-      cache->set(index + kStringOffset, string);
-      cache->set(index + kPatternOffset, pattern);
-      cache->set(index + kArrayOffset, array);
+      cache->set(index + kStringOffset, key_string);
+      cache->set(index + kPatternOffset, key_pattern);
+      cache->set(index + kArrayOffset, value_array);
     }
   }
-  if (array->length() < 100) {  // Limit how many new symbols we want to make.
-    for (int i = 0; i < array->length(); i++) {
-      String* str = String::cast(array->get(i));
+  // If the array is a reasonably short list of substrings, convert it into a
+  // list of symbols.
+  if (type == STRING_SPLIT_SUBSTRINGS && value_array->length() < 100) {
+    for (int i = 0; i < value_array->length(); i++) {
+      String* str = String::cast(value_array->get(i));
       Object* symbol;
       MaybeObject* maybe_symbol = heap->LookupSymbol(str);
       if (maybe_symbol->ToObject(&symbol)) {
-        array->set(i, symbol);
+        value_array->set(i, symbol);
       }
     }
   }
-  array->set_map_no_write_barrier(heap->fixed_cow_array_map());
+  // Convert backing store to a copy-on-write array.
+  value_array->set_map_no_write_barrier(heap->fixed_cow_array_map());
 }
 
 
-void StringSplitCache::Clear(FixedArray* cache) {
-  for (int i = 0; i < kStringSplitCacheSize; i++) {
+void RegExpResultsCache::Clear(FixedArray* cache) {
+  for (int i = 0; i < kRegExpResultsCacheSize; i++) {
     cache->set(i, Smi::FromInt(0));
   }
 }
@@ -2822,7 +2920,7 @@ void Heap::AllocateFullSizeNumberStringCache() {
   // The idea is to have a small number string cache in the snapshot to keep
   // boot-time memory usage down.  If we expand the number string cache already
   // while creating the snapshot then that didn't work out.
-  ASSERT(!Serializer::enabled());
+  ASSERT(!Serializer::enabled() || FLAG_extra_code != NULL);
   MaybeObject* maybe_obj =
       AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
   Object* new_cache;
@@ -3010,6 +3108,7 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_name(name);
   Code* illegal = isolate_->builtins()->builtin(Builtins::kIllegal);
   share->set_code(illegal);
+  share->ClearOptimizedCodeMap();
   share->set_scope_info(ScopeInfo::Empty());
   Code* construct_stub =
       isolate_->builtins()->builtin(Builtins::kJSConstructStubGeneric);
@@ -3663,30 +3762,27 @@ MaybeObject* Heap::AllocateFunctionPrototype(JSFunction* function) {
   // from the function's context, since the function can be from a
   // different context.
   JSFunction* object_function =
-      function->context()->global_context()->object_function();
+      function->context()->native_context()->object_function();
 
   // Each function prototype gets a copy of the object function map.
   // This avoid unwanted sharing of maps between prototypes of different
   // constructors.
   Map* new_map;
   ASSERT(object_function->has_initial_map());
-  { MaybeObject* maybe_map =
-        object_function->initial_map()->CopyDropTransitions(
-            DescriptorArray::MAY_BE_SHARED);
-    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
-  }
+  MaybeObject* maybe_map = object_function->initial_map()->Copy();
+  if (!maybe_map->To(&new_map)) return maybe_map;
+
   Object* prototype;
-  { MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
-    if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-  }
+  MaybeObject* maybe_prototype = AllocateJSObjectFromMap(new_map);
+  if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
+
   // When creating the prototype for the function we must set its
   // constructor to the function.
-  Object* result;
-  { MaybeObject* maybe_result =
-        JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
-            constructor_symbol(), function, DONT_ENUM);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
+  MaybeObject* maybe_failure =
+      JSObject::cast(prototype)->SetLocalPropertyIgnoreAttributes(
+          constructor_symbol(), function, DONT_ENUM);
+  if (maybe_failure->IsFailure()) return maybe_failure;
+
   return prototype;
 }
 
@@ -3716,12 +3812,12 @@ MaybeObject* Heap::AllocateArgumentsObject(Object* callee, int length) {
       !JSFunction::cast(callee)->shared()->is_classic_mode();
   if (strict_mode_callee) {
     boilerplate =
-        isolate()->context()->global_context()->
+        isolate()->context()->native_context()->
             strict_mode_arguments_boilerplate();
     arguments_object_size = kArgumentsObjectSizeStrict;
   } else {
     boilerplate =
-        isolate()->context()->global_context()->arguments_boilerplate();
+        isolate()->context()->native_context()->arguments_boilerplate();
     arguments_object_size = kArgumentsObjectSize;
   }
 
@@ -3787,21 +3883,18 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
   // suggested by the function.
   int instance_size = fun->shared()->CalculateInstanceSize();
   int in_object_properties = fun->shared()->CalculateInObjectProperties();
-  Object* map_obj;
-  { MaybeObject* maybe_map_obj = AllocateMap(JS_OBJECT_TYPE, instance_size);
-    if (!maybe_map_obj->ToObject(&map_obj)) return maybe_map_obj;
-  }
+  Map* map;
+  MaybeObject* maybe_map = AllocateMap(JS_OBJECT_TYPE, instance_size);
+  if (!maybe_map->To(&map)) return maybe_map;
 
   // Fetch or allocate prototype.
   Object* prototype;
   if (fun->has_instance_prototype()) {
     prototype = fun->instance_prototype();
   } else {
-    { MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
-      if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
-    }
+    MaybeObject* maybe_prototype = AllocateFunctionPrototype(fun);
+    if (!maybe_prototype->To(&prototype)) return maybe_prototype;
   }
-  Map* map = Map::cast(map_obj);
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
   map->set_prototype(prototype);
@@ -3820,22 +3913,17 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       fun->shared()->ForbidInlineConstructor();
     } else {
       DescriptorArray* descriptors;
-      { MaybeObject* maybe_descriptors_obj =
-            DescriptorArray::Allocate(count, DescriptorArray::MAY_BE_SHARED);
-        if (!maybe_descriptors_obj->To<DescriptorArray>(&descriptors)) {
-          return maybe_descriptors_obj;
-        }
-      }
+      MaybeObject* maybe_descriptors = DescriptorArray::Allocate(count);
+      if (!maybe_descriptors->To(&descriptors)) return maybe_descriptors;
+
       DescriptorArray::WhitenessWitness witness(descriptors);
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsSymbol());
-        FieldDescriptor field(name, i, NONE);
-        field.SetEnumerationIndex(i);
+        FieldDescriptor field(name, i, NONE, i + 1);
         descriptors->Set(i, &field, witness);
       }
-      descriptors->SetNextEnumerationIndex(count);
-      descriptors->SortUnchecked(witness);
+      descriptors->Sort();
 
       // The descriptors may contain duplicates because the compiler does not
       // guarantee the uniqueness of property names (it would have required
@@ -3844,7 +3932,8 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       if (HasDuplicates(descriptors)) {
         fun->shared()->ForbidInlineConstructor();
       } else {
-        map->set_instance_descriptors(descriptors);
+        MaybeObject* maybe_failure = map->InitializeDescriptors(descriptors);
+        if (maybe_failure->IsFailure()) return maybe_failure;
         map->set_pre_allocated_property_fields(count);
         map->set_unused_property_fields(in_object_properties - count);
       }
@@ -3951,13 +4040,18 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-MaybeObject* Heap::AllocateJSModule() {
+MaybeObject* Heap::AllocateJSModule(Context* context, ScopeInfo* scope_info) {
   // Allocate a fresh map. Modules do not have a prototype.
   Map* map;
   MaybeObject* maybe_map = AllocateMap(JS_MODULE_TYPE, JSModule::kSize);
   if (!maybe_map->To(&map)) return maybe_map;
   // Allocate the object based on the map.
-  return AllocateJSObjectFromMap(map, TENURED);
+  JSModule* module;
+  MaybeObject* maybe_module = AllocateJSObjectFromMap(map, TENURED);
+  if (!maybe_module->To(&module)) return maybe_module;
+  module->set_context(context);
+  module->set_scope_info(scope_info);
+  return module;
 }
 
 
@@ -4071,6 +4165,7 @@ MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
 MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   ASSERT(constructor->has_initial_map());
   Map* map = constructor->initial_map();
+  ASSERT(map->is_dictionary_map());
 
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
@@ -4088,13 +4183,11 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   int initial_size = map->instance_type() == JS_GLOBAL_OBJECT_TYPE ? 64 : 512;
 
   // Allocate a dictionary object for backing storage.
-  Object* obj;
-  { MaybeObject* maybe_obj =
-        StringDictionary::Allocate(
-            map->NumberOfDescribedProperties() * 2 + initial_size);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  StringDictionary* dictionary = StringDictionary::cast(obj);
+  StringDictionary* dictionary;
+  MaybeObject* maybe_dictionary =
+      StringDictionary::Allocate(
+          map->NumberOfDescribedProperties() * 2 + initial_size);
+  if (!maybe_dictionary->To(&dictionary)) return maybe_dictionary;
 
   // The global object might be created from an object template with accessors.
   // Fill these accessors into the dictionary.
@@ -4102,36 +4195,32 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     ASSERT(details.type() == CALLBACKS);  // Only accessors are expected.
-    PropertyDetails d =
-        PropertyDetails(details.attributes(), CALLBACKS, details.index());
+    PropertyDetails d = PropertyDetails(details.attributes(),
+                                        CALLBACKS,
+                                        details.descriptor_index());
     Object* value = descs->GetCallbacksObject(i);
-    { MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
-      if (!maybe_value->ToObject(&value)) return maybe_value;
-    }
+    MaybeObject* maybe_value = AllocateJSGlobalPropertyCell(value);
+    if (!maybe_value->ToObject(&value)) return maybe_value;
 
-    Object* result;
-    { MaybeObject* maybe_result = dictionary->Add(descs->GetKey(i), value, d);
-      if (!maybe_result->ToObject(&result)) return maybe_result;
-    }
-    dictionary = StringDictionary::cast(result);
+    MaybeObject* maybe_added = dictionary->Add(descs->GetKey(i), value, d);
+    if (!maybe_added->To(&dictionary)) return maybe_added;
   }
 
   // Allocate the global object and initialize it with the backing store.
-  { MaybeObject* maybe_obj = Allocate(map, OLD_POINTER_SPACE);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  JSObject* global = JSObject::cast(obj);
+  JSObject* global;
+  MaybeObject* maybe_global = Allocate(map, OLD_POINTER_SPACE);
+  if (!maybe_global->To(&global)) return maybe_global;
+
   InitializeJSObjectFromMap(global, dictionary, map);
 
   // Create a new map for the global object.
-  { MaybeObject* maybe_obj = map->CopyDropDescriptors();
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  Map* new_map = Map::cast(obj);
+  Map* new_map;
+  MaybeObject* maybe_map = map->CopyDropDescriptors();
+  if (!maybe_map->To(&new_map)) return maybe_map;
+  new_map->set_dictionary_map(true);
 
   // Set up the global object as a normalized object.
   global->set_map(new_map);
-  global->map()->clear_instance_descriptors();
   global->set_properties(dictionary);
 
   // Make sure result is a global object with properties in dictionary.
@@ -4260,7 +4349,7 @@ MaybeObject* Heap::ReinitializeJSReceiver(
     map->set_function_with_prototype(true);
     InitializeFunction(JSFunction::cast(object), shared, the_hole_value());
     JSFunction::cast(object)->set_context(
-        isolate()->context()->global_context());
+        isolate()->context()->native_context());
   }
 
   // Put in filler if the new object is smaller than the old.
@@ -4555,10 +4644,10 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
 MaybeObject* Heap::AllocateJSArray(
     ElementsKind elements_kind,
     PretenureFlag pretenure) {
-  Context* global_context = isolate()->context()->global_context();
-  JSFunction* array_function = global_context->array_function();
+  Context* native_context = isolate()->context()->native_context();
+  JSFunction* array_function = native_context->array_function();
   Map* map = array_function->initial_map();
-  Object* maybe_map_array = global_context->js_array_maps();
+  Object* maybe_map_array = native_context->js_array_maps();
   if (!maybe_map_array->IsUndefined()) {
     Object* maybe_transitioned_map =
         FixedArray::cast(maybe_map_array)->get(elements_kind);
@@ -4841,33 +4930,50 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateGlobalContext() {
+MaybeObject* Heap::AllocateNativeContext() {
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateFixedArray(Context::GLOBAL_CONTEXT_SLOTS);
+        AllocateFixedArray(Context::NATIVE_CONTEXT_SLOTS);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_no_write_barrier(global_context_map());
+  context->set_map_no_write_barrier(native_context_map());
   context->set_js_array_maps(undefined_value());
-  ASSERT(context->IsGlobalContext());
+  ASSERT(context->IsNativeContext());
   ASSERT(result->IsContext());
   return result;
 }
 
 
-MaybeObject* Heap::AllocateModuleContext(Context* previous,
+MaybeObject* Heap::AllocateGlobalContext(JSFunction* function,
                                          ScopeInfo* scope_info) {
   Object* result;
   { MaybeObject* maybe_result =
-        AllocateFixedArrayWithHoles(scope_info->ContextLength(), TENURED);
+        AllocateFixedArray(scope_info->ContextLength(), TENURED);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  Context* context = reinterpret_cast<Context*>(result);
+  context->set_map_no_write_barrier(global_context_map());
+  context->set_closure(function);
+  context->set_previous(function->context());
+  context->set_extension(scope_info);
+  context->set_global_object(function->context()->global_object());
+  ASSERT(context->IsGlobalContext());
+  ASSERT(result->IsContext());
+  return context;
+}
+
+
+MaybeObject* Heap::AllocateModuleContext(ScopeInfo* scope_info) {
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateFixedArray(scope_info->ContextLength(), TENURED);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(module_context_map());
-  context->set_previous(previous);
-  context->set_extension(scope_info);
-  context->set_global(previous->global());
+  // Context links will be set later.
+  context->set_extension(Smi::FromInt(0));
   return context;
 }
 
@@ -4882,8 +4988,8 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
   context->set_map_no_write_barrier(function_context_map());
   context->set_closure(function);
   context->set_previous(function->context());
-  context->set_extension(NULL);
-  context->set_global(function->context()->global());
+  context->set_extension(Smi::FromInt(0));
+  context->set_global_object(function->context()->global_object());
   return context;
 }
 
@@ -4903,7 +5009,7 @@ MaybeObject* Heap::AllocateCatchContext(JSFunction* function,
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(name);
-  context->set_global(previous->global());
+  context->set_global_object(previous->global_object());
   context->set(Context::THROWN_OBJECT_INDEX, thrown_object);
   return context;
 }
@@ -4921,7 +5027,7 @@ MaybeObject* Heap::AllocateWithContext(JSFunction* function,
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(extension);
-  context->set_global(previous->global());
+  context->set_global_object(previous->global_object());
   return context;
 }
 
@@ -4939,7 +5045,7 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(scope_info);
-  context->set_global(previous->global());
+  context->set_global_object(previous->global_object());
   return context;
 }
 
@@ -5302,37 +5408,9 @@ void Heap::Verify() {
   cell_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
-
-  VerifyNoAccessorPairSharing();
 }
 
 
-void Heap::VerifyNoAccessorPairSharing() {
-  // Verification is done in 2 phases: First we mark all AccessorPairs, checking
-  // that we mark only unmarked pairs, then we clear all marks, restoring the
-  // initial state. We use the Smi tag of the AccessorPair's getter as the
-  // marking bit, because we can never see a Smi as the getter.
-  for (int phase = 0; phase < 2; phase++) {
-    HeapObjectIterator iter(map_space());
-    for (HeapObject* obj = iter.Next(); obj != NULL; obj = iter.Next()) {
-      if (obj->IsMap()) {
-        DescriptorArray* descs = Map::cast(obj)->instance_descriptors();
-        for (int i = 0; i < descs->number_of_descriptors(); i++) {
-          if (descs->GetType(i) == CALLBACKS &&
-              descs->GetValue(i)->IsAccessorPair()) {
-            AccessorPair* accessors = AccessorPair::cast(descs->GetValue(i));
-            uintptr_t before = reinterpret_cast<intptr_t>(accessors->getter());
-            uintptr_t after = (phase == 0) ?
-                ((before & ~kSmiTagMask) | kSmiTag) :
-                ((before & ~kHeapObjectTag) | kHeapObjectTag);
-            CHECK(before != after);
-            accessors->set_getter(reinterpret_cast<Object*>(after));
-          }
-        }
-      }
-    }
-  }
-}
 #endif  // DEBUG
 
 
@@ -5689,6 +5767,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
   // Iterate over local handles in handle scopes.
   isolate_->handle_scope_implementer()->Iterate(v);
+  isolate_->IterateDeferredHandles(v);
   v->Synchronize(VisitorSynchronization::kHandleScope);
 
   // Iterate over the builtin code objects and code stubs in the
@@ -5751,8 +5830,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     if (max_semispace_size < Page::kPageSize) {
       max_semispace_size = Page::kPageSize;
       if (FLAG_trace_gc) {
-        PrintF("Max semispace size cannot be less than %dkbytes\n",
-               Page::kPageSize >> 10);
+        PrintPID("Max semispace size cannot be less than %dkbytes\n",
+                 Page::kPageSize >> 10);
       }
     }
     max_semispace_size_ = max_semispace_size;
@@ -5767,8 +5846,8 @@ bool Heap::ConfigureHeap(int max_semispace_size,
     if (max_semispace_size_ > reserved_semispace_size_) {
       max_semispace_size_ = reserved_semispace_size_;
       if (FLAG_trace_gc) {
-        PrintF("Max semispace size cannot be more than %dkbytes\n",
-               reserved_semispace_size_ >> 10);
+        PrintPID("Max semispace size cannot be more than %dkbytes\n",
+                 reserved_semispace_size_ >> 10);
       }
     }
   } else {
@@ -5793,7 +5872,7 @@ bool Heap::ConfigureHeap(int max_semispace_size,
   max_semispace_size_ = RoundUpToPowerOf2(max_semispace_size_);
   reserved_semispace_size_ = RoundUpToPowerOf2(reserved_semispace_size_);
   initial_semispace_size_ = Min(initial_semispace_size_, max_semispace_size_);
-  external_allocation_limit_ = 10 * max_semispace_size_;
+  external_allocation_limit_ = 16 * max_semispace_size_;
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
@@ -6143,13 +6222,15 @@ bool Heap::SetUp(bool create_heap_objects) {
     // Create initial objects
     if (!CreateInitialObjects()) return false;
 
-    global_contexts_list_ = undefined_value();
+    native_contexts_list_ = undefined_value();
   }
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
   store_buffer()->SetUp();
+
+  if (FLAG_parallel_recompilation) relocation_mutex_ = OS::CreateMutex();
 
   return true;
 }
@@ -6183,6 +6264,7 @@ void Heap::TearDown() {
     PrintF("gc_count=%d ", gc_count_);
     PrintF("mark_sweep_count=%d ", ms_count_);
     PrintF("max_gc_pause=%d ", get_max_gc_pause());
+    PrintF("total_gc_time=%d ", total_gc_time_ms_);
     PrintF("min_in_mutator=%d ", get_min_in_mutator());
     PrintF("max_alive_after_gc=%" V8_PTR_PREFIX "d ",
            get_max_alive_after_gc());
@@ -6235,6 +6317,8 @@ void Heap::TearDown() {
   incremental_marking()->TearDown();
 
   isolate_->memory_allocator()->TearDown();
+
+  delete relocation_mutex_;
 
 #ifdef DEBUG
   delete debug_utils_;
@@ -6653,7 +6737,7 @@ void PathTracer::TracePathFrom(Object** root) {
   ASSERT((search_target_ == kAnyGlobalObject) ||
          search_target_->IsHeapObject());
   found_target_in_trace_ = false;
-  object_stack_.Clear();
+  Reset();
 
   MarkVisitor mark_visitor(this);
   MarkRecursively(root, &mark_visitor);
@@ -6665,8 +6749,8 @@ void PathTracer::TracePathFrom(Object** root) {
 }
 
 
-static bool SafeIsGlobalContext(HeapObject* obj) {
-  return obj->map() == obj->GetHeap()->raw_unchecked_global_context_map();
+static bool SafeIsNativeContext(HeapObject* obj) {
+  return obj->map() == obj->GetHeap()->raw_unchecked_native_context_map();
 }
 
 
@@ -6688,7 +6772,7 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
     return;
   }
 
-  bool is_global_context = SafeIsGlobalContext(obj);
+  bool is_native_context = SafeIsNativeContext(obj);
 
   // not visited yet
   Map* map_p = reinterpret_cast<Map*>(HeapObject::cast(map));
@@ -6698,7 +6782,7 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
   obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_addr + kMarkTag));
 
   // Scan the object body.
-  if (is_global_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
+  if (is_native_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
     // This is specialized to scan Context's properly.
     Object** start = reinterpret_cast<Object**>(obj->address() +
                                                 Context::kHeaderSize);
@@ -6757,11 +6841,7 @@ void PathTracer::ProcessResults() {
     for (int i = 0; i < object_stack_.length(); i++) {
       if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
       Object* obj = object_stack_[i];
-#ifdef OBJECT_PRINT
       obj->Print();
-#else
-      obj->ShortPrint();
-#endif
     }
     PrintF("=====================================\n");
   }
@@ -6770,6 +6850,15 @@ void PathTracer::ProcessResults() {
 
 
 #ifdef DEBUG
+// Triggers a depth-first traversal of reachable objects from one
+// given root object and finds a path to a specific heap object and
+// prints it.
+void Heap::TracePathToObjectFrom(Object* target, Object* root) {
+  PathTracer tracer(target, PathTracer::FIND_ALL, VISIT_ALL);
+  tracer.VisitPointer(&root);
+}
+
+
 // Triggers a depth-first traversal of reachable objects from roots
 // and finds a path to a specific heap object and prints it.
 void Heap::TracePathToObject(Object* target) {
@@ -6857,6 +6946,7 @@ GCTracer::~GCTracer() {
 
   // Update cumulative GC statistics if required.
   if (FLAG_print_cumulative_gc_stat) {
+    heap_->total_gc_time_ms_ += time;
     heap_->max_gc_pause_ = Max(heap_->max_gc_pause_, time);
     heap_->max_alive_after_gc_ = Max(heap_->max_alive_after_gc_,
                                      heap_->alive_after_last_gc_);
@@ -6864,9 +6954,13 @@ GCTracer::~GCTracer() {
       heap_->min_in_mutator_ = Min(heap_->min_in_mutator_,
                                    static_cast<int>(spent_in_mutator_));
     }
+  } else if (FLAG_trace_gc_verbose) {
+    heap_->total_gc_time_ms_ += time;
   }
 
-  PrintF("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+  if (collector_ == SCAVENGER && FLAG_trace_gc_ignore_scavenger) return;
+
+  PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
   if (!FLAG_trace_gc_nvp) {
     int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);
@@ -6908,9 +7002,7 @@ GCTracer::~GCTracer() {
     PrintF(".\n");
   } else {
     PrintF("pause=%d ", time);
-    PrintF("mutator=%d ",
-           static_cast<int>(spent_in_mutator_));
-
+    PrintF("mutator=%d ", static_cast<int>(spent_in_mutator_));
     PrintF("gc=");
     switch (collector_) {
       case SCAVENGER:
@@ -7174,6 +7266,65 @@ void Heap::RememberUnmappedPage(Address page, bool compacted) {
       reinterpret_cast<Address>(p);
   remembered_unmapped_pages_index_++;
   remembered_unmapped_pages_index_ %= kRememberedUnmappedPages;
+}
+
+
+void Heap::ClearObjectStats(bool clear_last_time_stats) {
+  memset(object_counts_, 0, sizeof(object_counts_));
+  memset(object_sizes_, 0, sizeof(object_sizes_));
+  if (clear_last_time_stats) {
+    memset(object_counts_last_time_, 0, sizeof(object_counts_last_time_));
+    memset(object_sizes_last_time_, 0, sizeof(object_sizes_last_time_));
+  }
+}
+
+
+static LazyMutex checkpoint_object_stats_mutex = LAZY_MUTEX_INITIALIZER;
+
+
+void Heap::CheckpointObjectStats() {
+  ScopedLock lock(checkpoint_object_stats_mutex.Pointer());
+  Counters* counters = isolate()->counters();
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)                                    \
+  counters->count_of_##name()->Increment(                                      \
+      static_cast<int>(object_counts_[name]));                                 \
+  counters->count_of_##name()->Decrement(                                      \
+      static_cast<int>(object_counts_last_time_[name]));                       \
+  counters->size_of_##name()->Increment(                                       \
+      static_cast<int>(object_sizes_[name]));                                  \
+  counters->size_of_##name()->Decrement(                                       \
+      static_cast<int>(object_sizes_last_time_[name]));
+  INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+  int index;
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
+  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;          \
+  counters->count_of_CODE_TYPE_##name()->Increment(       \
+      static_cast<int>(object_counts_[index]));           \
+  counters->count_of_CODE_TYPE_##name()->Decrement(       \
+      static_cast<int>(object_counts_last_time_[index])); \
+  counters->size_of_CODE_TYPE_##name()->Increment(        \
+      static_cast<int>(object_sizes_[index]));            \
+  counters->size_of_CODE_TYPE_##name()->Decrement(        \
+      static_cast<int>(object_sizes_last_time_[index]));
+  CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
+  index = FIRST_FIXED_ARRAY_SUB_TYPE + name;              \
+  counters->count_of_FIXED_ARRAY_##name()->Increment(     \
+      static_cast<int>(object_counts_[index]));           \
+  counters->count_of_FIXED_ARRAY_##name()->Decrement(     \
+      static_cast<int>(object_counts_last_time_[index])); \
+  counters->size_of_FIXED_ARRAY_##name()->Increment(      \
+      static_cast<int>(object_sizes_[index]));            \
+  counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
+      static_cast<int>(object_sizes_last_time_[index]));
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
+#undef ADJUST_LAST_TIME_OBJECT_COUNT
+
+  memcpy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
+  memcpy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
+  ClearObjectStats();
 }
 
 } }  // namespace v8::internal

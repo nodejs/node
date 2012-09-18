@@ -35,7 +35,7 @@ function getter() { return 111; }
 function setter(x) { print(222); }
 function anotherGetter() { return 333; }
 function anotherSetter(x) { print(444); }
-var obj1, obj2;
+var obj1, obj2, obj3, obj4;
 
 // Two objects with the same getter.
 obj1 = {};
@@ -174,3 +174,19 @@ assertEquals(getter, gop(obj1, "papa").get);
 assertEquals(setter, gop(obj1, "papa").set);
 assertTrue(gop(obj1, "papa").configurable);
 assertFalse(gop(obj1, "papa").enumerable);
+
+// Two objects with the same getter on the prototype chain.
+obj1 = {};
+dp(obj1, "quebec", { get: getter });
+obj2 = Object.create(obj1);
+obj3 = Object.create(obj2);
+obj4 = Object.create(obj2);
+assertTrue(%HaveSameMap(obj3, obj4));
+
+// Two objects with the same setter on the prototype chain.
+obj1 = {};
+dp(obj1, "romeo", { set: setter });
+obj2 = Object.create(obj1);
+obj3 = Object.create(obj2);
+obj4 = Object.create(obj2);
+assertTrue(%HaveSameMap(obj3, obj4));

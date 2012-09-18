@@ -38,13 +38,7 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_INTERPRETED_REGEXP
-class RegExpMacroAssemblerMIPS: public RegExpMacroAssembler {
- public:
-  RegExpMacroAssemblerMIPS();
-  virtual ~RegExpMacroAssemblerMIPS();
-};
-#else  // V8_INTERPRETED_REGEXP
+#ifndef V8_INTERPRETED_REGEXP
 class RegExpMacroAssemblerMIPS: public NativeRegExpMacroAssembler {
  public:
   RegExpMacroAssemblerMIPS(Mode mode, int registers_to_save, Zone* zone);

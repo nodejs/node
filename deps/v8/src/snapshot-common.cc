@@ -60,6 +60,11 @@ bool Snapshot::Initialize(const char* snapshot_file) {
 }
 
 
+bool Snapshot::HaveASnapshotToStartFrom() {
+  return size_ != 0;
+}
+
+
 Handle<Context> Snapshot::NewContextFromSnapshot() {
   if (context_size_ == 0) {
     return Handle<Context>();

@@ -55,12 +55,6 @@ void LookupResult::Print(FILE* out) {
       PrintF(out, " -type = normal\n");
       PrintF(out, " -entry = %d", GetDictionaryEntry());
       break;
-    case MAP_TRANSITION:
-      PrintF(out, " -type = map transition\n");
-      PrintF(out, " -map:\n");
-      GetTransitionMap()->Print(out);
-      PrintF(out, "\n");
-      break;
     case CONSTANT_FUNCTION:
       PrintF(out, " -type = constant function\n");
       PrintF(out, " -function:\n");
@@ -83,14 +77,31 @@ void LookupResult::Print(FILE* out) {
     case INTERCEPTOR:
       PrintF(out, " -type = lookup interceptor\n");
       break;
-    case CONSTANT_TRANSITION:
-      PrintF(out, " -type = constant property transition\n");
-      PrintF(out, " -map:\n");
-      GetTransitionMap()->Print(out);
-      PrintF(out, "\n");
-      break;
-    case NULL_DESCRIPTOR:
-      PrintF(out, " =type = null descriptor\n");
+    case TRANSITION:
+      switch (GetTransitionDetails().type()) {
+        case FIELD:
+          PrintF(out, " -type = map transition\n");
+          PrintF(out, " -map:\n");
+          GetTransitionMap()->Print(out);
+          PrintF(out, "\n");
+          return;
+        case CONSTANT_FUNCTION:
+          PrintF(out, " -type = constant property transition\n");
+          PrintF(out, " -map:\n");
+          GetTransitionMap()->Print(out);
+          PrintF(out, "\n");
+          return;
+        case CALLBACKS:
+          PrintF(out, " -type = callbacks transition\n");
+          PrintF(out, " -callback object:\n");
+          GetCallbackObject()->Print(out);
+          return;
+        default:
+          UNREACHABLE();
+          return;
+      }
+    case NONEXISTENT:
+      UNREACHABLE();
       break;
   }
 }
@@ -101,34 +112,11 @@ void Descriptor::Print(FILE* out) {
   GetKey()->ShortPrint(out);
   PrintF(out, " @ ");
   GetValue()->ShortPrint(out);
-  PrintF(out, " %d\n", GetDetails().index());
+  PrintF(out, " %d\n", GetDetails().descriptor_index());
 }
 
 
 #endif
-
-
-bool Descriptor::ContainsTransition() {
-  switch (details_.type()) {
-    case MAP_TRANSITION:
-    case CONSTANT_TRANSITION:
-      return true;
-    case CALLBACKS: {
-      if (!value_->IsAccessorPair()) return false;
-      AccessorPair* accessors = AccessorPair::cast(value_);
-      return accessors->getter()->IsMap() || accessors->setter()->IsMap();
-    }
-    case NORMAL:
-    case FIELD:
-    case CONSTANT_FUNCTION:
-    case HANDLER:
-    case INTERCEPTOR:
-    case NULL_DESCRIPTOR:
-      return false;
-  }
-  UNREACHABLE();  // Keep the compiler happy.
-  return false;
-}
 
 
 } }  // namespace v8::internal

@@ -553,6 +553,7 @@ int DisassemblerIA32::F7Instruction(byte* data) {
       case 2: mnem = "not"; break;
       case 3: mnem = "neg"; break;
       case 4: mnem = "mul"; break;
+      case 5: mnem = "imul"; break;
       case 7: mnem = "idiv"; break;
       default: UnimplementedInstruction();
     }
@@ -1266,6 +1267,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (*data == 0x56) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            AppendToBuffer("orpd %s,%s",
+                           NameOfXMMRegister(regop),
+                           NameOfXMMRegister(rm));
+            data++;
           } else if (*data == 0x57) {
             data++;
             int mod, regop, rm;
@@ -1463,6 +1472,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             switch (b2) {
               case 0x2A: mnem = "cvtsi2sd"; break;
               case 0x2C: mnem = "cvttsd2si"; break;
+              case 0x2D: mnem = "cvtsd2si"; break;
               case 0x51: mnem = "sqrtsd"; break;
               case 0x58: mnem = "addsd"; break;
               case 0x59: mnem = "mulsd"; break;
@@ -1475,7 +1485,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             if (b2 == 0x2A) {
               AppendToBuffer("%s %s,", mnem, NameOfXMMRegister(regop));
               data += PrintRightOperand(data);
-            } else if (b2 == 0x2C) {
+            } else if (b2 == 0x2C || b2 == 0x2D) {
               AppendToBuffer("%s %s,", mnem, NameOfCPURegister(regop));
               data += PrintRightXMMOperand(data);
             } else if (b2 == 0xC2) {

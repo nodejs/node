@@ -50,7 +50,12 @@ function FormatString(format, message) {
         try {
           str = ToDetailString(args[arg_num]);
         } catch (e) {
-          str = "#<error>";
+          if (%IsJSModule(args[arg_num]))
+            str = "module";
+          else if (IS_SPEC_OBJECT(args[arg_num]))
+            str = "object";
+          else
+            str = "#<error>";
         }
       }
     }
@@ -197,6 +202,7 @@ function FormatMessage(message) {
       "proxy_non_object_prop_names",  ["Trap '", "%1", "' returned non-object ", "%0"],
       "proxy_repeated_prop_name",     ["Trap '", "%1", "' returned repeated property name '", "%2", "'"],
       "invalid_weakmap_key",          ["Invalid value used as weak map key"],
+      "not_date_object",              ["this is not a Date object."],
       // RangeError
       "invalid_array_length",         ["Invalid array length"],
       "stack_overflow",               ["Maximum call stack size exceeded"],
@@ -251,6 +257,7 @@ function FormatMessage(message) {
       "harmony_const_assign",         ["Assignment to constant variable."],
       "invalid_module_path",          ["Module does not export '", "%0", "', or export is not itself a module"],
       "module_type_error",            ["Module '", "%0", "' used improperly"],
+      "module_export_undefined",      ["Export '", "%0", "' is not defined in module"],
     ];
     var messages = { __proto__ : null };
     for (var i = 0; i < messagesDictionary.length; i += 2) {
@@ -760,18 +767,18 @@ function DefineOneShotAccessor(obj, name, fun) {
   // Note that the accessors consistently operate on 'obj', not 'this'.
   // Since the object may occur in someone else's prototype chain we
   // can't rely on 'this' being the same as 'obj'.
-  var hasBeenSet = false;
   var value;
+  var value_factory = fun;
   var getter = function() {
-    if (hasBeenSet) {
+    if (value_factory == null) {
       return value;
     }
-    hasBeenSet = true;
-    value = fun(obj);
+    value = value_factory(obj);
+    value_factory = null;
     return value;
   };
   var setter = function(v) {
-    hasBeenSet = true;
+    value_factory = null;
     value = v;
   };
   %DefineOrRedefineAccessorProperty(obj, name, getter, setter, DONT_ENUM);
@@ -853,9 +860,9 @@ function CallSiteGetMethodName() {
   }
   var name = null;
   for (var prop in this.receiver) {
-    if (this.receiver.__lookupGetter__(prop) === this.fun ||
-        this.receiver.__lookupSetter__(prop) === this.fun ||
-        (!this.receiver.__lookupGetter__(prop) &&
+    if (%_CallFunction(this.receiver, prop, ObjectLookupGetter) === this.fun ||
+        %_CallFunction(this.receiver, prop, ObjectLookupSetter) === this.fun ||
+        (!%_CallFunction(this.receiver, prop, ObjectLookupGetter) &&
          this.receiver[prop] === this.fun)) {
       // If we find more than one match bail out to avoid confusion.
       if (name) {
@@ -921,17 +928,25 @@ function CallSiteToString() {
   var fileLocation = "";
   if (this.isNative()) {
     fileLocation = "native";
-  } else if (this.isEval()) {
-    fileName = this.getScriptNameOrSourceURL();
-    if (!fileName) {
-      fileLocation = this.getEvalOrigin();
-    }
   } else {
-    fileName = this.getFileName();
-  }
+    if (this.isEval()) {
+      fileName = this.getScriptNameOrSourceURL();
+      if (!fileName) {
+        fileLocation = this.getEvalOrigin();
+        fileLocation += ", ";  // Expecting source position to follow.
+      }
+    } else {
+      fileName = this.getFileName();
+    }
 
-  if (fileName) {
-    fileLocation += fileName;
+    if (fileName) {
+      fileLocation += fileName;
+    } else {
+      // Source code does not originate from a file and is not native, but we
+      // can still get the source position inside the source string, e.g. in
+      // an eval string.
+      fileLocation += "<anonymous>";
+    }
     var lineNumber = this.getLineNumber();
     if (lineNumber != null) {
       fileLocation += ":" + lineNumber;
@@ -942,9 +957,6 @@ function CallSiteToString() {
     }
   }
 
-  if (!fileLocation) {
-    fileLocation = "unknown source";
-  }
   var line = "";
   var functionName = this.getFunctionName();
   var addSuffix = true;

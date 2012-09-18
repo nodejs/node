@@ -64,6 +64,8 @@ class Isolate;
 
 class Zone {
  public:
+  explicit Zone(Isolate* isolate);
+  ~Zone() { DeleteKeptSegment(); }
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
   // allocating new segments of memory on demand using malloc().
   inline void* New(int size);
@@ -113,9 +115,6 @@ class Zone {
   // includes memory allocated from the OS but not yet allocated from
   // the zone.
   int segment_bytes_allocated_;
-
-  // Each isolate gets its own zone.
-  Zone();
 
   // Expand the Zone to hold at least 'size' more bytes and allocate
   // the bytes. Returns the address of the newly allocated chunk of
@@ -235,7 +234,7 @@ class ZoneList: public List<T, ZoneAllocationPolicy> {
 // outer-most scope.
 class ZoneScope BASE_EMBEDDED {
  public:
-  INLINE(ZoneScope(Isolate* isolate, ZoneScopeMode mode));
+  INLINE(ZoneScope(Zone* zone, ZoneScopeMode mode));
 
   virtual ~ZoneScope();
 
@@ -250,7 +249,7 @@ class ZoneScope BASE_EMBEDDED {
   inline static int nesting();
 
  private:
-  Isolate* isolate_;
+  Zone* zone_;
   ZoneScopeMode mode_;
 };
 

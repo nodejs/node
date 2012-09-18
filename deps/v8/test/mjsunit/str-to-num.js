@@ -147,7 +147,6 @@ assertEquals(15, toNumber("0Xf"));
 assertEquals(15, toNumber("0XF"));
 
 assertEquals(0,  toNumber("0x000"));
-assertEquals(-Infinity,  1 / toNumber("-0x000"));
 assertEquals(0,  toNumber("0x000" + repeat('0', 1000)));
 assertEquals(9,  toNumber("0x009"));
 assertEquals(10, toNumber("0x00a"));
@@ -157,7 +156,6 @@ assertEquals(15, toNumber("0x00F"));
 assertEquals(15, toNumber("0x00F "));
 assertEquals(Infinity,  toNumber("0x" + repeat('0', 1000) + '1'
                         + repeat('0', 1000)));
-assertEquals(-Infinity,  toNumber("-0x1" + repeat('0', 1000)));
 
 assertEquals(0x1000000 * 0x10000000, toNumber("0x10000000000000"));
 assertEquals(0x1000000 * 0x10000000 + 1, toNumber("0x10000000000001"));
@@ -207,3 +205,10 @@ assertTrue(isNaN(toNumber("1" + repeat('0', 1000) + 'junk')), "1e1000 junk");
 for (var i = 1; i < 12; i++) {
   assertEquals(toNumber('1' + repeat('0', i)), Math.pow(10.0, i));
 }
+
+assertTrue(isNaN(toNumber("+0x0")));
+assertTrue(isNaN(toNumber("+0xFF")));
+assertTrue(isNaN(toNumber("+0x012")));
+assertTrue(isNaN(toNumber("-0x0")));
+assertTrue(isNaN(toNumber("-0xFF")));
+assertTrue(isNaN(toNumber("-0x012")));

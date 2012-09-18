@@ -231,3 +231,6 @@ for (var i = 0; i < 5; i++) {
 }
 %OptimizeFunctionOnNextCall(directlyOnPrototype);
 directlyOnPrototype();
+
+assertTrue(isNaN(%_StringCharCodeAt("ABC", -1)));
+assertTrue(isNaN(%_StringCharCodeAt("ABC", 4)));

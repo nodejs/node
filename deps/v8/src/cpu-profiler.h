@@ -188,7 +188,7 @@ class ProfilerEventsProcessor : public Thread {
 
 
 #define PROFILE(isolate, Call)                                \
-  LOG(isolate, Call);                                         \
+  LOG_CODE_EVENT(isolate, Call);                              \
   do {                                                        \
     if (v8::internal::CpuProfiler::is_profiling(isolate)) {   \
       v8::internal::CpuProfiler::Call;                        \

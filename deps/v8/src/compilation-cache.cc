@@ -165,10 +165,12 @@ bool CompilationCacheScript::HasOrigin(
 // be cached in the same script generation. Currently the first use
 // will be cached, but subsequent code from different source / line
 // won't.
-Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
-                                                          Handle<Object> name,
-                                                          int line_offset,
-                                                          int column_offset) {
+Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(
+    Handle<String> source,
+    Handle<Object> name,
+    int line_offset,
+    int column_offset,
+    Handle<Context> context) {
   Object* result = NULL;
   int generation;
 
@@ -177,7 +179,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
   { HandleScope scope(isolate());
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
-      Handle<Object> probe(table->Lookup(*source), isolate());
+      Handle<Object> probe(table->Lookup(*source, *context), isolate());
       if (probe->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> function_info =
             Handle<SharedFunctionInfo>::cast(probe);
@@ -214,7 +216,7 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
     ASSERT(HasOrigin(shared, name, line_offset, column_offset));
     // If the script was found in a later generation, we promote it to
     // the first generation to let it survive longer in the cache.
-    if (generation != 0) Put(source, shared);
+    if (generation != 0) Put(source, context, shared);
     isolate()->counters()->compilation_cache_hits()->Increment();
     return shared;
   } else {
@@ -226,25 +228,28 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
 
 MaybeObject* CompilationCacheScript::TryTablePut(
     Handle<String> source,
+    Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
   Handle<CompilationCacheTable> table = GetFirstTable();
-  return table->Put(*source, *function_info);
+  return table->Put(*source, *context, *function_info);
 }
 
 
 Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
     Handle<String> source,
+    Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
   CALL_HEAP_FUNCTION(isolate(),
-                     TryTablePut(source, function_info),
+                     TryTablePut(source, context, function_info),
                      CompilationCacheTable);
 }
 
 
 void CompilationCacheScript::Put(Handle<String> source,
+                                 Handle<Context> context,
                                  Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
-  SetFirstTable(TablePut(source, function_info));
+  SetFirstTable(TablePut(source, context, function_info));
 }
 
 
@@ -380,15 +385,17 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
 }
 
 
-Handle<SharedFunctionInfo> CompilationCache::LookupScript(Handle<String> source,
-                                                          Handle<Object> name,
-                                                          int line_offset,
-                                                          int column_offset) {
+Handle<SharedFunctionInfo> CompilationCache::LookupScript(
+    Handle<String> source,
+    Handle<Object> name,
+    int line_offset,
+    int column_offset,
+    Handle<Context> context) {
   if (!IsEnabled()) {
     return Handle<SharedFunctionInfo>::null();
   }
 
-  return script_.Lookup(source, name, line_offset, column_offset);
+  return script_.Lookup(source, name, line_offset, column_offset, context);
 }
 
 
@@ -426,12 +433,13 @@ Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 
 
 void CompilationCache::PutScript(Handle<String> source,
+                                 Handle<Context> context,
                                  Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) {
     return;
   }
 
-  script_.Put(source, function_info);
+  script_.Put(source, context, function_info);
 }
 
 

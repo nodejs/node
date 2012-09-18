@@ -39,15 +39,20 @@ class ScriptDataImpl;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
-class CompilationInfo BASE_EMBEDDED {
+class CompilationInfo {
  public:
-  explicit CompilationInfo(Handle<Script> script);
-  explicit CompilationInfo(Handle<SharedFunctionInfo> shared_info);
-  explicit CompilationInfo(Handle<JSFunction> closure);
+  CompilationInfo(Handle<Script> script, Zone* zone);
+  CompilationInfo(Handle<SharedFunctionInfo> shared_info, Zone* zone);
+  CompilationInfo(Handle<JSFunction> closure, Zone* zone);
+
+  virtual ~CompilationInfo();
 
   Isolate* isolate() {
     ASSERT(Isolate::Current() == isolate_);
     return isolate_;
+  }
+  Zone* zone() {
+    return zone_;
   }
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
@@ -67,8 +72,8 @@ class CompilationInfo BASE_EMBEDDED {
   Handle<Script> script() const { return script_; }
   v8::Extension* extension() const { return extension_; }
   ScriptDataImpl* pre_parse_data() const { return pre_parse_data_; }
-  Handle<Context> calling_context() const { return calling_context_; }
-  int osr_ast_id() const { return osr_ast_id_; }
+  Handle<Context> context() const { return context_; }
+  BailoutId osr_ast_id() const { return osr_ast_id_; }
 
   void MarkAsEval() {
     ASSERT(!is_lazy());
@@ -115,13 +120,8 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(!is_lazy());
     pre_parse_data_ = pre_parse_data;
   }
-  void SetCallingContext(Handle<Context> context) {
-    ASSERT(is_eval());
-    calling_context_ = context;
-  }
-  void SetOsrAstId(int osr_ast_id) {
-    ASSERT(IsOptimizing());
-    osr_ast_id_ = osr_ast_id;
+  void SetContext(Handle<Context> context) {
+    context_ = context;
   }
   void MarkCompilingForDebugging(Handle<Code> current_code) {
     ASSERT(mode_ != OPTIMIZE);
@@ -138,17 +138,18 @@ class CompilationInfo BASE_EMBEDDED {
   }
 
   bool has_global_object() const {
-    return !closure().is_null() && (closure()->context()->global() != NULL);
+    return !closure().is_null() &&
+        (closure()->context()->global_object() != NULL);
   }
 
   GlobalObject* global_object() const {
-    return has_global_object() ? closure()->context()->global() : NULL;
+    return has_global_object() ? closure()->context()->global_object() : NULL;
   }
 
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsOptimizable() const { return mode_ == BASE; }
-  void SetOptimizing(int osr_ast_id) {
+  void SetOptimizing(BailoutId osr_ast_id) {
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
   }
@@ -170,6 +171,21 @@ class CompilationInfo BASE_EMBEDDED {
   // current compilation pipeline.
   void AbortOptimization();
 
+  void set_deferred_handles(DeferredHandles* deferred_handles) {
+    ASSERT(deferred_handles_ == NULL);
+    deferred_handles_ = deferred_handles;
+  }
+
+  void SaveHandles() {
+    SaveHandle(&closure_);
+    SaveHandle(&shared_info_);
+    SaveHandle(&context_);
+    SaveHandle(&script_);
+  }
+
+  const char* bailout_reason() const { return bailout_reason_; }
+  void set_bailout_reason(const char* reason) { bailout_reason_ = reason; }
+
  private:
   Isolate* isolate_;
 
@@ -184,8 +200,6 @@ class CompilationInfo BASE_EMBEDDED {
     NONOPT
   };
 
-  CompilationInfo() : function_(NULL) {}
-
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
     ASSERT(!script_.is_null());
@@ -196,6 +210,7 @@ class CompilationInfo BASE_EMBEDDED {
       ASSERT(language_mode() == CLASSIC_MODE);
       SetLanguageMode(shared_info_->language_mode());
     }
+    set_bailout_reason("unknown");
   }
 
   void SetMode(Mode mode) {
@@ -246,15 +261,145 @@ class CompilationInfo BASE_EMBEDDED {
   v8::Extension* extension_;
   ScriptDataImpl* pre_parse_data_;
 
-  // The context of the caller is needed for eval code, and will be a null
-  // handle otherwise.
-  Handle<Context> calling_context_;
+  // The context of the caller for eval code, and the global context for a
+  // global script. Will be a null handle otherwise.
+  Handle<Context> context_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
-  int osr_ast_id_;
+  BailoutId osr_ast_id_;
+
+  // The zone from which the compilation pipeline working on this
+  // CompilationInfo allocates.
+  Zone* zone_;
+
+  DeferredHandles* deferred_handles_;
+
+  template<typename T>
+  void SaveHandle(Handle<T> *object) {
+    if (!object->is_null()) {
+      Handle<T> handle(*(*object));
+      *object = handle;
+    }
+  }
+
+  const char* bailout_reason_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
+};
+
+
+// Exactly like a CompilationInfo, except also creates and enters a
+// Zone on construction and deallocates it on exit.
+class CompilationInfoWithZone: public CompilationInfo {
+ public:
+  explicit CompilationInfoWithZone(Handle<Script> script)
+      : CompilationInfo(script, &zone_),
+        zone_(script->GetIsolate()),
+        zone_scope_(&zone_, DELETE_ON_EXIT) {}
+  explicit CompilationInfoWithZone(Handle<SharedFunctionInfo> shared_info)
+      : CompilationInfo(shared_info, &zone_),
+        zone_(shared_info->GetIsolate()),
+        zone_scope_(&zone_, DELETE_ON_EXIT) {}
+  explicit CompilationInfoWithZone(Handle<JSFunction> closure)
+      : CompilationInfo(closure, &zone_),
+        zone_(closure->GetIsolate()),
+        zone_scope_(&zone_, DELETE_ON_EXIT) {}
+
+ private:
+  Zone zone_;
+  ZoneScope zone_scope_;
+};
+
+
+// A wrapper around a CompilationInfo that detaches the Handles from
+// the underlying DeferredHandleScope and stores them in info_ on
+// destruction.
+class CompilationHandleScope BASE_EMBEDDED {
+ public:
+  explicit CompilationHandleScope(CompilationInfo* info)
+      : deferred_(info->isolate()), info_(info) {}
+  ~CompilationHandleScope() {
+    info_->set_deferred_handles(deferred_.Detach());
+  }
+
+ private:
+  DeferredHandleScope deferred_;
+  CompilationInfo* info_;
+};
+
+
+class HGraph;
+class HGraphBuilder;
+class LChunk;
+
+// A helper class that calls the three compilation phases in
+// Crankshaft and keeps track of its state.  The three phases
+// CreateGraph, OptimizeGraph and GenerateAndInstallCode can either
+// fail, bail-out to the full code generator or succeed.  Apart from
+// their return value, the status of the phase last run can be checked
+// using last_status().
+class OptimizingCompiler: public ZoneObject {
+ public:
+  explicit OptimizingCompiler(CompilationInfo* info)
+      : info_(info),
+        oracle_(NULL),
+        graph_builder_(NULL),
+        graph_(NULL),
+        chunk_(NULL),
+        time_taken_to_create_graph_(0),
+        time_taken_to_optimize_(0),
+        time_taken_to_codegen_(0),
+        last_status_(FAILED) { }
+
+  enum Status {
+    FAILED, BAILED_OUT, SUCCEEDED
+  };
+
+  MUST_USE_RESULT Status CreateGraph();
+  MUST_USE_RESULT Status OptimizeGraph();
+  MUST_USE_RESULT Status GenerateAndInstallCode();
+
+  Status last_status() const { return last_status_; }
+  CompilationInfo* info() const { return info_; }
+
+  MUST_USE_RESULT Status AbortOptimization() {
+    info_->AbortOptimization();
+    info_->shared_info()->DisableOptimization(info_->bailout_reason());
+    return SetLastStatus(BAILED_OUT);
+  }
+
+ private:
+  CompilationInfo* info_;
+  TypeFeedbackOracle* oracle_;
+  HGraphBuilder* graph_builder_;
+  HGraph* graph_;
+  LChunk* chunk_;
+  int64_t time_taken_to_create_graph_;
+  int64_t time_taken_to_optimize_;
+  int64_t time_taken_to_codegen_;
+  Status last_status_;
+
+  MUST_USE_RESULT Status SetLastStatus(Status status) {
+    last_status_ = status;
+    return last_status_;
+  }
+  void RecordOptimizationStats();
+
+  struct Timer {
+    Timer(OptimizingCompiler* compiler, int64_t* location)
+        : compiler_(compiler),
+          start_(OS::Ticks()),
+          location_(location) { }
+
+    ~Timer() {
+      *location_ += (OS::Ticks() - start_);
+    }
+
+    OptimizingCompiler* compiler_;
+    int64_t start_;
+    int64_t* location_;
+  };
 };
 
 
@@ -271,10 +416,6 @@ class CompilationInfo BASE_EMBEDDED {
 
 class Compiler : public AllStatic {
  public:
-  // Default maximum number of function optimization attempts before we
-  // give up.
-  static const int kDefaultMaxOptCount = 10;
-
   static const int kMaxInliningLevels = 3;
 
   // Call count before primitive functions trigger their own optimization.
@@ -289,6 +430,7 @@ class Compiler : public AllStatic {
                                             Handle<Object> script_name,
                                             int line_offset,
                                             int column_offset,
+                                            Handle<Context> context,
                                             v8::Extension* extension,
                                             ScriptDataImpl* pre_data,
                                             Handle<Object> script_data,
@@ -305,6 +447,8 @@ class Compiler : public AllStatic {
   // success and false if the compilation resulted in a stack overflow.
   static bool CompileLazy(CompilationInfo* info);
 
+  static void RecompileParallel(Handle<JSFunction> function);
+
   // Compile a shared function info object (the function is possibly lazily
   // compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
@@ -315,6 +459,8 @@ class Compiler : public AllStatic {
                               FunctionLiteral* lit,
                               bool is_toplevel,
                               Handle<Script> script);
+
+  static void InstallOptimizedCode(OptimizingCompiler* info);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static bool MakeCodeForLiveEdit(CompilationInfo* info);

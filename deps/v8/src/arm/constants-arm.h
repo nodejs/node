@@ -56,8 +56,9 @@
 # define CAN_USE_ARMV6_INSTRUCTIONS 1
 #endif
 
-#if defined(__ARM_ARCH_5T__)            || \
-    defined(__ARM_ARCH_5TE__)           || \
+#if defined(__ARM_ARCH_5T__)             || \
+    defined(__ARM_ARCH_5TE__)            || \
+    defined(__ARM_ARCH_5TEJ__)           || \
     defined(CAN_USE_ARMV6_INSTRUCTIONS)
 # define CAN_USE_ARMV5_INSTRUCTIONS 1
 # define CAN_USE_THUMB_INSTRUCTIONS 1

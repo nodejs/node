@@ -602,14 +602,17 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
     if (token == i::Token::CASE) {
       Expect(i::Token::CASE, CHECK_OK);
       ParseExpression(true, CHECK_OK);
-      Expect(i::Token::COLON, CHECK_OK);
-    } else if (token == i::Token::DEFAULT) {
-      Expect(i::Token::DEFAULT, CHECK_OK);
-      Expect(i::Token::COLON, CHECK_OK);
     } else {
-      ParseStatement(CHECK_OK);
+      Expect(i::Token::DEFAULT, CHECK_OK);
     }
+    Expect(i::Token::COLON, CHECK_OK);
     token = peek();
+    while (token != i::Token::CASE &&
+           token != i::Token::DEFAULT &&
+           token != i::Token::RBRACE) {
+      ParseStatement(CHECK_OK);
+      token = peek();
+    }
   }
   Expect(i::Token::RBRACE, ok);
   return Statement::Default();

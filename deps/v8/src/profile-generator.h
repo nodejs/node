@@ -925,10 +925,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
                             Object* child,
                             const char* name_format_string = NULL,
                             int field_offset = -1);
-  void SetPropertyShortcutReference(HeapObject* parent_obj,
-                                    int parent,
-                                    String* reference_name,
-                                    Object* child);
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
   void SetGcRootsReference(VisitorSynchronization::SyncTag tag);

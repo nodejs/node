@@ -52,8 +52,13 @@ inline bool isDigit(int x, int radix) {
 }
 
 
-inline double SignedZero(bool negative) {
-  return negative ? -0.0 : 0.0;
+// The fast double-to-(unsigned-)int conversion routine does not guarantee
+// rounding towards zero.
+// For NaN and values outside the int range, return INT_MIN or INT_MAX.
+inline int FastD2IChecked(double x) {
+  if (!(x >= INT_MIN)) return INT_MIN;  // Negation to catch NaNs.
+  if (x > INT_MAX) return INT_MAX;
+  return static_cast<int>(x);
 }
 
 
@@ -62,8 +67,6 @@ inline double SignedZero(bool negative) {
 // The result is unspecified if x is infinite or NaN, or if the rounded
 // integer value is outside the range of type int.
 inline int FastD2I(double x) {
-  // The static_cast convertion from double to int used to be slow, but
-  // as new benchmarks show, now it is much faster than lrint().
   return static_cast<int>(x);
 }
 

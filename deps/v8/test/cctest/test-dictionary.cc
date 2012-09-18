@@ -48,24 +48,24 @@ TEST(ObjectHashTable) {
   table = PutIntoObjectHashTable(table, a, b);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), HEAP->undefined_value());
+  CHECK_EQ(table->Lookup(*b), HEAP->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
   HEAP->CollectGarbage(NEW_SPACE);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(*a), *b);
-  CHECK_EQ(table->Lookup(*b), HEAP->undefined_value());
+  CHECK_EQ(table->Lookup(*b), HEAP->the_hole_value());
 
   // Keys that are overwritten should not change number of elements.
   table = PutIntoObjectHashTable(table, a, FACTORY->NewJSArray(13));
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_NE(table->Lookup(*a), *b);
 
-  // Keys mapped to undefined should be removed permanently.
-  table = PutIntoObjectHashTable(table, a, FACTORY->undefined_value());
+  // Keys mapped to the hole should be removed permanently.
+  table = PutIntoObjectHashTable(table, a, FACTORY->the_hole_value());
   CHECK_EQ(table->NumberOfElements(), 0);
   CHECK_EQ(table->NumberOfDeletedElements(), 1);
-  CHECK_EQ(table->Lookup(*a), HEAP->undefined_value());
+  CHECK_EQ(table->Lookup(*a), HEAP->the_hole_value());
 
   // Keys should map back to their respective values and also should get
   // an identity hash code generated.
@@ -85,7 +85,7 @@ TEST(ObjectHashTable) {
     Handle<JSObject> key = FACTORY->NewJSArray(7);
     CHECK(key->GetIdentityHash(ALLOW_CREATION)->ToObjectChecked()->IsSmi());
     CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
-    CHECK_EQ(table->Lookup(*key), HEAP->undefined_value());
+    CHECK_EQ(table->Lookup(*key), HEAP->the_hole_value());
     CHECK(key->GetIdentityHash(OMIT_CREATION)->ToObjectChecked()->IsSmi());
   }
 
@@ -93,7 +93,7 @@ TEST(ObjectHashTable) {
   // should not get an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSObject> key = FACTORY->NewJSArray(7);
-    CHECK_EQ(table->Lookup(*key), HEAP->undefined_value());
+    CHECK_EQ(table->Lookup(*key), HEAP->the_hole_value());
     CHECK_EQ(key->GetIdentityHash(OMIT_CREATION), HEAP->undefined_value());
   }
 }
@@ -105,6 +105,12 @@ TEST(ObjectHashSetCausesGC) {
   LocalContext context;
   Handle<ObjectHashSet> table = FACTORY->NewObjectHashSet(1);
   Handle<JSObject> key = FACTORY->NewJSArray(0);
+  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
+
+  // Force allocation of hash table backing store for hidden properties.
+  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
+  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
+  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
@@ -128,13 +134,19 @@ TEST(ObjectHashTableCausesGC) {
   LocalContext context;
   Handle<ObjectHashTable> table = FACTORY->NewObjectHashTable(1);
   Handle<JSObject> key = FACTORY->NewJSArray(0);
+  v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
+
+  // Force allocation of hash table backing store for hidden properties.
+  key_obj->SetHiddenValue(v8_str("key 1"), v8_str("val 1"));
+  key_obj->SetHiddenValue(v8_str("key 2"), v8_str("val 2"));
+  key_obj->SetHiddenValue(v8_str("key 3"), v8_str("val 3"));
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
   FLAG_gc_interval = 0;
 
   // Calling Lookup() should not cause GC ever.
-  CHECK(table->Lookup(*key)->IsUndefined());
+  CHECK(table->Lookup(*key)->IsTheHole());
 
   // Calling Put() should request GC by returning a failure.
   CHECK(table->Put(*key, *key)->IsRetryAfterGC());

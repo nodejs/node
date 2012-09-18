@@ -124,8 +124,16 @@ void Interface::Unify(Interface* that, Zone* zone, bool* ok) {
 
   *ok = true;
   if (this == that) return;
-  if (this->IsValue()) return that->MakeValue(ok);
-  if (that->IsValue()) return this->MakeValue(ok);
+  if (this->IsValue()) {
+    that->MakeValue(ok);
+    if (*ok && this->IsConst()) that->MakeConst(ok);
+    return;
+  }
+  if (that->IsValue()) {
+    this->MakeValue(ok);
+    if (*ok && that->IsConst()) this->MakeConst(ok);
+    return;
+  }
 
 #ifdef DEBUG
   if (FLAG_print_interface_details) {
@@ -214,6 +222,8 @@ void Interface::Print(int n) {
 
   if (IsUnknown()) {
     PrintF("unknown\n");
+  } else if (IsConst()) {
+    PrintF("const\n");
   } else if (IsValue()) {
     PrintF("value\n");
   } else if (IsModule()) {

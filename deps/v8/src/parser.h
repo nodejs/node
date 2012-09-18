@@ -175,12 +175,6 @@ class ParserApi {
   static ScriptDataImpl* PreParse(Utf16CharacterStream* source,
                                   v8::Extension* extension,
                                   int flags);
-
-  // Preparser that only does preprocessing that makes sense if only used
-  // immediately after.
-  static ScriptDataImpl* PartialPreParse(Handle<String> source,
-                                         v8::Extension* extension,
-                                         int flags);
 };
 
 // ----------------------------------------------------------------------------
@@ -306,11 +300,13 @@ class RegExpParser {
  public:
   RegExpParser(FlatStringReader* in,
                Handle<String>* error,
-               bool multiline_mode);
+               bool multiline_mode,
+               Zone* zone);
 
   static bool ParseRegExp(FlatStringReader* input,
                           bool multiline,
-                          RegExpCompileData* result);
+                          RegExpCompileData* result,
+                          Zone* zone);
 
   RegExpTree* ParsePattern();
   RegExpTree* ParseDisjunction();
@@ -398,7 +394,7 @@ class RegExpParser {
   };
 
   Isolate* isolate() { return isolate_; }
-  Zone* zone() const { return isolate_->zone(); }
+  Zone* zone() const { return zone_; }
 
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
@@ -408,6 +404,7 @@ class RegExpParser {
   void ScanForCaptures();
 
   Isolate* isolate_;
+  Zone* zone_;
   Handle<String>* error_;
   ZoneList<RegExpCapture*>* captures_;
   FlatStringReader* in_;
@@ -431,19 +428,18 @@ class SingletonLogger;
 
 class Parser {
  public:
-  Parser(Handle<Script> script,
+  Parser(CompilationInfo* info,
          int parsing_flags,  // Combination of ParsingFlags
          v8::Extension* extension,
-         ScriptDataImpl* pre_data,
-         Zone* zone);
+         ScriptDataImpl* pre_data);
   virtual ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
   }
 
   // Returns NULL if parsing failed.
-  FunctionLiteral* ParseProgram(CompilationInfo* info);
-  FunctionLiteral* ParseLazy(CompilationInfo* info);
+  FunctionLiteral* ParseProgram();
+  FunctionLiteral* ParseLazy();
 
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
@@ -540,15 +536,28 @@ class Parser {
     AstNodeFactory<AstConstructionVisitor> factory_;
   };
 
+  class ParsingModeScope BASE_EMBEDDED {
+   public:
+    ParsingModeScope(Parser* parser, Mode mode)
+        : parser_(parser),
+          old_mode_(parser->mode()) {
+      parser_->mode_ = mode;
+    }
+    ~ParsingModeScope() {
+      parser_->mode_ = old_mode_;
+    }
 
+   private:
+    Parser* parser_;
+    Mode old_mode_;
+  };
 
-
-  FunctionLiteral* ParseLazy(CompilationInfo* info,
-                             Utf16CharacterStream* source,
+  FunctionLiteral* ParseLazy(Utf16CharacterStream* source,
                              ZoneScope* zone_scope);
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() const { return zone_; }
+  CompilationInfo* info() const { return info_; }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info,
@@ -570,7 +579,7 @@ class Parser {
     return top_scope_->is_extended_mode();
   }
   Scope* DeclarationScope(VariableMode mode) {
-    return (mode == LET || mode == CONST_HARMONY)
+    return IsLexicalVariableMode(mode)
         ? top_scope_ : top_scope_->DeclarationScope();
   }
 
@@ -584,7 +593,7 @@ class Parser {
   void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool is_eval, bool* ok);
   Statement* ParseModuleElement(ZoneStringList* labels, bool* ok);
-  Block* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
+  Statement* ParseModuleDeclaration(ZoneStringList* names, bool* ok);
   Module* ParseModule(bool* ok);
   Module* ParseModuleLiteral(bool* ok);
   Module* ParseModulePath(bool* ok);
@@ -769,7 +778,7 @@ class Parser {
   // Parser support
   VariableProxy* NewUnresolved(Handle<String> name,
                                VariableMode mode,
-                               Interface* interface = Interface::NewValue());
+                               Interface* interface);
   void Declare(Declaration* declaration, bool resolve, bool* ok);
 
   bool TargetStackContainsLabel(Handle<String> label);
@@ -837,6 +846,7 @@ class Parser {
   bool parenthesized_function_;
 
   Zone* zone_;
+  CompilationInfo* info_;
   friend class BlockState;
   friend class FunctionState;
 };
