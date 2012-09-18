@@ -316,17 +316,15 @@ static int uv__bind(uv_udp_t* handle,
     goto out;
   }
 
-  /* Check for already active socket. */
-  if (handle->fd != -1) {
-    uv__set_artificial_error(handle->loop, UV_EALREADY);
-    goto out;
+  if (handle->fd == -1) {
+    if ((fd = uv__socket(domain, SOCK_DGRAM, 0)) == -1) {
+      uv__set_sys_error(handle->loop, errno);
+      goto out;
+    }
+    handle->fd = fd;
   }
 
-  if ((fd = uv__socket(domain, SOCK_DGRAM, 0)) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    goto out;
-  }
-
+  fd = handle->fd;
   yes = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
     uv__set_sys_error(handle->loop, errno);
@@ -367,12 +365,13 @@ static int uv__bind(uv_udp_t* handle,
     goto out;
   }
 
-  handle->fd = fd;
   status = 0;
 
 out:
-  if (status)
-    close(fd);
+  if (status) {
+    close(handle->fd);
+    handle->fd = -1;
+  }
 
   errno = saved_errno;
   return status;
@@ -483,6 +482,51 @@ int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags) {
                   (struct sockaddr*)&addr,
                   sizeof addr,
                   flags);
+}
+
+
+int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
+  int saved_errno;
+  int status;
+  int yes;
+
+  saved_errno = errno;
+  status = -1;
+
+  /* Check for already active socket. */
+  if (handle->fd != -1) {
+    uv__set_artificial_error(handle->loop, UV_EALREADY);
+    goto out;
+  }
+
+  yes = 1;
+  if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    goto out;
+  }
+
+  /* On the BSDs, SO_REUSEADDR lets you reuse an address that's in the TIME_WAIT
+   * state (i.e. was until recently tied to a socket) while SO_REUSEPORT lets
+   * multiple processes bind to the same address. Yes, it's something of a
+   * misnomer but then again, SO_REUSEADDR was already taken.
+   *
+   * None of the above applies to Linux: SO_REUSEADDR implies SO_REUSEPORT on
+   * Linux and hence it does not have SO_REUSEPORT at all.
+   */
+#ifdef SO_REUSEPORT
+  yes = 1;
+  if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    goto out;
+  }
+#endif
+
+  handle->fd = sock;
+  status = 0;
+
+out:
+  errno = saved_errno;
+  return status;
 }
 
 

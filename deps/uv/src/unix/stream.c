@@ -386,16 +386,6 @@ void uv__stream_destroy(uv_stream_t* stream) {
 }
 
 
-static void uv__next_accept(uv_idle_t* idle, int status) {
-  uv_stream_t* stream = idle->data;
-
-  uv_idle_stop(idle);
-
-  if (stream->accepted_fd == -1)
-    uv__io_start(stream->loop, &stream->read_watcher);
-}
-
-
 /* Implements a best effort approach to mitigating accept() EMFILE errors.
  * We have a spare file descriptor stashed away that we close to get below
  * the EMFILE limit. Next, we accept all pending connections and close them
@@ -497,40 +487,17 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
     stream->accepted_fd = fd;
     stream->connection_cb(stream, 0);
 
-    if (stream->accepted_fd != -1 ||
-        (stream->type == UV_TCP && stream->flags == UV_TCP_SINGLE_ACCEPT)) {
+    if (stream->accepted_fd != -1) {
       /* The user hasn't yet accepted called uv_accept() */
       uv__io_stop(loop, &stream->read_watcher);
-      break;
+      return;
     }
-  }
 
-  if (stream->fd != -1 &&
-      stream->accepted_fd == -1 &&
-      (stream->type == UV_TCP && stream->flags == UV_TCP_SINGLE_ACCEPT))
-  {
-    /* Defer the next accept() syscall to the next event loop tick.
-     * This lets us guarantee fair load balancing in in multi-process setups.
-     * The problem is as follows:
-     *
-     *  1. Multiple processes listen on the same socket.
-     *  2. The OS scheduler commonly gives preference to one process to
-     *     avoid task switches.
-     *  3. That process therefore accepts most of the new connections,
-     *     leading to a (sometimes very) unevenly distributed load.
-     *
-     * Here is how we mitigate this issue:
-     *
-     *  1. Accept a connection.
-     *  2. Start an idle watcher.
-     *  3. Don't accept new connections until the idle callback fires.
-     *
-     * This works because the callback only fires when there have been
-     * no recent events, i.e. none of the watched file descriptors have
-     * recently been readable or writable.
-     */
-    uv_tcp_t* tcp = (uv_tcp_t*) stream;
-    uv_idle_start(tcp->idle_handle, uv__next_accept);
+    if (stream->type == UV_TCP && (stream->flags & UV_TCP_SINGLE_ACCEPT)) {
+      /* Give other processes a chance to accept connections. */
+      struct timespec timeout = { 0, 1 };
+      nanosleep(&timeout, NULL);
+    }
   }
 }
 

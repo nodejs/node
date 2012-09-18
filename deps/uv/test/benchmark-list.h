@@ -33,6 +33,10 @@ BENCHMARK_DECLARE (tcp_pump1_client)
 BENCHMARK_DECLARE (pipe_pump100_client)
 BENCHMARK_DECLARE (pipe_pump1_client)
 
+BENCHMARK_DECLARE (tcp_multi_accept2)
+BENCHMARK_DECLARE (tcp_multi_accept4)
+BENCHMARK_DECLARE (tcp_multi_accept8)
+
 /* Run until X packets have been sent/received. */
 BENCHMARK_DECLARE (udp_pummel_1v1)
 BENCHMARK_DECLARE (udp_pummel_1v10)
@@ -111,6 +115,10 @@ TASK_LIST_START
 
   BENCHMARK_ENTRY  (pipe_pound_1000)
   BENCHMARK_HELPER (pipe_pound_1000, pipe_echo_server)
+
+  BENCHMARK_ENTRY  (tcp_multi_accept2)
+  BENCHMARK_ENTRY  (tcp_multi_accept4)
+  BENCHMARK_ENTRY  (tcp_multi_accept8)
 
   BENCHMARK_ENTRY  (udp_pummel_1v1)
   BENCHMARK_ENTRY  (udp_pummel_1v10)

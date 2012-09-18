@@ -1378,3 +1378,18 @@ void uv_tcp_close(uv_loop_t* loop, uv_tcp_t* tcp) {
     uv_want_endgame(tcp->loop, (uv_handle_t*)tcp);
   }
 }
+
+
+int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock) {
+  /* Make the socket non-inheritable */
+  if (!SetHandleInformation((HANDLE) sock, HANDLE_FLAG_INHERIT, 0)) {
+    uv__set_sys_error(handle->loop, GetLastError());
+    return -1;
+  }
+
+  if (uv_tcp_set_socket(handle->loop, handle, sock, 0) == -1) {
+    return -1;
+  }
+
+  return 0;
+}

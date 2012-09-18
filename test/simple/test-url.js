@@ -659,6 +659,12 @@ for (var u in parseTests) {
       spaced = url.parse('     \t  ' + u + '\n\t');
       expected = parseTests[u];
 
+  Object.keys(actual).forEach(function (i) {
+    if (expected[i] === undefined && actual[i] === null) {
+      expected[i] = null;
+    }
+  });
+
   assert.deepEqual(actual, expected);
   assert.deepEqual(spaced, expected);
 
@@ -695,6 +701,11 @@ var parseTestsWithQueryString = {
 for (var u in parseTestsWithQueryString) {
   var actual = url.parse(u, true);
   var expected = parseTestsWithQueryString[u];
+  for (var i in actual) {
+    if (actual[i] === null && expected[i] === undefined) {
+      expected[i] = null;
+    }
+  }
 
   assert.deepEqual(actual, expected);
 }
@@ -1227,15 +1238,6 @@ relativeTests.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]),
       expected = url.parse(relativeTest[2]);
 
-  //because of evaluation order
-  //resolveObject(parse(x), y) == parse(resolve(x, y)) will differ by
-  //false-ish values.  remove all except host and hostname
-  for (var i in actual) {
-    if (actual[i] === undefined ||
-        (!emptyIsImportant.hasOwnProperty(i) && !actual[i])) {
-      delete actual[i];
-    }
-  }
 
   assert.deepEqual(actual, expected);
 
@@ -1263,16 +1265,6 @@ if (relativeTests2[181][0] === './/g' &&
 relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]),
       expected = url.parse(relativeTest[2]);
-
-  //because of evaluation order
-  //resolveObject(parse(x), y) == parse(resolve(x, y)) will differ by
-  //false-ish values.  remove all except host and hostname
-  for (var i in actual) {
-    if (actual[i] === undefined ||
-        (!emptyIsImportant.hasOwnProperty(i) && !actual[i])) {
-      delete actual[i];
-    }
-  }
 
   assert.deepEqual(actual, expected);
 

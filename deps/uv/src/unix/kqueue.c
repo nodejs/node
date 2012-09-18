@@ -93,9 +93,6 @@ int uv_fs_event_init(uv_loop_t* loop,
   struct stat statbuf;
 #endif /* defined(__APPLE__) */
 
-  /* We don't support any flags yet. */
-  assert(!flags);
-
   /* TODO open asynchronously - but how do we report back errors? */
   if ((fd = open(filename, O_RDONLY)) == -1) {
     uv__set_sys_error(loop, errno);
@@ -112,6 +109,9 @@ int uv_fs_event_init(uv_loop_t* loop,
 #if defined(__APPLE__)
   /* Nullify field to perform checks later */
   handle->cf_eventstream = NULL;
+  handle->realpath = NULL;
+  handle->realpath_len = 0;
+  handle->cf_flags = flags;
 
   if (fstat(fd, &statbuf))
     goto fallback;

@@ -24,7 +24,9 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
-var expectFilePath = process.platform == 'win32' || process.platform == 'linux';
+var expectFilePath = process.platform === 'win32' ||
+                     process.platform === 'linux' ||
+                     process.platform === 'darwin';
 
 var watchSeenOne = 0;
 var watchSeenTwo = 0;
@@ -63,7 +65,10 @@ assert.doesNotThrow(
       var watcher = fs.watch(filepathOne)
       watcher.on('change', function(event, filename) {
         assert.equal('change', event);
-        if (expectFilePath) {
+
+        // darwin only shows the file path for subdir watching,
+        // not for individual file watching.
+        if (expectFilePath && process.platform !== 'darwin') {
           assert.equal('watch.txt', filename);
         } else {
           assert.equal(null, filename);
@@ -87,7 +92,10 @@ assert.doesNotThrow(
     function() {
       var watcher = fs.watch(filepathTwo, function(event, filename) {
         assert.equal('change', event);
-        if (expectFilePath) {
+
+        // darwin only shows the file path for subdir watching,
+        // not for individual file watching.
+        if (expectFilePath && process.platform !== 'darwin') {
           assert.equal('hasOwnProperty', filename);
         } else {
           assert.equal(null, filename);
