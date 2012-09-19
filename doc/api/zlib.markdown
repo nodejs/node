@@ -139,6 +139,21 @@ Returns a new [Unzip](#zlib_class_zlib_unzip) object with an
 [options](#zlib_options).
 
 
+## Class: zlib.Zlib
+
+Not exported by the `zlib` module. It is documented here because it is the base
+class of the compressor/decompressor classes.
+
+### zlib.flush(callback)
+
+Flush pending data. Don't call this frivolously, premature flushes negatively
+impact the effectiveness of the compression algorithm.
+
+### zlib.reset()
+
+Reset the compressor/decompressor to factory defaults. Only applicable to
+the inflate and deflate algorithms.
+
 ## Class: zlib.Gzip
 
 Compress data using gzip.
