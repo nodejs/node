@@ -98,6 +98,10 @@ all:	$(OUTPUTS)
 	# strip trailing whitespace and final blank newline
 	sed -sri -e 's/\s+$$/\n/' -e '$$ { /^$$/d }' $^
 
+clean:
+	find . -iname '*.asm' -exec rm "{}" \;
+	find . -iname '*.s' -exec rm "{}" \;
+
 x64-elf-gas/aes/aes-x86_64.s: ../openssl/crypto/aes/asm/aes-x86_64.pl
 x64-elf-gas/bn/x86_64-mont.s: ../openssl/crypto/bn/asm/x86_64-mont.pl
 x64-elf-gas/camellia/cmll-x86_64.s: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
