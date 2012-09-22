@@ -186,9 +186,6 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, int events) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* No problem. */
         return;
-      } else if (errno == EMFILE) {
-        /* TODO special trick. unlock reserved socket, accept, close. */
-        return;
       } else if (errno == ECONNABORTED) {
         /* ignore */
         continue;

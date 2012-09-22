@@ -205,26 +205,26 @@ static void uv__process_close_stream(uv_stdio_container_t* container) {
 static void uv__process_child_init(uv_process_options_t options,
                                    int stdio_count,
                                    int* pipes) {
-  int i;
+  int fd;
 
   if (options.flags & UV_PROCESS_DETACHED) {
     setsid();
   }
 
   /* Dup fds */
-  for (i = 0; i < stdio_count; i++) {
+  for (fd = 0; fd < stdio_count; fd++) {
     /*
      * stdin has swapped ends of pipe
      * (it's the only one readable stream)
      */
-    int close_fd = i == 0 ? pipes[i * 2 + 1] : pipes[i * 2];
-    int use_fd = i == 0 ? pipes[i * 2] : pipes[i * 2 + 1];
+    int close_fd = fd == 0 ? pipes[fd * 2 + 1] : pipes[fd * 2];
+    int use_fd = fd == 0 ? pipes[fd * 2] : pipes[fd * 2 + 1];
 
     if (use_fd >= 0) {
       close(close_fd);
-    } else if (i < 3) {
+    } else if (fd < 3) {
       /* `/dev/null` stdin, stdout, stderr even if they've flag UV_IGNORE */
-      use_fd = open("/dev/null", i == 0 ? O_RDONLY : O_RDWR);
+      use_fd = open("/dev/null", fd == 0 ? O_RDONLY : O_RDWR);
 
       if (use_fd < 0) {
         perror("failed to open stdio");
@@ -234,12 +234,15 @@ static void uv__process_child_init(uv_process_options_t options,
       continue;
     }
 
-    if (i != use_fd) {
-      dup2(use_fd, i);
+    if (fd != use_fd) {
+      dup2(use_fd, fd);
       close(use_fd);
     } else {
       uv__cloexec(use_fd, 0);
     }
+
+    if (fd <= 2)
+      uv__nonblock(fd, 0);
   }
 
   if (options.cwd && chdir(options.cwd)) {

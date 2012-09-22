@@ -63,6 +63,11 @@ static struct {
   size_t len;
 } process_title;
 
+static void read_models(unsigned int numcpus, uv_cpu_info_t* ci);
+static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
+static void read_times(unsigned int numcpus, uv_cpu_info_t* ci);
+static unsigned long read_cpufreq(unsigned int cpunum);
+
 
 /*
  * There's probably some way to get time from Linux than gettimeofday(). What
@@ -301,81 +306,163 @@ uv_err_t uv_uptime(double* uptime) {
 
 
 uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
-  unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
-               multiplier = ((uint64_t)1000L / ticks), cpuspeed;
-  int numcpus = 0, i = 0;
-  unsigned long ticks_user, ticks_sys, ticks_idle, ticks_nice, ticks_intr;
-  char line[512], speedPath[256], model[512];
-  FILE *fpStat = fopen("/proc/stat", "r");
-  FILE *fpModel = fopen("/proc/cpuinfo", "r");
-  FILE *fpSpeed;
-  uv_cpu_info_t* cpu_info;
+  unsigned int numcpus;
+  uv_cpu_info_t* ci;
 
-  if (fpModel) {
-    while (fgets(line, 511, fpModel) != NULL) {
-      if (strncmp(line, "model name", 10) == 0) {
-        numcpus++;
-        if (numcpus == 1) {
-          char *p = strchr(line, ':') + 2;
-          strcpy(model, p);
-          model[strlen(model)-1] = 0;
-        }
-      } else if (strncmp(line, "cpu MHz", 7) == 0) {
-        if (numcpus == 1) {
-          sscanf(line, "%*s %*s : %u", &cpuspeed);
-        }
-      }
-    }
-    fclose(fpModel);
-  }
+  *cpu_infos = NULL;
+  *count = 0;
 
-  *cpu_infos = (uv_cpu_info_t*)malloc(numcpus * sizeof(uv_cpu_info_t));
-  if (!(*cpu_infos)) {
-    return uv__new_artificial_error(UV_ENOMEM);
-  }
+  numcpus = sysconf(_SC_NPROCESSORS_ONLN);
+  assert(numcpus != (unsigned int) -1);
+  assert(numcpus != 0);
 
+  ci = calloc(numcpus, sizeof(*ci));
+  if (ci == NULL)
+    return uv__new_sys_error(ENOMEM);
+
+  read_speeds(numcpus, ci);
+  read_models(numcpus, ci);
+  read_times(numcpus, ci);
+
+  *cpu_infos = ci;
   *count = numcpus;
 
-  cpu_info = *cpu_infos;
-
-  if (fpStat) {
-    while (fgets(line, 511, fpStat) != NULL) {
-      if (strncmp(line, "cpu ", 4) == 0) {
-        continue;
-      } else if (strncmp(line, "cpu", 3) != 0) {
-        break;
-      }
-
-      sscanf(line, "%*s %lu %lu %lu %lu %*s %lu",
-             &ticks_user, &ticks_nice, &ticks_sys, &ticks_idle, &ticks_intr);
-      snprintf(speedPath, sizeof(speedPath),
-               "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_max_freq", i);
-
-      fpSpeed = fopen(speedPath, "r");
-
-      if (fpSpeed) {
-        if (fgets(line, 511, fpSpeed) != NULL) {
-          sscanf(line, "%u", &cpuspeed);
-          cpuspeed /= 1000;
-        }
-        fclose(fpSpeed);
-      }
-
-      cpu_info->cpu_times.user = ticks_user * multiplier;
-      cpu_info->cpu_times.nice = ticks_nice * multiplier;
-      cpu_info->cpu_times.sys = ticks_sys * multiplier;
-      cpu_info->cpu_times.idle = ticks_idle * multiplier;
-      cpu_info->cpu_times.irq = ticks_intr * multiplier;
-
-      cpu_info->model = strdup(model);
-      cpu_info->speed = cpuspeed;
-
-      cpu_info++;
-    }
-    fclose(fpStat);
-  }
-
   return uv_ok_;
+}
+
+
+static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci) {
+  unsigned int num;
+
+  for (num = 0; num < numcpus; num++)
+    ci[num].speed = read_cpufreq(num) / 1000;
+}
+
+
+static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
+#if defined(__i386__) || defined(__x86_64__)
+  static const char marker[] = "model name\t: ";
+#elif defined(__arm__)
+  static const char marker[] = "Processor\t: ";
+#elif defined(__mips__)
+  static const char marker[] = "cpu model\t\t: ";
+#else
+# warning uv_cpu_info() is not supported on this architecture.
+  static const char marker[] = "(dummy)";
+#endif
+  unsigned int num;
+  char buf[1024];
+  char* model;
+  FILE* fp;
+
+  fp = fopen("/proc/cpuinfo", "r");
+  if (fp == NULL)
+    return;
+
+  num = 0;
+
+  while (fgets(buf, sizeof(buf), fp)) {
+    if (num >= numcpus)
+      break;
+
+    if (strncmp(buf, marker, sizeof(marker) - 1))
+      continue;
+
+    model = buf + sizeof(marker) - 1;
+    model = strndup(model, strlen(model) - 1); /* strip newline */
+    ci[num++].model = model;
+  }
+  fclose(fp);
+}
+
+
+static void read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
+  unsigned long clock_ticks;
+  struct uv_cpu_times_s ts;
+  unsigned long user;
+  unsigned long nice;
+  unsigned long sys;
+  unsigned long idle;
+  unsigned long dummy;
+  unsigned long irq;
+  unsigned int num;
+  unsigned int len;
+  char buf[1024];
+  FILE* fp;
+
+  clock_ticks = sysconf(_SC_CLK_TCK);
+  assert(clock_ticks != (unsigned long) -1);
+  assert(clock_ticks != 0);
+
+  fp = fopen("/proc/stat", "r");
+  if (fp == NULL)
+    return;
+
+  if (!fgets(buf, sizeof(buf), fp))
+    abort();
+
+  num = 0;
+
+  while (fgets(buf, sizeof(buf), fp)) {
+    if (num >= numcpus)
+      break;
+
+    if (strncmp(buf, "cpu", 3))
+      break;
+
+    /* skip "cpu<num> " marker */
+    {
+      unsigned int n = num;
+      for (len = sizeof("cpu0"); n /= 10; len++);
+      assert(sscanf(buf, "cpu%u ", &n) == 1 && n == num);
+    }
+
+    /* Line contains user, nice, system, idle, iowait, irq, softirq, steal,
+     * guest, guest_nice but we're only interested in the first four + irq.
+     *
+     * Don't use %*s to skip fields or %ll to read straight into the uint64_t
+     * fields, they're not allowed in C89 mode.
+     */
+    if (6 != sscanf(buf + len,
+                    "%lu %lu %lu %lu %lu %lu",
+                    &user,
+                    &nice,
+                    &sys,
+                    &idle,
+                    &dummy,
+                    &irq))
+      abort();
+
+    ts.user = clock_ticks * user;
+    ts.nice = clock_ticks * nice;
+    ts.sys  = clock_ticks * sys;
+    ts.idle = clock_ticks * idle;
+    ts.irq  = clock_ticks * irq;
+    ci[num++].cpu_times = ts;
+  }
+  fclose(fp);
+}
+
+
+static unsigned long read_cpufreq(unsigned int cpunum) {
+  unsigned long val;
+  char buf[1024];
+  FILE* fp;
+
+  snprintf(buf,
+           sizeof(buf),
+           "/sys/devices/system/cpu/cpu%u/cpufreq/scaling_cur_freq",
+           cpunum);
+
+  fp = fopen(buf, "r");
+  if (fp == NULL)
+    return 0;
+
+  val = 0;
+  fscanf(fp, "%lu", &val);
+  fclose(fp);
+
+  return val;
 }
 
 

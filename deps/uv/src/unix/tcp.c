@@ -310,7 +310,10 @@ int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
   }
 #endif
 
-#ifdef TCP_KEEPALIVE
+  /* Solaris/SmartOS, if you don't support keep-alive,
+   * then don't advertise it in your system headers...
+   */
+#if defined(TCP_KEEPALIVE) && !defined(__sun)
   if (enable && setsockopt(handle->fd,
                            IPPROTO_TCP,
                            TCP_KEEPALIVE,

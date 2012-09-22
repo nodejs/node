@@ -58,9 +58,11 @@ if __name__ == '__main__':
 
   # There's a bug with windows which doesn't allow this feature.
   if sys.platform != 'win32':
-    args.extend(['--generator-output', output_dir])
-    args.extend(['-Goutput_dir=' + output_dir])
-    args.extend('-f make'.split())
+    if '-f' not in args:
+      args.extend('-f make'.split())
+    if 'ninja' not in args:
+      args.extend(['-Goutput_dir=' + output_dir])
+      args.extend(['--generator-output', output_dir])
     (major, minor), is_clang = compiler_version()
     args.append('-Dgcc_version=%d' % (10 * major + minor))
     args.append('-Dclang=%d' % int(is_clang))

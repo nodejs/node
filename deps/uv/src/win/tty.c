@@ -1113,6 +1113,7 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
     } else if (arg ==  49) {
       /* Default background color */
       bg_color = 0;
+      bg_bright = 0;
 
     } else if (arg >= 90 && arg <= 97) {
       /* Set bold foreground color */
