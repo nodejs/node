@@ -237,7 +237,7 @@
           ],
         }],
       ],
-      'msvs-settings': {
+      'msvs_settings': {
         'VCLinkerTool': {
           'SubSystem': 1, # /subsystem:console
         },
