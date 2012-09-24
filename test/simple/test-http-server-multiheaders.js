@@ -31,6 +31,7 @@ var srv = http.createServer(function(req, res) {
   assert.equal(req.headers.accept, 'abc, def, ghijklmnopqrst');
   assert.equal(req.headers.host, 'foo');
   assert.equal(req.headers['www-authenticate'], 'foo, bar, baz');
+  assert.equal(req.headers['proxy-authenticate'], 'foo, bar, baz');
   assert.equal(req.headers['x-foo'], 'bingo');
   assert.equal(req.headers['x-bar'], 'banjo, bango');
   assert.equal(req.headers['sec-websocket-protocol'], 'chat, share');
@@ -57,6 +58,9 @@ srv.listen(common.PORT, function() {
       ['www-authenticate', 'foo'],
       ['WWW-Authenticate', 'bar'],
       ['WWW-AUTHENTICATE', 'baz'],
+      ['proxy-authenticate','foo'],
+      ['Proxy-Authenticate','bar'],
+      ['PROXY-AUTHENTICATE','baz'],
       ['x-foo', 'bingo'],
       ['x-bar', 'banjo'],
       ['x-bar', 'bango'],
