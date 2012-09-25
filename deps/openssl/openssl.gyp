@@ -540,7 +540,6 @@
         'openssl/crypto/ui/ui_openssl.c',
         'openssl/crypto/ui/ui_util.c',
         'openssl/crypto/uid.c',
-        'openssl/crypto/whrlpool/wp_block.c',
         'openssl/crypto/whrlpool/wp_dgst.c',
         'openssl/crypto/x509/by_dir.c',
         'openssl/crypto/x509/by_file.c',
@@ -629,7 +628,8 @@
             'openssl/crypto/des/fcrypt_b.c',
             'openssl/crypto/mem_clr.c',
             'openssl/crypto/rc4/rc4_enc.c',
-            'openssl/crypto/rc4/rc4_skey.c'
+            'openssl/crypto/rc4/rc4_skey.c',
+            'openssl/crypto/whrlpool/wp_block.c'
           ]
         }, {
           # Enable asm
@@ -666,7 +666,8 @@
                 'asm/x86-elf-gas/sha/sha256-586.s',
                 'asm/x86-elf-gas/sha/sha512-586.s',
                 'asm/x86-elf-gas/whrlpool/wp-mmx.s',
-                'asm/x86-elf-gas/x86cpuid.s'
+                'asm/x86-elf-gas/x86cpuid.s',
+                'openssl/crypto/whrlpool/wp_block.c'
               ]
             }],
             ['OS!="win" and OS!="mac" and target_arch=="x64"', {
@@ -685,7 +686,8 @@
                 # No asm available
                 'openssl/crypto/cast/c_enc.c',
                 'openssl/crypto/des/des_enc.c',
-                'openssl/crypto/bf/bf_enc.c'
+                'openssl/crypto/bf/bf_enc.c',
+                'openssl/crypto/des/fcrypt_b.c'
               ]
             }],
             ['OS=="mac" and target_arch=="ia32"', {
@@ -706,7 +708,8 @@
                 'asm/x86-macosx-gas/sha/sha256-586.s',
                 'asm/x86-macosx-gas/sha/sha512-586.s',
                 'asm/x86-macosx-gas/whrlpool/wp-mmx.s',
-                'asm/x86-macosx-gas/x86cpuid.s'
+                'asm/x86-macosx-gas/x86cpuid.s',
+                'openssl/crypto/whrlpool/wp_block.c'
               ]
             }],
             ['OS=="mac" and target_arch=="x64"', {
@@ -725,7 +728,8 @@
                 # No asm available
                 'openssl/crypto/cast/c_enc.c',
                 'openssl/crypto/des/des_enc.c',
-                'openssl/crypto/bf/bf_enc.c'
+                'openssl/crypto/bf/bf_enc.c',
+                'openssl/crypto/des/fcrypt_b.c'
               ]
             }],
             ['OS=="win" and target_arch=="ia32"', {
@@ -746,7 +750,8 @@
                 'asm/x86-win32-masm/sha/sha256-586.asm',
                 'asm/x86-win32-masm/sha/sha512-586.asm',
                 'asm/x86-win32-masm/whrlpool/wp-mmx.asm',
-                'asm/x86-win32-masm/x86cpuid.asm'
+                'asm/x86-win32-masm/x86cpuid.asm',
+                'openssl/crypto/whrlpool/wp_block.c'
               ],
               'rules': [
                 {
@@ -783,7 +788,8 @@
                 # No asm available
                 'openssl/crypto/cast/c_enc.c',
                 'openssl/crypto/des/des_enc.c',
-                'openssl/crypto/bf/bf_enc.c'
+                'openssl/crypto/bf/bf_enc.c',
+                'openssl/crypto/des/fcrypt_b.c'
               ],
               'rules': [
                 {
