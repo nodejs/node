@@ -120,10 +120,10 @@ doc-publish: doc
 		html/api/ \
 		node@npmjs.org:/home/node/npm-www/api
 	rsync -vazu --stats --no-implied-dirs --delete \
-		html/webfonts/ \
+		html/static/webfonts/ \
 		node@npmjs.org:/home/node/npm-www/static/webfonts
 	rsync -vazu --stats --no-implied-dirs --delete \
-		html/style.css \
+		html/static/style.css \
 		node@npmjs.org:/home/node/npm-www/static/
 
 zip-publish: release

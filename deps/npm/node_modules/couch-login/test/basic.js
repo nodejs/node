@@ -284,3 +284,16 @@ tap.test('sign up as new user', function (t) {
     })
   })
 })
+
+tap.test('using basic auth', function (t) {
+  var c = new CouchLogin(couch.couch, 'basic')
+  c.login(auth, function () {
+    c.get('/_users/org.couchdb.user:testuser', function (er, res, data) {
+      if (er)
+        throw er
+      okStatus(t, res)
+      t.ok(data, 'data')
+      t.end()
+    })
+  })
+})

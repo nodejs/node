@@ -246,3 +246,22 @@ test("disposal function", function(t) {
   t.equal(disposed, 3)
   t.end()
 })
+
+test("disposal function on too big of item", function(t) {
+  var disposed = false
+  var cache = new LRU({
+    max: 1,
+    length: function (k) {
+      return k.length
+    },
+    dispose: function (k, n) {
+      disposed = n
+    }
+  })
+  var obj = [ 1, 2 ]
+
+  t.equal(disposed, false)
+  cache.set("obj", obj)
+  t.equal(disposed, obj)
+  t.end()
+})
