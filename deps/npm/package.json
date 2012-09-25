@@ -1,5 +1,5 @@
 {
-  "version": "1.1.61",
+  "version": "1.1.62",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -68,7 +68,8 @@
     "retry": "~0.6.0",
     "couch-login": "~0.1.9",
     "once": "~1.1.1",
-    "npmconf": "0"
+    "npmconf": "0",
+    "opener": "~1.3.0"
   },
   "bundleDependencies": [
     "semver",
@@ -105,7 +106,8 @@
     "retry",
     "couch-login",
     "once",
-    "npmconf"
+    "npmconf",
+    "opener"
   ],
   "devDependencies": {
     "ronn": "~0.3.6",
@@ -117,7 +119,7 @@
   },
   "scripts": {
     "test": "node ./test/run.js && tap test/tap/*.js",
-    "prepublish": "npm prune ; make -j4 doc",
+    "prepublish": "npm prune ; rm -rf test/*/*/node_modules ; make -j4 doc",
     "dumpconf": "env | grep npm | sort | uniq",
     "echo": "node bin/npm-cli.js"
   },

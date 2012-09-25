@@ -1,1 +1,0 @@
-nested = require './nested/nested.coffee'

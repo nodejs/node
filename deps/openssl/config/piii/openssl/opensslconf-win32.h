@@ -44,9 +44,6 @@
 #ifndef OPENSSL_NO_SEED
 # define OPENSSL_NO_SEED
 #endif
-#ifndef OPENSSL_NO_ASM
-# define OPENSSL_NO_ASM
-#endif
 
 #endif /* OPENSSL_DOING_MAKEDEPEND */
 
@@ -99,8 +96,6 @@
 #  define NO_SEED
 # endif
 #endif
-
-#define OPENSSL_CPUID_OBJ
 
 /* crypto/opensslconf.h.in */
 

@@ -7,6 +7,7 @@ var exec = require("./utils/exec.js")
   , npm = require("./npm.js")
   , registry = npm.registry
   , log = require("npmlog")
+  , opener = require("opener")
 
 bugs.completion = function (opts, cb) {
   if (opts.conf.argv.remain.length > 2) return cb()
@@ -22,41 +23,22 @@ function bugs (args, cb) {
     if (er) return cb(er)
     var bugs = d.bugs
       , repo = d.repository || d.repositories
+      , url
     if (bugs) {
-      if (typeof bugs === "string") return open(bugs, cb)
-      if (bugs.url) return open(bugs.url, cb)
-    }
-    if (repo) {
+      url = (typeof bugs === "string") ? bugs : bugs.url
+    } else if (repo) {
       if (Array.isArray(repo)) repo = repo.shift()
       if (repo.hasOwnProperty("url")) repo = repo.url
       log.verbose("repository", repo)
       if (repo && repo.match(/^(https?:\/\/|git(:\/\/|@))github.com/)) {
-        return open(repo.replace(/^git(@|:\/\/)/, "http://")
-                        .replace(/^https?:\/\/github.com:/, "github.com/")
-                        .replace(/\.git$/, '')+"/issues", cb)
+        url = repo.replace(/^git(@|:\/\/)/, "https://")
+                  .replace(/^https?:\/\/github.com:/, "https://github.com/")
+                  .replace(/\.git$/, '')+"/issues"
       }
     }
-    return open("http://search.npmjs.org/#/" + d.name, cb)
+    if (!url) {
+      url = "https://npmjs.org/package/" + d.name
+    }
+    opener(url, { command: npm.config.get("browser") }, cb)
   })
-}
-
-function open (url, cb) {
-  var args = [url]
-    , browser = npm.config.get("browser")
-
-  if (process.platform === "win32" && browser === "start") {
-    args = [ "/c", "start" ].concat(args)
-    browser = "cmd"
-  }
-
-  if (!browser) {
-    var er = ["the 'browser' config is not set.  Try doing this:"
-             ,"    npm config set browser google-chrome"
-             ,"or:"
-             ,"    npm config set browser lynx"].join("\n")
-    return cb(er)
-  }
-
-  exec(browser, args, process.env, false, function () {})
-  cb()
 }
