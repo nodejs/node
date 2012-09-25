@@ -23,13 +23,15 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
+var timeout = 15*1000;
+var max_requests = 30;
 var request_number = 0;
 var requests_sent = 0;
 var requests_done = 0;
 var options = {
   method: 'GET',
   port: common.PORT,
-  host: '127.0.0.1',
+  host: '127.0.0.1'
 };
 
 //http.globalAgent.maxSockets = 15;
@@ -50,7 +52,9 @@ var server = http.createServer(function(req, res) {
 server.listen(options.port, options.host, function() {
   var req;
 
-  for (requests_sent = 0; requests_sent < 30; requests_sent+=1) {
+  for (requests_sent = 0; requests_sent < max_requests;
+       requests_sent++) {
+
     options.path = '/' + requests_sent;
     req = http.request(options);
     req.id = requests_sent;
@@ -60,7 +64,7 @@ server.listen(options.port, options.host, function() {
       });
       res.on('end', function(data) {
         console.log('res#'+this.req.id+' end');
-        requests_done += 1;
+        if (++requests_done === max_requests) finish();
       });
     });
     req.on('close', function() {
@@ -74,13 +78,18 @@ server.listen(options.port, options.host, function() {
       var req = this;
       console.log('req#'+this.id + ' timeout');
       req.abort();
-      requests_done += 1;
+      if (++requests_done === max_requests) finish();
     });
     req.end();
   }
-  setTimeout(function() {
+  var tid = setTimeout(function() {
+    finish();
+  }, timeout);
+
+  function finish() {
+    clearTimeout(tid);
     server.close();
-  }, 150);
+  }
 });
 
 process.on('exit', function() {
