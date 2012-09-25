@@ -321,15 +321,25 @@ Local<Object> BuildStatsObject(const uv_statbuf_t* s) {
     stats->Set(name##_symbol, val);                                           \
   }
   X(dev)
-  X(ino)
   X(mode)
   X(nlink)
   X(uid)
   X(gid)
   X(rdev)
-  X(size)
 # if defined(__POSIX__)
   X(blksize)
+# endif
+#undef X
+
+#define X(name)                                                               \
+  {                                                                           \
+    Local<Value> val = Number::New(static_cast<double>(s->st_##name));        \
+    if (val.IsEmpty()) return Local<Object>();                                \
+    stats->Set(name##_symbol, val);                                           \
+  }
+  X(ino)
+  X(size)
+# if defined(__POSIX__)
   X(blocks)
 # endif
 #undef X
