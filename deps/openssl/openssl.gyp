@@ -13,19 +13,14 @@
       'target_name': 'openssl',
       'type': '<(library)',
       'defines': [
+        # No clue what these are for.
         'L_ENDIAN',
-        'OPENSSL_THREADS',
         'PURIFY',
         '_REENTRANT',
-        # We do not use TLS over UDP on Chromium so far.
-        'OPENSSL_NO_DGRAM',
-        'OPENSSL_NO_DTLS1',
-        'OPENSSL_NO_SCTP',
-        'OPENSSL_NO_SOCK',
-        # Work around brain dead SunOS linker.
-        'OPENSSL_NO_RDRAND',
-        'OPENSSL_NO_GOST',
-        'OPENSSL_NO_HW_PADLOCK',
+        # Disable TTY output. This is not a standard openssl configuration,
+        # option, but a patch that we're floating.
+        # We don't use any asm files at the moment.
+        'OPENSSL_NO_ASM'
       ],
       'sources': [
         'openssl/ssl/bio_ssl.c',
@@ -307,10 +302,14 @@
         'openssl/crypto/dsa/dsa_sign.c',
         'openssl/crypto/dsa/dsa_vrf.c',
         'openssl/crypto/dso/dso_beos.c',
+        'openssl/crypto/dso/dso_dl.c',
+        'openssl/crypto/dso/dso_dlfcn.c',
         'openssl/crypto/dso/dso_err.c',
         'openssl/crypto/dso/dso_lib.c',
         'openssl/crypto/dso/dso_null.c',
         'openssl/crypto/dso/dso_openssl.c',
+        'openssl/crypto/dso/dso_vms.c',
+        'openssl/crypto/dso/dso_win32.c',
         'openssl/crypto/ebcdic.c',
         'openssl/crypto/ec/ec2_mult.c',
         'openssl/crypto/ec/ec2_oct.c',
@@ -358,7 +357,7 @@
         'openssl/crypto/engine/eng_list.c',
         'openssl/crypto/engine/eng_openssl.c',
         'openssl/crypto/engine/eng_pkey.c',
-        #'openssl/crypto/engine/eng_rdrand.c',
+        'openssl/crypto/engine/eng_rdrand.c',
         'openssl/crypto/engine/eng_rsax.c',
         'openssl/crypto/engine/eng_table.c',
         'openssl/crypto/engine/tb_asnmth.c',
@@ -390,6 +389,7 @@
         'openssl/crypto/evp/e_cast.c',
         'openssl/crypto/evp/e_des.c',
         'openssl/crypto/evp/e_des3.c',
+        'openssl/crypto/evp/e_idea.c',
         'openssl/crypto/evp/e_null.c',
         'openssl/crypto/evp/e_old.c',
         'openssl/crypto/evp/e_rc2.c',
@@ -438,6 +438,11 @@
         'openssl/crypto/hmac/hm_ameth.c',
         'openssl/crypto/hmac/hm_pmeth.c',
         'openssl/crypto/hmac/hmac.c',
+        'openssl/crypto/idea/i_cbc.c',
+        'openssl/crypto/idea/i_cfb64.c',
+        'openssl/crypto/idea/i_ecb.c',
+        'openssl/crypto/idea/i_ofb64.c',
+        'openssl/crypto/idea/i_skey.c',
         'openssl/crypto/krb5/krb5_asn.c',
         'openssl/crypto/lhash/lh_stats.c',
         'openssl/crypto/lhash/lhash.c',
@@ -554,6 +559,11 @@
         'openssl/crypto/rsa/rsa_sign.c',
         'openssl/crypto/rsa/rsa_ssl.c',
         'openssl/crypto/rsa/rsa_x931.c',
+        'openssl/crypto/seed/seed.c',
+        'openssl/crypto/seed/seed_cbc.c',
+        'openssl/crypto/seed/seed_cfb.c',
+        'openssl/crypto/seed/seed_ecb.c',
+        'openssl/crypto/seed/seed_ofb.c',
         'openssl/crypto/sha/sha1_one.c',
         'openssl/crypto/sha/sha1dgst.c',
         'openssl/crypto/sha/sha256.c',
@@ -659,16 +669,14 @@
         'openssl/engines/e_ubsec.c',
       ],
       'sources/': [
-        ['exclude', 'camellia/.*$'],
-        ['exclude', 'cms/.*$'],
-        ['exclude', 'mdc2/.*$'],
+        ['exclude', 'md2/.*$'],
+        ['exclude', 'store/.*$']
       ],
       'conditions': [
         ['OS=="win"', {
           'defines': [
             'MK1MF_BUILD',
-            'WIN32_LEAN_AND_MEAN',
-            'OPENSSL_NO_EC_NISTP_64_GCC_128'
+            'WIN32_LEAN_AND_MEAN'
           ]
         }, {
           'defines': [
@@ -689,9 +697,6 @@
         }],
         ['target_arch=="ia32"', {
           'variables': {'openssl_config_path': 'config/piii'},
-          'defines': [
-            'OPENSSL_NO_EC_NISTP_64_GCC_128'
-          ],
           'sources': [
             'openssl/crypto/bn/bn_asm.c',
           ]
@@ -704,9 +709,6 @@
         }],
         ['target_arch=="arm"', {
           'variables': {'openssl_config_path': 'config/android'},
-          'defines': [
-            'OPENSSL_NO_EC_NISTP_64_GCC_128'
-          ],
           'sources': [
             'openssl/crypto/armcap.c',
             'openssl/crypto/bn/bn_asm.c',
