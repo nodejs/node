@@ -78,9 +78,16 @@ server.listen(options.port, options.host, function() {
     });
     req.end();
   }
-  setTimeout(function() {
-    server.close();
-  }, 150);
+
+  setTimeout(function maybeDone() {
+    if (requests_done >= requests_sent) {
+      setTimeout(function() {
+        server.close();
+      }, 100);
+    } else {
+      setTimeout(maybeDone, 100);
+    }
+  }, 100);
 });
 
 process.on('exit', function() {
