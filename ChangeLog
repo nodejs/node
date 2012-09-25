@@ -1,4 +1,45 @@
-2012.09.11, Version 0.8.9 (Stable)
+2012.09.25, Version 0.8.10 (Stable)
+
+* npm: Upgrade to 1.1.62
+
+* repl: make invalid RegExps throw in the REPL (Nathan Rajlich)
+
+* v8: loosen artificial mmap constraint (Bryan Cantrill)
+
+* process: fix setuid() and setgid() error reporting (Ben Noordhuis)
+
+* domain: Properly exit() on domain disposal (isaacs)
+
+* fs: fix watchFile() missing deletion events (Ben Noordhuis)
+
+* fs: fix assert in fs.watch() (Ben Noordhuis)
+
+* fs: don't segfault on deeply recursive stat() (Ben Noordhuis)
+
+* http: Remove timeout handler when data arrives (Frédéric Germain)
+
+* http: make the client "res" object gets the same domain as "req" (Nathan Rajlich)
+
+* windows: don't blow up when an invalid FD is used (Bert Belder)
+
+* unix: map EDQUOT to UV_ENOSPC (Charlie McConnell)
+
+* linux: improve /proc/cpuinfo parser (Ben Noordhuis)
+
+* win/tty: reset background brightness when color is set to default (Bert Belder)
+
+* unix: put child process stdio fds in blocking mode (Ben Noordhuis)
+
+* unix: fix EMFILE busy loop (Ben Noordhuis)
+
+* sunos: don't set TCP_KEEPALIVE (Ben Noordhuis)
+
+* tls: Use slab allocator for memory management (Fedor Indutny)
+
+* openssl: Use optimized assembly code for x86 and x64 (Bert Belder)
+
+
+2012.09.11, Version 0.8.9 (Stable), b88c3902b241cf934e75443b934f2033ad3915b1
 
 * v8: upgrade to 3.11.10.22
 
