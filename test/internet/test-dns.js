@@ -221,7 +221,7 @@ TEST(function test_resolveSrv(done) {
 
 
 TEST(function test_resolveCname(done) {
-  var req = dns.resolveCname('www.google.com', function(err, names) {
+  var req = dns.resolveCname('www.microsoft.com', function(err, names) {
     if (err) throw err;
 
     assert.ok(names.length > 0);
