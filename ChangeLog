@@ -1,3 +1,8 @@
+2012.09.27, Version 0.8.11 (Stable)
+
+* fs: Fix stat() size reporting for large files (Ben Noordhuis)
+
+
 2012.09.25, Version 0.8.10 (Stable)
 
 * npm: Upgrade to 1.1.62
