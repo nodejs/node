@@ -29,7 +29,9 @@ var port = common.PORT + 1337;
 
 var script = common.fixturesDir + '/breakpoints.js';
 
-var child = spawn(process.execPath, ['debug', '--port=' + port, script]);
+var child = spawn(process.execPath, ['debug', '--port=' + port, script], {
+  env: { NODE_FORCE_READLINE: 1 }
+});
 
 console.error('./node', 'debug', '--port=' + port, script);
 
@@ -48,6 +50,7 @@ var expected = [];
 
 child.on('line', function(line) {
   line = line.replace(/^(debug> )+/, 'debug> ');
+  line = line.replace(/\u001b\[\d+\w/g, '');
   console.error('line> ' + line);
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
@@ -96,15 +99,17 @@ addTest(null, [
 
 // Next
 addTest('n', [
+  /debug> n/,
   /break in .*:11/,
   /9/, /10/, /11/, /12/, /13/
 ]);
 
 // Watch
-addTest('watch("\'x\'"), true', [/true/]);
+addTest('watch("\'x\'"), true', [/debug>/, /true/]);
 
 // Continue
 addTest('c', [
+  /debug>/,
   /break in .*:5/,
   /Watchers/,
   /0:\s+'x' = "x"/,
@@ -114,49 +119,64 @@ addTest('c', [
 
 // Show watchers
 addTest('watchers', [
+  /debug>/,
   /0:\s+'x' = "x"/
 ]);
 
 // Unwatch
-addTest('unwatch("\'x\'"), true', [/true/]);
+addTest('unwatch("\'x\'"), true', [/debug>/, /true/]);
 
 // Step out
 addTest('o', [
+  /debug>/,
   /break in .*:12/,
   /10/, /11/, /12/, /13/, /14/
 ]);
 
 // Continue
 addTest('c', [
+  /debug>/,
   /break in .*:5/,
   /3/, /4/, /5/, /6/, /7/
 ]);
 
 // Set breakpoint by function name
 addTest('sb("setInterval()", "!(setInterval.flag++)")', [
+  /debug>/,
   /1/, /2/, /3/, /4/, /5/, /6/, /7/, /8/, /9/, /10/
 ]);
 
 // Continue
 addTest('c', [
+  /debug>/,
   /break in node.js:\d+/,
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 
-addTest('c', [
+// Repeat last command
+addTest('', [
+  /debug>/,
   /break in .*breakpoints.js:\d+/,
   /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 
 addTest('repl', [
+  /debug>/,
   /Press Ctrl \+ C to leave debug repl/
 ]);
 
 addTest('now', [
+  /> now/,
   /\w* \w* \d* \d* \d*:\d*:\d* GMT[+-]\d* (\w*)/
 ]);
 
 function finish() {
+  // Exit debugger repl
+  child.kill('SIGINT');
+  child.kill('SIGINT');
+
+  // Exit debugger
+  child.kill('SIGINT');
   process.exit(0);
 }
 
