@@ -301,46 +301,59 @@ Local<Object> BuildStatsObject(const uv_statbuf_t* s) {
   Local<Object> stats =
     stats_constructor_template->GetFunction()->NewInstance();
 
-  /* ID of device containing file */
-  stats->Set(dev_symbol, Integer::New(s->st_dev));
+  if (stats.IsEmpty()) return Local<Object>();
 
-  /* inode number */
-  stats->Set(ino_symbol, Integer::New(s->st_ino));
+  // The code below is very nasty-looking but it prevents a segmentation fault
+  // when people run JS code like the snippet below. It's apparently more
+  // common than you would expect, several people have reported this crash...
+  //
+  //   function crash() {
+  //     fs.statSync('.');
+  //     crash();
+  //   }
+  //
+  // We need to check the return value of Integer::New() and Date::New()
+  // and make sure that we bail out when V8 returns an empty handle.
+#define X(name)                                                               \
+  {                                                                           \
+    Local<Value> val = Integer::New(s->st_##name);                            \
+    if (val.IsEmpty()) return Local<Object>();                                \
+    stats->Set(name##_symbol, val);                                           \
+  }
+  X(dev)
+  X(mode)
+  X(nlink)
+  X(uid)
+  X(gid)
+  X(rdev)
+# if defined(__POSIX__)
+  X(blksize)
+# endif
+#undef X
 
-  /* protection */
-  stats->Set(mode_symbol, Integer::New(s->st_mode));
+#define X(name)                                                               \
+  {                                                                           \
+    Local<Value> val = Number::New(static_cast<double>(s->st_##name));        \
+    if (val.IsEmpty()) return Local<Object>();                                \
+    stats->Set(name##_symbol, val);                                           \
+  }
+  X(ino)
+  X(size)
+# if defined(__POSIX__)
+  X(blocks)
+# endif
+#undef X
 
-  /* number of hard links */
-  stats->Set(nlink_symbol, Integer::New(s->st_nlink));
-
-  /* user ID of owner */
-  stats->Set(uid_symbol, Integer::New(s->st_uid));
-
-  /* group ID of owner */
-  stats->Set(gid_symbol, Integer::New(s->st_gid));
-
-  /* device ID (if special file) */
-  stats->Set(rdev_symbol, Integer::New(s->st_rdev));
-
-  /* total size, in bytes */
-  stats->Set(size_symbol, Number::New(s->st_size));
-
-#ifdef __POSIX__
-  /* blocksize for filesystem I/O */
-  stats->Set(blksize_symbol, Integer::New(s->st_blksize));
-
-  /* number of blocks allocated */
-  stats->Set(blocks_symbol, Integer::New(s->st_blocks));
-#endif
-
-  /* time of last access */
-  stats->Set(atime_symbol, NODE_UNIXTIME_V8(s->st_atime));
-
-  /* time of last modification */
-  stats->Set(mtime_symbol, NODE_UNIXTIME_V8(s->st_mtime));
-
-  /* time of last status change */
-  stats->Set(ctime_symbol, NODE_UNIXTIME_V8(s->st_ctime));
+#define X(name)                                                               \
+  {                                                                           \
+    Local<Value> val = NODE_UNIXTIME_V8(s->st_##name);                        \
+    if (val.IsEmpty()) return Local<Object>();                                \
+    stats->Set(name##_symbol, val);                                           \
+  }
+  X(atime)
+  X(mtime)
+  X(ctime)
+#undef X
 
   return scope.Close(stats);
 }

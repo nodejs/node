@@ -13,6 +13,7 @@ var fs = require("graceful-fs")
   , exec = require("./utils/exec.js")
   , npm = require("./npm.js")
   , log = require("npmlog")
+  , opener = require("opener")
 
 function help (args, cb) {
   var num = 1
@@ -63,18 +64,7 @@ function help (args, cb) {
               break
 
             case "browser":
-              var b = npm.config.get("browser")
-              if (!b) {
-                return cb(new Error("viewer=browser and no browser set."))
-              }
-              console.log("Opening HTML in default browser...")
-              process.nextTick(cb)
-              // windows is SO weird.
-              if (process.platform === "win32") {
-                exec("cmd", ["/c", htmlPath], env, false, function () {})
-              } else {
-                exec(b, [htmlPath], env, false, function () {})
-              }
+              opener(htmlPath, { command: npm.config.get("browser") }, cb)
               break
 
             default:

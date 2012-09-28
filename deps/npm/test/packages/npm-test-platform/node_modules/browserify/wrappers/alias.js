@@ -1,1 +1,0 @@
-require.alias($from, $to);

@@ -86,6 +86,8 @@ function install (gyp, argv, callback) {
         if (err.code == 'ENOENT') {
           log.verbose('install', 'version not already installed, continuing with install', version)
           go()
+        } else if (err.code == 'EACCES') {
+          eaccesFallback()
         } else {
           cb(err)
         }
@@ -157,21 +159,7 @@ function install (gyp, argv, callback) {
     mkdir(devDir, function (err, created) {
       if (err) {
         if (err.code == 'EACCES') {
-          // this EACCES fallback is a workaround for npm's `sudo` behavior, where
-          // it drops the permissions before invoking any child processes (like
-          // node-gyp). So what happens is the "nobody" user doesn't have
-          // permission to create the dev dir. As a fallback, make the tmpdir() be
-          // the dev dir for this installation. This is not ideal, but at least
-          // the compilation will succeed...
-          var tmpdir = osenv.tmpdir()
-          gyp.devDir = path.resolve(tmpdir, '.node-gyp')
-          log.warn(err.code, 'user "%s" does not have permission to create dev dir "%s"', osenv.user(), devDir)
-          log.warn(err.code, 'attempting to reinstall using temporary dev dir "%s"', gyp.devDir)
-          if (process.cwd() == tmpdir) {
-            log.verbose('tmpdir == cwd', 'automatically will remove dev files after to save disk space')
-            gyp.todo.push({ name: 'remove', args: argv })
-          }
-          gyp.commands.install(argv, cb)
+          eaccesFallback()
         } else {
           cb(err)
         }
@@ -378,6 +366,27 @@ function install (gyp, argv, callback) {
           || (minimatch(file, 'tools/gyp/**') && !minimatch(file, 'tools/gyp/test/**'))
             )
          )
+  }
+
+  /**
+   * The EACCES fallback is a workaround for npm's `sudo` behavior, where
+   * it drops the permissions before invoking any child processes (like
+   * node-gyp). So what happens is the "nobody" user doesn't have
+   * permission to create the dev dir. As a fallback, make the tmpdir() be
+   * the dev dir for this installation. This is not ideal, but at least
+   * the compilation will succeed...
+   */
+
+  function eaccesFallback () {
+    var tmpdir = osenv.tmpdir()
+    gyp.devDir = path.resolve(tmpdir, '.node-gyp')
+    log.warn('EACCES', 'user "%s" does not have permission to access the dev dir "%s"', osenv.user(), devDir)
+    log.warn('EACCES', 'attempting to reinstall using temporary dev dir "%s"', gyp.devDir)
+    if (process.cwd() == tmpdir) {
+      log.verbose('tmpdir == cwd', 'automatically will remove dev files after to save disk space')
+      gyp.todo.push({ name: 'remove', args: argv })
+    }
+    gyp.commands.install(argv, cb)
   }
 
 }

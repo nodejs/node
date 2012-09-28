@@ -1,6 +1,0 @@
-{
-    "dependencies" : {
-        "qq" : "*"
-    },
-    "main" : "index.js"
-}

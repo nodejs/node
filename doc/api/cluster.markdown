@@ -69,7 +69,7 @@ This causes potentially surprising behavior in three edge cases:
    the worker to use the supplied handle, rather than talk to the master
    process.  If the worker already has the handle, then it's presumed
    that you know what you are doing.
-3. `server.listen(0)` Normally, this will case servers to listen on a
+3. `server.listen(0)` Normally, this will cause servers to listen on a
    random port.  However, in a cluster, each worker will receive the
    same "random" port each time they do `listen(0)`.  In essence, the
    port is random the first time, but predictable thereafter.  If you

@@ -126,6 +126,10 @@ function error_test() {
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
       expect: /^SyntaxError: Unexpected token i/ },
+    // invalid RegExps are a special case of syntax error,
+    // should throw
+    { client: client_unix, send: '/(/;',
+      expect: /^SyntaxError: Invalid regular expression\:/ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
