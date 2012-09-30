@@ -1,4 +1,4 @@
-title: Bert Belder - LibUV at LXJS 2012
+title: Bert Belder - libuv at LXJS 2012
 slug: bert-belder-libuv-lxjs-2012
 category: video
 date: Sun Sep 30 10:28:45 PDT 2012
