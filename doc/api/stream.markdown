@@ -146,19 +146,13 @@ Emitted when the stream is passed to a readable stream's pipe method.
 A boolean that is `true` by default, but turns `false` after an
 `'error'` occurred or `end()` / `destroy()` was called.
 
-### stream.write(string, [encoding], [fd])
+### stream.write(string, [encoding])
 
 Writes `string` with the given `encoding` to the stream.  Returns `true`
 if the string has been flushed to the kernel buffer.  Returns `false` to
 indicate that the kernel buffer is full, and the data will be sent out
 in the future. The `'drain'` event will indicate when the kernel buffer
 is empty again. The `encoding` defaults to `'utf8'`.
-
-If the optional `fd` parameter is specified, it is interpreted as an
-integral file descriptor to be sent over the stream. This is only
-supported for UNIX streams, and is silently ignored otherwise. When
-writing a file descriptor in this manner, closing the descriptor before
-the stream drains risks sending an invalid (closed) FD.
 
 ### stream.write(buffer)
 
