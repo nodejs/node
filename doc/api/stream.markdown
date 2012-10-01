@@ -120,8 +120,8 @@ A `Writable Stream` has the following methods, members, and events.
 
 `function () { }`
 
-After a `write()` method returned `false`, this event is emitted to
-indicate that it is safe to write again.
+Emitted when the stream's write queue empties and it's safe to write without
+buffering again. Listen for it when `stream.write()` returns `false`.
 
 ### Event: 'error'
 
