@@ -277,9 +277,18 @@ assert.equal(failures.length, 0, failures.join(''));
 
 // path.sep tests
 if (isWindows) {
-    // windows
-    assert.equal(path.sep, '\\');
+  // windows
+  assert.equal(path.sep, '\\');
 } else {
-    // posix
-    assert.equal(path.sep, '/');
+  // posix
+  assert.equal(path.sep, '/');
+}
+
+// path.delimiter tests
+if (isWindows) {
+  // windows
+  assert.equal(path.delimiter, ';');
+} else {
+  // posix
+  assert.equal(path.delimiter, ':');
 }
