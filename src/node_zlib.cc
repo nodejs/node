@@ -109,7 +109,19 @@ class ZCtx : public ObjectWrap {
     assert(!ctx->write_in_progress_ && "write already in progress");
     ctx->write_in_progress_ = true;
 
+    assert(!args[0]->IsUndefined() && "must provide flush value");
+
     unsigned int flush = args[0]->Uint32Value();
+
+    if (flush != Z_NO_FLUSH &&
+        flush != Z_PARTIAL_FLUSH &&
+        flush != Z_SYNC_FLUSH &&
+        flush != Z_FULL_FLUSH &&
+        flush != Z_FINISH &&
+        flush != Z_BLOCK) {
+      assert(0 && "Invalid flush value");
+    }
+
     Bytef *in;
     Bytef *out;
     size_t in_off, in_len, out_off, out_len;
@@ -483,6 +495,7 @@ void InitZlib(Handle<Object> target) {
   callback_sym = NODE_PSYMBOL("callback");
   onerror_sym = NODE_PSYMBOL("onerror");
 
+  // valid flush values.
   NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);
   NODE_DEFINE_CONSTANT(target, Z_PARTIAL_FLUSH);
   NODE_DEFINE_CONSTANT(target, Z_SYNC_FLUSH);

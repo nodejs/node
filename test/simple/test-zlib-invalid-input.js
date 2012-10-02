@@ -50,13 +50,6 @@ unzips.forEach(function (uz, i) {
   uz.on('error', function(er) {
     console.error('Error event', er);
     hadError[i] = true;
-
-    // to be friendly to the Stream API, zlib objects just return true and
-    // ignore data on the floor after an error.  It's up to the user to
-    // catch the 'error' event and do something intelligent.  They do not
-    // emit any more data, however.
-    assert.equal(uz.write('also invalid'), true);
-    assert.equal(uz.end(), true);
   });
 
   uz.on('end', function(er) {
