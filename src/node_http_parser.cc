@@ -81,19 +81,19 @@ static char* current_buffer_data;
 static size_t current_buffer_len;
 
 
-#define HTTP_CB(name)                                               \
-	  static int name(http_parser* p_) {                              \
-	    Parser* self = container_of(p_, Parser, parser_);             \
-	    return self->name##_();                                       \
-	  }                                                               \
-	  int name##_()
+#define HTTP_CB(name)                                                         \
+  static int name(http_parser* p_) {                                          \
+    Parser* self = container_of(p_, Parser, parser_);                         \
+    return self->name##_();                                                   \
+  }                                                                           \
+  int name##_()
 
 
-#define HTTP_DATA_CB(name)                                          \
-  static int name(http_parser* p_, const char* at, size_t length) { \
-    Parser* self = container_of(p_, Parser, parser_);               \
-    return self->name##_(at, length);                               \
-  }                                                                 \
+#define HTTP_DATA_CB(name)                                                    \
+  static int name(http_parser* p_, const char* at, size_t length) {           \
+    Parser* self = container_of(p_, Parser, parser_);                         \
+    return self->name##_(at, length);                                         \
+  }                                                                           \
   int name##_(const char* at, size_t length)
 
 
