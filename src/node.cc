@@ -1093,6 +1093,10 @@ enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
     return UCS2;
   } else if (strcasecmp(*encoding, "ucs-2") == 0) {
     return UCS2;
+  } else if (strcasecmp(*encoding, "utf16le") == 0) {
+    return UCS2;
+  } else if (strcasecmp(*encoding, "utf-16le") == 0) {
+    return UCS2;
   } else if (strcasecmp(*encoding, "binary") == 0) {
     return BINARY;
   } else if (strcasecmp(*encoding, "hex") == 0) {
