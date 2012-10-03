@@ -123,6 +123,10 @@ A `Writable Stream` has the following methods, members, and events.
 Emitted when the stream's write queue empties and it's safe to write without
 buffering again. Listen for it when `stream.write()` returns `false`.
 
+The `'drain'` event can happen at *any* time, regardless of whether or not
+`stream.write()` has previously returned `false`. To avoid receiving unwanted
+`'drain'` events, listen using `stream.once()`.
+
 ### Event: 'error'
 
 `function (exception) { }`
