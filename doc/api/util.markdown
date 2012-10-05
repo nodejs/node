@@ -88,6 +88,19 @@ Example of inspecting all properties of the `util` object:
 
     console.log(util.inspect(util, true, null));
 
+Objects also may define their own `inspect(depth)` function which `util.inspect()`
+will invoke and use the result of when inspecting the object:
+
+    var util = require('util');
+
+    var obj = { name: 'nate' };
+    obj.inspect = function(depth) {
+      return '{' + this.name + '}';
+    };
+
+    util.inspect(obj);
+      // "{nate}"
+
 
 ## util.isArray(object)
 
