@@ -22,18 +22,18 @@
 var common = require('../common');
 var assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs'),
-    util = require('util');
+var path = require('path');
+var fs = require('fs');
+var util = require('util');
 
 
-var filepath = path.join(common.tmpDir, 'write.txt'),
-    file;
+var filepath = path.join(common.tmpDir, 'write.txt');
+var file;
 
 var EXPECTED = '012345678910';
 
-var cb_expected = 'write open drain write drain close error ',
-    cb_occurred = '';
+var cb_expected = 'write open drain write drain close error ';
+var cb_occurred = '';
 
 var countDrains = 0;
 
@@ -47,6 +47,8 @@ process.on('exit', function() {
     assert.strictEqual(cb_occurred, cb_expected,
         'events missing or out of order: "' +
         cb_occurred + '" !== "' + cb_expected + '"');
+  } else {
+    console.log('ok');
   }
 });
 
@@ -59,22 +61,30 @@ function removeTestFile() {
 
 removeTestFile();
 
-file = fs.createWriteStream(filepath);
+// drain at 0, return false at 10.
+file = fs.createWriteStream(filepath, {
+  lowWaterMark: 0,
+  highWaterMark: 11
+});
 
 file.on('open', function(fd) {
+  console.error('open');
   cb_occurred += 'open ';
   assert.equal(typeof fd, 'number');
 });
 
 file.on('drain', function() {
+  console.error('drain');
   cb_occurred += 'drain ';
   ++countDrains;
   if (countDrains === 1) {
-    assert.equal(fs.readFileSync(filepath), EXPECTED);
-    file.write(EXPECTED);
+    console.error('drain=1, write again');
+    assert.equal(fs.readFileSync(filepath, 'utf8'), EXPECTED);
+    console.error('ondrain write ret=%j', file.write(EXPECTED));
     cb_occurred += 'write ';
   } else if (countDrains == 2) {
-    assert.equal(fs.readFileSync(filepath), EXPECTED + EXPECTED);
+    console.error('second drain, end');
+    assert.equal(fs.readFileSync(filepath, 'utf8'), EXPECTED + EXPECTED);
     file.end();
   }
 });
@@ -88,11 +98,15 @@ file.on('close', function() {
 
 file.on('error', function(err) {
   cb_occurred += 'error ';
-  assert.ok(err.message.indexOf('not writable') >= 0);
+  assert.ok(err.message.indexOf('write after end') >= 0);
 });
 
 
 for (var i = 0; i < 11; i++) {
-  assert.strictEqual(file.write(i), false);
+  var ret = file.write(i + '');
+  console.error('%d %j', i, ret);
+
+  // return false when i hits 10
+  assert(ret === (i != 10));
 }
 cb_occurred += 'write ';
