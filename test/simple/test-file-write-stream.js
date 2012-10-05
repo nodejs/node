@@ -26,7 +26,7 @@ var path = require('path');
 var fs = require('fs');
 var fn = path.join(common.tmpDir, 'write.txt');
 var file = fs.createWriteStream(fn, {
-      lowWaterMark: 3,
+      lowWaterMark: 0,
       highWaterMark: 10
     });
 
