@@ -101,6 +101,8 @@ void uv__stream_init(uv_loop_t* loop,
                      uv_stream_t* stream,
                      uv_handle_type type) {
   uv__handle_init(loop, (uv_handle_t*)stream, type);
+  stream->read_cb = NULL;
+  stream->read2_cb = NULL;
   stream->alloc_cb = NULL;
   stream->close_cb = NULL;
   stream->connection_cb = NULL;

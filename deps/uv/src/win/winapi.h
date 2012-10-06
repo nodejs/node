@@ -4426,6 +4426,25 @@ typedef VOID (WINAPI* sReleaseSRWLockShared)
 typedef VOID (WINAPI* sReleaseSRWLockExclusive)
              (PSRWLOCK SRWLock);
 
+typedef VOID (WINAPI* sInitializeConditionVariable)
+             (PCONDITION_VARIABLE ConditionVariable);
+
+typedef BOOL (WINAPI* sSleepConditionVariableCS)
+             (PCONDITION_VARIABLE ConditionVariable,
+              PCRITICAL_SECTION CriticalSection,
+              DWORD dwMilliseconds);
+
+typedef BOOL (WINAPI* sSleepConditionVariableSRW)
+             (PCONDITION_VARIABLE ConditionVariable,
+              PSRWLOCK SRWLock,
+              DWORD dwMilliseconds,
+              ULONG Flags);
+
+typedef VOID (WINAPI* sWakeAllConditionVariable)
+             (PCONDITION_VARIABLE ConditionVariable);
+
+typedef VOID (WINAPI* sWakeConditionVariable)
+             (PCONDITION_VARIABLE ConditionVariable);
 
 
 /* Ntdll function pointers */
@@ -4448,5 +4467,10 @@ extern sTryAcquireSRWLockShared pTryAcquireSRWLockShared;
 extern sTryAcquireSRWLockExclusive pTryAcquireSRWLockExclusive;
 extern sReleaseSRWLockShared pReleaseSRWLockShared;
 extern sReleaseSRWLockExclusive pReleaseSRWLockExclusive;
+extern sInitializeConditionVariable pInitializeConditionVariable;
+extern sSleepConditionVariableCS pSleepConditionVariableCS;
+extern sSleepConditionVariableSRW pSleepConditionVariableSRW;
+extern sWakeAllConditionVariable pWakeAllConditionVariable;
+extern sWakeConditionVariable pWakeConditionVariable;
 
 #endif /* UV_WIN_WINAPI_H_ */

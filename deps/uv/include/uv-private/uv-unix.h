@@ -25,7 +25,6 @@
 #include "ngx-queue.h"
 
 #include "ev.h"
-#include "eio.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -52,6 +51,13 @@ typedef void (*uv__io_cb)(struct uv_loop_s* loop, uv__io_t* handle, int events);
 
 struct uv__io_s {
   ev_io io_watcher;
+};
+
+struct uv__work {
+  void (*work)(struct uv__work *w);
+  void (*done)(struct uv__work *w);
+  struct uv_loop_s* loop;
+  ngx_queue_t wq;
 };
 
 #if defined(__linux__)
@@ -100,6 +106,7 @@ typedef pthread_t uv_thread_t;
 typedef pthread_mutex_t uv_mutex_t;
 typedef pthread_rwlock_t uv_rwlock_t;
 typedef UV_PLATFORM_SEM_T uv_sem_t;
+typedef pthread_cond_t uv_cond_t;
 
 /* Platform-specific definitions for uv_spawn support. */
 typedef gid_t uv_gid_t;
@@ -115,13 +122,10 @@ typedef struct {
 
 #define UV_LOOP_PRIVATE_FIELDS                                                \
   unsigned long flags;                                                        \
-  /* Poll result queue */                                                     \
-  eio_channel uv_eio_channel;                                                 \
   struct ev_loop* ev;                                                         \
-  /* Various thing for libeio. */                                             \
-  uv_async_t uv_eio_want_poll_notifier;                                       \
-  uv_async_t uv_eio_done_poll_notifier;                                       \
-  uv_idle_t uv_eio_poller;                                                    \
+  ngx_queue_t wq;                                                             \
+  uv_mutex_t wq_mutex;                                                        \
+  uv_async_t wq_async;                                                        \
   uv_handle_t* closing_handles;                                               \
   ngx_queue_t process_handles[1];                                             \
   ngx_queue_t prepare_handles;                                                \
@@ -233,6 +237,7 @@ typedef struct {
   uint64_t repeat;
 
 #define UV_GETADDRINFO_PRIVATE_FIELDS                                         \
+  struct uv__work work_req;                                                   \
   uv_getaddrinfo_cb cb;                                                       \
   struct addrinfo* hints;                                                     \
   char* hostname;                                                             \
@@ -245,12 +250,22 @@ typedef struct {
   int errorno;                                                                \
 
 #define UV_FS_PRIVATE_FIELDS                                                  \
-  struct stat statbuf;                                                        \
+  const char *new_path;                                                       \
   uv_file file;                                                               \
-  eio_req* eio;                                                               \
+  int flags;                                                                  \
+  mode_t mode;                                                                \
+  void* buf;                                                                  \
+  size_t len;                                                                 \
+  off_t off;                                                                  \
+  uid_t uid;                                                                  \
+  gid_t gid;                                                                  \
+  double atime;                                                               \
+  double mtime;                                                               \
+  struct uv__work work_req;                                                   \
+  struct stat statbuf;                                                        \
 
 #define UV_WORK_PRIVATE_FIELDS                                                \
-  eio_req* eio;
+  struct uv__work work_req;
 
 #define UV_TTY_PRIVATE_FIELDS                                                 \
   struct termios orig_termios;                                                \

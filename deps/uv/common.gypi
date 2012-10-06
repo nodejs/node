@@ -117,6 +117,11 @@
           # POSIX names
           '_CRT_NONSTDC_NO_DEPRECATE',
         ],
+        'target_conditions': [
+          ['target_arch=="x64"', {
+            'msvs_configuration_platform': 'x64'
+          }]
+        ]
       }],
       [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
         'cflags': [ '-Wall' ],

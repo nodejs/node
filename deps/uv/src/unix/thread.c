@@ -26,6 +26,12 @@
 #include <assert.h>
 #include <errno.h>
 
+#if defined(__APPLE__) && defined(__MACH__)
+#include <sys/time.h>
+#endif /* defined(__APPLE__) && defined(__MACH__) */
+
+#undef NANOSEC
+#define NANOSEC ((uint64_t) 1e9)
 
 int uv_thread_join(uv_thread_t *tid) {
   if (pthread_join(*tid, NULL))
@@ -255,6 +261,112 @@ int uv_sem_trywait(uv_sem_t* sem) {
     abort();
 
   return r;
+}
+
+#endif /* defined(__APPLE__) && defined(__MACH__) */
+
+
+#if defined(__APPLE__) && defined(__MACH__)
+
+int uv_cond_init(uv_cond_t* cond) {
+  if (pthread_cond_init(cond, NULL))
+    return -1;
+  else
+    return 0;
+}
+
+#else /* !(defined(__APPLE__) && defined(__MACH__)) */
+
+int uv_cond_init(uv_cond_t* cond) {
+  pthread_condattr_t attr;
+
+  if (pthread_condattr_init(&attr))
+    return -1;
+
+  if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC))
+    goto error2;
+
+  if (pthread_cond_init(cond, &attr))
+    goto error2;
+
+  if (pthread_condattr_destroy(&attr))
+    goto error;
+
+  return 0;
+
+error:
+  pthread_cond_destroy(cond);
+error2:
+  pthread_condattr_destroy(&attr);
+  return -1;
+}
+
+#endif /* defined(__APPLE__) && defined(__MACH__) */
+
+void uv_cond_destroy(uv_cond_t* cond) {
+  if (pthread_cond_destroy(cond))
+    abort();
+}
+
+void uv_cond_signal(uv_cond_t* cond) {
+  if (pthread_cond_signal(cond))
+    abort();
+}
+
+void uv_cond_broadcast(uv_cond_t* cond) {
+  if (pthread_cond_broadcast(cond))
+    abort();
+}
+
+void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
+  if (pthread_cond_wait(cond, mutex))
+    abort();
+}
+
+#if defined(__APPLE__) && defined(__MACH__)
+
+int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
+  int r;
+  struct timeval tv;
+  struct timespec ts;
+  uint64_t abstime;
+
+  gettimeofday(&tv, NULL);
+  abstime = tv.tv_sec * 1e9 + tv.tv_usec * 1e3 + timeout;
+  ts.tv_sec = abstime / NANOSEC;
+  ts.tv_nsec = abstime % NANOSEC;
+  r = pthread_cond_timedwait(cond, mutex, &ts);
+
+  if (r == 0)
+    return 0;
+
+  if (r == ETIMEDOUT)
+    return -1;
+
+  abort();
+  return -1; /* Satisfy the compiler. */
+}
+
+#else /* !(defined(__APPLE__) && defined(__MACH__)) */
+
+int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
+  int r;
+  struct timespec ts;
+  uint64_t abstime;
+
+  abstime = uv_hrtime() + timeout;
+  ts.tv_sec = abstime / NANOSEC;
+  ts.tv_nsec = abstime % NANOSEC;
+  r = pthread_cond_timedwait(cond, mutex, &ts);
+
+  if (r == 0)
+    return 0;
+
+  if (r == ETIMEDOUT)
+    return -1;
+
+  abort();
+  return -1; /* Satisfy the compiler. */
 }
 
 #endif /* defined(__APPLE__) && defined(__MACH__) */

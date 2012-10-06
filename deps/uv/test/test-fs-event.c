@@ -174,14 +174,13 @@ static void timer_cb_watch_twice(uv_timer_t* handle, int status) {
 }
 
 TEST_IMPL(fs_event_watch_dir) {
-  uv_fs_t fs_req;
   uv_loop_t* loop = uv_default_loop();
   int r;
 
   /* Setup */
-  uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  uv_fs_unlink(loop, &fs_req, "watch_dir/file2", NULL);
-  uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  remove("watch_dir/file2");
+  remove("watch_dir/file1");
+  remove("watch_dir/");
   create_dir(loop, "watch_dir");
 
   r = uv_fs_event_init(loop, &fs_event, "watch_dir", fs_event_cb_dir, 0);
@@ -198,22 +197,21 @@ TEST_IMPL(fs_event_watch_dir) {
   ASSERT(close_cb_called == 2);
 
   /* Cleanup */
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file2", NULL);
-  r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  remove("watch_dir/file2");
+  remove("watch_dir/file1");
+  remove("watch_dir/");
 
   return 0;
 }
 
 TEST_IMPL(fs_event_watch_file) {
-  uv_fs_t fs_req;
   uv_loop_t* loop = uv_default_loop();
   int r;
 
   /* Setup */
-  uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  uv_fs_unlink(loop, &fs_req, "watch_dir/file2", NULL);
-  uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  remove("watch_dir/file2");
+  remove("watch_dir/file1");
+  remove("watch_dir/");
   create_dir(loop, "watch_dir");
   create_file(loop, "watch_dir/file1");
   create_file(loop, "watch_dir/file2");
@@ -232,9 +230,9 @@ TEST_IMPL(fs_event_watch_file) {
   ASSERT(close_cb_called == 2);
 
   /* Cleanup */
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file2", NULL);
-  r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  remove("watch_dir/file2");
+  remove("watch_dir/file1");
+  remove("watch_dir/");
 
   return 0;
 }
@@ -260,13 +258,12 @@ TEST_IMPL(fs_event_watch_file_twice) {
 TEST_IMPL(fs_event_watch_file_current_dir) {
   uv_timer_t timer;
   uv_loop_t* loop;
-  uv_fs_t fs_req;
   int r;
 
   loop = uv_default_loop();
 
   /* Setup */
-  uv_fs_unlink(loop, &fs_req, "watch_file", NULL);
+  remove("watch_file");
   create_file(loop, "watch_file");
 
   r = uv_fs_event_init(loop, &fs_event, "watch_file",
@@ -290,19 +287,19 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   ASSERT(close_cb_called == 1);
 
   /* Cleanup */
-  r = uv_fs_unlink(loop, &fs_req, "watch_file", NULL);
+  remove("watch_file");
+
   return 0;
 }
 
 
 TEST_IMPL(fs_event_no_callback_on_close) {
-  uv_fs_t fs_req;
   uv_loop_t* loop = uv_default_loop();
   int r;
 
   /* Setup */
-  uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  remove("watch_dir/file1");
+  remove("watch_dir/");
   create_dir(loop, "watch_dir");
   create_file(loop, "watch_dir/file1");
 
@@ -321,8 +318,8 @@ TEST_IMPL(fs_event_no_callback_on_close) {
   ASSERT(close_cb_called == 1);
 
   /* Cleanup */
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  remove("watch_dir/file1");
+  remove("watch_dir/");
 
   return 0;
 }
@@ -370,7 +367,6 @@ TEST_IMPL(fs_event_immediate_close) {
 
 TEST_IMPL(fs_event_close_with_pending_event) {
   uv_loop_t* loop;
-  uv_fs_t fs_req;
   int r;
 
   loop = uv_default_loop();
@@ -391,10 +387,8 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   ASSERT(close_cb_called == 1);
 
   /* Clean up */
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file", NULL);
-  ASSERT(r == 0);
-  r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
-  ASSERT(r == 0);
+  remove("watch_dir/file");
+  remove("watch_dir/");
 
   return 0;
 }
@@ -427,7 +421,6 @@ static void fs_event_cb_close(uv_fs_event_t* handle, const char* filename,
 
 TEST_IMPL(fs_event_close_in_callback) {
   uv_loop_t* loop;
-  uv_fs_t fs_req;
   int r;
 
   loop = uv_default_loop();
@@ -455,18 +448,12 @@ TEST_IMPL(fs_event_close_in_callback) {
   ASSERT(fs_event_cb_called == 3);
 
   /* Clean up */
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
-  ASSERT(r == 0);
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file2", NULL);
-  ASSERT(r == 0);
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file3", NULL);
-  ASSERT(r == 0);
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file4", NULL);
-  ASSERT(r == 0);
-  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file5", NULL);
-  ASSERT(r == 0);
-  r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
-  ASSERT(r == 0);
+  remove("watch_dir/file1");
+  remove("watch_dir/file2");
+  remove("watch_dir/file3");
+  remove("watch_dir/file4");
+  remove("watch_dir/file5");
+  remove("watch_dir/");
 
   return 0;
 }

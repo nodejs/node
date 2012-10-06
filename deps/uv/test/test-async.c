@@ -114,5 +114,7 @@ TEST_IMPL(async) {
   ASSERT(async_cb_called == 3);
   ASSERT(close_cb_called == 2);
 
+  ASSERT(0 == uv_thread_join(&thread));
+
   return 0;
 }

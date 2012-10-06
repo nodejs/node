@@ -26,6 +26,7 @@
 #pragma warning(disable : 4996)
 
 
+#include <winsock2.h>
 #include <windows.h>
 #include <stdio.h>
 

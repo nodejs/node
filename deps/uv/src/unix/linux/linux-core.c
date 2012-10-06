@@ -57,6 +57,7 @@
 #endif
 
 static char buf[MAXPATHLEN + 1];
+static void* args_mem;
 
 static struct {
   char *str;
@@ -67,6 +68,12 @@ static void read_models(unsigned int numcpus, uv_cpu_info_t* ci);
 static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
 static void read_times(unsigned int numcpus, uv_cpu_info_t* ci);
 static unsigned long read_cpufreq(unsigned int cpunum);
+
+
+__attribute__((destructor))
+static void free_args_mem(void) {
+  free(args_mem); /* keep valgrind happy */
+}
 
 
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
@@ -147,11 +154,12 @@ char** uv_setup_args(int argc, char** argv) {
   size += (argc + 1) * sizeof(char **);
   size += (envc + 1) * sizeof(char **);
 
-  if ((s = (char *) malloc(size)) == NULL) {
+  if (NULL == (s = malloc(size))) {
     process_title.str = NULL;
     process_title.len = 0;
     return argv;
   }
+  args_mem = s;
 
   new_argv = (char **) s;
   new_env = new_argv + argc + 1;

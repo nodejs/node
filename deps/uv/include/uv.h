@@ -139,11 +139,13 @@ typedef enum {
   XX(CHECK, check)                                                            \
   XX(FS_EVENT, fs_event)                                                      \
   XX(FS_POLL, fs_poll)                                                        \
+  XX(HANDLE, handle)                                                          \
   XX(IDLE, idle)                                                              \
   XX(NAMED_PIPE, pipe)                                                        \
   XX(POLL, poll)                                                              \
   XX(PREPARE, prepare)                                                        \
   XX(PROCESS, process)                                                        \
+  XX(STREAM, stream)                                                          \
   XX(TCP, tcp)                                                                \
   XX(TIMER, timer)                                                            \
   XX(TTY, tty)                                                                \
@@ -151,6 +153,7 @@ typedef enum {
   XX(SIGNAL, signal)                                                          \
 
 #define UV_REQ_TYPE_MAP(XX)                                                   \
+  XX(REQ, req)                                                                \
   XX(CONNECT, connect)                                                        \
   XX(WRITE, write)                                                            \
   XX(SHUTDOWN, shutdown)                                                      \
@@ -209,7 +212,6 @@ typedef struct uv_fs_s uv_fs_t;
 typedef struct uv_work_s uv_work_t;
 
 /* None of the above. */
-typedef struct uv_counters_s uv_counters_t;
 typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
 
@@ -386,12 +388,11 @@ struct uv_shutdown_s {
 
 
 #define UV_HANDLE_FIELDS                                                      \
-  /* read-only */                                                             \
-  uv_loop_t* loop;                                                            \
   /* public */                                                                \
   uv_close_cb close_cb;                                                       \
   void* data;                                                                 \
   /* read-only */                                                             \
+  uv_loop_t* loop;                                                            \
   uv_handle_type type;                                                        \
   /* private */                                                               \
   ngx_queue_t handle_queue;                                                   \
@@ -607,12 +608,14 @@ UV_EXTERN int uv_tcp_open(uv_tcp_t* handle, uv_os_sock_t sock);
 /* Enable/disable Nagle's algorithm. */
 UV_EXTERN int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
 
-/* Enable/disable TCP keep-alive.
+/*
+ * Enable/disable TCP keep-alive.
  *
- * `ms` is the initial delay in seconds, ignored when `enable` is zero.
+ * `delay` is the initial delay in seconds, ignored when `enable` is zero.
  */
-UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle, int enable,
-    unsigned int delay);
+UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
+                               int enable,
+                               unsigned int delay);
 
 /*
  * This setting applies to Windows only.
@@ -937,8 +940,8 @@ UV_EXTERN uv_handle_type uv_guess_handle(uv_file file);
 struct uv_pipe_s {
   UV_HANDLE_FIELDS
   UV_STREAM_FIELDS
-  UV_PIPE_PRIVATE_FIELDS
   int ipc; /* non-zero if this pipe is used for passing handles */
+  UV_PIPE_PRIVATE_FIELDS
 };
 
 /*
@@ -1564,16 +1567,6 @@ struct uv_fs_poll_s {
   UV_HANDLE_FIELDS
   /* Private, don't touch. */
   void* poll_ctx;
-  /* v0.8 ABI compatibility */
-  char padding[sizeof(int)
-             + sizeof(unsigned int)
-             + sizeof(uint64_t)
-             + sizeof(char*)
-             + sizeof(uv_fs_poll_cb)
-             + sizeof(uv_timer_t)
-             + sizeof(uv_fs_t*)
-             + sizeof(uv_statbuf_t)
-             - sizeof(void*)];
 };
 
 UV_EXTERN int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle);
@@ -1637,8 +1630,8 @@ UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
 struct uv_signal_s {
   UV_HANDLE_FIELDS
   uv_signal_cb signal_cb;
-  UV_SIGNAL_PRIVATE_FIELDS
   int signum;
+  UV_SIGNAL_PRIVATE_FIELDS
 };
 
 /* These functions are no-ops on Windows. */
@@ -1799,6 +1792,36 @@ UV_EXTERN void uv_sem_post(uv_sem_t* sem);
 UV_EXTERN void uv_sem_wait(uv_sem_t* sem);
 UV_EXTERN int uv_sem_trywait(uv_sem_t* sem);
 
+/*
+ * Same goes for the condition variable functions.
+ */
+UV_EXTERN int uv_cond_init(uv_cond_t* cond);
+UV_EXTERN void uv_cond_destroy(uv_cond_t* cond);
+UV_EXTERN void uv_cond_signal(uv_cond_t* cond);
+UV_EXTERN void uv_cond_broadcast(uv_cond_t* cond);
+/* Waits on a condition variable without a timeout.
+ *
+ * Note:
+ * 1. callers should be prepared to deal with spurious wakeups.
+ */
+UV_EXTERN void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex);
+/* Waits on a condition variable with a timeout in nano seconds.
+ * Returns 0 for success or -1 on timeout, * aborts when other errors happen.
+ *
+ * Note:
+ * 1. callers should be prepared to deal with spurious wakeups.
+ * 2. the granularity of timeout on Windows is never less than one millisecond.
+ * 3. uv_cond_timedwait takes a relative timeout, not an absolute time.
+ * 4. the precision of timeout on OSX is never less than one microsecond.
+ *    Here is the reason.
+ *    OSX doesn't support CLOCK_MONOTONIC nor pthread_condattr_setclock()
+ *    (see man pthread_cond_init on OSX).
+ *    An example in man pthread_cond_timedwait on OSX uses gettimeofday()
+ *    and its resolution is a microsecond.
+ */
+UV_EXTERN int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex,
+    uint64_t timeout);
+
 /* Runs a function once and only once. Concurrent calls to uv_once() with the
  * same guard will block all callers except one (it's unspecified which one).
  * The guard should be initialized statically with the UV_ONCE_INIT macro.
@@ -1841,37 +1864,16 @@ union uv_any_req {
 };
 
 
-struct uv_counters_s {
-  uint64_t async_init;
-  uint64_t check_init;
-  uint64_t eio_init;
-  uint64_t fs_event_init;
-  uint64_t fs_poll_init;
-  uint64_t handle_init;
-  uint64_t idle_init;
-  uint64_t pipe_init;
-  uint64_t poll_init;
-  uint64_t prepare_init;
-  uint64_t process_init;
-  uint64_t req_init;
-  uint64_t stream_init;
-  uint64_t tcp_init;
-  uint64_t timer_init;
-  uint64_t tty_init;
-  uint64_t udp_init;
-};
-
-
 struct uv_loop_s {
-  UV_LOOP_PRIVATE_FIELDS
+  /* User data - use this for whatever. */
+  void* data;
   /* The last error */
   uv_err_t last_err;
   /* Loop reference counting */
   unsigned int active_handles;
   ngx_queue_t handle_queue;
   ngx_queue_t active_reqs;
-  /* User data - use this for whatever. */
-  void* data;
+  UV_LOOP_PRIVATE_FIELDS
 };
 
 

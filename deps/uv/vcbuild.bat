@@ -17,6 +17,10 @@ set target=Build
 set noprojgen=
 set nobuild=
 set run=
+set target_arch=ia32
+set vs_toolset=x86
+set platform=WIN32
+set library=static_library
 
 :next-arg
 if "%1"=="" goto args-done
@@ -27,11 +31,36 @@ if /i "%1"=="bench"        set run=run-benchmarks.exe&goto arg-ok
 if /i "%1"=="clean"        set target=Clean&goto arg-ok
 if /i "%1"=="noprojgen"    set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"      set nobuild=1&goto arg-ok
+if /i "%1"=="x86"          set target_arch=ia32&set platform=WIN32&set vs_toolset=x86&goto arg-ok
+if /i "%1"=="ia32"         set target_arch=ia32&set platform=WIN32&set vs_toolset=x86&goto arg-ok
+if /i "%1"=="x64"          set target_arch=x64&set platform=amd64&set vs_toolset=x64&goto arg-ok
+if /i "%1"=="shared"       set library=shared_library&goto arg-ok
+if /i "%1"=="static"       set library=static_library&goto arg-ok
 :arg-ok
 shift
 goto next-arg
 :args-done
 
+@rem Look for Visual Studio 2010
+if not defined VS100COMNTOOLS goto vc-set-2008
+if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2008
+call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
+set GYP_MSVS_VERSION=2010
+goto select-target
+
+:vc-set-2008
+@rem Look for Visual Studio 2008
+if not defined VS90COMNTOOLS goto vc-set-notfound
+if not exist "%VS90COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-notfound
+call "%VS90COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
+echo Warning: building with Visual Studio 2008 is currently not supported.
+set GYP_MSVS_VERSION=2008
+goto select-target
+
+:vc-set-notfound
+echo Warning: Visual Studio not found
+
+:select-target
 if not "%config%"=="" goto project-gen
 if "%run%"=="run-tests.exe" set config=Debug& goto project-gen
 if "%run%"=="run-benchmarks.exe" set config=Release& goto project-gen
@@ -42,7 +71,6 @@ set config=Debug
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-
 if exist build\gyp goto have_gyp
 echo svn co http://gyp.googlecode.com/svn/trunk@983 build/gyp
 svn co http://gyp.googlecode.com/svn/trunk@983 build/gyp
@@ -50,12 +78,12 @@ if errorlevel 1 goto gyp_install_failed
 goto have_gyp
 
 :gyp_install_failed
-echo Failed to download gyp. Make sure you have subversion installed, or 
+echo Failed to download gyp. Make sure you have subversion installed, or
 echo manually install gyp into %~dp0build\gyp.
 goto exit
 
 :have_gyp
-python gyp_uv
+python gyp_uv -Dtarget_arch=%target_arch% -Dlibrary=%library%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist uv.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -64,12 +92,7 @@ echo Project files generated.
 @rem Skip project generation if requested.
 if defined nobuild goto run
 
-@rem If not running in the VS build env, try to start it. If that fails, bail
-@rem out.
-if defined VCINSTALLDIR goto msbuild-found
-if not defined VS100COMNTOOLS goto msbuild-not-found
-if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
-call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat"
+@rem Check if VS build env is available
 if not defined VCINSTALLDIR goto msbuild-not-found
 goto msbuild-found
 
@@ -79,7 +102,7 @@ goto run
 
 @rem Build the sln with msbuild.
 :msbuild-found
-msbuild uv.sln /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild uv.sln /t:%target% /p:Configuration=%config% /p:Platform="%platform%" /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 :run
@@ -91,11 +114,11 @@ echo running '%config%\%run%'
 goto exit
 
 :create-msvs-files-failed
-echo Failed to create vc project files. 
+echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild]
+echo vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [x86/x64] [static/shared]
 echo Examples:
 echo   vcbuild.bat              : builds debug build
 echo   vcbuild.bat test         : builds debug build and runs tests

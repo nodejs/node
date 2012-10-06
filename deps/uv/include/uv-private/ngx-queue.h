@@ -17,8 +17,11 @@ struct ngx_queue_s {
 
 
 #define ngx_queue_init(q)                                                     \
+  do {                                                                        \
     (q)->prev = q;                                                            \
-    (q)->next = q
+    (q)->next = q;                                                            \
+  }                                                                           \
+  while (0)
 
 
 #define ngx_queue_empty(h)                                                    \
@@ -26,20 +29,26 @@ struct ngx_queue_s {
 
 
 #define ngx_queue_insert_head(h, x)                                           \
+  do {                                                                        \
     (x)->next = (h)->next;                                                    \
     (x)->next->prev = x;                                                      \
     (x)->prev = h;                                                            \
-    (h)->next = x
+    (h)->next = x;                                                            \
+  }                                                                           \
+  while (0)
 
 
 #define ngx_queue_insert_after   ngx_queue_insert_head
 
 
 #define ngx_queue_insert_tail(h, x)                                           \
+  do {                                                                        \
     (x)->prev = (h)->prev;                                                    \
     (x)->prev->next = x;                                                      \
     (x)->next = h;                                                            \
-    (h)->prev = x
+    (h)->prev = x;                                                            \
+  }                                                                           \
+  while (0)
 
 
 #define ngx_queue_head(h)                                                     \
@@ -65,38 +74,50 @@ struct ngx_queue_s {
 #if defined(NGX_DEBUG)
 
 #define ngx_queue_remove(x)                                                   \
+  do {                                                                        \
     (x)->next->prev = (x)->prev;                                              \
     (x)->prev->next = (x)->next;                                              \
     (x)->prev = NULL;                                                         \
-    (x)->next = NULL
+    (x)->next = NULL;                                                         \
+  }                                                                           \
+  while (0)
 
 #else
 
 #define ngx_queue_remove(x)                                                   \
+  do {                                                                        \
     (x)->next->prev = (x)->prev;                                              \
-    (x)->prev->next = (x)->next
+    (x)->prev->next = (x)->next;                                              \
+  }                                                                           \
+  while (0)
 
 #endif
 
 
 #define ngx_queue_split(h, q, n)                                              \
+  do {                                                                        \
     (n)->prev = (h)->prev;                                                    \
     (n)->prev->next = n;                                                      \
     (n)->next = q;                                                            \
     (h)->prev = (q)->prev;                                                    \
     (h)->prev->next = h;                                                      \
-    (q)->prev = n;
+    (q)->prev = n;                                                            \
+  }                                                                           \
+  while (0)
 
 
 #define ngx_queue_add(h, n)                                                   \
+  do {                                                                        \
     (h)->prev->next = (n)->next;                                              \
     (n)->next->prev = (h)->prev;                                              \
     (h)->prev = (n)->prev;                                                    \
-    (h)->prev->next = h;
+    (h)->prev->next = h;                                                      \
+  }                                                                           \
+  while (0)
 
 
 #define ngx_queue_data(q, type, link)                                         \
-    (type *) ((unsigned char *) q - offsetof(type, link))
+    ((type *) ((unsigned char *) q - offsetof(type, link)))
 
 
 #define ngx_queue_foreach(q, h)                                               \

@@ -415,7 +415,6 @@ static int test_tcp(unsigned int num_servers, unsigned int num_clients) {
 
   free(clients);
   free(servers);
-  uv_loop_delete(uv_default_loop()); /* Silence valgrind. */
 
   return 0;
 }

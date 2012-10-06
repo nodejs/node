@@ -23,7 +23,6 @@
 #define UV_UNIX_INTERNAL_H_
 
 #include "uv-common.h"
-#include "uv-eio.h"
 
 #include <assert.h>
 #include <stdlib.h> /* abort */
@@ -101,11 +100,6 @@ enum {
   UV_TCP_SINGLE_ACCEPT = 0x400  /* Only accept() when idle. */
 };
 
-/* loop flags */
-enum {
-  UV_LOOP_EIO_INITIALIZED = 1
-};
-
 __attribute__((unused))
 __attribute__((always_inline))
 static void uv__req_init(uv_loop_t* loop, uv_req_t* req, uv_req_type type) {
@@ -164,6 +158,13 @@ unsigned int uv__next_timeout(uv_loop_t* loop);
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_unregister(uv_loop_t* loop);
+
+/* thread pool */
+void uv__work_submit(uv_loop_t* loop,
+                     struct uv__work *w,
+                     void (*work)(struct uv__work *w),
+                     void (*done)(struct uv__work *w));
+void uv__work_done(uv_async_t* handle, int status);
 
 /* platform specific */
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop);

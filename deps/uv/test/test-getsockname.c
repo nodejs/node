@@ -238,9 +238,9 @@ static void udp_recv(uv_udp_t* handle,
   int r;
 
   ASSERT(nread >= 0);
+  free(buf.base);
 
   if (nread == 0) {
-    free(buf.base);
     return;
   }
 

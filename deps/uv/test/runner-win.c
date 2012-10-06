@@ -24,7 +24,6 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <process.h>
-#include <windows.h>
 
 #include "task.h"
 #include "runner.h"
@@ -57,7 +56,7 @@ void platform_init(int argc, char **argv) {
 }
 
 
-int process_start(char *name, char *part, process_info_t *p) {
+int process_start(char *name, char *part, process_info_t *p, int is_helper) {
   HANDLE file = INVALID_HANDLE_VALUE;
   HANDLE nul = INVALID_HANDLE_VALUE;
   WCHAR path[MAX_PATH], filename[MAX_PATH];

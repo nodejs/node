@@ -6,7 +6,6 @@
           '_LARGEFILE_SOURCE',
           '_FILE_OFFSET_BITS=64',
           '_GNU_SOURCE',
-          'EIO_STACKSIZE=262144'
         ],
         'conditions': [
           ['OS=="solaris"', {
@@ -53,7 +52,6 @@
         [ 'OS=="win"', {
           'defines': [
             '_WIN32_WINNT=0x0600',
-            'EIO_STACKSIZE=262144',
             '_GNU_SOURCE',
           ],
           'sources': [
@@ -108,7 +106,6 @@
             '-Wno-unused-parameter'
           ],
           'sources': [
-            'include/uv-private/eio.h',
             'include/uv-private/ev.h',
             'include/uv-private/uv-unix.h',
             'include/uv-private/uv-linux.h',
@@ -118,15 +115,13 @@
             'src/unix/async.c',
             'src/unix/core.c',
             'src/unix/dl.c',
-            'src/unix/eio/ecb.h',
-            'src/unix/eio/eio.c',
-            'src/unix/eio/xthread.h',
             'src/unix/error.c',
             'src/unix/ev/ev.c',
             'src/unix/ev/ev_vars.h',
             'src/unix/ev/ev_wrap.h',
             'src/unix/ev/event.h',
             'src/unix/fs.c',
+            'src/unix/getaddrinfo.c',
             'src/unix/internal.h',
             'src/unix/loop.c',
             'src/unix/loop-watcher.c',
@@ -137,11 +132,10 @@
             'src/unix/stream.c',
             'src/unix/tcp.c',
             'src/unix/thread.c',
+            'src/unix/threadpool.c',
             'src/unix/timer.c',
             'src/unix/tty.c',
             'src/unix/udp.c',
-            'src/unix/uv-eio.c',
-            'src/unix/uv-eio.h',
           ],
           'include_dirs': [ 'src/unix/ev', ],
           'libraries': [ '-lm' ]
@@ -156,7 +150,6 @@
           'defines': [
             '_DARWIN_USE_64_BIT_INODE=1',
             'EV_CONFIG_H="config_darwin.h"',
-            'EIO_CONFIG_H="config_darwin.h"',
           ]
         }],
         [ 'OS=="linux"', {
@@ -168,7 +161,6 @@
           ],
           'defines': [
             'EV_CONFIG_H="config_linux.h"',
-            'EIO_CONFIG_H="config_linux.h"',
           ],
           'direct_dependent_settings': {
             'libraries': [ '-lrt' ],
@@ -180,13 +172,13 @@
             '__EXTENSIONS__',
             '_XOPEN_SOURCE=500',
             'EV_CONFIG_H="config_sunos.h"',
-            'EIO_CONFIG_H="config_sunos.h"',
           ],
           'direct_dependent_settings': {
             'libraries': [
               '-lkstat',
-              '-lsocket',
               '-lnsl',
+              '-lsendfile',
+              '-lsocket',
             ],
           },
         }],
@@ -197,7 +189,6 @@
             '_ALL_SOURCE',
             '_XOPEN_SOURCE=500',
             'EV_CONFIG_H="config_aix.h"',
-            'EIO_CONFIG_H="config_aix.h"',
           ],
           'direct_dependent_settings': {
             'libraries': [
@@ -209,7 +200,6 @@
           'sources': [ 'src/unix/freebsd.c' ],
           'defines': [
             'EV_CONFIG_H="config_freebsd.h"',
-            'EIO_CONFIG_H="config_freebsd.h"',
           ],
           'direct_dependent_settings': {
             'libraries': [
@@ -221,14 +211,12 @@
           'sources': [ 'src/unix/openbsd.c' ],
           'defines': [
             'EV_CONFIG_H="config_openbsd.h"',
-            'EIO_CONFIG_H="config_openbsd.h"',
           ],
         }],
         [ 'OS=="netbsd"', {
           'sources': [ 'src/unix/netbsd.c' ],
           'defines': [
             'EV_CONFIG_H="config_netbsd.h"',
-            'EIO_CONFIG_H="config_netbsd.h"',
           ],
           'direct_dependent_settings': {
             'libraries': [
@@ -239,6 +227,9 @@
         [ 'OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
           'sources': [ 'src/unix/kqueue.c' ],
         }],
+        ['library=="shared_library"', {
+          'defines': [ 'BUILDING_UV_SHARED=1' ]
+        }]
       ]
     },
 
@@ -314,6 +305,7 @@
         'test/test-mutexes.c',
         'test/test-signal.c',
         'test/test-thread.c',
+        'test/test-condvar.c',
         'test/test-timer-again.c',
         'test/test-timer.c',
         'test/test-tty.c',

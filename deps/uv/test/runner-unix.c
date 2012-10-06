@@ -55,8 +55,13 @@ void platform_init(int argc, char **argv) {
 
 /* Invoke "argv[0] test-name [test-part]". Store process info in *p. */
 /* Make sure that all stdio output of the processes is buffered up. */
-int process_start(char* name, char* part, process_info_t* p) {
-  FILE* stdout_file = tmpfile();
+int process_start(char* name, char* part, process_info_t* p, int is_helper) {
+  FILE* stdout_file;
+  const char* arg;
+  char* args[16];
+  int n;
+
+  stdout_file = tmpfile();
   if (!stdout_file) {
     perror("tmpfile");
     return -1;
@@ -68,17 +73,34 @@ int process_start(char* name, char* part, process_info_t* p) {
   pid_t pid = fork();
 
   if (pid < 0) {
-    perror("vfork");
+    perror("fork");
     return -1;
   }
 
   if (pid == 0) {
     /* child */
+    arg = getenv("UV_USE_VALGRIND");
+    n = 0;
+
+    /* Disable valgrind for helpers, it complains about helpers leaking memory.
+     * They're killed after the test and as such never get a chance to clean up.
+     */
+    if (is_helper == 0 && arg != NULL && atoi(arg) != 0) {
+      args[n++] = "valgrind";
+      args[n++] = "--quiet";
+      args[n++] = "--leak-check=full";
+      args[n++] = "--show-reachable=yes";
+      args[n++] = "--error-exitcode=125";
+    }
+
+    args[n++] = executable_path;
+    args[n++] = name;
+    args[n++] = part;
+    args[n++] = NULL;
+
     dup2(fileno(stdout_file), STDOUT_FILENO);
     dup2(fileno(stdout_file), STDERR_FILENO);
-
-    char* args[] = { executable_path, name, part, NULL };
-    execvp(executable_path, args);
+    execvp(args[0], args);
     perror("execvp()");
     _exit(127);
   }

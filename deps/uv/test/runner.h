@@ -127,7 +127,7 @@ void platform_init();
 
 /* Invoke "argv[0] test-name [test-part]". Store process info in *p. */
 /* Make sure that all stdio output of the processes is buffered up. */
-int process_start(char *name, char* part, process_info_t *p);
+int process_start(char *name, char* part, process_info_t *p, int is_helper);
 
 /* Wait for all `n` processes in `vec` to terminate. */
 /* Time out after `timeout` msec, or never if timeout == -1 */

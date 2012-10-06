@@ -36,6 +36,21 @@ static int req_cb_called;
 static int connect_cb_called;
 static int write_cb_called;
 static int shutdown_cb_called;
+static int close_cb_called;
+
+
+static void close_cb(uv_handle_t* handle) {
+  close_cb_called++;
+}
+
+
+static void do_close(void* handle) {
+  close_cb_called = 0;
+  uv_close((uv_handle_t*)handle, close_cb);
+  ASSERT(close_cb_called == 0);
+  uv_run(uv_default_loop());
+  ASSERT(close_cb_called == 1);
+}
 
 
 static void fail_cb(void) {
@@ -91,6 +106,7 @@ TEST_IMPL(idle_ref) {
   uv_idle_start(&h, NULL);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -100,6 +116,7 @@ TEST_IMPL(async_ref) {
   uv_async_init(uv_default_loop(), &h, NULL);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -110,6 +127,7 @@ TEST_IMPL(prepare_ref) {
   uv_prepare_start(&h, NULL);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -120,6 +138,7 @@ TEST_IMPL(check_ref) {
   uv_check_start(&h, NULL);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -136,6 +155,7 @@ TEST_IMPL(unref_in_prepare_cb) {
   uv_prepare_init(uv_default_loop(), &h);
   uv_prepare_start(&h, prepare_cb);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -145,6 +165,7 @@ TEST_IMPL(timer_ref) {
   uv_timer_init(uv_default_loop(), &h);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -155,6 +176,7 @@ TEST_IMPL(timer_ref2) {
   uv_timer_start(&h, (uv_timer_cb)fail_cb, 42, 42);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -164,6 +186,7 @@ TEST_IMPL(fs_event_ref) {
   uv_fs_event_init(uv_default_loop(), &h, ".", (uv_fs_event_cb)fail_cb, 0);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -174,6 +197,7 @@ TEST_IMPL(fs_poll_ref) {
   uv_fs_poll_start(&h, NULL, ".", 999);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -183,6 +207,7 @@ TEST_IMPL(tcp_ref) {
   uv_tcp_init(uv_default_loop(), &h);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -193,6 +218,7 @@ TEST_IMPL(tcp_ref2) {
   uv_listen((uv_stream_t*)&h, 128, (uv_connection_cb)fail_cb);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -206,6 +232,7 @@ TEST_IMPL(tcp_ref3) {
   uv_run(uv_default_loop());
   ASSERT(connect_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
+  do_close(&h);
   return 0;
 }
 
@@ -220,6 +247,7 @@ TEST_IMPL(tcp_ref4) {
   ASSERT(connect_cb_called == 1);
   ASSERT(write_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
+  do_close(&h);
   return 0;
 }
 
@@ -229,6 +257,7 @@ TEST_IMPL(udp_ref) {
   uv_udp_init(uv_default_loop(), &h);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -241,6 +270,7 @@ TEST_IMPL(udp_ref2) {
   uv_udp_recv_start(&h, (uv_alloc_cb)fail_cb, (uv_udp_recv_cb)fail_cb);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -256,6 +286,7 @@ TEST_IMPL(udp_ref3) {
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
   ASSERT(req_cb_called == 1);
+  do_close(&h);
 
   return 0;
 }
@@ -266,6 +297,7 @@ TEST_IMPL(pipe_ref) {
   uv_pipe_init(uv_default_loop(), &h, 0);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -276,6 +308,7 @@ TEST_IMPL(pipe_ref2) {
   uv_listen((uv_stream_t*)&h, 128, (uv_connection_cb)fail_cb);
   uv_unref((uv_handle_t*)&h);
   uv_run(uv_default_loop());
+  do_close(&h);
   return 0;
 }
 
@@ -288,6 +321,7 @@ TEST_IMPL(pipe_ref3) {
   uv_run(uv_default_loop());
   ASSERT(connect_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
+  do_close(&h);
   return 0;
 }
 
@@ -301,6 +335,7 @@ TEST_IMPL(pipe_ref4) {
   ASSERT(connect_cb_called == 1);
   ASSERT(write_cb_called == 1);
   ASSERT(shutdown_cb_called == 1);
+  do_close(&h);
   return 0;
 }
 
@@ -333,6 +368,8 @@ TEST_IMPL(process_ref) {
 
   r = uv_process_kill(&h, /* SIGTERM */ 15);
   ASSERT(r == 0);
+
+  do_close(&h);
 
   return 0;
 }

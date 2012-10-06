@@ -145,7 +145,7 @@ TEST_IMPL(tcp_writealot) {
   uv_tcp_t client;
   int r;
 
-  send_buffer = malloc(TOTAL_BYTES);
+  send_buffer = calloc(1, TOTAL_BYTES);
   ASSERT(send_buffer != NULL);
 
   r = uv_tcp_init(uv_default_loop(), &client);

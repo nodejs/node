@@ -52,10 +52,7 @@ void pinger_try_read(pinger_t* pinger);
 
 
 static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf_t buf;
-  buf.base = (char*)malloc(size);
-  buf.len = size;
-  return buf;
+  return uv_buf_init(malloc(size), size);
 }
 
 
@@ -103,10 +100,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
     ASSERT(uv_last_error(uv_default_loop()).code == UV_EOF);
 
     puts("got EOF");
-
-    if (buf.base) {
-      free(buf.base);
-    }
+    free(buf.base);
 
     uv_close((uv_handle_t*)(&pinger->stream.tcp), pinger_on_close);
 
@@ -117,17 +111,22 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   for (i = 0; i < nread; i++) {
     ASSERT(buf.base[i] == PING[pinger->state]);
     pinger->state = (pinger->state + 1) % (sizeof(PING) - 1);
-    if (pinger->state == 0) {
-      printf("PONG %d\n", pinger->pongs);
-      pinger->pongs++;
-      if (pinger->pongs < NUM_PINGS) {
-        pinger_write_ping(pinger);
-      } else {
-        uv_close((uv_handle_t*)(&pinger->stream.tcp), pinger_on_close);
-        return;
-      }
+
+    if (pinger->state != 0)
+      continue;
+
+    printf("PONG %d\n", pinger->pongs);
+    pinger->pongs++;
+
+    if (pinger->pongs < NUM_PINGS) {
+      pinger_write_ping(pinger);
+    } else {
+      uv_close((uv_handle_t*)(&pinger->stream.tcp), pinger_on_close);
+      break;
     }
   }
+
+  free(buf.base);
 }
 
 
