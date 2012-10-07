@@ -31,6 +31,7 @@ static pthread_once_t once = PTHREAD_ONCE_INIT;
 static pthread_t threads[4];
 static ngx_queue_t exit_message;
 static ngx_queue_t wq = { &wq, &wq };
+static volatile int initialized;
 
 
 static void* worker(void* arg) {
@@ -89,6 +90,8 @@ static void init_once(void) {
   for (i = 0; i < ARRAY_SIZE(threads); i++)
     if (pthread_create(threads + i, NULL, worker, NULL))
       abort();
+
+  initialized = 1;
 }
 
 
@@ -97,11 +100,14 @@ static void cleanup(void) {
   unsigned int i;
   int err;
 
+  if (initialized == 0)
+    return;
+
   post(&exit_message);
 
   for (i = 0; i < ARRAY_SIZE(threads); i++) {
     err = pthread_join(threads[i], NULL);
-    assert(err == 0 || err == EINVAL || err == ESRCH);
+    assert(err == 0 || err == ESRCH);
     (void) err; /* Silence compiler warning in release builds. */
   }
 }

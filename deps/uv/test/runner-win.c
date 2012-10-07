@@ -24,6 +24,7 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <process.h>
+#include <crtdbg.h>
 
 #include "task.h"
 #include "runner.h"
@@ -43,6 +44,8 @@ void platform_init(int argc, char **argv) {
   /* Disable the "application crashed" popup. */
   SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
       SEM_NOOPENFILEERRORBOX);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG);
 
   _setmode(0, _O_BINARY);
   _setmode(1, _O_BINARY);
