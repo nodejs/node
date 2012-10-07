@@ -127,9 +127,12 @@ sent to the server on that socket.
 
 ### Event: 'clientError'
 
-`function (exception) { }`
+`function (exception, socket) { }`
 
 If a client connection emits an 'error' event - it will forwarded here.
+
+`socket` is the `net.Socket` object that the error originated from.
+
 
 ### server.listen(port, [hostname], [backlog], [callback])
 

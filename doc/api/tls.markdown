@@ -367,10 +367,12 @@ SNI.
 
 ### Event: 'clientError'
 
-`function (exception) { }`
+`function (exception, securePair) { }`
 
 When a client connection emits an 'error' event before secure connection is
 established - it will be forwarded here.
+
+`securePair` is the `tls.SecurePair` that the error originated from.
 
 
 ### Event: 'newSession'
