@@ -30,7 +30,7 @@ var fs = require('fs');
 
 var scriptString = path.join(common.fixturesDir, 'print-chars.js');
 var scriptBuffer = path.join(common.fixturesDir, 'print-chars-from-buffer.js');
-var tmpFile = path.join(common.fixturesDir, 'stdout.txt');
+var tmpFile = path.join(common.tmpDir, 'stdout.txt');
 
 function test(size, useBuffer, cb) {
   var cmd = '"' + process.argv[0] + '"' +
