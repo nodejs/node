@@ -184,9 +184,9 @@ from that one, and bound to this one instead.
 The opposite of `domain.add(emitter)`.  Removes domain handling from the
 specified emitter.
 
-### domain.bind(cb)
+### domain.bind(callback)
 
-* `cb` {Function} The callback function
+* `callback` {Function} The callback function
 * return: {Function} The bound function
 
 The returned function will be a wrapper around the supplied callback
@@ -210,16 +210,16 @@ thrown will be routed to the domain's `error` event.
       // with the normal line number and stack message.
     });
 
-### domain.intercept(cb)
+### domain.intercept(callback)
 
-* `cb` {Function} The callback function
+* `callback` {Function} The callback function
 * return: {Function} The intercepted function
 
-This method is almost identical to `domain.bind(cb)`.  However, in
+This method is almost identical to `domain.bind(callback)`.  However, in
 addition to catching thrown errors, it will also intercept `Error`
 objects sent as the first argument to the function.
 
-In this way, the common `if (er) return cb(er);` pattern can be replaced
+In this way, the common `if (er) return callback(er);` pattern can be replaced
 with a single error handler in a single place.
 
 #### Example
