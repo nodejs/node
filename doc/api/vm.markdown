@@ -79,12 +79,14 @@ In case of syntax error in `code`, `vm.runInThisContext` emits the syntax error 
 and throws an exception.
 
 
-## vm.runInNewContext(code, [sandbox], [filename])
+## vm.runInNewContext(code, [sandbox], [filename], [timeout])
 
 `vm.runInNewContext` compiles `code`, then runs it in `sandbox` and returns the
 result. Running code does not have access to local scope. The object `sandbox`
 will be used as the global object for `code`.
 `sandbox` and `filename` are optional, `filename` is only used in stack traces.
+`timeout` specifies an optional number of milliseconds to execute `code` before
+terminating execution. If execution is terminated, `null` will be thrown.
 
 Example: compile and execute code that increments a global variable and sets a new one.
 These globals are contained in the sandbox.
@@ -108,7 +110,7 @@ requires a separate process.
 In case of syntax error in `code`, `vm.runInNewContext` emits the syntax error to stderr
 and throws an exception.
 
-## vm.runInContext(code, context, [filename])
+## vm.runInContext(code, context, [filename], [timeout])
 
 `vm.runInContext` compiles `code`, then runs it in `context` and returns the
 result. A (V8) context comprises a global object, together with a set of
@@ -116,6 +118,8 @@ built-in objects and functions. Running code does not have access to local scope
 and the global object held within `context` will be used as the global object
 for `code`.
 `filename` is optional, it's used only in stack traces.
+`timeout` specifies an optional number of milliseconds to execute `code` before
+terminating execution. If execution is terminated, `null` will be thrown.
 
 Example: compile and execute code in a existing context.
 
@@ -165,12 +169,14 @@ and throws an exception.
 
 A class for running scripts.  Returned by vm.createScript.
 
-### script.runInThisContext()
+### script.runInThisContext([timeout])
 
 Similar to `vm.runInThisContext` but a method of a precompiled `Script` object.
 `script.runInThisContext` runs the code of `script` and returns the result.
 Running code does not have access to local scope, but does have access to the `global` object
 (v8: in actual context).
+`timeout` specifies an optional number of milliseconds to execute `code` before
+terminating execution. If execution is terminated, `null` will be thrown.
 
 Example of using `script.runInThisContext` to compile code once and run it multiple times:
 
@@ -189,11 +195,13 @@ Example of using `script.runInThisContext` to compile code once and run it multi
     // 1000
 
 
-### script.runInNewContext([sandbox])
+### script.runInNewContext([sandbox], [timeout])
 
 Similar to `vm.runInNewContext` a method of a precompiled `Script` object.
 `script.runInNewContext` runs the code of `script` with `sandbox` as the global object and returns the result.
 Running code does not have access to local scope. `sandbox` is optional.
+`timeout` specifies an optional number of milliseconds to execute `code` before
+terminating execution. If execution is terminated, `null` will be thrown.
 
 Example: compile code that increments a global variable and sets one, then execute this code multiple times.
 These globals are contained in the sandbox.

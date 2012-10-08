@@ -527,7 +527,7 @@
                'global.require = require;\n' +
                'return require("vm").runInThisContext(' +
                JSON.stringify(body) + ', ' +
-               JSON.stringify(name) + ', true);\n';
+               JSON.stringify(name) + ', 0, true);\n';
     }
     var result = module._compile(script, name + '-wrapper');
     if (process._print_eval) console.log(result);
@@ -888,7 +888,7 @@
     var source = NativeModule.getSource(this.id);
     source = NativeModule.wrap(source);
 
-    var fn = runInThisContext(source, this.filename, true);
+    var fn = runInThisContext(source, this.filename, 0, true);
     fn(this.exports, NativeModule.require, this, this.filename);
 
     this.loaded = true;

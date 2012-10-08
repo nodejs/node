@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_script.h"
+#include "node_watchdog.h"
 #include <assert.h>
 
 namespace node {
@@ -42,6 +43,7 @@ using v8::Persistent;
 using v8::Integer;
 using v8::Function;
 using v8::FunctionTemplate;
+using v8::V8;
 
 
 class WrappedContext : ObjectWrap {
@@ -74,10 +76,12 @@ class WrappedScript : ObjectWrap {
   enum EvalInputFlags { compileCode, unwrapExternal };
   enum EvalContextFlags { thisContext, newContext, userContext };
   enum EvalOutputFlags { returnResult, wrapExternal };
+  enum EvalTimeoutFlags { noTimeout, useTimeout };
 
   template <EvalInputFlags input_flag,
             EvalContextFlags context_flag,
-            EvalOutputFlags output_flag>
+            EvalOutputFlags output_flag,
+            EvalTimeoutFlags timeout_flag>
   static Handle<Value> EvalMachine(const Arguments& args);
 
  protected:
@@ -243,7 +247,8 @@ Handle<Value> WrappedScript::New(const Arguments& args) {
   t->Wrap(args.This());
 
   return
-    WrappedScript::EvalMachine<compileCode, thisContext, wrapExternal>(args);
+    WrappedScript::EvalMachine<
+      compileCode, thisContext, wrapExternal, noTimeout>(args);
 }
 
 
@@ -275,43 +280,50 @@ Handle<Value> WrappedScript::CreateContext(const Arguments& args) {
 
 Handle<Value> WrappedScript::RunInContext(const Arguments& args) {
   return
-    WrappedScript::EvalMachine<unwrapExternal, userContext, returnResult>(args);
+    WrappedScript::EvalMachine<
+      unwrapExternal, userContext, returnResult, useTimeout>(args);
 }
 
 
 Handle<Value> WrappedScript::RunInThisContext(const Arguments& args) {
   return
-    WrappedScript::EvalMachine<unwrapExternal, thisContext, returnResult>(args);
+    WrappedScript::EvalMachine<
+      unwrapExternal, thisContext, returnResult, useTimeout>(args);
 }
 
 
 Handle<Value> WrappedScript::RunInNewContext(const Arguments& args) {
   return
-    WrappedScript::EvalMachine<unwrapExternal, newContext, returnResult>(args);
+    WrappedScript::EvalMachine<
+      unwrapExternal, newContext, returnResult, useTimeout>(args);
 }
 
 
 Handle<Value> WrappedScript::CompileRunInContext(const Arguments& args) {
   return
-    WrappedScript::EvalMachine<compileCode, userContext, returnResult>(args);
+    WrappedScript::EvalMachine<
+      compileCode, userContext, returnResult, useTimeout>(args);
 }
 
 
 Handle<Value> WrappedScript::CompileRunInThisContext(const Arguments& args) {
   return
-    WrappedScript::EvalMachine<compileCode, thisContext, returnResult>(args);
+    WrappedScript::EvalMachine<
+      compileCode, thisContext, returnResult, useTimeout>(args);
 }
 
 
 Handle<Value> WrappedScript::CompileRunInNewContext(const Arguments& args) {
   return
-    WrappedScript::EvalMachine<compileCode, newContext, returnResult>(args);
+    WrappedScript::EvalMachine<
+      compileCode, newContext, returnResult, useTimeout>(args);
 }
 
 
 template <WrappedScript::EvalInputFlags input_flag,
           WrappedScript::EvalContextFlags context_flag,
-          WrappedScript::EvalOutputFlags output_flag>
+          WrappedScript::EvalOutputFlags output_flag,
+          WrappedScript::EvalTimeoutFlags timeout_flag>
 Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   HandleScope scope(node_isolate);
 
@@ -346,7 +358,18 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
                            ? args[filename_index]->ToString()
                            : String::New("evalmachine.<anonymous>");
 
-  const int display_error_index = args.Length() - 1;
+  uint64_t timeout = 0;
+  const int timeout_index = filename_index + 1;
+  if (timeout_flag == useTimeout && args.Length() > timeout_index) {
+    if (!args[timeout_index]->IsUint32()) {
+      return ThrowException(Exception::TypeError(
+            String::New("needs an unsigned integer 'ms' argument.")));
+    }
+    timeout = args[timeout_index]->Uint32Value();
+  }
+
+  const int display_error_index = timeout_index +
+                                  (timeout_flag == noTimeout ? 0 : 1);
   bool display_error = false;
   if (args.Length() > display_error_index &&
       args[display_error_index]->IsBoolean() &&
@@ -416,7 +439,17 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
 
   if (output_flag == returnResult) {
-    result = script->Run();
+    if (timeout) {
+      Watchdog wd(timeout);
+      result = script->Run();
+    } else {
+      result = script->Run();
+    }
+    if (try_catch.HasCaught() && try_catch.HasTerminated()) {
+      V8::CancelTerminateExecution(args.GetIsolate());
+      return ThrowException(Exception::Error(
+            String::New("Script execution timed out.")));
+    }
     if (result.IsEmpty()) {
       if (display_error) DisplayExceptionLine(try_catch);
       return try_catch.ReThrow();
