@@ -125,6 +125,24 @@ try {
 }
 assert.strictEqual('sourceStart out of bounds', caught_error.message);
 
+// invalid encoding for Buffer.toString
+caught_error = null;
+try {
+  var copied = b.toString('invalid');
+} catch (err) {
+  caught_error = err;
+}
+assert.strictEqual('Unknown encoding: invalid', caught_error.message);
+
+// invalid encoding for Buffer.write
+caught_error = null;
+try {
+  var copied = b.write('test string', 0, 5, 'invalid');
+} catch (err) {
+  caught_error = err;
+}
+assert.strictEqual('Unknown encoding: invalid', caught_error.message);
+
 // a too-low sourceEnd will get caught by earlier checks
 
 // try to copy ending after the end of b
@@ -599,6 +617,24 @@ assert.equal(0xee, b[0]);
 assert.equal(0xad, b[1]);
 assert.equal(0xbe, b[2]);
 assert.equal(0xef, b[3]);
+
+// testing invalid encoding on SlowBuffer.toString
+caught_error = null;
+try {
+  var copied = b.toString('invalid');
+} catch (err) {
+  caught_error = err;
+}
+assert.strictEqual('Unknown encoding: invalid', caught_error.message);
+
+// testing invalid encoding on SlowBuffer.write
+caught_error = null;
+try {
+  var copied = b.write('some string', 0, 5, 'invalid');
+} catch (err) {
+  caught_error = err;
+}
+assert.strictEqual('Unknown encoding: invalid', caught_error.message);
 
 
 // This should not segfault the program.
