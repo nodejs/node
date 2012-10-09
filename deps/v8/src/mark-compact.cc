@@ -340,6 +340,11 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
   if (!compacting_) {
     ASSERT(evacuation_candidates_.length() == 0);
 
+#ifdef ENABLE_GDB_JIT_INTERFACE
+    // If GDBJIT interface is active disable compaction.
+    if (FLAG_gdbjit) return false;
+#endif
+
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
 
@@ -776,13 +781,6 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #endif
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
-
-#ifdef ENABLE_GDB_JIT_INTERFACE
-  if (FLAG_gdbjit) {
-    // If GDBJIT interface is active disable compaction.
-    compacting_collection_ = false;
-  }
-#endif
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && abort_incremental_marking_) {
