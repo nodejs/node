@@ -377,8 +377,12 @@ def configure_node(o):
   # SunOS, and we haven't implemented it.)
   if sys.platform.startswith('sunos'):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
+  elif sys.platform.startswith('linux'):
+    o['variables']['node_use_dtrace'] = 'false'
+    o['variables']['node_use_systemtap'] = b(not options.without_dtrace)
   elif b(options.with_dtrace) == 'true':
-    raise Exception('DTrace is currently only supported on SunOS systems.')
+    raise Exception(
+       'DTrace is currently only supported on SunOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
 

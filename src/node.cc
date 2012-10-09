@@ -27,7 +27,7 @@
 #include "uv.h"
 
 #include "v8-debug.h"
-#if defined HAVE_DTRACE || defined HAVE_ETW
+#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
 # include "node_dtrace.h"
 #endif
 
@@ -71,6 +71,9 @@ typedef int mode_t;
 #include "node_string.h"
 #if HAVE_OPENSSL
 # include "node_crypto.h"
+#endif
+#if HAVE_SYSTEMTAP
+#include "node_systemtap.h"
 #endif
 #include "node_script.h"
 #include "v8_typed_array.h"
@@ -2307,7 +2310,7 @@ void Load(Handle<Object> process_l) {
   Local<Object> global = v8::Context::GetCurrent()->Global();
   Local<Value> args[1] = { Local<Value>::New(process_l) };
 
-#if defined HAVE_DTRACE || defined HAVE_ETW
+#if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
   InitDTrace(global);
 #endif
 
