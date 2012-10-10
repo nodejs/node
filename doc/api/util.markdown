@@ -83,6 +83,9 @@ formatted string:
  - `colors` - if `true`, then the output will be styled with ANSI color codes.
    Defaults to `false`. Colors are customizable, see below.
 
+ - `customInspect` - if `false`, then custom `inspect()` functions defined on the
+   objects being inspected won't be called. Defaults to `true`.
+
 Example of inspecting all properties of the `util` object:
 
     var util = require('util');

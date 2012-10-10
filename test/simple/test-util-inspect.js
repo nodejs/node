@@ -149,3 +149,11 @@ assert(util.inspect(subject, { colors: true }).indexOf('\u001b[32m') !== -1);
 assert(util.inspect(subject, { depth: 2 }).indexOf('c: [Object]') !== -1);
 assert(util.inspect(subject, { depth: 0 }).indexOf('a: [Object]') !== -1);
 assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
+
+// "customInspect" option can enable/disable calling inspect() on objects
+subject = { inspect: function() { return 123; } };
+
+assert(util.inspect(subject, { customInspect: true }).indexOf('123') !== -1);
+assert(util.inspect(subject, { customInspect: true }).indexOf('inspect') === -1);
+assert(util.inspect(subject, { customInspect: false }).indexOf('123') === -1);
+assert(util.inspect(subject, { customInspect: false }).indexOf('inspect') !== -1);
