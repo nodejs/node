@@ -140,3 +140,101 @@ test('write backpressure', function(t) {
     }
   })();
 });
+
+test('write bufferize', function(t) {
+  var tw = new TestWriter({
+    lowWaterMark: 5,
+    highWaterMark: 100
+  });
+
+  var encodings =
+      [ 'hex',
+        'utf8',
+        'utf-8',
+        'ascii',
+        'binary',
+        'base64',
+        'ucs2',
+        'ucs-2',
+        'utf16le',
+        'utf-16le',
+        undefined ];
+
+  tw.on('finish', function() {
+    t.same(tw.buffer, chunks, 'got the expected chunks');
+  });
+
+  chunks.forEach(function(chunk, i) {
+    var enc = encodings[ i % encodings.length ];
+    chunk = new Buffer(chunk);
+    tw.write(chunk.toString(enc), enc);
+  });
+  t.end();
+});
+
+test('write no bufferize', function(t) {
+  var tw = new TestWriter({
+    lowWaterMark: 5,
+    highWaterMark: 100,
+    decodeStrings: false
+  });
+
+  tw._write = function(chunk, cb) {
+    assert(Array.isArray(chunk));
+    assert(typeof chunk[0] === 'string');
+    chunk = new Buffer(chunk[0], chunk[1]);
+    return TestWriter.prototype._write.call(this, chunk, cb);
+  };
+
+  var encodings =
+      [ 'hex',
+        'utf8',
+        'utf-8',
+        'ascii',
+        'binary',
+        'base64',
+        'ucs2',
+        'ucs-2',
+        'utf16le',
+        'utf-16le',
+        undefined ];
+
+  tw.on('finish', function() {
+    t.same(tw.buffer, chunks, 'got the expected chunks');
+  });
+
+  chunks.forEach(function(chunk, i) {
+    var enc = encodings[ i % encodings.length ];
+    chunk = new Buffer(chunk);
+    tw.write(chunk.toString(enc), enc);
+  });
+  t.end();
+});
+
+test('write callbacks', function (t) {
+  var callbacks = chunks.map(function(chunk, i) {
+    return [i, function(er) {
+      callbacks._called[i] = chunk;
+    }];
+  }).reduce(function(set, x) {
+    set['callback-' + x[0]] = x[1];
+    return set;
+  }, {});
+  callbacks._called = [];
+
+  var tw = new TestWriter({
+    lowWaterMark: 5,
+    highWaterMark: 100
+  });
+
+  tw.on('finish', function() {
+    t.same(tw.buffer, chunks, 'got chunks in the right order');
+    t.same(callbacks._called, chunks, 'called all callbacks');
+    t.end();
+  });
+
+  chunks.forEach(function(chunk, i) {
+    tw.write(chunk, callbacks['callback-' + i]);
+  });
+  tw.end();
+});
