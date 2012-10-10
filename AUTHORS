@@ -223,8 +223,8 @@ Evan Martin <martine@danga.com>
 Peter Lyons <pete@peterlyons.com>
 Jann Horn <jannhorn@googlemail.com>
 Abimanyu Raja <abimanyuraja@gmail.com>
-Karl Skomski <karl@skomski.com>
 Niclas Hoyer <niclas@verbugt.de>
+Karl Skomski <karl@skomski.com>
 Michael Jackson <mjijackson@gmail.com>
 Ashok Mudukutore <ashok@lineratesystems.com>
 Sean Cunningham <sean.cunningham@mandiant.com>
@@ -325,7 +325,6 @@ Garen Torikian <gjtorikian@gmail.com>
 EungJun Yi <semtlenori@gmail.com>
 Vincent Voyer <v@fasterize.com>
 Takahiro ANDO <takahiro.ando@gmail.com>
-Erwin van der Koogh <github@koogh.com>
 Brian Schroeder <bts@gmail.com>
 J. Lee Coltrane <lee@projectmastermind.com>
 Javier Hernández <jhernandez@emergya.com>
@@ -333,6 +332,7 @@ James Koval <james.ross.koval@gmail.com>
 Kevin Gadd <kevin.gadd@gmail.com>
 Ray Solomon <raybsolomon@gmail.com>
 Kevin Bowman <github@magicmonkey.org>
+Erwin van der Koogh <github@koogh.com>
 Matt Gollob <mattgollob@gmail.com>
 Simon Sturmer <sstur@me.com>
 Joel Brandt <joelrbrandt@gmail.com>
@@ -340,21 +340,25 @@ Marc Harter <wavded@gmail.com>
 Nuno Job <nunojobpinto@gmail.com>
 Ben Kelly <ben@wanderview.com>
 Felix Böhm <felixboehm55@googlemail.com>
+George Shank <shankga@gmail.com>
 Gabriel de Perthuis <g2p.code@gmail.com>
+Vladimir Beloborodov <redhead.ru@gmail.com>
 Tim Macfarlane <timmacfarlane@gmail.com>
 Jonas Westerlund <jonas.westerlund@me.com>
 Dominic Tarr <dominic.tarr@gmail.com>
 Justin Plock <jplock@gmail.com>
+Timothy J Fontaine <tjfontaine@gmail.com>
 Toshihiro Nakamura <toshihiro.nakamura@gmail.com>
 Ivan Torres <mexpolk@gmail.com>
 Philipp Hagemeister <phihag@phihag.de>
-George Shank <shankga@gmail.com>
 Mike Morearty <mike@morearty.com>
 Pavel Lang <langpavel@phpskelet.org>
 Peter Rybin <peter.rybin@gmail.com>
+Joe Andaverde <joe@andaverde.net>
 Eugen Dueck <eugen@dueck.org>
 Gil Pedersen <git@gpost.dk>
 Tyler Neylon <tylerneylon@gmail.com>
+Josh Erickson <josh@snoj.us>
 Golo Roden <webmaster@goloroden.de>
 Ron Korving <rkorving@wizcorp.jp>
 Brandon Wilson <chlavois@gmail.com>
@@ -364,6 +368,11 @@ Ankur Oberoi <aoberoi@gmail.com>
 Atsuya Takagi <atsuya.takagi@gmail.com>
 Pooya Karimian <pkarimian@sencha.com>
 Frédéric Germain <frederic.germain@gmail.com>
-Kazuyuki Yamada <tasogare.pg@gmail.com>
 Robin Lee <cheeselee@fedoraproject.org>
+Kazuyuki Yamada <tasogare.pg@gmail.com>
 Adam Blackburn <regality@gmail.com>
+Willi Eggeling <email@wje-online.de>
+Paul Serby <paul.serby@clock.co.uk>
+Andrew Paprocki <andrew@ishiboo.com>
+Ricky Ng-Adam <rngadam@lophilo.com>
+Aaditya Bhatia <aadityabhatia@gmail.com>
