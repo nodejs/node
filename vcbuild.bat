@@ -183,7 +183,7 @@ goto exit
 :jslint
 echo running jslint
 set PYTHONPATH=tools/closure_linter/
-python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/ --exclude_files lib/punycode.js
+python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 goto exit
 
 :help
