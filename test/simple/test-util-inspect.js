@@ -137,3 +137,15 @@ assert.doesNotThrow(function() {
     hasOwnProperty: null
   });
 });
+
+// new API, accepts an "options" object
+var subject = { foo: 'bar', hello: 31, a: { b: { c: { d: 0 } } } };
+Object.defineProperty(subject, 'hidden', { enumerable: false, value: null });
+
+assert(util.inspect(subject, { showHidden: false }).indexOf('hidden') === -1);
+assert(util.inspect(subject, { showHidden: true }).indexOf('hidden') !== -1);
+assert(util.inspect(subject, { colors: false }).indexOf('\u001b[32m') === -1);
+assert(util.inspect(subject, { colors: true }).indexOf('\u001b[32m') !== -1);
+assert(util.inspect(subject, { depth: 2 }).indexOf('c: [Object]') !== -1);
+assert(util.inspect(subject, { depth: 0 }).indexOf('a: [Object]') !== -1);
+assert(util.inspect(subject, { depth: null }).indexOf('{ d: 0 }') !== -1);
