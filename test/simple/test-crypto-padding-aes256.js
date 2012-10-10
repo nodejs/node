@@ -43,7 +43,7 @@ function aes256(decipherFinal) {
   function decrypt(val, pad) {
         var c = crypto.createDecipheriv('aes256', key, iv);
         c.setAutoPadding(pad);
-        return c.update(val, 'binary', 'binary') + c[decipherFinal]('utf8');
+        return c.update(val, 'binary', 'utf8') + c[decipherFinal]('utf8');
   }
 
   // echo 0123456789abcdef0123456789abcdef \

@@ -87,14 +87,15 @@ Returned by `crypto.createHash`.
 
 Updates the hash content with the given `data`, the encoding of which is given
 in `input_encoding` and can be `'buffer'`, `'utf8'`, `'ascii'` or `'binary'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
+
 This can be called many times with new data as it is streamed.
 
 ### hash.digest([encoding])
 
 Calculates the digest of all of the passed data to be hashed.
 The `encoding` can be `'buffer'`, `'hex'`, `'binary'` or `'base64'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 Note: `hash` object can not be used after `digest()` method been called.
 
@@ -121,7 +122,7 @@ This can be called many times with new data as it is streamed.
 
 Calculates the digest of all of the passed data to the hmac.
 The `encoding` can be `'buffer'`, `'hex'`, `'binary'` or `'base64'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 Note: `hmac` object can not be used after `digest()` method been called.
 
@@ -157,17 +158,18 @@ Returned by `crypto.createCipher` and `crypto.createCipheriv`.
 
 Updates the cipher with `data`, the encoding of which is given in
 `input_encoding` and can be `'buffer'`, `'utf8'`, `'ascii'` or `'binary'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 The `output_encoding` specifies the output format of the enciphered data,
-and can be `'buffer'`, `'binary'`, `'base64'` or `'hex'`. Defaults to `'binary'`.
+and can be `'buffer'`, `'binary'`, `'base64'` or `'hex'`. Defaults to
+`'buffer'`.
 
 Returns the enciphered contents, and can be called many times with new data as it is streamed.
 
 ### cipher.final([output_encoding])
 
 Returns any remaining enciphered contents, with `output_encoding` being one of:
-`'buffer'`, `'binary'`, `'base64'` or `'hex'`. Defaults to `'binary'`.
+`'buffer'`, `'binary'`, `'base64'` or `'hex'`. Defaults to `'buffer'`.
 
 Note: `cipher` object can not be used after `final()` method been called.
 
@@ -197,18 +199,18 @@ Returned by `crypto.createDecipher` and `crypto.createDecipheriv`.
 ### decipher.update(data, [input_encoding], [output_encoding])
 
 Updates the decipher with `data`, which is encoded in `'buffer'`, `'binary'`,
-`'base64'` or `'hex'`. Defaults to `'binary'`.
+`'base64'` or `'hex'`. Defaults to `'buffer'`.
 
 The `output_decoding` specifies in what format to return the deciphered
 plaintext: `'buffer'`, `'binary'`, `'ascii'` or `'utf8'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 ### decipher.final([output_encoding])
 
 Returns any remaining plaintext which is deciphered,
 with `output_encoding` being one of: `'buffer'`, `'binary'`, `'ascii'` or
 `'utf8'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 Note: `decipher` object can not be used after `final()` method been called.
 
@@ -241,7 +243,7 @@ Calculates the signature on all the updated data passed through the signer.
 `private_key` is a string containing the PEM encoded private key for signing.
 
 Returns the signature in `output_format` which can be `'buffer'`, `'binary'`,
-`'hex'` or `'base64'`. Defaults to `'binary'`.
+`'hex'` or `'base64'`. Defaults to `'buffer'`.
 
 Note: `signer` object can not be used after `sign()` method been called.
 
@@ -267,7 +269,7 @@ Verifies the signed data by using the `object` and `signature`. `object` is  a
 string containing a PEM encoded object, which can be one of RSA public key,
 DSA public key, or X.509 certificate. `signature` is the previously calculated
 signature for the data, in the `signature_format` which can be `'buffer'`,
-`'binary'`, `'hex'` or `'base64'`. Defaults to `'binary'`.
+`'binary'`, `'hex'` or `'base64'`. Defaults to `'buffer'`.
 
 Returns true or false depending on the validity of the signature for the data and public key.
 
@@ -283,7 +285,7 @@ given bit length. The generator used is `2`.
 Creates a Diffie-Hellman key exchange object using the supplied prime. The
 generator used is `2`. Encoding can be `'buffer'`, `'binary'`, `'hex'`, or
 `'base64'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 ## Class: DiffieHellman
 
@@ -296,7 +298,7 @@ Returned by `crypto.createDiffieHellman`.
 Generates private and public Diffie-Hellman key values, and returns the
 public key in the specified encoding. This key should be transferred to the
 other party. Encoding can be `'binary'`, `'hex'`, or `'base64'`.
-Defaults to `'binary'`.
+Defaults to `'buffer'`.
 
 ### diffieHellman.computeSecret(other_public_key, [input_encoding], [output_encoding])
 
@@ -304,38 +306,39 @@ Computes the shared secret using `other_public_key` as the other party's
 public key and returns the computed shared secret. Supplied key is
 interpreted using specified `input_encoding`, and secret is encoded using
 specified `output_encoding`. Encodings can be `'buffer'`, `'binary'`, `'hex'`,
-or `'base64'`. The input encoding defaults to `'binary'`.
+or `'base64'`. The input encoding defaults to `'buffer'`.
 If no output encoding is given, the input encoding is used as output encoding.
 
 ### diffieHellman.getPrime([encoding])
 
 Returns the Diffie-Hellman prime in the specified encoding, which can be
-`'buffer'`, `'binary'`, `'hex'`, or `'base64'`. Defaults to `'binary'`.
+`'buffer'`, `'binary'`, `'hex'`, or `'base64'`. Defaults to `'buffer'`.
 
 ### diffieHellman.getGenerator([encoding])
 
 Returns the Diffie-Hellman prime in the specified encoding, which can be
-`'buffer'`, `'binary'`, `'hex'`, or `'base64'`. Defaults to `'binary'`.
+`'buffer'`, `'binary'`, `'hex'`, or `'base64'`. Defaults to `'buffer'`.
 
 ### diffieHellman.getPublicKey([encoding])
 
 Returns the Diffie-Hellman public key in the specified encoding, which can
-be `'binary'`, `'hex'`, or `'base64'`. Defaults to `'binary'`.
+be `'binary'`, `'hex'`, or `'base64'`. Defaults to `'buffer'`.
 
 ### diffieHellman.getPrivateKey([encoding])
 
 Returns the Diffie-Hellman private key in the specified encoding, which can
-be `'buffer'`, `'binary'`, `'hex'`, or `'base64'`. Defaults to `'binary'`.
+be `'buffer'`, `'binary'`, `'hex'`, or `'base64'`. Defaults to
+`'buffer'`.
 
 ### diffieHellman.setPublicKey(public_key, [encoding])
 
 Sets the Diffie-Hellman public key. Key encoding can be `'buffer', ``'binary'`,
-`'hex'` or `'base64'`. Defaults to `'binary'`.
+`'hex'` or `'base64'`. Defaults to `'buffer'`.
 
 ### diffieHellman.setPrivateKey(public_key, [encoding])
 
 Sets the Diffie-Hellman private key. Key encoding can be `'buffer'`, `'binary'`,
-`'hex'` or `'base64'`. Defaults to `'binary'`.
+`'hex'` or `'base64'`. Defaults to `'buffer'`.
 
 ## crypto.getDiffieHellman(group_name)
 
@@ -361,8 +364,8 @@ Example (obtaining a shared secret):
     alice.generateKeys();
     bob.generateKeys();
 
-    var alice_secret = alice.computeSecret(bob.getPublicKey(), 'binary', 'hex');
-    var bob_secret = bob.computeSecret(alice.getPublicKey(), 'binary', 'hex');
+    var alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+    var bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
     /* alice_secret and bob_secret should be the same */
     console.log(alice_secret == bob_secret);
