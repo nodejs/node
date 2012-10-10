@@ -610,3 +610,57 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex,
   else
     return uv_cond_fallback_timedwait(cond, mutex, timeout);
 }
+
+
+int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
+  barrier->n = count;
+  barrier->count = 0;
+
+  if (uv_mutex_init(&barrier->mutex))
+    return -1;
+
+  if (uv_sem_init(&barrier->turnstile1, 0))
+    goto error2;
+
+  if (uv_sem_init(&barrier->turnstile2, 1))
+    goto error;
+
+  return 0;
+
+error:
+  uv_sem_destroy(&barrier->turnstile1);
+error2:
+  uv_mutex_destroy(&barrier->mutex);
+  return -1;
+
+}
+
+
+void uv_barrier_destroy(uv_barrier_t* barrier) {
+  uv_sem_destroy(&barrier->turnstile2);
+  uv_sem_destroy(&barrier->turnstile1);
+  uv_mutex_destroy(&barrier->mutex);
+}
+
+
+void uv_barrier_wait(uv_barrier_t* barrier) {
+  uv_mutex_lock(&barrier->mutex);
+  if (++barrier->count == barrier->n) {
+    uv_sem_wait(&barrier->turnstile2);
+    uv_sem_post(&barrier->turnstile1);
+  }
+  uv_mutex_unlock(&barrier->mutex);
+
+  uv_sem_wait(&barrier->turnstile1);
+  uv_sem_post(&barrier->turnstile1);
+
+  uv_mutex_lock(&barrier->mutex);
+  if (--barrier->count == 0) {
+    uv_sem_wait(&barrier->turnstile1);
+    uv_sem_post(&barrier->turnstile2);
+  }
+  uv_mutex_unlock(&barrier->mutex);
+
+  uv_sem_wait(&barrier->turnstile2);
+  uv_sem_post(&barrier->turnstile2);
+}

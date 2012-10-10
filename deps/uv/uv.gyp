@@ -305,6 +305,7 @@
         'test/test-mutexes.c',
         'test/test-signal.c',
         'test/test-thread.c',
+        'test/test-barrier.c',
         'test/test-condvar.c',
         'test/test-condvar-consumer-producer.c',
         'test/test-timer-again.c',

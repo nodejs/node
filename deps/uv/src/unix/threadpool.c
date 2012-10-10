@@ -98,18 +98,17 @@ static void init_once(void) {
 __attribute__((destructor))
 static void cleanup(void) {
   unsigned int i;
-  int err;
 
   if (initialized == 0)
     return;
 
   post(&exit_message);
 
-  for (i = 0; i < ARRAY_SIZE(threads); i++) {
-    err = pthread_join(threads[i], NULL);
-    assert(err == 0 || err == ESRCH);
-    (void) err; /* Silence compiler warning in release builds. */
-  }
+  for (i = 0; i < ARRAY_SIZE(threads); i++)
+    if (pthread_join(threads[i], NULL))
+      abort();
+
+  initialized = 0;
 }
 
 

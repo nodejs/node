@@ -370,3 +370,83 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
 }
 
 #endif /* defined(__APPLE__) && defined(__MACH__) */
+
+
+#if defined(__APPLE__) && defined(__MACH__)
+
+int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
+  barrier->n = count;
+  barrier->count = 0;
+
+  if (uv_mutex_init(&barrier->mutex))
+    return -1;
+
+  if (uv_sem_init(&barrier->turnstile1, 0))
+    goto error2;
+
+  if (uv_sem_init(&barrier->turnstile2, 1))
+    goto error;
+
+  return 0;
+
+error:
+  uv_sem_destroy(&barrier->turnstile1);
+error2:
+  uv_mutex_destroy(&barrier->mutex);
+  return -1;
+
+}
+
+
+void uv_barrier_destroy(uv_barrier_t* barrier) {
+  uv_sem_destroy(&barrier->turnstile2);
+  uv_sem_destroy(&barrier->turnstile1);
+  uv_mutex_destroy(&barrier->mutex);
+}
+
+
+void uv_barrier_wait(uv_barrier_t* barrier) {
+  uv_mutex_lock(&barrier->mutex);
+  if (++barrier->count == barrier->n) {
+    uv_sem_wait(&barrier->turnstile2);
+    uv_sem_post(&barrier->turnstile1);
+  }
+  uv_mutex_unlock(&barrier->mutex);
+
+  uv_sem_wait(&barrier->turnstile1);
+  uv_sem_post(&barrier->turnstile1);
+
+  uv_mutex_lock(&barrier->mutex);
+  if (--barrier->count == 0) {
+    uv_sem_wait(&barrier->turnstile1);
+    uv_sem_post(&barrier->turnstile2);
+  }
+  uv_mutex_unlock(&barrier->mutex);
+
+  uv_sem_wait(&barrier->turnstile2);
+  uv_sem_post(&barrier->turnstile2);
+}
+
+#else /* !(defined(__APPLE__) && defined(__MACH__)) */
+
+int uv_barrier_init(uv_barrier_t* barrier, unsigned int count) {
+  if (pthread_barrier_init(barrier, NULL, count))
+    return -1;
+  else
+    return 0;
+}
+
+
+void uv_barrier_destroy(uv_barrier_t* barrier) {
+  if (pthread_barrier_destroy(barrier))
+    abort();
+}
+
+
+void uv_barrier_wait(uv_barrier_t* barrier) {
+  int r = pthread_barrier_wait(barrier);
+  if (r && r != PTHREAD_BARRIER_SERIAL_THREAD)
+    abort();
+}
+
+#endif /* defined(__APPLE__) && defined(__MACH__) */

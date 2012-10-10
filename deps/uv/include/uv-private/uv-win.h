@@ -240,6 +240,14 @@ typedef union {
   } fallback_;
 } uv_rwlock_t;
 
+typedef struct {
+  unsigned int n;
+  unsigned int count;
+  uv_mutex_t mutex;
+  uv_sem_t turnstile1;
+  uv_sem_t turnstile2;
+} uv_barrier_t;
+
 #define UV_ONCE_INIT { 0, NULL }
 
 typedef struct uv_once_s {

@@ -133,24 +133,6 @@ static ssize_t uv__fs_futime(uv_fs_t* req) {
 }
 
 
-static ssize_t uv__fs_pwrite(uv_fs_t* req) {
-#if defined(__APPLE__)
-  /* Serialize writes on OS X, concurrent pwrite() calls result in data loss.
-   * We can't use a per-file descriptor lock, the descriptor may be a dup().
-   */
-  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-  ssize_t r;
-
-  pthread_mutex_lock(&lock);
-  r = pwrite(req->file, req->buf, req->len, req->off);
-  pthread_mutex_unlock(&lock);
-
-  return r;
-#else
-  return pwrite(req->file, req->buf, req->len, req->off);
-#endif
-}
-
 static ssize_t uv__fs_read(uv_fs_t* req) {
   if (req->off < 0)
     return read(req->file, req->buf, req->len);
@@ -447,10 +429,27 @@ static ssize_t uv__fs_utime(uv_fs_t* req) {
 
 
 static ssize_t uv__fs_write(uv_fs_t* req) {
+  ssize_t r;
+
+  /* Serialize writes on OS X, concurrent write() and pwrite() calls result in
+   * data loss. We can't use a per-file descriptor lock, the descriptor may be
+   * a dup().
+   */
+#if defined(__APPLE__)
+  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_lock(&lock);
+#endif
+
   if (req->off < 0)
-    return write(req->file, req->buf, req->len);
+    r = write(req->file, req->buf, req->len);
   else
-    return uv__fs_pwrite(req);
+    r = pwrite(req->file, req->buf, req->len, req->off);
+
+#if defined(__APPLE__)
+  pthread_mutex_unlock(&lock);
+#endif
+
+  return r;
 }
 
 

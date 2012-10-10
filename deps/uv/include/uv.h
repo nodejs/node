@@ -352,11 +352,11 @@ UV_EXTERN const char* uv_err_name(uv_err_t err);
 #define UV_REQ_FIELDS                                                         \
   /* public */                                                                \
   void* data;                                                                 \
+  /* read-only */                                                             \
+  uv_req_type type;                                                           \
   /* private */                                                               \
   ngx_queue_t active_queue;                                                   \
   UV_REQ_PRIVATE_FIELDS                                                       \
-  /* read-only */                                                             \
-  uv_req_type type;                                                           \
 
 /* Abstract base class of all requests. */
 struct uv_req_s {
@@ -1263,14 +1263,6 @@ typedef struct uv_process_options_s {
    */
   unsigned int flags;
   /*
-   * Libuv can change the child process' user/group id. This happens only when
-   * the appropriate bits are set in the flags fields. This is not supported on
-   * windows; uv_spawn() will fail and set the error to UV_ENOTSUP.
-   */
-  uv_uid_t uid;
-  uv_gid_t gid;
-
-  /*
    * The `stdio` field points to an array of uv_stdio_container_t structs that
    * describe the file descriptors that will be made available to the child
    * process. The convention is that stdio[0] points to stdin, fd 1 is used for
@@ -1281,6 +1273,13 @@ typedef struct uv_process_options_s {
    */
   int stdio_count;
   uv_stdio_container_t* stdio;
+  /*
+   * Libuv can change the child process' user/group id. This happens only when
+   * the appropriate bits are set in the flags fields. This is not supported on
+   * windows; uv_spawn() will fail and set the error to UV_ENOTSUP.
+   */
+  uv_uid_t uid;
+  uv_gid_t gid;
 } uv_process_options_t;
 
 /*
@@ -1821,6 +1820,10 @@ UV_EXTERN void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex);
  */
 UV_EXTERN int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex,
     uint64_t timeout);
+
+UV_EXTERN int uv_barrier_init(uv_barrier_t* barrier, unsigned int count);
+UV_EXTERN void uv_barrier_destroy(uv_barrier_t* barrier);
+UV_EXTERN void uv_barrier_wait(uv_barrier_t* barrier);
 
 /* Runs a function once and only once. Concurrent calls to uv_once() with the
  * same guard will block all callers except one (it's unspecified which one).
