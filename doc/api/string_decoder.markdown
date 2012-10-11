@@ -19,6 +19,10 @@ additional support for utf8.
 
 Accepts a single argument, `encoding` which defaults to `utf8`.
 
-### StringDecoder.write(buffer)
+### decoder.write(buffer)
 
 Returns a decoded string.
+
+### decoder.end()
+
+Returns any trailing bytes that were left in the buffer.
