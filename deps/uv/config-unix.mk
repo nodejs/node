@@ -128,8 +128,8 @@ endif
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: $(OBJS) src/fs-poll.o src/inet.o src/uv-common.o src/unix/ev/ev.o
-	$(AR) rcs uv.a $^
+libuv.a: $(OBJS) src/fs-poll.o src/inet.o src/uv-common.o src/unix/ev/ev.o
+	$(AR) rcs $@ $^
 
 src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

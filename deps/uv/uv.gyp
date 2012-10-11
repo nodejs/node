@@ -22,7 +22,7 @@
 
   'targets': [
     {
-      'target_name': 'uv',
+      'target_name': 'libuv',
       'type': '<(library)',
       'include_dirs': [
         'include',
@@ -236,7 +236,7 @@
     {
       'target_name': 'run-tests',
       'type': 'executable',
-      'dependencies': [ 'uv' ],
+      'dependencies': [ 'libuv' ],
       'sources': [
         'test/blackhole-server.c',
         'test/echo-server.c',
@@ -357,7 +357,7 @@
     {
       'target_name': 'run-benchmarks',
       'type': 'executable',
-      'dependencies': [ 'uv' ],
+      'dependencies': [ 'libuv' ],
       'sources': [
         'test/benchmark-async.c',
         'test/benchmark-async-pummel.c',
