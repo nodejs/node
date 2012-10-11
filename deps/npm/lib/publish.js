@@ -65,7 +65,13 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
   var registry = npm.registry
   if (data.publishConfig) {
     var pubConf = new Conf(npm.config)
-    pubConf.unshift(data.publishConfig)
+
+    // don't modify the actual publishConfig object, in case we have
+    // to set a login token or some other data.
+    pubConf.unshift(Object.keys(data.publishConfig).reduce(function (s, k) {
+      s[k] = data.publishConfig[k]
+      return s
+    }, {}))
     registry = new RegClient(pubConf)
   }
 

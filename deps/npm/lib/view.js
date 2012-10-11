@@ -189,7 +189,12 @@ function printData (data, name, cb) {
     fields.forEach(function (f) {
       var d = cleanup(data[v][f])
       if (showVersions || showFields || typeof d !== "string") {
-        d = util.inspect(cleanup(data[v][f]), false, 5, npm.color)
+        d = cleanup(data[v][f])
+        d = npm.config.get("json")
+          ? JSON.stringify(d, null, 2)
+          : util.inspect(d, false, 5, npm.color)
+      } else if (typeof d === "string" && npm.config.get("json")) {
+        d = JSON.stringify(d)
       }
       if (f && showFields) f += " = "
       if (d.indexOf("\n") !== -1) d = "\n" + d

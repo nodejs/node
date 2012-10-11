@@ -3,7 +3,7 @@ npm-faq(1) -- Frequently Asked Questions
 
 ## Where can I find these docs in HTML?
 
-<http://npmjs.org/doc/>, or run:
+<https://npmjs.org/doc/>, or run:
 
     npm config set viewer browser
 
@@ -144,7 +144,7 @@ command.)
 
 In those cases, you can do this:
 
-    curl http://npmjs.org/install.sh | sh
+    curl https://npmjs.org/install.sh | sh
 
 ## What is a `package`?
 
@@ -177,9 +177,9 @@ an argument to `git checkout`.  The default is `master`.
 
 You don't.  Try one of these:
 
-* <http://github.com/isaacs/nave>
-* <http://github.com/visionmedia/n>
-* <http://github.com/creationix/nvm>
+* <https://github.com/isaacs/nave>
+* <https://github.com/visionmedia/n>
+* <https://github.com/creationix/nvm>
 
 ## How can I use npm for development?
 
@@ -245,7 +245,7 @@ There is not sufficient need to impose namespace rules on everyone.
 Discuss it on the mailing list, or post an issue.
 
 * <npm-@googlegroups.com>
-* <http://github.com/isaacs/npm/issues>
+* <https://github.com/isaacs/npm/issues>
 
 ## Why does npm hate me?
 

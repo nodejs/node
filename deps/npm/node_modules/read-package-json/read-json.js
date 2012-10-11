@@ -227,9 +227,13 @@ function readmeDescription (file, data) {
 function readme (file, data, cb) {
                 if (data.readme) return cb(null, data);
                 var dir = path.dirname(file)
-                var globOpts = { cwd: dir, nocase: true }
+                var globOpts = { cwd: dir, nocase: true, mark: true }
                 glob("README?(.*)", globOpts, function (er, files) {
                                 if (er) return cb(er);
+                                // don't accept directories.
+                                files = files.filter(function (file) {
+                                                return !file.match(/\/$/)
+                                })
                                 if (!files.length) return cb();
                                 var rm = path.resolve(dir, files[0])
                                 readme_(file, data, rm, cb)
@@ -237,6 +241,8 @@ function readme (file, data, cb) {
 }
 function readme_(file, data, rm, cb) {
                 fs.readFile(rm, "utf8", function (er, rm) {
+                                // maybe not readable, or something.
+                                if (er) return cb()
                                 data.readme = rm
                                 return cb(er, data)
                 })
