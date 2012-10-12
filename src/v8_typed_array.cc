@@ -305,27 +305,9 @@ class TypedArray {
     if (args.Length() < 1)
       return ThrowError("Wrong number of arguments.");
 
-    if (args[0]->IsNumber()) {
-      unsigned int index = args[0]->Uint32Value();
-      void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
+    if (args[0]->IsNumber())
+      return args.This()->Get(args[0]->Uint32Value());
 
-      if (TEAType == v8::kExternalByteArray)
-        return v8::Integer::New(reinterpret_cast<char*>(ptr)[index]);
-      else if (TEAType == v8::kExternalUnsignedByteArray)
-        return v8::Integer::New(reinterpret_cast<unsigned char*>(ptr)[index]);
-      else if (TEAType == v8::kExternalShortArray)
-        return v8::Integer::New(reinterpret_cast<short*>(ptr)[index]);
-      else if (TEAType == v8::kExternalUnsignedShortArray)
-        return v8::Integer::New(reinterpret_cast<unsigned short*>(ptr)[index]);
-      else if (TEAType == v8::kExternalIntArray)
-        return v8::Integer::New(reinterpret_cast<int*>(ptr)[index]);
-      else if (TEAType == v8::kExternalUnsignedIntArray)
-        return v8::Integer::New(reinterpret_cast<unsigned int*>(ptr)[index]);
-      else if (TEAType == v8::kExternalFloatArray)
-        return v8::Number::New(reinterpret_cast<float*>(ptr)[index]);
-      else if (TEAType == v8::kExternalDoubleArray)
-        return v8::Number::New(reinterpret_cast<double*>(ptr)[index]);
-    }
     return v8::Undefined();
   }
 
@@ -336,38 +318,8 @@ class TypedArray {
     //if (!args[0]->IsObject())
     //  return ThrowTypeError("Type error.");
 
-    if (args[0]->IsNumber()) {
-      // index, <type> value
-      unsigned int index = args[0]->Uint32Value();
-      void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
-      if (TEAType == v8::kExternalByteArray)
-        reinterpret_cast<char*>(ptr)[index] = (char) args[1]->Int32Value();
-      else if (TEAType == v8::kExternalUnsignedByteArray)
-        reinterpret_cast<unsigned char*>(ptr)[index] =
-            (unsigned char) args[1]->Int32Value();
-      else if (TEAType == v8::kExternalShortArray)
-        reinterpret_cast<short*>(ptr)[index] = (short) args[1]->Int32Value();
-      else if (TEAType == v8::kExternalUnsignedShortArray)
-        reinterpret_cast<unsigned short*>(ptr)[index] =
-            (unsigned short) args[1]->Int32Value();
-      else if (TEAType == v8::kExternalIntArray)
-        reinterpret_cast<int*>(ptr)[index] = (int) args[1]->Int32Value();
-      else if (TEAType == v8::kExternalUnsignedIntArray)
-        reinterpret_cast<unsigned int*>(ptr)[index] =
-            (unsigned int) args[1]->Int32Value();
-      else if (TEAType == v8::kExternalFloatArray)
-        reinterpret_cast<float*>(ptr)[index] = (float) args[1]->NumberValue();
-      else if (TEAType == v8::kExternalDoubleArray)
-        reinterpret_cast<double*>(ptr)[index] = (double) args[1]->NumberValue();
-      else if (TEAType == v8::kExternalPixelArray) {
-        int value = args[1]->Int32Value();
-        if (value < 0)
-          value = 0;
-        else if (value > 255)
-          value = 255;
-        reinterpret_cast<unsigned char*>(ptr)[index] =
-            (unsigned char) value;
-      }
+    if (args[0]->IsNumber()) {  // index, <type> value
+      args.This()->Set(args[0]->Uint32Value(), args[1]);
     } else if (args[0]->IsObject()) {
       v8::Handle<v8::Object> obj = v8::Handle<v8::Object>::Cast(args[0]);
 
