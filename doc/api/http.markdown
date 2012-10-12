@@ -866,16 +866,23 @@ Note that the __data will be lost__ if there is no listener when a
 
 `function () { }`
 
-Emitted exactly once for each message. No arguments. After
-emitted no other events will be emitted on the response.
+Emitted exactly once for each response. After that, no more `'data'` events
+will be emitted on the response.
+
 
 ### Event: 'close'
 
-`function (err) { }`
+`function () { }`
 
 Indicates that the underlaying connection was terminated before
-`end` event was emitted.
-See [http.ServerRequest][]'s `'close'` event for more information.
+`response.end()` was called or able to flush.
+
+Just like `'end'`, this event occurs only once per response, and no more
+`'data'` events will fire afterwards. See [http.ServerResponse][]'s `'close'`
+event for more information.
+
+Note: `'close'` can fire after `'end'`, but not vice versa.
+
 
 ### response.statusCode
 
