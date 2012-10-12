@@ -210,7 +210,7 @@ class TypedArray {
 
       if (!args[1]->IsUndefined() && args[1]->Int32Value() < 0)
         return ThrowRangeError("Byte offset out of range.");
-      byte_offset = args[1]->IsUndefined() ? 0 : args[1]->Uint32Value();
+      byte_offset = args[1]->Uint32Value();
 
       if (args.Length() > 2) {
         if (args[2]->Int32Value() < 0)
@@ -596,8 +596,7 @@ class DataView {
 
     unsigned int byte_length =
         buffer->GetIndexedPropertiesExternalArrayDataLength();
-    unsigned int byte_offset =
-        args[1]->IsUndefined() ? 0 : args[1]->Uint32Value();
+    unsigned int byte_offset = args[1]->Uint32Value();
 
     if (args[1]->Int32Value() < 0 || byte_offset >= byte_length)
       return ThrowRangeError("byteOffset out of range.");
