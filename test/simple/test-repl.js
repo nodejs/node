@@ -241,7 +241,12 @@ function unix_test() {
       socket.end();
     });
 
-    repl.start(prompt_unix, socket).context.message = message;
+    repl.start({
+      prompt: prompt_unix,
+      input: socket,
+      output: socket,
+      useGlobal: true
+    }).context.message = message;
   });
 
   server_unix.on('listening', function() {
