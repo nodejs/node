@@ -1,4 +1,25 @@
-2012.09.27, Version 0.8.11 (Stable)
+2012.10.12, Version 0.8.12 (Stable)
+
+* npm: Upgrade to 1.1.63
+
+* crypto: Reduce stability index to 2-Unstable (isaacs)
+
+* windows: fix handle leak in uv_fs_utime (Bert Belder)
+
+* windows: fix application crashed popup in debug version (Bert Belder)
+
+* buffer: report proper retained size in profiler (Ben Noordhuis)
+
+* buffer: fix byteLength with UTF-16LE (koichik)
+
+* repl: make "end of input" JSON.parse() errors throw in the REPL (Nathan Rajlich)
+
+* repl: make invalid RegExp modifiers throw in the REPL (Nathan Rajlich)
+
+* http: handle multiple Proxy-Authenticate values (Willi Eggeling)
+
+
+2012.09.27, Version 0.8.11 (Stable), e1f39468fa580c1e4cb15fac621f87944ee625dc
 
 * fs: Fix stat() size reporting for large files (Ben Noordhuis)
 
