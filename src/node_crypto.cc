@@ -4617,6 +4617,35 @@ Handle<Value> RandomBytes(const Arguments& args) {
 }
 
 
+Handle<Value> GetCiphers(const Arguments& args) {
+  HandleScope scope;
+
+  SSL_CTX* ctx = SSL_CTX_new(TLSv1_server_method());
+  if (ctx == NULL) {
+    return ThrowError("SSL_CTX_new() failed.");
+  }
+
+  SSL* ssl = SSL_new(ctx);
+  if (ssl == NULL) {
+    SSL_CTX_free(ctx);
+    return ThrowError("SSL_new() failed.");
+  }
+
+  Local<Array> arr = Array::New();
+  STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(ssl);
+
+  for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); ++i) {
+    SSL_CIPHER* cipher = sk_SSL_CIPHER_value(ciphers, i);
+    arr->Set(i, String::New(SSL_CIPHER_get_name(cipher)));
+  }
+
+  SSL_free(ssl);
+  SSL_CTX_free(ctx);
+
+  return scope.Close(arr);
+}
+
+
 void InitCrypto(Handle<Object> target) {
   HandleScope scope;
 
@@ -4656,6 +4685,7 @@ void InitCrypto(Handle<Object> target) {
   NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
   NODE_SET_METHOD(target, "randomBytes", RandomBytes<RAND_bytes>);
   NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<RAND_pseudo_bytes>);
+  NODE_SET_METHOD(target, "getCiphers", GetCiphers);
 
   subject_symbol    = NODE_PSYMBOL("subject");
   issuer_symbol     = NODE_PSYMBOL("issuer");

@@ -683,3 +683,7 @@ testPBKDF2('passwordPASSWORDpassword',
 testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
            '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34' +
            '\x25\xe0\xc3');
+
+// Assume that we have at least AES256-SHA.
+assert.notEqual(0, crypto.getCiphers());
+assert.notEqual(-1, crypto.getCiphers().indexOf('AES256-SHA'));

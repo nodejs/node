@@ -10,6 +10,17 @@ of a secure HTTPS net or http connection.
 
 It also offers a set of wrappers for OpenSSL's hash, hmac, cipher, decipher, sign and verify methods.
 
+
+## crypto.getCiphers()
+
+Returns an array with the names of the supported ciphers.
+
+Example:
+
+    var ciphers = crypto.getCiphers();
+    console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
+
+
 ## crypto.createCredentials(details)
 
 Creates a credentials object, with the optional details being a dictionary with keys:
