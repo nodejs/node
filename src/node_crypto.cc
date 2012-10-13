@@ -4646,6 +4646,23 @@ Handle<Value> GetCiphers(const Arguments& args) {
 }
 
 
+static void add_hash_to_array(const EVP_MD* md,
+                              const char* from,
+                              const char* to,
+                              void* arg) {
+  Local<Array>& arr = *static_cast<Local<Array>*>(arg);
+  arr->Set(arr->Length(), String::New(from));
+}
+
+
+Handle<Value> GetHashes(const Arguments& args) {
+  HandleScope scope;
+  Local<Array> arr = Array::New();
+  EVP_MD_do_all_sorted(add_hash_to_array, &arr);
+  return scope.Close(arr);
+}
+
+
 void InitCrypto(Handle<Object> target) {
   HandleScope scope;
 
@@ -4686,6 +4703,7 @@ void InitCrypto(Handle<Object> target) {
   NODE_SET_METHOD(target, "randomBytes", RandomBytes<RAND_bytes>);
   NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<RAND_pseudo_bytes>);
   NODE_SET_METHOD(target, "getCiphers", GetCiphers);
+  NODE_SET_METHOD(target, "getHashes", GetHashes);
 
   subject_symbol    = NODE_PSYMBOL("subject");
   issuer_symbol     = NODE_PSYMBOL("issuer");

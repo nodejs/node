@@ -687,3 +687,10 @@ testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
 // Assume that we have at least AES256-SHA.
 assert.notEqual(0, crypto.getCiphers());
 assert.notEqual(-1, crypto.getCiphers().indexOf('AES256-SHA'));
+
+// Assert that we have sha and sha1 but not SHA and SHA1.
+assert.notEqual(0, crypto.getHashes());
+assert.notEqual(-1, crypto.getHashes().indexOf('sha1'));
+assert.notEqual(-1, crypto.getHashes().indexOf('sha'));
+assert.equal(-1, crypto.getHashes().indexOf('SHA1'));
+assert.equal(-1, crypto.getHashes().indexOf('SHA'));
