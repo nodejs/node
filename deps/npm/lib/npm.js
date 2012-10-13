@@ -87,6 +87,7 @@ var commandCache = {}
               , "ll" : "ls"
               , "ln" : "link"
               , "i" : "install"
+              , "isntall" : "install"
               , "up" : "update"
               , "c" : "config"
               , "info" : "view"

@@ -56,10 +56,7 @@ function decode (str) {
     , section = null
 
   lines.forEach(function (line, _, __) {
-    //line = line
-    var rem = line.indexOf(";")
-    if (rem !== -1) line = line.substr(0, rem)//.trim()
-    if (!line) return
+    if (!line || line.match(/^\s*;/)) return
     var match = line.match(re)
     if (!match) return
     if (match[1] !== undefined) {
@@ -108,13 +105,38 @@ function safe (val) {
          || (val.length > 1
              && val.charAt(0) === "\""
              && val.slice(-1) === "\"")
-         || val !== val.trim() ) ? JSON.stringify(val) : val
+         || val !== val.trim() )
+         ? JSON.stringify(val)
+         : val.replace(/;/g, '\\;')
 }
 
-function unsafe (val) {
+function unsafe (val, doUnesc) {
   val = (val || "").trim()
   if (val.charAt(0) === "\"" && val.slice(-1) === "\"") {
     try { val = JSON.parse(val) } catch (_) {}
+  } else {
+    // walk the val to find the first not-escaped ; character
+    var esc = false
+    var unesc = "";
+    for (var i = 0, l = val.length; i < l; i++) {
+      var c = val.charAt(i)
+      if (esc) {
+        if (c === "\\" || c === ";")
+          unesc += c
+        else
+          unesc += "\\" + c
+        esc = false
+      } else if (c === ";") {
+        break
+      } else if (c === "\\") {
+        esc = true
+      } else {
+        unesc += c
+      }
+    }
+    if (esc)
+      unesc += "\\"
+    return unesc
   }
   return val
 }

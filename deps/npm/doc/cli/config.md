@@ -112,7 +112,6 @@ The following shorthands are parsed on the command-line:
 * `-reg`: `--registry`
 * `-v`: `--version`
 * `-f`: `--force`
-* `-l`: `--long`
 * `-desc`: `--description`
 * `-S`: `--save`
 * `-D`: `--save-dev`

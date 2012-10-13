@@ -58,6 +58,8 @@ function RegClient (conf) {
     var token = this.conf.get('_token')
     this.couchLogin = new CouchLogin(registry, token)
     this.couchLogin.proxy = this.conf.get('proxy')
+    this.couchLogin.strictSSL = this.conf.get('strict-ssl')
+    this.couchLogin.ca = this.conf.get('ca')
   }
 
   this.log = conf.log || conf.get('log') || npmlog

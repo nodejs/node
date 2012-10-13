@@ -1,5 +1,5 @@
 {
-  "version": "1.1.62",
+  "version": "1.1.63",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -15,7 +15,7 @@
   "config": {
     "publishtest": false
   },
-  "homepage": "http://npmjs.org/",
+  "homepage": "https://npmjs.org/doc/",
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "repository": {
     "type": "git",
@@ -34,8 +34,8 @@
   "main": "./lib/npm.js",
   "bin": "./bin/npm-cli.js",
   "dependencies": {
-    "semver": "~1.0.14",
-    "ini": "1",
+    "semver": "~1.1.0",
+    "ini": "~1.0.5",
     "slide": "1",
     "abbrev": "1",
     "graceful-fs": "~1.1.1",
@@ -51,22 +51,21 @@
     "mkdirp": "~0.3.3",
     "read": "~1.0.4",
     "lru-cache": "~2.0.0",
-    "node-gyp": "~0.6.4",
+    "node-gyp": "~0.7.0",
     "fstream-npm": "0.1",
     "uid-number": "0",
     "archy": "0",
     "chownr": "0",
     "npmlog": "0",
     "ansi": "~0.1.2",
-    "npm-registry-client": "~0.2.6",
-    "read-package-json": "~0.1.3",
-    "read-installed": "0",
-    "glob": "~3.1.12",
-    "init-package-json": "0",
+    "npm-registry-client": "~0.2.9",
+    "read-package-json": "~0.1.7",
+    "read-installed": "0.0.3",
+    "glob": "~3.1.13",
+    "init-package-json": "0.0.6",
     "osenv": "0",
     "lockfile": ">=0.2",
     "retry": "~0.6.0",
-    "couch-login": "~0.1.9",
     "once": "~1.1.1",
     "npmconf": "0",
     "opener": "~1.3.0"
@@ -104,7 +103,6 @@
     "osenv",
     "lockfile",
     "retry",
-    "couch-login",
     "once",
     "npmconf",
     "opener"
@@ -126,7 +124,7 @@
   "licenses": [
     {
       "type": "MIT +no-false-attribs",
-      "url": "http://github.com/isaacs/npm/raw/master/LICENSE"
+      "url": "https://github.com/isaacs/npm/raw/master/LICENSE"
     }
   ]
 }

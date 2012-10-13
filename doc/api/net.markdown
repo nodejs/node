@@ -118,7 +118,7 @@ The `connectListener` parameter will be added as an listener for the
 This class is used to create a TCP or UNIX server.
 A server is a `net.Socket` that can listen for new incoming connections.
 
-### server.listen(port, [host], [backlog], [listeningListener])
+### server.listen(port, [host], [backlog], [callback])
 
 Begin accepting connections on the specified `port` and `host`.  If the
 `host` is omitted, the server will accept connections directed to any
@@ -130,7 +130,7 @@ The actual length will be determined by your OS through sysctl settings such as
 parameter is 511 (not 512).
 
 This function is asynchronous.  When the server has been bound,
-['listening'][] event will be emitted.  The last parameter `listeningListener`
+['listening'][] event will be emitted.  The last parameter `callback`
 will be added as an listener for the ['listening'][] event.
 
 One issue some users run into is getting `EADDRINUSE` errors. This means that
@@ -150,18 +150,18 @@ would be to wait a second and then try again. This can be done with
 (Note: All sockets in Node set `SO_REUSEADDR` already)
 
 
-### server.listen(path, [listeningListener])
+### server.listen(path, [callback])
 
 Start a UNIX socket server listening for connections on the given `path`.
 
 This function is asynchronous.  When the server has been bound,
-['listening'][] event will be emitted.  The last parameter `listeningListener`
+['listening'][] event will be emitted.  The last parameter `callback`
 will be added as an listener for the ['listening'][] event.
 
-### server.listen(handle, [listeningListener])
+### server.listen(handle, [callback])
 
 * `handle` {Object}
-* `listeningListener` {Function}
+* `callback` {Function}
 
 The `handle` object can be set to either a server or socket (anything
 with an underlying `_handle` member), or a `{fd: <n>}` object.
@@ -174,10 +174,10 @@ Listening on a file descriptor is not supported on Windows.
 
 This function is asynchronous.  When the server has been bound,
 ['listening'](#event_listening_) event will be emitted.
-the last parameter `listeningListener` will be added as an listener for the
+the last parameter `callback` will be added as an listener for the
 ['listening'](#event_listening_) event.
 
-### server.close([cb])
+### server.close([callback])
 
 Stops the server from accepting new connections and keeps existing
 connections. This function is asynchronous, the server is finally

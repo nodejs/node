@@ -200,12 +200,14 @@ Glob.prototype._finish = function () {
     // at *some* point we statted all of these
     all = all.map(function (m) {
       var sc = this.statCache[m]
-      if (!sc) return m
-      if (m.slice(-1) !== "/" && (Array.isArray(sc) || sc === 2)) {
+      if (!sc)
+        return m
+      var isDir = (Array.isArray(sc) || sc === 2)
+      if (isDir && m.slice(-1) !== "/") {
         return m + "/"
       }
-      if (m.slice(-1) === "/") {
-        return m.replace(/\/$/, "")
+      if (!isDir && m.slice(-1) === "/") {
+        return m.replace(/\/+$/, "")
       }
       return m
     }, this)

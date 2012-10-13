@@ -1,6 +1,7 @@
 # Crypto
 
-    Stability: 3 - Stable
+    Stability: 2 - Unstable; API changes are being discussed for
+    future versions.  Breaking changes will be minimized.  See below.
 
 Use `require('crypto')` to access this module.
 
@@ -389,6 +390,37 @@ Generates cryptographically strong pseudo-random data. Usage:
     } catch (ex) {
       // handle error
     }
+
+## Proposed API Changes in Future Versions of Node
+
+The Crypto module was added to Node before there was the concept of a
+unified Stream API, and before there were Buffer objects for handling
+binary data.
+
+As such, the streaming classes don't have the typical methods found on
+other Node classes, and many methods accept and return Binary-encoded
+strings by default rather than Buffers.
+
+A future version of node will make Buffers the default data type.
+This will be a breaking change for some use cases, but not all.
+
+For example, if you currently use the default arguments to the Sign
+class, and then pass the results to the Verify class, without ever
+inspecting the data, then it will continue to work as before.  Where
+you now get a binary string and then present the binary string to the
+Verify object, you'll get a Buffer, and present the Buffer to the
+Verify object.
+
+However, if you are doing things with the string data that will not
+work properly on Buffers (such as, concatenating them, storing in
+databases, etc.), or you are passing binary strings to the crypto
+functions without an encoding arguemnt, then you will need to start
+providing encoding arguments to specify which encoding you'd like to
+use.
+
+Also, a Streaming API will be provided, but this will be done in such
+a way as to preserve the legacy API surface.
+
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password
 [createCipheriv()]: #crypto_crypto_createcipheriv_algorithm_key_iv

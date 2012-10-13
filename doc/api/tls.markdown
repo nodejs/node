@@ -208,8 +208,8 @@ You can test this server by connecting to it with `openssl s_client`:
     openssl s_client -connect 127.0.0.1:8000
 
 
-## tls.connect(options, [secureConnectListener])
-## tls.connect(port, [host], [options], [secureConnectListener])
+## tls.connect(options, [callback])
+## tls.connect(port, [host], [options], [callback])
 
 Creates a new client connection to the given `port` and `host` (old API) or
 `options.port` and `options.host`. (If `host` is omitted, it defaults to
@@ -249,7 +249,7 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
-The `secureConnectListener` parameter will be added as a listener for the
+The `callback` parameter will be added as a listener for the
 ['secureConnect'][] event.
 
 `tls.connect()` returns a [CleartextStream][] object.

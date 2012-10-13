@@ -148,6 +148,25 @@ discarded.
 Related to tokenGet and tokenSet.  Takes a callback which should be
 called when the token is deleted.
 
+### couch.ca
+
+* {String | Array | null}
+
+A certificate authority string, or an array of CA strings.  Only
+relevant for HTTPS couches, of course.
+
+Leave as `null` to use the default ca settings built into node.
+
+### couch.strictSSL
+
+* {Boolean | null}
+
+Whether or not to be strict about SSL connections.  If left as null,
+then use the default setting in node, which is true in node versions
+0.9.x and above, and false prior to 0.8.x.
+
+Only relevant for HTTPS couches, of course.
+
 ### couch.anonymous()
 
 Return a new CouchLogin object that points at the same couchdb server,

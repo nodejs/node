@@ -19,7 +19,6 @@ var fs = require('graceful-fs')
   , request = require('request')
   , minimatch = require('minimatch')
   , mkdir = require('mkdirp')
-  , distUrl = 'http://nodejs.org/dist'
   , win = process.platform == 'win32'
 
 function install (gyp, argv, callback) {
@@ -38,6 +37,8 @@ function install (gyp, argv, callback) {
       callback(null, version)
     }
   }
+
+  var distUrl = gyp.opts['dist-url'] || 'http://nodejs.org/dist'
 
 
   // Determine which node dev files version we are installing

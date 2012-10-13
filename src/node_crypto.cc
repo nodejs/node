@@ -4492,8 +4492,6 @@ err:
 }
 
 
-typedef int (*RandomBytesGenerator)(unsigned char* buf, int size);
-
 struct RandomBytesRequest {
   ~RandomBytesRequest();
   Persistent<Object> obj_;
@@ -4516,26 +4514,26 @@ void RandomBytesFree(char* data, void* hint) {
 }
 
 
-template <RandomBytesGenerator generator>
+template <bool pseudoRandom>
 void RandomBytesWork(uv_work_t* work_req) {
-  RandomBytesRequest* req =
-      container_of(work_req, RandomBytesRequest, work_req_);
+  RandomBytesRequest* req = container_of(work_req,
+                                         RandomBytesRequest,
+                                         work_req_);
+  int r;
 
-  int r = generator(reinterpret_cast<unsigned char*>(req->data_), req->size_);
+  if (pseudoRandom == true) {
+    r = RAND_pseudo_bytes(reinterpret_cast<unsigned char*>(req->data_),
+                          req->size_);
+  } else {
+    r = RAND_bytes(reinterpret_cast<unsigned char*>(req->data_), req->size_);
+  }
 
-  switch (r) {
-  case 0:
-    // RAND_bytes() returns 0 on error, RAND_pseudo_bytes() returns 0
-    // when the result is not cryptographically strong - the latter
-    // sucks but is not an error
-    if (generator == RAND_bytes)
-      req->error_ = ERR_get_error();
-    break;
-
-  case -1:
-    // not supported - can this actually happen?
-    req->error_ = (unsigned long) -1;
-    break;
+  // RAND_bytes() returns 0 on error. RAND_pseudo_bytes() returns 0 when the
+  // result is not cryptographically strong - but that's not an error.
+  if (r == 0 && pseudoRandom == false) {
+    req->error_ = ERR_get_error();
+  } else if (r == -1) {
+    req->error_ = static_cast<unsigned long>(-1);
   }
 }
 
@@ -4560,10 +4558,10 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
 }
 
 
-template <RandomBytesGenerator generator>
 void RandomBytesAfter(uv_work_t* work_req) {
-  RandomBytesRequest* req =
-      container_of(work_req, RandomBytesRequest, work_req_);
+  RandomBytesRequest* req = container_of(work_req,
+                                         RandomBytesRequest,
+                                         work_req_);
 
   HandleScope scope;
   Local<Value> argv[2];
@@ -4574,7 +4572,7 @@ void RandomBytesAfter(uv_work_t* work_req) {
 }
 
 
-template <RandomBytesGenerator generator>
+template <bool pseudoRandom>
 Handle<Value> RandomBytes(const Arguments& args) {
   HandleScope scope;
 
@@ -4598,14 +4596,14 @@ Handle<Value> RandomBytes(const Arguments& args) {
 
     uv_queue_work(uv_default_loop(),
                   &req->work_req_,
-                  RandomBytesWork<generator>,
-                  RandomBytesAfter<generator>);
+                  RandomBytesWork<pseudoRandom>,
+                  RandomBytesAfter);
 
     return req->obj_;
   }
   else {
     Local<Value> argv[2];
-    RandomBytesWork<generator>(&req->work_req_);
+    RandomBytesWork<pseudoRandom>(&req->work_req_);
     RandomBytesCheck(req, argv);
     delete req;
 
@@ -4700,8 +4698,8 @@ void InitCrypto(Handle<Object> target) {
   Verify::Initialize(target);
 
   NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
-  NODE_SET_METHOD(target, "randomBytes", RandomBytes<RAND_bytes>);
-  NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<RAND_pseudo_bytes>);
+  NODE_SET_METHOD(target, "randomBytes", RandomBytes<false>);
+  NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<true>);
   NODE_SET_METHOD(target, "getCiphers", GetCiphers);
   NODE_SET_METHOD(target, "getHashes", GetHashes);
 

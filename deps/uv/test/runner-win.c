@@ -24,8 +24,9 @@
 #include <malloc.h>
 #include <stdio.h>
 #include <process.h>
+#include <windows.h>
 #if !defined(__MINGW32__)
-# include <crtdbg.h>
+#include <crtdbg.h>
 #endif
 
 

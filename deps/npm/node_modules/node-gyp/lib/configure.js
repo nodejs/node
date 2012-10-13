@@ -23,7 +23,7 @@ exports.usage = 'Generates ' + (win ? 'MSVC project files' : 'a Makefile') + ' f
 
 function configure (gyp, argv, callback) {
 
-  var python = process.env.PYTHON || gyp.opts.python || 'python'
+  var python = gyp.opts.python || process.env.PYTHON || 'python'
     , buildDir = path.resolve('build')
     , hasVCExpress = false
     , hasWin71SDK = false

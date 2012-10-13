@@ -126,10 +126,18 @@ function error_test() {
     // should throw
     { client: client_unix, send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
       expect: /^SyntaxError: Unexpected token i/ },
+    // end of input to JSON.parse error is special case of syntax error,
+    // should throw
+    { client: client_unix, send: 'JSON.parse(\'{\');',
+      expect: /^SyntaxError: Unexpected end of input/ },
     // invalid RegExps are a special case of syntax error,
     // should throw
     { client: client_unix, send: '/(/;',
       expect: /^SyntaxError: Invalid regular expression\:/ },
+    // invalid RegExp modifiers are a special case of syntax error,
+    // should throw (GH-4012)
+    { client: client_unix, send: 'new RegExp("foo", "wrong modifier");',
+      expect: /^SyntaxError: Invalid flags supplied to RegExp constructor/ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
@@ -233,7 +241,12 @@ function unix_test() {
       socket.end();
     });
 
-    repl.start(prompt_unix, socket).context.message = message;
+    repl.start({
+      prompt: prompt_unix,
+      input: socket,
+      output: socket,
+      useGlobal: true
+    }).context.message = message;
   });
 
   server_unix.on('listening', function() {

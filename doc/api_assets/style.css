@@ -8,6 +8,7 @@ body {
   font-size: 14px;
   line-height: 180%;
   color: black;
+  background-color: white;
   margin: 0; padding: 49px 0 0 0;
   border-top: 6px #8CC84B solid;
 }
