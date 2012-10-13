@@ -71,6 +71,13 @@ class ArrayBuffer {
     v8::Local<v8::ObjectTemplate> instance = ft_cache->InstanceTemplate();
     instance->SetInternalFieldCount(1);  // Buffer.
 
+    v8::Local<v8::Signature> default_signature = v8::Signature::New(ft_cache);
+
+    instance->Set(v8::String::New("slice"),
+                  v8::FunctionTemplate::New(&ArrayBuffer::slice,
+                                            v8::Handle<v8::Value>(),
+                                            default_signature));
+
     return ft_cache;
   }
 
@@ -138,6 +145,42 @@ class ArrayBuffer {
     persistent.MakeWeak(NULL, &ArrayBuffer::WeakCallback);
 
     return args.This();
+  }
+
+  static v8::Handle<v8::Value> slice(const v8::Arguments& args) {
+    if (args.Length() < 1)
+       return ThrowError("Wrong number of arguments.");
+
+    unsigned int length =
+        args.This()->Get(v8::String::New("byteLength"))->Uint32Value();
+    int begin = args[0]->Int32Value();
+    int end = length;
+    if (args.Length() > 1)
+      end = args[1]->Int32Value();
+
+    if (begin < 0) begin = length + begin;
+    if (begin < 0) begin = 0;
+    if (static_cast<unsigned>(begin) > length) begin = length;
+
+    if (end < 0) end = length + end;
+    if (end < 0) end = 0;
+    if (static_cast<unsigned>(end) > length) end = length;
+
+    if (begin > end) begin = end;
+
+    unsigned int slice_length = end - begin;
+    v8::Local<v8::Value> argv[] = {
+        v8::Integer::New(slice_length)};
+    v8::Local<v8::Object> buffer = ArrayBuffer::GetTemplate()->
+        GetFunction()->NewInstance(1, argv);
+
+    if (buffer.IsEmpty()) return v8::Undefined();  // constructor failed
+
+    void* src = args.This()->GetPointerFromInternalField(0);
+    void* dest = buffer->GetPointerFromInternalField(0);
+    memcpy(dest, static_cast<char*>(src) + begin, slice_length);
+
+    return buffer;
   }
 };
 
