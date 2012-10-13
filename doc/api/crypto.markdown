@@ -376,6 +376,10 @@ Asynchronous PBKDF2 applies pseudorandom function HMAC-SHA1 to derive
 a key of given length from the given password, salt and iterations.
 The callback gets two arguments `(err, derivedKey)`.
 
+## crypto.pbkdf2Sync(password, salt, iterations, keylen)
+
+Synchronous PBKDF2 function.  Returns derivedKey or throws error.
+
 ## crypto.randomBytes(size, [callback])
 
 Generates cryptographically strong pseudo-random data. Usage:

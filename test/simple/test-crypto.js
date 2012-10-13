@@ -536,7 +536,7 @@ testCipher4(new Buffer('0123456789abcd0123456789'), new Buffer('12345678'));
 // update() should only take buffers / strings
 assert.throws(function() {
   crypto.createHash('sha1').update({foo: 'bar'});
-}, /string or buffer/);
+}, /buffer/);
 
 
 // Test Diffie-Hellman with two parties sharing a secret,
@@ -670,11 +670,11 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
-  var actual = crypto.pbkdf2(password, salt, iterations, keylen);
-  assert.equal(actual, expected);
+  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen);
+  assert.equal(actual.toString('binary'), expected);
 
   crypto.pbkdf2(password, salt, iterations, keylen, function(err, actual) {
-    assert.equal(actual, expected);
+    assert.equal(actual.toString('binary'), expected);
   });
 }
 
