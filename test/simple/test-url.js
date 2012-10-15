@@ -943,6 +943,50 @@ var formatTests = {
     'protocol': 'coap',
     'host': '[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:61616',
     'pathname': '/s/stopButton'
+  },
+
+  // encode context-specific delimiters in path and query, but do not touch
+  // other non-delimiter chars like `%`.
+  // <https://github.com/joyent/node/issues/4082>
+
+  // `#`,`?` in path
+  '/path/to/%%23%3F+=&.txt?foo=theA1#bar' : {
+    href : '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
+    pathname: '/path/to/%#?+=&.txt',
+    query: {
+      foo: 'theA1'
+    },
+    hash: "#bar"
+  },
+
+  // `#`,`?` in path + `#` in query
+  '/path/to/%%23%3F+=&.txt?foo=the%231#bar' : {
+    href : '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
+    pathname: '/path/to/%#?+=&.txt',
+    query: {
+      foo: 'the#1'
+    },
+    hash: "#bar"
+  },
+
+  // `?` and `#` in path and search
+  'http://ex.com/foo%3F100%m%23r?abc=the%231?&foo=bar#frag': {
+    href: 'http://ex.com/foo%3F100%m%23r?abc=the%231?&foo=bar#frag',
+    protocol: 'http:',
+    hostname: 'ex.com',
+    hash: '#frag',
+    search: '?abc=the#1?&foo=bar',
+    pathname: '/foo?100%m#r',
+  },
+
+  // `?` and `#` in search only
+  'http://ex.com/fooA100%mBr?abc=the%231?&foo=bar#frag': {
+    href: 'http://ex.com/fooA100%mBr?abc=the%231?&foo=bar#frag',
+    protocol: 'http:',
+    hostname: 'ex.com',
+    hash: '#frag',
+    search: '?abc=the#1?&foo=bar',
+    pathname: '/fooA100%mBr',
   }
 };
 for (var u in formatTests) {
