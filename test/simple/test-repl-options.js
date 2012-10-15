@@ -24,6 +24,8 @@ var common = require('../common'),
     Stream = require('stream'),
     repl = require('repl');
 
+common.globalCheck = false;
+
 // create a dummy stream that does nothing
 var stream = new Stream();
 stream.write = stream.pause = stream.resume = function(){};
