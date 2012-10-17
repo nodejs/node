@@ -482,6 +482,7 @@ TEST_IMPL(fs_file_noent) {
 
   /* TODO add EACCES test */
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -508,6 +509,7 @@ TEST_IMPL(fs_file_nametoolong) {
   uv_run(loop);
   ASSERT(open_cb_count == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -536,6 +538,7 @@ TEST_IMPL(fs_file_loop) {
 
   unlink("test_symlink");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -653,6 +656,7 @@ TEST_IMPL(fs_file_async) {
   unlink("test_file");
   unlink("test_file2");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -737,6 +741,7 @@ TEST_IMPL(fs_file_sync) {
   unlink("test_file");
   unlink("test_file2");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -828,6 +833,7 @@ TEST_IMPL(fs_async_dir) {
   unlink("test_dir/file2");
   rmdir("test_dir");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -891,6 +897,7 @@ TEST_IMPL(fs_async_sendfile) {
   unlink("test_file");
   unlink("test_file2");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -946,6 +953,7 @@ TEST_IMPL(fs_fstat) {
   /* Cleanup. */
   unlink("test_file");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1042,6 +1050,7 @@ TEST_IMPL(fs_chmod) {
   /* Cleanup. */
   unlink("test_file");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1104,6 +1113,7 @@ TEST_IMPL(fs_chown) {
   /* Cleanup. */
   unlink("test_file");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1186,6 +1196,7 @@ TEST_IMPL(fs_link) {
   unlink("test_file_link");
   unlink("test_file_link2");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1208,6 +1219,7 @@ TEST_IMPL(fs_readlink) {
   ASSERT(req.errorno == UV_ENOENT);
   uv_fs_req_cleanup(&req);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1329,6 +1341,7 @@ TEST_IMPL(fs_symlink) {
   unlink("test_file_symlink2");
   unlink("test_file_symlink2_symlink");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1440,6 +1453,7 @@ TEST_IMPL(fs_symlink_dir) {
   rmdir("test_dir");
   rmdir("test_dir_symlink");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1490,6 +1504,7 @@ TEST_IMPL(fs_utime) {
   /* Cleanup. */
   unlink(path);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1521,6 +1536,7 @@ TEST_IMPL(fs_stat_root) {
   r = uv_fs_stat(loop, &stat_req, "\\\\?\\C:\\", NULL);
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 #endif
@@ -1580,6 +1596,7 @@ TEST_IMPL(fs_futime) {
   /* Cleanup. */
   unlink(path);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1596,6 +1613,7 @@ TEST_IMPL(fs_stat_missing_path) {
   ASSERT(uv_last_error(loop).code == UV_ENOENT);
   uv_fs_req_cleanup(&req);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1627,6 +1645,7 @@ TEST_IMPL(fs_readdir_empty_dir) {
   uv_fs_rmdir(loop, &req, path, NULL);
   uv_fs_req_cleanup(&req);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1650,6 +1669,7 @@ TEST_IMPL(fs_readdir_file) {
   uv_run(loop);
   ASSERT(readdir_cb_count == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1679,6 +1699,7 @@ TEST_IMPL(fs_open_dir) {
   uv_run(loop);
   ASSERT(open_cb_count == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1747,6 +1768,7 @@ TEST_IMPL(fs_file_open_append) {
   /* Cleanup */
   unlink("test_file");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1815,6 +1837,7 @@ TEST_IMPL(fs_rename_to_existing_file) {
   unlink("test_file");
   unlink("test_file2");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -1871,5 +1894,6 @@ TEST_IMPL(fs_read_file_eof) {
   /* Cleanup */
   unlink("test_file");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

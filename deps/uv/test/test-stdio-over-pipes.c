@@ -147,6 +147,7 @@ TEST_IMPL(stdio_over_pipes) {
   ASSERT(memcmp("hello world\n", output, 12) == 0);
   ASSERT(output_used == 12);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -242,5 +243,6 @@ int stdio_over_pipes_helper() {
   ASSERT(on_pipe_read_called == 1);
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

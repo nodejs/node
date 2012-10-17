@@ -53,5 +53,6 @@ TEST_IMPL(threadpool_queue_work_simple) {
   ASSERT(work_cb_count == 1);
   ASSERT(after_work_cb_count == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

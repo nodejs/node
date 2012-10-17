@@ -109,5 +109,6 @@ TEST_IMPL(tcp_unexpected_read) {
    */
   ASSERT(ticks <= 20);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

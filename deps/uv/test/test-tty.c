@@ -106,5 +106,6 @@ TEST_IMPL(tty) {
 
   uv_run(loop);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

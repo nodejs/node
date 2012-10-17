@@ -90,5 +90,6 @@ BENCHMARK_IMPL(getaddrinfo) {
   LOGF("getaddrinfo: %.0f req/s\n",
        (double) calls_completed / (double) (end_time - start_time) * 1000.0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

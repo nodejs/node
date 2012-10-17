@@ -30,7 +30,6 @@ static int uv__async_init(uv_loop_t* loop);
 static void uv__async_io(uv_loop_t* loop, uv__io_t* handle, int events);
 
 
-__attribute__((always_inline))
 static int uv__async_make_pending(volatile sig_atomic_t* ptr) {
   /* Do a cheap read first. */
   if (*ptr)

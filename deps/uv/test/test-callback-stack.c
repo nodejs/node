@@ -199,5 +199,6 @@ TEST_IMPL(callback_stack) {
   ASSERT(shutdown_cb_called == 1 && "shutdown_cb must be called exactly once");
   ASSERT(close_cb_called == 2 && "close_cb must be called exactly twice");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

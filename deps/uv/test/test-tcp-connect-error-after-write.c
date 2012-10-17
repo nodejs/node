@@ -91,5 +91,6 @@ TEST_IMPL(tcp_connect_error_after_write) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

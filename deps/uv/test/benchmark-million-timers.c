@@ -61,5 +61,6 @@ BENCHMARK_IMPL(million_timers) {
 
   LOGF("%.2f seconds\n", (after - before) / 1e9);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

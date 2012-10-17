@@ -78,5 +78,6 @@ TEST_IMPL(active) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

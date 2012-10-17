@@ -158,5 +158,6 @@ BENCHMARK_IMPL(spawn) {
   LOGF("spawn: %.0f spawns/s\n",
        (double) N / (double) (end_time - start_time) * 1000.0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

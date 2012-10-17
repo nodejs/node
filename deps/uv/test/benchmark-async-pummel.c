@@ -73,6 +73,8 @@ static int test_async_pummel(int nthreads) {
          fmt(callbacks / (time / 1e9)));
 
   free(tids);
+
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

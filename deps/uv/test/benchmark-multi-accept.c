@@ -416,6 +416,7 @@ static int test_tcp(unsigned int num_servers, unsigned int num_clients) {
   free(clients);
   free(servers);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

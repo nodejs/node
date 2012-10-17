@@ -137,5 +137,6 @@ TEST_IMPL(timer_again) {
        (long int)(uv_now(uv_default_loop()) - start_time));
   ASSERT(700 <= uv_now(uv_default_loop()) - start_time);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

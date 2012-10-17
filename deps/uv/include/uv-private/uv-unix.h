@@ -156,7 +156,8 @@ typedef struct {
     struct uv_timer_s* rbh_root;                                              \
   } timer_handles;                                                            \
   uint64_t time;                                                              \
-  void* signal_ctx;                                                           \
+  int signal_pipefd[2];                                                       \
+  uv__io_t signal_io_watcher;                                                 \
   uv_signal_t child_watcher;                                                  \
   int emfile_fd;                                                              \
   UV_PLATFORM_LOOP_FIELDS                                                     \
@@ -242,7 +243,7 @@ typedef struct {
   ngx_queue_t queue;
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
-  /* RB_ENTRY(uv_timer_s) node; */                                            \
+  /* RB_ENTRY(uv_timer_s) tree_entry; */                                      \
   struct {                                                                    \
     struct uv_timer_s* rbe_left;                                              \
     struct uv_timer_s* rbe_right;                                             \
@@ -289,7 +290,16 @@ typedef struct {
   int mode;
 
 #define UV_SIGNAL_PRIVATE_FIELDS                                              \
-  ngx_queue_t queue;
+  /* RB_ENTRY(uv_signal_s) tree_entry; */                                     \
+  struct {                                                                    \
+    struct uv_signal_s* rbe_left;                                             \
+    struct uv_signal_s* rbe_right;                                            \
+    struct uv_signal_s* rbe_parent;                                           \
+    int rbe_color;                                                            \
+  } tree_entry;                                                               \
+  /* Use two counters here so we don have to fiddle with atomics. */          \
+  unsigned int caught_signals;                                                \
+  unsigned int dispatched_signals;
 
 #define UV_FS_EVENT_PRIVATE_FIELDS                                            \
   uv_fs_event_cb cb;                                                          \

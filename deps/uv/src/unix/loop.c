@@ -31,6 +31,8 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   unsigned int i;
   int flags;
 
+  uv__signal_global_once_init();
+
 #if HAVE_KQUEUE
   flags = EVBACKEND_KQUEUE;
 #else
@@ -47,10 +49,11 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   ngx_queue_init(&loop->prepare_handles);
   ngx_queue_init(&loop->handle_queue);
   loop->closing_handles = NULL;
-  loop->signal_ctx = NULL;
   loop->time = uv_hrtime() / 1000000;
   loop->async_pipefd[0] = -1;
   loop->async_pipefd[1] = -1;
+  loop->signal_pipefd[0] = -1;
+  loop->signal_pipefd[1] = -1;
   loop->emfile_fd = -1;
   loop->ev = (default_loop ? ev_default_loop : ev_loop_new)(flags);
   ev_set_userdata(loop->ev, loop);
@@ -79,8 +82,8 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
 
 
 void uv__loop_delete(uv_loop_t* loop) {
+  uv__signal_loop_cleanup(loop);
   uv__platform_loop_delete(loop);
-  uv__signal_unregister(loop);
   ev_loop_destroy(loop->ev);
 
   if (loop->async_pipefd[0] != -1) {

@@ -50,7 +50,6 @@ static void startup(void) {
 
 static uv_os_sock_t create_tcp_socket(void) {
   uv_os_sock_t sock;
-  int r;
 
   sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 #ifdef _WIN32
@@ -63,7 +62,7 @@ static uv_os_sock_t create_tcp_socket(void) {
   {
     /* Allow reuse of the port. */
     int yes = 1;
-    r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
+    int r = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes);
     ASSERT(r == 0);
   }
 #endif
@@ -171,5 +170,6 @@ TEST_IMPL(tcp_open) {
   ASSERT(write_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

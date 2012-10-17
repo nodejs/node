@@ -82,5 +82,6 @@ TEST_IMPL(udp_dgram_too_big) {
   ASSERT(send_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

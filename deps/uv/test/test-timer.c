@@ -129,6 +129,7 @@ TEST_IMPL(timer) {
 
   ASSERT(500 <= uv_now(uv_default_loop()) - start_time);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -148,5 +149,6 @@ TEST_IMPL(timer_start_twice) {
 
   ASSERT(once_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

@@ -76,5 +76,6 @@ TEST_IMPL(tcp_close_while_connecting) {
   ASSERT(timer1_cb_called == 1);
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

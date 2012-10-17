@@ -404,6 +404,7 @@ HELPER_IMPL(pipe_pump_server) {
 
   uv_run(loop);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -421,6 +422,8 @@ void tcp_pump(int n) {
   maybe_connect_some();
 
   uv_run(loop);
+
+  MAKE_VALGRIND_HAPPY();
 }
 
 
@@ -435,6 +438,8 @@ void pipe_pump(int n) {
   maybe_connect_some();
 
   uv_run(loop);
+
+  MAKE_VALGRIND_HAPPY();
 }
 
 

@@ -141,5 +141,6 @@ TEST_IMPL(fs_poll) {
   ASSERT(timer_cb_called == 2);
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

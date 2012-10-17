@@ -321,6 +321,7 @@ static int run_ipc_test(const char* helper, uv_read2_cb read_cb) {
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -374,6 +375,7 @@ TEST_IMPL(listen_with_simultaneous_accepts) {
   ASSERT(r == 0);
   ASSERT(server.reqs_pending == 32);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -396,6 +398,7 @@ TEST_IMPL(listen_no_simultaneous_accepts) {
   ASSERT(r == 0);
   ASSERT(server.reqs_pending == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 #endif
@@ -570,6 +573,7 @@ int ipc_helper(int listen_after_write) {
   ASSERT(connection_accepted == 1);
   ASSERT(close_cb_called == 3);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -616,5 +620,6 @@ int ipc_helper_tcp_connection() {
   ASSERT(tcp_conn_write_cb_called == 1);
   ASSERT(close_cb_called == 4);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

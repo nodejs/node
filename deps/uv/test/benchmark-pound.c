@@ -300,6 +300,7 @@ static int pound_it(int concurrency,
        closed_streams / secs,
        conns_failed);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

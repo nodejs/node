@@ -131,5 +131,6 @@ TEST_IMPL(tcp_write_to_half_open_connection) {
   ASSERT(write_cb_called > 0);
   ASSERT(read_cb_called > 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

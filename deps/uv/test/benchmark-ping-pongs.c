@@ -209,5 +209,6 @@ BENCHMARK_IMPL(ping_pongs) {
 
   ASSERT(completed_pingers == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

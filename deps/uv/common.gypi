@@ -15,7 +15,7 @@
     'configurations': {
       'Debug': {
         'defines': [ 'DEBUG', '_DEBUG' ],
-        'cflags': [ '-g', '-O0' ],
+        'cflags': [ '-g', '-O0', '-fwrapv' ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [

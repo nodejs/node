@@ -113,6 +113,7 @@ static int test_async(int nthreads) {
 
   free(threads);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

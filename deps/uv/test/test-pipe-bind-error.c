@@ -71,6 +71,7 @@ TEST_IMPL(pipe_bind_error_addrinuse) {
 
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -92,6 +93,7 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -115,6 +117,7 @@ TEST_IMPL(pipe_bind_error_inval) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -136,5 +139,6 @@ TEST_IMPL(pipe_listen_without_bind) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

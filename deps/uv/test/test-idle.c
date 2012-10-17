@@ -77,5 +77,6 @@ TEST_IMPL(idle_starvation) {
   ASSERT(timer_cb_called == 1);
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

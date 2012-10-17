@@ -44,5 +44,6 @@ TEST_IMPL(run_once) {
   while (uv_run_once(uv_default_loop()));
   ASSERT(idle_counter == NUM_TICKS);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

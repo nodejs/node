@@ -63,6 +63,7 @@ TEST_IMPL(tcp_bind_error_addrinuse) {
 
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -87,6 +88,7 @@ TEST_IMPL(tcp_bind_error_addrnotavail_1) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -108,6 +110,7 @@ TEST_IMPL(tcp_bind_error_addrnotavail_2) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -133,6 +136,7 @@ TEST_IMPL(tcp_bind_error_fault) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -159,6 +163,7 @@ TEST_IMPL(tcp_bind_error_inval) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -174,6 +179,7 @@ TEST_IMPL(tcp_bind_localhost_ok) {
   r = uv_tcp_bind(&server, addr);
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -187,5 +193,6 @@ TEST_IMPL(tcp_listen_without_bind) {
   r = uv_listen((uv_stream_t*)&server, 128, NULL);
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

@@ -73,5 +73,6 @@ TEST_IMPL(walk_handles) {
   uv_walk(loop, walk_cb, magic_cookie);
   ASSERT(seen_timer_handle == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

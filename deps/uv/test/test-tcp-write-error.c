@@ -164,5 +164,6 @@ TEST_IMPL(tcp_write_error) {
   ASSERT(write_cb_error_called >= 1);
   ASSERT(tcp_client.write_queue_size == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

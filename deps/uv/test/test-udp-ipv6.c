@@ -133,6 +133,8 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   uv_run(uv_default_loop());
 
   ASSERT(close_cb_called == 3);
+
+  MAKE_VALGRIND_HAPPY();
 }
 
 

@@ -73,6 +73,7 @@ TEST_IMPL(pipe_connect_bad_name) {
   ASSERT(close_cb_called == 1);
   ASSERT(connect_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -92,5 +93,6 @@ TEST_IMPL(pipe_connect_to_file) {
   ASSERT(close_cb_called == 1);
   ASSERT(connect_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

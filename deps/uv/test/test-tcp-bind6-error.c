@@ -63,6 +63,7 @@ TEST_IMPL(tcp_bind6_error_addrinuse) {
 
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -84,6 +85,7 @@ TEST_IMPL(tcp_bind6_error_addrnotavail) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -109,6 +111,7 @@ TEST_IMPL(tcp_bind6_error_fault) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -135,6 +138,7 @@ TEST_IMPL(tcp_bind6_error_inval) {
 
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -150,5 +154,6 @@ TEST_IMPL(tcp_bind6_localhost_ok) {
   r = uv_tcp_bind6(&server, addr);
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

@@ -81,5 +81,6 @@ TEST_IMPL(tcp_connect_timeout) {
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

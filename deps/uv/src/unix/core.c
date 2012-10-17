@@ -65,6 +65,9 @@ static uv_loop_t* default_loop_ptr;
 
 
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
+  assert(!(handle->flags & (UV_CLOSING | UV_CLOSED)));
+
+  handle->flags |= UV_CLOSING;
   handle->close_cb = close_cb;
 
   switch (handle->type) {
@@ -121,15 +124,22 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
     break;
 
   case UV_SIGNAL:
-    uv__signal_close((uv_signal_t*)handle);
-    break;
+    uv__signal_close((uv_signal_t*) handle);
+    /* Signal handles may not be closed immediately. The signal code will */
+    /* itself close uv__make_close_pending whenever appropriate. */
+    return;
 
   default:
     assert(0);
   }
 
-  handle->flags |= UV_CLOSING;
+  uv__make_close_pending(handle);
+}
 
+
+void uv__make_close_pending(uv_handle_t* handle) {
+  assert(handle->flags & UV_CLOSING);
+  assert(!(handle->flags & UV_CLOSED));
   handle->next_closing = handle->loop->closing_handles;
   handle->loop->closing_handles = handle;
 }

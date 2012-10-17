@@ -300,7 +300,6 @@ int run_test_part(const char* test, const char* part) {
     if (strcmp(test, task->task_name) == 0 &&
         strcmp(part, task->process_name) == 0) {
       r = task->main();
-      uv_loop_delete(uv_default_loop());
       return r;
     }
   }

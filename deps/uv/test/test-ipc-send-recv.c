@@ -123,7 +123,11 @@ TEST_IMPL(ipc_send_recv_pipe) {
   r = uv_pipe_bind(&ctx.send.pipe, TEST_PIPENAME);
   ASSERT(r == 0);
 
-  return run_test();
+  r = run_test();
+  ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
 }
 
 
@@ -138,7 +142,11 @@ TEST_IMPL(ipc_send_recv_tcp) {
   r = uv_tcp_bind(&ctx.send.tcp, uv_ip4_addr("127.0.0.1", TEST_PORT));
   ASSERT(r == 0);
 
-  return run_test();
+  r = run_test();
+  ASSERT(r == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
 }
 
 
@@ -205,5 +213,6 @@ int ipc_send_recv_helper(void) {
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

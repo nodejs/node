@@ -556,6 +556,8 @@ static void start_poll_test() {
          spurious_writable_wakeups > 20);
 
   ASSERT(closed_connections == NUM_CLIENTS * 2);
+
+  MAKE_VALGRIND_HAPPY();
 }
 
 

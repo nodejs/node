@@ -82,5 +82,6 @@ TEST_IMPL(udp_multicast_ttl) {
   ASSERT(sv_send_cb_called == 1);
   ASSERT(close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

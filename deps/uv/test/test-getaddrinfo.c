@@ -88,6 +88,7 @@ TEST_IMPL(getaddrinfo_basic) {
 
   ASSERT(getaddrinfo_cbs == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -118,5 +119,6 @@ TEST_IMPL(getaddrinfo_concurrent) {
     ASSERT(callback_counts[i] == 1);
   }
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

@@ -82,5 +82,6 @@ TEST_IMPL(udp_options) {
   r = uv_run(loop);
   ASSERT(r == 0);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

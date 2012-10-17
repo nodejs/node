@@ -19,31 +19,19 @@
  * IN THE SOFTWARE.
  */
 
+
+/* This test does not pretend to be cross-platform. */
+#ifndef _WIN32
+
 #include "uv.h"
 #include "task.h"
 
-#ifdef _WIN32
-
-TEST_IMPL(we_get_signal) {
-  return 0;
-}
-
-
-TEST_IMPL(we_get_signals) {
-  return 0;
-}
-
-#else /* !_WIN32 */
-
+#include <errno.h>
+#include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
-#include <errno.h>
-
-/* This test does not pretend to be cross-platform. */
-#include <pthread.h>
-#include <signal.h>
 #include <unistd.h>
 
 #define NSIGNALS  10
@@ -131,6 +119,7 @@ TEST_IMPL(we_get_signal) {
   ASSERT(tc.ncalls == NSIGNALS);
   ASSERT(sc.ncalls == NSIGNALS);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -156,6 +145,7 @@ TEST_IMPL(we_get_signals) {
   for (i = 0; i < ARRAY_SIZE(tc); i++)
     ASSERT(tc[i].ncalls == NSIGNALS);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

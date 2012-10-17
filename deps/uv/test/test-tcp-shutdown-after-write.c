@@ -127,5 +127,6 @@ TEST_IMPL(tcp_shutdown_after_write) {
   ASSERT(conn_close_cb_called == 1);
   ASSERT(timer_close_cb_called == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

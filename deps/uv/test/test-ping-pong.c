@@ -228,6 +228,7 @@ TEST_IMPL(tcp_ping_pong) {
 
   ASSERT(completed_pingers == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -238,6 +239,7 @@ TEST_IMPL(tcp_ping_pong_v6) {
 
   ASSERT(completed_pingers == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -248,5 +250,6 @@ TEST_IMPL(pipe_ping_pong) {
 
   ASSERT(completed_pingers == 1);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

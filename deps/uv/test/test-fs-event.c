@@ -201,6 +201,7 @@ TEST_IMPL(fs_event_watch_dir) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -234,6 +235,7 @@ TEST_IMPL(fs_event_watch_file) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -252,6 +254,7 @@ TEST_IMPL(fs_event_watch_file_twice) {
   ASSERT(0 == uv_timer_start(&timer, timer_cb_watch_twice, 10, 0));
   ASSERT(0 == uv_run(loop));
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -289,6 +292,7 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   /* Cleanup */
   remove("watch_file");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -321,6 +325,7 @@ TEST_IMPL(fs_event_no_callback_on_close) {
   remove("watch_dir/file1");
   remove("watch_dir/");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -361,6 +366,7 @@ TEST_IMPL(fs_event_immediate_close) {
 
   ASSERT(close_cb_called == 2);
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -390,6 +396,7 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   remove("watch_dir/file");
   remove("watch_dir/");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -455,6 +462,7 @@ TEST_IMPL(fs_event_close_in_callback) {
   remove("watch_dir/file5");
   remove("watch_dir/");
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 

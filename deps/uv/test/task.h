@@ -91,6 +91,11 @@ typedef enum {
   }                                                       \
  } while (0)
 
+/* This macro cleans up the main loop. This is used to avoid valgrind
+ * warnings about memory being "leaked" by the main event loop.
+ */
+#define MAKE_VALGRIND_HAPPY()  \
+  uv_loop_delete(uv_default_loop())
 
 /* Just sugar for wrapping the main() for a task or helper. */
 #define TEST_IMPL(name)   \
