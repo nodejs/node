@@ -192,7 +192,8 @@ setTimeout(function() {
     err = err + '. Expected: ' + expected[0].lines.shift();
   }
   quit();
-  child.kill('SIGKILL');
+  child.kill('SIGINT');
+  child.kill('SIGTERM');
 
   // give the sigkill time to work.
   setTimeout(function() {
