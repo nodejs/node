@@ -374,7 +374,7 @@ Read data from the file specified by `fd`.
 
 `buffer` is the buffer that the data will be written to.
 
-`offset` is offset within the buffer where writing will start.
+`offset` is offset within the buffer where reading will start.
 
 `length` is an integer specifying the number of bytes to read.
 

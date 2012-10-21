@@ -414,7 +414,7 @@ Verify object.
 However, if you are doing things with the string data that will not
 work properly on Buffers (such as, concatenating them, storing in
 databases, etc.), or you are passing binary strings to the crypto
-functions without an encoding arguemnt, then you will need to start
+functions without an encoding argument, then you will need to start
 providing encoding arguments to specify which encoding you'd like to
 use.
 

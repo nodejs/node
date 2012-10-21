@@ -21,7 +21,6 @@
         'OPENSSL_NO_RDRAND',
         'OPENSSL_NO_GOST',
         'OPENSSL_NO_HW_PADLOCK',
-        'OPENSSL_NO_TTY',
       ],
       'sources': [
         'openssl/ssl/bio_ssl.c',
@@ -576,7 +575,6 @@
         'openssl/crypto/ts/ts_verify_ctx.c',
         'openssl/crypto/txt_db/txt_db.c',
         'openssl/crypto/ui/ui_compat.c',
-        'openssl/crypto/ui/ui_dummy.c',
         'openssl/crypto/ui/ui_err.c',
         'openssl/crypto/ui/ui_lib.c',
         'openssl/crypto/ui/ui_openssl.c',
