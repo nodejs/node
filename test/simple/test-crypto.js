@@ -530,6 +530,10 @@ var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.equal(secret1, secret3);
 
+assert.throws(function() {
+  dh3.computeSecret('');
+}, /key is too small/i);
+
 // https://github.com/joyent/node/issues/2338
 assert.throws(function() {
   var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
