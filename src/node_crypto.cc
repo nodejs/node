@@ -3960,17 +3960,6 @@ class DiffieHellman : public ObjectWrap {
       key, diffieHellman->dh);
     BN_free(key);
 
-    Local<Value> outString;
-
-    // DH_size returns number of bytes in a prime number
-    // DH_compute_key returns number of bytes in a remainder of exponent, which
-    // may have less bytes than a prime number. Therefore add 0-padding to the
-    // allocated buffer.
-    if (size != dataSize) {
-      assert(dataSize > size);
-      memset(data + size, 0, dataSize - size);
-    }
-
     if (size == -1) {
       int checkResult;
       if (!DH_check_pub_key(diffieHellman->dh, key, &checkResult)) {
@@ -3988,14 +3977,27 @@ class DiffieHellman : public ObjectWrap {
       } else {
         return ThrowException(Exception::Error(String::New("Invalid key")));
       }
+    }
+
+    assert(size >= 0);
+
+    // DH_size returns number of bytes in a prime number
+    // DH_compute_key returns number of bytes in a remainder of exponent, which
+    // may have less bytes than a prime number. Therefore add 0-padding to the
+    // allocated buffer.
+    if (size != dataSize) {
+      assert(dataSize > size);
+      memset(data + size, 0, dataSize - size);
+    }
+
+    Local<Value> outString;
+
+    if (args.Length() > 2 && args[2]->IsString()) {
+      outString = EncodeWithEncoding(args[2], data, dataSize);
+    } else if (args.Length() > 1 && args[1]->IsString()) {
+      outString = EncodeWithEncoding(args[1], data, dataSize);
     } else {
-      if (args.Length() > 2 && args[2]->IsString()) {
-        outString = EncodeWithEncoding(args[2], data, dataSize);
-      } else if (args.Length() > 1 && args[1]->IsString()) {
-        outString = EncodeWithEncoding(args[1], data, dataSize);
-      } else {
-        outString = Encode(data, dataSize, BINARY);
-      }
+      outString = Encode(data, dataSize, BINARY);
     }
 
     delete[] data;
