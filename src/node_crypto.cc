@@ -3958,11 +3958,16 @@ class DiffieHellman : public ObjectWrap {
 
     int size = DH_compute_key(reinterpret_cast<unsigned char*>(data),
       key, diffieHellman->dh);
-    BN_free(key);
 
     if (size == -1) {
       int checkResult;
-      if (!DH_check_pub_key(diffieHellman->dh, key, &checkResult)) {
+      int checked;
+
+      checked = DH_check_pub_key(diffieHellman->dh, key, &checkResult);
+      BN_free(key);
+      delete[] data;
+
+      if (!checked) {
         return ThrowException(Exception::Error(String::New("Invalid key")));
       } else if (checkResult) {
         if (checkResult & DH_CHECK_PUBKEY_TOO_SMALL) {
@@ -3979,6 +3984,7 @@ class DiffieHellman : public ObjectWrap {
       }
     }
 
+    BN_free(key);
     assert(size >= 0);
 
     // DH_size returns number of bytes in a prime number
