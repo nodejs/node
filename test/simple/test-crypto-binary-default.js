@@ -19,7 +19,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+// This is the same as test/simple/test-crypto, but from before the shift
+// to use buffers by default.
 
 
 var common = require('../common');
@@ -32,7 +33,7 @@ try {
   process.exit();
 }
 
-crypto.DEFAULT_ENCODING = 'buffer';
+crypto.DEFAULT_ENCODING = 'binary';
 
 var fs = require('fs');
 var path = require('path');
@@ -378,16 +379,14 @@ assert.equal(a1, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
              '\u00bd\u008c', 'Test MD5 as binary');
 assert.equal(a2, '2bX1jws4GYKTlxhloUB09Z66PoJZW+y+hq5R8dnx9l4=',
              'Test SHA256 as base64');
-assert.deepEqual(
-  a3,
-  new Buffer(
-    '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
-    '\u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2' +
-    '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
-    '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
-    '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
-    'binary'),
-  'Test SHA512 as assumed buffer');
+
+assert.equal(a3, '\u00c1(4\u00f1\u0003\u001fd\u0097!O\'\u00d4C/&Qz\u00d4' +
+                 '\u0094\u0015l\u00b8\u008dQ+\u00db\u001d\u00c4\u00b5}\u00b2' +
+                 '\u00d6\u0092\u00a3\u00df\u00a2i\u00a1\u009b\n\n*\u000f' +
+                 '\u00d7\u00d6\u00a2\u00a8\u0085\u00e3<\u0083\u009c\u0093' +
+                 '\u00c2\u0006\u00da0\u00a1\u00879(G\u00ed\'',
+             'Test SHA512 as assumed binary');
+
 assert.deepEqual(a4,
                  new Buffer('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
                  'Test SHA1');
@@ -560,28 +559,14 @@ var privkey1 = dh1.getPrivateKey();
 dh3.setPublicKey(key1);
 dh3.setPrivateKey(privkey1);
 
-assert.deepEqual(dh1.getPrime(), dh3.getPrime());
-assert.deepEqual(dh1.getGenerator(), dh3.getGenerator());
-assert.deepEqual(dh1.getPublicKey(), dh3.getPublicKey());
-assert.deepEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
+assert.equal(dh1.getPrime(), dh3.getPrime());
+assert.equal(dh1.getGenerator(), dh3.getGenerator());
+assert.equal(dh1.getPublicKey(), dh3.getPublicKey());
+assert.equal(dh1.getPrivateKey(), dh3.getPrivateKey());
 
 var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.equal(secret1, secret3);
-
-assert.throws(function() {
-  dh3.computeSecret('');
-}, /key is too small/i);
-
-// Create a shared using a DH group.
-var alice = crypto.createDiffieHellmanGroup('modp5');
-var bob = crypto.createDiffieHellmanGroup('modp5');
-alice.generateKeys();
-bob.generateKeys();
-var aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
-var bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
-assert.equal(aSecret, bSecret);
-
 
 // https://github.com/joyent/node/issues/2338
 assert.throws(function() {
@@ -672,11 +657,11 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 //
 function testPBKDF2(password, salt, iterations, keylen, expected) {
-  var actual = crypto.pbkdf2Sync(password, salt, iterations, keylen);
-  assert.equal(actual.toString('binary'), expected);
+  var actual = crypto.pbkdf2(password, salt, iterations, keylen);
+  assert.equal(actual, expected);
 
   crypto.pbkdf2(password, salt, iterations, keylen, function(err, actual) {
-    assert.equal(actual.toString('binary'), expected);
+    assert.equal(actual, expected);
   });
 }
 
@@ -703,24 +688,3 @@ testPBKDF2('passwordPASSWORDpassword',
 testPBKDF2('pass\0word', 'sa\0lt', 4096, 16,
            '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34' +
            '\x25\xe0\xc3');
-
-function assertSorted(list) {
-  for (var i = 0, k = list.length - 1; i < k; ++i) {
-    var a = list[i + 0];
-    var b = list[i + 1];
-    assert(a <= b);
-  }
-}
-
-// Assume that we have at least AES256-SHA.
-assert.notEqual(0, crypto.getCiphers());
-assert.notEqual(-1, crypto.getCiphers().indexOf('AES256-SHA'));
-assertSorted(crypto.getCiphers());
-
-// Assert that we have sha and sha1 but not SHA and SHA1.
-assert.notEqual(0, crypto.getHashes());
-assert.notEqual(-1, crypto.getHashes().indexOf('sha1'));
-assert.notEqual(-1, crypto.getHashes().indexOf('sha'));
-assert.equal(-1, crypto.getHashes().indexOf('SHA1'));
-assert.equal(-1, crypto.getHashes().indexOf('SHA'));
-assertSorted(crypto.getHashes());

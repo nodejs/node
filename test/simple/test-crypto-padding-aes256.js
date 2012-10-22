@@ -29,6 +29,8 @@ try {
   process.exit();
 }
 
+crypto.DEFAULT_ENCODING = 'buffer';
+
 function aes256(decipherFinal) {
   var iv  = new Buffer('00000000000000000000000000000000', 'hex');
   var key = new Buffer('0123456789abcdef0123456789abcdef' +

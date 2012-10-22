@@ -32,6 +32,8 @@ try {
   process.exit();
 }
 
+crypto.DEFAULT_ENCODING = 'buffer';
+
 // Testing whether EVP_CipherInit_ex is functioning correctly.
 // Reference: bug#1997
 
