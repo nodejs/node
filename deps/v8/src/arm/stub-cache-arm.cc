@@ -986,8 +986,8 @@ static void StoreIntAsFloat(MacroAssembler* masm,
                             Register fval,
                             Register scratch1,
                             Register scratch2) {
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
     __ vmov(s0, ival);
     __ add(scratch1, dst, Operand(wordoffset, LSL, 2));
     __ vcvt_f32_s32(s0, s0);
@@ -2089,11 +2089,11 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   //  -- sp[argc * 4]           : receiver
   // -----------------------------------
 
-  if (!CpuFeatures::IsSupported(VFP3)) {
+  if (!CpuFeatures::IsSupported(VFP2)) {
     return Handle<Code>::null();
   }
 
-  CpuFeatures::Scope scope_vfp3(VFP3);
+  CpuFeatures::Scope scope_vfp2(VFP2);
   const int argc = arguments().immediate();
   // If the object is not a JSObject or we got an unexpected number of
   // arguments, bail out to the regular call.
@@ -3549,8 +3549,8 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 Register scratch1,
                                 DwVfpRegister double_scratch0,
                                 Label* fail) {
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
     Label key_ok;
     // Check for smi or a smi inside a heap number.  We convert the heap
     // number and check if the conversion is exact and fits into the smi
@@ -3636,8 +3636,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ ldr(value, MemOperand(r3, key, LSL, 1));
       break;
     case EXTERNAL_FLOAT_ELEMENTS:
-      if (CpuFeatures::IsSupported(VFP3)) {
-        CpuFeatures::Scope scope(VFP3);
+      if (CpuFeatures::IsSupported(VFP2)) {
+        CpuFeatures::Scope scope(VFP2);
         __ add(r2, r3, Operand(key, LSL, 1));
         __ vldr(s0, r2, 0);
       } else {
@@ -3645,8 +3645,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       }
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
-      if (CpuFeatures::IsSupported(VFP3)) {
-        CpuFeatures::Scope scope(VFP3);
+      if (CpuFeatures::IsSupported(VFP2)) {
+        CpuFeatures::Scope scope(VFP2);
         __ add(r2, r3, Operand(key, LSL, 2));
         __ vldr(d0, r2, 0);
       } else {
@@ -3697,8 +3697,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     // Now we can use r0 for the result as key is not needed any more.
     __ mov(r0, r5);
 
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope(VFP2);
       __ vmov(s0, value);
       __ vcvt_f64_s32(d0, s0);
       __ sub(r3, r0, Operand(kHeapObjectTag));
@@ -3725,8 +3725,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     // The test is different for unsigned int values. Since we need
     // the value to be in the range of a positive smi, we can't
     // handle either of the top two bits being set in the value.
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope(VFP2);
       Label box_int, done;
       __ tst(value, Operand(0xC0000000));
       __ b(ne, &box_int);
@@ -3789,8 +3789,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   } else if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope(VFP2);
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
@@ -3857,8 +3857,8 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope(VFP2);
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
@@ -3983,7 +3983,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ add(r3, r3, Operand(key, LSL, 2));
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
-      if (CpuFeatures::IsSupported(VFP3)) {
+      if (CpuFeatures::IsSupported(VFP2)) {
         destination = FloatingPointHelper::kVFPRegisters;
       } else {
         destination = FloatingPointHelper::kCoreRegisters;
@@ -3993,7 +3993,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
           d0, r6, r7,  // These are: double_dst, dst1, dst2.
           r4, s2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kVFPRegisters) {
-        CpuFeatures::Scope scope(VFP3);
+        CpuFeatures::Scope scope(VFP2);
         __ vstr(d0, r3, 0);
       } else {
         __ str(r6, MemOperand(r3, 0));
@@ -4028,8 +4028,8 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
     // reproducible behavior, convert these to zero.
-    if (CpuFeatures::IsSupported(VFP3)) {
-      CpuFeatures::Scope scope(VFP3);
+    if (CpuFeatures::IsSupported(VFP2)) {
+      CpuFeatures::Scope scope(VFP2);
 
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         // vldr requires offset to be a multiple of 4 so we can not
