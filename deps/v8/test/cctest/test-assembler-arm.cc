@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -642,8 +642,8 @@ TEST(8) {
   // single precision values around in memory.
   Assembler assm(Isolate::Current(), NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -753,8 +753,8 @@ TEST(9) {
   // single precision values around in memory.
   Assembler assm(Isolate::Current(), NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
@@ -868,8 +868,8 @@ TEST(10) {
   // single precision values around in memory.
   Assembler assm(Isolate::Current(), NULL, 0);
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
+  if (CpuFeatures::IsSupported(VFP2)) {
+    CpuFeatures::Scope scope(VFP2);
 
     __ mov(ip, Operand(sp));
     __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
