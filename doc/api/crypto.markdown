@@ -5,8 +5,7 @@
 
 Use `require('crypto')` to access this module.
 
-The crypto module requires OpenSSL to be available on the underlying
-platform.  It offers a way of encapsulating secure credentials to be
+The crypto module offers a way of encapsulating secure credentials to be
 used as part of a secure HTTPS net or http connection.
 
 It also offers a set of wrappers for OpenSSL's hash, hmac, cipher,
