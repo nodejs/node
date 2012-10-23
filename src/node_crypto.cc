@@ -286,7 +286,7 @@ static BIO* LoadBIO (Handle<Value> v) {
     String::Utf8Value s(v);
     r = BIO_write(bio, *s, s.length());
   } else if (Buffer::HasInstance(v)) {
-    char *buffer_data = Buffer::Data(v);
+    char* buffer_data = Buffer::Data(v);
     size_t buffer_length = Buffer::Length(v);
     r = BIO_write(bio, buffer_data, buffer_length);
   }
@@ -700,7 +700,7 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
 
   if (!ret) {
     unsigned long err = ERR_get_error();
-    const char *str = ERR_reason_error_string(err);
+    const char* str = ERR_reason_error_string(err);
     return ThrowException(Exception::Error(String::New(str)));
   }
 
@@ -1047,7 +1047,7 @@ static int VerifyCallback(int preverify_ok, X509_STORE_CTX *ctx) {
 #ifdef OPENSSL_NPN_NEGOTIATED
 
 int Connection::AdvertiseNextProtoCallback_(SSL *s,
-                                            const unsigned char **data,
+                                            const unsigned char** data,
                                             unsigned int *len,
                                             void *arg) {
 
@@ -1066,7 +1066,7 @@ int Connection::AdvertiseNextProtoCallback_(SSL *s,
 }
 
 int Connection::SelectNextProtoCallback_(SSL *s,
-                             unsigned char **out, unsigned char *outlen,
+                             unsigned char** out, unsigned char* outlen,
                              const unsigned char* in,
                              unsigned int inlen, void *arg) {
   Connection *p = static_cast<Connection*> SSL_get_app_data(s);
@@ -1282,7 +1282,7 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  char *buffer_data = Buffer::Data(args[0]);
+  char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
@@ -1328,7 +1328,7 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  char *buffer_data = Buffer::Data(args[0]);
+  char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
@@ -1400,7 +1400,7 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  char *buffer_data = Buffer::Data(args[0]);
+  char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
@@ -1439,7 +1439,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
           String::New("Second argument should be a buffer")));
   }
 
-  char *buffer_data = Buffer::Data(args[0]);
+  char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
@@ -1905,9 +1905,9 @@ Handle<Value> Connection::GetCurrentCipher(const Arguments& args) {
   c = SSL_get_current_cipher(ss->ssl_);
   if ( c == NULL ) return Undefined();
   Local<Object> info = Object::New();
-  const char *cipher_name = SSL_CIPHER_get_name(c);
+  const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(name_symbol, String::New(cipher_name));
-  const char *cipher_version = SSL_CIPHER_get_version(c);
+  const char* cipher_version = SSL_CIPHER_get_version(c);
   info->Set(version_symbol, String::New(cipher_version));
   return scope.Close(info);
 }
@@ -1931,7 +1931,7 @@ Handle<Value> Connection::GetNegotiatedProto(const Arguments& args) {
   Connection *ss = Connection::Unwrap(args);
 
   if (ss->is_server_) {
-    const unsigned char *npn_proto;
+    const unsigned char* npn_proto;
     unsigned int npn_proto_len;
 
     SSL_get0_next_proto_negotiated(ss->ssl_, &npn_proto, &npn_proto_len);
@@ -2039,8 +2039,8 @@ class Cipher : public ObjectWrap {
       return false;
     }
     EVP_CipherInit_ex(&ctx, NULL, NULL,
-      (unsigned char *)key,
-      (unsigned char *)iv, true);
+      (unsigned char*)key,
+      (unsigned char*)iv, true);
     initialised_ = true;
     return true;
   }
@@ -2049,7 +2049,7 @@ class Cipher : public ObjectWrap {
   bool CipherInitIv(char* cipherType,
                     char* key,
                     int key_len,
-                    char *iv,
+                    char* iv,
                     int iv_len) {
     cipher = EVP_get_cipherbyname(cipherType);
     if(!cipher) {
@@ -2071,8 +2071,8 @@ class Cipher : public ObjectWrap {
       return false;
     }
     EVP_CipherInit_ex(&ctx, NULL, NULL,
-      (unsigned char *)key,
-      (unsigned char *)iv, true);
+      (unsigned char*)key,
+      (unsigned char*)iv, true);
     initialised_ = true;
     return true;
   }
@@ -2210,7 +2210,7 @@ class Cipher : public ObjectWrap {
 
     ASSERT_IS_BUFFER(args[0]);
 
-    unsigned char *out=0;
+    unsigned char* out=0;
     int out_len=0, r;
     char* buffer_data = Buffer::Data(args[0]);
     size_t buffer_length = Buffer::Length(args[0]);
@@ -2338,8 +2338,8 @@ class Decipher : public ObjectWrap {
       return false;
     }
     EVP_CipherInit_ex(&ctx, NULL, NULL,
-      (unsigned char *)key,
-      (unsigned char *)iv, false);
+      (unsigned char*)key,
+      (unsigned char*)iv, false);
     initialised_ = true;
     return true;
   }
@@ -2348,7 +2348,7 @@ class Decipher : public ObjectWrap {
   bool DecipherInitIv(char* cipherType,
                       char* key,
                       int key_len,
-                      char *iv,
+                      char* iv,
                       int iv_len) {
     cipher_ = EVP_get_cipherbyname(cipherType);
     if(!cipher_) {
@@ -2370,8 +2370,8 @@ class Decipher : public ObjectWrap {
       return false;
     }
     EVP_CipherInit_ex(&ctx, NULL, NULL,
-      (unsigned char *)key,
-      (unsigned char *)iv, false);
+      (unsigned char*)key,
+      (unsigned char*)iv, false);
     initialised_ = true;
     return true;
   }
@@ -2525,13 +2525,13 @@ class Decipher : public ObjectWrap {
     char* buf;
     // if alloc_buf then buf must be deleted later
     bool alloc_buf = false;
-    char *buffer_data = Buffer::Data(args[0]);
+    char* buffer_data = Buffer::Data(args[0]);
     size_t buffer_length = Buffer::Length(args[0]);
 
     buf = buffer_data;
     len = buffer_length;
 
-    unsigned char *out=0;
+    unsigned char* out=0;
     int out_len=0;
     int r = cipher->DecipherUpdate(buf, len, &out, &out_len);
 
@@ -2717,7 +2717,7 @@ class Hmac : public ObjectWrap {
 
     int r;
 
-    char *buffer_data = Buffer::Data(args[0]);
+    char* buffer_data = Buffer::Data(args[0]);
     size_t buffer_length = Buffer::Length(args[0]);
 
     r = hmac->HmacUpdate(buffer_data, buffer_length);
@@ -2832,7 +2832,7 @@ class Hash : public ObjectWrap {
 
     int r;
 
-    char *buffer_data = Buffer::Data(args[0]);
+    char* buffer_data = Buffer::Data(args[0]);
     size_t buffer_length = Buffer::Length(args[0]);
     r = hash->HashUpdate(buffer_data, buffer_length);
 
@@ -2984,7 +2984,7 @@ class Sign : public ObjectWrap {
 
     int r;
 
-    char *buffer_data = Buffer::Data(args[0]);
+    char* buffer_data = Buffer::Data(args[0]);
     size_t buffer_length = Buffer::Length(args[0]);
 
     r = sign->SignUpdate(buffer_data, buffer_length);
@@ -3195,7 +3195,7 @@ class Verify : public ObjectWrap {
 
     int r;
 
-    char *buffer_data = Buffer::Data(args[0]);
+    char* buffer_data = Buffer::Data(args[0]);
     size_t buffer_length = Buffer::Length(args[0]);
 
     r = verify->VerifyUpdate(buffer_data, buffer_length);
@@ -3236,7 +3236,7 @@ class Verify : public ObjectWrap {
     }
 
     unsigned char* hbuf = new unsigned char[hlen];
-    ssize_t hwritten = DecodeWrite((char *)hbuf, hlen, args[1], BINARY);
+    ssize_t hwritten = DecodeWrite((char*)hbuf, hlen, args[1], BINARY);
     assert(hwritten == hlen);
 
     int r=-1;
