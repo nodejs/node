@@ -301,6 +301,7 @@ An example of the possible output looks like:
          node_prefix: '',
          node_shared_cares: 'false',
          node_shared_http_parser: 'false',
+         node_shared_libuv: 'false',
          node_shared_v8: 'false',
          node_shared_zlib: 'false',
          node_use_dtrace: 'false',

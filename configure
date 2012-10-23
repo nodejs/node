@@ -171,6 +171,26 @@ parser.add_option("--shared-cares-libname",
     dest="shared_cares_libname",
     help="Alternative lib name to link to (default: 'cares')")
 
+parser.add_option("--shared-libuv",
+    action="store_true",
+    dest="shared_libuv",
+    help="Link to a shared libuv DLL instead of static linking")
+
+parser.add_option("--shared-libuv-includes",
+    action="store",
+    dest="shared_libuv_includes",
+    help="Directory containing libuv header files")
+
+parser.add_option("--shared-libuv-libpath",
+    action="store",
+    dest="shared_libuv_libpath",
+    help="A directory to search for the shared libuv DLL")
+
+parser.add_option("--shared-libuv-libname",
+    action="store",
+    dest="shared_libuv_libname",
+    help="Alternative lib name to link to (default: 'uv')")
+
 parser.add_option("--with-dtrace",
     action="store_true",
     dest="with_dtrace",
@@ -495,6 +515,20 @@ def configure_cares(o):
         o['include_dirs'] += [options.shared_cares_includes]
 
 
+def configure_libuv(o):
+  o['variables']['node_shared_libuv'] = b(options.shared_libuv)
+
+  # assume shared libuv if one of these is set?
+  if options.shared_libuv_libpath:
+    o['libraries'] += ['-L%s' % options.shared_libuv_libpath]
+  if options.shared_libuv_libname:
+    o['libraries'] += ['-l%s' % options.shared_libuv_libname]
+  elif options.shared_libuv:
+    o['libraries'] += ['-luv']
+  if options.shared_libuv_includes:
+    o['include_dirs'] += [options.shared_libuv_includes]
+
+
 def configure_v8(o):
   o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
   o['variables']['node_shared_v8'] = b(options.shared_v8)
@@ -550,6 +584,7 @@ configure_node(output)
 configure_libz(output)
 configure_http_parser(output)
 configure_cares(output)
+configure_libuv(output)
 configure_v8(output)
 configure_openssl(output)
 

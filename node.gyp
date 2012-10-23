@@ -10,6 +10,7 @@
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
     'node_shared_cares%': 'false',
+    'node_shared_libuv%': 'false',
     'node_use_openssl%': 'true',
     'node_use_systemtap%': 'false',
     'node_shared_openssl%': 'false',
@@ -60,7 +61,6 @@
       'type': 'executable',
 
       'dependencies': [
-        'deps/uv/uv.gyp:libuv',
         'node_js2c#host',
       ],
 
@@ -207,6 +207,10 @@
 
         [ 'node_shared_cares=="false"', {
           'dependencies': [ 'deps/cares/cares.gyp:cares' ],
+        }],
+
+        [ 'node_shared_libuv=="false"', {
+          'dependencies': [ 'deps/uv/uv.gyp:libuv' ],
         }],
 
         [ 'OS=="win"', {
