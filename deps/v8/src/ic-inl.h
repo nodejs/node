@@ -79,6 +79,7 @@ Code* IC::GetTargetAtAddress(Address address) {
 
 void IC::SetTargetAtAddress(Address address, Code* target) {
   ASSERT(target->is_inline_cache_stub() || target->is_compare_ic_stub());
+  Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address);
 #ifdef DEBUG
   // STORE_IC and KEYED_STORE_IC use Code::extra_ic_state() to mark
@@ -90,8 +91,11 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
   }
 #endif
   Assembler::set_target_address_at(address, target->instruction_start());
-  target->GetHeap()->incremental_marking()->RecordCodeTargetPatch(address,
-                                                                  target);
+  if (heap->gc_state() == Heap::MARK_COMPACT) {
+    heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);
+  } else {
+    heap->incremental_marking()->RecordCodeTargetPatch(address, target);
+  }
   PostPatching(address, target, old_target);
 }
 

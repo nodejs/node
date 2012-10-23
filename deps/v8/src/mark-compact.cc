@@ -340,11 +340,6 @@ bool MarkCompactCollector::StartCompaction(CompactionMode mode) {
   if (!compacting_) {
     ASSERT(evacuation_candidates_.length() == 0);
 
-#ifdef ENABLE_GDB_JIT_INTERFACE
-    // If GDBJIT interface is active disable compaction.
-    if (FLAG_gdbjit) return false;
-#endif
-
     CollectEvacuationCandidates(heap()->old_pointer_space());
     CollectEvacuationCandidates(heap()->old_data_space());
 
@@ -781,6 +776,13 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
 #endif
 
   ASSERT(!FLAG_never_compact || !FLAG_always_compact);
+
+#ifdef ENABLE_GDB_JIT_INTERFACE
+  if (FLAG_gdbjit) {
+    // If GDBJIT interface is active disable compaction.
+    compacting_collection_ = false;
+  }
+#endif
 
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && abort_incremental_marking_) {
@@ -4073,6 +4075,20 @@ void MarkCompactCollector::RecordCodeEntrySlot(Address slot, Code* target) {
                             slot,
                             SlotsBuffer::FAIL_ON_OVERFLOW)) {
       EvictEvacuationCandidate(target_page);
+    }
+  }
+}
+
+
+void MarkCompactCollector::RecordCodeTargetPatch(Address pc, Code* target) {
+  ASSERT(heap()->gc_state() == Heap::MARK_COMPACT);
+  if (is_compacting()) {
+    Code* host = heap()->isolate()->inner_pointer_to_code_cache()->
+        GcSafeFindCodeForInnerPointer(pc);
+    MarkBit mark_bit = Marking::MarkBitFrom(host);
+    if (Marking::IsBlack(mark_bit)) {
+      RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
+      RecordRelocSlot(&rinfo, target);
     }
   }
 }

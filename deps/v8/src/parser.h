@@ -454,7 +454,7 @@ class Parser {
   // construct a hashable id, so if more than 2^17 are allowed, this
   // should be checked.
   static const int kMaxNumFunctionParameters = 32766;
-  static const int kMaxNumFunctionLocals = 32767;
+  static const int kMaxNumFunctionLocals = 65535;
 
   enum Mode {
     PARSE_LAZILY,

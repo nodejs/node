@@ -1680,15 +1680,15 @@ class JSObject: public JSReceiver {
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyWithInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetPropertyPostInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
   MUST_USE_RESULT MaybeObject* GetLocalPropertyPostInterceptor(
-      JSReceiver* receiver,
+      Object* receiver,
       String* name,
       PropertyAttributes* attributes);
 

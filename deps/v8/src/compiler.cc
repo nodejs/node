@@ -746,8 +746,10 @@ static void InstallCodeCommon(CompilationInfo* info) {
 
 static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Code> code = info->code();
-  Handle<JSFunction> function = info->closure();
-  if (FLAG_cache_optimized_code && code->kind() == Code::OPTIMIZED_FUNCTION) {
+  if (FLAG_cache_optimized_code &&
+      info->osr_ast_id().IsNone() &&
+      code->kind() == Code::OPTIMIZED_FUNCTION) {
+    Handle<JSFunction> function = info->closure();
     Handle<SharedFunctionInfo> shared(function->shared());
     Handle<FixedArray> literals(function->literals());
     Handle<Context> native_context(function->context()->native_context());
@@ -758,7 +760,9 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 
 
 static bool InstallCodeFromOptimizedCodeMap(CompilationInfo* info) {
-  if (FLAG_cache_optimized_code && info->IsOptimizing()) {
+  if (FLAG_cache_optimized_code &&
+      info->osr_ast_id().IsNone() &&
+      info->IsOptimizing()) {
     Handle<SharedFunctionInfo> shared = info->shared_info();
     Handle<JSFunction> function = info->closure();
     ASSERT(!function.is_null());

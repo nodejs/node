@@ -552,6 +552,7 @@ class MarkCompactCollector {
 
   void RecordRelocSlot(RelocInfo* rinfo, Object* target);
   void RecordCodeEntrySlot(Address slot, Code* target);
+  void RecordCodeTargetPatch(Address pc, Code* target);
 
   INLINE(void RecordSlot(Object** anchor_slot, Object** slot, Object* object));
 

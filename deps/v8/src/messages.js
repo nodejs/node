@@ -229,7 +229,7 @@ function FormatMessage(message) {
       "strict_catch_variable",        ["Catch variable may not be eval or arguments in strict mode"],
       "too_many_arguments",           ["Too many arguments in function call (only 32766 allowed)"],
       "too_many_parameters",          ["Too many parameters in function definition (only 32766 allowed)"],
-      "too_many_variables",           ["Too many variables declared (only 32767 allowed)"],
+      "too_many_variables",           ["Too many variables declared (only 65535 allowed)"],
       "strict_param_name",            ["Parameter name eval or arguments is not allowed in strict mode"],
       "strict_param_dupe",            ["Strict mode function may not have duplicate parameter names"],
       "strict_var_name",              ["Variable name may not be eval or arguments in strict mode"],

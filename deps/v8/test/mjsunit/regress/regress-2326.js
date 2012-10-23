@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that there is a limit of 65535 locals.
+// This tests that we do not share optimized code across closures that
+// were optimized using OSR (for a particular OSR entry AST id) even if
+// caching of optimized code kicks in.
 
-function function_with_n_locals(n) {
-  test_prefix = "prefix ";
-  test_suffix = " suffix";
-  var src = "test_prefix + (function () {"
-  for (var i = 1; i <= n; i++) {
-    src += "var x" + i + ";";
+function makeClosure() {
+  function f(mode, iterations) {
+    var accumulator = 0;
+    if (mode == 1) {
+      while (--iterations > 0) accumulator = Math.ceil(accumulator);
+      return 1;
+    } else {
+      while (--iterations > 0) accumulator = Math.floor(accumulator);
+      return 2;
+    }
   }
-  src += "return " + n + ";})() + test_suffix";
-  return eval(src);
+  return f;
 }
 
-assertEquals("prefix 0 suffix", function_with_n_locals(0));
-assertEquals("prefix 16000 suffix", function_with_n_locals(16000));
-assertEquals("prefix 32767 suffix", function_with_n_locals(32767));
-assertEquals("prefix 65535 suffix", function_with_n_locals(65535));
+// Generate two closures sharing the same underlying function literal.
+var f1 = makeClosure();
+var f2 = makeClosure();
 
-assertThrows("function_with_n_locals(65536)");
-assertThrows("function_with_n_locals(100000)");
+// This function should be optimized via OSR in the first tight loop.
+assertSame(1, f1(1, 100000));
+
+// This function should be optimized via OSR in the second tight loop.
+assertSame(2, f2(2, 100000));

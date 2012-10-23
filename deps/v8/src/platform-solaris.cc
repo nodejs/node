@@ -125,8 +125,12 @@ const char* OS::LocalTimezone(double time) {
 
 
 double OS::LocalTimeOffset() {
-  tzset();
-  return -static_cast<double>(timezone * msPerSecond);
+  // On Solaris, struct tm does not contain a tm_gmtoff field.
+  time_t utc = time(NULL);
+  ASSERT(utc != -1);
+  struct tm* loc = localtime(&utc);
+  ASSERT(loc != NULL);
+  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
 
 
