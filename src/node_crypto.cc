@@ -3602,13 +3602,7 @@ class DiffieHellman : public ObjectWrap {
 
     Local<Value> outString;
 
-    if (args.Length() > 2 && args[2]->IsString()) {
-      outString = EncodeWithEncoding(args[2], data, dataSize);
-    } else if (args.Length() > 1 && args[1]->IsString()) {
-      outString = EncodeWithEncoding(args[1], data, dataSize);
-    } else {
-      outString = Encode(data, dataSize, BUFFER);
-    }
+    outString = Encode(data, dataSize, BUFFER);
 
     delete[] data;
     return scope.Close(outString);
