@@ -449,7 +449,7 @@ v8::Handle<v8::Value> cTypeToValue(unsigned char val) {
 }
 
 template <>
-v8::Handle<v8::Value> cTypeToValue(char val) {
+v8::Handle<v8::Value> cTypeToValue(signed char val) {
   return v8::Integer::New(val);
 }
 
@@ -495,7 +495,7 @@ unsigned char valueToCType(v8::Handle<v8::Value> value) {
 }
 
 template <>
-char valueToCType(v8::Handle<v8::Value> value) {
+signed char valueToCType(v8::Handle<v8::Value> value) {
   return value->Int32Value();
 }
 
@@ -709,7 +709,7 @@ class DataView {
   }
 
   static v8::Handle<v8::Value> getInt8(const v8::Arguments& args) {
-    return getGeneric<char>(args);
+    return getGeneric<signed char>(args);
   }
 
   static v8::Handle<v8::Value> getUint16(const v8::Arguments& args) {
@@ -741,7 +741,7 @@ class DataView {
   }
 
   static v8::Handle<v8::Value> setInt8(const v8::Arguments& args) {
-    return setGeneric<char>(args);
+    return setGeneric<signed char>(args);
   }
 
   static v8::Handle<v8::Value> setUint16(const v8::Arguments& args) {
