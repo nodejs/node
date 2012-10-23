@@ -29,6 +29,8 @@ try {
   process.exit();
 }
 
+crypto.DEFAULT_ENCODING = 'buffer';
+
 // bump, we register a lot of exit listeners
 process.setMaxListeners(256);
 

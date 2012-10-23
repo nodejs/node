@@ -29,6 +29,8 @@ try {
   process.exit();
 }
 
+crypto.DEFAULT_ENCODING = 'buffer';
+
 
 /*
  * Input data
