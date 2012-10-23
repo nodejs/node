@@ -9,6 +9,7 @@
     'node_shared_v8%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
+    'node_shared_cares%': 'false',
     'node_use_openssl%': 'true',
     'node_use_systemtap%': 'false',
     'node_shared_openssl%': 'false',
@@ -59,7 +60,6 @@
       'type': 'executable',
 
       'dependencies': [
-        'deps/cares/cares.gyp:cares',
         'deps/uv/uv.gyp:libuv',
         'node_js2c#host',
       ],
@@ -203,6 +203,10 @@
 
         [ 'node_shared_http_parser=="false"', {
           'dependencies': [ 'deps/http_parser/http_parser.gyp:http_parser' ],
+        }],
+
+        [ 'node_shared_cares=="false"', {
+          'dependencies': [ 'deps/cares/cares.gyp:cares' ],
         }],
 
         [ 'OS=="win"', {

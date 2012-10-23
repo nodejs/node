@@ -299,6 +299,7 @@ An example of the possible output looks like:
        { host_arch: 'x64',
          node_install_npm: 'true',
          node_prefix: '',
+         node_shared_cares: 'false',
          node_shared_http_parser: 'false',
          node_shared_v8: 'false',
          node_shared_zlib: 'false',

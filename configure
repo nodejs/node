@@ -151,6 +151,26 @@ parser.add_option("--shared-http-parser-libname",
     dest="shared_http_parser_libname",
     help="Alternative lib name to link to (default: 'http_parser')")
 
+parser.add_option("--shared-cares",
+    action="store_true",
+    dest="shared_cares",
+    help="Link to a shared cares DLL instead of static linking")
+
+parser.add_option("--shared-cares-includes",
+    action="store",
+    dest="shared_cares_includes",
+    help="Directory containing cares header files")
+
+parser.add_option("--shared-cares-libpath",
+    action="store",
+    dest="shared_cares_libpath",
+    help="A directory to search for the shared cares DLL")
+
+parser.add_option("--shared-cares-libname",
+    action="store",
+    dest="shared_cares_libname",
+    help="Alternative lib name to link to (default: 'cares')")
+
 parser.add_option("--with-dtrace",
     action="store_true",
     dest="with_dtrace",
@@ -456,6 +476,20 @@ def configure_http_parser(o):
         o['include_dirs'] += [options.shared_http_parser_includes]
 
 
+def configure_cares(o):
+    o['variables']['node_shared_cares'] = b(options.shared_cares)
+
+    # assume shared cares if one of these is set?
+    if options.shared_cares_libpath:
+        o['libraries'] += ['-L%s' % options.shared_cares_libpath]
+    if options.shared_cares_libname:
+        o['libraries'] += ['-l%s' % options.shared_cares_libname]
+    elif options.shared_cares:
+        o['libraries'] += ['-lcares']
+    if options.shared_cares_includes:
+        o['include_dirs'] += [options.shared_cares_includes]
+
+
 def configure_v8(o):
   o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
   o['variables']['node_shared_v8'] = b(options.shared_v8)
@@ -510,6 +544,7 @@ output = {
 configure_node(output)
 configure_libz(output)
 configure_http_parser(output)
+configure_cares(output)
 configure_v8(output)
 configure_openssl(output)
 
