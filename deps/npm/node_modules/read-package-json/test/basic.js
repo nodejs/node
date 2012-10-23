@@ -23,6 +23,7 @@ function basic_ (t, data) {
                 t.equal(data.readme, readme)
                 t.deepEqual(data.scripts, package.scripts)
                 t.equal(data.main, package.main)
+                t.equal(data.readmeFilename, 'README.md')
 
                 // optional deps are folded in.
                 t.deepEqual(data.optionalDependencies,
