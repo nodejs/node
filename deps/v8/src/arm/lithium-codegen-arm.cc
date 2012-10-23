@@ -2390,12 +2390,18 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   Register temp = ToRegister(instr->TempAt(0));
   ASSERT(temp.is(r4));
   __ LoadHeapObject(InstanceofStub::right(), instr->function());
-  static const int kAdditionalDelta = 4;
+  static const int kAdditionalDelta = 5;
   int delta = masm_->InstructionsGeneratedSince(map_check) + kAdditionalDelta;
   Label before_push_delta;
   __ bind(&before_push_delta);
   __ BlockConstPoolFor(kAdditionalDelta);
   __ mov(temp, Operand(delta * kPointerSize));
+  // The mov above can generate one or two instructions. The delta was computed
+  // for two instructions, so we need to pad here in case of one instruction.
+  if (masm_->InstructionsGeneratedSince(&before_push_delta) != 2) {
+    ASSERT_EQ(1, masm_->InstructionsGeneratedSince(&before_push_delta));
+    __ nop();
+  }
   __ StoreToSafepointRegisterSlot(temp, temp);
   CallCodeGeneric(stub.GetCode(),
                   RelocInfo::CODE_TARGET,

@@ -107,7 +107,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   //  -- r4    : scratch (elements)
   // -----------------------------------
   Label loop, entry, convert_hole, gc_required, only_change_map, done;
-  bool vfp2_supported = CpuFeatures::IsSupported(VFP2);
+  bool vfp3_supported = CpuFeatures::IsSupported(VFP3);
 
   // Check for empty arrays, which only require a map transition and no changes
   // to the backing store.
@@ -163,7 +163,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // r5: kHoleNanUpper32
   // r6: end of destination FixedDoubleArray, not tagged
   // r7: begin of FixedDoubleArray element fields, not tagged
-  if (!vfp2_supported) __ Push(r1, r0);
+  if (!vfp3_supported) __ Push(r1, r0);
 
   __ b(&entry);
 
@@ -191,8 +191,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ UntagAndJumpIfNotSmi(r9, r9, &convert_hole);
 
   // Normal smi, convert to double and store.
-  if (vfp2_supported) {
-    CpuFeatures::Scope scope(VFP2);
+  if (vfp3_supported) {
+    CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, r9);
     __ vcvt_f64_s32(d0, s0);
     __ vstr(d0, r7, 0);
@@ -225,7 +225,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ cmp(r7, r6);
   __ b(lt, &loop);
 
-  if (!vfp2_supported) __ Pop(r1, r0);
+  if (!vfp3_supported) __ Pop(r1, r0);
   __ pop(lr);
   __ bind(&done);
 }

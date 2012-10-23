@@ -263,9 +263,7 @@ DEFINE_bool(enable_sahf, true,
             "enable use of SAHF instruction if available (X64 only)")
 DEFINE_bool(enable_vfp3, true,
             "enable use of VFP3 instructions if available - this implies "
-            "enabling ARMv7 and VFP2 instructions (ARM only)")
-DEFINE_bool(enable_vfp2, true,
-            "enable use of VFP2 instructions if available")
+            "enabling ARMv7 instructions (ARM only)")
 DEFINE_bool(enable_armv7, true,
             "enable use of ARMv7 instructions if available (ARM only)")
 DEFINE_bool(enable_fpu, true,
