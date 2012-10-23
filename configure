@@ -131,6 +131,26 @@ parser.add_option("--shared-zlib-libname",
     dest="shared_zlib_libname",
     help="Alternative lib name to link to (default: 'z')")
 
+parser.add_option("--shared-http-parser",
+    action="store_true",
+    dest="shared_http_parser",
+    help="Link to a shared http_parser DLL instead of static linking")
+
+parser.add_option("--shared-http-parser-includes",
+    action="store",
+    dest="shared_http_parser_includes",
+    help="Directory containing http_parser header files")
+
+parser.add_option("--shared-http-parser-libpath",
+    action="store",
+    dest="shared_http_parser_libpath",
+    help="A directory to search for the shared http_parser DLL")
+
+parser.add_option("--shared-http-parser-libname",
+    action="store",
+    dest="shared_http_parser_libname",
+    help="Alternative lib name to link to (default: 'http_parser')")
+
 parser.add_option("--with-dtrace",
     action="store_true",
     dest="with_dtrace",
@@ -422,6 +442,20 @@ def configure_libz(o):
     o['include_dirs'] += [options.shared_zlib_includes]
 
 
+def configure_http_parser(o):
+    o['variables']['node_shared_http_parser'] = b(options.shared_http_parser)
+
+    # assume shared http_parser if one of these is set?
+    if options.shared_http_parser_libpath:
+        o['libraries'] += ['-L%s' % options.shared_http_parser_libpath]
+    if options.shared_http_parser_libname:
+        o['libraries'] += ['-l%s' % options.shared_http_parser_libname]
+    elif options.shared_http_parser:
+        o['libraries'] += ['-lhttp_parser']
+    if options.shared_http_parser_includes:
+        o['include_dirs'] += [options.shared_http_parser_includes]
+
+
 def configure_v8(o):
   o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
   o['variables']['node_shared_v8'] = b(options.shared_v8)
@@ -475,6 +509,7 @@ output = {
 
 configure_node(output)
 configure_libz(output)
+configure_http_parser(output)
 configure_v8(output)
 configure_openssl(output)
 
