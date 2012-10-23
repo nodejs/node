@@ -321,6 +321,8 @@
             '../../src/full-codegen.h',
             '../../src/func-name-inferrer.cc',
             '../../src/func-name-inferrer.h',
+            '../../src/gdb-jit.cc',
+            '../../src/gdb-jit.h',
             '../../src/global-handles.cc',
             '../../src/global-handles.h',
             '../../src/globals.h',
@@ -728,6 +730,9 @@
                 '../../src/win32-math.h',
               ],
               'msvs_disabled_warnings': [4351, 4355, 4800],
+              'direct_dependent_settings': {
+                'msvs_disabled_warnings': [4351, 4355, 4800],
+              },
               'link_settings':  {
                 'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
               },
