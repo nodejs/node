@@ -3444,8 +3444,8 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
         ExternalReference(RuntimeFunction(), masm->isolate());
     __ TailCallExternalReference(runtime_function, 1, 1);
   } else {
-    ASSERT(CpuFeatures::IsSupported(VFP2));
-    CpuFeatures::Scope scope(VFP2);
+    ASSERT(CpuFeatures::IsSupported(VFP3));
+    CpuFeatures::Scope scope(VFP3);
 
     Label no_update;
     Label skip_cache;

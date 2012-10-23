@@ -16,9 +16,9 @@ function Packer (props) {
     props = { path: props }
   }
 
-  props.ignoreFiles = [ ".npmignore",
-                        ".gitignore",
-                        "package.json" ]
+  props.ignoreFiles = props.ignoreFiles || [ ".npmignore",
+                                             ".gitignore",
+                                             "package.json" ]
 
   Ignore.call(this, props)
 

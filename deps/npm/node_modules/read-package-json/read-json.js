@@ -240,10 +240,12 @@ function readme (file, data, cb) {
                 })
 }
 function readme_(file, data, rm, cb) {
+                var rmfn = path.basename(rm);
                 fs.readFile(rm, "utf8", function (er, rm) {
                                 // maybe not readable, or something.
                                 if (er) return cb()
                                 data.readme = rm
+                                data.readmeFilename = rmfn
                                 return cb(er, data)
                 })
 }

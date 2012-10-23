@@ -474,9 +474,19 @@ function addNameTag (name, tag, data, cb) {
     if (!explicit && Object.keys(data.versions).length) {
       return addNamed(name, "*", data, cb)
     }
-    return cb(installTargetsError(tag, data))
+
+    er = installTargetsError(tag, data)
+
+    // might be username/project
+    // in that case, try it as a github url.
+    if (tag.split("/").length === 2) {
+      return maybeGithub(tag, name, er, cb)
+    }
+
+    return cb(er)
   })
 }
+
 
 function engineFilter (data) {
   var npmv = npm.version
@@ -639,10 +649,27 @@ function addLocal (p, name, cb_) {
     if (er) return cb(er)
     // figure out if this is a folder or file.
     fs.stat(p, function (er, s) {
-      if (er) return cb(er)
+      if (er) {
+        // might be username/project
+        // in that case, try it as a github url.
+        if (p.split("/").length === 2) {
+          return maybeGithub(p, name, er, cb)
+        }
+        return cb(er)
+      }
       if (s.isDirectory()) addLocalDirectory(p, name, cb)
       else addLocalTarball(p, name, cb)
     })
+  })
+}
+
+function maybeGithub (p, name, er, cb) {
+  var u = "git://github.com/" + p
+    , up = url.parse(u)
+  log.info("maybeGithub", "Attempting to fetch %s from %s", p, u)
+  return addRemoteGit(u, up, name, function (er2, data) {
+    if (er2) return cb(er)
+    return cb(null, data)
   })
 }
 

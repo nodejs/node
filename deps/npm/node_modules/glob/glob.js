@@ -345,7 +345,7 @@ Glob.prototype._process = function (pattern, depth, index, cb_) {
   var read
   if (prefix === null) read = "."
   else if (isAbsolute(prefix)) {
-    read = prefix = path.join("/", prefix)
+    read = prefix = path.resolve("/", prefix)
     if (this.debug) console.error('absolute: ', prefix, this.root, pattern)
   } else read = prefix
 
