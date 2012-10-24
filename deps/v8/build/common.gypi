@@ -339,16 +339,6 @@
         'conditions': [
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="android"', {
-            'cflags!': [
-              '-O2',
-              '-Os',
-            ],
-            'cflags': [
-              '-fdata-sections',
-              '-ffunction-sections',
-              '-fomit-frame-pointer',
-              '-O3',
-            ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
                 'cflags': [
