@@ -33,7 +33,7 @@ for (var i = 0; i < 2000; i++) {
   a.generateKeys();
   b.generateKeys();
 
-  assert.equal(
+  assert.deepEqual(
     a.computeSecret(b.getPublicKey()),
     b.computeSecret(a.getPublicKey()),
     'secrets should be equal!'
