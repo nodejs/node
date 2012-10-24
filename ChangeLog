@@ -1,3 +1,38 @@
+2012.10.24, Version 0.9.3 (Unstable)
+
+* V8: Upgrade to 3.13.7.4
+
+* crypto: Default to buffers instead of binary strings (isaacs, Fedor Indutny)
+
+* crypto: add getHashes() and getCiphers() (Ben Noordhuis)
+
+* unix: add custom thread pool, remove libeio (Ben Noordhuis)
+
+* util: make `inspect()` accept an "options" argument (Nathan Rajlich)
+
+* https: fix renegotation attack protection (Ben Noordhuis)
+
+* cluster: make 'listening' handler see actual port (Aaditya Bhatia)
+
+* windows: use USERPROFILE to get the user's home dir (Bert Belder)
+
+* path: add platform specific path delimiter (Paul Serby)
+
+* http: add response.headersSent property (Pavel Lang)
+
+* child_process: make .fork()'d child auto-exit (Ben Noordhuis)
+
+* events: add 'removeListener' event (Ben Noordhuis)
+
+* string_decoder: Add 'end' method, do base64 properly (isaacs)
+
+* buffer: include encoding value in exception when invalid (Ricky Ng-Adam)
+
+* http: make http.ServerResponse no longer emit 'end' (isaacs)
+
+* streams: fix pipe is destructed by 'end' from destination (koichik)
+
+
 2012.09.17, Version 0.9.2 (Unstable)
 
 * http_parser: upgrade to ad3b631
