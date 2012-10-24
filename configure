@@ -176,6 +176,12 @@ parser.add_option("--with-arm-float-abi",
     help="Specifies which floating-point ABI to use. Valid values are: "
          "soft, softfp, hard")
 
+# Using --unsafe-optimizations voids your warranty.
+parser.add_option("--unsafe-optimizations",
+    action="store_true",
+    dest="unsafe_optimizations",
+    help=optparse.SUPPRESS_HELP)
+
 (options, args) = parser.parse_args()
 
 
@@ -345,6 +351,8 @@ def configure_node(o):
   o['variables']['node_prefix'] = os.path.expanduser(options.prefix or '')
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_waf'] = b(not options.without_waf)
+  o['variables']['node_unsafe_optimizations'] = (
+    1 if options.unsafe_optimizations else 0)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
