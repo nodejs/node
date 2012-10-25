@@ -1,4 +1,25 @@
-2012.10.12, Version 0.8.12 (Stable)
+2012.10.25, Version 0.8.13 (Stable)
+
+* V8: Upgrade to 3.11.10.25
+
+* npm: Upgrade to 1.1.65
+
+* url: parse hostnames that start with - or _ (Ben Noordhuis)
+
+* repl: Fix Windows 8 terminal issue (Bert Belder)
+
+* typed arrays: use signed char for signed int8s (Aaron Jacobs)
+
+* crypto: fix bugs in DiffieHellman (Ben Noordhuis)
+
+* configure: turn on VFPv3 on ARMv7 (Ben Noordhuis)
+
+* Re-enable OpenSSL UI for entering passphrases via tty (Ben Noordhuis)
+
+* repl: ensure each REPL instance gets its own "context" (Nathan Rajlich)
+
+
+2012.10.12, Version 0.8.12 (Stable), 38c72d4e29574dec5205bcf23c2a85efe65331a4
 
 * npm: Upgrade to 1.1.63
 
@@ -24,7 +45,7 @@
 * fs: Fix stat() size reporting for large files (Ben Noordhuis)
 
 
-2012.09.25, Version 0.8.10 (Stable)
+2012.09.25, Version 0.8.10 (Stable), 0bc273da4fcaa79b209ed755ad249a3e7be626a6
 
 * npm: Upgrade to 1.1.62
 
@@ -786,7 +807,7 @@
 * Bug fixes
 
 
-2012.07.10 Version 0.6.20 (maintenance)
+2012.07.10 Version 0.6.20 (maintenance), 952e513379169ec1b40909d1db056e9bf4294899
 
 * npm: Upgrade to 1.1.37 (isaacs)
 
@@ -1149,7 +1170,7 @@
 * crypto: don't ignore DH init errors (Ben Noordhuis)
 
 
-2011.12.14, Version 0.6.6
+2011.12.14, Version 0.6.6 (stable), 9a059ea69e1f6ebd8899246682d8ca257610b8ab
 
 * npm update to 1.1.0-beta-4 (Isaac Z. Schlueter)
 
@@ -1386,7 +1407,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade GYP to r1081
 
 
-2011.10.10, Version 0.5.9 (unstable)
+2011.10.10, Version 0.5.9 (unstable), 3bd9b08fb125b606f97a4079b147accfdeebb07d
 
 * fs.watch interface backed by kqueue, inotify, and ReadDirectoryChangesW
   (Igor Zinkovsky, Ben Noordhuis)
@@ -1470,7 +1491,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * #1719 Drain OpenSSL error queue
 
 
-2011.09.08, Version 0.5.6 (unstable)
+2011.09.08, Version 0.5.6 (unstable), b49bec55806574a47403771bce1ee379c2b09ca2
 
 * #345, #1635, #1648 Documentation improvements (Thomas Shinnick,
   Abimanyu Raja, AJ ONeal, Koichi Kobayashi, Michael Jackson, Logan Smyth,
@@ -1758,7 +1779,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * DTrace probes: support X-Forwarded-For (Dave Pacheco)
 
 
-2011.09.15, Version 0.4.12 (stable)
+2011.09.15, Version 0.4.12 (stable), 771ba34ca7b839add2ef96879e1ffc684813cf7c
 
 * Improve docs
 
@@ -1807,7 +1828,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Doc improvments (koichik, Logan Smyth, Ben Noordhuis, Arnout Kazemier)
 
 
-2011.07.19, Version 0.4.10 (stable)
+2011.07.19, Version 0.4.10 (stable), 1b8dd65d6e3b82b6863ef38835cc436c5d30c1d5
 
 * #394 Fix Buffer drops last null character in UTF-8
 
@@ -1834,7 +1855,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Doc improvements
 
 
-2011.06.29, Version 0.4.9 (stable)
+2011.06.29, Version 0.4.9 (stable), de44eafd7854d06cd85006f509b7051e8540589b
 
 * Improve documentation
 
@@ -1908,7 +1929,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade V8 to 3.1.8.16.
 
 
-2011.04.22, Version 0.4.7 (stable)
+2011.04.22, Version 0.4.7 (stable), c85455a954411b38232e79752d4abb61bb75031b
 
 * Don't emit error on ECONNRESET from read() #670
 
@@ -1926,7 +1947,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Improve docs.
 
 
-2011.04.13, Version 0.4.6 (stable)
+2011.04.13, Version 0.4.6 (stable), 58002d56bc79410c5ff397fc0e1ffec0665db38a
 
 * Don't error on ENOTCONN from shutdown() #670
 
@@ -1956,7 +1977,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade v8 to 3.1.8.10
 
 
-2011.04.01, Version 0.4.5 (stable)
+2011.04.01, Version 0.4.5 (stable), 787a343b588de26784fef97f953420b53a6e1d73
 
 * Fix listener leak in stream.pipe() (Mikeal Rogers)
 
@@ -2089,7 +2110,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade V8 to 3.1.5, libev to 4.4.
 
 
-2011.02.10, Version 0.4.0 (stable)
+2011.02.10, Version 0.4.0 (stable), eb155ea6f6a6aa341aa8c731dca8da545c6a4008
 
 * require() improvements (isaacs)
   - understand package.json (isaacs)
@@ -2122,7 +2143,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade V8 to 3.1.2
 
 
-2011.02.04, Version 0.3.8 (unstable)
+2011.02.04, Version 0.3.8 (unstable), 9493b7563bff31525b4080df5aeef09747782d5e
 
 * Add req.abort() for client side requests.
 
@@ -2144,7 +2165,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * Upgrade V8 to 3.1.1
 
-2011.01.27, Version 0.3.7 (unstable)
+2011.01.27, Version 0.3.7 (unstable), d8579c6afdbe868de6dffa8db78bbe4ba2d03e0e
 
 * Expose agent in http and https client. (Mikeal Rogers)
 
@@ -2206,7 +2227,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Don't stat() on cached modules. (Felix Geisendörfer)
 
 
-2011.01.08, Version 0.3.4 (unstable)
+2011.01.08, Version 0.3.4 (unstable), 73f53e12e4a5b9ef7dbb4792bd5f8ad403094441
 
 * Primordial mingw build (Bert Belder)
 
@@ -2424,7 +2445,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade V8 to 2.3.8
 
 
-2010.08.13, Version 0.1.104
+2010.08.13, Version 0.1.104, b14dd49222687c12f3e8eac597cff4f2674f84e8
 
 * Various bug fixes (console, querystring, require)
 
