@@ -253,8 +253,11 @@
             {
               'action_name': 'node_etw',
               'inputs': [ 'src/res/node_etw_provider.man' ],
-              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
-              'action': [ 'mc <@(_inputs) -h <@(_outputs) -r <@(_outputs)' ]
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.rc',
+                '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.h',
+              ],
+              'action': [ 'mc <@(_inputs) -h <(SHARED_INTERMEDIATE_DIR) -r <(SHARED_INTERMEDIATE_DIR)' ]
             }
           ]
         } ]
