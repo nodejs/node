@@ -651,7 +651,96 @@ var parseTests = {
     'hash': '#abc',
     'pathname': '/a/b',
     'path': '/a/b?a=b'
-  }
+  },
+
+  'http://-lovemonsterz.tumblr.com/rss': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': '-lovemonsterz.tumblr.com',
+    'hostname': '-lovemonsterz.tumblr.com',
+    'href': 'http://-lovemonsterz.tumblr.com/rss',
+    'pathname': '/rss',
+    'path': '/rss',
+  },
+
+  'http://-lovemonsterz.tumblr.com:80/rss': {
+    'protocol': 'http:',
+    'slashes': true,
+    'port': '80',
+    'host': '-lovemonsterz.tumblr.com:80',
+    'hostname': '-lovemonsterz.tumblr.com',
+    'href': 'http://-lovemonsterz.tumblr.com:80/rss',
+    'pathname': '/rss',
+    'path': '/rss',
+  },
+
+  'http://user:pass@-lovemonsterz.tumblr.com/rss': {
+    'protocol': 'http:',
+    'slashes': true,
+    'auth': 'user:pass',
+    'host': '-lovemonsterz.tumblr.com',
+    'hostname': '-lovemonsterz.tumblr.com',
+    'href': 'http://user:pass@-lovemonsterz.tumblr.com/rss',
+    'pathname': '/rss',
+    'path': '/rss',
+  },
+
+  'http://user:pass@-lovemonsterz.tumblr.com:80/rss': {
+    'protocol': 'http:',
+    'slashes': true,
+    'auth': 'user:pass',
+    'port': '80',
+    'host': '-lovemonsterz.tumblr.com:80',
+    'hostname': '-lovemonsterz.tumblr.com',
+    'href': 'http://user:pass@-lovemonsterz.tumblr.com:80/rss',
+    'pathname': '/rss',
+    'path': '/rss',
+  },
+
+  'http://_jabber._tcp.google.com/test': {
+    'protocol': 'http:',
+    'slashes': true,
+    'host': '_jabber._tcp.google.com',
+    'hostname': '_jabber._tcp.google.com',
+    'href': 'http://_jabber._tcp.google.com/test',
+    'pathname': '/test',
+    'path': '/test',
+  },
+
+  'http://user:pass@_jabber._tcp.google.com/test': {
+    'protocol': 'http:',
+    'slashes': true,
+    'auth': 'user:pass',
+    'host': '_jabber._tcp.google.com',
+    'hostname': '_jabber._tcp.google.com',
+    'href': 'http://user:pass@_jabber._tcp.google.com/test',
+    'pathname': '/test',
+    'path': '/test',
+  },
+
+  'http://_jabber._tcp.google.com:80/test': {
+    'protocol': 'http:',
+    'slashes': true,
+    'port': '80',
+    'host': '_jabber._tcp.google.com:80',
+    'hostname': '_jabber._tcp.google.com',
+    'href': 'http://_jabber._tcp.google.com:80/test',
+    'pathname': '/test',
+    'path': '/test',
+  },
+
+  'http://user:pass@_jabber._tcp.google.com:80/test': {
+    'protocol': 'http:',
+    'slashes': true,
+    'auth': 'user:pass',
+    'port': '80',
+    'host': '_jabber._tcp.google.com:80',
+    'hostname': '_jabber._tcp.google.com',
+    'href': 'http://user:pass@_jabber._tcp.google.com:80/test',
+    'pathname': '/test',
+    'path': '/test',
+  },
+
 };
 
 for (var u in parseTests) {
