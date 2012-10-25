@@ -228,6 +228,9 @@
           'defines!': [
             'PLATFORM="mac"',
           ],
+          'xcode_settings': {
+            'DEAD_CODE_STRIPPING': 'YES',
+          },
           'defines': [
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
             'PLATFORM="darwin"',
