@@ -1,4 +1,9 @@
-2012.10.25, Version 0.8.13 (Stable)
+2012.10.25, Version 0.8.14 (Stable)
+
+* events: Don't clobber pre-existing _events obj in EE ctor (isaacs)
+
+
+2012.10.25, Version 0.8.13 (Stable), ff4c974873f9a7cc6a5b042eb9b6389bb8dde6d6
 
 * V8: Upgrade to 3.11.10.25
 
