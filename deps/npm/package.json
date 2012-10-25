@@ -1,5 +1,5 @@
 {
-  "version": "1.1.64",
+  "version": "1.1.65",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -39,7 +39,7 @@
     "slide": "1",
     "abbrev": "1",
     "graceful-fs": "~1.1.1",
-    "minimatch": "~0.2.6",
+    "minimatch": "~0.2.8",
     "nopt": "~2.0",
     "rimraf": "2",
     "request": "~2.9",
@@ -58,7 +58,7 @@
     "chownr": "0",
     "npmlog": "0",
     "ansi": "~0.1.2",
-    "npm-registry-client": "~0.2.9",
+    "npm-registry-client": "~0.2.10",
     "read-package-json": "~0.1.8",
     "read-installed": "0.0.3",
     "glob": "~3.1.14",
