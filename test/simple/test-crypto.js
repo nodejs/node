@@ -230,15 +230,20 @@ var rfc4231 = [
 
 for (var i = 0, l = rfc4231.length; i < l; i++) {
   for (var hash in rfc4231[i]['hmac']) {
+    var str = crypto.createHmac(hash, rfc4231[i].key);
+    str.end(rfc4231[i].data);
+    var strRes = str.read().toString('hex');
     var result = crypto.createHmac(hash, rfc4231[i]['key'])
                      .update(rfc4231[i]['data'])
                      .digest('hex');
     if (rfc4231[i]['truncate']) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
+      strRes = strRes.substr(0, 32);
     }
     assert.equal(rfc4231[i]['hmac'][hash],
                  result,
                  'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' rfc 4231');
+    assert.equal(strRes, result, 'Should get same result from stream');
   }
 }
 
