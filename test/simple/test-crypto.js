@@ -373,6 +373,18 @@ var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
 var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
+// stream interface
+var a5 = crypto.createHash('sha512');
+a5.end('Test123');
+a5 = a5.read();
+
+var a6 = crypto.createHash('sha512');
+a6.write('Te');
+a6.write('st');
+a6.write('123');
+a6.end();
+a6 = a6.read();
+
 assert.equal(a0, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
 assert.equal(a1, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
              '\u00bd\u008c', 'Test MD5 as binary');
@@ -391,6 +403,10 @@ assert.deepEqual(
 assert.deepEqual(a4,
                  new Buffer('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
                  'Test SHA1');
+
+// stream interface should produce the same result.
+assert.deepEqual(a5, a3, 'stream interface is consistent');
+assert.deepEqual(a6, a3, 'stream interface is consistent');
 
 // Test multiple updates to same hash
 var h1 = crypto.createHash('sha1').update('Test123').digest('hex');
