@@ -93,11 +93,6 @@ Example:
 
 The options argument has the following options
 
-- host: IP or domain of host to make request to. Defaults to `'localhost'`.
-- port: port of host to request to. Defaults to 443.
-- path: Path to request. Default `'/'`.
-- method: HTTP request method. Default `'GET'`.
-
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
 - `hostname`: To support `url.parse()` `hostname` is preferred over `host`
