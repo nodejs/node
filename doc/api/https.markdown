@@ -71,7 +71,7 @@ Example:
     var https = require('https');
 
     var options = {
-      host: 'encrypted.google.com',
+      hostname: 'encrypted.google.com',
       port: 443,
       path: '/',
       method: 'GET'
@@ -137,7 +137,7 @@ In order to specify these options, use a custom `Agent`.
 Example:
 
     var options = {
-      host: 'encrypted.google.com',
+      hostname: 'encrypted.google.com',
       port: 443,
       path: '/',
       method: 'GET',
@@ -155,7 +155,7 @@ Or does not use an `Agent`.
 Example:
 
     var options = {
-      host: 'encrypted.google.com',
+      hostname: 'encrypted.google.com',
       port: 443,
       path: '/',
       method: 'GET',
