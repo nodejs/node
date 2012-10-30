@@ -74,9 +74,11 @@ class ZCtx : public ObjectWrap {
 
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
       (void)deflateEnd(&strm_);
+      V8::AdjustAmountOfExternalAllocatedMemory(-kDeflateContextSize);
     } else if (mode_ == INFLATE || mode_ == GUNZIP || mode_ == INFLATERAW ||
                mode_ == UNZIP) {
       (void)inflateEnd(&strm_);
+      V8::AdjustAmountOfExternalAllocatedMemory(-kInflateContextSize);
     }
     mode_ = NONE;
 
@@ -366,12 +368,14 @@ class ZCtx : public ObjectWrap {
                                  ctx->windowBits_,
                                  ctx->memLevel_,
                                  ctx->strategy_);
+        V8::AdjustAmountOfExternalAllocatedMemory(kDeflateContextSize);
         break;
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
       case UNZIP:
         ctx->err_ = inflateInit2(&ctx->strm_, ctx->windowBits_);
+        V8::AdjustAmountOfExternalAllocatedMemory(kInflateContextSize);
         break;
       default:
         assert(0 && "wtf?");
@@ -432,6 +436,8 @@ class ZCtx : public ObjectWrap {
   }
 
  private:
+  static const int kDeflateContextSize = 16384; // approximate
+  static const int kInflateContextSize = 10240; // approximate
 
   bool init_done_;
 
