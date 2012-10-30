@@ -63,13 +63,13 @@ class ZCtx : public ObjectWrap {
 
 
   ~ZCtx() {
-    Clear();
+    Close();
   }
 
 
-  void Clear() {
+  void Close() {
     assert(!write_in_progress_ && "write in progress");
-    assert(init_done_ && "clear before init");
+    assert(init_done_ && "close before init");
     assert(mode_ <= UNZIP);
 
     if (mode_ == DEFLATE || mode_ == GZIP || mode_ == DEFLATERAW) {
@@ -89,10 +89,10 @@ class ZCtx : public ObjectWrap {
   }
 
 
-  static Handle<Value> Clear(const Arguments& args) {
+  static Handle<Value> Close(const Arguments& args) {
     HandleScope scope;
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
-    ctx->Clear();
+    ctx->Close();
     return scope.Close(Undefined());
   }
 
@@ -472,7 +472,7 @@ void InitZlib(Handle<Object> target) {
 
   NODE_SET_PROTOTYPE_METHOD(z, "write", ZCtx::Write);
   NODE_SET_PROTOTYPE_METHOD(z, "init", ZCtx::Init);
-  NODE_SET_PROTOTYPE_METHOD(z, "clear", ZCtx::Clear);
+  NODE_SET_PROTOTYPE_METHOD(z, "close", ZCtx::Close);
   NODE_SET_PROTOTYPE_METHOD(z, "reset", ZCtx::Reset);
 
   z->SetClassName(String::NewSymbol("Zlib"));
