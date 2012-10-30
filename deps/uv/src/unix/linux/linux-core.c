@@ -30,6 +30,7 @@
 
 #include <net/if.h>
 #include <sys/param.h>
+#include <sys/prctl.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -186,6 +187,10 @@ uv_err_t uv_set_process_title(const char* title) {
   if (process_title.len)
     strncpy(process_title.str, title, process_title.len - 1);
 
+#if defined(PR_SET_NAME)
+  prctl(PR_SET_NAME, title);
+#endif
+
   return uv_ok_;
 }
 
@@ -339,9 +344,12 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (ci == NULL)
     return uv__new_sys_error(ENOMEM);
 
-  read_speeds(numcpus, ci);
   read_models(numcpus, ci);
   read_times(numcpus, ci);
+
+  /* read_models() on x86 also reads the CPU speed from /proc/cpuinfo */
+  if (ci[0].speed == 0)
+    read_speeds(numcpus, ci);
 
   *cpu_infos = ci;
   *count = numcpus;
@@ -358,18 +366,26 @@ static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci) {
 }
 
 
+/* Also reads the CPU frequency on x86. The other architectures only have
+ * a BogoMIPS field, which may not be very accurate.
+ */
 static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
 #if defined(__i386__) || defined(__x86_64__)
-  static const char marker[] = "model name\t: ";
+  static const char model_marker[] = "model name\t: ";
+  static const char speed_marker[] = "cpu MHz\t\t: ";
 #elif defined(__arm__)
-  static const char marker[] = "Processor\t: ";
+  static const char model_marker[] = "Processor\t: ";
+  static const char speed_marker[] = "";
 #elif defined(__mips__)
-  static const char marker[] = "cpu model\t\t: ";
+  static const char model_marker[] = "cpu model\t\t: ";
+  static const char speed_marker[] = "";
 #else
 # warning uv_cpu_info() is not supported on this architecture.
-  static const char marker[] = "(dummy)";
+  static const char model_marker[] = "";
+  static const char speed_marker[] = "";
 #endif
-  unsigned int num;
+  unsigned int model_idx;
+  unsigned int speed_idx;
   char buf[1024];
   char* model;
   FILE* fp;
@@ -378,18 +394,27 @@ static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
   if (fp == NULL)
     return;
 
-  num = 0;
+  model_idx = 0;
+  speed_idx = 0;
 
   while (fgets(buf, sizeof(buf), fp)) {
-    if (num >= numcpus)
-      break;
-
-    if (strncmp(buf, marker, sizeof(marker) - 1))
+    if (model_marker[0] != '\0' &&
+        model_idx < numcpus &&
+        strncmp(buf, model_marker, sizeof(model_marker) - 1) == 0)
+    {
+      model = buf + sizeof(model_marker) - 1;
+      model = strndup(model, strlen(model) - 1); /* strip newline */
+      ci[model_idx++].model = model;
       continue;
+    }
 
-    model = buf + sizeof(marker) - 1;
-    model = strndup(model, strlen(model) - 1); /* strip newline */
-    ci[num++].model = model;
+    if (speed_marker[0] != '\0' &&
+        speed_idx < numcpus &&
+        strncmp(buf, speed_marker, sizeof(speed_marker) - 1) == 0)
+    {
+      ci[speed_idx++].speed = atoi(buf + sizeof(speed_marker) - 1);
+      continue;
+    }
   }
   fclose(fp);
 }

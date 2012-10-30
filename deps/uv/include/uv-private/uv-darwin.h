@@ -26,6 +26,7 @@
 # include <mach/mach.h>
 # include <mach/task.h>
 # include <mach/semaphore.h>
+# include <TargetConditionals.h>
 # define UV_PLATFORM_SEM_T semaphore_t
 #endif
 

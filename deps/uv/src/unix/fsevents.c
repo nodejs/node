@@ -21,6 +21,21 @@
 #include "uv.h"
 #include "internal.h"
 
+#if TARGET_OS_IPHONE
+
+/* iOS (currently) doesn't provide the FSEvents-API (nor CoreServices) */
+
+int uv__fsevents_init(uv_fs_event_t* handle) {
+  return 0;
+}
+
+
+int uv__fsevents_close(uv_fs_event_t* handle) {
+  return 0;
+}
+
+#else /* TARGET_OS_IPHONE */
+
 #include <assert.h>
 #include <stdlib.h>
 #include <CoreServices/CoreServices.h>
@@ -278,3 +293,5 @@ int uv__fsevents_close(uv_fs_event_t* handle) {
 
   return 0;
 }
+
+#endif /* TARGET_OS_IPHONE */

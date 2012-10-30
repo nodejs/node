@@ -39,3 +39,6 @@ The externally maintained libraries used by libuv are:
   - inet_pton and inet_ntop implementations, contained in src/inet.c, are
     copyright the Internet Systems Consortium, Inc., and licensed under the ISC
     license.
+
+  - stdint-msvc2008.h (from msinttypes), copyright Alexander Chemeris. Three
+    clause BSD license.

@@ -22,7 +22,12 @@
 #include <assert.h>
 #include <io.h>
 #include <string.h>
-#include <stdint.h>
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+# include "uv-private/stdint-msvc2008.h"
+#else
+# include <stdint.h>
+#endif
 
 #include "uv.h"
 #include "internal.h"
@@ -1181,6 +1186,7 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
     } else if (arg ==  49) {
       /* Default background color */
       bg_color = 0;
+      bg_bright = 0;
 
     } else if (arg >= 90 && arg <= 97) {
       /* Set bold foreground color */

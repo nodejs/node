@@ -33,10 +33,6 @@
 #include <fcntl.h>
 #include <poll.h>
 
-#ifdef __APPLE__
-# include <TargetConditionals.h>
-#endif
-
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <crt_externs.h>
 # define environ (*_NSGetEnviron())
@@ -289,24 +285,24 @@ static void uv__process_child_init(uv_process_options_t options,
                                    int error_fd) {
   int close_fd;
   int use_fd;
-  int i;
+  int fd;
 
   if (options.flags & UV_PROCESS_DETACHED)
     setsid();
 
-  for (i = 0; i < stdio_count; i++) {
-    close_fd = pipes[i][0];
-    use_fd = pipes[i][1];
+  for (fd = 0; fd < stdio_count; fd++) {
+    close_fd = pipes[fd][0];
+    use_fd = pipes[fd][1];
 
     if (use_fd >= 0)
       close(close_fd);
-    else if (i >= 3)
+    else if (fd >= 3)
       continue;
     else {
       /* redirect stdin, stdout and stderr to /dev/null even if UV_IGNORE is
        * set
        */
-      use_fd = open("/dev/null", i == 0 ? O_RDONLY : O_RDWR);
+      use_fd = open("/dev/null", fd == 0 ? O_RDONLY : O_RDWR);
 
       if (use_fd == -1) {
         uv__write_int(error_fd, errno);
@@ -315,12 +311,15 @@ static void uv__process_child_init(uv_process_options_t options,
       }
     }
 
-    if (i == use_fd)
+    if (fd == use_fd)
       uv__cloexec(use_fd, 0);
     else {
-      dup2(use_fd, i);
+      dup2(use_fd, fd);
       close(use_fd);
     }
+
+    if (fd <= 2)
+      uv__nonblock(fd, 0);
   }
 
   if (options.cwd && chdir(options.cwd)) {

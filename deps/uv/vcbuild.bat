@@ -53,7 +53,6 @@ goto select-target
 if not defined VS90COMNTOOLS goto vc-set-notfound
 if not exist "%VS90COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-notfound
 call "%VS90COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
-echo Warning: building with Visual Studio 2008 is currently not supported.
 set GYP_MSVS_VERSION=2008
 goto select-target
 

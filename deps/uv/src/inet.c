@@ -16,8 +16,13 @@
  */
 
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+# include "uv-private/stdint-msvc2008.h"
+#else
+# include <stdint.h>
+#endif
 
 #include "uv.h"
 #include "uv-common.h"

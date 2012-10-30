@@ -62,7 +62,7 @@
 # define HAVE_KQUEUE 1
 #endif
 
-#if defined(__APPLE__) && !defined(TARGET_OS_IPHONE)
+#if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <CoreServices/CoreServices.h>
 #endif
 

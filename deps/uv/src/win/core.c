@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <malloc.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "uv.h"
@@ -40,10 +41,23 @@ static uv_once_t uv_init_guard_ = UV_ONCE_INIT;
 static uv_once_t uv_default_loop_init_guard_ = UV_ONCE_INIT;
 
 
+static void uv__crt_invalid_parameter_handler(const wchar_t* expression,
+    const wchar_t* function, const wchar_t * file, unsigned int line,
+    uintptr_t reserved) {
+  /* No-op. */
+}
+
+
 static void uv_init(void) {
   /* Tell Windows that we will handle critical errors. */
   SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
-    SEM_NOOPENFILEERRORBOX);
+               SEM_NOOPENFILEERRORBOX);
+
+  /* Tell the CRT to not exit the application when an invalid parameter is */
+  /* passed. The main issue is that invalid FDs will trigger this behavior. */
+#ifdef _WRITE_ABORT_MSG
+  _set_invalid_parameter_handler(uv__crt_invalid_parameter_handler);
+#endif
 
   /* Fetch winapi function pointers. This must be done first because other */
   /* intialization code might need these function pointers to be loaded. */

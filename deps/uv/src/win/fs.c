@@ -1137,8 +1137,11 @@ static void fs__utime(uv_fs_t* req) {
 
   if (fs__utime_handle(handle, req->atime, req->mtime) != 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
+    CloseHandle(handle);
     return;
   }
+
+  CloseHandle(handle);
 
   req->result = 0;
 }

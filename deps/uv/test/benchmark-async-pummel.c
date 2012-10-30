@@ -32,14 +32,27 @@ static volatile int done;
 
 
 static void async_cb(uv_async_t* handle, int status) {
-  if (++callbacks == NUM_PINGS)
+  if (++callbacks == NUM_PINGS) {
+    /* Tell the pummel thread to stop. */
+    handle->data = (void*) (intptr_t) 1;
+
+    /* Wait for for the pummel thread to acknowledge that it has stoppped. */
+    while (*(volatile intptr_t*) &handle->data < 2)
+      uv_sleep(0);
+
     uv_close((uv_handle_t*) handle, NULL);
+  }
 }
 
 
 static void pummel(void* arg) {
-  while (!done)
-    uv_async_send((uv_async_t*) arg);
+  uv_async_t* handle = (uv_async_t*) arg;
+
+  while (*(volatile intptr_t*) &handle->data == 0)
+    uv_async_send(handle);
+
+  /* Acknowledge that we've seen handle->data change. */
+  handle->data = (void*) (intptr_t) 2;
 }
 
 
@@ -53,6 +66,7 @@ static int test_async_pummel(int nthreads) {
   ASSERT(tids != NULL);
 
   ASSERT(0 == uv_async_init(uv_default_loop(), &handle, async_cb));
+  handle.data = NULL;
 
   for (i = 0; i < nthreads; i++)
     ASSERT(0 == uv_thread_create(tids + i, pummel, &handle));

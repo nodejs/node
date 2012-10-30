@@ -36,8 +36,13 @@ typedef intptr_t ssize_t;
 
 #include <process.h>
 #include <signal.h>
-#include <stdint.h>
 #include <sys/stat.h>
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+# include "uv-private/stdint-msvc2008.h"
+#else
+# include <stdint.h>
+#endif
 
 #include "tree.h"
 #include "ngx-queue.h"

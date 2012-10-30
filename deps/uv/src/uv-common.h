@@ -29,7 +29,12 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdint.h>
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+# include "uv-private/stdint-msvc2008.h"
+#else
+# include <stdint.h>
+#endif
 
 #include "uv.h"
 #include "tree.h"
@@ -130,34 +135,44 @@ UNUSED static int uv__is_active(const uv_handle_t* h) {
 #define uv__is_active(h) uv__is_active((const uv_handle_t*)(h))
 
 UNUSED static void uv__handle_start(uv_handle_t* h) {
-  if (h->flags & UV__HANDLE_ACTIVE) return;
+  assert(!(h->flags & UV__HANDLE_CLOSING));
+  if (h->flags & UV__HANDLE_ACTIVE)
+    return;
   h->flags |= UV__HANDLE_ACTIVE;
-  if (h->flags & UV__HANDLE_CLOSING) return;
-  if (h->flags & UV__HANDLE_REF) uv__active_handle_add(h);
+  if (h->flags & UV__HANDLE_REF)
+    uv__active_handle_add(h);
 }
 #define uv__handle_start(h) uv__handle_start((uv_handle_t*)(h))
 
 UNUSED static void uv__handle_stop(uv_handle_t* h) {
-  if (!(h->flags & UV__HANDLE_ACTIVE)) return;
+  assert(!(h->flags & UV__HANDLE_CLOSING));
+  if (!(h->flags & UV__HANDLE_ACTIVE))
+    return;
   h->flags &= ~UV__HANDLE_ACTIVE;
-  if (h->flags & UV__HANDLE_CLOSING) return;
-  if (h->flags & UV__HANDLE_REF) uv__active_handle_rm(h);
+  if (h->flags & UV__HANDLE_REF)
+    uv__active_handle_rm(h);
 }
 #define uv__handle_stop(h) uv__handle_stop((uv_handle_t*)(h))
 
 UNUSED static void uv__handle_ref(uv_handle_t* h) {
-  if (h->flags & UV__HANDLE_REF) return;
-  if (h->flags & (UV__HANDLE_ACTIVE | UV__HANDLE_CLOSING))
-    uv__active_handle_add(h);
+  if (h->flags & UV__HANDLE_REF)
+    return;
   h->flags |= UV__HANDLE_REF;
+  if (h->flags & UV__HANDLE_CLOSING)
+    return;
+  if (h->flags & UV__HANDLE_ACTIVE)
+    uv__active_handle_add(h);
 }
 #define uv__handle_ref(h) uv__handle_ref((uv_handle_t*)(h))
 
 UNUSED static void uv__handle_unref(uv_handle_t* h) {
-  if (!(h->flags & UV__HANDLE_REF)) return;
-  if (h->flags & (UV__HANDLE_ACTIVE | UV__HANDLE_CLOSING))
-    uv__active_handle_rm(h);
+  if (!(h->flags & UV__HANDLE_REF))
+    return;
   h->flags &= ~UV__HANDLE_REF;
+  if (h->flags & UV__HANDLE_CLOSING)
+    return;
+  if (h->flags & UV__HANDLE_ACTIVE)
+    uv__active_handle_rm(h);
 }
 #define uv__handle_unref(h) uv__handle_unref((uv_handle_t*)(h))
 

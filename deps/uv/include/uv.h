@@ -50,7 +50,12 @@ extern "C" {
 #define UV_VERSION_MINOR 9
 
 
-#include <stdint.h> /* int64_t */
+#if defined(_MSC_VER) && _MSC_VER < 1600
+# include "uv-private/stdint-msvc2008.h"
+#else
+# include <stdint.h>
+#endif
+
 #include <sys/types.h> /* size_t */
 
 #if defined(__SVR4) && !defined(__unix__)
