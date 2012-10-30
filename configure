@@ -495,7 +495,7 @@ write('config.mk',
 if options.use_ninja:
   gyp_args = ['-f', 'ninja']
 elif os.name == 'nt':
-  gyp_args = ['-f', 'msvs', '-G', 'msvs_version=2010']
+  gyp_args = ['-f', 'msvs', '-G', 'msvs_version=auto']
 elif options.dest_os:
   gyp_args = ['-f', 'make-' + options.dest_os]
 else:
