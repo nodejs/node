@@ -25,7 +25,7 @@ function write() {
   } catch (ex) {
     throw new Error('this should never happen');
   }
-  process.nextTick(function() {
+  setImmediate(function() {
     write();
   });
 }
