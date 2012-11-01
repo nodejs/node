@@ -134,7 +134,7 @@ parser.add_option("--shared-zlib-libname",
 parser.add_option("--with-dtrace",
     action="store_true",
     dest="with_dtrace",
-    help="Build with DTrace (default is true on supported systems)")
+    help="Build with DTrace (default is true on sunos)")
 
 parser.add_option("--without-dtrace",
     action="store_true",
@@ -386,7 +386,7 @@ def configure_node(o):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
   elif sys.platform.startswith('linux'):
     o['variables']['node_use_dtrace'] = 'false'
-    o['variables']['node_use_systemtap'] = b(not options.without_dtrace)
+    o['variables']['node_use_systemtap'] = b(options.with_dtrace)
     if options.systemtap_includes:
       o['include_dirs'] += [options.systemtap_includes]
   elif b(options.with_dtrace) == 'true':
@@ -394,6 +394,7 @@ def configure_node(o):
        'DTrace is currently only supported on SunOS or Linux systems.')
   else:
     o['variables']['node_use_dtrace'] = 'false'
+    o['variables']['node_use_systemtap'] = 'false'
 
   if options.no_ifaddrs:
     o['defines'] += ['SUNOS_NO_IFADDRS']
