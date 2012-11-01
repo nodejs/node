@@ -99,6 +99,13 @@ parser.add_option("--openssl-libpath",
     dest="shared_openssl_libpath",
     help=optparse.SUPPRESS_HELP)
 
+# TODO document when we've decided on what the tracing API and its options will
+# look like
+parser.add_option("--systemtap-includes",
+    action="store",
+    dest="systemtap_includes",
+    help=optparse.SUPPRESS_HELP)
+
 parser.add_option("--no-ssl2",
     action="store_true",
     dest="no_ssl2",
@@ -380,6 +387,8 @@ def configure_node(o):
   elif sys.platform.startswith('linux'):
     o['variables']['node_use_dtrace'] = 'false'
     o['variables']['node_use_systemtap'] = b(not options.without_dtrace)
+    if options.systemtap_includes:
+      o['include_dirs'] += [options.systemtap_includes]
   elif b(options.with_dtrace) == 'true':
     raise Exception(
        'DTrace is currently only supported on SunOS or Linux systems.')
