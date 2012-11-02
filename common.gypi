@@ -45,6 +45,9 @@
             'LinkIncremental': 2, # enable incremental linking
           },
         },
+        'xcode_settings': {
+          'GCC_OPTIMIZATION_LEVEL': '0', # stop gyp from defaulting to -Os
+        },
       },
       'Release': {
         'conditions': [
