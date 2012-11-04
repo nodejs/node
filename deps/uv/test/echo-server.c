@@ -47,18 +47,24 @@ static void on_connection(uv_stream_t*, int status);
 
 static void after_write(uv_write_t* req, int status) {
   write_req_t* wr;
-
-  if (status) {
-    uv_err_t err = uv_last_error(loop);
-    fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
-    ASSERT(0);
-  }
-
-  wr = (write_req_t*) req;
+  uv_err_t err;
 
   /* Free the read/write buffer and the request */
+  wr = (write_req_t*) req;
   free(wr->buf.base);
   free(wr);
+
+  if (status == 0)
+    return;
+
+  err = uv_last_error(loop);
+  fprintf(stderr, "uv_write error: %s\n", uv_strerror(err));
+
+  if (err.code == UV_ECANCELED)
+    return;
+
+  ASSERT(err.code == UV_EPIPE);
+  uv_close((uv_handle_t*)req->handle, on_close);
 }
 
 

@@ -32,7 +32,13 @@
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ],
         'conditions': [
-          ['OS=="linux"', {
+          ['OS != "win"', {
+            'defines': [ '_LARGEFILE_SOURCE', '_FILE_OFFSET_BITS=64' ],
+          }],
+          ['OS == "mac"', {
+            'defines': [ '_DARWIN_USE_64_BIT_INODE=1' ],
+          }],
+          ['OS == "linux"', {
             'libraries': [ '-ldl' ],
           }],
         ],

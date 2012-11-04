@@ -76,11 +76,11 @@ extern "C" {
   XX(  1, EOF, "end of file")                                                 \
   XX(  2, EADDRINFO, "getaddrinfo error")                                     \
   XX(  3, EACCES, "permission denied")                                        \
-  XX(  4, EAGAIN, "no more processes")                                        \
+  XX(  4, EAGAIN, "resource temporarily unavailable")                         \
   XX(  5, EADDRINUSE, "address already in use")                               \
-  XX(  6, EADDRNOTAVAIL, "")                                                  \
-  XX(  7, EAFNOSUPPORT, "")                                                   \
-  XX(  8, EALREADY, "")                                                       \
+  XX(  6, EADDRNOTAVAIL, "address not available")                             \
+  XX(  7, EAFNOSUPPORT, "address family not supported")                       \
+  XX(  8, EALREADY, "connection already in progress")                         \
   XX(  9, EBADF, "bad file descriptor")                                       \
   XX( 10, EBUSY, "resource busy or locked")                                   \
   XX( 11, ECONNABORTED, "software caused connection abort")                   \
@@ -112,11 +112,11 @@ extern "C" {
   XX( 38, EPROTONOSUPPORT, "protocol not supported")                          \
   XX( 39, EPROTOTYPE, "protocol wrong type for socket")                       \
   XX( 40, ETIMEDOUT, "connection timed out")                                  \
-  XX( 41, ECHARSET, "")                                                       \
-  XX( 42, EAIFAMNOSUPPORT, "")                                                \
-  XX( 44, EAISERVICE, "")                                                     \
-  XX( 45, EAISOCKTYPE, "")                                                    \
-  XX( 46, ESHUTDOWN, "")                                                      \
+  XX( 41, ECHARSET, "invalid Unicode character")                              \
+  XX( 42, EAIFAMNOSUPPORT, "address family for hostname not supported")       \
+  XX( 44, EAISERVICE, "servname not supported for ai_socktype")               \
+  XX( 45, EAISOCKTYPE, "ai_socktype not supported")                           \
+  XX( 46, ESHUTDOWN, "cannot send after transport endpoint shutdown")         \
   XX( 47, EEXIST, "file already exists")                                      \
   XX( 48, ESRCH, "no such process")                                           \
   XX( 49, ENAMETOOLONG, "name too long")                                      \

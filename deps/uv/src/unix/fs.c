@@ -46,7 +46,7 @@
 
 #define INIT(type)                                                            \
   do {                                                                        \
-    uv__req_init((loop), (req), UV_FS_ ## type);                              \
+    uv__req_init((loop), (req), UV_FS);                                       \
     (req)->fs_type = UV_FS_ ## type;                                          \
     (req)->errorno = 0;                                                       \
     (req)->result = 0;                                                        \

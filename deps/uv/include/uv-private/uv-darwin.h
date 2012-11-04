@@ -51,7 +51,4 @@
   uv_sem_t cf_sem;                                                            \
   uv_mutex_t cf_mutex;                                                        \
 
-#define UV_STREAM_PRIVATE_PLATFORM_FIELDS                                     \
-  void* select;                                                               \
-
 #endif /* UV_DARWIN_H */

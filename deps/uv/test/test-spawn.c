@@ -387,6 +387,45 @@ TEST_IMPL(spawn_and_kill) {
   return 0;
 }
 
+
+TEST_IMPL(spawn_preserve_env) {
+  int r;
+  uv_pipe_t out;
+  uv_stdio_container_t stdio[2];
+
+  init_process_options("spawn_helper7", exit_cb);
+
+  uv_pipe_init(uv_default_loop(), &out, 0);
+  options.stdio = stdio;
+  options.stdio[0].flags = UV_IGNORE;
+  options.stdio[1].flags = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+  options.stdio[1].data.stream = (uv_stream_t*) &out;
+  options.stdio_count = 2;
+
+  ASSERT(setenv("ENV_TEST", "testval", 1) == 0);
+  /* Explicitly set options.env to NULL to test for env clobbering. */
+  options.env = NULL;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 2);
+
+  printf("output is: %s", output);
+  ASSERT(strcmp("testval", output) == 0);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+
 TEST_IMPL(spawn_detached) {
   int r;
   uv_err_t err;

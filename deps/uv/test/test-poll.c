@@ -205,7 +205,7 @@ static void destroy_connection_context(connection_context_t* context) {
 
 static void connection_poll_cb(uv_poll_t* handle, int status, int events) {
   connection_context_t* context = (connection_context_t*) handle->data;
-  int new_events;
+  unsigned int new_events;
   int r;
 
   ASSERT(status == 0);

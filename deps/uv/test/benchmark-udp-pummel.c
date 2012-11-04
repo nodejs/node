@@ -143,13 +143,13 @@ static void timeout_cb(uv_timer_t* timer, int status) {
 }
 
 
-static int do_packet_storm(int n_senders,
-                           int n_receivers,
+static int do_packet_storm(unsigned int n_senders,
+                           unsigned int n_receivers,
                            unsigned long timeout) {
   uv_timer_t timer_handle;
   uint64_t duration;
   uv_loop_t* loop;
-  int i;
+  unsigned int i;
 
   ASSERT(n_senders <= ARRAY_SIZE(senders));
   ASSERT(n_receivers <= ARRAY_SIZE(receivers));

@@ -196,7 +196,8 @@ int stdio_over_pipes_helper() {
 
   uv_write_t write_req[ARRAY_SIZE(buffers)];
   uv_buf_t buf[ARRAY_SIZE(buffers)];
-  int r, i;
+  unsigned int i;
+  int r;
   uv_loop_t* loop = uv_default_loop();
 
   ASSERT(UV_NAMED_PIPE == uv_guess_handle(0));

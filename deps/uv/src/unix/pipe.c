@@ -150,6 +150,7 @@ void uv__pipe_close(uv_pipe_t* handle) {
      */
     unlink(handle->pipe_fname);
     free((void*)handle->pipe_fname);
+    handle->pipe_fname = NULL;
   }
 
   uv__stream_close((uv_stream_t*)handle);

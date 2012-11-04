@@ -30,7 +30,7 @@ static int N = 1000;
 static int done;
 
 static uv_process_t process;
-static uv_process_options_t options = { 0 };
+static uv_process_options_t options;
 static char exepath[1024];
 static size_t exepath_size = 1024;
 static char* args[3];
