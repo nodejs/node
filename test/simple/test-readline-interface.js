@@ -43,7 +43,7 @@ rli = new readline.Interface(fi, {});
 called = false;
 rli.on('line', function(line) {
   called = true;
-  assert.equal(line, 'asdf\n');
+  assert.equal(line, 'asdf');
 });
 fi.emit('data', 'asdf\n');
 assert.ok(called);
@@ -54,7 +54,7 @@ rli = new readline.Interface(fi, {});
 called = false;
 rli.on('line', function(line) {
   called = true;
-  assert.equal(line, '\n');
+  assert.equal(line, '');
 });
 fi.emit('data', '\n');
 assert.ok(called);
@@ -76,7 +76,7 @@ rli = new readline.Interface(fi, {});
 called = false;
 rli.on('line', function(line) {
   called = true;
-  assert.equal(line, 'a\n');
+  assert.equal(line, 'a');
 });
 fi.emit('data', 'a');
 assert.ok(!called);
@@ -93,7 +93,7 @@ rli.on('line', function(line) {
   assert.equal(line, expectedLines[callCount]);
   callCount++;
 });
-fi.emit('data', expectedLines.join(''));
+fi.emit('data', expectedLines.join('\n') + '\n');
 assert.equal(callCount, expectedLines.length);
 rli.close();
 
@@ -106,7 +106,7 @@ rli.on('line', function(line) {
   assert.equal(line, expectedLines[callCount]);
   callCount++;
 });
-fi.emit('data', expectedLines.join(''));
+fi.emit('data', expectedLines.join('\n'));
 assert.equal(callCount, expectedLines.length - 1);
 rli.close();
 
@@ -117,7 +117,7 @@ rli = new readline.Interface(fi, {});
 callCount = 0;
 rli.on('line', function(line) {
   callCount++;
-  assert.equal(line, buf.toString('utf8') + '\n');
+  assert.equal(line, buf.toString('utf8'));
 });
 [].forEach.call(buf, function(i) {
   fi.emit('data', Buffer([i]));
