@@ -41,6 +41,14 @@ namespace node {
 
 using namespace v8;
 
+static Handle<Value> GetEndianness(const Arguments& args) {
+  HandleScope scope;
+  int i = 1;
+  bool big = (*(char *)&i) == 0;
+  Local<String> endianness = String::New(big ? "BE" : "LE");
+  return scope.Close(endianness);
+}
+
 static Handle<Value> GetHostname(const Arguments& args) {
   HandleScope scope;
   char s[255];
@@ -242,6 +250,7 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 void OS::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
+  NODE_SET_METHOD(target, "getEndianness", GetEndianness);
   NODE_SET_METHOD(target, "getHostname", GetHostname);
   NODE_SET_METHOD(target, "getLoadAvg", GetLoadAvg);
   NODE_SET_METHOD(target, "getUptime", GetUptime);

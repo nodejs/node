@@ -39,6 +39,10 @@ assert.equal(os.tmpDir(), '/temp');
 process.env.TEMP = '';
 assert.equal(os.tmpDir(), t);
 
+var endianness = os.endianness();
+console.log('endianness = %s', endianness);
+assert.ok(/[BL]E/.test(endianness));
+
 var hostname = os.hostname();
 console.log('hostname = %s', hostname);
 assert.ok(hostname.length > 0);

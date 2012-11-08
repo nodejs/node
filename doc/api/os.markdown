@@ -10,6 +10,10 @@ Use `require('os')` to access this module.
 
 Returns the operating system's default directory for temp files.
 
+## os.endianness()
+
+Returns the endianness of the CPU. Possible values are `"BE"` or `"LE"`.
+
 ## os.hostname()
 
 Returns the hostname of the operating system.
