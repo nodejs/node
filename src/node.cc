@@ -1020,7 +1020,7 @@ MakeCallback(const Handle<Object> object,
   Local<Object> domain;
   Local<Function> enter;
   Local<Function> exit;
-  if (!domain_v->IsUndefined()) {
+  if (domain_v->IsObject()) {
     domain = domain_v->ToObject();
     if (domain->Get(disposed_symbol)->BooleanValue()) {
       // domain has been disposed of.
@@ -1042,7 +1042,7 @@ MakeCallback(const Handle<Object> object,
     return Undefined();
   }
 
-  if (!domain_v->IsUndefined()) {
+  if (domain_v->IsObject()) {
     exit = Local<Function>::Cast(domain->Get(exit_symbol));
     exit->Call(domain, 0, NULL);
   }
