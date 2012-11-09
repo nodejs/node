@@ -890,8 +890,9 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
 }
 
 
-int Connection::HandleSSLError(const char* func, int rv) {
-  if (rv >= 0) return rv;
+int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
+  if (rv > 0) return rv;
+  if ((rv == 0) && (zs == kZeroIsNotAnError)) return rv;
 
   int err = SSL_get_error(ssl_, rv);
 
@@ -1348,17 +1349,17 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
 
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleSSLError("SSL_accept:ClearOut", rv);
+      ss->HandleSSLError("SSL_accept:ClearOut", rv, kZeroIsAnError);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleSSLError("SSL_connect:ClearOut", rv);
+      ss->HandleSSLError("SSL_connect:ClearOut", rv, kZeroIsAnError);
     }
 
     if (rv < 0) return scope.Close(Integer::New(rv));
   }
 
   int bytes_read = SSL_read(ss->ssl_, buffer_data + off, len);
-  ss->HandleSSLError("SSL_read:ClearOut", bytes_read);
+  ss->HandleSSLError("SSL_read:ClearOut", bytes_read, kZeroIsNotAnError);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_read));
@@ -1458,10 +1459,10 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
     int rv;
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleSSLError("SSL_accept:ClearIn", rv);
+      ss->HandleSSLError("SSL_accept:ClearIn", rv, kZeroIsAnError);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleSSLError("SSL_connect:ClearIn", rv);
+      ss->HandleSSLError("SSL_connect:ClearIn", rv, kZeroIsAnError);
     }
 
     if (rv < 0) return scope.Close(Integer::New(rv));
@@ -1469,7 +1470,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
 
   int bytes_written = SSL_write(ss->ssl_, buffer_data + off, len);
 
-  ss->HandleSSLError("SSL_write:ClearIn", bytes_written);
+  ss->HandleSSLError("SSL_write:ClearIn", bytes_written, kZeroIsAnError);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
@@ -1697,10 +1698,10 @@ Handle<Value> Connection::Start(const Arguments& args) {
     int rv;
     if (ss->is_server_) {
       rv = SSL_accept(ss->ssl_);
-      ss->HandleSSLError("SSL_accept:Start", rv);
+      ss->HandleSSLError("SSL_accept:Start", rv, kZeroIsAnError);
     } else {
       rv = SSL_connect(ss->ssl_);
-      ss->HandleSSLError("SSL_connect:Start", rv);
+      ss->HandleSSLError("SSL_connect:Start", rv, kZeroIsAnError);
     }
 
     return scope.Close(Integer::New(rv));
@@ -1717,8 +1718,7 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
 
   if (ss->ssl_ == NULL) return False();
   int rv = SSL_shutdown(ss->ssl_);
-
-  ss->HandleSSLError("SSL_shutdown", rv);
+  ss->HandleSSLError("SSL_shutdown", rv, kZeroIsNotAnError);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(rv));

@@ -214,7 +214,13 @@ class Connection : ObjectWrap {
 #endif
 
   int HandleBIOError(BIO *bio, const char* func, int rv);
-  int HandleSSLError(const char* func, int rv);
+
+  enum ZeroStatus {
+    kZeroIsNotAnError,
+    kZeroIsAnError
+  };
+
+  int HandleSSLError(const char* func, int rv, ZeroStatus zs);
 
   void ClearError();
   void SetShutdownFlags();
