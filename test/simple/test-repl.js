@@ -119,6 +119,9 @@ function error_test() {
     // You can recover with the .break command
     { client: client_unix, send: '.break',
       expect: prompt_unix },
+    // Floating point numbers are not interpreted as REPL commands.
+    { client: client_unix, send: '.1234',
+      expect: '0.1234' },
     // Can parse valid JSON
     { client: client_unix, send: 'JSON.parse(\'{"valid": "json"}\');',
       expect: '{ valid: \'json\' }'},
