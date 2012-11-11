@@ -1,6 +1,6 @@
 var net = require('net');
 var received = 0;
-var start = new Date();
+var start = process.hrtime();
 var socket = net.connect(8000);
 
 socket.on('data', function(d) {
@@ -15,11 +15,10 @@ var interval = setInterval(function() {
     process.exit(0);
   } else {
     // Otherwise print some stats.
-    var now = new Date();
+    var elapsed = process.hrtime(start);
+    var sec = elapsed[0] + elapsed[1]/1E9;
     var gigabytes = received / (1024 * 1024 * 1024);
     var gigabits = gigabytes * 8.0;
-    var millisec = now - start;
-    var sec = millisec / 1000;
     console.log((gigabits / sec) + " gbit/sec")
   }
 }, 1000);
