@@ -140,7 +140,7 @@ test('assymetric transform (expand)', function(t) {
     t.equal(pt.read(5).toString(), 'uelku');
     t.equal(pt.read(5).toString(), 'el');
     t.end();
-  }, 100);
+  }, 200);
 });
 
 test('assymetric transform (compress)', function(t) {
@@ -223,9 +223,10 @@ test('passthrough event emission', function(t) {
   console.error('need emit 0');
 
   pt.write(new Buffer('bazy'));
+  console.error('should have emitted, but not again');
   pt.write(new Buffer('kuel'));
 
-  console.error('should have emitted readable now');
+  console.error('should have emitted readable now 1 === %d', emits);
   t.equal(emits, 1);
 
   t.equal(pt.read(5).toString(), 'arkba');
@@ -263,21 +264,25 @@ test('passthrough event emission reordered', function(t) {
   console.error('need emit 0');
   pt.once('readable', function() {
     t.equal(pt.read(5).toString(), 'arkba');
-    t.equal(pt.read(5).toString(), 'zykue');
+
     t.equal(pt.read(5), null);
 
     console.error('need emit 1');
     pt.once('readable', function() {
-      t.equal(pt.read(5).toString(), 'l');
+      t.equal(pt.read(5).toString(), 'zykue');
       t.equal(pt.read(5), null);
-
-      t.equal(emits, 2);
-      t.end();
+      pt.once('readable', function() {
+        t.equal(pt.read(5).toString(), 'l');
+        t.equal(pt.read(5), null);
+        t.equal(emits, 3);
+        t.end();
+      });
+      pt.end();
     });
-    pt.end();
+    pt.write(new Buffer('kuel'));
   });
+
   pt.write(new Buffer('bazy'));
-  pt.write(new Buffer('kuel'));
 });
 
 test('passthrough facaded', function(t) {
