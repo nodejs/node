@@ -51,8 +51,10 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
 
 
 int uv_tty_set_mode(uv_tty_t* tty, int mode) {
-  int fd = tty->fd;
   struct termios raw;
+  int fd;
+
+  fd = tty->io_watcher.fd;
 
   if (mode && tty->mode == 0) {
     /* on */
@@ -103,7 +105,7 @@ fatal:
 int uv_tty_get_winsize(uv_tty_t* tty, int* width, int* height) {
   struct winsize ws;
 
-  if (ioctl(tty->fd, TIOCGWINSZ, &ws) < 0) {
+  if (ioctl(tty->io_watcher.fd, TIOCGWINSZ, &ws) < 0) {
     uv__set_sys_error(tty->loop, errno);
     return -1;
   }

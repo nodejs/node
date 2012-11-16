@@ -40,11 +40,14 @@
 
 /* Do platform-specific initialization. */
 void platform_init(int argc, char **argv) {
+  const char* var = getenv("UV_RUN_AS_ROOT");
+
   /* Running the tests as root is not smart - don't do it. */
-  if (getuid() == 0) {
+  if (getuid() == 0 && (var == NULL || atoi(var) <= 0)) {
     fprintf(stderr, "Running the tests as root is not safe.\n");
     exit(1);
   }
+
   /* Disable stdio output buffering. */
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);

@@ -65,14 +65,163 @@
 
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
   loop->fs_fd = -1;
+  loop->backend_fd = port_create();
+
+  if (loop->backend_fd == -1)
+    return -1;
+
+  uv__cloexec(loop->backend_fd, 1);
+
   return 0;
 }
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
-  if (loop->fs_fd == -1) return;
-  close(loop->fs_fd);
-  loop->fs_fd = -1;
+  if (loop->fs_fd != -1) {
+    close(loop->fs_fd);
+    loop->fs_fd = -1;
+  }
+
+  if (loop->backend_fd != -1) {
+    close(loop->backend_fd);
+    loop->backend_fd = -1;
+  }
+}
+
+
+void uv__io_poll(uv_loop_t* loop, int timeout) {
+  struct port_event events[1024];
+  struct port_event* pe;
+  struct timespec spec;
+  ngx_queue_t* q;
+  uv__io_t* w;
+  uint64_t base;
+  uint64_t diff;
+  unsigned int nfds;
+  unsigned int i;
+  int saved_errno;
+  int nevents;
+  int count;
+  int fd;
+
+  if (loop->nfds == 0) {
+    assert(ngx_queue_empty(&loop->watcher_queue));
+    return;
+  }
+
+  while (!ngx_queue_empty(&loop->watcher_queue)) {
+    q = ngx_queue_head(&loop->watcher_queue);
+    ngx_queue_remove(q);
+    ngx_queue_init(q);
+
+    w = ngx_queue_data(q, uv__io_t, watcher_queue);
+    assert(w->pevents != 0);
+
+    if (port_associate(loop->backend_fd, PORT_SOURCE_FD, w->fd, w->pevents, 0))
+      abort();
+
+    w->events = w->pevents;
+  }
+
+  assert(timeout >= -1);
+  base = loop->time;
+  count = 48; /* Benchmarks suggest this gives the best throughput. */
+
+  for (;;) {
+    if (timeout != -1) {
+      spec.tv_sec = timeout / 1000;
+      spec.tv_nsec = (timeout % 1000) * 1000000;
+    }
+
+    /* Work around a kernel bug where nfds is not updated. */
+    events[0].portev_source = 0;
+
+    nfds = 1;
+    saved_errno = 0;
+    if (port_getn(loop->backend_fd,
+                  events,
+                  ARRAY_SIZE(events),
+                  &nfds,
+                  timeout == -1 ? NULL : &spec)) {
+      /* Work around another kernel bug: port_getn() may return events even
+       * on error.
+       */
+      if (errno == EINTR || errno == ETIME)
+        saved_errno = errno;
+      else
+        abort();
+    }
+
+    if (events[0].portev_source == 0) {
+      if (timeout == 0)
+        return;
+
+      if (timeout == -1)
+        continue;
+
+      goto update_timeout;
+    }
+
+    if (nfds == 0) {
+      assert(timeout != -1);
+      return;
+    }
+
+    nevents = 0;
+
+    for (i = 0; i < nfds; i++) {
+      pe = events + i;
+      fd = pe->portev_object;
+
+      assert(fd >= 0);
+      assert((unsigned) fd < loop->nwatchers);
+
+      w = loop->watchers[fd];
+
+      /* File descriptor that we've stopped watching, ignore. */
+      if (w == NULL)
+        continue;
+
+      w->cb(loop, w, pe->portev_events);
+      nevents++;
+
+      /* Events Ports operates in oneshot mode, rearm timer on next run. */
+      if (w->pevents != 0 && ngx_queue_empty(&w->watcher_queue))
+        ngx_queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
+    }
+
+    if (nevents != 0) {
+      if (nfds == ARRAY_SIZE(events) && --count != 0) {
+        /* Poll for more events but don't block this time. */
+        timeout = 0;
+        continue;
+      }
+      return;
+    }
+
+    if (saved_errno == ETIME) {
+      assert(timeout != -1);
+      return;
+    }
+
+    if (timeout == 0)
+      return;
+
+    if (timeout == -1)
+      continue;
+
+update_timeout:
+    assert(timeout > 0);
+
+    diff = uv_hrtime() / 1000000;
+    assert(diff >= base);
+    diff -= base;
+
+    if (diff >= (uint64_t) timeout)
+      return;
+
+    timeout -= diff;
+  }
 }
 
 
@@ -139,7 +288,9 @@ static void uv__fs_event_rearm(uv_fs_event_t *handle) {
 }
 
 
-static void uv__fs_event_read(uv_loop_t* loop, uv__io_t* w, int revents) {
+static void uv__fs_event_read(uv_loop_t* loop,
+                              uv__io_t* w,
+                              unsigned int revents) {
   uv_fs_event_t *handle = NULL;
   timespec_t timeout;
   port_event_t pe;
@@ -216,8 +367,8 @@ int uv_fs_event_init(uv_loop_t* loop,
   uv__fs_event_rearm(handle);
 
   if (first_run) {
-    uv__io_init(&loop->fs_event_watcher, uv__fs_event_read, portfd, UV__IO_READ);
-    uv__io_start(loop, &loop->fs_event_watcher);
+    uv__io_init(&loop->fs_event_watcher, uv__fs_event_read, portfd);
+    uv__io_start(loop, &loop->fs_event_watcher, UV__POLLIN);
   }
 
   return 0;

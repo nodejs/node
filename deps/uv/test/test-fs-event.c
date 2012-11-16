@@ -112,7 +112,7 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
-static void timber_cb_close_handle(uv_timer_t* timer, int status) {
+static void timer_cb_close_handle(uv_timer_t* timer, int status) {
   uv_handle_t* handle;
 
   ASSERT(timer != NULL);
@@ -138,7 +138,7 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
     static uv_timer_t timer;
     uv_timer_init(handle->loop, &timer);
     timer.data = handle;
-    uv_timer_start(&timer, timber_cb_close_handle, 250, 0);
+    uv_timer_start(&timer, timer_cb_close_handle, 250, 0);
   }
 }
 

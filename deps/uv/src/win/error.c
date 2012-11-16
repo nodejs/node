@@ -74,6 +74,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_DISK_CORRUPT:                return UV_EIO;
     case ERROR_EOM_OVERFLOW:                return UV_EIO;
     case ERROR_FILEMARK_DETECTED:           return UV_EIO;
+    case ERROR_GEN_FAILURE:                 return UV_EIO;
     case ERROR_INVALID_BLOCK_LENGTH:        return UV_EIO;
     case ERROR_IO_DEVICE:                   return UV_EIO;
     case ERROR_NO_DATA_DETECTED:            return UV_EIO;

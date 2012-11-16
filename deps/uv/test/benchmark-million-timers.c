@@ -25,10 +25,16 @@
 #define NUM_TIMERS (1000 * 1000)
 
 static int timer_cb_called;
+static int close_cb_called;
 
 
 static void timer_cb(uv_timer_t* handle, int status) {
   timer_cb_called++;
+}
+
+
+static void close_cb(uv_handle_t* handle) {
+  close_cb_called++;
 }
 
 
@@ -56,7 +62,12 @@ BENCHMARK_IMPL(million_timers) {
   ASSERT(0 == uv_run(loop));
   after = uv_hrtime();
 
+  for (i = 0; i < NUM_TIMERS; i++)
+    uv_close((uv_handle_t*) (timers + i), close_cb);
+
+  ASSERT(0 == uv_run(loop));
   ASSERT(timer_cb_called == NUM_TIMERS);
+  ASSERT(close_cb_called == NUM_TIMERS);
   free(timers);
 
   LOGF("%.2f seconds\n", (after - before) / 1e9);

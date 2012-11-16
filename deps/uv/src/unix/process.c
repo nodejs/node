@@ -204,7 +204,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
       if (container->flags & UV_INHERIT_FD) {
         fd = container->data.fd;
       } else {
-        fd = container->data.stream->fd;
+        fd = container->data.stream->io_watcher.fd;
       }
 
       if (fd == -1) {

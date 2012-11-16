@@ -38,7 +38,7 @@ RB_HEAD(uv__signal_tree_s, uv_signal_s);
 
 
 static int uv__signal_unlock();
-static void uv__signal_event(uv_loop_t* loop, uv__io_t* watcher, int events);
+static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 static int uv__signal_compare(uv_signal_t* w1, uv_signal_t* w2);
 static void uv__signal_stop(uv_signal_t* handle);
 
@@ -189,17 +189,16 @@ static uv_err_t uv__signal_register_handler(int signum) {
 static void uv__signal_unregister_handler(int signum) {
   /* When this function is called, the signal lock must be held. */
   struct sigaction sa;
-  int r;
 
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = SIG_DFL;
 
-  r = sigaction(signum, &sa, NULL);
   /* sigaction can only fail with EINVAL or EFAULT; an attempt to deregister a
    * signal implies that it was successfully registered earlier, so EINVAL
    * should never happen.
    */
-  assert(r == 0);
+  if (sigaction(signum, &sa, NULL))
+    abort();
 }
 
 
@@ -213,9 +212,8 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
 
   uv__io_init(&loop->signal_io_watcher,
               uv__signal_event,
-              loop->signal_pipefd[0],
-              UV__IO_READ);
-  uv__io_start(loop, &loop->signal_io_watcher);
+              loop->signal_pipefd[0]);
+  uv__io_start(loop, &loop->signal_io_watcher, UV__POLLIN);
 
   return 0;
 }
@@ -330,7 +328,7 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
 }
 
 
-static void uv__signal_event(uv_loop_t* loop, uv__io_t* watcher, int events) {
+static void uv__signal_event(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   uv__signal_msg_t* msg;
   uv_signal_t* handle;
   char buf[sizeof(uv__signal_msg_t) * 32];
@@ -439,6 +437,7 @@ static void uv__signal_stop(uv_signal_t* handle) {
 
   removed_handle = RB_REMOVE(uv__signal_tree_s, &uv__signal_tree, handle);
   assert(removed_handle == handle);
+  (void) removed_handle;
 
   /* Check if there are other active signal watchers observing this signal. If
    * not, unregister the signal handler.

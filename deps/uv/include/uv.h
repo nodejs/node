@@ -1044,9 +1044,8 @@ UV_EXTERN int uv_poll_stop(uv_poll_t* handle);
 /*
  * uv_prepare_t is a subclass of uv_handle_t.
  *
- * libev wrapper. Every active prepare handle gets its callback called
- * exactly once per loop iteration, just before the system blocks to wait
- * for completed i/o.
+ * Every active prepare handle gets its callback called exactly once per loop
+ * iteration, just before the system blocks to wait for completed i/o.
  */
 struct uv_prepare_s {
   UV_HANDLE_FIELDS
@@ -1063,8 +1062,8 @@ UV_EXTERN int uv_prepare_stop(uv_prepare_t* prepare);
 /*
  * uv_check_t is a subclass of uv_handle_t.
  *
- * libev wrapper. Every active check handle gets its callback called exactly
- * once per loop iteration, just after the system returns from blocking.
+ * Every active check handle gets its callback called exactly once per loop
+ * iteration, just after the system returns from blocking.
  */
 struct uv_check_s {
   UV_HANDLE_FIELDS
@@ -1081,10 +1080,10 @@ UV_EXTERN int uv_check_stop(uv_check_t* check);
 /*
  * uv_idle_t is a subclass of uv_handle_t.
  *
- * libev wrapper. Every active idle handle gets its callback called
- * repeatedly until it is stopped. This happens after all other types of
- * callbacks are processed.  When there are multiple "idle" handles active,
- * their callbacks are called in turn.
+ * Every active idle handle gets its callback called repeatedly until it is
+ * stopped. This happens after all other types of callbacks are processed.
+ * When there are multiple "idle" handles active, their callbacks are called
+ * in turn.
  */
 struct uv_idle_s {
   UV_HANDLE_FIELDS
@@ -1101,12 +1100,11 @@ UV_EXTERN int uv_idle_stop(uv_idle_t* idle);
 /*
  * uv_async_t is a subclass of uv_handle_t.
  *
- * libev wrapper. uv_async_send wakes up the event
- * loop and calls the async handle's callback There is no guarantee that
- * every uv_async_send call leads to exactly one invocation of the callback;
- * The only guarantee is that the callback function is  called at least once
- * after the call to async_send. Unlike all other libuv functions,
- * uv_async_send can be called from another thread.
+ * uv_async_send wakes up the event loop and calls the async handle's callback.
+ * There is no guarantee that every uv_async_send call leads to exactly one
+ * invocation of the callback; the only guarantee is that the callback function
+ * is called at least once after the call to async_send. Unlike all other
+ * libuv functions, uv_async_send can be called from another thread.
  */
 struct uv_async_s {
   UV_HANDLE_FIELDS
@@ -1639,9 +1637,11 @@ struct uv_signal_s {
 };
 
 /* These functions are no-ops on Windows. */
-int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle);
-int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum);
-int uv_signal_stop(uv_signal_t* handle);
+UV_EXTERN int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle);
+UV_EXTERN int uv_signal_start(uv_signal_t* handle,
+                              uv_signal_cb signal_cb,
+                              int signum);
+UV_EXTERN int uv_signal_stop(uv_signal_t* handle);
 
 
 /*
@@ -1699,8 +1699,8 @@ UV_EXTERN int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 /* Cross-platform IPv6-capable implementation of the 'standard' inet_ntop */
 /* and inet_pton functions. On success they return UV_OK. If an error */
 /* the target of the `dst` pointer is unmodified. */
-uv_err_t uv_inet_ntop(int af, const void* src, char* dst, size_t size);
-uv_err_t uv_inet_pton(int af, const char* src, void* dst);
+UV_EXTERN uv_err_t uv_inet_ntop(int af, const void* src, char* dst, size_t size);
+UV_EXTERN uv_err_t uv_inet_pton(int af, const char* src, void* dst);
 
 /* Gets the executable path */
 UV_EXTERN int uv_exepath(char* buffer, size_t* size);

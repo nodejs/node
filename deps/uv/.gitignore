@@ -1,14 +1,16 @@
 *.swp
-*.o
-*.lo
-*.la
-*.a
+*.[oa]
+*.l[oa]
 *.opensdf
 *.orig
 *.sdf
 *.suo
 core
 vgcore.*
+
+/libuv.so
+/libuv.dylib
+
 /out/
 /build/gyp
 

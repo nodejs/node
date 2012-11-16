@@ -37,7 +37,7 @@ int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
 static int maybe_new_socket(uv_tcp_t* handle, int domain, int flags) {
   int sockfd;
 
-  if (handle->fd != -1)
+  if (handle->io_watcher.fd != -1)
     return 0;
 
   sockfd = uv__socket(domain, SOCK_STREAM, 0);
@@ -68,7 +68,7 @@ static int uv__bind(uv_tcp_t* tcp,
     return -1;
 
   tcp->delayed_error = 0;
-  if (bind(tcp->fd, addr, addrsize) == -1) {
+  if (bind(tcp->io_watcher.fd, addr, addrsize) == -1) {
     if (errno == EADDRINUSE) {
       tcp->delayed_error = errno;
     } else {
@@ -105,7 +105,7 @@ static int uv__connect(uv_connect_t* req,
   handle->delayed_error = 0;
 
   do
-    r = connect(handle->fd, addr, addrlen);
+    r = connect(handle->io_watcher.fd, addr, addrlen);
   while (r == -1 && errno == EINTR);
 
   if (r == -1) {
@@ -127,10 +127,10 @@ static int uv__connect(uv_connect_t* req,
   ngx_queue_init(&req->queue);
   handle->connect_req = req;
 
-  uv__io_start(handle->loop, &handle->write_watcher);
+  uv__io_start(handle->loop, &handle->io_watcher, UV__POLLOUT);
 
   if (handle->delayed_error)
-    uv__io_feed(handle->loop, &handle->write_watcher, UV__IO_WRITE);
+    uv__io_feed(handle->loop, &handle->io_watcher);
 
   return 0;
 }
@@ -174,7 +174,7 @@ int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
     goto out;
   }
 
-  if (handle->fd < 0) {
+  if (handle->io_watcher.fd < 0) {
     uv__set_sys_error(handle->loop, EINVAL);
     rv = -1;
     goto out;
@@ -183,7 +183,7 @@ int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
   socklen = (socklen_t)*namelen;
 
-  if (getsockname(handle->fd, name, &socklen) == -1) {
+  if (getsockname(handle->io_watcher.fd, name, &socklen) == -1) {
     uv__set_sys_error(handle->loop, errno);
     rv = -1;
   } else {
@@ -211,7 +211,7 @@ int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
     goto out;
   }
 
-  if (handle->fd < 0) {
+  if (handle->io_watcher.fd < 0) {
     uv__set_sys_error(handle->loop, EINVAL);
     rv = -1;
     goto out;
@@ -220,7 +220,7 @@ int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
   /* sizeof(socklen_t) != sizeof(int) on some systems. */
   socklen = (socklen_t)*namelen;
 
-  if (getpeername(handle->fd, name, &socklen) == -1) {
+  if (getpeername(handle->io_watcher.fd, name, &socklen) == -1) {
     uv__set_sys_error(handle->loop, errno);
     rv = -1;
   } else {
@@ -250,14 +250,14 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   if (maybe_new_socket(tcp, AF_INET, UV_STREAM_READABLE))
     return -1;
 
-  if (listen(tcp->fd, backlog))
+  if (listen(tcp->io_watcher.fd, backlog))
     return uv__set_sys_error(tcp->loop, errno);
 
   tcp->connection_cb = cb;
 
   /* Start listening for connections. */
-  uv__io_set(&tcp->read_watcher, uv__server_io, tcp->fd, UV__IO_READ);
-  uv__io_start(tcp->loop, &tcp->read_watcher);
+  tcp->io_watcher.cb = uv__server_io;
+  uv__io_start(tcp->loop, &tcp->io_watcher, UV__POLLIN);
 
   return 0;
 }
@@ -293,63 +293,38 @@ int uv__tcp_connect6(uv_connect_t* req,
 }
 
 
-int uv__tcp_nodelay(uv_tcp_t* handle, int enable) {
-  if (setsockopt(handle->fd,
-                 IPPROTO_TCP,
-                 TCP_NODELAY,
-                 &enable,
-                 sizeof enable) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    return -1;
-  }
-  return 0;
+int uv__tcp_nodelay(int fd, int on) {
+  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 }
 
 
-int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
-  if (setsockopt(handle->fd,
-                 SOL_SOCKET,
-                 SO_KEEPALIVE,
-                 &enable,
-                 sizeof enable) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
+  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
     return -1;
-  }
 
 #ifdef TCP_KEEPIDLE
-  if (enable && setsockopt(handle->fd,
-                           IPPROTO_TCP,
-                           TCP_KEEPIDLE,
-                           &delay,
-                           sizeof delay) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+  if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &delay, sizeof(delay)))
     return -1;
-  }
 #endif
 
   /* Solaris/SmartOS, if you don't support keep-alive,
    * then don't advertise it in your system headers...
    */
 #if defined(TCP_KEEPALIVE) && !defined(__sun)
-  if (enable && setsockopt(handle->fd,
-                           IPPROTO_TCP,
-                           TCP_KEEPALIVE,
-                           &delay,
-                           sizeof delay) == -1) {
-    uv__set_sys_error(handle->loop, errno);
+  if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
     return -1;
-  }
 #endif
 
   return 0;
 }
 
 
-int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
-  if (handle->fd != -1 && uv__tcp_nodelay(handle, enable))
-    return -1;
+int uv_tcp_nodelay(uv_tcp_t* handle, int on) {
+  if (handle->io_watcher.fd != -1)
+    if (uv__tcp_nodelay(handle->io_watcher.fd, on))
+      return -1;
 
-  if (enable)
+  if (on)
     handle->flags |= UV_TCP_NODELAY;
   else
     handle->flags &= ~UV_TCP_NODELAY;
@@ -358,25 +333,26 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
 }
 
 
-int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
-  if (handle->fd != -1 && uv__tcp_keepalive(handle, enable, delay))
-    return -1;
+int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
+  if (handle->io_watcher.fd != -1)
+    if (uv__tcp_keepalive(handle->io_watcher.fd, on, delay))
+      return -1;
 
-  if (enable)
+  if (on)
     handle->flags |= UV_TCP_KEEPALIVE;
   else
     handle->flags &= ~UV_TCP_KEEPALIVE;
 
-  /* TODO Store delay if handle->fd == -1 but don't want to enlarge
-   *       uv_tcp_t with an int that's almost never used...
+  /* TODO Store delay if handle->io_watcher.fd == -1 but don't want to enlarge
+   *      uv_tcp_t with an int that's almost never used...
    */
 
   return 0;
 }
 
 
-int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
-  if (enable)
+int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int on) {
+  if (on)
     handle->flags |= UV_TCP_SINGLE_ACCEPT;
   else
     handle->flags &= ~UV_TCP_SINGLE_ACCEPT;

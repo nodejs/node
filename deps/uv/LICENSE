@@ -33,9 +33,6 @@ The externally maintained libraries used by libuv are:
 
   - ngx_queue.h (from Nginx), copyright Igor Sysoev. Two clause BSD license.
 
-  - libev, located at ev/ is copyright Marc Alexander Lehmann, and
-    dual-licensed under the MIT license and GPL2.
-
   - inet_pton and inet_ntop implementations, contained in src/inet.c, are
     copyright the Internet Systems Consortium, Inc., and licensed under the ISC
     license.

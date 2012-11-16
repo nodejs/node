@@ -24,8 +24,6 @@
 
 #include "ngx-queue.h"
 
-#include "ev.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -46,11 +44,18 @@
 struct uv__io_s;
 struct uv_loop_s;
 
+typedef void (*uv__io_cb)(struct uv_loop_s* loop,
+                          struct uv__io_s* w,
+                          unsigned int events);
 typedef struct uv__io_s uv__io_t;
-typedef void (*uv__io_cb)(struct uv_loop_s* loop, uv__io_t* handle, int events);
 
 struct uv__io_s {
-  ev_io io_watcher;
+  uv__io_cb cb;
+  ngx_queue_t pending_queue;
+  ngx_queue_t watcher_queue;
+  unsigned int pevents; /* Pending event mask i.e. mask at next tick. */
+  unsigned int events;  /* Current event mask. */
+  int fd;
 };
 
 struct uv__work {
@@ -135,7 +140,12 @@ typedef struct {
 
 #define UV_LOOP_PRIVATE_FIELDS                                                \
   unsigned long flags;                                                        \
-  struct ev_loop* ev;                                                         \
+  int backend_fd;                                                             \
+  ngx_queue_t pending_queue;                                                  \
+  ngx_queue_t watcher_queue;                                                  \
+  uv__io_t** watchers;                                                        \
+  unsigned int nwatchers;                                                     \
+  unsigned int nfds;                                                          \
   ngx_queue_t wq;                                                             \
   uv_mutex_t wq_mutex;                                                        \
   uv_async_t wq_async;                                                        \
@@ -193,23 +203,19 @@ typedef struct {
 #define UV_STREAM_PRIVATE_FIELDS                                              \
   uv_connect_t *connect_req;                                                  \
   uv_shutdown_t *shutdown_req;                                                \
-  uv__io_t read_watcher;                                                      \
-  uv__io_t write_watcher;                                                     \
+  uv__io_t io_watcher;                                                        \
   ngx_queue_t write_queue;                                                    \
   ngx_queue_t write_completed_queue;                                          \
   uv_connection_cb connection_cb;                                             \
   int delayed_error;                                                          \
   int accepted_fd;                                                            \
-  int fd;                                                                     \
 
 #define UV_TCP_PRIVATE_FIELDS /* empty */
 
 #define UV_UDP_PRIVATE_FIELDS                                                 \
-  int fd;                                                                     \
   uv_alloc_cb alloc_cb;                                                       \
   uv_udp_recv_cb recv_cb;                                                     \
-  uv__io_t read_watcher;                                                      \
-  uv__io_t write_watcher;                                                     \
+  uv__io_t io_watcher;                                                        \
   ngx_queue_t write_queue;                                                    \
   ngx_queue_t write_completed_queue;                                          \
 
@@ -217,7 +223,6 @@ typedef struct {
   const char* pipe_fname; /* strdup'ed */
 
 #define UV_POLL_PRIVATE_FIELDS                                                \
-  int fd;                                                                     \
   uv__io_t io_watcher;
 
 #define UV_PREPARE_PRIVATE_FIELDS                                             \

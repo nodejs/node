@@ -1,8 +1,8 @@
 # libuv [![Build Status](https://secure.travis-ci.org/joyent/libuv.png)](http://travis-ci.org/joyent/libuv)
 
 libuv is a new platform layer for Node. Its purpose is to abstract IOCP on
-Windows and libev on Unix systems. We intend to eventually contain all
-platform differences in this library.
+Windows and epoll/kqueue/event ports/etc. on Unix systems. We intend to
+eventually contain all platform differences in this library.
 
 http://nodejs.org/
 

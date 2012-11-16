@@ -21,11 +21,15 @@
 E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS += -g
-CPPFLAGS += -Isrc -Isrc/unix/ev
+CPPFLAGS += -Isrc
 LINKFLAGS=-lm
 
 CPPFLAGS += -D_LARGEFILE_SOURCE
 CPPFLAGS += -D_FILE_OFFSET_BITS=64
+
+RUNNER_SRC=test/runner-unix.c
+RUNNER_CFLAGS=$(CFLAGS) -Itest
+RUNNER_LINKFLAGS=-L"$(PWD)" -luv -Xlinker -rpath -Xlinker "$(PWD)"
 
 OBJS += src/unix/async.o
 OBJS += src/unix/core.o
@@ -46,11 +50,16 @@ OBJS += src/unix/threadpool.o
 OBJS += src/unix/timer.o
 OBJS += src/unix/tty.o
 OBJS += src/unix/udp.o
+OBJS += src/fs-poll.o
+OBJS += src/uv-common.o
+OBJS += src/inet.o
 
 ifeq (SunOS,$(uname_S))
 EV_CONFIG=config_sunos.h
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LINKFLAGS+=-lkstat -lnsl -lsendfile -lsocket
+# Library dependencies are not transitive.
+RUNNER_LINKFLAGS += $(LINKFLAGS)
 OBJS += src/unix/sunos.o
 endif
 
@@ -64,7 +73,8 @@ endif
 ifeq (Darwin,$(uname_S))
 EV_CONFIG=config_darwin.h
 CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
-LINKFLAGS+=-framework CoreServices
+LINKFLAGS+=-framework CoreServices -dynamiclib -install_name "@rpath/libuv.dylib"
+SOEXT = dylib
 OBJS += src/unix/darwin.o
 OBJS += src/unix/kqueue.o
 OBJS += src/unix/fsevents.o
@@ -74,6 +84,7 @@ ifeq (Linux,$(uname_S))
 EV_CONFIG=config_linux.h
 CSTDFLAG += -D_GNU_SOURCE
 LINKFLAGS+=-ldl -lrt
+RUNNER_CFLAGS += -D_GNU_SOURCE
 OBJS += src/unix/linux/linux-core.o \
         src/unix/linux/inotify.o    \
         src/unix/linux/syscalls.o
@@ -115,21 +126,18 @@ LINKFLAGS+=
 OBJS += src/unix/cygwin.o
 endif
 
-# Need _GNU_SOURCE for strdup?
-RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE
-RUNNER_LINKFLAGS=$(LINKFLAGS)
-
 ifeq (SunOS,$(uname_S))
 RUNNER_LINKFLAGS += -pthreads
 else
 RUNNER_LINKFLAGS += -pthread
 endif
 
-RUNNER_LIBS=
-RUNNER_SRC=test/runner-unix.c
-
-libuv.a: $(OBJS) src/fs-poll.o src/inet.o src/uv-common.o src/unix/ev/ev.o
+libuv.a: $(OBJS)
 	$(AR) rcs $@ $^
+
+libuv.$(SOEXT):	CFLAGS += -fPIC
+libuv.$(SOEXT):	$(OBJS)
+	$(CC) -shared -o $@ $^ $(LINKFLAGS)
 
 src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -137,17 +145,12 @@ src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
 src/unix/%.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-src/unix/ev/ev.o: src/unix/ev/ev.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c src/unix/ev/ev.c -o src/unix/ev/ev.o -DEV_CONFIG_H=\"$(EV_CONFIG)\"
-
 clean-platform:
 	-rm -f src/unix/*.o
-	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/linux/*.o
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM
 
 distclean-platform:
 	-rm -f src/unix/*.o
-	-rm -f src/unix/ev/*.o
 	-rm -f src/unix/linux/*.o
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM

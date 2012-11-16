@@ -105,7 +105,7 @@ static void check_sockname(struct sockaddr* addr, const char* compare_ip,
 static void on_connection(uv_stream_t* server, int status) {
   struct sockaddr sockname, peername;
   int namelen;
-  uv_handle_t* handle;
+  uv_tcp_t* handle;
   int r;
 
   if (status != 0) {
@@ -114,10 +114,10 @@ static void on_connection(uv_stream_t* server, int status) {
   }
   ASSERT(status == 0);
 
-  handle = (uv_handle_t*) malloc(sizeof(uv_tcp_t));
+  handle = malloc(sizeof(*handle));
   ASSERT(handle != NULL);
 
-  r = uv_tcp_init(loop, (uv_tcp_t*)handle);
+  r = uv_tcp_init(loop, handle);
   ASSERT(r == 0);
 
   /* associate server with stream */
@@ -127,13 +127,13 @@ static void on_connection(uv_stream_t* server, int status) {
   ASSERT(r == 0);
 
   namelen = sizeof sockname;
-  r = uv_tcp_getsockname((uv_tcp_t*) handle, &sockname, &namelen);
+  r = uv_tcp_getsockname(handle, &sockname, &namelen);
   ASSERT(r == 0);
   check_sockname(&sockname, "127.0.0.1", server_port, "accepted socket");
   getsocknamecount++;
 
   namelen = sizeof peername;
-  r = uv_tcp_getpeername((uv_tcp_t*) handle, &peername, &namelen);
+  r = uv_tcp_getpeername(handle, &peername, &namelen);
   ASSERT(r == 0);
   check_sockname(&peername, "127.0.0.1", connect_port, "accepted socket peer");
   getpeernamecount++;

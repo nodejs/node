@@ -81,12 +81,14 @@ void uv__fsevents_cb(uv_async_t* cb, int status) {
   handle = cb->data;
 
   UV__FSEVENTS_WALK(handle, {
-    if (handle->fd != -1)
+    if (handle->event_watcher.fd != -1)
       handle->cb(handle, event->path[0] ? event->path : NULL, event->events, 0);
   });
 
-  if ((handle->flags & (UV_CLOSING | UV_CLOSED)) == 0 && handle->fd == -1)
+  if ((handle->flags & (UV_CLOSING | UV_CLOSED)) == 0 &&
+      handle->event_watcher.fd == -1) {
     uv__fsevents_close(handle);
+  }
 }
 
 

@@ -55,6 +55,9 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
   CFRunLoopSourceContext ctx;
   int r;
 
+  if (uv__kqueue_init(loop))
+    return -1;
+
   loop->cf_loop = NULL;
   if ((r = uv_mutex_init(&loop->cf_mutex)))
     return r;
@@ -174,19 +177,12 @@ void uv__cf_loop_signal(uv_loop_t* loop, cf_loop_signal_cb cb, void* arg) {
 
 
 uint64_t uv_hrtime(void) {
-    uint64_t time;
-    uint64_t enano;
-    static mach_timebase_info_data_t sTimebaseInfo;
+    mach_timebase_info_data_t info;
 
-    time = mach_absolute_time();
+    if (mach_timebase_info(&info) != KERN_SUCCESS)
+      abort();
 
-    if (0 == sTimebaseInfo.denom) {
-        (void)mach_timebase_info(&sTimebaseInfo);
-    }
-
-    enano = time * sTimebaseInfo.numer / sTimebaseInfo.denom;
-
-    return enano;
+    return mach_absolute_time() * info.numer / info.denom;
 }
 
 

@@ -143,9 +143,9 @@ static void timeout_cb(uv_timer_t* timer, int status) {
 }
 
 
-static int do_packet_storm(unsigned int n_senders,
-                           unsigned int n_receivers,
-                           unsigned long timeout) {
+static int pummel(unsigned int n_senders,
+                  unsigned int n_receivers,
+                  unsigned long timeout) {
   uv_timer_t timer_handle;
   uint64_t duration;
   uv_loop_t* loop;
@@ -200,7 +200,7 @@ static int do_packet_storm(unsigned int n_senders,
   /* convert from nanoseconds to milliseconds */
   duration = duration / (uint64_t) 1e6;
 
-  printf("udp_packet_storm_%dv%d: %.0f/s received, %.0f/s sent. "
+  printf("udp_pummel_%dv%d: %.0f/s received, %.0f/s sent. "
          "%u received, %u sent in %.1f seconds.\n",
          n_receivers,
          n_senders,
@@ -217,10 +217,10 @@ static int do_packet_storm(unsigned int n_senders,
 
 #define X(a, b)                                                               \
   BENCHMARK_IMPL(udp_pummel_##a##v##b) {                                      \
-    return do_packet_storm(a, b, 0);                                          \
+    return pummel(a, b, 0);                                                   \
   }                                                                           \
   BENCHMARK_IMPL(udp_timed_pummel_##a##v##b) {                                \
-    return do_packet_storm(a, b, TEST_DURATION);                              \
+    return pummel(a, b, TEST_DURATION);                                       \
   }
 
 X(1, 1)

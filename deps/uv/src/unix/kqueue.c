@@ -29,57 +29,254 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
 
-static void uv__fs_event(EV_P_ ev_io* w, int revents);
+static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags);
 
 
-static void uv__fs_event_start(uv_fs_event_t* handle) {
-  ev_io_init(&handle->event_watcher,
-             uv__fs_event,
-             handle->fd,
-             EV_LIBUV_KQUEUE_HACK);
-  ev_io_start(handle->loop->ev, &handle->event_watcher);
+int uv__kqueue_init(uv_loop_t* loop) {
+  loop->backend_fd = kqueue();
+
+  if (loop->backend_fd == -1)
+    return -1;
+
+  uv__cloexec(loop->backend_fd, 1);
+
+  return 0;
 }
 
 
-static void uv__fs_event_stop(uv_fs_event_t* handle) {
-  ev_io_stop(handle->loop->ev, &handle->event_watcher);
+void uv__io_poll(uv_loop_t* loop, int timeout) {
+  struct kevent events[1024];
+  struct kevent* ev;
+  struct timespec spec;
+  unsigned int nevents;
+  unsigned int revents;
+  ngx_queue_t* q;
+  uint64_t base;
+  uint64_t diff;
+  uv__io_t* w;
+  int filter;
+  int fflags;
+  int count;
+  int nfds;
+  int fd;
+  int op;
+  int i;
+
+  if (loop->nfds == 0) {
+    assert(ngx_queue_empty(&loop->watcher_queue));
+    return;
+  }
+
+  nevents = 0;
+
+  while (!ngx_queue_empty(&loop->watcher_queue)) {
+    q = ngx_queue_head(&loop->watcher_queue);
+    ngx_queue_remove(q);
+    ngx_queue_init(q);
+
+    w = ngx_queue_data(q, uv__io_t, watcher_queue);
+    assert(w->pevents != 0);
+    assert(w->fd >= 0);
+    assert(w->fd < (int) loop->nwatchers);
+
+    /* Filter out no-op changes. This is for compatibility with the event ports
+     * backend, see uv__io_start().
+     */
+    if (w->events == w->pevents)
+      continue;
+
+    if ((w->events & UV__POLLIN) == 0 && (w->pevents & UV__POLLIN) != 0) {
+      filter = EVFILT_READ;
+      fflags = 0;
+      op = EV_ADD;
+
+      if (w->cb == uv__fs_event) {
+        filter = EVFILT_VNODE;
+        fflags = NOTE_ATTRIB | NOTE_WRITE  | NOTE_RENAME
+               | NOTE_DELETE | NOTE_EXTEND | NOTE_REVOKE;
+        op = EV_ADD | EV_ONESHOT; /* Stop the event from firing repeatedly. */
+      }
+
+      EV_SET(events + nevents, w->fd, filter, op, fflags, 0, 0);
+
+      if (++nevents == ARRAY_SIZE(events)) {
+        if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
+          abort();
+        nevents = 0;
+      }
+    }
+
+    if ((w->events & UV__POLLOUT) == 0 && (w->pevents & UV__POLLOUT) != 0) {
+      EV_SET(events + nevents, w->fd, EVFILT_WRITE, EV_ADD, 0, 0, 0);
+
+      if (++nevents == ARRAY_SIZE(events)) {
+        if (kevent(loop->backend_fd, events, nevents, NULL, 0, NULL))
+          abort();
+        nevents = 0;
+      }
+    }
+
+    w->events = w->pevents;
+  }
+
+  assert(timeout >= -1);
+  base = loop->time;
+  count = 48; /* Benchmarks suggest this gives the best throughput. */
+
+  for (;; nevents = 0) {
+    if (timeout != -1) {
+      spec.tv_sec = timeout / 1000;
+      spec.tv_nsec = (timeout % 1000) * 1000000;
+    }
+
+    nfds = kevent(loop->backend_fd,
+                  events,
+                  nevents,
+                  events,
+                  ARRAY_SIZE(events),
+                  timeout == -1 ? NULL : &spec);
+
+    if (nfds == 0) {
+      assert(timeout != -1);
+      return;
+    }
+
+    if (nfds == -1) {
+      if (errno != EINTR)
+        abort();
+
+      if (timeout == 0)
+        return;
+
+      if (timeout == -1)
+        continue;
+
+      /* Interrupted by a signal. Update timeout and poll again. */
+      goto update_timeout;
+    }
+
+    nevents = 0;
+
+    for (i = 0; i < nfds; i++) {
+      ev = events + i;
+      fd = ev->ident;
+      w = loop->watchers[fd];
+
+      if (w == NULL) {
+        /* File descriptor that we've stopped watching, disarm it. */
+        /* TODO batch up */
+        struct kevent events[1];
+
+        EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
+        if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
+          if (errno != EBADF && errno != ENOENT)
+            abort();
+
+        continue;
+      }
+
+      if (ev->filter == EVFILT_VNODE) {
+        assert(w->events == UV__POLLIN);
+        assert(w->pevents == UV__POLLIN);
+        w->cb(loop, w, ev->fflags); /* XXX always uv__fs_event() */
+        nevents++;
+        continue;
+      }
+
+      revents = 0;
+
+      if (ev->filter == EVFILT_READ) {
+        if (w->events & UV__POLLIN)
+          revents |= UV__POLLIN;
+        else {
+          /* TODO batch up */
+          struct kevent events[1];
+          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
+          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL)) abort();
+        }
+      }
+
+      if (ev->filter == EVFILT_WRITE) {
+        if (w->events & UV__POLLOUT)
+          revents |= UV__POLLOUT;
+        else {
+          /* TODO batch up */
+          struct kevent events[1];
+          EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
+          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL)) abort();
+        }
+      }
+
+      if (ev->flags & EV_ERROR)
+        revents |= UV__POLLERR;
+
+      if (revents == 0)
+        continue;
+
+      w->cb(loop, w, revents);
+      nevents++;
+    }
+
+    if (nevents != 0) {
+      if (nfds == ARRAY_SIZE(events) && --count != 0) {
+        /* Poll for more events but don't block this time. */
+        timeout = 0;
+        continue;
+      }
+      return;
+    }
+
+    if (timeout == 0)
+      return;
+
+    if (timeout == -1)
+      continue;
+
+update_timeout:
+    assert(timeout > 0);
+
+    diff = uv_hrtime() / 1000000;
+    assert(diff >= base);
+    diff -= base;
+
+    if (diff >= (uint64_t) timeout)
+      return;
+
+    timeout -= diff;
+  }
 }
 
 
-static void uv__fs_event(EV_P_ ev_io* w, int revents) {
+static void uv__fs_event(uv_loop_t* loop, uv__io_t* w, unsigned int fflags) {
   uv_fs_event_t* handle;
+  struct kevent ev;
   int events;
-
-  assert(revents == EV_LIBUV_KQUEUE_HACK);
 
   handle = container_of(w, uv_fs_event_t, event_watcher);
 
-  if (handle->fflags & (NOTE_ATTRIB | NOTE_EXTEND))
+  if (fflags & (NOTE_ATTRIB | NOTE_EXTEND))
     events = UV_CHANGE;
   else
     events = UV_RENAME;
 
   handle->cb(handle, NULL, events, 0);
 
-  if (handle->fd == -1)
+  if (handle->event_watcher.fd == -1)
     return;
 
-  /* File watcher operates in one-shot mode, re-arm it. */
-  uv__fs_event_stop(handle);
-  uv__fs_event_start(handle);
-}
+  /* Watcher operates in one-shot mode, re-arm it. */
+  fflags = NOTE_ATTRIB | NOTE_WRITE  | NOTE_RENAME
+         | NOTE_DELETE | NOTE_EXTEND | NOTE_REVOKE;
 
+  EV_SET(&ev, w->fd, EVFILT_VNODE, EV_ADD | EV_ONESHOT, fflags, 0, 0);
 
-/* Called by libev, don't touch. */
-void uv__kqueue_hack(EV_P_ int fflags, ev_io *w) {
-  uv_fs_event_t* handle;
-
-  handle = container_of(w, uv_fs_event_t, event_watcher);
-  handle->fflags = fflags;
+  if (kevent(loop->backend_fd, &ev, 1, NULL, 0, NULL))
+    abort();
 }
 
 
@@ -88,10 +285,10 @@ int uv_fs_event_init(uv_loop_t* loop,
                      const char* filename,
                      uv_fs_event_cb cb,
                      int flags) {
-  int fd;
 #if defined(__APPLE__)
   struct stat statbuf;
 #endif /* defined(__APPLE__) */
+  int fd;
 
   /* TODO open asynchronously - but how do we report back errors? */
   if ((fd = open(filename, O_RDONLY)) == -1) {
@@ -101,10 +298,9 @@ int uv_fs_event_init(uv_loop_t* loop,
 
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
   uv__handle_start(handle); /* FIXME shouldn't start automatically */
+  uv__io_init(&handle->event_watcher, uv__fs_event, fd);
   handle->filename = strdup(filename);
-  handle->fflags = 0;
   handle->cb = cb;
-  handle->fd = fd;
 
 #if defined(__APPLE__)
   /* Nullify field to perform checks later */
@@ -124,7 +320,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 fallback:
 #endif /* defined(__APPLE__) */
 
-  uv__fs_event_start(handle);
+  uv__io_start(loop, &handle->event_watcher, UV__POLLIN);
 
   return 0;
 }
@@ -133,13 +329,16 @@ fallback:
 void uv__fs_event_close(uv_fs_event_t* handle) {
 #if defined(__APPLE__)
   if (uv__fsevents_close(handle))
-    uv__fs_event_stop(handle);
+    uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
 #else
-  uv__fs_event_stop(handle);
+  uv__io_stop(handle->loop, &handle->event_watcher, UV__POLLIN);
 #endif /* defined(__APPLE__) */
 
   uv__handle_stop(handle);
+
   free(handle->filename);
-  close(handle->fd);
-  handle->fd = -1;
+  handle->filename = NULL;
+
+  close(handle->event_watcher.fd);
+  handle->event_watcher.fd = -1;
 }

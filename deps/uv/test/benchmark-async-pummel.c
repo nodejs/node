@@ -25,19 +25,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define NUM_PINGS (1000 * 1000)
+#define NUM_PINGS               (1000 * 1000)
+#define ACCESS_ONCE(type, var)  (*(volatile type*) &(var))
 
 static unsigned int callbacks;
 static volatile int done;
+
+static const char running[] = "running";
+static const char stop[]    = "stop";
+static const char stopped[] = "stopped";
 
 
 static void async_cb(uv_async_t* handle, int status) {
   if (++callbacks == NUM_PINGS) {
     /* Tell the pummel thread to stop. */
-    handle->data = (void*) (intptr_t) 1;
+    ACCESS_ONCE(const char*, handle->data) = stop;
 
     /* Wait for for the pummel thread to acknowledge that it has stoppped. */
-    while (*(volatile intptr_t*) &handle->data < 2)
+    while (ACCESS_ONCE(const char*, handle->data) != stopped)
       uv_sleep(0);
 
     uv_close((uv_handle_t*) handle, NULL);
@@ -48,11 +53,11 @@ static void async_cb(uv_async_t* handle, int status) {
 static void pummel(void* arg) {
   uv_async_t* handle = (uv_async_t*) arg;
 
-  while (*(volatile intptr_t*) &handle->data == 0)
+  while (ACCESS_ONCE(const char*, handle->data) == running)
     uv_async_send(handle);
 
   /* Acknowledge that we've seen handle->data change. */
-  handle->data = (void*) (intptr_t) 2;
+  ACCESS_ONCE(const char*, handle->data) = stopped;
 }
 
 
@@ -66,7 +71,7 @@ static int test_async_pummel(int nthreads) {
   ASSERT(tids != NULL);
 
   ASSERT(0 == uv_async_init(uv_default_loop(), &handle, async_cb));
-  handle.data = NULL;
+  ACCESS_ONCE(const char*, handle.data) = running;
 
   for (i = 0; i < nthreads; i++)
     ASSERT(0 == uv_thread_create(tids + i, pummel, &handle));
@@ -81,7 +86,8 @@ static int test_async_pummel(int nthreads) {
   for (i = 0; i < nthreads; i++)
     ASSERT(0 == uv_thread_join(tids + i));
 
-  printf("%s callbacks in %.2f seconds (%s/sec)\n",
+  printf("async_pummel_%d: %s callbacks in %.2f seconds (%s/sec)\n",
+         nthreads,
          fmt(callbacks),
          time / 1e9,
          fmt(callbacks / (time / 1e9)));

@@ -76,7 +76,9 @@ static void poll_cb(uv_fs_poll_t* handle,
                     int status,
                     const uv_statbuf_t* prev,
                     const uv_statbuf_t* curr) {
-  const static uv_statbuf_t zero_statbuf;
+  uv_statbuf_t zero_statbuf;
+
+  memset(&zero_statbuf, 0, sizeof(zero_statbuf));
 
   ASSERT(handle == &poll_handle);
   ASSERT(uv_is_active((uv_handle_t*)handle));
