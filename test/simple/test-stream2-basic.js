@@ -209,19 +209,27 @@ test('pipe', function(t) {
     w[0].on('write', function() {
       if (--writes === 0) {
         r.unpipe();
+        t.equal(r._readableState.pipes, null);
         w[0].end();
         r.pipe(w[1]);
+        t.equal(r._readableState.pipes, w[1]);
       }
     });
 
     var ended = 0;
 
+    var ended0 = false;
+    var ended1 = false;
     w[0].on('end', function(results) {
+      t.equal(ended0, false);
+      ended0 = true;
       ended++;
       t.same(results, expect[0]);
     });
 
     w[1].on('end', function(results) {
+      t.equal(ended1, false);
+      ended1 = true;
       ended++;
       t.equal(ended, 2);
       t.same(results, expect[1]);
