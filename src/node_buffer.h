@@ -68,6 +68,9 @@ class NODE_EXTERN Buffer: public ObjectWrap {
   // mirrors deps/v8/src/objects.h
   static const unsigned int kMaxLength = 0x3fffffff;
 
+  // exported in lib/buffer.js as Buffer.poolSize
+  static const unsigned int kPoolSize = 32768;
+
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   static bool HasInstance(v8::Handle<v8::Value> val);
