@@ -260,7 +260,9 @@ static void uv__process_child_init(uv_process_options_t options,
     _exit(127);
   }
 
-  environ = options.env;
+  if (options.env) {
+    environ = options.env;
+  }
 
   execvp(options.file, options.args);
   perror("execvp()");

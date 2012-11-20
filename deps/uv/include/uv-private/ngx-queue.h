@@ -101,7 +101,7 @@ struct ngx_queue_s {
 
 #define ngx_queue_foreach(q, h)                                               \
     for ((q) = ngx_queue_head(h);                                             \
-         (q) != ngx_queue_sentinel(h);                                        \
+         (q) != ngx_queue_sentinel(h) && !ngx_queue_empty(h);                 \
          (q) = ngx_queue_next(q))
 
 

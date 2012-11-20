@@ -134,5 +134,18 @@ static int maybe_run_test(int argc, char **argv) {
     return 1;
   }
 
+  if (strcmp(argv[1], "spawn_helper7") == 0) {
+    int r;
+    char *test;
+    /* Test if the test value from the parent is still set */
+    test = getenv("ENV_TEST");
+    ASSERT(test != NULL);
+
+    r = fprintf(stdout, "%s", test);
+    ASSERT(r > 0);
+
+    return 1;
+  }
+
   return run_test(argv[1], TEST_TIMEOUT, 0);
 }
