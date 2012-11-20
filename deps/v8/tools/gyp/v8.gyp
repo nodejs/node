@@ -678,6 +678,14 @@
                   'libraries': [
                     '-L/usr/local/lib -lexecinfo',
                 ]},
+            }],
+            ['OS=="dragonflybsd"', {
+                'link_settings': {
+                  'libraries': [
+                    '-pthread',
+                ]},
+            }],
+            ['OS=="freebsd" or OS=="dragonflybsd"', {
                 'sources': [
                   '../../src/platform-freebsd.cc',
                   '../../src/platform-posix.cc'

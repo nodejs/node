@@ -274,8 +274,7 @@
           },
         },
       }],
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd"', {
+      ['OS in "linux freebsd dragonflybsd openbsd solaris netbsd".split()', {
         'conditions': [
           [ 'v8_no_strict_aliasing==1', {
             'cflags': [ '-fno-strict-aliasing' ],
@@ -285,8 +284,8 @@
       ['OS=="solaris"', {
         'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
       }],
-      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="mac" or OS=="android") and \
+      ['(OS=="linux" or OS=="freebsd" or OS=="dragonflybsd" or OS=="openbsd" \
+         or OS=="solaris" or OS=="netbsd" or OS=="mac" or OS=="android") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
          v8_target_arch=="mipsel")', {
         # Check whether the host compiler and target compiler support the
@@ -314,7 +313,7 @@
           }],
         ],
       }],
-      ['OS=="freebsd" or OS=="openbsd"', {
+      ['OS=="freebsd" or OS=="dragonflybsd" or OS=="openbsd"', {
         'cflags': [ '-I/usr/local/include' ],
       }],
       ['OS=="netbsd"', {
@@ -346,7 +345,7 @@
           },
         },
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+          ['OS in "linux freebsd dragonflybsd openbsd netbsd".split()', {
             'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor', '-Woverloaded-virtual' ],
           }],
@@ -368,8 +367,8 @@
       },  # Debug
       'Release': {
         'conditions': [
-          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
-            or OS=="android"', {
+          ['OS=="linux" or OS=="freebsd" or OS=="dragonflybsd" \
+            or OS=="openbsd" or OS=="netbsd" or OS=="android"', {
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
                 'cflags': [

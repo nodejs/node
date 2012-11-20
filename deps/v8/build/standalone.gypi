@@ -38,8 +38,7 @@
       'variables': {
         'variables': {
           'conditions': [
-            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or \
-               OS=="netbsd" or OS=="mac"', {
+            ['OS!="win"', {
               # This handles the Unix platforms we generally deal with.
               # Anything else gets passed through, which probably won't work
               # very well; such hosts should pass an explicit target_arch
@@ -47,9 +46,8 @@
               'host_arch%':
                 '<!(uname -m | sed -e "s/i.86/ia32/;\
                   s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/mips.*/mipsel/")',
-            }, {
-              # OS!="linux" and OS!="freebsd" and OS!="openbsd" and
-              # OS!="netbsd" and OS!="mac"
+            }],
+            ['OS=="win"', {
               'host_arch%': 'ia32',
             }],
           ],
@@ -89,8 +87,7 @@
     },
   },
   'conditions': [
-    ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-       or OS=="netbsd"', {
+    ['OS!="win"', {
       'target_defaults': {
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                     '-Wnon-virtual-dtor', '-pthread', '-fno-rtti',
@@ -109,8 +106,6 @@
         ],
       },
     }],
-    # 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"
-    #  or OS=="netbsd"'
     ['OS=="win"', {
       'target_defaults': {
         'defines': [
