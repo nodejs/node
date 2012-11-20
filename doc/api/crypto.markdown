@@ -366,7 +366,7 @@ Sets the Diffie-Hellman public key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
 expected.
 
-### diffieHellman.setPrivateKey(public_key, [encoding])
+### diffieHellman.setPrivateKey(private_key, [encoding])
 
 Sets the Diffie-Hellman private key. Key encoding can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
