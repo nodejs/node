@@ -266,12 +266,16 @@ def JS2C(source, target):
   # Locate the macros file name.
   consts = {}
   macros = {}
+  macro_lines = []
 
   for s in source:
-    if 'macros.py' == (os.path.split(str(s))[1]):
-      (consts, macros) = ReadMacros(ReadLines(str(s)))
+    if (os.path.split(str(s))[1]).endswith('macros.py'):
+      macro_lines.extend(ReadLines(str(s)))
     else:
       modules.append(s)
+
+  # Process input from all *macro.py files
+  (consts, macros) = ReadMacros(macro_lines)
 
   # Build source code lines
   source_lines = [ ]

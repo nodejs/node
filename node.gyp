@@ -6,6 +6,7 @@
     'werror': '',
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
+    'node_use_perfctr%': 'false',
     'node_shared_v8%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -189,6 +190,17 @@
             '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.rc',
           ]
         } ],
+        [ 'node_use_perfctr=="true"', {
+          'defines': [ 'HAVE_PERFCTR=1' ],
+          'dependencies': [ 'node_perfctr' ],
+          'sources': [
+            'src/node_win32_perfctr_provider.h',
+            'src/node_win32_perfctr_provider.cc',
+            'src/node_counters.cc',
+            'src/node_counters.h',
+            '<(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.rc',
+          ]
+        } ],
         [ 'node_shared_v8=="false"', {
           'sources': [
             'deps/v8/include/v8.h',
@@ -287,6 +299,29 @@
         } ]
       ]
     },
+    # generate perf counter header and resource files
+    {
+      'target_name': 'node_perfctr',
+      'type': 'none',
+      'conditions': [
+        [ 'node_use_perfctr=="true"', {
+          'actions': [
+            {
+              'action_name': 'node_perfctr_man',
+              'inputs': [ 'src/res/node_perfctr_provider.man' ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.h',
+                '<(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.rc',
+              ],
+              'action': [ 'ctrpp <@(_inputs) '
+                          '-o <(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.h '
+                          '-rc <(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.rc'
+              ]
+            },
+          ],
+        } ]
+      ]
+    },
     {
       'target_name': 'node_js2c',
       'type': 'none',
@@ -294,41 +329,31 @@
       'actions': [
         {
           'action_name': 'node_js2c',
-
           'inputs': [
             '<@(library_files)',
             './config.gypi',
           ],
-
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
           ],
-
-          # FIXME can the following conditions be shorted by just setting
-          # macros.py into some variable which then gets included in the
-          # action?
-
           'conditions': [
-            [ 'node_use_dtrace=="true"'
-              ' or node_use_etw=="true"'
-              ' or node_use_systemtap=="true"',
+            [ 'node_use_dtrace=="false"'
+              ' and node_use_etw=="false"'
+              ' and node_use_systemtap=="false"',
             {
-              'action': [
-                '<(python)',
-                'tools/js2c.py',
-                '<@(_outputs)',
-                '<@(_inputs)',
+                'inputs': ['src/macros.py']
+              }
               ],
-            }, { # No Dtrace
-              'action': [
-                '<(python)',
-                'tools/js2c.py',
-                '<@(_outputs)',
-                '<@(_inputs)',
-                'src/macros.py'
-              ],
+            [ 'node_use_perfctr=="false"', {
+              'inputs': [ 'src/perfctr_macros.py' ]
             }]
           ],
+              'action': [
+                '<(python)',
+                'tools/js2c.py',
+                '<@(_outputs)',
+                '<@(_inputs)',
+              ],
         },
       ],
     }, # end node_js2c
@@ -428,4 +453,3 @@
     }
   ] # end targets
 }
-

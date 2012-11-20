@@ -30,6 +30,9 @@
 #if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
 # include "node_dtrace.h"
 #endif
+#if defined HAVE_PERFCTR
+# include "node_counters.h"
+#endif
 
 #include <locale.h>
 #include <signal.h>
@@ -2312,6 +2315,10 @@ void Load(Handle<Object> process_l) {
 
 #if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
   InitDTrace(global);
+#endif
+
+#if defined HAVE_PERFCTR
+  InitPerfCounters(global);
 #endif
 
   f->Call(global, 1, args);

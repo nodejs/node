@@ -48,6 +48,11 @@
               <util:EventManifest MessageFile="[APPLICATIONROOTDIRECTORY]node.exe" ResourceFile="[APPLICATIONROOTDIRECTORY]node.exe"/>
             </File>
             <?endif?>
+            <?if $(var.NoPerfCtr) != 1 ?>
+            <File Id="node_perfctr_provider_man" Name="node_perfctr_provider.man" Source="$(var.RepoDir)\src\res\node_perfctr_provider.man" >
+              <util:PerfCounterManifest ResourceFileDirectory="[APPLICATIONROOTDIRECTORY]"/>
+            </File>
+            <?endif?>
             <Environment Id="npm_env"
                          Action="set"
                          Name="PATH"

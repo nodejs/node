@@ -32,6 +32,9 @@ set buildnodeweak=
 set noetw=
 set noetw_arg=
 set noetw_msi_arg=
+set noperfctr=
+set noperfctr_arg=
+set noperfctr_msi_arg=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -46,6 +49,7 @@ if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"        set nosign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
+if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
 if /i "%1"=="test-uv"       set test=test-uv&goto arg-ok
 if /i "%1"=="test-internet" set test=test-internet&goto arg-ok
@@ -74,13 +78,14 @@ if "%config%"=="Debug" set debug_arg=--debug
 if "%target_arch%"=="x64" set msiplatform=x64
 if defined nosnapshot set nosnapshot_arg=--without-snapshot
 if defined noetw set noetw_arg=--without-etw& set noetw_msi_arg=/p:NoETW=1
+if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=/p:NoPerfCtr=1
 
 :project-gen
 @rem Skip project generation if requested.
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-python configure %debug_arg% %nosnapshot_arg% %noetw_arg% --dest-cpu=%target_arch%
+python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
@@ -125,7 +130,7 @@ if not defined msi goto run
 python "%~dp0tools\getnodeversion.py" > "%temp%\node_version.txt"
 if not errorlevel 0 echo Cannot determine current version of node.js & goto exit
 for /F "tokens=*" %%i in (%temp%\node_version.txt) do set NODE_VERSION=%%i
-msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% %noetw_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:Configuration=%config% /p:Platform=%msiplatform% /p:NodeVersion=%NODE_VERSION% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 if defined nosign goto run

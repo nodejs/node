@@ -27,6 +27,7 @@
 #include "pipe_wrap.h"
 #include "tcp_wrap.h"
 #include "req_wrap.h"
+#include "node_counters.h"
 
 #include <stdlib.h> // abort()
 #include <limits.h> // INT_MAX
@@ -226,6 +227,12 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
     argc++;
   }
 
+  if (wrap->stream_->type == UV_TCP) {
+    NODE_COUNT_NET_BYTES_RECV(nread);
+  } else if (wrap->stream_->type == UV_NAMED_PIPE) {
+    NODE_COUNT_PIPE_BYTES_RECV(nread);
+  }
+
   MakeCallback(wrap->object_, onread_sym, argc, argv);
 }
 
@@ -285,6 +292,12 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
     delete[] storage;
     return scope.Close(v8::Null());
   } else {
+    if (wrap->stream_->type == UV_TCP) {
+      NODE_COUNT_NET_BYTES_SENT(length);
+    } else if (wrap->stream_->type == UV_NAMED_PIPE) {
+      NODE_COUNT_PIPE_BYTES_SENT(length);
+    }
+
     return scope.Close(req_wrap->object_);
   }
 }
@@ -418,6 +431,12 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
     delete[] storage;
     return scope.Close(v8::Null());
   } else {
+    if (wrap->stream_->type == UV_TCP) {
+      NODE_COUNT_NET_BYTES_SENT(buf.len);
+    } else if (wrap->stream_->type == UV_NAMED_PIPE) {
+      NODE_COUNT_PIPE_BYTES_SENT(buf.len);
+    }
+
     return scope.Close(req_wrap->object_);
   }
 }
