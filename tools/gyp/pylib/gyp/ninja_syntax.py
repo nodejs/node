@@ -12,8 +12,8 @@ use Python.
 import textwrap
 import re
 
-def escape_spaces(word):
-    return word.replace('$ ','$$ ').replace(' ','$ ')
+def escape_path(word):
+    return word.replace('$ ','$$ ').replace(' ','$ ').replace(':', '$:')
 
 class Writer(object):
     def __init__(self, output, width=78):
@@ -35,8 +35,7 @@ class Writer(object):
         self._line('%s = %s' % (key, value), indent)
 
     def rule(self, name, command, description=None, depfile=None,
-             generator=False, restat=False, rspfile=None,
-             rspfile_content=None):
+             generator=False, restat=False, rspfile=None, rspfile_content=None):
         self._line('rule %s' % name)
         self.variable('command', command, indent=1)
         if description:
@@ -56,15 +55,15 @@ class Writer(object):
               variables=None):
         outputs = self._as_list(outputs)
         all_inputs = self._as_list(inputs)[:]
-        out_outputs = list(map(escape_spaces, outputs))
-        all_inputs = list(map(escape_spaces, all_inputs))
+        out_outputs = list(map(escape_path, outputs))
+        all_inputs = list(map(escape_path, all_inputs))
 
         if implicit:
-            implicit = map(escape_spaces, self._as_list(implicit))
+            implicit = map(escape_path, self._as_list(implicit))
             all_inputs.append('|')
             all_inputs.extend(implicit)
         if order_only:
-            order_only = map(escape_spaces, self._as_list(order_only))
+            order_only = map(escape_path, self._as_list(order_only))
             all_inputs.append('||')
             all_inputs.extend(order_only)
 

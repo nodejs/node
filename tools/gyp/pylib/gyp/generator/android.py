@@ -38,10 +38,20 @@ generator_default_variables = {
   'RULE_INPUT_PATH': '$(RULE_SOURCES)',
   'RULE_INPUT_EXT': '$(suffix $<)',
   'RULE_INPUT_NAME': '$(notdir $<)',
+  'CONFIGURATION_NAME': 'NOT_USED_ON_ANDROID',
 }
 
 # Make supports multiple toolsets
 generator_supports_multiple_toolsets = True
+
+
+# Generator-specific gyp specs.
+generator_additional_non_configuration_keys = [
+    # Boolean to declare that this target does not want its name mangled.
+    'android_unmangled_name',
+]
+generator_additional_path_sections = []
+generator_extra_sources_for_rules = []
 
 
 SHARED_FOOTER = """\
@@ -153,7 +163,7 @@ class AndroidMkWriter(object):
     extra_outputs = []
     extra_sources = []
 
-    self.android_class = MODULE_CLASSES.get(self.type, 'NONE')
+    self.android_class = MODULE_CLASSES.get(self.type, 'GYP')
     self.android_module = self.ComputeAndroidModule(spec)
     (self.android_stem, self.android_suffix) = self.ComputeOutputParts(spec)
     self.output = self.output_binary = self.ComputeOutput(spec)
@@ -576,6 +586,10 @@ class AndroidMkWriter(object):
     distinguish gyp-generated module names.
     """
 
+    if int(spec.get('android_unmangled_name', 0)):
+      assert self.type != 'shared_library' or self.target.startswith('lib')
+      return self.target
+
     if self.type == 'shared_library':
       # For reasons of convention, the Android build system requires that all
       # shared library modules are named 'libfoo' when generating -l flags.
@@ -838,10 +852,11 @@ class AndroidMkWriter(object):
     # Add an alias from the gyp target name to the Android module name. This
     # simplifies manual builds of the target, and is required by the test
     # framework.
-    self.WriteLn('# Alias gyp target name.')
-    self.WriteLn('.PHONY: %s' % self.target)
-    self.WriteLn('%s: %s' % (self.target, self.android_module))
-    self.WriteLn('')
+    if self.target != self.android_module:
+      self.WriteLn('# Alias gyp target name.')
+      self.WriteLn('.PHONY: %s' % self.target)
+      self.WriteLn('%s: %s' % (self.target, self.android_module))
+      self.WriteLn('')
 
     # Add the command to trigger build of the target type depending
     # on the toolset. Ex: BUILD_STATIC_LIBRARY vs. BUILD_HOST_STATIC_LIBRARY
@@ -989,7 +1004,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     default_configuration = 'Default'
 
   srcdir = '.'
-  makefile_name = 'GypAndroid.mk' + options.suffix
+  makefile_name = 'GypAndroid' + options.suffix + '.mk'
   makefile_path = os.path.join(options.toplevel_dir, makefile_name)
   assert not options.generator_output, (
       'The Android backend does not support options.generator_output.')

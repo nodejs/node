@@ -562,6 +562,22 @@ class XcodeSettings(object):
     self.configname = None
     return ldflags
 
+  def GetLibtoolflags(self, configname):
+    """Returns flags that need to be passed to the static linker.
+
+    Args:
+        configname: The name of the configuration to get ld flags for.
+    """
+    self.configname = configname
+    libtoolflags = []
+
+    for libtoolflag in self._Settings().get('OTHER_LDFLAGS', []):
+      libtoolflags.append(libtoolflag)
+    # TODO(thakis): ARCHS?
+
+    self.configname = None
+    return libtoolflags
+
   def GetPerTargetSettings(self):
     """Gets a list of all the per-target settings. This will only fetch keys
     whose values are the same across all configurations."""
@@ -923,6 +939,11 @@ def _GetXcodeEnv(xcode_settings, built_products_dir, srcroot, configuration,
     'TARGET_BUILD_DIR' : built_products_dir,
     'TEMP_DIR' : '${TMPDIR}',
   }
+  if xcode_settings.GetPerTargetSetting('SDKROOT'):
+    env['SDKROOT'] = xcode_settings._SdkPath()
+  else:
+    env['SDKROOT'] = ''
+
   if spec['type'] in (
       'executable', 'static_library', 'shared_library', 'loadable_module'):
     env['EXECUTABLE_NAME'] = xcode_settings.GetExecutableName()

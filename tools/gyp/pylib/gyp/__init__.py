@@ -12,6 +12,7 @@ import re
 import shlex
 import sys
 import traceback
+from gyp.common import GypError
 
 # Default debug modes for GYP
 debug = {}
@@ -44,15 +45,9 @@ def FindBuildFiles():
   return build_files
 
 
-class GypError(Exception):
-  """Error class representing an error, which is to be presented
-  to the user.  The main entry point will catch and display this.
-  """
-  pass
-
-
 def Load(build_files, format, default_variables={},
-         includes=[], depth='.', params=None, check=False, circular_check=True):
+         includes=[], depth='.', params=None, check=False,
+         circular_check=True):
   """
   Loads one or more specified build files.
   default_variables and includes will be copied before use.
@@ -130,7 +125,8 @@ def Load(build_files, format, default_variables={},
 
   # Process the input specific to this generator.
   result = gyp.input.Load(build_files, default_variables, includes[:],
-                          depth, generator_input_info, check, circular_check)
+                          depth, generator_input_info, check, circular_check,
+                          params['parallel'])
   return [generator] + result
 
 def NameValueListToDict(name_value_list):
@@ -317,9 +313,14 @@ def gyp_main(args):
                     help='do not read options from environment variables')
   parser.add_option('--check', dest='check', action='store_true',
                     help='check format of gyp files')
+  parser.add_option('--parallel', action='store_true',
+                    env_name='GYP_PARALLEL',
+                    help='Use multiprocessing for speed (experimental)')
   parser.add_option('--toplevel-dir', dest='toplevel_dir', action='store',
                     default=None, metavar='DIR', type='path',
                     help='directory to use as the root of the source tree')
+  parser.add_option('--build', dest='configs', action='append',
+                    help='configuration for build after project generation')
   # --no-circular-check disables the check for circular relationships between
   # .gyp files.  These relationships should not exist, but they've only been
   # observed to be harmful with the Xcode generator.  Chromium's .gyp files
@@ -373,6 +374,9 @@ def gyp_main(args):
     g_o = os.environ.get('GYP_GENERATOR_OUTPUT')
     if g_o:
       options.generator_output = g_o
+
+  if not options.parallel and options.use_environment:
+    options.parallel = bool(os.environ.get('GYP_PARALLEL'))
 
   for mode in options.debug:
     gyp.debug[mode] = 1
@@ -484,7 +488,8 @@ def gyp_main(args):
               'cwd': os.getcwd(),
               'build_files_arg': build_files_arg,
               'gyp_binary': sys.argv[0],
-              'home_dot_gyp': home_dot_gyp}
+              'home_dot_gyp': home_dot_gyp,
+              'parallel': options.parallel}
 
     # Start with the default variables from the command line.
     [generator, flat_list, targets, data] = Load(build_files, format,
@@ -501,6 +506,13 @@ def gyp_main(args):
     # need to have dependencies defined before dependents reference them should
     # generate targets in the order specified in flat_list.
     generator.GenerateOutput(flat_list, targets, data, params)
+
+    if options.configs:
+      valid_configs = targets[flat_list[0]]['configurations'].keys()
+      for conf in options.configs:
+        if conf not in valid_configs:
+          raise GypError('Invalid config specified via --build: %s' % conf)
+      generator.PerformBuild(data, options.configs, params)
 
   # Done
   return 0

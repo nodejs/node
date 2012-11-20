@@ -254,7 +254,7 @@ class XCObject(object):
                 but in some cases an object's parent may wish to push a
                 hashable value into its child, and it can do so by appending
                 to _hashables.
-  Attribues:
+  Attributes:
     id: The object's identifier, a 24-character uppercase hexadecimal string.
         Usually, objects being created should not set id until the entire
         project file structure is built.  At that point, UpdateIDs() should
@@ -392,7 +392,10 @@ class XCObject(object):
 
     return hashables
 
-  def ComputeIDs(self, recursive=True, overwrite=True, hash=None):
+  def HashablesForChild(self):
+    return None
+
+  def ComputeIDs(self, recursive=True, overwrite=True, seed_hash=None):
     """Set "id" properties deterministically.
 
     An object's "id" property is set based on a hash of its class type and
@@ -419,8 +422,10 @@ class XCObject(object):
       hash.update(struct.pack('>i', len(data)))
       hash.update(data)
 
-    if hash is None:
-      hash = _new_sha1()
+    if seed_hash is None:
+      seed_hash = _new_sha1()
+
+    hash = seed_hash.copy()
 
     hashables = self.Hashables()
     assert len(hashables) > 0
@@ -428,8 +433,17 @@ class XCObject(object):
       _HashUpdate(hash, hashable)
 
     if recursive:
+      hashables_for_child = self.HashablesForChild()
+      if hashables_for_child is None:
+        child_hash = hash
+      else:
+        assert len(hashables_for_child) > 0
+        child_hash = seed_hash.copy()
+        for hashable in hashables_for_child:
+          _HashUpdate(child_hash, hashable)
+
       for child in self.Children():
-        child.ComputeIDs(recursive, overwrite, hash.copy())
+        child.ComputeIDs(recursive, overwrite, child_hash)
 
     if overwrite or self.id is None:
       # Xcode IDs are only 96 bits (24 hex characters), but a SHA-1 digest is
@@ -1104,6 +1118,26 @@ class PBXGroup(XCHierarchicalElement):
     for child in self._properties.get('children', []):
       self._AddChildToDicts(child)
 
+  def Hashables(self):
+    # super
+    hashables = XCHierarchicalElement.Hashables(self)
+
+    # It is not sufficient to just rely on name and parent to build a unique
+    # hashable : a node could have two child PBXGroup sharing a common name.
+    # To add entropy the hashable is enhanced with the names of all its
+    # children.
+    for child in self._properties.get('children', []):
+      child_name = child.Name()
+      if child_name != None:
+        hashables.append(child_name)
+
+    return hashables
+
+  def HashablesForChild(self):
+    # To avoid a circular reference the hashables used to compute a child id do
+    # not include the child names.
+    return XCHierarchicalElement.Hashables(self)
+
   def _AddChildToDicts(self, child):
     # Sets up this PBXGroup object's dicts to reference the child properly.
     child_path = child.PathFromSourceTreeAndPath()
@@ -1440,40 +1474,41 @@ class PBXFileReference(XCFileLikeElement, XCContainerPortal, XCRemoteObject):
       # TODO(mark): This is the replacement for a replacement for a quick hack.
       # It is no longer incredibly sucky, but this list needs to be extended.
       extension_map = {
-        'a':         'archive.ar',
-        'app':       'wrapper.application',
-        'bdic':      'file',
-        'bundle':    'wrapper.cfbundle',
-        'c':         'sourcecode.c.c',
-        'cc':        'sourcecode.cpp.cpp',
-        'cpp':       'sourcecode.cpp.cpp',
-        'css':       'text.css',
-        'cxx':       'sourcecode.cpp.cpp',
-        'dylib':     'compiled.mach-o.dylib',
-        'framework': 'wrapper.framework',
-        'h':         'sourcecode.c.h',
-        'hxx':       'sourcecode.cpp.h',
-        'icns':      'image.icns',
-        'java':      'sourcecode.java',
-        'js':        'sourcecode.javascript',
-        'm':         'sourcecode.c.objc',
-        'mm':        'sourcecode.cpp.objcpp',
-        'nib':       'wrapper.nib',
-        'o':         'compiled.mach-o.objfile',
-        'pdf':       'image.pdf',
-        'pl':        'text.script.perl',
-        'plist':     'text.plist.xml',
-        'pm':        'text.script.perl',
-        'png':       'image.png',
-        'py':        'text.script.python',
-        'r':         'sourcecode.rez',
-        'rez':       'sourcecode.rez',
-        's':         'sourcecode.asm',
-        'strings':   'text.plist.strings',
-        'ttf':       'file',
-        'xcconfig':  'text.xcconfig',
-        'xib':       'file.xib',
-        'y':         'sourcecode.yacc',
+        'a':           'archive.ar',
+        'app':         'wrapper.application',
+        'bdic':        'file',
+        'bundle':      'wrapper.cfbundle',
+        'c':           'sourcecode.c.c',
+        'cc':          'sourcecode.cpp.cpp',
+        'cpp':         'sourcecode.cpp.cpp',
+        'css':         'text.css',
+        'cxx':         'sourcecode.cpp.cpp',
+        'dylib':       'compiled.mach-o.dylib',
+        'framework':   'wrapper.framework',
+        'h':           'sourcecode.c.h',
+        'hxx':         'sourcecode.cpp.h',
+        'icns':        'image.icns',
+        'java':        'sourcecode.java',
+        'js':          'sourcecode.javascript',
+        'm':           'sourcecode.c.objc',
+        'mm':          'sourcecode.cpp.objcpp',
+        'nib':         'wrapper.nib',
+        'o':           'compiled.mach-o.objfile',
+        'pdf':         'image.pdf',
+        'pl':          'text.script.perl',
+        'plist':       'text.plist.xml',
+        'pm':          'text.script.perl',
+        'png':         'image.png',
+        'py':          'text.script.python',
+        'r':           'sourcecode.rez',
+        'rez':         'sourcecode.rez',
+        's':           'sourcecode.asm',
+        'strings':     'text.plist.strings',
+        'ttf':         'file',
+        'xcconfig':    'text.xcconfig',
+        'xcdatamodel': 'wrapper.xcdatamodel',
+        'xib':         'file.xib',
+        'y':           'sourcecode.yacc',
       }
 
       if is_dir:

@@ -27,6 +27,13 @@ class memoize(object):
       return result
 
 
+class GypError(Exception):
+  """Error class representing an error, which is to be presented
+  to the user.  The main entry point will catch and display this.
+  """
+  pass
+
+
 def ExceptionAppend(e, msg):
   """Append a message to the given exception's message."""
   if not e.args:
@@ -361,13 +368,20 @@ def GetFlavor(params):
     'cygwin': 'win',
     'win32': 'win',
     'darwin': 'mac',
-    'sunos5': 'solaris',
-    'freebsd7': 'freebsd',
-    'freebsd8': 'freebsd',
-    'freebsd9': 'freebsd',
   }
-  flavor = flavors.get(sys.platform, 'linux')
-  return params.get('flavor', flavor)
+
+  if 'flavor' in params:
+    return params['flavor']
+  if sys.platform in flavors:
+    return flavors[sys.platform]
+  if sys.platform.startswith('sunos'):
+    return 'solaris'
+  if sys.platform.startswith('freebsd'):
+    return 'freebsd'
+  if sys.platform.startswith('dragonfly'):
+    return 'dragonflybsd'
+
+  return 'linux'
 
 
 def CopyTool(flavor, out_path):

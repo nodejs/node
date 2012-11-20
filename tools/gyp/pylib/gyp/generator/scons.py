@@ -8,6 +8,7 @@ import gyp.SCons as SCons
 import os.path
 import pprint
 import re
+import subprocess
 
 
 # TODO:  remove when we delete the last WriteList() call in this module
@@ -958,6 +959,30 @@ def TargetFilename(target, build_file=None, output_suffix=''):
   output_file = os.path.join(os.path.dirname(build_file),
                              target + output_suffix + '.scons')
   return output_file
+
+
+def PerformBuild(data, configurations, params):
+  options = params['options']
+
+  # Due to the way we test gyp on the chromium typbots
+  # we need to look for 'scons.py' as well as the more common 'scons'
+  # TODO(sbc): update the trybots to have a more normal install
+  # of scons.
+  scons = 'scons'
+  paths = os.environ['PATH'].split(os.pathsep)
+  for scons_name in ['scons', 'scons.py']:
+    for path in paths:
+      test_scons = os.path.join(path, scons_name)
+      print 'looking for: %s' % test_scons
+      if os.path.exists(test_scons):
+        print "found scons: %s" % scons
+        scons = test_scons
+        break
+
+  for config in configurations:
+    arguments = [scons, '-C', options.toplevel_dir, '--mode=%s' % config]
+    print "Building [%s]: %s" % (config, arguments)
+    subprocess.check_call(arguments)
 
 
 def GenerateOutput(target_list, target_dicts, data, params):

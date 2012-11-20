@@ -18,6 +18,7 @@ import gyp.MSVSSettings as MSVSSettings
 import gyp.MSVSToolFile as MSVSToolFile
 import gyp.MSVSUserFile as MSVSUserFile
 import gyp.MSVSVersion as MSVSVersion
+from gyp.common import GypError
 
 
 # Regular expression for validating Visual Studio GUIDs.  If the GUID
@@ -1026,7 +1027,7 @@ def _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config):
   # Get the information for this configuration
   include_dirs, resource_include_dirs = _GetIncludeDirs(config)
   libraries = _GetLibraries(spec)
-  out_file, vc_tool, _ = _GetOutputFilePathAndTool(spec)
+  out_file, vc_tool, _ = _GetOutputFilePathAndTool(spec, msbuild=False)
   defines = _GetDefines(config)
   defines = [_EscapeCppDefineForMSVS(d) for d in defines]
   disabled_warnings = _GetDisabledWarnings(config)
@@ -1123,6 +1124,8 @@ def _GetLibraries(spec):
   unique_libraries_list = []
   for entry in reversed(libraries):
     library = re.sub('^\-l', '', entry)
+    if not os.path.splitext(library)[1]:
+      library += '.lib'
     if library not in found:
       found.add(library)
       unique_libraries_list.append(library)
@@ -1130,7 +1133,7 @@ def _GetLibraries(spec):
   return unique_libraries_list
 
 
-def _GetOutputFilePathAndTool(spec):
+def _GetOutputFilePathAndTool(spec, msbuild):
   """Returns the path and tool to use for this target.
 
   Figures out the path of the file this spec will create and the name of
@@ -1154,10 +1157,14 @@ def _GetOutputFilePathAndTool(spec):
   output_file_props = output_file_map.get(spec['type'])
   if output_file_props and int(spec.get('msvs_auto_output_file', 1)):
     vc_tool, msbuild_tool, out_dir, suffix = output_file_props
+    if spec.get('standalone_static_library', 0):
+      out_dir = '$(OutDir)'
     out_dir = spec.get('product_dir', out_dir)
     product_extension = spec.get('product_extension')
     if product_extension:
       suffix = '.' + product_extension
+    elif msbuild:
+      suffix = '$(TargetExt)'
     prefix = spec.get('product_prefix', '')
     product_name = spec.get('product_name', '$(ProjectName)')
     out_file = ntpath.join(out_dir, prefix + product_name + suffix)
@@ -1666,7 +1673,7 @@ def _CreateProjectObjects(target_list, target_dicts, options, msvs_version):
     build_file = gyp.common.BuildFile(qualified_target)
     # Create object for this project.
     obj = MSVSNew.MSVSProject(
-        _FixPath(proj_path),
+        proj_path,
         name=spec['target_name'],
         guid=guid,
         spec=spec,
@@ -1777,6 +1784,25 @@ def _ShardTargets(target_list, target_dicts):
     new_target_dicts[t]['dependencies'] = new_dependencies
 
   return (new_target_list, new_target_dicts)
+
+
+def PerformBuild(data, configurations, params):
+  options = params['options']
+  msvs_version = params['msvs_version']
+  devenv = os.path.join(msvs_version.path, 'Common7', 'IDE', 'devenv.com')
+
+  for build_file, build_file_dict in data.iteritems():
+    (build_file_root, build_file_ext) = os.path.splitext(build_file)
+    if build_file_ext != '.gyp':
+      continue
+    sln_path = build_file_root + options.suffix + '.sln'
+    if options.generator_output:
+      sln_path = os.path.join(options.generator_output, sln_path)
+
+  for config in configurations:
+    arguments = [devenv, sln_path, '/Build', config]
+    print 'Building [%s]: %s' % (config, arguments)
+    rtn = subprocess.check_call(arguments)
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
@@ -2571,13 +2597,13 @@ def _GetMSBuildAttributes(spec, config, build_file):
     config_type = _GetMSVSConfigurationType(spec, build_file)
     config_type = _ConvertMSVSConfigurationType(config_type)
     msbuild_attributes = config.get('msbuild_configuration_attributes', {})
-    msbuild_attributes['ConfigurationType'] = config_type
+    msbuild_attributes.setdefault('ConfigurationType', config_type)
     output_dir = msbuild_attributes.get('OutputDirectory',
-                                      '$(SolutionDir)$(Configuration)\\')
-    msbuild_attributes['OutputDirectory'] = _FixPath(output_dir)
+                                      '$(SolutionDir)$(Configuration)')
+    msbuild_attributes['OutputDirectory'] = _FixPath(output_dir) + '\\'
     if 'IntermediateDirectory' not in msbuild_attributes:
-      intermediate = '$(Configuration)\\'
-      msbuild_attributes['IntermediateDirectory'] = _FixPath(intermediate)
+      intermediate = _FixPath('$(Configuration)') + '\\'
+      msbuild_attributes['IntermediateDirectory'] = intermediate
     if 'CharacterSet' in msbuild_attributes:
       msbuild_attributes['CharacterSet'] = _ConvertMSVSCharacterSet(
           msbuild_attributes['CharacterSet'])
@@ -2754,7 +2780,7 @@ def _FinalizeMSBuildSettings(spec, configuration):
     msbuild_settings = MSVSSettings.ConvertToMSBuildSettings(msvs_settings)
   include_dirs, resource_include_dirs = _GetIncludeDirs(configuration)
   libraries = _GetLibraries(spec)
-  out_file, _, msbuild_tool = _GetOutputFilePathAndTool(spec)
+  out_file, _, msbuild_tool = _GetOutputFilePathAndTool(spec, msbuild=True)
   defines = _GetDefines(configuration)
   if converted:
     # Visual Studio 2010 has TR1
@@ -3009,7 +3035,7 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
                               extension_to_rule_name)
   missing_sources = _VerifySourcesExist(sources, project_dir)
 
-  for (_, configuration) in configurations.iteritems():
+  for configuration in configurations.itervalues():
     _FinalizeMSBuildSettings(spec, configuration)
 
   # Add attributes to root element

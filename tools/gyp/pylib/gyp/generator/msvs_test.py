@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-# Copyright (c) 2011 Google Inc. All rights reserved.
+# Copyright (c) 2012 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -25,6 +24,9 @@ class TestSequenceFunctions(unittest.TestCase):
       [])
     self.assertEqual(
       msvs._GetLibraries({'other':'foo', 'libraries': ['a.lib']}),
+      ['a.lib'])
+    self.assertEqual(
+      msvs._GetLibraries({'libraries': ['-la']}),
       ['a.lib'])
     self.assertEqual(
       msvs._GetLibraries({'libraries': ['a.lib', 'b.lib', 'c.lib', '-lb.lib',

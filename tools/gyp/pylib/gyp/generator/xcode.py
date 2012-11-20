@@ -587,6 +587,25 @@ def EscapeXCodeArgument(s):
   return '"' + s + '"'
 
 
+
+def PerformBuild(data, configurations, params):
+  options = params['options']
+
+  for build_file, build_file_dict in data.iteritems():
+    (build_file_root, build_file_ext) = os.path.splitext(build_file)
+    if build_file_ext != '.gyp':
+      continue
+    xcodeproj_path = build_file_root + options.suffix + '.xcodeproj'
+    if options.generator_output:
+      xcodeproj_path = os.path.join(options.generator_output, xcodeproj_path)
+
+  for config in configurations:
+    arguments = ['xcodebuild', '-project', xcodeproj_path]
+    arguments += ['-configuration', config]
+    print "Building [%s]: %s" % (config, arguments)
+    subprocess.check_call(arguments)
+
+
 def GenerateOutput(target_list, target_dicts, data, params):
   options = params['options']
   generator_flags = params.get('generator_flags', {})

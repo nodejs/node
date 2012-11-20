@@ -9,13 +9,13 @@
 These functions are executed via gyp-win-tool when using the ninja generator.
 """
 
+from ctypes import windll, wintypes
 import os
 import shutil
 import subprocess
 import sys
-import win32con
-import win32file
-import pywintypes
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def main(args):
@@ -26,19 +26,28 @@ def main(args):
 
 
 class LinkLock(object):
-  """A flock-style lock to limit the number of concurrent links to one. Based on
-  http://code.activestate.com/recipes/65203-portalocker-cross-platform-posixnt-api-for-flock-s/
+  """A flock-style lock to limit the number of concurrent links to one.
+
+  Uses a session-local mutex based on the file's directory.
   """
   def __enter__(self):
-    self.file = open('LinkLock', 'w+')
-    self.file_handle = win32file._get_osfhandle(self.file.fileno())
-    win32file.LockFileEx(self.file_handle, win32con.LOCKFILE_EXCLUSIVE_LOCK,
-                         0, -0x10000, pywintypes.OVERLAPPED())
+    name = 'Local\\%s' % BASE_DIR.replace('\\', '_').replace(':', '_')
+    self.mutex = windll.kernel32.CreateMutexW(
+        wintypes.c_int(0),
+        wintypes.c_int(0),
+        wintypes.create_unicode_buffer(name))
+    assert self.mutex
+    result = windll.kernel32.WaitForSingleObject(
+        self.mutex, wintypes.c_int(0xFFFFFFFF))
+    # 0x80 means another process was killed without releasing the mutex, but
+    # that this process has been given ownership. This is fine for our
+    # purposes.
+    assert result in (0, 0x80), (
+        "%s, %s" % (result, windll.kernel32.GetLastError()))
 
   def __exit__(self, type, value, traceback):
-    win32file.UnlockFileEx(
-        self.file_handle, 0, -0x10000, pywintypes.OVERLAPPED())
-    self.file.close()
+    windll.kernel32.ReleaseMutex(self.mutex)
+    windll.kernel32.CloseHandle(self.mutex)
 
 
 class WinTool(object):
@@ -168,16 +177,6 @@ class WinTool(object):
           not line.startswith('Copyright (C) Microsoft Corporation') and
           line):
         print line
-    return popen.returncode
-
-  def ExecClWrapper(self, arch, depname, *args):
-    """Runs cl.exe and filters output through ninja-deplist-helper to get
-    dependendency information which is stored in |depname|."""
-    env = self._GetEnv(arch)
-    args = ' '.join(args) + \
-        '| ninja-deplist-helper -r . -q -f cl -o ' + depname + '"'
-    popen = subprocess.Popen(args, shell=True, env=env)
-    popen.wait()
     return popen.returncode
 
   def ExecActionWrapper(self, arch, rspfile, *dir):

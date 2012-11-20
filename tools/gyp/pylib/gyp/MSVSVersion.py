@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import sys
+import gyp
 
 
 class VisualStudioVersion(object):
@@ -193,6 +194,8 @@ def _CreateVersion(name, path, sdk_based=False):
   autodetected if GYP_MSVS_VERSION is not explicitly specified. If a version is
   passed in that doesn't match a value in versions python will throw a error.
   """
+  if path:
+    path = os.path.normpath(path)
   versions = {
       '2012': VisualStudioVersion('2012',
                                   'Visual Studio 2012',
@@ -264,6 +267,14 @@ def _CreateVersion(name, path, sdk_based=False):
   return versions[str(name)]
 
 
+def _ConvertToCygpath(path):
+  """Convert to cygwin path if we are using cygwin."""
+  if sys.platform == 'cygwin':
+    p = subprocess.Popen(['cygpath', path], stdout=subprocess.PIPE)
+    path = p.communicate()[0].strip()
+  return path
+
+
 def _DetectVisualStudioVersions(versions_to_check, force_express):
   """Collect the list of installed visual studio versions.
 
@@ -294,6 +305,7 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
       path = _RegistryGetValue(keys[index], 'InstallDir')
       if not path:
         continue
+      path = _ConvertToCygpath(path)
       # Check for full.
       full_path = os.path.join(path, 'devenv.exe')
       express_path = os.path.join(path, 'vcexpress.exe')
@@ -314,6 +326,7 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
       path = _RegistryGetValue(keys[index], version)
       if not path:
         continue
+      path = _ConvertToCygpath(path)
       versions.append(_CreateVersion(version_to_year[version] + 'e',
           os.path.join(path, '..'), sdk_based=True))
 

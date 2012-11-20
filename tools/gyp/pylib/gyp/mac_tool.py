@@ -163,9 +163,10 @@ class MacTool(object):
     """Calls libtool and filters out 'libtool: file: foo.o has no symbols'."""
     libtool_re = re.compile(r'^libtool: file: .* has no symbols$')
     libtoolout = subprocess.Popen(cmd_list, stderr=subprocess.PIPE)
-    for line in libtoolout.stderr:
+    _, err = libtoolout.communicate()
+    for line in err.splitlines():
       if not libtool_re.match(line):
-        sys.stderr.write(line)
+        print >>sys.stderr, line
     return libtoolout.returncode
 
   def ExecPackageFramework(self, framework, version):

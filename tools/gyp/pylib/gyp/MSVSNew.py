@@ -59,7 +59,13 @@ def MakeGuid(name, seed='msvs_new'):
 #------------------------------------------------------------------------------
 
 
-class MSVSFolder(object):
+class MSVSSolutionEntry(object):
+  def __cmp__(self, other):
+    # Sort by name then guid (so things are in order on vs2008).
+    return cmp((self.name, self.get_guid()), (other.name, other.get_guid()))
+
+
+class MSVSFolder(MSVSSolutionEntry):
   """Folder in a Visual Studio project or solution."""
 
   def __init__(self, path, name = None, entries = None,
@@ -85,7 +91,7 @@ class MSVSFolder(object):
     self.guid = guid
 
     # Copy passed lists (or set to empty lists)
-    self.entries = list(entries or [])
+    self.entries = sorted(list(entries or []))
     self.items = list(items or [])
 
     self.entry_type_guid = ENTRY_TYPE_GUIDS['folder']
@@ -100,7 +106,7 @@ class MSVSFolder(object):
 #------------------------------------------------------------------------------
 
 
-class MSVSProject(object):
+class MSVSProject(MSVSSolutionEntry):
   """Visual Studio project."""
 
   def __init__(self, path, name = None, dependencies = None, guid = None,
@@ -229,15 +235,7 @@ class MSVSSolution:
       if isinstance(e, MSVSFolder):
         entries_to_check += e.entries
 
-    # Sort by name then guid (so things are in order on vs2008).
-    def NameThenGuid(a, b):
-      if a.name < b.name: return -1
-      if a.name > b.name: return 1
-      if a.get_guid() < b.get_guid(): return -1
-      if a.get_guid() > b.get_guid(): return 1
-      return 0
-
-    all_entries = sorted(all_entries, NameThenGuid)
+    all_entries = sorted(all_entries)
 
     # Open file and print header
     f = writer(self.path)
