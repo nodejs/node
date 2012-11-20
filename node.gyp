@@ -314,14 +314,14 @@
               ' or node_use_systemtap=="true"',
             {
               'action': [
-                'python',
+                '<(python)',
                 'tools/js2c.py',
                 '<@(_outputs)',
                 '<@(_inputs)',
               ],
             }, { # No Dtrace
               'action': [
-                'python',
+                '<(python)',
                 'tools/js2c.py',
                 '<@(_outputs)',
                 '<@(_inputs)',

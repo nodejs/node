@@ -796,7 +796,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
               ],
               'action': [
-                'python',
+                '<(python)',
                 '../../tools/js2c.py',
                 '<@(_outputs)',
                 'CORE',
@@ -814,7 +814,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
               ],
               'action': [
-                'python',
+                '<(python)',
                 '../../tools/js2c.py',
                 '<@(_outputs)',
                 'EXPERIMENTAL',
@@ -844,7 +844,7 @@
                   '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
                 ],
                 'action': [
-                  'python',
+                  '<(python)',
                   '../../tools/gen-postmortem-metadata.py',
                   '<@(_outputs)',
                   '<@(heapobject_files)'

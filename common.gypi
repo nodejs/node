@@ -9,6 +9,7 @@
     'msvs_multi_core_compile': '0',  # we do enable multicore compiles, but not using the V8 way
     'gcc_version%': 'unknown',
     'clang%': 0,
+    'python%': 'python',
 
     # Turn on optimizations that may trigger compiler bugs.
     # Use at your own risk. Do *NOT* report bugs if this option is enabled.

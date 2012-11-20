@@ -573,7 +573,7 @@ def configure_openssl(o):
 
 
 output = {
-  'variables': {},
+  'variables': { 'python': sys.executable },
   'include_dirs': [],
   'libraries': [],
   'defines': [],
@@ -611,6 +611,7 @@ config = {
   'BUILDTYPE': 'Debug' if options.debug else 'Release',
   'USE_NINJA': str(int(options.use_ninja or 0)),
   'USE_XCODE': str(int(options.use_xcode or 0)),
+  'PYTHON': sys.executable,
 }
 config = '\n'.join(map('='.join, config.iteritems())) + '\n'
 

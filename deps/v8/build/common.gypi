@@ -103,6 +103,9 @@
     # Interpreted regexp engine exists as platform-independent alternative
     # based where the regular expression is compiled to a bytecode.
     'v8_interpreted_regexp%': 0,
+
+    # Name of the python executable.
+    'python%': 'python',
   },
   'target_defaults': {
     'conditions': [
