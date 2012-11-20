@@ -73,7 +73,7 @@ static void send_cb(uv_udp_send_t* req, int status) {
 
   if (status != 0) {
     ASSERT(status == -1);
-    ASSERT(uv_last_error(req->handle->loop).code == UV_EINTR);
+    ASSERT(uv_last_error(req->handle->loop).code == UV_ECANCELED);
     return;
   }
 

@@ -55,7 +55,6 @@ OBJS += src/uv-common.o
 OBJS += src/inet.o
 
 ifeq (SunOS,$(uname_S))
-EV_CONFIG=config_sunos.h
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LINKFLAGS+=-lkstat -lnsl -lsendfile -lsocket
 # Library dependencies are not transitive.
@@ -64,14 +63,12 @@ OBJS += src/unix/sunos.o
 endif
 
 ifeq (AIX,$(uname_S))
-EV_CONFIG=config_aix.h
 CPPFLAGS += -Isrc/ares/config_aix -D_ALL_SOURCE -D_XOPEN_SOURCE=500
 LINKFLAGS+= -lperfstat
 OBJS += src/unix/aix.o
 endif
 
 ifeq (Darwin,$(uname_S))
-EV_CONFIG=config_darwin.h
 CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 LINKFLAGS+=-framework CoreServices -dynamiclib -install_name "@rpath/libuv.dylib"
 SOEXT = dylib
@@ -81,7 +78,6 @@ OBJS += src/unix/fsevents.o
 endif
 
 ifeq (Linux,$(uname_S))
-EV_CONFIG=config_linux.h
 CSTDFLAG += -D_GNU_SOURCE
 LINKFLAGS+=-ldl -lrt
 RUNNER_CFLAGS += -D_GNU_SOURCE
@@ -91,35 +87,30 @@ OBJS += src/unix/linux/linux-core.o \
 endif
 
 ifeq (FreeBSD,$(uname_S))
-EV_CONFIG=config_freebsd.h
 LINKFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifeq (DragonFly,$(uname_S))
-EV_CONFIG=config_freebsd.h
-LINKFLAGS+=
+LINKFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifeq (NetBSD,$(uname_S))
-EV_CONFIG=config_netbsd.h
 LINKFLAGS+=-lkvm
 OBJS += src/unix/netbsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifeq (OpenBSD,$(uname_S))
-EV_CONFIG=config_openbsd.h
 LINKFLAGS+=-lkvm
 OBJS += src/unix/openbsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifneq (,$(findstring CYGWIN,$(uname_S)))
-EV_CONFIG=config_cygwin.h
 # We drop the --std=c89, it hides CLOCK_MONOTONIC on cygwin
 CSTDFLAG = -D_GNU_SOURCE
 LINKFLAGS+=

@@ -31,13 +31,10 @@
 # define inline __inline
 #endif
 
-#undef HAVE_FUTIMES
-#undef HAVE_KQUEUE
 #undef HAVE_PORTS_FS
 
 #if __linux__
 # include "linux/syscalls.h"
-# define HAVE_FUTIMES 1 /* emulated with utimesat() */
 #endif /* __linux__ */
 
 #if defined(__sun)
@@ -46,21 +43,8 @@
 # ifdef PORT_SOURCE_FILE
 #  define HAVE_PORTS_FS 1
 # endif
-# define HAVE_FUTIMES 1
 # define futimes(fd, tv) futimesat(fd, (void*)0, tv)
 #endif /* __sun */
-
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__sun)
-# define HAVE_FUTIMES 1
-#endif
-
-/* FIXME exact copy of the #ifdef guard in uv-unix.h */
-#if defined(__APPLE__)  \
-  || defined(__FreeBSD__) \
-  || defined(__OpenBSD__) \
-  || defined(__NetBSD__)
-# define HAVE_KQUEUE 1
-#endif
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
 # include <CoreServices/CoreServices.h>

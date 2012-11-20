@@ -201,7 +201,7 @@
             ],
           },
         }],
-        [ 'OS=="freebsd"', {
+        [ 'OS=="freebsd" or OS=="dragonflybsd"', {
           'sources': [ 'src/unix/freebsd.c' ],
           'link_settings': {
             'libraries': [
@@ -220,7 +220,7 @@
             ],
           },
         }],
-        [ 'OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+        [ 'OS in "mac freebsd dragonflybsd openbsd netbsd".split()', {
           'sources': [ 'src/unix/kqueue.c' ],
         }],
         ['library=="shared_library"', {
