@@ -103,7 +103,7 @@ void EmitExit(v8::Handle<v8::Object> process);
 
 #define NODE_DEFINE_CONSTANT(target, constant)                            \
   (target)->Set(v8::String::NewSymbol(#constant),                         \
-                v8::Integer::New(constant),                               \
+                v8::Number::New(constant),                                \
                 static_cast<v8::PropertyAttribute>(                       \
                     v8::ReadOnly|v8::DontDelete))
 
