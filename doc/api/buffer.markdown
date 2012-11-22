@@ -40,6 +40,23 @@ encoding method.  Here are the different string encodings.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
+`Buffer` can also be used with Typed Array Views and DataViews.
+
+    var buff = new Buffer(4);
+    var ui16 = new Uint16Array(buff);
+    var view = new DataView(buff);
+
+    ui16[0] = 1;
+    ui16[1] = 2;
+    console.log(buff);
+
+    view.setInt16(0, 1);       // set big-endian int16 at byte offset 0
+    view.setInt16(2, 2, true); // set little-endian int16 at byte offset 2
+    console.log(buff);
+
+    // <Buffer 01 00 02 00>
+    // <Buffer 00 01 02 00>
+
 ## Class: Buffer
 
 The Buffer class is a global type for dealing with binary data directly.
