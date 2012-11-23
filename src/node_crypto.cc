@@ -580,13 +580,11 @@ Handle<Value> SecureContext::SetOptions(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1 || !args[0]->IsUint32()) {
+  if (args.Length() != 1 || !args[0]->IntegerValue()) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
-  unsigned int opts = args[0]->Uint32Value();
-
-  SSL_CTX_set_options(sc->ctx_, opts);
+  SSL_CTX_set_options(sc->ctx_, args[0]->IntegerValue());
 
   return True();
 }
