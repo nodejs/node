@@ -48,6 +48,7 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
     // set the env variables, then run scripts as a child process.
     var env = makeEnv(pkg)
     env.npm_lifecycle_event = stage
+    env.npm_node_execpath = env.NODE = env.NODE || process.execPath
 
     // "nobody" typically doesn't have permission to write to /tmp
     // even if it's never used, sh freaks out.
