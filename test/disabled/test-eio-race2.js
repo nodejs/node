@@ -41,5 +41,3 @@ setTimeout(function() {
     });
   }
 }, 100);
-
-
