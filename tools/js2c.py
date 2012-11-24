@@ -206,7 +206,7 @@ def ReadMacros(lines):
           fun = eval("lambda " + ",".join(args) + ': ' + body)
           macros[name] = PythonMacro(args, fun)
         else:
-          raise ("Illegal line: " + line)
+          raise Exception("Illegal line: " + line)
   return (constants, macros)
 
 
