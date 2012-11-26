@@ -50,7 +50,7 @@ else
 endif
 
 config.gypi: configure
-	./configure
+	$(PYTHON) ./configure
 
 install: all
 	$(PYTHON) tools/install.py $@ $(DESTDIR)
@@ -256,10 +256,10 @@ pkg: $(PKG)
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
+	$(PYTHON) ./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
 	$(MAKE) install V=$(V)
 	rm -rf out/deps out/Release
-	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
+	$(PYTHON) ./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
 	$(MAKE) install V=$(V)
 	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/node \
@@ -291,7 +291,7 @@ tar: $(TARBALL)
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
-	./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU)
+	$(PYTHON) ./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
