@@ -1,4 +1,23 @@
-2012.10.25, Version 0.8.14 (Stable)
+2012.11.26, Version 0.8.15 (Stable)
+
+* npm: Upgrade to 1.1.66 (isaacs)
+
+* linux: use /proc/cpuinfo for CPU frequency (Ben Noordhuis)
+
+* windows: map WSAESHUTDOWN to UV_EPIPE (Ben Noordhuis)
+
+* windows: map ERROR_GEN_FAILURE to UV_EIO (Bert Belder)
+
+* unix: do not set environ unless one is provided (Charlie McConnell)
+
+* domains: don't crash if domain is set to null (Bert Belder)
+
+* windows: fix the x64 debug build (Bert Belder)
+
+* net, tls: fix connect() resource leak (Ben Noordhuis)
+
+
+2012.10.25, Version 0.8.14 (Stable), b00527fcf05c3d9f/b5d5d790f9472906a59fe218
 
 * events: Don't clobber pre-existing _events obj in EE ctor (isaacs)
 
