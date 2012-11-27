@@ -216,7 +216,11 @@ endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
 else
+ifeq ($(DESTCPU),arm)
+ARCH=arm
+else
 ARCH=x86
+endif
 endif
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
