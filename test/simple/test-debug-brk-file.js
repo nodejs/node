@@ -39,6 +39,14 @@ child.on('exit', function() {
 });
 
 child.once('debug_start', function() {
+  // delayed for some time until debug agent is ready
+  setTimeout(function() {
+    debug_client_connect();
+  }, 200);
+});
+
+
+function debug_client_connect() {
   var msg = null;
   var tmpBuf = '';
 
@@ -71,17 +79,30 @@ child.once('debug_start', function() {
         var b = Buffer(tmpBuf);
         var body = b.toString('utf8', 0, msg.contentLength);
         tmpBuf = b.toString('utf8', msg.contentLength, b.length);
-        if (!body.length) return;
-        var obj = JSON.parse(body);
-        if (obj.type == 'event' && obj.event == 'break' && obj.body.script.name == targetPath) {
-          isDone = true;
-          var req = JSON.stringify({"seq":100, "type":"request", "command":"disconnect"});
+
+        // get breakpoint list and check if it exists on line 0
+        if (!body.length) {
+          var req = JSON.stringify({'seq': 1, 'type': 'request',
+                                    'command': 'listbreakpoints'});
           conn.write('Content-Length: ' + req.length + '\r\n\r\n' + req);
+          return;
         }
+
+        var obj = JSON.parse(body);
+        if (obj.type === 'response' && obj.command === 'listbreakpoints' &&
+            !obj.running) {
+          obj.body.breakpoints.forEach(function(bpoint) {
+            if (bpoint.line === 0) isDone = true;
+          });
+        }
+
+        var req = JSON.stringify({'seq': 100, 'type': 'request',
+                                  'command': 'disconnect'});
+        conn.write('Content-Length: ' + req.length + '\r\n\r\n' + req);
       } finally {
         msg = null;
         parse();
       }
     }
   }
-});
+}
