@@ -19,7 +19,7 @@ The relevant headers are:
 
 Posts in the "release" category are only shown in the main lists when
 they are the most recent release for that version family.  The stable
-branch supercedes its unstable counterpart, so the presence of a `0.8.2`
+branch supersedes its unstable counterpart, so the presence of a `0.8.2`
 release notice will cause `0.7.10` to be hidden, but `0.6.19` would
 be unaffected.
 

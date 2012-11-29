@@ -12,7 +12,7 @@ slug: node-v0-7-0-unstable
 <ul>
 <li>Upgrade V8 to 3.8.6
 <li>Use GYP build system on unix (Ben Noordhuis)
-<li>Experimenetal isolates support (Ben Noordhuis)
+<li>Experimental isolates support (Ben Noordhuis)
 <li>Improvements to Cluster API (Andreas Madsen)
 <li>Use isolates for internal debugger (Fedor Indutny)
 <li>Bug fixes</ul>

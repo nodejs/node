@@ -11,7 +11,7 @@ slug: node-v0-4-6
 <li> Auto completion of built-in debugger suggests prefix match rather than partial match. (koichik)
 <li> circular reference in vm modules. #822 (Jakub Lekstan)
 <li> http response.readable should be false after 'end' #867 (Abe Fettig)
-<li> Implemenet os.cpus() and os.uptime() on Solaris (Scott McWhirter)
+<li> Implement os.cpus() and os.uptime() on Solaris (Scott McWhirter)
 <li> fs.ReadStream: Allow omission of end option for range reads #801 (Felix Geisendörfer)
 <li> Buffer.write() with UCS-2 should not be write partial char #916 (koichik)
 <Li> Pass secureProtocol through on tls.Server creation (Theo Schlossnagle)

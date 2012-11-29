@@ -11,7 +11,7 @@ We <a href="http://blog.nodejs.org/2011/06/23/porting-node-to-windows-with-micro
 
 We attempt to not reinvent the wheel where possible. The entire Unix backend sits heavily on Marc Lehmann's beautiful libraries <a href="http://software.schmorp.de/pkg/libev.html">libev</a> and <a href="http://software.schmorp.de/pkg/libeio.html">libeio</a>. For DNS we integrated with Daniel Stenberg's <a href="http://c-ares.haxx.se/">C-Ares</a>. For cross-platform build-system support we're relying on Chrome's <a href="http://code.google.com/p/gyp/">GYP</a> meta-build system.
 
-The current implmented features are:
+The current implemented features are:
 <ul>
 	<li>Non-blocking TCP sockets (using IOCP on Windows)</li>
 	<li>Non-blocking named pipes</li>
