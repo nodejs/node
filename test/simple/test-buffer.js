@@ -737,3 +737,11 @@ assert.equal(b.toString(), 'xxx');
 
 // issue GH-3416
 Buffer(Buffer(0), 0, 0);
+
+// issue GH-4331
+assert.throws(function() {
+  new Buffer(0xFFFFFFFF);
+}, RangeError);
+assert.throws(function() {
+  new Buffer(0xFFFFFFFFF);
+}, TypeError);
