@@ -1339,6 +1339,15 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
         (void) BIO_reset(bio);
     }
 
+    if (pkey != NULL) {
+      EVP_PKEY_free(pkey);
+      pkey = NULL;
+    }
+    if (rsa != NULL) {
+      RSA_free(rsa);
+      rsa = NULL;
+    }
+
     ASN1_TIME_print(bio, X509_get_notBefore(peer_cert));
     BIO_get_mem_ptr(bio, &mem);
     info->Set(valid_from_symbol, String::New(mem->data, mem->length));
