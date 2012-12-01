@@ -33,20 +33,16 @@ if (isTTY(1) == false) {
 var handle = new TTY(1);
 var callbacks = 0;
 
-var req1 = handle.write(Buffer('hello world\n'));
+var req1 = handle.writeBuffer(Buffer('hello world\n'));
 req1.oncomplete = function() {
   callbacks++;
 };
 
-var req2 = handle.write(Buffer('hello world\n'));
+var req2 = handle.writeBuffer(Buffer('hello world\n'));
 req2.oncomplete = function() {
   callbacks++;
 };
 
-handle.close();
-
 process.on('exit', function() {
   assert.equal(2, callbacks);
 });
-
-
