@@ -191,13 +191,17 @@ def files(action):
           'deps/uv/include/uv-private/uv-unix.h',
           'deps/uv/include/uv-private/uv-win.h'],
           'include/node/uv-private/')
-  action(['doc/node.1'], 'share/man/man1/')
   action(['out/Release/node'], 'bin/node')
 
   # install unconditionally, checking if the platform supports dtrace doesn't
   # work when cross-compiling and besides, there's at least one linux flavor
   # with dtrace support now (oracle's "unbreakable" linux)
   action(['src/node.d'], 'lib/dtrace/')
+
+  if 'freebsd' in sys.platform:
+    action(['doc/node.1'], 'man/man1/')
+  else:
+    action(['doc/node.1'], 'share/man/man1/')
 
   if 'true' == variables.get('node_install_waf'): waf_files(action)
   if 'true' == variables.get('node_install_npm'): npm_files(action)
