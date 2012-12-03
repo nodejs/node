@@ -120,6 +120,12 @@ automatically set as a listener for the [secureConnection][] event.  The
     acceptable cipher. Unfortunately, `AES256-SHA` is a CBC cipher and therefore
     susceptible to BEAST attacks. Do *not* use it.
 
+  - `handshakeTimeout`: Abort the connection if the SSL/TLS handshake does not
+    finish in this many milliseconds. The default is 120 seconds.
+
+    A `'clientError'` is emitted on the `tls.Server` object whenever a handshake
+    times out.
+
   - `honorCipherOrder` : When choosing a cipher, use the server's preferences
     instead of the client preferences.
 
