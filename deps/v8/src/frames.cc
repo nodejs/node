@@ -692,6 +692,11 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 }
 
 
+void JavaScriptFrame::SetParameterValue(int index, Object* value) const {
+  Memory::Object_at(GetParameterSlot(index)) = value;
+}
+
+
 bool JavaScriptFrame::IsConstructor() const {
   Address fp = caller_fp();
   if (has_adapted_arguments()) {
