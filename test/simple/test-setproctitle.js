@@ -40,6 +40,10 @@ assert.equal(process.title, title);
 exec('ps -p ' + process.pid + ' -o args=', function(error, stdout, stderr) {
   assert.equal(error, null);
   assert.equal(stderr, '');
+
+  // freebsd always add ' (procname)' to the process title
+  if (process.platform === 'freebsd') title += ' (node)';
+
   // omitting trailing whitespace and \n
   assert.equal(stdout.replace(/\s+$/, ''), title);
 });
