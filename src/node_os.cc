@@ -206,9 +206,8 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 
   uv_err_t err = uv_interface_addresses(&interfaces, &count);
 
-  if (err.code != UV_OK) {
-    return Undefined();
-  }
+  if (err.code != UV_OK)
+    return ThrowException(UVException(err.code, "uv_interface_addresses"));
 
   ret = Object::New();
 
@@ -236,7 +235,7 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
     o->Set(String::New("address"), String::New(ip));
     o->Set(String::New("family"), family);
     o->Set(String::New("internal"), interfaces[i].is_internal ?
-	True() : False());
+	                                  True() : False());
 
     ifarr->Set(ifarr->Length(), o);
   }
