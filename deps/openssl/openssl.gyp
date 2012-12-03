@@ -3,6 +3,11 @@
 # found in the LICENSE file.
 
 {
+  'variables': {
+    'is_clang': 0,
+    'gcc_version': 0,
+  },
+
   'targets': [
     {
       'target_name': 'openssl',
@@ -674,10 +679,10 @@
             'OPENSSLDIR="/etc/ssl"',
             'TERMIOS',
           ],
-          'cflags': [
-            '-Wno-missing-field-initializers',
-            '-Wno-old-style-declaration',
-          ],
+          'cflags': ['-Wno-missing-field-initializers'],
+        }],
+        ['is_clang==1 or gcc_version>=43', {
+          'cflags': ['-Wno-old-style-declaration'],
         }],
         ['OS=="solaris"', {
           'defines': ['__EXTENSIONS__'],
