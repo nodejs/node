@@ -59,8 +59,31 @@ In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
 the entire process until they complete--halting all connections.
 
-Relative path to filename can be used, remember however that this path will be relative
-to `process.cwd()`.
+Relative path to filename can be used, remember however that this path will be
+relative to `process.cwd()`.
+
+Most fs functions let you omit the callback argument. If you do, a default
+callback is used that rethrows errors. To get a trace to the original call
+site, set the NODE_DEBUG environment variable:
+
+    $ cat script.js
+    function bad() {
+      require('fs').readFile('/');
+    }
+    bad();
+
+    $ env NODE_DEBUG=fs node script.js
+    fs.js:66
+            throw err;
+                  ^
+    Error: EISDIR, read
+        at rethrow (fs.js:61:21)
+        at maybeCallback (fs.js:79:42)
+        at Object.fs.readFile (fs.js:153:18)
+        at bad (/path/to/script.js:2:17)
+        at Object.<anonymous> (/path/to/script.js:5:1)
+        <etc.>
+
 
 ## fs.rename(oldPath, newPath, [callback])
 
