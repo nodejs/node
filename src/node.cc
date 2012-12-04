@@ -147,12 +147,6 @@ static bool use_sni = true;
 static bool use_sni = false;
 #endif
 
-#ifdef __POSIX__
-// Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
-// scoped at file-level rather than method-level to avoid excess stack usage.
-static char getbuf[PATH_MAX + 1];
-#endif
-
 // We need to notify V8 when we're idle so that it can run the garbage
 // collector. The interface to this is V8::IdleNotification(). It returns
 // true if the heap hasn't be fully compacted, and needs to be run again.
@@ -1467,6 +1461,108 @@ static Handle<Value> Umask(const Arguments& args) {
 
 #ifdef __POSIX__
 
+static const uid_t uid_not_found = static_cast<uid_t>(-1);
+static const gid_t gid_not_found = static_cast<gid_t>(-1);
+
+
+static uid_t uid_by_name(const char* name) {
+  struct passwd pwd;
+  struct passwd* pp;
+  char buf[8192];
+  int rc;
+
+  errno = 0;
+  pp = NULL;
+
+  if ((rc = getpwnam_r(name, &pwd, buf, sizeof(buf), &pp)) == 0 && pp != NULL) {
+    return pp->pw_uid;
+  }
+
+  return uid_not_found;
+}
+
+
+static char* name_by_uid(uid_t uid) {
+  struct passwd pwd;
+  struct passwd* pp;
+  char buf[8192];
+  int rc;
+
+  errno = 0;
+  pp = NULL;
+
+  if ((rc = getpwuid_r(uid, &pwd, buf, sizeof(buf), &pp)) == 0 && pp != NULL) {
+    return strdup(pp->pw_name);
+  }
+
+  if (rc == 0) {
+    errno = ENOENT;
+  }
+
+  return NULL;
+}
+
+
+static gid_t gid_by_name(const char* name) {
+  struct group pwd;
+  struct group* pp;
+  char buf[8192];
+  int rc;
+
+  errno = 0;
+  pp = NULL;
+
+  if ((rc = getgrnam_r(name, &pwd, buf, sizeof(buf), &pp)) == 0 && pp != NULL) {
+    return pp->gr_gid;
+  }
+
+  return gid_not_found;
+}
+
+
+#if 0  // For future use.
+static const char* name_by_gid(gid_t gid) {
+  struct group pwd;
+  struct group* pp;
+  char buf[8192];
+  int rc;
+
+  errno = 0;
+  pp = NULL;
+
+  if ((rc = getgrgid_r(gid, &pwd, buf, sizeof(buf), &pp)) == 0 && pp != NULL) {
+    return strdup(pp->gr_name);
+  }
+
+  if (rc == 0) {
+    errno = ENOENT;
+  }
+
+  return NULL;
+}
+#endif
+
+
+static uid_t uid_by_name(Handle<Value> value) {
+  if (value->IsUint32()) {
+    return static_cast<uid_t>(value->Uint32Value());
+  } else {
+    String::Utf8Value name(value);
+    return uid_by_name(*name);
+  }
+}
+
+
+static gid_t gid_by_name(Handle<Value> value) {
+  if (value->IsUint32()) {
+    return static_cast<gid_t>(value->Uint32Value());
+  } else {
+    String::Utf8Value name(value);
+    return gid_by_name(*name);
+  }
+}
+
+
 static Handle<Value> GetUid(const Arguments& args) {
   HandleScope scope;
   int uid = getuid();
@@ -1484,40 +1580,20 @@ static Handle<Value> GetGid(const Arguments& args) {
 static Handle<Value> SetGid(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1) {
-    return ThrowException(Exception::Error(
-      String::New("setgid requires 1 argument")));
+  if (!args[0]->IsUint32() && !args[0]->IsString()) {
+    return ThrowTypeError("setgid argument must be a number or a string");
   }
 
-  int gid;
+  gid_t gid = gid_by_name(args[0]);
 
-  if (args[0]->IsNumber()) {
-    gid = args[0]->Int32Value();
-  } else if (args[0]->IsString()) {
-    String::Utf8Value grpnam(args[0]);
-    struct group grp, *grpp = NULL;
-    int err;
-
-    errno = 0;
-    if ((err = getgrnam_r(*grpnam, &grp, getbuf, ARRAY_SIZE(getbuf), &grpp)) ||
-        grpp == NULL) {
-      if (errno == 0)
-        return ThrowException(Exception::Error(
-          String::New("setgid group id does not exist")));
-      else
-        return ThrowException(ErrnoException(errno, "getgrnam_r"));
-    }
-
-    gid = grpp->gr_gid;
-  } else {
-    return ThrowException(Exception::Error(
-      String::New("setgid argument must be a number or a string")));
+  if (gid == gid_not_found) {
+    return ThrowError("setgid group id does not exist");
   }
 
-  int result;
-  if ((result = setgid(gid)) != 0) {
+  if (setgid(gid)) {
     return ThrowException(ErrnoException(errno, "setgid"));
   }
+
   return Undefined();
 }
 
@@ -1525,43 +1601,141 @@ static Handle<Value> SetGid(const Arguments& args) {
 static Handle<Value> SetUid(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1) {
-    return ThrowException(Exception::Error(
-          String::New("setuid requires 1 argument")));
+  if (!args[0]->IsUint32() && !args[0]->IsString()) {
+    return ThrowTypeError("setuid argument must be a number or a string");
   }
 
-  int uid;
+  uid_t uid = uid_by_name(args[0]);
 
-  if (args[0]->IsNumber()) {
-    uid = args[0]->Int32Value();
-  } else if (args[0]->IsString()) {
-    String::Utf8Value pwnam(args[0]);
-    struct passwd pwd, *pwdp = NULL;
-    int err;
-
-    errno = 0;
-    if ((err = getpwnam_r(*pwnam, &pwd, getbuf, ARRAY_SIZE(getbuf), &pwdp)) ||
-        pwdp == NULL) {
-      if (errno == 0)
-        return ThrowException(Exception::Error(
-          String::New("setuid user id does not exist")));
-      else
-        return ThrowException(ErrnoException(errno, "getpwnam_r"));
-    }
-
-    uid = pwdp->pw_uid;
-  } else {
-    return ThrowException(Exception::Error(
-      String::New("setuid argument must be a number or a string")));
+  if (uid == uid_not_found) {
+    return ThrowError("setuid user id does not exist");
   }
 
-  int result;
-  if ((result = setuid(uid)) != 0) {
+  if (setuid(uid)) {
     return ThrowException(ErrnoException(errno, "setuid"));
   }
+
   return Undefined();
 }
 
+
+static Handle<Value> GetGroups(const Arguments& args) {
+  HandleScope scope;
+
+  int ngroups = getgroups(0, NULL);
+
+  if (ngroups == -1) {
+    return ThrowException(ErrnoException(errno, "getgroups"));
+  }
+
+  gid_t* groups = new gid_t[ngroups];
+
+  ngroups = getgroups(ngroups, groups);
+
+  if (ngroups == -1) {
+    delete[] groups;
+    return ThrowException(ErrnoException(errno, "getgroups"));
+  }
+
+  Local<Array> groups_list = Array::New(ngroups);
+  bool seen_egid = false;
+  gid_t egid = getegid();
+
+  for (int i = 0; i < ngroups; i++) {
+    groups_list->Set(i, Integer::New(groups[i]));
+    if (groups[i] == egid) seen_egid = true;
+  }
+
+  delete[] groups;
+
+  if (seen_egid == false) {
+    groups_list->Set(ngroups, Integer::New(egid));
+  }
+
+  return scope.Close(groups_list);
+}
+
+
+static Handle<Value> SetGroups(const Arguments& args) {
+  HandleScope scope;
+
+  if (!args[0]->IsArray()) {
+    return ThrowTypeError("argument 1 must be an array");
+  }
+
+  Local<Array> groups_list = args[0].As<Array>();
+  size_t size = groups_list->Length();
+  gid_t* groups = new gid_t[size];
+
+  for (size_t i = 0; i < size; i++) {
+    gid_t gid = gid_by_name(groups_list->Get(i));
+
+    if (gid == gid_not_found) {
+      delete[] groups;
+      return ThrowError("group name not found");
+    }
+
+    groups[i] = gid;
+  }
+
+  int rc = setgroups(size, groups);
+  delete[] groups;
+
+  if (rc == -1) {
+    return ThrowException(ErrnoException(errno, "setgroups"));
+  }
+
+  return Undefined();
+}
+
+
+static Handle<Value> InitGroups(const Arguments& args) {
+  HandleScope scope;
+
+  if (!args[0]->IsUint32() && !args[0]->IsString()) {
+    return ThrowTypeError("argument 1 must be a number or a string");
+  }
+
+  if (!args[1]->IsUint32() && !args[1]->IsString()) {
+    return ThrowTypeError("argument 2 must be a number or a string");
+  }
+
+  String::Utf8Value arg0(args[0]);
+  gid_t extra_group;
+  bool must_free;
+  char* user;
+
+  if (args[0]->IsUint32()) {
+    user = name_by_uid(args[0]->Uint32Value());
+    must_free = true;
+  } else {
+    user = *arg0;
+    must_free = false;
+  }
+
+  if (user == NULL) {
+    return ThrowError("initgroups user not found");
+  }
+
+  extra_group = gid_by_name(args[1]);
+
+  if (extra_group == gid_not_found) {
+    if (must_free) free(user);
+    return ThrowError("initgroups extra group not found");
+  }
+
+  int rc = initgroups(user, extra_group);
+
+  if (must_free) {
+    free(user);
+  }
+
+  if (rc) {
+    return ThrowException(ErrnoException(errno, "initgroups"));
+  }
+
+  return Undefined();
+}
 
 #endif // __POSIX__
 
@@ -2250,6 +2424,10 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "setgid", SetGid);
   NODE_SET_METHOD(process, "getgid", GetGid);
+
+  NODE_SET_METHOD(process, "getgroups", GetGroups);
+  NODE_SET_METHOD(process, "setgroups", SetGroups);
+  NODE_SET_METHOD(process, "initgroups", InitGroups);
 #endif // __POSIX__
 
   NODE_SET_METHOD(process, "_kill", Kill);
