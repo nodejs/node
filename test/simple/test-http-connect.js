@@ -73,7 +73,11 @@ server.listen(common.PORT, function() {
     assert(!socket.onend);
     assert.equal(socket.listeners('connect').length, 0);
     assert.equal(socket.listeners('data').length, 0);
-    assert.equal(socket.listeners('end').length, 0);
+
+    // the stream.Duplex onend listener
+    // allow 0 here, so that i can run the same test on streams1 impl
+    assert(socket.listeners('end').length <= 1);
+
     assert.equal(socket.listeners('free').length, 0);
     assert.equal(socket.listeners('close').length, 0);
     assert.equal(socket.listeners('error').length, 0);
