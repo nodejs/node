@@ -27,12 +27,7 @@
 #include "v8-profiler.h"
 
 #include <assert.h>
-#include <stdlib.h> // malloc, free
 #include <string.h> // memcpy
-
-#ifdef __POSIX__
-# include <arpa/inet.h> // htons, htonl
-#endif
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
