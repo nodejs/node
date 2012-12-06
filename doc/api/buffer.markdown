@@ -19,9 +19,10 @@ encoding method.  Here are the different string encodings.
 
 * `'ascii'` - for 7 bit ASCII data only.  This encoding method is very fast, and
   will strip the high bit if set.
-  Note that this encoding converts a null character (`'\0'` or `'\u0000'`) into
-  `0x20` (character code of a space). If you want to convert a null character
-  into `0x00`, you should use `'utf8'`.
+
+  Note that when converting from string to buffer, this encoding converts a null
+  character (`'\0'` or `'\u0000'`) into `0x20` (character code of a space). If
+  you want to convert a null character into `0x00`, you should use `'utf8'`.
 
 * `'utf8'` - Multibyte encoded Unicode characters. Many web pages and other
   document formats use UTF-8.

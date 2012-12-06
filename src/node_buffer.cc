@@ -247,15 +247,38 @@ Handle<Value> Buffer::BinarySlice(const Arguments &args) {
 }
 
 
+static bool contains_non_ascii(const char* buf, size_t len) {
+  for (size_t i = 0; i < len; ++i) {
+    if (buf[i] & 0x80) return true;
+  }
+  return false;
+}
+
+
+static void force_ascii(const char* src, char* dst, size_t len) {
+  for (size_t i = 0; i < len; ++i) {
+    dst[i] = src[i] & 0x7f;
+  }
+}
+
+
 Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
   HandleScope scope;
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
   char* data = parent->data_ + start;
-  Local<String> string = String::New(data, end - start);
+  size_t len = end - start;
 
-  return scope.Close(string);
+  if (contains_non_ascii(data, len)) {
+    char* out = new char[len];
+    force_ascii(data, out, len);
+    Local<String> rc = String::New(out, len);
+    delete[] out;
+    return scope.Close(rc);
+  }
+
+  return scope.Close(String::New(data, len));
 }
 
 
@@ -267,6 +290,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
   Local<String> string = String::New(data, end - start);
   return scope.Close(string);
 }
+
 
 Handle<Value> Buffer::Ucs2Slice(const Arguments &args) {
   HandleScope scope;
