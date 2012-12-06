@@ -48,6 +48,12 @@ inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
 }
 #endif
 
+#if defined(__x86_64__)
+# define BITS_PER_LONG 64
+#else
+# define BITS_PER_LONG 32
+#endif
+
 #ifndef offset_of
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
