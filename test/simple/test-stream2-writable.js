@@ -59,6 +59,10 @@ function run() {
 
   var name = next[0];
   var fn = next[1];
+
+  if (!fn)
+    return run();
+
   console.log('# %s', name);
   fn({
     same: assert.deepEqual,
@@ -228,9 +232,11 @@ test('write callbacks', function (t) {
   });
 
   tw.on('finish', function() {
-    t.same(tw.buffer, chunks, 'got chunks in the right order');
-    t.same(callbacks._called, chunks, 'called all callbacks');
-    t.end();
+    process.nextTick(function() {
+      t.same(tw.buffer, chunks, 'got chunks in the right order');
+      t.same(callbacks._called, chunks, 'called all callbacks');
+      t.end();
+    });
   });
 
   chunks.forEach(function(chunk, i) {
