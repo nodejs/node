@@ -829,6 +829,7 @@ int SizeOfArrayElementForType(v8::ExternalArrayType type) {
   switch (type) {
     case v8::kExternalByteArray:
     case v8::kExternalUnsignedByteArray:
+    case v8::kExternalPixelArray:
       return 1;
     case v8::kExternalShortArray:
     case v8::kExternalUnsignedShortArray:
