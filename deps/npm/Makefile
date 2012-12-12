@@ -92,7 +92,7 @@ doc/cli/index.md: $(markdowns) scripts/index-build.js scripts/doc-build.sh packa
 	node scripts/index-build.js > $@
 
 node_modules/.bin/ronn:
-	node cli.js install
+	node cli.js install ronn
 
 doc: man
 

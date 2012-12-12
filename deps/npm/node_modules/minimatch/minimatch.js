@@ -6,6 +6,9 @@ else exports.minimatch = minimatch
 if (!require) {
   require = function (id) {
     switch (id) {
+      case "sigmund": return function sigmund (obj) {
+        return JSON.stringify(obj)
+      }
       case "path": return { basename: function (f) {
         f = f.split(/[\/\\]/)
         var e = f.pop()
@@ -32,6 +35,7 @@ minimatch.Minimatch = Minimatch
 var LRU = require("lru-cache")
   , cache = minimatch.cache = new LRU({max: 100})
   , GLOBSTAR = minimatch.GLOBSTAR = Minimatch.GLOBSTAR = {}
+  , sigmund = require("sigmund")
 
 var path = require("path")
   // any single thing other than /
@@ -157,9 +161,7 @@ function Minimatch (pattern, options) {
   // lru storage.
   // these things aren't particularly big, but walking down the string
   // and turning it into a regexp can get pretty costly.
-  var cacheKey = pattern + "\n" + Object.keys(options).filter(function (k) {
-    return options[k]
-  }).join(":")
+  var cacheKey = pattern + "\n" + sigmund(options)
   var cached = minimatch.cache.get(cacheKey)
   if (cached) return cached
   minimatch.cache.set(cacheKey, this)

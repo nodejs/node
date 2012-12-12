@@ -134,18 +134,21 @@ Pack.prototype._process = function () {
   var root = path.dirname((entry.root || entry).path)
   var wprops = {}
 
-  Object.keys(entry.props).forEach(function (k) {
+  Object.keys(entry.props || {}).forEach(function (k) {
     wprops[k] = entry.props[k]
   })
 
   if (me._noProprietary) wprops.noProprietary = true
 
-  wprops.path = path.relative(root, entry.path)
+  wprops.path = path.relative(root, entry.path || '')
 
   // actually not a matter of opinion or taste.
   if (process.platform === "win32") {
     wprops.path = wprops.path.replace(/\\/g, "/")
   }
+
+  if (!wprops.type)
+    wprops.type = 'Directory'
 
   switch (wprops.type) {
     // sockets not supported
@@ -156,11 +159,13 @@ Pack.prototype._process = function () {
       wprops.path += "/"
       wprops.size = 0
       break
+
     case "Link":
       var lp = path.resolve(path.dirname(entry.path), entry.linkpath)
       wprops.linkpath = path.relative(root, lp) || "."
       wprops.size = 0
       break
+
     case "SymbolicLink":
       var lp = path.resolve(path.dirname(entry.path), entry.linkpath)
       wprops.linkpath = path.relative(path.dirname(entry.path), lp) || "."
