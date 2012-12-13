@@ -41,12 +41,15 @@ for (var i = 255; i >= 0; i--) {
 
 // safe constructor
 var echoServer = net.Server(function(connection) {
+  // connection._readableState.lowWaterMark = 0;
+  console.error('SERVER got connection');
   connection.setEncoding('binary');
   connection.on('data', function(chunk) {
-    common.error('recved: ' + JSON.stringify(chunk));
+    common.error('SERVER recved: ' + JSON.stringify(chunk));
     connection.write(chunk, 'binary');
   });
   connection.on('end', function() {
+    console.error('SERVER ending');
     connection.end();
   });
 });
@@ -55,28 +58,43 @@ echoServer.listen(common.PORT);
 var recv = '';
 
 echoServer.on('listening', function() {
+  console.error('SERVER listening');
   var j = 0;
-  var c = net.createConnection(common.PORT);
+  var c = net.createConnection({
+    port: common.PORT
+  });
+
+  // c._readableState.lowWaterMark = 0;
 
   c.setEncoding('binary');
   c.on('data', function(chunk) {
-    if (j < 256) {
-      common.error('write ' + j);
+    console.error('CLIENT data %j', chunk);
+    var n = j + chunk.length;
+    while (j < n && j < 256) {
+      common.error('CLIENT write ' + j);
       c.write(String.fromCharCode(j), 'binary');
       j++;
-    } else {
+    }
+    if (j === 256) {
+      console.error('CLIENT ending');
       c.end();
     }
     recv += chunk;
   });
 
   c.on('connect', function() {
+    console.error('CLIENT connected, writing');
     c.write(binaryString, 'binary');
   });
 
   c.on('close', function() {
+    console.error('CLIENT closed');
     console.dir(recv);
     echoServer.close();
+  });
+
+  c.on('finish', function() {
+    console.error('CLIENT finished');
   });
 });
 

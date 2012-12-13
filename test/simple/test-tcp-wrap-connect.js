@@ -54,6 +54,7 @@ var shutdownCount = 0;
 var server = require('net').Server(function(s) {
   console.log('got connection');
   connectCount++;
+  s.resume();
   s.on('end', function() {
     console.log('got eof');
     endCount++;

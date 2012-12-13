@@ -34,6 +34,7 @@ var server = net.createServer(function(socket) {
   socket.on('end', function() {
     if (++conns_closed == 2) server.close();
   });
+  socket.resume();
 });
 
 server.listen(common.PORT, 'localhost', function() {

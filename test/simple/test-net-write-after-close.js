@@ -32,12 +32,16 @@ process.on('exit', function() {
 });
 
 var server = net.createServer(function(socket) {
+  socket.resume();
+
   socket.on('error', function(error) {
+    console.error('got error, closing server', error);
     server.close();
     gotError = true;
   });
 
   setTimeout(function() {
+    console.error('about to try to write');
     socket.write('test', function(e) {
       gotWriteCB = true;
     });

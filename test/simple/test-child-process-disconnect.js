@@ -31,6 +31,8 @@ if (process.argv[2] === 'child') {
 
   server.on('connection', function(socket) {
 
+    socket.resume();
+
     process.on('disconnect', function() {
       socket.end((process.connected).toString());
     });
