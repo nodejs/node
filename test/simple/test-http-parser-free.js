@@ -44,6 +44,7 @@ server.listen(common.PORT, function() {
         if (++responses === N) {
           server.close();
         }
+        res.resume();
       });
     })(i);
   }

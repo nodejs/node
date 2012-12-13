@@ -50,5 +50,6 @@ function runTest() {
     response.on('end', function() {
       s.close();
     });
+    response.resume();
   });
 }

@@ -36,6 +36,7 @@ server.listen(common.PORT, function() {
       assert.ok(!req.end());
       server.close();
     });
+    res.resume();
   });
 });
 

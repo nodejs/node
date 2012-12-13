@@ -39,7 +39,7 @@ var server = http.createServer(function(req, res) {
 
   dom.on('error', function(er) {
     serverCaught++;
-    console.log('server error', er);
+    console.log('horray! got a server error', er);
     // try to send a 500.  If that fails, oh well.
     res.writeHead(500, {'content-type':'text/plain'});
     res.end(er.stack || er.message || 'Unknown error');
@@ -82,12 +82,7 @@ function next() {
     dom.on('error', function(er) {
       clientCaught++;
       console.log('client error', er);
-      // kill everything.
-      dom.dispose();
-    });
-
-    dom.on('dispose', function() {
-      disposeEmit += 1;
+      req.socket.destroy();
     });
 
     var req = http.get({ host: 'localhost', port: common.PORT, path: p });
@@ -107,6 +102,7 @@ function next() {
         d += c;
       });
       res.on('end', function() {
+        console.error('trying to parse json', d);
         d = JSON.parse(d);
         console.log('json!', d);
       });
@@ -117,6 +113,5 @@ function next() {
 process.on('exit', function() {
   assert.equal(serverCaught, 2);
   assert.equal(clientCaught, 2);
-  assert.equal(disposeEmit, 2);
   console.log('ok');
 });

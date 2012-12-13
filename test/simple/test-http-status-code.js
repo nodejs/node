@@ -59,6 +59,7 @@ function nextTest() {
       testIdx += 1;
       nextTest();
     });
+    response.resume();
   });
 }
 

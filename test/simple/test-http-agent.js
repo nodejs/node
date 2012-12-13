@@ -40,10 +40,14 @@ server.listen(common.PORT, function() {
     setTimeout(function() {
       for (var j = 0; j < M; j++) {
         http.get({ port: common.PORT, path: '/' }, function(res) {
-          console.log(res.statusCode);
-          if (++responses == N * M) server.close();
+          console.log('%d %d', responses, res.statusCode);
+          if (++responses == N * M) {
+            console.error('Received all responses, closing server');
+            server.close();
+          }
+          res.resume();
         }).on('error', function(e) {
-          console.log(e.message);
+          console.log('Error!', e);
           process.exit(1);
         });
       }

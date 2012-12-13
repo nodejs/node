@@ -49,6 +49,7 @@ server.addListener('listening', function() {
       server.close();
       process.exit();
     });
+    res.resume();
   });
   req.end();
 });

@@ -170,6 +170,7 @@ function makeReq(path, port, error, host, ca) {
       server2.close();
       server3.close();
     }
+    res.resume();
   })
 }
 

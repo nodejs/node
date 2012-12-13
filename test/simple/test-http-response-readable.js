@@ -35,6 +35,7 @@ testServer.listen(common.PORT, function() {
       assert.equal(res.readable, false, 'res.readable set to false after end');
       testServer.close();
     });
+    res.resume();
   });
 });
 
