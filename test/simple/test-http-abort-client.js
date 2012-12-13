@@ -46,12 +46,20 @@ server.listen(common.PORT, function() {
 
     res.on('data', function(chunk) {
       console.log('Read ' + chunk.length + ' bytes');
-      console.log(chunk.toString());
+      console.log(' chunk=%j', chunk.toString());
     });
 
     res.on('end', function() {
       console.log('Response ended.');
     });
+
+    res.on('aborted', function() {
+      console.log('Response aborted.');
+    });
+
+    res.socket.on('close', function() {
+      console.log('socket closed, but not res');
+    })
 
     // it would be nice if this worked:
     res.on('close', function() {

@@ -33,6 +33,7 @@ var disposeEmit = 0;
 
 var server = http.createServer(function(req, res) {
   var dom = domain.create();
+  req.resume();
   dom.add(req);
   dom.add(res);
 

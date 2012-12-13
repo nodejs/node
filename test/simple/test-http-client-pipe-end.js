@@ -26,6 +26,7 @@ var assert = require('assert');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {
+  req.resume();
   req.once('end', function() {
     res.writeHead(200);
     res.end();
@@ -50,9 +51,9 @@ server.listen(common.PIPE, function() {
 function sched(cb, ticks) {
   function fn() {
     if (--ticks)
-      process.nextTick(fn);
+      setImmediate(fn);
     else
       cb();
   }
-  process.nextTick(fn);
+  setImmediate(fn);
 }
