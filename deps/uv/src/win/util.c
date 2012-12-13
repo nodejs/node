@@ -740,109 +740,201 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
 }
 
 
-uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
-    int* count) {
-  unsigned long size = 0;
-  IP_ADAPTER_ADDRESSES* adapter_addresses;
-  IP_ADAPTER_ADDRESSES* adapter_address;
-  uv_interface_address_t* address;
-  struct sockaddr* sock_addr;
-  int length;
-  char* name;
-  /* Use IP_ADAPTER_UNICAST_ADDRESS_XP to retain backwards compatibility */
-  /* with Windows XP */
-  IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
+uv_err_t uv_interface_addresses(uv_interface_address_t** addresses_ptr,
+    int* count_ptr) {
+  IP_ADAPTER_ADDRESSES* win_address_buf;
+  ULONG win_address_buf_size;
+  IP_ADAPTER_ADDRESSES* win_address;
 
-  if (GetAdaptersAddresses(AF_UNSPEC, 0, NULL, NULL, &size)
-      != ERROR_BUFFER_OVERFLOW) {
-    return uv__new_sys_error(GetLastError());
-  }
+  uv_interface_address_t* uv_address_buf;
+  char* name_buf;
+  size_t uv_address_buf_size;
+  uv_interface_address_t* uv_address;
 
-  adapter_addresses = (IP_ADAPTER_ADDRESSES*)malloc(size);
-  if (!adapter_addresses) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
+  int count;
 
-  if (GetAdaptersAddresses(AF_UNSPEC, 0, NULL, adapter_addresses, &size)
-      != ERROR_SUCCESS) {
-    return uv__new_sys_error(GetLastError());
-  }
+  /* Fetch the size of the adapters reported by windows, and then get the */
+  /* list itself. */
+  win_address_buf_size = 0;
+  win_address_buf = NULL;
 
-  /* Count the number of interfaces */
-  *count = 0;
+  for (;;) {
+    ULONG r;
 
-  for (adapter_address = adapter_addresses;
-       adapter_address != NULL;
-       adapter_address = adapter_address->Next) {
+    /* If win_address_buf is 0, then GetAdaptersAddresses will fail with */
+    /* ERROR_BUFFER_OVERFLOW, and the required buffer size will be stored in */
+    /* win_address_buf_size. */
+    r = GetAdaptersAddresses(AF_UNSPEC,
+                             0,
+                             NULL,
+                             win_address_buf,
+                             &win_address_buf_size);
 
-    if (adapter_address->OperStatus != IfOperStatusUp)
-      continue;
+    if (r == ERROR_SUCCESS)
+      break;
 
-    unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
-                      adapter_address->FirstUnicastAddress;
+    free(win_address_buf);
 
-    while (unicast_address) {
-      (*count)++;
-      unicast_address = unicast_address->Next;
+    switch (r) {
+      case ERROR_BUFFER_OVERFLOW:
+        /* This happens when win_address_buf is NULL or too small to hold */
+        /* all adapters. */
+        win_address_buf = malloc(win_address_buf_size);
+        if (win_address_buf == NULL)
+          return uv__new_artificial_error(UV_ENOMEM);
+
+        continue;
+
+      case ERROR_NO_DATA: {
+        /* No adapters were found. */
+        uv_address_buf = malloc(1);
+        if (uv_address_buf == NULL)
+          return uv__new_artificial_error(UV_ENOMEM);
+
+        *count_ptr = 0;
+        *addresses_ptr = uv_address_buf;
+
+        return uv_ok_;
+      }
+
+      case ERROR_ADDRESS_NOT_ASSOCIATED:
+        return uv__new_artificial_error(UV_EAGAIN);
+
+      case ERROR_INVALID_PARAMETER:
+        /* MSDN says:
+         *   "This error is returned for any of the following conditions: the
+         *   SizePointer parameter is NULL, the Address parameter is not
+         *   AF_INET, AF_INET6, or AF_UNSPEC, or the address information for
+         *   the parameters requested is greater than ULONG_MAX."
+         * Since the first two conditions are not met, it must be that the
+         * adapter data is too big.
+         */
+        return uv__new_artificial_error(UV_ENOBUFS);
+
+      default:
+        /* Other (unspecified) errors can happen, but we don't have any */
+        /* special meaning for them. */
+        assert(r != ERROR_SUCCESS);
+        return uv__new_sys_error(r);
     }
   }
 
-  *addresses = (uv_interface_address_t*)
-    malloc(*count * sizeof(uv_interface_address_t));
-  if (!(*addresses)) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
+  /* Count the number of enabled interfaces and compute how much space is */
+  /* needed to store their info. */
+  count = 0;
+  uv_address_buf_size = 0;
 
-  address = *addresses;
+  for (win_address = win_address_buf;
+       win_address != NULL;
+       win_address = win_address->Next) {
+    /* Use IP_ADAPTER_UNICAST_ADDRESS_XP to retain backwards compatibility */
+    /* with Windows XP */
+    IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
+    int name_size;
 
-  for (adapter_address = adapter_addresses;
-       adapter_address != NULL;
-       adapter_address = adapter_address->Next) {
-
-    if (adapter_address->OperStatus != IfOperStatusUp)
+    /* Interfaces that are not 'up' should not be reported. Also skip */
+    /* interfaces that have no associated unicast address, as to avoid */
+    /* allocating space for the name for this interface. */
+    if (win_address->OperStatus != IfOperStatusUp ||
+        win_address->FirstUnicastAddress == NULL)
       continue;
 
-    name = NULL;
-    unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
-                      adapter_address->FirstUnicastAddress;
+    /* Compute the size of the interface name. */
+    name_size = WideCharToMultiByte(CP_UTF8,
+                                    0,
+                                    win_address->FriendlyName,
+                                    -1,
+                                    NULL,
+                                    0,
+                                    NULL,
+                                    FALSE);
+    if (name_size <= 0) {
+      free(win_address_buf);
+      return uv__new_sys_error(GetLastError());
+    }
+    uv_address_buf_size += name_size;
 
-    while (unicast_address) {
-      sock_addr = unicast_address->Address.lpSockaddr;
-      if (sock_addr->sa_family == AF_INET6) {
-        address->address.address6 = *((struct sockaddr_in6 *)sock_addr);
-      } else {
-        address->address.address4 = *((struct sockaddr_in *)sock_addr);
-      }
-
-      address->is_internal =
-        adapter_address->IfType == IF_TYPE_SOFTWARE_LOOPBACK ? 1 : 0;
-
-      if (!name) {
-        /* Convert FriendlyName to utf8 */
-        length = uv_utf16_to_utf8(adapter_address->FriendlyName, -1, NULL, 0);
-        if (length) {
-          name = (char*)malloc(length);
-          if (!name) {
-            uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-          }
-
-          if (!uv_utf16_to_utf8(adapter_address->FriendlyName, -1, name,
-              length)) {
-            free(name);
-            name = NULL;
-          }
-        }
-      }
-
-      assert(name);
-      address->name = name;
-
-      unicast_address = unicast_address->Next;
-      address++;
+    /* Count the number of addresses associated with this interface, and */
+    /* compute the size. */
+    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
+                           win_address->FirstUnicastAddress;
+         unicast_address != NULL;
+         unicast_address = unicast_address->Next) {
+      count++;
+      uv_address_buf_size += sizeof(uv_interface_address_t);
     }
   }
 
-  free(adapter_addresses);
+  /* Allocate space to store interface data plus adapter names. */
+  uv_address_buf = malloc(uv_address_buf_size);
+  if (uv_address_buf == NULL) {
+    free(win_address_buf);
+    return uv__new_artificial_error(UV_ENOMEM);
+  }
+
+  /* Compute the start of the uv_interface_address_t array, and the place in */
+  /* the buffer where the interface names will be stored. */
+  uv_address = uv_address_buf;
+  name_buf = (char*) (uv_address_buf + count);
+
+  /* Fill out the output buffer. */
+  for (win_address = win_address_buf;
+       win_address != NULL;
+       win_address = win_address->Next) {
+    IP_ADAPTER_UNICAST_ADDRESS_XP* unicast_address;
+    int name_size;
+    size_t max_name_size;
+
+    if (win_address->OperStatus != IfOperStatusUp ||
+        win_address->FirstUnicastAddress == NULL)
+      continue;
+
+    /* Convert the interface name to UTF8. */
+    max_name_size = (char*) uv_address_buf + uv_address_buf_size - name_buf;
+    if (max_name_size > (size_t) INT_MAX)
+      max_name_size = INT_MAX;
+    name_size = WideCharToMultiByte(CP_UTF8,
+                                    0,
+                                    win_address->FriendlyName,
+                                    -1,
+                                    name_buf,
+                                    (int) max_name_size,
+                                    NULL,
+                                    FALSE);
+    if (name_size <= 0) {
+      free(win_address_buf);
+      free(uv_address_buf);
+      return uv__new_sys_error(GetLastError());
+    }
+
+    /* Add an uv_interface_address_t element for every unicast address. */
+    for (unicast_address = (IP_ADAPTER_UNICAST_ADDRESS_XP*)
+                           win_address->FirstUnicastAddress;
+         unicast_address != NULL;
+         unicast_address = unicast_address->Next) {
+      struct sockaddr* sa;
+
+      uv_address->name = name_buf;
+
+      sa = unicast_address->Address.lpSockaddr;
+      if (sa->sa_family == AF_INET6)
+        uv_address->address.address6 = *((struct sockaddr_in6 *) sa);
+      else
+        uv_address->address.address4 = *((struct sockaddr_in *) sa);
+
+      uv_address->is_internal =
+          (win_address->IfType == IF_TYPE_SOFTWARE_LOOPBACK);
+
+      uv_address++;
+    }
+
+    name_buf += name_size;
+  }
+
+  free(win_address_buf);
+
+  *addresses_ptr = uv_address_buf;
+  *count_ptr = count;
 
   return uv_ok_;
 }
@@ -850,15 +942,5 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
 
 void uv_free_interface_addresses(uv_interface_address_t* addresses,
     int count) {
-  int i;
-  char* freed_name = NULL;
-
-  for (i = 0; i < count; i++) {
-    if (freed_name != addresses[i].name) {
-      freed_name = addresses[i].name;
-      free(freed_name);
-    }
-  }
-
   free(addresses);
 }

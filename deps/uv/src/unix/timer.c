@@ -102,13 +102,14 @@ int64_t uv_timer_get_repeat(uv_timer_t* handle) {
 }
 
 
-unsigned int uv__next_timeout(uv_loop_t* loop) {
-  uv_timer_t* handle;
+int uv__next_timeout(const uv_loop_t* loop) {
+  const uv_timer_t* handle;
 
-  handle = RB_MIN(uv__timers, &loop->timer_handles);
+  /* RB_MIN expects a non-const tree root. That's okay, it doesn't modify it. */
+  handle = RB_MIN(uv__timers, (struct uv__timers*) &loop->timer_handles);
 
   if (handle == NULL)
-    return (unsigned int) -1; /* block indefinitely */
+    return -1; /* block indefinitely */
 
   if (handle->timeout <= loop->time)
     return 0;

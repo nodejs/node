@@ -261,6 +261,28 @@ UV_EXTERN void uv_unref(uv_handle_t*);
 UV_EXTERN void uv_update_time(uv_loop_t*);
 UV_EXTERN int64_t uv_now(uv_loop_t*);
 
+/*
+ * Get backend file descriptor. Only kqueue, epoll and event ports are
+ * supported.
+ *
+ * This can be used in conjuction with uv_run_once() to poll in one thread and
+ * run the event loop's event callbacks in another.
+ *
+ * Useful for embedding libuv's event loop in another event loop.
+ * See test/test-embed.c for an example.
+ *
+ * Note that embedding a kqueue fd in another kqueue pollset doesn't work on
+ * all platforms. It's not an error to add the fd but it never generates
+ * events.
+ */
+UV_EXTERN int uv_backend_fd(const uv_loop_t*);
+
+/*
+ * Get the poll timeout. The return value is in milliseconds, or -1 for no
+ * timeout.
+ */
+UV_EXTERN int uv_backend_timeout(const uv_loop_t*);
+
 
 /*
  * Should return a buffer that libuv can use to read data into.
@@ -308,7 +330,7 @@ typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
 typedef void (*uv_walk_cb)(uv_handle_t* handle, void* arg);
 typedef void (*uv_fs_cb)(uv_fs_t* req);
 typedef void (*uv_work_cb)(uv_work_t* req);
-typedef void (*uv_after_work_cb)(uv_work_t* req);
+typedef void (*uv_after_work_cb)(uv_work_t* req, int status);
 typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* req,
                                   int status,
                                   struct addrinfo* res);
@@ -1314,7 +1336,13 @@ enum uv_process_flags {
    * parent's event loop alive unless the parent process calls uv_unref() on
    * the child's process handle.
    */
-  UV_PROCESS_DETACHED = (1 << 3)
+  UV_PROCESS_DETACHED = (1 << 3),
+  /*
+   * Hide the subprocess console window that would normally be created. This
+   * option is only meaningful on Windows systems. On unix it is silently
+   * ignored.
+   */
+  UV_PROCESS_WINDOWS_HIDE = (1 << 4)
 };
 
 /*
@@ -1357,6 +1385,30 @@ struct uv_work_s {
 /* Queues a work request to execute asynchronously on the thread pool. */
 UV_EXTERN int uv_queue_work(uv_loop_t* loop, uv_work_t* req,
     uv_work_cb work_cb, uv_after_work_cb after_work_cb);
+
+/* Cancel a pending request. Fails if the request is executing or has finished
+ * executing.
+ *
+ * Returns 0 on success, -1 on error. The loop error code is not touched.
+ *
+ * Only cancellation of uv_fs_t, uv_getaddrinfo_t and uv_work_t requests is
+ * currently supported.
+ *
+ * Cancelled requests have their callbacks invoked some time in the future.
+ * It's _not_ safe to free the memory associated with the request until your
+ * callback is called.
+ *
+ * Here is how cancellation is reported to your callback:
+ *
+ * - A uv_fs_t request has its req->errorno field set to UV_ECANCELED.
+ *
+ * - A uv_work_t or uv_getaddrinfo_t request has its callback invoked with
+ *   status == -1 and uv_last_error(loop).code == UV_ECANCELED.
+ *
+ * This function is currently only implemented on UNIX platforms. On Windows,
+ * it always returns -1.
+ */
+UV_EXTERN int uv_cancel(uv_req_t* req);
 
 
 struct uv_cpu_info_s {

@@ -84,6 +84,8 @@ int uv_async_send(uv_async_t* handle) {
     r = write(handle->loop->async_pipefd[1], "x", 1);
   while (r == -1 && errno == EINTR);
 
+  assert(r == -1 || r == 1);
+
   if (r == -1 && errno != EAGAIN && errno != EWOULDBLOCK)
     return uv__set_sys_error(handle->loop, errno);
 

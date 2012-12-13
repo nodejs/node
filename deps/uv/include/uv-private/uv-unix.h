@@ -60,7 +60,7 @@ struct uv__io_s {
 
 struct uv__work {
   void (*work)(struct uv__work *w);
-  void (*done)(struct uv__work *w);
+  void (*done)(struct uv__work *w, int status);
   struct uv_loop_s* loop;
   ngx_queue_t wq;
 };
@@ -88,6 +88,10 @@ struct uv__work {
 
 #ifndef UV_PLATFORM_FS_EVENT_FIELDS
 # define UV_PLATFORM_FS_EVENT_FIELDS /* empty */
+#endif
+
+#ifndef UV_STREAM_PRIVATE_PLATFORM_FIELDS
+# define UV_STREAM_PRIVATE_PLATFORM_FIELDS /* empty */
 #endif
 
 /* Note: May be cast to struct iovec. See writev(2). */
@@ -209,6 +213,7 @@ typedef struct {
   uv_connection_cb connection_cb;                                             \
   int delayed_error;                                                          \
   int accepted_fd;                                                            \
+  UV_STREAM_PRIVATE_PLATFORM_FIELDS                                           \
 
 #define UV_TCP_PRIVATE_FIELDS /* empty */
 

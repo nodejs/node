@@ -3728,9 +3728,9 @@ void EIO_PBKDF2After(pbkdf2_req* req, Local<Value> argv[2]) {
 }
 
 
-void EIO_PBKDF2After(uv_work_t* work_req) {
+void EIO_PBKDF2After(uv_work_t* work_req, int status) {
+  assert(status == 0);
   pbkdf2_req* req = container_of(work_req, pbkdf2_req, work_req);
-
   HandleScope scope;
   Local<Value> argv[2];
   Persistent<Object> obj = req->obj;
@@ -3902,16 +3902,15 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
 }
 
 
-void RandomBytesAfter(uv_work_t* work_req) {
+void RandomBytesAfter(uv_work_t* work_req, int status) {
+  assert(status == 0);
   RandomBytesRequest* req = container_of(work_req,
                                          RandomBytesRequest,
                                          work_req_);
-
   HandleScope scope;
   Local<Value> argv[2];
   RandomBytesCheck(req, argv);
   MakeCallback(req->obj_, "ondone", ARRAY_SIZE(argv), argv);
-
   delete req;
 }
 

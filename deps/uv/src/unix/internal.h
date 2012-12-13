@@ -130,6 +130,7 @@ void uv__make_close_pending(uv_handle_t* handle);
 void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd);
 void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events);
+void uv__io_close(uv_loop_t* loop, uv__io_t* w);
 void uv__io_feed(uv_loop_t* loop, uv__io_t* w);
 int uv__io_active(const uv__io_t* w, unsigned int events);
 void uv__io_poll(uv_loop_t* loop, int timeout); /* in milliseconds or -1 */
@@ -163,7 +164,7 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 
 /* timer */
 void uv__run_timers(uv_loop_t* loop);
-unsigned int uv__next_timeout(uv_loop_t* loop);
+int uv__next_timeout(const uv_loop_t* loop);
 
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
@@ -174,7 +175,7 @@ void uv__signal_loop_cleanup();
 void uv__work_submit(uv_loop_t* loop,
                      struct uv__work *w,
                      void (*work)(struct uv__work *w),
-                     void (*done)(struct uv__work *w));
+                     void (*done)(struct uv__work *w, int status));
 void uv__work_done(uv_async_t* handle, int status);
 
 /* platform specific */
@@ -196,6 +197,13 @@ void uv__tcp_close(uv_tcp_t* handle);
 void uv__timer_close(uv_timer_t* handle);
 void uv__udp_close(uv_udp_t* handle);
 void uv__udp_finish_close(uv_udp_t* handle);
+
+#if defined(__APPLE__)
+int uv___stream_fd(uv_stream_t* handle);
+#define uv__stream_fd(handle) (uv___stream_fd((uv_stream_t*) (handle)))
+#else
+#define uv__stream_fd(handle) ((handle)->io_watcher.fd)
+#endif /* defined(__APPLE__) */
 
 #ifdef UV__O_NONBLOCK
 # define UV__F_NONBLOCK UV__O_NONBLOCK

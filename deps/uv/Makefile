@@ -44,10 +44,10 @@ BENCHMARKS=test/blackhole-server.c test/echo-server.c test/dns-server.c test/ben
 all: libuv.a
 
 test/run-tests$(E): test/run-tests.c test/runner.c $(RUNNER_SRC) $(TESTS) libuv.$(SOEXT)
-	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LINKFLAGS)
+	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
 
 test/run-benchmarks$(E): test/run-benchmarks.c test/runner.c $(RUNNER_SRC) $(BENCHMARKS) libuv.$(SOEXT)
-	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LINKFLAGS)
+	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
 
 test/echo.o: test/echo.c test/echo.h
 

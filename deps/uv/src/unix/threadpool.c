@@ -20,43 +20,48 @@
  */
 
 #include "internal.h"
+#include <stdlib.h>
 
-#include <errno.h>
-#include <pthread.h>
-
-/* TODO add condvar support to libuv */
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-static pthread_once_t once = PTHREAD_ONCE_INIT;
-static pthread_t threads[4];
+static uv_once_t once = UV_ONCE_INIT;
+static uv_cond_t cond;
+static uv_mutex_t mutex;
+static uv_thread_t threads[4];
 static ngx_queue_t exit_message;
-static ngx_queue_t wq = { &wq, &wq };
+static ngx_queue_t wq;
 static volatile int initialized;
 
 
-static void* worker(void* arg) {
+static void uv__cancelled(struct uv__work* w) {
+  abort();
+}
+
+
+/* To avoid deadlock with uv_cancel() it's crucial that the worker
+ * never holds the global mutex and the loop-local mutex at the same time.
+ */
+static void worker(void* arg) {
   struct uv__work* w;
   ngx_queue_t* q;
 
   (void) arg;
 
   for (;;) {
-    if (pthread_mutex_lock(&mutex))
-      abort();
+    uv_mutex_lock(&mutex);
 
     while (ngx_queue_empty(&wq))
-      if (pthread_cond_wait(&cond, &mutex))
-        abort();
+      uv_cond_wait(&cond, &mutex);
 
     q = ngx_queue_head(&wq);
 
     if (q == &exit_message)
-      pthread_cond_signal(&cond);
-    else
+      uv_cond_signal(&cond);
+    else {
       ngx_queue_remove(q);
+      ngx_queue_init(q);  /* Signal uv_cancel() that the work req is
+                             executing. */
+    }
 
-    if (pthread_mutex_unlock(&mutex))
-      abort();
+    uv_mutex_unlock(&mutex);
 
     if (q == &exit_message)
       break;
@@ -65,36 +70,43 @@ static void* worker(void* arg) {
     w->work(w);
 
     uv_mutex_lock(&w->loop->wq_mutex);
+    w->work = NULL;  /* Signal uv_cancel() that the work req is done
+                        executing. */
     ngx_queue_insert_tail(&w->loop->wq, &w->wq);
-    uv_mutex_unlock(&w->loop->wq_mutex);
     uv_async_send(&w->loop->wq_async);
+    uv_mutex_unlock(&w->loop->wq_mutex);
   }
-
-  return NULL;
 }
 
 
 static void post(ngx_queue_t* q) {
-  pthread_mutex_lock(&mutex);
+  uv_mutex_lock(&mutex);
   ngx_queue_insert_tail(&wq, q);
-  pthread_cond_signal(&cond);
-  pthread_mutex_unlock(&mutex);
+  uv_cond_signal(&cond);
+  uv_mutex_unlock(&mutex);
 }
 
 
 static void init_once(void) {
   unsigned int i;
 
+  if (uv_cond_init(&cond))
+    abort();
+
+  if (uv_mutex_init(&mutex))
+    abort();
+
   ngx_queue_init(&wq);
 
   for (i = 0; i < ARRAY_SIZE(threads); i++)
-    if (pthread_create(threads + i, NULL, worker, NULL))
+    if (uv_thread_create(threads + i, worker, NULL))
       abort();
 
   initialized = 1;
 }
 
 
+#if defined(__GNUC__)
 __attribute__((destructor))
 static void cleanup(void) {
   unsigned int i;
@@ -105,22 +117,50 @@ static void cleanup(void) {
   post(&exit_message);
 
   for (i = 0; i < ARRAY_SIZE(threads); i++)
-    if (pthread_join(threads[i], NULL))
+    if (uv_thread_join(threads + i))
       abort();
 
+  uv_mutex_destroy(&mutex);
+  uv_cond_destroy(&cond);
   initialized = 0;
 }
+#endif
 
 
 void uv__work_submit(uv_loop_t* loop,
                      struct uv__work* w,
                      void (*work)(struct uv__work* w),
-                     void (*done)(struct uv__work* w)) {
-  pthread_once(&once, init_once);
+                     void (*done)(struct uv__work* w, int status)) {
+  uv_once(&once, init_once);
   w->loop = loop;
   w->work = work;
   w->done = done;
   post(&w->wq);
+}
+
+
+int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
+  int cancelled;
+
+  uv_mutex_lock(&mutex);
+  uv_mutex_lock(&w->loop->wq_mutex);
+
+  cancelled = !ngx_queue_empty(&w->wq) && w->work != NULL;
+  if (cancelled)
+    ngx_queue_remove(&w->wq);
+
+  uv_mutex_unlock(&w->loop->wq_mutex);
+  uv_mutex_unlock(&mutex);
+
+  if (!cancelled)
+    return -1;
+
+  w->work = uv__cancelled;
+  uv_mutex_lock(&loop->wq_mutex);
+  ngx_queue_insert_tail(&loop->wq, &w->wq);
+  uv_mutex_unlock(&loop->wq_mutex);
+
+  return 0;
 }
 
 
@@ -129,6 +169,7 @@ void uv__work_done(uv_async_t* handle, int status) {
   uv_loop_t* loop;
   ngx_queue_t* q;
   ngx_queue_t wq;
+  int err;
 
   loop = container_of(handle, uv_loop_t, wq_async);
   ngx_queue_init(&wq);
@@ -145,7 +186,8 @@ void uv__work_done(uv_async_t* handle, int status) {
     ngx_queue_remove(q);
 
     w = container_of(q, struct uv__work, wq);
-    w->done(w);
+    err = (w->work == uv__cancelled) ? -UV_ECANCELED : 0;
+    w->done(w, err);
   }
 }
 
@@ -153,18 +195,23 @@ void uv__work_done(uv_async_t* handle, int status) {
 static void uv__queue_work(struct uv__work* w) {
   uv_work_t* req = container_of(w, uv_work_t, work_req);
 
-  if (req->work_cb)
-    req->work_cb(req);
+  req->work_cb(req);
 }
 
 
-static void uv__queue_done(struct uv__work* w) {
-  uv_work_t* req = container_of(w, uv_work_t, work_req);
+static void uv__queue_done(struct uv__work* w, int status) {
+  uv_work_t* req;
 
+  req = container_of(w, uv_work_t, work_req);
   uv__req_unregister(req->loop, req);
 
-  if (req->after_work_cb)
-    req->after_work_cb(req);
+  if (req->after_work_cb == NULL)
+    return;
+
+  if (status == -UV_ECANCELED)
+    uv__set_artificial_error(req->loop, UV_ECANCELED);
+
+  req->after_work_cb(req, status ? -1 : 0);
 }
 
 
@@ -172,10 +219,38 @@ int uv_queue_work(uv_loop_t* loop,
                   uv_work_t* req,
                   uv_work_cb work_cb,
                   uv_after_work_cb after_work_cb) {
+  if (work_cb == NULL)
+    return uv__set_artificial_error(loop, UV_EINVAL);
+
   uv__req_init(loop, req, UV_WORK);
   req->loop = loop;
   req->work_cb = work_cb;
   req->after_work_cb = after_work_cb;
   uv__work_submit(loop, &req->work_req, uv__queue_work, uv__queue_done);
   return 0;
+}
+
+
+int uv_cancel(uv_req_t* req) {
+  struct uv__work* wreq;
+  uv_loop_t* loop;
+
+  switch (req->type) {
+  case UV_FS:
+    loop =  ((uv_fs_t*) req)->loop;
+    wreq = &((uv_fs_t*) req)->work_req;
+    break;
+  case UV_GETADDRINFO:
+    loop =  ((uv_getaddrinfo_t*) req)->loop;
+    wreq = &((uv_getaddrinfo_t*) req)->work_req;
+    break;
+  case UV_WORK:
+    loop =  ((uv_work_t*) req)->loop;
+    wreq = &((uv_work_t*) req)->work_req;
+    break;
+  default:
+    return -1;
+  }
+
+  return uv__work_cancel(loop, req, wreq);
 }

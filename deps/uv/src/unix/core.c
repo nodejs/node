@@ -248,7 +248,12 @@ void uv_loop_delete(uv_loop_t* loop) {
 }
 
 
-static unsigned int uv__poll_timeout(uv_loop_t* loop) {
+int uv_backend_fd(const uv_loop_t* loop) {
+  return loop->backend_fd;
+}
+
+
+int uv_backend_timeout(const uv_loop_t* loop) {
   if (!uv__has_active_handles(loop) && !uv__has_active_reqs(loop))
     return 0;
 
@@ -268,7 +273,7 @@ static int uv__run(uv_loop_t* loop) {
   uv__run_idle(loop);
   uv__run_prepare(loop);
   uv__run_pending(loop);
-  uv__io_poll(loop, uv__poll_timeout(loop));
+  uv__io_poll(loop, uv_backend_timeout(loop));
   uv__run_check(loop);
   uv__run_closing_handles(loop);
   return uv__has_active_handles(loop) || uv__has_active_reqs(loop);
@@ -324,6 +329,13 @@ int uv__socket(int domain, int type, int protocol) {
     close(sockfd);
     sockfd = -1;
   }
+
+#if defined(SO_NOSIGPIPE)
+  {
+    int on = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
+  }
+#endif
 
 out:
   return sockfd;
@@ -629,9 +641,6 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   w->pevents &= ~events;
 
   if (w->pevents == 0) {
-    ngx_queue_remove(&w->pending_queue);
-    ngx_queue_init(&w->pending_queue);
-
     ngx_queue_remove(&w->watcher_queue);
     ngx_queue_init(&w->watcher_queue);
 
@@ -645,6 +654,12 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   }
   else if (ngx_queue_empty(&w->watcher_queue))
     ngx_queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
+}
+
+
+void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
+  uv__io_stop(loop, w, UV__POLLIN | UV__POLLOUT);
+  ngx_queue_remove(&w->pending_queue);
 }
 
 

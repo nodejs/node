@@ -22,14 +22,14 @@ E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS += -g
 CPPFLAGS += -Isrc
-LINKFLAGS=-lm
+LDFLAGS=-lm
 
 CPPFLAGS += -D_LARGEFILE_SOURCE
 CPPFLAGS += -D_FILE_OFFSET_BITS=64
 
 RUNNER_SRC=test/runner-unix.c
 RUNNER_CFLAGS=$(CFLAGS) -Itest
-RUNNER_LINKFLAGS=-L"$(PWD)" -luv -Xlinker -rpath -Xlinker "$(PWD)"
+RUNNER_LDFLAGS=-L"$(PWD)" -luv -Xlinker -rpath -Xlinker "$(PWD)"
 
 OBJS += src/unix/async.o
 OBJS += src/unix/core.o
@@ -56,21 +56,21 @@ OBJS += src/inet.o
 
 ifeq (SunOS,$(uname_S))
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
-LINKFLAGS+=-lkstat -lnsl -lsendfile -lsocket
+LDFLAGS+=-lkstat -lnsl -lsendfile -lsocket
 # Library dependencies are not transitive.
-RUNNER_LINKFLAGS += $(LINKFLAGS)
+RUNNER_LDFLAGS += $(LDFLAGS)
 OBJS += src/unix/sunos.o
 endif
 
 ifeq (AIX,$(uname_S))
 CPPFLAGS += -Isrc/ares/config_aix -D_ALL_SOURCE -D_XOPEN_SOURCE=500
-LINKFLAGS+= -lperfstat
+LDFLAGS+= -lperfstat
 OBJS += src/unix/aix.o
 endif
 
 ifeq (Darwin,$(uname_S))
 CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
-LINKFLAGS+=-framework CoreServices -dynamiclib -install_name "@rpath/libuv.dylib"
+LDFLAGS+=-framework CoreServices -dynamiclib -install_name "@rpath/libuv.dylib"
 SOEXT = dylib
 OBJS += src/unix/darwin.o
 OBJS += src/unix/kqueue.o
@@ -79,7 +79,7 @@ endif
 
 ifeq (Linux,$(uname_S))
 CSTDFLAG += -D_GNU_SOURCE
-LINKFLAGS+=-ldl -lrt
+LDFLAGS+=-ldl -lrt
 RUNNER_CFLAGS += -D_GNU_SOURCE
 OBJS += src/unix/linux/linux-core.o \
         src/unix/linux/inotify.o    \
@@ -87,25 +87,25 @@ OBJS += src/unix/linux/linux-core.o \
 endif
 
 ifeq (FreeBSD,$(uname_S))
-LINKFLAGS+=-lkvm
+LDFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifeq (DragonFly,$(uname_S))
-LINKFLAGS+=-lkvm
+LDFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifeq (NetBSD,$(uname_S))
-LINKFLAGS+=-lkvm
+LDFLAGS+=-lkvm
 OBJS += src/unix/netbsd.o
 OBJS += src/unix/kqueue.o
 endif
 
 ifeq (OpenBSD,$(uname_S))
-LINKFLAGS+=-lkvm
+LDFLAGS+=-lkvm
 OBJS += src/unix/openbsd.o
 OBJS += src/unix/kqueue.o
 endif
@@ -113,22 +113,22 @@ endif
 ifneq (,$(findstring CYGWIN,$(uname_S)))
 # We drop the --std=c89, it hides CLOCK_MONOTONIC on cygwin
 CSTDFLAG = -D_GNU_SOURCE
-LINKFLAGS+=
+LDFLAGS+=
 OBJS += src/unix/cygwin.o
 endif
 
 ifeq (SunOS,$(uname_S))
-RUNNER_LINKFLAGS += -pthreads
+RUNNER_LDFLAGS += -pthreads
 else
-RUNNER_LINKFLAGS += -pthread
+RUNNER_LDFLAGS += -pthread
 endif
 
 libuv.a: $(OBJS)
 	$(AR) rcs $@ $^
 
-libuv.$(SOEXT):	CFLAGS += -fPIC
+libuv.$(SOEXT):	override CFLAGS += -fPIC
 libuv.$(SOEXT):	$(OBJS)
-	$(CC) -shared -o $@ $^ $(LINKFLAGS)
+	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
 src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@

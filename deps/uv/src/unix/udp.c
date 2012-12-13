@@ -40,7 +40,7 @@ static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
 
 
 void uv__udp_close(uv_udp_t* handle) {
-  uv__io_stop(handle->loop, &handle->io_watcher, UV__POLLIN | UV__POLLOUT);
+  uv__io_close(handle->loop, &handle->io_watcher);
   uv__handle_stop(handle);
   close(handle->io_watcher.fd);
   handle->io_watcher.fd = -1;

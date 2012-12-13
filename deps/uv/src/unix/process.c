@@ -204,7 +204,7 @@ static int uv__process_init_stdio(uv_stdio_container_t* container, int fds[2]) {
       if (container->flags & UV_INHERIT_FD) {
         fd = container->data.fd;
       } else {
-        fd = container->data.stream->io_watcher.fd;
+        fd = uv__stream_fd(container->data.stream);
       }
 
       if (fd == -1) {
@@ -363,10 +363,11 @@ int uv_spawn(uv_loop_t* loop,
   int i;
 
   assert(options.file != NULL);
-  assert(!(options.flags & ~(UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS |
-                             UV_PROCESS_DETACHED |
+  assert(!(options.flags & ~(UV_PROCESS_DETACHED |
                              UV_PROCESS_SETGID |
-                             UV_PROCESS_SETUID)));
+                             UV_PROCESS_SETUID |
+                             UV_PROCESS_WINDOWS_HIDE |
+                             UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   ngx_queue_init(&process->queue);

@@ -82,9 +82,6 @@ static void producer(void* arg) {
     uv_cond_signal(&full);
     uv_mutex_unlock(&mutex);
   }
-
-  LOGF("finished_consumers: %d\n", finished_consumers);
-  ASSERT(finished_consumers == MAX_CONSUMERS);
 }
 
 
@@ -129,6 +126,10 @@ TEST_IMPL(consumer_producer) {
   }
 
   ASSERT(0 == uv_thread_join(&pthread));
+
+  LOGF("finished_consumers: %d\n", finished_consumers);
+  ASSERT(finished_consumers == MAX_CONSUMERS);
+
   uv_cond_destroy(&empty);
   uv_cond_destroy(&full);
   uv_mutex_destroy(&mutex);
