@@ -1,5 +1,5 @@
 {
-  "version": "1.1.66",
+  "version": "1.1.69",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -117,7 +117,7 @@
   },
   "scripts": {
     "test": "node ./test/run.js && tap test/tap/*.js",
-    "prepublish": "npm prune ; rm -rf test/*/*/node_modules ; make -j4 doc",
+    "prepublish": "node bin/npm-cli.js prune ; rm -rf test/*/*/node_modules ; make -j4 doc",
     "dumpconf": "env | grep npm | sort | uniq",
     "echo": "node bin/npm-cli.js"
   },

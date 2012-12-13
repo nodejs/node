@@ -1,6 +1,4 @@
-var c = require('child_process').spawn('array-bin', [], {
-    env: process.env }).on('close', function (code) {
-  if (code) throw new Error('exited badly with code = ' + code)
+require('child_process').exec('array-bin', { env: process.env },
+    function (err) {
+  if (err && err.code) throw new Error('exited badly with code = ' + err.code)
 })
-c.stdout.pipe(process.stdout)
-c.stderr.pipe(process.stderr)

@@ -33,6 +33,7 @@ function main () {
   }
 
   versions = versions.filter(semver.valid)
+  if (!versions.length) return fail()
   for (var i = 0, l = range.length; i < l ; i ++) {
     versions = versions.filter(function (v) {
       return semver.satisfies(v, range[i])

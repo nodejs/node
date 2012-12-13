@@ -8,6 +8,6 @@
     "minimatch": "~0.1.0"
   },
   "scripts": {
-    "test": "bash test.sh"
+    "test": "node test.js"
   }
 }

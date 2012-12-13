@@ -105,7 +105,7 @@ inherits(Entry, Stream,
     this._reading = true
 
     // have any data to emit?
-    if (this._index < this._queueLen) {
+    while (this._index < this._queueLen && !this._paused) {
       var chunk = this._queue[this._index ++]
       this.emit("data", chunk)
     }

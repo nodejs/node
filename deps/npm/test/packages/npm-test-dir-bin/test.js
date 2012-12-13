@@ -1,5 +1,4 @@
-require('child_process').spawn('dir-bin', [], {
-    env: process.env }).on('exit', function (code) {
-  if (code) throw new Error('exited badly with code = ' + code)
+require('child_process').exec('dir-bin', { stdio: 'pipe',
+    env: process.env }, function (err) {
+  if (err && err.code) throw new Error('exited badly with code = ' + err.code)
 })
-

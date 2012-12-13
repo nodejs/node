@@ -1,4 +1,17 @@
-2012.11.26, Version 0.8.15 (Stable)
+2012.12.13, Version 0.8.16 (Stable)
+
+* npm: Upgrade to 1.1.69
+
+* fs: fix WriteStream/ReadStream fd leaks (Ben Noordhuis)
+
+* crypto: fix leak in GetPeerCertificate (Fedor Indutny)
+
+* buffer: Don't double-negate numeric buffer arg (Trevor Norris)
+
+* net: More accurate IP address validation and IPv6 dotted notation. (Joshua Erickson)
+
+
+2012.11.26, Version 0.8.15 (Stable), fdf91afb494a7a2fff2913d817f589c191a2c88f
 
 * npm: Upgrade to 1.1.66 (isaacs)
 

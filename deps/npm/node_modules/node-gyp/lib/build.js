@@ -180,10 +180,6 @@ function build (gyp, argv, callback) {
     if (win) {
       // Turn off the Microsoft logo on Windows
       argv.push('/nologo')
-
-      // Fix "warning MSB8012: TargetExt(.dll) does not match
-      // the Linker's OutputFile property value (.node)"
-      argv.push('/property:TargetExt=.node')
     }
 
     // Specify the build type, Release by default

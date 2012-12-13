@@ -11,6 +11,7 @@
     'target_conditions': [
       ['_type=="loadable_module"', {
         'product_extension': 'node',
+        'defines': [ 'BUILDING_NODE_EXTENSION' ],
       }]
     ],
 
