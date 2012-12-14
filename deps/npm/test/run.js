@@ -72,8 +72,14 @@ function exec (cmd, shouldFail, cb) {
   // special: replace 'node' with the current execPath,
   // and 'npm' with the thing we installed.
   var cmdShow = cmd
-  cmd = cmd.replace(/^npm /, path.resolve(npmPath, "npm") + " ")
-  cmd = cmd.replace(/^node /, process.execPath + " ")
+  var npmReplace = path.resolve(npmPath, "npm")
+  var nodeReplace = process.execPath
+  if (process.platform === "win32") {
+    npmReplace = '"' + npmReplace + '"'
+    nodeReplace = '"' + nodeReplace + '"'
+  }
+  cmd = cmd.replace(/^npm /, npmReplace + " ")
+  cmd = cmd.replace(/^node /, nodeReplace + " ")
 
   child_process.exec(cmd, {env: env}, function (er, stdout, stderr) {
     if (stdout) {
@@ -138,6 +144,12 @@ function main (cb) {
   installAllThenTestAll()
 
   function installAllThenTestAll () {
+    var packagesToRm = packages.slice(0)
+    if (process.platform !== "win32") {
+      // Windows can't handle npm rm npm due to file-in-use issues.
+      packagesToRm.push("npm")
+    }
+
     chain
       ( [ setup
         , [ exec, "npm install "+npmpkg ]
@@ -147,7 +159,7 @@ function main (cb) {
         , [ execChain, packages.map(function (p) {
               return "npm test "+p
             }) ]
-        , [ execChain, packages.concat("npm").map(function (p) {
+        , [ execChain, packagesToRm.map(function (p) {
               return "npm rm " + p
             }) ]
         , installAndTestEach
@@ -157,16 +169,21 @@ function main (cb) {
   }
 
   function installAndTestEach (cb) {
-    chain
-      ( [ setup
+    var thingsToChain = [
+        setup
         , [ execChain, packages.map(function (p) {
               return [ "npm install packages/"+p
                      , "npm test "+p
                      , "npm rm "+p ]
             }) ]
-        , [exec, "npm rm npm"]
-        , publishTest
-        ], cb )
+      ]
+    if (process.platform !== "win32") {
+      // Windows can't handle npm rm npm due to file-in-use issues.
+      thingsToChain.push([exec, "npm rm npm"])
+    }
+    thingsToChain.push(publishTest)
+
+    chain(thingsToChain, cb)
   }
 
   function publishTest (cb) {

@@ -67,6 +67,7 @@ runScript.completion = function (opts, cb) {
 }
 
 function runScript (args, cb) {
+  if (!args.length) return cb(runScript.usage)
   var pkgdir = args.length === 1 ? process.cwd()
              : path.resolve(npm.dir, args[0])
     , cmd = args.pop()

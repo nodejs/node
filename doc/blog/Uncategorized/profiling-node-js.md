@@ -32,7 +32,7 @@ This is a visualization of all of the profiled call stacks. This example is from
 That's the summary. There are a few prerequisites:
 
 <ul>
-    <li>You must gather data on a system that supports DTrace with the Node.js ustack helper. For now, this pretty much means <a href="http://illumos.org/">illumos</a>-based systems like <a href="http://smartos.org/">SmartOS</a>, including the Joyent Cloud. <strong>MacOS users:</strong> OS X supports DTrace, but not ustack helpers. The way to get this changed is to contact your Apple developer liason (if you're lucky enough to have one) or <strong>file a bug report at bugreport.apple.com</strong>. I'd suggest referencing existing bugs 5273057 and 11206497. More bugs filed (even if closed as dups) show more interest and make it more likely Apple will choose to fix this.</li>
+    <li>You must gather data on a system that supports DTrace with the Node.js ustack helper. For now, this pretty much means <a href="http://illumos.org/">illumos</a>-based systems like <a href="http://smartos.org/">SmartOS</a>, including the Joyent Cloud. <strong>MacOS users:</strong> OS X supports DTrace, but not ustack helpers. The way to get this changed is to contact your Apple developer liaison (if you're lucky enough to have one) or <strong>file a bug report at bugreport.apple.com</strong>. I'd suggest referencing existing bugs 5273057 and 11206497. More bugs filed (even if closed as dups) show more interest and make it more likely Apple will choose to fix this.</li>
     <li>You must be on 32-bit Node.js 0.6.7 or later, built <code>--with-dtrace</code>. The helper doesn't work with 64-bit Node yet. On illumos (including SmartOS), development releases (the 0.7.x train) include DTrace support by default.</li>
 </ul>
 

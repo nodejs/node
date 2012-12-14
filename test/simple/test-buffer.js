@@ -774,7 +774,6 @@ assert.equal(b.toString(), 'xxx');
 // issue GH-3416
 Buffer(Buffer(0), 0, 0);
 
-
 [ 'hex',
   'utf8',
   'utf-8',
@@ -798,3 +797,11 @@ Buffer(Buffer(0), 0, 0);
 
 // GH-3905
 assert.equal(JSON.stringify(Buffer('test')), '[116,101,115,116]');
+
+// issue GH-4331
+assert.throws(function() {
+  new Buffer(0xFFFFFFFF);
+}, RangeError);
+assert.throws(function() {
+  new Buffer(0xFFFFFFFFF);
+}, TypeError);

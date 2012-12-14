@@ -78,7 +78,7 @@ function requestAll_ (c, data, cb) {
   this.request('GET', uri, function (er, updates, _, res) {
     if (er) return cb(er, data)
     var headers = res.headers
-      , updated = data._updated || Date.parse(headers.date)
+      , updated = updates._updated || Date.parse(headers.date)
     Object.keys(updates).forEach(function (p) {
       data[p] = updates[p]
     })

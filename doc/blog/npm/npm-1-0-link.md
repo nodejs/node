@@ -23,7 +23,7 @@ slug: npm-1-0-link
 
 <p>It was easy enough to point that symlink to a different location. However, since the <em>package.json file could change</em>, that meant that the connection between the version and the folder was not reliable.</p>
 
-<p>At first, this was just sort of something that we dealt with by saying, &#8220;Relink if you change the version.&#8221; However, as more and more edge cases arose, eventually the solution was to give link packages this fakey version of &#8220;9999.0.0-LINK-hash&#8221; so that npm knew it was an imposter. Sometimes the package was treated as if it had the 9999.0.0 version, and other times it was treated as if it had the version specified in the package.json.</p>
+<p>At first, this was just sort of something that we dealt with by saying, &#8220;Relink if you change the version.&#8221; However, as more and more edge cases arose, eventually the solution was to give link packages this fakey version of &#8220;9999.0.0-LINK-hash&#8221; so that npm knew it was an impostor. Sometimes the package was treated as if it had the 9999.0.0 version, and other times it was treated as if it had the version specified in the package.json.</p>
 
 <h2 id="a_better_way">A better way</h2>
 

@@ -10,6 +10,8 @@ designed to reduce visual clutter and make bugs more apparent.
 If you want to contribute to npm (which is very encouraged), you should
 make your code conform to npm's style.
 
+Note: this concerns npm's code not the specific packages at npmjs.org
+
 ## Line Length
 
 Keep lines shorter than 80 characters.  It's better for lines to be

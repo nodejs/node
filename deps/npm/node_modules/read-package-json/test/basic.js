@@ -5,6 +5,13 @@ var path = require("path")
 var fs = require("fs")
 var readme = fs.readFileSync(path.resolve(__dirname, "../README.md"), "utf8")
 var package = require("../package.json")
+var isGit
+try {
+                fs.readFileSync(path.resolve(__dirname, '../.git/HEAD'));
+                isGit = true
+} catch (e) {
+                isGit = false
+}
 
 console.error("basic test")
 tap.test("basic test", function (t) {
@@ -24,6 +31,8 @@ function basic_ (t, data) {
                 t.deepEqual(data.scripts, package.scripts)
                 t.equal(data.main, package.main)
                 t.equal(data.readmeFilename, 'README.md')
+
+                if (isGit) t.similar(data.gitHead, /^[a-f0-9]{40}$/);
 
                 // optional deps are folded in.
                 t.deepEqual(data.optionalDependencies,

@@ -231,6 +231,30 @@ tap.test("basic tests", function (t) {
       }
     , ["*.!(js)", ["foo.bar", "foo.", "boo.js.boo"] ]
 
+    // https://github.com/isaacs/minimatch/issues/5
+    , function () {
+        files = [ 'a/b/.x/c'
+                , 'a/b/.x/c/d'
+                , 'a/b/.x/c/d/e'
+                , 'a/b/.x'
+                , 'a/b/.x/'
+                , 'a/.x/b'
+                , '.x'
+                , '.x/'
+                , '.x/a'
+                , '.x/a/b'
+                , 'a/.x/b/.x/c'
+                , '.x/.x' ]
+    }
+    , ["**/.x/**", [ '.x/'
+                   , '.x/a'
+                   , '.x/a/b'
+                   , 'a/.x/b'
+                   , 'a/b/.x/'
+                   , 'a/b/.x/c'
+                   , 'a/b/.x/c/d'
+                   , 'a/b/.x/c/d/e' ] ]
+
     ].forEach(function (c) {
       if (typeof c === "function") return c()
       if (typeof c === "string") return t.comment(c)

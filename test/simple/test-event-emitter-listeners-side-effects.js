@@ -33,7 +33,7 @@ var fl;  // foo listeners
 fl = e.listeners('foo');
 assert(Array.isArray(fl));
 assert(fl.length === 0);
-assert(typeof e._events == 'undefined');
+assert.equal(e._events, null);
 
 e.on('foo', assert.fail);
 fl = e.listeners('foo');

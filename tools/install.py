@@ -122,6 +122,11 @@ def files(action):
   # with dtrace support now (oracle's "unbreakable" linux)
   action(['src/node.d'], 'lib/dtrace/')
 
+  if 'freebsd' in sys.platform:
+    action(['doc/node.1'], 'man/man1/')
+  else:
+    action(['doc/node.1'], 'share/man/man1/')
+
   if 'true' == variables.get('node_install_npm'): npm_files(action)
 
 def run(args):

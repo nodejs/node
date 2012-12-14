@@ -225,7 +225,7 @@ function findVersions (npm, summary, cb) {
     // not actually a dupe, or perhaps all the other copies were
     // children of a dupe, so this'll maybe be picked up later.
     if (locs.length === 0) {
-      return cb()
+      return cb(null, [])
     }
 
     // { <folder>: <version> }
