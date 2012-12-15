@@ -8,10 +8,10 @@ tick 14
 tick 13
 tick 12
 Trace: (node) warning: Recursive process.nextTick detected. This will break in the next version of node. Please use setImmediate for recursive deferral.
-    at maxTickWarn (node.js:289:17)
-    at process.nextTick (node.js:362:9)
-    at f (*test*message*max_tick_depth_trace.js:30:13)
-    at process._tickCallback (node.js:335:13)
+    at maxTickWarn (node.js:*:*)
+    at process.nextTick (node.js:*:*
+    at f (*test*message*max_tick_depth_trace.js:*:*)
+    at process._tickCallback (node.js:*:*)
 tick 11
 tick 10
 tick 9
@@ -23,9 +23,9 @@ tick 4
 tick 3
 tick 2
 Trace: (node) warning: Recursive process.nextTick detected. This will break in the next version of node. Please use setImmediate for recursive deferral.
-    at maxTickWarn (node.js:289:17)
-    at process.nextTick (node.js:362:9)
-    at f (*test*message*max_tick_depth_trace.js:30:13)
-    at process._tickCallback (node.js:335:13)
+    at maxTickWarn (node.js:*:*)
+    at process.nextTick (node.js:*:*
+    at f (*test*message*max_tick_depth_trace.js:*:*)
+    at process._tickCallback (node.js:*:*)
 tick 1
 tick 0
