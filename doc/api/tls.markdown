@@ -290,6 +290,9 @@ Creates a new client connection to the given `port` and `host` (old API) or
     creating a new socket. If this option is specified, `host` and `port`
     are ignored.
 
+  - `path`: Creates unix socket connection to path. If this option is
+    specified, `host` and `port` are ignored.
+
   - `pfx`: A string or `Buffer` containing the private key, certificate and
     CA certs of the client in PFX or PKCS12 format.
 
