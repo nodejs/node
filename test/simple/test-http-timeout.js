@@ -55,6 +55,8 @@ server.listen(port, function() {
           server.close();
         }
       })
+
+      res.resume();
     });
 
     req.setTimeout(1000, callback);

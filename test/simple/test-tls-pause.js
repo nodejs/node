@@ -41,6 +41,9 @@ var received = 0;
 
 var server = tls.Server(options, function(socket) {
   socket.pipe(socket);
+  socket.on('data', function(c) {
+    console.error('data', c.length);
+  });
 });
 
 server.listen(common.PORT, function() {
@@ -49,11 +52,16 @@ server.listen(common.PORT, function() {
     port: common.PORT,
     rejectUnauthorized: false
   }, function() {
+    console.error('connected');
     client.pause();
     common.debug('paused');
     send();
     function send() {
-      if (client.write(new Buffer(bufSize))) {
+      console.error('sending');
+      var ret = client.write(new Buffer(bufSize));
+      console.error('write => %j', ret);
+      if (false !== ret) {
+        console.error('write again');
         sent += bufSize;
         assert.ok(sent < 100 * 1024 * 1024); // max 100MB
         return process.nextTick(send);
@@ -62,12 +70,15 @@ server.listen(common.PORT, function() {
       common.debug('sent: ' + sent);
       resumed = true;
       client.resume();
-      common.debug('resumed');
+      console.error('resumed', client);
     }
   });
   client.on('data', function(data) {
+    console.error('data');
     assert.ok(resumed);
     received += data.length;
+    console.error('received', received);
+    console.error('sent', sent);
     if (received >= sent) {
       common.debug('received: ' + received);
       client.end();

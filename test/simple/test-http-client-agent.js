@@ -61,6 +61,7 @@ function request(i) {
         server.close();
       }
     });
+    res.resume();
   });
 }
 

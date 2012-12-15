@@ -230,15 +230,20 @@ var rfc4231 = [
 
 for (var i = 0, l = rfc4231.length; i < l; i++) {
   for (var hash in rfc4231[i]['hmac']) {
+    var str = crypto.createHmac(hash, rfc4231[i].key);
+    str.end(rfc4231[i].data);
+    var strRes = str.read().toString('hex');
     var result = crypto.createHmac(hash, rfc4231[i]['key'])
                      .update(rfc4231[i]['data'])
                      .digest('hex');
     if (rfc4231[i]['truncate']) {
       result = result.substr(0, 32); // first 128 bits == 32 hex chars
+      strRes = strRes.substr(0, 32);
     }
     assert.equal(rfc4231[i]['hmac'][hash],
                  result,
                  'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' rfc 4231');
+    assert.equal(strRes, result, 'Should get same result from stream');
   }
 }
 
@@ -373,6 +378,18 @@ var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
 var a3 = crypto.createHash('sha512').update('Test123').digest(); // binary
 var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
+// stream interface
+var a5 = crypto.createHash('sha512');
+a5.end('Test123');
+a5 = a5.read();
+
+var a6 = crypto.createHash('sha512');
+a6.write('Te');
+a6.write('st');
+a6.write('123');
+a6.end();
+a6 = a6.read();
+
 assert.equal(a0, '8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'Test SHA1');
 assert.equal(a1, 'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca' +
              '\u00bd\u008c', 'Test MD5 as binary');
@@ -391,6 +408,10 @@ assert.deepEqual(
 assert.deepEqual(a4,
                  new Buffer('8308651804facb7b9af8ffc53a33a22d6a1c8ac2', 'hex'),
                  'Test SHA1');
+
+// stream interface should produce the same result.
+assert.deepEqual(a5, a3, 'stream interface is consistent');
+assert.deepEqual(a6, a3, 'stream interface is consistent');
 
 // Test multiple updates to same hash
 var h1 = crypto.createHash('sha1').update('Test123').digest('hex');
@@ -419,6 +440,11 @@ assert.throws(function() {
 var s1 = crypto.createSign('RSA-SHA1')
                .update('Test123')
                .sign(keyPem, 'base64');
+var s1stream = crypto.createSign('RSA-SHA1');
+s1stream.end('Test123');
+s1stream = s1stream.sign(keyPem, 'base64');
+assert.equal(s1, s1stream, 'Stream produces same output');
+
 var verified = crypto.createVerify('RSA-SHA1')
                      .update('Test')
                      .update('123')
@@ -427,12 +453,24 @@ assert.strictEqual(verified, true, 'sign and verify (base 64)');
 
 var s2 = crypto.createSign('RSA-SHA256')
                .update('Test123')
-               .sign(keyPem); // binary
+               .sign(keyPem, 'binary');
+var s2stream = crypto.createSign('RSA-SHA256');
+s2stream.end('Test123');
+s2stream = s2stream.sign(keyPem, 'binary');
+assert.equal(s2, s2stream, 'Stream produces same output');
+
 var verified = crypto.createVerify('RSA-SHA256')
                      .update('Test')
                      .update('123')
-                     .verify(certPem, s2); // binary
+                     .verify(certPem, s2, 'binary');
 assert.strictEqual(verified, true, 'sign and verify (binary)');
+
+var verStream = crypto.createVerify('RSA-SHA256');
+verStream.write('Tes');
+verStream.write('t12');
+verStream.end('3');
+verified = verStream.verify(certPem, s2, 'binary');
+assert.strictEqual(verified, true, 'sign and verify (stream)');
 
 var s3 = crypto.createSign('RSA-SHA1')
                .update('Test123')
@@ -442,6 +480,13 @@ var verified = crypto.createVerify('RSA-SHA1')
                      .update('123')
                      .verify(certPem, s3);
 assert.strictEqual(verified, true, 'sign and verify (buffer)');
+
+var verStream = crypto.createVerify('RSA-SHA1');
+verStream.write('Tes');
+verStream.write('t12');
+verStream.end('3');
+verified = verStream.verify(certPem, s3);
+assert.strictEqual(verified, true, 'sign and verify (stream)');
 
 
 function testCipher1(key) {
@@ -460,6 +505,20 @@ function testCipher1(key) {
   txt += decipher.final('utf8');
 
   assert.equal(txt, plaintext, 'encryption and decryption');
+
+  // streaming cipher interface
+  // NB: In real life, it's not guaranteed that you can get all of it
+  // in a single read() like this.  But in this case, we know it's
+  // quite small, so there's no harm.
+  var cStream = crypto.createCipher('aes192', key);
+  cStream.end(plaintext);
+  ciph = cStream.read();
+
+  var dStream = crypto.createDecipher('aes192', key);
+  dStream.end(ciph);
+  txt = dStream.read().toString('utf8');
+
+  assert.equal(txt, plaintext, 'encryption and decryption with streams');
 }
 
 
@@ -500,6 +559,20 @@ function testCipher3(key, iv) {
   txt += decipher.final('utf8');
 
   assert.equal(txt, plaintext, 'encryption and decryption with key and iv');
+
+  // streaming cipher interface
+  // NB: In real life, it's not guaranteed that you can get all of it
+  // in a single read() like this.  But in this case, we know it's
+  // quite small, so there's no harm.
+  var cStream = crypto.createCipheriv('des-ede3-cbc', key, iv);
+  cStream.end(plaintext);
+  ciph = cStream.read();
+
+  var dStream = crypto.createDecipheriv('des-ede3-cbc', key, iv);
+  dStream.end(ciph);
+  txt = dStream.read().toString('utf8');
+
+  assert.equal(txt, plaintext, 'streaming cipher iv');
 }
 
 

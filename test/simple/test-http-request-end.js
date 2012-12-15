@@ -47,6 +47,7 @@ server.listen(common.PORT, function() {
     method: 'POST'
   }, function(res) {
     console.log(res.statusCode);
+    res.resume();
   }).on('error', function(e) {
     console.log(e.message);
     process.exit(1);

@@ -57,13 +57,14 @@ function testHttp() {
 
   var counter = 0;
 
-  function cb() {
+  function cb(res) {
     counter--;
     console.log('back from http request. counter = ' + counter);
     if (counter === 0) {
       httpServer.close();
       testHttps();
     }
+    res.resume();
   }
 
   httpServer.listen(common.PORT, function(er) {
@@ -124,13 +125,14 @@ function testHttps() {
 
   var counter = 0;
 
-  function cb() {
+  function cb(res) {
     counter--;
     console.log('back from https request. counter = ' + counter);
     if (counter === 0) {
       httpsServer.close();
       console.log('ok');
     }
+    res.resume();
   }
 
   httpsServer.listen(common.PORT, function(er) {

@@ -115,6 +115,7 @@ function check(tests) {
   function server(req, res) {
     if (current + 1 === test.responses.length) this.close();
     var ctx = test.responses[current];
+    console.error('<  SERVER SENDING RESPONSE', ctx);
     res.writeHead(200, ctx.headers);
     ctx.chunks.slice(0, -1).forEach(function(chunk) { res.write(chunk) });
     res.end(ctx.chunks[ctx.chunks.length - 1]);
@@ -126,16 +127,19 @@ function check(tests) {
 
     function connected() {
       var ctx = test.requests[current];
+      console.error(' > CLIENT SENDING REQUEST', ctx);
       conn.setEncoding('utf8');
       conn.write(ctx.data);
 
       function onclose() {
+        console.error(' > CLIENT CLOSE');
         if (!ctx.expectClose) throw new Error('unexpected close');
         client();
       }
       conn.on('close', onclose);
 
       function ondata(s) {
+        console.error(' > CLIENT ONDATA %j %j', s.length, s.toString());
         current++;
         if (ctx.expectClose) return;
         conn.removeListener('close', onclose);

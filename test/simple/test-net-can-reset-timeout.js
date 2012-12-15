@@ -28,6 +28,8 @@ var timeoutCount = 0;
 var server = net.createServer(function(stream) {
   stream.setTimeout(100);
 
+  stream.resume();
+
   stream.on('timeout', function() {
     console.log('timeout');
     // try to reset the timeout.

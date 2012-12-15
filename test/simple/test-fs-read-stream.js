@@ -60,12 +60,10 @@ file.on('data', function(data) {
 
   paused = true;
   file.pause();
-  assert.ok(file.paused);
 
   setTimeout(function() {
     paused = false;
     file.resume();
-    assert.ok(!file.paused);
   }, 10);
 });
 
@@ -77,7 +75,6 @@ file.on('end', function(chunk) {
 
 file.on('close', function() {
   callbacks.close++;
-  assert.ok(!file.readable);
 
   //assert.equal(fs.readFileSync(fn), fileContent);
 });
@@ -104,6 +101,7 @@ process.on('exit', function() {
   assert.equal(2, callbacks.close);
   assert.equal(30000, file.length);
   assert.equal(10000, file3.length);
+  console.error('ok');
 });
 
 var file4 = fs.createReadStream(rangeFile, {bufferSize: 1, start: 1, end: 2});

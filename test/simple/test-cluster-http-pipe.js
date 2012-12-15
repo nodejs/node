@@ -53,6 +53,7 @@ http.createServer(function(req, res) {
 }).listen(common.PIPE, function() {
   var self = this;
   http.get({ socketPath: common.PIPE, path: '/' }, function(res) {
+    res.resume();
     res.on('end', function(err) {
       if (err) throw err;
       process.send('DONE');

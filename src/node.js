@@ -140,7 +140,6 @@
 
       } else {
         // Read all of stdin - execute it.
-        process.stdin.resume();
         process.stdin.setEncoding('utf8');
 
         var code = '';
@@ -497,17 +496,20 @@
       switch (tty_wrap.guessHandleType(fd)) {
         case 'TTY':
           var tty = NativeModule.require('tty');
-          stdin = new tty.ReadStream(fd);
+          stdin = new tty.ReadStream(fd, {
+            highWaterMark: 0,
+            lowWaterMark: 0
+          });
           break;
 
         case 'FILE':
           var fs = NativeModule.require('fs');
-          stdin = new fs.ReadStream(null, {fd: fd});
+          stdin = new fs.ReadStream(null, { fd: fd });
           break;
 
         case 'PIPE':
           var net = NativeModule.require('net');
-          stdin = new net.Stream(fd);
+          stdin = new net.Stream({ fd: fd });
           stdin.readable = true;
           break;
 
@@ -520,16 +522,23 @@
       stdin.fd = fd;
 
       // stdin starts out life in a paused state, but node doesn't
-      // know yet.  Call pause() explicitly to unref() it.
-      stdin.pause();
+      // know yet.  Explicitly to readStop() it to put it in the
+      // not-reading state.
+      if (stdin._handle && stdin._handle.readStop) {
+        stdin._handle.reading = false;
+        stdin._readableState.reading = false;
+        stdin._handle.readStop();
+      }
 
-      // when piping stdin to a destination stream,
-      // let the data begin to flow.
-      var pipe = stdin.pipe;
-      stdin.pipe = function(dest, opts) {
-        stdin.resume();
-        return pipe.call(stdin, dest, opts);
-      };
+      // if the user calls stdin.pause(), then we need to stop reading
+      // immediately, so that the process can close down.
+      stdin.on('pause', function() {
+        if (!stdin._handle)
+          return;
+        stdin._readableState.reading = false;
+        stdin._handle.reading = false;
+        stdin._handle.readStop();
+      });
 
       return stdin;
     });
@@ -701,8 +710,8 @@
 
     var nativeModule = new NativeModule(id);
 
-    nativeModule.compile();
     nativeModule.cache();
+    nativeModule.compile();
 
     return nativeModule.exports;
   };

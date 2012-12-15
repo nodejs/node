@@ -48,6 +48,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
       if (++responses == N) {
         server.close();
       }
+      res.resume();
     });
 
     assert.equal(req.agent, agent);

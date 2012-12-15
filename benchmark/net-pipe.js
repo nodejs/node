@@ -27,7 +27,7 @@ Writer.prototype.write = function(chunk, encoding, cb) {
 
 // doesn't matter, never emits anything.
 Writer.prototype.on = function() {};
-
+Writer.prototype.once = function() {};
 Writer.prototype.emit = function() {};
 
 var statCounter = 0;

@@ -55,6 +55,7 @@ server.listen(common.PORT, function() {
         server.close();
       }
     });
+    res.resume();
   }).on('error', function(e) {
     console.log(e.message);
     process.exit(1);

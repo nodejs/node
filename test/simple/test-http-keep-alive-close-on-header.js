@@ -44,8 +44,9 @@ server.listen(common.PORT, function() {
     headers: headers,
     port: common.PORT,
     agent: agent
-  }, function() {
+  }, function(res) {
     assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
+    res.resume();
   });
   request.on('socket', function(s) {
     s.on('connect', function() {
@@ -60,8 +61,9 @@ server.listen(common.PORT, function() {
     headers: headers,
     port: common.PORT,
     agent: agent
-  }, function() {
+  }, function(res) {
     assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
+    res.resume();
   });
   request.on('socket', function(s) {
     s.on('connect', function() {
@@ -80,6 +82,7 @@ server.listen(common.PORT, function() {
       assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
       server.close();
     });
+    response.resume();
   });
   request.on('socket', function(s) {
     s.on('connect', function() {

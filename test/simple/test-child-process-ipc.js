@@ -42,10 +42,13 @@ child.stdout.setEncoding('utf8');
 child.stdout.on('data', function(data) {
   console.log('child said: ' + JSON.stringify(data));
   if (!gotHelloWorld) {
+    console.error('testing for hello world');
     assert.equal('hello world\r\n', data);
     gotHelloWorld = true;
+    console.error('writing echo me');
     child.stdin.write('echo me\r\n');
   } else {
+    console.error('testing for echo me');
     assert.equal('echo me\r\n', data);
     gotEcho = true;
     child.stdin.end();

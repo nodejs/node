@@ -150,7 +150,24 @@ var inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
 var out = new HashStream();
 var gzip = zlib.createGzip();
 var gunz = zlib.createGunzip();
+
 inp.pipe(gzip).pipe(gunz).pipe(out);
+
+inp.on('data', function(c) {
+  console.error('inp data', c.length);
+});
+
+gzip.on('data', function(c) {
+  console.error('gzip data', c.length);
+});
+
+gunz.on('data', function(c) {
+  console.error('gunz data', c.length);
+});
+
+out.on('data', function(c) {
+  console.error('out data', c.length);
+});
 
 var didSomething = false;
 out.on('data', function(c) {

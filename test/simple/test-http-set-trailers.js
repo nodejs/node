@@ -106,6 +106,7 @@ server.on('listening', function() {
         process.exit();
       }
     });
+    res.resume();
   });
   outstanding_reqs++;
 });

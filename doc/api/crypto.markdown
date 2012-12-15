@@ -89,6 +89,11 @@ Example: this program that takes the sha1 sum of a file
 
 The class for creating hash digests of data.
 
+It is a [stream](stream.html) that is both readable and writable.  The
+written data is used to compute the hash.  Once the writable side of
+the stream is ended, use the `read()` method to get the computed hash
+digest.  The legacy `update` and `digest` methods are also supported.
+
 Returned by `crypto.createHash`.
 
 ### hash.update(data, [input_encoding])
@@ -113,6 +118,11 @@ called.
 
 Creates and returns a hmac object, a cryptographic hmac with the given
 algorithm and key.
+
+It is a [stream](stream.html) that is both readable and writable.  The
+written data is used to compute the hmac.  Once the writable side of
+the stream is ended, use the `read()` method to get the computed
+digest.  The legacy `update` and `digest` methods are also supported.
 
 `algorithm` is dependent on the available algorithms supported by
 OpenSSL - see createHash above.  `key` is the hmac key to be used.
@@ -148,6 +158,11 @@ recent releases, `openssl list-cipher-algorithms` will display the
 available cipher algorithms.  `password` is used to derive key and IV,
 which must be a `'binary'` encoded string or a [buffer](buffer.html).
 
+It is a [stream](stream.html) that is both readable and writable.  The
+written data is used to compute the hash.  Once the writable side of
+the stream is ended, use the `read()` method to get the computed hash
+digest.  The legacy `update` and `digest` methods are also supported.
+
 ## crypto.createCipheriv(algorithm, key, iv)
 
 Creates and returns a cipher object, with the given algorithm, key and
@@ -165,6 +180,11 @@ vector](http://en.wikipedia.org/wiki/Initialization_vector).
 Class for encrypting data.
 
 Returned by `crypto.createCipher` and `crypto.createCipheriv`.
+
+Cipher objects are [streams](stream.html) that are both readable and
+writable.  The written plain text data is used to produce the
+encrypted data on the the readable side.  The legacy `update` and
+`final` methods are also supported.
 
 ### cipher.update(data, [input_encoding], [output_encoding])
 
@@ -213,6 +233,11 @@ Class for decrypting data.
 
 Returned by `crypto.createDecipher` and `crypto.createDecipheriv`.
 
+Decipher objects are [streams](stream.html) that are both readable and
+writable.  The written enciphered data is used to produce the
+plain-text data on the the readable side.  The legacy `update` and
+`final` methods are also supported.
+
 ### decipher.update(data, [input_encoding], [output_encoding])
 
 Updates the decipher with `data`, which is encoded in `'binary'`,
@@ -246,28 +271,33 @@ Creates and returns a signing object, with the given algorithm.  On
 recent OpenSSL releases, `openssl list-public-key-algorithms` will
 display the available signing algorithms. Examples are `'RSA-SHA256'`.
 
-## Class: Signer
+## Class: Sign
 
 Class for generating signatures.
 
 Returned by `crypto.createSign`.
 
-### signer.update(data)
+Sign objects are writable [streams](stream.html).  The written data is
+used to generate the signature.  Once all of the data has been
+written, the `sign` method will return the signature.  The legacy
+`update` method is also supported.
 
-Updates the signer object with data.  This can be called many times
+### sign.update(data)
+
+Updates the sign object with data.  This can be called many times
 with new data as it is streamed.
 
-### signer.sign(private_key, [output_format])
+### sign.sign(private_key, [output_format])
 
 Calculates the signature on all the updated data passed through the
-signer.  `private_key` is a string containing the PEM encoded private
+sign.  `private_key` is a string containing the PEM encoded private
 key for signing.
 
 Returns the signature in `output_format` which can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
 returned.
 
-Note: `signer` object can not be used after `sign()` method been
+Note: `sign` object can not be used after `sign()` method been
 called.
 
 ## crypto.createVerify(algorithm)
@@ -280,6 +310,12 @@ This is the mirror of the signing object above.
 Class for verifying signatures.
 
 Returned by `crypto.createVerify`.
+
+Verify objects are writable [streams](stream.html).  The written data
+is used to validate against the supplied signature.  Once all of the
+data has been written, the `verify` method will return true if the
+supplied signature is valid.  The legacy `update` method is also
+supported.
 
 ### verifier.update(data)
 
@@ -468,9 +504,6 @@ use.  To switch to the previous style of using binary strings by
 default, set the `crypto.DEFAULT_ENCODING` field to 'binary'.  Note
 that new programs will probably expect buffers, so only use this as a
 temporary measure.
-
-Also, a Streaming API will be provided, but this will be done in such
-a way as to preserve the legacy API surface.
 
 
 [createCipher()]: #crypto_crypto_createcipher_algorithm_password

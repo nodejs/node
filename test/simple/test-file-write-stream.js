@@ -22,46 +22,50 @@
 var common = require('../common');
 var assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs'),
-    fn = path.join(common.tmpDir, 'write.txt'),
-    file = fs.createWriteStream(fn),
+var path = require('path');
+var fs = require('fs');
+var fn = path.join(common.tmpDir, 'write.txt');
+var file = fs.createWriteStream(fn, {
+      lowWaterMark: 0,
+      highWaterMark: 10
+    });
 
-    EXPECTED = '012345678910',
+var EXPECTED = '012345678910';
 
-    callbacks = {
+var callbacks = {
       open: -1,
       drain: -2,
-      close: -1,
-      endCb: -1
+      close: -1
     };
 
 file
   .on('open', function(fd) {
+      console.error('open!');
       callbacks.open++;
       assert.equal('number', typeof fd);
     })
   .on('error', function(err) {
       throw err;
+      console.error('error!', err.stack);
     })
   .on('drain', function() {
+      console.error('drain!', callbacks.drain);
       callbacks.drain++;
       if (callbacks.drain == -1) {
-        assert.equal(EXPECTED, fs.readFileSync(fn));
+        assert.equal(EXPECTED, fs.readFileSync(fn, 'utf8'));
         file.write(EXPECTED);
       } else if (callbacks.drain == 0) {
-        assert.equal(EXPECTED + EXPECTED, fs.readFileSync(fn));
-        file.end(function(err) {
-          assert.ok(!err);
-          callbacks.endCb++;
-        });
+        assert.equal(EXPECTED + EXPECTED, fs.readFileSync(fn, 'utf8'));
+        file.end();
       }
     })
   .on('close', function() {
+      console.error('close!');
       assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
       callbacks.close++;
       assert.throws(function() {
+        console.error('write after end should not be allowed');
         file.write('should not work anymore');
       });
 
@@ -70,7 +74,7 @@ file
 
 for (var i = 0; i < 11; i++) {
   (function(i) {
-    assert.strictEqual(false, file.write(i));
+    file.write('' + i);
   })(i);
 }
 
@@ -78,4 +82,5 @@ process.on('exit', function() {
   for (var k in callbacks) {
     assert.equal(0, callbacks[k], k + ' count off by ' + callbacks[k]);
   }
+  console.log('ok');
 });

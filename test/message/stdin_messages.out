@@ -9,7 +9,8 @@ SyntaxError: Strict mode code may not include a with statement
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
     at Socket.EventEmitter.emit (events.js:*:*)
-    at Pipe.onread (net.js:*:*)
+    at _stream_readable.js:*:*
+    at process._tickCallback (node.js:*:*)
     at process._makeCallback (node.js:*:*)
 42
 42
@@ -18,26 +19,28 @@ SyntaxError: Strict mode code may not include a with statement
 throw new Error("hello")
       ^
 Error: hello
-    at [stdin]:1:7
+    at [stdin]:1:*
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
     at Socket.EventEmitter.emit (events.js:*:*)
-    at Pipe.onread (net.js:*:*)
+    at _stream_readable.js:*:*
+    at process._tickCallback (node.js:*:*)
     at process._makeCallback (node.js:*:*)
 
 [stdin]:1
 throw new Error("hello")
       ^
 Error: hello
-    at [stdin]:1:7
+    at [stdin]:1:*
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
     at Socket.EventEmitter.emit (events.js:*:*)
-    at Pipe.onread (net.js:*:*)
+    at _stream_readable.js:*:*
+    at process._tickCallback (node.js:*:*)
     at process._makeCallback (node.js:*:*)
 100
 
@@ -51,7 +54,8 @@ ReferenceError: y is not defined
     at evalScript (node.js:*:*)
     at Socket.<anonymous> (node.js:*:*)
     at Socket.EventEmitter.emit (events.js:*:*)
-    at Pipe.onread (net.js:*:*)
+    at _stream_readable.js:*:*
+    at process._tickCallback (node.js:*:*)
     at process._makeCallback (node.js:*:*)
 
 [stdin]:1

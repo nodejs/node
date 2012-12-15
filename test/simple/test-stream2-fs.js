@@ -19,29 +19,58 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+
+var common = require('../common.js');
+var R = require('_stream_readable');
 var assert = require('assert');
 
-var path = require('path'),
-    fs = require('fs');
+var fs = require('fs');
+var FSReadable = fs.ReadStream;
 
-var writeEndOk = false;
-(function() {
-  debugger;
-  var file = path.join(common.tmpDir, 'write-end-test.txt');
-  var stream = fs.createWriteStream(file);
+var path = require('path');
+var file = path.resolve(common.fixturesDir, 'x1024.txt');
 
-  stream.end('a\n', 'utf8');
-  stream.on('close', function() {
-    var content = fs.readFileSync(file, 'utf8');
-    assert.equal(content, 'a\n');
-    writeEndOk = true;
-  });
+var size = fs.statSync(file).size;
 
-})();
+// expect to see chunks no more than 10 bytes each.
+var expectLengths = [];
+for (var i = size; i > 0; i -= 10) {
+  expectLengths.push(Math.min(i, 10));
+}
 
+var util = require('util');
+var Stream = require('stream');
 
-process.on('exit', function() {
-  assert.ok(writeEndOk);
+util.inherits(TestWriter, Stream);
+
+function TestWriter() {
+  Stream.apply(this);
+  this.buffer = [];
+  this.length = 0;
+}
+
+TestWriter.prototype.write = function(c) {
+  this.buffer.push(c.toString());
+  this.length += c.length;
+  return true;
+};
+
+TestWriter.prototype.end = function(c) {
+  if (c) this.buffer.push(c.toString());
+  this.emit('results', this.buffer);
+}
+
+var r = new FSReadable(file, { bufferSize: 10 });
+var w = new TestWriter();
+
+w.on('results', function(res) {
+  console.error(res, w.length);
+  assert.equal(w.length, size);
+  var l = 0;
+  assert.deepEqual(res.map(function (c) {
+    return c.length;
+  }), expectLengths);
+  console.log('ok');
 });
 
+r.pipe(w, { chunkSize: 10 });

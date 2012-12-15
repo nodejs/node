@@ -32,12 +32,13 @@ fs.open(emptyFile, 'r', function (error, fd) {
   var read = fs.createReadStream(emptyFile, { 'fd': fd });
 
   read.once('data', function () {
-    throw new Error("data event should not emit");
+    throw new Error('data event should not emit');
   });
 
   var readEmit = false;
   read.once('end', function () {
     readEmit = true;
+    console.error('end event 1');
   });
 
   setTimeout(function () {
@@ -52,12 +53,13 @@ fs.open(emptyFile, 'r', function (error, fd) {
   read.pause();
 
   read.once('data', function () {
-    throw new Error("data event should not emit");
+    throw new Error('data event should not emit');
   });
 
   var readEmit = false;
   read.once('end', function () {
     readEmit = true;
+    console.error('end event 2');
   });
 
   setTimeout(function () {

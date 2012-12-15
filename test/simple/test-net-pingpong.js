@@ -60,6 +60,8 @@ function pingPongTest(port, host) {
     });
 
     socket.on('end', function() {
+      console.error(socket);
+      assert.equal(true, socket.allowHalfOpen);
       assert.equal(true, socket.writable); // because allowHalfOpen
       assert.equal(false, socket.readable);
       socket.end();
@@ -129,10 +131,11 @@ function pingPongTest(port, host) {
 }
 
 /* All are run at once, so run on different ports */
+console.log(common.PIPE);
 pingPongTest(common.PIPE);
-pingPongTest(20988);
-pingPongTest(20989, 'localhost');
-pingPongTest(20997, '::1');
+pingPongTest(common.PORT);
+pingPongTest(common.PORT + 1, 'localhost');
+pingPongTest(common.PORT + 2, '::1');
 
 process.on('exit', function() {
   assert.equal(4, tests_run);

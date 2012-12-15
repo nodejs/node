@@ -23,30 +23,50 @@ var common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
 
-var stream = fs.createWriteStream(common.tmpDir + '/out');
+var stream = fs.createWriteStream(common.tmpDir + '/out', {
+  lowWaterMark: 0,
+  highWaterMark: 10
+});
 var err = new Error('BAM');
 
+var write = fs.write;
+var writeCalls = 0;
+fs.write = function() {
+  switch (writeCalls++) {
+    case 0:
+      console.error('first write');
+      // first time is ok.
+      return write.apply(fs, arguments);
+    case 1:
+      // then it breaks
+      console.error('second write');
+      var cb = arguments[arguments.length - 1];
+      return process.nextTick(function() {
+        cb(err);
+      });
+    default:
+      // and should not be called again!
+      throw new Error('BOOM!');
+  }
+};
+
+fs.close = common.mustCall(function(fd_, cb) {
+  console.error('fs.close', fd_, stream.fd);
+  assert.equal(fd_, stream.fd);
+  process.nextTick(cb);
+});
+
+stream.on('error', common.mustCall(function(err_) {
+  console.error('error handler');
+  assert.equal(stream.fd, null);
+  assert.equal(err_, err);
+}));
+
+
 stream.write(new Buffer(256), function() {
-  var fd = stream.fd;
-
-  fs.write = function() {
-    var cb = arguments[arguments.length - 1];
-    process.nextTick(function() {
-      cb(err);
-    });
-  };
-
-  fs.close = function(fd_, cb) {
-    assert.equal(fd_, fd);
-    process.nextTick(cb);
-  };
-
+  console.error('first cb');
   stream.write(new Buffer(256), common.mustCall(function(err_) {
-    assert.equal(err_, err);
-  }));
-
-  stream.on('error', common.mustCall(function(err_) {
-    assert.equal(stream.fd, null);
+    console.error('second cb');
     assert.equal(err_, err);
   }));
 });

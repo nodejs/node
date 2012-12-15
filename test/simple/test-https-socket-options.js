@@ -55,6 +55,7 @@ server_http.listen(common.PORT, function() {
     rejectUnauthorized: false
   }, function(res) {
     server_http.close();
+    res.resume();
   });
   // These methods should exist on the request and get passed down to the socket
   req.setNoDelay(true);
@@ -77,6 +78,7 @@ server_https.listen(common.PORT+1, function() {
     rejectUnauthorized: false
   }, function(res) {
     server_https.close();
+    res.resume();
   });
   // These methods should exist on the request and get passed down to the socket
   req.setNoDelay(true);

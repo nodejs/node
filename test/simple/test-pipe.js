@@ -125,6 +125,7 @@ function startClient() {
   });
   req.write(buffer);
   req.end();
+  console.error('ended request', req);
 }
 
 process.on('exit', function() {
