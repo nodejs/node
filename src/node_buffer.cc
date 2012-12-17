@@ -231,7 +231,7 @@ static inline char* alloc_buf_mem(size_t len) {
   }
 
   int prot = PROT_READ | PROT_WRITE;
-  int flags = MAP_ANONYMOUS | MAP_PRIVATE;
+  int flags = MAP_ANON | MAP_PRIVATE;  // OS X doesn't know MAP_ANONYMOUS...
   char* buf = static_cast<char*>(mmap(NULL, len, prot, flags, -1, 0));
 
   if (buf == NULL) {
