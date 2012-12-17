@@ -106,6 +106,15 @@
                   Arguments='/k "[APPLICATIONROOTDIRECTORY]nodejsvars.bat"'
                   Show="normal"
                   WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+        <Shortcut Id="UninstallProduct"
+                  Name="Uninstall Node.js"
+                  Target="[SystemFolder]msiexec.exe"
+                  Arguments="/x [ProductCode]"
+                  Description="Uninstalls $(var.ProductName)" />
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\Joyent\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+      <Component Id="InternetShortcuts" Guid="3351B877-49BA-4BC0-BF5E-21BA623FD07C">        
         <util:InternetShortcut Id="OnlineWebsiteShortcut"
                   Name="Node.js website"
                   Target="http://nodejs.org"
@@ -114,12 +123,6 @@
                   Name="Node.js documentation"
                   Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"
                   Type="url"/>
-        <Shortcut Id="UninstallProduct"
-                  Name="Uninstall Node.js"
-                  Target="[SystemFolder]msiexec.exe"
-                  Arguments="/x [ProductCode]"
-                  Description="Uninstalls $(var.ProductName)" />
-        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
         <RegistryValue Root="HKCU" Key="Software\Joyent\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
@@ -135,13 +138,29 @@
       <?if $(var.Configuration) = Debug ?>
       <ComponentRef Id="nodepdb"/>
       <?endif?>
-      <ComponentRef Id="ApplicationShortcut" />
       <ComponentRef Id="nodejsvars" />
     </ComponentGroup>
 
-    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)">
+    <ComponentGroup Id="application.shortcuts">
+      <ComponentRef Id="ApplicationShortcut" />
+    </ComponentGroup>
+
+    <ComponentGroup Id="internet.shortcuts">
+      <ComponentRef Id="InternetShortcuts"/>
+    </ComponentGroup>
+
+    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)" Absent="disallow">
       <ComponentGroupRef Id="allfiles" />
       <ComponentGroupRef Id="Product.Generated" />
+    </Feature>
+
+    <Feature Id="nodejs.shortcuts" Title="node.js shortcuts" Description="$(var.ProductDescription) Shortcuts">
+      <Feature Id="feature.application.shortcuts" Title="Application Shortcuts" Level="1"  Description="$(var.ProductDescription) standard application shortcuts">
+        <ComponentGroupRef Id="application.shortcuts"/>
+      </Feature>
+      <Feature Id="feature.internet.shortcuts" Title="Internet Shortcuts" Level="1"  Description="$(var.ProductDescription) internet shortcuts to the project's website and online documentation for this version">
+        <ComponentGroupRef Id="internet.shortcuts"/>
+      </Feature>
     </Feature>
 
     <UI Id="NodeInstallUI">
@@ -150,7 +169,7 @@
       <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
 
       <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
-      <Property Id="WixUI_Mode" Value="Minimal" />
+      <Property Id="WixUI_Mode" Value="FeatureTree" />
 
       <DialogRef Id="ErrorDlg" />
       <DialogRef Id="FatalError" />
@@ -163,15 +182,22 @@
       <DialogRef Id="WelcomeDlg" />
       <DialogRef Id="LicenseAgreementDlg"/>
 
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed</Publish>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
       <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
-      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="PrepareDlg">1</Publish>
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg">LicenseAccepted = "1"</Publish>
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
-      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">Installed AND PATCH</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="CustomizeDlg">1</Publish>
       <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="2">NOT Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
 
       <Property Id="ARPNOMODIFY" Value="1" />
       <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed. To run Node.js open command prompt (cmd.exe), and run 'node'." />

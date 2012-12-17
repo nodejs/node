@@ -33,6 +33,9 @@
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NPMSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
+  <PropertyGroup>
+	<EnableProjectHarvesting>True</EnableProjectHarvesting>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="product.wxs" />
     <Compile Include="..\..\..\npm.wxs" />
