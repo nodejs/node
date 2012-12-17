@@ -29,12 +29,6 @@
 #include <assert.h>
 #include <string.h> // memcpy
 
-#ifdef __POSIX__
-# include <sys/mman.h>  // mmap
-# include <unistd.h>    // sysconf
-# include <stdio.h>     // perror
-#endif
-
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #define BUFFER_CLASS_ID (0xBABE)
@@ -202,67 +196,6 @@ Buffer::~Buffer() {
 }
 
 
-#if defined(__POSIX__)
-
-static unsigned int num_pool_buffers;
-static char* cached_pool_buffers[16];
-
-
-static inline void free_buf_mem(char* buf, size_t len) {
-  if (len == Buffer::kPoolSize &&
-      num_pool_buffers < ARRAY_SIZE(cached_pool_buffers)) {
-    cached_pool_buffers[num_pool_buffers++] = buf;
-    return;
-  }
-
-  if (munmap(buf, len)) {
-    perror("munmap");
-    abort();
-  }
-}
-
-
-static inline char* alloc_buf_mem(size_t len) {
-  size_t pagesize = sysconf(_SC_PAGESIZE);
-
-  len = ROUND_UP(len, pagesize);
-  if (len == Buffer::kPoolSize && num_pool_buffers > 0) {
-    return cached_pool_buffers[--num_pool_buffers];
-  }
-
-  int prot = PROT_READ | PROT_WRITE;
-  int flags = MAP_ANON | MAP_PRIVATE;  // OS X doesn't know MAP_ANONYMOUS...
-  char* buf = static_cast<char*>(mmap(NULL, len, prot, flags, -1, 0));
-
-  if (buf == NULL) {
-    TryCatch try_catch;
-    char errmsg[256];
-    snprintf(errmsg,
-             sizeof(errmsg),
-             "Out of memory, mmap(len=%lu) failed.",
-             static_cast<unsigned long>(len));
-    ThrowError(errmsg);
-    FatalException(try_catch);
-    abort();
-  }
-
-  return buf;
-}
-
-#else  // !__POSIX__
-
-static inline void free_buf_mem(char* buf, size_t len) {
-  delete[] buf;
-}
-
-
-static inline char* alloc_buf_mem(size_t len) {
-  return new char[len];
-}
-
-#endif  // __POSIX__
-
-
 // if replace doesn't have a callback, data must be copied
 // const_cast in Buffer::New requires this
 void Buffer::Replace(char *data, size_t length,
@@ -272,7 +205,7 @@ void Buffer::Replace(char *data, size_t length,
   if (callback_) {
     callback_(data_, callback_hint_);
   } else if (length_) {
-    free_buf_mem(data_, length_);
+    delete [] data_;
     V8::AdjustAmountOfExternalAllocatedMemory(
         -static_cast<intptr_t>(sizeof(Buffer) + length_));
   }
@@ -284,8 +217,9 @@ void Buffer::Replace(char *data, size_t length,
   if (callback_) {
     data_ = data;
   } else if (length_) {
-    data_ = alloc_buf_mem(length_);
-    if (data != NULL) memcpy(data_, data, length_);
+    data_ = new char[length_];
+    if (data)
+      memcpy(data_, data, length_);
     V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) + length_);
   } else {
     data_ = NULL;
@@ -896,8 +830,6 @@ void Buffer::Initialize(Handle<Object> target) {
                   Buffer::MakeFastBuffer);
 
   target->Set(String::NewSymbol("SlowBuffer"), constructor_template->GetFunction());
-  target->Set(String::NewSymbol("kPoolSize"),
-              Integer::NewFromUnsigned(kPoolSize));
 
   HeapProfiler::DefineWrapperClass(BUFFER_CLASS_ID, WrapperInfo);
 }
