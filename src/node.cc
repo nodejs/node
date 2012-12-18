@@ -147,77 +147,8 @@ static bool use_sni = true;
 static bool use_sni = false;
 #endif
 
-// We need to notify V8 when we're idle so that it can run the garbage
-// collector. The interface to this is V8::IdleNotification(). It returns
-// true if the heap hasn't be fully compacted, and needs to be run again.
-// Returning false means that it doesn't have anymore work to do.
-//
-// A rather convoluted algorithm has been devised to determine when Node is
-// idle. You'll have to figure it out for yourself.
-static uv_check_t gc_check;
-static uv_idle_t gc_idle;
-static uv_timer_t gc_timer;
-bool need_gc;
-
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
-
-#define FAST_TICK 700.
-#define GC_WAIT_TIME 5000.
-#define RPM_SAMPLES 100
-#define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
-static int64_t tick_times[RPM_SAMPLES];
-static int tick_time_head;
-
-static void CheckStatus(uv_timer_t* watcher, int status);
-
-static void StartGCTimer () {
-  if (!uv_is_active((uv_handle_t*) &gc_timer)) {
-    uv_timer_start(&gc_timer, node::CheckStatus, 5000, 5000);
-  }
-}
-
-static void StopGCTimer () {
-  if (uv_is_active((uv_handle_t*) &gc_timer)) {
-    uv_timer_stop(&gc_timer);
-  }
-}
-
-static void Idle(uv_idle_t* watcher, int status) {
-  assert((uv_idle_t*) watcher == &gc_idle);
-
-  if (V8::IdleNotification()) {
-    uv_idle_stop(&gc_idle);
-    StopGCTimer();
-  }
-}
-
-
-// Called directly after every call to select() (or epoll, or whatever)
-static void Check(uv_check_t* watcher, int status) {
-  assert(watcher == &gc_check);
-
-  tick_times[tick_time_head] = uv_now(uv_default_loop());
-  tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
-
-  StartGCTimer();
-
-  for (int i = 0; i < (int)(GC_WAIT_TIME/FAST_TICK); i++) {
-    double d = TICK_TIME(i+1) - TICK_TIME(i+2);
-    //printf("d = %f\n", d);
-    // If in the last 5 ticks the difference between
-    // ticks was less than 0.7 seconds, then continue.
-    if (d < FAST_TICK) {
-      //printf("---\n");
-      return;
-    }
-  }
-
-  // Otherwise start the gc!
-
-  //fprintf(stderr, "start idle 2\n");
-  uv_idle_start(&gc_idle, node::Idle);
-}
 
 
 static void Tick(void) {
@@ -1747,31 +1678,6 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
 }
 
 
-static void CheckStatus(uv_timer_t* watcher, int status) {
-  assert(watcher == &gc_timer);
-
-  // check memory
-  if (!uv_is_active((uv_handle_t*) &gc_idle)) {
-    HeapStatistics stats;
-    V8::GetHeapStatistics(&stats);
-    if (stats.total_heap_size() > 1024 * 1024 * 128) {
-      // larger than 128 megs, just start the idle watcher
-      uv_idle_start(&gc_idle, node::Idle);
-      return;
-    }
-  }
-
-  double d = uv_now(uv_default_loop()) - TICK_TIME(3);
-
-  //printfb("timer d = %f\n", d);
-
-  if (d  >= GC_WAIT_TIME - 1.) {
-    //fprintf(stderr, "start idle\n");
-    uv_idle_start(&gc_idle, node::Idle);
-  }
-}
-
-
 static Handle<Value> Uptime(const Arguments& args) {
   HandleScope scope;
   double uptime;
@@ -2958,16 +2864,6 @@ char** Init(int argc, char *argv[]) {
 #endif // __POSIX__
 
   uv_idle_init(uv_default_loop(), &tick_spinner);
-
-  uv_check_init(uv_default_loop(), &gc_check);
-  uv_check_start(&gc_check, node::Check);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&gc_check));
-
-  uv_idle_init(uv_default_loop(), &gc_idle);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&gc_idle));
-
-  uv_timer_init(uv_default_loop(), &gc_timer);
-  uv_unref(reinterpret_cast<uv_handle_t*>(&gc_timer));
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 
