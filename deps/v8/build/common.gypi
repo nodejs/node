@@ -160,7 +160,7 @@
           [ 'v8_use_arm_eabi_hardfloat=="true"', {
             'defines': [
               'USE_EABI_HARDFLOAT=1',
-              'CAN_USE_VFP3_INSTRUCTIONS',
+              'CAN_USE_VFP2_INSTRUCTIONS',
             ],
             'target_conditions': [
               ['_toolset=="target"', {
