@@ -172,6 +172,30 @@ static bool checkAlignment(size_t val, unsigned int bytes) {
   return (val & (bytes - 1)) == 0;  // Handles bytes == 0.
 }
 
+template <v8::ExternalArrayType TEAType>
+struct TEANameTrait {
+  static const char* const name;
+};
+
+template <> const char* const
+    TEANameTrait<v8::kExternalByteArray>::name = "Int8Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalUnsignedByteArray>::name = "Uint8Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalPixelArray>::name = "Uint8ClampedArray";
+template <> const char* const
+    TEANameTrait<v8::kExternalShortArray>::name = "Int16Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalUnsignedShortArray>::name = "Uint16Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalIntArray>::name = "Int32Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalUnsignedIntArray>::name = "Uint32Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalFloatArray>::name = "Float32Array";
+template <> const char* const
+    TEANameTrait<v8::kExternalDoubleArray>::name = "Float64Array";
+
 template <unsigned int TBytes, v8::ExternalArrayType TEAType>
 class TypedArray {
  public:
@@ -183,7 +207,7 @@ class TypedArray {
     v8::HandleScope scope;
     ft_cache = v8::Persistent<v8::FunctionTemplate>::New(
         v8::FunctionTemplate::New(&TypedArray<TBytes, TEAType>::V8New));
-    ft_cache->SetClassName(v8::String::New(TypeName()));
+    ft_cache->SetClassName(v8::String::New(TEANameTrait<TEAType>::name));
     v8::Local<v8::ObjectTemplate> instance = ft_cache->InstanceTemplate();
     instance->SetInternalFieldCount(0);
 
@@ -440,23 +464,6 @@ class TypedArray {
         v8::Integer::New(end - begin, node_isolate)};
     return TypedArray<TBytes, TEAType>::GetTemplate()->
         GetFunction()->NewInstance(3, argv);
-  }
-
-  static const char* TypeName() {
-    switch (TEAType) {
-      case v8::kExternalByteArray: return "Int8Array";
-      case v8::kExternalUnsignedByteArray: return "Uint8Array";
-      case v8::kExternalShortArray: return "Int16Array";
-      case v8::kExternalUnsignedShortArray: return "Uint16Array";
-      case v8::kExternalIntArray: return "Int32Array";
-      case v8::kExternalUnsignedIntArray: return "Uint32Array";
-      case v8::kExternalFloatArray: return "Float32Array";
-      case v8::kExternalDoubleArray: return "Float64Array";
-      case v8::kExternalPixelArray: return "Uint8ClampedArray";
-    }
-    abort();
-    // Please the compiler
-    return "";
   }
 };
 
