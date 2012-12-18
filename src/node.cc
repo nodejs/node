@@ -1933,6 +1933,13 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     return ThrowException(exception);
   }
 
+  /* Replace dashes with underscores. When loading foo-bar.node,
+   * look for foo_bar_module, not foo-bar_module.
+   */
+  for (pos = symbol; *pos != '\0'; ++pos) {
+    if (*pos == '-') *pos = '_';
+  }
+
   node_module_struct *mod;
   if (uv_dlsym(&lib, symbol, reinterpret_cast<void**>(&mod))) {
     char errmsg[1024];
