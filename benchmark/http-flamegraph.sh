@@ -1,5 +1,8 @@
 #!/bin/bash
 cd "$(dirname "$(dirname $0)")"
+
+node=${NODE:-./node}
+
 if type sysctl &>/dev/null; then
   sudo sysctl -w net.inet.ip.portrange.first=12000
   sudo sysctl -w net.inet.tcp.msl=1000
@@ -7,33 +10,40 @@ if type sysctl &>/dev/null; then
 fi
 ulimit -n 100000
 
-./node benchmark/http_simple.js &
+$node benchmark/http_simple.js &
 nodepid=$!
 echo "node pid = $nodepid"
 sleep 1
 
 # has to stay alive until dtrace exits
-dtrace -n 'profile-97/pid == '$nodepid' && arg1/{ @[jstack(150, 8000)] = count(); } tick-60s { exit(0); }' > stacks.src &
+dtrace -n 'profile-97/pid == '$nodepid' && arg1/{ @[jstack(150, 8000)] = count(); } tick-60s { exit(0); }' \
+  | grep -v _ZN2v88internalL21Builtin_HandleApiCallENS0_12_GLOBAL__N_116BuiltinA \
+  > stacks.src &
+
 dtracepid=$!
+
 echo "dtrace pid = $dtracepid"
 
+sleep 1
+
 test () {
-  n=$1
-  c=$2
-  k=$3
-  ab $k -n $n -c $c http://127.0.0.1:8000/${TYPE:-bytes}/${LENGTH:-1024} \
+  c=$1
+  t=$2
+  l=$3
+  k=$4
+  ab $k -t 10 -c $c http://127.0.0.1:8000/$t/$l \
     2>&1 | grep Req
 }
 
-test 10000 100
-test 10000 10 -k
-test 10000 100 -k
-test 30000 100 -k
-test 60000 100 -k
+#test 100 bytes 1024
+#test 10  bytes 100 -k
+#test 100 bytes 1024 -k
+#test 100 bytes 1024 -k
+#test 100 bytes 1024 -k
 
 echo 'Keep going until dtrace stops listening...'
 while pargs $dtracepid &>/dev/null; do
-  ab -k -n 60000 -c 100 http://127.0.0.1:8000/${TYPE:-bytes}/${LENGTH:-1024} 2>&1 | grep Req
+  test 100 bytes 1 -k
 done
 
 kill $nodepid
