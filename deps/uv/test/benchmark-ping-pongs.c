@@ -24,7 +24,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <string.h> /* strlen */
 
 /* Run the benchmark for this many ms */
 #define TIME 5000
@@ -103,8 +102,7 @@ static void pinger_write_ping(pinger_t* pinger) {
   uv_write_t* req;
   uv_buf_t buf;
 
-  buf.base = (char*)&PING;
-  buf.len = strlen(PING);
+  buf = uv_buf_init(PING, sizeof(PING) - 1);
 
   req = malloc(sizeof *req);
   if (uv_write(req, (uv_stream_t*) &pinger->tcp, &buf, 1, pinger_write_cb)) {

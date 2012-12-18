@@ -296,6 +296,37 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   return 0;
 }
 
+TEST_IMPL(fs_event_no_callback_after_close) {
+  uv_loop_t* loop = uv_default_loop();
+  int r;
+
+  /* Setup */
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+  create_dir(loop, "watch_dir");
+  create_file(loop, "watch_dir/file1");
+
+  r = uv_fs_event_init(loop,
+                       &fs_event,
+                       "watch_dir/file1",
+                       fs_event_cb_file,
+                       0);
+  ASSERT(r != -1);
+
+  uv_close((uv_handle_t*)&fs_event, close_cb);
+  touch_file(loop, "watch_dir/file1");
+  uv_run(loop);
+
+  ASSERT(fs_event_cb_called == 0);
+  ASSERT(close_cb_called == 1);
+
+  /* Cleanup */
+  remove("watch_dir/file1");
+  remove("watch_dir/");
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
 
 TEST_IMPL(fs_event_no_callback_on_close) {
   uv_loop_t* loop = uv_default_loop();

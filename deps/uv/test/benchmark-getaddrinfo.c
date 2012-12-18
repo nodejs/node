@@ -21,11 +21,7 @@
 
 #include "uv.h"
 #include "task.h"
-
 #include <stdlib.h>
-#include <stdio.h>
-#include <string.h> /* strlen */
-
 
 #define CONCURRENT_CALLS 10
 #define TOTAL_CALLS 10000

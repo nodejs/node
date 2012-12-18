@@ -19,6 +19,7 @@
  * IN THE SOFTWARE.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -99,7 +100,7 @@ static int maybe_run_test(int argc, char **argv) {
 
   if (strcmp(argv[1], "spawn_helper3") == 0) {
     char buffer[256];
-    fgets(buffer, sizeof(buffer) - 1, stdin);
+    ASSERT(buffer == fgets(buffer, sizeof(buffer) - 1, stdin));
     buffer[sizeof(buffer) - 1] = '\0';
     fputs(buffer, stdout);
     return 1;
@@ -111,13 +112,20 @@ static int maybe_run_test(int argc, char **argv) {
   }
 
   if (strcmp(argv[1], "spawn_helper5") == 0) {
-    const char* out = "fourth stdio!\n\0";
+    const char out[] = "fourth stdio!\n";
 #ifdef _WIN32
     DWORD bytes;
-    WriteFile((HANDLE) _get_osfhandle(3), out, strlen(out), &bytes, NULL);
+    WriteFile((HANDLE) _get_osfhandle(3), out, sizeof(out) - 1, &bytes, NULL);
 #else
-    write(3, out, strlen(out));
-    fsync(3);
+    {
+      ssize_t r;
+
+      do
+        r = write(3, out, sizeof(out) - 1);
+      while (r == -1 && errno == EINTR);
+
+      fsync(3);
+    }
 #endif
     return 1;
   }

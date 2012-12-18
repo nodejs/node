@@ -446,14 +446,12 @@ static int uv__udp_send(uv_udp_send_t* req,
 
 
 int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
-  memset(handle, 0, sizeof *handle);
-
   uv__handle_init(loop, (uv_handle_t*)handle, UV_UDP);
-  handle->io_watcher.fd = -1;
+  handle->alloc_cb = NULL;
+  handle->recv_cb = NULL;
+  uv__io_init(&handle->io_watcher, uv__udp_io, -1);
   ngx_queue_init(&handle->write_queue);
   ngx_queue_init(&handle->write_completed_queue);
-  uv__io_init(&handle->io_watcher, uv__udp_io, -1);
-
   return 0;
 }
 

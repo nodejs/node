@@ -197,7 +197,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           /* TODO batch up */
           struct kevent events[1];
           EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
-          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL)) abort();
+          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
+            if (errno != ENOENT)
+              abort();
         }
       }
 
@@ -208,7 +210,9 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
           /* TODO batch up */
           struct kevent events[1];
           EV_SET(events + 0, fd, ev->filter, EV_DELETE, 0, 0, 0);
-          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL)) abort();
+          if (kevent(loop->backend_fd, events, 1, NULL, 0, NULL))
+            if (errno != ENOENT)
+              abort();
         }
       }
 

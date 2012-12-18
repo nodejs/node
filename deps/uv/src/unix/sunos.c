@@ -376,7 +376,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 
 
 void uv__fs_event_close(uv_fs_event_t* handle) {
-  if (handle->fd == PORT_FIRED) {
+  if (handle->fd == PORT_FIRED || handle->fd == PORT_LOADED) {
     port_dissociate(handle->loop->fs_fd, PORT_SOURCE_FILE, (uintptr_t)&handle->fo);
   }
   handle->fd = PORT_DELETED;
