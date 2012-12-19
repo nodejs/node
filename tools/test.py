@@ -221,6 +221,31 @@ class DotsProgressIndicator(SimpleProgressIndicator):
       sys.stdout.flush()
 
 
+class TapProgressIndicator(SimpleProgressIndicator):
+
+  def Starting(self):
+    print '1..%i' % len(self.cases)
+    self._done = 0
+
+  def AboutToRun(self, case):
+    pass
+
+  def HasRun(self, output):
+    self._done += 1
+    command = basename(output.command[1])
+    if output.UnexpectedOutput():
+      print 'not ok %i - %s' % (self._done, command)
+      for l in output.output.stderr.split(os.linesep):
+        print '#' + l
+      for l in output.output.stdout.split(os.linesep):
+        print '#' + l
+    else:
+      print 'ok %i - %s' % (self._done, command)
+
+  def Done(self):
+    pass
+
+
 class CompactProgressIndicator(ProgressIndicator):
 
   def __init__(self, cases, templates):
@@ -311,6 +336,7 @@ PROGRESS_INDICATORS = {
   'verbose': VerboseProgressIndicator,
   'dots': DotsProgressIndicator,
   'color': ColorProgressIndicator,
+  'tap': TapProgressIndicator,
   'mono': MonochromeProgressIndicator
 }
 
@@ -1140,7 +1166,7 @@ def BuildOptions():
   result.add_option("-S", dest="scons_flags", help="Flag to pass through to scons",
       default=[], action="append")
   result.add_option("-p", "--progress",
-      help="The style of progress indicator (verbose, dots, color, mono)",
+      help="The style of progress indicator (verbose, dots, color, mono, tap)",
       choices=PROGRESS_INDICATORS.keys(), default="mono")
   result.add_option("--no-build", help="Don't build requirements",
       default=True, action="store_true")
