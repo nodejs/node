@@ -3,6 +3,8 @@ cd "$(dirname "$(dirname $0)")"
 
 node=${NODE:-./node}
 
+name=${NAME:-stacks}
+
 if type sysctl &>/dev/null; then
   sudo sysctl -w net.inet.ip.portrange.first=12000
   sudo sysctl -w net.inet.tcp.msl=1000
@@ -18,7 +20,7 @@ sleep 1
 # has to stay alive until dtrace exits
 dtrace -n 'profile-97/pid == '$nodepid' && arg1/{ @[jstack(150, 8000)] = count(); } tick-60s { exit(0); }' \
   | grep -v _ZN2v88internalL21Builtin_HandleApiCallENS0_12_GLOBAL__N_116BuiltinA \
-  > stacks.src &
+  > "$name".src &
 
 dtracepid=$!
 
@@ -52,8 +54,8 @@ echo 'Pluck off all the stacks that only happen once.'
 
 node -e '
 var fs = require("fs");
-var data = fs.readFileSync("stacks.src", "utf8").split(/\n/);
-var out = fs.createWriteStream("stacks.out");
+var data = fs.readFileSync("'"$name"'.src", "utf8").split(/\n/);
+var out = fs.createWriteStream("'"$name"'.out");
 function write(l) {
   out.write(l + "\n");
 }
@@ -83,7 +85,7 @@ for (; i < data.length; i++)
 '
 
 echo 'Turn the stacks into a svg'
-stackvis dtrace flamegraph-svg < stacks.out > stacks.svg
+stackvis dtrace flamegraph-svg < "$name".out > "$name".svg
 
 echo ''
-echo 'done. Results in stacks.svg'
+echo 'done. Results in '"$name"'.svg'
