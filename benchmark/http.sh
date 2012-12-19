@@ -1,8 +1,20 @@
 #!/bin/bash
 cd "$(dirname "$(dirname $0)")"
-sudo sysctl -w net.inet.ip.portrange.first=12000
-sudo sysctl -w net.inet.tcp.msl=1000
-sudo sysctl -w kern.maxfiles=1000000 kern.maxfilesperproc=1000000
+
+if type sysctl &>/dev/null; then
+  # darwin and linux
+  sudo sysctl -w net.inet.ip.portrange.first=12000
+  sudo sysctl -w net.inet.tcp.msl=1000
+  sudo sysctl -w kern.maxfiles=1000000 kern.maxfilesperproc=1000000
+elif type /usr/sbin/ndd &>/dev/null; then
+  # sunos
+  /usr/sbin/ndd -set /dev/tcp tcp_smallest_anon_port 12000
+  /usr/sbin/ndd -set /dev/tcp tcp_largest_anon_port 65535
+  /usr/sbin/ndd -set /dev/tcp tcp_max_buf 2097152
+  /usr/sbin/ndd -set /dev/tcp tcp_xmit_hiwat 1048576
+  /usr/sbin/ndd -set /dev/tcp tcp_recv_hiwat 1048576
+fi
+
 ulimit -n 100000
 
 k=${KEEPALIVE}
@@ -15,6 +27,7 @@ node=${NODE:-./node}
 
 $node benchmark/http_simple.js &
 npid=$!
+
 sleep 1
 
 if [ "$k" = "-k" ]; then

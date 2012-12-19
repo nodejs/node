@@ -6,12 +6,20 @@ node=${NODE:-./node}
 name=${NAME:-stacks}
 
 if type sysctl &>/dev/null; then
+  # darwin and linux
   sudo sysctl -w net.inet.ip.portrange.first=12000
   sudo sysctl -w net.inet.tcp.msl=1000
   sudo sysctl -w kern.maxfiles=1000000 kern.maxfilesperproc=1000000
+elif type /usr/sbin/ndd &>/dev/null; then
+  # sunos
+  /usr/sbin/ndd -set /dev/tcp tcp_smallest_anon_port 12000
+  /usr/sbin/ndd -set /dev/tcp tcp_largest_anon_port 65535
+  /usr/sbin/ndd -set /dev/tcp tcp_max_buf 2097152
+  /usr/sbin/ndd -set /dev/tcp tcp_xmit_hiwat 1048576
+  /usr/sbin/ndd -set /dev/tcp tcp_recv_hiwat 1048576
 fi
-ulimit -n 100000
 
+ulimit -n 100000
 $node benchmark/http_simple.js &
 nodepid=$!
 echo "node pid = $nodepid"
@@ -45,7 +53,7 @@ test () {
 
 echo 'Keep going until dtrace stops listening...'
 while pargs $dtracepid &>/dev/null; do
-  test 100 bytes 1 -k
+  test 100 bytes ${LENGTH:-1} -k
 done
 
 kill $nodepid
