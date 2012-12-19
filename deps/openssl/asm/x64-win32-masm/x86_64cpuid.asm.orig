@@ -1,6 +1,9 @@
 OPTION	DOTNAME
 EXTERN	OPENSSL_cpuid_setup:NEAR
+<<<<<<< HEAD
+=======
 
+>>>>>>> openssl: regenerate asm files for openssl 1.0.1
 .CRT$XCU	SEGMENT READONLY ALIGN(8)
 		DQ	OPENSSL_cpuid_setup
 

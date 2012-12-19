@@ -28,6 +28,7 @@ OUTPUTS	= \
 	x64-elf-gas/camellia/cmll-x86_64.s \
 	x64-elf-gas/md5/md5-x86_64.s \
 	x64-elf-gas/rc4/rc4-x86_64.s \
+	x64-elf-gas/rc4/rc4-md5-x86_64.s \
 	x64-elf-gas/sha/sha1-x86_64.s \
 	x64-elf-gas/sha/sha512-x86_64.s \
 	x64-elf-gas/whrlpool/wp-x86_64.s \
@@ -58,6 +59,7 @@ OUTPUTS	= \
 	x64-macosx-gas/camellia/cmll-x86_64.s \
 	x64-macosx-gas/md5/md5-x86_64.s \
 	x64-macosx-gas/rc4/rc4-x86_64.s \
+	x64-macosx-gas/rc4/rc4-md5-x86_64.s \
 	x64-macosx-gas/sha/sha1-x86_64.s \
 	x64-macosx-gas/sha/sha512-x86_64.s \
 	x64-macosx-gas/whrlpool/wp-x86_64.s \
@@ -88,6 +90,7 @@ OUTPUTS	= \
 	x64-win32-masm/camellia/cmll-x86_64.asm \
 	x64-win32-masm/md5/md5-x86_64.asm \
 	x64-win32-masm/rc4/rc4-x86_64.asm \
+	x64-win32-masm/rc4/rc4-md5-x86_64.asm \
 	x64-win32-masm/sha/sha1-x86_64.asm \
 	x64-win32-masm/sha/sha512-x86_64.asm \
 	x64-win32-masm/whrlpool/wp-x86_64.asm \
@@ -122,6 +125,7 @@ x64-elf-gas/bn/x86_64-mont.s: ../openssl/crypto/bn/asm/x86_64-mont.pl
 x64-elf-gas/camellia/cmll-x86_64.s: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
 x64-elf-gas/md5/md5-x86_64.s: ../openssl/crypto/md5/asm/md5-x86_64.pl
 x64-elf-gas/rc4/rc4-x86_64.s: ../openssl/crypto/rc4/asm/rc4-x86_64.pl
+x64-elf-gas/rc4/rc4-md5-x86_64.s: ../openssl/crypto/rc4/asm/rc4-md5-x86_64.pl
 x64-elf-gas/sha/sha1-x86_64.s: ../openssl/crypto/sha/asm/sha1-x86_64.pl
 x64-elf-gas/sha/sha512-x86_64.s: ../openssl/crypto/sha/asm/sha512-x86_64.pl
 x64-elf-gas/whrlpool/wp-x86_64.s: ../openssl/crypto/whrlpool/asm/wp-x86_64.pl
@@ -134,6 +138,7 @@ x64-macosx-gas/bn/x86_64-mont.s: ../openssl/crypto/bn/asm/x86_64-mont.pl
 x64-macosx-gas/camellia/cmll-x86_64.s: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
 x64-macosx-gas/md5/md5-x86_64.s: ../openssl/crypto/md5/asm/md5-x86_64.pl
 x64-macosx-gas/rc4/rc4-x86_64.s: ../openssl/crypto/rc4/asm/rc4-x86_64.pl
+x64-macosx-gas/rc4/rc4-md5-x86_64.s: ../openssl/crypto/rc4/asm/rc4-md5-x86_64.pl
 x64-macosx-gas/sha/sha1-x86_64.s: ../openssl/crypto/sha/asm/sha1-x86_64.pl
 x64-macosx-gas/sha/sha512-x86_64.s: ../openssl/crypto/sha/asm/sha512-x86_64.pl
 x64-macosx-gas/whrlpool/wp-x86_64.s: ../openssl/crypto/whrlpool/asm/wp-x86_64.pl
@@ -146,6 +151,7 @@ x64-win32-masm/bn/x86_64-mont.asm: ../openssl/crypto/bn/asm/x86_64-mont.pl
 x64-win32-masm/camellia/cmll-x86_64.asm: ../openssl/crypto/camellia/asm/cmll-x86_64.pl
 x64-win32-masm/md5/md5-x86_64.asm: ../openssl/crypto/md5/asm/md5-x86_64.pl
 x64-win32-masm/rc4/rc4-x86_64.asm: ../openssl/crypto/rc4/asm/rc4-x86_64.pl
+x64-win32-masm/rc4/rc4-md5-x86_64.asm: ../openssl/crypto/rc4/asm/rc4-md5-x86_64.pl
 x64-win32-masm/sha/sha1-x86_64.asm: ../openssl/crypto/sha/asm/sha1-x86_64.pl
 x64-win32-masm/sha/sha512-x86_64.asm: ../openssl/crypto/sha/asm/sha512-x86_64.pl
 x64-win32-masm/whrlpool/wp-x86_64.asm: ../openssl/crypto/whrlpool/asm/wp-x86_64.pl

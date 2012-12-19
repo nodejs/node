@@ -2,7 +2,7 @@ TITLE	cmll-586.asm
 IF @Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.586
+.686
 .MODEL	FLAT
 OPTION	DOTNAME
 IF @Version LT 800
@@ -1532,8 +1532,8 @@ $L013done:
 	ret
 _Camellia_Ekeygen ENDP
 ALIGN	16
-_Camellia_set_key	PROC PUBLIC
-$L_Camellia_set_key_begin::
+_private_Camellia_set_key	PROC PUBLIC
+$L_private_Camellia_set_key_begin::
 	push	ebx
 	mov	ecx,DWORD PTR 8[esp]
 	mov	ebx,DWORD PTR 12[esp]
@@ -1563,7 +1563,7 @@ ALIGN	4
 $L014done:
 	pop	ebx
 	ret
-_Camellia_set_key ENDP
+_private_Camellia_set_key ENDP
 ALIGN	64
 $LCamellia_SIGMA::
 DD	2694735487,1003262091,3061508184,1286239154,3337565999,3914302142,1426019237,4057165596,283453434,3731369245,2958461122,3018244605,0,0,0,0

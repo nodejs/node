@@ -250,7 +250,7 @@ $L$eloop::
 	xor	r8d,ecx
 	xor	r9d,ecx
 	xor	r9d,edx
-	lea	r14,QWORD PTR[((16*4))+r14]
+	lea	r14,QWORD PTR[64+r14]
 	cmp	r14,r15
 	mov	edx,DWORD PTR[8+r14]
 	mov	ecx,DWORD PTR[12+r14]
@@ -533,7 +533,7 @@ $L$dloop::
 	xor	r8d,ecx
 	xor	r9d,ecx
 	xor	r9d,edx
-	lea	r14,QWORD PTR[((-16*4))+r14]
+	lea	r14,QWORD PTR[((-64))+r14]
 	cmp	r14,r15
 	mov	edx,DWORD PTR[r14]
 	mov	ecx,DWORD PTR[4+r14]

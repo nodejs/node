@@ -1,5 +1,6 @@
 OPTION	DOTNAME
 .text$	SEGMENT ALIGN(64) 'CODE'
+EXTERN	OPENSSL_ia32cap_P:NEAR
 
 PUBLIC	RC4
 
@@ -24,316 +25,511 @@ $L$entry::
 	push	r12
 	push	r13
 $L$prologue::
+	mov	r11,rsi
+	mov	r12,rdx
+	mov	r13,rcx
+	xor	r10,r10
+	xor	rcx,rcx
 
-	add	rdi,8
-	mov	r8d,DWORD PTR[((-8))+rdi]
-	mov	r12d,DWORD PTR[((-4))+rdi]
+	lea	rdi,QWORD PTR[8+rdi]
+	mov	r10b,BYTE PTR[((-8))+rdi]
+	mov	cl,BYTE PTR[((-4))+rdi]
 	cmp	DWORD PTR[256+rdi],-1
 	je	$L$RC4_CHAR
-	inc	r8b
-	mov	r9d,DWORD PTR[r8*4+rdi]
-	test	rsi,-8
+	mov	r8d,DWORD PTR[OPENSSL_ia32cap_P]
+	xor	rbx,rbx
+	inc	r10b
+	sub	rbx,r10
+	sub	r13,r12
+	mov	eax,DWORD PTR[r10*4+rdi]
+	test	r11,-16
 	jz	$L$loop1
-	jmp	$L$loop8
+	bt	r8d,30
+	jc	$L$intel
+	and	rbx,7
+	lea	rsi,QWORD PTR[1+r10]
+	jz	$L$oop8
+	sub	r11,rbx
+$L$oop8_warmup::
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	DWORD PTR[r10*4+rdi],edx
+	add	al,dl
+	inc	r10b
+	mov	edx,DWORD PTR[rax*4+rdi]
+	mov	eax,DWORD PTR[r10*4+rdi]
+	xor	dl,BYTE PTR[r12]
+	mov	BYTE PTR[r12*1+r13],dl
+	lea	r12,QWORD PTR[1+r12]
+	dec	rbx
+	jnz	$L$oop8_warmup
+
+	lea	rsi,QWORD PTR[1+r10]
+	jmp	$L$oop8
 ALIGN	16
-$L$loop8::
-	add	r12b,r9b
-	mov	r10,r8
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r10b
-	mov	r11d,DWORD PTR[r10*4+rdi]
-	cmp	r12,r10
-	mov	DWORD PTR[r12*4+rdi],r9d
-	cmove	r11,r9
-	mov	DWORD PTR[r8*4+rdi],r13d
-	add	r13b,r9b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r11b
-	mov	r8,r10
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r8b
-	mov	r9d,DWORD PTR[r8*4+rdi]
-	cmp	r12,r8
-	mov	DWORD PTR[r12*4+rdi],r11d
-	cmove	r9,r11
-	mov	DWORD PTR[r10*4+rdi],r13d
-	add	r13b,r11b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r9b
-	mov	r10,r8
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r10b
-	mov	r11d,DWORD PTR[r10*4+rdi]
-	cmp	r12,r10
-	mov	DWORD PTR[r12*4+rdi],r9d
-	cmove	r11,r9
-	mov	DWORD PTR[r8*4+rdi],r13d
-	add	r13b,r9b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r11b
-	mov	r8,r10
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r8b
-	mov	r9d,DWORD PTR[r8*4+rdi]
-	cmp	r12,r8
-	mov	DWORD PTR[r12*4+rdi],r11d
-	cmove	r9,r11
-	mov	DWORD PTR[r10*4+rdi],r13d
-	add	r13b,r11b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r9b
-	mov	r10,r8
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r10b
-	mov	r11d,DWORD PTR[r10*4+rdi]
-	cmp	r12,r10
-	mov	DWORD PTR[r12*4+rdi],r9d
-	cmove	r11,r9
-	mov	DWORD PTR[r8*4+rdi],r13d
-	add	r13b,r9b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r11b
-	mov	r8,r10
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r8b
-	mov	r9d,DWORD PTR[r8*4+rdi]
-	cmp	r12,r8
-	mov	DWORD PTR[r12*4+rdi],r11d
-	cmove	r9,r11
-	mov	DWORD PTR[r10*4+rdi],r13d
-	add	r13b,r11b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r9b
-	mov	r10,r8
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r10b
-	mov	r11d,DWORD PTR[r10*4+rdi]
-	cmp	r12,r10
-	mov	DWORD PTR[r12*4+rdi],r9d
-	cmove	r11,r9
-	mov	DWORD PTR[r8*4+rdi],r13d
-	add	r13b,r9b
-	mov	al,BYTE PTR[r13*4+rdi]
-	add	r12b,r11b
-	mov	r8,r10
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	ror	rax,8
-	inc	r8b
-	mov	r9d,DWORD PTR[r8*4+rdi]
-	cmp	r12,r8
-	mov	DWORD PTR[r12*4+rdi],r11d
-	cmove	r9,r11
-	mov	DWORD PTR[r10*4+rdi],r13d
-	add	r13b,r11b
-	mov	al,BYTE PTR[r13*4+rdi]
-	ror	rax,8
-	sub	rsi,8
+$L$oop8::
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	ebx,DWORD PTR[rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[r10*4+rdi],edx
+	add	dl,al
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	cl,bl
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	mov	eax,DWORD PTR[4+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[4+r10*4+rdi],edx
+	add	dl,bl
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	ebx,DWORD PTR[8+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[8+r10*4+rdi],edx
+	add	dl,al
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	cl,bl
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	mov	eax,DWORD PTR[12+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[12+r10*4+rdi],edx
+	add	dl,bl
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	ebx,DWORD PTR[16+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[16+r10*4+rdi],edx
+	add	dl,al
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	cl,bl
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	mov	eax,DWORD PTR[20+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[20+r10*4+rdi],edx
+	add	dl,bl
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	ebx,DWORD PTR[24+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[24+r10*4+rdi],edx
+	add	dl,al
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	sil,8
+	add	cl,bl
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	mov	eax,DWORD PTR[((-4))+rsi*4+rdi]
+	ror	r8,8
+	mov	DWORD PTR[28+r10*4+rdi],edx
+	add	dl,bl
+	mov	r8b,BYTE PTR[rdx*4+rdi]
+	add	r10b,8
+	ror	r8,8
+	sub	r11,8
 
-	xor	rax,QWORD PTR[rdx]
-	add	rdx,8
-	mov	QWORD PTR[rcx],rax
-	add	rcx,8
+	xor	r8,QWORD PTR[r12]
+	mov	QWORD PTR[r12*1+r13],r8
+	lea	r12,QWORD PTR[8+r12]
 
-	test	rsi,-8
-	jnz	$L$loop8
-	cmp	rsi,0
+	test	r11,-8
+	jnz	$L$oop8
+	cmp	r11,0
+	jne	$L$loop1
+	jmp	$L$exit
+
+ALIGN	16
+$L$intel::
+	test	r11,-32
+	jz	$L$loop1
+	and	rbx,15
+	jz	$L$oop16_is_hot
+	sub	r11,rbx
+$L$oop16_warmup::
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	DWORD PTR[r10*4+rdi],edx
+	add	al,dl
+	inc	r10b
+	mov	edx,DWORD PTR[rax*4+rdi]
+	mov	eax,DWORD PTR[r10*4+rdi]
+	xor	dl,BYTE PTR[r12]
+	mov	BYTE PTR[r12*1+r13],dl
+	lea	r12,QWORD PTR[1+r12]
+	dec	rbx
+	jnz	$L$oop16_warmup
+
+	mov	rbx,rcx
+	xor	rcx,rcx
+	mov	cl,bl
+
+$L$oop16_is_hot::
+	lea	rsi,QWORD PTR[r10*4+rdi]
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	pxor	xmm0,xmm0
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[4+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],0
+	jmp	$L$oop16_enter
+ALIGN	16
+$L$oop16::
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	pxor	xmm2,xmm0
+	psllq	xmm1,8
+	pxor	xmm0,xmm0
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[4+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[rsi],edx
+	pxor	xmm2,xmm1
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],0
+	movdqu	XMMWORD PTR[r12*1+r13],xmm2
+	lea	r12,QWORD PTR[16+r12]
+$L$oop16_enter::
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	pxor	xmm1,xmm1
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[8+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[4+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],0
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[12+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[8+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],1
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[16+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[12+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],1
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[20+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[16+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],2
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[24+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[20+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],2
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[28+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[24+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],3
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[32+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[28+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],3
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[36+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[32+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],4
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[40+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[36+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],4
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[44+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[40+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],5
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[48+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[44+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],5
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[52+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[48+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],6
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	mov	eax,DWORD PTR[56+rsi]
+	movzx	ebx,bl
+	mov	DWORD PTR[52+rsi],edx
+	add	cl,al
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],6
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	add	al,dl
+	mov	ebx,DWORD PTR[60+rsi]
+	movzx	eax,al
+	mov	DWORD PTR[56+rsi],edx
+	add	cl,bl
+	pinsrw	xmm0,WORD PTR[rax*4+rdi],7
+	add	r10b,16
+	movdqu	xmm2,XMMWORD PTR[r12]
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],ebx
+	add	bl,dl
+	movzx	ebx,bl
+	mov	DWORD PTR[60+rsi],edx
+	lea	rsi,QWORD PTR[r10*4+rdi]
+	pinsrw	xmm1,WORD PTR[rbx*4+rdi],7
+	mov	eax,DWORD PTR[rsi]
+	mov	rbx,rcx
+	xor	rcx,rcx
+	sub	r11,16
+	mov	cl,bl
+	test	r11,-16
+	jnz	$L$oop16
+
+	psllq	xmm1,8
+	pxor	xmm2,xmm0
+	pxor	xmm2,xmm1
+	movdqu	XMMWORD PTR[r12*1+r13],xmm2
+	lea	r12,QWORD PTR[16+r12]
+
+	cmp	r11,0
 	jne	$L$loop1
 	jmp	$L$exit
 
 ALIGN	16
 $L$loop1::
-	add	r12b,r9b
-	mov	r13d,DWORD PTR[r12*4+rdi]
-	mov	DWORD PTR[r12*4+rdi],r9d
-	mov	DWORD PTR[r8*4+rdi],r13d
-	add	r9b,r13b
-	inc	r8b
-	mov	r13d,DWORD PTR[r9*4+rdi]
-	mov	r9d,DWORD PTR[r8*4+rdi]
-	xor	r13b,BYTE PTR[rdx]
-	inc	rdx
-	mov	BYTE PTR[rcx],r13b
-	inc	rcx
-	dec	rsi
+	add	cl,al
+	mov	edx,DWORD PTR[rcx*4+rdi]
+	mov	DWORD PTR[rcx*4+rdi],eax
+	mov	DWORD PTR[r10*4+rdi],edx
+	add	al,dl
+	inc	r10b
+	mov	edx,DWORD PTR[rax*4+rdi]
+	mov	eax,DWORD PTR[r10*4+rdi]
+	xor	dl,BYTE PTR[r12]
+	mov	BYTE PTR[r12*1+r13],dl
+	lea	r12,QWORD PTR[1+r12]
+	dec	r11
 	jnz	$L$loop1
 	jmp	$L$exit
 
 ALIGN	16
 $L$RC4_CHAR::
-	add	r8b,1
-	movzx	r9d,BYTE PTR[r8*1+rdi]
-	test	rsi,-8
+	add	r10b,1
+	movzx	eax,BYTE PTR[r10*1+rdi]
+	test	r11,-8
 	jz	$L$cloop1
-	cmp	DWORD PTR[260+rdi],0
-	jnz	$L$cloop1
 	jmp	$L$cloop8
 ALIGN	16
 $L$cloop8::
-	mov	eax,DWORD PTR[rdx]
-	mov	ebx,DWORD PTR[4+rdx]
-	add	r12b,r9b
-	lea	r10,QWORD PTR[1+r8]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r10d,r10b
-	movzx	r11d,BYTE PTR[r10*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r9b
-	cmp	r12,r10
-	mov	BYTE PTR[r8*1+rdi],r13b
+	mov	r8d,DWORD PTR[r12]
+	mov	r9d,DWORD PTR[4+r12]
+	add	cl,al
+	lea	rsi,QWORD PTR[1+r10]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	esi,sil
+	movzx	ebx,BYTE PTR[rsi*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],al
+	cmp	rcx,rsi
+	mov	BYTE PTR[r10*1+rdi],dl
 	jne	$L$cmov0
 
-	mov	r11,r9
+	mov	rbx,rax
 $L$cmov0::
-	add	r13b,r9b
-	xor	al,BYTE PTR[r13*1+rdi]
-	ror	eax,8
-	add	r12b,r11b
-	lea	r8,QWORD PTR[1+r10]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r8d,r8b
-	movzx	r9d,BYTE PTR[r8*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r11b
-	cmp	r12,r8
-	mov	BYTE PTR[r10*1+rdi],r13b
+	add	dl,al
+	xor	r8b,BYTE PTR[rdx*1+rdi]
+	ror	r8d,8
+	add	cl,bl
+	lea	r10,QWORD PTR[1+rsi]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	r10d,r10b
+	movzx	eax,BYTE PTR[r10*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],bl
+	cmp	rcx,r10
+	mov	BYTE PTR[rsi*1+rdi],dl
 	jne	$L$cmov1
 
-	mov	r9,r11
+	mov	rax,rbx
 $L$cmov1::
-	add	r13b,r11b
-	xor	al,BYTE PTR[r13*1+rdi]
-	ror	eax,8
-	add	r12b,r9b
-	lea	r10,QWORD PTR[1+r8]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r10d,r10b
-	movzx	r11d,BYTE PTR[r10*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r9b
-	cmp	r12,r10
-	mov	BYTE PTR[r8*1+rdi],r13b
+	add	dl,bl
+	xor	r8b,BYTE PTR[rdx*1+rdi]
+	ror	r8d,8
+	add	cl,al
+	lea	rsi,QWORD PTR[1+r10]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	esi,sil
+	movzx	ebx,BYTE PTR[rsi*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],al
+	cmp	rcx,rsi
+	mov	BYTE PTR[r10*1+rdi],dl
 	jne	$L$cmov2
 
-	mov	r11,r9
+	mov	rbx,rax
 $L$cmov2::
-	add	r13b,r9b
-	xor	al,BYTE PTR[r13*1+rdi]
-	ror	eax,8
-	add	r12b,r11b
-	lea	r8,QWORD PTR[1+r10]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r8d,r8b
-	movzx	r9d,BYTE PTR[r8*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r11b
-	cmp	r12,r8
-	mov	BYTE PTR[r10*1+rdi],r13b
+	add	dl,al
+	xor	r8b,BYTE PTR[rdx*1+rdi]
+	ror	r8d,8
+	add	cl,bl
+	lea	r10,QWORD PTR[1+rsi]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	r10d,r10b
+	movzx	eax,BYTE PTR[r10*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],bl
+	cmp	rcx,r10
+	mov	BYTE PTR[rsi*1+rdi],dl
 	jne	$L$cmov3
 
-	mov	r9,r11
+	mov	rax,rbx
 $L$cmov3::
-	add	r13b,r11b
-	xor	al,BYTE PTR[r13*1+rdi]
-	ror	eax,8
-	add	r12b,r9b
-	lea	r10,QWORD PTR[1+r8]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r10d,r10b
-	movzx	r11d,BYTE PTR[r10*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r9b
-	cmp	r12,r10
-	mov	BYTE PTR[r8*1+rdi],r13b
+	add	dl,bl
+	xor	r8b,BYTE PTR[rdx*1+rdi]
+	ror	r8d,8
+	add	cl,al
+	lea	rsi,QWORD PTR[1+r10]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	esi,sil
+	movzx	ebx,BYTE PTR[rsi*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],al
+	cmp	rcx,rsi
+	mov	BYTE PTR[r10*1+rdi],dl
 	jne	$L$cmov4
 
-	mov	r11,r9
+	mov	rbx,rax
 $L$cmov4::
-	add	r13b,r9b
-	xor	bl,BYTE PTR[r13*1+rdi]
-	ror	ebx,8
-	add	r12b,r11b
-	lea	r8,QWORD PTR[1+r10]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r8d,r8b
-	movzx	r9d,BYTE PTR[r8*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r11b
-	cmp	r12,r8
-	mov	BYTE PTR[r10*1+rdi],r13b
+	add	dl,al
+	xor	r9b,BYTE PTR[rdx*1+rdi]
+	ror	r9d,8
+	add	cl,bl
+	lea	r10,QWORD PTR[1+rsi]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	r10d,r10b
+	movzx	eax,BYTE PTR[r10*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],bl
+	cmp	rcx,r10
+	mov	BYTE PTR[rsi*1+rdi],dl
 	jne	$L$cmov5
 
-	mov	r9,r11
+	mov	rax,rbx
 $L$cmov5::
-	add	r13b,r11b
-	xor	bl,BYTE PTR[r13*1+rdi]
-	ror	ebx,8
-	add	r12b,r9b
-	lea	r10,QWORD PTR[1+r8]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r10d,r10b
-	movzx	r11d,BYTE PTR[r10*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r9b
-	cmp	r12,r10
-	mov	BYTE PTR[r8*1+rdi],r13b
+	add	dl,bl
+	xor	r9b,BYTE PTR[rdx*1+rdi]
+	ror	r9d,8
+	add	cl,al
+	lea	rsi,QWORD PTR[1+r10]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	esi,sil
+	movzx	ebx,BYTE PTR[rsi*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],al
+	cmp	rcx,rsi
+	mov	BYTE PTR[r10*1+rdi],dl
 	jne	$L$cmov6
 
-	mov	r11,r9
+	mov	rbx,rax
 $L$cmov6::
-	add	r13b,r9b
-	xor	bl,BYTE PTR[r13*1+rdi]
-	ror	ebx,8
-	add	r12b,r11b
-	lea	r8,QWORD PTR[1+r10]
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	movzx	r8d,r8b
-	movzx	r9d,BYTE PTR[r8*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r11b
-	cmp	r12,r8
-	mov	BYTE PTR[r10*1+rdi],r13b
+	add	dl,al
+	xor	r9b,BYTE PTR[rdx*1+rdi]
+	ror	r9d,8
+	add	cl,bl
+	lea	r10,QWORD PTR[1+rsi]
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	movzx	r10d,r10b
+	movzx	eax,BYTE PTR[r10*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],bl
+	cmp	rcx,r10
+	mov	BYTE PTR[rsi*1+rdi],dl
 	jne	$L$cmov7
 
-	mov	r9,r11
+	mov	rax,rbx
 $L$cmov7::
-	add	r13b,r11b
-	xor	bl,BYTE PTR[r13*1+rdi]
-	ror	ebx,8
-	lea	rsi,QWORD PTR[((-8))+rsi]
-	mov	DWORD PTR[rcx],eax
-	lea	rdx,QWORD PTR[8+rdx]
-	mov	DWORD PTR[4+rcx],ebx
-	lea	rcx,QWORD PTR[8+rcx]
+	add	dl,bl
+	xor	r9b,BYTE PTR[rdx*1+rdi]
+	ror	r9d,8
+	lea	r11,QWORD PTR[((-8))+r11]
+	mov	DWORD PTR[r13],r8d
+	lea	r12,QWORD PTR[8+r12]
+	mov	DWORD PTR[4+r13],r9d
+	lea	r13,QWORD PTR[8+r13]
 
-	test	rsi,-8
+	test	r11,-8
 	jnz	$L$cloop8
-	cmp	rsi,0
+	cmp	r11,0
 	jne	$L$cloop1
 	jmp	$L$exit
 ALIGN	16
 $L$cloop1::
-	add	r12b,r9b
-	movzx	r13d,BYTE PTR[r12*1+rdi]
-	mov	BYTE PTR[r12*1+rdi],r9b
-	mov	BYTE PTR[r8*1+rdi],r13b
-	add	r13b,r9b
-	add	r8b,1
-	movzx	r13d,r13b
-	movzx	r8d,r8b
-	movzx	r13d,BYTE PTR[r13*1+rdi]
-	movzx	r9d,BYTE PTR[r8*1+rdi]
-	xor	r13b,BYTE PTR[rdx]
-	lea	rdx,QWORD PTR[1+rdx]
-	mov	BYTE PTR[rcx],r13b
-	lea	rcx,QWORD PTR[1+rcx]
-	sub	rsi,1
+	add	cl,al
+	movzx	ecx,cl
+	movzx	edx,BYTE PTR[rcx*1+rdi]
+	mov	BYTE PTR[rcx*1+rdi],al
+	mov	BYTE PTR[r10*1+rdi],dl
+	add	dl,al
+	add	r10b,1
+	movzx	edx,dl
+	movzx	r10d,r10b
+	movzx	edx,BYTE PTR[rdx*1+rdi]
+	movzx	eax,BYTE PTR[r10*1+rdi]
+	xor	dl,BYTE PTR[r12]
+	lea	r12,QWORD PTR[1+r12]
+	mov	BYTE PTR[r13],dl
+	lea	r13,QWORD PTR[1+r13]
+	sub	r11,1
 	jnz	$L$cloop1
 	jmp	$L$exit
 
 ALIGN	16
 $L$exit::
-	sub	r8b,1
-	mov	DWORD PTR[((-8))+rdi],r8d
-	mov	DWORD PTR[((-4))+rdi],r12d
+	sub	r10b,1
+	mov	DWORD PTR[((-8))+rdi],r10d
+	mov	DWORD PTR[((-4))+rdi],ecx
 
 	mov	r13,QWORD PTR[rsp]
 	mov	r12,QWORD PTR[8+rsp]
@@ -345,15 +541,14 @@ $L$epilogue::
 	DB	0F3h,0C3h		;repret
 $L$SEH_end_RC4::
 RC4	ENDP
-EXTERN	OPENSSL_ia32cap_P:NEAR
-PUBLIC	RC4_set_key
+PUBLIC	private_RC4_set_key
 
 ALIGN	16
-RC4_set_key	PROC PUBLIC
+private_RC4_set_key	PROC PUBLIC
 	mov	QWORD PTR[8+rsp],rdi	;WIN64 prologue
 	mov	QWORD PTR[16+rsp],rsi
 	mov	rax,rsp
-$L$SEH_begin_RC4_set_key::
+$L$SEH_begin_private_RC4_set_key::
 	mov	rdi,rcx
 	mov	rsi,rdx
 	mov	rdx,r8
@@ -370,11 +565,8 @@ $L$SEH_begin_RC4_set_key::
 
 	mov	r8d,DWORD PTR[OPENSSL_ia32cap_P]
 	bt	r8d,20
-	jnc	$L$w1stloop
-	bt	r8d,30
-	setc	r9b
-	mov	DWORD PTR[260+rdi],r9d
-	jmp	$L$c1stloop
+	jc	$L$c1stloop
+	jmp	$L$w1stloop
 
 ALIGN	16
 $L$w1stloop::
@@ -430,8 +622,8 @@ $L$exit_key::
 	mov	rdi,QWORD PTR[8+rsp]	;WIN64 epilogue
 	mov	rsi,QWORD PTR[16+rsp]
 	DB	0F3h,0C3h		;repret
-$L$SEH_end_RC4_set_key::
-RC4_set_key	ENDP
+$L$SEH_end_private_RC4_set_key::
+private_RC4_set_key	ENDP
 
 PUBLIC	RC4_options
 
@@ -440,18 +632,20 @@ RC4_options	PROC PUBLIC
 	lea	rax,QWORD PTR[$L$opts]
 	mov	edx,DWORD PTR[OPENSSL_ia32cap_P]
 	bt	edx,20
-	jnc	$L$done
-	add	rax,12
+	jc	$L$8xchar
 	bt	edx,30
 	jnc	$L$done
-	add	rax,13
+	add	rax,25
+	DB	0F3h,0C3h		;repret
+$L$8xchar::
+	add	rax,12
 $L$done::
 	DB	0F3h,0C3h		;repret
 ALIGN	64
 $L$opts::
 DB	114,99,52,40,56,120,44,105,110,116,41,0
 DB	114,99,52,40,56,120,44,99,104,97,114,41,0
-DB	114,99,52,40,49,120,44,99,104,97,114,41,0
+DB	114,99,52,40,49,54,120,44,105,110,116,41,0
 DB	82,67,52,32,102,111,114,32,120,56,54,95,54,52,44,32
 DB	67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97
 DB	112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103
@@ -568,9 +762,9 @@ ALIGN	4
 	DD	imagerel $L$SEH_end_RC4
 	DD	imagerel $L$SEH_info_RC4
 
-	DD	imagerel $L$SEH_begin_RC4_set_key
-	DD	imagerel $L$SEH_end_RC4_set_key
-	DD	imagerel $L$SEH_info_RC4_set_key
+	DD	imagerel $L$SEH_begin_private_RC4_set_key
+	DD	imagerel $L$SEH_end_private_RC4_set_key
+	DD	imagerel $L$SEH_info_private_RC4_set_key
 
 .pdata	ENDS
 .xdata	SEGMENT READONLY ALIGN(8)
@@ -578,7 +772,7 @@ ALIGN	8
 $L$SEH_info_RC4::
 DB	9,0,0,0
 	DD	imagerel stream_se_handler
-$L$SEH_info_RC4_set_key::
+$L$SEH_info_private_RC4_set_key::
 DB	9,0,0,0
 	DD	imagerel key_se_handler
 
