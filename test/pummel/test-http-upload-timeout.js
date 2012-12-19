@@ -41,6 +41,7 @@ server.on('request', function(req, res) {
       server.close();
     }
   });
+  req.resume();
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {

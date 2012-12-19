@@ -40,6 +40,7 @@ var req = https.request(options, function(res) {
   assert.equal(200, res.statusCode);
   gotResponse = true;
   console.error('DONE');
+  res.resume();
 });
 
 req.end(new Buffer(bytesExpected));
