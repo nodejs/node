@@ -116,15 +116,15 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   for (i = 0; i < count; i++) {
     Local<Object> times_info = Object::New();
     times_info->Set(String::New("user"),
-      Integer::New(cpu_infos[i].cpu_times.user));
+      Number::New(cpu_infos[i].cpu_times.user));
     times_info->Set(String::New("nice"),
-      Integer::New(cpu_infos[i].cpu_times.nice));
+      Number::New(cpu_infos[i].cpu_times.nice));
     times_info->Set(String::New("sys"),
-      Integer::New(cpu_infos[i].cpu_times.sys));
+      Number::New(cpu_infos[i].cpu_times.sys));
     times_info->Set(String::New("idle"),
-      Integer::New(cpu_infos[i].cpu_times.idle));
+      Number::New(cpu_infos[i].cpu_times.idle));
     times_info->Set(String::New("irq"),
-      Integer::New(cpu_infos[i].cpu_times.irq));
+      Number::New(cpu_infos[i].cpu_times.irq));
 
     Local<Object> cpu_info = Object::New();
     cpu_info->Set(String::New("model"), String::New(cpu_infos[i].model));
