@@ -329,6 +329,7 @@ function githead_ (file, data, dir, head, cb) {
                 var headFile = head.replace(/^ref: /, '').trim()
                 headFile = path.resolve(dir, '.git', headFile)
                 fs.readFile(headFile, 'utf8', function (er, head) {
+                                if (er || !head) return cb(null, data)
                                 head = head.replace(/^ref: /, '').trim()
                                 data.gitHead = head
                                 return cb(null, data)

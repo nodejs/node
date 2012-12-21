@@ -148,7 +148,10 @@ npm view yui3@\'>0\.5\.4\' dependencies\.jsdom
 .SH "OUTPUT"
 If only a single string field for a single version is output, then it
 will not be colorized or quoted, so as to enable piping the output to
-another command\.
+another command\. If the field is an object, it will be output as a JavaScript object literal\.
+.
+.P
+If the \-\-json flag is given, the outputted fields will be JSON\.
 .
 .P
 If the version range matches multiple versions, than each printed value

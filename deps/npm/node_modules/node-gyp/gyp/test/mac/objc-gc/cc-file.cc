@@ -1,0 +1,1 @@
+void cc_fun() {}
