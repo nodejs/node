@@ -18,6 +18,8 @@ something like this:
 Note that you must be the package owner to deprecate something.  See the
 `owner` and `adduser` help topics.
 
+To un-deprecate a package, specify an empty string (`""`) for the `message` argument.
+
 ## SEE ALSO
 
 * npm-publish(1)

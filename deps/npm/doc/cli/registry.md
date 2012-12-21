@@ -82,9 +82,7 @@ ask for help on the <npm-@googlegroups.com> mailing list.
 
 ## Is there a website or something to see package docs and such?
 
-No, but such a thing is planned, and a tiny bit developed.
-
-Stay tuned!
+Yes, head over to <https://npmjs.org/>
 
 ## SEE ALSO
 

@@ -69,7 +69,9 @@ was required by each matching version of yui3:
 
 If only a single string field for a single version is output, then it
 will not be colorized or quoted, so as to enable piping the output to
-another command.
+another command. If the field is an object, it will be output as a JavaScript object literal.
+
+If the --json flag is given, the outputted fields will be JSON.
 
 If the version range matches multiple versions, than each printed value
 will be prefixed with the version it applies to.

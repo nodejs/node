@@ -358,15 +358,10 @@ function install (gyp, argv, callback) {
    */
 
   function valid (file) {
-      // header files
-    return minimatch(file, '*.h', { matchBase: true })
+    // header files
+    return minimatch(file, '*.h', { matchBase: true }) ||
       // non-legacy versions of node also extract the gyp build files
-      || (!isLegacy &&
-            (minimatch(file, '*.gypi', { matchBase: true })
-          || minimatch(file, 'tools/gyp_addon')
-          || (minimatch(file, 'tools/gyp/**') && !minimatch(file, 'tools/gyp/test/**'))
-            )
-         )
+      (!isLegacy && minimatch(file, '*.gypi', { matchBase: true }))
   }
 
   /**

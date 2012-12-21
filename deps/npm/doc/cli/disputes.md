@@ -4,8 +4,10 @@ npm-disputes(1) -- Handling Module Name Disputes
 ## SYNOPSIS
 
 1. Get the author email with `npm owner ls <pkgname>`
-1. Email the author, CC <i@izs.me>.
-2. After a few weeks, if there's no resolution, we'll sort it out.
+2. Email the author, CC <i@izs.me>.
+3. After a few weeks, if there's no resolution, we'll sort it out.
+
+Don't squat on package names.  Publish code or move out of the way.
 
 ## DESCRIPTION
 
@@ -40,7 +42,7 @@ Joe's appropriate course of action in each case is the same.
 
 1. `npm owner ls foo`.  This will tell Joe the email address of the
    owner (Bob).
-2. Joe emails Bob, explaining the situation **as respecfully as possible**,
+2. Joe emails Bob, explaining the situation **as respectfully as possible**,
    and what he would like to do with the module name.  He adds
    isaacs <i@izs.me> to the CC list of the email.  Mention in the email
    that Bob can run `npm owner add joe foo` to add Joe as an owner of
@@ -75,6 +77,11 @@ but not limited to:
    MIT-licensed program, and then removing or changing the copyright and
    license statement)
 3. Illegal content.
+4. "Squatting" on a package name that you *plan* to use, but aren't
+   actually using.  Sorry, I don't care how great the name is, or how
+   perfect a fit it is for the thing that someday might happen.  If
+   someone wants to use it today, and you're just taking up space with
+   an empty tarball, you're going to be evicted.
 
 If you see bad behavior like this, please report it right away.
 

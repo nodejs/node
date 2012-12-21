@@ -19,7 +19,7 @@
       [ 'OS=="mac"', {
         'libraries': [ '-undefined dynamic_lookup' ],
         'xcode_settings': {
-          'DYLIB_INSTALL_NAME_BASE': '@loader_path'
+          'DYLIB_INSTALL_NAME_BASE': '@rpath'
         },
       }],
       [ 'OS=="win"', {
