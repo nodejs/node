@@ -265,6 +265,11 @@ parser.add_option("--xcode",
     dest="use_xcode",
     help="Generate build files for use with xcode")
 
+parser.add_option("--tag",
+    action="store",
+    dest="tag",
+    help="Custom build tag")
+
 (options, args) = parser.parse_args()
 
 
@@ -489,6 +494,8 @@ def configure_node(o):
     raise Exception('Performance counter is only supported on Windows.')
   else:
     o['variables']['node_use_perfctr'] = 'false'
+
+  o['variables']['node_tag'] = options.tag or ''
 
 
 def configure_libz(o):
