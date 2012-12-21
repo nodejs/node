@@ -2361,6 +2361,9 @@ static void SignalExit(int signal) {
 
 
 void Load(Handle<Object> process_l) {
+  process_symbol = NODE_PSYMBOL("process");
+  domain_symbol = NODE_PSYMBOL("domain");
+
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
   // source code.)
@@ -2969,9 +2972,6 @@ int Start(int argc, char *argv[]) {
     // Create the one and only Context.
     Persistent<Context> context = Context::New();
     Context::Scope context_scope(context);
-
-    process_symbol = NODE_PSYMBOL("process");
-    domain_symbol = NODE_PSYMBOL("domain");
 
     // Use original argv, as we're just copying values out of it.
     Handle<Object> process_l = SetupProcessObject(argc, argv);
