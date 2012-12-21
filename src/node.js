@@ -430,13 +430,18 @@
 
       case 'PIPE':
         var net = NativeModule.require('net');
-        stream = new net.Stream(fd);
+        stream = new net.Socket({
+          fd: fd,
+          readable: false,
+          writable: true
+        });
 
-        // FIXME Should probably have an option in net.Stream to create a
+        // FIXME Should probably have an option in net.Socket to create a
         // stream from an existing fd which is writable only. But for now
         // we'll just add this hack and set the `readable` member to false.
         // Test: ./node test/fixtures/echo.js < /etc/passwd
         stream.readable = false;
+        stream.read = null;
         stream._type = 'pipe';
 
         // FIXME Hack to have stream not keep the event loop alive.
@@ -498,7 +503,9 @@
           var tty = NativeModule.require('tty');
           stdin = new tty.ReadStream(fd, {
             highWaterMark: 0,
-            lowWaterMark: 0
+            lowWaterMark: 0,
+            readable: true,
+            writable: false
           });
           break;
 
@@ -509,8 +516,11 @@
 
         case 'PIPE':
           var net = NativeModule.require('net');
-          stdin = new net.Stream({ fd: fd });
-          stdin.readable = true;
+          stdin = new net.Socket({
+            fd: fd,
+            readable: true,
+            writable: false
+          });
           break;
 
         default:
