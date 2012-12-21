@@ -7,6 +7,7 @@
     'node_use_dtrace%': 'false',
     'node_use_etw%': 'false',
     'node_use_perfctr%': 'false',
+    'node_has_winsdk%': 'false',
     'node_shared_v8%': 'false',
     'node_shared_zlib%': 'false',
     'node_shared_http_parser%': 'false',
@@ -72,6 +73,7 @@
 
       'include_dirs': [
         'src',
+        'src/gen',
         'deps/uv/src/ares',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
@@ -191,8 +193,8 @@
             'src/node_win32_etw_provider-inl.h',
             'src/node_win32_etw_provider.cc',
             'src/node_dtrace.cc',
-            '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.h',
-            '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.rc',
+            'src/gen/node_etw_provider.h',
+            'src/gen/node_etw_provider.rc',
           ]
         } ],
         [ 'node_use_perfctr=="true"', {
@@ -203,7 +205,7 @@
             'src/node_win32_perfctr_provider.cc',
             'src/node_counters.cc',
             'src/node_counters.h',
-            '<(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.rc',
+            'src/gen/node_perfctr_provider.rc',
           ]
         } ],
         [ 'node_shared_v8=="false"', {
@@ -286,16 +288,17 @@
       'target_name': 'node_etw',
       'type': 'none',
       'conditions': [
-        [ 'node_use_etw=="true"', {
+        [ 'node_use_etw=="true" and node_has_winsdk=="true"', {
           'actions': [
             {
               'action_name': 'node_etw',
               'inputs': [ 'src/res/node_etw_provider.man' ],
               'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.rc',
-                '<(SHARED_INTERMEDIATE_DIR)/node_etw_provider.h',
+                'src/gen/node_etw_provider.rc',
+                'src/gen/node_etw_provider.h',
+                'src/gen/node_etw_providerTEMP.BIN',
               ],
-              'action': [ 'mc <@(_inputs) -h <(SHARED_INTERMEDIATE_DIR) -r <(SHARED_INTERMEDIATE_DIR)' ]
+              'action': [ 'mc <@(_inputs) -h src/gen -r src/gen' ]
             }
           ]
         } ]
@@ -306,18 +309,19 @@
       'target_name': 'node_perfctr',
       'type': 'none',
       'conditions': [
-        [ 'node_use_perfctr=="true"', {
+        [ 'node_use_perfctr=="true" and node_has_winsdk=="true"', {
           'actions': [
             {
               'action_name': 'node_perfctr_man',
               'inputs': [ 'src/res/node_perfctr_provider.man' ],
               'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.h',
-                '<(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.rc',
+                'src/gen/node_perfctr_provider.h',
+                'src/gen/node_perfctr_provider.rc',
+                'src/gen/MSG00001.BIN',
               ],
               'action': [ 'ctrpp <@(_inputs) '
-                          '-o <(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.h '
-                          '-rc <(SHARED_INTERMEDIATE_DIR)/node_perfctr_provider.rc'
+                          '-o src/gen/node_perfctr_provider.h '
+                          '-rc src/gen/node_perfctr_provider.rc'
               ]
             },
           ],

@@ -590,6 +590,21 @@ def configure_openssl(o):
       o['cflags'] += cflags.split()
 
 
+def configure_winsdk(o):
+  if not sys.platform.startswith('win32'):
+    return
+
+  try:
+    p = subprocess.Popen(['ctrpp.exe'],
+                         stdin=subprocess.PIPE,
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE)
+  except OSError:
+    return
+
+  o['variables']['node_has_winsdk'] = 'true'
+
+
 output = {
   'variables': { 'python': sys.executable },
   'include_dirs': [],
@@ -605,6 +620,7 @@ configure_cares(output)
 configure_libuv(output)
 configure_v8(output)
 configure_openssl(output)
+configure_winsdk(output)
 
 # variables should be a root level element,
 # move everything else to target_defaults

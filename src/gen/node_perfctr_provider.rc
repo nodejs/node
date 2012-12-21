@@ -1,0 +1,36 @@
+STRINGTABLE
+BEGIN
+    1 "Node.js"
+    2 "Node.js" // {Locked} means don't localize
+    3 "Node.js performance counters"
+    5 "HTTP server requests"
+    6 "HTTP server requests" // {Locked} means don't localize
+    7 "Number of HTTP server requests"
+    9 "HTTP server responses"
+    10 "HTTP server responses" // {Locked} means don't localize
+    11 "Number of HTTP server responses"
+    13 "HTTP client requests"
+    14 "HTTP client requests" // {Locked} means don't localize
+    15 "Number of HTTP client requests"
+    17 "HTTP client responses"
+    18 "HTTP client responses" // {Locked} means don't localize
+    19 "Number of HTTP client responses"
+    21 "Active server connections"
+    22 "Active server connections" // {Locked} means don't localize
+    23 "Number of server connections"
+    25 "Network bytes sent"
+    26 "Network bytes sent" // {Locked} means don't localize
+    27 "Number of bytes sent using TCP"
+    29 "Network bytes received"
+    30 "Network bytes received" // {Locked} means don't localize
+    31 "Number of bytes received using TCP"
+    33 "%Time in GC"
+    34 "%Time in GC" // {Locked} means don't localize
+    35 "Percent of time for last GC"
+    37 "Pipe bytes sent"
+    38 "Pipe bytes sent" // {Locked} means don't localize
+    39 "Number of bytes sent using pipe"
+    41 "Pipe bytes received"
+    42 "Pipe bytes received" // {Locked} means don't localize
+    43 "Number of bytes received using pipe"
+END
