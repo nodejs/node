@@ -112,7 +112,7 @@ initialized.
 All Readable stream implementations must provide a `_read` method
 to fetch data from the underlying resource.
 
-**This function MUST NOT be called directly.**  It should be
+Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Readable
 class methods only.
 
@@ -296,7 +296,7 @@ initialized.
 All Writable stream implementations must provide a `_write` method to
 send data to the underlying resource.
 
-**This function MUST NOT be called directly.**  It should be
+Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Writable
 class methods only.
 
@@ -432,7 +432,7 @@ initialized.
 All Transform stream implementations must provide a `_transform`
 method to accept input and produce output.
 
-**This function MUST NOT be called directly.**  It should be
+Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Transform
 class methods only.
 
@@ -458,7 +458,7 @@ your own extension classes.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done flushing any remaining data.
 
-**This function MUST NOT be called directly.**  It MAY be implemented
+Note: **This function MUST NOT be called directly.**  It MAY be implemented
 by child classes, and if so, will be called by the internal Transform
 class methods only.
 
