@@ -182,6 +182,11 @@ parser.add_option("--unsafe-optimizations",
     dest="unsafe_optimizations",
     help=optparse.SUPPRESS_HELP)
 
+parser.add_option("--tag",
+    action="store",
+    dest="tag",
+    help="Custom build tag")
+
 (options, args) = parser.parse_args()
 
 
@@ -393,6 +398,11 @@ def configure_node(o):
     raise Exception('ETW is only supported on Windows.')
   else:
     o['variables']['node_use_etw'] = 'false'
+
+  if options.tag:
+    o['variables']['node_tag'] = '-' + options.tag
+  else:
+    o['variables']['node_tag'] = ''
 
 
 def configure_libz(o):
