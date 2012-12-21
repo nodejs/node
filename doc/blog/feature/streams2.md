@@ -1,6 +1,6 @@
 title: A New Streaming API for Node v0.10
 author: Isaac Z. Schlueter
-date: Tue Dec 18 08:44:33 PST 2012
+date: Fri Dec 21 00:45:13 UTC 2012
 slug: streams2
 category: feature
 
@@ -11,7 +11,7 @@ category: feature
 * A new Stream implementation is coming in 0.10, that has gotten the
   nickname "streams2".
 * Readable streams have a `read()` method that returns a buffer or
-  null.
+  null.  (More documentation included below.)
 * `'data'` events, `pause()`, and `resume()` will still work as before
   (except that they'll actully work how you'd expect).
 * Old programs will **almost always** work without modification, but
@@ -50,42 +50,57 @@ v0.8.  In a nutshell:
 
 Common simple tasks should be easy, or we aren't doing our job.
 People often say that Node is better than most other platforms at this
-stuff, but in my opinion, that just is an indictment of the current
-state of software more than a compliment.  Being better than the next
-guy isn't enough; we have to be the best imaginable, and while it was
-a big step in the right direction, the Streams in Node up until now
-leave a lot wanting.
+stuff, but in my opinion, that is less of a compliment and more of an
+indictment of the current state of software.  Being better than the
+next guy isn't enough; we have to be the best imaginable.  While they
+were a big step in the right direction, the Streams in Node up until
+now leave a lot wanting.
 
 So, just fix it, right?
 
-Well, we are now sitting on the results of several years of explosive
-growth in the Node community, so any chnages have to be made very
+Well, we are sitting on the results of several years of explosive
+growth in the Node community, so any changes have to be made very
 carefully.  If we break all the Node programs in 0.10, then no one
 will ever want to upgrade to 0.10, and it's all pointless.  We had
-this streams conversation around 0.4, then again around 0.6, then
-again around 0.8.  Every time, the conclusion was "Too much work, too
-hard to make backwards-compatible", and we always had other more
-pressing problems to solve.
+this conversation around 0.4, then again around 0.6, then again around
+0.8.  Every time, the conclusion has been "Too much work, too hard to
+make backwards-compatible", and we always had more pressing problems
+to solve.
 
-So, finally, in 0.10, we cannot put it off any longer.  We've bitten
-the bullet and are making a significant change to the Stream
-implementation.  You may have seen conversations on twitter or IRC or
-the mailing list about "streams2".  I also gave [a talk in
+In 0.10, we cannot put it off any longer.  We've bitten the bullet and
+are making a significant change to the Stream implementation.  You may
+have seen conversations on twitter or IRC or the mailing list about
+"streams2".  I also gave [a talk in
 November](https://dl.dropbox.com/u/3685/presentations/streams2/streams2-ko.pdf)
 about this subject.  A lot of node module authors have been involved
-with the development of streams2 (and of course the node core team),
-and at this point, I'm confident that it's an improvement over what
-we've got.
+with the development of streams2 (and of course the node core team).
 
-The first preview release with this change will be 0.9.4.  I highly
-recommend trying this release and providing feedback before it lands
-in a stable version.  Some polish is still required before 0.10, which
-will likely be released late January, but at this point, it should be
-considered feature-complete.
+## streams2
 
 The feature is described pretty thoroughly in the documentation, so
 I'm including it below.  Please read it, especially the section on
-"compatibility".
+"compatibility".  There's a caveat there that is unfortunately
+unavoidable, but hopefully enough of an edge case that it's easily
+worked around.
+
+The first preview release with this change will be 0.9.4.  I highly
+recommend trying this release and providing feedback before it lands
+in a stable version.
+
+As of writing this post, there are some known performance regressions,
+especially in the http module.  We are fanatical about maintaining
+performance in Node.js, so of course this will have to be fixed before
+the v0.10 stable release.  (Watch for a future blog post on the tools
+and techniques that have been useful in tracking down these issues.)
+
+There may be minor changes as necessary to fix bugs and improve
+performance, but the API at this point should be considered feature
+complete.  It correctly does all the things we need it to do, it just
+doesn't do them quite well enough yet.  As always, be wary of running
+unstable releases in production, of course, but I encourage you to try
+it out and see what you think.  Especially, if you have tests that you
+can run on your modules and libraries, that would be extremely useful
+feedback.
 
 --------
 

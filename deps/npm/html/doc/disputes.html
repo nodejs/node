@@ -12,6 +12,8 @@
 
 <ol><li>Get the author email with <code>npm owner ls &lt;pkgname&gt;</code></li><li>Email the author, CC <a href="mailto:i@izs.me">i@izs.me</a>.</li><li>After a few weeks, if there&#39;s no resolution, we&#39;ll sort it out.</li></ol>
 
+<p>Don&#39;t squat on package names.  Publish code or move out of the way.</p>
+
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
 <p>There sometimes arise cases where a user publishes a module, and then
@@ -41,7 +43,7 @@ but can&#39;t publish, because Bob&#39;s <code>foo</code> is in the way.</li></o
 Joe&#39;s appropriate course of action in each case is the same.</p>
 
 <ol><li><code>npm owner ls foo</code>.  This will tell Joe the email address of the
-owner (Bob).</li><li>Joe emails Bob, explaining the situation <strong>as respecfully as possible</strong>,
+owner (Bob).</li><li>Joe emails Bob, explaining the situation <strong>as respectfully as possible</strong>,
 and what he would like to do with the module name.  He adds
 isaacs <a href="mailto:i@izs.me">i@izs.me</a> to the CC list of the email.  Mention in the email
 that Bob can run <code>npm owner add joe foo</code> to add Joe as an owner of
@@ -72,7 +74,11 @@ but not limited to:</p>
 <ol><li>Malware (that is, a module designed to exploit or harm the machine on
 which it is installed)</li><li>Violations of copyright or licenses (for example, cloning an
 MIT-licensed program, and then removing or changing the copyright and
-license statement)</li><li>Illegal content.</li></ol>
+license statement)</li><li>Illegal content.</li><li>&quot;Squatting&quot; on a package name that you <em>plan</em> to use, but aren&#39;t
+actually using.  Sorry, I don&#39;t care how great the name is, or how
+perfect a fit it is for the thing that someday might happen.  If
+someone wants to use it today, and you&#39;re just taking up space with
+an empty tarball, you&#39;re going to be evicted.</li></ol>
 
 <p>If you see bad behavior like this, please report it right away.</p>
 
@@ -80,7 +86,7 @@ license statement)</li><li>Illegal content.</li></ol>
 
 <ul><li><a href="../doc/registry.html">registry(1)</a></li><li><a href="../doc/owner.html">owner(1)</a></li></ul>
 </div>
-<p id="footer">disputes &mdash; npm@1.1.69</p>
+<p id="footer">disputes &mdash; npm@1.1.70</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

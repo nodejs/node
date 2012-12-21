@@ -36,10 +36,13 @@ You will also need to install:
     * `make`
     * A proper C/C++ compiler toolchain, like GCC
   * On Windows:
-    * [Python][windows-python] ([`v2.7.3`][windows-python-v2.7.3] recommended, `v3.x.x` is not supported)
-    * Microsoft Visual C++ ([Express][msvc] version works well)
+    * [Python][windows-python] ([`v2.7.3`][windows-python-v2.7.3] recommended, `v3.x.x` is __*not*__ supported)
+    * Windows XP/Vista/7:
+      * Microsoft Visual Studio C++ 2010 ([Express][msvc2010] version works well)
       * For 64-bit builds of node and native modules you will _**also**_ need the [Windows 7 64-bit SDK][win7sdk]
-      * If you get errors that the 64 bit compilers are not installed you may also need the [compiler update for the Windows SDK 7.1]
+      * If you get errors that the 64-bit compilers are not installed you may also need the [compiler update for the Windows SDK 7.1]
+    * Windows 8:
+      * Microsoft Visual Studio C++ 2012 for Windows Desktop ([Express][msvc2012] version works well)
 
 How to Use
 ----------
@@ -149,6 +152,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 [windows-python]: http://www.python.org/getit/windows
 [windows-python-v2.7.3]: http://www.python.org/download/releases/2.7.3#download
-[msvc]: http://www.microsoft.com/visualstudio/en-us/products/2010-editions/visual-cpp-express
-[win7sdk]: http://www.microsoft.com/download/en/details.aspx?displayLang=en&id=8279
+[msvc2010]: http://go.microsoft.com/?linkid=9709949
+[msvc2012]: http://go.microsoft.com/?linkid=9816758
+[win7sdk]: http://www.microsoft.com/en-us/download/details.aspx?id=8279
 [compiler update for the Windows SDK 7.1]: http://www.microsoft.com/en-us/download/details.aspx?id=4422
