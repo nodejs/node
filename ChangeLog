@@ -1,4 +1,49 @@
-2012.10.24, Version 0.9.3 (Unstable)
+2012.12.21, Version 0.9.4 (Unstable)
+
+* streams: Update all streaming interfaces to use new classes (isaacs)
+
+* node: remove idle gc (Ben Noordhuis)
+
+* http: protect against response splitting attacks (Bert Belder)
+
+* fs: Raise error when null bytes detected in paths (isaacs)
+
+* fs: fix 'object is not a function' callback errors (Ben Noordhuis)
+
+* fs: add autoClose=true option to fs.createReadStream (Farid Neshat)
+
+* process: add getgroups(), setgroups(), initgroups() (Ben Noordhuis)
+
+* openssl: optimized asm code on x86 and x64 (Bert Belder)
+
+* crypto: fix leak in GetPeerCertificate (Fedor Indutny)
+
+* add systemtap support (Jan Wynholds)
+
+* windows: add ETW and PerfCounters support (Scott Blomquist)
+
+* windows: fix normalization of UNC paths (Bert Belder)
+
+* crypto: fix ssl error handling (Sergey Kholodilov)
+
+* node: remove eio-emul.h (Ben Noordhuis)
+
+* os: add os.endianness() function (Nathan Rajlich)
+
+* readline: don't emit "line" events with a trailing '\n' char (Nathan Rajlich)
+
+* build: add configure option to generate xcode build files (Timothy J Fontaine)
+
+* build: allow linking against system libuv, cares, http_parser (Stephen Gallagher)
+
+* typed arrays: add slice() support to ArrayBuffer (Anthony Pesch)
+
+* debugger: exit and kill child on SIGTERM or SIGHUP (Fedor Indutny)
+
+* url: url.format escapes delimiters in path and query (J. Lee Coltrane)
+
+
+2012.10.24, Version 0.9.3 (Unstable), 1ed4c6776e4f52956918b70565502e0f8869829d
 
 * V8: Upgrade to 3.13.7.4
 
