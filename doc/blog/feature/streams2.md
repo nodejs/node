@@ -1,6 +1,6 @@
 title: A New Streaming API for Node v0.10
 author: Isaac Z. Schlueter
-date: Tue Dec 18 08:44:33 PST 2012
+date: Fri Dec 21 00:08:22 UTC 2012
 slug: streams2
 category: feature
 
@@ -67,25 +67,40 @@ again around 0.8.  Every time, the conclusion was "Too much work, too
 hard to make backwards-compatible", and we always had other more
 pressing problems to solve.
 
-So, finally, in 0.10, we cannot put it off any longer.  We've bitten
-the bullet and are making a significant change to the Stream
-implementation.  You may have seen conversations on twitter or IRC or
-the mailing list about "streams2".  I also gave [a talk in
+In 0.10, we cannot put it off any longer.  We've bitten the bullet and
+are making a significant change to the Stream implementation.  You may
+have seen conversations on twitter or IRC or the mailing list about
+"streams2".  I also gave [a talk in
 November](https://dl.dropbox.com/u/3685/presentations/streams2/streams2-ko.pdf)
 about this subject.  A lot of node module authors have been involved
 with the development of streams2 (and of course the node core team),
 and at this point, I'm confident that it's an improvement over what
 we've got.
 
-The first preview release with this change will be 0.9.4.  I highly
-recommend trying this release and providing feedback before it lands
-in a stable version.  Some polish is still required before 0.10, which
-will likely be released late January, but at this point, it should be
-considered feature-complete.
+## streams2
 
 The feature is described pretty thoroughly in the documentation, so
 I'm including it below.  Please read it, especially the section on
 "compatibility".
+
+The first preview release with this change will be 0.9.4.  I highly
+recommend trying this release and providing feedback before it lands
+in a stable version.
+
+As of this writing, there are some known performance regressions,
+especially in the http module.  We are fanatical about maintaining
+performance in Node.js, so of course this will have to be fixed before
+the v0.10 stable release.  (Watch for a future blog post on the tools
+and techniques that have been useful in tracking down these issues.)
+
+There may be minor changes as necessary to fix bugs and improve
+performance, but the API at this point should be considered feature
+complete.  It correctly does all the things we need it to do, it just
+doesn't do them quite well enough yet.  As always, be wary of running
+unstable releases in production, of course, but I would like to
+encourage you to try it out and see what you think.  Especially, if
+you have tests that you can run on your modules and libraries, that
+would be extremely useful feedback.
 
 --------
 
