@@ -22,7 +22,6 @@
       'lib/_linklist.js',
       'lib/assert.js',
       'lib/buffer.js',
-      'lib/buffer_ieee754.js',
       'lib/child_process.js',
       'lib/console.js',
       'lib/constants.js',

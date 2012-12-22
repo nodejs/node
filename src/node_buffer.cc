@@ -28,6 +28,8 @@
 
 #include <assert.h>
 #include <string.h> // memcpy
+#include <float.h>  // float limits
+#include <math.h>   // infinity
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
@@ -671,6 +673,137 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
 }
 
 
+static bool is_big_endian() {
+  const union { uint8_t u8[2]; uint16_t u16; } u = {{0, 1}};
+  return u.u16 == 1 ? true : false;
+}
+
+
+static void swizzle(char* buf, size_t len) {
+  char t;
+  for (size_t i = 0; i < len / 2; ++i) {
+    t = buf[i];
+    buf[i] = buf[len - i - 1];
+    buf[len - i - 1] = t;
+  }
+}
+
+
+inline bool OutOfRangeCheck(float val, double val_tmp) {
+  if ((val_tmp > 0 && (val_tmp > FLT_MAX || val_tmp < FLT_MIN)
+       && val_tmp != INFINITY) ||
+     ((val_tmp < 0 && (val_tmp < -FLT_MAX || val_tmp > -FLT_MIN)
+       && val_tmp != -INFINITY)))
+    return true;
+  return false;
+}
+
+
+template <typename T, bool ENDIANNESS>
+Handle<Value> ReadFloatGeneric(const Arguments& args) {
+  double offset_tmp = args[0]->NumberValue();
+  int64_t offset = static_cast<int64_t>(offset_tmp);
+  bool doAssert = !args[1]->BooleanValue();
+
+  if (doAssert) {
+    if (offset_tmp != offset || offset < 0)
+      return ThrowTypeError("offset is not uint");
+    size_t len = static_cast<size_t>(
+                    args.This()->GetIndexedPropertiesExternalArrayDataLength());
+    if (offset + sizeof(T) > len)
+      return ThrowRangeError("Trying to read beyond buffer length");
+  }
+
+  T val;
+  char* data = static_cast<char*>(
+                    args.This()->GetIndexedPropertiesExternalArrayData());
+  char* ptr = data + offset;
+
+  memcpy(&val, ptr, sizeof(T));
+  if (ENDIANNESS != is_big_endian())
+    swizzle(reinterpret_cast<char*>(&val), sizeof(T));
+
+  // TODO: when Number::New is updated to accept an Isolate, make the change
+  return Number::New(val);
+}
+
+
+Handle<Value> Buffer::ReadFloatLE(const Arguments& args) {
+  return ReadFloatGeneric<float, false>(args);
+}
+
+
+Handle<Value> Buffer::ReadFloatBE(const Arguments& args) {
+  return ReadFloatGeneric<float, true>(args);
+}
+
+
+Handle<Value> Buffer::ReadDoubleLE(const Arguments& args) {
+  return ReadFloatGeneric<double, false>(args);
+}
+
+
+Handle<Value> Buffer::ReadDoubleBE(const Arguments& args) {
+  return ReadFloatGeneric<double, true>(args);
+}
+
+
+template <typename T, bool ENDIANNESS>
+Handle<Value> WriteFloatGeneric(const Arguments& args) {
+  bool doAssert = !args[2]->BooleanValue();
+
+  if (doAssert) {
+    if (!args[0]->IsNumber())
+      return ThrowTypeError("value not a number");
+  }
+
+  double val_tmp = args[0]->NumberValue();
+  T val = static_cast<T>(val_tmp);
+  double offset_tmp = args[1]->NumberValue();
+  int64_t offset = static_cast<int64_t>(offset_tmp);
+  char* data = static_cast<char*>(
+                    args.This()->GetIndexedPropertiesExternalArrayData());
+  char* ptr = data + offset;
+
+  if (doAssert) {
+    if (offset_tmp != offset || offset < 0)
+      return ThrowTypeError("offset is not uint");
+    if (sizeof(T) == 4 && OutOfRangeCheck(val, val_tmp))
+      return ThrowRangeError("value is out of type range");
+    size_t len = static_cast<size_t>(
+                    args.This()->GetIndexedPropertiesExternalArrayDataLength());
+    if (offset + sizeof(T) > len)
+      return ThrowRangeError("Trying to write beyond buffer length");
+  }
+
+  memcpy(ptr, &val, sizeof(T));
+  if (ENDIANNESS != is_big_endian())
+    swizzle(ptr, sizeof(T));
+
+  return Undefined(node_isolate);
+}
+
+
+Handle<Value> Buffer::WriteFloatLE(const Arguments& args) {
+  return WriteFloatGeneric<float, false>(args);
+}
+
+
+Handle<Value> Buffer::WriteFloatBE(const Arguments& args) {
+  return WriteFloatGeneric<float, true>(args);
+}
+
+
+Handle<Value> Buffer::WriteDoubleLE(const Arguments& args) {
+  return WriteFloatGeneric<double, false>(args);
+}
+
+
+Handle<Value> Buffer::WriteDoubleBE(const Arguments& args) {
+  return WriteFloatGeneric<double, true>(args);
+}
+
+
 // var nbytes = Buffer.byteLength("string", "utf8")
 Handle<Value> Buffer::ByteLength(const Arguments &args) {
   HandleScope scope;
@@ -814,6 +947,14 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Write", Buffer::Base64Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "ucs2Write", Buffer::Ucs2Write);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readFloatLE", Buffer::ReadFloatLE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readFloatBE", Buffer::ReadFloatBE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readDoubleLE", Buffer::ReadDoubleLE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "readDoubleBE", Buffer::ReadDoubleBE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "writeFloatLE", Buffer::WriteFloatLE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "writeFloatBE", Buffer::WriteFloatBE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "writeDoubleLE", Buffer::WriteDoubleLE);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "writeDoubleBE", Buffer::WriteDoubleBE);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "fill", Buffer::Fill);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "copy", Buffer::Copy);
 

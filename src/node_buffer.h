@@ -123,6 +123,14 @@ class NODE_EXTERN Buffer: public ObjectWrap {
   static v8::Handle<v8::Value> AsciiWrite(const v8::Arguments &args);
   static v8::Handle<v8::Value> Utf8Write(const v8::Arguments &args);
   static v8::Handle<v8::Value> Ucs2Write(const v8::Arguments &args);
+  static v8::Handle<v8::Value> ReadFloatLE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> ReadFloatBE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> ReadDoubleLE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> ReadDoubleBE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> WriteFloatLE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> WriteFloatBE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> WriteDoubleLE(const v8::Arguments &args);
+  static v8::Handle<v8::Value> WriteDoubleBE(const v8::Arguments &args);
   static v8::Handle<v8::Value> ByteLength(const v8::Arguments &args);
   static v8::Handle<v8::Value> MakeFastBuffer(const v8::Arguments &args);
   static v8::Handle<v8::Value> Fill(const v8::Arguments &args);

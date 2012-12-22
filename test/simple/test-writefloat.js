@@ -40,17 +40,6 @@ function test(clazz) {
   ASSERT.equal(0x80, buffer[6]);
   ASSERT.equal(0x3f, buffer[7]);
 
-  buffer.writeFloatBE(1.793662034335766e-43, 0);
-  buffer.writeFloatLE(1.793662034335766e-43, 4);
-  ASSERT.equal(0x00, buffer[0]);
-  ASSERT.equal(0x00, buffer[1]);
-  ASSERT.equal(0x00, buffer[2]);
-  ASSERT.equal(0x80, buffer[3]);
-  ASSERT.equal(0x80, buffer[4]);
-  ASSERT.equal(0x00, buffer[5]);
-  ASSERT.equal(0x00, buffer[6]);
-  ASSERT.equal(0x00, buffer[7]);
-
   buffer.writeFloatBE(1 / 3, 0);
   buffer.writeFloatLE(1 / 3, 4);
   ASSERT.equal(0x3e, buffer[0]);
@@ -72,6 +61,17 @@ function test(clazz) {
   ASSERT.equal(0xff, buffer[5]);
   ASSERT.equal(0x7f, buffer[6]);
   ASSERT.equal(0x7f, buffer[7]);
+
+  buffer.writeFloatLE(1.1754943508222875e-38, 0);
+  buffer.writeFloatBE(1.1754943508222875e-38, 4);
+  ASSERT.equal(0x00, buffer[0]);
+  ASSERT.equal(0x00, buffer[1]);
+  ASSERT.equal(0x80, buffer[2]);
+  ASSERT.equal(0x00, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
+  ASSERT.equal(0x80, buffer[5]);
+  ASSERT.equal(0x00, buffer[6]);
+  ASSERT.equal(0x00, buffer[7]);
 
   buffer.writeFloatBE(0 * -1, 0);
   buffer.writeFloatLE(0 * -1, 4);
@@ -113,12 +113,12 @@ function test(clazz) {
   buffer.writeFloatBE(NaN, 0);
   buffer.writeFloatLE(NaN, 4);
   ASSERT.equal(0x7F, buffer[0]);
-  ASSERT.equal(0x80, buffer[1]);
+  ASSERT.equal(0xc0, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);
-  ASSERT.equal(0x01, buffer[3]);
-  ASSERT.equal(0x01, buffer[4]);
+  ASSERT.equal(0x00, buffer[3]);
+  ASSERT.equal(0x00, buffer[4]);
   ASSERT.equal(0x00, buffer[5]);
-  ASSERT.equal(0x80, buffer[6]);
+  ASSERT.equal(0xc0, buffer[6]);
   ASSERT.equal(0x7F, buffer[7]);
   ASSERT.ok(isNaN(buffer.readFloatBE(0)));
   ASSERT.ok(isNaN(buffer.readFloatLE(4)));
