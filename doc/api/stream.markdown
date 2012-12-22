@@ -353,6 +353,11 @@ without buffering again. Listen for it when `stream.write()` returns
 Emitted when the underlying resource (for example, the backing file
 descriptor) has been closed. Not all streams will emit this.
 
+### Event: 'finish'
+
+When `end()` is called and there are no more chunks to write, this
+event is emitted.
+
 ### Event: 'pipe'
 
 * `source` {Readable Stream}
