@@ -861,5 +861,3 @@ int SizeOfArrayElementForType(v8::ExternalArrayType type) {
 }
 
 }  // namespace v8_typed_array
-
-NODE_MODULE(node_typed_array, v8_typed_array::AttachBindings)
