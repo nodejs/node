@@ -897,18 +897,9 @@
         ['OS=="solaris"', {
           'defines': ['__EXTENSIONS__'],
         }],
-        ['target_arch=="ia32"', {
-          'variables': {'openssl_config_path': 'config/piii'},
-        }],
-        ['target_arch=="x64"', {
-          'variables': {'openssl_config_path': 'config/k8'},
-        }],
         ['target_arch=="arm"', {
-          'variables': {'openssl_config_path': 'config/android'},
-          'sources': [
-            'openssl/crypto/armcap.c',
-          ]
-        }]
+          'sources': ['openssl/crypto/armcap.c'],
+        }],
       ],
       'include_dirs': [
         '.',
@@ -920,13 +911,9 @@
         'openssl/crypto/modes',
         'openssl/crypto/store',
         'openssl/include',
-        '<@(openssl_config_path)',
       ],
       'direct_dependent_settings': {
-        'include_dirs': [
-          'openssl/include',
-          '<@(openssl_config_path)',
-        ],
+        'include_dirs': ['openssl/include'],
       },
     },
   ],
