@@ -276,9 +276,6 @@ Handle<Value> Buffer::Ucs2Slice(const Arguments &args) {
   return scope.Close(string);
 }
 
-static const char *base64_table = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                  "abcdefghijklmnopqrstuvwxyz"
-                                  "0123456789+/";
 
 // supports regular and URL-safe base64
 static const int unbase64_table[] =
@@ -307,69 +304,65 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
-  int n = end - start;
-  int out_len = (n + 2 - ((n + 2) % 3)) / 3 * 4;
-  char *out = new char[out_len];
+  unsigned slen = end - start;
+  const char* src = parent->data_ + start;
 
-  uint8_t bitbuf[3];
-  int i = start; // data() index
-  int j = 0; // out index
-  char c;
-  bool b1_oob, b2_oob;
+  unsigned dlen = (slen + 2 - ((slen + 2) % 3)) / 3 * 4;
+  char* dst = new char[dlen];
 
-  while (i < end) {
-    bitbuf[0] = parent->data_[i++];
+  unsigned a;
+  unsigned b;
+  unsigned c;
+  unsigned i;
+  unsigned k;
+  unsigned n;
 
-    if (i < end) {
-      bitbuf[1] = parent->data_[i];
-      b1_oob = false;
-    }  else {
-      bitbuf[1] = 0;
-      b1_oob = true;
-    }
-    i++;
+  static const char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                              "abcdefghijklmnopqrstuvwxyz"
+                              "0123456789+/";
 
-    if (i < end) {
-      bitbuf[2] = parent->data_[i];
-      b2_oob = false;
-    }  else {
-      bitbuf[2] = 0;
-      b2_oob = true;
-    }
-    i++;
+  i = 0;
+  k = 0;
+  n = slen / 3 * 3;
 
+  while (i < n) {
+    a = src[i + 0] & 0xff;
+    b = src[i + 1] & 0xff;
+    c = src[i + 2] & 0xff;
 
-    c = bitbuf[0] >> 2;
-    assert(c < 64);
-    out[j++] = base64_table[(int)c];
-    assert(j < out_len);
+    dst[k + 0] = table[a >> 2];
+    dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
+    dst[k + 2] = table[((b & 0x0f) << 2) | (c >> 6)];
+    dst[k + 3] = table[c & 0x3f];
 
-    c = ((bitbuf[0] & 0x03) << 4) | (bitbuf[1] >> 4);
-    assert(c < 64);
-    out[j++] = base64_table[(int)c];
-    assert(j < out_len);
-
-    if (b1_oob) {
-      out[j++] = '=';
-    } else {
-      c = ((bitbuf[1] & 0x0F) << 2) | (bitbuf[2] >> 6);
-      assert(c < 64);
-      out[j++] = base64_table[(int)c];
-    }
-    assert(j < out_len);
-
-    if (b2_oob) {
-      out[j++] = '=';
-    } else {
-      c = bitbuf[2] & 0x3F;
-      assert(c < 64);
-      out[j++]  = base64_table[(int)c];
-    }
-    assert(j <= out_len);
+    i += 3;
+    k += 4;
   }
 
-  Local<String> string = String::New(out, out_len);
-  delete [] out;
+  if (n != slen) {
+    switch (slen - n) {
+    case 1:
+      a = src[i + 0] & 0xff;
+      dst[k + 0] = table[a >> 2];
+      dst[k + 1] = table[(a & 3) << 4];
+      dst[k + 2] = '=';
+      dst[k + 3] = '=';
+      break;
+
+    case 2:
+      a = src[i + 0] & 0xff;
+      b = src[i + 1] & 0xff;
+      dst[k + 0] = table[a >> 2];
+      dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
+      dst[k + 2] = table[(b & 0x0f) << 2];
+      dst[k + 3] = '=';
+      break;
+    }
+  }
+
+  Local<String> string = String::New(dst, dlen);
+  delete [] dst;
+
   return scope.Close(string);
 }
 
