@@ -38,6 +38,9 @@
 
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
 
+    // do this good and early, since it handles errors.
+    startup.processFatal();
+
     startup.globalVariables();
     startup.globalTimeouts();
     startup.globalConsole();
@@ -209,6 +212,47 @@
       startup._lazyConstants = process.binding('constants');
     }
     return startup._lazyConstants;
+  };
+
+  startup.processFatal = function() {
+    // call into the active domain, or emit uncaughtException,
+    // and exit if there are no listeners.
+    process._fatalException = function(er) {
+      var caught = false;
+      if (process.domain) {
+        var domain = process.domain;
+
+        // ignore errors on disposed domains.
+        //
+        // XXX This is a bit stupid.  We should probably get rid of
+        // domain.dispose() altogether.  It's almost always a terrible
+        // idea.  --isaacs
+        if (domain._disposed)
+          return true;
+
+        er.domain = domain;
+        er.domain_thrown = true;
+        // wrap this in a try/catch so we don't get infinite throwing
+        try {
+          // One of three things will happen here.
+          //
+          // 1. There is a handler, caught = true
+          // 2. There is no handler, caught = false
+          // 3. It throws, caught = false
+          //
+          // If caught is false after this, then there's no need to exit()
+          // the domain, because we're going to crash the process anyway.
+          caught = domain.emit('error', er);
+          domain.exit();
+        } catch (er2) {
+          caught = false;
+        }
+      } else {
+        caught = process.emit('uncaughtException', er);
+      }
+      // if someone handled it, then great.  otherwise, die in C++ land
+      return caught;
+    };
   };
 
   var assert;

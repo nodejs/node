@@ -110,9 +110,7 @@ static Persistent<String> rss_symbol;
 static Persistent<String> heap_total_symbol;
 static Persistent<String> heap_used_symbol;
 
-static Persistent<String> listeners_symbol;
-static Persistent<String> uncaught_exception_symbol;
-static Persistent<String> emit_symbol;
+static Persistent<String> fatal_exception_symbol;
 
 static Persistent<Function> process_makeCallback;
 
@@ -1883,47 +1881,36 @@ static void OnFatalError(const char* location, const char* message) {
 void FatalException(TryCatch &try_catch) {
   HandleScope scope;
 
-  if (listeners_symbol.IsEmpty()) {
-    listeners_symbol = NODE_PSYMBOL("listeners");
-    uncaught_exception_symbol = NODE_PSYMBOL("uncaughtException");
-    emit_symbol = NODE_PSYMBOL("emit");
-  }
+  if (fatal_exception_symbol.IsEmpty())
+    fatal_exception_symbol = NODE_PSYMBOL("_fatalException");
 
-  Local<Value> listeners_v = process->Get(listeners_symbol);
-  assert(listeners_v->IsFunction());
+  Local<Value> fatal_v = process->Get(fatal_exception_symbol);
 
-  Local<Function> listeners = Local<Function>::Cast(listeners_v);
-
-  Local<String> uncaught_exception_symbol_l = Local<String>::New(uncaught_exception_symbol);
-  Local<Value> argv[1] = { uncaught_exception_symbol_l  };
-  Local<Value> ret = listeners->Call(process, 1, argv);
-
-  assert(ret->IsArray());
-
-  Local<Array> listener_array = Local<Array>::Cast(ret);
-
-  uint32_t length = listener_array->Length();
-  // Report and exit if process has no "uncaughtException" listener
-  if (length == 0) {
+  if (!fatal_v->IsFunction()) {
+    // failed before the process._fatalException function was added!
+    // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(try_catch, true);
     exit(1);
   }
 
-  // Otherwise fire the process "uncaughtException" event
-  Local<Value> emit_v = process->Get(emit_symbol);
-  assert(emit_v->IsFunction());
-
-  Local<Function> emit = Local<Function>::Cast(emit_v);
+  Local<Function> fatal_f = Local<Function>::Cast(fatal_v);
 
   Local<Value> error = try_catch.Exception();
-  Local<Value> event_argv[2] = { uncaught_exception_symbol_l, error };
+  Local<Value> argv[] = { error };
 
-  TryCatch event_try_catch;
-  emit->Call(process, 2, event_argv);
+  TryCatch fatal_try_catch;
 
-  if (event_try_catch.HasCaught()) {
-    // the uncaught exception event threw, so we must exit.
-    ReportException(event_try_catch, true);
+  // this will return true if the JS layer handled it, false otherwise
+  Local<Value> caught = fatal_f->Call(process, ARRAY_SIZE(argv), argv);
+
+  if (fatal_try_catch.HasCaught()) {
+    // the fatal exception function threw, so we must exit
+    ReportException(fatal_try_catch, true);
+    exit(1);
+  }
+
+  if (false == caught->BooleanValue()) {
+    ReportException(try_catch, true);
     exit(1);
   }
 }
