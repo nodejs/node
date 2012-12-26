@@ -53,28 +53,28 @@ d.on('error', function(er) {
   switch (er_message) {
     case 'emitted':
       assert.equal(er.domain, d);
-      assert.equal(er.domain_emitter, e);
-      assert.equal(er.domain_thrown, false);
+      assert.equal(er.domainEmitter, e);
+      assert.equal(er.domainThrown, false);
       break;
 
     case 'bound':
-      assert.ok(!er.domain_emitter);
+      assert.ok(!er.domainEmitter);
       assert.equal(er.domain, d);
-      assert.equal(er.domain_bound, fn);
-      assert.equal(er.domain_thrown, false);
+      assert.equal(er.domainBound, fn);
+      assert.equal(er.domainThrown, false);
       break;
 
     case 'thrown':
-      assert.ok(!er.domain_emitter);
+      assert.ok(!er.domainEmitter);
       assert.equal(er.domain, d);
-      assert.equal(er.domain_thrown, true);
+      assert.equal(er.domainThrown, true);
       break;
 
     case "ENOENT, open 'this file does not exist'":
       assert.equal(er.domain, d);
-      assert.equal(er.domain_thrown, false);
-      assert.equal(typeof er.domain_bound, 'function');
-      assert.ok(!er.domain_emitter);
+      assert.equal(er.domainThrown, false);
+      assert.equal(typeof er.domainBound, 'function');
+      assert.ok(!er.domainEmitter);
       assert.equal(er.code, 'ENOENT');
       assert.equal(er_path, 'this file does not exist');
       assert.equal(typeof er.errno, 'number');
@@ -85,33 +85,33 @@ d.on('error', function(er) {
       assert.equal(er.code, 'ENOENT');
       assert.equal(er_path, 'stream for nonexistent file');
       assert.equal(er.domain, d);
-      assert.equal(er.domain_emitter, fst);
-      assert.ok(!er.domain_bound);
-      assert.equal(er.domain_thrown, false);
+      assert.equal(er.domainEmitter, fst);
+      assert.ok(!er.domainBound);
+      assert.equal(er.domainThrown, false);
       break;
 
     case 'implicit':
-      assert.equal(er.domain_emitter, implicit);
+      assert.equal(er.domainEmitter, implicit);
       assert.equal(er.domain, d);
-      assert.equal(er.domain_thrown, false);
-      assert.ok(!er.domain_bound);
+      assert.equal(er.domainThrown, false);
+      assert.ok(!er.domainBound);
       break;
 
     case 'implicit timer':
       assert.equal(er.domain, d);
-      assert.equal(er.domain_thrown, true);
-      assert.ok(!er.domain_emitter);
-      assert.ok(!er.domain_bound);
+      assert.equal(er.domainThrown, true);
+      assert.ok(!er.domainEmitter);
+      assert.ok(!er.domainBound);
       break;
 
     case 'Cannot call method \'isDirectory\' of undefined':
       assert.equal(er.domain, d);
-      assert.ok(!er.domain_emitter);
-      assert.ok(!er.domain_bound);
+      assert.ok(!er.domainEmitter);
+      assert.ok(!er.domainBound);
       break;
 
     default:
-      console.error('unexpected error, throwing %j', er.message || er);
+      console.error('unexpected error, throwing %j', er.message, er);
       throw er;
   }
 
