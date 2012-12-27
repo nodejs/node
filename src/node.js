@@ -243,7 +243,14 @@
           // If caught is false after this, then there's no need to exit()
           // the domain, because we're going to crash the process anyway.
           caught = domain.emit('error', er);
-          domain.exit();
+
+          // Exit all domains on the stack.  Uncaught exceptions end the
+          // current tick and no domains should be left on the stack between
+          // ticks.  Since a domain exists, this require will not be loading
+          // it for the first time and should be safe.
+          var domainModule = NativeModule.require('domain');
+          domainModule._stack.length = 0;
+          domainModule.active = process.domain = null;
         } catch (er2) {
           caught = false;
         }
