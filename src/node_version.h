@@ -27,7 +27,7 @@
 #define NODE_PATCH_VERSION 5
 
 #ifndef NODE_TAG
-#  define NODE_TAG ""
+# define NODE_TAG ""
 #endif
 
 #define NODE_VERSION_IS_RELEASE 0

@@ -495,7 +495,10 @@ def configure_node(o):
   else:
     o['variables']['node_use_perfctr'] = 'false'
 
-  o['variables']['node_tag'] = options.tag or ''
+  if options.tag:
+    o['variables']['node_tag'] = '-' + options.tag
+  else:
+    o['variables']['node_tag'] = ''
 
 
 def configure_libz(o):
