@@ -58,42 +58,59 @@ done
 
 kill $nodepid
 
-echo 'Pluck off all the stacks that only happen once.'
-
-node -e '
-var fs = require("fs");
-var data = fs.readFileSync("'"$name"'.src", "utf8").split(/\n/);
-var out = fs.createWriteStream("'"$name"'.out");
-function write(l) {
-  out.write(l + "\n");
-}
-write(data[0]);
-write(data[1]);
-write(data[2]);
-
-var stack = [];
-var i = 4;
-var saw2 = false
-for (; i < data.length && !saw2; i++) {
-  if (data[i] === "                2") {
-    stack.forEach(function(line) {
-      write(line);
-    });
-    write(data[i]);
-    saw2 = true;
-  } else if (data[i] === "                1") {
-    stack = [];
-  } else {
-    stack.push(data[i]);
-  }
-}
-
-for (; i < data.length; i++)
-  write(data[i]);
-'
-
 echo 'Turn the stacks into a svg'
-stackvis dtrace flamegraph-svg < "$name".out > "$name".svg
+stackvis dtrace flamegraph-svg < "$name".src > "$name".raw.svg
+
+echo 'Prune tiny stacks out of the graph'
+node -e '
+var infile = process.argv[1];
+var outfile = process.argv[2];
+var output = "";
+var fs = require("fs");
+var input = fs.readFileSync(infile, "utf8");
+
+input = input.split("id=\"details\" > </text>");
+var head = input.shift() + "id=\"details\" > </text>";
+input = input.join("id=\"details\" > </text>");
+
+var tail = "</svg>";
+input = input.split("</svg>")[0];
+
+var minyKept = Infinity;
+var minyOverall = Infinity;
+var rects = input.trim().split(/\n/).filter(function(rect) {
+  var my = rect.match(/y="([0-9\.]+)"/);
+
+  if (!my)
+    return false;
+  var y = +my[1];
+  if (!y)
+    return false;
+  minyOverall = Math.min(minyOverall, y);
+
+  // pluck off everything that will be less than one pixel.
+  var mw = rect.match(/width="([0-9\.]+)"/)
+  if (mw) {
+    var width = +mw[1];
+    if (!(width >= 1))
+      return false;
+  }
+  minyKept = Math.min(minyKept, y);
+  return true;
+});
+
+// move everything up to the top of the page.
+var ydiff = minyKept - minyOverall;
+rects = rects.map(function(rect) {
+  var my = rect.match(/y="([0-9\.]+)"/);
+  var y = +my[1];
+  var newy = y - ydiff;
+  rect = rect.replace(/y="([0-9\.]+)"/, "y=\"" + newy + "\"");
+  return rect;
+});
+
+fs.writeFileSync(outfile, head + "\n" + rects.join("\n") + "\n" + tail);
+' "$name".raw.svg "$name".svg
 
 echo ''
 echo 'done. Results in '"$name"'.svg'
