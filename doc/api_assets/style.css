@@ -67,6 +67,30 @@ code a:hover {
   margin: 0;
 }
 
+.api_stability_0 {
+  border-color: #D60027;
+}
+
+.api_stability_1 {
+  border-color: #EC5315;
+}
+
+.api_stability_2 {
+  border-color: #FFD700;
+}
+
+.api_stability_3 {
+  border-color: #AEC516;
+}
+
+.api_stability_4 {
+  border-color: #009431;
+}
+
+.api_stability_5 {
+  border-color: #0084B6;
+}
+
 ul.plain {
   list-style: none;
 }

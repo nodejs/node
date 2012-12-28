@@ -69,6 +69,11 @@ function parseLists(input) {
   var output = [];
   output.links = input.links;
   input.forEach(function(tok) {
+    if (tok.type === 'code' && tok.text.match(/Stability:.*/g)) {
+      tok.text = parseAPIHeader(tok.text);
+      output.push({ type: 'html', text: tok.text });
+      return;
+    }
     if (state === null) {
       if (tok.type === 'heading') {
         state = 'AFTERHEADING';
@@ -122,6 +127,11 @@ function parseListItem(text) {
   return text;
 }
 
+function parseAPIHeader(text) {
+  text = text.replace(/(.*:)\s(\d)([\s\S]*)/,
+                      '<pre class="api_stability_$2">$1 $2$3</pre>');
+  return text;
+}
 
 // section is just the first heading
 function getSection(lexed) {
