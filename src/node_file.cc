@@ -144,8 +144,6 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
-        /* pass thru */
-      case UV_FS_SENDFILE:
         argv[1] = Integer::New(req->result);
         break;
 
@@ -603,30 +601,6 @@ static Handle<Value> MKDir(const Arguments& args) {
   }
 }
 
-static Handle<Value> SendFile(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() < 4 ||
-      !args[0]->IsUint32() ||
-      !args[1]->IsUint32() ||
-      !args[2]->IsUint32() ||
-      !args[3]->IsUint32()) {
-    return THROW_BAD_ARGS;
-  }
-
-  int out_fd = args[0]->Uint32Value();
-  int in_fd = args[1]->Uint32Value();
-  off_t in_offset = args[2]->Uint32Value();
-  size_t length = args[3]->Uint32Value();
-
-  if (args[4]->IsFunction()) {
-    ASYNC_CALL(sendfile, args[4], out_fd, in_fd, in_offset, length)
-  } else {
-    SYNC_CALL(sendfile, 0, out_fd, in_fd, in_offset, length)
-    return scope.Close(Integer::New(SYNC_RESULT));
-  }
-}
-
 static Handle<Value> ReadDir(const Arguments& args) {
   HandleScope scope;
 
@@ -957,7 +931,6 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "ftruncate", FTruncate);
   NODE_SET_METHOD(target, "rmdir", RMDir);
   NODE_SET_METHOD(target, "mkdir", MKDir);
-  NODE_SET_METHOD(target, "sendfile", SendFile);
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "lstat", LStat);
