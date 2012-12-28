@@ -3,6 +3,7 @@ cd "$(dirname "$(dirname $0)")"
 
 if type sysctl &>/dev/null; then
   # darwin and linux
+  sudo sysctl -w net.ipv4.ip_local_port_range="12000 65535"
   sudo sysctl -w net.inet.ip.portrange.first=12000
   sudo sysctl -w net.inet.tcp.msl=1000
   sudo sysctl -w kern.maxfiles=1000000 kern.maxfilesperproc=1000000
