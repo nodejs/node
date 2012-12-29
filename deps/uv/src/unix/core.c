@@ -291,7 +291,12 @@ static int uv_getaddrinfo_done(eio_req* req_) {
   uv_getaddrinfo_t* req = req_->data;
   struct addrinfo *res = req->res;
 #if __sun
-  size_t hostlen = strlen(req->hostname);
+  size_t hostlen;
+
+  if (req->hostname)
+    hostlen = strlen(req->hostname);
+  else
+    hostlen = 0;
 #endif
 
   req->res = NULL;
