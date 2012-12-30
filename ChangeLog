@@ -1,4 +1,35 @@
-2012.12.21, Version 0.9.4 (Unstable)
+2012.12.30, Version 0.9.5 (Unstable)
+
+* assert: improve support for new execution contexts (lukebayes)
+
+* domain: use camelCase instead of snake_case (isaacs)
+
+* domain: Do not use uncaughtException handler (isaacs)
+
+* fs: make 'end' work with ReadStream without 'start' (Ben Noordhuis)
+
+* https: optimize createConnection() (Ryunosuke SATO)
+
+* buffer: speed up base64 encoding by 20% (Ben Noordhuis)
+
+* doc: Colorize API stabilitity index headers in docs (Luke Arduini)
+
+* net: socket.readyState corrections (bentaber)
+
+* http: Performance enhancements for http under streams2 (isaacs)
+
+* stream: fix to emit end event on http.ClientResponse (Shigeki Ohtsu)
+
+* stream: fix event handler leak in readstream pipe and unpipe (Andreas Madsen)
+
+* build: Support ./configure --tag switch (Maciej Małecki)
+
+* repl: don't touch `require.cache` (Nathan Rajlich)
+
+* node: Emit 'exit' event when exiting for an uncaught exception (isaacs)
+
+
+2012.12.21, Version 0.9.4 (Unstable), d86d83c75f6343b5368bb7bd328b4466a035e1d4
 
 * streams: Update all streaming interfaces to use new classes (isaacs)
 
