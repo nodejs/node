@@ -251,6 +251,14 @@
         caught = process.emit('uncaughtException', er);
       }
       // if someone handled it, then great.  otherwise, die in C++ land
+      // since that means that we'll exit the process, emit the 'exit' event
+      if (!caught) {
+        try {
+          process.emit('exit', 1);
+        } catch (er) {
+          // nothing to be done about it at this point.
+        }
+      }
       return caught;
     };
   };

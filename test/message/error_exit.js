@@ -19,18 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
-
-
-var common = require('../common');
+var common = require('../common.js');
 var assert = require('assert');
 
-common.error('before');
+process.on('exit', function(code) {
+  console.error('Exiting with code=%d', code);
+});
 
-var Script = process.binding('evals').NodeScript;
-
-// undefined reference
-var script = new Script('foo.bar = 5;');
-script.runInNewContext();
-
-common.error('after');
+assert.equal(1, 2);
