@@ -254,7 +254,7 @@ void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
 void JSObject::PrintProperties(FILE* out) {
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
+    for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       PrintF(out, "   ");
       descs->GetKey(i)->StringPrint(out);
       PrintF(out, ": ");
@@ -384,7 +384,7 @@ void JSObject::PrintElements(FILE* out) {
     case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "  %d: %f\n", i, p->get_scalar(i));
+        PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
       }
       break;
     }
@@ -393,11 +393,16 @@ void JSObject::PrintElements(FILE* out) {
       break;
     case NON_STRICT_ARGUMENTS_ELEMENTS: {
       FixedArray* p = FixedArray::cast(elements());
+      PrintF(out, "   parameter map:");
       for (int i = 2; i < p->length(); i++) {
-        PrintF(out, "   %d: ", i);
+        PrintF(out, " %d:", i - 2);
         p->get(i)->ShortPrint(out);
-        PrintF(out, "\n");
       }
+      PrintF(out, "\n   context: ");
+      p->get(0)->ShortPrint(out);
+      PrintF(out, "\n   arguments: ");
+      p->get(1)->ShortPrint(out);
+      PrintF(out, "\n");
       break;
     }
   }
@@ -562,7 +567,11 @@ void Map::MapPrint(FILE* out) {
   if (is_access_check_needed()) {
     PrintF(out, " - access_check_needed\n");
   }
-  PrintF(out, " - instance descriptors: ");
+  PrintF(out, " - back pointer: ");
+  GetBackPointer()->ShortPrint(out);
+  PrintF(out, "\n - instance descriptors %i #%i: ",
+         owns_descriptors(),
+         NumberOfOwnDescriptors());
   instance_descriptors()->ShortPrint(out);
   if (HasTransitionArray()) {
     PrintF(out, "\n - transitions: ");

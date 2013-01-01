@@ -129,13 +129,13 @@ if (this.os && os.system) {
       have_echo = false;
     }
     if (have_sleep) {
-      assertThrows("os.system('sleep', ['2000'], 200);", "sleep 1");
+      assertThrows("os.system('sleep', ['2000'], 20);", "sleep 1");
 
       // Check we time out with total time.
-      assertThrows("os.system('sleep', ['2000'], -1, 200);", "sleep 2");
+      assertThrows("os.system('sleep', ['2000'], -1, 20);", "sleep 2");
 
       // Check that -1 means no timeout.
-      os.system('sleep', ['1'], -1, -1);
+      os.system('sleep', ['0.1'], -1, -1);
 
     }
 

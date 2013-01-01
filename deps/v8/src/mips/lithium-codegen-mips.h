@@ -143,7 +143,10 @@ class LCodeGen BASE_EMBEDDED {
                                  int additional_offset);
 
   // Emit frame translation commands for an environment.
-  void WriteTranslation(LEnvironment* environment, Translation* translation);
+  void WriteTranslation(LEnvironment* environment,
+                        Translation* translation,
+                        int* arguments_index,
+                        int* arguments_count);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
@@ -258,7 +261,9 @@ class LCodeGen BASE_EMBEDDED {
   void AddToTranslation(Translation* translation,
                         LOperand* op,
                         bool is_tagged,
-                        bool is_uint32);
+                        bool is_uint32,
+                        int arguments_index,
+                        int arguments_count);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
@@ -371,6 +376,12 @@ class LCodeGen BASE_EMBEDDED {
   };
 
   void EnsureSpaceForLazyDeopt();
+  void DoLoadKeyedExternalArray(LLoadKeyed* instr);
+  void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
+  void DoLoadKeyedFixedArray(LLoadKeyed* instr);
+  void DoStoreKeyedExternalArray(LStoreKeyed* instr);
+  void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
+  void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
   Zone* zone_;
   LPlatformChunk* const chunk_;

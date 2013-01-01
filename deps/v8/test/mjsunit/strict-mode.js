@@ -1141,9 +1141,9 @@ function CheckPillDescriptor(func, name) {
 
   function strict() {
     "use strict";
-    return_my_caller();
+    return return_my_caller();
   }
-  assertThrows(strict, TypeError);
+  assertSame(null, strict());
 
   function non_strict() {
     return return_my_caller();
@@ -1155,32 +1155,57 @@ function CheckPillDescriptor(func, name) {
 (function TestNonStrictFunctionCallerPill() {
   function strict(n) {
     "use strict";
-    non_strict(n);
+    return non_strict(n);
   }
 
   function recurse(n, then) {
     if (n > 0) {
-      recurse(n - 1);
+      return recurse(n - 1, then);
     } else {
       return then();
     }
   }
 
   function non_strict(n) {
-    recurse(n, function() { non_strict.caller; });
+    return recurse(n, function() { return non_strict.caller; });
   }
 
   function test(n) {
-    try {
-      recurse(n, function() { strict(n); });
-    } catch(e) {
-      return e instanceof TypeError;
-    }
-    return false;
+    return recurse(n, function() { return strict(n); });
   }
 
   for (var i = 0; i < 10; i ++) {
-    assertEquals(test(i), true);
+    assertSame(null, test(i));
+  }
+})();
+
+
+(function TestNonStrictFunctionCallerDescriptorPill() {
+  function strict(n) {
+    "use strict";
+    return non_strict(n);
+  }
+
+  function recurse(n, then) {
+    if (n > 0) {
+      return recurse(n - 1, then);
+    } else {
+      return then();
+    }
+  }
+
+  function non_strict(n) {
+    return recurse(n, function() {
+      return Object.getOwnPropertyDescriptor(non_strict, "caller").value;
+    });
+  }
+
+  function test(n) {
+    return recurse(n, function() { return strict(n); });
+  }
+
+  for (var i = 0; i < 10; i ++) {
+    assertSame(null, test(i));
   }
 })();
 

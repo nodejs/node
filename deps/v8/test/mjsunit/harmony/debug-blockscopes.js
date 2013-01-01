@@ -376,7 +376,7 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:'y'}, 0, exec_state);
   // The function scope contains a temporary iteration variable.
-  CheckScopeContent({x:'y'}, 1, exec_state);
+  CheckScopeContent({'.for.x':'y'}, 1, exec_state);
 };
 for_loop_1();
 EndTest();
@@ -401,7 +401,7 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({x:3}, 0, exec_state);
   CheckScopeContent({x:'y'}, 1, exec_state);
   // The function scope contains a temporary iteration variable.
-  CheckScopeContent({x:'y'}, 2, exec_state);
+  CheckScopeContent({'.for.x':'y'}, 2, exec_state);
 };
 for_loop_2();
 EndTest();

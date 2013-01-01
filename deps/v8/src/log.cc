@@ -44,37 +44,6 @@
 namespace v8 {
 namespace internal {
 
-//
-// Sliding state window.  Updates counters to keep track of the last
-// window of kBufferSize states.  This is useful to track where we
-// spent our time.
-//
-class SlidingStateWindow {
- public:
-  explicit SlidingStateWindow(Isolate* isolate);
-  ~SlidingStateWindow();
-  void AddState(StateTag state);
-
- private:
-  static const int kBufferSize = 256;
-  Counters* counters_;
-  int current_index_;
-  bool is_full_;
-  byte buffer_[kBufferSize];
-
-
-  void IncrementStateCounter(StateTag state) {
-    counters_->state_counters(state)->Increment();
-  }
-
-
-  void DecrementStateCounter(StateTag state) {
-    counters_->state_counters(state)->Decrement();
-  }
-};
-
-
-//
 // The Profiler samples pc and sp values for the main thread.
 // Each sample is appended to a circular buffer.
 // An independent thread removes data and writes it to the log.
@@ -189,24 +158,12 @@ class Ticker: public Sampler {
  public:
   Ticker(Isolate* isolate, int interval):
       Sampler(isolate, interval),
-      window_(NULL),
       profiler_(NULL) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
   virtual void Tick(TickSample* sample) {
     if (profiler_) profiler_->Insert(sample);
-    if (window_) window_->AddState(sample->state);
-  }
-
-  void SetWindow(SlidingStateWindow* window) {
-    window_ = window;
-    if (!IsActive()) Start();
-  }
-
-  void ClearWindow() {
-    window_ = NULL;
-    if (!profiler_ && IsActive() && !RuntimeProfiler::IsEnabled()) Stop();
   }
 
   void SetProfiler(Profiler* profiler) {
@@ -219,7 +176,7 @@ class Ticker: public Sampler {
   void ClearProfiler() {
     DecreaseProfilingDepth();
     profiler_ = NULL;
-    if (!window_ && IsActive() && !RuntimeProfiler::IsEnabled()) Stop();
+    if (IsActive()) Stop();
   }
 
  protected:
@@ -228,39 +185,8 @@ class Ticker: public Sampler {
   }
 
  private:
-  SlidingStateWindow* window_;
   Profiler* profiler_;
 };
-
-
-//
-// SlidingStateWindow implementation.
-//
-SlidingStateWindow::SlidingStateWindow(Isolate* isolate)
-    : counters_(isolate->counters()), current_index_(0), is_full_(false) {
-  for (int i = 0; i < kBufferSize; i++) {
-    buffer_[i] = static_cast<byte>(OTHER);
-  }
-  isolate->logger()->ticker_->SetWindow(this);
-}
-
-
-SlidingStateWindow::~SlidingStateWindow() {
-  LOGGER->ticker_->ClearWindow();
-}
-
-
-void SlidingStateWindow::AddState(StateTag state) {
-  if (is_full_) {
-    DecrementStateCounter(static_cast<StateTag>(buffer_[current_index_]));
-  } else if (current_index_ == kBufferSize - 1) {
-    is_full_ = true;
-  }
-  buffer_[current_index_] = static_cast<byte>(state);
-  IncrementStateCounter(state);
-  ASSERT(IsPowerOf2(kBufferSize));
-  current_index_ = (current_index_ + 1) & (kBufferSize - 1);
-}
 
 
 //
@@ -518,7 +444,6 @@ class Logger::NameBuffer {
 Logger::Logger()
   : ticker_(NULL),
     profiler_(NULL),
-    sliding_state_window_(NULL),
     log_events_(NULL),
     logging_nesting_(0),
     cpu_profiler_nesting_(0),
@@ -531,7 +456,8 @@ Logger::Logger()
     prev_sp_(NULL),
     prev_function_(NULL),
     prev_to_(NULL),
-    prev_code_(NULL) {
+    prev_code_(NULL),
+    epoch_(0) {
 }
 
 
@@ -704,6 +630,58 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 }
 
 
+void Logger::TimerEvent(const char* name, int64_t start, int64_t end) {
+  if (!log_->IsEnabled()) return;
+  ASSERT(FLAG_log_internal_timer_events);
+  LogMessageBuilder msg(this);
+  int since_epoch = static_cast<int>(start - epoch_);
+  int pause_time = static_cast<int>(end - start);
+  msg.Append("timer-event,\"%s\",%ld,%ld\n", name, since_epoch, pause_time);
+  msg.WriteToLogFile();
+}
+
+
+void Logger::ExternalSwitch(StateTag old_tag, StateTag new_tag) {
+  if (old_tag != EXTERNAL && new_tag == EXTERNAL) {
+    enter_external_ = OS::Ticks();
+  }
+  if (old_tag == EXTERNAL && new_tag != EXTERNAL && enter_external_ != 0) {
+    TimerEvent("V8.External", enter_external_, OS::Ticks());
+    enter_external_ = 0;
+  }
+}
+
+
+void Logger::EnterExternal() {
+  LOGGER->enter_external_ = OS::Ticks();
+}
+
+
+void Logger::LeaveExternal() {
+  if (enter_external_ == 0) return;
+  Logger* logger = LOGGER;
+  logger->TimerEvent("V8.External", enter_external_, OS::Ticks());
+  logger->enter_external_ = 0;
+}
+
+
+int64_t Logger::enter_external_ = 0;
+
+
+void Logger::TimerEventScope::LogTimerEvent() {
+  LOG(isolate_, TimerEvent(name_, start_, OS::Ticks()));
+}
+
+
+const char* Logger::TimerEventScope::v8_recompile_synchronous =
+    "V8.RecompileSynchronous";
+const char* Logger::TimerEventScope::v8_recompile_parallel =
+    "V8.RecompileParallel";
+const char* Logger::TimerEventScope::v8_compile_full_code =
+    "V8.CompileFullCode";
+const char* Logger::TimerEventScope::v8_execute = "V8.Execute";
+
+
 void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   // Prints "/" + re.source + "/" +
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
@@ -874,7 +852,7 @@ void Logger::CallbackEventInternal(const char* prefix, const char* name,
                                    Address entry_point) {
   if (!log_->IsEnabled() || !FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,-3,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[CALLBACK_TAG]);
   msg.AppendAddress(entry_point);
@@ -930,9 +908,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"", code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
@@ -969,9 +948,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"", code->ExecutableSize());
   msg.AppendDetailed(name, false);
@@ -1021,9 +1001,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
   LogMessageBuilder msg(this);
   SmartArrayPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s\",", code->ExecutableSize(), *str);
   msg.AppendAddress(shared->address());
@@ -1068,9 +1049,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag,
       shared->DebugName()->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartArrayPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"%s %s:%d\",",
              code->ExecutableSize(),
@@ -1104,9 +1086,10 @@ void Logger::CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count) {
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,%d,",
              kLogEventsNames[CODE_CREATION_EVENT],
-             kLogEventsNames[tag]);
+             kLogEventsNames[tag],
+             code->kind());
   msg.AppendAddress(code->address());
   msg.Append(",%d,\"args_count: %d\"", code->ExecutableSize(), args_count);
   msg.Append('\n');
@@ -1141,7 +1124,7 @@ void Logger::RegExpCodeCreateEvent(Code* code, String* source) {
   }
   if (!FLAG_log_code) return;
   LogMessageBuilder msg(this);
-  msg.Append("%s,%s,",
+  msg.Append("%s,%s,-2,",
              kLogEventsNames[CODE_CREATION_EVENT],
              kLogEventsNames[REG_EXP_TAG]);
   msg.AppendAddress(code->address());
@@ -1321,6 +1304,7 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   msg.AppendAddress(sample->pc);
   msg.Append(',');
   msg.AppendAddress(sample->sp);
+  msg.Append(",%ld", static_cast<int>(OS::Ticks() - epoch_));
   if (sample->has_external_callback) {
     msg.Append(",1,");
     msg.AppendAddress(sample->external_callback);
@@ -1353,9 +1337,7 @@ void Logger::PauseProfiler() {
     if (--cpu_profiler_nesting_ == 0) {
       profiler_->pause();
       if (FLAG_prof_lazy) {
-        if (!FLAG_sliding_state_window && !RuntimeProfiler::IsEnabled()) {
-          ticker_->Stop();
-        }
+        ticker_->Stop();
         FLAG_log_code = false;
         LOG(ISOLATE, UncheckedStringEvent("profiler", "pause"));
       }
@@ -1376,9 +1358,7 @@ void Logger::ResumeProfiler() {
         FLAG_log_code = true;
         LogCompiledFunctions();
         LogAccessorCallbacks();
-        if (!FLAG_sliding_state_window && !ticker_->IsActive()) {
-          ticker_->Start();
-        }
+        if (!ticker_->IsActive()) ticker_->Start();
       }
       profiler_->resume();
     }
@@ -1721,13 +1701,10 @@ bool Logger::SetUp() {
   Isolate* isolate = Isolate::Current();
   ticker_ = new Ticker(isolate, kSamplingIntervalMs);
 
-  if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
-    sliding_state_window_ = new SlidingStateWindow(isolate);
-  }
-
   bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
     || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-    || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof;
+    || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
+    || FLAG_log_internal_timer_events;
 
   if (start_logging) {
     logging_nesting_ = 1;
@@ -1744,6 +1721,8 @@ bool Logger::SetUp() {
       profiler_->Engage();
     }
   }
+
+  if (FLAG_log_internal_timer_events || FLAG_prof) epoch_ = OS::Ticks();
 
   return true;
 }
@@ -1788,31 +1767,12 @@ FILE* Logger::TearDown() {
     profiler_ = NULL;
   }
 
-  delete sliding_state_window_;
-  sliding_state_window_ = NULL;
-
   delete ticker_;
   ticker_ = NULL;
 
   return log_->Close();
 }
 
-
-void Logger::EnableSlidingStateWindow() {
-  // If the ticker is NULL, Logger::SetUp has not been called yet.  In
-  // that case, we set the sliding_state_window flag so that the
-  // sliding window computation will be started when Logger::SetUp is
-  // called.
-  if (ticker_ == NULL) {
-    FLAG_sliding_state_window = true;
-    return;
-  }
-  // Otherwise, if the sliding state window computation has not been
-  // started we do it now.
-  if (sliding_state_window_ == NULL) {
-    sliding_state_window_ = new SlidingStateWindow(Isolate::Current());
-  }
-}
 
 // Protects the state below.
 static Mutex* active_samplers_mutex = NULL;

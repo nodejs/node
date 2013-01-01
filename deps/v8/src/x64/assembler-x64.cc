@@ -346,68 +346,25 @@ bool Operand::AddressUsesRegister(Register reg) const {
 static void InitCoverageLog();
 #endif
 
-Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
-    : AssemblerBase(arg_isolate),
+Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
+    : AssemblerBase(isolate, buffer, buffer_size),
       code_targets_(100),
-      positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code),
-      predictable_code_size_(false) {
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-
-      if (isolate() != NULL && isolate()->assembler_spare_buffer() != NULL) {
-        buffer = isolate()->assembler_spare_buffer();
-        isolate()->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) {
-      buffer_ = NewArray<byte>(buffer_size);
-    } else {
-      buffer_ = static_cast<byte*>(buffer);
-    }
-    buffer_size_ = buffer_size;
-    own_buffer_ = true;
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    buffer_ = static_cast<byte*>(buffer);
-    buffer_size_ = buffer_size;
-    own_buffer_ = false;
-  }
-
+      positions_recorder_(this) {
   // Clear the buffer in debug mode unless it was provided by the
   // caller in which case we can't be sure it's okay to overwrite
   // existing code in it.
 #ifdef DEBUG
   if (own_buffer_) {
-    memset(buffer_, 0xCC, buffer_size);  // int3
+    memset(buffer_, 0xCC, buffer_size_);  // int3
   }
 #endif
 
-  // Set up buffer pointers.
-  ASSERT(buffer_ != NULL);
-  pc_ = buffer_;
-  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
 
 #ifdef GENERATED_CODE_COVERAGE
   InitCoverageLog();
 #endif
-}
-
-
-Assembler::~Assembler() {
-  if (own_buffer_) {
-    if (isolate() != NULL &&
-        isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
 }
 
 
@@ -1238,13 +1195,13 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
     // Determine whether we can use 1-byte offsets for backwards branches,
     // which have a max range of 128 bytes.
 
-    // We also need to check the predictable_code_size_ flag here, because
-    // on x64, when the full code generator recompiles code for debugging, some
-    // places need to be padded out to a certain size. The debugger is keeping
-    // track of how often it did this so that it can adjust return addresses on
-    // the stack, but if the size of jump instructions can also change, that's
-    // not enough and the calculated offsets would be incorrect.
-    if (is_int8(offs - short_size) && !predictable_code_size_) {
+    // We also need to check predictable_code_size() flag here, because on x64,
+    // when the full code generator recompiles code for debugging, some places
+    // need to be padded out to a certain size. The debugger is keeping track of
+    // how often it did this so that it can adjust return addresses on the
+    // stack, but if the size of jump instructions can also change, that's not
+    // enough and the calculated offsets would be incorrect.
+    if (is_int8(offs - short_size) && !predictable_code_size()) {
       // 0111 tttn #8-bit disp.
       emit(0x70 | cc);
       emit((offs - short_size) & 0xFF);
@@ -1301,7 +1258,7 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   if (L->is_bound()) {
     int offs = L->pos() - pc_offset() - 1;
     ASSERT(offs <= 0);
-    if (is_int8(offs - short_size) && !predictable_code_size_) {
+    if (is_int8(offs - short_size) && !predictable_code_size()) {
       // 1110 1011 #8-bit disp.
       emit(0xEB);
       emit((offs - short_size) & 0xFF);
@@ -2850,7 +2807,27 @@ void Assembler::addsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::addsd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x58);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::mulsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x59);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::mulsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);
@@ -3047,7 +3024,8 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-                                  1 << RelocInfo::INTERNAL_REFERENCE;
+    1 << RelocInfo::INTERNAL_REFERENCE |
+    1 << RelocInfo::CODE_AGE_SEQUENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {

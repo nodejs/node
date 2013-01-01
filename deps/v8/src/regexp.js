@@ -140,18 +140,15 @@ function BuildResultFromMatchInfo(lastMatchInfo, s) {
   var j = REGEXP_FIRST_CAPTURE + 2;
   for (var i = 1; i < numResults; i++) {
     start = lastMatchInfo[j++];
-    end = lastMatchInfo[j++];
-    if (end != -1) {
+    if (start != -1) {
+      end = lastMatchInfo[j];
       if (start + 1 == end) {
         result[i] = %_StringCharAt(s, start);
       } else {
         result[i] = %_SubString(s, start, end);
       }
-    } else {
-      // Make sure the element is present. Avoid reading the undefined
-      // property from the global object since this may change.
-      result[i] = void 0;
     }
+    j++;
   }
   return result;
 }
@@ -164,6 +161,7 @@ function RegExpExecNoTests(regexp, string, start) {
     lastMatchInfoOverride = null;
     return BuildResultFromMatchInfo(matchInfo, string);
   }
+  regexp.lastIndex = 0;
   return null;
 }
 
@@ -196,7 +194,7 @@ function RegExpExec(string) {
   var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
 
   if (matchIndices === null) {
-    if (global) this.lastIndex = 0;
+    this.lastIndex = 0;
     return null;
   }
 
@@ -259,7 +257,10 @@ function RegExpTest(string) {
     %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [regexp, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
     var matchIndices = %_RegExpExec(regexp, string, 0, lastMatchInfo);
-    if (matchIndices === null) return false;
+    if (matchIndices === null) {
+      this.lastIndex = 0;
+      return false;
+    }
     lastMatchInfoOverride = null;
     return true;
   }

@@ -32,6 +32,8 @@ const NONE        = 0;
 const READ_ONLY   = 1;
 const DONT_ENUM   = 2;
 const DONT_DELETE = 4;
+const NEW_ONE_BYTE_STRING = true;
+const NEW_TWO_BYTE_STRING = false;
 
 # Constants used for getter and setter operations.
 const GETTER = 0;

@@ -1644,12 +1644,14 @@ HeapObject* const V8HeapExplorer::kLastGcSubrootObject =
 
 V8HeapExplorer::V8HeapExplorer(
     HeapSnapshot* snapshot,
-    SnapshottingProgressReportingInterface* progress)
+    SnapshottingProgressReportingInterface* progress,
+    v8::HeapProfiler::ObjectNameResolver* resolver)
     : heap_(Isolate::Current()->heap()),
       snapshot_(snapshot),
       collection_(snapshot_->collection()),
       progress_(progress),
-      filler_(NULL) {
+      filler_(NULL),
+      global_object_name_resolver_(resolver) {
 }
 
 
@@ -1774,7 +1776,14 @@ void V8HeapExplorer::AddRootEntries(SnapshotFillerInterface* filler) {
 
 const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
   switch (object->map()->instance_type()) {
-    case MAP_TYPE: return "system / Map";
+    case MAP_TYPE:
+      switch (Map::cast(object)->instance_type()) {
+#define MAKE_STRING_MAP_CASE(instance_type, size, name, Name) \
+        case instance_type: return "system / Map (" #Name ")";
+      STRING_TYPE_LIST(MAKE_STRING_MAP_CASE)
+#undef MAKE_STRING_MAP_CASE
+        default: return "system / Map";
+      }
     case JS_GLOBAL_PROPERTY_CELL_TYPE: return "system / JSGlobalPropertyCell";
     case FOREIGN_TYPE: return "system / Foreign";
     case ODDBALL_TYPE: return "system / Oddball";
@@ -1851,7 +1860,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
     ExtractJSObjectReferences(entry, JSObject::cast(obj));
   } else if (obj->IsString()) {
     ExtractStringReferences(entry, String::cast(obj));
-    extract_indexed_refs = false;
   } else if (obj->IsContext()) {
     ExtractContextReferences(entry, Context::cast(obj));
   } else if (obj->IsMap()) {
@@ -1966,11 +1974,14 @@ void V8HeapExplorer::ExtractJSObjectReferences(
 void V8HeapExplorer::ExtractStringReferences(int entry, String* string) {
   if (string->IsConsString()) {
     ConsString* cs = ConsString::cast(string);
-    SetInternalReference(cs, entry, "first", cs->first());
-    SetInternalReference(cs, entry, "second", cs->second());
+    SetInternalReference(cs, entry, "first", cs->first(),
+                         ConsString::kFirstOffset);
+    SetInternalReference(cs, entry, "second", cs->second(),
+                         ConsString::kSecondOffset);
   } else if (string->IsSlicedString()) {
     SlicedString* ss = SlicedString::cast(string);
-    SetInternalReference(ss, entry, "parent", ss->parent());
+    SetInternalReference(ss, entry, "parent", ss->parent(),
+                         SlicedString::kParentOffset);
   }
 }
 
@@ -1988,7 +1999,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
               "(context func. result caches)");
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->runtime_context(), "(runtime context)");
-    TagObject(context->data(), "(context data)");
+    TagObject(context->embedder_data(), "(context data)");
     NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD);
 #undef EXTRACT_CONTEXT_FIELD
     for (int i = Context::FIRST_WEAK_SLOT;
@@ -2009,21 +2020,32 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
                        Map::kConstructorOffset);
   if (map->HasTransitionArray()) {
     TransitionArray* transitions = map->transitions();
-    if (!transitions->descriptors()->IsEmpty()) {
-      DescriptorArray* descriptors = transitions->descriptors();
-      TagObject(descriptors, "(map descriptors)");
-      SetInternalReference(transitions, entry,
-                           "descriptors", descriptors,
-                           TransitionArray::kDescriptorsOffset);
-      IndexedReferencesExtractor refs_extractor(
-          this, transitions, entry);
-      transitions->Iterate(&refs_extractor);
-    }
+
+    Object* back_pointer = transitions->back_pointer_storage();
+    TagObject(transitions->back_pointer_storage(), "(back pointer)");
+    SetInternalReference(transitions, entry,
+                         "backpointer", back_pointer,
+                         TransitionArray::kBackPointerStorageOffset);
+    IndexedReferencesExtractor transitions_refs(this, transitions, entry);
+    transitions->Iterate(&transitions_refs);
+
     TagObject(transitions, "(transition array)");
     SetInternalReference(map, entry,
                          "transitions", transitions,
                          Map::kTransitionsOrBackPointerOffset);
+  } else {
+    Object* back_pointer = map->GetBackPointer();
+    TagObject(back_pointer, "(back pointer)");
+    SetInternalReference(map, entry,
+                         "backpointer", back_pointer,
+                         Map::kTransitionsOrBackPointerOffset);
   }
+  DescriptorArray* descriptors = map->instance_descriptors();
+  TagObject(descriptors, "(map descriptors)");
+  SetInternalReference(map, entry,
+                       "descriptors", descriptors,
+                       Map::kDescriptorsOffset);
+
   SetInternalReference(map, entry,
                        "code_cache", map->code_cache(),
                        Map::kCodeCacheOffset);
@@ -2119,9 +2141,11 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "deoptimization_data", code->deoptimization_data(),
                        Code::kDeoptimizationDataOffset);
-  SetInternalReference(code, entry,
-                       "type_feedback_info", code->type_feedback_info(),
-                       Code::kTypeFeedbackInfoOffset);
+  if (code->kind() == Code::FUNCTION) {
+    SetInternalReference(code, entry,
+                         "type_feedback_info", code->type_feedback_info(),
+                         Code::kTypeFeedbackInfoOffset);
+  }
   SetInternalReference(code, entry,
                        "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);
@@ -2179,7 +2203,9 @@ void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj, int entry) {
 void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
   if (js_obj->HasFastProperties()) {
     DescriptorArray* descs = js_obj->map()->instance_descriptors();
+    int real_size = js_obj->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
+      if (descs->GetDetails(i).descriptor_index() > real_size) continue;
       switch (descs->GetType(i)) {
         case FIELD: {
           int index = descs->GetFieldIndex(i);
@@ -2430,19 +2456,17 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
 
 bool V8HeapExplorer::IsEssentialObject(Object* object) {
-  // We have to use raw_unchecked_* versions because checked versions
-  // would fail during iteration over object properties.
   return object->IsHeapObject()
       && !object->IsOddball()
-      && object != heap_->raw_unchecked_empty_byte_array()
-      && object != heap_->raw_unchecked_empty_fixed_array()
-      && object != heap_->raw_unchecked_empty_descriptor_array()
-      && object != heap_->raw_unchecked_fixed_array_map()
-      && object != heap_->raw_unchecked_global_property_cell_map()
-      && object != heap_->raw_unchecked_shared_function_info_map()
-      && object != heap_->raw_unchecked_free_space_map()
-      && object != heap_->raw_unchecked_one_pointer_filler_map()
-      && object != heap_->raw_unchecked_two_pointer_filler_map();
+      && object != heap_->empty_byte_array()
+      && object != heap_->empty_fixed_array()
+      && object != heap_->empty_descriptor_array()
+      && object != heap_->fixed_array_map()
+      && object != heap_->global_property_cell_map()
+      && object != heap_->shared_function_info_map()
+      && object != heap_->free_space_map()
+      && object != heap_->one_pointer_filler_map()
+      && object != heap_->two_pointer_filler_map();
 }
 
 
@@ -2690,21 +2714,30 @@ void V8HeapExplorer::TagGlobalObjects() {
       isolate->factory()->NewStringFromAscii(CStrVector("URL"));
   const char** urls = NewArray<const char*>(enumerator.count());
   for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    urls[i] = NULL;
-    HandleScope scope;
-    Handle<JSGlobalObject> global_obj = enumerator.at(i);
-    Object* obj_document;
-    if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
-        obj_document->IsJSObject()) {
-      // FixMe: Workaround: SharedWorker's current Isolate has NULL context.
-      // As result GetProperty(*url_string) will crash.
-      if (!Isolate::Current()->context() && obj_document->IsJSGlobalProxy())
-        continue;
-      JSObject* document = JSObject::cast(obj_document);
-      Object* obj_url;
-      if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
-          obj_url->IsString()) {
-        urls[i] = collection_->names()->GetName(String::cast(obj_url));
+    if (global_object_name_resolver_) {
+      HandleScope scope;
+      Handle<JSGlobalObject> global_obj = enumerator.at(i);
+      urls[i] = global_object_name_resolver_->GetName(
+          Utils::ToLocal(Handle<JSObject>::cast(global_obj)));
+    } else {
+      // TODO(yurys): This branch is going to be removed once Chromium migrates
+      // to the new name resolver.
+      urls[i] = NULL;
+      HandleScope scope;
+      Handle<JSGlobalObject> global_obj = enumerator.at(i);
+      Object* obj_document;
+      if (global_obj->GetProperty(*document_string)->ToObject(&obj_document) &&
+          obj_document->IsJSObject()) {
+        // FixMe: Workaround: SharedWorker's current Isolate has NULL context.
+        // As result GetProperty(*url_string) will crash.
+        if (!Isolate::Current()->context() && obj_document->IsJSGlobalProxy())
+          continue;
+        JSObject* document = JSObject::cast(obj_document);
+        Object* obj_url;
+        if (document->GetProperty(*url_string)->ToObject(&obj_url) &&
+            obj_url->IsString()) {
+          urls[i] = collection_->names()->GetName(String::cast(obj_url));
+        }
       }
     }
   }
@@ -3059,11 +3092,13 @@ class SnapshotFiller : public SnapshotFillerInterface {
 };
 
 
-HeapSnapshotGenerator::HeapSnapshotGenerator(HeapSnapshot* snapshot,
-                                             v8::ActivityControl* control)
+HeapSnapshotGenerator::HeapSnapshotGenerator(
+    HeapSnapshot* snapshot,
+    v8::ActivityControl* control,
+    v8::HeapProfiler::ObjectNameResolver* resolver)
     : snapshot_(snapshot),
       control_(control),
-      v8_heap_explorer_(snapshot_, this),
+      v8_heap_explorer_(snapshot_, this, resolver),
       dom_explorer_(snapshot_, this) {
 }
 
@@ -3082,26 +3117,26 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
       Heap::kMakeHeapIterableMask,
       "HeapSnapshotGenerator::GenerateSnapshot");
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   Heap* debug_heap = Isolate::Current()->heap();
-  ASSERT(!debug_heap->old_data_space()->was_swept_conservatively());
-  ASSERT(!debug_heap->old_pointer_space()->was_swept_conservatively());
-  ASSERT(!debug_heap->code_space()->was_swept_conservatively());
-  ASSERT(!debug_heap->cell_space()->was_swept_conservatively());
-  ASSERT(!debug_heap->map_space()->was_swept_conservatively());
+  CHECK(!debug_heap->old_data_space()->was_swept_conservatively());
+  CHECK(!debug_heap->old_pointer_space()->was_swept_conservatively());
+  CHECK(!debug_heap->code_space()->was_swept_conservatively());
+  CHECK(!debug_heap->cell_space()->was_swept_conservatively());
+  CHECK(!debug_heap->map_space()->was_swept_conservatively());
 #endif
 
   // The following code uses heap iterators, so we want the heap to be
   // stable. It should follow TagGlobalObjects as that can allocate.
   AssertNoAllocation no_alloc;
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   debug_heap->Verify();
 #endif
 
   SetProgressTotal(1);  // 1 pass.
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   debug_heap->Verify();
 #endif
 

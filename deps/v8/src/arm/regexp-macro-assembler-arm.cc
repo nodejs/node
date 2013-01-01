@@ -1150,7 +1150,7 @@ int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
 
   // Current string.
-  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
+  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
 
   ASSERT(re_code->instruction_start() <= *return_address);
   ASSERT(*return_address <=
@@ -1181,7 +1181,7 @@ int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (subject_tmp->IsAsciiRepresentation() != is_ascii) {
+  if (subject_tmp->IsOneByteRepresentation() != is_ascii) {
     // If we changed between an ASCII and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).
@@ -1358,6 +1358,11 @@ void RegExpMacroAssemblerARM::CallCFunctionUsingStub(
 }
 
 
+bool RegExpMacroAssemblerARM::CanReadUnaligned() {
+  return CpuFeatures::IsSupported(UNALIGNED_ACCESSES) && !slow_safe();
+}
+
+
 void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
                                                             int characters) {
   Register offset = current_input_offset();
@@ -1370,9 +1375,9 @@ void RegExpMacroAssemblerARM::LoadCurrentCharacterUnchecked(int cp_offset,
   // and the operating system running on the target allow it.
   // If unaligned load/stores are not supported then this function must only
   // be used to load a single character at a time.
-#if !V8_TARGET_CAN_READ_UNALIGNED
-  ASSERT(characters == 1);
-#endif
+  if (!CanReadUnaligned()) {
+    ASSERT(characters == 1);
+  }
 
   if (mode_ == ASCII) {
     if (characters == 4) {

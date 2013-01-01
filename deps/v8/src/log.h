@@ -74,8 +74,8 @@ namespace internal {
 class LogMessageBuilder;
 class Profiler;
 class Semaphore;
-class SlidingStateWindow;
 class Ticker;
+class Isolate;
 
 #undef LOG
 #define LOG(isolate, Call)                          \
@@ -174,9 +174,6 @@ class Logger {
   // leaving the file open.
   FILE* TearDown();
 
-  // Enable the computation of a sliding window of states.
-  void EnableSlidingStateWindow();
-
   // Emits an event with a string value -> (name, value).
   void StringEvent(const char* name, const char* value);
 
@@ -274,6 +271,37 @@ class Logger {
   void SharedLibraryEvent(const wchar_t* library_path,
                           uintptr_t start,
                           uintptr_t end);
+
+  // ==== Events logged by --log-timer-events. ====
+  void TimerEvent(const char* name, int64_t start, int64_t end);
+  void ExternalSwitch(StateTag old_tag, StateTag new_tag);
+
+  static void EnterExternal();
+  static void LeaveExternal();
+
+  class TimerEventScope {
+   public:
+    TimerEventScope(Isolate* isolate, const char* name)
+        : isolate_(isolate), name_(name), start_(0) {
+      if (FLAG_log_internal_timer_events) start_ = OS::Ticks();
+    }
+
+    ~TimerEventScope() {
+      if (FLAG_log_internal_timer_events) LogTimerEvent();
+    }
+
+    void LogTimerEvent();
+
+    static const char* v8_recompile_synchronous;
+    static const char* v8_recompile_parallel;
+    static const char* v8_compile_full_code;
+    static const char* v8_execute;
+
+   private:
+    Isolate* isolate_;
+    const char* name_;
+    int64_t start_;
+  };
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
@@ -401,10 +429,6 @@ class Logger {
   // of samples.
   Profiler* profiler_;
 
-  // SlidingStateWindow instance keeping a sliding window of the most
-  // recent VM states.
-  SlidingStateWindow* sliding_state_window_;
-
   // An array of log events names.
   const char* const* log_events_;
 
@@ -415,7 +439,6 @@ class Logger {
   friend class LogMessageBuilder;
   friend class TimeLog;
   friend class Profiler;
-  friend class SlidingStateWindow;
   friend class StackTracer;
   friend class VMState;
 
@@ -448,6 +471,9 @@ class Logger {
   Address prev_to_;
   //  Logger::FunctionCreateEvent(...)
   Address prev_code_;
+
+  int64_t epoch_;
+  static int64_t enter_external_;
 
   friend class CpuProfiler;
 };

@@ -48,7 +48,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   //   add sp, sp, #4
   //   bx lr
   // to a call to the debug break return code.
-  // #if USE_BLX
+  // #ifdef USE_BLX
   //   ldr ip, [pc, #0]
   //   blx ip
   // #else
@@ -99,7 +99,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   //   mov r2, r2
   //   mov r2, r2
   // to a call to the debug break slot code.
-  // #if USE_BLX
+  // #ifdef USE_BLX
   //   ldr ip, [pc, #0]
   //   blx ip
   // #else

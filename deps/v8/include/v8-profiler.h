@@ -407,13 +407,28 @@ class V8EXPORT HeapProfiler {
   static const SnapshotObjectId kUnknownObjectId = 0;
 
   /**
+   * Callback interface for retrieving user friendly names of global objects.
+   */
+  class ObjectNameResolver {
+  public:
+    /**
+     * Returns name to be used in the heap snapshot for given node. Returned
+     * string must stay alive until snapshot collection is completed.
+     */
+    virtual const char* GetName(Handle<Object> object) = 0;
+  protected:
+    virtual ~ObjectNameResolver() {}
+  };
+
+  /**
    * Takes a heap snapshot and returns it. Title may be an empty string.
    * See HeapSnapshot::Type for types description.
    */
   static const HeapSnapshot* TakeSnapshot(
       Handle<String> title,
       HeapSnapshot::Type type = HeapSnapshot::kFull,
-      ActivityControl* control = NULL);
+      ActivityControl* control = NULL,
+      ObjectNameResolver* global_object_name_resolver = NULL);
 
   /**
    * Starts tracking of heap objects population statistics. After calling

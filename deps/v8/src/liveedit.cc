@@ -36,6 +36,7 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "global-handles.h"
+#include "messages.h"
 #include "parser.h"
 #include "scopeinfo.h"
 #include "scopes.h"
@@ -635,6 +636,21 @@ static Handle<JSValue> WrapInJSValue(Handle<Object> object) {
 }
 
 
+static Handle<SharedFunctionInfo> UnwrapSharedFunctionInfoFromJSValue(
+    Handle<JSValue> jsValue) {
+  Object* shared = jsValue->value();
+  CHECK(shared->IsSharedFunctionInfo());
+  return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(shared));
+}
+
+
+static int GetArrayLength(Handle<JSArray> array) {
+  Object* length = array->length();
+  CHECK(length->IsSmi());
+  return Smi::cast(length)->value();
+}
+
+
 // Simple helper class that creates more or less typed structures over
 // JSArray object. This is an adhoc method of passing structures from C++
 // to JavaScript.
@@ -688,12 +704,14 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
       : JSArrayBasedStruct<FunctionInfoWrapper>(array) {
   }
   void SetInitialProperties(Handle<String> name, int start_position,
-                            int end_position, int param_num, int parent_index) {
+                            int end_position, int param_num,
+                            int literal_count, int parent_index) {
     HandleScope scope;
     this->SetField(kFunctionNameOffset_, name);
     this->SetSmiValueField(kStartPositionOffset_, start_position);
     this->SetSmiValueField(kEndPositionOffset_, end_position);
     this->SetSmiValueField(kParamNumOffset_, param_num);
+    this->SetSmiValueField(kLiteralNumOffset_, literal_count);
     this->SetSmiValueField(kParentIndexOffset_, parent_index);
   }
   void SetFunctionCode(Handle<Code> function_code,
@@ -710,6 +728,9 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info) {
     Handle<JSValue> info_holder = WrapInJSValue(info);
     this->SetField(kSharedFunctionInfoOffset_, info_holder);
+  }
+  int GetLiteralCount() {
+    return this->GetSmiValueField(kLiteralNumOffset_);
   }
   int GetParentIndex() {
     return this->GetSmiValueField(kParentIndexOffset_);
@@ -744,7 +765,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kOuterScopeInfoOffset_ = 6;
   static const int kParentIndexOffset_ = 7;
   static const int kSharedFunctionInfoOffset_ = 8;
-  static const int kSize_ = 9;
+  static const int kLiteralNumOffset_ = 9;
+  static const int kSize_ = 10;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };
@@ -777,9 +799,7 @@ class SharedInfoWrapper : public JSArrayBasedStruct<SharedInfoWrapper> {
     Object* element = this->GetField(kSharedInfoOffset_);
     CHECK(element->IsJSValue());
     Handle<JSValue> value_wrapper(JSValue::cast(element));
-    Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
-    CHECK(raw_result->IsSharedFunctionInfo());
-    return Handle<SharedFunctionInfo>::cast(raw_result);
+    return UnwrapSharedFunctionInfoFromJSValue(value_wrapper);
   }
 
  private:
@@ -806,6 +826,7 @@ class FunctionInfoListener {
     FunctionInfoWrapper info = FunctionInfoWrapper::Create();
     info.SetInitialProperties(fun->name(), fun->start_position(),
                               fun->end_position(), fun->parameter_count(),
+                              fun->materialized_literal_count(),
                               current_parent_index_);
     current_parent_index_ = len_;
     SetElementNonStrict(result_, len_, info.GetJSArray());
@@ -905,17 +926,65 @@ JSArray* LiveEdit::GatherCompileInfo(Handle<Script> script,
   Handle<Object> original_source = Handle<Object>(script->source());
   script->set_source(*source);
   isolate->set_active_function_info_listener(&listener);
-  CompileScriptForTracker(isolate, script);
+
+  {
+    // Creating verbose TryCatch from public API is currently the only way to
+    // force code save location. We do not use this the object directly.
+    v8::TryCatch try_catch;
+    try_catch.SetVerbose(true);
+
+    // A logical 'try' section.
+    CompileScriptForTracker(isolate, script);
+  }
+
+  // A logical 'catch' section.
+  Handle<JSObject> rethrow_exception;
+  if (isolate->has_pending_exception()) {
+    Handle<Object> exception(isolate->pending_exception()->ToObjectChecked());
+    MessageLocation message_location = isolate->GetMessageLocation();
+
+    isolate->clear_pending_message();
+    isolate->clear_pending_exception();
+
+    // If possible, copy positions from message object to exception object.
+    if (exception->IsJSObject() && !message_location.script().is_null()) {
+      rethrow_exception = Handle<JSObject>::cast(exception);
+
+      Factory* factory = isolate->factory();
+      Handle<String> start_pos_key =
+          factory->LookupAsciiSymbol("startPosition");
+      Handle<String> end_pos_key =
+          factory->LookupAsciiSymbol("endPosition");
+      Handle<String> script_obj_key =
+          factory->LookupAsciiSymbol("scriptObject");
+      Handle<Smi> start_pos(Smi::FromInt(message_location.start_pos()));
+      Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()));
+      Handle<JSValue> script_obj = GetScriptWrapper(message_location.script());
+      JSReceiver::SetProperty(
+          rethrow_exception, start_pos_key, start_pos, NONE, kNonStrictMode);
+      JSReceiver::SetProperty(
+          rethrow_exception, end_pos_key, end_pos, NONE, kNonStrictMode);
+      JSReceiver::SetProperty(
+          rethrow_exception, script_obj_key, script_obj, NONE, kNonStrictMode);
+    }
+  }
+
+  // A logical 'finally' section.
   isolate->set_active_function_info_listener(NULL);
   script->set_source(*original_source);
 
-  return *(listener.GetResult());
+  if (rethrow_exception.is_null()) {
+    return *(listener.GetResult());
+  } else {
+    isolate->Throw(*rethrow_exception);
+    return 0;
+  }
 }
 
 
 void LiveEdit::WrapSharedFunctionInfos(Handle<JSArray> array) {
   HandleScope scope;
-  int len = Smi::cast(array->length())->value();
+  int len = GetArrayLength(array);
   for (int i = 0; i < len; i++) {
     Handle<SharedFunctionInfo> info(
         SharedFunctionInfo::cast(array->GetElementNoExceptionThrown(i)));
@@ -1001,6 +1070,129 @@ static void ReplaceCodeObject(Handle<Code> original,
 }
 
 
+// Patch function literals.
+// Name 'literals' is a misnomer. Rather it's a cache for complex object
+// boilerplates and for a native context. We must clean cached values.
+// Additionally we may need to allocate a new array if number of literals
+// changed.
+class LiteralFixer {
+ public:
+  static void PatchLiterals(FunctionInfoWrapper* compile_info_wrapper,
+                            Handle<SharedFunctionInfo> shared_info,
+                            Isolate* isolate) {
+    int new_literal_count = compile_info_wrapper->GetLiteralCount();
+    if (new_literal_count > 0) {
+      new_literal_count += JSFunction::kLiteralsPrefixSize;
+    }
+    int old_literal_count = shared_info->num_literals();
+
+    if (old_literal_count == new_literal_count) {
+      // If literal count didn't change, simply go over all functions
+      // and clear literal arrays.
+      ClearValuesVisitor visitor;
+      IterateJSFunctions(*shared_info, &visitor);
+    } else {
+      // When literal count changes, we have to create new array instances.
+      // Since we cannot create instances when iterating heap, we should first
+      // collect all functions and fix their literal arrays.
+      Handle<FixedArray> function_instances =
+          CollectJSFunctions(shared_info, isolate);
+      for (int i = 0; i < function_instances->length(); i++) {
+        Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
+        Handle<FixedArray> old_literals(fun->literals());
+        Handle<FixedArray> new_literals =
+            isolate->factory()->NewFixedArray(new_literal_count);
+        if (new_literal_count > 0) {
+          Handle<Context> native_context;
+          if (old_literals->length() >
+              JSFunction::kLiteralNativeContextIndex) {
+            native_context = Handle<Context>(
+                JSFunction::NativeContextFromLiterals(fun->literals()));
+          } else {
+            native_context = Handle<Context>(fun->context()->native_context());
+          }
+          new_literals->set(JSFunction::kLiteralNativeContextIndex,
+              *native_context);
+        }
+        fun->set_literals(*new_literals);
+      }
+
+      shared_info->set_num_literals(new_literal_count);
+    }
+  }
+
+ private:
+  // Iterates all function instances in the HEAP that refers to the
+  // provided shared_info.
+  template<typename Visitor>
+  static void IterateJSFunctions(SharedFunctionInfo* shared_info,
+                                 Visitor* visitor) {
+    AssertNoAllocation no_allocations_please;
+
+    HeapIterator iterator;
+    for (HeapObject* obj = iterator.next(); obj != NULL;
+        obj = iterator.next()) {
+      if (obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(obj);
+        if (function->shared() == shared_info) {
+          visitor->visit(function);
+        }
+      }
+    }
+  }
+
+  // Finds all instances of JSFunction that refers to the provided shared_info
+  // and returns array with them.
+  static Handle<FixedArray> CollectJSFunctions(
+      Handle<SharedFunctionInfo> shared_info, Isolate* isolate) {
+    CountVisitor count_visitor;
+    count_visitor.count = 0;
+    IterateJSFunctions(*shared_info, &count_visitor);
+    int size = count_visitor.count;
+
+    Handle<FixedArray> result = isolate->factory()->NewFixedArray(size);
+    if (size > 0) {
+      CollectVisitor collect_visitor(result);
+      IterateJSFunctions(*shared_info, &collect_visitor);
+    }
+    return result;
+  }
+
+  class ClearValuesVisitor {
+   public:
+    void visit(JSFunction* fun) {
+      FixedArray* literals = fun->literals();
+      int len = literals->length();
+      for (int j = JSFunction::kLiteralsPrefixSize; j < len; j++) {
+        literals->set_undefined(j);
+      }
+    }
+  };
+
+  class CountVisitor {
+   public:
+    void visit(JSFunction* fun) {
+      count++;
+    }
+    int count;
+  };
+
+  class CollectVisitor {
+   public:
+    explicit CollectVisitor(Handle<FixedArray> output)
+        : m_output(output), m_pos(0) {}
+
+    void visit(JSFunction* fun) {
+      m_output->set(m_pos, fun);
+      m_pos++;
+    }
+   private:
+    Handle<FixedArray> m_output;
+    int m_pos;
+  };
+};
+
+
 // Check whether the code is natural function code (not a lazy-compile stub
 // code).
 static bool IsJSFunctionCode(Code* code) {
@@ -1067,9 +1259,10 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
     Handle<JSArray> new_compile_info_array,
     Handle<JSArray> shared_info_array) {
   HandleScope scope;
+  Isolate* isolate = Isolate::Current();
 
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
-    return Isolate::Current()->ThrowIllegalOperation();
+    return isolate->ThrowIllegalOperation();
   }
 
   FunctionInfoWrapper compile_info_wrapper(new_compile_info_array);
@@ -1099,6 +1292,8 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
   int end_position = compile_info_wrapper.GetEndPosition();
   shared_info->set_start_position(start_position);
   shared_info->set_end_position(end_position);
+
+  LiteralFixer::PatchLiterals(&compile_info_wrapper, shared_info, isolate);
 
   shared_info->set_construct_stub(
       Isolate::Current()->builtins()->builtin(
@@ -1132,7 +1327,7 @@ MaybeObject* LiveEdit::FunctionSourceUpdated(
 void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
                                  Handle<Object> script_handle) {
   Handle<SharedFunctionInfo> shared_info =
-      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(function_wrapper));
+      UnwrapSharedFunctionInfoFromJSValue(function_wrapper);
   CHECK(script_handle->IsScript() || script_handle->IsUndefined());
   shared_info->set_script(*script_handle);
 
@@ -1152,19 +1347,22 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
 static int TranslatePosition(int original_position,
                              Handle<JSArray> position_change_array) {
   int position_diff = 0;
-  int array_len = Smi::cast(position_change_array->length())->value();
+  int array_len = GetArrayLength(position_change_array);
   // TODO(635): binary search may be used here
   for (int i = 0; i < array_len; i += 3) {
     Object* element = position_change_array->GetElementNoExceptionThrown(i);
+    CHECK(element->IsSmi());
     int chunk_start = Smi::cast(element)->value();
     if (original_position < chunk_start) {
       break;
     }
     element = position_change_array->GetElementNoExceptionThrown(i + 1);
+    CHECK(element->IsSmi());
     int chunk_end = Smi::cast(element)->value();
     // Position mustn't be inside a chunk.
     ASSERT(original_position >= chunk_end);
     element = position_change_array->GetElementNoExceptionThrown(i + 2);
+    CHECK(element->IsSmi());
     int chunk_changed_end = Smi::cast(element)->value();
     position_diff = chunk_changed_end - chunk_end;
   }
@@ -1271,7 +1469,9 @@ static Handle<Code> PatchPositionsInCode(
           continue;
         }
       }
-      buffer_writer.Write(it.rinfo());
+      if (RelocInfo::IsRealRelocMode(rinfo->rmode())) {
+        buffer_writer.Write(it.rinfo());
+      }
     }
   }
 
@@ -1293,7 +1493,6 @@ static Handle<Code> PatchPositionsInCode(
 
 MaybeObject* LiveEdit::PatchFunctionPositions(
     Handle<JSArray> shared_info_array, Handle<JSArray> position_change_array) {
-
   if (!SharedInfoWrapper::IsInstance(shared_info_array)) {
     return Isolate::Current()->ThrowIllegalOperation();
   }
@@ -1383,11 +1582,11 @@ void LiveEdit::ReplaceRefToNestedFunction(
     Handle<JSValue> subst_function_wrapper) {
 
   Handle<SharedFunctionInfo> parent_shared =
-      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(parent_function_wrapper));
+      UnwrapSharedFunctionInfoFromJSValue(parent_function_wrapper);
   Handle<SharedFunctionInfo> orig_shared =
-      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(orig_function_wrapper));
+      UnwrapSharedFunctionInfoFromJSValue(orig_function_wrapper);
   Handle<SharedFunctionInfo> subst_shared =
-      Handle<SharedFunctionInfo>::cast(UnwrapJSValue(subst_function_wrapper));
+      UnwrapSharedFunctionInfoFromJSValue(subst_function_wrapper);
 
   for (RelocIterator it(parent_shared->code()); !it.done(); it.next()) {
     if (it.rinfo()->rmode() == RelocInfo::EMBEDDED_OBJECT) {
@@ -1410,12 +1609,13 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   Handle<JSFunction> function(
       JSFunction::cast(JavaScriptFrame::cast(frame)->function()));
 
-  int len = Smi::cast(shared_info_array->length())->value();
+  int len = GetArrayLength(shared_info_array);
   for (int i = 0; i < len; i++) {
-    JSValue* wrapper =
-        JSValue::cast(shared_info_array->GetElementNoExceptionThrown(i));
-    Handle<SharedFunctionInfo> shared(
-        SharedFunctionInfo::cast(wrapper->value()));
+    Object* element = shared_info_array->GetElementNoExceptionThrown(i);
+    CHECK(element->IsJSValue());
+    Handle<JSValue> jsvalue(JSValue::cast(element));
+    Handle<SharedFunctionInfo> shared =
+        UnwrapSharedFunctionInfoFromJSValue(jsvalue);
 
     if (function->shared() == *shared || IsInlined(*function, *shared)) {
       SetElementNonStrict(result, i, Handle<Smi>(Smi::FromInt(status)));
@@ -1723,7 +1923,7 @@ static const char* DropActivationsInActiveThread(
     return message;
   }
 
-  int array_len = Smi::cast(shared_info_array->length())->value();
+  int array_len = GetArrayLength(shared_info_array);
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
@@ -1765,7 +1965,7 @@ class InactiveThreadActivationsChecker : public ThreadVisitor {
 
 Handle<JSArray> LiveEdit::CheckAndDropActivations(
     Handle<JSArray> shared_info_array, bool do_drop, Zone* zone) {
-  int len = Smi::cast(shared_info_array->length())->value();
+  int len = GetArrayLength(shared_info_array);
 
   Handle<JSArray> result = FACTORY->NewJSArray(len);
 

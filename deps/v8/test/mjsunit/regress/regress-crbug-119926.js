@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --gc-global
+
 // Test that array elements don't break upon garbage collection.
 
 var a = new Array(500);
-for (var i = 0; i < 500000; i++) {
+for (var i = 0; i < 100000; i++) {
   a[i] = new Object();
 }

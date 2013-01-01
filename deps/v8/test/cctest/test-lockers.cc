@@ -59,9 +59,9 @@ using ::v8::V8;
 class KangarooThread : public v8::internal::Thread {
  public:
   KangarooThread(v8::Isolate* isolate,
-                 v8::Handle<v8::Context> context, int value)
+                 v8::Handle<v8::Context> context)
       : Thread("KangarooThread"),
-        isolate_(isolate), context_(context), value_(value) {
+        isolate_(isolate), context_(context) {
   }
 
   void Run() {
@@ -90,7 +90,6 @@ class KangarooThread : public v8::internal::Thread {
  private:
   v8::Isolate* isolate_;
   Persistent<v8::Context> context_;
-  int value_;
 };
 
 // Migrates an isolate from one thread to another
@@ -106,7 +105,7 @@ TEST(KangarooIsolates) {
     CHECK_EQ(isolate, v8::internal::Isolate::Current());
     CompileRun("function getValue() { return 30; }");
   }
-  KangarooThread thread1(isolate, context, 1);
+  KangarooThread thread1(isolate, context);
   thread1.Start();
   thread1.Join();
 }

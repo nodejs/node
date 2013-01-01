@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -215,6 +215,11 @@ double OS::nan_value() {
 }
 
 
+CpuImplementer OS::GetCpuImplementer() {
+  UNIMPLEMENTED();
+}
+
+
 bool OS::ArmCpuHasFeature(CpuFeature feature) {
   UNIMPLEMENTED();
 }
@@ -331,6 +336,12 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 bool VirtualMemory::Guard(void* address) {
   UNIMPLEMENTED();
+  return false;
+}
+
+
+bool VirtualMemory::HasLazyCommits() {
+  // TODO(alph): implement for the platform.
   return false;
 }
 

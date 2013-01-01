@@ -30,6 +30,11 @@ import test
 import os
 from os.path import join, split
 
+def GetSuite(name, root):
+  # Not implemented.
+  return None
+
+
 def IsNumber(string):
   try:
     float(string)

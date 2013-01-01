@@ -321,6 +321,7 @@ int ScopeInfo::ContextSlotIndex(String* name,
         return result;
       }
     }
+    // Cache as not found. Mode and init flag don't matter.
     context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
@@ -503,5 +504,33 @@ void ScopeInfo::Print() {
   PrintF("}\n");
 }
 #endif  // DEBUG
+
+
+//---------------------------------------------------------------------------
+// ModuleInfo.
+
+Handle<ModuleInfo> ModuleInfo::Create(
+    Isolate* isolate, Interface* interface, Scope* scope) {
+  Handle<ModuleInfo> info = Allocate(isolate, interface->Length());
+  info->set_host_index(interface->Index());
+  int i = 0;
+  for (Interface::Iterator it = interface->iterator();
+       !it.done(); it.Advance(), ++i) {
+    Variable* var = scope->LocalLookup(it.name());
+    info->set_name(i, *it.name());
+    info->set_mode(i, var->mode());
+    ASSERT((var->mode() == MODULE) == (it.interface()->IsModule()));
+    if (var->mode() == MODULE) {
+      ASSERT(it.interface()->IsFrozen());
+      ASSERT(it.interface()->Index() >= 0);
+      info->set_index(i, it.interface()->Index());
+    } else {
+      ASSERT(var->index() >= 0);
+      info->set_index(i, var->index());
+    }
+  }
+  ASSERT(i == info->length());
+  return info;
+}
 
 } }  // namespace v8::internal

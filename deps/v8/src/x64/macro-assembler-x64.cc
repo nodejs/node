@@ -396,9 +396,7 @@ void MacroAssembler::RecordWrite(Register object,
   ASSERT(!object.is(value));
   ASSERT(!object.is(address));
   ASSERT(!value.is(address));
-  if (emit_debug_code()) {
-    AbortIfSmi(object);
-  }
+  AssertNotSmi(object);
 
   if (remembered_set_action == OMIT_REMEMBERED_SET &&
       !FLAG_incremental_marking) {
@@ -722,10 +720,27 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   movq(prev_next_address_reg, Operand(base_reg, kNextOffset));
   movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   addl(Operand(base_reg, kLevelOffset), Immediate(1));
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(0);
+    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 0);
+    PopSafepointRegisters();
+  }
+
   // Call the api function!
   movq(rax, reinterpret_cast<int64_t>(function_address),
        RelocInfo::RUNTIME_ENTRY);
   call(rax);
+
+  if (FLAG_log_timer_events) {
+    FrameScope frame(this, StackFrame::MANUAL);
+    PushSafepointRegisters();
+    PrepareCallCFunction(0);
+    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 0);
+    PopSafepointRegisters();
+  }
 
 #if defined(_WIN64) && !defined(__MINGW64__)
   // rax keeps a pointer to v8::Handle, unpack it.
@@ -1115,18 +1130,14 @@ void MacroAssembler::SmiTest(Register src) {
 
 
 void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(smi1);
-    AbortIfNotSmi(smi2);
-  }
+  AssertSmi(smi1);
+  AssertSmi(smi2);
   cmpq(smi1, smi2);
 }
 
 
 void MacroAssembler::SmiCompare(Register dst, Smi* src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-  }
+  AssertSmi(dst);
   Cmp(dst, src);
 }
 
@@ -1143,27 +1154,21 @@ void MacroAssembler::Cmp(Register dst, Smi* src) {
 
 
 void MacroAssembler::SmiCompare(Register dst, const Operand& src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-    AbortIfNotSmi(src);
-  }
+  AssertSmi(dst);
+  AssertSmi(src);
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Register src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-    AbortIfNotSmi(src);
-  }
+  AssertSmi(dst);
+  AssertSmi(src);
   cmpq(dst, src);
 }
 
 
 void MacroAssembler::SmiCompare(const Operand& dst, Smi* src) {
-  if (emit_debug_code()) {
-    AbortIfNotSmi(dst);
-  }
+  AssertSmi(dst);
   cmpl(Operand(dst, kSmiShift / kBitsPerByte), Immediate(src->value()));
 }
 
@@ -2213,16 +2218,19 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
   // Check that both are flat ASCII strings.
   ASSERT(kNotStringTag != 0);
   const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+      kIsNotStringMask | kStringEncodingMask | kAsciiDataHintMask |
+      kStringRepresentationMask;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 8));
+  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
+  shl(scratch1, Immediate(8));
+  orl(scratch1, scratch2);
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
+       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 8)));
   j(not_equal, on_fail, near_jump);
 }
 
@@ -2240,7 +2248,7 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
 
   andl(scratch, Immediate(kFlatAsciiStringMask));
-  cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kAsciiStringTag));
+  cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kOneByteStringTag));
   j(not_equal, failure, near_jump);
 }
 
@@ -2258,17 +2266,19 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
 
   // Check that both are flat ASCII strings.
   ASSERT(kNotStringTag != 0);
-  const int kFlatAsciiStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
+  const int kFlatAsciiStringMask = kIsNotStringMask | kStringRepresentationMask
+          | kStringEncodingMask | kAsciiDataHintTag;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
 
   andl(scratch1, Immediate(kFlatAsciiStringMask));
   andl(scratch2, Immediate(kFlatAsciiStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 8));
+  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
+  shl(scratch1, Immediate(8));
+  orl(scratch1, scratch2);
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
+       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 8)));
   j(not_equal, on_fail, near_jump);
 }
 
@@ -2781,7 +2791,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
     Register elements,
     Register index,
     XMMRegister xmm_scratch,
-    Label* fail) {
+    Label* fail,
+    int elements_offset) {
   Label smi_value, is_nan, maybe_nan, not_nan, have_double_value, done;
 
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
@@ -2800,7 +2811,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
   bind(&not_nan);
   movsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
   bind(&have_double_value);
-  movsd(FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
+  movsd(FieldOperand(elements, index, times_8,
+                     FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
   jmp(&done);
 
@@ -2823,7 +2835,8 @@ void MacroAssembler::StoreNumberToDoubleElements(
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
   cvtlsi2sd(xmm_scratch, kScratchRegister);
-  movsd(FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
+  movsd(FieldOperand(elements, index, times_8,
+                     FixedDoubleArray::kHeaderSize - elements_offset),
         xmm_scratch);
   bind(&done);
 }
@@ -2880,16 +2893,24 @@ void MacroAssembler::ClampUint8(Register reg) {
 
 void MacroAssembler::ClampDoubleToUint8(XMMRegister input_reg,
                                         XMMRegister temp_xmm_reg,
-                                        Register result_reg,
-                                        Register temp_reg) {
+                                        Register result_reg) {
   Label done;
-  Set(result_reg, 0);
+  Label conv_failure;
   xorps(temp_xmm_reg, temp_xmm_reg);
-  ucomisd(input_reg, temp_xmm_reg);
-  j(below, &done, Label::kNear);
   cvtsd2si(result_reg, input_reg);
   testl(result_reg, Immediate(0xFFFFFF00));
   j(zero, &done, Label::kNear);
+  cmpl(result_reg, Immediate(0x80000000));
+  j(equal, &conv_failure, Label::kNear);
+  movl(result_reg, Immediate(0));
+  setcc(above, result_reg);
+  subl(result_reg, Immediate(1));
+  andl(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  Set(result_reg, 0);
+  ucomisd(input_reg, temp_xmm_reg);
+  j(below, &done, Label::kNear);
   Set(result_reg, 255);
   bind(&done);
 }
@@ -2917,19 +2938,13 @@ void MacroAssembler::LoadUint32(XMMRegister dst,
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
-  Register temp = descriptors;
-  movq(temp, FieldOperand(map, Map::kTransitionsOrBackPointerOffset));
+  movq(descriptors, FieldOperand(map, Map::kDescriptorsOffset));
+}
 
-  Label ok, fail;
-  CheckMap(temp,
-           isolate()->factory()->fixed_array_map(),
-           &fail,
-           DONT_DO_SMI_CHECK);
-  movq(descriptors, FieldOperand(temp, TransitionArray::kDescriptorsOffset));
-  jmp(&ok);
-  bind(&fail);
-  Move(descriptors, isolate()->factory()->empty_descriptor_array());
-  bind(&ok);
+
+void MacroAssembler::NumberOfOwnDescriptors(Register dst, Register map) {
+  movq(dst, FieldOperand(map, Map::kBitField3Offset));
+  DecodeField<Map::NumberOfOwnDescriptorsBits>(dst);
 }
 
 
@@ -2956,61 +2971,75 @@ void MacroAssembler::DispatchMap(Register obj,
 }
 
 
-void MacroAssembler::AbortIfNotNumber(Register object) {
-  Label ok;
-  Condition is_smi = CheckSmi(object);
-  j(is_smi, &ok, Label::kNear);
-  Cmp(FieldOperand(object, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  Assert(equal, "Operand not a number");
-  bind(&ok);
+void MacroAssembler::AssertNumber(Register object) {
+  if (emit_debug_code()) {
+    Label ok;
+    Condition is_smi = CheckSmi(object);
+    j(is_smi, &ok, Label::kNear);
+    Cmp(FieldOperand(object, HeapObject::kMapOffset),
+        isolate()->factory()->heap_number_map());
+    Check(equal, "Operand is not a number");
+    bind(&ok);
+  }
 }
 
 
-void MacroAssembler::AbortIfSmi(Register object) {
-  Condition is_smi = CheckSmi(object);
-  Assert(NegateCondition(is_smi), "Operand is a smi");
+void MacroAssembler::AssertNotSmi(Register object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(NegateCondition(is_smi), "Operand is a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotSmi(Register object) {
-  Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand is not a smi");
+void MacroAssembler::AssertSmi(Register object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(is_smi, "Operand is not a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotSmi(const Operand& object) {
-  Condition is_smi = CheckSmi(object);
-  Assert(is_smi, "Operand is not a smi");
+void MacroAssembler::AssertSmi(const Operand& object) {
+  if (emit_debug_code()) {
+    Condition is_smi = CheckSmi(object);
+    Check(is_smi, "Operand is not a smi");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotZeroExtended(Register int32_register) {
-  ASSERT(!int32_register.is(kScratchRegister));
-  movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
-  cmpq(kScratchRegister, int32_register);
-  Assert(above_equal, "32 bit value in register is not zero-extended");
+void MacroAssembler::AssertZeroExtended(Register int32_register) {
+  if (emit_debug_code()) {
+    ASSERT(!int32_register.is(kScratchRegister));
+    movq(kScratchRegister, 0x100000000l, RelocInfo::NONE);
+    cmpq(kScratchRegister, int32_register);
+    Check(above_equal, "32 bit value in register is not zero-extended");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotString(Register object) {
-  testb(object, Immediate(kSmiTagMask));
-  Assert(not_equal, "Operand is not a string");
-  push(object);
-  movq(object, FieldOperand(object, HeapObject::kMapOffset));
-  CmpInstanceType(object, FIRST_NONSTRING_TYPE);
-  pop(object);
-  Assert(below, "Operand is not a string");
+void MacroAssembler::AssertString(Register object) {
+  if (emit_debug_code()) {
+    testb(object, Immediate(kSmiTagMask));
+    Check(not_equal, "Operand is a smi and not a string");
+    push(object);
+    movq(object, FieldOperand(object, HeapObject::kMapOffset));
+    CmpInstanceType(object, FIRST_NONSTRING_TYPE);
+    pop(object);
+    Check(below, "Operand is not a string");
+  }
 }
 
 
-void MacroAssembler::AbortIfNotRootValue(Register src,
-                                         Heap::RootListIndex root_value_index,
-                                         const char* message) {
-  ASSERT(!src.is(kScratchRegister));
-  LoadRoot(kScratchRegister, root_value_index);
-  cmpq(src, kScratchRegister);
-  Check(equal, message);
+void MacroAssembler::AssertRootValue(Register src,
+                                     Heap::RootListIndex root_value_index,
+                                     const char* message) {
+  if (emit_debug_code()) {
+    ASSERT(!src.is(kScratchRegister));
+    LoadRoot(kScratchRegister, root_value_index);
+    cmpq(src, kScratchRegister);
+    Check(equal, message);
+  }
 }
 
 
@@ -3953,7 +3982,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
-  const int kHeaderAlignment = SeqAsciiString::kHeaderSize &
+  const int kHeaderAlignment = SeqOneByteString::kHeaderSize &
                                kObjectAlignmentMask;
   movl(scratch1, length);
   ASSERT(kCharSize == 1);
@@ -3964,7 +3993,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   }
 
   // Allocate ASCII string in new space.
-  AllocateInNewSpace(SeqAsciiString::kHeaderSize,
+  AllocateInNewSpace(SeqOneByteString::kHeaderSize,
                      times_1,
                      scratch1,
                      result,
@@ -4499,7 +4528,7 @@ void MacroAssembler::EnsureNotWhite(
 
   bind(&not_external);
   // Sequential string, either ASCII or UC16.
-  ASSERT(kAsciiStringTag == 0x04);
+  ASSERT(kOneByteStringTag == 0x04);
   and_(length, Immediate(kStringEncodingMask));
   xor_(length, Immediate(kStringEncodingMask));
   addq(length, Immediate(0x04));

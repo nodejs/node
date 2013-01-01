@@ -55,6 +55,15 @@ JSBuiltinsObject* Context::builtins() {
 }
 
 
+Context* Context::global_context() {
+  Context* current = this;
+  while (!current->IsGlobalContext()) {
+    current = current->previous();
+  }
+  return current;
+}
+
+
 Context* Context::native_context() {
   // Fast case: the global object for this context has been set.  In
   // that case, the global object has a direct pointer to the global
@@ -183,6 +192,10 @@ Handle<Object> Context::Lookup(Handle<String> name,
                 ? IMMUTABLE_CHECK_INITIALIZED_HARMONY :
                 IMMUTABLE_IS_INITIALIZED_HARMONY;
             break;
+          case MODULE:
+            *attributes = READ_ONLY;
+            *binding_flags = IMMUTABLE_IS_INITIALIZED_HARMONY;
+            break;
           case DYNAMIC:
           case DYNAMIC_GLOBAL:
           case DYNAMIC_LOCAL:
@@ -251,8 +264,6 @@ void Context::AddOptimizedFunction(JSFunction* function) {
     }
   }
 
-  CHECK(function->next_function_link()->IsUndefined());
-
   // Check that the context belongs to the weak native contexts list.
   bool found = false;
   Object* context = GetHeap()->native_contexts_list();
@@ -265,6 +276,16 @@ void Context::AddOptimizedFunction(JSFunction* function) {
   }
   CHECK(found);
 #endif
+
+  // If the function link field is already used then the function was
+  // enqueued as a code flushing candidate and we remove it now.
+  if (!function->next_function_link()->IsUndefined()) {
+    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
+    flusher->EvictCandidate(function);
+  }
+
+  ASSERT(function->next_function_link()->IsUndefined());
+
   function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST));
   set(OPTIMIZED_FUNCTIONS_LIST, function);
 }
@@ -302,6 +323,18 @@ Object* Context::OptimizedFunctionsListHead() {
 
 void Context::ClearOptimizedFunctions() {
   set(OPTIMIZED_FUNCTIONS_LIST, GetHeap()->undefined_value());
+}
+
+
+Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
+  Handle<Object> result(error_message_for_code_gen_from_strings());
+  if (result->IsUndefined()) {
+    const char* error =
+        "Code generation from strings disallowed for this context";
+    Isolate* isolate = Isolate::Current();
+    result = isolate->factory()->NewStringFromAscii(i::CStrVector(error));
+  }
+  return result;
 }
 
 

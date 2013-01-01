@@ -68,7 +68,7 @@ class Descriptor BASE_EMBEDDED {
     details_ = PropertyDetails(details_.attributes(), details_.type(), index);
   }
 
-  void SetSortedKey(int index) { details_ = details_.set_pointer(index); }
+  void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
 
  private:
   String* key_;
@@ -129,6 +129,44 @@ class CallbacksDescriptor:  public Descriptor {
                       PropertyAttributes attributes,
                       int index = 0)
       : Descriptor(key, foreign, attributes, CALLBACKS, index) {}
+};
+
+
+// Holds a property index value distinguishing if it is a field index or an
+// index inside the object header.
+class PropertyIndex {
+ public:
+  static PropertyIndex NewFieldIndex(int index) {
+    return PropertyIndex(index, false);
+  }
+  static PropertyIndex NewHeaderIndex(int index) {
+    return PropertyIndex(index, true);
+  }
+
+  bool is_field_index() { return (index_ & kHeaderIndexBit) == 0; }
+  bool is_header_index() { return (index_ & kHeaderIndexBit) != 0; }
+
+  int field_index() {
+    ASSERT(is_field_index());
+    return value();
+  }
+  int header_index() {
+    ASSERT(is_header_index());
+    return value();
+  }
+
+ private:
+  static const int kHeaderIndexBit = 1 << 31;
+  static const int kIndexMask = ~kHeaderIndexBit;
+
+  int value() { return index_ & kIndexMask; }
+
+  PropertyIndex(int index, bool is_header_based)
+      : index_(index | (is_header_based ? kHeaderIndexBit : 0)) {
+    ASSERT(index <= kIndexMask);
+  }
+
+  int index_;
 };
 
 
@@ -278,7 +316,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetLazyValue() {
     switch (type()) {
       case FIELD:
-        return holder()->FastPropertyAt(GetFieldIndex());
+        return holder()->FastPropertyAt(GetFieldIndex().field_index());
       case NORMAL: {
         Object* value;
         value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
@@ -290,7 +328,7 @@ class LookupResult BASE_EMBEDDED {
       case CONSTANT_FUNCTION:
         return GetConstantFunction();
       default:
-        return Smi::FromInt(0);
+        return Isolate::Current()->heap()->the_hole_value();
     }
   }
 
@@ -334,10 +372,11 @@ class LookupResult BASE_EMBEDDED {
     return number_;
   }
 
-  int GetFieldIndex() {
+  PropertyIndex GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());
-    return Descriptor::IndexFromValue(GetValue());
+    return PropertyIndex::NewFieldIndex(
+        Descriptor::IndexFromValue(GetValue()));
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {
@@ -384,6 +423,7 @@ class LookupResult BASE_EMBEDDED {
 
   Object* GetValueFromMap(Map* map) const {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    ASSERT(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetValue(number_);
   }
 

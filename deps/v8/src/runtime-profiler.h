@@ -52,8 +52,6 @@ class RuntimeProfiler {
 
   void OptimizeNow();
 
-  void NotifyTick();
-
   void SetUp();
   void Reset();
   void TearDown();

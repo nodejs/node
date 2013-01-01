@@ -27,17 +27,18 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import bisect
 import cmd
+import codecs
 import ctypes
+import disasm
 import mmap
 import optparse
 import os
-import disasm
-import sys
-import types
-import codecs
 import re
 import struct
+import sys
+import types
 
 
 USAGE="""usage: %prog [OPTIONS] [DUMP-FILE]
@@ -178,6 +179,11 @@ MINIDUMP_HEADER = Descriptor([
 MINIDUMP_LOCATION_DESCRIPTOR = Descriptor([
   ("data_size", ctypes.c_uint32),
   ("rva", ctypes.c_uint32)
+])
+
+MINIDUMP_STRING = Descriptor([
+  ("length", ctypes.c_uint32),
+  ("buffer", lambda t: ctypes.c_uint8 * (t.length + 2))
 ])
 
 MINIDUMP_DIRECTORY = Descriptor([
@@ -400,12 +406,44 @@ MINIDUMP_THREAD_LIST = Descriptor([
   ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
 ])
 
+MINIDUMP_RAW_MODULE = Descriptor([
+  ("base_of_image", ctypes.c_uint64),
+  ("size_of_image", ctypes.c_uint32),
+  ("checksum", ctypes.c_uint32),
+  ("time_date_stamp", ctypes.c_uint32),
+  ("module_name_rva", ctypes.c_uint32),
+  ("version_info", ctypes.c_uint32 * 13),
+  ("cv_record", MINIDUMP_LOCATION_DESCRIPTOR.ctype),
+  ("misc_record", MINIDUMP_LOCATION_DESCRIPTOR.ctype),
+  ("reserved0", ctypes.c_uint32 * 2),
+  ("reserved1", ctypes.c_uint32 * 2)
+])
+
+MINIDUMP_MODULE_LIST = Descriptor([
+  ("number_of_modules", ctypes.c_uint32),
+  ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
+])
+
 MINIDUMP_RAW_SYSTEM_INFO = Descriptor([
   ("processor_architecture", ctypes.c_uint16)
 ])
 
 MD_CPU_ARCHITECTURE_X86 = 0
 MD_CPU_ARCHITECTURE_AMD64 = 9
+
+class FuncSymbol:
+  def __init__(self, start, size, name):
+    self.start = start
+    self.end = self.start + size
+    self.name = name
+
+  def __cmp__(self, other):
+    if isinstance(other, FuncSymbol):
+      return self.start - other.start
+    return self.start - other
+
+  def Covers(self, addr):
+    return (self.start <= addr) and (addr < self.end)
 
 class MinidumpReader(object):
   """Minidump (.dmp) reader."""
@@ -430,7 +468,12 @@ class MinidumpReader(object):
     self.exception_context = None
     self.memory_list = None
     self.memory_list64 = None
+    self.module_list = None
     self.thread_map = {}
+
+    self.symdir = options.symdir
+    self.modules_with_symbols = []
+    self.symbols = []
 
     # Find MDRawSystemInfo stream and determine arch.
     for d in directories:
@@ -461,6 +504,11 @@ class MinidumpReader(object):
         for thread in thread_list.threads:
           DebugPrint(thread)
           self.thread_map[thread.id] = thread
+      elif d.stream_type == MD_MODULE_LIST_STREAM:
+        assert self.module_list is None
+        self.module_list = MINIDUMP_MODULE_LIST.Read(
+          self.minidump, d.location.rva)
+        assert ctypes.sizeof(self.module_list) == d.location.data_size
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
         print >>sys.stderr, "Warning: This is not a full minidump!"
         assert self.memory_list is None
@@ -644,6 +692,66 @@ class MinidumpReader(object):
   def Register(self, name):
     return self.exception_context.__getattribute__(name)
 
+  def ReadMinidumpString(self, rva):
+    string = bytearray(MINIDUMP_STRING.Read(self.minidump, rva).buffer)
+    string = string.decode("utf16")
+    return string[0:len(string) - 1]
+
+  # Load FUNC records from a BreakPad symbol file
+  #
+  #    http://code.google.com/p/google-breakpad/wiki/SymbolFiles
+  #
+  def _LoadSymbolsFrom(self, symfile, baseaddr):
+    print "Loading symbols from %s" % (symfile)
+    funcs = []
+    with open(symfile) as f:
+      for line in f:
+        result = re.match(
+            r"^FUNC ([a-f0-9]+) ([a-f0-9]+) ([a-f0-9]+) (.*)$", line)
+        if result is not None:
+          start = int(result.group(1), 16)
+          size = int(result.group(2), 16)
+          name = result.group(4).rstrip()
+          bisect.insort_left(self.symbols,
+                             FuncSymbol(baseaddr + start, size, name))
+    print " ... done"
+
+  def TryLoadSymbolsFor(self, modulename, module):
+    try:
+      symfile = os.path.join(self.symdir,
+                             modulename.replace('.', '_') + ".pdb.sym")
+      self._LoadSymbolsFrom(symfile, module.base_of_image)
+      self.modules_with_symbols.append(module)
+    except Exception as e:
+      print "  ... failure (%s)" % (e)
+
+  # Returns true if address is covered by some module that has loaded symbols.
+  def _IsInModuleWithSymbols(self, addr):
+    for module in self.modules_with_symbols:
+      start = module.base_of_image
+      end = start + module.size_of_image
+      if (start <= addr) and (addr < end):
+        return True
+    return False
+
+  # Find symbol covering the given address and return its name in format
+  #     <symbol name>+<offset from the start>
+  def FindSymbol(self, addr):
+    if not self._IsInModuleWithSymbols(addr):
+      return None
+
+    i = bisect.bisect_left(self.symbols, addr)
+    symbol = None
+    if (0 < i) and self.symbols[i - 1].Covers(addr):
+      symbol = self.symbols[i - 1]
+    elif (i < len(self.symbols)) and self.symbols[i].Covers(addr):
+      symbol = self.symbols[i]
+    else:
+      return None
+    diff = addr - symbol.start
+    return "%s+0x%x" % (symbol.name, diff)
+
+
 
 # List of V8 instance types. Obtained by adding the code below to any .cc file.
 #
@@ -755,80 +863,83 @@ INSTANCE_TYPES = {
 # }
 # printf("}\n");
 KNOWN_MAPS = {
-  0x08081: (134, "ByteArrayMap"),
-  0x080a1: (128, "MetaMap"),
-  0x080c1: (130, "OddballMap"),
-  0x080e1: (163, "FixedArrayMap"),
-  0x08101: (68, "AsciiSymbolMap"),
-  0x08121: (132, "HeapNumberMap"),
-  0x08141: (135, "FreeSpaceMap"),
-  0x08161: (146, "OnePointerFillerMap"),
-  0x08181: (146, "TwoPointerFillerMap"),
-  0x081a1: (131, "GlobalPropertyCellMap"),
-  0x081c1: (164, "SharedFunctionInfoMap"),
-  0x081e1: (4, "AsciiStringMap"),
-  0x08201: (163, "GlobalContextMap"),
-  0x08221: (129, "CodeMap"),
-  0x08241: (163, "ScopeInfoMap"),
-  0x08261: (163, "FixedCOWArrayMap"),
-  0x08281: (145, "FixedDoubleArrayMap"),
-  0x082a1: (163, "HashTableMap"),
-  0x082c1: (0, "StringMap"),
-  0x082e1: (64, "SymbolMap"),
-  0x08301: (1, "ConsStringMap"),
-  0x08321: (5, "ConsAsciiStringMap"),
-  0x08341: (3, "SlicedStringMap"),
-  0x08361: (7, "SlicedAsciiStringMap"),
-  0x08381: (65, "ConsSymbolMap"),
-  0x083a1: (69, "ConsAsciiSymbolMap"),
-  0x083c1: (66, "ExternalSymbolMap"),
-  0x083e1: (74, "ExternalSymbolWithAsciiDataMap"),
-  0x08401: (70, "ExternalAsciiSymbolMap"),
-  0x08421: (2, "ExternalStringMap"),
-  0x08441: (10, "ExternalStringWithAsciiDataMap"),
-  0x08461: (6, "ExternalAsciiStringMap"),
-  0x08481: (82, "ShortExternalSymbolMap"),
-  0x084a1: (90, "ShortExternalSymbolWithAsciiDataMap"),
-  0x084c1: (86, "ShortExternalAsciiSymbolMap"),
-  0x084e1: (18, "ShortExternalStringMap"),
-  0x08501: (26, "ShortExternalStringWithAsciiDataMap"),
-  0x08521: (22, "ShortExternalAsciiStringMap"),
-  0x08541: (0, "UndetectableStringMap"),
-  0x08561: (4, "UndetectableAsciiStringMap"),
-  0x08581: (144, "ExternalPixelArrayMap"),
-  0x085a1: (136, "ExternalByteArrayMap"),
-  0x085c1: (137, "ExternalUnsignedByteArrayMap"),
-  0x085e1: (138, "ExternalShortArrayMap"),
-  0x08601: (139, "ExternalUnsignedShortArrayMap"),
-  0x08621: (140, "ExternalIntArrayMap"),
-  0x08641: (141, "ExternalUnsignedIntArrayMap"),
-  0x08661: (142, "ExternalFloatArrayMap"),
-  0x08681: (143, "ExternalDoubleArrayMap"),
-  0x086a1: (163, "NonStrictArgumentsElementsMap"),
-  0x086c1: (163, "FunctionContextMap"),
-  0x086e1: (163, "CatchContextMap"),
-  0x08701: (163, "WithContextMap"),
-  0x08721: (163, "BlockContextMap"),
-  0x08741: (163, "ModuleContextMap"),
-  0x08761: (165, "JSMessageObjectMap"),
-  0x08781: (133, "ForeignMap"),
-  0x087a1: (170, "NeanderMap"),
-  0x087c1: (158, "PolymorphicCodeCacheMap"),
-  0x087e1: (156, "ScriptMap"),
-  0x08801: (147, "AccessorInfoMap"),
-  0x08821: (148, "AccessorPairMap"),
-  0x08841: (149, "AccessCheckInfoMap"),
-  0x08861: (150, "InterceptorInfoMap"),
-  0x08881: (151, "CallHandlerInfoMap"),
-  0x088a1: (152, "FunctionTemplateInfoMap"),
-  0x088c1: (153, "ObjectTemplateInfoMap"),
-  0x088e1: (154, "SignatureInfoMap"),
-  0x08901: (155, "TypeSwitchInfoMap"),
-  0x08921: (157, "CodeCacheMap"),
-  0x08941: (159, "TypeFeedbackInfoMap"),
-  0x08961: (160, "AliasedArgumentsEntryMap"),
-  0x08981: (161, "DebugInfoMap"),
-  0x089a1: (162, "BreakPointInfoMap"),
+  0x08081: (128, "MetaMap"),
+  0x080a5: (163, "FixedArrayMap"),
+  0x080c9: (130, "OddballMap"),
+  0x080ed: (163, "FixedCOWArrayMap"),
+  0x08111: (163, "ScopeInfoMap"),
+  0x08135: (132, "HeapNumberMap"),
+  0x08159: (133, "ForeignMap"),
+  0x0817d: (64, "SymbolMap"),
+  0x081a1: (68, "AsciiSymbolMap"),
+  0x081c5: (65, "ConsSymbolMap"),
+  0x081e9: (69, "ConsAsciiSymbolMap"),
+  0x0820d: (66, "ExternalSymbolMap"),
+  0x08231: (74, "ExternalSymbolWithAsciiDataMap"),
+  0x08255: (70, "ExternalAsciiSymbolMap"),
+  0x08279: (82, "ShortExternalSymbolMap"),
+  0x0829d: (90, "ShortExternalSymbolWithAsciiDataMap"),
+  0x082c1: (86, "ShortExternalAsciiSymbolMap"),
+  0x082e5: (0, "StringMap"),
+  0x08309: (4, "AsciiStringMap"),
+  0x0832d: (1, "ConsStringMap"),
+  0x08351: (5, "ConsAsciiStringMap"),
+  0x08375: (3, "SlicedStringMap"),
+  0x08399: (7, "SlicedAsciiStringMap"),
+  0x083bd: (2, "ExternalStringMap"),
+  0x083e1: (10, "ExternalStringWithAsciiDataMap"),
+  0x08405: (6, "ExternalAsciiStringMap"),
+  0x08429: (18, "ShortExternalStringMap"),
+  0x0844d: (26, "ShortExternalStringWithAsciiDataMap"),
+  0x08471: (22, "ShortExternalAsciiStringMap"),
+  0x08495: (0, "UndetectableStringMap"),
+  0x084b9: (4, "UndetectableAsciiStringMap"),
+  0x084dd: (145, "FixedDoubleArrayMap"),
+  0x08501: (134, "ByteArrayMap"),
+  0x08525: (135, "FreeSpaceMap"),
+  0x08549: (144, "ExternalPixelArrayMap"),
+  0x0856d: (136, "ExternalByteArrayMap"),
+  0x08591: (137, "ExternalUnsignedByteArrayMap"),
+  0x085b5: (138, "ExternalShortArrayMap"),
+  0x085d9: (139, "ExternalUnsignedShortArrayMap"),
+  0x085fd: (140, "ExternalIntArrayMap"),
+  0x08621: (141, "ExternalUnsignedIntArrayMap"),
+  0x08645: (142, "ExternalFloatArrayMap"),
+  0x08669: (163, "NonStrictArgumentsElementsMap"),
+  0x0868d: (143, "ExternalDoubleArrayMap"),
+  0x086b1: (129, "CodeMap"),
+  0x086d5: (131, "GlobalPropertyCellMap"),
+  0x086f9: (146, "OnePointerFillerMap"),
+  0x0871d: (146, "TwoPointerFillerMap"),
+  0x08741: (147, "AccessorInfoMap"),
+  0x08765: (148, "AccessorPairMap"),
+  0x08789: (149, "AccessCheckInfoMap"),
+  0x087ad: (150, "InterceptorInfoMap"),
+  0x087d1: (151, "CallHandlerInfoMap"),
+  0x087f5: (152, "FunctionTemplateInfoMap"),
+  0x08819: (153, "ObjectTemplateInfoMap"),
+  0x0883d: (154, "SignatureInfoMap"),
+  0x08861: (155, "TypeSwitchInfoMap"),
+  0x08885: (156, "ScriptMap"),
+  0x088a9: (157, "CodeCacheMap"),
+  0x088cd: (158, "PolymorphicCodeCacheMap"),
+  0x088f1: (159, "TypeFeedbackInfoMap"),
+  0x08915: (160, "AliasedArgumentsEntryMap"),
+  0x08939: (161, "DebugInfoMap"),
+  0x0895d: (162, "BreakPointInfoMap"),
+  0x08981: (163, "HashTableMap"),
+  0x089a5: (163, "FunctionContextMap"),
+  0x089c9: (163, "CatchContextMap"),
+  0x089ed: (163, "WithContextMap"),
+  0x08a11: (163, "BlockContextMap"),
+  0x08a35: (163, "ModuleContextMap"),
+  0x08a59: (163, "GlobalContextMap"),
+  0x08a7d: (163, "NativeContextMap"),
+  0x08aa1: (164, "SharedFunctionInfoMap"),
+  0x08ac5: (165, "JSMessageObjectMap"),
+  0x08ae9: (170, "ExternalMap"),
+  0x08b0d: (170, "NeanderMap"),
+  0x08b31: (170, ""),
 }
 
 
@@ -1639,6 +1750,11 @@ CONTEXT_FOR_ARCH = {
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
 
+KNOWN_MODULES = {'chrome.exe', 'chrome.dll'}
+
+def GetModuleName(reader, module):
+  name = reader.ReadMinidumpString(module.module_name_rva)
+  return str(os.path.basename(str(name).replace("\\", "/")))
 
 def AnalyzeMinidump(options, minidump_name):
   reader = MinidumpReader(options, minidump_name)
@@ -1657,6 +1773,13 @@ def AnalyzeMinidump(options, minidump_name):
     # TODO(vitalyr): decode eflags.
     print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
     print
+    print "  modules:"
+    for module in reader.module_list.modules:
+      name = GetModuleName(reader, module)
+      if name in KNOWN_MODULES:
+        print "    %s at %08X" % (name, module.base_of_image)
+        reader.TryLoadSymbolsFor(name, module)
+    print
 
     stack_top = reader.ExceptionSP()
     stack_bottom = exception_thread.stack.start + \
@@ -1669,6 +1792,9 @@ def AnalyzeMinidump(options, minidump_name):
     heap = V8Heap(reader, stack_map)
 
     print "Disassembly around exception.eip:"
+    eip_symbol = reader.FindSymbol(reader.ExceptionIP())
+    if eip_symbol is not None:
+      print eip_symbol
     disasm_start = reader.ExceptionIP() - EIP_PROXIMITY
     disasm_bytes = 2 * EIP_PROXIMITY
     if (options.full):
@@ -1697,8 +1823,10 @@ def AnalyzeMinidump(options, minidump_name):
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
-        print "%s: %s" % (reader.FormatIntPtr(slot),
-                          reader.FormatIntPtr(maybe_address))
+        maybe_symbol = reader.FindSymbol(maybe_address)
+        print "%s: %s %s" % (reader.FormatIntPtr(slot),
+                             reader.FormatIntPtr(maybe_address),
+                             maybe_symbol or "")
         if heap_object:
           heap_object.Print(Printer())
           print
@@ -1712,6 +1840,8 @@ if __name__ == "__main__":
                     help="start an interactive inspector shell")
   parser.add_option("-f", "--full", dest="full", action="store_true",
                     help="dump all information contained in the minidump")
+  parser.add_option("--symdir", dest="symdir", default=".",
+                    help="directory containing *.pdb.sym file with symbols")
   options, args = parser.parse_args()
   if len(args) != 1:
     parser.print_help()

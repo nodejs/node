@@ -131,19 +131,16 @@ function MathMax(arg1, arg2) {  // length == 2
     // All comparisons failed, one of the arguments must be NaN.
     return 0/0;  // Compiler constant-folds this to NaN.
   }
-  if (length == 0) {
-    return -1/0;  // Compiler constant-folds this to -Infinity.
-  }
-  var r = arg1;
-  if (!IS_NUMBER(r)) r = NonNumberToNumber(r);
-  if (NUMBER_IS_NAN(r)) return r;
-  for (var i = 1; i < length; i++) {
+  var r = -1/0;  // Compiler constant-folds this to -Infinity.
+  for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
-    if (NUMBER_IS_NAN(n)) return n;
     // Make sure +0 is considered greater than -0.  -0 is never a Smi, +0 can be
     // a Smi or heap number.
-    if (n > r || (r == 0 && n == 0 && !%_IsSmi(r) && 1 / r < 0)) r = n;
+    if (NUMBER_IS_NAN(n) || n > r ||
+        (r == 0 && n == 0 && !%_IsSmi(r) && 1 / r < 0)) {
+      r = n;
+    }
   }
   return r;
 }
@@ -164,19 +161,16 @@ function MathMin(arg1, arg2) {  // length == 2
     // All comparisons failed, one of the arguments must be NaN.
     return 0/0;  // Compiler constant-folds this to NaN.
   }
-  if (length == 0) {
-    return 1/0;  // Compiler constant-folds this to Infinity.
-  }
-  var r = arg1;
-  if (!IS_NUMBER(r)) r = NonNumberToNumber(r);
-  if (NUMBER_IS_NAN(r)) return r;
-  for (var i = 1; i < length; i++) {
+  var r = 1/0;  // Compiler constant-folds this to Infinity.
+  for (var i = 0; i < length; i++) {
     var n = %_Arguments(i);
     if (!IS_NUMBER(n)) n = NonNumberToNumber(n);
-    if (NUMBER_IS_NAN(n)) return n;
     // Make sure -0 is considered less than +0.  -0 is never a Smi, +0 can be a
     // Smi or a heap number.
-    if (n < r || (r == 0 && n == 0 && !%_IsSmi(n) && 1 / n < 0)) r = n;
+    if (NUMBER_IS_NAN(n) || n < r ||
+        (r == 0 && n == 0 && !%_IsSmi(n) && 1 / n < 0)) {
+      r = n;
+    }
   }
   return r;
 }

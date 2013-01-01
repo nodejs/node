@@ -186,7 +186,6 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   if [ -n "$EXTRA_PATCH" ] ; then
     apply_patch "$EXTRA_PATCH"
   fi
-  stage_files
 fi
 
 let CURRENT_STEP+=1
@@ -205,8 +204,9 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
 your EDITOR on $VERSION_FILE so you can make arbitrary changes. When \
 you're done, save the file and exit your EDITOR.)"
   if [ $? -eq 0 ] ; then
+    echo $NEWPATCH $VERSION_FILE
     sed -e "/#define PATCH_LEVEL/s/[0-9]*$/$NEWPATCH/" \
-        -i "$VERSION_FILE"
+        -i.bak "$VERSION_FILE" || die "Could not increment patch level"
   else
     $EDITOR "$VERSION_FILE"
   fi

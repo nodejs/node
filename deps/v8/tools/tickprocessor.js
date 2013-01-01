@@ -73,7 +73,7 @@ function parseState(s) {
 function SnapshotLogProcessor() {
   LogReader.call(this, {
       'code-creation': {
-          parsers: [null, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
@@ -107,7 +107,7 @@ inherits(SnapshotLogProcessor, LogReader);
 
 
 SnapshotLogProcessor.prototype.processCodeCreation = function(
-    type, start, size, name, maybe_func) {
+    type, kind, start, size, name, maybe_func) {
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
     var state = parseState(maybe_func[1]);
@@ -156,7 +156,7 @@ function TickProcessor(
       'shared-library': { parsers: [null, parseInt, parseInt],
           processor: this.processSharedLibrary },
       'code-creation': {
-          parsers: [null, parseInt, parseInt, null, 'var-args'],
+          parsers: [null, parseInt, parseInt, parseInt, null, 'var-args'],
           processor: this.processCodeCreation },
       'code-move': { parsers: [parseInt, parseInt],
           processor: this.processCodeMove },
@@ -167,7 +167,7 @@ function TickProcessor(
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition },
       'tick': {
-          parsers: [parseInt, parseInt, parseInt,
+          parsers: [parseInt, parseInt, parseInt, parseInt,
                     parseInt, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
@@ -231,8 +231,9 @@ TickProcessor.VmStates = {
   JS: 0,
   GC: 1,
   COMPILER: 2,
-  OTHER: 3,
-  EXTERNAL: 4
+  PARALLEL_COMPILER: 3,
+  OTHER: 4,
+  EXTERNAL: 5
 };
 
 
@@ -308,7 +309,7 @@ TickProcessor.prototype.processSharedLibrary = function(
 
 
 TickProcessor.prototype.processCodeCreation = function(
-    type, start, size, name, maybe_func) {
+    type, kind, start, size, name, maybe_func) {
   name = this.deserializedEntriesNames_[start] || name;
   if (maybe_func.length) {
     var funcAddr = parseInt(maybe_func[0]);
@@ -349,6 +350,7 @@ TickProcessor.prototype.includeTick = function(vmState) {
 
 TickProcessor.prototype.processTick = function(pc,
                                                sp,
+                                               ns_since_start,
                                                is_external_callback,
                                                tos_or_external_callback,
                                                vmState,

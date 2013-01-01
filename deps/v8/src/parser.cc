@@ -614,11 +614,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
-  // Compute the parsing mode.
-  Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
-  if (allow_natives_syntax_ || extension_ != NULL) mode = PARSE_EAGERLY;
-  ParsingModeScope parsing_mode(this, mode);
-
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
@@ -637,12 +632,19 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     scope->set_start_position(0);
     scope->set_end_position(source->length());
 
+    // Compute the parsing mode.
+    Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
+    if (allow_natives_syntax_ || extension_ != NULL || scope->is_eval_scope()) {
+      mode = PARSE_EAGERLY;
+    }
+    ParsingModeScope parsing_mode(this, mode);
+
     FunctionState function_state(this, scope, isolate());  // Enters 'scope'.
     top_scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
-    ParseSourceElements(body, Token::EOS, info->is_eval(), &ok);
+    ParseSourceElements(body, Token::EOS, info->is_eval(), true, &ok);
     if (ok && !top_scope_->is_classic_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
@@ -832,145 +834,10 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
 }
 
 
-// Base class containing common code for the different finder classes used by
-// the parser.
-class ParserFinder {
- protected:
-  ParserFinder() {}
-  static Assignment* AsAssignment(Statement* stat) {
-    if (stat == NULL) return NULL;
-    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
-    if (exp_stat == NULL) return NULL;
-    return exp_stat->expression()->AsAssignment();
-  }
-};
-
-
-// An InitializationBlockFinder finds and marks sequences of statements of the
-// form expr.a = ...; expr.b = ...; etc.
-class InitializationBlockFinder : public ParserFinder {
- public:
-  // We find and mark the initialization blocks in top level
-  // non-looping code only. This is because the optimization prevents
-  // reuse of the map transitions, so it should be used only for code
-  // that will only be run once.
-  InitializationBlockFinder(Scope* top_scope, Target* target)
-      : enabled_(top_scope->DeclarationScope()->is_global_scope() &&
-                 !IsLoopTarget(target)),
-        first_in_block_(NULL),
-        last_in_block_(NULL),
-        block_size_(0) {}
-
-  ~InitializationBlockFinder() {
-    if (!enabled_) return;
-    if (InBlock()) EndBlock();
-  }
-
-  void Update(Statement* stat) {
-    if (!enabled_) return;
-    Assignment* assignment = AsAssignment(stat);
-    if (InBlock()) {
-      if (BlockContinues(assignment)) {
-        UpdateBlock(assignment);
-      } else {
-        EndBlock();
-      }
-    }
-    if (!InBlock() && (assignment != NULL) &&
-        (assignment->op() == Token::ASSIGN)) {
-      StartBlock(assignment);
-    }
-  }
-
- private:
-  // The minimum number of contiguous assignment that will
-  // be treated as an initialization block. Benchmarks show that
-  // the overhead exceeds the savings below this limit.
-  static const int kMinInitializationBlock = 3;
-
-  static bool IsLoopTarget(Target* target) {
-    while (target != NULL) {
-      if (target->node()->AsIterationStatement() != NULL) return true;
-      target = target->previous();
-    }
-    return false;
-  }
-
-  // Returns true if the expressions appear to denote the same object.
-  // In the context of initialization blocks, we only consider expressions
-  // of the form 'expr.x' or expr["x"].
-  static bool SameObject(Expression* e1, Expression* e2) {
-    VariableProxy* v1 = e1->AsVariableProxy();
-    VariableProxy* v2 = e2->AsVariableProxy();
-    if (v1 != NULL && v2 != NULL) {
-      return v1->name()->Equals(*v2->name());
-    }
-    Property* p1 = e1->AsProperty();
-    Property* p2 = e2->AsProperty();
-    if ((p1 == NULL) || (p2 == NULL)) return false;
-    Literal* key1 = p1->key()->AsLiteral();
-    Literal* key2 = p2->key()->AsLiteral();
-    if ((key1 == NULL) || (key2 == NULL)) return false;
-    if (!key1->handle()->IsString() || !key2->handle()->IsString()) {
-      return false;
-    }
-    String* name1 = String::cast(*key1->handle());
-    String* name2 = String::cast(*key2->handle());
-    if (!name1->Equals(name2)) return false;
-    return SameObject(p1->obj(), p2->obj());
-  }
-
-  // Returns true if the expressions appear to denote different properties
-  // of the same object.
-  static bool PropertyOfSameObject(Expression* e1, Expression* e2) {
-    Property* p1 = e1->AsProperty();
-    Property* p2 = e2->AsProperty();
-    if ((p1 == NULL) || (p2 == NULL)) return false;
-    return SameObject(p1->obj(), p2->obj());
-  }
-
-  bool BlockContinues(Assignment* assignment) {
-    if ((assignment == NULL) || (first_in_block_ == NULL)) return false;
-    if (assignment->op() != Token::ASSIGN) return false;
-    return PropertyOfSameObject(first_in_block_->target(),
-                                assignment->target());
-  }
-
-  void StartBlock(Assignment* assignment) {
-    first_in_block_ = assignment;
-    last_in_block_ = assignment;
-    block_size_ = 1;
-  }
-
-  void UpdateBlock(Assignment* assignment) {
-    last_in_block_ = assignment;
-    ++block_size_;
-  }
-
-  void EndBlock() {
-    if (block_size_ >= kMinInitializationBlock) {
-      first_in_block_->mark_block_start();
-      last_in_block_->mark_block_end();
-    }
-    last_in_block_ = first_in_block_ = NULL;
-    block_size_ = 0;
-  }
-
-  bool InBlock() { return first_in_block_ != NULL; }
-
-  const bool enabled_;
-  Assignment* first_in_block_;
-  Assignment* last_in_block_;
-  int block_size_;
-
-  DISALLOW_COPY_AND_ASSIGN(InitializationBlockFinder);
-};
-
-
 // A ThisNamedPropertyAssignmentFinder finds and marks statements of the form
 // this.x = ...;, where x is a named property. It also determines whether a
 // function contains only assignments of this type.
-class ThisNamedPropertyAssignmentFinder : public ParserFinder {
+class ThisNamedPropertyAssignmentFinder {
  public:
   ThisNamedPropertyAssignmentFinder(Isolate* isolate, Zone* zone)
       : isolate_(isolate),
@@ -979,6 +846,13 @@ class ThisNamedPropertyAssignmentFinder : public ParserFinder {
         assigned_arguments_(0, zone),
         assigned_constants_(0, zone),
         zone_(zone) {
+  }
+
+  static Assignment* AsAssignment(Statement* stat) {
+    if (stat == NULL) return NULL;
+    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
+    if (exp_stat == NULL) return NULL;
+    return exp_stat->expression()->AsAssignment();
   }
 
   void Update(Scope* scope, Statement* stat) {
@@ -1135,6 +1009,7 @@ class ThisNamedPropertyAssignmentFinder : public ParserFinder {
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool is_eval,
+                                  bool is_global,
                                   bool* ok) {
   // SourceElements ::
   //   (ModuleElement)* <end_token>
@@ -1146,7 +1021,6 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
   TargetScope scope(&this->target_stack_);
 
   ASSERT(processor != NULL);
-  InitializationBlockFinder block_finder(top_scope_, target_stack_);
   ThisNamedPropertyAssignmentFinder this_property_assignment_finder(isolate(),
                                                                     zone());
   bool directive_prologue = true;     // Parsing directive prologue.
@@ -1157,7 +1031,12 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
     }
 
     Scanner::Location token_loc = scanner().peek_location();
-    Statement* stat = ParseModuleElement(NULL, CHECK_OK);
+    Statement* stat;
+    if (is_global && !is_eval) {
+      stat = ParseModuleElement(NULL, CHECK_OK);
+    } else {
+      stat = ParseBlockElement(NULL, CHECK_OK);
+    }
     if (stat == NULL || stat->IsEmpty()) {
       directive_prologue = false;   // End of directive prologue.
       continue;
@@ -1182,12 +1061,14 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           // as specified in ES5 10.4.2(3). The correct fix would be to always
           // add this scope in DoParseProgram(), but that requires adaptations
           // all over the code base, so we go with a quick-fix for now.
+          // In the same manner, we have to patch the parsing mode.
           if (is_eval && !top_scope_->is_eval_scope()) {
             ASSERT(top_scope_->is_global_scope());
             Scope* scope = NewScope(top_scope_, EVAL_SCOPE);
             scope->set_start_position(top_scope_->start_position());
             scope->set_end_position(top_scope_->end_position());
             top_scope_ = scope;
+            mode_ = PARSE_EAGERLY;
           }
           // TODO(ES6): Fix entering extended mode, once it is specified.
           top_scope_->SetLanguageMode(FLAG_harmony_scoping
@@ -1201,7 +1082,6 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       }
     }
 
-    block_finder.Update(stat);
     // Find and mark all assignments to named properties in this (this.x =)
     if (top_scope_->is_function_scope()) {
       this_property_assignment_finder.Update(top_scope_, stat);
@@ -1284,7 +1164,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
 #endif
 
   Module* module = ParseModule(CHECK_OK);
-  VariableProxy* proxy = NewUnresolved(name, LET, module->interface());
+  VariableProxy* proxy = NewUnresolved(name, MODULE, module->interface());
   Declaration* declaration =
       factory()->NewModuleDeclaration(proxy, module, top_scope_);
   Declare(declaration, true, CHECK_OK);
@@ -1303,7 +1183,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   if (module->body() == NULL)
     return factory()->NewEmptyStatement();
   else
-    return module->body();
+    return factory()->NewModuleStatement(proxy, module->body());
 }
 
 
@@ -1354,13 +1234,11 @@ Module* Parser::ParseModuleLiteral(bool* ok) {
     TargetCollector collector(zone());
     Target target(&this->target_stack_, &collector);
     Target target_body(&this->target_stack_, body);
-    InitializationBlockFinder block_finder(top_scope_, target_stack_);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseModuleElement(NULL, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->AddStatement(stat, zone());
-        block_finder.Update(stat);
       }
     }
   }
@@ -1454,12 +1332,15 @@ Module* Parser::ParseModuleUrl(bool* ok) {
   if (FLAG_print_interface_details) PrintF("# Url ");
 #endif
 
-  Module* result = factory()->NewModuleUrl(symbol);
-  Interface* interface = result->interface();
+  // Create an empty literal as long as the feature isn't finished.
+  USE(symbol);
+  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
+  Block* body = factory()->NewBlock(NULL, 1, false);
+  body->set_scope(scope);
+  Interface* interface = scope->interface();
+  Module* result = factory()->NewModuleLiteral(body, interface);
   interface->Freeze(ok);
   ASSERT(*ok);
-  // Create dummy scope to avoid errors as long as the feature isn't finished.
-  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
   interface->Unify(scope->interface(), zone(), ok);
   ASSERT(*ok);
   return result;
@@ -1828,10 +1709,9 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         *ok = false;
         return;
       }
-      const char* type =
-          (var->mode() == VAR) ? "var" : var->is_const_mode() ? "const" : "let";
       Handle<String> type_string =
-          isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
+          isolate()->factory()->NewStringFromUtf8(CStrVector("Variable"),
+                                                  TENURED);
       Expression* expression =
           NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
                             type_string, name);
@@ -2036,12 +1916,10 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
   Block* result = factory()->NewBlock(labels, 16, false);
   Target target(&this->target_stack_, result);
   Expect(Token::LBRACE, CHECK_OK);
-  InitializationBlockFinder block_finder(top_scope_, target_stack_);
   while (peek() != Token::RBRACE) {
     Statement* stat = ParseStatement(NULL, CHECK_OK);
     if (stat && !stat->IsEmpty()) {
       result->AddStatement(stat, zone());
-      block_finder.Update(stat);
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
@@ -2066,13 +1944,11 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     TargetCollector collector(zone());
     Target target(&this->target_stack_, &collector);
     Target target_body(&this->target_stack_, body);
-    InitializationBlockFinder block_finder(top_scope_, target_stack_);
 
     while (peek() != Token::RBRACE) {
       Statement* stat = ParseBlockElement(NULL, CHECK_OK);
       if (stat && !stat->IsEmpty()) {
         body->AddStatement(stat, zone());
-        block_finder.Update(stat);
       }
     }
   }
@@ -2926,8 +2802,6 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
       if (peek() == Token::IN && !name.is_null()) {
         Interface* interface =
             is_const ? Interface::NewConst() : Interface::NewValue();
-        VariableProxy* each =
-            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
@@ -2935,6 +2809,8 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Expression* enumerable = ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
 
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, interface);
         Statement* body = ParseStatement(NULL, CHECK_OK);
         loop->Initialize(each, enumerable, body);
         Block* result = factory()->NewBlock(NULL, 2, false);
@@ -2972,18 +2848,24 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         // TODO(keuchel): Move the temporary variable to the block scope, after
         // implementing stack allocated block scoped variables.
-        Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
+        Factory* heap_factory = isolate()->factory();
+        Handle<String> tempstr =
+            heap_factory->NewConsString(heap_factory->dot_for_symbol(), name);
+        Handle<String> tempname = heap_factory->LookupSymbol(tempstr);
+        Variable* temp = top_scope_->DeclarationScope()->NewTemporary(tempname);
         VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
-        Interface* interface = Interface::NewValue();
-        VariableProxy* each =
-            top_scope_->NewUnresolved(factory(), name, interface);
         ForInStatement* loop = factory()->NewForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
+        // The expression does not see the loop variable.
         Expect(Token::IN, CHECK_OK);
+        top_scope_ = saved_scope;
         Expression* enumerable = ParseExpression(true, CHECK_OK);
+        top_scope_ = for_scope;
         Expect(Token::RPAREN, CHECK_OK);
 
+        VariableProxy* each =
+            top_scope_->NewUnresolved(factory(), name, Interface::NewValue());
         Statement* body = ParseStatement(NULL, CHECK_OK);
         Block* body_block = factory()->NewBlock(NULL, 3, false);
         Assignment* assignment = factory()->NewAssignment(
@@ -3327,7 +3209,8 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       if (op == Token::NOT) {
         // Convert the literal to a boolean condition and negate it.
         bool condition = literal->ToBoolean()->IsTrue();
-        Handle<Object> result(isolate()->heap()->ToBoolean(!condition));
+        Handle<Object> result(isolate()->heap()->ToBoolean(!condition),
+                              isolate());
         return factory()->NewLiteral(result);
       } else if (literal->IsNumber()) {
         // Compute some expressions involving only number literals.
@@ -3835,17 +3718,16 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
   // Allocate a fixed array to hold all the object literals.
-  Handle<FixedArray> object_literals =
-      isolate()->factory()->NewFixedArray(values->length(), TENURED);
-  Handle<FixedDoubleArray> double_literals;
-  ElementsKind elements_kind = FAST_SMI_ELEMENTS;
-  bool has_only_undefined_values = true;
-  bool has_hole_values = false;
+  Handle<JSArray> array =
+      isolate()->factory()->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
+  isolate()->factory()->SetElementsCapacityAndLength(
+      array, values->length(), values->length());
 
   // Fill in the literals.
   Heap* heap = isolate()->heap();
   bool is_simple = true;
   int depth = 1;
+  bool is_holey = false;
   for (int i = 0, n = values->length(); i < n; i++) {
     MaterializedLiteral* m_literal = values->at(i)->AsMaterializedLiteral();
     if (m_literal != NULL && m_literal->depth() + 1 > depth) {
@@ -3853,91 +3735,33 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
     if (boilerplate_value->IsTheHole()) {
-      has_hole_values = true;
-      object_literals->set_the_hole(i);
-      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-        double_literals->set_the_hole(i);
-      }
+      is_holey = true;
     } else if (boilerplate_value->IsUndefined()) {
       is_simple = false;
-      object_literals->set(i, Smi::FromInt(0));
-      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-        double_literals->set(i, 0);
-      }
+      JSObject::SetOwnElement(
+          array, i, handle(Smi::FromInt(0), isolate()), kNonStrictMode);
     } else {
-      // Examine each literal element, and adjust the ElementsKind if the
-      // literal element is not of a type that can be stored in the current
-      // ElementsKind.  Start with FAST_SMI_ONLY_ELEMENTS, and transition to
-      // FAST_DOUBLE_ELEMENTS and FAST_ELEMENTS as necessary.  Always remember
-      // the tagged value, no matter what the ElementsKind is in case we
-      // ultimately end up in FAST_ELEMENTS.
-      has_only_undefined_values = false;
-      object_literals->set(i, *boilerplate_value);
-      if (elements_kind == FAST_SMI_ELEMENTS) {
-        // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
-        // FAST_ELEMENTS is required.
-        if (!boilerplate_value->IsSmi()) {
-          if (boilerplate_value->IsNumber() && FLAG_smi_only_arrays) {
-            // Allocate a double array on the FAST_DOUBLE_ELEMENTS transition to
-            // avoid over-allocating in TENURED space.
-            double_literals = isolate()->factory()->NewFixedDoubleArray(
-                values->length(), TENURED);
-            // Copy the contents of the FAST_SMI_ONLY_ELEMENT array to the
-            // FAST_DOUBLE_ELEMENTS array so that they are in sync.
-            for (int j = 0; j < i; ++j) {
-              Object* smi_value = object_literals->get(j);
-              if (smi_value->IsTheHole()) {
-                double_literals->set_the_hole(j);
-              } else {
-                double_literals->set(j, Smi::cast(smi_value)->value());
-              }
-            }
-            double_literals->set(i, boilerplate_value->Number());
-            elements_kind = FAST_DOUBLE_ELEMENTS;
-          } else {
-            elements_kind = FAST_ELEMENTS;
-          }
-        }
-      } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-        // Continue to store double values in to FAST_DOUBLE_ELEMENTS arrays
-        // until the first value is seen that can't be stored as a double.
-        if (boilerplate_value->IsNumber()) {
-          double_literals->set(i, boilerplate_value->Number());
-        } else {
-          elements_kind = FAST_ELEMENTS;
-        }
-      }
+      JSObject::SetOwnElement(array, i, boilerplate_value, kNonStrictMode);
     }
   }
 
-  // Very small array literals that don't have a concrete hint about their type
-  // from a constant value should default to the slow case to avoid lots of
-  // elements transitions on really small objects.
-  if (has_only_undefined_values && values->length() <= 2) {
-    elements_kind = FAST_ELEMENTS;
-  }
+  Handle<FixedArrayBase> element_values(array->elements());
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
   if (is_simple && depth == 1 && values->length() > 0 &&
-      elements_kind != FAST_DOUBLE_ELEMENTS) {
-    object_literals->set_map(heap->fixed_cow_array_map());
+      array->HasFastSmiOrObjectElements()) {
+    element_values->set_map(heap->fixed_cow_array_map());
   }
-
-  Handle<FixedArrayBase> element_values = elements_kind == FAST_DOUBLE_ELEMENTS
-      ? Handle<FixedArrayBase>(double_literals)
-      : Handle<FixedArrayBase>(object_literals);
 
   // Remember both the literal's constant values as well as the ElementsKind
   // in a 2-element FixedArray.
-  Handle<FixedArray> literals =
-      isolate()->factory()->NewFixedArray(2, TENURED);
+  Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(2, TENURED);
 
-  if (has_hole_values || !FLAG_packed_arrays) {
-    elements_kind = GetHoleyElementsKind(elements_kind);
-  }
+  ElementsKind kind = array->GetElementsKind();
+  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
 
-  literals->set(0, Smi::FromInt(elements_kind));
+  literals->set(0, Smi::FromInt(kind));
   literals->set(1, *element_values);
 
   return factory()->NewArrayLiteral(
@@ -4667,7 +4491,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                      RelocInfo::kNoPosition)),
                                      zone());
       }
-      ParseSourceElements(body, Token::RBRACE, false, CHECK_OK);
+      ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
 
       materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();

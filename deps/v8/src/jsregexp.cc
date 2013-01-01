@@ -529,7 +529,7 @@ int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
   if (!subject->IsFlat()) FlattenString(subject);
 
   // Check the asciiness of the underlying storage.
-  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
+  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
   if (!EnsureCompiledIrregexp(regexp, subject, is_ascii)) return -1;
 
 #ifdef V8_INTERPRETED_REGEXP
@@ -560,7 +560,7 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
   ASSERT(index <= subject->length());
   ASSERT(subject->IsFlat());
 
-  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
+  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
 
 #ifndef V8_INTERPRETED_REGEXP
   ASSERT(output_size >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
@@ -596,7 +596,7 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
     // being internal and external, and even between being ASCII and UC16,
     // but the characters are always the same).
     IrregexpPrepare(regexp, subject);
-    is_ascii = subject->IsAsciiRepresentationUnderneath();
+    is_ascii = subject->IsOneByteRepresentationUnderneath();
   } while (true);
   UNREACHABLE();
   return RE_EXCEPTION;

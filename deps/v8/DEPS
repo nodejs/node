@@ -5,7 +5,7 @@
 deps = {
   # Remember to keep the revision in sync with the Makefile.
   "v8/build/gyp":
-    "http://gyp.googlecode.com/svn/trunk@1282",
+    "http://gyp.googlecode.com/svn/trunk@1501",
 }
 
 deps_os = {

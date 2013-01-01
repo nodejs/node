@@ -348,9 +348,12 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
     Add("<Invalid map>\n");
     return;
   }
+  int real_size = map->NumberOfOwnDescriptors();
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (descs->GetType(i) == FIELD) {
+    PropertyDetails details = descs->GetDetails(i);
+    if (details.descriptor_index() > real_size) continue;
+    if (details.type() == FIELD) {
       Object* key = descs->GetKey(i);
       if (key->IsString() || key->IsNumber()) {
         int len = 3;

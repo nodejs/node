@@ -623,6 +623,123 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
+static void KeyedStoreGenerateGenericHelper(
+    MacroAssembler* masm,
+    Label* fast_object,
+    Label* fast_double,
+    Label* slow,
+    KeyedStoreCheckMap check_map,
+    KeyedStoreIncrementLength increment_length) {
+  Label transition_smi_elements;
+  Label finish_object_store, non_double_value, transition_double_elements;
+  Label fast_double_without_map_check;
+  // Fast case: Do the store, could be either Object or double.
+  __ bind(fast_object);
+  // rax: value
+  // rbx: receiver's elements array (a FixedArray)
+  // rcx: index
+  // rdx: receiver (a JSArray)
+  // r9: map of receiver
+  if (check_map == kCheckMap) {
+    __ movq(rdi, FieldOperand(rbx, HeapObject::kMapOffset));
+    __ CompareRoot(rdi, Heap::kFixedArrayMapRootIndex);
+    __ j(not_equal, fast_double);
+  }
+  // Smi stores don't require further checks.
+  Label non_smi_value;
+  __ JumpIfNotSmi(rax, &non_smi_value);
+  if (increment_length == kIncrementLength) {
+    // Add 1 to receiver->length.
+    __ leal(rdi, Operand(rcx, 1));
+    __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
+  }
+  // It's irrelevant whether array is smi-only or not when writing a smi.
+  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
+  __ ret(0);
+
+  __ bind(&non_smi_value);
+  // Writing a non-smi, check whether array allows non-smi elements.
+  // r9: receiver's map
+  __ CheckFastObjectElements(r9, &transition_smi_elements);
+
+  __ bind(&finish_object_store);
+  if (increment_length == kIncrementLength) {
+    // Add 1 to receiver->length.
+    __ leal(rdi, Operand(rcx, 1));
+    __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
+  }
+  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
+  __ movq(rdx, rax);  // Preserve the value which is returned.
+  __ RecordWriteArray(
+      rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ ret(0);
+
+  __ bind(fast_double);
+  if (check_map == kCheckMap) {
+    // Check for fast double array case. If this fails, call through to the
+    // runtime.
+    // rdi: elements array's map
+    __ CompareRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
+    __ j(not_equal, slow);
+  }
+  __ bind(&fast_double_without_map_check);
+  __ StoreNumberToDoubleElements(rax, rbx, rcx, xmm0,
+                                 &transition_double_elements);
+  if (increment_length == kIncrementLength) {
+    // Add 1 to receiver->length.
+    __ leal(rdi, Operand(rcx, 1));
+    __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
+  }
+  __ ret(0);
+
+  __ bind(&transition_smi_elements);
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+
+  // Transition the array appropriately depending on the value type.
+  __ movq(r9, FieldOperand(rax, HeapObject::kMapOffset));
+  __ CompareRoot(r9, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &non_double_value);
+
+  // Value is a double. Transition FAST_SMI_ELEMENTS ->
+  // FAST_DOUBLE_ELEMENTS and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                         FAST_DOUBLE_ELEMENTS,
+                                         rbx,
+                                         rdi,
+                                         slow);
+  ElementsTransitionGenerator::GenerateSmiToDouble(masm, slow);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ jmp(&fast_double_without_map_check);
+
+  __ bind(&non_double_value);
+  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         rbx,
+                                         rdi,
+                                         slow);
+  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
+
+  __ bind(&transition_double_elements);
+  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
+  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
+  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         rbx,
+                                         rdi,
+                                         slow);
+  ElementsTransitionGenerator::GenerateDoubleToObject(masm, slow);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
+}
+
+
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                    StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
@@ -631,11 +748,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Label slow, slow_with_tagged_index, fast, array, extra, check_extra_double;
-  Label fast_object_with_map_check, fast_object_without_map_check;
-  Label fast_double_with_map_check, fast_double_without_map_check;
-  Label transition_smi_elements, finish_object_store, non_double_value;
-  Label transition_double_elements;
+  Label slow, slow_with_tagged_index, fast_object, fast_object_grow;
+  Label fast_double, fast_double_grow;
+  Label array, extra, check_if_double_array;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow_with_tagged_index);
@@ -666,7 +781,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // rax: value
   // rbx: FixedArray
   // rcx: index
-  __ j(above, &fast_object_with_map_check);
+  __ j(above, &fast_object);
 
   // Slow case: call runtime.
   __ bind(&slow);
@@ -690,18 +805,14 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Increment index to get new length.
   __ movq(rdi, FieldOperand(rbx, HeapObject::kMapOffset));
   __ CompareRoot(rdi, Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &check_extra_double);
-  __ leal(rdi, Operand(rcx, 1));
-  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
-  __ jmp(&fast_object_without_map_check);
+  __ j(not_equal, &check_if_double_array);
+  __ jmp(&fast_object_grow);
 
-  __ bind(&check_extra_double);
+  __ bind(&check_if_double_array);
   // rdi: elements array's map
   __ CompareRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
   __ j(not_equal, &slow);
-  __ leal(rdi, Operand(rcx, 1));
-  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
-  __ jmp(&fast_double_without_map_check);
+  __ jmp(&fast_double_grow);
 
   // Array case: Get the length and the elements array from the JS
   // array. Check that the array is in fast mode (and writable); if it
@@ -717,92 +828,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ SmiCompareInteger32(FieldOperand(rdx, JSArray::kLengthOffset), rcx);
   __ j(below_equal, &extra);
 
-  // Fast case: Do the store.
-  __ bind(&fast_object_with_map_check);
-  // rax: value
-  // rbx: receiver's elements array (a FixedArray)
-  // rcx: index
-  // rdx: receiver (a JSArray)
-  __ movq(rdi, FieldOperand(rbx, HeapObject::kMapOffset));
-  __ CompareRoot(rdi, Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &fast_double_with_map_check);
-  __ bind(&fast_object_without_map_check);
-  // Smi stores don't require further checks.
-  Label non_smi_value;
-  __ JumpIfNotSmi(rax, &non_smi_value);
-  // It's irrelevant whether array is smi-only or not when writing a smi.
-  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
-          rax);
-  __ ret(0);
-
-  __ bind(&non_smi_value);
-  // Writing a non-smi, check whether array allows non-smi elements.
-  // r9: receiver's map
-  __ CheckFastObjectElements(r9, &transition_smi_elements);
-  __ bind(&finish_object_store);
-  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
-          rax);
-  __ movq(rdx, rax);  // Preserve the value which is returned.
-  __ RecordWriteArray(
-      rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ ret(0);
-
-  __ bind(&fast_double_with_map_check);
-  // Check for fast double array case. If this fails, call through to the
-  // runtime.
-  // rdi: elements array's map
-  __ CompareRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ j(not_equal, &slow);
-  __ bind(&fast_double_without_map_check);
-  // If the value is a number, store it as a double in the FastDoubleElements
-  // array.
-  __ StoreNumberToDoubleElements(rax, rbx, rcx, xmm0,
-                                 &transition_double_elements);
-  __ ret(0);
-
-  __ bind(&transition_smi_elements);
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-
-  // Transition the array appropriately depending on the value type.
-  __ movq(r9, FieldOperand(rax, HeapObject::kMapOffset));
-  __ CompareRoot(r9, Heap::kHeapNumberMapRootIndex);
-  __ j(not_equal, &non_double_value);
-
-  // Value is a double. Transition FAST_SMI_ELEMENTS ->
-  // FAST_DOUBLE_ELEMENTS and complete the store.
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                         FAST_DOUBLE_ELEMENTS,
-                                         rbx,
-                                         rdi,
-                                         &slow);
-  ElementsTransitionGenerator::GenerateSmiToDouble(masm, &slow);
-  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ jmp(&fast_double_without_map_check);
-
-  __ bind(&non_double_value);
-  // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                         FAST_ELEMENTS,
-                                         rbx,
-                                         rdi,
-                                         &slow);
-  ElementsTransitionGenerator::GenerateMapChangeElementsTransition(masm);
-  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ jmp(&finish_object_store);
-
-  __ bind(&transition_double_elements);
-  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
-  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
-  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
-  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
-  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
-                                         FAST_ELEMENTS,
-                                         rbx,
-                                         rdi,
-                                         &slow);
-  ElementsTransitionGenerator::GenerateDoubleToObject(masm, &slow);
-  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  __ jmp(&finish_object_store);
+  KeyedStoreGenerateGenericHelper(masm, &fast_object, &fast_double,
+                                  &slow, kCheckMap, kDontIncrementLength);
+  KeyedStoreGenerateGenericHelper(masm, &fast_object_grow, &fast_double_grow,
+                                  &slow, kDontCheckMap, kIncrementLength);
 }
 
 
@@ -1700,7 +1729,7 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 }
 
 
-static bool HasInlinedSmiCode(Address address) {
+bool CompareIC::HasInlinedSmiCode(Address address) {
   // The address of the instruction following the call.
   Address test_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
@@ -1710,39 +1739,6 @@ static bool HasInlinedSmiCode(Address address) {
   return *test_instruction_address == Assembler::kTestAlByte;
 }
 
-
-void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
-  HandleScope scope;
-  Handle<Code> rewritten;
-  State previous_state = GetState();
-
-  State state = TargetState(previous_state, HasInlinedSmiCode(address()), x, y);
-  if (state == GENERIC) {
-    CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS);
-    rewritten = stub.GetCode();
-  } else {
-    ICCompareStub stub(op_, state);
-    if (state == KNOWN_OBJECTS) {
-      stub.set_known_map(Handle<Map>(Handle<JSObject>::cast(x)->map()));
-    }
-    rewritten = stub.GetCode();
-  }
-  set_target(*rewritten);
-
-#ifdef DEBUG
-  if (FLAG_trace_ic) {
-    PrintF("[CompareIC (%s->%s)#%s]\n",
-           GetStateName(previous_state),
-           GetStateName(state),
-           Token::Name(op_));
-  }
-#endif
-
-  // Activate inlined smi code.
-  if (previous_state == UNINITIALIZED) {
-    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
-  }
-}
 
 void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // The address of the instruction following the call.

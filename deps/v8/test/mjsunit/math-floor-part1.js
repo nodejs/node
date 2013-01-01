@@ -45,13 +45,6 @@ function zero() {
 }
 
 function test() {
-  testFloor(0, 0);
-  testFloor(0, zero());
-  testFloor(-0, -0);
-  testFloor(Infinity, Infinity);
-  testFloor(-Infinity, -Infinity);
-  testFloor(NaN, NaN);
-
   // Ensure that a negative zero coming from Math.floor is properly handled
   // by other operations.
   function ifloor(x) {
@@ -86,74 +79,10 @@ function test() {
   testFloor(-Number.MAX_VALUE, -Number.MAX_VALUE);
   testFloor(Infinity, Infinity);
   testFloor(-Infinity, -Infinity);
-
-  // 2^30 is a smi boundary.
-  var two_30 = 1 << 30;
-
-  testFloor(two_30, two_30);
-  testFloor(two_30, two_30 + 0.1);
-  testFloor(two_30, two_30 + 0.5);
-  testFloor(two_30, two_30 + 0.7);
-
-  testFloor(two_30 - 1, two_30 - 1);
-  testFloor(two_30 - 1, two_30 - 1 + 0.1);
-  testFloor(two_30 - 1, two_30 - 1 + 0.5);
-  testFloor(two_30 - 1, two_30 - 1 + 0.7);
-
-  testFloor(-two_30, -two_30);
-  testFloor(-two_30, -two_30 + 0.1);
-  testFloor(-two_30, -two_30 + 0.5);
-  testFloor(-two_30, -two_30 + 0.7);
-
-  testFloor(-two_30 + 1, -two_30 + 1);
-  testFloor(-two_30 + 1, -two_30 + 1 + 0.1);
-  testFloor(-two_30 + 1, -two_30 + 1 + 0.5);
-  testFloor(-two_30 + 1, -two_30 + 1 + 0.7);
-
-  // 2^52 is a precision boundary.
-  var two_52 = (1 << 30) * (1 << 22);
-
-  testFloor(two_52, two_52);
-  testFloor(two_52, two_52 + 0.1);
-  assertEquals(two_52, two_52 + 0.5);
-  testFloor(two_52, two_52 + 0.5);
-  assertEquals(two_52 + 1, two_52 + 0.7);
-  testFloor(two_52 + 1, two_52 + 0.7);
-
-  testFloor(two_52 - 1, two_52 - 1);
-  testFloor(two_52 - 1, two_52 - 1 + 0.1);
-  testFloor(two_52 - 1, two_52 - 1 + 0.5);
-  testFloor(two_52 - 1, two_52 - 1 + 0.7);
-
-  testFloor(-two_52, -two_52);
-  testFloor(-two_52, -two_52 + 0.1);
-  testFloor(-two_52, -two_52 + 0.5);
-  testFloor(-two_52, -two_52 + 0.7);
-
-  testFloor(-two_52 + 1, -two_52 + 1);
-  testFloor(-two_52 + 1, -two_52 + 1 + 0.1);
-  testFloor(-two_52 + 1, -two_52 + 1 + 0.5);
-  testFloor(-two_52 + 1, -two_52 + 1 + 0.7);
 }
 
 
 // Test in a loop to cover the custom IC and GC-related issues.
-for (var i = 0; i < 500; i++) {
+for (var i = 0; i < 100; i++) {
   test();
 }
-
-
-// Regression test for a bug where a negative zero coming from Math.floor
-// was not properly handled by other operations.
-function floorsum(i, n) {
-  var ret = Math.floor(n);
-  while (--i > 0) {
-    ret += Math.floor(n);
-  }
-  return ret;
-}
-assertEquals(-0, floorsum(1, -0));
-%OptimizeFunctionOnNextCall(floorsum);
-// The optimized function will deopt.  Run it with enough iterations to try
-// to optimize via OSR (triggering the bug).
-assertEquals(-0, floorsum(100000, -0));

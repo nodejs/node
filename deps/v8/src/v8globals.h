@@ -52,15 +52,6 @@ const intptr_t kPointerAlignmentMask = kPointerAlignment - 1;
 const intptr_t kDoubleAlignment = 8;
 const intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 
-// Desired alignment for maps.
-#if V8_HOST_ARCH_64_BIT
-const intptr_t kMapAlignmentBits = kObjectAlignmentBits;
-#else
-const intptr_t kMapAlignmentBits = kObjectAlignmentBits + 3;
-#endif
-const intptr_t kMapAlignment = (1 << kMapAlignmentBits);
-const intptr_t kMapAlignmentMask = kMapAlignment - 1;
-
 // Desired alignment for generated code is 32 bytes (to improve cache line
 // utilization).
 const int kCodeAlignmentBits = 5;
@@ -360,20 +351,13 @@ struct AccessorDescriptor {
 // VMState object leaves a state by popping the current state from the
 // stack.
 
-#define STATE_TAG_LIST(V)                       \
-  V(JS)                                         \
-  V(GC)                                         \
-  V(COMPILER)                                   \
-  V(PARALLEL_COMPILER_PROLOGUE)                 \
-  V(OTHER)                                      \
-  V(EXTERNAL)
-
 enum StateTag {
-#define DEF_STATE_TAG(name) name,
-  STATE_TAG_LIST(DEF_STATE_TAG)
-#undef DEF_STATE_TAG
-  // Pseudo-types.
-  state_tag_count
+  JS,
+  GC,
+  COMPILER,
+  PARALLEL_COMPILER,
+  OTHER,
+  EXTERNAL
 };
 
 
@@ -395,10 +379,6 @@ enum StateTag {
 // POINTER_SIZE_ALIGN returns the value aligned as a pointer.
 #define POINTER_SIZE_ALIGN(value)                               \
   (((value) + kPointerAlignmentMask) & ~kPointerAlignmentMask)
-
-// MAP_POINTER_ALIGN returns the value aligned as a map pointer.
-#define MAP_POINTER_ALIGN(value)                                \
-  (((value) + kMapAlignmentMask) & ~kMapAlignmentMask)
 
 // CODE_POINTER_ALIGN returns the value aligned as a generated code segment.
 #define CODE_POINTER_ALIGN(value)                               \
@@ -425,6 +405,13 @@ enum StateTag {
 #endif
 
 
+enum CpuImplementer {
+  UNKNOWN_IMPLEMENTER,
+  ARM_IMPLEMENTER,
+  QUALCOMM_IMPLEMENTER
+};
+
+
 // Feature flags bit positions. They are mostly based on the CPUID spec.
 // (We assign CPUID itself to one of the currently reserved bits --
 // feel free to change this if needed.)
@@ -438,6 +425,9 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   VFP3 = 1,    // ARM
                   ARMv7 = 2,   // ARM
                   VFP2 = 3,    // ARM
+                  SUDIV = 4,   // ARM
+                  UNALIGNED_ACCESSES = 5,  // ARM
+                  MOVW_MOVT_IMMEDIATE_LOADS = 6,  // ARM
                   SAHF = 0,    // x86
                   FPU = 1};    // MIPS
 
@@ -486,11 +476,19 @@ enum VariableMode {
 
   CONST,           // declared via 'const' declarations
 
-  LET,             // declared via 'let' declarations
+  LET,             // declared via 'let' declarations (first lexical)
 
   CONST_HARMONY,   // declared via 'const' declarations in harmony mode
 
+  MODULE,          // declared via 'module' declaration (last lexical)
+
   // Variables introduced by the compiler:
+  INTERNAL,        // like VAR, but not user-visible (may or may not
+                   // be in a context)
+
+  TEMPORARY,       // temporary variables (not user-visible), never
+                   // in a context
+
   DYNAMIC,         // always require dynamic lookup (we don't know
                    // the declaration)
 
@@ -498,16 +496,10 @@ enum VariableMode {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
+  DYNAMIC_LOCAL    // requires dynamic lookup, but we know that the
                    // variable is local and where it is unless it
                    // has been shadowed by an eval-introduced
                    // variable
-
-  INTERNAL,        // like VAR, but not user-visible (may or may not
-                   // be in a context)
-
-  TEMPORARY        // temporary variables (not user-visible), never
-                   // in a context
 };
 
 
@@ -517,17 +509,17 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= CONST_HARMONY;
+  return mode >= VAR && mode <= MODULE;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= CONST_HARMONY;
+  return mode >= LET && mode <= MODULE;
 }
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_HARMONY;
+  return mode == CONST || (mode >= CONST_HARMONY && mode <= MODULE);
 }
 
 

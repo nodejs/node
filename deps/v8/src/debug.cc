@@ -261,8 +261,12 @@ void BreakLocationIterator::Reset() {
   // Create relocation iterators for the two code objects.
   if (reloc_iterator_ != NULL) delete reloc_iterator_;
   if (reloc_iterator_original_ != NULL) delete reloc_iterator_original_;
-  reloc_iterator_ = new RelocIterator(debug_info_->code());
-  reloc_iterator_original_ = new RelocIterator(debug_info_->original_code());
+  reloc_iterator_ = new RelocIterator(
+      debug_info_->code(),
+      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE));
+  reloc_iterator_original_ = new RelocIterator(
+      debug_info_->original_code(),
+      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE));
 
   // Position at the first break point.
   break_point_ = -1;
@@ -782,9 +786,11 @@ bool Debug::CompileDebuggerScript(int index) {
         "error_loading_debugger", &computed_location,
         Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
     ASSERT(!isolate->has_pending_exception());
-    isolate->set_pending_exception(*exception);
-    MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
-    isolate->clear_pending_exception();
+    if (!exception.is_null()) {
+      isolate->set_pending_exception(*exception);
+      MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
+      isolate->clear_pending_exception();
+    }
     return false;
   }
 
@@ -2285,7 +2291,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // Find the call address in the running code. This address holds the call to
   // either a DebugBreakXXX or to the debug break return entry code if the
   // break point is still active after processing the break point.
-  Address addr = frame->pc() - Assembler::kCallTargetAddressOffset;
+  Address addr = frame->pc() - Assembler::kPatchDebugBreakSlotReturnOffset;
 
   // Check if the location is at JS exit or debug break slot.
   bool at_js_return = false;
@@ -2374,7 +2380,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 #endif
 
   // Find the call address in the running code.
-  Address addr = frame->pc() - Assembler::kCallTargetAddressOffset;
+  Address addr = frame->pc() - Assembler::kPatchDebugBreakSlotReturnOffset;
 
   // Check if the location is at JS return.
   RelocIterator it(debug_info->code());
@@ -2826,6 +2832,7 @@ void Debugger::OnScriptCollected(int id) {
   HandleScope scope(isolate_);
 
   // No more to do if not debugging.
+  if (isolate_->debug()->InDebugger()) return;
   if (!IsDebuggerActive()) return;
   if (!Debugger::EventActive(v8::ScriptCollected)) return;
 

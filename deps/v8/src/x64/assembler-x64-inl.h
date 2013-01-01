@@ -42,6 +42,9 @@ namespace internal {
 // Implementation of Assembler
 
 
+static const byte kCallOpcode = 0xE8;
+
+
 void Assembler::emitl(uint32_t x) {
   Memory::uint32_at(pc_) = x;
   pc_ += sizeof(uint32_t);
@@ -195,6 +198,12 @@ void Assembler::set_target_address_at(Address pc, Address target) {
   CPU::FlushICache(pc, sizeof(int32_t));
 }
 
+
+Address Assembler::target_address_from_return_address(Address pc) {
+  return pc - kCallTargetAddressOffset;
+}
+
+
 Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];
 }
@@ -211,6 +220,12 @@ void RelocInfo::apply(intptr_t delta) {
   } else if (IsCodeTarget(rmode_)) {
     Memory::int32_at(pc_) -= static_cast<int32_t>(delta);
     CPU::FlushICache(pc_, sizeof(int32_t));
+  } else if (rmode_ == CODE_AGE_SEQUENCE) {
+    if (*pc_ == kCallOpcode) {
+      int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
+      *p -= static_cast<int32_t>(delta);  // Relocate entry.
+      CPU::FlushICache(p, sizeof(uint32_t));
+    }
   }
 }
 
@@ -349,6 +364,21 @@ bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
 }
 
 
+Code* RelocInfo::code_age_stub() {
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  ASSERT(*pc_ == kCallOpcode);
+  return Code::GetCodeFromTargetAddress(
+      Assembler::target_address_at(pc_ + 1));
+}
+
+
+void RelocInfo::set_code_age_stub(Code* stub) {
+  ASSERT(*pc_ == kCallOpcode);
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  Assembler::set_target_address_at(pc_ + 1, stub->instruction_start());
+}
+
+
 Address RelocInfo::call_address() {
   ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
@@ -402,6 +432,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
     CPU::FlushICache(pc_, sizeof(Address));
+  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
+    visitor->VisitCodeAgeSequence(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
@@ -430,6 +462,8 @@ void RelocInfo::Visit(Heap* heap) {
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
     CPU::FlushICache(pc_, sizeof(Address));
+  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
+    StaticVisitor::VisitCodeAgeSequence(heap, this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&

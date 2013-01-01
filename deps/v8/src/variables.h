@@ -130,8 +130,8 @@ class Variable: public ZoneObject {
   bool is_arguments() const { return kind_ == ARGUMENTS; }
 
   // True if the variable is named eval and not known to be shadowed.
-  bool is_possibly_eval() const {
-    return IsVariable(FACTORY->eval_symbol());
+  bool is_possibly_eval(Isolate* isolate) const {
+    return IsVariable(isolate->factory()->eval_symbol());
   }
 
   Variable* local_if_not_shadowed() const {

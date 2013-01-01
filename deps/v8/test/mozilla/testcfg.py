@@ -26,12 +26,19 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import test
 import os
-from os.path import join, exists
+import shutil
+import subprocess
+import tarfile
+
+from testrunner.local import testsuite
+from testrunner.objects import testcase
 
 
-EXCLUDED = ['CVS']
+MOZILLA_VERSION = "2010-06-29"
+
+
+EXCLUDED = ["CVS"]
 
 
 FRAMEWORK = """
@@ -52,6 +59,117 @@ TEST_DIRS = """
   js1_4
   js1_5
 """.split()
+
+
+class MozillaTestSuite(testsuite.TestSuite):
+
+  def __init__(self, name, root):
+    super(MozillaTestSuite, self).__init__(name, root)
+    self.testroot = os.path.join(root, "data")
+
+  def ListTests(self, context):
+    tests = []
+    for testdir in TEST_DIRS:
+      current_root = os.path.join(self.testroot, testdir)
+      for dirname, dirs, files in os.walk(current_root):
+        for dotted in [x for x in dirs if x.startswith(".")]:
+          dirs.remove(dotted)
+        for excluded in EXCLUDED:
+          if excluded in dirs:
+            dirs.remove(excluded)
+        dirs.sort()
+        files.sort()
+        for filename in files:
+          if filename.endswith(".js") and not filename in FRAMEWORK:
+            testname = os.path.join(dirname[len(self.testroot) + 1:],
+                                    filename[:-3])
+            case = testcase.TestCase(self, testname)
+            tests.append(case)
+    return tests
+
+  def GetFlagsForTestCase(self, testcase, context):
+    result = []
+    result += context.mode_flags
+    result += ["--expose-gc"]
+    result += [os.path.join(self.root, "mozilla-shell-emulation.js")]
+    testfilename = testcase.path + ".js"
+    testfilepath = testfilename.split(os.path.sep)
+    for i in xrange(len(testfilepath)):
+      script = os.path.join(self.testroot,
+                            reduce(os.path.join, testfilepath[:i], ""),
+                            "shell.js")
+      if os.path.exists(script):
+        result.append(script)
+    result.append(os.path.join(self.testroot, testfilename))
+    return testcase.flags + result
+
+  def GetSourceForTest(self, testcase):
+    filename = join(self.testroot, testcase.path + ".js")
+    with open(filename) as f:
+      return f.read()
+
+  def IsNegativeTest(self, testcase):
+    return testcase.path.endswith("-n")
+
+  def IsFailureOutput(self, output, testpath):
+    if output.exit_code != 0:
+      return True
+    return "FAILED!" in output.stdout
+
+  def DownloadData(self):
+    old_cwd = os.getcwd()
+    os.chdir(os.path.abspath(self.root))
+
+    # Maybe we're still up to date?
+    versionfile = "CHECKED_OUT_VERSION"
+    checked_out_version = None
+    if os.path.exists(versionfile):
+      with open(versionfile) as f:
+        checked_out_version = f.read()
+    if checked_out_version == MOZILLA_VERSION:
+      os.chdir(old_cwd)
+      return
+
+    # If we have a local archive file with the test data, extract it.
+    directory_name = "data"
+    if os.path.exists(directory_name):
+      os.rename(directory_name, "data.old")
+    archive_file = "downloaded_%s.tar.gz" % MOZILLA_VERSION
+    if os.path.exists(archive_file):
+      with tarfile.open(archive_file, "r:gz") as tar:
+        tar.extractall()
+      with open(versionfile, "w") as f:
+        f.write(MOZILLA_VERSION)
+      os.chdir(old_cwd)
+      return
+
+    # No cached copy. Check out via CVS, and pack as .tar.gz for later use.
+    command = ("cvs -d :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot"
+               " co -D %s mozilla/js/tests" % MOZILLA_VERSION)
+    code = subprocess.call(command, shell=True)
+    if code != 0:
+      os.chdir(old_cwd)
+      raise Exception("Error checking out Mozilla test suite!")
+    os.rename(join("mozilla", "js", "tests"), directory_name)
+    shutil.rmtree("mozilla")
+    with tarfile.open(archive_file, "w:gz") as tar:
+      tar.add("data")
+    with open(versionfile, "w") as f:
+      f.write(MOZILLA_VERSION)
+    os.chdir(old_cwd)
+
+
+def GetSuite(name, root):
+  return MozillaTestSuite(name, root)
+
+
+# Deprecated definitions below.
+# TODO(jkummerow): Remove when SCons is no longer supported.
+
+
+from os.path import exists
+from os.path import join
+import test
 
 
 class MozillaTestCase(test.TestCase):

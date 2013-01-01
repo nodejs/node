@@ -25,7 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that there is a limit of 65535 locals.
+// Test that there is a limit of 131071 locals.
+
+// Flags: --stack-size=1200
 
 function function_with_n_locals(n) {
   test_prefix = "prefix ";
@@ -40,8 +42,6 @@ function function_with_n_locals(n) {
 
 assertEquals("prefix 0 suffix", function_with_n_locals(0));
 assertEquals("prefix 16000 suffix", function_with_n_locals(16000));
-assertEquals("prefix 32767 suffix", function_with_n_locals(32767));
-assertEquals("prefix 65535 suffix", function_with_n_locals(65535));
+assertEquals("prefix 131071 suffix", function_with_n_locals(131071));
 
-assertThrows("function_with_n_locals(65536)");
-assertThrows("function_with_n_locals(100000)");
+assertThrows("function_with_n_locals(131072)");

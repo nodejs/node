@@ -162,3 +162,29 @@ try {} catch (module) {}
 
 module
 v = 20
+
+
+
+// Check that module declarations are rejected in eval or local scope.
+
+module M { export let x; }
+
+assertThrows("export x;", SyntaxError);  // It's using eval, so should throw.
+assertThrows("export let x;", SyntaxError);
+assertThrows("import x from M;", SyntaxError);
+assertThrows("module M {};", SyntaxError);
+
+assertThrows("{ export x; }", SyntaxError);
+assertThrows("{ export let x; }", SyntaxError);
+assertThrows("{ import x from M; }", SyntaxError);
+assertThrows("{ module M {}; }", SyntaxError);
+
+assertThrows("function f() { export x; }", SyntaxError);
+assertThrows("function f() { export let x; }", SyntaxError);
+assertThrows("function f() { import x from M; }", SyntaxError);
+assertThrows("function f() { module M {}; }", SyntaxError);
+
+assertThrows("function f() { { export x; } }", SyntaxError);
+assertThrows("function f() { { export let x; } }", SyntaxError);
+assertThrows("function f() { { import x from M; } }", SyntaxError);
+assertThrows("function f() { { module M {}; } }", SyntaxError);

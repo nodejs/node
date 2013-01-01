@@ -62,7 +62,6 @@ namespace internal {
   F(GetIndexedInterceptorElementNames, 1, 1) \
   F(GetArgumentsProperty, 1, 1) \
   F(ToFastProperties, 1, 1) \
-  F(ToSlowProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
   F(GetDefaultReceiver, 1, 1) \
@@ -86,7 +85,9 @@ namespace internal {
   F(NewStrictArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
-  F(ParallelRecompile, 1, 1)     \
+  F(ParallelRecompile, 1, 1) \
+  F(ForceParallelRecompile, 1, 1) \
+  F(InstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
@@ -112,7 +113,6 @@ namespace internal {
   F(Typeof, 1, 1) \
   \
   F(StringToNumber, 1, 1) \
-  F(StringFromCharCodeArray, 1, 1) \
   F(StringParseInt, 2, 1) \
   F(StringParseFloat, 1, 1) \
   F(StringToLowerCase, 1, 1) \
@@ -121,9 +121,6 @@ namespace internal {
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
-  F(QuoteJSONString, 1, 1) \
-  F(QuoteJSONStringComma, 1, 1) \
-  F(QuoteJSONStringArray, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
@@ -192,6 +189,10 @@ namespace internal {
   \
   /* JSON */ \
   F(ParseJson, 1, 1) \
+  F(BasicJSONStringify, 1, 1) \
+  F(QuoteJSONString, 1, 1) \
+  F(QuoteJSONStringComma, 1, 1) \
+  F(QuoteJSONStringArray, 1, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
@@ -205,6 +206,8 @@ namespace internal {
   F(StringTrim, 3, 1) \
   F(StringToArray, 2, 1) \
   F(NewStringWrapper, 1, 1) \
+  F(NewString, 2, 1) \
+  F(TruncateString, 2, 1) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2, 1) \
@@ -233,6 +236,7 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 3, 1) \
+  F(GetOverflowedRawStackTrace, 1, 1) \
   F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \
@@ -267,6 +271,7 @@ namespace internal {
   F(DefineOrRedefineDataProperty, 4, 1) \
   F(DefineOrRedefineAccessorProperty, 5, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
+  F(GetDataProperty, 2, 1) \
   \
   /* Arrays */ \
   F(RemoveArrayHoles, 2, 1) \
@@ -302,6 +307,7 @@ namespace internal {
   F(SetAdd, 2, 1) \
   F(SetHas, 2, 1) \
   F(SetDelete, 2, 1) \
+  F(SetGetSize, 1, 1) \
   \
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
@@ -309,6 +315,7 @@ namespace internal {
   F(MapHas, 2, 1) \
   F(MapDelete, 2, 1) \
   F(MapSet, 3, 1) \
+  F(MapGetSize, 1, 1) \
   \
   /* Harmony weakmaps */ \
   F(WeakMapInitialize, 1, 1) \
@@ -316,6 +323,15 @@ namespace internal {
   F(WeakMapHas, 2, 1) \
   F(WeakMapDelete, 2, 1) \
   F(WeakMapSet, 3, 1) \
+  \
+  /* Harmony observe */ \
+  F(IsObserved, 1, 1) \
+  F(SetIsObserved, 2, 1) \
+  F(SetObserverDeliveryPending, 0, 1) \
+  F(GetObservationState, 0, 1) \
+  F(CreateObjectHashTable, 0, 1) \
+  F(ObjectHashTableGet, 2, 1) \
+  F(ObjectHashTableSet, 3, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
@@ -336,7 +352,7 @@ namespace internal {
   F(PushWithContext, 2, 1) \
   F(PushCatchContext, 3, 1) \
   F(PushBlockContext, 2, 1) \
-  F(PushModuleContext, 1, 1) \
+  F(PushModuleContext, 2, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
@@ -344,6 +360,7 @@ namespace internal {
   \
   /* Declarations and initialization */ \
   F(DeclareGlobals, 3, 1) \
+  F(DeclareModules, 1, 1) \
   F(DeclareContextSlot, 4, 1) \
   F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
   F(InitializeConstGlobal, 2, 1) \
@@ -364,9 +381,6 @@ namespace internal {
   F(GetFromCache, 2, 1) \
   \
   /* Message objects */ \
-  F(NewMessageObject, 2, 1) \
-  F(MessageGetType, 1, 1) \
-  F(MessageGetArguments, 1, 1) \
   F(MessageGetStartPosition, 1, 1) \
   F(MessageGetScript, 1, 1) \
   \
@@ -419,6 +433,7 @@ namespace internal {
   F(GetScopeDetails, 4, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \
+  F(SetScopeVariableValue, 6, 1) \
   F(DebugPrintScopes, 0, 1) \
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
@@ -515,6 +530,8 @@ namespace internal {
   F(DateField, 2 /* date object, field index */, 1)                          \
   F(StringCharFromCode, 1, 1)                                                \
   F(StringCharAt, 2, 1)                                                      \
+  F(OneByteSeqStringSetChar, 3, 1)                                           \
+  F(TwoByteSeqStringSetChar, 3, 1)                                           \
   F(ObjectEquals, 2, 1)                                                      \
   F(RandomHeapNumber, 0, 1)                                                  \
   F(IsObject, 1, 1)                                                          \

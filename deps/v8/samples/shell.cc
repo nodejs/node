@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
     v8::HandleScope handle_scope;
     v8::Persistent<v8::Context> context = CreateShellContext();
     if (context.IsEmpty()) {
-      printf("Error creating context\n");
+      fprintf(stderr, "Error creating context\n");
       return 1;
     }
     context->Enter();
@@ -226,7 +226,8 @@ int RunMain(int argc, char* argv[]) {
       // alone JavaScript engines.
       continue;
     } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      fprintf(stderr,
+              "Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       // Execute argument given to -e option directly.
       v8::Handle<v8::String> file_name = v8::String::New("unnamed");
@@ -237,7 +238,7 @@ int RunMain(int argc, char* argv[]) {
       v8::Handle<v8::String> file_name = v8::String::New(str);
       v8::Handle<v8::String> source = ReadFile(str);
       if (source.IsEmpty()) {
-        printf("Error reading '%s'\n", str);
+        fprintf(stderr, "Error reading '%s'\n", str);
         continue;
       }
       if (!ExecuteString(source, file_name, false, true)) return 1;
@@ -249,20 +250,20 @@ int RunMain(int argc, char* argv[]) {
 
 // The read-eval-execute loop of the shell.
 void RunShell(v8::Handle<v8::Context> context) {
-  printf("V8 version %s [sample shell]\n", v8::V8::GetVersion());
+  fprintf(stderr, "V8 version %s [sample shell]\n", v8::V8::GetVersion());
   static const int kBufferSize = 256;
   // Enter the execution environment before evaluating any code.
   v8::Context::Scope context_scope(context);
   v8::Local<v8::String> name(v8::String::New("(shell)"));
   while (true) {
     char buffer[kBufferSize];
-    printf("> ");
+    fprintf(stderr, "> ");
     char* str = fgets(buffer, kBufferSize, stdin);
     if (str == NULL) break;
     v8::HandleScope handle_scope;
     ExecuteString(v8::String::New(str), name, true, true);
   }
-  printf("\n");
+  fprintf(stderr, "\n");
 }
 
 
@@ -310,31 +311,31 @@ void ReportException(v8::TryCatch* try_catch) {
   if (message.IsEmpty()) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
-    printf("%s\n", exception_string);
+    fprintf(stderr, "%s\n", exception_string);
   } else {
     // Print (filename):(line number): (message).
     v8::String::Utf8Value filename(message->GetScriptResourceName());
     const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
-    printf("%s:%i: %s\n", filename_string, linenum, exception_string);
+    fprintf(stderr, "%s:%i: %s\n", filename_string, linenum, exception_string);
     // Print line of source code.
     v8::String::Utf8Value sourceline(message->GetSourceLine());
     const char* sourceline_string = ToCString(sourceline);
-    printf("%s\n", sourceline_string);
+    fprintf(stderr, "%s\n", sourceline_string);
     // Print wavy underline (GetUnderline is deprecated).
     int start = message->GetStartColumn();
     for (int i = 0; i < start; i++) {
-      printf(" ");
+      fprintf(stderr, " ");
     }
     int end = message->GetEndColumn();
     for (int i = start; i < end; i++) {
-      printf("^");
+      fprintf(stderr, "^");
     }
-    printf("\n");
+    fprintf(stderr, "\n");
     v8::String::Utf8Value stack_trace(try_catch->StackTrace());
     if (stack_trace.length() > 0) {
       const char* stack_trace_string = ToCString(stack_trace);
-      printf("%s\n", stack_trace_string);
+      fprintf(stderr, "%s\n", stack_trace_string);
     }
   }
 }

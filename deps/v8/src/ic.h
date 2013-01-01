@@ -631,6 +631,18 @@ class StoreIC: public IC {
 };
 
 
+enum KeyedStoreCheckMap {
+  kDontCheckMap,
+  kCheckMap
+};
+
+
+enum KeyedStoreIncrementLength {
+  kDontIncrementLength,
+  kIncrementLength
+};
+
+
 class KeyedStoreIC: public KeyedIC {
  public:
   explicit KeyedStoreIC(Isolate* isolate) : KeyedIC(isolate) {
@@ -638,7 +650,7 @@ class KeyedStoreIC: public KeyedIC {
   }
 
   MUST_USE_RESULT MaybeObject* Store(State state,
-                                   StrictModeFlag strict_mode,
+                                     StrictModeFlag strict_mode,
                                      Handle<Object> object,
                                      Handle<Object> name,
                                      Handle<Object> value,
@@ -759,8 +771,7 @@ class BinaryOpIC: public IC {
     INT32,
     HEAP_NUMBER,
     ODDBALL,
-    BOTH_STRING,  // Only used for addition operation.
-    STRING,  // Only used for addition operation.  At least one string operand.
+    STRING,  // Only used for addition operation.
     GENERIC
   };
 
@@ -771,10 +782,6 @@ class BinaryOpIC: public IC {
   static const char* GetName(TypeInfo type_info);
 
   static State ToState(TypeInfo type_info);
-
-  static TypeInfo GetTypeInfo(Handle<Object> left, Handle<Object> right);
-
-  static TypeInfo JoinTypes(TypeInfo x, TypeInfo y);
 };
 
 
@@ -782,11 +789,11 @@ class CompareIC: public IC {
  public:
   enum State {
     UNINITIALIZED,
-    SMIS,
-    HEAP_NUMBERS,
-    SYMBOLS,
-    STRINGS,
-    OBJECTS,
+    SMI,
+    HEAP_NUMBER,
+    SYMBOL,
+    STRING,
+    OBJECT,
     KNOWN_OBJECTS,
     GENERIC
   };
@@ -797,27 +804,27 @@ class CompareIC: public IC {
   // Update the inline cache for the given operands.
   void UpdateCaches(Handle<Object> x, Handle<Object> y);
 
+
   // Factory method for getting an uninitialized compare stub.
   static Handle<Code> GetUninitialized(Token::Value op);
 
   // Helper function for computing the condition for a compare operation.
   static Condition ComputeCondition(Token::Value op);
 
-  // Helper function for determining the state of a compare IC.
-  static State ComputeState(Code* target);
-
-  // Helper function for determining the operation a compare IC is for.
-  static Token::Value ComputeOperation(Code* target);
-
   static const char* GetStateName(State state);
 
  private:
-  State TargetState(State state, bool has_inlined_smi_code,
-                    Handle<Object> x, Handle<Object> y);
+  static bool HasInlinedSmiCode(Address address);
+
+  State TargetState(State old_state,
+                    State old_left,
+                    State old_right,
+                    bool has_inlined_smi_code,
+                    Handle<Object> x,
+                    Handle<Object> y);
 
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return ComputeCondition(op_); }
-  State GetState() { return ComputeState(target()); }
 
   static Code* GetRawUninitialized(Token::Value op);
 

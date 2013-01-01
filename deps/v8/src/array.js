@@ -62,7 +62,7 @@ function GetSortedArrayKeys(array, intervals) {
       }
     }
   }
-  keys.sort(function(a, b) { return a - b; });
+  %_CallFunction(keys, function(a, b) { return a - b; }, ArraySort);
   return keys;
 }
 
@@ -413,6 +413,7 @@ function ArrayJoin(separator) {
                         ["Array.prototype.join"]);
   }
 
+  var length = TO_UINT32(this.length);
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
@@ -422,7 +423,7 @@ function ArrayJoin(separator) {
   var result = %_FastAsciiArrayJoin(this, separator);
   if (!IS_UNDEFINED(result)) return result;
 
-  return Join(this, TO_UINT32(this.length), separator, ConvertToString);
+  return Join(this, length, separator, ConvertToString);
 }
 
 
@@ -441,8 +442,8 @@ function ArrayPop() {
   }
   n--;
   var value = this[n];
-  this.length = n;
   delete this[n];
+  this.length = n;
   return value;
 }
 
@@ -581,7 +582,7 @@ function ArrayShift() {
 
   var first = this[0];
 
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) && !%IsObserved(this)) {
     SmartMove(this, 0, 1, len, 0);
   } else {
     SimpleMove(this, 0, 1, len, 0);
@@ -602,7 +603,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
 
-  if (IS_ARRAY(this)) {
+  if (IS_ARRAY(this) && !%IsObserved(this)) {
     SmartMove(this, 0, 0, len, num_arguments);
   } else {
     SimpleMove(this, 0, 0, len, num_arguments);
@@ -649,6 +650,7 @@ function ArraySlice(start, end) {
   if (end_i < start_i) return result;
 
   if (IS_ARRAY(this) &&
+      !%IsObserved(this) &&
       (end_i > 1000) &&
       (%EstimateNumberOfElements(this) < end_i)) {
     SmartSlice(this, start_i, end_i - start_i, len, result);
@@ -705,7 +707,9 @@ function ArraySplice(start, delete_count) {
 
   var use_simple_splice = true;
 
-  if (IS_ARRAY(this) && num_additional_args !== del_count) {
+  if (IS_ARRAY(this) &&
+      !%IsObserved(this) &&
+      num_additional_args !== del_count) {
     // If we are only deleting/moving a few things near the end of the
     // array then the simple version is going to be faster, because it
     // doesn't touch most of the array.
@@ -1549,9 +1553,11 @@ function SetUpArray() {
   // exposed to user code.
   // Adding only the functions that are actually used.
   SetUpLockedPrototype(InternalArray, $Array(), $Array(
+    "indexOf", getFunction("indexOf", ArrayIndexOf),
     "join", getFunction("join", ArrayJoin),
     "pop", getFunction("pop", ArrayPop),
-    "push", getFunction("push", ArrayPush)
+    "push", getFunction("push", ArrayPush),
+    "splice", getFunction("splice", ArraySplice)
   ));
 }
 

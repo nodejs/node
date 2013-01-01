@@ -37,11 +37,11 @@
 namespace v8 {
 namespace internal {
 
-bool CodeStub::FindCodeInCache(Code** code_out) {
-  Heap* heap = Isolate::Current()->heap();
-  int index = heap->code_stubs()->FindEntry(GetKey());
+bool CodeStub::FindCodeInCache(Code** code_out, Isolate* isolate) {
+  UnseededNumberDictionary* stubs = isolate->heap()->code_stubs();
+  int index = stubs->FindEntry(GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
-    *code_out = Code::cast(heap->code_stubs()->ValueAt(index));
+    *code_out = Code::cast(stubs->ValueAt(index));
     return true;
   }
   return false;
@@ -93,8 +93,8 @@ Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate->heap();
   Code* code;
   if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code)
-      : FindCodeInCache(&code)) {
+      ? FindCodeInSpecialCache(&code, isolate)
+      : FindCodeInCache(&code, isolate)) {
     ASSERT(IsPregenerated() == code->is_pregenerated());
     return Handle<Code>(code);
   }
@@ -142,7 +142,9 @@ Handle<Code> CodeStub::GetCode() {
   }
 
   Activate(code);
-  ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));
+  ASSERT(!NeedsImmovableCode() ||
+         heap->lo_space()->Contains(code) ||
+         heap->code_space()->FirstPage()->Contains(code->address()));
   return Handle<Code>(code, isolate);
 }
 
@@ -167,6 +169,122 @@ void CodeStub::PrintName(StringStream* stream) {
 }
 
 
+void BinaryOpStub::Generate(MacroAssembler* masm) {
+  // Explicitly allow generation of nested stubs. It is safe here because
+  // generation code does not use any raw pointers.
+  AllowStubCallsScope allow_stub_calls(masm, true);
+
+  BinaryOpIC::TypeInfo operands_type = Max(left_type_, right_type_);
+  if (left_type_ == BinaryOpIC::ODDBALL && right_type_ == BinaryOpIC::ODDBALL) {
+    // The OddballStub handles a number and an oddball, not two oddballs.
+    operands_type = BinaryOpIC::GENERIC;
+  }
+  switch (operands_type) {
+    case BinaryOpIC::UNINITIALIZED:
+      GenerateTypeTransition(masm);
+      break;
+    case BinaryOpIC::SMI:
+      GenerateSmiStub(masm);
+      break;
+    case BinaryOpIC::INT32:
+      GenerateInt32Stub(masm);
+      break;
+    case BinaryOpIC::HEAP_NUMBER:
+      GenerateHeapNumberStub(masm);
+      break;
+    case BinaryOpIC::ODDBALL:
+      GenerateOddballStub(masm);
+      break;
+    case BinaryOpIC::STRING:
+      GenerateStringStub(masm);
+      break;
+    case BinaryOpIC::GENERIC:
+      GenerateGeneric(masm);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+#define __ ACCESS_MASM(masm)
+
+
+void BinaryOpStub::GenerateCallRuntime(MacroAssembler* masm) {
+  switch (op_) {
+    case Token::ADD:
+      __ InvokeBuiltin(Builtins::ADD, JUMP_FUNCTION);
+      break;
+    case Token::SUB:
+      __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
+      break;
+    case Token::MUL:
+      __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
+      break;
+    case Token::DIV:
+      __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
+      break;
+    case Token::MOD:
+      __ InvokeBuiltin(Builtins::MOD, JUMP_FUNCTION);
+      break;
+    case Token::BIT_OR:
+      __ InvokeBuiltin(Builtins::BIT_OR, JUMP_FUNCTION);
+      break;
+    case Token::BIT_AND:
+      __ InvokeBuiltin(Builtins::BIT_AND, JUMP_FUNCTION);
+      break;
+    case Token::BIT_XOR:
+      __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_FUNCTION);
+      break;
+    case Token::SAR:
+      __ InvokeBuiltin(Builtins::SAR, JUMP_FUNCTION);
+      break;
+    case Token::SHR:
+      __ InvokeBuiltin(Builtins::SHR, JUMP_FUNCTION);
+      break;
+    case Token::SHL:
+      __ InvokeBuiltin(Builtins::SHL, JUMP_FUNCTION);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+#undef __
+
+
+void BinaryOpStub::PrintName(StringStream* stream) {
+  const char* op_name = Token::Name(op_);
+  const char* overwrite_name;
+  switch (mode_) {
+    case NO_OVERWRITE: overwrite_name = "Alloc"; break;
+    case OVERWRITE_RIGHT: overwrite_name = "OverwriteRight"; break;
+    case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
+    default: overwrite_name = "UnknownOverwrite"; break;
+  }
+  stream->Add("BinaryOpStub_%s_%s_%s+%s",
+              op_name,
+              overwrite_name,
+              BinaryOpIC::GetName(left_type_),
+              BinaryOpIC::GetName(right_type_));
+}
+
+
+void BinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
+  ASSERT(left_type_ == BinaryOpIC::STRING || right_type_ == BinaryOpIC::STRING);
+  ASSERT(op_ == Token::ADD);
+  if (left_type_ == BinaryOpIC::STRING && right_type_ == BinaryOpIC::STRING) {
+    GenerateBothStringStub(masm);
+    return;
+  }
+  // Try to add arguments as strings, otherwise, transition to the generic
+  // BinaryOpIC type.
+  GenerateAddStrings(masm);
+  GenerateTypeTransition(masm);
+}
+
+
 void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
   ASSERT(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();
@@ -179,8 +297,7 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
-  Isolate* isolate = known_map_->GetIsolate();
+bool ICCompareStub::FindCodeInSpecialCache(Code** code_out, Isolate* isolate) {
   Factory* factory = isolate->factory();
   Code::Flags flags = Code::ComputeFlags(
       static_cast<Code::Kind>(GetCodeKind()),
@@ -194,7 +311,12 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
         flags));
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
-    ASSERT(op_ == (*code_out)->compare_operation() + Token::EQ);
+#ifdef DEBUG
+    Token::Value cached_op;
+    ICCompareStub::DecodeMinorKey((*code_out)->stub_info(), NULL, NULL, NULL,
+                                  &cached_op);
+    ASSERT(op_ == cached_op);
+#endif
     return true;
   }
   return false;
@@ -202,7 +324,33 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
 
 
 int ICCompareStub::MinorKey() {
-  return OpField::encode(op_ - Token::EQ) | StateField::encode(state_);
+  return OpField::encode(op_ - Token::EQ) |
+         LeftStateField::encode(left_) |
+         RightStateField::encode(right_) |
+         HandlerStateField::encode(state_);
+}
+
+
+void ICCompareStub::DecodeMinorKey(int minor_key,
+                                   CompareIC::State* left_state,
+                                   CompareIC::State* right_state,
+                                   CompareIC::State* handler_state,
+                                   Token::Value* op) {
+  if (left_state) {
+    *left_state =
+        static_cast<CompareIC::State>(LeftStateField::decode(minor_key));
+  }
+  if (right_state) {
+    *right_state =
+        static_cast<CompareIC::State>(RightStateField::decode(minor_key));
+  }
+  if (handler_state) {
+    *handler_state =
+        static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
+  }
+  if (op) {
+    *op = static_cast<Token::Value>(OpField::decode(minor_key) + Token::EQ);
+  }
 }
 
 
@@ -211,27 +359,28 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
     case CompareIC::UNINITIALIZED:
       GenerateMiss(masm);
       break;
-    case CompareIC::SMIS:
+    case CompareIC::SMI:
       GenerateSmis(masm);
       break;
-    case CompareIC::HEAP_NUMBERS:
+    case CompareIC::HEAP_NUMBER:
       GenerateHeapNumbers(masm);
       break;
-    case CompareIC::STRINGS:
+    case CompareIC::STRING:
       GenerateStrings(masm);
       break;
-    case CompareIC::SYMBOLS:
+    case CompareIC::SYMBOL:
       GenerateSymbols(masm);
       break;
-    case CompareIC::OBJECTS:
+    case CompareIC::OBJECT:
       GenerateObjects(masm);
       break;
     case CompareIC::KNOWN_OBJECTS:
       ASSERT(*known_map_ != NULL);
       GenerateKnownObjects(masm);
       break;
-    default:
-      UNREACHABLE();
+    case CompareIC::GENERIC:
+      GenerateGeneric(masm);
+      break;
   }
 }
 

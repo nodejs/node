@@ -31,11 +31,11 @@
 
 #include "codegen.h"
 #include "macro-assembler.h"
+#include "simulator-arm.h"
 
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm)
 
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   switch (type) {
@@ -47,6 +47,74 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
   }
   return NULL;
 }
+
+
+#define __ masm.
+
+
+#if defined(USE_SIMULATOR)
+byte* fast_exp_arm_machine_code = NULL;
+double fast_exp_simulator(double x) {
+  return Simulator::current(Isolate::Current())->CallFP(
+      fast_exp_arm_machine_code, x, 0);
+}
+#endif
+
+
+UnaryMathFunction CreateExpFunction() {
+  if (!CpuFeatures::IsSupported(VFP2)) return &exp;
+  if (!FLAG_fast_math) return &exp;
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
+  if (buffer == NULL) return &exp;
+  ExternalReference::InitializeMathExpData();
+
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+
+  {
+    CpuFeatures::Scope use_vfp(VFP2);
+    DoubleRegister input = d0;
+    DoubleRegister result = d1;
+    DoubleRegister double_scratch1 = d2;
+    DoubleRegister double_scratch2 = d3;
+    Register temp1 = r4;
+    Register temp2 = r5;
+    Register temp3 = r6;
+
+    if (masm.use_eabi_hardfloat()) {
+      // Input value is in d0 anyway, nothing to do.
+    } else {
+      __ vmov(input, r0, r1);
+    }
+    __ Push(temp3, temp2, temp1);
+    MathExpGenerator::EmitMathExp(
+        &masm, input, result, double_scratch1, double_scratch2,
+        temp1, temp2, temp3);
+    __ Pop(temp3, temp2, temp1);
+    if (masm.use_eabi_hardfloat()) {
+      __ vmov(d0, result);
+    } else {
+      __ vmov(r0, r1, result);
+    }
+    __ Ret();
+  }
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+
+  CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
+
+#if !defined(USE_SIMULATOR)
+  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+#else
+  fast_exp_arm_machine_code = buffer;
+  return &fast_exp_simulator;
+#endif
+}
+
+
+#undef __
 
 
 UnaryMathFunction CreateSqrtFunction() {
@@ -72,6 +140,8 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 // -------------------------------------------------------------------------
 // Code generators
+
+#define __ ACCESS_MASM(masm)
 
 void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     MacroAssembler* masm) {
@@ -192,7 +262,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       HeapObject::kMapOffset,
                       r3,
                       r9,
-                      kLRHasBeenSaved,
+                      kLRHasNotBeenSaved,
                       kDontSaveFPRegs,
                       OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
@@ -416,7 +486,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ b(ne, &external_string);
 
   // Prepare sequential strings
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
   __ add(string,
          string,
          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
@@ -450,7 +520,187 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ bind(&done);
 }
 
+
+void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
+                                         String::Encoding encoding,
+                                         Register string,
+                                         Register index,
+                                         Register value) {
+  if (FLAG_debug_code) {
+    __ tst(index, Operand(kSmiTagMask));
+    __ Check(eq, "Non-smi index");
+    __ tst(value, Operand(kSmiTagMask));
+    __ Check(eq, "Non-smi value");
+
+    __ ldr(ip, FieldMemOperand(string, String::kLengthOffset));
+    __ cmp(index, ip);
+    __ Check(lt, "Index is too large");
+
+    __ cmp(index, Operand(Smi::FromInt(0)));
+    __ Check(ge, "Index is negative");
+
+    __ ldr(ip, FieldMemOperand(string, HeapObject::kMapOffset));
+    __ ldrb(ip, FieldMemOperand(ip, Map::kInstanceTypeOffset));
+
+    __ and_(ip, ip, Operand(kStringRepresentationMask | kStringEncodingMask));
+    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
+    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
+    __ cmp(ip, Operand(encoding == String::ONE_BYTE_ENCODING
+                           ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, "Unexpected string type");
+  }
+
+  __ add(ip,
+         string,
+         Operand(SeqString::kHeaderSize - kHeapObjectTag));
+  __ SmiUntag(value, value);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  if (encoding == String::ONE_BYTE_ENCODING) {
+    // Smis are tagged by left shift by 1, thus LSR by 1 to smi-untag inline.
+    __ strb(value, MemOperand(ip, index, LSR, 1));
+  } else {
+    // No need to untag a smi for two-byte addressing.
+    __ strh(value, MemOperand(ip, index));
+  }
+}
+
+
+static MemOperand ExpConstant(int index, Register base) {
+  return MemOperand(base, index * kDoubleSize);
+}
+
+
+void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
+                                   DoubleRegister input,
+                                   DoubleRegister result,
+                                   DoubleRegister double_scratch1,
+                                   DoubleRegister double_scratch2,
+                                   Register temp1,
+                                   Register temp2,
+                                   Register temp3) {
+  ASSERT(!input.is(result));
+  ASSERT(!input.is(double_scratch1));
+  ASSERT(!input.is(double_scratch2));
+  ASSERT(!result.is(double_scratch1));
+  ASSERT(!result.is(double_scratch2));
+  ASSERT(!double_scratch1.is(double_scratch2));
+  ASSERT(!temp1.is(temp2));
+  ASSERT(!temp1.is(temp3));
+  ASSERT(!temp2.is(temp3));
+  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
+
+  Label done;
+
+  __ mov(temp3, Operand(ExternalReference::math_exp_constants(0)));
+
+  __ vldr(double_scratch1, ExpConstant(0, temp3));
+  __ vmov(result, kDoubleRegZero);
+  __ VFPCompareAndSetFlags(double_scratch1, input);
+  __ b(ge, &done);
+  __ vldr(double_scratch2, ExpConstant(1, temp3));
+  __ VFPCompareAndSetFlags(input, double_scratch2);
+  __ vldr(result, ExpConstant(2, temp3));
+  __ b(ge, &done);
+  __ vldr(double_scratch1, ExpConstant(3, temp3));
+  __ vldr(result, ExpConstant(4, temp3));
+  __ vmul(double_scratch1, double_scratch1, input);
+  __ vadd(double_scratch1, double_scratch1, result);
+  __ vmov(temp2, temp1, double_scratch1);
+  __ vsub(double_scratch1, double_scratch1, result);
+  __ vldr(result, ExpConstant(6, temp3));
+  __ vldr(double_scratch2, ExpConstant(5, temp3));
+  __ vmul(double_scratch1, double_scratch1, double_scratch2);
+  __ vsub(double_scratch1, double_scratch1, input);
+  __ vsub(result, result, double_scratch1);
+  __ vmul(input, double_scratch1, double_scratch1);
+  __ vmul(result, result, input);
+  __ mov(temp1, Operand(temp2, LSR, 11));
+  __ vldr(double_scratch2, ExpConstant(7, temp3));
+  __ vmul(result, result, double_scratch2);
+  __ vsub(result, result, double_scratch1);
+  __ vldr(double_scratch2, ExpConstant(8, temp3));
+  __ vadd(result, result, double_scratch2);
+  __ movw(ip, 0x7ff);
+  __ and_(temp2, temp2, Operand(ip));
+  __ add(temp1, temp1, Operand(0x3ff));
+  __ mov(temp1, Operand(temp1, LSL, 20));
+
+  // Must not call ExpConstant() after overwriting temp3!
+  __ mov(temp3, Operand(ExternalReference::math_exp_log_table()));
+  __ ldr(ip, MemOperand(temp3, temp2, LSL, 3));
+  __ add(temp3, temp3, Operand(kPointerSize));
+  __ ldr(temp2, MemOperand(temp3, temp2, LSL, 3));
+  __ orr(temp1, temp1, temp2);
+  __ vmov(input, ip, temp1);
+  __ vmul(result, result, input);
+  __ bind(&done);
+}
+
 #undef __
+
+// add(r0, pc, Operand(-8))
+static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
+
+static byte* GetNoCodeAgeSequence(uint32_t* length) {
+  // The sequence of instructions that is patched out for aging code is the
+  // following boilerplate stack-building prologue that is found in FUNCTIONS
+  static bool initialized = false;
+  static uint32_t sequence[kNoCodeAgeSequenceLength];
+  byte* byte_sequence = reinterpret_cast<byte*>(sequence);
+  *length = kNoCodeAgeSequenceLength * Assembler::kInstrSize;
+  if (!initialized) {
+    CodePatcher patcher(byte_sequence, kNoCodeAgeSequenceLength);
+    PredictableCodeSizeScope scope(patcher.masm(), *length);
+    patcher.masm()->stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+    patcher.masm()->LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    patcher.masm()->add(fp, sp, Operand(2 * kPointerSize));
+    initialized = true;
+  }
+  return byte_sequence;
+}
+
+
+bool Code::IsYoungSequence(byte* sequence) {
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  bool result = !memcmp(sequence, young_sequence, young_length);
+  ASSERT(result ||
+         Memory::uint32_at(sequence) == kCodeAgePatchFirstInstruction);
+  return result;
+}
+
+
+void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
+                               MarkingParity* parity) {
+  if (IsYoungSequence(sequence)) {
+    *age = kNoAge;
+    *parity = NO_MARKING_PARITY;
+  } else {
+    Address target_address = Memory::Address_at(
+        sequence + Assembler::kInstrSize * (kNoCodeAgeSequenceLength - 1));
+    Code* stub = GetCodeFromTargetAddress(target_address);
+    GetCodeAgeAndParity(stub, age, parity);
+  }
+}
+
+
+void Code::PatchPlatformCodeAge(byte* sequence,
+                                Code::Age age,
+                                MarkingParity parity) {
+  uint32_t young_length;
+  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
+  if (age == kNoAge) {
+    memcpy(sequence, young_sequence, young_length);
+    CPU::FlushICache(sequence, young_length);
+  } else {
+    Code* stub = GetCodeAgeStub(age, parity);
+    CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
+    patcher.masm()->add(r0, pc, Operand(-8));
+    patcher.masm()->ldr(pc, MemOperand(pc, -4));
+    patcher.masm()->dd(reinterpret_cast<uint32_t>(stub->instruction_start()));
+  }
+}
+
 
 } }  // namespace v8::internal
 

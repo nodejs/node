@@ -44,12 +44,13 @@ regress/regress-524: SKIP
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
+regress/regress-2318: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
 
 ##############################################################################
-# This one uses a built-in that's only present in debug mode. It takes
+# These use a built-in that's only present in debug mode. They take
 # too long to run in debug mode on ARM and MIPS.
-fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
+fuzz-natives-part*: PASS, SKIP if ($mode == release || $arch == arm || $arch == android_arm || $arch == mipsel)
 
 big-object-literal: PASS, SKIP if ($arch == arm || $arch == android_arm)
 
@@ -59,8 +60,14 @@ array-constructor: PASS || TIMEOUT
 # Very slow on ARM and MIPS, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == android_arm || $arch == mipsel)
 
-# Test Crankshaft compilation time.  Expected to take too long in debug mode.
-regress/regress-1969: PASS, SKIP if ($mode == debug || $arch == android_arm)
+##############################################################################
+# This test expects to reach a certain recursion depth, which may not work
+# for debug mode.
+json-recursive: PASS, (PASS || FAIL) if $mode == debug
+
+##############################################################################
+# Skip long running test that times out in debug mode.
+regress/regress-crbug-160010: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # This test sets the umask on a per-process basis and hence cannot be
@@ -76,6 +83,7 @@ tools/tickprocessor: PASS, SKIP if ($arch == android_arm || $arch == android_ia3
 try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
 array-constructor: PASS, SKIP if $mode == debug
+regress/regress-1122: PASS, SKIP if ($mode == debug && $arch == android_arm)
 
 # Flaky test that can hit compilation-time stack overflow in debug mode.
 unicode-test: PASS, (PASS || FAIL) if $mode == debug
@@ -103,11 +111,9 @@ compiler/property-calls: SKIP
 compiler/recursive-deopt: SKIP
 compiler/regress-4: SKIP
 compiler/regress-funcaller: SKIP
-compiler/regress-gvn: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
-compiler/regress-or: SKIP
 compiler/regress-3249650: SKIP
 compiler/simple-deopt: SKIP
 regress/regress-490: SKIP
@@ -161,11 +167,9 @@ compiler/property-calls: SKIP
 compiler/recursive-deopt: SKIP
 compiler/regress-4: SKIP
 compiler/regress-funcaller: SKIP
-compiler/regress-gvn: SKIP
 compiler/regress-rep-change: SKIP
 compiler/regress-arguments: SKIP
 compiler/regress-funarguments: SKIP
-compiler/regress-or: SKIP
 compiler/regress-3249650: SKIP
 compiler/simple-deopt: SKIP
 regress/regress-490: SKIP

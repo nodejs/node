@@ -388,7 +388,8 @@ class MacroAssembler: public Assembler {
                                    Register scratch1,
                                    XMMRegister scratch2,
                                    Label* fail,
-                                   bool specialize_for_processor);
+                                   bool specialize_for_processor,
+                                   int offset = 0);
 
   // Compare an object's map with the specified map and its transitioned
   // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with
@@ -493,27 +494,28 @@ class MacroAssembler: public Assembler {
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void EnumLength(Register dst, Register map);
+  void NumberOfOwnDescriptors(Register dst, Register map);
 
   template<typename Field>
   void DecodeField(Register reg) {
-    static const int full_shift = Field::kShift + kSmiTagSize;
-    static const int low_mask = Field::kMask >> Field::kShift;
-    sar(reg, full_shift);
-    and_(reg, Immediate(low_mask));
+    static const int shift = Field::kShift;
+    static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
+    sar(reg, shift);
+    and_(reg, Immediate(mask));
   }
   void LoadPowerOf2(XMMRegister dst, Register scratch, int power);
 
-  // Abort execution if argument is not a number. Used in debug code.
-  void AbortIfNotNumber(Register object);
+  // Abort execution if argument is not a number, enabled via --debug-code.
+  void AssertNumber(Register object);
 
-  // Abort execution if argument is not a smi. Used in debug code.
-  void AbortIfNotSmi(Register object);
+  // Abort execution if argument is not a smi, enabled via --debug-code.
+  void AssertSmi(Register object);
 
-  // Abort execution if argument is a smi. Used in debug code.
-  void AbortIfSmi(Register object);
+  // Abort execution if argument is a smi, enabled via --debug-code.
+  void AssertNotSmi(Register object);
 
-  // Abort execution if argument is a string. Used in debug code.
-  void AbortIfNotString(Register object);
+  // Abort execution if argument is not a string, enabled via --debug-code.
+  void AssertString(Register object);
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -787,6 +789,7 @@ class MacroAssembler: public Assembler {
 
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
+  void Push(Smi* smi) { Push(Handle<Smi>(smi)); }
 
   Handle<Object> CodeObject() {
     ASSERT(!code_object_.is_null());

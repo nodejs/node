@@ -68,15 +68,9 @@ v8::Handle<v8::Value> PrintExtension::Print(const v8::Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     if (i != 0) printf(" ");
     v8::HandleScope scope;
-    v8::Handle<v8::Value> arg = args[i];
-    v8::Handle<v8::String> string_obj = arg->ToString();
-    if (string_obj.IsEmpty()) return string_obj;
-    int length = string_obj->Length();
-    uint16_t* string = NewArray<uint16_t>(length + 1);
-    string_obj->Write(string);
-    for (int j = 0; j < length; j++)
-      printf("%lc", static_cast<wchar_t>(string[j]));
-    DeleteArray(string);
+    v8::String::Utf8Value str(args[i]);
+    if (*str == NULL) return v8::Undefined();
+    printf("%s", *str);
   }
   printf("\n");
   return v8::Undefined();
@@ -106,10 +100,11 @@ static MaybeObject* GetGlobalProperty(const char* name) {
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
+  Isolate* isolate = Isolate::Current();
   Handle<Object> object(value);
   Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
   Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  SetProperty(global, symbol, object, NONE, kNonStrictMode);
+  SetProperty(isolate, global, symbol, object, NONE, kNonStrictMode);
 }
 
 

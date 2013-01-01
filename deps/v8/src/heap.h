@@ -154,7 +154,9 @@ namespace internal {
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
+  V(JSObject, observation_state, ObservationState)                             \
+  V(Map, external_map, ExternalMap)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -176,6 +178,7 @@ namespace internal {
   V(constructor_symbol, "constructor")                                   \
   V(code_symbol, ".code")                                                \
   V(result_symbol, ".result")                                            \
+  V(dot_for_symbol, ".for.")                                             \
   V(catch_var_symbol, ".catch-var")                                      \
   V(empty_symbol, "")                                                    \
   V(eval_symbol, "eval")                                                 \
@@ -281,14 +284,6 @@ class StoreBufferRebuilder {
   MemoryChunk* current_page_;
 };
 
-
-
-// The all static Heap captures the interface to the global object heap.
-// All JavaScript contexts by this process share the same object heap.
-
-#ifdef DEBUG
-class HeapDebugUtils;
-#endif
 
 
 // A queue of objects promoted during scavenge. Each object is accompanied
@@ -486,6 +481,9 @@ class Heap {
   // Returns the amount of executable memory currently committed for the heap.
   intptr_t CommittedMemoryExecutable();
 
+  // Returns the amount of phyical memory currently committed for the heap.
+  size_t CommittedPhysicalMemory();
+
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
@@ -508,6 +506,24 @@ class Heap {
   MapSpace* map_space() { return map_space_; }
   CellSpace* cell_space() { return cell_space_; }
   LargeObjectSpace* lo_space() { return lo_space_; }
+  PagedSpace* paged_space(int idx) {
+    switch (idx) {
+      case OLD_POINTER_SPACE:
+        return old_pointer_space();
+      case OLD_DATA_SPACE:
+        return old_data_space();
+      case MAP_SPACE:
+        return map_space();
+      case CELL_SPACE:
+        return cell_space();
+      case CODE_SPACE:
+        return code_space();
+      case NEW_SPACE:
+      case LO_SPACE:
+        UNREACHABLE();
+    }
+    return NULL;
+  }
 
   bool always_allocate() { return always_allocate_scope_depth_ != 0; }
   Address always_allocate_scope_depth_address() {
@@ -560,6 +576,7 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
       FixedArrayBase* array_base,
       ElementsKind elements_kind,
+      int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
@@ -642,6 +659,9 @@ class Heap {
   // Allocates a serialized scope info.
   MUST_USE_RESULT MaybeObject* AllocateScopeInfo(int length);
 
+  // Allocates an External object for v8's external API.
+  MUST_USE_RESULT MaybeObject* AllocateExternal(void* value);
+
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
@@ -656,6 +676,9 @@ class Heap {
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
+
+  // For use during bootup.
+  void RepairFreeListsAfterBoot();
 
   // Allocates and fully initializes a String.  There are two String
   // encodings: ASCII and two byte. One should choose between the three string
@@ -675,7 +698,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateStringFromAscii(
+  MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
@@ -683,6 +706,7 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromUtf8Slow(
       Vector<const char> str,
+      int non_ascii_start,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateStringFromTwoByte(
       Vector<const uc16> str,
@@ -718,7 +742,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateRawAsciiString(
+  MUST_USE_RESULT MaybeObject* AllocateRawOneByteString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateRawTwoByteString(
@@ -1013,9 +1037,8 @@ class Heap {
     return LookupSymbol(CStrVector(str));
   }
   MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Handle<SeqAsciiString> string,
-                                                 int from,
-                                                 int length);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(
+      Handle<SeqOneByteString> string, int from, int length);
 
   bool LookupSymbolIfExists(String* str, String** symbol);
   bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
@@ -1081,7 +1104,10 @@ class Heap {
   void EnsureHeapIsIterable();
 
   // Notify the heap that a context has been disposed.
-  int NotifyContextDisposed() { return ++contexts_disposed_; }
+  int NotifyContextDisposed() {
+    flush_monomorphic_ics_ = true;
+    return ++contexts_disposed_;
+  }
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -1239,12 +1265,14 @@ class Heap {
     return &native_contexts_list_;
   }
 
+#ifdef VERIFY_HEAP
+  // Verify the heap is in its normal state before or after a GC.
+  void Verify();
+#endif
+
 #ifdef DEBUG
   void Print();
   void PrintHandles();
-
-  // Verify the heap is in its normal state before or after a GC.
-  void Verify();
 
   void OldPointerSpaceCheckStoreBuffer();
   void MapSpaceCheckStoreBuffer();
@@ -1253,10 +1281,23 @@ class Heap {
   // Report heap statistics.
   void ReportHeapStatistics(const char* title);
   void ReportCodeStatistics(const char* title);
+#endif
+
+  // Zapping is needed for verify heap, and always done in debug builds.
+  static inline bool ShouldZapGarbage() {
+#ifdef DEBUG
+    return true;
+#else
+#ifdef VERIFY_HEAP
+    return FLAG_verify_heap;
+#else
+    return false;
+#endif
+#endif
+  }
 
   // Fill in bogus values in from space
   void ZapFromSpace();
-#endif
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();
@@ -1309,20 +1350,9 @@ class Heap {
   // Commits from space if it is uncommitted.
   void EnsureFromSpaceIsCommitted();
 
-  // Support for partial snapshots.  After calling this we can allocate a
-  // certain number of bytes using only linear allocation (with a
-  // LinearAllocationScope and an AlwaysAllocateScope) without using freelists
-  // or causing a GC.  It returns true of space was reserved or false if a GC is
-  // needed.  For paged spaces the space requested must include the space wasted
-  // at the end of each page when allocating linearly.
-  void ReserveSpace(
-    int new_space_size,
-    int pointer_space_size,
-    int data_space_size,
-    int code_space_size,
-    int map_space_size,
-    int cell_space_size,
-    int large_object_size);
+  // Support for partial snapshots.  After calling this we have a linear
+  // space to write objects in each space.
+  void ReserveSpace(int *sizes, Address* addresses);
 
   //
   // Support for the API.
@@ -1418,6 +1448,10 @@ class Heap {
   STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
   STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
 
+  // Generated code can embed direct references to non-writable roots if
+  // they are in new space.
+  static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
+
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
@@ -1488,13 +1522,6 @@ class Heap {
   void ClearJSFunctionResultCaches();
 
   void ClearNormalizedMapCaches();
-
-  // Clears the cache of ICs related to this map.
-  void ClearCacheOnMap(Map* map) {
-    if (FLAG_cleanup_code_caches_at_gc) {
-      map->ClearCodeCache(this);
-    }
-  }
 
   GCTracer* tracer() { return tracer_; }
 
@@ -1616,6 +1643,8 @@ class Heap {
     global_ic_age_ = (global_ic_age_ + 1) & SharedFunctionInfo::ICAgeBits::kMax;
   }
 
+  bool flush_monomorphic_ics() { return flush_monomorphic_ics_; }
+
   intptr_t amount_of_external_allocated_memory() {
     return amount_of_external_allocated_memory_;
   }
@@ -1701,6 +1730,8 @@ class Heap {
 
   int global_ic_age_;
 
+  bool flush_monomorphic_ics_;
+
   int scan_on_scavenge_pages_;
 
 #if defined(V8_TARGET_ARCH_X64)
@@ -1754,8 +1785,6 @@ class Heap {
   // Do we expect to be able to handle allocation failure at this
   // time?
   bool disallow_allocation_failure_;
-
-  HeapDebugUtils* debug_utils_;
 #endif  // DEBUG
 
   // Indicates that the new space should be kept small due to high promotion
@@ -1872,7 +1901,6 @@ class Heap {
   bool PerformGarbageCollection(GarbageCollector collector,
                                 GCTracer* tracer);
 
-
   inline void UpdateOldSpaceLimits();
 
   // Allocate an uninitialized object in map space.  The behavior is identical
@@ -1899,9 +1927,9 @@ class Heap {
 
   void CreateFixedStubs();
 
-  MaybeObject* CreateOddball(const char* to_string,
-                             Object* to_number,
-                             byte kind);
+  MUST_USE_RESULT MaybeObject* CreateOddball(const char* to_string,
+                                             Object* to_number,
+                                             byte kind);
 
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateJSArray(
@@ -2131,7 +2159,6 @@ class Heap {
   friend class GCTracer;
   friend class DisallowAllocationFailure;
   friend class AlwaysAllocateScope;
-  friend class LinearAllocationScope;
   friend class Page;
   friend class Isolate;
   friend class MarkCompactCollector;
@@ -2198,14 +2225,6 @@ class AlwaysAllocateScope {
 };
 
 
-class LinearAllocationScope {
- public:
-  inline LinearAllocationScope();
-  inline ~LinearAllocationScope();
-};
-
-
-#ifdef DEBUG
 // Visitor class to verify interior pointers in spaces that do not contain
 // or care about intergenerational references. All heap object pointers have to
 // point into the heap to a location that has a map pointer at its first word.
@@ -2215,7 +2234,6 @@ class VerifyPointersVisitor: public ObjectVisitor {
  public:
   inline void VisitPointers(Object** start, Object** end);
 };
-#endif
 
 
 // Space iterator for iterating over all spaces of the heap.
@@ -2374,7 +2392,7 @@ class KeyedLookupCache {
 };
 
 
-// Cache for mapping (array, property name) into descriptor index.
+// Cache for mapping (map, property name) into descriptor index.
 // The cache contains both positive and negative results.
 // Descriptor index equals kNotFound means the property is absent.
 // Cleared at startup and prior to any gc.
@@ -2382,21 +2400,21 @@ class DescriptorLookupCache {
  public:
   // Lookup descriptor index for (map, name).
   // If absent, kAbsent is returned.
-  int Lookup(DescriptorArray* array, String* name) {
+  int Lookup(Map* source, String* name) {
     if (!StringShape(name).IsSymbol()) return kAbsent;
-    int index = Hash(array, name);
+    int index = Hash(source, name);
     Key& key = keys_[index];
-    if ((key.array == array) && (key.name == name)) return results_[index];
+    if ((key.source == source) && (key.name == name)) return results_[index];
     return kAbsent;
   }
 
   // Update an element in the cache.
-  void Update(DescriptorArray* array, String* name, int result) {
+  void Update(Map* source, String* name, int result) {
     ASSERT(result != kAbsent);
     if (StringShape(name).IsSymbol()) {
-      int index = Hash(array, name);
+      int index = Hash(source, name);
       Key& key = keys_[index];
-      key.array = array;
+      key.source = source;
       key.name = name;
       results_[index] = result;
     }
@@ -2410,26 +2428,26 @@ class DescriptorLookupCache {
  private:
   DescriptorLookupCache() {
     for (int i = 0; i < kLength; ++i) {
-      keys_[i].array = NULL;
+      keys_[i].source = NULL;
       keys_[i].name = NULL;
       results_[i] = kAbsent;
     }
   }
 
-  static int Hash(DescriptorArray* array, String* name) {
+  static int Hash(Object* source, String* name) {
     // Uses only lower 32 bits if pointers are larger.
-    uint32_t array_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(array))
+    uint32_t source_hash =
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source))
             >> kPointerSizeLog2;
     uint32_t name_hash =
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name))
             >> kPointerSizeLog2;
-    return (array_hash ^ name_hash) % kLength;
+    return (source_hash ^ name_hash) % kLength;
   }
 
   static const int kLength = 64;
   struct Key {
-    DescriptorArray* array;
+    Map* source;
     String* name;
   };
 
@@ -2531,6 +2549,18 @@ class GCTracer BASE_EMBEDDED {
     promoted_objects_size_ += object_size;
   }
 
+  void increment_nodes_died_in_new_space() {
+    nodes_died_in_new_space_++;
+  }
+
+  void increment_nodes_copied_in_new_space() {
+    nodes_copied_in_new_space_++;
+  }
+
+  void increment_nodes_promoted() {
+    nodes_promoted_++;
+  }
+
  private:
   // Returns a string matching the collector.
   const char* CollectorString();
@@ -2574,6 +2604,15 @@ class GCTracer BASE_EMBEDDED {
 
   // Size of objects promoted during the current collection.
   intptr_t promoted_objects_size_;
+
+  // Number of died nodes in the new space.
+  int nodes_died_in_new_space_;
+
+  // Number of copied nodes to the new space.
+  int nodes_copied_in_new_space_;
+
+  // Number of promoted nodes to the old space.
+  int nodes_promoted_;
 
   // Incremental marking steps counters.
   int steps_count_;

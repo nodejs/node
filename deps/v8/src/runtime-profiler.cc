@@ -140,6 +140,9 @@ static void GetICCounts(JSFunction* function,
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
   ASSERT(function->IsOptimizable());
+  // If we are in manual mode, don't auto-optimize anything.
+  if (FLAG_manual_parallel_recompilation) return;
+
   if (FLAG_trace_opt) {
     PrintF("[marking ");
     function->PrintName();
@@ -193,16 +196,9 @@ void RuntimeProfiler::AttemptOnStackReplacement(JSFunction* function) {
 
   // Get the stack check stub code object to match against.  We aren't
   // prepared to generate it, but we don't expect to have to.
-  bool found_code = false;
   Code* stack_check_code = NULL;
-  if (FLAG_count_based_interrupts) {
-    InterruptStub interrupt_stub;
-    found_code = interrupt_stub.FindCodeInCache(&stack_check_code);
-  } else  // NOLINT
-  {  // NOLINT
-    StackCheckStub check_stub;
-    found_code = check_stub.FindCodeInCache(&stack_check_code);
-  }
+  InterruptStub interrupt_stub;
+  bool found_code = interrupt_stub.FindCodeInCache(&stack_check_code, isolate_);
   if (found_code) {
     Code* replacement_code =
         isolate_->builtins()->builtin(Builtins::kOnStackReplacement);
@@ -373,12 +369,6 @@ void RuntimeProfiler::OptimizeNow() {
       AddSample(samples[i], kSamplerFrameWeight[i]);
     }
   }
-}
-
-
-void RuntimeProfiler::NotifyTick() {
-  if (FLAG_count_based_interrupts) return;
-  isolate_->stack_guard()->RequestRuntimeProfilerTick();
 }
 
 

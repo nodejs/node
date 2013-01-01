@@ -84,7 +84,7 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       String* str, int flags, double empty_string_val) {
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
-    const char* begin = SeqAsciiString::cast(str)->GetChars();
+    const char* begin = SeqOneByteString::cast(str)->GetChars();
     const char* end = begin + str->length();
     return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
@@ -109,7 +109,7 @@ double StringToInt(UnicodeCache* unicode_cache,
                    int radix) {
   StringShape shape(str);
   if (shape.IsSequentialAscii()) {
-    const char* begin = SeqAsciiString::cast(str)->GetChars();
+    const char* begin = SeqOneByteString::cast(str)->GetChars();
     const char* end = begin + str->length();
     return InternalStringToInt(unicode_cache, begin, end, radix);
   } else if (shape.IsSequentialTwoByte()) {

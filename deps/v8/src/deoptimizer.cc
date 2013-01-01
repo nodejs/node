@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "accessors.h"
 #include "codegen.h"
 #include "deoptimizer.h"
 #include "disasm.h"
@@ -40,8 +41,11 @@ namespace v8 {
 namespace internal {
 
 DeoptimizerData::DeoptimizerData() {
-  eager_deoptimization_entry_code_ = NULL;
-  lazy_deoptimization_entry_code_ = NULL;
+  eager_deoptimization_entry_code_entries_ = -1;
+  lazy_deoptimization_entry_code_entries_ = -1;
+  size_t deopt_table_size = Deoptimizer::GetMaxDeoptTableSize();
+  eager_deoptimization_entry_code_ = new VirtualMemory(deopt_table_size);
+  lazy_deoptimization_entry_code_ = new VirtualMemory(deopt_table_size);
   current_ = NULL;
   deoptimizing_code_list_ = NULL;
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -51,16 +55,18 @@ DeoptimizerData::DeoptimizerData() {
 
 
 DeoptimizerData::~DeoptimizerData() {
-  if (eager_deoptimization_entry_code_ != NULL) {
-    Isolate::Current()->memory_allocator()->Free(
-        eager_deoptimization_entry_code_);
-    eager_deoptimization_entry_code_ = NULL;
+  delete eager_deoptimization_entry_code_;
+  eager_deoptimization_entry_code_ = NULL;
+  delete lazy_deoptimization_entry_code_;
+  lazy_deoptimization_entry_code_ = NULL;
+
+  DeoptimizingCodeListNode* current = deoptimizing_code_list_;
+  while (current != NULL) {
+    DeoptimizingCodeListNode* prev = current;
+    current = current->next();
+    delete prev;
   }
-  if (lazy_deoptimization_entry_code_ != NULL) {
-    Isolate::Current()->memory_allocator()->Free(
-        lazy_deoptimization_entry_code_);
-    lazy_deoptimization_entry_code_ = NULL;
-  }
+  deoptimizing_code_list_ = NULL;
 }
 
 
@@ -92,6 +98,20 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
   ASSERT(isolate->deoptimizer_data()->current_ == NULL);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
+}
+
+
+// No larger than 2K on all platforms
+static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
+
+
+size_t Deoptimizer::GetMaxDeoptTableSize() {
+  int entries_size =
+      Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
+  int commit_page_size = static_cast<int>(OS::CommitPageSize());
+  int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
+                    commit_page_size) + 1;
+  return static_cast<size_t>(commit_page_size * page_count);
 }
 
 
@@ -368,6 +388,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       output_count_(0),
       jsframe_count_(0),
       output_(NULL),
+      deferred_arguments_objects_values_(0),
+      deferred_arguments_objects_(0),
       deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
     if (type == DEBUGGER) {
@@ -451,44 +473,45 @@ void Deoptimizer::DeleteFrameDescriptions() {
 }
 
 
-Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
+Address Deoptimizer::GetDeoptimizationEntry(int id,
+                                            BailoutType type,
+                                            GetEntryMode mode) {
   ASSERT(id >= 0);
-  if (id >= kNumberOfEntries) return NULL;
-  MemoryChunk* base = NULL;
+  if (id >= kMaxNumberOfEntries) return NULL;
+  VirtualMemory* base = NULL;
+  if (mode == ENSURE_ENTRY_CODE) {
+    EnsureCodeForDeoptimizationEntry(type, id);
+  } else {
+    ASSERT(mode == CALCULATE_ENTRY_ADDRESS);
+  }
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
-    if (data->eager_deoptimization_entry_code_ == NULL) {
-      data->eager_deoptimization_entry_code_ = CreateCode(type);
-    }
     base = data->eager_deoptimization_entry_code_;
   } else {
-    if (data->lazy_deoptimization_entry_code_ == NULL) {
-      data->lazy_deoptimization_entry_code_ = CreateCode(type);
-    }
     base = data->lazy_deoptimization_entry_code_;
   }
   return
-      static_cast<Address>(base->area_start()) + (id * table_entry_size_);
+      static_cast<Address>(base->address()) + (id * table_entry_size_);
 }
 
 
 int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  MemoryChunk* base = NULL;
+  VirtualMemory* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     base = data->eager_deoptimization_entry_code_;
   } else {
     base = data->lazy_deoptimization_entry_code_;
   }
+  Address base_casted = reinterpret_cast<Address>(base->address());
   if (base == NULL ||
-      addr < base->area_start() ||
-      addr >= base->area_start() +
-          (kNumberOfEntries * table_entry_size_)) {
+      addr < base->address() ||
+      addr >= base_casted + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-      static_cast<int>(addr - base->area_start()) % table_entry_size_);
-  return static_cast<int>(addr - base->area_start()) / table_entry_size_;
+            static_cast<int>(addr - base_casted) % table_entry_size_);
+  return static_cast<int>(addr - base_casted) / table_entry_size_;
 }
 
 
@@ -512,7 +535,7 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
   shared->SourceCodePrint(&stream, -1);
   PrintF("[source:\n%s\n]", *stream.ToCString());
 
-  UNREACHABLE();
+  FATAL("unable to find pc offset during deoptimization");
   return -1;
 }
 
@@ -633,8 +656,21 @@ void Deoptimizer::DoComputeOutputFrames() {
 }
 
 
-void Deoptimizer::MaterializeHeapNumbers() {
+void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
   ASSERT_NE(DEBUGGER, bailout_type_);
+
+  // Handlify all argument object values before triggering any allocation.
+  List<Handle<Object> > values(deferred_arguments_objects_values_.length());
+  for (int i = 0; i < deferred_arguments_objects_values_.length(); ++i) {
+    values.Add(Handle<Object>(deferred_arguments_objects_values_[i]));
+  }
+
+  // Play it safe and clear all unhandlified values before we continue.
+  deferred_arguments_objects_values_.Clear();
+
+  // Materialize all heap numbers before looking at arguments because when the
+  // output frames are used to materialize arguments objects later on they need
+  // to already contain valid heap numbers.
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
     HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(d.value());
@@ -644,8 +680,54 @@ void Deoptimizer::MaterializeHeapNumbers() {
              d.value(),
              d.slot_address());
     }
-
     Memory::Object_at(d.slot_address()) = *num;
+  }
+
+  // Materialize arguments objects one frame at a time.
+  for (int frame_index = 0; frame_index < jsframe_count(); ++frame_index) {
+    if (frame_index != 0) it->Advance();
+    JavaScriptFrame* frame = it->frame();
+    Handle<JSFunction> function(JSFunction::cast(frame->function()), isolate_);
+    Handle<JSObject> arguments;
+    for (int i = frame->ComputeExpressionsCount() - 1; i >= 0; --i) {
+      if (frame->GetExpression(i) == isolate_->heap()->arguments_marker()) {
+        ArgumentsObjectMaterializationDescriptor descriptor =
+            deferred_arguments_objects_.RemoveLast();
+        const int length = descriptor.arguments_length();
+        if (arguments.is_null()) {
+          if (frame->has_adapted_arguments()) {
+            // Use the arguments adapter frame we just built to materialize the
+            // arguments object. FunctionGetArguments can't throw an exception,
+            // so cast away the doubt with an assert.
+            arguments = Handle<JSObject>(JSObject::cast(
+                Accessors::FunctionGetArguments(*function,
+                                                NULL)->ToObjectUnchecked()));
+            values.RewindBy(length);
+          } else {
+            // Construct an arguments object and copy the parameters to a newly
+            // allocated arguments object backing store.
+            arguments =
+                isolate_->factory()->NewArgumentsObject(function, length);
+            Handle<FixedArray> array =
+                isolate_->factory()->NewFixedArray(length);
+            ASSERT(array->length() == length);
+            for (int i = length - 1; i >= 0 ; --i) {
+              array->set(i, *values.RemoveLast());
+            }
+            arguments->set_elements(*array);
+          }
+        }
+        frame->SetExpression(i, *arguments);
+        ASSERT_EQ(Memory::Object_at(descriptor.slot_address()), *arguments);
+        if (FLAG_trace_deopt) {
+          PrintF("Materializing %sarguments object for %p: ",
+                 frame->has_adapted_arguments() ? "(adapted) " : "",
+                 reinterpret_cast<void*>(descriptor.slot_address()));
+          arguments->ShortPrint();
+          PrintF("\n");
+        }
+      }
+    }
   }
 }
 
@@ -932,8 +1014,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     }
 
     case Translation::ARGUMENTS_OBJECT: {
-      // Use the arguments marker value as a sentinel and fill in the arguments
-      // object after the deoptimized frame is built.
+      int args_index = iterator->Next() + 1;  // Skip receiver.
+      int args_length = iterator->Next() - 1;  // Skip receiver.
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- ",
                output_[frame_index]->GetTop() + output_offset,
@@ -941,9 +1023,20 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
         isolate_->heap()->arguments_marker()->ShortPrint();
         PrintF(" ; arguments object\n");
       }
+      // Use the arguments marker value as a sentinel and fill in the arguments
+      // object after the deoptimized frame is built.
       intptr_t value = reinterpret_cast<intptr_t>(
           isolate_->heap()->arguments_marker());
+      AddArgumentsObject(
+          output_[frame_index]->GetTop() + output_offset, args_length);
       output_[frame_index]->SetFrameSlot(output_offset, value);
+      // We save the tagged argument values on the side and materialize the
+      // actual arguments object after the deoptimized frame is built.
+      for (int i = 0; i < args_length; i++) {
+        unsigned input_offset = input_->GetOffsetFromSlotIndex(args_index + i);
+        intptr_t input_value = input_->GetFrameSlot(input_offset);
+        AddArgumentsObjectValue(input_value);
+      }
       return;
     }
   }
@@ -1285,39 +1378,63 @@ Object* Deoptimizer::ComputeLiteral(int index) const {
 }
 
 
-void Deoptimizer::AddDoubleValue(intptr_t slot_address,
-                                 double value) {
+void Deoptimizer::AddArgumentsObject(intptr_t slot_address, int argc) {
+  ArgumentsObjectMaterializationDescriptor object_desc(
+      reinterpret_cast<Address>(slot_address), argc);
+  deferred_arguments_objects_.Add(object_desc);
+}
+
+
+void Deoptimizer::AddArgumentsObjectValue(intptr_t value) {
+  deferred_arguments_objects_values_.Add(reinterpret_cast<Object*>(value));
+}
+
+
+void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
   HeapNumberMaterializationDescriptor value_desc(
       reinterpret_cast<Address>(slot_address), value);
   deferred_heap_numbers_.Add(value_desc);
 }
 
 
-MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
+void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
+                                                   int max_entry_id) {
   // We cannot run this if the serializer is enabled because this will
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
   ASSERT(!Serializer::enabled());
 
+  ASSERT(type == EAGER || type == LAZY);
+  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
+  int entry_count = (type == EAGER)
+      ? data->eager_deoptimization_entry_code_entries_
+      : data->lazy_deoptimization_entry_code_entries_;
+  if (max_entry_id < entry_count) return;
+  entry_count = Min(Max(entry_count * 2, Deoptimizer::kMinNumberOfEntries),
+                    Deoptimizer::kMaxNumberOfEntries);
+
   MacroAssembler masm(Isolate::Current(), NULL, 16 * KB);
   masm.set_emit_debug_code(false);
-  GenerateDeoptimizationEntries(&masm, kNumberOfEntries, type);
+  GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
   masm.GetCode(&desc);
   ASSERT(desc.reloc_size == 0);
 
-  MemoryChunk* chunk =
-      Isolate::Current()->memory_allocator()->AllocateChunk(desc.instr_size,
-                                                            EXECUTABLE,
-                                                            NULL);
-  ASSERT(chunk->area_size() >= desc.instr_size);
-  if (chunk == NULL) {
-    V8::FatalProcessOutOfMemory("Not enough memory for deoptimization table");
+  VirtualMemory* memory = type == EAGER
+      ? data->eager_deoptimization_entry_code_
+      : data->lazy_deoptimization_entry_code_;
+  size_t table_size = Deoptimizer::GetMaxDeoptTableSize();
+  ASSERT(static_cast<int>(table_size) >= desc.instr_size);
+  memory->Commit(memory->address(), table_size, true);
+  memcpy(memory->address(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(memory->address(), desc.instr_size);
+
+  if (type == EAGER) {
+    data->eager_deoptimization_entry_code_entries_ = entry_count;
+  } else {
+    data->lazy_deoptimization_entry_code_entries_ = entry_count;
   }
-  memcpy(chunk->area_start(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->area_start(), desc.instr_size);
-  return chunk;
 }
 
 
@@ -1356,6 +1473,54 @@ void Deoptimizer::RemoveDeoptimizingCode(Code* code) {
   // Deoptimizing code is removed through weak callback. Each object is expected
   // to be removed once and only once.
   UNREACHABLE();
+}
+
+
+static Object* CutOutRelatedFunctionsList(Context* context,
+                                          Code* code,
+                                          Object* undefined) {
+  Object* result_list_head = undefined;
+  Object* head;
+  Object* current;
+  current = head = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
+  JSFunction* prev = NULL;
+  while (current != undefined) {
+    JSFunction* func = JSFunction::cast(current);
+    current = func->next_function_link();
+    if (func->code() == code) {
+      func->set_next_function_link(result_list_head);
+      result_list_head = func;
+      if (prev) {
+        prev->set_next_function_link(current);
+      } else {
+        head = current;
+      }
+    } else {
+      prev = func;
+    }
+  }
+  if (head != context->get(Context::OPTIMIZED_FUNCTIONS_LIST)) {
+    context->set(Context::OPTIMIZED_FUNCTIONS_LIST, head);
+  }
+  return result_list_head;
+}
+
+
+void Deoptimizer::ReplaceCodeForRelatedFunctions(JSFunction* function,
+                                                 Code* code) {
+  Context* context = function->context()->native_context();
+
+  SharedFunctionInfo* shared = function->shared();
+
+  Object* undefined = Isolate::Current()->heap()->undefined_value();
+  Object* current = CutOutRelatedFunctionsList(context, code, undefined);
+
+  while (current != undefined) {
+    JSFunction* func = JSFunction::cast(current);
+    current = func->next_function_link();
+    func->set_code(shared->code());
+    func->set_next_function_link(undefined);
+  }
 }
 
 
@@ -1570,8 +1735,10 @@ void Translation::StoreLiteral(int literal_id) {
 }
 
 
-void Translation::StoreArgumentsObject() {
+void Translation::StoreArgumentsObject(int args_index, int args_length) {
   buffer_->Add(ARGUMENTS_OBJECT, zone());
+  buffer_->Add(args_index, zone());
+  buffer_->Add(args_length, zone());
 }
 
 
@@ -1582,7 +1749,6 @@ void Translation::MarkDuplicate() {
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
-    case ARGUMENTS_OBJECT:
     case DUPLICATE:
       return 0;
     case GETTER_STUB_FRAME:
@@ -1600,6 +1766,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
     case CONSTRUCT_STUB_FRAME:
+    case ARGUMENTS_OBJECT:
       return 2;
     case JS_FRAME:
       return 3;

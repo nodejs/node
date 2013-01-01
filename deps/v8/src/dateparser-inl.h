@@ -62,7 +62,8 @@ bool DateParser::Parse(Vector<Char> str,
   //         sss is in the range 000..999,
   //         hh is in the range 00..23,
   //         mm, ss, and sss default to 00 if missing, and
-  //         timezone defaults to Z if missing.
+  //         timezone defaults to Z if missing
+  //           (following Safari, ISO actually demands local time).
   //  Extensions:
   //   We also allow sss to have more or less than three digits (but at
   //   least one).

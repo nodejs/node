@@ -89,7 +89,7 @@ g();
 assertEquals(3, break_point_hit_count);
 
 // Finally test with many break points.
-test_count = 100;
+test_count = 10;
 bps = new Array(test_count);
 break_point_hit_count = 0;
 for (var i = 0; i < test_count; i++) {

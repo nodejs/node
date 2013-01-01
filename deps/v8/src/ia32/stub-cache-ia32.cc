@@ -376,18 +376,23 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
                                             Register dst,
                                             Register src,
                                             Handle<JSObject> holder,
-                                            int index) {
-  // Adjust for the number of properties stored in the holder.
-  index -= holder->map()->inobject_properties();
-  if (index < 0) {
-    // Get the property straight out of the holder.
-    int offset = holder->map()->instance_size() + (index * kPointerSize);
+                                            PropertyIndex index) {
+  if (index.is_header_index()) {
+    int offset = index.header_index() * kPointerSize;
     __ mov(dst, FieldOperand(src, offset));
   } else {
-    // Calculate the offset into the properties array.
-    int offset = index * kPointerSize + FixedArray::kHeaderSize;
-    __ mov(dst, FieldOperand(src, JSObject::kPropertiesOffset));
-    __ mov(dst, FieldOperand(dst, offset));
+    // Adjust for the number of properties stored in the holder.
+    int slot = index.field_index() - holder->map()->inobject_properties();
+    if (slot < 0) {
+      // Get the property straight out of the holder.
+      int offset = holder->map()->instance_size() + (slot * kPointerSize);
+      __ mov(dst, FieldOperand(src, offset));
+    } else {
+      // Calculate the offset into the properties array.
+      int offset = slot * kPointerSize + FixedArray::kHeaderSize;
+      __ mov(dst, FieldOperand(src, JSObject::kPropertiesOffset));
+      __ mov(dst, FieldOperand(dst, offset));
+    }
   }
 }
 
@@ -1036,7 +1041,7 @@ void StubCompiler::GenerateLoadField(Handle<JSObject> object,
                                      Register scratch1,
                                      Register scratch2,
                                      Register scratch3,
-                                     int index,
+                                     PropertyIndex index,
                                      Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
@@ -1423,7 +1428,7 @@ void CallStubCompiler::GenerateMissBranch() {
 
 Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                int index,
+                                                PropertyIndex index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- ecx                 : name
@@ -1518,7 +1523,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Label call_builtin;
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label attempt_to_grow_elements, with_write_barrier;
+      Label attempt_to_grow_elements, with_write_barrier, check_double;
 
       // Get the elements array of the object.
       __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
@@ -1526,7 +1531,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Check that the elements are in fast mode and writable.
       __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
              Immediate(factory()->fixed_array_map()));
-      __ j(not_equal, &call_builtin);
+      __ j(not_equal, &check_double);
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1557,17 +1562,49 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       __ ret((argc + 1) * kPointerSize);
 
+      __ bind(&check_double);
+
+
+      // Check that the elements are in double mode.
+      __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+             Immediate(factory()->fixed_double_array_map()));
+      __ j(not_equal, &call_builtin);
+
+      // Get the array's length into eax and calculate new length.
+      __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
+      __ add(eax, Immediate(Smi::FromInt(argc)));
+
+      // Get the elements' length into ecx.
+      __ mov(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ cmp(eax, ecx);
+      __ j(greater, &call_builtin);
+
+      __ mov(ecx, Operand(esp, argc * kPointerSize));
+      __ StoreNumberToDoubleElements(
+          ecx, edi, eax, ecx, xmm0, &call_builtin, true, argc * kDoubleSize);
+
+      // Save new length.
+      __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
+      __ ret((argc + 1) * kPointerSize);
+
       __ bind(&with_write_barrier);
 
       __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
 
-      if (FLAG_smi_only_arrays  && !FLAG_trace_elements_transitions) {
+      if (FLAG_smi_only_arrays && !FLAG_trace_elements_transitions) {
         Label fast_object, not_fast_object;
         __ CheckFastObjectElements(ebx, &not_fast_object, Label::kNear);
         __ jmp(&fast_object);
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(ebx, &call_builtin);
+        __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
+               Immediate(factory()->heap_number_map()));
+        __ j(equal, &call_builtin);
         // edi: elements array
         // edx: receiver
         // ebx: map
@@ -2956,7 +2993,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
 
 Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                int index,
+                                                PropertyIndex index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
@@ -3156,7 +3193,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
                                                      Handle<JSObject> receiver,
                                                      Handle<JSObject> holder,
-                                                     int index) {
+                                                     PropertyIndex index) {
   // ----------- S t a t e -------------
   //  -- ecx    : key
   //  -- edx    : receiver
@@ -3421,6 +3458,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
 #endif
 
   // Load the initial map and verify that it is in fact a map.
+  // edi: constructor
   __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
   // Will both indicate a NULL and a Smi.
   __ JumpIfSmi(ebx, &generic_stub_call);
@@ -3429,19 +3467,23 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
 
 #ifdef DEBUG
   // Cannot construct functions this way.
-  // edi: constructor
   // ebx: initial map
   __ CmpInstanceType(ebx, JS_FUNCTION_TYPE);
-  __ Assert(not_equal, "Function constructed by construct stub.");
+  __ Check(not_equal, "Function constructed by construct stub.");
 #endif
 
   // Now allocate the JSObject on the heap by moving the new space allocation
   // top forward.
-  // edi: constructor
   // ebx: initial map
+  ASSERT(function->has_initial_map());
+  int instance_size = function->initial_map()->instance_size();
+#ifdef DEBUG
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ shl(ecx, kPointerSizeLog2);
-  __ AllocateInNewSpace(ecx, edx, ecx, no_reg,
+  __ cmp(ecx, Immediate(instance_size));
+  __ Check(equal, "Instance size of initial map changed.");
+#endif
+  __ AllocateInNewSpace(instance_size, edx, ecx, no_reg,
                         &generic_stub_call, NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
@@ -3501,7 +3543,6 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   }
 
   // Fill the unused in-object property fields with undefined.
-  ASSERT(function->has_initial_map());
   for (int i = shared->this_property_assignments_count();
        i < function->initial_map()->inobject_properties();
        i++) {
@@ -4312,12 +4353,21 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // ecx: key
     // edx: receiver
     // edi: elements
-    // Initialize the new FixedDoubleArray. Leave elements unitialized for
-    // efficiency, they are guaranteed to be initialized before use.
+    // Initialize the new FixedDoubleArray.
     __ mov(FieldOperand(edi, JSObject::kMapOffset),
            Immediate(masm->isolate()->factory()->fixed_double_array_map()));
     __ mov(FieldOperand(edi, FixedDoubleArray::kLengthOffset),
            Immediate(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
+
+    __ StoreNumberToDoubleElements(eax, edi, ecx, ebx, xmm0,
+                                   &transition_elements_kind, true);
+
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      int offset = FixedDoubleArray::OffsetOfElementAt(i);
+      __ mov(FieldOperand(edi, offset), Immediate(kHoleNanLower32));
+      __ mov(FieldOperand(edi, offset + kPointerSize),
+             Immediate(kHoleNanUpper32));
+    }
 
     // Install the new backing store in the JSArray.
     __ mov(FieldOperand(edx, JSObject::kElementsOffset), edi);
@@ -4328,7 +4378,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ add(FieldOperand(edx, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
     __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
-    __ jmp(&finish_store);
+    __ ret(0);
 
     __ bind(&check_capacity);
     // eax: value

@@ -35,6 +35,8 @@
 namespace v8 {
 namespace internal {
 
+static const int kPrologueOffsetNotSet = -1;
+
 class ScriptDataImpl;
 
 // CompilationInfo encapsulates some information known at compile time.  It
@@ -186,6 +188,16 @@ class CompilationInfo {
   const char* bailout_reason() const { return bailout_reason_; }
   void set_bailout_reason(const char* reason) { bailout_reason_ = reason; }
 
+  int prologue_offset() const {
+    ASSERT_NE(kPrologueOffsetNotSet, prologue_offset_);
+    return prologue_offset_;
+  }
+
+  void set_prologue_offset(int prologue_offset) {
+    ASSERT_EQ(kPrologueOffsetNotSet, prologue_offset_);
+    prologue_offset_ = prologue_offset;
+  }
+
  private:
   Isolate* isolate_;
 
@@ -200,18 +212,7 @@ class CompilationInfo {
     NONOPT
   };
 
-  void Initialize(Mode mode) {
-    mode_ = V8::UseCrankshaft() ? mode : NONOPT;
-    ASSERT(!script_.is_null());
-    if (script_->type()->value() == Script::TYPE_NATIVE) {
-      MarkAsNative();
-    }
-    if (!shared_info_.is_null()) {
-      ASSERT(language_mode() == CLASSIC_MODE);
-      SetLanguageMode(shared_info_->language_mode());
-    }
-    set_bailout_reason("unknown");
-  }
+  void Initialize(Zone* zone);
 
   void SetMode(Mode mode) {
     ASSERT(V8::UseCrankshaft());
@@ -285,6 +286,8 @@ class CompilationInfo {
 
   const char* bailout_reason_;
 
+  int prologue_offset_;
+
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
 
@@ -293,6 +296,8 @@ class CompilationInfo {
 // Zone on construction and deallocates it on exit.
 class CompilationInfoWithZone: public CompilationInfo {
  public:
+  INLINE(void* operator new(size_t size)) { return Malloced::New(size); }
+
   explicit CompilationInfoWithZone(Handle<Script> script)
       : CompilationInfo(script, &zone_),
         zone_(script->GetIsolate()),

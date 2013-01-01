@@ -268,7 +268,6 @@ if [ $START_STEP -le $CURRENT_STEP ] ; then
   echo ">>> Step $CURRENT_STEP: Apply squashed changes."
   rm -f "$TOUCHED_FILES_FILE"
   apply_patch "$PATCH_FILE"
-  stage_files
   rm -f "$PATCH_FILE"
 fi
 

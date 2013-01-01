@@ -29,6 +29,29 @@
 
 var a = new Int32Array(1024);
 
+// Test that we do not assert if the accessed index has not an int32 rep.
+var v = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+function test_do_not_assert_on_non_int32(vector, base) {
+  var r = 0;
+  var a1 = base + 1;
+  var a2 = base + 2;
+  var a3 = base + 3;
+  var a4 = base + 4;
+  if (a1 == 2) {
+    r += vector[a1];
+    r += vector[a4];
+    r += vector[a2];
+    r += vector[a3];
+  }
+  return r;
+}
+test_do_not_assert_on_non_int32(v,1);
+test_do_not_assert_on_non_int32(v,1);
+test_do_not_assert_on_non_int32(v,"a");
+test_do_not_assert_on_non_int32(v,"a");
+%OptimizeFunctionOnNextCall(test_do_not_assert_on_non_int32);
+test_do_not_assert_on_non_int32(v,0);
+
 function test_base(base,cond) {
   a[base + 1] = 1;
   a[base + 4] = 2;

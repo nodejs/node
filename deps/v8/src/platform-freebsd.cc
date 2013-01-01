@@ -43,14 +43,11 @@
 #include <sys/fcntl.h>  // open
 #include <unistd.h>     // getpagesize
 // If you don't have execinfo.h then you need devel/libexecinfo from ports.
+#include <execinfo.h>   // backtrace, backtrace_symbols
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
 #include <limits.h>
-
-#if !defined(__DragonFly__)
-#include <execinfo.h>   // backtrace, backtrace_symbols
-#endif
 
 #undef MAP_TYPE
 
@@ -299,9 +296,6 @@ void OS::SignalCodeMovingGC() {
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
-#if defined(__DragonFly__)
-  return 0;
-#else
   int frames_size = frames.length();
   ScopedVector<void*> addresses(frames_size);
 
@@ -326,7 +320,6 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
   free(symbols);
 
   return frames_count;
-#endif
 }
 
 
@@ -460,6 +453,12 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return munmap(base, size) == 0;
+}
+
+
+bool VirtualMemory::HasLazyCommits() {
+  // TODO(alph): implement for the platform.
+  return false;
 }
 
 
@@ -619,13 +618,6 @@ void FreeBSDSemaphore::Wait() {
 
 
 bool FreeBSDSemaphore::Wait(int timeout) {
-#if defined(__DragonFly__)
-  /* DragonFlyBSD lacks sem_timedwait() and there is no good way to emulate it.
-   */
-  if (sem_wait(&sem_)) abort();
-  USE(timeout);
-  return true;
-#else
   const long kOneSecondMicros = 1000000;  // NOLINT
 
   // Split timeout into second and nanosecond parts.
@@ -651,7 +643,6 @@ bool FreeBSDSemaphore::Wait(int timeout) {
     if (result == -1 && errno == ETIMEDOUT) return false;  // Timeout.
     CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
   }
-#endif
 }
 
 
@@ -721,11 +712,6 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
 class SignalSender : public Thread {
  public:
-  enum SleepInterval {
-    HALF_INTERVAL,
-    FULL_INTERVAL
-  };
-
   static const int kSignalSenderStackSize = 64 * KB;
 
   explicit SignalSender(int interval)
@@ -776,38 +762,14 @@ class SignalSender : public Thread {
     SamplerRegistry::State state;
     while ((state = SamplerRegistry::GetState()) !=
            SamplerRegistry::HAS_NO_SAMPLERS) {
-      bool cpu_profiling_enabled =
-          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
-      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
-      if (!cpu_profiling_enabled) {
+      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
+        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
+      } else {
         if (rate_limiter_.SuspendIfNecessary()) continue;
       }
-      if (cpu_profiling_enabled && runtime_profiler_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
-          return;
-        }
-        Sleep(HALF_INTERVAL);
-        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
-          return;
-        }
-        Sleep(HALF_INTERVAL);
-      } else {
-        if (cpu_profiling_enabled) {
-          if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile,
-                                                      this)) {
-            return;
-          }
-        }
-        if (runtime_profiler_enabled) {
-          if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile,
-                                                      NULL)) {
-            return;
-          }
-        }
-        Sleep(FULL_INTERVAL);
-      }
+      Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
     }
   }
 
@@ -817,21 +779,15 @@ class SignalSender : public Thread {
     sender->SendProfilingSignal(sampler->platform_data()->vm_tid());
   }
 
-  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    sampler->isolate()->runtime_profiler()->NotifyTick();
-  }
-
   void SendProfilingSignal(pthread_t tid) {
     if (!signal_handler_installed_) return;
     pthread_kill(tid, SIGPROF);
   }
 
-  void Sleep(SleepInterval full_or_half) {
+  void Sleep() {
     // Convert ms to us and subtract 100 us to compensate delays
     // occuring during signal delivery.
     useconds_t interval = interval_ * 1000 - 100;
-    if (full_or_half == HALF_INTERVAL) interval /= 2;
     int result = usleep(interval);
 #ifdef DEBUG
     if (result != 0 && errno != EINTR) {

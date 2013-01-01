@@ -392,7 +392,7 @@ TEST(LogCallbacks) {
 
   i::EmbeddedVector<char, 100> ref_data;
   i::OS::SNPrintF(ref_data,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"method1\"\0",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"method1\"\0",
                   ObjMethod1);
 
   CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
@@ -435,21 +435,21 @@ TEST(LogAccessorCallbacks) {
 
   EmbeddedVector<char, 100> prop1_getter_record;
   i::OS::SNPrintF(prop1_getter_record,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop1\"",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop1\"",
                   Prop1Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop1_setter_record;
   i::OS::SNPrintF(prop1_setter_record,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"set prop1\"",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"set prop1\"",
                   Prop1Setter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop2_getter_record;
   i::OS::SNPrintF(prop2_getter_record,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop2\"",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop2\"",
                   Prop2Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop2_getter_record.start(), log.length()));

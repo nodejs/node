@@ -79,6 +79,7 @@
         'test-lockers.cc',
         'test-log.cc',
         'test-mark-compact.cc',
+        'test-object-observe.cc',
         'test-parsing.cc',
         'test-platform-tls.cc',
         'test-profile-generator.cc',
@@ -187,7 +188,7 @@
             '<(generated_file)',
           ],
           'action': [
-            '<(python)',
+            'python',
             '../../tools/js2c.py',
             '<@(_outputs)',
             'TEST',  # type

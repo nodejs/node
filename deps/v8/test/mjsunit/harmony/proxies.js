@@ -649,6 +649,11 @@ function TestSetForDerived2(create, trap) {
 
 TestSetForDerived(
   function(k) {
+    // TODO(yangguo): issue 2398 - throwing an error causes formatting of
+    // the message string, which can be observable through this handler.
+    // We ignore keys that occur when formatting the message string.
+    if (k == "toString" || k == "valueOf") return;
+
     key = k;
     switch (k) {
       case "p_writable": return {writable: true, configurable: true}

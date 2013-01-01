@@ -36,9 +36,7 @@ TEMP_BRANCH=$BRANCHNAME-temporary-branch-created-by-script
 VERSION_FILE="src/version.cc"
 CHANGELOG_ENTRY_FILE="$PERSISTFILE_BASENAME-changelog-entry"
 PATCH_FILE="$PERSISTFILE_BASENAME-patch"
-PATCH_OUTPUT_FILE="$PERSISTFILE_BASENAME-patch-output"
 COMMITMSG_FILE="$PERSISTFILE_BASENAME-commitmsg"
-TOUCHED_FILES_FILE="$PERSISTFILE_BASENAME-touched-files"
 TRUNK_REVISION_FILE="$PERSISTFILE_BASENAME-trunkrevision"
 START_STEP=0
 CURRENT_STEP=0
@@ -180,26 +178,21 @@ the uploaded CL."
   done
 }
 
-# Takes a file containing the patch to apply as first argument.
-apply_patch() {
-  patch $REVERSE_PATCH -p1 < "$1" > "$PATCH_OUTPUT_FILE" || \
-    { cat "$PATCH_OUTPUT_FILE" && die "Applying the patch failed."; }
-  tee < "$PATCH_OUTPUT_FILE" >(grep "patching file" \
-                               | awk '{print $NF}' >> "$TOUCHED_FILES_FILE")
-  rm "$PATCH_OUTPUT_FILE"
+wait_for_resolving_conflicts() {
+  echo "Applying the patch \"$1\" failed. Either type \"ABORT<Return>\", or \
+resolve the conflicts, stage *all* touched files with 'git add', and \
+type \"RESOLVED<Return>\""
+  unset ANSWER
+  while [ "$ANSWER" != "RESOLVED" ] ; do
+    [[ "$ANSWER" == "ABORT" ]] && die "Applying the patch failed."
+    [[ -n "$ANSWER" ]] && echo "That was not 'RESOLVED' or 'ABORT'."
+    echo -n "> "
+    read ANSWER
+  done
 }
 
-stage_files() {
-  # Stage added and modified files.
-  TOUCHED_FILES=$(cat "$TOUCHED_FILES_FILE")
-  for FILE in $TOUCHED_FILES ; do
-    git add "$FILE"
-  done
-  # Stage deleted files.
-  DELETED_FILES=$(git status -s -uno --porcelain | grep "^ D" \
-                                                 | awk '{print $NF}')
-  for FILE in $DELETED_FILES ; do
-    git rm "$FILE"
-  done
-  rm -f "$TOUCHED_FILES_FILE"
+# Takes a file containing the patch to apply as first argument.
+apply_patch() {
+  git apply --index --reject $REVERSE_PATCH "$1" || \
+    wait_for_resolving_conflicts "$1";
 }

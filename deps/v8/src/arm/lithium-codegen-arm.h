@@ -110,8 +110,9 @@ class LCodeGen BASE_EMBEDDED {
   void FinishCode(Handle<Code> code);
 
   // Deferred code support.
-  template<int T>
-  void DoDeferredBinaryOpStub(LTemplateInstruction<1, 2, T>* instr,
+  void DoDeferredBinaryOpStub(LPointerMap* pointer_map,
+                              LOperand* left_argument,
+                              LOperand* right_argument,
                               Token::Value op);
   void DoDeferredNumberTagD(LNumberTagD* instr);
 
@@ -147,7 +148,10 @@ class LCodeGen BASE_EMBEDDED {
                                  int additional_offset);
 
   // Emit frame translation commands for an environment.
-  void WriteTranslation(LEnvironment* environment, Translation* translation);
+  void WriteTranslation(LEnvironment* environment,
+                        Translation* translation,
+                        int* arguments_index,
+                        int* arguments_count);
 
   // Declare methods that deal with the individual node types.
 #define DECLARE_DO(type) void Do##type(L##type* node);
@@ -209,14 +213,18 @@ class LCodeGen BASE_EMBEDDED {
     RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
   };
 
-  void CallCode(Handle<Code> code,
-                RelocInfo::Mode mode,
-                LInstruction* instr);
+  void CallCode(
+      Handle<Code> code,
+      RelocInfo::Mode mode,
+      LInstruction* instr,
+      TargetAddressStorageMode storage_mode = CAN_INLINE_TARGET_ADDRESS);
 
-  void CallCodeGeneric(Handle<Code> code,
-                       RelocInfo::Mode mode,
-                       LInstruction* instr,
-                       SafepointMode safepoint_mode);
+  void CallCodeGeneric(
+      Handle<Code> code,
+      RelocInfo::Mode mode,
+      LInstruction* instr,
+      SafepointMode safepoint_mode,
+      TargetAddressStorageMode storage_mode = CAN_INLINE_TARGET_ADDRESS);
 
   void CallRuntime(const Runtime::Function* function,
                    int num_arguments,
@@ -258,7 +266,9 @@ class LCodeGen BASE_EMBEDDED {
   void AddToTranslation(Translation* translation,
                         LOperand* op,
                         bool is_tagged,
-                        bool is_uint32);
+                        bool is_uint32,
+                        int arguments_index,
+                        int arguments_count);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
 
@@ -367,6 +377,12 @@ class LCodeGen BASE_EMBEDDED {
   };
 
   void EnsureSpaceForLazyDeopt();
+  void DoLoadKeyedExternalArray(LLoadKeyed* instr);
+  void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
+  void DoLoadKeyedFixedArray(LLoadKeyed* instr);
+  void DoStoreKeyedExternalArray(LStoreKeyed* instr);
+  void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
+  void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
   Zone* zone_;
   LPlatformChunk* const chunk_;

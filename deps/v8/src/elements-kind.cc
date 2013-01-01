@@ -35,9 +35,14 @@ namespace v8 {
 namespace internal {
 
 
-void PrintElementsKind(FILE* out, ElementsKind kind) {
+const char* ElementsKindToString(ElementsKind kind) {
   ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
-  PrintF(out, "%s", accessor->name());
+  return accessor->name();
+}
+
+
+void PrintElementsKind(FILE* out, ElementsKind kind) {
+  PrintF(out, "%s", ElementsKindToString(kind));
 }
 
 

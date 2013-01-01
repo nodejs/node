@@ -1844,10 +1844,14 @@ function ScopeDetails(frame, fun, index) {
                                      frame.details_.frameId(),
                                      frame.details_.inlinedFrameIndex(),
                                      index);
+    this.frame_id_ = frame.details_.frameId();
+    this.inlined_frame_id_ = frame.details_.inlinedFrameIndex();
   } else {
     this.details_ = %GetFunctionScopeDetails(fun.value(), index);
+    this.fun_value_ = fun.value();
     this.break_id_ = undefined;
   }
+  this.index_ = index;
 }
 
 
@@ -1864,6 +1868,22 @@ ScopeDetails.prototype.object = function() {
     %CheckExecutionState(this.break_id_);
   }
   return this.details_[kScopeDetailsObjectIndex];
+};
+
+
+ScopeDetails.prototype.setVariableValueImpl = function(name, new_value) {
+  var raw_res;
+  if (!IS_UNDEFINED(this.break_id_)) {
+    %CheckExecutionState(this.break_id_);
+    raw_res = %SetScopeVariableValue(this.break_id_, this.frame_id_,
+        this.inlined_frame_id_, this.index_, name, new_value);
+  } else {
+    raw_res = %SetScopeVariableValue(this.fun_value_, null, null, this.index_,
+        name, new_value);
+  }
+  if (!raw_res) {
+    throw new Error("Failed to set variable value");
+  }
 };
 
 
@@ -1911,6 +1931,11 @@ ScopeMirror.prototype.scopeObject = function() {
   var transient = this.scopeType() == ScopeType.Local ||
                   this.scopeType() == ScopeType.Closure;
   return MakeMirror(this.details_.object(), transient);
+};
+
+
+ScopeMirror.prototype.setVariableValue = function(name, new_value) {
+  this.details_.setVariableValueImpl(name, new_value);
 };
 
 

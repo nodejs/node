@@ -25,11 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that we actually return the right value (-0) when we multiply
 // constant 0 with a negative integer.
 
 function foo(y) {return 0 * y; }
-for( var i = 0; i< 1000000; i++){
-  foo(42);
-}
 assertEquals(1/foo(-42), -Infinity);
+assertEquals(1/foo(-42), -Infinity);
+%OptimizeFunctionOnNextCall(foo);
+assertEquals(1/foo(-42), -Infinity);
+
+function bar(x) { return x * 0; }
+assertEquals(Infinity, 1/bar(5));
+assertEquals(Infinity, 1/bar(5));
+%OptimizeFunctionOnNextCall(bar);
+assertEquals(-Infinity, 1/bar(-5));
+

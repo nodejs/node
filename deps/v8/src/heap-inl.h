@@ -85,13 +85,16 @@ void PromotionQueue::ActivateGuardIfOnTheSamePage() {
 MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
                                           PretenureFlag pretenure) {
   // Check for ASCII first since this is the common case.
-  if (String::IsAscii(str.start(), str.length())) {
+  const char* start = str.start();
+  int length = str.length();
+  int non_ascii_start = String::NonAsciiStart(start, length);
+  if (non_ascii_start >= length) {
     // If the string is ASCII, we do not need to convert the characters
     // since UTF8 is backwards compatible with ASCII.
-    return AllocateStringFromAscii(str, pretenure);
+    return AllocateStringFromOneByte(str, pretenure);
   }
   // Non-ASCII and we need to decode.
-  return AllocateStringFromUtf8Slow(str, pretenure);
+  return AllocateStringFromUtf8Slow(str, non_ascii_start, pretenure);
 }
 
 
@@ -106,12 +109,12 @@ MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
 
 MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
                                        uint32_t hash_field) {
-  if (str.length() > SeqAsciiString::kMaxLength) {
+  if (str.length() > SeqOneByteString::kMaxLength) {
     return Failure::OutOfMemoryException();
   }
   // Compute map and object size.
   Map* map = ascii_symbol_map();
-  int size = SeqAsciiString::SizeFor(str.length());
+  int size = SeqOneByteString::SizeFor(str.length());
 
   // Allocate string.
   Object* result;
@@ -131,7 +134,7 @@ MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  memcpy(answer->address() + SeqAsciiString::kHeaderSize,
+  memcpy(answer->address() + SeqOneByteString::kHeaderSize,
          str.start(), str.length());
 
   return answer;
@@ -267,13 +270,6 @@ MaybeObject* Heap::AllocateRawMap() {
 #endif
   MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
-#ifdef DEBUG
-  if (!result->IsFailure()) {
-    // Maps have their own alignment.
-    CHECK((reinterpret_cast<intptr_t>(result) & kMapAlignmentMask) ==
-          static_cast<intptr_t>(kHeapObjectTag));
-  }
-#endif
   return result;
 }
 
@@ -464,7 +460,7 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     intptr_t change_in_bytes) {
   ASSERT(HasBeenSetUp());
   intptr_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
-  if (change_in_bytes >= 0) {
+  if (change_in_bytes > 0) {
     // Avoid overflow.
     if (amount > amount_of_external_allocated_memory_) {
       amount_of_external_allocated_memory_ = amount;
@@ -611,7 +607,7 @@ void ExternalStringTable::Verify() {
     Object* obj = Object::cast(new_space_strings_[i]);
     // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
+    ASSERT(obj != HEAP->the_hole_value());
     if (obj->IsExternalAsciiString()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(obj);
       ASSERT(String::IsAscii(string->GetChars(), string->length()));
@@ -621,7 +617,7 @@ void ExternalStringTable::Verify() {
     Object* obj = Object::cast(old_space_strings_[i]);
     // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(!heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
+    ASSERT(obj != HEAP->the_hole_value());
     if (obj->IsExternalAsciiString()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(obj);
       ASSERT(String::IsAscii(string->GetChars(), string->length()));
@@ -640,9 +636,11 @@ void ExternalStringTable::AddOldString(String* string) {
 
 void ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
+#endif
 }
 
 
@@ -741,28 +739,15 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 }
 
 
-LinearAllocationScope::LinearAllocationScope() {
-  HEAP->linear_allocation_scope_depth_++;
-}
-
-
-LinearAllocationScope::~LinearAllocationScope() {
-  HEAP->linear_allocation_scope_depth_--;
-  ASSERT(HEAP->linear_allocation_scope_depth_ >= 0);
-}
-
-
-#ifdef DEBUG
 void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsHeapObject()) {
       HeapObject* object = HeapObject::cast(*current);
-      ASSERT(HEAP->Contains(object));
-      ASSERT(object->map()->IsMap());
+      CHECK(HEAP->Contains(object));
+      CHECK(object->map()->IsMap());
     }
   }
 }
-#endif
 
 
 double GCTracer::SizeOfHeapObjects() {

@@ -39,7 +39,6 @@ class CompilationInfo;
 
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
-
 // -------------------------------------------------------------------------
 // CodeGenerator
 
@@ -82,6 +81,20 @@ class StringCharLoadGenerator : public AllStatic {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
+};
+
+
+class MathExpGenerator : public AllStatic {
+ public:
+  static void EmitMathExp(MacroAssembler* masm,
+                          XMMRegister input,
+                          XMMRegister result,
+                          XMMRegister double_scratch,
+                          Register temp1,
+                          Register temp2);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
 } }  // namespace v8::internal

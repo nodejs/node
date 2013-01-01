@@ -290,3 +290,15 @@
 
   func('a', 'b', 'c');
 })();
+
+// Check slicing of holey objects with elements in the prototype
+(function() {
+  function f() {
+    delete arguments[1];
+    arguments.__proto__[1] = 5;
+    var result = Array.prototype.slice.call(arguments);
+    delete arguments.__proto__[1];
+    assertEquals([1,5,3], result);
+  }
+  f(1,2,3);
+})();

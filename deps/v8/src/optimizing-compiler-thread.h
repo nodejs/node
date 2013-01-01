@@ -29,8 +29,8 @@
 #define V8_OPTIMIZING_COMPILER_THREAD_H_
 
 #include "atomicops.h"
-#include "platform.h"
 #include "flags.h"
+#include "platform.h"
 #include "unbound-queue.h"
 
 namespace v8 {
@@ -38,14 +38,19 @@ namespace internal {
 
 class HGraphBuilder;
 class OptimizingCompiler;
+class SharedFunctionInfo;
 
 class OptimizingCompilerThread : public Thread {
  public:
   explicit OptimizingCompilerThread(Isolate *isolate) :
       Thread("OptimizingCompilerThread"),
+#ifdef DEBUG
+      thread_id_(0),
+#endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
       input_queue_semaphore_(OS::CreateSemaphore(0)),
+      output_queue_semaphore_(OS::CreateSemaphore(0)),
       time_spent_compiling_(0),
       time_spent_total_(0) {
     NoBarrier_Store(&stop_thread_, static_cast<AtomicWord>(false));
@@ -56,6 +61,9 @@ class OptimizingCompilerThread : public Thread {
   void Stop();
   void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
   void InstallOptimizedFunctions();
+
+  // Wait for the next optimized function and install it.
+  Handle<SharedFunctionInfo> InstallNextOptimizedFunction();
 
   inline bool IsQueueAvailable() {
     // We don't need a barrier since we have a data dependency right
@@ -76,24 +84,26 @@ class OptimizingCompilerThread : public Thread {
 #endif
 
   ~OptimizingCompilerThread() {
+    delete output_queue_semaphore_;  // Only used for manual mode.
     delete input_queue_semaphore_;
     delete stop_semaphore_;
   }
 
  private:
+#ifdef DEBUG
+  int thread_id_;
+#endif
+
   Isolate* isolate_;
   Semaphore* stop_semaphore_;
   Semaphore* input_queue_semaphore_;
+  Semaphore* output_queue_semaphore_;
   UnboundQueue<OptimizingCompiler*> input_queue_;
   UnboundQueue<OptimizingCompiler*> output_queue_;
   volatile AtomicWord stop_thread_;
   volatile Atomic32 queue_length_;
   int64_t time_spent_compiling_;
   int64_t time_spent_total_;
-
-#ifdef DEBUG
-  int thread_id_;
-#endif
 };
 
 } }  // namespace v8::internal

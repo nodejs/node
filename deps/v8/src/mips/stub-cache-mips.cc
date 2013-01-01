@@ -314,18 +314,23 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
                                             Register dst,
                                             Register src,
                                             Handle<JSObject> holder,
-                                            int index) {
-  // Adjust for the number of properties stored in the holder.
-  index -= holder->map()->inobject_properties();
-  if (index < 0) {
-    // Get the property straight out of the holder.
-    int offset = holder->map()->instance_size() + (index * kPointerSize);
+                                            PropertyIndex index) {
+  if (index.is_header_index()) {
+    int offset = index.header_index() * kPointerSize;
     __ lw(dst, FieldMemOperand(src, offset));
   } else {
-    // Calculate the offset into the properties array.
-    int offset = index * kPointerSize + FixedArray::kHeaderSize;
-    __ lw(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
-    __ lw(dst, FieldMemOperand(dst, offset));
+    // Adjust for the number of properties stored in the holder.
+    int slot = index.field_index() - holder->map()->inobject_properties();
+    if (slot < 0) {
+      // Get the property straight out of the holder.
+      int offset = holder->map()->instance_size() + (slot * kPointerSize);
+      __ lw(dst, FieldMemOperand(src, offset));
+    } else {
+      // Calculate the offset into the properties array.
+      int offset = slot * kPointerSize + FixedArray::kHeaderSize;
+      __ lw(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
+      __ lw(dst, FieldMemOperand(dst, offset));
+    }
   }
 }
 
@@ -1200,7 +1205,7 @@ void StubCompiler::GenerateLoadField(Handle<JSObject> object,
                                      Register scratch1,
                                      Register scratch2,
                                      Register scratch3,
-                                     int index,
+                                     PropertyIndex index,
                                      Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
@@ -1549,7 +1554,7 @@ void CallStubCompiler::GenerateMissBranch() {
 
 Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                int index,
+                                                PropertyIndex index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a2    : name
@@ -1623,7 +1628,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   } else {
     Label call_builtin;
     if (argc == 1) {  // Otherwise fall through to call the builtin.
-      Label attempt_to_grow_elements;
+      Label attempt_to_grow_elements, with_write_barrier, check_double;
 
       Register elements = t2;
       Register end_elements = t1;
@@ -1634,7 +1639,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ CheckMap(elements,
                   v0,
                   Heap::kFixedArrayMapRootIndex,
-                  &call_builtin,
+                  &check_double,
                   DONT_DO_SMI_CHECK);
 
       // Get the array's length into v0 and calculate new length.
@@ -1650,7 +1655,6 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Branch(&attempt_to_grow_elements, gt, v0, Operand(t0));
 
       // Check if value is a smi.
-      Label with_write_barrier;
       __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
       __ JumpIfNotSmi(t0, &with_write_barrier);
 
@@ -1671,6 +1675,39 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Drop(argc + 1);
       __ Ret();
 
+      __ bind(&check_double);
+
+      // Check that the elements are in fast mode and writable.
+      __ CheckMap(elements,
+                  a0,
+                  Heap::kFixedDoubleArrayMapRootIndex,
+                  &call_builtin,
+                  DONT_DO_SMI_CHECK);
+
+      // Get the array's length into r0 and calculate new length.
+      __ lw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+      STATIC_ASSERT(kSmiTagSize == 1);
+      STATIC_ASSERT(kSmiTag == 0);
+      __ Addu(a0, a0, Operand(Smi::FromInt(argc)));
+
+      // Get the elements' length.
+      __ lw(t0, FieldMemOperand(elements, FixedArray::kLengthOffset));
+
+      // Check if we could survive without allocation.
+      __ Branch(&call_builtin, gt, a0, Operand(t0));
+
+      __ lw(t0, MemOperand(sp, (argc - 1) * kPointerSize));
+      __ StoreNumberToDoubleElements(
+          t0, a0, elements, a3, t1, a2, t5,
+          &call_builtin, argc * kDoubleSize);
+
+      // Save new length.
+      __ sw(a0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+
+      // Check for a smi.
+      __ Drop(argc + 1);
+      __ Ret();
+
       __ bind(&with_write_barrier);
 
       __ lw(a3, FieldMemOperand(receiver, HeapObject::kMapOffset));
@@ -1682,8 +1719,12 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(a3, t3, &call_builtin);
+
+        __ lw(t3, FieldMemOperand(t0, HeapObject::kMapOffset));
+        __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
+        __ Branch(&call_builtin, eq, t3, Operand(at));
         // edx: receiver
-        // r3: map
+        // a3: map
         Label try_holey_map;
         __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
                                                FAST_ELEMENTS,
@@ -2915,7 +2956,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
 
 Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                int index,
+                                                PropertyIndex index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : receiver
@@ -3106,7 +3147,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
                                                      Handle<JSObject> receiver,
                                                      Handle<JSObject> holder,
-                                                     int index) {
+                                                     PropertyIndex index) {
   // ----------- S t a t e -------------
   //  -- ra    : return address
   //  -- a0    : key
@@ -3453,7 +3494,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   // t7: undefined
   __ lbu(a3, FieldMemOperand(a2, Map::kInstanceTypeOffset));
   __ Check(ne, "Function constructed by construct stub.",
-      a3, Operand(JS_FUNCTION_TYPE));
+           a3, Operand(JS_FUNCTION_TYPE));
 #endif
 
   // Now allocate the JSObject in new space.
@@ -3461,7 +3502,13 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   // a1: constructor function
   // a2: initial map
   // t7: undefined
+  ASSERT(function->has_initial_map());
   __ lbu(a3, FieldMemOperand(a2, Map::kInstanceSizeOffset));
+#ifdef DEBUG
+  int instance_size = function->initial_map()->instance_size();
+  __ Check(eq, "Instance size of initial map changed.",
+           a3, Operand(instance_size >> kPointerSizeLog2));
+#endif
   __ AllocateInNewSpace(a3, t4, t5, t6, &generic_stub_call, SIZE_IN_WORDS);
 
   // Allocated the JSObject, now initialize the fields. Map is set to initial
@@ -3524,7 +3571,6 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   }
 
   // Fill the unused in-object property fields with undefined.
-  ASSERT(function->has_initial_map());
   for (int i = shared->this_property_assignments_count();
        i < function->initial_map()->inobject_properties();
        i++) {
@@ -3649,6 +3695,7 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                                 Register scratch0,
                                 Register scratch1,
                                 FPURegister double_scratch0,
+                                FPURegister double_scratch1,
                                 Label* fail) {
   if (CpuFeatures::IsSupported(FPU)) {
     CpuFeatures::Scope scope(FPU);
@@ -3664,15 +3711,15 @@ static void GenerateSmiKeyCheck(MacroAssembler* masm,
                 DONT_DO_SMI_CHECK);
     __ ldc1(double_scratch0, FieldMemOperand(key, HeapNumber::kValueOffset));
     __ EmitFPUTruncate(kRoundToZero,
-                       double_scratch0,
-                       double_scratch0,
                        scratch0,
+                       double_scratch0,
+                       at,
+                       double_scratch1,
                        scratch1,
                        kCheckForInexactConversion);
 
     __ Branch(fail, ne, scratch1, Operand(zero_reg));
 
-    __ mfc1(scratch0, double_scratch0);
     __ SmiTagCheckOverflow(key, scratch0, scratch1);
     __ BranchOnOverflow(fail, scratch1);
     __ bind(&key_ok);
@@ -3700,7 +3747,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key, t0, t1, f2, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key, t0, t1, f2, f4, &miss_force_generic);
 
   __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // a3: elements array
@@ -3800,34 +3847,41 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     __ Ret();
 
     __ bind(&box_int);
-    // Allocate a HeapNumber for the result and perform int-to-double
-    // conversion.
-    // The arm version uses a temporary here to save r0, but we don't need to
-    // (a0 is not modified).
-    __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
-    __ AllocateHeapNumber(v0, a3, t0, t1, &slow);
 
     if (CpuFeatures::IsSupported(FPU)) {
       CpuFeatures::Scope scope(FPU);
+      // Allocate a HeapNumber for the result and perform int-to-double
+      // conversion.
+      // The arm version uses a temporary here to save r0, but we don't need to
+      // (a0 is not modified).
+      __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(v0, a3, t0, t1, &slow, DONT_TAG_RESULT);
       __ mtc1(value, f0);
       __ cvt_d_w(f0, f0);
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
-      Register dst1 = t2;
-      Register dst2 = t3;
+      // Allocate a HeapNumber for the result and perform int-to-double
+      // conversion.
+      // The arm version uses a temporary here to save r0, but we don't need to
+      // (a0 is not modified).
+      __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
+      __ AllocateHeapNumber(v0, a3, t0, t1, &slow, TAG_RESULT);
+      Register dst_mantissa = t2;
+      Register dst_exponent = t3;
       FloatingPointHelper::Destination dest =
           FloatingPointHelper::kCoreRegisters;
       FloatingPointHelper::ConvertIntToDouble(masm,
                                               value,
                                               dest,
                                               f0,
-                                              dst1,
-                                              dst2,
+                                              dst_mantissa,
+                                              dst_exponent,
                                               t1,
                                               f2);
-      __ sw(dst1, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
-      __ sw(dst2, FieldMemOperand(v0, HeapNumber::kExponentOffset));
+      __ sw(dst_mantissa, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
+      __ sw(dst_exponent, FieldMemOperand(v0, HeapNumber::kExponentOffset));
       __ Ret();
     }
   } else if (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
@@ -3850,7 +3904,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // conversion. Don't use a0 and a1 as AllocateHeapNumber clobbers all
       // registers - also when jumping due to exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t2, t3, t6, &slow);
+      __ AllocateHeapNumber(v0, t2, t3, t6, &slow, DONT_TAG_RESULT);
 
       // This is replaced by a macro:
       // __ mtc1(value, f0);     // LS 32-bits.
@@ -3859,8 +3913,9 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
       __ Cvt_d_uw(f0, value, f22);
 
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
 
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
       // Check whether unsigned integer fits into smi.
@@ -3893,7 +3948,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // clobbers all registers - also when jumping due to exhausted young
       // space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(t2, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(t2, t3, t5, t6, &slow, TAG_RESULT);
 
       __ sw(hiword, FieldMemOperand(t2, HeapNumber::kExponentOffset));
       __ sw(loword, FieldMemOperand(t2, HeapNumber::kMantissaOffset));
@@ -3910,17 +3965,19 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, DONT_TAG_RESULT);
       // The float (single) value is already in fpu reg f0 (if we use float).
       __ cvt_d_s(f0, f0);
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
+
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
       // Allocate a HeapNumber for the result. Don't use a0 and a1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, TAG_RESULT);
       // FPU is not available, do manual single to double conversion.
 
       // a2: floating point value (binary32).
@@ -3975,16 +4032,18 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, DONT_TAG_RESULT);
       // The double value is already in f0
-      __ sdc1(f0, FieldMemOperand(v0, HeapNumber::kValueOffset));
+      __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset));
+
+      __ Addu(v0, v0, kHeapObjectTag);
       __ Ret();
     } else {
       // Allocate a HeapNumber for the result. Don't use a0 and a1 as
       // AllocateHeapNumber clobbers all registers - also when jumping due to
       // exhausted young space.
       __ LoadRoot(t6, Heap::kHeapNumberMapRootIndex);
-      __ AllocateHeapNumber(v0, t3, t5, t6, &slow);
+      __ AllocateHeapNumber(v0, t3, t5, t6, &slow, TAG_RESULT);
 
       __ sw(a2, FieldMemOperand(v0, HeapNumber::kMantissaOffset));
       __ sw(a3, FieldMemOperand(v0, HeapNumber::kExponentOffset));
@@ -4042,7 +4101,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key, t0, t1, f2, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key, t0, t1, f2, f4, &miss_force_generic);
 
   __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
@@ -4121,7 +4180,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       }
       FloatingPointHelper::ConvertIntToDouble(
           masm, t1, destination,
-          f0, t2, t3,  // These are: double_dst, dst1, dst2.
+          f0, t2, t3,  // These are: double_dst, dst_mantissa, dst_exponent.
           t0, f2);  // These are: scratch2, single_scratch.
       if (destination == FloatingPointHelper::kFPURegisters) {
         CpuFeatures::Scope scope(FPU);
@@ -4431,7 +4490,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, a0, t0, t1, f2, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, a0, t0, t1, f2, f4, &miss_force_generic);
 
   // Get the elements array.
   __ lw(a2, FieldMemOperand(a1, JSObject::kElementsOffset));
@@ -4482,7 +4541,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, f4, &miss_force_generic);
 
   // Get the elements array.
   __ lw(elements_reg,
@@ -4502,7 +4561,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
   // Non-NaN. Allocate a new heap number and copy the double value into it.
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
   __ AllocateHeapNumber(heap_number_reg, scratch2, scratch3,
-                        heap_number_map, &slow_allocate_heapnumber);
+                        heap_number_map, &slow_allocate_heapnumber, TAG_RESULT);
 
   // Don't need to reload the upper 32 bits of the double, it's already in
   // scratch.
@@ -4556,7 +4615,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, f4, &miss_force_generic);
 
   if (IsFastSmiElementsKind(elements_kind)) {
     __ JumpIfNotSmi(value_reg, &transition_elements_kind);
@@ -4700,11 +4759,12 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- a1    : key
   //  -- a2    : receiver
   //  -- ra    : return address
-  //  -- a3    : scratch
+  //  -- a3    : scratch (elements backing store)
   //  -- t0    : scratch (elements_reg)
   //  -- t1    : scratch (mantissa_reg)
   //  -- t2    : scratch (exponent_reg)
   //  -- t3    : scratch4
+  //  -- t4    : scratch
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, grow, slow;
   Label finish_store, check_capacity;
@@ -4717,13 +4777,14 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Register scratch2 = t1;
   Register scratch3 = t2;
   Register scratch4 = t3;
+  Register scratch5 = t4;
   Register length_reg = t3;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi or a heap number convertible to a smi.
-  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, &miss_force_generic);
+  GenerateSmiKeyCheck(masm, key_reg, t0, t1, f2, f4, &miss_force_generic);
 
   __ lw(elements_reg,
          FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
@@ -4747,7 +4808,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   __ StoreNumberToDoubleElements(value_reg,
                                  key_reg,
-                                 receiver_reg,
+                                 // All registers after this are overwritten.
                                  elements_reg,
                                  scratch1,
                                  scratch2,
@@ -4797,13 +4858,31 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ AllocateInNewSpace(size, elements_reg, scratch1, scratch2, &slow,
                           TAG_OBJECT);
 
-    // Initialize the new FixedDoubleArray. Leave elements unitialized for
-    // efficiency, they are guaranteed to be initialized before use.
+    // Initialize the new FixedDoubleArray.
     __ LoadRoot(scratch1, Heap::kFixedDoubleArrayMapRootIndex);
     __ sw(scratch1, FieldMemOperand(elements_reg, JSObject::kMapOffset));
     __ li(scratch1, Operand(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
     __ sw(scratch1,
           FieldMemOperand(elements_reg, FixedDoubleArray::kLengthOffset));
+
+    __ mov(scratch1, elements_reg);
+    __ StoreNumberToDoubleElements(value_reg,
+                                   key_reg,
+                                   // All registers after this are overwritten.
+                                   scratch1,
+                                   scratch2,
+                                   scratch3,
+                                   scratch4,
+                                   scratch5,
+                                   &transition_elements_kind);
+
+    __ li(scratch1, Operand(kHoleNanLower32));
+    __ li(scratch2, Operand(kHoleNanUpper32));
+    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
+      int offset = FixedDoubleArray::OffsetOfElementAt(i);
+      __ sw(scratch1, FieldMemOperand(elements_reg, offset));
+      __ sw(scratch2, FieldMemOperand(elements_reg, offset + kPointerSize));
+    }
 
     // Install the new backing store in the JSArray.
     __ sw(elements_reg,
@@ -4817,7 +4896,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ sw(length_reg, FieldMemOperand(receiver_reg, JSArray::kLengthOffset));
     __ lw(elements_reg,
           FieldMemOperand(receiver_reg, JSObject::kElementsOffset));
-    __ jmp(&finish_store);
+    __ Ret();
 
     __ bind(&check_capacity);
     // Make sure that the backing store can hold additional elements.

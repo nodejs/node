@@ -372,7 +372,7 @@ void StoreBuffer::GCPrologue() {
 }
 
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
 static void DummyScavengePointer(HeapObject** p, HeapObject* o) {
   // Do nothing.
 }
@@ -415,7 +415,7 @@ void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
 
 
 void StoreBuffer::Verify() {
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   VerifyPointers(heap_->old_pointer_space(),
                  &StoreBuffer::FindPointersToNewSpaceInRegion);
   VerifyPointers(heap_->map_space(),
@@ -427,9 +427,11 @@ void StoreBuffer::Verify() {
 
 void StoreBuffer::GCEpilogue() {
   during_gc_ = false;
+#ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();
   }
+#endif
 }
 
 

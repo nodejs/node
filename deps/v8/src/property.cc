@@ -63,7 +63,7 @@ void LookupResult::Print(FILE* out) {
       break;
     case FIELD:
       PrintF(out, " -type = field\n");
-      PrintF(out, " -index = %d", GetFieldIndex());
+      PrintF(out, " -index = %d", GetFieldIndex().field_index());
       PrintF(out, "\n");
       break;
     case CALLBACKS:

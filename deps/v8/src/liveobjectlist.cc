@@ -71,7 +71,7 @@ typedef int (*RawComparer)(const void*, const void*);
   v(ExternalAsciiString, "unexpected: ExternalAsciiString") \
   v(ExternalString, "unexpected: ExternalString") \
   v(SeqTwoByteString, "unexpected: SeqTwoByteString") \
-  v(SeqAsciiString, "unexpected: SeqAsciiString") \
+  v(SeqOneByteString, "unexpected: SeqOneByteString") \
   v(SeqString, "unexpected: SeqString") \
   v(JSFunctionResultCache, "unexpected: JSFunctionResultCache") \
   v(NativeContext, "unexpected: NativeContext") \

@@ -75,7 +75,7 @@ Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address>(Assembler::target_address_address_at(pc_));
+  return reinterpret_cast<Address>(Assembler::target_pointer_address_at(pc_));
 }
 
 
@@ -97,25 +97,30 @@ void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
 
 Object* RelocInfo::target_object() {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Memory::Object_at(Assembler::target_address_address_at(pc_));
+  return reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return Memory::Object_Handle_at(Assembler::target_address_address_at(pc_));
+  return Handle<Object>(reinterpret_cast<Object**>(
+      Assembler::target_pointer_at(pc_)));
 }
 
 
 Object** RelocInfo::target_object_address() {
+  // Provide a "natural pointer" to the embedded object,
+  // which can be de-referenced during heap iteration.
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object**>(Assembler::target_address_address_at(pc_));
+  reconstructed_obj_ptr_ =
+      reinterpret_cast<Object*>(Assembler::target_pointer_at(pc_));
+  return &reconstructed_obj_ptr_;
 }
 
 
 void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
+  Assembler::set_target_pointer_at(pc_, reinterpret_cast<Address>(target));
   if (mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
@@ -127,7 +132,8 @@ void RelocInfo::set_target_object(Object* target, WriteBarrierMode mode) {
 
 Address* RelocInfo::target_reference_address() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address*>(Assembler::target_address_address_at(pc_));
+  reconstructed_adr_ptr_ = Assembler::target_address_at(pc_);
+  return &reconstructed_adr_ptr_;
 }
 
 
@@ -156,6 +162,24 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell,
     host()->GetHeap()->incremental_marking()->RecordWrite(
         host(), NULL, cell);
   }
+}
+
+
+static const int kNoCodeAgeSequenceLength = 3;
+
+Code* RelocInfo::code_age_stub() {
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  return Code::GetCodeFromTargetAddress(
+      Memory::Address_at(pc_ + Assembler::kInstrSize *
+                         (kNoCodeAgeSequenceLength - 1)));
+}
+
+
+void RelocInfo::set_code_age_stub(Code* stub) {
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  Memory::Address_at(pc_ + Assembler::kInstrSize *
+                     (kNoCodeAgeSequenceLength - 1)) =
+      stub->instruction_start();
 }
 
 
@@ -232,6 +256,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
+  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
+    visitor->VisitCodeAgeSequence(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
@@ -258,6 +284,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
+  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
+    StaticVisitor::VisitCodeAgeSequence(heap, this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
@@ -326,7 +354,7 @@ void Assembler::emit(Instr x) {
 }
 
 
-Address Assembler::target_address_address_at(Address pc) {
+Address Assembler::target_pointer_address_at(Address pc) {
   Address target_pc = pc;
   Instr instr = Memory::int32_at(target_pc);
   // If we have a bx instruction, the instruction before the bx is
@@ -356,8 +384,63 @@ Address Assembler::target_address_address_at(Address pc) {
 }
 
 
-Address Assembler::target_address_at(Address pc) {
-  return Memory::Address_at(target_address_address_at(pc));
+Address Assembler::target_pointer_at(Address pc) {
+  if (IsMovW(Memory::int32_at(pc))) {
+    ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
+    Instruction* instr = Instruction::At(pc);
+    Instruction* next_instr = Instruction::At(pc + kInstrSize);
+    return reinterpret_cast<Address>(
+        (next_instr->ImmedMovwMovtValue() << 16) |
+        instr->ImmedMovwMovtValue());
+  }
+  return Memory::Address_at(target_pointer_address_at(pc));
+}
+
+
+Address Assembler::target_address_from_return_address(Address pc) {
+  // Returns the address of the call target from the return address that will
+  // be returned to after a call.
+#ifdef USE_BLX
+  // Call sequence on V7 or later is :
+  //  movw  ip, #... @ call address low 16
+  //  movt  ip, #... @ call address high 16
+  //  blx   ip
+  //                      @ return address
+  // Or pre-V7 or cases that need frequent patching:
+  //  ldr   ip, [pc, #...] @ call address
+  //  blx   ip
+  //                      @ return address
+  Address candidate = pc - 2 * Assembler::kInstrSize;
+  Instr candidate_instr(Memory::int32_at(candidate));
+  if (IsLdrPcImmediateOffset(candidate_instr)) {
+    return candidate;
+  }
+  candidate = pc - 3 * Assembler::kInstrSize;
+  ASSERT(IsMovW(Memory::int32_at(candidate)) &&
+         IsMovT(Memory::int32_at(candidate + kInstrSize)));
+  return candidate;
+#else
+  // Call sequence is:
+  //  mov  lr, pc
+  //  ldr  pc, [pc, #...] @ call address
+  //                      @ return address
+  return pc - kInstrSize;
+#endif
+}
+
+
+Address Assembler::return_address_from_call_start(Address pc) {
+#ifdef USE_BLX
+  if (IsLdrPcImmediateOffset(Memory::int32_at(pc))) {
+    return pc + kInstrSize * 2;
+  } else {
+    ASSERT(IsMovW(Memory::int32_at(pc)));
+    ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
+    return pc + kInstrSize * 3;
+  }
+#else
+  return pc + kInstrSize;
+#endif
 }
 
 
@@ -373,16 +456,52 @@ void Assembler::set_external_target_at(Address constant_pool_entry,
 }
 
 
-void Assembler::set_target_address_at(Address pc, Address target) {
-  Memory::Address_at(target_address_address_at(pc)) = target;
-  // Intuitively, we would think it is necessary to flush the instruction cache
-  // after patching a target address in the code as follows:
-  //   CPU::FlushICache(pc, sizeof(target));
-  // However, on ARM, no instruction was actually patched by the assignment
-  // above; the target address is not part of an instruction, it is patched in
-  // the constant pool and is read via a data access; the instruction accessing
-  // this address in the constant pool remains unchanged.
+static Instr EncodeMovwImmediate(uint32_t immediate) {
+  ASSERT(immediate < 0x10000);
+  return ((immediate & 0xf000) << 4) | (immediate & 0xfff);
 }
+
+
+void Assembler::set_target_pointer_at(Address pc, Address target) {
+  if (IsMovW(Memory::int32_at(pc))) {
+    ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
+    uint32_t* instr_ptr = reinterpret_cast<uint32_t*>(pc);
+    uint32_t immediate = reinterpret_cast<uint32_t>(target);
+    uint32_t intermediate = instr_ptr[0];
+    intermediate &= ~EncodeMovwImmediate(0xFFFF);
+    intermediate |= EncodeMovwImmediate(immediate & 0xFFFF);
+    instr_ptr[0] = intermediate;
+    intermediate = instr_ptr[1];
+    intermediate &= ~EncodeMovwImmediate(0xFFFF);
+    intermediate |= EncodeMovwImmediate(immediate >> 16);
+    instr_ptr[1] = intermediate;
+    ASSERT(IsMovW(Memory::int32_at(pc)));
+    ASSERT(IsMovT(Memory::int32_at(pc + kInstrSize)));
+    CPU::FlushICache(pc, 2 * kInstrSize);
+  } else {
+    ASSERT(IsLdrPcImmediateOffset(Memory::int32_at(pc)));
+    Memory::Address_at(target_pointer_address_at(pc)) = target;
+    // Intuitively, we would think it is necessary to always flush the
+    // instruction cache after patching a target address in the code as follows:
+    //   CPU::FlushICache(pc, sizeof(target));
+    // However, on ARM, no instruction is actually patched in the case
+    // of embedded constants of the form:
+    // ldr   ip, [pc, #...]
+    // since the instruction accessing this address in the constant pool remains
+    // unchanged.
+  }
+}
+
+
+Address Assembler::target_address_at(Address pc) {
+  return target_pointer_at(pc);
+}
+
+
+void Assembler::set_target_address_at(Address pc, Address target) {
+  set_target_pointer_at(pc, target);
+}
+
 
 } }  // namespace v8::internal
 

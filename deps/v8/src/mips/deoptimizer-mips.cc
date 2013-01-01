@@ -100,19 +100,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // ignore all slots that might have been recorded on it.
   isolate->heap()->mark_compact_collector()->InvalidateCode(code);
 
-  // Iterate over all the functions which share the same code object
-  // and make them use unoptimized version.
-  Context* context = function->context()->native_context();
-  Object* element = context->get(Context::OPTIMIZED_FUNCTIONS_LIST);
-  SharedFunctionInfo* shared = function->shared();
-  while (!element->IsUndefined()) {
-    JSFunction* func = JSFunction::cast(element);
-    // Grab element before code replacement as ReplaceCode alters the list.
-    element = func->next_function_link();
-    if (func->code() == code) {
-      func->ReplaceCode(shared->code());
-    }
-  }
+  ReplaceCodeForRelatedFunctions(function, code);
 
   if (FLAG_trace_deopt) {
     PrintF("[forced deoptimization: ");
@@ -132,7 +120,7 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
                                         Code* check_code,
                                         Code* replacement_code) {
   const int kInstrSize = Assembler::kInstrSize;
-  // This structure comes from FullCodeGenerator::EmitStackCheck.
+  // This structure comes from FullCodeGenerator::EmitBackEdgeBookkeeping.
   // The call of the stack guard check has the following form:
   // sltu at, sp, t0 / slt at, a3, zero_reg (in case of count based interrupts)
   // beq at, zero_reg, ok
@@ -182,11 +170,7 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 
   // Restore the sltu instruction so beq can be taken again.
   CodePatcher patcher(pc_after - 6 * kInstrSize, 1);
-  if (FLAG_count_based_interrupts) {
-    patcher.masm()->slt(at, a3, zero_reg);
-  } else {
-    patcher.masm()->sltu(at, sp, t0);
-  }
+  patcher.masm()->slt(at, a3, zero_reg);
 
   // Replace the on-stack replacement address in the load-immediate (lui/ori
   // pair) with the entry address of the normal stack-check code.

@@ -79,13 +79,6 @@ class StoreBufferOverflowStub: public CodeStub {
 };
 
 
-// Flag that indicates how to generate code for the stub GenericBinaryOpStub.
-enum GenericBinaryFlags {
-  NO_GENERIC_BINARY_FLAGS = 0,
-  NO_SMI_CODE_IN_STUB = 1 << 0  // Omit smi code in stub.
-};
-
-
 class UnaryOpStub: public CodeStub {
  public:
   UnaryOpStub(Token::Value op,
@@ -154,95 +147,6 @@ class UnaryOpStub: public CodeStub {
   virtual void FinishCode(Handle<Code> code) {
     code->set_unary_op_type(operand_type_);
   }
-};
-
-
-class BinaryOpStub: public CodeStub {
- public:
-  BinaryOpStub(Token::Value op, OverwriteMode mode)
-      : op_(op),
-        mode_(mode),
-        operands_type_(BinaryOpIC::UNINITIALIZED),
-        result_type_(BinaryOpIC::UNINITIALIZED) {
-    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
-  }
-
-  BinaryOpStub(
-      int key,
-      BinaryOpIC::TypeInfo operands_type,
-      BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED)
-      : op_(OpBits::decode(key)),
-        mode_(ModeBits::decode(key)),
-        operands_type_(operands_type),
-        result_type_(result_type) { }
-
- private:
-  enum SmiCodeGenerateHeapNumberResults {
-    ALLOW_HEAPNUMBER_RESULTS,
-    NO_HEAPNUMBER_RESULTS
-  };
-
-  Token::Value op_;
-  OverwriteMode mode_;
-
-  // Operand type information determined at runtime.
-  BinaryOpIC::TypeInfo operands_type_;
-  BinaryOpIC::TypeInfo result_type_;
-
-  virtual void PrintName(StringStream* stream);
-
-  // Minor key encoding in 15 bits RRRTTTOOOOOOOMM.
-  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 7> {};
-  class OperandTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 9, 3> {};
-  class ResultTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 12, 3> {};
-
-  Major MajorKey() { return BinaryOp; }
-  int MinorKey() {
-    return OpBits::encode(op_)
-           | ModeBits::encode(mode_)
-           | OperandTypeInfoBits::encode(operands_type_)
-           | ResultTypeInfoBits::encode(result_type_);
-  }
-
-  void Generate(MacroAssembler* masm);
-  void GenerateGeneric(MacroAssembler* masm);
-  void GenerateSmiCode(MacroAssembler* masm,
-                       Label* slow,
-                       SmiCodeGenerateHeapNumberResults heapnumber_results);
-  void GenerateFloatingPointCode(MacroAssembler* masm,
-                                 Label* allocation_failure,
-                                 Label* non_numeric_failure);
-  void GenerateStringAddCode(MacroAssembler* masm);
-  void GenerateCallRuntimeCode(MacroAssembler* masm);
-  void GenerateLoadArguments(MacroAssembler* masm);
-  void GenerateReturn(MacroAssembler* masm);
-  void GenerateUninitializedStub(MacroAssembler* masm);
-  void GenerateSmiStub(MacroAssembler* masm);
-  void GenerateInt32Stub(MacroAssembler* masm);
-  void GenerateHeapNumberStub(MacroAssembler* masm);
-  void GenerateOddballStub(MacroAssembler* masm);
-  void GenerateStringStub(MacroAssembler* masm);
-  void GenerateBothStringStub(MacroAssembler* masm);
-  void GenerateGenericStub(MacroAssembler* masm);
-
-  void GenerateHeapResultAllocation(MacroAssembler* masm, Label* alloc_failure);
-  void GenerateRegisterArgsPush(MacroAssembler* masm);
-  void GenerateTypeTransition(MacroAssembler* masm);
-  void GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm);
-
-  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
-
-  virtual InlineCacheState GetICState() {
-    return BinaryOpIC::ToState(operands_type_);
-  }
-
-  virtual void FinishCode(Handle<Code> code) {
-    code->set_binary_op_type(operands_type_);
-    code->set_binary_op_result_type(result_type_);
-  }
-
-  friend class CodeGenerator;
 };
 
 

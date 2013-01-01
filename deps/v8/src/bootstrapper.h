@@ -54,7 +54,7 @@ class SourceCodeCache BASE_EMBEDDED {
 
   bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
     for (int i = 0; i < cache_->length(); i+=2) {
-      SeqAsciiString* str = SeqAsciiString::cast(cache_->get(i));
+      SeqOneByteString* str = SeqOneByteString::cast(cache_->get(i));
       if (str->IsEqualTo(name)) {
         *handle = Handle<SharedFunctionInfo>(
             SharedFunctionInfo::cast(cache_->get(i + 1)));

@@ -25,12 +25,92 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import test
+import itertools
 import os
-from os.path import join, dirname, exists, basename, isdir
 import re
 
+from testrunner.local import testsuite
+from testrunner.local import utils
+from testrunner.objects import testcase
+
+
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+
+
+class MessageTestSuite(testsuite.TestSuite):
+  def __init__(self, name, root):
+    super(MessageTestSuite, self).__init__(name, root)
+
+  def ListTests(self, context):
+    tests = []
+    for dirname, dirs, files in os.walk(self.root):
+      for dotted in [x for x in dirs if x.startswith('.')]:
+        dirs.remove(dotted)
+      dirs.sort()
+      files.sort()
+      for filename in files:
+        if filename.endswith(".js"):
+          testname = join(dirname[len(self.root) + 1:], filename[:-3])
+          test = testcase.TestCase(self, testname)
+          tests.append(test)
+    return tests
+
+  def GetFlagsForTestCase(self, testcase, context):
+    source = self.GetSourceForTest(testcase)
+    result = []
+    flags_match = re.findall(FLAGS_PATTERN, source)
+    for match in flags_match:
+      result += match.strip().split()
+    result += context.mode_flags
+    result.append(os.path.join(self.root, testcase.path + ".js"))
+    return testcase.flags + result
+
+  def GetSourceForTest(self, testcase):
+    filename = os.path.join(self.root, testcase.path + self.suffix())
+    with open(filename) as f:
+      return f.read()
+
+  def _IgnoreLine(self, string):
+    """Ignore empty lines, valgrind output and Android output."""
+    if not string: return True
+    return (string.startswith("==") or string.startswith("**") or
+            string.startswith("ANDROID"))
+
+  def IsFailureOutput(self, output, testpath):
+    expected_path = os.path.join(self.root, testpath + ".out")
+    expected_lines = []
+    # Can't use utils.ReadLinesFrom() here because it strips whitespace.
+    with open(expected_path) as f:
+      for line in f:
+        if line.startswith("#") or not line.strip(): continue
+        expected_lines.append(line)
+    raw_lines = output.stdout.splitlines()
+    actual_lines = [ s for s in raw_lines if not self._IgnoreLine(s) ]
+    env = { "basename": os.path.basename(testpath + ".js") }
+    if len(expected_lines) != len(actual_lines):
+      return True
+    for (expected, actual) in itertools.izip(expected_lines, actual_lines):
+      pattern = re.escape(expected.rstrip() % env)
+      pattern = pattern.replace("\\*", ".*")
+      pattern = "^%s$" % pattern
+      if not re.match(pattern, actual):
+        return True
+    return False
+
+  def StripOutputForTransmit(self, testcase):
+    pass
+
+
+def GetSuite(name, root):
+  return MessageTestSuite(name, root)
+
+
+# Deprecated definitions below.
+# TODO(jkummerow): Remove when SCons is no longer supported.
+
+
+import test
+from os.path import join, exists, basename, isdir
 
 class MessageTestCase(test.TestCase):
 

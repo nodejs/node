@@ -84,7 +84,7 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
       return gc_entry_;
     case JS:
     case COMPILER:
-    case PARALLEL_COMPILER_PROLOGUE:
+    case PARALLEL_COMPILER:
     // DOM events handlers are reported as OTHER / EXTERNAL entries.
     // To avoid confusing people, let's put all these entries into
     // one bucket.

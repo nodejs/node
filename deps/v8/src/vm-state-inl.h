@@ -47,8 +47,8 @@ inline const char* StateToString(StateTag state) {
       return "GC";
     case COMPILER:
       return "COMPILER";
-    case PARALLEL_COMPILER_PROLOGUE:
-      return "PARALLEL_COMPILER_PROLOGUE";
+    case PARALLEL_COMPILER:
+      return "PARALLEL_COMPILER";
     case OTHER:
       return "OTHER";
     case EXTERNAL:
@@ -67,6 +67,10 @@ VMState::VMState(Isolate* isolate, StateTag tag)
     LOG(isolate, UncheckedStringEvent("From", StateToString(previous_tag_)));
   }
 
+  if (FLAG_log_timer_events) {
+    LOG(isolate, ExternalSwitch(previous_tag_, tag));
+  }
+
   isolate_->SetCurrentVMState(tag);
 }
 
@@ -78,6 +82,10 @@ VMState::~VMState() {
                               StateToString(isolate_->current_vm_state())));
     LOG(isolate_,
         UncheckedStringEvent("To", StateToString(previous_tag_)));
+  }
+
+  if (FLAG_log_timer_events) {
+    LOG(isolate_, ExternalSwitch(isolate_->current_vm_state(), previous_tag_));
   }
 
   isolate_->SetCurrentVMState(previous_tag_);

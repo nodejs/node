@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --gc-greedy
+// Flags: --gc-greedy --noverify-heap
 
 function IterativeFib(n) {
   var f0 = 0, f1 = 1;

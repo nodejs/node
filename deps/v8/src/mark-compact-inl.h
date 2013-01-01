@@ -52,32 +52,15 @@ void MarkCompactCollector::SetFlags(int flags) {
 }
 
 
-bool MarkCompactCollector::MarkObjectAndPush(HeapObject* obj) {
-  if (MarkObjectWithoutPush(obj)) {
-    marking_deque_.PushBlack(obj);
-    return true;
-  }
-  return false;
-}
-
-
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
     mark_bit.Set();
     MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    ProcessNewlyMarkedObject(obj);
+    ASSERT(IsMarked(obj));
+    ASSERT(HEAP->Contains(obj));
+    marking_deque_.PushBlack(obj);
   }
-}
-
-
-bool MarkCompactCollector::MarkObjectWithoutPush(HeapObject* obj) {
-  MarkBit mark_bit = Marking::MarkBitFrom(obj);
-  if (!mark_bit.Get()) {
-    SetMark(obj, mark_bit);
-    return true;
-  }
-  return false;
 }
 
 
@@ -86,9 +69,6 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   mark_bit.Set();
   MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-  if (obj->IsMap()) {
-    heap_->ClearCacheOnMap(Map::cast(obj));
-  }
 }
 
 

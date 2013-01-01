@@ -267,45 +267,11 @@ const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
 
-// Spare buffer.
-static const int kMinimalBufferSize = 4 * KB;
-
-
-Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
-    : AssemblerBase(arg_isolate),
+Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
+    : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code) {
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-
-      if (isolate()->assembler_spare_buffer() != NULL) {
-        buffer = isolate()->assembler_spare_buffer();
-        isolate()->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) {
-      buffer_ = NewArray<byte>(buffer_size);
-    } else {
-      buffer_ = static_cast<byte*>(buffer);
-    }
-    buffer_size_ = buffer_size;
-    own_buffer_ = true;
-
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    buffer_ = static_cast<byte*>(buffer);
-    buffer_size_ = buffer_size;
-    own_buffer_ = false;
-  }
-
-  // Set up buffer pointers.
-  ASSERT(buffer_ != NULL);
-  pc_ = buffer_;
-  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
+      positions_recorder_(this) {
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;
   no_trampoline_pool_before_ = 0;
@@ -321,18 +287,6 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   block_buffer_growth_ = false;
 
   ClearRecordedAstId();
-}
-
-
-Assembler::~Assembler() {
-  if (own_buffer_) {
-    if (isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
 }
 
 
@@ -580,17 +534,20 @@ bool Assembler::IsNop(Instr instr, unsigned int type) {
   // See Assembler::nop(type).
   ASSERT(type < 32);
   uint32_t opcode = GetOpcodeField(instr);
+  uint32_t function = GetFunctionField(instr);
   uint32_t rt = GetRt(instr);
-  uint32_t rs = GetRs(instr);
+  uint32_t rd = GetRd(instr);
   uint32_t sa = GetSa(instr);
 
-  // nop(type) == sll(zero_reg, zero_reg, type);
-  // Technically all these values will be 0 but
-  // this makes more sense to the reader.
+  // Traditional mips nop == sll(zero_reg, zero_reg, 0)
+  // When marking non-zero type, use sll(zero_reg, at, type)
+  // to avoid use of mips ssnop and ehb special encodings
+  // of the sll instruction.
 
-  bool ret = (opcode == SLL &&
-              rt == static_cast<uint32_t>(ToNumber(zero_reg)) &&
-              rs == static_cast<uint32_t>(ToNumber(zero_reg)) &&
+  Register nop_rt_reg = (type == 0) ? zero_reg : at;
+  bool ret = (opcode == SPECIAL && function == SLL &&
+              rd == static_cast<uint32_t>(ToNumber(zero_reg)) &&
+              rt == static_cast<uint32_t>(ToNumber(nop_rt_reg)) &&
               sa == type);
 
   return ret;

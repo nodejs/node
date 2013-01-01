@@ -26,19 +26,110 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import test
-import os
-from os.path import join, exists
-import urllib
 import hashlib
+import os
 import sys
 import tarfile
+import urllib
+
+from testrunner.local import testsuite
+from testrunner.objects import testcase
 
 
-TEST_262_ARCHIVE_REVISION = 'fb327c439e20'  # This is the r334 revision.
-TEST_262_ARCHIVE_MD5 = '307acd166ec34629592f240dc12d57ed'
-TEST_262_URL = 'http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2'
-TEST_262_HARNESS = ['sta.js']
+TEST_262_ARCHIVE_REVISION = "53c4ade82d14"  # This is the r360 revision.
+TEST_262_ARCHIVE_MD5 = "5fa4918b00e5d60e57bdd3c05deaeb0c"
+TEST_262_URL = "http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2"
+TEST_262_HARNESS = ["sta.js", "testBuiltInObject.js"]
+TEST_262_SKIP = ["intl402"]
+
+
+class Test262TestSuite(testsuite.TestSuite):
+
+  def __init__(self, name, root):
+    super(Test262TestSuite, self).__init__(name, root)
+    self.testroot = os.path.join(root, "data", "test", "suite")
+    self.harness = [os.path.join(self.root, "data", "test", "harness", f)
+                    for f in TEST_262_HARNESS]
+    self.harness += [os.path.join(self.root, "harness-adapt.js")]
+
+  def CommonTestName(self, testcase):
+    return testcase.path.split(os.path.sep)[-1]
+
+  def ListTests(self, context):
+    tests = []
+    for dirname, dirs, files in os.walk(self.testroot):
+      for dotted in [x for x in dirs if x.startswith(".")]:
+        dirs.remove(dotted)
+      for skipped in [x for x in dirs if x in TEST_262_SKIP]:
+        dirs.remove(skipped)
+      dirs.sort()
+      files.sort()
+      for filename in files:
+        if filename.endswith(".js"):
+          testname = os.path.join(dirname[len(self.testroot) + 1:],
+                                  filename[:-3])
+          case = testcase.TestCase(self, testname)
+          tests.append(case)
+    return tests
+
+  def GetFlagsForTestCase(self, testcase, context):
+    return (testcase.flags + context.mode_flags + self.harness +
+            [os.path.join(self.testroot, testcase.path + ".js")])
+
+  def GetSourceForTest(self, testcase):
+    filename = os.path.join(self.testroot, testcase.path + ".js")
+    with open(filename) as f:
+      return f.read()
+
+  def IsNegativeTest(self, testcase):
+    return "@negative" in self.GetSourceForTest(testcase)
+
+  def IsFailureOutput(self, output, testpath):
+    if output.exit_code != 0:
+      return True
+    return "FAILED!" in output.stdout
+
+  def DownloadData(self):
+    revision = TEST_262_ARCHIVE_REVISION
+    archive_url = TEST_262_URL % revision
+    archive_name = os.path.join(self.root, "test262-%s.tar.bz2" % revision)
+    directory_name = os.path.join(self.root, "data")
+    directory_old_name = os.path.join(self.root, "data.old")
+    if not os.path.exists(archive_name):
+      print "Downloading test data from %s ..." % archive_url
+      urllib.urlretrieve(archive_url, archive_name)
+      if os.path.exists(directory_name):
+        os.rename(directory_name, directory_old_name)
+    if not os.path.exists(directory_name):
+      print "Extracting test262-%s.tar.bz2 ..." % revision
+      md5 = hashlib.md5()
+      with open(archive_name, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), ""):
+          md5.update(chunk)
+      if md5.hexdigest() != TEST_262_ARCHIVE_MD5:
+        os.remove(archive_name)
+        raise Exception("Hash mismatch of test data file")
+      archive = tarfile.open(archive_name, "r:bz2")
+      if sys.platform in ("win32", "cygwin"):
+        # Magic incantation to allow longer path names on Windows.
+        archive.extractall(u"\\\\?\\%s" % self.root)
+      else:
+        archive.extractall(self.root)
+      os.rename(os.path.join(self.root, "test262-%s" % revision),
+                directory_name)
+
+
+def GetSuite(name, root):
+  return Test262TestSuite(name, root)
+
+
+# Deprecated definitions below.
+# TODO(jkummerow): Remove when SCons is no longer supported.
+
+
+from os.path import exists
+from os.path import join
+import test
 
 
 class Test262TestCase(test.TestCase):
@@ -88,6 +179,8 @@ class Test262TestConfiguration(test.TestConfiguration):
     for root, dirs, files in os.walk(testroot):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
+      for skipped in [x for x in dirs if x in TEST_262_SKIP]:
+        dirs.remove(skipped)
       dirs.sort()
       root_path = root[len(self.root):].split(os.path.sep)
       root_path = current_path + [x for x in root_path if x]

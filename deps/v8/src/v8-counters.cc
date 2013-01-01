@@ -86,17 +86,6 @@ Counters::Counters() {
     size_of_FIXED_ARRAY_##name##_ = size_of_FIXED_ARRAY_##name;
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
-
-  StatsCounter state_counters[] = {
-#define COUNTER_NAME(name) \
-    { "c:V8.State" #name, NULL, false },
-    STATE_TAG_LIST(COUNTER_NAME)
-#undef COUNTER_NAME
-  };
-
-  for (int i = 0; i < kSlidingStateWindowCounterCount; ++i) {
-    state_counters_[i] = state_counters[i];
-  }
 }
 
 void Counters::ResetHistograms() {

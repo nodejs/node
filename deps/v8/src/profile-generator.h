@@ -851,7 +851,8 @@ class SnapshottingProgressReportingInterface {
 class V8HeapExplorer : public HeapEntriesAllocator {
  public:
   V8HeapExplorer(HeapSnapshot* snapshot,
-                 SnapshottingProgressReportingInterface* progress);
+                 SnapshottingProgressReportingInterface* progress,
+                 v8::HeapProfiler::ObjectNameResolver* resolver);
   virtual ~V8HeapExplorer();
   virtual HeapEntry* AllocateEntry(HeapThing ptr);
   void AddRootEntries(SnapshotFillerInterface* filler);
@@ -945,6 +946,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   SnapshotFillerInterface* filler_;
   HeapObjectsSet objects_tags_;
   HeapObjectsSet strong_gc_subroot_names_;
+  v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   static HeapObject* const kGcRootsObject;
   static HeapObject* const kFirstGcSubrootObject;
@@ -1021,7 +1023,8 @@ class NativeObjectsExplorer {
 class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
  public:
   HeapSnapshotGenerator(HeapSnapshot* snapshot,
-                        v8::ActivityControl* control);
+                        v8::ActivityControl* control,
+                        v8::HeapProfiler::ObjectNameResolver* resolver);
   bool GenerateSnapshot();
 
  private:

@@ -38,6 +38,25 @@ enum BuiltinExtraArguments {
 };
 
 
+#define CODE_AGE_LIST_WITH_ARG(V, A)     \
+  V(Quadragenarian, A)                   \
+  V(Quinquagenarian, A)                  \
+  V(Sexagenarian, A)                     \
+  V(Septuagenarian, A)                   \
+  V(Octogenarian, A)
+
+#define CODE_AGE_LIST_IGNORE_ARG(X, V) V(X)
+
+#define CODE_AGE_LIST(V) \
+  CODE_AGE_LIST_WITH_ARG(CODE_AGE_LIST_IGNORE_ARG, V)
+
+#define DECLARE_CODE_AGE_BUILTIN(C, V)             \
+  V(Make##C##CodeYoungAgainOddMarking, BUILTIN,    \
+    UNINITIALIZED, Code::kNoExtraICState)          \
+  V(Make##C##CodeYoungAgainEvenMarking, BUILTIN,   \
+    UNINITIALIZED, Code::kNoExtraICState)
+
+
 // Define list of builtins implemented in C++.
 #define BUILTIN_LIST_C(V)                                           \
   V(Illegal, NO_EXTRA_ARGUMENTS)                                    \
@@ -195,8 +214,8 @@ enum BuiltinExtraArguments {
                                     Code::kNoExtraICState)              \
                                                                         \
   V(OnStackReplacement,             BUILTIN, UNINITIALIZED,             \
-                                    Code::kNoExtraICState)
-
+                                    Code::kNoExtraICState)              \
+  CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, V)
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 // Define list of builtins used by the debugger implemented in assembly.
@@ -378,6 +397,14 @@ class Builtins {
 
   static void Generate_StringConstructCode(MacroAssembler* masm);
   static void Generate_OnStackReplacement(MacroAssembler* masm);
+
+#define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
+  static void Generate_Make##C##CodeYoungAgainEvenMarking(   \
+      MacroAssembler* masm);                                 \
+  static void Generate_Make##C##CodeYoungAgainOddMarking(    \
+      MacroAssembler* masm);
+  CODE_AGE_LIST(DECLARE_CODE_AGE_BUILTIN_GENERATOR)
+#undef DECLARE_CODE_AGE_BUILTIN_GENERATOR
 
   static void InitBuiltinFunctionTable();
 

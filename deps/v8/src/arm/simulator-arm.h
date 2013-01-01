@@ -205,6 +205,8 @@ class Simulator {
   // generated RegExp code with 7 parameters. This is a convenience function,
   // which sets up the simulator state and grabs the result on return.
   int32_t Call(byte* entry, int argument_count, ...);
+  // Alternative: call a 2-argument double function.
+  double CallFP(byte* entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -355,6 +357,8 @@ class Simulator {
 
   template<class InputType, int register_size>
       void SetVFPRegister(int reg_index, const InputType& value);
+
+  void CallInternal(byte* entry);
 
   // Architecture state.
   // Saturating instructions require a Q flag to indicate saturation.

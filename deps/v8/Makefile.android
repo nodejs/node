@@ -48,11 +48,11 @@ endif
 ifeq ($(ARCH), android_arm)
   DEFINES  = target_arch=arm v8_target_arch=arm android_target_arch=arm
   DEFINES += arm_neon=0 armv7=1
-  TOOLCHAIN_ARCH = arm-linux-androideabi-4.4.3
+  TOOLCHAIN_ARCH = arm-linux-androideabi-4.6
 else
   ifeq ($(ARCH), android_ia32)
     DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86
-    TOOLCHAIN_ARCH = x86-4.4.3
+    TOOLCHAIN_ARCH = x86-4.6
   else
     $(error Target architecture "${ARCH}" is not supported)
   endif

@@ -109,6 +109,13 @@ void Processor::VisitBlock(Block* node) {
 }
 
 
+void Processor::VisitModuleStatement(ModuleStatement* node) {
+  bool set_after_body = is_set_;
+  Visit(node->body());
+  is_set_ = is_set_ && set_after_body;
+}
+
+
 void Processor::VisitExpressionStatement(ExpressionStatement* node) {
   // Rewrite : <x>; -> .result = <x>;
   if (!is_set_ && !node->expression()->IsThrow()) {
@@ -257,7 +264,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // coincides with the end of the with scope which is the position of '1'.
       int position = function->end_position();
       VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->name(), false, Interface::NewValue(), position);
+          result->name(), false, result->interface(), position);
       result_proxy->BindTo(result);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy);

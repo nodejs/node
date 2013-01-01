@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noalways-opt
+// Flags: --noalways-opt --allow-natives-syntax
 //
 // Regression test for global value numbering.
 
@@ -39,10 +39,11 @@ function test(a) {
 
 var a = new Array();
 
-var n = 100000000;
+var n = 100;
 
 var result = 0;
 for (var i = 0; i < n; ++i) {
+  if (i == 10) %OptimizeFunctionOnNextCall(test);
   a[0] = 0;
   result += test(a);
 }

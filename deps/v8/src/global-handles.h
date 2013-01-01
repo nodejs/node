@@ -131,6 +131,7 @@ class GlobalHandles {
                 WeakReferenceCallback callback);
 
   static void SetWrapperClassId(Object** location, uint16_t class_id);
+  static uint16_t GetWrapperClassId(Object** location);
 
   // Returns the current number of weak handles.
   int NumberOfWeakHandles() { return number_of_weak_handles_; }
@@ -154,6 +155,11 @@ class GlobalHandles {
   // Clear the weakness of a global handle.
   void MarkIndependent(Object** location);
 
+  // Mark the reference to this object externaly unreachable.
+  void MarkPartiallyDependent(Object** location);
+
+  static bool IsIndependent(Object** location);
+
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
 
@@ -162,7 +168,8 @@ class GlobalHandles {
 
   // Process pending weak handles.
   // Returns true if next major GC is likely to collect more garbage.
-  bool PostGarbageCollectionProcessing(GarbageCollector collector);
+  bool PostGarbageCollectionProcessing(GarbageCollector collector,
+                                       GCTracer* tracer);
 
   // Iterates over all strong handles.
   void IterateStrongRoots(ObjectVisitor* v);
@@ -192,16 +199,22 @@ class GlobalHandles {
   // Iterates over strong and dependent handles. See the node above.
   void IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v);
 
-  // Finds weak independent handles satisfying the callback predicate
-  // and marks them as pending. See the note above.
+  // Finds weak independent or partially independent handles satisfying
+  // the callback predicate and marks them as pending. See the note above.
   void IdentifyNewSpaceWeakIndependentHandles(WeakSlotCallbackWithHeap f);
 
-  // Iterates over weak independent handles. See the note above.
+  // Iterates over weak independent or partially independent handles.
+  // See the note above.
   void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
+
+  // Iterate over objects in object groups that have at least one object
+  // which requires visiting. The callback has to return true if objects
+  // can be skipped and false otherwise.
+  bool IterateObjectGroups(ObjectVisitor* v, WeakSlotCallbackWithHeap can_skip);
 
   // Add an object group.
   // Should be only used in GC callback function before a collection.
-  // All groups are destroyed after a mark-compact collection.
+  // All groups are destroyed after a garbage collection.
   void AddObjectGroup(Object*** handles,
                       size_t length,
                       v8::RetainedObjectInfo* info);

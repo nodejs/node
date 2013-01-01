@@ -31,3 +31,8 @@ prefix preparser
 # escapes (we need to parse to distinguish octal escapes from valid
 # back-references).
 strict-octal-regexp: FAIL
+
+[ $arch == android_arm || $arch == android_ia32 ]
+# Remove this once the issue above is fixed. Android test runner does not
+# handle "FAIL" test expectation correctly.
+strict-octal-regexp: SKIP

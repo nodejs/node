@@ -99,6 +99,7 @@ namespace internal {
   T(SHL, "<<", 11)                                                      \
   T(SAR, ">>", 11)                                                      \
   T(SHR, ">>>", 11)                                                     \
+  T(ROR, "rotate right", 11)   /* only used by Crankshaft */            \
   T(ADD, "+", 12)                                                       \
   T(SUB, "-", 12)                                                       \
   T(MUL, "*", 13)                                                       \

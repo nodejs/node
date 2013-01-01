@@ -77,6 +77,7 @@ const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 const int kFastElementsKindCount = LAST_FAST_ELEMENTS_KIND -
     FIRST_FAST_ELEMENTS_KIND + 1;
 
+const char* ElementsKindToString(ElementsKind kind);
 void PrintElementsKind(FILE* out, ElementsKind kind);
 
 ElementsKind GetInitialFastElementsKind();
@@ -106,6 +107,13 @@ inline bool IsFastElementsKind(ElementsKind kind) {
 inline bool IsFastDoubleElementsKind(ElementsKind kind) {
   return kind == FAST_DOUBLE_ELEMENTS ||
       kind == FAST_HOLEY_DOUBLE_ELEMENTS;
+}
+
+
+inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
+  return IsFastDoubleElementsKind(kind) ||
+      kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      kind == EXTERNAL_FLOAT_ELEMENTS;
 }
 
 

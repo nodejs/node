@@ -51,12 +51,16 @@ class HeapProfiler {
 
   static size_t GetMemorySizeUsedByProfiler();
 
-  static HeapSnapshot* TakeSnapshot(const char* name,
-                                    int type,
-                                    v8::ActivityControl* control);
-  static HeapSnapshot* TakeSnapshot(String* name,
-                                    int type,
-                                    v8::ActivityControl* control);
+  static HeapSnapshot* TakeSnapshot(
+      const char* name,
+      int type,
+      v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver);
+  static HeapSnapshot* TakeSnapshot(
+      String* name,
+      int type,
+      v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver);
 
   static void StartHeapObjectsTracking();
   static void StopHeapObjectsTracking();
@@ -81,12 +85,16 @@ class HeapProfiler {
  private:
   HeapProfiler();
   ~HeapProfiler();
-  HeapSnapshot* TakeSnapshotImpl(const char* name,
-                                 int type,
-                                 v8::ActivityControl* control);
-  HeapSnapshot* TakeSnapshotImpl(String* name,
-                                 int type,
-                                 v8::ActivityControl* control);
+  HeapSnapshot* TakeSnapshotImpl(
+      const char* name,
+      int type,
+      v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver);
+  HeapSnapshot* TakeSnapshotImpl(
+      String* name,
+      int type,
+      v8::ActivityControl* control,
+      v8::HeapProfiler::ObjectNameResolver* resolver);
   void ResetSnapshots();
 
   void StartHeapObjectsTrackingImpl();

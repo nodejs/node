@@ -106,11 +106,20 @@ void MessageHandler::ReportMessage(Isolate* isolate,
   // We are calling into embedder's code which can throw exceptions.
   // Thus we need to save current exception state, reset it to the clean one
   // and ignore scheduled exceptions callbacks can throw.
+
+  // We pass the exception object into the message handler callback though.
+  Object* exception_object = isolate->heap()->undefined_value();
+  if (isolate->has_pending_exception()) {
+    isolate->pending_exception()->ToObject(&exception_object);
+  }
+  Handle<Object> exception_handle(exception_object);
+
   Isolate::ExceptionScope exception_scope(isolate);
   isolate->clear_pending_exception();
   isolate->set_external_caught_exception(false);
 
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
+  v8::Local<v8::Value> api_exception_obj = v8::Utils::ToLocal(exception_handle);
 
   v8::NeanderArray global_listeners(FACTORY->message_listeners());
   int global_length = global_listeners.length();
@@ -123,15 +132,13 @@ void MessageHandler::ReportMessage(Isolate* isolate,
     for (int i = 0; i < global_length; i++) {
       HandleScope scope;
       if (global_listeners.get(i)->IsUndefined()) continue;
-      v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
-      Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
+      Handle<Foreign> callback_obj(Foreign::cast(global_listeners.get(i)));
       v8::MessageCallback callback =
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
-      Handle<Object> callback_data(listener.get(1));
       {
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch;
-        callback(api_message_obj, v8::Utils::ToLocal(callback_data));
+        callback(api_message_obj, api_exception_obj);
       }
       if (isolate->has_scheduled_exception()) {
         isolate->clear_scheduled_exception();
@@ -148,7 +155,9 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
           JSFunction::cast(
               Isolate::Current()->js_builtins_object()->
               GetPropertyNoExceptionThrown(*fmt_str)));
-  Handle<Object> argv[] = { data };
+  Handle<JSMessageObject> message = Handle<JSMessageObject>::cast(data);
+  Handle<Object> argv[] = { Handle<Object>(message->type()),
+                            Handle<Object>(message->arguments()) };
 
   bool caught_exception;
   Handle<Object> result =

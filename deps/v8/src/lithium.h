@@ -133,13 +133,15 @@ class LUnallocated: public LOperand {
   // index in the upper bits.
   static const int kPolicyWidth = 3;
   static const int kLifetimeWidth = 1;
-  static const int kVirtualRegisterWidth = 18;
+  static const int kVirtualRegisterWidth = 15;
 
   static const int kPolicyShift = kKindFieldWidth;
   static const int kLifetimeShift = kPolicyShift + kPolicyWidth;
   static const int kVirtualRegisterShift = kLifetimeShift + kLifetimeWidth;
   static const int kFixedIndexShift =
       kVirtualRegisterShift + kVirtualRegisterWidth;
+  static const int kFixedIndexWidth = 32 - kFixedIndexShift;
+  STATIC_ASSERT(kFixedIndexWidth > 5);
 
   class PolicyField : public BitField<Policy, kPolicyShift, kPolicyWidth> { };
 
@@ -154,8 +156,8 @@ class LUnallocated: public LOperand {
   };
 
   static const int kMaxVirtualRegisters = 1 << kVirtualRegisterWidth;
-  static const int kMaxFixedIndex = 63;
-  static const int kMinFixedIndex = -64;
+  static const int kMaxFixedIndex = (1 << (kFixedIndexWidth - 1)) - 1;
+  static const int kMinFixedIndex = -(1 << (kFixedIndexWidth - 1));
 
   bool HasAnyPolicy() const {
     return policy() == ANY;
@@ -460,6 +462,7 @@ class LEnvironment: public ZoneObject {
                int argument_count,
                int value_count,
                LEnvironment* outer,
+               HEnterInlined* entry,
                Zone* zone)
       : closure_(closure),
         frame_type_(frame_type),
@@ -475,6 +478,7 @@ class LEnvironment: public ZoneObject {
         spilled_registers_(NULL),
         spilled_double_registers_(NULL),
         outer_(outer),
+        entry_(entry),
         zone_(zone) { }
 
   Handle<JSFunction> closure() const { return closure_; }
@@ -491,6 +495,7 @@ class LEnvironment: public ZoneObject {
   }
   const ZoneList<LOperand*>* values() const { return &values_; }
   LEnvironment* outer() const { return outer_; }
+  HEnterInlined* entry() { return entry_; }
 
   void AddValue(LOperand* operand,
                 Representation representation,
@@ -556,6 +561,7 @@ class LEnvironment: public ZoneObject {
   LOperand** spilled_double_registers_;
 
   LEnvironment* outer_;
+  HEnterInlined* entry_;
 
   Zone* zone_;
 };

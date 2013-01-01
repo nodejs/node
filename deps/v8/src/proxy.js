@@ -31,7 +31,7 @@ global.Proxy = new $Object();
 
 var $Proxy = global.Proxy
 
-$Proxy.create = function(handler, proto) {
+function ProxyCreate(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError("handler_non_object", ["create"])
   if (IS_UNDEFINED(proto))
@@ -41,7 +41,7 @@ $Proxy.create = function(handler, proto) {
   return %CreateJSProxy(handler, proto)
 }
 
-$Proxy.createFunction = function(handler, callTrap, constructTrap) {
+function ProxyCreateFunction(handler, callTrap, constructTrap) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError("handler_non_object", ["create"])
   if (!IS_SPEC_FUNCTION(callTrap))
@@ -62,6 +62,11 @@ $Proxy.createFunction = function(handler, callTrap, constructTrap) {
     handler, callTrap, constructTrap, $Function.prototype)
 }
 
+%CheckIsBootstrapping()
+InstallFunctions($Proxy, DONT_ENUM, [
+  "create", ProxyCreate,
+  "createFunction", ProxyCreateFunction
+])
 
 
 ////////////////////////////////////////////////////////////////////////////////

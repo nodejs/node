@@ -60,7 +60,7 @@ adb pull /data/local/tmp/v8/v8.log .
 adb pull /data/local/tmp/v8/v8.log.ll .
 adb pull /data/perf.data .
 
-ARCH=arm-linux-androideabi-4.4.3
+ARCH=arm-linux-androideabi-4.6
 TOOLCHAIN="${ANDROID_NDK_ROOT}/toolchains/$ARCH/prebuilt/linux-x86/bin"
 
 $BASE/tools/ll_prof.py --host-root="$BASE/deploy" \

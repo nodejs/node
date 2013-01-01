@@ -67,6 +67,7 @@ void Log::Initialize() {
     FLAG_log_suspect = true;
     FLAG_log_handles = true;
     FLAG_log_regexp = true;
+    FLAG_log_internal_timer_events = true;
   }
 
   // --prof implies --log-code.
@@ -80,7 +81,8 @@ void Log::Initialize() {
 
   bool open_log_file = FLAG_log || FLAG_log_runtime || FLAG_log_api
       || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof;
+      || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof
+      || FLAG_log_internal_timer_events;
 
   // If we're logging anything, we need to open the log file.
   if (open_log_file) {
@@ -257,7 +259,7 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   if (len > 0x1000)
     len = 0x1000;
   if (show_impl_info) {
-    Append(str->IsAsciiRepresentation() ? 'a' : '2');
+    Append(str->IsOneByteRepresentation() ? 'a' : '2');
     if (StringShape(str).IsExternal())
       Append('e');
     if (StringShape(str).IsSymbol())

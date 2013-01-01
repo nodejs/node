@@ -79,7 +79,7 @@ static uint32_t IdToKey(TypeFeedbackId ast_id) {
 Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
   int entry = dictionary_->FindEntry(IdToKey(ast_id));
   return entry != UnseededNumberDictionary::kNotFound
-      ? Handle<Object>(dictionary_->ValueAt(entry))
+      ? Handle<Object>(dictionary_->ValueAt(entry), isolate_)
       : Handle<Object>::cast(isolate_->factory()->undefined_value());
 }
 
@@ -312,43 +312,53 @@ bool TypeFeedbackOracle::LoadIsBuiltin(Property* expr, Builtins::Name id) {
 }
 
 
-TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
-  Handle<Object> object = GetInfo(expr->CompareOperationFeedbackId());
-  TypeInfo unknown = TypeInfo::Unknown();
-  if (!object->IsCode()) return unknown;
-  Handle<Code> code = Handle<Code>::cast(object);
-  if (!code->is_compare_ic_stub()) return unknown;
-
-  CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
+static TypeInfo TypeFromCompareType(CompareIC::State state) {
   switch (state) {
     case CompareIC::UNINITIALIZED:
       // Uninitialized means never executed.
       return TypeInfo::Uninitialized();
-    case CompareIC::SMIS:
+    case CompareIC::SMI:
       return TypeInfo::Smi();
-    case CompareIC::HEAP_NUMBERS:
+    case CompareIC::HEAP_NUMBER:
       return TypeInfo::Number();
-    case CompareIC::SYMBOLS:
-    case CompareIC::STRINGS:
+    case CompareIC::SYMBOL:
+      return TypeInfo::Symbol();
+    case CompareIC::STRING:
       return TypeInfo::String();
-    case CompareIC::OBJECTS:
+    case CompareIC::OBJECT:
     case CompareIC::KNOWN_OBJECTS:
       // TODO(kasperl): We really need a type for JS objects here.
       return TypeInfo::NonPrimitive();
     case CompareIC::GENERIC:
     default:
-      return unknown;
+      return TypeInfo::Unknown();
   }
 }
 
 
-bool TypeFeedbackOracle::IsSymbolCompare(CompareOperation* expr) {
+void TypeFeedbackOracle::CompareType(CompareOperation* expr,
+                                     TypeInfo* left_type,
+                                     TypeInfo* right_type,
+                                     TypeInfo* overall_type) {
   Handle<Object> object = GetInfo(expr->CompareOperationFeedbackId());
-  if (!object->IsCode()) return false;
+  TypeInfo unknown = TypeInfo::Unknown();
+  if (!object->IsCode()) {
+    *left_type = *right_type = *overall_type = unknown;
+    return;
+  }
   Handle<Code> code = Handle<Code>::cast(object);
-  if (!code->is_compare_ic_stub()) return false;
-  CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
-  return state == CompareIC::SYMBOLS;
+  if (!code->is_compare_ic_stub()) {
+    *left_type = *right_type = *overall_type = unknown;
+    return;
+  }
+
+  int stub_minor_key = code->stub_info();
+  CompareIC::State left_state, right_state, handler_state;
+  ICCompareStub::DecodeMinorKey(stub_minor_key, &left_state, &right_state,
+                                &handler_state, NULL);
+  *left_type = TypeFromCompareType(left_state);
+  *right_type = TypeFromCompareType(right_state);
+  *overall_type = TypeFromCompareType(handler_state);
 }
 
 
@@ -357,7 +367,7 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
   if (!object->IsCode()) return Handle<Map>::null();
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_compare_ic_stub()) return Handle<Map>::null();
-  CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
+  CompareIC::State state = ICCompareStub::CompareState(code->stub_info());
   if (state != CompareIC::KNOWN_OBJECTS) {
     return Handle<Map>::null();
   }
@@ -388,55 +398,44 @@ TypeInfo TypeFeedbackOracle::UnaryType(UnaryOperation* expr) {
 }
 
 
-TypeInfo TypeFeedbackOracle::BinaryType(BinaryOperation* expr) {
+static TypeInfo TypeFromBinaryOpType(BinaryOpIC::TypeInfo binary_type) {
+  switch (binary_type) {
+    // Uninitialized means never executed.
+    case BinaryOpIC::UNINITIALIZED:  return TypeInfo::Uninitialized();
+    case BinaryOpIC::SMI:            return TypeInfo::Smi();
+    case BinaryOpIC::INT32:          return TypeInfo::Integer32();
+    case BinaryOpIC::HEAP_NUMBER:    return TypeInfo::Double();
+    case BinaryOpIC::ODDBALL:        return TypeInfo::Unknown();
+    case BinaryOpIC::STRING:         return TypeInfo::String();
+    case BinaryOpIC::GENERIC:        return TypeInfo::Unknown();
+  }
+  UNREACHABLE();
+  return TypeInfo::Unknown();
+}
+
+
+void TypeFeedbackOracle::BinaryType(BinaryOperation* expr,
+                                    TypeInfo* left,
+                                    TypeInfo* right,
+                                    TypeInfo* result) {
   Handle<Object> object = GetInfo(expr->BinaryOperationFeedbackId());
   TypeInfo unknown = TypeInfo::Unknown();
-  if (!object->IsCode()) return unknown;
+  if (!object->IsCode()) {
+    *left = *right = *result = unknown;
+    return;
+  }
   Handle<Code> code = Handle<Code>::cast(object);
   if (code->is_binary_op_stub()) {
-    BinaryOpIC::TypeInfo type = static_cast<BinaryOpIC::TypeInfo>(
-        code->binary_op_type());
-    BinaryOpIC::TypeInfo result_type = static_cast<BinaryOpIC::TypeInfo>(
-        code->binary_op_result_type());
-
-    switch (type) {
-      case BinaryOpIC::UNINITIALIZED:
-        // Uninitialized means never executed.
-        return TypeInfo::Uninitialized();
-      case BinaryOpIC::SMI:
-        switch (result_type) {
-          case BinaryOpIC::UNINITIALIZED:
-            if (expr->op() == Token::DIV) {
-              return TypeInfo::Double();
-            }
-            return TypeInfo::Smi();
-          case BinaryOpIC::SMI:
-            return TypeInfo::Smi();
-          case BinaryOpIC::INT32:
-            return TypeInfo::Integer32();
-          case BinaryOpIC::HEAP_NUMBER:
-            return TypeInfo::Double();
-          default:
-            return unknown;
-        }
-      case BinaryOpIC::INT32:
-        if (expr->op() == Token::DIV ||
-            result_type == BinaryOpIC::HEAP_NUMBER) {
-          return TypeInfo::Double();
-        }
-        return TypeInfo::Integer32();
-      case BinaryOpIC::HEAP_NUMBER:
-        return TypeInfo::Double();
-      case BinaryOpIC::BOTH_STRING:
-        return TypeInfo::String();
-      case BinaryOpIC::STRING:
-      case BinaryOpIC::GENERIC:
-        return unknown;
-     default:
-        return unknown;
-    }
+    BinaryOpIC::TypeInfo left_type, right_type, result_type;
+    BinaryOpStub::decode_types_from_minor_key(code->stub_info(), &left_type,
+                                              &right_type, &result_type);
+    *left = TypeFromBinaryOpType(left_type);
+    *right = TypeFromBinaryOpType(right_type);
+    *result = TypeFromBinaryOpType(result_type);
+    return;
   }
-  return unknown;
+  // Not a binary op stub.
+  *left = *right = *result = unknown;
 }
 
 
@@ -447,28 +446,8 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_compare_ic_stub()) return unknown;
 
-  CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
-  switch (state) {
-    case CompareIC::UNINITIALIZED:
-      // Uninitialized means never executed.
-      // TODO(fschneider): Introduce a separate value for never-executed ICs.
-      return unknown;
-    case CompareIC::SMIS:
-      return TypeInfo::Smi();
-    case CompareIC::STRINGS:
-      return TypeInfo::String();
-    case CompareIC::SYMBOLS:
-      return TypeInfo::Symbol();
-    case CompareIC::HEAP_NUMBERS:
-      return TypeInfo::Number();
-    case CompareIC::OBJECTS:
-    case CompareIC::KNOWN_OBJECTS:
-      // TODO(kasperl): We really need a type for JS objects here.
-      return TypeInfo::NonPrimitive();
-    case CompareIC::GENERIC:
-    default:
-      return unknown;
-  }
+  CompareIC::State state = ICCompareStub::CompareState(code->stub_info());
+  return TypeFromCompareType(state);
 }
 
 
@@ -479,9 +458,14 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
   Handle<Code> code = Handle<Code>::cast(object);
   if (!code->is_binary_op_stub()) return unknown;
 
-  BinaryOpIC::TypeInfo type = static_cast<BinaryOpIC::TypeInfo>(
-      code->binary_op_type());
-  switch (type) {
+  BinaryOpIC::TypeInfo left_type, right_type, unused_result_type;
+  BinaryOpStub::decode_types_from_minor_key(code->stub_info(), &left_type,
+                                            &right_type, &unused_result_type);
+  // CountOperations should always have +1 or -1 as their right input.
+  ASSERT(right_type == BinaryOpIC::SMI ||
+         right_type == BinaryOpIC::UNINITIALIZED);
+
+  switch (left_type) {
     case BinaryOpIC::UNINITIALIZED:
     case BinaryOpIC::SMI:
       return TypeInfo::Smi();
@@ -489,7 +473,6 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
       return TypeInfo::Integer32();
     case BinaryOpIC::HEAP_NUMBER:
       return TypeInfo::Double();
-    case BinaryOpIC::BOTH_STRING:
     case BinaryOpIC::STRING:
     case BinaryOpIC::GENERIC:
       return unknown;

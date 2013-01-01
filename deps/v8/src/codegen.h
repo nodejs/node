@@ -90,6 +90,7 @@ namespace internal {
 typedef double (*UnaryMathFunction)(double x);
 
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type);
+UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
 
 
@@ -102,6 +103,19 @@ class ElementsTransitionGenerator : public AllStatic {
  private:
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);
 };
+
+
+class SeqStringSetCharGenerator : public AllStatic {
+ public:
+  static void Generate(MacroAssembler* masm,
+                       String::Encoding encoding,
+                       Register string,
+                       Register index,
+                       Register value);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SeqStringSetCharGenerator);
+};
+
 
 } }  // namespace v8::internal
 

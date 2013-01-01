@@ -186,6 +186,9 @@ function StringMatch(regexp) {
   }
   var subject = TO_STRING_INLINE(this);
   if (IS_REGEXP(regexp)) {
+    // Emulate RegExp.prototype.exec's side effect in step 5, even though
+    // value is discarded.
+    ToInteger(regexp.lastIndex);
     if (!regexp.global) return RegExpExecNoTests(regexp, subject, 0);
     %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
     // lastMatchInfo is defined in regexp.js.
@@ -227,6 +230,9 @@ function StringReplace(search, replace) {
 
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
+    // Emulate RegExp.prototype.exec's side effect in step 5, even though
+    // value is discarded.
+    ToInteger(search.lastIndex);
     %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
     if (IS_SPEC_FUNCTION(replace)) {
       if (search.global) {
@@ -451,7 +457,10 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
 
 function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
   var matchInfo = DoRegExpExec(regexp, subject, 0);
-  if (IS_NULL(matchInfo)) return subject;
+  if (IS_NULL(matchInfo)) {
+    regexp.lastIndex = 0;
+    return subject;
+  }
   var index = matchInfo[CAPTURE0];
   var result = SubString(subject, 0, index);
   var endOfMatch = matchInfo[CAPTURE1];
@@ -801,6 +810,7 @@ function StringTrimRight() {
 
 var static_charcode_array = new InternalArray(4);
 
+
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
@@ -809,17 +819,24 @@ function StringFromCharCode(code) {
     return %_StringCharFromCode(code & 0xffff);
   }
 
-  // NOTE: This is not super-efficient, but it is necessary because we
-  // want to avoid converting to numbers from within the virtual
-  // machine. Maybe we can find another way of doing this?
-  var codes = static_charcode_array;
-  for (var i = 0; i < n; i++) {
+  var one_byte = %NewString(n, NEW_ONE_BYTE_STRING);
+  var i;
+  for (i = 0; i < n; i++) {
     var code = %_Arguments(i);
-    if (!%_IsSmi(code)) code = ToNumber(code);
-    codes[i] = code;
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    if (code > 0x7f) break;
+    %_OneByteSeqStringSetChar(one_byte, i, code);
   }
-  codes.length = n;
-  return %StringFromCharCodeArray(codes);
+  if (i == n) return one_byte;
+  one_byte = %TruncateString(one_byte, i);
+
+  var two_byte = %NewString(n - i, NEW_TWO_BYTE_STRING);
+  for (var j = 0; i < n; i++, j++) {
+    var code = %_Arguments(i);
+    if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
+    %_TwoByteSeqStringSetChar(two_byte, j, code);
+  }
+  return one_byte + two_byte;
 }
 
 

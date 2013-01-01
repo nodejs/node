@@ -83,7 +83,7 @@ class StubCache {
   Handle<Code> ComputeLoadField(Handle<String> name,
                                 Handle<JSObject> receiver,
                                 Handle<JSObject> holder,
-                                int field_index);
+                                PropertyIndex field_index);
 
   Handle<Code> ComputeLoadCallback(Handle<String> name,
                                    Handle<JSObject> receiver,
@@ -117,7 +117,7 @@ class StubCache {
   Handle<Code> ComputeKeyedLoadField(Handle<String> name,
                                      Handle<JSObject> receiver,
                                      Handle<JSObject> holder,
-                                     int field_index);
+                                     PropertyIndex field_index);
 
   Handle<Code> ComputeKeyedLoadCallback(Handle<String> name,
                                         Handle<JSObject> receiver,
@@ -193,7 +193,7 @@ class StubCache {
                                 Handle<String> name,
                                 Handle<Object> object,
                                 Handle<JSObject> holder,
-                                int index);
+                                PropertyIndex index);
 
   Handle<Code> ComputeCallConstant(int argc,
                                    Code::Kind,
@@ -453,7 +453,7 @@ class StubCompiler BASE_EMBEDDED {
                                        Register dst,
                                        Register src,
                                        Handle<JSObject> holder,
-                                       int index);
+                                       PropertyIndex index);
 
   static void GenerateLoadArrayLength(MacroAssembler* masm,
                                       Register receiver,
@@ -540,7 +540,7 @@ class StubCompiler BASE_EMBEDDED {
                          Register scratch1,
                          Register scratch2,
                          Register scratch3,
-                         int index,
+                         PropertyIndex index,
                          Handle<String> name,
                          Label* miss);
 
@@ -611,7 +611,7 @@ class LoadStubCompiler: public StubCompiler {
 
   Handle<Code> CompileLoadField(Handle<JSObject> object,
                                 Handle<JSObject> holder,
-                                int index,
+                                PropertyIndex index,
                                 Handle<String> name);
 
   Handle<Code> CompileLoadCallback(Handle<String> name,
@@ -654,7 +654,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
   Handle<Code> CompileLoadField(Handle<String> name,
                                 Handle<JSObject> object,
                                 Handle<JSObject> holder,
-                                int index);
+                                PropertyIndex index);
 
   Handle<Code> CompileLoadCallback(Handle<String> name,
                                    Handle<JSObject> object,
@@ -803,7 +803,7 @@ class CallStubCompiler: public StubCompiler {
 
   Handle<Code> CompileCallField(Handle<JSObject> object,
                                 Handle<JSObject> holder,
-                                int index,
+                                PropertyIndex index,
                                 Handle<String> name);
 
   Handle<Code> CompileCallConstant(Handle<Object> object,

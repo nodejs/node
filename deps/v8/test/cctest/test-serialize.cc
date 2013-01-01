@@ -196,8 +196,7 @@ class FileByteSink : public SnapshotByteSink {
       int data_space_used,
       int code_space_used,
       int map_space_used,
-      int cell_space_used,
-      int large_space_used);
+      int cell_space_used);
 
  private:
   FILE* fp_;
@@ -211,8 +210,7 @@ void FileByteSink::WriteSpaceUsed(
       int data_space_used,
       int code_space_used,
       int map_space_used,
-      int cell_space_used,
-      int large_space_used) {
+      int cell_space_used) {
   int file_name_length = StrLength(file_name_) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name_);
@@ -224,7 +222,6 @@ void FileByteSink::WriteSpaceUsed(
   fprintf(fp, "code %d\n", code_space_used);
   fprintf(fp, "map %d\n", map_space_used);
   fprintf(fp, "cell %d\n", cell_space_used);
-  fprintf(fp, "large %d\n", large_space_used);
   fclose(fp);
 }
 
@@ -233,6 +230,15 @@ static bool WriteToFile(const char* snapshot_file) {
   FileByteSink file(snapshot_file);
   StartupSerializer ser(&file);
   ser.Serialize();
+
+  file.WriteSpaceUsed(
+      ser.CurrentAllocationAddress(NEW_SPACE),
+      ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+      ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+      ser.CurrentAllocationAddress(CODE_SPACE),
+      ser.CurrentAllocationAddress(MAP_SPACE),
+      ser.CurrentAllocationAddress(CELL_SPACE));
+
   return true;
 }
 
@@ -279,7 +285,7 @@ static void Deserialize() {
 
 static void SanityCheck() {
   v8::HandleScope scope;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   HEAP->Verify();
 #endif
   CHECK(Isolate::Current()->global_object()->IsJSObject());
@@ -384,7 +390,6 @@ TEST(PartialSerialization) {
     env.Dispose();
 
     FileByteSink startup_sink(startup_name.start());
-    startup_name.Dispose();
     StartupSerializer startup_serializer(&startup_sink);
     startup_serializer.SerializeStrongReferences();
 
@@ -392,26 +397,35 @@ TEST(PartialSerialization) {
     PartialSerializer p_ser(&startup_serializer, &partial_sink);
     p_ser.Serialize(&raw_foo);
     startup_serializer.SerializeWeakReferences();
+
     partial_sink.WriteSpaceUsed(
         p_ser.CurrentAllocationAddress(NEW_SPACE),
         p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
         p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
         p_ser.CurrentAllocationAddress(CODE_SPACE),
         p_ser.CurrentAllocationAddress(MAP_SPACE),
-        p_ser.CurrentAllocationAddress(CELL_SPACE),
-        p_ser.CurrentAllocationAddress(LO_SPACE));
+        p_ser.CurrentAllocationAddress(CELL_SPACE));
+
+    startup_sink.WriteSpaceUsed(
+        startup_serializer.CurrentAllocationAddress(NEW_SPACE),
+        startup_serializer.CurrentAllocationAddress(OLD_POINTER_SPACE),
+        startup_serializer.CurrentAllocationAddress(OLD_DATA_SPACE),
+        startup_serializer.CurrentAllocationAddress(CODE_SPACE),
+        startup_serializer.CurrentAllocationAddress(MAP_SPACE),
+        startup_serializer.CurrentAllocationAddress(CELL_SPACE));
+    startup_name.Dispose();
   }
 }
 
 
-static void ReserveSpaceForPartialSnapshot(const char* file_name) {
+static void ReserveSpaceForSnapshot(Deserializer* deserializer,
+                                    const char* file_name) {
   int file_name_length = StrLength(file_name) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   OS::SNPrintF(name, "%s.size", file_name);
   FILE* fp = OS::FOpen(name.start(), "r");
   name.Dispose();
   int new_size, pointer_size, data_size, code_size, map_size, cell_size;
-  int large_size;
 #ifdef _MSC_VER
   // Avoid warning about unsafe fscanf from MSVC.
   // Please note that this is only fine if %c and %s are not being used.
@@ -423,18 +437,16 @@ static void ReserveSpaceForPartialSnapshot(const char* file_name) {
   CHECK_EQ(1, fscanf(fp, "code %d\n", &code_size));
   CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
   CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
-  CHECK_EQ(1, fscanf(fp, "large %d\n", &large_size));
 #ifdef _MSC_VER
 #undef fscanf
 #endif
   fclose(fp);
-  HEAP->ReserveSpace(new_size,
-                     pointer_size,
-                     data_size,
-                     code_size,
-                     map_size,
-                     cell_size,
-                     large_size);
+  deserializer->set_reservation(NEW_SPACE, new_size);
+  deserializer->set_reservation(OLD_POINTER_SPACE, pointer_size);
+  deserializer->set_reservation(OLD_DATA_SPACE, data_size);
+  deserializer->set_reservation(CODE_SPACE, code_size);
+  deserializer->set_reservation(MAP_SPACE, map_size);
+  deserializer->set_reservation(CELL_SPACE, cell_size);
 }
 
 
@@ -448,7 +460,6 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
     startup_name.Dispose();
 
     const char* file_name = FLAG_testing_serialization_file;
-    ReserveSpaceForPartialSnapshot(file_name);
 
     int snapshot_size = 0;
     byte* snapshot = ReadBytes(file_name, &snapshot_size);
@@ -457,18 +468,19 @@ DEPENDENT_TEST(PartialDeserialization, PartialSerialization) {
     {
       SnapshotByteSource source(snapshot, snapshot_size);
       Deserializer deserializer(&source);
+      ReserveSpaceForSnapshot(&deserializer, file_name);
       deserializer.DeserializePartial(&root);
       CHECK(root->IsString());
     }
     v8::HandleScope handle_scope;
     Handle<Object> root_handle(root);
 
-    ReserveSpaceForPartialSnapshot(file_name);
 
     Object* root2;
     {
       SnapshotByteSource source(snapshot, snapshot_size);
       Deserializer deserializer(&source);
+      ReserveSpaceForSnapshot(&deserializer, file_name);
       deserializer.DeserializePartial(&root2);
       CHECK(root2->IsString());
       CHECK(*root_handle == root2);
@@ -506,7 +518,6 @@ TEST(ContextSerialization) {
     env.Dispose();
 
     FileByteSink startup_sink(startup_name.start());
-    startup_name.Dispose();
     StartupSerializer startup_serializer(&startup_sink);
     startup_serializer.SerializeStrongReferences();
 
@@ -514,14 +525,23 @@ TEST(ContextSerialization) {
     PartialSerializer p_ser(&startup_serializer, &partial_sink);
     p_ser.Serialize(&raw_context);
     startup_serializer.SerializeWeakReferences();
+
     partial_sink.WriteSpaceUsed(
         p_ser.CurrentAllocationAddress(NEW_SPACE),
         p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
         p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
         p_ser.CurrentAllocationAddress(CODE_SPACE),
         p_ser.CurrentAllocationAddress(MAP_SPACE),
-        p_ser.CurrentAllocationAddress(CELL_SPACE),
-        p_ser.CurrentAllocationAddress(LO_SPACE));
+        p_ser.CurrentAllocationAddress(CELL_SPACE));
+
+    startup_sink.WriteSpaceUsed(
+        startup_serializer.CurrentAllocationAddress(NEW_SPACE),
+        startup_serializer.CurrentAllocationAddress(OLD_POINTER_SPACE),
+        startup_serializer.CurrentAllocationAddress(OLD_DATA_SPACE),
+        startup_serializer.CurrentAllocationAddress(CODE_SPACE),
+        startup_serializer.CurrentAllocationAddress(MAP_SPACE),
+        startup_serializer.CurrentAllocationAddress(CELL_SPACE));
+    startup_name.Dispose();
   }
 }
 
@@ -536,7 +556,6 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
     startup_name.Dispose();
 
     const char* file_name = FLAG_testing_serialization_file;
-    ReserveSpaceForPartialSnapshot(file_name);
 
     int snapshot_size = 0;
     byte* snapshot = ReadBytes(file_name, &snapshot_size);
@@ -545,135 +564,22 @@ DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
     {
       SnapshotByteSource source(snapshot, snapshot_size);
       Deserializer deserializer(&source);
+      ReserveSpaceForSnapshot(&deserializer, file_name);
       deserializer.DeserializePartial(&root);
       CHECK(root->IsContext());
     }
     v8::HandleScope handle_scope;
     Handle<Object> root_handle(root);
 
-    ReserveSpaceForPartialSnapshot(file_name);
 
     Object* root2;
     {
       SnapshotByteSource source(snapshot, snapshot_size);
       Deserializer deserializer(&source);
+      ReserveSpaceForSnapshot(&deserializer, file_name);
       deserializer.DeserializePartial(&root2);
       CHECK(root2->IsContext());
       CHECK(*root_handle != root2);
-    }
-  }
-}
-
-
-TEST(LinearAllocation) {
-  v8::V8::Initialize();
-  int new_space_max = 512 * KB;
-  int paged_space_max = Page::kMaxNonCodeHeapObjectSize;
-  int code_space_max = HEAP->code_space()->AreaSize();
-
-  for (int size = 1000; size < 5 * MB; size += size >> 1) {
-    size &= ~8;  // Round.
-    int new_space_size = (size < new_space_max) ? size : new_space_max;
-    int paged_space_size = (size < paged_space_max) ? size : paged_space_max;
-    HEAP->ReserveSpace(
-        new_space_size,
-        paged_space_size,  // Old pointer space.
-        paged_space_size,  // Old data space.
-        HEAP->code_space()->RoundSizeDownToObjectAlignment(code_space_max),
-        HEAP->map_space()->RoundSizeDownToObjectAlignment(paged_space_size),
-        HEAP->cell_space()->RoundSizeDownToObjectAlignment(paged_space_size),
-        size);             // Large object space.
-    LinearAllocationScope linear_allocation_scope;
-    DisallowAllocationFailure disallow_allocation_failure;
-    const int kSmallFixedArrayLength = 4;
-    const int kSmallFixedArraySize =
-        FixedArray::kHeaderSize + kSmallFixedArrayLength * kPointerSize;
-    const int kSmallStringLength = 16;
-    const int kSmallStringSize =
-        (SeqAsciiString::kHeaderSize + kSmallStringLength +
-        kObjectAlignmentMask) & ~kObjectAlignmentMask;
-    const int kMapSize = Map::kSize;
-
-    Object* new_last = NULL;
-    for (int i = 0;
-         i + kSmallFixedArraySize <= new_space_size;
-         i += kSmallFixedArraySize) {
-      Object* obj =
-          HEAP->AllocateFixedArray(kSmallFixedArrayLength)->ToObjectChecked();
-      if (new_last != NULL) {
-        CHECK(reinterpret_cast<char*>(obj) ==
-              reinterpret_cast<char*>(new_last) + kSmallFixedArraySize);
-      }
-      new_last = obj;
-    }
-
-    Object* pointer_last = NULL;
-    for (int i = 0;
-         i + kSmallFixedArraySize <= paged_space_size;
-         i += kSmallFixedArraySize) {
-      Object* obj = HEAP->AllocateFixedArray(kSmallFixedArrayLength,
-                                             TENURED)->ToObjectChecked();
-      int old_page_fullness = i % Page::kPageSize;
-      int page_fullness = (i + kSmallFixedArraySize) % Page::kPageSize;
-      if (page_fullness < old_page_fullness ||
-          page_fullness > HEAP->old_pointer_space()->AreaSize()) {
-        i = RoundUp(i, Page::kPageSize);
-        pointer_last = NULL;
-      }
-      if (pointer_last != NULL) {
-        CHECK(reinterpret_cast<char*>(obj) ==
-              reinterpret_cast<char*>(pointer_last) + kSmallFixedArraySize);
-      }
-      pointer_last = obj;
-    }
-
-    Object* data_last = NULL;
-    for (int i = 0;
-         i + kSmallStringSize <= paged_space_size;
-         i += kSmallStringSize) {
-      Object* obj = HEAP->AllocateRawAsciiString(kSmallStringLength,
-                                                 TENURED)->ToObjectChecked();
-      int old_page_fullness = i % Page::kPageSize;
-      int page_fullness = (i + kSmallStringSize) % Page::kPageSize;
-      if (page_fullness < old_page_fullness ||
-          page_fullness > HEAP->old_data_space()->AreaSize()) {
-        i = RoundUp(i, Page::kPageSize);
-        data_last = NULL;
-      }
-      if (data_last != NULL) {
-        CHECK(reinterpret_cast<char*>(obj) ==
-              reinterpret_cast<char*>(data_last) + kSmallStringSize);
-      }
-      data_last = obj;
-    }
-
-    Object* map_last = NULL;
-    for (int i = 0; i + kMapSize <= paged_space_size; i += kMapSize) {
-      Object* obj = HEAP->AllocateMap(JS_OBJECT_TYPE,
-                                      42 * kPointerSize)->ToObjectChecked();
-      int old_page_fullness = i % Page::kPageSize;
-      int page_fullness = (i + kMapSize) % Page::kPageSize;
-      if (page_fullness < old_page_fullness ||
-          page_fullness > HEAP->map_space()->AreaSize()) {
-        i = RoundUp(i, Page::kPageSize);
-        map_last = NULL;
-      }
-      if (map_last != NULL) {
-        CHECK(reinterpret_cast<char*>(obj) ==
-              reinterpret_cast<char*>(map_last) + kMapSize);
-      }
-      map_last = obj;
-    }
-
-    if (size > Page::kMaxNonCodeHeapObjectSize) {
-      // Support for reserving space in large object space is not there yet,
-      // but using an always-allocate scope is fine for now.
-      AlwaysAllocateScope always;
-      int large_object_array_length =
-          (size - FixedArray::kHeaderSize) / kPointerSize;
-      Object* obj = HEAP->AllocateFixedArray(large_object_array_length,
-                                             TENURED)->ToObjectChecked();
-      CHECK(!obj->IsFailure());
     }
   }
 }

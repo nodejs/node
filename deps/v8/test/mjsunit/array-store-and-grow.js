@@ -99,7 +99,10 @@ array_store_5(a, 1, 0.5);
 a = makeCOW();
 array_store_5(a, 1, 0.5);
 assertEquals(0.5, a[1]);
-assertEquals(0.5, array_store_5([], 1, 0.5));
+a = [];
+assertEquals(0.5, array_store_5(a, 1, 0.5));
+assertEquals(undefined, a[0]);
+assertEquals(0.5, a[1]);
 
 function array_store_6(a,b,c) {
   return (a[b] = c);

@@ -69,6 +69,14 @@
                 ],
               },
               'conditions': [
+                ['OS=="android"', {
+                  'libraries': [
+                    '-llog',
+                  ],
+                  'include_dirs': [
+                    'src/common/android/include',
+                  ],
+                }],
                 ['OS=="mac"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
@@ -353,6 +361,7 @@
             '../../src/isolate.cc',
             '../../src/isolate.h',
             '../../src/json-parser.h',
+            '../../src/json-stringifier.h',
             '../../src/jsregexp.cc',
             '../../src/jsregexp.h',
             '../../src/lazy-instance.h',
@@ -678,14 +687,6 @@
                   'libraries': [
                     '-L/usr/local/lib -lexecinfo',
                 ]},
-            }],
-            ['OS=="dragonflybsd"', {
-                'link_settings': {
-                  'libraries': [
-                    '-pthread',
-                ]},
-            }],
-            ['OS=="freebsd" or OS=="dragonflybsd"', {
                 'sources': [
                   '../../src/platform-freebsd.cc',
                   '../../src/platform-posix.cc'
@@ -738,9 +739,6 @@
                 '../../src/win32-math.h',
               ],
               'msvs_disabled_warnings': [4351, 4355, 4800],
-              'direct_dependent_settings': {
-                'msvs_disabled_warnings': [4351, 4355, 4800],
-              },
               'link_settings':  {
                 'libraries': [ '-lwinmm.lib', '-lws2_32.lib' ],
               },
@@ -754,8 +752,7 @@
             ['v8_postmortem_support=="true"', {
               'sources': [
                 '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
-              ],
-              'dependencies': ['postmortem-metadata']
+              ]
             }],
           ],
         },
@@ -791,6 +788,7 @@
               '../../src/macros.py',
               '../../src/proxy.js',
               '../../src/collection.js',
+              '../../src/object-observe.js'
             ],
           },
           'actions': [
@@ -804,7 +802,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
               ],
               'action': [
-                '<(python)',
+                'python',
                 '../../tools/js2c.py',
                 '<@(_outputs)',
                 'CORE',
@@ -822,7 +820,7 @@
                 '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
               ],
               'action': [
-                '<(python)',
+                'python',
                 '../../tools/js2c.py',
                 '<@(_outputs)',
                 'EXPERIMENTAL',
@@ -852,7 +850,7 @@
                   '<(SHARED_INTERMEDIATE_DIR)/debug-support.cc',
                 ],
                 'action': [
-                  '<(python)',
+                  'python',
                   '../../tools/gen-postmortem-metadata.py',
                   '<@(_outputs)',
                   '<@(heapobject_files)'

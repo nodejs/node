@@ -59,7 +59,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
     },
     'mode:debug': {
-      'CPPDEFINES': ['V8_ENABLE_CHECKS', 'OBJECT_PRINT']
+      'CPPDEFINES': ['V8_ENABLE_CHECKS', 'OBJECT_PRINT', 'VERIFY_HEAP']
     },
     'objectprint:on': {
       'CPPDEFINES':   ['OBJECT_PRINT'],
@@ -1157,6 +1157,11 @@ SIMPLE_OPTIONS = {
     'default': 'on',
     'help': 'use fpu instructions when building the snapshot [MIPS only]'
   },
+  'I_know_I_should_build_with_GYP': {
+    'values': ['yes', 'no'],
+    'default': 'no',
+    'help': 'grace period: temporarily override SCons deprecation'
+  }
 
 }
 
@@ -1257,7 +1262,35 @@ def IsLegal(env, option, values):
   return True
 
 
+def WarnAboutDeprecation():
+  print """
+    #####################################################################
+    #                                                                   #
+    #  LAST WARNING: Building V8 with SCons is deprecated.              #
+    #                                                                   #
+    #  This only works because you have overridden the kill switch.     #
+    #                                                                   #
+    #              MIGRATE TO THE GYP-BASED BUILD NOW!                  #
+    #                                                                   #
+    #  Instructions: http://code.google.com/p/v8/wiki/BuildingWithGYP.  #
+    #                                                                   #
+    #####################################################################
+  """
+
+
 def VerifyOptions(env):
+  if env['I_know_I_should_build_with_GYP'] != 'yes':
+    Abort("Building V8 with SCons is no longer supported. Please use GYP "
+          "instead; you can find instructions are at "
+          "http://code.google.com/p/v8/wiki/BuildingWithGYP.\n\n"
+          "Quitting.\n\n"
+          "For a limited grace period, you can specify "
+          "\"I_know_I_should_build_with_GYP=yes\" to override.")
+  else:
+    WarnAboutDeprecation()
+    import atexit
+    atexit.register(WarnAboutDeprecation)
+
   if not IsLegal(env, 'mode', ['debug', 'release']):
     return False
   if not IsLegal(env, 'sample', ["shell", "process", "lineprocessor"]):
@@ -1600,18 +1633,4 @@ try:
 except:
   pass
 
-
-def WarnAboutDeprecation():
-  print """
-#######################################################
-#  WARNING: Building V8 with SCons is deprecated and  #
-#  will not work much longer. Please switch to using  #
-#  the GYP-based build now. Instructions are at       #
-#  http://code.google.com/p/v8/wiki/BuildingWithGYP.  #
-#######################################################
-  """
-
-WarnAboutDeprecation()
-import atexit
-atexit.register(WarnAboutDeprecation)
 Build()

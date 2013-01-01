@@ -193,9 +193,10 @@ TEST(Regress2060a) {
 // other strong paths are correctly recorded in the slots buffer.
 TEST(Regress2060b) {
   FLAG_always_compact = true;
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   FLAG_verify_heap = true;
 #endif
+
   LocalContext context;
   v8::HandleScope scope;
   Handle<JSFunction> function =

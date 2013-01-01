@@ -147,6 +147,7 @@ var knownProblems = {
   "PushWithContext": true,
   "PushCatchContext": true,
   "PushBlockContext": true,
+  "PushModuleContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
   "ParallelRecompile": true,
@@ -195,7 +196,13 @@ var knownProblems = {
 
   // Only applicable to strings.
   "_HasCachedArrayIndex": true,
-  "_GetCachedArrayIndex": true
+  "_GetCachedArrayIndex": true,
+  "_OneByteSeqStringSetChar": true,
+  "_TwoByteSeqStringSetChar": true,
+
+  // Only for debugging parallel recompilation.
+  "InstallRecompiledCode": true,
+  "ForceParallelRecompile": true
 };
 
 var currentlyUncallable = {
@@ -205,7 +212,9 @@ var currentlyUncallable = {
 
 function testNatives() {
   var allNatives = %ListNatives();
-  for (var i = 0; i < allNatives.length; i++) {
+  var start = (allNatives.length >> 2)*3;
+  var stop = allNatives.length;
+  for (var i = start; i < stop; i++) {
     var nativeInfo = allNatives[i];
     var name = nativeInfo[0];
     if (name in knownProblems || name in currentlyUncallable)

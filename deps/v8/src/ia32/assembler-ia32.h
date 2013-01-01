@@ -582,15 +582,7 @@ class Assembler : public AssemblerBase {
   // upon destruction of the assembler.
   // TODO(vitalyr): the assembler does not need an isolate.
   Assembler(Isolate* isolate, void* buffer, int buffer_size);
-  ~Assembler();
-
-  // Overrides the default provided by FLAG_debug_code.
-  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
-
-  // Avoids using instructions that vary in size in unpredictable ways between
-  // the snapshot and the running VM.  This is needed by the full compiler so
-  // that it can recompile code with debug support and fix the PC.
-  void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
+  virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -600,6 +592,10 @@ class Assembler : public AssemblerBase {
   // Read/Modify the code target in the branch/call instruction at pc.
   inline static Address target_address_at(Address pc);
   inline static void set_target_address_at(Address pc, Address target);
+
+  // Return the code target address at a call site from the return address
+  // of that call in the instruction stream.
+  inline static Address target_address_from_return_address(Address pc);
 
   // This sets the branch destination (which is in the instruction on x86).
   // This is for calls and branches within generated code.
@@ -629,6 +625,7 @@ class Assembler : public AssemblerBase {
   static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
 
   static const int kCallInstructionLength = 5;
+  static const int kPatchDebugBreakSlotReturnOffset = kPointerSize;
   static const int kJSReturnSequenceLength = 6;
 
   // The debug break slot must be able to contain a call instruction.
@@ -812,6 +809,8 @@ class Assembler : public AssemblerBase {
 
   void rcl(Register dst, uint8_t imm8);
   void rcr(Register dst, uint8_t imm8);
+  void ror(Register dst, uint8_t imm8);
+  void ror_cl(Register dst);
 
   void sar(Register dst, uint8_t imm8);
   void sar_cl(Register dst);
@@ -991,8 +990,10 @@ class Assembler : public AssemblerBase {
   void cvtsd2ss(XMMRegister dst, XMMRegister src);
 
   void addsd(XMMRegister dst, XMMRegister src);
+  void addsd(XMMRegister dst, const Operand& src);
   void subsd(XMMRegister dst, XMMRegister src);
   void mulsd(XMMRegister dst, XMMRegister src);
+  void mulsd(XMMRegister dst, const Operand& src);
   void divsd(XMMRegister dst, XMMRegister src);
   void xorpd(XMMRegister dst, XMMRegister src);
   void xorps(XMMRegister dst, XMMRegister src);
@@ -1016,6 +1017,7 @@ class Assembler : public AssemblerBase {
   void movmskpd(Register dst, XMMRegister src);
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
+  void pcmpeqd(XMMRegister dst, XMMRegister src);
 
   void movaps(XMMRegister dst, XMMRegister src);
 
@@ -1048,7 +1050,7 @@ class Assembler : public AssemblerBase {
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
-  void pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle);
+  void pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle);
   void pextrd(Register dst, XMMRegister src, int8_t offset) {
     pextrd(Operand(dst), src, offset);
   }
@@ -1091,8 +1093,6 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
-  int pc_offset() const { return pc_ - buffer_; }
-
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
   // an instruction or relocation information.
@@ -1111,15 +1111,11 @@ class Assembler : public AssemblerBase {
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;
-  static const int kMinimalBufferSize = 4*KB;
 
   byte byte_at(int pos)  { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
 
  protected:
-  bool emit_debug_code() const { return emit_debug_code_; }
-  bool predictable_code_size() const { return predictable_code_size_ ; }
-
   void movsd(XMMRegister dst, const Operand& src);
   void movsd(const Operand& dst, XMMRegister src);
 
@@ -1180,22 +1176,10 @@ class Assembler : public AssemblerBase {
   friend class CodePatcher;
   friend class EnsureSpace;
 
-  // Code buffer:
-  // The buffer into which code and relocation info are generated.
-  byte* buffer_;
-  int buffer_size_;
-  // True if the assembler owns the buffer, false if buffer is external.
-  bool own_buffer_;
-
   // code generation
-  byte* pc_;  // the program counter; moves forward
   RelocInfoWriter reloc_info_writer;
 
   PositionsRecorder positions_recorder_;
-
-  bool emit_debug_code_;
-  bool predictable_code_size_;
-
   friend class PositionsRecorder;
 };
 

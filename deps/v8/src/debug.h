@@ -793,7 +793,6 @@ class Debugger {
   };
   void OnAfterCompile(Handle<Script> script,
                       AfterCompileFlags after_compile_flags);
-  void OnNewFunction(Handle<JSFunction> fun);
   void OnScriptCollected(int id);
   void ProcessDebugEvent(v8::DebugEvent event,
                          Handle<JSObject> event_data,

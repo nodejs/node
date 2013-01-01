@@ -38,6 +38,10 @@ enum PropertyAttributes {
   READ_ONLY         = v8::ReadOnly,
   DONT_ENUM         = v8::DontEnum,
   DONT_DELETE       = v8::DontDelete,
+
+  SEALED            = DONT_ENUM | DONT_DELETE,
+  FROZEN            = SEALED | READ_ONLY,
+
   ABSENT            = 16  // Used in runtime to indicate a property is absent.
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
@@ -96,7 +100,9 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyType type() { return TypeField::decode(value_); }
 
-  PropertyAttributes attributes() { return AttributesField::decode(value_); }
+  PropertyAttributes attributes() const {
+    return AttributesField::decode(value_);
+  }
 
   int dictionary_index() {
     return DictionaryStorageField::decode(value_);
@@ -112,10 +118,10 @@ class PropertyDetails BASE_EMBEDDED {
     return DictionaryStorageField::is_valid(index);
   }
 
-  bool IsReadOnly() { return (attributes() & READ_ONLY) != 0; }
-  bool IsDontDelete() { return (attributes() & DONT_DELETE) != 0; }
-  bool IsDontEnum() { return (attributes() & DONT_ENUM) != 0; }
-  bool IsDeleted() { return DeletedField::decode(value_) != 0;}
+  bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
+  bool IsDontDelete() const { return (attributes() & DONT_DELETE) != 0; }
+  bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
+  bool IsDeleted() const { return DeletedField::decode(value_) != 0;}
 
   // Bit fields in value_ (type, shift, size). Must be public so the
   // constants can be embedded in generated code.

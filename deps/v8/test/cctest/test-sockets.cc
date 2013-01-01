@@ -124,7 +124,7 @@ static void SendAndReceive(int port, char *data, int len) {
 TEST(Socket) {
   // Make sure this port is not used by other tests to allow tests to run in
   // parallel.
-  static const int kPort = 5859;
+  static const int kPort = 5859 + FlagDependentPortOffset();
 
   bool ok;
 

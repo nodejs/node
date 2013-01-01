@@ -259,6 +259,8 @@ TEST(4) {
     __ vadd(d5, d6, d7);
     __ vstr(d5, r4, OFFSET_OF(T, c));
 
+    __ vmla(d5, d6, d7);
+
     __ vmov(r2, r3, d5);
     __ vmov(d4, r2, r3);
     __ vstr(d4, r4, OFFSET_OF(T, b));
@@ -347,7 +349,7 @@ TEST(4) {
     CHECK_EQ(1.0, t.e);
     CHECK_EQ(1.000000059604644775390625, t.d);
     CHECK_EQ(4.25, t.c);
-    CHECK_EQ(4.25, t.b);
+    CHECK_EQ(8.375, t.b);
     CHECK_EQ(1.5, t.a);
   }
 }

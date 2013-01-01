@@ -122,8 +122,6 @@
         'ldflags': [
           '-nostdlib',
           '-Wl,--no-undefined',
-          # Don't export symbols from statically linked libraries.
-          '-Wl,--exclude-libs=ALL',
         ],
         'libraries!': [
             '-lrt',  # librt is built into Bionic.
@@ -219,6 +217,13 @@
           ['_type=="shared_library"', {
             'ldflags': [
               '-Wl,-shared,-Bsymbolic',
+              '<(android_lib)/crtbegin_so.o',
+            ],
+          }],
+          ['_type=="static_library"', {
+            'ldflags': [
+              # Don't export symbols from statically linked libraries.
+              '-Wl,--exclude-libs=ALL',
             ],
           }],
         ],

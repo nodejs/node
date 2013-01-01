@@ -122,6 +122,14 @@ void PrettyPrinter::VisitModuleUrl(ModuleUrl* node) {
 }
 
 
+void PrettyPrinter::VisitModuleStatement(ModuleStatement* node) {
+  Print("module ");
+  PrintLiteral(node->proxy()->name(), false);
+  Print(" ");
+  Visit(node->body());
+}
+
+
 void PrettyPrinter::VisitExpressionStatement(ExpressionStatement* node) {
   Visit(node->expression());
   Print(";");
@@ -819,6 +827,13 @@ void AstPrinter::VisitModulePath(ModulePath* node) {
 
 void AstPrinter::VisitModuleUrl(ModuleUrl* node) {
   PrintLiteralIndented("URL", node->url(), true);
+}
+
+
+void AstPrinter::VisitModuleStatement(ModuleStatement* node) {
+  IndentedScope indent(this, "MODULE");
+  PrintLiteralIndented("NAME", node->proxy()->name(), true);
+  PrintStatements(node->body()->statements());
 }
 
 

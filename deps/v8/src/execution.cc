@@ -118,7 +118,7 @@ static Handle<Object> Invoke(bool is_construct,
         CALL_GENERATED_CODE(stub_entry, function_entry, func, recv, argc, argv);
   }
 
-#ifdef DEBUG
+#ifdef VERIFY_HEAP
   value->Verify();
 #endif
 
@@ -211,6 +211,9 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
     Isolate* isolate = Isolate::Current();
     ASSERT(isolate->has_pending_exception());
     ASSERT(isolate->external_caught_exception());
+    if (isolate->is_out_of_memory() && !isolate->ignore_out_of_memory()) {
+      V8::FatalProcessOutOfMemory("OOM during Execution::TryCall");
+    }
     if (isolate->pending_exception() ==
         isolate->heap()->termination_exception()) {
       result = isolate->factory()->termination_exception();
@@ -424,25 +427,6 @@ void StackGuard::TerminateExecution() {
   ExecutionAccess access(isolate_);
   thread_local_.interrupt_flags_ |= TERMINATE;
   set_interrupt_limits(access);
-}
-
-
-bool StackGuard::IsRuntimeProfilerTick() {
-  ExecutionAccess access(isolate_);
-  return (thread_local_.interrupt_flags_ & RUNTIME_PROFILER_TICK) != 0;
-}
-
-
-void StackGuard::RequestRuntimeProfilerTick() {
-  // Ignore calls if we're not optimizing or if we can't get the lock.
-  if (FLAG_opt && ExecutionAccess::TryLock(isolate_)) {
-    thread_local_.interrupt_flags_ |= RUNTIME_PROFILER_TICK;
-    if (thread_local_.postpone_interrupts_nesting_ == 0) {
-      thread_local_.jslimit_ = thread_local_.climit_ = kInterruptLimit;
-      isolate_->heap()->SetStackLimits();
-    }
-    ExecutionAccess::Unlock(isolate_);
-  }
 }
 
 
@@ -937,18 +921,14 @@ MaybeObject* Execution::HandleStackGuardInterrupt(Isolate* isolate) {
     }
     stack_guard->Continue(CODE_READY);
   }
-  if (!stack_guard->IsTerminateExecution()) {
+  if (!stack_guard->IsTerminateExecution() &&
+      !FLAG_manual_parallel_recompilation) {
     isolate->optimizing_compiler_thread()->InstallOptimizedFunctions();
   }
 
   isolate->counters()->stack_interrupts()->Increment();
-  // If FLAG_count_based_interrupts, every interrupt is a profiler interrupt.
-  if (FLAG_count_based_interrupts ||
-      stack_guard->IsRuntimeProfilerTick()) {
-    isolate->counters()->runtime_profiler_ticks()->Increment();
-    stack_guard->Continue(RUNTIME_PROFILER_TICK);
-    isolate->runtime_profiler()->OptimizeNow();
-  }
+  isolate->counters()->runtime_profiler_ticks()->Increment();
+  isolate->runtime_profiler()->OptimizeNow();
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (stack_guard->IsDebugBreak() || stack_guard->IsDebugCommand()) {
     DebugBreakHelper();

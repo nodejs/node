@@ -547,6 +547,11 @@ TEST(Vfp) {
             "ec860a20       vstmia r6, {s0-s31}");
     COMPARE(vldm(ia, r7, s0, s31),
             "ec970a20       vldmia r7, {s0-s31}");
+
+    COMPARE(vmla(d2, d1, d0),
+            "ee012b00       vmla.f64 d2, d1, d0");
+    COMPARE(vmla(d6, d4, d5, cc),
+            "3e046b05       vmla.f64cc d6, d4, d5");
   }
 
   VERIFY_RUN();
@@ -753,4 +758,3 @@ TEST(LoadStore) {
 
   VERIFY_RUN();
 }
-
