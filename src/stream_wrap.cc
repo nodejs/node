@@ -220,8 +220,8 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
 
   if (!pending_obj.IsEmpty()) {
     assert(pending_obj->InternalFieldCount() > 0);
-    StreamWrap* pending_wrap =
-      static_cast<StreamWrap*>(pending_obj->GetPointerFromInternalField(0));
+    StreamWrap* pending_wrap = static_cast<StreamWrap*>(
+        pending_obj->GetAlignedPointerFromInternalField(0));
     if (uv_accept(handle, pending_wrap->GetStream())) abort();
     argv[3] = pending_obj;
     argc++;
@@ -408,7 +408,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
       Local<Object> send_stream_obj = args[1]->ToObject();
       assert(send_stream_obj->InternalFieldCount() > 0);
       StreamWrap* send_stream_wrap = static_cast<StreamWrap*>(
-          send_stream_obj->GetPointerFromInternalField(0));
+          send_stream_obj->GetAlignedPointerFromInternalField(0));
       send_stream = send_stream_wrap->GetStream();
     }
 

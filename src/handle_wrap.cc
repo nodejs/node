@@ -26,8 +26,8 @@
 #define UNWRAP_NO_ABORT(type)                                               \
   assert(!args.Holder().IsEmpty());                                         \
   assert(args.Holder()->InternalFieldCount() > 0);                          \
-  type* wrap =                                                              \
-      static_cast<type*>(args.Holder()->GetPointerFromInternalField(0));
+  type* wrap = static_cast<type*>(                                          \
+      args.Holder()->GetAlignedPointerFromInternalField(0));
 
 namespace node {
 
@@ -88,7 +88,7 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
   HandleScope scope;
 
   HandleWrap *wrap = static_cast<HandleWrap*>(
-      args.Holder()->GetPointerFromInternalField(0));
+      args.Holder()->GetAlignedPointerFromInternalField(0));
 
   // guard against uninitialized handle or double close
   if (wrap && wrap->handle__) {
@@ -112,7 +112,7 @@ HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   assert(object_.IsEmpty());
   assert(object->InternalFieldCount() > 0);
   object_ = v8::Persistent<v8::Object>::New(object);
-  object_->SetPointerInInternalField(0, this);
+  object_->SetAlignedPointerInInternalField(0, this);
   ngx_queue_insert_tail(&handle_wrap_queue, &handle_wrap_queue_);
 }
 
@@ -138,7 +138,7 @@ void HandleWrap::OnClose(uv_handle_t* handle) {
   // But the handle pointer should be gone.
   assert(wrap->handle__ == NULL);
 
-  wrap->object_->SetPointerInInternalField(0, NULL);
+  wrap->object_->SetAlignedPointerInInternalField(0, NULL);
   wrap->object_.Dispose();
   wrap->object_.Clear();
 

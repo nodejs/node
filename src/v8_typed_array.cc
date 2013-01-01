@@ -106,7 +106,7 @@ class ArrayBuffer {
     if (!buf)
       return ThrowError("Unable to allocate ArrayBuffer.");
 
-    args.This()->SetPointerInInternalField(0, buf);
+    args.This()->SetAlignedPointerInInternalField(0, buf);
 
     args.This()->Set(v8::String::New("byteLength"),
                      v8::Integer::NewFromUnsigned(num_bytes),
@@ -157,8 +157,8 @@ class ArrayBuffer {
 
     if (buffer.IsEmpty()) return v8::Undefined();  // constructor failed
 
-    void* src = args.This()->GetPointerFromInternalField(0);
-    void* dest = buffer->GetPointerFromInternalField(0);
+    void* src = args.This()->GetAlignedPointerFromInternalField(0);
+    void* dest = buffer->GetAlignedPointerFromInternalField(0);
     memcpy(dest, static_cast<char*>(src) + begin, slice_length);
 
     return buffer;
@@ -274,7 +274,7 @@ class TypedArray {
                  GetFunction()->NewInstance(1, argv);
       if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
-      void* buf = buffer->GetPointerFromInternalField(0);
+      void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
           buf, TEAType, length);
       // TODO(deanm): check for failure.
@@ -303,7 +303,7 @@ class TypedArray {
                  GetFunction()->NewInstance(1, argv);
       if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
-      void* buf = buffer->GetPointerFromInternalField(0);
+      void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
           buf, TEAType, length);
       // TODO(deanm): check for failure.

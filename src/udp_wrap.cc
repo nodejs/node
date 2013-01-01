@@ -388,7 +388,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 UDPWrap* UDPWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);
-  return static_cast<UDPWrap*>(obj->GetPointerFromInternalField(0));
+  return static_cast<UDPWrap*>(obj->GetAlignedPointerFromInternalField(0));
 }
 
 

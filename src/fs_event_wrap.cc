@@ -171,7 +171,7 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   // and legal, HandleWrap::Close() deals with them the same way.
   assert(!args.Holder().IsEmpty());
   assert(args.Holder()->InternalFieldCount() > 0);
-  void* ptr = args.Holder()->GetPointerFromInternalField(0);
+  void* ptr = args.Holder()->GetAlignedPointerFromInternalField(0);
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
   if (wrap == NULL || wrap->initialized_ == false) return Undefined();
