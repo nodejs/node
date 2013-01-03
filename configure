@@ -604,15 +604,14 @@ def configure_winsdk(o):
   if not sys.platform.startswith('win32'):
     return
 
-  try:
-    p = subprocess.Popen(['ctrpp.exe'],
-                         stdin=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE)
-  except OSError:
+  winsdk_dir = os.environ.get("WindowsSdkDir")
+
+  if winsdk_dir and os.path.isfile(winsdk_dir + '\\bin\\ctrpp.exe'):
+    print "Found ctrpp in WinSDK--will build generated files into tools/msvs/genfiles."
+    o['variables']['node_has_winsdk'] = 'true'
     return
 
-  o['variables']['node_has_winsdk'] = 'true'
+  print "ctrpp not found in WinSDK path--using pre-gen files from tools/msvs/genfiles."
 
 
 output = {

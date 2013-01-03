@@ -85,10 +85,13 @@ if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
-python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch%
-if errorlevel 1 goto create-msvs-files-failed
-if not exist node.sln goto create-msvs-files-failed
-echo Project files generated.
+SETLOCAL
+  if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
+  python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch%
+  if errorlevel 1 goto create-msvs-files-failed
+  if not exist node.sln goto create-msvs-files-failed
+  echo Project files generated.
+ENDLOCAL
 
 :msbuild
 @rem Skip project generation if requested.
