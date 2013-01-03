@@ -172,6 +172,13 @@ void InitPerfCountersWin32() {
     ZeroMemory(&providerContext, sizeof(providerContext));
     providerContext.ContextSize = sizeof(providerContext);
 
+    if (!perfctr_startProvider ||
+        !perfctr_setCounterSetInfo ||
+        !perfctr_createInstance) {
+      NodeCounterProvider = NULL;
+      return;
+    }
+
     status = perfctr_startProvider(&NodeCounterSetGuid,
                                    &providerContext,
                                    &NodeCounterProvider);
