@@ -67,7 +67,7 @@ function test2(){
     gotWrite = true;
     if (data.length) {
       // repl response error message
-      assert.equal(data.indexOf('A different'), 0);
+      assert.equal(data, '{}\n');
       // original value wasn't overwritten
       assert.equal(val, global.url);
     }
