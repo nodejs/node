@@ -255,7 +255,7 @@ class TypedArray {
       }
 
       void* buf = buffer->GetIndexedPropertiesExternalArrayData();
-      char* begin = reinterpret_cast<char*>(buf) + byte_offset;
+      char* begin = static_cast<char*>(buf) + byte_offset;
 
       if (!checkAlignment(reinterpret_cast<uintptr_t>(begin), TBytes))
         return ThrowRangeError("Byte offset is not aligned.");
@@ -374,7 +374,7 @@ class TypedArray {
         // place as if all the data is first copied into a temporary buffer that
         // does not overlap either of the arrays, and then the data from the
         // temporary buffer is copied into the current array.
-        memmove(reinterpret_cast<char*>(dst_ptr) + offset * TBytes, src_ptr,
+        memmove(static_cast<char*>(dst_ptr) + offset * TBytes, src_ptr,
             src_length * TBytes);
       } else {  // type[]
         if (args[1]->Int32Value() < 0)
@@ -643,7 +643,7 @@ class DataView {
 
     // Like ArrayBuffer, we violate the spec and add an operator[].
     args.This()->SetIndexedPropertiesToExternalArrayData(
-        reinterpret_cast<char*>(buf) + byte_offset,
+        static_cast<char*>(buf) + byte_offset,
         v8::kExternalUnsignedByteArray, byte_length);
 
     args.This()->Set(v8::String::New("buffer"),
@@ -670,7 +670,7 @@ class DataView {
   template <typename T>
   static T getValue(void* ptr, unsigned int index, bool swiz) {
     char buf[sizeof(T)];
-    memcpy(buf, reinterpret_cast<char*>(ptr) + index, sizeof(T));
+    memcpy(buf, static_cast<char*>(ptr) + index, sizeof(T));
     if (swiz)
       swizzle(buf, sizeof(T));
     T val;
@@ -684,7 +684,7 @@ class DataView {
     memcpy(buf, &val, sizeof(T));
     if (swiz)
       swizzle(buf, sizeof(T));
-    memcpy(reinterpret_cast<char*>(ptr) + index, buf, sizeof(T));
+    memcpy(static_cast<char*>(ptr) + index, buf, sizeof(T));
   }
 
   template <typename T>

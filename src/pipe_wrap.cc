@@ -129,7 +129,7 @@ PipeWrap::PipeWrap(Handle<Object> object, bool ipc)
   int r = uv_pipe_init(uv_default_loop(), &handle_, ipc);
   assert(r == 0); // How do we proxy this error up to javascript?
                   // Suggestion: uv_pipe_init() returns void.
-  handle_.data = reinterpret_cast<void*>(this);
+  handle_.data = static_cast<void*>(this);
   UpdateWriteQueueSize();
 }
 

@@ -311,7 +311,7 @@ class QueryWrap {
 
   static void Callback(void *arg, int status, int timeouts,
       unsigned char* answer_buf, int answer_len) {
-    QueryWrap* wrap = reinterpret_cast<QueryWrap*>(arg);
+    QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
     if (status != ARES_SUCCESS) {
       wrap->ParseError(status);
@@ -324,7 +324,7 @@ class QueryWrap {
 
   static void Callback(void *arg, int status, int timeouts,
       struct hostent* host) {
-    QueryWrap* wrap = reinterpret_cast<QueryWrap*>(arg);
+    QueryWrap* wrap = static_cast<QueryWrap*>(arg);
 
     if (status != ARES_SUCCESS) {
       wrap->ParseError(status);

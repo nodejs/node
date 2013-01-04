@@ -75,7 +75,7 @@ class NODE_EXTERN Buffer: public ObjectWrap {
   static inline char* Data(v8::Handle<v8::Value> val) {
     assert(val->IsObject());
     void* data = val.As<v8::Object>()->GetIndexedPropertiesExternalArrayData();
-    return reinterpret_cast<char*>(data);
+    return static_cast<char*>(data);
   }
 
   static inline char* Data(Buffer *b) {

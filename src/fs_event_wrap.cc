@@ -51,7 +51,7 @@ private:
 
 FSEventWrap::FSEventWrap(Handle<Object> object): HandleWrap(object,
                                                     (uv_handle_t*)&handle_) {
-  handle_.data = reinterpret_cast<void*>(this);
+  handle_.data = static_cast<void*>(this);
   initialized_ = false;
 }
 
@@ -119,7 +119,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   HandleScope scope;
   Local<String> eventStr;
 
-  FSEventWrap* wrap = reinterpret_cast<FSEventWrap*>(handle->data);
+  FSEventWrap* wrap = static_cast<FSEventWrap*>(handle->data);
 
   assert(wrap->object_.IsEmpty() == false);
 
