@@ -516,6 +516,7 @@ leaner than `child_process.exec`. It has the same options.
   * `cwd` {String} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
   * `encoding` {String} (Default: 'utf8')
+  * `execPath` {String} Executable used to create the child process
 * Return: ChildProcess object
 
 This is a special case of the `spawn()` functionality for spawning Node
@@ -533,5 +534,11 @@ The child process does not automatically exit once it's done, you need to call
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many
 thousands of them.
+
+The `execPath` property in the `options` object allows for a process to be
+created for the child rather than the current `node` executable. This should be
+done with care and by default will talk over the fd represented an
+environmental variable `NODE_CHANNEL_FD` on the child process. The input and
+output on this fd is expected to be line delimited JSON objects.
 
 [EventEmitter]: events.html#events_class_events_eventemitter
