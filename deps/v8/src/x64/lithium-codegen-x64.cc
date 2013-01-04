@@ -1535,17 +1535,17 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     if (right->IsConstantOperand()) {
       Immediate right_imm =
           Immediate(ToInteger32(LConstantOperand::cast(right)));
-      __ cmpq(left_reg, right_imm);
+      __ cmpl(left_reg, right_imm);
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_imm);
     } else if (right->IsRegister()) {
       Register right_reg = ToRegister(right);
-      __ cmpq(left_reg, right_reg);
+      __ cmpl(left_reg, right_reg);
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_reg);
     } else {
       Operand right_op = ToOperand(right);
-      __ cmpq(left_reg, right_op);
+      __ cmpl(left_reg, right_op);
       __ j(condition, &return_left, Label::kNear);
       __ movq(left_reg, right_op);
     }

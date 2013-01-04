@@ -5444,7 +5444,7 @@ class SharedFunctionInfo: public HeapObject {
   void InstallFromOptimizedCodeMap(JSFunction* function, int index);
 
   // Clear optimized code map.
-  void ClearOptimizedCodeMap();
+  inline void ClearOptimizedCodeMap();
 
   // Add a new entry to the optimized code map.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,

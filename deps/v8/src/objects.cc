@@ -8073,11 +8073,6 @@ bool SharedFunctionInfo::CompileLazy(Handle<SharedFunctionInfo> shared,
 }
 
 
-void SharedFunctionInfo::ClearOptimizedCodeMap() {
-  set_optimized_code_map(Smi::FromInt(0));
-}
-
-
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared,
     Handle<Context> native_context,

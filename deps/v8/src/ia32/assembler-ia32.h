@@ -1015,6 +1015,7 @@ class Assembler : public AssemblerBase {
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void movmskpd(Register dst, XMMRegister src);
+  void movmskps(Register dst, XMMRegister src);
 
   void cmpltsd(XMMRegister dst, XMMRegister src);
   void pcmpeqd(XMMRegister dst, XMMRegister src);

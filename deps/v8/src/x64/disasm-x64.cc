@@ -1244,6 +1244,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     AppendToBuffer("xorps %s, ", NameOfXMMRegister(regop));
     current += PrintRightXMMOperand(current);
 
+  } else if (opcode == 0x50) {
+    // movmskps reg, xmm
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movmskps %s, ", NameOfCPURegister(regop));
+    current += PrintRightXMMOperand(current);
+
   } else if ((opcode & 0xF0) == 0x80) {
     // Jcc: Conditional jump (branch).
     current = data + JumpConditional(data);
@@ -1722,6 +1729,11 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         byte_size_operand_ = true;  // fall through
       case 0xF7:
         data += F6F7Instruction(data);
+        break;
+
+      case 0x3C:
+        AppendToBuffer("cmp al, 0x%x", *reinterpret_cast<int8_t*>(data + 1));
+        data +=2;
         break;
 
       default:

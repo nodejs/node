@@ -1388,6 +1388,7 @@ class Assembler : public AssemblerBase {
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void movmskpd(Register dst, XMMRegister src);
+  void movmskps(Register dst, XMMRegister src);
 
   // The first argument is the reg field, the second argument is the r/m field.
   void emit_sse_operand(XMMRegister dst, XMMRegister src);

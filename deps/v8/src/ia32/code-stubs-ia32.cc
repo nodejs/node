@@ -1745,12 +1745,8 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           }
           // Check result type if it is currently Int32.
           if (result_type_ <= BinaryOpIC::INT32) {
-            __ cvttsd2si(ecx, Operand(xmm0));
-            __ cvtsi2sd(xmm2, ecx);
-            __ pcmpeqd(xmm2, xmm0);
-            __ movmskpd(ecx, xmm2);
-            __ test(ecx, Immediate(1));
-            __ j(zero, &not_int32);
+            FloatingPointHelper::CheckSSE2OperandIsInt32(
+                masm, &not_int32, xmm0, ecx, xmm2);
           }
           BinaryOpStub_GenerateHeapResultAllocation(masm, &call_runtime, mode_);
           __ movdbl(FieldOperand(eax, HeapNumber::kValueOffset), xmm0);
@@ -2858,9 +2854,11 @@ void FloatingPointHelper::CheckSSE2OperandIsInt32(MacroAssembler* masm,
   __ cvttsd2si(scratch, Operand(operand));
   __ cvtsi2sd(xmm_scratch, scratch);
   __ pcmpeqd(xmm_scratch, operand);
-  __ movmskpd(scratch, xmm_scratch);
-  __ test(scratch, Immediate(1));
-  __ j(zero, non_int32);
+  __ movmskps(scratch, xmm_scratch);
+  // Two least significant bits should be both set.
+  __ not_(scratch);
+  __ test(scratch, Immediate(3));
+  __ j(not_zero, non_int32);
 }
 
 

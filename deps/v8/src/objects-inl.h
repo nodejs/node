@@ -4308,11 +4308,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 
 void SharedFunctionInfo::BeforeVisitingPointers() {
   if (IsInobjectSlackTrackingInProgress()) DetachInitialMap();
+}
 
-  // Flush optimized code map on major GC.
-  // Note: we may experiment with rebuilding it or retaining entries
-  // which should survive as we iterate through optimized functions
-  // anyway.
+
+void SharedFunctionInfo::ClearOptimizedCodeMap() {
   set_optimized_code_map(Smi::FromInt(0));
 }
 

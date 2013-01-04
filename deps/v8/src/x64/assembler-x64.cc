@@ -2951,6 +2951,15 @@ void Assembler::movmskpd(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::movmskps(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x50);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
   emit_operand(ireg, adr);
