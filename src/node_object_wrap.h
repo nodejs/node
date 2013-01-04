@@ -112,6 +112,8 @@ class NODE_EXTERN ObjectWrap {
 
  private:
   static void WeakCallback (v8::Persistent<v8::Value> value, void *data) {
+    v8::HandleScope scope;
+
     ObjectWrap *obj = static_cast<ObjectWrap*>(data);
     assert(value == obj->handle_);
     assert(!obj->refs_);
