@@ -23,6 +23,7 @@
 #include <string.h>  // memmove
 
 #include "v8_typed_array.h"
+#include "v8_typed_array_bswap.h"
 #include "node_buffer.h"
 #include "node.h"
 #include "v8.h"
@@ -665,33 +666,20 @@ class DataView {
     return args.This();
   }
 
-  // TODO(deanm): This isn't beautiful or optimal.
-  static void swizzle(char* buf, size_t len) {
-    for (size_t i = 0; i < len / 2; ++i) {
-      char t = buf[i];
-      buf[i] = buf[len - i - 1];
-      buf[len - i - 1] = t;
-    }
-  }
-
   template <typename T>
   static T getValue(void* ptr, unsigned int index, bool swiz) {
-    char buf[sizeof(T)];
-    memcpy(buf, reinterpret_cast<char*>(ptr) + index, sizeof(T));
-    if (swiz)
-      swizzle(buf, sizeof(T));
     T val;
-    memcpy(&val, buf, sizeof(T));
+    memcpy(&val, reinterpret_cast<char*>(ptr) + index, sizeof(T));
+    if (swiz)
+      val = v8_typed_array::SwapBytes(val);
     return val;
   }
 
   template <typename T>
   static void setValue(void* ptr, unsigned int index, T val, bool swiz) {
-    char buf[sizeof(T)];
-    memcpy(buf, &val, sizeof(T));
     if (swiz)
-      swizzle(buf, sizeof(T));
-    memcpy(reinterpret_cast<char*>(ptr) + index, buf, sizeof(T));
+      val = v8_typed_array::SwapBytes(val);
+    memcpy(reinterpret_cast<char*>(ptr) + index, &val, sizeof(T));
   }
 
   template <typename T>
@@ -711,7 +699,12 @@ class DataView {
       return ThrowError("Index out of range.");
 
     void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
-    return cTypeToValue<T>(getValue<T>(ptr, index, !little_endian));
+#if V8_TYPED_ARRAY_LITTLE_ENDIAN
+    bool swiz = !little_endian;
+#else
+    bool swiz = little_endian;
+#endif
+    return cTypeToValue<T>(getValue<T>(ptr, index, swiz));
   }
 
   template <typename T>
@@ -731,7 +724,12 @@ class DataView {
       return ThrowError("Index out of range.");
 
     void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
-    setValue<T>(ptr, index, valueToCType<T>(args[1]), !little_endian);
+#if V8_TYPED_ARRAY_LITTLE_ENDIAN
+    bool swiz = !little_endian;
+#else
+    bool swiz = little_endian;
+#endif
+    setValue<T>(ptr, index, valueToCType<T>(args[1]), swiz);
     return v8::Undefined();
   }
 
