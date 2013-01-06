@@ -28,6 +28,9 @@
 
 namespace node {
 
+// Defined in node.cc
+extern v8::Isolate* node_isolate;
+
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
 // on overflow...

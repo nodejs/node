@@ -148,6 +148,12 @@ static bool use_sni = false;
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 
+static volatile bool debugger_running = false;
+static uv_async_t dispatch_debug_messages_async;
+
+// Declared in node_internals.h
+Isolate* node_isolate = NULL;
+
 
 static void Tick(void) {
   // Avoid entering a V8 scope.
@@ -2537,13 +2543,6 @@ static void ParseArgs(int argc, char **argv) {
 
   option_end_index = i;
 }
-
-
-static Isolate* node_isolate = NULL;
-static volatile bool debugger_running = false;
-
-
-static uv_async_t dispatch_debug_messages_async;
 
 
 // Called from the main thread.
