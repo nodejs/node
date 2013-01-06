@@ -124,7 +124,8 @@ void StreamWrap::SetHandle(uv_handle_t* h) {
 
 void StreamWrap::UpdateWriteQueueSize() {
   HandleScope scope;
-  object_->Set(write_queue_size_sym, Integer::New(stream_->write_queue_size));
+  object_->Set(write_queue_size_sym,
+               Integer::New(stream_->write_queue_size, node_isolate));
 }
 
 
@@ -145,7 +146,7 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -159,7 +160,7 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -204,8 +205,8 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
   int argc = 3;
   Local<Value> argv[4] = {
     slab,
-    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab)),
-    Integer::NewFromUnsigned(nread)
+    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab), node_isolate),
+    Integer::NewFromUnsigned(nread, node_isolate)
   };
 
   Local<Object> pending_obj;
@@ -474,7 +475,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   wrap->UpdateWriteQueueSize();
 
   Local<Value> argv[] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     Local<Value>::New(wrap->object_),
     Local<Value>::New(req_wrap->object_)
   };
@@ -522,7 +523,7 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   }
 
   Local<Value> argv[3] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     Local<Value>::New(wrap->object_),
     Local<Value>::New(req_wrap->object_)
   };

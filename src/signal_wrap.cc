@@ -97,7 +97,7 @@ class SignalWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static Handle<Value> Stop(const Arguments& args) {
@@ -109,7 +109,7 @@ class SignalWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static void OnSignal(uv_signal_t* handle, int signum) {
@@ -118,7 +118,7 @@ class SignalWrap : public HandleWrap {
     SignalWrap* wrap = container_of(handle, SignalWrap, handle_);
     assert(wrap);
 
-    Local<Value> argv[1] = { Integer::New(signum) };
+    Local<Value> argv[1] = { Integer::New(signum, node_isolate) };
     MakeCallback(wrap->object_, onsignal_sym, ARRAY_SIZE(argv), argv);
   }
 

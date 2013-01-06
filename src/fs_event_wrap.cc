@@ -110,7 +110,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -150,7 +150,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   }
 
   Local<Value> argv[3] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     eventStr,
     filename ? (Local<Value>)String::New(filename) : Local<Value>::New(v8::Null())
   };

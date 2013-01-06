@@ -136,8 +136,8 @@ Handle<Value> TTYWrap::GetWindowSize(const Arguments& args) {
   }
 
   Local<v8::Array> a = v8::Array::New(2);
-  a->Set(0, Integer::New(width));
-  a->Set(1, Integer::New(height));
+  a->Set(0, Integer::New(width, node_isolate));
+  a->Set(1, Integer::New(height, node_isolate));
 
   return scope.Close(a);
 }
@@ -154,7 +154,7 @@ Handle<Value> TTYWrap::SetRawMode(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 

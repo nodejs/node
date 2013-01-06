@@ -144,11 +144,11 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
-        argv[1] = Integer::New(req->result);
+        argv[1] = Integer::New(req->result, node_isolate);
         break;
 
       case UV_FS_WRITE:
-        argv[1] = Integer::New(req->result);
+        argv[1] = Integer::New(req->result, node_isolate);
         break;
 
       case UV_FS_STAT:
@@ -163,7 +163,7 @@ static void After(uv_fs_t *req) {
 
       case UV_FS_READ:
         // Buffer interface
-        argv[1] = Integer::New(req->result);
+        argv[1] = Integer::New(req->result, node_isolate);
         break;
 
       case UV_FS_READDIR:
@@ -175,7 +175,7 @@ static void After(uv_fs_t *req) {
 
           for (int i = 0; i < nnames; i++) {
             Local<String> name = String::New(namebuf);
-            names->Set(Integer::New(i), name);
+            names->Set(Integer::New(i, node_isolate), name);
 #ifndef NDEBUG
             namebuf += strlen(namebuf);
             assert(*namebuf == '\0');
@@ -314,7 +314,7 @@ Local<Object> BuildStatsObject(const uv_statbuf_t* s) {
   // and make sure that we bail out when V8 returns an empty handle.
 #define X(name)                                                               \
   {                                                                           \
-    Local<Value> val = Integer::New(s->st_##name);                            \
+    Local<Value> val = Integer::New(s->st_##name, node_isolate);              \
     if (val.IsEmpty()) return Local<Object>();                                \
     stats->Set(name##_symbol, val);                                           \
   }
@@ -620,7 +620,7 @@ static Handle<Value> ReadDir(const Arguments& args) {
 
     for (int i = 0; i < nnames; i++) {
       Local<String> name = String::New(namebuf);
-      names->Set(Integer::New(i), name);
+      names->Set(Integer::New(i, node_isolate), name);
 #ifndef NDEBUG
       namebuf += strlen(namebuf);
       assert(*namebuf == '\0');
@@ -654,7 +654,7 @@ static Handle<Value> Open(const Arguments& args) {
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
     int fd = SYNC_RESULT;
-    return scope.Close(Integer::New(fd));
+    return scope.Close(Integer::New(fd, node_isolate));
   }
 }
 
@@ -707,7 +707,7 @@ static Handle<Value> Write(const Arguments& args) {
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
     SYNC_CALL(write, 0, fd, buf, len, pos)
-    return scope.Close(Integer::New(SYNC_RESULT));
+    return scope.Close(Integer::New(SYNC_RESULT, node_isolate));
   }
 }
 
@@ -770,7 +770,7 @@ static Handle<Value> Read(const Arguments& args) {
     ASYNC_CALL(read, cb, fd, buf, len, pos);
   } else {
     SYNC_CALL(read, 0, fd, buf, len, pos)
-    Local<Integer> bytesRead = Integer::New(SYNC_RESULT);
+    Local<Integer> bytesRead = Integer::New(SYNC_RESULT, node_isolate);
     return scope.Close(bytesRead);
   }
 }

@@ -124,19 +124,20 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   for (i = 0; i < count; i++) {
     Local<Object> times_info = Object::New();
     times_info->Set(String::New("user"),
-      Integer::New(cpu_infos[i].cpu_times.user));
+      Integer::New(cpu_infos[i].cpu_times.user, node_isolate));
     times_info->Set(String::New("nice"),
-      Integer::New(cpu_infos[i].cpu_times.nice));
+      Integer::New(cpu_infos[i].cpu_times.nice, node_isolate));
     times_info->Set(String::New("sys"),
-      Integer::New(cpu_infos[i].cpu_times.sys));
+      Integer::New(cpu_infos[i].cpu_times.sys, node_isolate));
     times_info->Set(String::New("idle"),
-      Integer::New(cpu_infos[i].cpu_times.idle));
+      Integer::New(cpu_infos[i].cpu_times.idle, node_isolate));
     times_info->Set(String::New("irq"),
-      Integer::New(cpu_infos[i].cpu_times.irq));
+      Integer::New(cpu_infos[i].cpu_times.irq, node_isolate));
 
     Local<Object> cpu_info = Object::New();
     cpu_info->Set(String::New("model"), String::New(cpu_infos[i].model));
-    cpu_info->Set(String::New("speed"), Integer::New(cpu_infos[i].speed));
+    cpu_info->Set(String::New("speed"),
+                  Integer::New(cpu_infos[i].speed, node_isolate));
     cpu_info->Set(String::New("times"), times_info);
     (*cpus)->Set(i,cpu_info);
   }

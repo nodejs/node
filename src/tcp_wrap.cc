@@ -260,7 +260,7 @@ Handle<Value> TCPWrap::Bind(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -278,7 +278,7 @@ Handle<Value> TCPWrap::Bind6(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -294,7 +294,7 @@ Handle<Value> TCPWrap::Listen(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -347,7 +347,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
   }
 
   Local<Value> argv[5] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     Local<Value>::New(wrap->object_),
     Local<Value>::New(req_wrap->object_),
     Local<Value>::New(v8::True()),
@@ -448,7 +448,7 @@ Local<Object> AddressToJS(const sockaddr* addr) {
     port = ntohs(a6->sin6_port);
     info->Set(address_sym, String::New(ip));
     info->Set(family_sym, ipv6_sym);
-    info->Set(port_sym, Integer::New(port));
+    info->Set(port_sym, Integer::New(port, node_isolate));
     break;
 
   case AF_INET:
@@ -457,7 +457,7 @@ Local<Object> AddressToJS(const sockaddr* addr) {
     port = ntohs(a4->sin_port);
     info->Set(address_sym, String::New(ip));
     info->Set(family_sym, ipv4_sym);
-    info->Set(port_sym, Integer::New(port));
+    info->Set(port_sym, Integer::New(port, node_isolate));
     break;
 
   default:

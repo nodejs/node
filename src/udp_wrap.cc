@@ -140,7 +140,7 @@ Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
   if (r)
     SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -157,12 +157,12 @@ Handle<Value> UDPWrap::Bind6(const Arguments& args) {
 #define X(name, fn)                                                           \
   Handle<Value> UDPWrap::name(const Arguments& args) {                        \
     HandleScope scope;                                                        \
-    UNWRAP(UDPWrap)                                                                    \
+    UNWRAP(UDPWrap)                                                           \
     assert(args.Length() == 1);                                               \
     int flag = args[0]->Int32Value();                                         \
     int r = fn(&wrap->handle_, flag);                                         \
     if (r) SetErrno(uv_last_error(uv_default_loop()));                        \
-    return scope.Close(Integer::New(r));                                      \
+    return scope.Close(Integer::New(r, node_isolate));                        \
   }
 
 X(SetTTL, uv_udp_set_ttl)
@@ -194,7 +194,7 @@ Handle<Value> UDPWrap::SetMembership(const Arguments& args,
   if (r)
     SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -294,7 +294,7 @@ Handle<Value> UDPWrap::RecvStop(const Arguments& args) {
 
   int r = uv_udp_recv_stop(&wrap->handle_);
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -336,7 +336,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   }
 
   Local<Value> argv[4] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     Local<Value>::New(wrap->object_),
     Local<Value>::New(req_wrap->object_),
     req_wrap->object_->GetHiddenValue(buffer_sym),
@@ -377,8 +377,8 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   Local<Value> argv[] = {
     Local<Object>::New(wrap->object_),
     slab,
-    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab)),
-    Integer::NewFromUnsigned(nread),
+    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab), node_isolate),
+    Integer::NewFromUnsigned(nread, node_isolate),
     AddressToJS(addr)
   };
   MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);

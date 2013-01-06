@@ -146,7 +146,7 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
   // Error starting the pipe.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -177,7 +177,7 @@ Handle<Value> PipeWrap::Listen(const Arguments& args) {
   // Error starting the pipe.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -238,7 +238,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   }
 
   Local<Value> argv[5] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     Local<Value>::New(wrap->object_),
     Local<Value>::New(req_wrap->object_),
     Local<Value>::New(Boolean::New(readable)),

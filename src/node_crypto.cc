@@ -1308,7 +1308,7 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
     ss->SetShutdownFlags();
   }
 
-  return scope.Close(Integer::New(bytes_written));
+  return scope.Close(Integer::New(bytes_written, node_isolate));
 }
 
 
@@ -1353,14 +1353,14 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
       ss->HandleSSLError("SSL_connect:ClearOut", rv, kZeroIsAnError);
     }
 
-    if (rv < 0) return scope.Close(Integer::New(rv));
+    if (rv < 0) return scope.Close(Integer::New(rv, node_isolate));
   }
 
   int bytes_read = SSL_read(ss->ssl_, buffer_data + off, len);
   ss->HandleSSLError("SSL_read:ClearOut", bytes_read, kZeroIsNotAnError);
   ss->SetShutdownFlags();
 
-  return scope.Close(Integer::New(bytes_read));
+  return scope.Close(Integer::New(bytes_read, node_isolate));
 }
 
 
@@ -1370,7 +1370,7 @@ Handle<Value> Connection::ClearPending(const Arguments& args) {
   Connection *ss = Connection::Unwrap(args);
 
   int bytes_pending = BIO_pending(ss->bio_read_);
-  return scope.Close(Integer::New(bytes_pending));
+  return scope.Close(Integer::New(bytes_pending, node_isolate));
 }
 
 
@@ -1380,7 +1380,7 @@ Handle<Value> Connection::EncPending(const Arguments& args) {
   Connection *ss = Connection::Unwrap(args);
 
   int bytes_pending = BIO_pending(ss->bio_write_);
-  return scope.Close(Integer::New(bytes_pending));
+  return scope.Close(Integer::New(bytes_pending, node_isolate));
 }
 
 
@@ -1419,7 +1419,7 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
   ss->HandleBIOError(ss->bio_write_, "BIO_read:EncOut", bytes_read);
   ss->SetShutdownFlags();
 
-  return scope.Close(Integer::New(bytes_read));
+  return scope.Close(Integer::New(bytes_read, node_isolate));
 }
 
 
@@ -1463,7 +1463,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
       ss->HandleSSLError("SSL_connect:ClearIn", rv, kZeroIsAnError);
     }
 
-    if (rv < 0) return scope.Close(Integer::New(rv));
+    if (rv < 0) return scope.Close(Integer::New(rv, node_isolate));
   }
 
   int bytes_written = SSL_write(ss->ssl_, buffer_data + off, len);
@@ -1471,7 +1471,7 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
   ss->HandleSSLError("SSL_write:ClearIn", bytes_written, kZeroIsAnError);
   ss->SetShutdownFlags();
 
-  return scope.Close(Integer::New(bytes_written));
+  return scope.Close(Integer::New(bytes_written, node_isolate));
 }
 
 
@@ -1582,7 +1582,7 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
       for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
         memset(buf, 0, sizeof(buf));
         OBJ_obj2txt(buf, sizeof(buf) - 1, sk_ASN1_OBJECT_value(eku, i), 1);
-        ext_key_usage->Set(Integer::New(i), String::New(buf));
+        ext_key_usage->Set(Integer::New(i, node_isolate), String::New(buf));
       }
 
       sk_ASN1_OBJECT_pop_free(eku, ASN1_OBJECT_free);
@@ -1711,10 +1711,10 @@ Handle<Value> Connection::Start(const Arguments& args) {
       ss->HandleSSLError("SSL_connect:Start", rv, kZeroIsAnError);
     }
 
-    return scope.Close(Integer::New(rv));
+    return scope.Close(Integer::New(rv, node_isolate));
   }
 
-  return scope.Close(Integer::New(0));
+  return scope.Close(Integer::New(0, node_isolate));
 }
 
 
@@ -1728,7 +1728,7 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
   ss->HandleSSLError("SSL_shutdown", rv, kZeroIsNotAnError);
   ss->SetShutdownFlags();
 
-  return scope.Close(Integer::New(rv));
+  return scope.Close(Integer::New(rv, node_isolate));
 }
 
 

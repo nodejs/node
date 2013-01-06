@@ -71,7 +71,7 @@ void SlabAllocator::Initialize() {
 
 static Local<Object> NewSlab(unsigned int size) {
   HandleScope scope;
-  Local<Value> arg = Integer::NewFromUnsigned(ROUND_UP(size, 16));
+  Local<Value> arg = Integer::NewFromUnsigned(ROUND_UP(size, 16), node_isolate);
   Local<Object> buf = Buffer::constructor_template
                       ->GetFunction()
                       ->NewInstance(1, &arg);

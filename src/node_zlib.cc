@@ -244,8 +244,8 @@ class ZCtx : public ObjectWrap {
         return;
     }
 
-    Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
-    Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in);
+    Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out, node_isolate);
+    Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in, node_isolate);
 
     ctx->write_in_progress_ = false;
 
