@@ -114,7 +114,7 @@ Local<Object> SlabAllocator::Shrink(Handle<Object> obj,
                                     unsigned int size) {
   HandleScope scope;
   Local<Value> slab_v = obj->GetHiddenValue(slab_sym_);
-  obj->SetHiddenValue(slab_sym_, Null());
+  obj->SetHiddenValue(slab_sym_, Null(node_isolate));
   assert(!slab_v.IsEmpty());
   assert(slab_v->IsObject());
   Local<Object> slab = slab_v->ToObject();

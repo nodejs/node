@@ -160,7 +160,7 @@ Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
 
   uv_pipe_pending_instances(&wrap->handle_, instances);
 
-  return v8::Null();
+  return v8::Null(node_isolate);
 }
 #endif
 
@@ -263,7 +263,7 @@ Handle<Value> PipeWrap::Open(const Arguments& args) {
 
   uv_pipe_open(&wrap->handle_, fd);
 
-  return scope.Close(v8::Null());
+  return scope.Close(v8::Null(node_isolate));
 }
 
 

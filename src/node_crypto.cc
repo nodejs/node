@@ -1095,7 +1095,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
 
   switch (status) {
     case OPENSSL_NPN_UNSUPPORTED:
-      p->selectedNPNProto_ = Persistent<Value>::New(Null());
+      p->selectedNPNProto_ = Persistent<Value>::New(Null(node_isolate));
       break;
     case OPENSSL_NPN_NEGOTIATED:
       p->selectedNPNProto_ = Persistent<Value>::New(String::New(
@@ -1617,7 +1617,7 @@ Handle<Value> Connection::GetSession(const Arguments& args) {
     return scope.Close(s);
   }
 
-  return Null();
+  return Null(node_isolate);
 }
 
 Handle<Value> Connection::SetSession(const Arguments& args) {
@@ -1768,7 +1768,7 @@ Handle<Value> Connection::VerifyError(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return Null();
+  if (ss->ssl_ == NULL) return Null(node_isolate);
 
 
   // XXX Do this check in JS land?
@@ -1789,7 +1789,7 @@ Handle<Value> Connection::VerifyError(const Arguments& args) {
 
   switch (x509_verify_error) {
     case X509_V_OK:
-      return Null();
+      return Null(node_isolate);
 
     case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
       s = String::New("UNABLE_TO_GET_ISSUER_CERT");
@@ -3898,12 +3898,12 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
       ERR_error_string_n(req->error_, errmsg, sizeof errmsg);
 
     argv[0] = Exception::Error(String::New(errmsg));
-    argv[1] = Local<Value>::New(node_isolate, Null());
+    argv[1] = Local<Value>::New(node_isolate, Null(node_isolate));
   }
   else {
     // avoids the malloc + memcpy
     Buffer* buffer = Buffer::New(req->data_, req->size_, RandomBytesFree, NULL);
-    argv[0] = Local<Value>::New(node_isolate, Null());
+    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
     argv[1] = Local<Object>::New(node_isolate, buffer->handle_);
   }
 }

@@ -685,7 +685,7 @@ static Handle<Value> Query(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(object);
   }
@@ -715,7 +715,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(object);
   }
@@ -732,7 +732,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status) {
     // Error
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Local<Value>::New(node_isolate, Null());
+    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
   } else {
     // Success
     struct addrinfo *address;
@@ -871,7 +871,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(req_wrap->object_);
   }

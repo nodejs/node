@@ -97,7 +97,7 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
     wrap->handle__ = NULL;
   }
 
-  return v8::Null();
+  return v8::Null(node_isolate);
 }
 
 

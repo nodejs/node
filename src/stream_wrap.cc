@@ -264,7 +264,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
     uv_err_t err;
     err.code = UV_ENOBUFS;
     SetErrno(err);
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   }
 
   char* storage = new char[sizeof(WriteWrap)];
@@ -291,7 +291,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
     req_wrap->~WriteWrap();
     delete[] storage;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     if (wrap->stream_->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(length);
@@ -354,7 +354,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
     uv_err_t err;
     err.code = UV_ENOBUFS;
     SetErrno(err);
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   }
 
   char* storage = new char[sizeof(WriteWrap) + storage_size + 15];
@@ -430,7 +430,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
     req_wrap->~WriteWrap();
     delete[] storage;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     if (wrap->stream_->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(buf.len);
@@ -501,7 +501,7 @@ Handle<Value> StreamWrap::Shutdown(const Arguments& args) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(req_wrap->object_);
   }

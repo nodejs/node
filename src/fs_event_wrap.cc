@@ -153,7 +153,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     Integer::New(status, node_isolate),
     eventStr,
     filename ? static_cast<Local<Value> >(String::New(filename))
-             : Local<Value>::New(node_isolate, v8::Null())
+             : Local<Value>::New(node_isolate, v8::Null(node_isolate))
   };
 
   if (onchange_sym.IsEmpty()) {
