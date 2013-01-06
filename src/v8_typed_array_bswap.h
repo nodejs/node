@@ -143,26 +143,57 @@ inline uint64_t SwapBytes(uint64_t x) { return V8_TYPED_ARRAY_BSWAP64(x); }
 template <>
 inline int64_t SwapBytes(int64_t x) { return V8_TYPED_ARRAY_BSWAP64(x); }
 
-template <>
-inline float SwapBytes(float x) {
-  typedef char VerifySizesAreEqual[sizeof(uint32_t) == sizeof(float) ? 1 : -1];
-  uint32_t swappable;
-  float result;
-  memcpy(&swappable, &x, sizeof(x));
-  swappable = SwapBytes(swappable);
-  memcpy(&result, &swappable, sizeof(x));
-  return result;
+template <typename T>  // General implementation for all non-FP types.
+inline T LoadAndSwapBytes(void* ptr) {
+  T val;
+  memcpy(&val, ptr, sizeof(T));
+  return SwapBytes(val);
 }
 
 template <>
-inline double SwapBytes(double x) {
+inline float LoadAndSwapBytes<float>(void* ptr) {
+  typedef char VerifySizesAreEqual[sizeof(uint32_t) == sizeof(float) ? 1 : -1];
+  uint32_t swappable;
+  float val;
+  memcpy(&swappable, ptr, sizeof(swappable));
+  swappable = SwapBytes(swappable);
+  memcpy(&val, &swappable, sizeof(swappable));
+  return val;
+}
+
+template <>
+inline double LoadAndSwapBytes<double>(void* ptr) {
   typedef char VerifySizesAreEqual[sizeof(uint64_t) == sizeof(double) ? 1 : -1];
   uint64_t swappable;
-  double result;
-  memcpy(&swappable, &x, sizeof(x));
+  double val;
+  memcpy(&swappable, ptr, sizeof(swappable));
   swappable = SwapBytes(swappable);
-  memcpy(&result, &swappable, sizeof(x));
-  return result;
+  memcpy(&val, &swappable, sizeof(swappable));
+  return val;
+}
+
+template <typename T>  // General implementation for all non-FP types.
+inline void SwapBytesAndStore(void* ptr, T val) {
+  val = SwapBytes(val);
+  memcpy(ptr, &val, sizeof(T));
+}
+
+template <>
+inline void SwapBytesAndStore(void* ptr, float val) {
+  typedef char VerifySizesAreEqual[sizeof(uint32_t) == sizeof(float) ? 1 : -1];
+  uint32_t swappable;
+  memcpy(&swappable, &val, sizeof(swappable));
+  swappable = SwapBytes(swappable);
+  memcpy(ptr, &swappable, sizeof(swappable));
+}
+
+template <>
+inline void SwapBytesAndStore(void* ptr, double val) {
+  typedef char VerifySizesAreEqual[sizeof(uint64_t) == sizeof(double) ? 1 : -1];
+  uint64_t swappable;
+  memcpy(&swappable, &val, sizeof(swappable));
+  swappable = SwapBytes(swappable);
+  memcpy(ptr, &swappable, sizeof(swappable));
 }
 
 }  // namespace v8_typed_array

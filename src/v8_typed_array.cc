@@ -667,22 +667,6 @@ class DataView {
   }
 
   template <typename T>
-  static T getValue(void* ptr, unsigned int index, bool swiz) {
-    T val;
-    memcpy(&val, reinterpret_cast<char*>(ptr) + index, sizeof(T));
-    if (swiz)
-      val = v8_typed_array::SwapBytes(val);
-    return val;
-  }
-
-  template <typename T>
-  static void setValue(void* ptr, unsigned int index, T val, bool swiz) {
-    if (swiz)
-      val = v8_typed_array::SwapBytes(val);
-    memcpy(reinterpret_cast<char*>(ptr) + index, &val, sizeof(T));
-  }
-
-  template <typename T>
   static v8::Handle<v8::Value> getGeneric(const v8::Arguments& args) {
     if (args.Length() < 1)
       return ThrowError("Wrong number of arguments.");
@@ -698,13 +682,20 @@ class DataView {
     if (index + sizeof(T) > (unsigned)size)  // TODO(deanm): integer overflow.
       return ThrowError("Index out of range.");
 
-    void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
+    void* ptr = reinterpret_cast<char*>(
+        args.This()->GetIndexedPropertiesExternalArrayData()) + index;
+
+    T val;
 #if V8_TYPED_ARRAY_LITTLE_ENDIAN
-    bool swiz = !little_endian;
+    if (!little_endian) {
 #else
-    bool swiz = little_endian;
+    if (little_endian) {
 #endif
-    return cTypeToValue<T>(getValue<T>(ptr, index, swiz));
+      val = v8_typed_array::LoadAndSwapBytes<T>(ptr);
+    } else {
+      memcpy(&val, ptr, sizeof(T));
+    }
+    return cTypeToValue<T>(val);
   }
 
   template <typename T>
@@ -723,13 +714,19 @@ class DataView {
     if (index + sizeof(T) > (unsigned)size)  // TODO(deanm): integer overflow.
       return ThrowError("Index out of range.");
 
-    void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
+    void* ptr = reinterpret_cast<char*>(
+        args.This()->GetIndexedPropertiesExternalArrayData()) + index;
+
+    T val = valueToCType<T>(args[1]);
 #if V8_TYPED_ARRAY_LITTLE_ENDIAN
-    bool swiz = !little_endian;
+    if (!little_endian) {
 #else
-    bool swiz = little_endian;
+    if (little_endian) {
 #endif
-    setValue<T>(ptr, index, valueToCType<T>(args[1]), swiz);
+      v8_typed_array::SwapBytesAndStore<T>(ptr, val);
+    } else {
+      memcpy(ptr, &val, sizeof(T));
+    }
     return v8::Undefined();
   }
 
