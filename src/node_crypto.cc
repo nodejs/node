@@ -1137,7 +1137,8 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
       Local<Value> argv[1] = {*p->servername_};
 
       // Call it
-      Local<Value> ret = Local<Value>::New(MakeCallback(p->sniObject_,
+      Local<Value> ret = Local<Value>::New(node_isolate,
+                                           MakeCallback(p->sniObject_,
                                                         "onselect",
                                                         ARRAY_SIZE(argv),
                                                         argv));
@@ -3713,12 +3714,12 @@ void EIO_PBKDF2(uv_work_t* work_req) {
 
 void EIO_PBKDF2After(pbkdf2_req* req, Local<Value> argv[2]) {
   if (req->err) {
-    argv[0] = Local<Value>::New(Undefined());
+    argv[0] = Local<Value>::New(node_isolate, Undefined());
     argv[1] = Encode(req->key, req->keylen, BUFFER);
     memset(req->key, 0, req->keylen);
   } else {
     argv[0] = Exception::Error(String::New("PBKDF2 error"));
-    argv[1] = Local<Value>::New(Undefined());
+    argv[1] = Local<Value>::New(node_isolate, Undefined());
   }
 
   delete[] req->pass;
@@ -3891,13 +3892,13 @@ void RandomBytesCheck(RandomBytesRequest* req, Local<Value> argv[2]) {
       ERR_error_string_n(req->error_, errmsg, sizeof errmsg);
 
     argv[0] = Exception::Error(String::New(errmsg));
-    argv[1] = Local<Value>::New(Null());
+    argv[1] = Local<Value>::New(node_isolate, Null());
   }
   else {
     // avoids the malloc + memcpy
     Buffer* buffer = Buffer::New(req->data_, req->size_, RandomBytesFree, NULL);
-    argv[0] = Local<Value>::New(Null());
-    argv[1] = Local<Object>::New(buffer->handle_);
+    argv[0] = Local<Value>::New(node_isolate, Null());
+    argv[1] = Local<Object>::New(node_isolate, buffer->handle_);
   }
 }
 

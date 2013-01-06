@@ -270,7 +270,8 @@ class ZCtx : public ObjectWrap {
            "Invalid error handler");
     HandleScope scope;
     Local<Value> args[2] = { String::New(msg),
-                             Local<Value>::New(Number::New(ctx->err_)) };
+                             Local<Value>::New(node_isolate,
+                                               Number::New(ctx->err_)) };
     MakeCallback(ctx->handle_, onerror_sym, ARRAY_SIZE(args), args);
 
     // no hope of rescue.

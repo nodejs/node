@@ -677,7 +677,7 @@ static Handle<Value> Query(const Arguments& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(wrap->GetObject());
+  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
 
   String::Utf8Value name(args[0]);
 
@@ -706,7 +706,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(wrap->GetObject());
+  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
 
   String::Utf8Value name(args[0]);
   int family = args[1]->Int32Value();
@@ -732,7 +732,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status) {
     // Error
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Local<Value>::New(Null());
+    argv[0] = Local<Value>::New(node_isolate, Null());
   } else {
     // Success
     struct addrinfo *address;

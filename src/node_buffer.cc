@@ -116,7 +116,7 @@ Handle<Object> Buffer::New(Handle<String> string) {
   assert(bv->IsFunction());
   Local<Function> b = Local<Function>::Cast(bv);
 
-  Local<Value> argv[1] = { Local<Value>::New(string) };
+  Local<Value> argv[1] = { Local<Value>::New(node_isolate, string) };
   Local<Object> instance = b->NewInstance(1, argv);
 
   return scope.Close(instance);

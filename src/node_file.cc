@@ -113,7 +113,7 @@ static void After(uv_fs_t *req) {
     }
   } else {
     // error value is empty or null for non-error.
-    argv[0] = Local<Value>::New(Null());
+    argv[0] = Local<Value>::New(node_isolate, Null());
 
     // All have at least two args now.
     argc = 2;

@@ -239,10 +239,10 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
 
   Local<Value> argv[5] = {
     Integer::New(status, node_isolate),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_),
-    Local<Value>::New(Boolean::New(readable)),
-    Local<Value>::New(Boolean::New(writable))
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_),
+    Local<Value>::New(node_isolate, Boolean::New(readable)),
+    Local<Value>::New(node_isolate, Boolean::New(writable))
   };
 
   if (oncomplete_sym.IsEmpty()) {

@@ -476,8 +476,8 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 
   Local<Value> argv[] = {
     Integer::New(status, node_isolate),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_)
   };
 
   MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
@@ -524,8 +524,8 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
 
   Local<Value> argv[3] = {
     Integer::New(status, node_isolate),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_)
   };
 
   MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);

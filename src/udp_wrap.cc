@@ -337,8 +337,8 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
 
   Local<Value> argv[4] = {
     Integer::New(status, node_isolate),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_),
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_),
     req_wrap->object_->GetHiddenValue(buffer_sym),
   };
 
@@ -368,14 +368,14 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   if (nread == 0) return;
 
   if (nread < 0) {
-    Local<Value> argv[] = { Local<Object>::New(wrap->object_) };
+    Local<Value> argv[] = { Local<Object>::New(node_isolate, wrap->object_) };
     SetErrno(uv_last_error(uv_default_loop()));
     MakeCallback(wrap->object_, onmessage_sym, ARRAY_SIZE(argv), argv);
     return;
   }
 
   Local<Value> argv[] = {
-    Local<Object>::New(wrap->object_),
+    Local<Object>::New(node_isolate, wrap->object_),
     slab,
     Integer::NewFromUnsigned(buf.base - Buffer::Data(slab), node_isolate),
     Integer::NewFromUnsigned(nread, node_isolate),

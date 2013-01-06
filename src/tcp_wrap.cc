@@ -325,7 +325,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     argv[0] = client_obj;
   } else {
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Local<Value>::New(Null());
+    argv[0] = Local<Value>::New(node_isolate, Null());
   }
 
   MakeCallback(wrap->object_, onconnection_sym, ARRAY_SIZE(argv), argv);
@@ -348,10 +348,10 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
 
   Local<Value> argv[5] = {
     Integer::New(status, node_isolate),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_),
-    Local<Value>::New(v8::True()),
-    Local<Value>::New(v8::True())
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_),
+    Local<Value>::New(node_isolate, v8::True()),
+    Local<Value>::New(node_isolate, v8::True())
   };
 
   MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);

@@ -947,8 +947,8 @@ MakeCallback(const Handle<Object> object,
     argArray->Set(Integer::New(i, node_isolate), argv[i]);
   }
 
-  Local<Value> object_l = Local<Value>::New(object);
-  Local<Value> callback_l = Local<Value>::New(callback);
+  Local<Value> object_l = Local<Value>::New(node_isolate, object);
+  Local<Value> callback_l = Local<Value>::New(node_isolate, callback);
 
   Local<Value> args[3] = { object_l, callback_l, argArray };
 
@@ -2401,7 +2401,7 @@ void Load(Handle<Object> process_l) {
 
   // Add a reference to the global object
   Local<Object> global = v8::Context::GetCurrent()->Global();
-  Local<Value> args[1] = { Local<Value>::New(process_l) };
+  Local<Value> args[1] = { Local<Value>::New(node_isolate, process_l) };
 
 #if defined HAVE_DTRACE || defined HAVE_ETW || defined HAVE_SYSTEMTAP
   InitDTrace(global);
