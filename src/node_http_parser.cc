@@ -170,7 +170,7 @@ struct StringPtr {
     if (str_)
       return String::New(str_, size_);
     else
-      return String::Empty();
+      return String::Empty(node_isolate);
   }
 
 

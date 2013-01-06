@@ -1035,7 +1035,7 @@ Local<Value> Encode(const void *buf, size_t len, enum encoding encoding) {
         Buffer::New(static_cast<const char*>(buf), len)->handle_);
   }
 
-  if (!len) return scope.Close(String::Empty());
+  if (!len) return scope.Close(String::Empty(node_isolate));
 
   if (encoding == BINARY) {
     const unsigned char *cbuf = static_cast<const unsigned char*>(buf);

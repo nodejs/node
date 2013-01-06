@@ -461,7 +461,7 @@ Local<Object> AddressToJS(const sockaddr* addr) {
     break;
 
   default:
-    info->Set(address_sym, String::Empty());
+    info->Set(address_sym, String::Empty(node_isolate));
   }
 
   return scope.Close(info);

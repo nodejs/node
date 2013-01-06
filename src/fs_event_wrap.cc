@@ -136,7 +136,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   // unreasonable, right? Still, we should revisit this before v1.0.
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
-    eventStr = String::Empty();
+    eventStr = String::Empty(node_isolate);
   }
   else if (events & UV_RENAME) {
     eventStr = String::New("rename");
