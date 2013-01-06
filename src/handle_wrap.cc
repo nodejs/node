@@ -66,7 +66,7 @@ Handle<Value> HandleWrap::Ref(const Arguments& args) {
     wrap->unref_ = false;
   }
 
-  return v8::Undefined();
+  return v8::Undefined(node_isolate);
 }
 
 
@@ -80,7 +80,7 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
     wrap->unref_ = true;
   }
 
-  return v8::Undefined();
+  return v8::Undefined(node_isolate);
 }
 
 

@@ -93,7 +93,7 @@ class ZCtx : public ObjectWrap {
     HandleScope scope;
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
     ctx->Close();
-    return scope.Close(Undefined());
+    return scope.Close(Undefined(node_isolate));
   }
 
 
@@ -333,7 +333,7 @@ class ZCtx : public ObjectWrap {
     Init(ctx, level, windowBits, memLevel, strategy,
          dictionary, dictionary_len);
     SetDictionary(ctx);
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   static Handle<Value> Reset(const Arguments &args) {
@@ -343,7 +343,7 @@ class ZCtx : public ObjectWrap {
 
     Reset(ctx);
     SetDictionary(ctx);
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,

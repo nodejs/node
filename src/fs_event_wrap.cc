@@ -175,7 +175,9 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   void* ptr = args.Holder()->GetAlignedPointerFromInternalField(0);
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
-  if (wrap == NULL || wrap->initialized_ == false) return Undefined();
+  if (wrap == NULL || wrap->initialized_ == false) {
+    return Undefined(node_isolate);
+  }
   wrap->initialized_ = false;
 
   return HandleWrap::Close(args);

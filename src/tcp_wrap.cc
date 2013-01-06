@@ -209,7 +209,7 @@ Handle<Value> TCPWrap::SetNoDelay(const Arguments& args) {
   if (r)
     SetErrno(uv_last_error(uv_default_loop()));
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -225,7 +225,7 @@ Handle<Value> TCPWrap::SetKeepAlive(const Arguments& args) {
   if (r)
     SetErrno(uv_last_error(uv_default_loop()));
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -241,7 +241,7 @@ Handle<Value> TCPWrap::SetSimultaneousAccepts(const Arguments& args) {
   if (r)
     SetErrno(uv_last_error(uv_default_loop()));
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 #endif
 

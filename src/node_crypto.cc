@@ -1481,7 +1481,7 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return Undefined();
+  if (ss->ssl_ == NULL) return Undefined(node_isolate);
   Local<Object> info = Object::New();
   X509* peer_cert = SSL_get_peer_certificate(ss->ssl_);
   if (peer_cert != NULL) {
@@ -1600,10 +1600,10 @@ Handle<Value> Connection::GetSession(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return Undefined();
+  if (ss->ssl_ == NULL) return Undefined(node_isolate);
 
   SSL_SESSION* sess = SSL_get_session(ss->ssl_);
-  if (!sess) return Undefined();
+  if (!sess) return Undefined(node_isolate);
 
   int slen = i2d_SSL_SESSION(sess, NULL);
   assert(slen > 0);
@@ -1650,7 +1650,7 @@ Handle<Value> Connection::SetSession(const Arguments& args) {
   delete [] sbuf;
 
   if (!sess)
-    return Undefined();
+    return Undefined(node_isolate);
 
   int r = SSL_set_session(ss->ssl_, sess);
   SSL_SESSION_free(sess);
@@ -1915,9 +1915,9 @@ Handle<Value> Connection::GetCurrentCipher(const Arguments& args) {
 
   OPENSSL_CONST SSL_CIPHER *c;
 
-  if ( ss->ssl_ == NULL ) return Undefined();
+  if ( ss->ssl_ == NULL ) return Undefined(node_isolate);
   c = SSL_get_current_cipher(ss->ssl_);
-  if ( c == NULL ) return Undefined();
+  if ( c == NULL ) return Undefined(node_isolate);
   Local<Object> info = Object::New();
   const char* cipher_name = SSL_CIPHER_get_name(c);
   info->Set(name_symbol, String::New(cipher_name));
@@ -2251,7 +2251,7 @@ class Cipher : public ObjectWrap {
 
     cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
 
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   static Handle<Value> CipherFinal(const Arguments& args) {
@@ -2571,7 +2571,7 @@ class Decipher : public ObjectWrap {
 
     cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
 
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   static Handle<Value> DecipherFinal(const Arguments& args) {
@@ -3720,12 +3720,12 @@ void EIO_PBKDF2(uv_work_t* work_req) {
 
 void EIO_PBKDF2After(pbkdf2_req* req, Local<Value> argv[2]) {
   if (req->err) {
-    argv[0] = Local<Value>::New(node_isolate, Undefined());
+    argv[0] = Local<Value>::New(node_isolate, Undefined(node_isolate));
     argv[1] = Encode(req->key, req->keylen, BUFFER);
     memset(req->key, 0, req->keylen);
   } else {
     argv[0] = Exception::Error(String::New("PBKDF2 error"));
-    argv[1] = Local<Value>::New(node_isolate, Undefined());
+    argv[1] = Local<Value>::New(node_isolate, Undefined(node_isolate));
   }
 
   delete[] req->pass;
@@ -3827,7 +3827,7 @@ Handle<Value> PBKDF2(const Arguments& args) {
                   &req->work_req,
                   EIO_PBKDF2,
                   EIO_PBKDF2After);
-    return Undefined();
+    return Undefined(node_isolate);
   } else {
     Local<Value> argv[2];
     EIO_PBKDF2(req);

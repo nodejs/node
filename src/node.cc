@@ -205,7 +205,7 @@ static void StartTickSpinner() {
 
 static Handle<Value> NeedTickCallback(const Arguments& args) {
   StartTickSpinner();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -956,7 +956,7 @@ MakeCallback(const Handle<Object> object,
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(ret);
@@ -1312,7 +1312,7 @@ Handle<Value> GetActiveHandles(const Arguments& args) {
 
 static Handle<Value> Abort(const Arguments& args) {
   abort();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1331,7 +1331,7 @@ static Handle<Value> Chdir(const Arguments& args) {
     return ThrowException(UVException(r.code, "uv_chdir"));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1529,7 +1529,7 @@ static Handle<Value> SetGid(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "setgid"));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1550,7 +1550,7 @@ static Handle<Value> SetUid(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "setuid"));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1620,7 +1620,7 @@ static Handle<Value> SetGroups(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "setgroups"));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1669,7 +1669,7 @@ static Handle<Value> InitGroups(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "initgroups"));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 #endif // __POSIX__
@@ -1678,7 +1678,7 @@ static Handle<Value> InitGroups(const Arguments& args) {
 v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
   HandleScope scope;
   exit(args[0]->IntegerValue());
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1689,7 +1689,7 @@ static Handle<Value> Uptime(const Arguments& args) {
   uv_err_t err = uv_uptime(&uptime);
 
   if (err.code != UV_OK) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(uptime - prog_start_time));
@@ -1747,7 +1747,7 @@ Handle<Value> Kill(const Arguments& args) {
     return scope.Close(Integer::New(-1, node_isolate));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 // used in Hrtime() below
@@ -1873,7 +1873,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 
   // Tell coverity that 'handle' should not be freed when we return.
   // coverity[leaked_storage]
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -2630,7 +2630,7 @@ Handle<Value> DebugProcess(const Arguments& args) {
     return ThrowException(ErrnoException(errno, "kill"));
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 #endif // __POSIX__
 
@@ -2703,7 +2703,7 @@ static int RegisterDebugSignalHandler() {
 
 static Handle<Value> DebugProcess(const Arguments& args) {
   HandleScope scope;
-  Handle<Value> rv = Undefined();
+  Handle<Value> rv = Undefined(node_isolate);
   DWORD pid;
   HANDLE process = NULL;
   HANDLE thread = NULL;
@@ -2787,14 +2787,14 @@ static Handle<Value> DebugProcess(const Arguments& args) {
     CloseHandle(mapping);
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 #endif // _WIN32
 
 
 static Handle<Value> DebugPause(const Arguments& args) {
   v8::Debug::DebugBreak(node_isolate);
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -2804,7 +2804,7 @@ static Handle<Value> DebugEnd(const Arguments& args) {
     debugger_running = false;
   }
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 

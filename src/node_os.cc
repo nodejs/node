@@ -98,7 +98,7 @@ static Handle<Value> GetOSRelease(const Arguments& args) {
   info.dwOSVersionInfoSize = sizeof(info);
 
   if (GetVersionEx(&info) == 0) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
@@ -116,7 +116,7 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   uv_err_t err = uv_cpu_info(&cpu_infos, &count);
 
   if (err.code != UV_OK) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   Local<Array> cpus = Array::New();
@@ -152,7 +152,7 @@ static Handle<Value> GetFreeMemory(const Arguments& args) {
   double amount = uv_get_free_memory();
 
   if (amount < 0) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(amount));
@@ -163,7 +163,7 @@ static Handle<Value> GetTotalMemory(const Arguments& args) {
   double amount = uv_get_total_memory();
 
   if (amount < 0) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(amount));
@@ -176,7 +176,7 @@ static Handle<Value> GetUptime(const Arguments& args) {
   uv_err_t err = uv_uptime(&uptime);
 
   if (err.code != UV_OK) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(uptime));

@@ -156,7 +156,9 @@ class ArrayBuffer {
     v8::Local<v8::Object> buffer = ArrayBuffer::GetTemplate()->
         GetFunction()->NewInstance(1, argv);
 
-    if (buffer.IsEmpty()) return v8::Undefined();  // constructor failed
+    if (buffer.IsEmpty()) {
+      return v8::Undefined(node_isolate);  // constructor failed
+    }
 
     void* src = args.This()->GetAlignedPointerFromInternalField(0);
     void* dest = buffer->GetAlignedPointerFromInternalField(0);
@@ -273,7 +275,9 @@ class TypedArray {
           v8::Integer::NewFromUnsigned(length * TBytes, node_isolate)};
       buffer = ArrayBuffer::GetTemplate()->
                  GetFunction()->NewInstance(1, argv);
-      if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
+      if (buffer.IsEmpty()) {
+        return v8::Undefined(node_isolate); // constructor failed
+      }
 
       void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
@@ -302,7 +306,9 @@ class TypedArray {
 
       buffer = ArrayBuffer::GetTemplate()->
                  GetFunction()->NewInstance(1, argv);
-      if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
+      if (buffer.IsEmpty()) {
+        return v8::Undefined(node_isolate); // constructor failed
+      }
 
       void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
@@ -334,7 +340,7 @@ class TypedArray {
     if (args[0]->IsNumber())
       return args.This()->Get(args[0]->Uint32Value());
 
-    return v8::Undefined();
+    return v8::Undefined(node_isolate);
   }
 
   static v8::Handle<v8::Value> set(const v8::Arguments& args) {
@@ -401,7 +407,7 @@ class TypedArray {
       }
     }
 
-    return v8::Undefined();
+    return v8::Undefined(node_isolate);
   }
 
   static v8::Handle<v8::Value> subarray(const v8::Arguments& args) {
@@ -466,7 +472,7 @@ class Float64Array : public TypedArray<8, v8::kExternalDoubleArray> { };
 
 template <typename T>
 v8::Handle<v8::Value> cTypeToValue(T) {
-  return v8::Undefined();
+  return v8::Undefined(node_isolate);
 }
 
 template <>
@@ -727,7 +733,7 @@ class DataView {
 
     void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
     setValue<T>(ptr, index, valueToCType<T>(args[1]), !little_endian);
-    return v8::Undefined();
+    return v8::Undefined(node_isolate);
   }
 
   static v8::Handle<v8::Value> getUint8(const v8::Arguments& args) {

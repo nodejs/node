@@ -112,7 +112,7 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
   uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
   wrap->Ref();
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -124,7 +124,7 @@ Handle<Value> StatWatcher::Stop(const Arguments& args) {
   }
   MakeCallback(wrap->handle_, onstop_sym, 0, NULL);
   wrap->Stop();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 

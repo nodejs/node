@@ -109,7 +109,7 @@ Handle<Value> TTYWrap::GuessHandleType(const Arguments& args) {
 
     default:
       assert(0);
-      return v8::Undefined();
+      return v8::Undefined(node_isolate);
   }
 }
 
@@ -137,7 +137,7 @@ Handle<Value> TTYWrap::GetWindowSize(const Arguments& args) {
 
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
-    return v8::Undefined();
+    return v8::Undefined(node_isolate);
   }
 
   Local<v8::Array> a = v8::Array::New(2);

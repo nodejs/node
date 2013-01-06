@@ -473,7 +473,7 @@ public:
       return scope.Close(e);
     }
 
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
 
@@ -491,7 +491,7 @@ public:
     Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
     parser->Init(type);
 
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
 

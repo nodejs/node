@@ -384,7 +384,7 @@ Handle<Value> Buffer::Fill(const Arguments &args) {
           value,
           end - start);
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -704,7 +704,7 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
                                                        kExternalUnsignedByteArray,
                                                        length);
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
