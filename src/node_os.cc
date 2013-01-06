@@ -235,8 +235,10 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
     o = Object::New();
     o->Set(String::New("address"), String::New(ip));
     o->Set(String::New("family"), family);
-    o->Set(String::New("internal"), interfaces[i].is_internal ?
-	                                  True() : False());
+
+    const bool internal = interfaces[i].is_internal;
+    o->Set(String::New("internal"),
+           internal ? True(node_isolate) : False(node_isolate));
 
     ifarr->Set(ifarr->Length(), o);
   }

@@ -118,7 +118,12 @@ Handle<Value> TTYWrap::IsTTY(const Arguments& args) {
   HandleScope scope;
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
-  return uv_guess_handle(fd) == UV_TTY ? v8::True() : v8::False();
+
+  if (uv_guess_handle(fd) == UV_TTY) {
+    return v8::True(node_isolate);
+  }
+
+  return v8::False(node_isolate);
 }
 
 

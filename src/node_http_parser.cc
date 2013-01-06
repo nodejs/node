@@ -280,9 +280,12 @@ public:
                       Integer::New(parser_.http_minor, node_isolate));
 
     message_info->Set(should_keep_alive_sym,
-        http_should_keep_alive(&parser_) ? True() : False());
+                      http_should_keep_alive(&parser_) ? True(node_isolate)
+                                                       : False(node_isolate));
 
-    message_info->Set(upgrade_sym, parser_.upgrade ? True() : False());
+    message_info->Set(upgrade_sym,
+                      parser_.upgrade ? True(node_isolate)
+                                      : False(node_isolate));
 
     Local<Value> argv[1] = { message_info };
 

@@ -217,7 +217,7 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
   SSL_CTX_sess_set_new_cb(sc->ctx_, NewSessionCallback);
 
   sc->ca_store_ = NULL;
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -333,7 +333,7 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
   }
 
   BIO *bio = LoadBIO(args[0]);
-  if (!bio) return False();
+  if (!bio) return False(node_isolate);
 
   String::Utf8Value passphrase(args[1]);
 
@@ -356,7 +356,7 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
   EVP_PKEY_free(key);
   BIO_free(bio);
 
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -437,7 +437,7 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
   }
 
   BIO* bio = LoadBIO(args[0]);
-  if (!bio) return False();
+  if (!bio) return False(node_isolate);
 
   int rv = SSL_CTX_use_certificate_chain(sc->ctx_, bio);
 
@@ -454,7 +454,7 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
     return ThrowException(Exception::Error(String::New(string)));
   }
 
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -474,7 +474,7 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
   }
 
   X509* x509 = LoadX509(args[0]);
-  if (!x509) return False();
+  if (!x509) return False(node_isolate);
 
   X509_STORE_add_cert(sc->ca_store_, x509);
   SSL_CTX_add_client_CA(sc->ctx_, x509);
@@ -485,7 +485,7 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
     SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
   }
 
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -499,13 +499,13 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
   }
 
   BIO *bio = LoadBIO(args[0]);
-  if (!bio) return False();
+  if (!bio) return False(node_isolate);
 
   X509_CRL *x509 = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
 
   if (x509 == NULL) {
     BIO_free(bio);
-    return False();
+    return False(node_isolate);
   }
 
   X509_STORE_add_crl(sc->ca_store_, x509);
@@ -516,7 +516,7 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
   BIO_free(bio);
   X509_CRL_free(x509);
 
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -536,14 +536,14 @@ Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
 
       if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
         BIO_free(bp);
-        return False();
+        return False(node_isolate);
       }
 
       X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
 
       if (x509 == NULL) {
         BIO_free(bp);
-        return False();
+        return False(node_isolate);
       }
 
       X509_STORE_add_cert(root_cert_store, x509);
@@ -556,7 +556,7 @@ Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
   sc->ca_store_ = root_cert_store;
   SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
 
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -572,7 +572,7 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
   String::Utf8Value ciphers(args[0]);
   SSL_CTX_set_cipher_list(sc->ctx_, *ciphers);
 
-  return True();
+  return True(node_isolate);
 }
 
 Handle<Value> SecureContext::SetOptions(const Arguments& args) {
@@ -586,7 +586,7 @@ Handle<Value> SecureContext::SetOptions(const Arguments& args) {
 
   SSL_CTX_set_options(sc->ctx_, args[0]->IntegerValue());
 
-  return True();
+  return True(node_isolate);
 }
 
 Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
@@ -618,14 +618,14 @@ Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
     return ThrowException(Exception::TypeError(message));
   }
 
-  return True();
+  return True(node_isolate);
 }
 
 Handle<Value> SecureContext::Close(const Arguments& args) {
   HandleScope scope;
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
   sc->FreeCTXMem();
-  return False();
+  return False(node_isolate);
 }
 
 //Takes .pfx or .p12 and password in string or buffer format
@@ -702,7 +702,7 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
     return ThrowException(Exception::Error(String::New(str)));
   }
 
-  return True();
+  return True(node_isolate);
 }
 
 
@@ -948,11 +948,11 @@ void Connection::SetShutdownFlags() {
   int flags = SSL_get_shutdown(ssl_);
 
   if (flags & SSL_SENT_SHUTDOWN) {
-    handle_->Set(String::New("sentShutdown"), True());
+    handle_->Set(String::New("sentShutdown"), True(node_isolate));
   }
 
   if (flags & SSL_RECEIVED_SHUTDOWN) {
-    handle_->Set(String::New("receivedShutdown"), True());
+    handle_->Set(String::New("receivedShutdown"), True(node_isolate));
   }
 }
 
@@ -1082,7 +1082,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
     *outlen = 8;
 
     // set status unsupported
-    p->selectedNPNProto_ = Persistent<Value>::New(False());
+    p->selectedNPNProto_ = Persistent<Value>::New(False(node_isolate));
 
     return SSL_TLSEXT_ERR_OK;
   }
@@ -1103,7 +1103,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
                              ));
       break;
     case OPENSSL_NPN_NO_OVERLAP:
-      p->selectedNPNProto_ = Persistent<Value>::New(False());
+      p->selectedNPNProto_ = Persistent<Value>::New(False(node_isolate));
       break;
     default:
       break;
@@ -1660,7 +1660,7 @@ Handle<Value> Connection::SetSession(const Arguments& args) {
     return ThrowException(Exception::Error(eStr));
   }
 
-  return True();
+  return True(node_isolate);
 }
 
 Handle<Value> Connection::LoadSession(const Arguments& args) {
@@ -1684,7 +1684,7 @@ Handle<Value> Connection::LoadSession(const Arguments& args) {
 
   ss->hello_parser_.Finish();
 
-  return True();
+  return True(node_isolate);
 }
 
 Handle<Value> Connection::IsSessionReused(const Arguments& args) {
@@ -1692,8 +1692,11 @@ Handle<Value> Connection::IsSessionReused(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return False();
-  return SSL_session_reused(ss->ssl_) ? True() : False();
+  if (ss->ssl_ == NULL || SSL_session_reused(ss->ssl_) == false) {
+    return False(node_isolate);
+  }
+
+  return True(node_isolate);
 }
 
 
@@ -1724,7 +1727,7 @@ Handle<Value> Connection::Shutdown(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return False();
+  if (ss->ssl_ == NULL) return False(node_isolate);
   int rv = SSL_shutdown(ss->ssl_);
   ss->HandleSSLError("SSL_shutdown", rv, kZeroIsNotAnError);
   ss->SetShutdownFlags();
@@ -1738,12 +1741,12 @@ Handle<Value> Connection::ReceivedShutdown(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return False();
+  if (ss->ssl_ == NULL) return False(node_isolate);
   int r = SSL_get_shutdown(ss->ssl_);
 
-  if (r & SSL_RECEIVED_SHUTDOWN) return True();
+  if (r & SSL_RECEIVED_SHUTDOWN) return True(node_isolate);
 
-  return False();
+  return False(node_isolate);
 }
 
 
@@ -1752,8 +1755,11 @@ Handle<Value> Connection::IsInitFinished(const Arguments& args) {
 
   Connection *ss = Connection::Unwrap(args);
 
-  if (ss->ssl_ == NULL) return False();
-  return SSL_is_init_finished(ss->ssl_) ? True() : False();
+  if (ss->ssl_ == NULL || SSL_is_init_finished(ss->ssl_) == false) {
+    return False(node_isolate);
+  }
+
+  return True(node_isolate);
 }
 
 
@@ -1929,7 +1935,7 @@ Handle<Value> Connection::Close(const Arguments& args) {
     SSL_free(ss->ssl_);
     ss->ssl_ = NULL;
   }
-  return True();
+  return True(node_isolate);
 }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
@@ -1945,7 +1951,7 @@ Handle<Value> Connection::GetNegotiatedProto(const Arguments& args) {
     SSL_get0_next_proto_negotiated(ss->ssl_, &npn_proto, &npn_proto_len);
 
     if (!npn_proto) {
-      return False();
+      return False(node_isolate);
     }
 
     return String::New((const char*) npn_proto, npn_proto_len);
@@ -1970,7 +1976,7 @@ Handle<Value> Connection::SetNPNProtocols(const Arguments& args) {
   }
   ss->npnProtos_ = Persistent<Object>::New(args[0]->ToObject());
 
-  return True();
+  return True(node_isolate);
 };
 #endif
 
@@ -1983,7 +1989,7 @@ Handle<Value> Connection::GetServername(const Arguments& args) {
   if (ss->is_server_ && !ss->servername_.IsEmpty()) {
     return ss->servername_;
   } else {
-    return False();
+    return False(node_isolate);
   }
 }
 
@@ -2004,7 +2010,7 @@ Handle<Value> Connection::SetSNICallback(const Arguments& args) {
   ss->sniObject_ = Persistent<Object>::New(Object::New());
   ss->sniObject_->Set(String::New("onselect"), args[0]);
 
-  return True();
+  return True(node_isolate);
 }
 #endif
 

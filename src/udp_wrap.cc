@@ -280,10 +280,10 @@ Handle<Value> UDPWrap::RecvStart(const Arguments& args) {
   int r = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
   if (r && uv_last_error(uv_default_loop()).code != UV_EALREADY) {
     SetErrno(uv_last_error(uv_default_loop()));
-    return False();
+    return False(node_isolate);
   }
 
-  return True();
+  return True(node_isolate);
 }
 
 

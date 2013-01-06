@@ -350,8 +350,8 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
     Integer::New(status, node_isolate),
     Local<Value>::New(node_isolate, wrap->object_),
     Local<Value>::New(node_isolate, req_wrap->object_),
-    Local<Value>::New(node_isolate, v8::True()),
-    Local<Value>::New(node_isolate, v8::True())
+    Local<Value>::New(node_isolate, v8::True(node_isolate)),
+    Local<Value>::New(node_isolate, v8::True(node_isolate))
   };
 
   MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);

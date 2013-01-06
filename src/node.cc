@@ -176,7 +176,7 @@ static void Tick(void) {
   TryCatch try_catch;
 
   // Let the tick callback know that this is coming from the spinner
-  Handle<Value> argv[] = { True() };
+  Handle<Value> argv[] = { True(node_isolate) };
   cb->Call(process, ARRAY_SIZE(argv), argv);
 
   if (try_catch.HasCaught()) {
@@ -2078,9 +2078,9 @@ static Handle<Boolean> EnvDeleter(Local<String> property,
   HandleScope scope;
 #ifdef __POSIX__
   String::Utf8Value key(property);
-  if (!getenv(*key)) return False();
+  if (!getenv(*key)) return False(node_isolate);
   unsetenv(*key); // can't check return value, it's void on some platforms
-  return True();
+  return True(node_isolate);
 #else
   String::Value key(property);
   WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
@@ -2091,7 +2091,7 @@ static Handle<Boolean> EnvDeleter(Local<String> property,
               GetLastError() != ERROR_SUCCESS;
     return scope.Close(Boolean::New(rv));
   }
-  return True();
+  return True(node_isolate);
 #endif
 }
 
@@ -2146,14 +2146,14 @@ static Handle<Object> GetFeatures() {
   Local<Object> obj = Object::New();
   obj->Set(String::NewSymbol("debug"),
 #if defined(DEBUG) && DEBUG
-    True()
+    True(node_isolate)
 #else
-    False()
+    False(node_isolate)
 #endif
   );
 
-  obj->Set(String::NewSymbol("uv"), True());
-  obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv
+  obj->Set(String::NewSymbol("uv"), True(node_isolate));
+  obj->Set(String::NewSymbol("ipv6"), True(node_isolate)); // TODO ping libuv
   obj->Set(String::NewSymbol("tls_npn"), Boolean::New(use_npn));
   obj->Set(String::NewSymbol("tls_sni"), Boolean::New(use_sni));
   obj->Set(String::NewSymbol("tls"),
@@ -2283,22 +2283,22 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   // -p, --print
   if (print_eval) {
-    process->Set(String::NewSymbol("_print_eval"), True());
+    process->Set(String::NewSymbol("_print_eval"), True(node_isolate));
   }
 
   // -i, --interactive
   if (force_repl) {
-    process->Set(String::NewSymbol("_forceRepl"), True());
+    process->Set(String::NewSymbol("_forceRepl"), True(node_isolate));
   }
 
   // --no-deprecation
   if (no_deprecation) {
-    process->Set(String::NewSymbol("noDeprecation"), True());
+    process->Set(String::NewSymbol("noDeprecation"), True(node_isolate));
   }
 
   // --trace-deprecation
   if (trace_deprecation) {
-    process->Set(String::NewSymbol("traceDeprecation"), True());
+    process->Set(String::NewSymbol("traceDeprecation"), True(node_isolate));
   }
 
   size_t size = 2*PATH_MAX;
@@ -2911,7 +2911,7 @@ void AtExit(void (*cb)(void* arg), void* arg) {
 
 void EmitExit(v8::Handle<v8::Object> process_l) {
   // process.emit('exit')
-  process_l->Set(String::NewSymbol("_exiting"), True());
+  process_l->Set(String::NewSymbol("_exiting"), True(node_isolate));
   Local<Value> emit_v = process_l->Get(String::New("emit"));
   assert(emit_v->IsFunction());
   Local<Function> emit = Local<Function>::Cast(emit_v);
