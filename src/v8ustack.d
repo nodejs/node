@@ -87,15 +87,15 @@
     APPEND_CHR4(s4, s5, s6, s7)
 
 #define	APPEND_DGT(i, d)	\
-	(((i) / (d)) ? APPEND_CHR('0' + ((i)/(d) % 10)) : 0)
+    (((i) / (d)) ? APPEND_CHR('0' + ((i)/(d) % 10)) : 0)
 
 #define	APPEND_NUM(i)		\
-	APPEND_DGT((i), 100000);	\
-	APPEND_DGT((i), 10000);	\
-	APPEND_DGT((i), 1000);	\
-	APPEND_DGT((i), 100);	\
-	APPEND_DGT((i), 10);	\
-	APPEND_DGT((i), 1);
+    APPEND_DGT((i), 100000);	\
+    APPEND_DGT((i), 10000);	\
+    APPEND_DGT((i), 1000);	\
+    APPEND_DGT((i), 100);	\
+    APPEND_DGT((i), 10);	\
+    APPEND_DGT((i), 1);
 
 #define	APPEND_HEX(d)	\
     APPEND_CHR((d) < 10 ? '0' + (d) : 'a' - 10 + (d))
@@ -242,44 +242,44 @@
  * the resulting SeqStrings.
  */
 #define	APPEND_CONSSTR(str, len, attrs)					\
-	EXPAND_START()							\
-	EXPAND_STR(str, len, attrs,					\
-	    this->s0str, this->s0len, this->s0attrs,			\
-	    this->s7str, this->s7len, this->s7attrs)			\
-	EXPAND_STR(this->s0str, this->s0len, this->s0attrs,		\
-	    this->s1str, this->s1len, this->s1attrs,			\
-	    this->s4str, this->s4len, this->s4attrs)			\
-	EXPAND_STR(this->s1str, this->s1len, this->s1attrs,		\
-	    this->s2str, this->s2len, this->s2attrs,			\
-	    this->s3str, this->s3len, this->s3attrs)			\
-	EXPAND_STR(this->s4str, this->s4len, this->s4attrs,		\
-	    this->s5str, this->s5len, this->s5attrs,			\
-	    this->s6str, this->s6len, this->s6attrs)			\
-	EXPAND_STR(this->s7str, this->s7len, this->s7attrs,		\
-	    this->s8str, this->s8len, this->s8attrs,			\
-	    this->s11str, this->s11len, this->s11attrs)			\
-	EXPAND_STR(this->s8str, this->s8len, this->s8attrs,		\
-	    this->s9str, this->s9len, this->s9attrs,			\
-	    this->s10str, this->s10len, this->s10attrs)			\
-	EXPAND_STR(this->s11str, this->s11len, this->s11attrs,		\
-	    this->s12str, this->s12len, this->s12attrs,			\
-	    this->s13str, this->s13len, this->s13attrs)			\
+    EXPAND_START()							\
+    EXPAND_STR(str, len, attrs,						\
+	this->s0str, this->s0len, this->s0attrs,			\
+	this->s7str, this->s7len, this->s7attrs)			\
+    EXPAND_STR(this->s0str, this->s0len, this->s0attrs,			\
+	this->s1str, this->s1len, this->s1attrs,			\
+	this->s4str, this->s4len, this->s4attrs)			\
+    EXPAND_STR(this->s1str, this->s1len, this->s1attrs,			\
+	this->s2str, this->s2len, this->s2attrs,			\
+	this->s3str, this->s3len, this->s3attrs)			\
+    EXPAND_STR(this->s4str, this->s4len, this->s4attrs,			\
+	this->s5str, this->s5len, this->s5attrs,			\
+	this->s6str, this->s6len, this->s6attrs)			\
+    EXPAND_STR(this->s7str, this->s7len, this->s7attrs,			\
+	this->s8str, this->s8len, this->s8attrs,			\
+	this->s11str, this->s11len, this->s11attrs)			\
+    EXPAND_STR(this->s8str, this->s8len, this->s8attrs,			\
+	this->s9str, this->s9len, this->s9attrs,			\
+	this->s10str, this->s10len, this->s10attrs)			\
+    EXPAND_STR(this->s11str, this->s11len, this->s11attrs,		\
+	this->s12str, this->s12len, this->s12attrs,			\
+	this->s13str, this->s13len, this->s13attrs)			\
 									\
-	APPEND_SEQSTR(str, len, attrs)					\
-	APPEND_SEQSTR(this->s0str, this->s0len, this->s0attrs)		\
-	APPEND_SEQSTR(this->s1str, this->s1len, this->s1attrs)		\
-	APPEND_SEQSTR(this->s2str, this->s2len, this->s2attrs)		\
-	APPEND_SEQSTR(this->s3str, this->s3len, this->s3attrs)		\
-	APPEND_SEQSTR(this->s4str, this->s4len, this->s4attrs)		\
-	APPEND_SEQSTR(this->s5str, this->s5len, this->s5attrs)		\
-	APPEND_SEQSTR(this->s6str, this->s6len, this->s6attrs)		\
-	APPEND_SEQSTR(this->s7str, this->s7len, this->s7attrs)		\
-	APPEND_SEQSTR(this->s8str, this->s8len, this->s8attrs)		\
-	APPEND_SEQSTR(this->s9str, this->s9len, this->s9attrs)		\
-	APPEND_SEQSTR(this->s10str, this->s10len, this->s10attrs)	\
-	APPEND_SEQSTR(this->s11str, this->s11len, this->s11attrs)	\
-	APPEND_SEQSTR(this->s12str, this->s12len, this->s12attrs)	\
-	APPEND_SEQSTR(this->s13str, this->s13len, this->s13attrs)	\
+    APPEND_SEQSTR(str, len, attrs)					\
+    APPEND_SEQSTR(this->s0str, this->s0len, this->s0attrs)		\
+    APPEND_SEQSTR(this->s1str, this->s1len, this->s1attrs)		\
+    APPEND_SEQSTR(this->s2str, this->s2len, this->s2attrs)		\
+    APPEND_SEQSTR(this->s3str, this->s3len, this->s3attrs)		\
+    APPEND_SEQSTR(this->s4str, this->s4len, this->s4attrs)		\
+    APPEND_SEQSTR(this->s5str, this->s5len, this->s5attrs)		\
+    APPEND_SEQSTR(this->s6str, this->s6len, this->s6attrs)		\
+    APPEND_SEQSTR(this->s7str, this->s7len, this->s7attrs)		\
+    APPEND_SEQSTR(this->s8str, this->s8len, this->s8attrs)		\
+    APPEND_SEQSTR(this->s9str, this->s9len, this->s9attrs)		\
+    APPEND_SEQSTR(this->s10str, this->s10len, this->s10attrs)		\
+    APPEND_SEQSTR(this->s11str, this->s11len, this->s11attrs)		\
+    APPEND_SEQSTR(this->s12str, this->s12len, this->s12attrs)		\
+    APPEND_SEQSTR(this->s13str, this->s13len, this->s13attrs)		\
 
 
 /*
@@ -288,8 +288,8 @@
  * expanded ConsString.
  */
 #define	APPEND_V8STR(str, len, attrs)					\
-	APPEND_CONSSTR(str, len, attrs)					\
-	APPEND_NODESTR(str, len, attrs)
+    APPEND_CONSSTR(str, len, attrs)					\
+    APPEND_NODESTR(str, len, attrs)
 
 /*
  * In this first clause we initialize all variables.  We must explicitly clear
