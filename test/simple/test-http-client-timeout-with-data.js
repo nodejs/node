@@ -41,7 +41,7 @@ var options = {
 var server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Length':'2'});
   res.write('*');
-  setTimeout(function() { res.end('*') }, 20);
+  setTimeout(function() { res.end('*') }, 100);
 });
 
 server.listen(options.port, options.host, function() {
@@ -49,7 +49,7 @@ server.listen(options.port, options.host, function() {
   req.end();
 
   function onresponse(res) {
-    req.setTimeout(10, function() {
+    req.setTimeout(50, function() {
       assert.equal(nchunks, 1); // should have received the first chunk by now
       ntimeouts++;
     });
