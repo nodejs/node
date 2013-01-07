@@ -10,14 +10,28 @@
 import re
 import subprocess
 import sys
+import errno
 
 if len(sys.argv) != 3:
   print "usage: objsym.py outfile libv8_base.a"
   sys.exit(2);
 
 outfile = file(sys.argv[1], 'w');
-pipe = subprocess.Popen([ 'objdump', '-z', '-D', sys.argv[2] ],
-    bufsize=-1, stdout=subprocess.PIPE).stdout;
+try:
+  pipe = subprocess.Popen([ 'objdump', '-z', '-D', sys.argv[2] ],
+      bufsize=-1, stdout=subprocess.PIPE).stdout;
+except OSError, e:
+  if e.errno == errno.ENOENT:
+    print '''
+      Node.js compile error: could not find objdump
+
+      Check that GNU binutils are installed and included in PATH
+      '''
+  else:
+    print 'problem running objdump: ', e.strerror
+
+  sys.exit()
+
 pattern = re.compile('(00000000|0000000000000000) <(.*)>:');
 v8dbg = re.compile('^v8dbg.*$')
 numpattern = re.compile('^[0-9a-fA-F]{2} $');
