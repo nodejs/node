@@ -400,10 +400,20 @@ class TestCase(object):
 
   def Run(self):
     self.BeforeRun()
+
     try:
       result = self.RunCommand(self.GetCommand())
     finally:
-      self.AfterRun(result)
+      # Tests can leave the tty in non-blocking mode. If the test runner
+      # tries to print to stdout/stderr after that and the tty buffer is
+      # full, it'll die with a EAGAIN OSError. Ergo, put the tty back in
+      # blocking mode before proceeding.
+      if sys.platform != 'win32':
+        from fcntl import fcntl, F_GETFL, F_SETFL
+        from os import O_NONBLOCK
+        for fd in 0,1,2: fcntl(fd, F_SETFL, ~O_NONBLOCK & fcntl(fd, F_GETFL))
+
+    self.AfterRun(result)
     return result
 
   def Cleanup(self):
