@@ -32,7 +32,6 @@ namespace {
 using node::ThrowRangeError;
 using node::ThrowTypeError;
 using node::ThrowError;
-using node::node_isolate;
 
 struct BatchedMethods {
   const char* name;
@@ -110,7 +109,7 @@ class ArrayBuffer {
     args.This()->SetAlignedPointerInInternalField(0, buf);
 
     args.This()->Set(v8::String::New("byteLength"),
-                     v8::Integer::NewFromUnsigned(num_bytes, node_isolate),
+                     v8::Integer::NewFromUnsigned(num_bytes),
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
 
     // NOTE(deanm): This is not in the spec, you shouldn't be able to index
@@ -152,13 +151,11 @@ class ArrayBuffer {
 
     unsigned int slice_length = end - begin;
     v8::Local<v8::Value> argv[] = {
-        v8::Integer::New(slice_length, node_isolate)};
+        v8::Integer::New(slice_length)};
     v8::Local<v8::Object> buffer = ArrayBuffer::GetTemplate()->
         GetFunction()->NewInstance(1, argv);
 
-    if (buffer.IsEmpty()) {
-      return v8::Undefined(node_isolate);  // constructor failed
-    }
+    if (buffer.IsEmpty()) return v8::Undefined();  // constructor failed
 
     void* src = args.This()->GetAlignedPointerFromInternalField(0);
     void* dest = buffer->GetAlignedPointerFromInternalField(0);
@@ -282,7 +279,7 @@ class TypedArray {
       }
 
       void* buf = buffer->GetIndexedPropertiesExternalArrayData();
-      char* begin = static_cast<char*>(buf) + byte_offset;
+      char* begin = reinterpret_cast<char*>(buf) + byte_offset;
 
       if (!checkAlignment(reinterpret_cast<uintptr_t>(begin), TBytes))
         return ThrowRangeError("Byte offset is not aligned.");
@@ -296,12 +293,10 @@ class TypedArray {
 
       // TODO(deanm): Handle integer overflow.
       v8::Local<v8::Value> argv[1] = {
-          v8::Integer::NewFromUnsigned(length * TBytes, node_isolate)};
+          v8::Integer::NewFromUnsigned(length * TBytes)};
       buffer = ArrayBuffer::GetTemplate()->
                  GetFunction()->NewInstance(1, argv);
-      if (buffer.IsEmpty()) {
-        return v8::Undefined(node_isolate); // constructor failed
-      }
+      if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
       void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
@@ -326,13 +321,11 @@ class TypedArray {
       length = args[0]->Uint32Value();
       // TODO(deanm): Handle integer overflow.
       v8::Local<v8::Value> argv[1] = {
-          v8::Integer::NewFromUnsigned(length * TBytes, node_isolate)};
+          v8::Integer::NewFromUnsigned(length * TBytes)};
 
       buffer = ArrayBuffer::GetTemplate()->
                  GetFunction()->NewInstance(1, argv);
-      if (buffer.IsEmpty()) {
-        return v8::Undefined(node_isolate); // constructor failed
-      }
+      if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
       void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
@@ -344,14 +337,13 @@ class TypedArray {
                      buffer,
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
     args.This()->Set(v8::String::New("length"),
-                     v8::Integer::NewFromUnsigned(length, node_isolate),
+                     v8::Integer::NewFromUnsigned(length),
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
     args.This()->Set(v8::String::New("byteOffset"),
-                     v8::Integer::NewFromUnsigned(byte_offset, node_isolate),
+                     v8::Integer::NewFromUnsigned(byte_offset),
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
     args.This()->Set(v8::String::New("byteLength"),
-                     v8::Integer::NewFromUnsigned(length * TBytes,
-                                                  node_isolate),
+                     v8::Integer::NewFromUnsigned(length * TBytes),
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
 
     return args.This();
@@ -364,7 +356,7 @@ class TypedArray {
     if (args[0]->IsNumber())
       return args.This()->Get(args[0]->Uint32Value());
 
-    return v8::Undefined(node_isolate);
+    return v8::Undefined();
   }
 
   static v8::Handle<v8::Value> set(const v8::Arguments& args) {
@@ -406,7 +398,7 @@ class TypedArray {
         // place as if all the data is first copied into a temporary buffer that
         // does not overlap either of the arrays, and then the data from the
         // temporary buffer is copied into the current array.
-        memmove(static_cast<char*>(dst_ptr) + offset * TBytes, src_ptr,
+        memmove(reinterpret_cast<char*>(dst_ptr) + offset * TBytes, src_ptr,
             src_length * TBytes);
       } else {  // type[]
         if (args[1]->Int32Value() < 0)
@@ -431,7 +423,7 @@ class TypedArray {
       }
     }
 
-    return v8::Undefined(node_isolate);
+    return v8::Undefined();
   }
 
   static v8::Handle<v8::Value> subarray(const v8::Arguments& args) {
@@ -460,8 +452,8 @@ class TypedArray {
     // Call through to the ArrayBuffer, byteOffset, length constructor.
     v8::Local<v8::Value> argv[] = {
         args.This()->Get(v8::String::New("buffer")),
-        v8::Integer::New(byte_offset, node_isolate),
-        v8::Integer::New(end - begin, node_isolate)};
+        v8::Integer::New(byte_offset),
+        v8::Integer::New(end - begin)};
     return TypedArray<TBytes, TEAType>::GetTemplate()->
         GetFunction()->NewInstance(3, argv);
   }
@@ -479,37 +471,37 @@ class Float64Array : public TypedArray<8, v8::kExternalDoubleArray> { };
 
 template <typename T>
 v8::Handle<v8::Value> cTypeToValue(T) {
-  return v8::Undefined(node_isolate);
+  return v8::Undefined();
 }
 
 template <>
 v8::Handle<v8::Value> cTypeToValue(unsigned char val) {
-  return v8::Integer::NewFromUnsigned(val, node_isolate);
+  return v8::Integer::NewFromUnsigned(val);
 }
 
 template <>
 v8::Handle<v8::Value> cTypeToValue(signed char val) {
-  return v8::Integer::New(val, node_isolate);
+  return v8::Integer::New(val);
 }
 
 template <>
 v8::Handle<v8::Value> cTypeToValue(unsigned short val) {
-  return v8::Integer::NewFromUnsigned(val, node_isolate);
+  return v8::Integer::NewFromUnsigned(val);
 }
 
 template <>
 v8::Handle<v8::Value> cTypeToValue(short val) {
-  return v8::Integer::New(val, node_isolate);
+  return v8::Integer::New(val);
 }
 
 template <>
 v8::Handle<v8::Value> cTypeToValue(unsigned int val) {
-  return v8::Integer::NewFromUnsigned(val, node_isolate);
+  return v8::Integer::NewFromUnsigned(val);
 }
 
 template <>
 v8::Handle<v8::Value> cTypeToValue(int val) {
-  return v8::Integer::New(val, node_isolate);
+  return v8::Integer::New(val);
 }
 
 template <>
@@ -658,17 +650,17 @@ class DataView {
 
     // Like ArrayBuffer, we violate the spec and add an operator[].
     args.This()->SetIndexedPropertiesToExternalArrayData(
-        static_cast<char*>(buf) + byte_offset,
+        reinterpret_cast<char*>(buf) + byte_offset,
         v8::kExternalUnsignedByteArray, byte_length);
 
     args.This()->Set(v8::String::New("buffer"),
                      buffer,
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
     args.This()->Set(v8::String::New("byteOffset"),
-                     v8::Integer::NewFromUnsigned(byte_offset, node_isolate),
+                     v8::Integer::NewFromUnsigned(byte_offset),
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
     args.This()->Set(v8::String::New("byteLength"),
-                     v8::Integer::NewFromUnsigned(byte_length, node_isolate),
+                     v8::Integer::NewFromUnsigned(byte_length),
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
     return args.This();
   }
@@ -685,7 +677,7 @@ class DataView {
   template <typename T>
   static T getValue(void* ptr, unsigned int index, bool swiz) {
     char buf[sizeof(T)];
-    memcpy(buf, static_cast<char*>(ptr) + index, sizeof(T));
+    memcpy(buf, reinterpret_cast<char*>(ptr) + index, sizeof(T));
     if (swiz)
       swizzle(buf, sizeof(T));
     T val;
@@ -699,7 +691,7 @@ class DataView {
     memcpy(buf, &val, sizeof(T));
     if (swiz)
       swizzle(buf, sizeof(T));
-    memcpy(static_cast<char*>(ptr) + index, buf, sizeof(T));
+    memcpy(reinterpret_cast<char*>(ptr) + index, buf, sizeof(T));
   }
 
   template <typename T>
@@ -740,7 +732,7 @@ class DataView {
 
     void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
     setValue<T>(ptr, index, valueToCType<T>(args[1]), !little_endian);
-    return v8::Undefined(node_isolate);
+    return v8::Undefined();
   }
 
   static v8::Handle<v8::Value> getUint8(const v8::Arguments& args) {
