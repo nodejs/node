@@ -25,7 +25,7 @@ var semver = require("semver")
 function deprecate (args, cb) {
   var pkg = args[0]
     , msg = args[1]
-  if (msg === undefined) return cb(new Error(deprecate.usage))
+  if (msg === undefined) return cb("Usage: " + deprecate.usage)
   // fetch the data and make sure it exists.
   pkg = pkg.split(/@/)
   var name = pkg.shift()

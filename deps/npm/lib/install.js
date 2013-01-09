@@ -13,13 +13,16 @@
 
 module.exports = install
 
-install.usage = "npm install <tarball file>"
-              + "\nnpm install <tarball url>"
-              + "\nnpm install <folder>"
+install.usage = "npm install"
               + "\nnpm install <pkg>"
               + "\nnpm install <pkg>@<tag>"
               + "\nnpm install <pkg>@<version>"
               + "\nnpm install <pkg>@<version range>"
+              + "\nnpm install <folder>"
+              + "\nnpm install <tarball file>"
+              + "\nnpm install <tarball url>"
+              + "\nnpm install <git:// url>"
+              + "\nnpm install <github username>/<github project>"
               + "\n\nCan specify one or more: npm install ./foo.tgz bar@stable /some/folder"
               + "\nIf no argument is supplied and ./npm-shrinkwrap.json is "
               + "\npresent, installs dependencies specified in the shrinkwrap."
@@ -133,13 +136,19 @@ function install (args, cb_) {
             , parsed = url.parse(target.replace(/^git\+/, "git"))
           target = dep + "@" + target
           return target
-        }), where, context, cb)
+        }), where, context, function(er, results) {
+          if (er) return cb(er, results)
+          lifecycle(data, "prepublish", where, function(er) {
+            return cb(er, results)
+          })
+        })
       })
     }
 
     // initial "family" is the name:version of the root, if it's got
     // a package.json file.
     readJson(path.resolve(where, "package.json"), function (er, data) {
+      if (er && er.code !== "ENOENT") return cb(er)
       if (er) data = null
       var context = { family: {}
                     , ancestors: {}
@@ -276,9 +285,9 @@ function save (where, installed, tree, pretty, cb) {
     } catch (ex) {
       er = ex
     }
+
     if (er) {
       return cb(null, installed, tree, pretty)
-
     }
 
     var deps = npm.config.get("save-optional") ? "optionalDependencies"
@@ -442,10 +451,13 @@ function installManyTop_ (what, where, context, cb) {
       return path.resolve(nm, p, "package.json")
     }), function (jsonfile, cb) {
       readJson(jsonfile, function (er, data) {
+        if (er && er.code !== "ENOENT") return cb(er)
         if (er) return cb(null, [])
         return cb(null, [[data.name, data.version]])
       })
     }, function (er, packages) {
+      // if there's nothing in node_modules, then don't freak out.
+      if (er) packages = []
       // add all the existing packages to the family list.
       // however, do not add to the ancestors list.
       packages.forEach(function (p) {
@@ -521,6 +533,7 @@ function targetResolver (where, context, deps) {
     if (er) return alreadyInstalledManually = []
     asyncMap(inst, function (pkg, cb) {
       readJson(path.resolve(nm, pkg, "package.json"), function (er, d) {
+        if (er && er.code !== "ENOENT") return cb(er)
         // error means it's not a package, most likely.
         if (er) return cb(null, [])
 
@@ -640,6 +653,7 @@ function localLink (target, where, context, cb) {
     , parent = context.parent
 
   readJson(jsonFile, function (er, data) {
+    if (er && er.code !== "ENOENT") return cb(er)
     if (er || data._id === target._id) {
       if (er) {
         install( path.resolve(npm.globalDir, "..")
@@ -896,39 +910,65 @@ function write (target, targetFolder, context, cb_) {
       // before continuing to installing dependencies, check for a shrinkwrap.
       var opt = { dev: npm.config.get("dev") }
       readDependencies(context, targetFolder, opt, function (er, data, wrap) {
-        var deps = Object.keys(data.dependencies || {})
-
-        // don't install bundleDependencies, unless they're missing.
-        if (data.bundleDependencies) {
-          deps = deps.filter(function (d) {
-            return data.bundleDependencies.indexOf(d) === -1 ||
-                   bundled.indexOf(d) === -1
-          })
-        }
-
-        var newcontext = { family: family
+        var deps = prepareForInstallMany(data, "dependencies", bundled, wrap,
+            family)
+        var depsTargetFolder = targetFolder
+        var depsContext = { family: family
                          , ancestors: context.ancestors
                          , parent: target
                          , explicit: false
                          , wrap: wrap }
-        installMany(deps.filter(function (d) {
-          // prefer to not install things that are satisfied by
-          // something in the "family" list, unless we're installing
-          // from a shrinkwrap.
-          return wrap || !semver.satisfies(family[d], data.dependencies[d])
-        }).map(function (d) {
-          var t = data.dependencies[d]
-            , parsed = url.parse(t.replace(/^git\+/, "git"))
-          t = d + "@" + t
-          return t
-        }), targetFolder, newcontext, function (er, d) {
-          log.verbose("about to build", targetFolder)
-          if (er) return cb(er)
-          npm.commands.build( [targetFolder]
-                            , npm.config.get("global")
-                            , true
-                            , function (er) { return cb(er, d) })
-        })
+
+        var peerDeps = prepareForInstallMany(data, "peerDependencies", bundled,
+            wrap, family)
+        var pdTargetFolder = path.resolve(targetFolder, "..", "..")
+        var pdContext = context
+
+        var actions =
+          [ [ installManyAndBuild, deps, depsTargetFolder, depsContext ] ]
+
+        if (peerDeps.length > 0) {
+          actions.push(
+            [ installManyAndBuild, peerDeps, pdTargetFolder, pdContext ]
+          )
+        }
+
+        chain(actions, cb)
       })
     })
+}
+
+function installManyAndBuild (deps, targetFolder, context, cb) {
+  installMany(deps, targetFolder, context, function (er, d) {
+    log.verbose("about to build", targetFolder)
+    if (er) return cb(er)
+    npm.commands.build( [targetFolder]
+                      , npm.config.get("global")
+                      , true
+                      , function (er) { return cb(er, d) })
+  })
+}
+
+function prepareForInstallMany (packageData, depsKey, bundled, wrap, family) {
+  var deps = Object.keys(packageData[depsKey] || {})
+
+  // don't install bundleDependencies, unless they're missing.
+  if (packageData.bundleDependencies) {
+    deps = deps.filter(function (d) {
+      return packageData.bundleDependencies.indexOf(d) === -1 ||
+             bundled.indexOf(d) === -1
+    })
+  }
+
+  return deps.filter(function (d) {
+    // prefer to not install things that are satisfied by
+    // something in the "family" list, unless we're installing
+    // from a shrinkwrap.
+    return wrap || !semver.satisfies(family[d], packageData[depsKey][d])
+  }).map(function (d) {
+    var t = packageData[depsKey][d]
+      , parsed = url.parse(t.replace(/^git\+/, "git"))
+    t = d + "@" + t
+    return t
+  })
 }

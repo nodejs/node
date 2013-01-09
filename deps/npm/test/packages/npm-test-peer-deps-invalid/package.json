@@ -1,0 +1,12 @@
+{
+  "author": "Domenic Denicola <domenic@domenicdenicola.com> (http://domenicdenicola.com/)",
+  "name": "npm-test-peer-deps-invalid",
+  "version": "0.0.0",
+  "dependencies": {
+    "npm-test-peer-deps-file": "https://raw.github.com/gist/3971128/3f6aa37b4fa1186c2f47da9b77dcc4ec496e3483/index.js",
+    "npm-test-peer-deps-file-invalid": "https://gist.github.com/raw/4303335/861f8d3213061826ab31591840c3cb0ac737f4fc/index.js"
+  },
+  "scripts": {
+    "test": "node test.js"
+  }
+}

@@ -11,8 +11,8 @@ As a node module:
 
     $ npm install semver
 
-    semver.valid('1.2.3') // true
-    semver.valid('a.b.c') // false
+    semver.valid('1.2.3') // '1.2.3'
+    semver.valid('a.b.c') // null
     semver.clean('  =v1.2.3   ') // '1.2.3'
     semver.satisfies('1.2.3', '1.x || >=2.5.0 || 5.0.0 - 7.2.3') // true
     semver.gt('1.2.3', '9.8.7') // false
@@ -83,7 +83,7 @@ The following range styles are supported:
 * `<1.2.3` Less than
 * `1.2.3 - 2.3.4` := `>=1.2.3 <=2.3.4`
 * `~1.2.3` := `>=1.2.3 <1.3.0`
-* `~1.2` := `>=1.2.0 <2.0.0`
+* `~1.2` := `>=1.2.0 <1.3.0`
 * `~1` := `>=1.0.0 <2.0.0`
 * `1.2.x` := `>=1.2.0 <1.3.0`
 * `1.x` := `>=1.0.0 <2.0.0`

@@ -12,6 +12,7 @@ var fs = require('graceful-fs')
   , log = require('npmlog')
   , which = require('which')
   , mkdirp = require('mkdirp')
+  , exec = require('child_process').exec
   , win = process.platform == 'win32'
 
 exports.usage = 'Invokes `' + (win ? 'msbuild' : 'make') + '` and builds the module'
@@ -99,7 +100,7 @@ function build (gyp, argv, callback) {
       if (err) {
         if (win && /not found/.test(err.message)) {
           // On windows and no 'msbuild' found. Let's guess where it is
-          guessMsbuild()
+          findMsbuild()
         } else {
           // Some other error or 'make' not found on Unix, report that to the user
           callback(err)
@@ -112,28 +113,50 @@ function build (gyp, argv, callback) {
   }
 
   /**
-   * Guess the location of the "msbuild.exe" file on Windows.
+   * Search for the location of "msbuild.exe" file on Windows.
    */
 
-  function guessMsbuild () {
+  function findMsbuild () {
     log.verbose('could not find "msbuild.exe". guessing location')
-    // This is basically just hard-coded. If this causes problems
-    // then we'll think of something more clever.
-    var windir = process.env.WINDIR || process.env.SYSTEMROOT || 'C:\\WINDOWS'
-      , frameworkDir = path.resolve(windir, 'Microsoft.NET', 'Framework')
-      , versionDir = path.resolve(frameworkDir, 'v4.0.30319') // This is probably the most brittle part...
-      , msbuild = path.resolve(versionDir, 'msbuild.exe')
-    fs.stat(msbuild, function (err, stat) {
+    var notfoundErr = new Error('Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2008+ installed?')
+    exec('reg query HKLM\\Software\\Microsoft\\MSBuild\\ToolsVersions /s /f MSBuildToolsPath /e /t REG_SZ', function (err, stdout, stderr) {
+      var reVers = /Software\\Microsoft\\MSBuild\\ToolsVersions\\([^\r]+)\r\n\s+MSBuildToolsPath\s+REG_SZ\s+([^\r]+)/gi
+        , msbuilds = []
+        , r
+        , msbuildPath
       if (err) {
-        if (err.code == 'ENOENT') {
-          callback(new Error('Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2010 installed?'))
-        } else {
-          callback(err)
-        }
-        return
+        return callback(notfoundErr)
       }
-      command = msbuild
-      copyNodeLib()
+      while (r = reVers.exec(stdout)) {
+        if (parseFloat(r[1], 10) >= 3.5) {
+          msbuilds.push({
+            version: parseFloat(r[1], 10),
+            path: r[2]
+          })
+        }
+      }
+      msbuilds.sort(function (x, y) {
+        return (x.version < y.version ? -1 : 1)
+      })
+      ;(function verifyMsbuild () {
+        msbuildPath = path.resolve(msbuilds.pop().path, 'msbuild.exe')
+        fs.stat(msbuildPath, function (err, stat) {
+          if (err) {
+            if (err.code == 'ENOENT') {
+              if (msbuilds.length) {
+                return verifyMsbuild()
+              } else {
+                callback(notfoundErr)
+              }
+            } else {
+              callback(err)
+            }
+            return
+          }
+          command = msbuildPath
+          copyNodeLib()
+        })
+      })()
     })
   }
 

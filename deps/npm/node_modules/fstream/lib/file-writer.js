@@ -36,12 +36,15 @@ FileWriter.prototype._create = function () {
   me._stream = fs.createWriteStream(me._path, so)
 
   me._stream.on("open", function (fd) {
+    // console.error("FW open", me._buffer, me._path)
     me.ready = true
     me._buffer.forEach(function (c) {
       if (c === EOF) me._stream.end()
       else me._stream.write(c)
     })
     me.emit("ready")
+    // give this a kick just in case it needs it.
+    me.emit("drain")
   })
 
   me._stream.on("drain", function () { me.emit("drain") })
@@ -58,6 +61,8 @@ FileWriter.prototype.write = function (c) {
   me._bytesWritten += c.length
 
   if (!me.ready) {
+    if (!Buffer.isBuffer(c) && typeof c !== 'string')
+      throw new Error('invalid write data')
     me._buffer.push(c)
     return false
   }
