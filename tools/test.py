@@ -667,6 +667,7 @@ class LiteralTestSuite(TestSuite):
       if not name or name.match(test_name):
         full_path = current_path + [test_name]
         test.AddTestsToList(result, full_path, path, context, mode)
+    result.sort(cmp=lambda a, b: cmp(a.GetName(), b.GetName()))
     return result
 
   def GetTestStatus(self, context, sections, defs):
