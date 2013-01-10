@@ -215,35 +215,40 @@ test('passthrough event emission', function(t) {
   var i = 0;
 
   pt.write(new Buffer('foog'));
+
+  console.error('need emit 0');
   pt.write(new Buffer('bark'));
+
+  console.error('should have emitted readable now 1 === %d', emits);
+  t.equal(emits, 1);
 
   t.equal(pt.read(5).toString(), 'foogb');
   t.equal(pt.read(5) + '', 'null');
 
-  console.error('need emit 0');
+  console.error('need emit 1');
 
   pt.write(new Buffer('bazy'));
   console.error('should have emitted, but not again');
   pt.write(new Buffer('kuel'));
 
-  console.error('should have emitted readable now 1 === %d', emits);
-  t.equal(emits, 1);
+  console.error('should have emitted readable now 2 === %d', emits);
+  t.equal(emits, 2);
 
   t.equal(pt.read(5).toString(), 'arkba');
   t.equal(pt.read(5).toString(), 'zykue');
   t.equal(pt.read(5), null);
 
-  console.error('need emit 1');
+  console.error('need emit 2');
 
   pt.end();
 
-  t.equal(emits, 2);
+  t.equal(emits, 3);
 
   t.equal(pt.read(5).toString(), 'l');
   t.equal(pt.read(5), null);
 
   console.error('should not have emitted again');
-  t.equal(emits, 2);
+  t.equal(emits, 3);
   t.end();
 });
 
@@ -256,25 +261,28 @@ test('passthrough event emission reordered', function(t) {
   });
 
   pt.write(new Buffer('foog'));
+  console.error('need emit 0');
   pt.write(new Buffer('bark'));
+  console.error('should have emitted readable now 1 === %d', emits);
+  t.equal(emits, 1);
 
   t.equal(pt.read(5).toString(), 'foogb');
   t.equal(pt.read(5), null);
 
-  console.error('need emit 0');
+  console.error('need emit 1');
   pt.once('readable', function() {
     t.equal(pt.read(5).toString(), 'arkba');
 
     t.equal(pt.read(5), null);
 
-    console.error('need emit 1');
+    console.error('need emit 2');
     pt.once('readable', function() {
       t.equal(pt.read(5).toString(), 'zykue');
       t.equal(pt.read(5), null);
       pt.once('readable', function() {
         t.equal(pt.read(5).toString(), 'l');
         t.equal(pt.read(5), null);
-        t.equal(emits, 3);
+        t.equal(emits, 4);
         t.end();
       });
       pt.end();
