@@ -160,7 +160,7 @@
           [ 'v8_use_arm_eabi_hardfloat=="true"', {
             'defines': [
               'USE_EABI_HARDFLOAT=1',
-              'CAN_USE_VFP2_INSTRUCTIONS',
+              'CAN_USE_VFP3_INSTRUCTIONS',
             ],
             'target_conditions': [
               ['_toolset=="target"', {
@@ -399,6 +399,15 @@
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" \
             or OS=="android"', {
+            'cflags!': [
+              '-O2',
+              '-Os',
+            ],
+            'cflags': [
+              '-fdata-sections',
+              '-ffunction-sections',
+              '-O3',
+            ],
             'conditions': [
               [ 'gcc_version==44 and clang==0', {
                 'cflags': [

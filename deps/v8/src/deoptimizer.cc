@@ -1411,8 +1411,9 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
       ? data->eager_deoptimization_entry_code_entries_
       : data->lazy_deoptimization_entry_code_entries_;
   if (max_entry_id < entry_count) return;
-  entry_count = Min(Max(entry_count * 2, Deoptimizer::kMinNumberOfEntries),
-                    Deoptimizer::kMaxNumberOfEntries);
+  entry_count = Max(entry_count, Deoptimizer::kMinNumberOfEntries);
+  while (max_entry_id >= entry_count) entry_count *= 2;
+  ASSERT(entry_count <= Deoptimizer::kMaxNumberOfEntries);
 
   MacroAssembler masm(Isolate::Current(), NULL, 16 * KB);
   masm.set_emit_debug_code(false);
