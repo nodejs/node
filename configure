@@ -336,6 +336,11 @@ def is_arch_armv7():
           '__ARM_ARCH_7M__' in cc_macros_cache)
 
 
+def is_arm_neon():
+  """Check for ARM NEON support"""
+  return '__ARM_NEON__' in cc_macros()
+
+
 def arm_hard_float_abi():
   """Check for hardfloat or softfloat eabi on ARM"""
   # GCC versions 4.6 and above define __ARM_PCS or __ARM_PCS_VFP to specify
@@ -422,14 +427,15 @@ def configure_arm(o):
     hard_float = options.arm_float_abi == 'hard'
   else:
     hard_float = arm_hard_float_abi()
-  o['variables']['v8_use_arm_eabi_hardfloat'] = b(hard_float)
 
   armv7 = is_arch_armv7()
-  if armv7:
-    # CHECKME VFPv3 implies ARMv7+ but is the reverse true as well?
-    o['variables']['arm_fpu'] = 'vfpv3'
-    o['variables']['arm_neon'] = 0
+  # CHECKME VFPv3 implies ARMv7+ but is the reverse true as well?
+  fpu = 'vfpv3' if armv7 else 'vfpv2'
+
   o['variables']['armv7'] = int(armv7)
+  o['variables']['arm_fpu'] = fpu
+  o['variables']['arm_neon'] = int(is_arm_neon())
+  o['variables']['v8_use_arm_eabi_hardfloat'] = b(hard_float)
 
 
 def configure_node(o):
