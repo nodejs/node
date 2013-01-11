@@ -1,3 +1,39 @@
+2013.01.11, Version 0.9.6 (Unstable)
+
+* V8: update to 3.15.11.5
+
+* node: remove ev-emul.h (Ben Noordhuis)
+
+* path: make basename and extname ignore trailing slashes (Bert Belder)
+
+* typed arrays: fix sunos signed/unsigned char issue (Ben Noordhuis)
+
+* child_process: Fix {stdio:'inherit'} regression (Ben Noordhuis)
+
+* child_process: Fix pipe() from child stdio streams  (Maciej Małecki)
+
+* child_process: make fork() execPath configurable (Bradley Meck)
+
+* stream: Add readable.push(chunk) method (isaacs)
+
+* dtrace: x64 ustack helper (Fedor Indutny)
+
+* repl: fix floating point number parsing (Nirk Niggler)
+
+* repl: allow overriding builtins (Ben Noordhuis)
+
+* net: add localAddress and localPort to Socket (James Hight)
+
+* fs: make pool size coincide with ReadStream bufferSize (Shigeki Ohtsu)
+
+* typed arrays: implement load and store swizzling (Dean McNamee)
+
+* windows: fix perfctr crash on XP and 2003 (Scott Blomquist)
+
+* dgram: fix double implicit bind error (Ben Noordhuis)
+
+
+2012.12.30, Version 0.9.5 (Unstable), 01994e8119c24f2284bac0779b32acb49c95bee7
 
 * assert: improve support for new execution contexts (lukebayes)
 
