@@ -30,11 +30,6 @@ var f = __filename;
 
 assert.equal(path.basename(f), 'test-path.js');
 assert.equal(path.basename(f, '.js'), 'test-path');
-assert.equal(path.basename('/dir/basename.ext'), 'basename.ext');
-assert.equal(path.basename('/basename.ext'), 'basename.ext');
-assert.equal(path.basename('basename.ext'), 'basename.ext');
-assert.equal(path.basename('basename.ext/'), 'basename.ext');
-assert.equal(path.basename('basename.ext//'), 'basename.ext');
 
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
@@ -52,7 +47,6 @@ assert.equal(path.dirname('/a/b/'), '/a');
 assert.equal(path.dirname('/a/b'), '/a');
 assert.equal(path.dirname('/a'), '/');
 assert.equal(path.dirname('/'), '/');
-assert.equal(path.dirname('////'), '/');
 
 if (isWindows) {
   assert.equal(path.dirname('c:\\'), 'c:\\');
@@ -120,8 +114,7 @@ assert.equal(path.extname('..file..'), '.');
 assert.equal(path.extname('...'), '.');
 assert.equal(path.extname('...ext'), '.ext');
 assert.equal(path.extname('....'), '.');
-assert.equal(path.extname('file.ext/'), '.ext');
-assert.equal(path.extname('file.ext//'), '.ext');
+assert.equal(path.extname('file.ext/'), '');
 
 if (isWindows) {
   // On windows, backspace is a path separator.
