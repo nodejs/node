@@ -127,9 +127,9 @@ inline T SwapBytes(T x) {
 }
 
 template <>
-inline uint8_t SwapBytes(uint8_t x) { return x; }
+inline signed char SwapBytes(signed char x) { return x; }
 template <>
-inline int8_t SwapBytes(int8_t x) { return x; }
+inline unsigned char SwapBytes(unsigned char x) { return x; }
 template <>
 inline uint16_t SwapBytes(uint16_t x) { return V8_TYPED_ARRAY_BSWAP16(x); }
 template <>
