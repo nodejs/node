@@ -221,6 +221,13 @@ typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
 
 
+typedef enum {
+  UV_RUN_DEFAULT = 0,
+  UV_RUN_ONCE,
+  UV_RUN_NOWAIT
+} uv_run_mode;
+
+
 /*
  * This function must be called before any other functions in libuv.
  *
@@ -244,12 +251,18 @@ UV_EXTERN uv_loop_t* uv_default_loop(void);
 UV_EXTERN int uv_run(uv_loop_t*);
 
 /*
- * Poll for new events once. Note that this function blocks if there are no
- * pending events. Returns zero when done (no active handles or requests left),
- * or non-zero if more events are expected (meaning you should call
- * uv_run_once() again sometime in the future).
+ * This function runs the event loop. It will act differently depending on the
+ * specified mode:
+ *  - UV_RUN_DEFAULT: Runs the event loop until the reference count drops to
+ *    zero. Always returns zero.
+ *  - UV_RUN_ONCE: Poll for new events once. Note that this function blocks if
+ *    there are no pending events. Returns zero when done (no active handles
+ *    or requests left), or non-zero if more events are expected (meaning you
+ *    should run the event loop again sometime in the future).
+ *  - UV_RUN_NOWAIT: Poll for new events once but don't block if there are no
+ *    pending events.
  */
-UV_EXTERN int uv_run_once(uv_loop_t*);
+UV_EXTERN int uv_run2(uv_loop_t*, uv_run_mode mode);
 
 /*
  * Manually modify the event loop's reference count. Useful if the user wants
@@ -265,7 +278,7 @@ UV_EXTERN int64_t uv_now(uv_loop_t*);
  * Get backend file descriptor. Only kqueue, epoll and event ports are
  * supported.
  *
- * This can be used in conjuction with uv_run_once() to poll in one thread and
+ * This can be used in conjunction with uv_run_once() to poll in one thread and
  * run the event loop's event callbacks in another.
  *
  * Useful for embedding libuv's event loop in another event loop.
@@ -1653,8 +1666,10 @@ UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
  * ultra efficient so don't go creating a million event loops with a million
  * signal watchers.
  *
- * TODO(bnoordhuis) As of 2012-08-10 only the default event loop supports
- *                  signals. That will be fixed.
+ * Note to Linux users: SIGRT0 and SIGRT1 (signals 32 and 33) are used by the
+ * NPTL pthreads library to manage threads. Installing watchers for those
+ * signals will lead to unpredictable behavior and is strongly discouraged.
+ * Future versions of libuv may simply reject them.
  *
  * Some signal support is available on Windows:
  *
@@ -1688,11 +1703,12 @@ struct uv_signal_s {
   UV_SIGNAL_PRIVATE_FIELDS
 };
 
-/* These functions are no-ops on Windows. */
 UV_EXTERN int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle);
+
 UV_EXTERN int uv_signal_start(uv_signal_t* handle,
                               uv_signal_cb signal_cb,
                               int signum);
+
 UV_EXTERN int uv_signal_stop(uv_signal_t* handle);
 
 
@@ -1782,7 +1798,7 @@ UV_EXTERN extern uint64_t uv_hrtime(void);
 /*
  * Disables inheritance for file descriptors / handles that this process
  * inherited from its parent. The effect is that child processes spawned by
- * this proces don't accidently inherit these handles.
+ * this process don't accidentally inherit these handles.
  *
  * It is recommended to call this function as early in your program as possible,
  * before the inherited file descriptors can be closed or duplicated.
@@ -1802,7 +1818,7 @@ UV_EXTERN void uv_disable_stdio_inheritance(void);
 UV_EXTERN int uv_dlopen(const char* filename, uv_lib_t* lib);
 
 /*
- * Close the shared libary.
+ * Close the shared library.
  */
 UV_EXTERN void uv_dlclose(uv_lib_t* lib);
 

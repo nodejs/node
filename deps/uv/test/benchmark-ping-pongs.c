@@ -174,7 +174,7 @@ static void pinger_connect_cb(uv_connect_t* req, int status) {
 }
 
 
-static void pinger_new() {
+static void pinger_new(void) {
   int r;
   struct sockaddr_in client_addr = uv_ip4_addr("0.0.0.0", 0);
   struct sockaddr_in server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);

@@ -40,7 +40,7 @@ static void uv__getaddrinfo_work(struct uv__work* w) {
 static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   uv_getaddrinfo_t* req = container_of(w, uv_getaddrinfo_t, work_req);
   struct addrinfo *res = req->res;
-#if __sun
+#if defined(__sun)
   size_t hostlen;
 
   if (req->hostname)
@@ -69,13 +69,13 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
 
   if (req->retcode == 0) {
     /* OK */
-#if EAI_NODATA /* FreeBSD deprecated EAI_NODATA */
+#if defined(EAI_NODATA) /* FreeBSD deprecated EAI_NODATA */
   } else if (req->retcode == EAI_NONAME || req->retcode == EAI_NODATA) {
 #else
   } else if (req->retcode == EAI_NONAME) {
 #endif
     uv__set_sys_error(req->loop, ENOENT); /* FIXME compatibility hack */
-#if __sun
+#if defined(__sun)
   } else if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
     uv__set_sys_error(req->loop, ENOENT);
 #endif

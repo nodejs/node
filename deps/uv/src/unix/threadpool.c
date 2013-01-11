@@ -139,7 +139,7 @@ void uv__work_submit(uv_loop_t* loop,
 }
 
 
-int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
+static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
   int cancelled;
 
   uv_mutex_lock(&mutex);
@@ -158,6 +158,7 @@ int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
   w->work = uv__cancelled;
   uv_mutex_lock(&loop->wq_mutex);
   ngx_queue_insert_tail(&loop->wq, &w->wq);
+  uv_async_send(&loop->wq_async);
   uv_mutex_unlock(&loop->wq_mutex);
 
   return 0;

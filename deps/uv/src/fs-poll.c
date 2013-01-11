@@ -190,15 +190,15 @@ static void timer_close_cb(uv_handle_t* handle) {
 
 
 static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b) {
-#ifdef _WIN32
+#if defined(_WIN32)
   return a->st_mtime == b->st_mtime
       && a->st_size == b->st_size
       && a->st_mode == b->st_mode;
 #else
 
   /* Jump through a few hoops to get sub-second granularity on Linux. */
-# if __linux__
-#  if __USE_MISC /* _BSD_SOURCE || _SVID_SOURCE */
+# if defined(__linux__)
+#  if defined(__USE_MISC) /* _BSD_SOURCE || _SVID_SOURCE */
   if (a->st_ctim.tv_nsec != b->st_ctim.tv_nsec) return 0;
   if (a->st_mtim.tv_nsec != b->st_mtim.tv_nsec) return 0;
 #  else
@@ -208,7 +208,7 @@ static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b) {
 # endif
 
   /* Jump through different hoops on OS X. */
-# if __APPLE__
+# if defined(__APPLE__)
 #  if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
   if (a->st_ctimespec.tv_nsec != b->st_ctimespec.tv_nsec) return 0;
   if (a->st_mtimespec.tv_nsec != b->st_mtimespec.tv_nsec) return 0;
@@ -234,7 +234,7 @@ static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b) {
 }
 
 
-#ifdef _WIN32
+#if defined(_WIN32)
 
 #include "win/internal.h"
 #include "win/handle-inl.h"

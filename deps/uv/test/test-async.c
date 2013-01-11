@@ -35,7 +35,7 @@ static int prepare_cb_called;
 static int close_cb_called;
 
 
-void thread_cb(void *arg) {
+static void thread_cb(void *arg) {
   int n;
   int r;
 

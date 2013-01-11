@@ -63,9 +63,18 @@ static void on_connection(uv_stream_t*, int status);
 
 #define LEN_OFFSET 0
 #define QUERYID_OFFSET 2
-unsigned char DNSRsp[] = {0, 43, 0, 0, 0x81, 0x80, 0, 1, 0, 1, 0, 0, 0, 0 };
-unsigned char qrecord[] = {5, 'e', 'c', 'h', 'o', 's', 3, 's', 'r', 'v', 0, 0, 1, 0, 1};
-unsigned char arecord[] = {0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 5, 0xbd, 0, 4, 10, 0, 1, 1 };
+
+static unsigned char DNSRsp[] = {
+  0, 43, 0, 0, 0x81, 0x80, 0, 1, 0, 1, 0, 0, 0, 0
+};
+
+static unsigned char qrecord[] = {
+  5, 'e', 'c', 'h', 'o', 's', 3, 's', 'r', 'v', 0, 0, 1, 0, 1
+};
+
+static unsigned char arecord[] = {
+  0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 5, 0xbd, 0, 4, 10, 0, 1, 1
+};
 
 
 static void after_write(uv_write_t* req, int status) {

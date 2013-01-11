@@ -88,7 +88,7 @@ static void on_connect_without_close(uv_connect_t *req, int status) {
 }
 
 
-void connection_fail(uv_connect_cb connect_cb) {
+static void connection_fail(uv_connect_cb connect_cb) {
   struct sockaddr_in client_addr, server_addr;
   int r;
 

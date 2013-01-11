@@ -79,8 +79,6 @@ typedef enum {
     abort();                                              \
   } while (0)
 
-
-
 /* Have our own assert, so we are sure it does not get optimized away in
  * a release build.
  */
@@ -103,15 +101,17 @@ typedef enum {
   uv_loop_delete(uv_default_loop())
 
 /* Just sugar for wrapping the main() for a task or helper. */
-#define TEST_IMPL(name)   \
-  int run_test_##name()
+#define TEST_IMPL(name)                                                       \
+  int run_test_##name(void);                                                  \
+  int run_test_##name(void)
 
-#define BENCHMARK_IMPL(name)  \
-  int run_benchmark_##name()
+#define BENCHMARK_IMPL(name)                                                  \
+  int run_benchmark_##name(void);                                             \
+  int run_benchmark_##name(void)
 
-#define HELPER_IMPL(name)  \
-  int run_helper_##name()
-
+#define HELPER_IMPL(name)                                                     \
+  int run_helper_##name(void);                                                \
+  int run_helper_##name(void)
 
 /* Pause the calling thread for a number of milliseconds. */
 void uv_sleep(int msec);

@@ -354,7 +354,7 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   struct timespec ts;
   uint64_t abstime;
 
-  abstime = uv_hrtime() + timeout;
+  abstime = uv__hrtime() + timeout;
   ts.tv_sec = abstime / NANOSEC;
   ts.tv_nsec = abstime % NANOSEC;
   r = pthread_cond_timedwait(cond, mutex, &ts);

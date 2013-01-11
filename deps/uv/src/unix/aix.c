@@ -45,7 +45,7 @@
 #include <sys/proc.h>
 #include <sys/procfs.h>
 
-uint64_t uv_hrtime() {
+uint64_t uv__hrtime(void) {
   uint64_t G = 1000000000;
   timebasestruct_t t;
   read_wall_time(&t, TIMEBASE_SZ);

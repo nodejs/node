@@ -26,7 +26,11 @@
 #include <fcntl.h>
 
 #ifndef HAVE_KQUEUE
-# if __APPLE__ || __DragonFly__ || __FreeBSD__ || __OpenBSD__ || __NetBSD__
+# if defined(__APPLE__) ||                                                    \
+     defined(__DragonFly__) ||                                                \
+     defined(__FreeBSD__) ||                                                  \
+     defined(__OpenBSD__) ||                                                  \
+     defined(__NetBSD__)
 #  define HAVE_KQUEUE 1
 # endif
 #endif
@@ -431,7 +435,7 @@ TEST_IMPL(fs_event_close_with_pending_event) {
   return 0;
 }
 
-#if HAVE_KQUEUE
+#if defined(HAVE_KQUEUE)
 
 /* kqueue doesn't register fs events if you don't have an active watcher.
  * The file descriptor needs to be part of the kqueue set of interest and

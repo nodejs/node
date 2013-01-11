@@ -31,18 +31,13 @@
 # define inline __inline
 #endif
 
-#undef HAVE_PORTS_FS
-
-#if __linux__
+#if defined(__linux__)
 # include "linux/syscalls.h"
 #endif /* __linux__ */
 
 #if defined(__sun)
 # include <sys/port.h>
 # include <port.h>
-# ifdef PORT_SOURCE_FILE
-#  define HAVE_PORTS_FS 1
-# endif
 # define futimes(fd, tv) futimesat(fd, (void*)0, tv)
 #endif /* __sun */
 
@@ -110,14 +105,6 @@ enum {
   UV_TCP_SINGLE_ACCEPT = 0x400  /* Only accept() when idle. */
 };
 
-__attribute__((unused))
-static void uv__req_init(uv_loop_t* loop, uv_req_t* req, uv_req_type type) {
-  req->type = type;
-  uv__req_register(loop, req);
-}
-#define uv__req_init(loop, req, type) \
-  uv__req_init((loop), (uv_req_t*)(req), (type))
-
 /* core */
 void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle, uv_handle_type type);
 int uv__nonblock(int fd, int set);
@@ -169,7 +156,7 @@ int uv__next_timeout(const uv_loop_t* loop);
 /* signal */
 void uv__signal_close(uv_signal_t* handle);
 void uv__signal_global_once_init(void);
-void uv__signal_loop_cleanup();
+void uv__signal_loop_cleanup(uv_loop_t* loop);
 
 /* thread pool */
 void uv__work_submit(uv_loop_t* loop,
@@ -179,6 +166,7 @@ void uv__work_submit(uv_loop_t* loop,
 void uv__work_done(uv_async_t* handle, int status);
 
 /* platform specific */
+uint64_t uv__hrtime(void);
 int uv__kqueue_init(uv_loop_t* loop);
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop);
 void uv__platform_loop_delete(uv_loop_t* loop);
@@ -241,5 +229,18 @@ static const int kFSEventStreamEventFlagItemIsSymlink = 0x00040000;
 #endif /* __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 1070 */
 
 #endif /* defined(__APPLE__) */
+
+__attribute__((unused))
+static void uv__req_init(uv_loop_t* loop, uv_req_t* req, uv_req_type type) {
+  req->type = type;
+  uv__req_register(loop, req);
+}
+#define uv__req_init(loop, req, type) \
+  uv__req_init((loop), (uv_req_t*)(req), (type))
+
+__attribute__((unused))
+static void uv__update_time(uv_loop_t* loop) {
+  loop->time = uv__hrtime() / 1000000;
+}
 
 #endif /* UV_UNIX_INTERNAL_H_ */

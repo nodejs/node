@@ -104,7 +104,7 @@ static char buf[32];
 static char test_buf[] = "test-buffer\n";
 
 
-void check_permission(const char* filename, int mode) {
+static void check_permission(const char* filename, int mode) {
   int r;
   uv_fs_t req;
   struct stat* s;

@@ -381,6 +381,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
         errno == EIO ||
         errno == ENOTSOCK ||
         errno == EXDEV) {
+      errno = 0;
       return uv__fs_sendfile_emul(req);
     }
 
@@ -412,6 +413,7 @@ static ssize_t uv__fs_sendfile(uv_fs_t* req) {
         errno == EIO ||
         errno == ENOTSOCK ||
         errno == EXDEV) {
+      errno = 0;
       return uv__fs_sendfile_emul(req);
     }
 

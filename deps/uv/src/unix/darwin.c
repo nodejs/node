@@ -176,7 +176,7 @@ void uv__cf_loop_signal(uv_loop_t* loop, cf_loop_signal_cb cb, void* arg) {
 }
 
 
-uint64_t uv_hrtime(void) {
+uint64_t uv__hrtime(void) {
     mach_timebase_info_data_t info;
 
     if (mach_timebase_info(&info) != KERN_SUCCESS)

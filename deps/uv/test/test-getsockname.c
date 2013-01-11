@@ -165,7 +165,7 @@ static void on_connect(uv_connect_t* req, int status) {
 }
 
 
-static int tcp_listener() {
+static int tcp_listener(void) {
   struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", server_port);
   struct sockaddr sockname, peername;
   int namelen;
@@ -206,7 +206,7 @@ static int tcp_listener() {
 }
 
 
-static void tcp_connector() {
+static void tcp_connector(void) {
   struct sockaddr_in server_addr = uv_ip4_addr("127.0.0.1", server_port);
   struct sockaddr sockname;
   int r, namelen;
@@ -261,7 +261,7 @@ static void udp_send(uv_udp_send_t* req, int status) {
 }
 
 
-static int udp_listener() {
+static int udp_listener(void) {
   struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", server_port);
   struct sockaddr sockname;
   int namelen;

@@ -106,7 +106,7 @@ static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
 }
 
 
-void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   uv_err_t err = uv_last_error(uv_default_loop());
 
   if (nread > 0) {
@@ -118,7 +118,7 @@ void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
 }
 
 
-void write_cb(uv_write_t* req, int status) {
+static void write_cb(uv_write_t* req, int status) {
   ASSERT(status == 0);
   uv_close((uv_handle_t*)req->handle, close_cb);
 }

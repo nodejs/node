@@ -156,6 +156,15 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
+static void nop_work_cb(uv_work_t* req) {
+}
+
+
+static void nop_done_cb(uv_work_t* req, int status) {
+  req->data = "OK";
+}
+
+
 TEST_IMPL(threadpool_cancel_getaddrinfo) {
   uv_getaddrinfo_t reqs[4];
   struct cancel_info ci;
@@ -261,6 +270,38 @@ TEST_IMPL(threadpool_cancel_fs) {
   ASSERT(1 == timer_cb_called);
 
   cleanup_threadpool();
+
+  return 0;
+}
+
+
+TEST_IMPL(threadpool_cancel_single) {
+  uv_loop_t* loop;
+  uv_work_t req;
+  int cancelled;
+  int i;
+
+  loop = uv_default_loop();
+  for (i = 0; i < 5000; i++) {
+    req.data = NULL;
+    ASSERT(0 == uv_queue_work(loop, &req, nop_work_cb, nop_done_cb));
+
+    cancelled = uv_cancel((uv_req_t*) &req);
+    if (cancelled == 0)
+      break;
+
+    ASSERT(0 == uv_run(loop));
+  }
+
+  if (cancelled != 0) {
+    fputs("Failed to cancel a work req in 5,000 iterations, giving up.\n",
+          stderr);
+    return 1;
+  }
+
+  ASSERT(req.data == NULL);
+  ASSERT(0 == uv_run(loop));
+  ASSERT(req.data != NULL);  /* Should have been updated by nop_done_cb(). */
 
   return 0;
 }

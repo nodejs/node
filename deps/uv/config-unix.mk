@@ -123,6 +123,13 @@ else
 RUNNER_LDFLAGS += -pthread
 endif
 
+OBJDIR := out
+ifeq ($(MAKECMDGOALS), test)
+	OBJDIR := $(OBJDIR)/test
+endif
+
+OBJS := $(addprefix $(OBJDIR)/,$(OBJS))
+
 libuv.a: $(OBJS)
 	$(AR) rcs $@ $^
 
@@ -130,18 +137,18 @@ libuv.$(SOEXT):	override CFLAGS += -fPIC
 libuv.$(SOEXT):	$(OBJS)
 	$(CC) -shared -o $@ $^ $(LDFLAGS)
 
-src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
+$(OBJDIR)/src/unix/%.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
+	@mkdir -p $(dir $@)
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-src/unix/%.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
+$(OBJDIR)/src/%.o: src/%.c include/uv.h include/uv-private/uv-unix.h
+	@mkdir -p $(dir $@)
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean-platform:
-	-rm -f src/unix/*.o
-	-rm -f src/unix/linux/*.o
-	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM
+	-rm -rf $(OBJDIR)
+	-rm -f libuv.a libuv.$(SOEXT) test/run-{tests,benchmarks}.dSYM
 
 distclean-platform:
-	-rm -f src/unix/*.o
-	-rm -f src/unix/linux/*.o
-	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM
+	-rm -rf $(OBJDIR)
+	-rm -f libuv.a libuv.$(SOEXT) test/run-{tests,benchmarks}.dSYM

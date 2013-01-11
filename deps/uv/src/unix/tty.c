@@ -140,7 +140,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
 }
 
 
-void uv_tty_reset_mode() {
+void uv_tty_reset_mode(void) {
   if (orig_termios_fd >= 0) {
     tcsetattr(orig_termios_fd, TCSANOW, &orig_termios);
   }

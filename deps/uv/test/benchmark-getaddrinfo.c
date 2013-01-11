@@ -26,7 +26,7 @@
 #define CONCURRENT_CALLS 10
 #define TOTAL_CALLS 10000
 
-const char* name = "localhost";
+static const char* name = "localhost";
 
 static uv_loop_t* loop;
 

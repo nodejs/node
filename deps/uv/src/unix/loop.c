@@ -49,7 +49,7 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   ngx_queue_init(&loop->watcher_queue);
 
   loop->closing_handles = NULL;
-  loop->time = uv_hrtime() / 1000000;
+  loop->time = uv__hrtime() / 1000000;
   loop->async_pipefd[0] = -1;
   loop->async_pipefd[1] = -1;
   loop->signal_pipefd[0] = -1;

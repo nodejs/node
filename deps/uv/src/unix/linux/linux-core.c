@@ -57,7 +57,6 @@
 # define CLOCK_BOOTTIME 7
 #endif
 
-static char buf[MAXPATHLEN + 1];
 static void* args_mem;
 
 static struct {
@@ -182,6 +181,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
                           ARRAY_SIZE(events),
                           timeout);
 
+    /* Update loop->time unconditionally. It's tempting to skip the update when
+     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
+     * operating system didn't reschedule our process while in the syscall.
+     */
+    SAVE_ERRNO(uv__update_time(loop));
+
     if (nfds == 0) {
       assert(timeout != -1);
       return;
@@ -243,10 +248,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 update_timeout:
     assert(timeout > 0);
 
-    diff = uv_hrtime() / 1000000;
-    assert(diff >= base);
-    diff -= base;
-
+    diff = loop->time - base;
     if (diff >= (uint64_t) timeout)
       return;
 
@@ -255,7 +257,7 @@ update_timeout:
 }
 
 
-uint64_t uv_hrtime() {
+uint64_t uv__hrtime(void) {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
@@ -379,6 +381,7 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   size_t page_size = getpagesize();
   char *cbuf;
   int foundExeEnd;
+  char buf[PATH_MAX + 1];
 
   f = fopen("/proc/self/stat", "r");
   if (!f) return uv__new_sys_error(errno);
@@ -547,11 +550,13 @@ static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
   static const char model_marker[] = "";
   static const char speed_marker[] = "";
 #endif
+  static const char bogus_model[] = "unknown";
   unsigned int model_idx;
   unsigned int speed_idx;
   char buf[1024];
   char* model;
   FILE* fp;
+  char* inferred_model;
 
   fp = fopen("/proc/cpuinfo", "r");
   if (fp == NULL)
@@ -580,6 +585,26 @@ static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
     }
   }
   fclose(fp);
+
+  /* Now we want to make sure that all the models contain *something*:
+   * it's not safe to leave them as null.
+   */
+  if (model_idx == 0) {
+    /* No models at all: fake up the first one. */
+    ci[0].model = strndup(bogus_model, sizeof(bogus_model) - 1);
+    model_idx = 1;
+  }
+
+  /* Not enough models, but we do have at least one.  So we'll just
+   * copy the rest down: it might be better to indicate somehow that
+   * the remaining ones have been guessed.
+   */
+  inferred_model = ci[model_idx - 1].model;
+
+  while (model_idx < numcpus) {
+    ci[model_idx].model = strndup(inferred_model, strlen(inferred_model));
+    model_idx++;
+  }
 }
 
 

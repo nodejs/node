@@ -39,15 +39,13 @@
 #include <kstat.h>
 #include <fcntl.h>
 
-#if HAVE_PORTS_FS
-# include <sys/port.h>
-# include <port.h>
+#include <sys/port.h>
+#include <port.h>
 
-# define PORT_FIRED 0x69
-# define PORT_UNUSED 0x0
-# define PORT_LOADED 0x99
-# define PORT_DELETED -1
-#endif
+#define PORT_FIRED 0x69
+#define PORT_UNUSED 0x0
+#define PORT_LOADED 0x99
+#define PORT_DELETED -1
 
 #if (!defined(_LP64)) && (_FILE_OFFSET_BITS - 0 == 64)
 #define PROCFS_FILE_OFFSET_BITS_HACK 1
@@ -152,6 +150,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         abort();
     }
 
+    /* Update loop->time unconditionally. It's tempting to skip the update when
+     * timeout == 0 (i.e. non-blocking poll) but there is no guarantee that the
+     * operating system didn't reschedule our process while in the syscall.
+     */
+    SAVE_ERRNO(uv__update_time(loop));
+
     if (events[0].portev_source == 0) {
       if (timeout == 0)
         return;
@@ -213,10 +217,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
 update_timeout:
     assert(timeout > 0);
 
-    diff = uv_hrtime() / 1000000;
-    assert(diff >= base);
-    diff -= base;
-
+    diff = loop->time - base;
     if (diff >= (uint64_t) timeout)
       return;
 
@@ -225,8 +226,8 @@ update_timeout:
 }
 
 
-uint64_t uv_hrtime() {
-  return (gethrtime());
+uint64_t uv__hrtime(void) {
+  return gethrtime();
 }
 
 
@@ -272,7 +273,8 @@ void uv_loadavg(double avg[3]) {
 }
 
 
-#if HAVE_PORTS_FS
+#if defined(PORT_SOURCE_FILE)
+
 static void uv__fs_event_rearm(uv_fs_event_t *handle) {
   if (handle->fd == -1)
     return;
@@ -386,7 +388,7 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
   uv__handle_stop(handle);
 }
 
-#else /* !HAVE_PORTS_FS */
+#else /* !defined(PORT_SOURCE_FILE) */
 
 int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
@@ -402,7 +404,7 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
   UNREACHABLE();
 }
 
-#endif /* HAVE_PORTS_FS */
+#endif /* defined(PORT_SOURCE_FILE) */
 
 
 char** uv_setup_args(int argc, char** argv) {

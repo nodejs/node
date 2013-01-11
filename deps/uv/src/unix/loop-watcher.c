@@ -31,6 +31,8 @@
                                                                               \
   int uv_##name##_start(uv_##name##_t* handle, uv_##name##_cb cb) {           \
     if (uv__is_active(handle)) return 0;                                      \
+    if (cb == NULL)                                                           \
+      return uv__set_artificial_error(handle->loop, UV_EINVAL);               \
     ngx_queue_insert_head(&handle->loop->name##_handles, &handle->queue);     \
     handle->name##_cb = cb;                                                   \
     uv__handle_start(handle);                                                 \
@@ -49,7 +51,7 @@
     ngx_queue_t* q;                                                           \
     ngx_queue_foreach(q, &loop->name##_handles) {                             \
       h = ngx_queue_data(q, uv_##name##_t, queue);                            \
-      if (h->name##_cb) h->name##_cb(h, 0);                                   \
+      h->name##_cb(h, 0);                                                     \
     }                                                                         \
   }                                                                           \
                                                                               \

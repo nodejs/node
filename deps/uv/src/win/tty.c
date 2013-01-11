@@ -1865,7 +1865,7 @@ void uv_process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
 }
 
 
-void uv_tty_reset_mode() {
+void uv_tty_reset_mode(void) {
   /* Not necessary to do anything. */
   ;
 }

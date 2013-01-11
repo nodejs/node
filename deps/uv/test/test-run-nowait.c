@@ -19,26 +19,28 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_SUNOS_H
-#define UV_SUNOS_H
+#include "uv.h"
+#include "task.h"
 
-#include <sys/port.h>
-#include <port.h>
+static uv_timer_t timer_handle;
+static int timer_called = 0;
 
-/* For the sake of convenience and reduced #ifdef-ery in src/unix/sunos.c,
- * add the fs_event fields even when this version of SunOS doesn't support
- * file watching.
- */
-#define UV_PLATFORM_LOOP_FIELDS                                               \
-  uv__io_t fs_event_watcher;                                                  \
-  int fs_fd;                                                                  \
 
-#if defined(PORT_SOURCE_FILE)
+static void timer_cb(uv_timer_t* handle, int status) {
+  ASSERT(handle == &timer_handle);
+  ASSERT(status == 0);
+  timer_called = 1;
+}
 
-# define UV_PLATFORM_FS_EVENT_FIELDS                                          \
-  file_obj_t fo;                                                              \
-  int fd;                                                                     \
 
-#endif /* defined(PORT_SOURCE_FILE) */
+TEST_IMPL(run_nowait) {
+  int r;
+  uv_timer_init(uv_default_loop(), &timer_handle);
+  uv_timer_start(&timer_handle, timer_cb, 100, 100);
 
-#endif /* UV_SUNOS_H */
+  r = uv_run2(uv_default_loop(), UV_RUN_NOWAIT);
+  ASSERT(r != 0);
+  ASSERT(timer_called == 0);
+
+  return 0;
+}

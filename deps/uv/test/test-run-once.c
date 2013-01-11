@@ -41,7 +41,7 @@ TEST_IMPL(run_once) {
   uv_idle_init(uv_default_loop(), &idle_handle);
   uv_idle_start(&idle_handle, idle_cb);
 
-  while (uv_run_once(uv_default_loop()));
+  while (uv_run2(uv_default_loop(), UV_RUN_ONCE));
   ASSERT(idle_counter == NUM_TICKS);
 
   MAKE_VALGRIND_HAPPY();

@@ -313,7 +313,7 @@ void process_cleanup(process_info_t *p) {
 
 
 /* Move the console cursor one line up and back to the first column. */
-void rewind_cursor() {
+void rewind_cursor(void) {
   fprintf(stderr, "\033[2K\r");
 }
 

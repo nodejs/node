@@ -19,7 +19,7 @@
  */
 
 #include "uv.h"
-#include "../uv-common.h"
+#include "internal.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -41,11 +41,12 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 }
 
 
-uint64_t uv_hrtime() {
+uint64_t uv__hrtime(void) {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
 }
+
 
 void uv_loadavg(double avg[3]) {
   /* Unsupported as of cygwin 1.7.7 */

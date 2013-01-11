@@ -25,14 +25,14 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#if __i386__
+#if defined(__i386__)
 # ifndef __NR_socketcall
 #  define __NR_socketcall 102
 # endif
 #endif
 
-#if __arm__
-# if __thumb__ || __ARM_EABI__
+#if defined(__arm__)
+# if defined(__thumb__) || defined(__ARM_EABI__)
 #  define UV_SYSCALL_BASE 0
 # else
 #  define UV_SYSCALL_BASE 0x900000
@@ -40,168 +40,168 @@
 #endif /* __arm__ */
 
 #ifndef __NR_accept4
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_accept4 288
-# elif __i386__
+# elif defined(__i386__)
    /* Nothing. Handled through socketcall(). */
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_accept4 (UV_SYSCALL_BASE + 366)
 # endif
 #endif /* __NR_accept4 */
 
 #ifndef __NR_eventfd
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_eventfd 284
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_eventfd 323
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_eventfd (UV_SYSCALL_BASE + 351)
 # endif
 #endif /* __NR_eventfd */
 
 #ifndef __NR_eventfd2
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_eventfd2 290
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_eventfd2 328
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_eventfd2 (UV_SYSCALL_BASE + 356)
 # endif
 #endif /* __NR_eventfd2 */
 
 #ifndef __NR_epoll_create
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_epoll_create 213
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_epoll_create 254
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_epoll_create (UV_SYSCALL_BASE + 250)
 # endif
 #endif /* __NR_epoll_create */
 
 #ifndef __NR_epoll_create1
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_epoll_create1 291
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_epoll_create1 329
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_epoll_create1 (UV_SYSCALL_BASE + 357)
 # endif
 #endif /* __NR_epoll_create1 */
 
 #ifndef __NR_epoll_ctl
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_epoll_ctl 233 /* used to be 214 */
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_epoll_ctl 255
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_epoll_ctl (UV_SYSCALL_BASE + 251)
 # endif
 #endif /* __NR_epoll_ctl */
 
 #ifndef __NR_epoll_wait
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_epoll_wait 232 /* used to be 215 */
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_epoll_wait 256
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_epoll_wait (UV_SYSCALL_BASE + 252)
 # endif
 #endif /* __NR_epoll_wait */
 
 #ifndef __NR_epoll_pwait
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_epoll_pwait 281
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_epoll_pwait 319
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_epoll_pwait (UV_SYSCALL_BASE + 346)
 # endif
 #endif /* __NR_epoll_pwait */
 
 #ifndef __NR_inotify_init
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_inotify_init 253
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_inotify_init 291
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_inotify_init (UV_SYSCALL_BASE + 316)
 # endif
 #endif /* __NR_inotify_init */
 
 #ifndef __NR_inotify_init1
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_inotify_init1 294
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_inotify_init1 332
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_inotify_init1 (UV_SYSCALL_BASE + 360)
 # endif
 #endif /* __NR_inotify_init1 */
 
 #ifndef __NR_inotify_add_watch
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_inotify_add_watch 254
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_inotify_add_watch 292
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_inotify_add_watch (UV_SYSCALL_BASE + 317)
 # endif
 #endif /* __NR_inotify_add_watch */
 
 #ifndef __NR_inotify_rm_watch
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_inotify_rm_watch 255
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_inotify_rm_watch 293
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_inotify_rm_watch (UV_SYSCALL_BASE + 318)
 # endif
 #endif /* __NR_inotify_rm_watch */
 
 #ifndef __NR_pipe2
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_pipe2 293
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_pipe2 331
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_pipe2 (UV_SYSCALL_BASE + 359)
 # endif
 #endif /* __NR_pipe2 */
 
 #ifndef __NR_recvmmsg
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_recvmmsg 299
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_recvmmsg 337
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_recvmmsg (UV_SYSCALL_BASE + 365)
 # endif
 #endif /* __NR_recvmsg */
 
 #ifndef __NR_sendmmsg
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_sendmmsg 307
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_sendmmsg 345
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_sendmmsg (UV_SYSCALL_BASE + 374)
 # endif
 #endif /* __NR_sendmmsg */
 
 #ifndef __NR_utimensat
-# if __x86_64__
+# if defined(__x86_64__)
 #  define __NR_utimensat 280
-# elif __i386__
+# elif defined(__i386__)
 #  define __NR_utimensat 320
-# elif __arm__
+# elif defined(__arm__)
 #  define __NR_utimensat (UV_SYSCALL_BASE + 348)
 # endif
 #endif /* __NR_utimensat */
 
 
 int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
-#if __i386__
+#if defined(__i386__)
   unsigned long args[4];
   int r;
 
@@ -221,7 +221,7 @@ int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
         errno = ENOSYS;
 
   return r;
-#elif __NR_accept4
+#elif defined(__NR_accept4)
   return syscall(__NR_accept4, fd, addr, addrlen, flags);
 #else
   return errno = ENOSYS, -1;
@@ -230,7 +230,7 @@ int uv__accept4(int fd, struct sockaddr* addr, socklen_t* addrlen, int flags) {
 
 
 int uv__eventfd(unsigned int count) {
-#if __NR_eventfd
+#if defined(__NR_eventfd)
   return syscall(__NR_eventfd, count);
 #else
   return errno = ENOSYS, -1;
@@ -239,7 +239,7 @@ int uv__eventfd(unsigned int count) {
 
 
 int uv__eventfd2(unsigned int count, int flags) {
-#if __NR_eventfd2
+#if defined(__NR_eventfd2)
   return syscall(__NR_eventfd2, count, flags);
 #else
   return errno = ENOSYS, -1;
@@ -248,7 +248,7 @@ int uv__eventfd2(unsigned int count, int flags) {
 
 
 int uv__epoll_create(int size) {
-#if __NR_epoll_create
+#if defined(__NR_epoll_create)
   return syscall(__NR_epoll_create, size);
 #else
   return errno = ENOSYS, -1;
@@ -257,7 +257,7 @@ int uv__epoll_create(int size) {
 
 
 int uv__epoll_create1(int flags) {
-#if __NR_epoll_create1
+#if defined(__NR_epoll_create1)
   return syscall(__NR_epoll_create1, flags);
 #else
   return errno = ENOSYS, -1;
@@ -266,7 +266,7 @@ int uv__epoll_create1(int flags) {
 
 
 int uv__epoll_ctl(int epfd, int op, int fd, struct uv__epoll_event* events) {
-#if __NR_epoll_ctl
+#if defined(__NR_epoll_ctl)
   return syscall(__NR_epoll_ctl, epfd, op, fd, events);
 #else
   return errno = ENOSYS, -1;
@@ -278,7 +278,7 @@ int uv__epoll_wait(int epfd,
                    struct uv__epoll_event* events,
                    int nevents,
                    int timeout) {
-#if __NR_epoll_wait
+#if defined(__NR_epoll_wait)
   return syscall(__NR_epoll_wait, epfd, events, nevents, timeout);
 #else
   return errno = ENOSYS, -1;
@@ -291,7 +291,7 @@ int uv__epoll_pwait(int epfd,
                     int nevents,
                     int timeout,
                     const sigset_t* sigmask) {
-#if __NR_epoll_pwait
+#if defined(__NR_epoll_pwait)
   return syscall(__NR_epoll_pwait,
                  epfd,
                  events,
@@ -306,7 +306,7 @@ int uv__epoll_pwait(int epfd,
 
 
 int uv__inotify_init(void) {
-#if __NR_inotify_init
+#if defined(__NR_inotify_init)
   return syscall(__NR_inotify_init);
 #else
   return errno = ENOSYS, -1;
@@ -315,7 +315,7 @@ int uv__inotify_init(void) {
 
 
 int uv__inotify_init1(int flags) {
-#if __NR_inotify_init1
+#if defined(__NR_inotify_init1)
   return syscall(__NR_inotify_init1, flags);
 #else
   return errno = ENOSYS, -1;
@@ -324,7 +324,7 @@ int uv__inotify_init1(int flags) {
 
 
 int uv__inotify_add_watch(int fd, const char* path, __u32 mask) {
-#if __NR_inotify_add_watch
+#if defined(__NR_inotify_add_watch)
   return syscall(__NR_inotify_add_watch, fd, path, mask);
 #else
   return errno = ENOSYS, -1;
@@ -333,7 +333,7 @@ int uv__inotify_add_watch(int fd, const char* path, __u32 mask) {
 
 
 int uv__inotify_rm_watch(int fd, __s32 wd) {
-#if __NR_inotify_rm_watch
+#if defined(__NR_inotify_rm_watch)
   return syscall(__NR_inotify_rm_watch, fd, wd);
 #else
   return errno = ENOSYS, -1;
@@ -342,7 +342,7 @@ int uv__inotify_rm_watch(int fd, __s32 wd) {
 
 
 int uv__pipe2(int pipefd[2], int flags) {
-#if __NR_pipe2
+#if defined(__NR_pipe2)
   return syscall(__NR_pipe2, pipefd, flags);
 #else
   return errno = ENOSYS, -1;
@@ -354,7 +354,7 @@ int uv__sendmmsg(int fd,
                  struct uv__mmsghdr* mmsg,
                  unsigned int vlen,
                  unsigned int flags) {
-#if __NR_sendmmsg
+#if defined(__NR_sendmmsg)
   return syscall(__NR_sendmmsg, fd, mmsg, vlen, flags);
 #else
   return errno = ENOSYS, -1;
@@ -367,7 +367,7 @@ int uv__recvmmsg(int fd,
                  unsigned int vlen,
                  unsigned int flags,
                  struct timespec* timeout) {
-#if __NR_recvmmsg
+#if defined(__NR_recvmmsg)
   return syscall(__NR_recvmmsg, fd, mmsg, vlen, flags, timeout);
 #else
   return errno = ENOSYS, -1;
@@ -380,7 +380,7 @@ int uv__utimesat(int dirfd,
                  const struct timespec times[2],
                  int flags)
 {
-#if __NR_utimensat
+#if defined(__NR_utimensat)
   return syscall(__NR_utimensat, dirfd, path, times, flags);
 #else
   return errno = ENOSYS, -1;

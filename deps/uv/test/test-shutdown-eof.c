@@ -110,7 +110,7 @@ static void connect_cb(uv_connect_t *req, int status) {
 }
 
 
-void tcp_close_cb(uv_handle_t* handle) {
+static void tcp_close_cb(uv_handle_t* handle) {
   ASSERT(handle == (uv_handle_t*) &tcp);
 
   ASSERT(called_connect_cb == 1);
@@ -122,13 +122,13 @@ void tcp_close_cb(uv_handle_t* handle) {
 }
 
 
-void timer_close_cb(uv_handle_t* handle) {
+static void timer_close_cb(uv_handle_t* handle) {
   ASSERT(handle == (uv_handle_t*) &timer);
   called_timer_close_cb++;
 }
 
 
-void timer_cb(uv_timer_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle, int status) {
   ASSERT(handle == &timer);
   uv_close((uv_handle_t*) handle, timer_close_cb);
 

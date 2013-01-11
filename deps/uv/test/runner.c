@@ -39,10 +39,18 @@ static void log_progress(int total, int passed, int failed, const char* name) {
 
 
 const char* fmt(double d) {
+  static char buf[1024];
+  static char* p;
   uint64_t v;
-  char* p;
 
-  p = (char *) calloc(1, 32) + 31; /* leaks memory */
+  if (p == NULL)
+    p = buf;
+
+  p += 31;
+
+  if (p >= buf + sizeof(buf))
+    return "<buffer too small>";
+
   v = (uint64_t) d;
 
 #if 0 /* works but we don't care about fractional precision */
