@@ -63,6 +63,17 @@ exports.ddCommand = function(filename, kilobytes) {
 };
 
 
+exports.spawnCat = function(options) {
+  var spawn = require('child_process').spawn;
+
+  if (process.platform === 'win32') {
+    return spawn('more', [], options);
+  } else {
+    return spawn('cat', [], options);
+  }
+};
+
+
 exports.spawnPwd = function(options) {
   var spawn = require('child_process').spawn;
 
