@@ -49,6 +49,7 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
     var env = makeEnv(pkg)
     env.npm_lifecycle_event = stage
     env.npm_node_execpath = env.NODE = env.NODE || process.execPath
+    env.npm_execpath = require.main.filename
 
     // "nobody" typically doesn't have permission to write to /tmp
     // even if it's never used, sh freaks out.

@@ -71,7 +71,7 @@ ProxyWriter.prototype._addProxy = function (proxy) {
   var calls = me._buffer
   calls.forEach(function (c) {
     // console.error("~~ ~~ proxy buffered call", c[0], c[1])
-    proxy[c[0]].call(proxy, c[1])
+    proxy[c[0]].apply(proxy, c[1])
   })
   me._buffer.length = 0
   if (me._needsDrain) me.emit("drain")
@@ -102,7 +102,7 @@ ProxyWriter.prototype.write = function (c) {
 ProxyWriter.prototype.end = function (c) {
   // console.error("~~ proxy end")
   if (!this._proxy) {
-    this._buffer.push(["end", c])
+    this._buffer.push(["end", [c]])
     return false
   }
   return this._proxy.end(c)

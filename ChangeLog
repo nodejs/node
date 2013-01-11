@@ -1,4 +1,3 @@
-2012.12.30, Version 0.9.5 (Unstable)
 
 * assert: improve support for new execution contexts (lukebayes)
 
@@ -238,6 +237,22 @@
 * readline: Use one history item for reentered line (Vladimir Beloborodov)
 
 * Fix #3521 Make process.env more like a regular Object (isaacs)
+
+
+2013.01.09, Version 0.8.17 (Stable), c50c33e9397d7a0a8717e8ce7530572907c054ad
+
+* npm: Upgrade to v1.2.0
+  - peerDependencies (Domenic Denicola)
+  - node-gyp v0.8.2 (Nathan Rajlich)
+  - Faster installs from github user/project shorthands (Nathan Zadoks)
+
+* typed arrays: fix 32 bit size/index overflow (Ben Noordhuis)
+
+* http: Improve performance of single-packet responses (Ben Noordhuis)
+
+* install: fix openbsd man page location (Ben Noordhuis)
+
+* http: bubble up parser errors to ClientRequest (Brian White)
 
 
 2012.12.13, Version 0.8.16 (Stable), 1c9c6277d5cfcaaac8569c0c8f7daa64292048a9

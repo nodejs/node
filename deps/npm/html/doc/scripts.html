@@ -13,15 +13,16 @@
 <p>npm supports the &quot;scripts&quot; member of the package.json script, for the
 following scripts:</p>
 
-<ul><li>preinstall:
+<ul><li>prepublish:
+Run BEFORE the package is published.  (Also run on local <code>npm
+install</code> without any arguments.)</li><li>publish, postpublish:
+Run AFTER the package is published.</li><li>preinstall:
 Run BEFORE the package is installed</li><li>install, postinstall:
 Run AFTER the package is installed.</li><li>preuninstall, uninstall:
 Run BEFORE the package is uninstalled.</li><li>postuninstall:
 Run AFTER the package is uninstalled.</li><li>preupdate:
 Run BEFORE the package is updated with the update command.</li><li>update, postupdate:
-Run AFTER the package is updated with the update command.</li><li>prepublish:
-Run BEFORE the package is published.</li><li>publish, postpublish:
-Run AFTER the package is published.</li><li>pretest, test, posttest:
+Run AFTER the package is updated with the update command.</li><li>pretest, test, posttest:
 Run by the <code>npm test</code> command.</li><li>prestop, stop, poststop:
 Run by the <code>npm stop</code> command.</li><li>prestart, start, poststart:
 Run by the <code>npm start</code> command.</li><li>prerestart, restart, postrestart:
@@ -30,6 +31,46 @@ stop and start scripts if no <code>restart</code> script is provided.</li></ul>
 
 <p>Additionally, arbitrary scrips can be run by doing
 <code>npm run-script &lt;stage&gt; &lt;pkg&gt;</code>.</p>
+
+<h2 id="NOTE-INSTALL-SCRIPTS-ARE-AN-ANTIPATTERN">NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN</h2>
+
+<p><strong>tl;dr</strong> Don&#39;t use <code>install</code>.  Use a <code>.gyp</code> file for compilation, and
+<code>prepublish</code> for anything else.</p>
+
+<p>You should almost never have to explicitly set a <code>preinstall</code> or
+<code>install</code> script.  If you are doing this, please consider if there is
+another option.</p>
+
+<p>The only valid use of <code>install</code> or <code>preinstall</code> scripts is for
+compilation which must be done on the target architecture.  In early
+versions of node, this was often done using the <code>node-waf</code> scripts, or
+a standalone <code>Makefile</code>, and early versions of npm required that it be
+explicitly set in package.json.  This was not portable, and harder to
+do properly.</p>
+
+<p>In the current version of node, the standard way to do this is using a
+<code>.gyp</code> file.  If you have a file with a <code>.gyp</code> extension in the root
+of your package, then npm will run the appropriate <code>node-gyp</code> commands
+automatically at install time.  This is the only officially supported
+method for compiling binary addons, and does not require that you add
+anything to your package.json file.</p>
+
+<p>If you have to do other things before your package is used, in a way
+that is not dependent on the operating system or architecture of the
+target system, then use a <code>prepublish</code> script instead.  This includes
+tasks such as:</p>
+
+<ul><li>Compile CoffeeScript source code into JavaScript.</li><li>Create minified versions of JavaScript source code.</li><li>Fetching remote resources that your package will use.</li></ul>
+
+<p>The advantage of doing these things at <code>prepublish</code> time instead of
+<code>preinstall</code> or <code>install</code> time is that they can be done once, in a
+single place, and thus greatly reduce complexity and variability.
+Additionally, this means that:</p>
+
+<ul><li>You can depend on <code>coffee-script</code> as a <code>devDependency</code>, and thus
+your users don&#39;t need to have it installed.</li><li>You don&#39;t need to include the minifiers in your package, reducing
+the size for your users.</li><li>You don&#39;t need to rely on your users having <code>curl</code> or <code>wget</code> or
+other system tools on the target machines.</li></ul>
 
 <h2 id="DEFAULT-VALUES">DEFAULT VALUES</h2>
 
@@ -177,7 +218,7 @@ will sudo the npm command in question.</li></ul>
 
 <ul><li><a href="../doc/run-script.html">run-script(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/install.html">install(1)</a></li></ul>
 </div>
-<p id="footer">scripts &mdash; npm@1.1.70</p>
+<p id="footer">scripts &mdash; npm@1.2.0</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

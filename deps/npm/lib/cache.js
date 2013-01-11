@@ -136,6 +136,7 @@ function read (name, ver, forceBypass, cb) {
   }
 
   readJson(jsonFile, function (er, data) {
+    if (er && er.code !== "ENOENT") return cb(er)
     if (er) return addNamed(name, ver, c)
     deprCheck(data)
     c(er, data)
@@ -414,7 +415,7 @@ function gitEnv () {
   if (gitEnv_) return gitEnv_
   gitEnv_ = {}
   for (var k in process.env) {
-    if (!~['GIT_PROXY_COMMAND'].indexOf(k) && k.match(/^GIT/)) continue
+    if (!~['GIT_PROXY_COMMAND','GIT_SSH'].indexOf(k) && k.match(/^GIT/)) continue
     gitEnv_[k] = process.env[k]
   }
   return gitEnv_
@@ -601,6 +602,7 @@ function addNameVersion (name, ver, data, cb) {
       if (!er) readJson( path.join( npm.cache, name, ver
                                   , "package", "package.json" )
                        , function (er, data) {
+          if (er && er.code !== "ENOENT") return cb(er)
           if (er) return fetchit()
           return cb(null, data)
         })
@@ -664,10 +666,16 @@ function addLocal (p, name, cb_) {
 }
 
 function maybeGithub (p, name, er, cb) {
-  var u = "git://github.com/" + p
+  var u = "https://github.com/" + p
     , up = url.parse(u)
+  if (up.hash && up.hash[0] === "#")
+    up.hash = up.hash.slice(1)
+
+  var ref = encodeURIComponent(up.hash || "master")
+  up.pathname = path.join(up.pathname, "tarball", ref).replace(/\\/g, "/")
+  u = url.format(up)
   log.info("maybeGithub", "Attempting to fetch %s from %s", p, u)
-  return addRemoteGit(u, up, name, function (er2, data) {
+  return addRemoteTarball(u, null, name, function (er2, data) {
     if (er2) return cb(er)
     return cb(null, data)
   })

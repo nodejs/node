@@ -21,6 +21,7 @@
 
 #include <stdlib.h>  // calloc, etc
 #include <string.h>  // memmove
+#include <stdint.h>
 
 #include "v8_typed_array.h"
 #include "v8_typed_array_bswap.h"
@@ -676,11 +677,14 @@ class DataView {
     // TODO(deanm): All of these things should be cacheable.
     int element_size = v8_typed_array::SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
-    int size = args.This()->GetIndexedPropertiesExternalArrayDataLength() *
-               element_size;
+    assert(element_size > 0);
+    int size = args.This()->GetIndexedPropertiesExternalArrayDataLength();
+    assert(size >= 0);
 
-    if (index + sizeof(T) > (unsigned)size)  // TODO(deanm): integer overflow.
+    if (static_cast<uint64_t>(index) + sizeof(T) >
+        static_cast<uint64_t>(size) * element_size) {
       return ThrowError("Index out of range.");
+    }
 
     void* ptr = reinterpret_cast<char*>(
         args.This()->GetIndexedPropertiesExternalArrayData()) + index;
@@ -708,11 +712,14 @@ class DataView {
     // TODO(deanm): All of these things should be cacheable.
     int element_size = v8_typed_array::SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
-    int size = args.This()->GetIndexedPropertiesExternalArrayDataLength() *
-               element_size;
+    assert(element_size > 0);
+    int size = args.This()->GetIndexedPropertiesExternalArrayDataLength();
+    assert(size >= 0);
 
-    if (index + sizeof(T) > (unsigned)size)  // TODO(deanm): integer overflow.
+    if (static_cast<uint64_t>(index) + sizeof(T) >
+        static_cast<uint64_t>(size) * element_size) {
       return ThrowError("Index out of range.");
+    }
 
     void* ptr = reinterpret_cast<char*>(
         args.This()->GetIndexedPropertiesExternalArrayData()) + index;

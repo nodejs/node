@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-SCRIPTS" "1" "December 2012" "" ""
+.TH "NPM\-SCRIPTS" "1" "January 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-scripts\fR \-\- How npm handles the "scripts" field
@@ -9,6 +9,15 @@
 .SH "DESCRIPTION"
 npm supports the "scripts" member of the package\.json script, for the
 following scripts:
+.
+.IP "\(bu" 4
+prepublish:
+Run BEFORE the package is published\.  (Also run on local \fBnpm
+install\fR without any arguments\.)
+.
+.IP "\(bu" 4
+publish, postpublish:
+Run AFTER the package is published\.
 .
 .IP "\(bu" 4
 preinstall:
@@ -35,14 +44,6 @@ update, postupdate:
 Run AFTER the package is updated with the update command\.
 .
 .IP "\(bu" 4
-prepublish:
-Run BEFORE the package is published\.
-.
-.IP "\(bu" 4
-publish, postpublish:
-Run AFTER the package is published\.
-.
-.IP "\(bu" 4
 pretest, test, posttest:
 Run by the \fBnpm test\fR command\.
 .
@@ -63,6 +64,64 @@ stop and start scripts if no \fBrestart\fR script is provided\.
 .
 .P
 Additionally, arbitrary scrips can be run by doing \fBnpm run\-script <stage> <pkg>\fR\|\.
+.
+.SH "NOTE: INSTALL SCRIPTS ARE AN ANTIPATTERN"
+\fBtl;dr\fR Don\'t use \fBinstall\fR\|\.  Use a \fB\|\.gyp\fR file for compilation, and \fBprepublish\fR for anything else\.
+.
+.P
+You should almost never have to explicitly set a \fBpreinstall\fR or \fBinstall\fR script\.  If you are doing this, please consider if there is
+another option\.
+.
+.P
+The only valid use of \fBinstall\fR or \fBpreinstall\fR scripts is for
+compilation which must be done on the target architecture\.  In early
+versions of node, this was often done using the \fBnode\-waf\fR scripts, or
+a standalone \fBMakefile\fR, and early versions of npm required that it be
+explicitly set in package\.json\.  This was not portable, and harder to
+do properly\.
+.
+.P
+In the current version of node, the standard way to do this is using a \fB\|\.gyp\fR file\.  If you have a file with a \fB\|\.gyp\fR extension in the root
+of your package, then npm will run the appropriate \fBnode\-gyp\fR commands
+automatically at install time\.  This is the only officially supported
+method for compiling binary addons, and does not require that you add
+anything to your package\.json file\.
+.
+.P
+If you have to do other things before your package is used, in a way
+that is not dependent on the operating system or architecture of the
+target system, then use a \fBprepublish\fR script instead\.  This includes
+tasks such as:
+.
+.IP "\(bu" 4
+Compile CoffeeScript source code into JavaScript\.
+.
+.IP "\(bu" 4
+Create minified versions of JavaScript source code\.
+.
+.IP "\(bu" 4
+Fetching remote resources that your package will use\.
+.
+.IP "" 0
+.
+.P
+The advantage of doing these things at \fBprepublish\fR time instead of \fBpreinstall\fR or \fBinstall\fR time is that they can be done once, in a
+single place, and thus greatly reduce complexity and variability\.
+Additionally, this means that:
+.
+.IP "\(bu" 4
+You can depend on \fBcoffee\-script\fR as a \fBdevDependency\fR, and thus
+your users don\'t need to have it installed\.
+.
+.IP "\(bu" 4
+You don\'t need to include the minifiers in your package, reducing
+the size for your users\.
+.
+.IP "\(bu" 4
+You don\'t need to rely on your users having \fBcurl\fR or \fBwget\fR or
+other system tools on the target machines\.
+.
+.IP "" 0
 .
 .SH "DEFAULT VALUES"
 npm will default some script values based on package contents\.

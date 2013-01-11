@@ -91,11 +91,11 @@ function configure (gyp, argv, callback) {
   }
 
   function checkPythonVersion () {
-    execFile(python, ['-c', 'import platform; print platform.python_version();'], function (err, stdout) {
+    execFile(python, ['-c', 'import platform; print(platform.python_version());'], function (err, stdout) {
       if (err) {
         return callback(err)
       }
-      log.verbose('check python version', '`%s -c "import platform; print platform.python_version();"` returned: %j', python, stdout)
+      log.verbose('check python version', '`%s -c "import platform; print(platform.python_version());"` returned: %j', python, stdout)
       var version = stdout.trim()
       if (~version.indexOf('+')) {
         log.silly('stripping "+" sign(s) from version')

@@ -2,6 +2,9 @@
 cat ChangeLog | {
   s=-1
   while read line; do
+    if [ "${line:0:1}" == "-" ]; then
+      line="  $line"
+    fi
     if [ "${line:0:1}" == "2" ]; then
       let "++s"
     fi

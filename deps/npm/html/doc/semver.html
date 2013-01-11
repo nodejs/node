@@ -18,8 +18,8 @@
 
 <pre><code>$ npm install semver
 
-semver.valid(&#39;1.2.3&#39;) // true
-semver.valid(&#39;a.b.c&#39;) // false
+semver.valid(&#39;1.2.3&#39;) // &#39;1.2.3&#39;
+semver.valid(&#39;a.b.c&#39;) // null
 semver.clean(&#39;  =v1.2.3   &#39;) // &#39;1.2.3&#39;
 semver.satisfies(&#39;1.2.3&#39;, &#39;1.x || &gt;=2.5.0 || 5.0.0 - 7.2.3&#39;) // true
 semver.gt(&#39;1.2.3&#39;, &#39;9.8.7&#39;) // false
@@ -73,7 +73,7 @@ larger tag.  <code>2.3.4-beta &gt; 2.3.4-alpha</code></li><li>At this point, the
 
 <p>The following range styles are supported:</p>
 
-<ul><li><code>&gt;1.2.3</code> Greater than a specific version.</li><li><code>&lt;1.2.3</code> Less than</li><li><code>1.2.3 - 2.3.4</code> := <code>&gt;=1.2.3 &lt;=2.3.4</code></li><li><code>~1.2.3</code> := <code>&gt;=1.2.3 &lt;1.3.0</code></li><li><code>~1.2</code> := <code>&gt;=1.2.0 &lt;2.0.0</code></li><li><code>~1</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li><li><code>1.2.x</code> := <code>&gt;=1.2.0 &lt;1.3.0</code></li><li><code>1.x</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li></ul>
+<ul><li><code>&gt;1.2.3</code> Greater than a specific version.</li><li><code>&lt;1.2.3</code> Less than</li><li><code>1.2.3 - 2.3.4</code> := <code>&gt;=1.2.3 &lt;=2.3.4</code></li><li><code>~1.2.3</code> := <code>&gt;=1.2.3 &lt;1.3.0</code></li><li><code>~1.2</code> := <code>&gt;=1.2.0 &lt;1.3.0</code></li><li><code>~1</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li><li><code>1.2.x</code> := <code>&gt;=1.2.0 &lt;1.3.0</code></li><li><code>1.x</code> := <code>&gt;=1.0.0 &lt;2.0.0</code></li></ul>
 
 <p>Ranges can be joined with either a space (which implies &quot;and&quot;) or a
 <code>||</code> (which implies &quot;or&quot;).</p>
@@ -104,7 +104,7 @@ that satisfies the range, or null if none of them do.</li></ul>
 
 <ul><li><a href="../doc/json.html">json(1)</a></li></ul>
 </div>
-<p id="footer">semver &mdash; npm@1.1.70</p>
+<p id="footer">semver &mdash; npm@1.2.0</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

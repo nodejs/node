@@ -1,5 +1,5 @@
 {
-  "version": "1.1.70",
+  "version": "1.2.0",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -34,7 +34,7 @@
   "main": "./lib/npm.js",
   "bin": "./bin/npm-cli.js",
   "dependencies": {
-    "semver": "~1.1.0",
+    "semver": "~1.1.2",
     "ini": "~1.0.5",
     "slide": "1",
     "abbrev": "1",

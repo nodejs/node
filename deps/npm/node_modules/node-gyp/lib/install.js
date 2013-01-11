@@ -60,7 +60,7 @@ function install (gyp, argv, callback) {
   }
 
   // 0.x.y-pre versions are not published yet and cannot be installed. Bail.
-  if (version[5] === '-pre') {
+  if (version[5] && version[5].match(/\-pre$/)) {
     log.verbose('detected "pre" node version', versionStr)
     if (gyp.opts.nodedir) {
       log.verbose('--nodedir flag was passed; skipping install', gyp.opts.nodedir)

@@ -366,8 +366,8 @@ a version in the following fashion.
 For example, the following are equivalent:
 
 * `"~1.2.3" = ">=1.2.3 <1.3.0"`
-* `"~1.2" = ">=1.2.0 <2.0.0"`
-* `"~1" = ">=1.0.0 <2.0.0"`
+* `"~1.2" = ">=1.2.0 <1.3.0"`
+* `"~1" = ">=1.0.0 <1.1.0"`
 
 ### X Version Ranges
 

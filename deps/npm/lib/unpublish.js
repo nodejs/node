@@ -56,6 +56,7 @@ function unpublish (args, cb) {
     // read the package name and version out of that.
     var cwdJson = path.join(process.cwd(), "package.json")
     return readJson(cwdJson, function (er, data) {
+      if (er && er.code !== "ENOENT") return cb(er)
       if (er) return cb("Usage:\n"+unpublish.usage)
       gotProject(data.name, data.version, cb)
     })
