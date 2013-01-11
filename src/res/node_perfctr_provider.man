@@ -14,42 +14,47 @@
                       uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet"
                       name="Node.js"
                       description="Node.js performance counters"
-                      instances="multiple">
+                      instances="multipleAggregate">
 
             <counter id="1"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.httpsrvreq"
                      name="HTTP server requests"
                      description="Number of HTTP server requests"
                      type="perf_counter_counter"
-                     detailLevel="standard" />
+                     detailLevel="standard"
+                     aggregate="sum" />
 
             <counter id="2"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.httpsrvrsp"
                      name="HTTP server responses"
                      description="Number of HTTP server responses"
                      type="perf_counter_counter"
-                     detailLevel="standard" />
+                     detailLevel="standard"
+                     aggregate="sum" />
 
             <counter id="3"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.httpclireq"
                      name="HTTP client requests"
                      description="Number of HTTP client requests"
                      type="perf_counter_counter"
-                     detailLevel="standard" />
+                     detailLevel="standard"
+                     aggregate="sum" />
 
             <counter id="4"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.httpclirsp"
                      name="HTTP client responses"
                      description="Number of HTTP client responses"
                      type="perf_counter_counter"
-                     detailLevel="standard" />
+                     detailLevel="standard"
+                     aggregate="sum" />
 
             <counter id="5"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.netsrvconn"
                      name="Active server connections"
                      description="Number of server connections"
                      type="perf_counter_rawcount"
-                     detailLevel="standard" />
+                     detailLevel="standard"
+                     aggregate="sum" />
 
             <counter id="6"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.netbytesent"
@@ -57,7 +62,8 @@
                      description="Number of bytes sent using TCP"
                      type="perf_counter_bulk_count"
                      detailLevel="standard"
-                     defaultScale="-3" />
+                     defaultScale="-3"
+                     aggregate="sum" />
 
             <counter id="7"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.netbyterecv"
@@ -65,14 +71,16 @@
                      description="Number of bytes received using TCP"
                      type="perf_counter_bulk_count"
                      detailLevel="standard"
-                     defaultScale="-3" />
+                     defaultScale="-3"
+                     aggregate="sum" />
 
             <counter id="8"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.gctime"
                      name="%Time in GC"
                      description="Percent of time for last GC"
                      type="perf_counter_rawcount"
-                     detailLevel="standard" />
+                     detailLevel="standard"
+                     aggregate="avg" />
 
             <counter id="9"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.pipebytesent"
@@ -80,7 +88,8 @@
                      description="Number of bytes sent using pipe"
                      type="perf_counter_bulk_count"
                      detailLevel="standard"
-                     defaultScale="-3" />
+                     defaultScale="-3"
+                     aggregate="sum" />
 
             <counter id="10"
                      uri="Microsoft.Windows.System.PerfCounters.NodeCounterSet.pipebyterecv"
@@ -88,7 +97,8 @@
                      description="Number of bytes received using pipe"
                      type="perf_counter_bulk_count"
                      detailLevel="standard"
-                     defaultScale="-3" />
+                     defaultScale="-3"
+                     aggregate="sum" />
 
           </counterSet>
         </provider>
