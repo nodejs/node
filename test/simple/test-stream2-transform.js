@@ -26,7 +26,10 @@ var Transform = require('_stream_transform');
 
 // tiny node-tap lookalike.
 var tests = [];
+var count = 0;
+
 function test(name, fn) {
+  count++;
   tests.push([name, fn]);
 }
 
@@ -41,9 +44,17 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: run
+    end: function () {
+      count--;
+      run();
+    }
   });
 }
+
+// ensure all tests have run
+process.on("exit", function () {
+  assert.equal(count, 0);
+});
 
 process.nextTick(run);
 

@@ -96,7 +96,10 @@ TestWriter.prototype.end = function(c) {
 
 // tiny node-tap lookalike.
 var tests = [];
+var count = 0;
+
 function test(name, fn) {
+  count++;
   tests.push([name, fn]);
 }
 
@@ -111,9 +114,17 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: run
+    end: function () {
+      count--;
+      run();
+    }
   });
 }
+
+// ensure all tests have run
+process.on("exit", function () {
+  assert.equal(count, 0);
+});
 
 process.nextTick(run);
 
@@ -317,6 +328,127 @@ test('multipipe', function(t) {
     r.pipe(w[0]);
     r.pipe(w[2]);
   });
+});
+
+test('back pressure respected', function (t) {
+  function noop() {}
+
+  var r = new R();
+  var counter = 0;
+  r.push(["one"]);
+  r.push(["two"]);
+  r.push(["three"]);
+  r.push(["four"]);
+  r.push(null);
+  r._read = noop;
+
+  var w1 = new R();
+  w1.write = function (chunk) {
+    assert.equal(chunk[0], "one");
+    w1.emit("close");
+    process.nextTick(function () {
+      r.pipe(w2);
+      r.pipe(w3);
+    })
+  };
+  w1.end = noop;
+
+  r.pipe(w1);
+
+  var expected = ["two", "two", "three", "three", "four", "four"];
+
+  var w2 = new R();
+  w2.write = function (chunk) {
+    assert.equal(chunk[0], expected.shift());
+    assert.equal(counter, 0);
+
+    counter++;
+
+    if (chunk[0] === "four") {
+      return true;
+    }
+
+    setTimeout(function () {
+      counter--;
+      w2.emit("drain");
+    }, 10);
+
+    return false;
+  }
+  w2.end = noop;
+
+  var w3 = new R();
+  w3.write = function (chunk) {
+    assert.equal(chunk[0], expected.shift());
+    assert.equal(counter, 1);
+
+    counter++;
+
+    if (chunk[0] === "four") {
+      return true;
+    }
+
+    setTimeout(function () {
+      counter--;
+      w3.emit("drain");
+    }, 50);
+
+    return false;
+  };
+  w3.end = function () {
+    assert.equal(counter, 2);
+    assert.equal(expected.length, 0);
+    t.end();
+  };
+});
+
+test('read(0) for ended streams', function (t) {
+  var r = new R();
+  var written = false;
+  var ended = false;
+  r._read = function () {};
+
+  r.push(new Buffer("foo"));
+  r.push(null);
+
+  var v = r.read(0);
+
+  assert.equal(v, null);
+
+  var w = new R();
+
+  w.write = function (buffer) {
+    written = true;
+    assert.equal(ended, false);
+    assert.equal(buffer.toString(), "foo")
+  };
+
+  w.end = function () {
+    ended = true;
+    assert.equal(written, true);
+    t.end();
+  };
+
+  r.pipe(w);
+})
+
+test('sync _read ending', function (t) {
+  var r = new R();
+  var called = false;
+  r._read = function (n, cb) {
+    cb(null, null);
+  };
+
+  r.once('end', function () {
+    called = true;
+  })
+
+  r.read();
+
+  process.nextTick(function () {
+    assert.equal(called, true);
+    t.end();
+  })
 });
 
 assert.throws(function() {

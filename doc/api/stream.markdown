@@ -99,6 +99,9 @@ method. (See below.)
     resource.  Default=16kb
   * `encoding` {String} If specified, then buffers will be decoded to
     strings using the specified encoding.  Default=null
+  * `objectMode` {Boolean} Whether this stream should behave
+    as a stream of objects. Meaning that stream.read(n) returns
+    a single value instead of a Buffer of size n
 
 In classes that extend the Readable class, make sure to call the
 constructor so that the buffering settings can be properly

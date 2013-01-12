@@ -25,7 +25,10 @@ var fromList = require('_stream_readable')._fromList;
 
 // tiny node-tap lookalike.
 var tests = [];
+var count = 0;
+
 function test(name, fn) {
+  count++;
   tests.push([name, fn]);
 }
 
@@ -40,9 +43,17 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: run
+    end: function () {
+      count--;
+      run();
+    }
   });
 }
+
+// ensure all tests have run
+process.on("exit", function () {
+  assert.equal(count, 0);
+});
 
 process.nextTick(run);
 
@@ -57,19 +68,19 @@ test('buffers', function(t) {
                new Buffer('kuel') ];
 
   // read more than the first element.
-  var ret = fromList(6, list, 16);
+  var ret = fromList(6, { buffer: list, length: 16 });
   t.equal(ret.toString(), 'foogba');
 
   // read exactly the first element.
-  ret = fromList(2, list, 10);
+  ret = fromList(2, { buffer: list, length: 10 });
   t.equal(ret.toString(), 'rk');
 
   // read less than the first element.
-  ret = fromList(2, list, 8);
+  ret = fromList(2, { buffer: list, length: 8 });
   t.equal(ret.toString(), 'ba');
 
   // read more than we have.
-  ret = fromList(100, list, 6);
+  ret = fromList(100, { buffer: list, length: 6 });
   t.equal(ret.toString(), 'zykuel');
 
   // all consumed.
@@ -87,19 +98,19 @@ test('strings', function(t) {
                'kuel' ];
 
   // read more than the first element.
-  var ret = fromList(6, list, 16, true);
+  var ret = fromList(6, { buffer: list, length: 16, decoder: true });
   t.equal(ret, 'foogba');
 
   // read exactly the first element.
-  ret = fromList(2, list, 10, true);
+  ret = fromList(2, { buffer: list, length: 10, decoder: true });
   t.equal(ret, 'rk');
 
   // read less than the first element.
-  ret = fromList(2, list, 8, true);
+  ret = fromList(2, { buffer: list, length: 8, decoder: true });
   t.equal(ret, 'ba');
 
   // read more than we have.
-  ret = fromList(100, list, 6, true);
+  ret = fromList(100, { buffer: list, length: 6, decoder: true });
   t.equal(ret, 'zykuel');
 
   // all consumed.

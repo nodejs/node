@@ -27,7 +27,10 @@ var util = require('util');
 
 // tiny node-tap lookalike.
 var tests = [];
+var count = 0;
+
 function test(name, fn) {
+  count++;
   tests.push([name, fn]);
 }
 
@@ -42,9 +45,17 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
-    end: run
+    end: function () {
+      count--;
+      run();
+    }
   });
 }
+
+// ensure all tests have run
+process.on("exit", function () {
+  assert.equal(count, 0);
+});
 
 process.nextTick(run);
 
@@ -76,6 +87,8 @@ TestReader.prototype._read = function(n, cb) {
     this.pos += n;
     var ret = new Buffer(n);
     ret.fill('a');
+
+    console.log("cb(null, ret)", ret)
 
     return cb(null, ret);
   }.bind(this), 1);
@@ -177,12 +190,14 @@ test('setEncoding hex with read(13)', function(t) {
       "16161" ];
 
   tr.on('readable', function flow() {
+    console.log("readable once")
     var chunk;
     while (null !== (chunk = tr.read(13)))
       out.push(chunk);
   });
 
   tr.on('end', function() {
+    console.log("END")
     t.same(out, expect);
     t.end();
   });
