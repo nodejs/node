@@ -172,7 +172,11 @@ function error_test() {
     { client: client_unix, send: '(function () {\n\nreturn 1;\n})()',
       expect: '1' },
     { client: client_unix, send: '{\n\na: 1\n}',
-      expect: '{ a: 1 }' }
+      expect: '{ a: 1 }' },
+    { client: client_unix, send: 'url.format("http://google.com")',
+      expect: 'http://google.com/' },
+    { client: client_unix, send: 'var path = 42; path',
+      expect: '42' }
   ]);
 }
 
