@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import glob
+import platform
 import os
 import subprocess
 import sys
@@ -16,6 +17,14 @@ try:
 except ImportError:
   print('You need to install gyp in build/gyp first. See the README.')
   sys.exit(42)
+
+
+def host_arch():
+  machine = platform.machine()
+  if machine == 'i386': return 'ia32'
+  if machine == 'x86_64': return 'x64'
+  if machine.startswith('arm'): return 'arm'
+  return machine  # Return as-is and hope for the best.
 
 
 def compiler_version():
@@ -72,8 +81,11 @@ if __name__ == '__main__':
     args.append('-Dgcc_version=%d' % (10 * major + minor))
     args.append('-Dclang=%d' % int(is_clang))
 
+  if not any(a.startswith('-Dhost_arch=') for a in args):
+    args.append('-Dhost_arch=%s' % host_arch())
+
   if not any(a.startswith('-Dtarget_arch=') for a in args):
-    args.append('-Dtarget_arch=ia32')
+    args.append('-Dtarget_arch=%s' % host_arch())
 
   if not any(a.startswith('-Dlibrary=') for a in args):
     args.append('-Dlibrary=static_library')

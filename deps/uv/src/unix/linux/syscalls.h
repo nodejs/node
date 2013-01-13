@@ -69,10 +69,17 @@
 #define UV__IN_DELETE_SELF    0x400
 #define UV__IN_MOVE_SELF      0x800
 
+#if defined(__x86_64__)
 struct uv__epoll_event {
   __u32 events;
   __u64 data;
 } __attribute__((packed));
+#else
+struct uv__epoll_event {
+  __u32 events;
+  __u64 data;
+};
+#endif
 
 struct uv__inotify_event {
   __s32 wd;
