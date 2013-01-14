@@ -1,5 +1,7 @@
 core
 vgcore.*
+perf.data
+perf.data.old
 .waf*
 tags
 .lock-wscript
