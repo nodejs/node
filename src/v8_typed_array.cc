@@ -673,7 +673,10 @@ class DataView {
       return ThrowError("Wrong number of arguments.");
 
     unsigned int index = args[0]->Uint32Value();
-    bool little_endian = args[1]->BooleanValue();
+    // NOTE(deanm): args[1]->BooleanValue when the argument was not passed in
+    // gives us the right answer, but seems to be very slow.  This seems to be
+    // the cost of calling BooleanValue() on undefined.
+    bool little_endian = args.Length() > 1 ? args[1]->BooleanValue() : false;
     // TODO(deanm): All of these things should be cacheable.
     int element_size = v8_typed_array::SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
@@ -708,7 +711,10 @@ class DataView {
       return ThrowError("Wrong number of arguments.");
 
     unsigned int index = args[0]->Int32Value();
-    bool little_endian = args[2]->BooleanValue();
+    // NOTE(deanm): args[1]->BooleanValue when the argument was not passed in
+    // gives us the right answer, but seems to be very slow.  This seems to be
+    // the cost of calling BooleanValue() on undefined.
+    bool little_endian = args.Length() > 1 ? args[1]->BooleanValue() : false;
     // TODO(deanm): All of these things should be cacheable.
     int element_size = v8_typed_array::SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
