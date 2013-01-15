@@ -209,6 +209,8 @@ INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
 
 template <typename sourcechar, typename sinkchar>
 void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+  ASSERT(chars >= 0);
+  if (chars == 0) return;
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {

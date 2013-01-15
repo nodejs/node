@@ -22,7 +22,14 @@
 var common = require('../common');
 var assert = require('assert');
 
+var SlowBuffer = require('buffer').SlowBuffer;
 var Buffer = require('buffer').Buffer;
+
+// Regression test for segfault introduced in commit e501ce4.
+['base64','binary','ucs2','utf8','ascii'].forEach(function(encoding) {
+  var buf = new SlowBuffer(0);
+  buf.write('', encoding);
+});
 
 var b = Buffer(1024); // safe constructor
 
