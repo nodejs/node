@@ -295,3 +295,12 @@ process.on('exit', function() {
 // #1440 Loading files with a byte order marker.
 assert.equal(42, require('../fixtures/utf8-bom.js'));
 assert.equal(42, require('../fixtures/utf8-bom.json'));
+
+// require() must take string, and must be truthy
+assert.throws(function() {
+  require({ foo: 'bar' });
+}, 'path must be a string');
+
+assert.throws(function() {
+  require(false);
+}, 'missing path');
