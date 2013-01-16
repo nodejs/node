@@ -303,7 +303,6 @@
         'test/test-tcp-connect-timeout.c',
         'test/test-tcp-connect6-error.c',
         'test/test-tcp-open.c',
-        'test/test-tcp-write-error.c',
         'test/test-tcp-write-to-half-open-connection.c',
         'test/test-tcp-writealot.c',
         'test/test-tcp-unexpected-read.c',

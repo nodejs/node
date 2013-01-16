@@ -252,7 +252,7 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
      !ngx_queue_empty(&(loop)->active_reqs) ||                                \
      (loop)->endgame_handles != NULL)
 
-int uv_run2(uv_loop_t *loop, uv_run_mode mode) {
+int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   int r;
   void (*poll)(uv_loop_t* loop, int block);
 
@@ -290,9 +290,4 @@ int uv_run2(uv_loop_t *loop, uv_run_mode mode) {
       break;
   }
   return r;
-}
-
-
-int uv_run(uv_loop_t* loop) {
-  return uv_run2(loop, UV_RUN_DEFAULT);
 }

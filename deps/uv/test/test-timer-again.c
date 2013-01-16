@@ -127,7 +127,7 @@ TEST_IMPL(timer_again) {
   ASSERT(r == 0);
   ASSERT(uv_timer_get_repeat(&repeat_2) == 100);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(repeat_1_cb_called == 10);
   ASSERT(repeat_2_cb_called == 2);

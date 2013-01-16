@@ -279,7 +279,7 @@ static int uv__loop_alive(uv_loop_t* loop) {
 }
 
 
-int uv_run2(uv_loop_t* loop, uv_run_mode mode) {
+int uv_run(uv_loop_t* loop, uv_run_mode mode) {
   int r;
 
   if (!uv__loop_alive(loop))
@@ -298,11 +298,6 @@ int uv_run2(uv_loop_t* loop, uv_run_mode mode) {
   } while (r && !(mode & (UV_RUN_ONCE | UV_RUN_NOWAIT)));
 
   return r;
-}
-
-
-int uv_run(uv_loop_t* loop) {
-  return uv_run2(loop, UV_RUN_DEFAULT);
 }
 
 

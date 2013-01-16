@@ -203,7 +203,7 @@ BENCHMARK_IMPL(ping_pongs) {
   start_time = uv_now(loop);
 
   pinger_new();
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   ASSERT(completed_pingers == 1);
 

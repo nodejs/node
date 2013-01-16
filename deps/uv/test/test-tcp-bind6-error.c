@@ -59,7 +59,7 @@ TEST_IMPL(tcp_bind6_error_addrinuse) {
   uv_close((uv_handle_t*)&server1, close_cb);
   uv_close((uv_handle_t*)&server2, close_cb);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(close_cb_called == 2);
 
@@ -81,7 +81,7 @@ TEST_IMPL(tcp_bind6_error_addrnotavail) {
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(close_cb_called == 1);
 
@@ -107,7 +107,7 @@ TEST_IMPL(tcp_bind6_error_fault) {
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(close_cb_called == 1);
 
@@ -134,7 +134,7 @@ TEST_IMPL(tcp_bind6_error_inval) {
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(close_cb_called == 1);
 

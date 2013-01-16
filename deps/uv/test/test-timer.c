@@ -120,7 +120,7 @@ TEST_IMPL(timer) {
   ASSERT(r == 0);
   uv_unref((uv_handle_t*)&never);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(once_cb_called == 10);
   ASSERT(once_close_cb_called == 10);
@@ -145,7 +145,7 @@ TEST_IMPL(timer_start_twice) {
   ASSERT(r == 0);
   r = uv_timer_start(&once, once_cb, 10, 0);
   ASSERT(r == 0);
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(once_cb_called == 1);

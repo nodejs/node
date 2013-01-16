@@ -57,7 +57,7 @@ BENCHMARK_IMPL(loop_count) {
   uv_idle_start(&idle_handle, idle_cb);
 
   ns = uv_hrtime();
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
   ns = uv_hrtime() - ns;
 
   ASSERT(ticks == NUM_TICKS);
@@ -81,7 +81,7 @@ BENCHMARK_IMPL(loop_count_timed) {
   uv_timer_init(loop, &timer_handle);
   uv_timer_start(&timer_handle, timer_cb, 5000, 0);
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   LOGF("loop_count: %lu ticks (%.0f ticks/s)\n", ticks, ticks / 5.0);
 

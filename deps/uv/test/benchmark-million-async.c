@@ -99,7 +99,7 @@ BENCHMARK_IMPL(million_async) {
   ASSERT(0 == uv_timer_init(loop, &timer_handle));
   ASSERT(0 == uv_timer_start(&timer_handle, timer_cb, timeout, 0));
   ASSERT(0 == uv_thread_create(&thread_id, thread_cb, NULL));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   printf("%s async events in %.1f seconds (%s/s, %s unique handles seen)\n",
           fmt(container->async_events),
           timeout / 1000.,

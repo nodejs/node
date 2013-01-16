@@ -67,7 +67,7 @@ static void main_async_cb(uv_async_t* handle, int status) {
 static void worker(void* arg) {
   struct ctx* ctx = arg;
   ASSERT(0 == uv_async_send(&ctx->main_async));
-  ASSERT(0 == uv_run(ctx->loop));
+  ASSERT(0 == uv_run(ctx->loop, UV_RUN_DEFAULT));
 }
 
 
@@ -92,7 +92,7 @@ static int test_async(int nthreads) {
 
   time = uv_hrtime();
 
-  ASSERT(0 == uv_run(uv_default_loop()));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   for (i = 0; i < nthreads; i++)
     ASSERT(0 == uv_thread_join(&threads[i].thread));

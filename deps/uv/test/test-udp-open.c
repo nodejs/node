@@ -144,7 +144,7 @@ TEST_IMPL(udp_open) {
   r = uv_udp_send(&send_req, &client, &buf, 1, addr, send_cb);
   ASSERT(r == 0);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(send_cb_called == 1);
   ASSERT(close_cb_called == 1);

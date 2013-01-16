@@ -111,7 +111,7 @@ HELPER_IMPL(tcp4_blackhole_server) {
   r = uv_listen((uv_stream_t*)&tcp_server, 128, connection_cb);
   ASSERT(r == 0);
 
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(0 && "Blackhole server dropped out of event loop.");
 
   return 0;

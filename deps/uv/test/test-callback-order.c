@@ -67,7 +67,7 @@ TEST_IMPL(callback_order) {
   ASSERT(idle_cb_called == 0);
   ASSERT(timer_cb_called == 0);
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   ASSERT(idle_cb_called == 1);
   ASSERT(timer_cb_called == 1);

@@ -154,7 +154,7 @@ TEST_IMPL(tcp_writealot) {
   r = uv_tcp_connect(&connect_req, &client, addr, connect_cb);
   ASSERT(r == 0);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(shutdown_cb_called == 1);
   ASSERT(connect_cb_called == 1);

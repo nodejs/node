@@ -74,7 +74,7 @@ TEST_IMPL(shutdown_close_tcp) {
   ASSERT(r == 0);
   r = uv_tcp_connect(&connect_req, &h, addr, connect_cb);
   ASSERT(r == 0);
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(connect_cb_called == 1);
@@ -93,7 +93,7 @@ TEST_IMPL(shutdown_close_pipe) {
   r = uv_pipe_init(uv_default_loop(), &h, 0);
   ASSERT(r == 0);
   uv_pipe_connect(&connect_req, &h, TEST_PIPENAME, connect_cb);
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(connect_cb_called == 1);

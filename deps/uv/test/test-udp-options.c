@@ -79,7 +79,7 @@ TEST_IMPL(udp_options) {
   ASSERT(uv_last_error(loop).code == UV_EINVAL);
   /* don't test ttl=-1, it's a valid value on some platforms */
 
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();

@@ -59,13 +59,13 @@ BENCHMARK_IMPL(million_timers) {
   }
 
   before = uv_hrtime();
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   after = uv_hrtime();
 
   for (i = 0; i < NUM_TIMERS; i++)
     uv_close((uv_handle_t*) (timers + i), close_cb);
 
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(timer_cb_called == NUM_TIMERS);
   ASSERT(close_cb_called == NUM_TIMERS);
   free(timers);

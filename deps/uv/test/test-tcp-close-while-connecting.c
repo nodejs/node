@@ -70,7 +70,7 @@ TEST_IMPL(tcp_close_while_connecting) {
   ASSERT(0 == uv_timer_start(&timer1_handle, timer1_cb, 50, 0));
   ASSERT(0 == uv_timer_init(loop, &timer2_handle));
   ASSERT(0 == uv_timer_start(&timer2_handle, timer2_cb, 86400 * 1000, 0));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   ASSERT(connect_cb_called == 1);
   ASSERT(timer1_cb_called == 1);

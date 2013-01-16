@@ -101,12 +101,12 @@ TEST_IMPL(we_get_signal) {
   start_timer(loop, SIGCHLD, &tc);
   start_watcher(loop, SIGCHLD, &sc);
   sc.stop_or_close = STOP; /* stop, don't close the signal handle */
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(tc.ncalls == NSIGNALS);
   ASSERT(sc.ncalls == NSIGNALS);
 
   start_timer(loop, SIGCHLD, &tc);
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(tc.ncalls == NSIGNALS);
   ASSERT(sc.ncalls == NSIGNALS);
 
@@ -115,7 +115,7 @@ TEST_IMPL(we_get_signal) {
   uv_signal_start(&sc.handle, signal_cb, SIGCHLD);
 
   start_timer(loop, SIGCHLD, &tc);
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(tc.ncalls == NSIGNALS);
   ASSERT(sc.ncalls == NSIGNALS);
 
@@ -137,7 +137,7 @@ TEST_IMPL(we_get_signals) {
   start_watcher(loop, SIGUSR2, sc + 3);
   start_timer(loop, SIGUSR1, tc + 0);
   start_timer(loop, SIGUSR2, tc + 1);
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   for (i = 0; i < ARRAY_SIZE(sc); i++)
     ASSERT(sc[i].ncalls == NSIGNALS);

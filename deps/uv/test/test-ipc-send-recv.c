@@ -103,7 +103,7 @@ static int run_test(void) {
   r = uv_read2_start((uv_stream_t*)&ctx.channel, alloc_cb, recv_cb);
   ASSERT(r == 0);
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(num_recv_handles == 1);
@@ -210,7 +210,7 @@ int ipc_send_recv_helper(void) {
   r = uv_read2_start((uv_stream_t*)&ctx.channel, alloc_cb, read2_cb);
   ASSERT(r == 0);
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();

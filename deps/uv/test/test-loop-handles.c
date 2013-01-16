@@ -312,7 +312,7 @@ TEST_IMPL(loop_handles) {
   ASSERT(r == 0);
   uv_unref((uv_handle_t*)&timer_handle);
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(loop_iteration == ITERATIONS);

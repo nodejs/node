@@ -195,7 +195,7 @@ static int pummel(unsigned int n_senders,
   }
 
   duration = uv_hrtime();
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   duration = uv_hrtime() - duration;
   /* convert from nanoseconds to milliseconds */
   duration = duration / (uint64_t) 1e6;

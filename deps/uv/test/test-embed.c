@@ -88,7 +88,7 @@ static void embed_thread_runner(void* arg) {
 
 
 static void embed_cb(uv_async_t* async, int status) {
-  uv_run2(uv_default_loop(), UV_RUN_ONCE);
+  uv_run(uv_default_loop(), UV_RUN_ONCE);
 
   uv_sem_post(&embed_sem);
 }
@@ -124,7 +124,7 @@ TEST_IMPL(embed) {
   uv_thread_create(&embed_thread, embed_thread_runner, NULL);
 
   /* But run external loop */
-  uv_run(external);
+  uv_run(external, UV_RUN_DEFAULT);
 
   uv_thread_join(&embed_thread);
   uv_loop_delete(external);

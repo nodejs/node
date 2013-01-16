@@ -130,7 +130,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   ASSERT(send_cb_called == 0);
   ASSERT(recv_cb_called == 0);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(close_cb_called == 3);
 

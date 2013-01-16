@@ -324,6 +324,6 @@ HELPER_IMPL(dns_server) {
   if (dns_start(TEST_PORT_2))
     return 1;
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
   return 0;
 }

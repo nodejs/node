@@ -245,12 +245,6 @@ UV_EXTERN void uv_loop_delete(uv_loop_t*);
 UV_EXTERN uv_loop_t* uv_default_loop(void);
 
 /*
- * This function starts the event loop. It blocks until the reference count
- * of the loop drops to zero. Always returns zero.
- */
-UV_EXTERN int uv_run(uv_loop_t*);
-
-/*
  * This function runs the event loop. It will act differently depending on the
  * specified mode:
  *  - UV_RUN_DEFAULT: Runs the event loop until the reference count drops to
@@ -262,7 +256,7 @@ UV_EXTERN int uv_run(uv_loop_t*);
  *  - UV_RUN_NOWAIT: Poll for new events once but don't block if there are no
  *    pending events.
  */
-UV_EXTERN int uv_run2(uv_loop_t*, uv_run_mode mode);
+UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
 
 /*
  * Manually modify the event loop's reference count. Useful if the user wants

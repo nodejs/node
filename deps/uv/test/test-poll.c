@@ -547,7 +547,7 @@ static void start_poll_test(void) {
   for (i = 0; i < NUM_CLIENTS; i++)
     start_client();
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   /* Assert that at most five percent of the writable wakeups was spurious. */

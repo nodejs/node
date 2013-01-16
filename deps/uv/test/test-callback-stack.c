@@ -189,7 +189,7 @@ TEST_IMPL(callback_stack) {
   }
   nested--;
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(nested == 0);
   ASSERT(connect_cb_called == 1 && "connect_cb must be called exactly once");

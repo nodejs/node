@@ -77,7 +77,7 @@ TEST_IMPL(udp_dgram_too_big) {
   ASSERT(close_cb_called == 0);
   ASSERT(send_cb_called == 0);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(send_cb_called == 1);
   ASSERT(close_cb_called == 1);

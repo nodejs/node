@@ -149,7 +149,7 @@ BENCHMARK_IMPL(spawn) {
 
   spawn();
 
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   uv_update_time(loop);

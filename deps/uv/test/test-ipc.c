@@ -318,7 +318,7 @@ static int run_ipc_test(const char* helper, uv_read2_cb read_cb) {
   spawn_helper(&channel, &process, helper);
   uv_read2_start((uv_stream_t*)&channel, on_alloc, read_cb);
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   MAKE_VALGRIND_HAPPY();
@@ -567,7 +567,7 @@ int ipc_helper(int listen_after_write) {
     ASSERT(r == 0);
   }
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(connection_accepted == 1);
@@ -613,7 +613,7 @@ int ipc_helper_tcp_connection(void) {
   r = uv_tcp_connect(&conn.conn_req, (uv_tcp_t*)&conn.conn, addr, connect_child_process_cb);
   ASSERT(r == 0);
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(tcp_conn_read_cb_called == 1);

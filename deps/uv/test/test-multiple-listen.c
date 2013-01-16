@@ -92,7 +92,7 @@ TEST_IMPL(multiple_listen) {
 
   client_connect();
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(connection_cb_called == 1);
   ASSERT(connect_cb_called == 1);

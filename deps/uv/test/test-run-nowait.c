@@ -38,7 +38,7 @@ TEST_IMPL(run_nowait) {
   uv_timer_init(uv_default_loop(), &timer_handle);
   uv_timer_start(&timer_handle, timer_cb, 100, 100);
 
-  r = uv_run2(uv_default_loop(), UV_RUN_NOWAIT);
+  r = uv_run(uv_default_loop(), UV_RUN_NOWAIT);
   ASSERT(r != 0);
   ASSERT(timer_called == 0);
 

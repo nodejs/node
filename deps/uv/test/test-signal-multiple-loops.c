@@ -104,7 +104,7 @@ static void signal_handling_worker(void* context) {
   /* Wait for all signals. The signal callbacks stop the watcher, so uv_run
    * will return when all signal watchers caught a signal.
    */
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   /* Restart the signal watchers. */
@@ -122,7 +122,7 @@ static void signal_handling_worker(void* context) {
   /* Wait for signals once more. */
   uv_sem_post(&sem);
 
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   /* Close the watchers. */
@@ -135,7 +135,7 @@ static void signal_handling_worker(void* context) {
   }
 
   /* Wait for the signal watchers to close. */
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   uv_loop_delete(loop);
@@ -166,7 +166,7 @@ static void loop_creating_worker(void* context) {
 
     uv_close((uv_handle_t*) &signal, NULL);
 
-    r = uv_run(loop);
+    r = uv_run(loop, UV_RUN_DEFAULT);
     ASSERT(r == 0);
 
     uv_loop_delete(loop);

@@ -59,7 +59,7 @@ TEST_IMPL(tcp_connect6_error_fault) {
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(connect_cb_called == 0);
   ASSERT(close_cb_called == 1);

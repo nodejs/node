@@ -190,7 +190,7 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
   ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
 
   cleanup_threadpool();
@@ -214,7 +214,7 @@ TEST_IMPL(threadpool_cancel_work) {
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
   ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(1 == timer_cb_called);
   ASSERT(ARRAY_SIZE(reqs) == done2_cb_called);
 
@@ -265,7 +265,7 @@ TEST_IMPL(threadpool_cancel_fs) {
 
   ASSERT(0 == uv_timer_init(loop, &ci.timer_handle));
   ASSERT(0 == uv_timer_start(&ci.timer_handle, timer_cb, 10, 0));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(n == fs_cb_called);
   ASSERT(1 == timer_cb_called);
 
@@ -290,7 +290,7 @@ TEST_IMPL(threadpool_cancel_single) {
     if (cancelled == 0)
       break;
 
-    ASSERT(0 == uv_run(loop));
+    ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   }
 
   if (cancelled != 0) {
@@ -300,7 +300,7 @@ TEST_IMPL(threadpool_cancel_single) {
   }
 
   ASSERT(req.data == NULL);
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(req.data != NULL);  /* Should have been updated by nop_done_cb(). */
 
   return 0;

@@ -214,9 +214,9 @@ static void send_listen_handles(uv_handle_type type,
   for (i = 0; i < num_servers; i++)
     uv_sem_post(&servers[i].semaphore);
 
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   uv_close((uv_handle_t*) &ctx.server_handle, NULL);
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   for (i = 0; i < num_servers; i++)
     uv_sem_wait(&servers[i].semaphore);
@@ -234,7 +234,7 @@ static void get_listen_handle(uv_loop_t* loop, uv_stream_t* server_handle) {
                   &ctx.ipc_pipe,
                   IPC_PIPE_NAME,
                   ipc_connect_cb);
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 }
 
 
@@ -258,7 +258,7 @@ static void server_cb(void *arg) {
   ASSERT(0 == uv_listen((uv_stream_t*) &ctx->server_handle,
                         128,
                         sv_connection_cb));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   uv_loop_delete(loop);
 }
@@ -383,7 +383,7 @@ static int test_tcp(unsigned int num_servers, unsigned int num_clients) {
 
   {
     uint64_t t = uv_hrtime();
-    ASSERT(0 == uv_run(loop));
+    ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
     t = uv_hrtime() - t;
     time = t / 1e9;
   }

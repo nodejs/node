@@ -117,7 +117,7 @@ TEST_IMPL(tcp_close) {
   ASSERT(write_cb_called == 0);
   ASSERT(close_cb_called == 0);
 
-  r = uv_run(loop);
+  r = uv_run(loop, UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   printf("%d of %d write reqs seen\n", write_cb_called, NUM_WRITE_REQS);

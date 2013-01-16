@@ -317,7 +317,7 @@ TEST_IMPL(getsockname_tcp) {
 
   tcp_connector();
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   ASSERT(getsocknamecount == 3);
   ASSERT(getpeernamecount == 3);
@@ -335,7 +335,7 @@ TEST_IMPL(getsockname_udp) {
 
   udp_sender();
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   ASSERT(getsocknamecount == 2);
 

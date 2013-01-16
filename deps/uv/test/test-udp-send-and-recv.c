@@ -196,7 +196,7 @@ TEST_IMPL(udp_send_and_recv) {
   ASSERT(sv_send_cb_called == 0);
   ASSERT(sv_recv_cb_called == 0);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(cl_send_cb_called == 1);
   ASSERT(cl_recv_cb_called == 1);

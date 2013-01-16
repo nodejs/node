@@ -137,7 +137,7 @@ TEST_IMPL(fs_poll) {
   ASSERT(0 == uv_timer_init(loop, &timer_handle));
   ASSERT(0 == uv_fs_poll_init(loop, &poll_handle));
   ASSERT(0 == uv_fs_poll_start(&poll_handle, poll_cb, FIXTURE, 100));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   ASSERT(poll_cb_called == 5);
   ASSERT(timer_cb_called == 2);

@@ -64,7 +64,7 @@ TEST_IMPL(poll_close) {
     uv_close((uv_handle_t*) &poll_handles[i], close_cb);
   }
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(close_cb_called == NUM_SOCKETS);
 

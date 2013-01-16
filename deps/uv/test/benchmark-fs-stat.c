@@ -51,7 +51,7 @@ static void warmup(const char* path) {
   for (i = 0; i < ARRAY_SIZE(reqs); i++)
     uv_fs_stat(uv_default_loop(), reqs + i, path, uv_fs_req_cleanup);
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   /* warm up the OS dirent cache */
   for (i = 0; i < 16; i++)
@@ -108,7 +108,7 @@ static void async_bench(const char* path) {
     }
 
     before = uv_hrtime();
-    uv_run(uv_default_loop());
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
     after = uv_hrtime();
 
     printf("%s stats (%d concurrent): %.2fs (%s/s)\n",

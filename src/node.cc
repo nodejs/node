@@ -2988,7 +2988,7 @@ int Start(int argc, char *argv[]) {
     // there are no watchers on the loop (except for the ones that were
     // uv_unref'd) then this function exits. As long as there are active
     // watchers, it blocks.
-    uv_run(uv_default_loop());
+    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
     EmitExit(process_l);
     RunAtExit();

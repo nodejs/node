@@ -926,6 +926,14 @@ static void uv__read(uv_stream_t* stream) {
       while (nread < 0 && errno == EINTR);
     }
 
+#define INVOKE_READ_CB(stream, status, buf, type)                             \
+    do {                                                                      \
+      if ((stream)->read_cb != NULL)                                          \
+        (stream)->read_cb((stream), (status), (buf));                         \
+      else                                                                    \
+        (stream)->read2_cb((uv_pipe_t*) (stream), (status), (buf), (type));   \
+    }                                                                         \
+    while (0)
 
     if (nread < 0) {
       /* Error */
@@ -935,41 +943,22 @@ static void uv__read(uv_stream_t* stream) {
           uv__io_start(stream->loop, &stream->io_watcher, UV__POLLIN);
         }
         uv__set_sys_error(stream->loop, EAGAIN);
-
-        if (stream->read_cb) {
-          stream->read_cb(stream, 0, buf);
-        } else {
-          stream->read2_cb((uv_pipe_t*)stream, 0, buf, UV_UNKNOWN_HANDLE);
-        }
-
-        return;
+        INVOKE_READ_CB(stream, 0, buf, UV_UNKNOWN_HANDLE);
       } else {
         /* Error. User should call uv_close(). */
         uv__set_sys_error(stream->loop, errno);
-
-        if (stream->read_cb) {
-          stream->read_cb(stream, -1, buf);
-        } else {
-          stream->read2_cb((uv_pipe_t*)stream, -1, buf, UV_UNKNOWN_HANDLE);
-        }
-
-        assert(!uv__io_active(&stream->io_watcher, UV__POLLIN));
-        return;
+        INVOKE_READ_CB(stream, -1, buf, UV_UNKNOWN_HANDLE);
+        assert(!uv__io_active(&stream->io_watcher, UV__POLLIN) &&
+               "stream->read_cb(status=-1) did not call uv_close()");
       }
-
+      return;
     } else if (nread == 0) {
       /* EOF */
-      uv__set_artificial_error(stream->loop, UV_EOF);
       uv__io_stop(stream->loop, &stream->io_watcher, UV__POLLIN);
-
       if (!uv__io_active(&stream->io_watcher, UV__POLLOUT))
         uv__handle_stop(stream);
-
-      if (stream->read_cb) {
-        stream->read_cb(stream, -1, buf);
-      } else {
-        stream->read2_cb((uv_pipe_t*)stream, -1, buf, UV_UNKNOWN_HANDLE);
-      }
+      uv__set_artificial_error(stream->loop, UV_EOF);
+      INVOKE_READ_CB(stream, -1, buf, UV_UNKNOWN_HANDLE);
       return;
     } else {
       /* Successful read */

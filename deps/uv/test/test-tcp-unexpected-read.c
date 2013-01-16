@@ -101,7 +101,7 @@ TEST_IMPL(tcp_unexpected_read) {
   ASSERT(0 == uv_tcp_bind(&server_handle, addr));
   ASSERT(0 == uv_listen((uv_stream_t*) &server_handle, 1, connection_cb));
   ASSERT(0 == uv_tcp_connect(&connect_req, &client_handle, addr, connect_cb));
-  ASSERT(0 == uv_run(loop));
+  ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
 
   /* This is somewhat inexact but the idea is that the event loop should not
    * start busy looping when the server sends a message and the client isn't

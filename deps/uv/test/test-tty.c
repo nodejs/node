@@ -104,7 +104,7 @@ TEST_IMPL(tty) {
   uv_close((uv_handle_t*) &tty_in, NULL);
   uv_close((uv_handle_t*) &tty_out, NULL);
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   MAKE_VALGRIND_HAPPY();
   return 0;

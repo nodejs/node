@@ -75,7 +75,7 @@ BENCHMARK_IMPL(getaddrinfo) {
     getaddrinfo_initiate(&handles[i]);
   }
 
-  uv_run(loop);
+  uv_run(loop, UV_RUN_DEFAULT);
 
   uv_update_time(loop);
   end_time = uv_now(loop);

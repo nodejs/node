@@ -177,7 +177,7 @@ TEST_IMPL(delayed_accept) {
   client_connect();
   client_connect();
 
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(connection_cb_called == 2);
   ASSERT(do_accept_called == 2);

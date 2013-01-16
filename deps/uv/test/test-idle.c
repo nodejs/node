@@ -70,7 +70,7 @@ TEST_IMPL(idle_starvation) {
   r = uv_timer_start(&timer_handle, timer_cb, 50, 0);
   ASSERT(r == 0);
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(idle_cb_called > 0);

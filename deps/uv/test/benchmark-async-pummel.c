@@ -78,7 +78,7 @@ static int test_async_pummel(int nthreads) {
 
   time = uv_hrtime();
 
-  ASSERT(0 == uv_run(uv_default_loop()));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   time = uv_hrtime() - time;
   done = 1;

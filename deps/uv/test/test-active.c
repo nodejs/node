@@ -73,7 +73,7 @@ TEST_IMPL(active) {
   ASSERT(!uv_is_active((uv_handle_t*) &timer));
   ASSERT(uv_is_closing((uv_handle_t*) &timer));
 
-  r = uv_run(uv_default_loop());
+  r = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   ASSERT(r == 0);
 
   ASSERT(close_cb_called == 1);

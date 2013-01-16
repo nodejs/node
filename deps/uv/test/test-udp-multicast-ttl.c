@@ -77,7 +77,7 @@ TEST_IMPL(udp_multicast_ttl) {
   ASSERT(sv_send_cb_called == 0);
 
   /* run the loop till all events are processed */
-  uv_run(uv_default_loop());
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   ASSERT(sv_send_cb_called == 1);
   ASSERT(close_cb_called == 1);

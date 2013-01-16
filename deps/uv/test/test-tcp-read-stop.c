@@ -66,7 +66,7 @@ TEST_IMPL(tcp_read_stop) {
   ASSERT(0 == uv_timer_init(uv_default_loop(), &timer_handle));
   ASSERT(0 == uv_tcp_init(uv_default_loop(), &tcp_handle));
   ASSERT(0 == uv_tcp_connect(&connect_req, &tcp_handle, addr, connect_cb));
-  ASSERT(0 == uv_run(uv_default_loop()));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
   MAKE_VALGRIND_HAPPY();
 
   return 0;
