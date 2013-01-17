@@ -37,21 +37,21 @@ assert.equal(e._events, null);
 
 e.on('foo', assert.fail);
 fl = e.listeners('foo');
-assert(e._events.evfoo === assert.fail);
+assert(e._events.foo === assert.fail);
 assert(Array.isArray(fl));
 assert(fl.length === 1);
 assert(fl[0] === assert.fail);
 
 e.listeners('bar');
-assert(!e._events.hasOwnProperty('evbar'));
+assert(!e._events.hasOwnProperty('bar'));
 
 e.on('foo', assert.ok);
 fl = e.listeners('foo');
 
-assert(Array.isArray(e._events.evfoo));
-assert(e._events.evfoo.length === 2);
-assert(e._events.evfoo[0] === assert.fail);
-assert(e._events.evfoo[1] === assert.ok);
+assert(Array.isArray(e._events.foo));
+assert(e._events.foo.length === 2);
+assert(e._events.foo[0] === assert.fail);
+assert(e._events.foo[1] === assert.ok);
 
 assert(Array.isArray(fl));
 assert(fl.length === 2);
