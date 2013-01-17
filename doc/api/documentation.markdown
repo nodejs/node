@@ -67,7 +67,7 @@ unlikely to ever have to change.
 ```
 
 ```
-Stability: 5 - API Locked
+Stability: 5 - Locked
 Unless serious bugs are found, this code will not ever
 change.  Please do not suggest changes in this area; they will be refused.
 ```
