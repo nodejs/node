@@ -26,13 +26,13 @@ var net = require('net');
 var count = 12;
 
 if (process.argv[2] === 'child') {
+
   var needEnd = [];
-  var id = process.argv[3];
 
   process.on('message', function(m, socket) {
     if (!socket) return;
 
-    console.error('[%d] got socket', id, m);
+    console.error('got socket', m);
 
     // will call .end('end') or .write('write');
     socket[m](m);
@@ -40,11 +40,11 @@ if (process.argv[2] === 'child') {
     socket.resume();
 
     socket.on('data', function() {
-      console.error('[%d] socket.data', id, m);
+      console.error('%d socket.data', process.pid, m);
     });
 
     socket.on('end', function() {
-      console.error('[%d] socket.end', id, m);
+      console.error('%d socket.end', process.pid, m);
     });
 
     // store the unfinished socket
@@ -53,61 +53,57 @@ if (process.argv[2] === 'child') {
     }
 
     socket.on('close', function() {
-      console.error('[%d] socket.close', id, m);
+      console.error('%d socket.close', process.pid, m);
     });
 
     socket.on('finish', function() {
-      console.error('[%d] socket finished', id, m);
+      console.error('%d socket finished', process.pid, m);
     });
   });
 
   process.on('message', function(m) {
     if (m !== 'close') return;
-    console.error('[%d] got close message', id);
+    console.error('got close message');
     needEnd.forEach(function(endMe, i) {
-      console.error('[%d] ending %d', id, i);
+      console.error('%d ending %d', process.pid, i);
       endMe.end('end');
     });
   });
 
   process.on('disconnect', function() {
-    console.error('[%d] process disconnect, ending', id);
+    console.error('%d process disconnect, ending', process.pid);
     needEnd.forEach(function(endMe, i) {
-      console.error('[%d] ending %d', id, i);
+      console.error('%d ending %d', process.pid, i);
       endMe.end('end');
     });
+    endMe = null;
   });
 
 } else {
 
-  var child1 = fork(process.argv[1], ['child', '1']);
-  var child2 = fork(process.argv[1], ['child', '2']);
-  var child3 = fork(process.argv[1], ['child', '3']);
+  var child1 = fork(process.argv[1], ['child']);
+  var child2 = fork(process.argv[1], ['child']);
+  var child3 = fork(process.argv[1], ['child']);
 
   var server = net.createServer();
 
-  var connected = 0,
-      closed = 0;
+  var connected = 0;
   server.on('connection', function(socket) {
     switch (connected % 6) {
       case 0:
-        child1.send('end', socket, { track: false }); break;
+        child1.send('end', socket); break;
       case 1:
-        child1.send('write', socket, { track: true }); break;
+        child1.send('write', socket); break;
       case 2:
-        child2.send('end', socket, { track: true }); break;
+        child2.send('end', socket); break;
       case 3:
-        child2.send('write', socket, { track: false }); break;
+        child2.send('write', socket); break;
       case 4:
-        child3.send('end', socket, { track: false }); break;
+        child3.send('end', socket); break;
       case 5:
-        child3.send('write', socket, { track: false }); break;
+        child3.send('write', socket); break;
     }
     connected += 1;
-
-    socket.once('close', function() {
-      console.log('[m] socket closed, total %d', ++closed);
-    });
 
     if (connected === count) {
       closeServer();
@@ -121,7 +117,7 @@ if (process.argv[2] === 'child') {
     while (j--) {
       client = net.connect(common.PORT, '127.0.0.1');
       client.on('close', function() {
-        console.error('[m] CLIENT: close event');
+        console.error('CLIENT: close event in master');
         disconnected += 1;
       });
       // XXX This resume() should be unnecessary.
@@ -133,7 +129,7 @@ if (process.argv[2] === 'child') {
 
   var closeEmitted = false;
   server.on('close', function() {
-    console.error('[m] server close');
+    console.error('server close');
     closeEmitted = true;
 
     child1.kill();
@@ -145,19 +141,18 @@ if (process.argv[2] === 'child') {
 
   var timeElasped = 0;
   var closeServer = function() {
-    console.error('[m] closeServer');
+    console.error('closeServer');
     var startTime = Date.now();
     server.on('close', function() {
-      console.error('[m] emit(close)');
+      console.error('emit(close)');
       timeElasped = Date.now() - startTime;
     });
 
-    console.error('[m] calling server.close');
+    console.error('calling server.close');
     server.close();
 
     setTimeout(function() {
-      assert(!closeEmitted);
-      console.error('[m] sending close to children');
+      console.error('sending close to children');
       child1.send('close');
       child2.send('close');
       child3.disconnect();
