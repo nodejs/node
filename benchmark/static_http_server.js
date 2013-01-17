@@ -31,6 +31,7 @@ server.listen(port, function() {
       path:  '/',
       agent: agent
     }, function(res) {
+      res.resume();
       res.on('end', function() {
         if (++responses === n) {
           server.close();
