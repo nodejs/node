@@ -207,8 +207,7 @@ function readDependencies (context, where, opts, cb) {
       rv.dependencies = {}
       Object.keys(wrap).forEach(function (key) {
         log.verbose("from wrap", [key, wrap[key]])
-        var w = wrap[key]
-        rv.dependencies[key] = w.from || w.version
+        rv.dependencies[key] = readWrap(wrap[key])
       })
       log.verbose("readDependencies returned deps", rv.dependencies)
       return cb(null, rv, wrap)
@@ -235,13 +234,18 @@ function readDependencies (context, where, opts, cb) {
       })
       rv.dependencies = {}
       Object.keys(newwrap.dependencies || {}).forEach(function (key) {
-        var w = newwrap.dependencies[key]
-        rv.dependencies[key] = w.from || w.version
+        rv.dependencies[key] = readWrap(newwrap.dependencies[key])
       })
       log.verbose("readDependencies returned deps", rv.dependencies)
       return cb(null, rv, newwrap.dependencies)
     })
   })
+}
+
+function readWrap (w) {
+  return (w.resolved) ? w.resolved
+       : (w.from && url.parse(w.from).protocol) ? w.from
+       : w.version
 }
 
 // if the -S|--save option is specified, then write installed packages
@@ -301,6 +305,7 @@ function save (where, installed, tree, pretty, cb) {
       data.bundleDependencies = bundle
     }
 
+    log.verbose('saving', things)
     data[deps] = data[deps] || {}
     Object.keys(things).forEach(function (t) {
       data[deps][t] = things[t]
@@ -588,8 +593,7 @@ function targetResolver (where, context, deps) {
     if (wrap) {
       name = what.split(/@/).shift()
       if (wrap[name]) {
-        var wrapTarget = wrap[name].from || wrap[name].version
-        log.verbose("shrinkwrap", "resolving %s to %s", wrapTarget, what)
+        var wrapTarget = readWrap(wrap[name])
         what = name + "@" + wrapTarget
       } else {
         log.verbose("shrinkwrap", "skipping %s (not in shrinkwrap)", what)
@@ -615,7 +619,7 @@ function targetResolver (where, context, deps) {
         return cb(null, [])
       }
 
-      if (data) data._from = what
+      if (data && !data._from) data._from = what
 
       return cb(er, data)
     })

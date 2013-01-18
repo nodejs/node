@@ -42,8 +42,13 @@ function publish (args, isRetry, cb) {
   })
 }
 
-function cacheAddPublish (arg, didPre, isRetry, cb) {
-  npm.commands.cache.add(arg, function (er, data) {
+// didPre in this case means that we already ran the prepublish script,
+// and that the "dir" is an actual directory, and not something silly
+// like a tarball or name@version thing.
+// That means that we can run publish/postpublish in the dir, rather than
+// in the cache dir.
+function cacheAddPublish (dir, didPre, isRetry, cb) {
+  npm.commands.cache.add(dir, function (er, data) {
     if (er) return cb(er)
     log.silly("publish", data)
     var cachedir = path.resolve( npm.cache
@@ -52,9 +57,9 @@ function cacheAddPublish (arg, didPre, isRetry, cb) {
                                , "package" )
     chain
       ( [ !didPre && [lifecycle, data, "prepublish", cachedir]
-        , [publish_, arg, data, isRetry, cachedir]
-        , [lifecycle, data, "publish", cachedir]
-        , [lifecycle, data, "postpublish", cachedir] ]
+        , [publish_, dir, data, isRetry, cachedir]
+        , [lifecycle, data, "publish", didPre ? dir : cachedir]
+        , [lifecycle, data, "postpublish", didPre ? dir : cachedir] ]
       , cb )
   })
 }

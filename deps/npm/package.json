@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
+  "version": "1.2.2",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -37,10 +37,10 @@
     "semver": "~1.1.2",
     "ini": "~1.0.5",
     "slide": "1",
-    "abbrev": "1",
+    "abbrev": "~1.0.4",
     "graceful-fs": "~1.1.1",
     "minimatch": "~0.2.8",
-    "nopt": "~2.0",
+    "nopt": "~2.1.1",
     "rimraf": "2",
     "request": "~2.9",
     "which": "1",

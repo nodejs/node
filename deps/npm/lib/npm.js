@@ -97,6 +97,7 @@ var commandCache = {}
               , "se" : "search"
               , "author" : "owner"
               , "home" : "docs"
+              , "issues": "bugs"
               , "unstar": "star" // same function
               , "apihelp" : "help"
               , "login": "adduser"

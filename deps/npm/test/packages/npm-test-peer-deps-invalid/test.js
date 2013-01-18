@@ -12,7 +12,7 @@ require("child_process").exec(npm + " ls --json", {
     function (err, stdout, stderr) {
 
   var actual = JSON.parse(stdout).dependencies
-  var expected = require("./npm-ls.json").dependencies
+  var expected = require("./npm-ls.json")
 
   // Delete the "problems" entry because it contains system-specific path info,
   // so we can't compare it accurately and thus have deleted it from
@@ -23,7 +23,10 @@ require("child_process").exec(npm + " ls --json", {
   // this will be either version 1.1.0 or version 1.0.0
   var dictVer = actual.dict.version
   delete actual.dict.version
+  delete actual.dict.from
+  delete actual.dict.resolved
   assert(dictVer === "1.1.0" || dictVer === "1.0.0")
+  console.error(JSON.stringify(actual, null, 2))
   assert.deepEqual(actual, expected)
 
   assert.ok(err)

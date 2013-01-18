@@ -95,14 +95,11 @@ function getLite (data, noname) {
                       + " " + (data.path || "") )
   }
 
-  if (data._from) {
-    var from = data._from
-    if (from.indexOf(data.name + "@") === 0) {
-      from = from.substr(data.name.length + 1)
-    }
-    var u = url.parse(from)
-    if (u.protocol) lite.from = from
-  }
+  if (data._from)
+    lite.from = data._from
+
+  if (data._resolved)
+    lite.resolved = data._resolved
 
   if (data.invalid) {
     lite.invalid = true

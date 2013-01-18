@@ -51,7 +51,7 @@ function exec (cmd, args, env, takeOver, cwd, uid, gid, cb) {
   cp.stderr && cp.stderr.on("data", function (chunk) {
     if (chunk) stderr += chunk
   })
-  cp.on("exit", function (code) {
+  cp.on("close", function (code) {
     var er = null
     if (code) er = new Error("`"+cmd
                             +(args.length ? " "
