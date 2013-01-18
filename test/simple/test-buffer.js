@@ -856,3 +856,48 @@ assert.throws(function() {
   var buf = new SlowBuffer(8);
   buf.writeFloatLE(0.0, -1);
 }, /offset is not uint/);
+
+
+// SlowBuffer sanity checks.
+assert.throws(function() {
+  var len = 0xfffff;
+  var sbuf = new SlowBuffer(len);
+  var buf = new Buffer(sbuf, len, 0);
+  SlowBuffer.makeFastBuffer(sbuf, buf, -len, len);  // Should throw.
+  for (var i = 0; i < len; ++i) buf[i] = 0x42;      // Try to force segfault.
+}, RangeError);
+
+assert.throws(function() {
+  var len = 0xfffff;
+  var sbuf = new SlowBuffer(len);
+  var buf = new Buffer(sbuf, len, -len);           // Should throw.
+  for (var i = 0; i < len; ++i) buf[i] = 0x42;     // Try to force segfault.
+}, RangeError);
+
+assert.throws(function() {
+  var len = 0xfffff;
+  var sbuf = new SlowBuffer(len);
+  sbuf = sbuf.slice(-len);                          // Should throw.
+  for (var i = 0; i < len; ++i) sbuf[i] = 0x42;     // Try to force segfault.
+}, RangeError);
+
+assert.throws(function() {
+  var sbuf = new SlowBuffer(1);
+  var buf = new Buffer(sbuf, 1, 0);
+  buf.length = 0xffffffff;
+  buf.slice(0xffffff0, 0xffffffe);                  // Should throw.
+}, Error);
+
+assert.throws(function() {
+  var sbuf = new SlowBuffer(8);
+  var buf = new Buffer(sbuf, 8, 0);
+  buf.slice(-8);  // Should throw. Throws Error instead of RangeError
+                  // for the sake of v0.8 compatibility.
+}, Error);
+
+assert.throws(function() {
+  var sbuf = new SlowBuffer(16);
+  var buf = new Buffer(sbuf, 8, 8);
+  buf.slice(-8);  // Should throw. Throws Error instead of RangeError
+                  // for the sake of v0.8 compatibility.
+}, Error);

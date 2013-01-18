@@ -857,6 +857,19 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
   uint32_t offset = args[2]->Uint32Value();
   uint32_t length = args[3]->Uint32Value();
 
+  if (offset > buffer->length_) {
+    return ThrowRangeError("offset out of range");
+  }
+
+  if (offset + length > buffer->length_) {
+    return ThrowRangeError("length out of range");
+  }
+
+  // Check for wraparound. Safe because offset and length are unsigned.
+  if (offset + length < offset) {
+    return ThrowRangeError("offset or length out of range");
+  }
+
   fast_buffer->SetIndexedPropertiesToExternalArrayData(buffer->data_ + offset,
                                                        kExternalUnsignedByteArray,
                                                        length);
