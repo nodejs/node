@@ -124,11 +124,10 @@ process may not actually kill it.  `kill` really just sends a signal to a proces
 
 See `kill(2)`
 
-### child.send(message, [sendHandle], [options])
+### child.send(message, [sendHandle])
 
 * `message` {Object}
 * `sendHandle` {Handle object}
-* `options` {Object}
 
 When using `child_process.fork()` you can write to the child using
 `child.send(message, [sendHandle])` and messages are received by
@@ -167,12 +166,7 @@ The `sendHandle` option to `child.send()` is for sending a TCP server or
 socket object to another process. The child will receive the object as its
 second argument to the `message` event.
 
-The `options` object may have the following properties:
-
- * `track` - Notify master process when `sendHandle` will be closed in child
-   process. (`false` by default)
-
-**send server object**
+#### Example: sending server object
 
 Here is an example of sending a server:
 
@@ -200,7 +194,7 @@ And the child would the receive the server object as:
 Note that the server is now shared between the parent and child, this means
 that some connections will be handled by the parent and some by the child.
 
-**send socket object**
+#### Example: sending socket object
 
 Here is an example of sending a socket. It will spawn two children and handle
 connections with the remote address `74.125.127.100` as VIP by sending the
