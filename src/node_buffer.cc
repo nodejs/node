@@ -31,6 +31,30 @@
 #include <float.h>  // float limits
 #include <math.h>   // infinity
 
+// Windows does not define INFINITY in math.h
+// Copy V8's approach and use HUGE_VAL instead
+#ifndef INFINITY
+# ifdef HUGE_VALF
+#  define INFINITY HUGE_VALF
+# else
+
+// MSVC.  No INFINITY, no HUGE_VALF
+// There's HUGE_VAL, but that's a double, not a float.
+// Assign the bytes and float-ify it.
+
+typedef union { unsigned char __c[4]; float __f; } __huge_valf_t;
+#  if __BYTE_ORDER == __BIG_ENDIAN
+#   define __HUGE_VALF_bytes { 0x7f, 0x80, 0, 0 }
+#  endif
+#  if __BYTE_ORDER == __LITTLE_ENDIAN
+#   define __HUGE_VALF_bytes { 0, 0, 0x80, 0x7f }
+#  endif
+static __huge_valf_t __huge_valf = { __HUGE_VALF_bytes };
+#  define INFINITY (__huge_valf.__f)
+
+# endif
+#endif
+
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 #define BUFFER_CLASS_ID (0xBABE)
