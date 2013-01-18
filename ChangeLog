@@ -1,4 +1,33 @@
-2013.01.11, Version 0.9.6 (Unstable)
+2013.01.18, Version 0.9.7 (Unstable)
+
+* V8: Upgrade to 3.15.11.7
+
+* npm: Upgrade to 1.2.2
+
+* punycode: Upgrade to 1.2.0 (Mathias Bynens)
+
+* repl: make built-in modules available by default (Felix Böhm)
+
+* windows: add support for '_Total' perf counters (Scott Blomquist)
+
+* cluster: make --prof work for workers (Ben Noordhuis)
+
+* child_process: do not keep list of sent sockets (Fedor Indutny)
+
+* tls: Follow RFC6125 more strictly (Fedor Indutny)
+
+* buffer: floating point read/write improvements (Trevor Norris)
+
+* TypedArrays: Improve dataview perf without endian param (Dean McNamee)
+
+* module: assert require() called with a non-empty string (Felix Böhm, James Campos)
+
+* stdio: Set readable/writable flags properly (isaacs)
+
+* stream: Properly handle large reads from push-streams (isaacs)
+
+
+2013.01.11, Version 0.9.6 (Unstable), 9313fdc71ca8335d5e3a391c103230ee6219b3e2
 
 * V8: update to 3.15.11.5
 
