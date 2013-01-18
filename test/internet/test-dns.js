@@ -308,6 +308,7 @@ TEST(function test_lookup_failure(done) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
     assert.strictEqual(err.errno, 'ENOTFOUND');
+    assert.ok(!/ENOENT/.test(err.message));
 
     done();
   });
