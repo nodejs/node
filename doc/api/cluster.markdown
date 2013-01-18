@@ -33,10 +33,11 @@ all share server ports.
 
 Running node will now share port 8000 between the workers:
 
-    % node server.js
-    Worker 2438 online
-    Worker 2437 online
-
+    % NODE_DEBUG=cluster node server.js
+    23521,Master Worker 23524 online
+    23521,Master Worker 23526 online
+    23521,Master Worker 23523 online
+    23521,Master Worker 23528 online
 
 This feature was introduced recently, and may change in future versions.
 Please try it out and provide feedback.
