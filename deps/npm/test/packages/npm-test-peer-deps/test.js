@@ -14,7 +14,9 @@ require("child_process").exec(npm + " ls --json", {
   if (err) throw err
 
   var actual = JSON.parse(stdout).dependencies
-  var expected = require("./npm-ls.json").dependencies
+  var expected = require("./npm-ls.json")
+  console.error(JSON.stringify(actual, null, 2))
+  console.error(JSON.stringify(expected, null, 2))
 
   assert.deepEqual(actual, expected)
 })

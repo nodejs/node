@@ -36,7 +36,7 @@ function pack (targetTarball, folder, pkg, dfc, cb) {
 
   if (dfc) {
     // do fancy crap
-    return lifecycle(pkg, 'prepublish', folder, function (er) {
+    return lifecycle(pkg, "prepublish", folder, function (er) {
       if (er) return cb(er)
       pack_(targetTarball, folder, pkg, cb)
     })
@@ -191,7 +191,7 @@ function gunzTarPerm (tarball, target, dMode, fMode, uid, gid, cb_) {
     if (this.type.match(/^.*Link$/)) {
       log.warn( "excluding symbolic link"
               , this.path.substr(target.length + 1)
-              + ' -> ' + this.linkpath )
+              + " -> " + this.linkpath )
       return false
     }
     return true

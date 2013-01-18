@@ -4,8 +4,15 @@ module.exports = exports = abbrev.abbrev = abbrev
 abbrev.monkeyPatch = monkeyPatch
 
 function monkeyPatch () {
-  Array.prototype.abbrev = function () { return abbrev(this) }
-  Object.prototype.abbrev = function () { return abbrev(Object.keys(this)) }
+  Object.defineProperty(Array.prototype, 'abbrev', {
+    value: function () { return abbrev(this) },
+    enumerable: false, configurable: true, writable: true
+  })
+
+  Object.defineProperty(Object.prototype, 'abbrev', {
+    value: function () { return abbrev(Object.keys(this)) },
+    enumerable: false, configurable: true, writable: true
+  })
 }
 
 function abbrev (list) {
@@ -32,8 +39,7 @@ function abbrev (list) {
       var curChar = current.charAt(j)
       nextMatches = nextMatches && curChar === next.charAt(j)
       prevMatches = prevMatches && curChar === prev.charAt(j)
-      if (nextMatches || prevMatches) continue
-      else {
+      if (!nextMatches && !prevMatches) {
         j ++
         break
       }
@@ -60,19 +66,18 @@ function lexSort (a, b) {
 if (module === require.main) {
 
 var assert = require("assert")
-  , sys
-sys = require("util")
+var util = require("util")
 
 console.log("running tests")
 function test (list, expect) {
   var actual = abbrev(list)
   assert.deepEqual(actual, expect,
-    "abbrev("+sys.inspect(list)+") === " + sys.inspect(expect) + "\n"+
-    "actual: "+sys.inspect(actual))
+    "abbrev("+util.inspect(list)+") === " + util.inspect(expect) + "\n"+
+    "actual: "+util.inspect(actual))
   actual = abbrev.apply(exports, list)
   assert.deepEqual(abbrev.apply(exports, list), expect,
-    "abbrev("+list.map(JSON.stringify).join(",")+") === " + sys.inspect(expect) + "\n"+
-    "actual: "+sys.inspect(actual))
+    "abbrev("+list.map(JSON.stringify).join(",")+") === " + util.inspect(expect) + "\n"+
+    "actual: "+util.inspect(actual))
 }
 
 test([ "ruby", "ruby", "rules", "rules", "rules" ],

@@ -70,6 +70,12 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   var pathArr = []
     , p = wd.split("node_modules")
     , acc = path.resolve(p.shift())
+
+  // first add the directory containing the `node` executable currently
+  // running, so that any lifecycle script that invoke "node" will execute
+  // this same one.
+  pathArr.unshift(path.dirname(process.execPath))
+
   p.forEach(function (pp) {
     pathArr.unshift(path.join(acc, "node_modules", ".bin"))
     acc = path.join(acc, "node_modules", pp)
@@ -79,10 +85,6 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // we also unshift the bundled node-gyp-bin folder so that
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, "..", "..", "bin", "node-gyp-bin"))
-
-  // add the directory containing the `node` executable currently running, so
-  // that any lifecycle script that invoke "node" will execute this same one.
-  pathArr.unshift(path.dirname(process.execPath))
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === "win32" ? ";" : ":")
