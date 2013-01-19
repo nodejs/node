@@ -714,7 +714,7 @@ class DataView {
     // NOTE(deanm): args[1]->BooleanValue when the argument was not passed in
     // gives us the right answer, but seems to be very slow.  This seems to be
     // the cost of calling BooleanValue() on undefined.
-    bool little_endian = args.Length() > 1 ? args[1]->BooleanValue() : false;
+    bool little_endian = args.Length() > 2 ? args[2]->BooleanValue() : false;
     // TODO(deanm): All of these things should be cacheable.
     int element_size = v8_typed_array::SizeOfArrayElementForType(
         args.This()->GetIndexedPropertiesExternalArrayDataType());
