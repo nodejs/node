@@ -223,6 +223,9 @@
           }],
         ],
       }],
+      ['OS=="freebsd" and node_use_dtrace=="true"', {
+        'libraries': [ '-lelf' ],
+      }]
     ],
   }
 }
