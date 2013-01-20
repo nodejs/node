@@ -17,9 +17,22 @@ if len(sys.argv) != 3:
   sys.exit(2);
 
 outfile = file(sys.argv[1], 'w');
-pipe = subprocess.Popen([ 'objdump', '-z', '-D', sys.argv[2] ],
-    bufsize=-1, stdout=subprocess.PIPE).stdout;
-pattern = re.compile('(00000000|0000000000000000) <(.*)>:');
+try:
+  pipe = subprocess.Popen([ 'objdump', '-z', '-D', sys.argv[2] ],
+      bufsize=-1, stdout=subprocess.PIPE).stdout;
+except OSError, e:
+  if e.errno == errno.ENOENT:
+    print '''
+      Node.js compile error: could not find objdump
+
+      Check that GNU binutils are installed and included in PATH
+      '''
+  else:
+    print 'problem running objdump: ', e.strerror
+
+  sys.exit()
+
+pattern = re.compile('([0-9a-fA-F]{8}|[0-9a-fA-F]{16}) <(.*)>:');
 v8dbg = re.compile('^v8dbg.*$')
 numpattern = re.compile('^[0-9a-fA-F]{2} $');
 octets = 4
@@ -50,10 +63,12 @@ def out_reset():
 def out_define():
   global curr_sym, curr_val, curr_octet, outfile, octets
   if curr_sym != None:
+    wrapped_val = curr_val & 0xffffffff;
     if curr_val & 0x80000000 != 0:
-      outfile.write("#define %s -0x%x\n" % (curr_sym.upper(), 0x100000000 - curr_val));
+      wrapped_val = 0x100000000 - wrapped_val;
+      outfile.write("#define %s -0x%x\n" % (curr_sym.upper(), wrapped_val));
     else:
-      outfile.write("#define %s 0x%x\n" % (curr_sym.upper(), curr_val));
+      outfile.write("#define %s 0x%x\n" % (curr_sym.upper(), wrapped_val));
   out_reset();
 
 for line in pipe:
@@ -81,8 +96,6 @@ for line in pipe:
   match = pattern.match(line)
   if match == None:
     continue;
-
-  octets = len(match.group(1)) / 2;
 
   # Print previous symbol
   out_define();
