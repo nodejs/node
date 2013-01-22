@@ -85,6 +85,14 @@ for (var i = 0; i < c.length; i++) {
   assert.equal(i % 256, c[i]);
 }
 
+// copy from fast to slow buffer
+var sb = new SlowBuffer(b.length);
+var copied = b.copy(sb);
+console.log('copied %d bytes from b into sb');
+for (var i = 0; i < sb.length; i++) {
+  assert.strictEqual(sb[i], b[i]);
+}
+
 var caught_error = null;
 
 // try to copy from before the beginning of b

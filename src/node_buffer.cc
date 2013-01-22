@@ -402,10 +402,10 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   Local<Object> target = args[0]->ToObject();
   char* target_data = Buffer::Data(target);
   size_t target_length = Buffer::Length(target);
-  size_t target_start = args[1]->Uint32Value();
-  size_t source_start = args[2]->Uint32Value();
-  size_t source_end = args[3]->IsUint32() ? args[3]->Uint32Value()
-                                          : source->length_;
+  size_t target_start = args[1]->IsUndefined() ? 0 : args[1]->Uint32Value();
+  size_t source_start = args[2]->IsUndefined() ? 0 : args[2]->Uint32Value();
+  size_t source_end = args[3]->IsUndefined() ? source->length_
+                                              : args[3]->Uint32Value();
 
   if (source_end < source_start) {
     return ThrowException(Exception::Error(String::New(
