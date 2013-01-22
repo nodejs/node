@@ -25,6 +25,9 @@ var assert = require('assert');
 var SlowBuffer = require('buffer').SlowBuffer;
 var Buffer = require('buffer').Buffer;
 
+// counter to ensure unique value is always copied
+var cntr = 0;
+
 // Regression test for segfault introduced in commit e501ce4.
 ['base64','binary','ucs2','utf8','ascii'].forEach(function(encoding) {
   var buf = new SlowBuffer(0);
@@ -33,18 +36,18 @@ var Buffer = require('buffer').Buffer;
 
 var b = Buffer(1024); // safe constructor
 
-console.log('b.length == ' + b.length);
+console.log('b.length == %d', b.length);
 assert.strictEqual(1024, b.length);
 
 b[0] = -1;
-assert.equal(b[0], 255);
+assert.strictEqual(b[0], 255);
 
 for (var i = 0; i < 1024; i++) {
   b[i] = i % 256;
 }
 
 for (var i = 0; i < 1024; i++) {
-  assert.equal(i % 256, b[i]);
+  assert.strictEqual(i % 256, b[i]);
 }
 
 var c = new Buffer(512);
@@ -52,93 +55,134 @@ console.log('c.length == %d', c.length);
 assert.strictEqual(512, c.length);
 
 // copy 512 bytes, from 0 to 512.
+b.fill(++cntr);
+c.fill(++cntr);
 var copied = b.copy(c, 0, 0, 512);
-console.log('copied ' + copied + ' bytes from b into c');
-assert.equal(512, copied);
-for (var i = 0; i < c.length; i++) {
-  common.print('.');
-  assert.equal(i % 256, c[i]);
-}
-console.log('');
-
-// try to copy 513 bytes, and hope we don't overrun c, which is only 512 long
-var copied = b.copy(c, 0, 0, 513);
-console.log('copied ' + copied + ' bytes from b into c');
+console.log('copied %d bytes from b into c', copied);
 assert.strictEqual(512, copied);
 for (var i = 0; i < c.length; i++) {
-  assert.equal(i % 256, c[i]);
+  assert.strictEqual(b[i], c[i]);
 }
 
-// copy all of c back into b, without specifying sourceEnd
+// copy c into b, without specifying sourceEnd
+b.fill(++cntr);
+c.fill(++cntr);
 var copied = c.copy(b, 0, 0);
-console.log('copied ' + copied + ' bytes from c back into b');
-assert.strictEqual(512, copied);
-for (var i = 0; i < b.length; i++) {
-  assert.equal(i % 256, b[i]);
+console.log('copied %d bytes from c into b w/o sourceEnd', copied);
+assert.strictEqual(c.length, copied);
+for (var i = 0; i < c.length; i++) {
+  assert.strictEqual(c[i], b[i]);
+}
+
+// copy c into b, without specifying sourceStart
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = c.copy(b, 0);
+console.log('copied %d bytes from c into b w/o sourceStart', copied);
+assert.strictEqual(c.length, copied);
+for (var i = 0; i < c.length; i++) {
+  assert.strictEqual(c[i], b[i]);
+}
+
+// copy longer buffer b to shorter c without targetStart
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = b.copy(c);
+console.log('copied %d bytes from b into c w/o targetStart', copied);
+assert.strictEqual(c.length, copied);
+for (var i = 0; i < c.length; i++) {
+  assert.strictEqual(b[i], c[i]);
+}
+
+// copy starting near end of b to c
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = b.copy(c, 0, b.length - Math.floor(c.length / 2));
+console.log('copied %d bytes from end of b into beginning of c', copied);
+assert.strictEqual(Math.floor(c.length / 2), copied);
+for (var i = 0; i < Math.floor(c.length / 2); i++) {
+  assert.strictEqual(b[b.length - Math.floor(c.length / 2) + i], c[i]);
+}
+for (var i = Math.floor(c.length /2) + 1; i < c.length; i++) {
+  assert.strictEqual(c[c.length-1], c[i]);
+}
+
+// try to copy 513 bytes, and check we don't overrun c
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = b.copy(c, 0, 0, 513);
+console.log('copied %d bytes from b trying to overrun c', copied);
+assert.strictEqual(c.length, copied);
+for (var i = 0; i < c.length; i++) {
+  assert.strictEqual(b[i], c[i]);
 }
 
 // copy 768 bytes from b into b
+b.fill(++cntr);
+b.fill(++cntr, 256);
 var copied = b.copy(b, 0, 256, 1024);
-console.log('copied ' + copied + ' bytes from b into c');
+console.log('copied %d bytes from b into b', copied);
 assert.strictEqual(768, copied);
+for (var i = 0; i < b.length; i++) {
+  assert.strictEqual(cntr, b[i]);
+}
+
+// copy from b to c with negative targetStart
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = b.copy(c, -1);
+console.log('copied %d bytes from b into c w/ negative targetStart', copied);
+assert.strictEqual(c.length, copied);
 for (var i = 0; i < c.length; i++) {
-  assert.equal(i % 256, c[i]);
+  assert.strictEqual(b[i], c[i]);
 }
 
-// copy from fast to slow buffer
+// copy from b to c with negative sourceStart
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = b.copy(c, 0, -1);
+assert.strictEqual(c.length, copied);
+console.log('copied %d bytes from b into c w/ negative sourceStart', copied);
+for (var i = 0; i < c.length; i++) {
+  assert.strictEqual(b[i], c[i]);
+}
+
+// check sourceEnd resets to targetEnd if former is greater than the latter
+b.fill(++cntr);
+c.fill(++cntr);
+var copied = b.copy(c, 0, 0, 1025);
+console.log('copied %d bytes from b into c', copied);
+for (var i = 0; i < c.length; i++) {
+  assert.strictEqual(b[i], c[i]);
+}
+
+// copy from fast buffer to slow buffer without parameters
 var sb = new SlowBuffer(b.length);
+sb.fill(++cntr, 0, sb.length);
+b.fill(++cntr);
 var copied = b.copy(sb);
-console.log('copied %d bytes from b into sb');
-for (var i = 0; i < sb.length; i++) {
-  assert.strictEqual(sb[i], b[i]);
+console.log('copied %d bytes from fast buffer to slow buffer', copied);
+for (var i = 0 ; i < b.length; i++) {
+  assert.strictEqual(b[i], sb[i]);
 }
 
-var caught_error = null;
+// throw with negative sourceEnd
+console.log('test copy at negative sourceEnd');
+assert.throws(function() {
+  b.copy(c, 0, 0, -1);
+}, RangeError);
 
-// try to copy from before the beginning of b
-caught_error = null;
-try {
-  var copied = b.copy(c, 0, 100, 10);
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('sourceEnd < sourceStart', caught_error.message);
+// throw when sourceStart is greater than sourceEnd
+assert.throws(function() {
+  b.copy(c, 0, 100, 10);
+}, RangeError);
 
-// try to copy to before the beginning of c
-caught_error = null;
-try {
-  var copied = b.copy(c, -1, 0, 10);
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('targetStart out of bounds', caught_error.message);
+// throw attempting to copy after end of c
+assert.throws(function() {
+  b.copy(c, 512, 0, 10);
+}, RangeError);
 
-// try to copy to after the end of c
-caught_error = null;
-try {
-  var copied = b.copy(c, 512, 0, 10);
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('targetStart out of bounds', caught_error.message);
-
-// try to copy starting before the beginning of b
-caught_error = null;
-try {
-  var copied = b.copy(c, 0, -1, 1);
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('sourceStart out of bounds', caught_error.message);
-
-// try to copy starting after the end of b
-caught_error = null;
-try {
-  var copied = b.copy(c, 0, 1024, 1025);
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('sourceStart out of bounds', caught_error.message);
+var caught_error;
 
 // invalid encoding for Buffer.toString
 caught_error = null;
@@ -157,16 +201,6 @@ try {
   caught_error = err;
 }
 assert.strictEqual('Unknown encoding: invalid', caught_error.message);
-
-// a too-low sourceEnd will get caught by earlier checks
-
-// try to copy ending after the end of b
-try {
-  var copied = b.copy(c, 0, 1023, 1025);
-} catch (err) {
-  caught_error = err;
-}
-assert.strictEqual('sourceEnd out of bounds', caught_error.message);
 
 // try to create 0-length buffers
 new Buffer('');

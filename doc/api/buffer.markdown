@@ -239,6 +239,9 @@ Does copy between buffers. The source and target regions can be overlapped.
 `targetStart` and `sourceStart` default to `0`.
 `sourceEnd` defaults to `buffer.length`.
 
+All values passed that are `undefined`/`NaN` or are out of bounds are set equal
+to their respective defaults.
+
 Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
 
