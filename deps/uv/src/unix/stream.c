@@ -576,12 +576,28 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     goto out;
   }
 
-  if (uv__stream_open(streamClient, streamServer->accepted_fd,
-        UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
-    /* TODO handle error */
-    close(streamServer->accepted_fd);
-    streamServer->accepted_fd = -1;
-    goto out;
+  switch (streamClient->type) {
+    case UV_NAMED_PIPE:
+    case UV_TCP:
+      if (uv__stream_open(streamClient, streamServer->accepted_fd,
+            UV_STREAM_READABLE | UV_STREAM_WRITABLE)) {
+        /* TODO handle error */
+        close(streamServer->accepted_fd);
+        streamServer->accepted_fd = -1;
+        goto out;
+      }
+      break;
+
+    case UV_UDP:
+      if (uv_udp_open((uv_udp_t*) client, streamServer->accepted_fd)) {
+        close(streamServer->accepted_fd);
+        streamServer->accepted_fd = -1;
+        goto out;
+      }
+      break;
+
+    default:
+      assert(0);
   }
 
   uv__io_start(streamServer->loop, &streamServer->io_watcher, UV__POLLIN);
@@ -682,6 +698,21 @@ static void uv__write_req_finish(uv_write_t* req) {
 }
 
 
+static int uv__handle_fd(uv_handle_t* handle) {
+  switch (handle->type) {
+    case UV_NAMED_PIPE:
+    case UV_TCP:
+      return ((uv_stream_t*) handle)->io_watcher.fd;
+
+    case UV_UDP:
+      return ((uv_udp_t*) handle)->io_watcher.fd;
+
+    default:
+      return -1;
+  }
+}
+
+
 static void uv__write(uv_stream_t* stream) {
   struct iovec* iov;
   ngx_queue_t* q;
@@ -719,7 +750,7 @@ start:
     struct msghdr msg;
     char scratch[64];
     struct cmsghdr *cmsg;
-    int fd_to_send = req->send_handle->io_watcher.fd;
+    int fd_to_send = uv__handle_fd((uv_handle_t*) req->send_handle);
 
     assert(fd_to_send >= 0);
 
@@ -858,6 +889,7 @@ static void uv__write_callbacks(uv_stream_t* stream) {
 static uv_handle_type uv__handle_type(int fd) {
   struct sockaddr_storage ss;
   socklen_t len;
+  int type;
 
   memset(&ss, 0, sizeof(ss));
   len = sizeof(ss);
@@ -865,13 +897,24 @@ static uv_handle_type uv__handle_type(int fd) {
   if (getsockname(fd, (struct sockaddr*)&ss, &len))
     return UV_UNKNOWN_HANDLE;
 
-  switch (ss.ss_family) {
-  case AF_UNIX:
-    return UV_NAMED_PIPE;
-  case AF_INET:
-  case AF_INET6:
-    return UV_TCP;
+  len = sizeof type;
+
+  if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len))
+    return UV_UNKNOWN_HANDLE;
+
+  if (type == SOCK_STREAM) {
+    switch (ss.ss_family) {
+      case AF_UNIX:
+        return UV_NAMED_PIPE;
+      case AF_INET:
+      case AF_INET6:
+        return UV_TCP;
+      }
   }
+
+  if (type == SOCK_DGRAM &&
+      (ss.ss_family == AF_INET || ss.ss_family == AF_INET6))
+    return UV_UDP;
 
   return UV_UNKNOWN_HANDLE;
 }
