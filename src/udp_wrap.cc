@@ -40,6 +40,7 @@ typedef ReqWrap<uv_udp_send_t> SendWrap;
 // see tcp_wrap.cc
 Local<Object> AddressToJS(const sockaddr* addr);
 
+static Persistent<Function> constructor;
 static Persistent<String> buffer_sym;
 static Persistent<String> oncomplete_sym;
 static Persistent<String> onmessage_sym;
@@ -98,8 +99,9 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
   NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
-  target->Set(String::NewSymbol("UDP"),
-              Persistent<FunctionTemplate>::New(t)->GetFunction());
+  constructor = Persistent<Function>::New(
+      Persistent<FunctionTemplate>::New(t)->GetFunction());
+  target->Set(String::NewSymbol("UDP"), constructor);
 }
 
 
@@ -389,6 +391,17 @@ UDPWrap* UDPWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);
   return static_cast<UDPWrap*>(obj->GetAlignedPointerFromInternalField(0));
+}
+
+
+Local<Object> UDPWrap::Instantiate() {
+  // If this assert fires then Initialize hasn't been called yet.
+  assert(constructor.IsEmpty() == false);
+
+  HandleScope scope;
+  Local<Object> obj = constructor->NewInstance();
+
+  return scope.Close(obj);
 }
 
 

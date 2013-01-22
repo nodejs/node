@@ -53,6 +53,8 @@ class HandleWrap {
     static v8::Handle<v8::Value> Ref(const v8::Arguments& args);
     static v8::Handle<v8::Value> Unref(const v8::Arguments& args);
 
+    inline uv_handle_t* GetHandle() { return handle__; };
+
   protected:
     HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
     virtual ~HandleWrap();
