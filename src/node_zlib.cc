@@ -157,20 +157,18 @@ class ZCtx : public ObjectWrap {
         ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
 
         // If data was encoded with dictionary
-        if (ctx->err_ == Z_NEED_DICT) {
-          assert(ctx->dictionary_ != NULL && "Stream has no dictionary");
-          if (ctx->dictionary_ != NULL) {
+        if (ctx->err_ == Z_NEED_DICT && ctx->dictionary_ != NULL) {
 
-            // Load it
-            ctx->err_ = inflateSetDictionary(&ctx->strm_,
-                                             ctx->dictionary_,
-                                             ctx->dictionary_len_);
-            assert(ctx->err_ == Z_OK && "Failed to set dictionary");
-            if (ctx->err_ == Z_OK) {
+          // Load it
+          ctx->err_ = inflateSetDictionary(&ctx->strm_,
+                                           ctx->dictionary_,
+                                           ctx->dictionary_len_);
+          // TODO Handle Z_DATA_ERROR, wrong dictionary
+          assert(ctx->err_ == Z_OK && "Failed to set dictionary");
+          if (ctx->err_ == Z_OK) {
 
-              // And try to decode again
-              ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
-            }
+            // And try to decode again
+            ctx->err_ = inflate(&ctx->strm_, ctx->flush_);
           }
         }
         break;
@@ -197,6 +195,9 @@ class ZCtx : public ObjectWrap {
       case Z_BUF_ERROR:
         // normal statuses, not fatal
         break;
+      case Z_NEED_DICT:
+        ZCtx::Error(ctx, "Missing dictionary");
+        return;
       default:
         // something else.
         ZCtx::Error(ctx, "Zlib error");
