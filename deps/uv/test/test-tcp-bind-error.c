@@ -128,7 +128,7 @@ TEST_IMPL(tcp_bind_error_fault) {
   r = uv_tcp_bind(&server, *garbage_addr);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error(uv_default_loop()).code == UV_EFAULT);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 

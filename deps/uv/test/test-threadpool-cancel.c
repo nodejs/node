@@ -195,6 +195,7 @@ TEST_IMPL(threadpool_cancel_getaddrinfo) {
 
   cleanup_threadpool();
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -220,6 +221,7 @@ TEST_IMPL(threadpool_cancel_work) {
 
   cleanup_threadpool();
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -271,6 +273,7 @@ TEST_IMPL(threadpool_cancel_fs) {
 
   cleanup_threadpool();
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }
 
@@ -303,5 +306,6 @@ TEST_IMPL(threadpool_cancel_single) {
   ASSERT(0 == uv_run(loop, UV_RUN_DEFAULT));
   ASSERT(req.data != NULL);  /* Should have been updated by nop_done_cb(). */
 
+  MAKE_VALGRIND_HAPPY();
   return 0;
 }

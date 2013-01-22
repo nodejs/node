@@ -542,8 +542,7 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
     optname = IP_DROP_MEMBERSHIP;
     break;
   default:
-    uv__set_sys_error(handle->loop, EFAULT);
-    return -1;
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
   }
 
   if (setsockopt(handle->io_watcher.fd, IPPROTO_IP, optname, (void*) &mreq, sizeof mreq) == -1) {

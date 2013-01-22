@@ -198,7 +198,7 @@ int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size) {
 
 int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
   if (handle->type != UV_TCP || addr.sin_family != AF_INET) {
-    uv__set_artificial_error(handle->loop, UV_EFAULT);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     return -1;
   }
 
@@ -208,7 +208,7 @@ int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
 
 int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
   if (handle->type != UV_TCP || addr.sin6_family != AF_INET6) {
-    uv__set_artificial_error(handle->loop, UV_EFAULT);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     return -1;
   }
 
@@ -219,7 +219,7 @@ int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
 int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
     unsigned int flags) {
   if (handle->type != UV_UDP || addr.sin_family != AF_INET) {
-    uv__set_artificial_error(handle->loop, UV_EFAULT);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     return -1;
   }
 
@@ -230,7 +230,7 @@ int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
 int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
     unsigned int flags) {
   if (handle->type != UV_UDP || addr.sin6_family != AF_INET6) {
-    uv__set_artificial_error(handle->loop, UV_EFAULT);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     return -1;
   }
 

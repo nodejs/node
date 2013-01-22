@@ -34,14 +34,13 @@
             'defines': [
               '_LARGEFILE_SOURCE',
               '_FILE_OFFSET_BITS=64',
-              '_POSIX_C_SOURCE=200112',
             ],
           }],
           ['OS == "mac"', {
-            'defines': [
-              '_DARWIN_USE_64_BIT_INODE=1',
-              '_DARWIN_C_SOURCE',  # _POSIX_C_SOURCE hides SysV definitions.
-            ],
+            'defines': [ '_DARWIN_USE_64_BIT_INODE=1' ],
+          }],
+          ['OS == "linux"', {
+            'defines': [ '_POSIX_C_SOURCE=200112' ],
           }],
         ],
       },

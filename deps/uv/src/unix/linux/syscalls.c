@@ -323,7 +323,7 @@ int uv__inotify_init1(int flags) {
 }
 
 
-int uv__inotify_add_watch(int fd, const char* path, __u32 mask) {
+int uv__inotify_add_watch(int fd, const char* path, uint32_t mask) {
 #if defined(__NR_inotify_add_watch)
   return syscall(__NR_inotify_add_watch, fd, path, mask);
 #else
@@ -332,7 +332,7 @@ int uv__inotify_add_watch(int fd, const char* path, __u32 mask) {
 }
 
 
-int uv__inotify_rm_watch(int fd, __s32 wd) {
+int uv__inotify_rm_watch(int fd, int32_t wd) {
 #if defined(__NR_inotify_rm_watch)
   return syscall(__NR_inotify_rm_watch, fd, wd);
 #else

@@ -25,10 +25,10 @@
 #undef  _GNU_SOURCE
 #define _GNU_SOURCE
 
+#include <stdint.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <linux/types.h>
 
 #define UV__O_NONBLOCK        0x800
 #define UV__O_CLOEXEC         0x80000
@@ -71,21 +71,21 @@
 
 #if defined(__x86_64__)
 struct uv__epoll_event {
-  __u32 events;
-  __u64 data;
+  uint32_t events;
+  uint64_t data;
 } __attribute__((packed));
 #else
 struct uv__epoll_event {
-  __u32 events;
-  __u64 data;
+  uint32_t events;
+  uint64_t data;
 };
 #endif
 
 struct uv__inotify_event {
-  __s32 wd;
-  __u32 mask;
-  __u32 cookie;
-  __u32 len;
+  int32_t wd;
+  uint32_t mask;
+  uint32_t cookie;
+  uint32_t len;
   /* char name[0]; */
 };
 
@@ -111,8 +111,8 @@ int uv__epoll_pwait(int epfd,
 int uv__eventfd2(unsigned int count, int flags);
 int uv__inotify_init(void);
 int uv__inotify_init1(int flags);
-int uv__inotify_add_watch(int fd, const char* path, __u32 mask);
-int uv__inotify_rm_watch(int fd, __s32 wd);
+int uv__inotify_add_watch(int fd, const char* path, uint32_t mask);
+int uv__inotify_rm_watch(int fd, int32_t wd);
 int uv__pipe2(int pipefd[2], int flags);
 int uv__recvmmsg(int fd,
                  struct uv__mmsghdr* mmsg,
