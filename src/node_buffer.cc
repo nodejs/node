@@ -395,8 +395,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   Buffer *source = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!Buffer::HasInstance(args[0])) {
-    return ThrowException(Exception::TypeError(String::New(
-            "First arg should be a Buffer")));
+    return ThrowTypeError("First arg should be a Buffer");
   }
 
   Local<Object> target = args[0]->ToObject();
@@ -408,8 +407,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
                                               : args[3]->Uint32Value();
 
   if (source_end < source_start) {
-    return ThrowException(Exception::Error(String::New(
-            "sourceEnd < sourceStart")));
+    return ThrowRangeError("sourceEnd < sourceStart");
   }
 
   // Copy 0 bytes; we're done
@@ -418,18 +416,15 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
   }
 
   if (target_start >= target_length) {
-    return ThrowException(Exception::Error(String::New(
-            "targetStart out of bounds")));
+    return ThrowRangeError("targetStart out of bounds");
   }
 
   if (source_start >= source->length_) {
-    return ThrowException(Exception::Error(String::New(
-            "sourceStart out of bounds")));
+    return ThrowRangeError("sourceStart out of bounds");
   }
 
   if (source_end > source->length_) {
-    return ThrowException(Exception::Error(String::New(
-            "sourceEnd out of bounds")));
+    return ThrowRangeError("sourceEnd out of bounds");
   }
 
   size_t to_copy = MIN(MIN(source_end - source_start,
@@ -468,8 +463,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   }
 
   if (length > 0 && offset >= buffer->length_) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Offset is out of bounds")));
+    return ThrowTypeError("Offset is out of bounds");
   }
 
   size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
@@ -500,8 +494,7 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Argument must be a string")));
+    return ThrowTypeError("Argument must be a string");
   }
 
   Local<String> s = args[0]->ToString();
@@ -539,8 +532,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Argument must be a string")));
+    return ThrowTypeError("Argument must be a string");
   }
 
   Local<String> s = args[0]->ToString();
@@ -548,8 +540,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
   size_t offset = args[1]->Int32Value();
 
   if (length > 0 && offset >= buffer->length_) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Offset is out of bounds")));
+    return ThrowTypeError("Offset is out of bounds");
   }
 
   size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
@@ -578,8 +569,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Argument must be a string")));
+    return ThrowTypeError("Argument must be a string");
   }
 
   String::AsciiValue s(args[0]);
@@ -590,8 +580,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   max_length = MIN(length, MIN(buffer->length_ - offset, max_length));
 
   if (max_length && offset >= buffer->length_) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Offset is out of bounds")));
+    return ThrowTypeError("Offset is out of bounds");
   }
 
   char a, b, c, d;
@@ -643,8 +632,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Argument must be a string")));
+    return ThrowTypeError("Argument must be a string");
   }
 
   Local<String> s = args[0]->ToString();
@@ -652,8 +640,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   size_t offset = args[1]->Int32Value();
 
   if (s->Length() > 0 && offset >= buffer->length_) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Offset is out of bounds")));
+    return ThrowTypeError("Offset is out of bounds");
   }
 
   char *p = (char*)buffer->data_ + offset;
@@ -793,8 +780,7 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
   HandleScope scope;
 
   if (!args[0]->IsString()) {
-    return ThrowException(Exception::TypeError(String::New(
-            "Argument must be a string")));
+    return ThrowTypeError("Argument must be a string");
   }
 
   Local<String> s = args[0]->ToString();
@@ -808,8 +794,7 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
   HandleScope scope;
 
   if (!Buffer::HasInstance(args[0])) {
-    return ThrowException(Exception::TypeError(String::New(
-            "First argument must be a Buffer")));
+    return ThrowTypeError("First argument must be a Buffer");
   }
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
@@ -838,9 +823,9 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
 }
 
 
-bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
+bool Buffer::HasInstance(Handle<Value> val) {
   if (!val->IsObject()) return false;
-  v8::Local<v8::Object> obj = val->ToObject();
+  Local<Object> obj = val->ToObject();
 
   if (obj->GetIndexedPropertiesExternalArrayDataType() == kExternalUnsignedByteArray)
     return true;
@@ -853,7 +838,7 @@ bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
 }
 
 
-class RetainedBufferInfo: public v8::RetainedObjectInfo {
+class RetainedBufferInfo: public RetainedObjectInfo {
 public:
   RetainedBufferInfo(Buffer* buffer);
   virtual void Dispose();
