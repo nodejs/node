@@ -449,6 +449,15 @@ gets high.
 The number of concurrent connections on the server.
 
 
+## Class: CryptoStream
+
+This is an encrypted stream.
+
+### cryptoStream.bytesWritten
+
+A proxy to the underlying socket's bytesWritten accessor, this will return
+the total bytes written to the socket, *including the TLS overhead*.
+
 ## Class: tls.CleartextStream
 
 This is a stream on top of the *Encrypted* stream that makes it possible to
