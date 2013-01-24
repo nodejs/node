@@ -1,4 +1,27 @@
-2013.01.18, Version 0.9.7 (Unstable)
+2013.01.24, Version 0.9.8 (Unstable)
+
+* npm: Upgrade to v1.2.3
+
+* V8: Upgrade to 3.15.11.10
+
+* streams: Support objects other than Buffers (Jake Verbaten)
+
+* buffer: remove float write range checks (Trevor Norris)
+
+* http: close connection on 304/204 responses with chunked encoding (Ben Noordhuis)
+
+* build: fix build with dtrace support on FreeBSD (Fedor Indutny)
+
+* console: Support formatting options in trace() (isaacs)
+
+* domain: empty stack on all exceptions (Dave Olszewski)
+
+* unix, windows: make uv_*_bind() error codes consistent (Andrius Bentkus)
+
+* linux: add futimes() fallback (Ben Noordhuis)
+
+
+2013.01.18, Version 0.9.7 (Unstable), 9e7bebeb8305edd55735a95955a98fdbe47572e5
 
 * V8: Upgrade to 3.15.11.7
 
