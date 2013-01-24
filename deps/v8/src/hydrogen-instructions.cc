@@ -801,6 +801,13 @@ void HClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
+void HWrapReceiver::PrintDataTo(StringStream* stream) {
+  receiver()->PrintNameTo(stream);
+  stream->Add(" ");
+  function()->PrintNameTo(stream);
+}
+
+
 void HAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintNameTo(stream);
   stream->Add("[");

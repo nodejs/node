@@ -2823,6 +2823,8 @@ class HWrapReceiver: public HTemplateInstruction<2> {
 
   virtual HValue* Canonicalize();
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver)
 };
 

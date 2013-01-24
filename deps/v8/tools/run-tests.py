@@ -155,7 +155,7 @@ def ProcessOptions(options):
     options.mode = tokens[1]
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode in ["debug", "release"]:
+    if not mode.lower() in ["debug", "release"]:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
