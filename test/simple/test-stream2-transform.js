@@ -44,6 +44,7 @@ function run() {
   fn({
     same: assert.deepEqual,
     equal: assert.equal,
+    ok: assert,
     end: function () {
       count--;
       run();
@@ -330,4 +331,84 @@ test('passthrough facaded', function(t) {
       }, 10);
     }, 10);
   }, 10);
+});
+
+test('object transform (json parse)', function(t) {
+  console.error('json parse stream');
+  var jp = new Transform({ objectMode: true });
+  jp._transform = function(data, output, cb) {
+    try {
+      output(JSON.parse(data));
+      cb();
+    } catch (er) {
+      cb(er);
+    }
+  };
+
+  // anything except null/undefined is fine.
+  // those are "magic" in the stream API, because they signal EOF.
+  var objects = [
+    { foo: 'bar' },
+    100,
+    "string",
+    { nested: { things: [ { foo: 'bar' }, 100, "string" ] } }
+  ];
+
+  var ended = false;
+  jp.on('end', function() {
+    ended = true;
+  });
+
+  objects.forEach(function(obj) {
+    jp.write(JSON.stringify(obj));
+    var res = jp.read();
+    t.same(res, obj);
+  });
+
+  jp.end();
+
+  process.nextTick(function() {
+    t.ok(ended);
+    t.end();
+  })
+});
+
+test('object transform (json stringify)', function(t) {
+  console.error('json parse stream');
+  var js = new Transform({ objectMode: true });
+  js._transform = function(data, output, cb) {
+    try {
+      output(JSON.stringify(data));
+      cb();
+    } catch (er) {
+      cb(er);
+    }
+  };
+
+  // anything except null/undefined is fine.
+  // those are "magic" in the stream API, because they signal EOF.
+  var objects = [
+    { foo: 'bar' },
+    100,
+    "string",
+    { nested: { things: [ { foo: 'bar' }, 100, "string" ] } }
+  ];
+
+  var ended = false;
+  js.on('end', function() {
+    ended = true;
+  });
+
+  objects.forEach(function(obj) {
+    js.write(obj);
+    var res = js.read();
+    t.equal(res, JSON.stringify(obj));
+  });
+
+  js.end();
+
+  process.nextTick(function() {
+    t.ok(ended);
+    t.end();
+  })
 });
