@@ -20,7 +20,7 @@ link.completion = function (opts, cb) {
   var dir = npm.globalDir
   fs.readdir(dir, function (er, files) {
     cb(er, files.filter(function (f) {
-      return f.charAt(0) !== "."
+      return !f.match(/^[\._-]/)
     }))
   })
 }

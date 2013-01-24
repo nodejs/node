@@ -3,6 +3,8 @@ var tap = require("tap")
 , child_process = require("child_process")
 // just some gnarly pattern with lots of matches
 , pattern = "test/a/!(symlink)/**"
+, bashResults = require("./bash-results.json")
+, patterns = Object.keys(bashResults)
 , glob = require("../")
 , Glob = glob.Glob
 , path = require("path")
@@ -25,54 +27,19 @@ function cleanResults (m) {
   }).sort(alphasort).reduce(function (set, f) {
     if (f !== set[set.length - 1]) set.push(f)
     return set
-  }, []).sort(alphasort)
+  }, []).sort(alphasort).map(function (f) {
+    // de-windows
+    return (process.platform !== 'win32') ? f
+           : f.replace(/^[a-zA-Z]:\\\\/, '/').replace(/\\/g, '/')
+  })
 }
-
-function flatten (chunks) {
-  var s = 0
-  chunks.forEach(function (c) { s += c.length })
-  var out = new Buffer(s)
-  s = 0
-  chunks.forEach(function (c) {
-    c.copy(out, s)
-    s += c.length
-  })
-
-  return out.toString().trim()
-}
-var bashResults
-tap.test("get bash output", function (t) {
-  var bashPattern = pattern
-  , cmd = "shopt -s globstar && " +
-          "shopt -s extglob && " +
-          "shopt -s nullglob && " +
-          // "shopt >&2; " +
-          "eval \'for i in " + bashPattern + "; do echo $i; done\'"
-  , cp = child_process.spawn("bash", ["-c",cmd])
-  , out = []
-  , globResult
-  cp.stdout.on("data", function (c) {
-    out.push(c)
-  })
-  cp.stderr.on("data", function (c) {
-    process.stderr.write(c)
-  })
-  cp.on("close", function () {
-    bashResults = flatten(out)
-    if (!bashResults) return t.fail("Didn't get results from bash")
-    else {
-      bashResults = cleanResults(bashResults.split(/\r*\n/))
-    }
-    t.ok(bashResults.length, "got some results")
-    t.end()
-  })
-})
 
 var globResults = []
 tap.test("use a Glob object, and pause/resume it", function (t) {
   var g = new Glob(pattern)
   , paused = false
   , res = []
+  , expect = bashResults[pattern]
 
   g.on("pause", function () {
     console.error("pause")
@@ -97,7 +64,7 @@ tap.test("use a Glob object, and pause/resume it", function (t) {
     t.deepEqual(matches, globResults,
       "end event matches should be the same as match events")
 
-    t.deepEqual(matches, bashResults,
+    t.deepEqual(matches, expect,
       "glob matches should be the same as bash results")
 
     t.end()

@@ -1,30 +1,28 @@
 <!doctype html>
 <html>
-  <title>restart</title>
+  <title>rm</title>
   <meta http-equiv="content-type" value="text/html;utf-8">
   <link rel="stylesheet" type="text/css" href="../static/style.css">
 
   <body>
     <div id="wrapper">
-<h1><a href="../doc/restart.html">restart</a></h1> <p>Start a package</p>
+<h1><a href="../doc/rm.html">rm</a></h1> <p>Remove a package</p>
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm restart &lt;name&gt;</code></pre>
+<pre><code>npm rm &lt;name&gt;
+npm uninstall &lt;name&gt;</code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p>This runs a package&#39;s &quot;restart&quot; script, if one was provided.
-Otherwise it runs package&#39;s &quot;stop&quot; script, if one was provided, and then
-the &quot;start&quot; script.</p>
-
-<p>If no version is specified, then it restarts the &quot;active&quot; version.</p>
+<p>This uninstalls a package, completely removing everything npm installed
+on its behalf.</p>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
-<ul><li><a href="../doc/run-script.html">run-script(1)</a></li><li><a href="../doc/scripts.html">scripts(1)</a></li><li><a href="../doc/test.html">test(1)</a></li><li><a href="../doc/start.html">start(1)</a></li><li><a href="../doc/stop.html">stop(1)</a></li></ul>
+<ul><li><a href="../doc/prune.html">prune(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/config.html">config(1)</a></li></ul>
 </div>
-<p id="footer">restart &mdash; npm@1.2.3</p>
+<p id="footer">rm &mdash; npm@1.2.3</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

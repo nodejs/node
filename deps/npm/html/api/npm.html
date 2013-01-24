@@ -11,7 +11,7 @@
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
 <pre><code>var npm = require(&quot;npm&quot;)
-npm.load(configObject, function (er, npm) {
+npm.load([configObject,] function (er, npm) {
   // use the npm object, now that it&#39;s loaded.
 
   npm.config.set(key, val)
@@ -24,7 +24,7 @@ npm.load(configObject, function (er, npm) {
 
 <h2 id="VERSION">VERSION</h2>
 
-<p>1.2.2</p>
+<p>1.2.3</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -32,12 +32,13 @@ npm.load(configObject, function (er, npm) {
 To find documentation of the command line
 client, see <code><a href="../doc/npm.html">npm(1)</a></code>.</p>
 
-<p>Prior to using npm&#39;s commands,
-<code>npm.load()</code> must be called with an object hash of
-top-level configs.  In the npm command line client,
-this set of configs is parsed from the command line options.  Additional
-configuration params are loaded from two configuration files.  See
-<code><a href="../doc/config.html">config(1)</a></code> for more information.</p>
+<p>Prior to using npm&#39;s commands, <code>npm.load()</code> must be called.
+If you provide <code>configObject</code> as an object hash of top-level
+configs, they override the values stored in the various config
+locations. In the npm command line client, this set of configs
+is parsed from the command line options. Additional configuration
+params are loaded from two configuration files. See <code><a href="../doc/config.html">config(1)</a></code>
+for more information.</p>
 
 <p>After that, each of the functions are accessible in the
 commands object: <code>npm.commands.&lt;cmd&gt;</code>.  See <code><a href="../doc/index.html">index(1)</a></code> for a list of
@@ -91,7 +92,7 @@ method names.  Use the <code>npm.deref</code> method to find the real name.</p>
 
 <pre><code>var cmd = npm.deref(&quot;unp&quot;) // cmd === &quot;unpublish&quot;</code></pre>
 </div>
-<p id="footer">npm &mdash; npm@1.2.2</p>
+<p id="footer">npm &mdash; npm@1.2.3</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

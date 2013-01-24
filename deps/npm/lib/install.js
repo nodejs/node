@@ -148,7 +148,7 @@ function install (args, cb_) {
     // initial "family" is the name:version of the root, if it's got
     // a package.json file.
     readJson(path.resolve(where, "package.json"), function (er, data) {
-      if (er && er.code !== "ENOENT") return cb(er)
+      if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
       if (er) data = null
       var context = { family: {}
                     , ancestors: {}
@@ -456,7 +456,7 @@ function installManyTop_ (what, where, context, cb) {
       return path.resolve(nm, p, "package.json")
     }), function (jsonfile, cb) {
       readJson(jsonfile, function (er, data) {
-        if (er && er.code !== "ENOENT") return cb(er)
+        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         if (er) return cb(null, [])
         return cb(null, [[data.name, data.version]])
       })
@@ -536,9 +536,15 @@ function targetResolver (where, context, deps) {
 
   if (!context.explicit) fs.readdir(nm, function (er, inst) {
     if (er) return alreadyInstalledManually = []
+
+    // don't even mess with non-package looking things
+    inst = inst.filter(function (p) {
+      return !p.match(/^[\._-]/)
+    })
+
     asyncMap(inst, function (pkg, cb) {
       readJson(path.resolve(nm, pkg, "package.json"), function (er, d) {
-        if (er && er.code !== "ENOENT") return cb(er)
+        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         // error means it's not a package, most likely.
         if (er) return cb(null, [])
 
@@ -657,7 +663,7 @@ function localLink (target, where, context, cb) {
     , parent = context.parent
 
   readJson(jsonFile, function (er, data) {
-    if (er && er.code !== "ENOENT") return cb(er)
+    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er || data._id === target._id) {
       if (er) {
         install( path.resolve(npm.globalDir, "..")

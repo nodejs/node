@@ -4,7 +4,7 @@ npm(3) -- node package manager
 ## SYNOPSIS
 
     var npm = require("npm")
-    npm.load(configObject, function (er, npm) {
+    npm.load([configObject,] function (er, npm) {
       // use the npm object, now that it's loaded.
 
       npm.config.set(key, val)
@@ -25,12 +25,13 @@ This is the API documentation for npm.
 To find documentation of the command line
 client, see `npm(1)`.
 
-Prior to using npm's commands,
-`npm.load()` must be called with an object hash of
-top-level configs.  In the npm command line client,
-this set of configs is parsed from the command line options.  Additional
-configuration params are loaded from two configuration files.  See
-`npm-config(1)` for more information.
+Prior to using npm's commands, `npm.load()` must be called.
+If you provide `configObject` as an object hash of top-level
+configs, they override the values stored in the various config
+locations. In the npm command line client, this set of configs
+is parsed from the command line options. Additional configuration
+params are loaded from two configuration files. See `npm-config(1)`
+for more information.
 
 After that, each of the functions are accessible in the
 commands object: `npm.commands.<cmd>`.  See `npm-index(1)` for a list of

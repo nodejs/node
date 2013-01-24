@@ -69,6 +69,16 @@ function rimraf_ (p, cb) {
 }
 
 function rmdir (p, cb) {
+  // try to rmdir first, and only readdir on ENOTEMPTY
+  fs.rmdir(p, function (er) {
+    if (er && er.code === "ENOTEMPTY")
+      rmkids(p, cb)
+    else
+      cb(er)
+  })
+}
+
+function rmkids(p, cb) {
   fs.readdir(p, function (er, files) {
     if (er)
       return cb(er)

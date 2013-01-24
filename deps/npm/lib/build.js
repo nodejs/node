@@ -109,7 +109,7 @@ function rebuildBundles (pkg, folder, parent, gtop, cb) {
     chain(files.filter(function (file) {
       // rebuild if:
       // not a .folder, like .bin or .hooks
-      return file.charAt(0) !== "."
+      return !file.match(/^[\._-]/)
           // not some old 0.x style bundle
           && file.indexOf("@") === -1
           // either not a dep, or explicitly bundled

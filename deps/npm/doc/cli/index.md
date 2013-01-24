@@ -82,6 +82,10 @@ npm-index(1) -- Index of all npm documentation
 
  Folder Structures Used by npm
 
+## npm-global(1)
+
+ Folder Structures Used by npm
+
 ## npm-help-search(1)
 
  Search npm help documentation
@@ -153,6 +157,10 @@ npm-index(1) -- Index of all npm documentation
 ## npm-restart(1)
 
  Start a package
+
+## npm-rm(1)
+
+ Remove a package
 
 ## npm-root(1)
 

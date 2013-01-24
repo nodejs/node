@@ -398,7 +398,7 @@ A proxy to use for outgoing https requests.
 
 ### user-agent
 
-* Default: npm/{npm.version} node/{process.version}
+* Default: node/{process.version} {process.platform} {process.arch}
 * Type: String
 
 Sets a User-Agent to the request header
