@@ -1,5 +1,6 @@
 core
 vgcore.*
+v8*.log
 perf.data
 perf.data.old
 .waf*
