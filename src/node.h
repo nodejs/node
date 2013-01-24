@@ -83,6 +83,7 @@
 # endif
 #endif
 
+
 namespace node {
 
 NODE_EXTERN extern bool no_deprecation;
@@ -198,11 +199,15 @@ NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(int errorno,
 
 const char *signo_string(int errorno);
 
+
+NODE_EXTERN typedef void (* addon_register_func)(
+    v8::Handle<v8::Object> exports, v8::Handle<v8::Value> module);
+
 struct node_module_struct {
   int version;
   void *dso_handle;
   const char *filename;
-  void (*register_func) (v8::Handle<v8::Object> target);
+  node::addon_register_func register_func;
   const char *modname;
 };
 
@@ -214,7 +219,7 @@ node_module_struct* get_builtin_module(const char *name);
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 0x000A /* v0.10 */
+#define NODE_MODULE_VERSION 0x000B /* v0.11 */
 
 #define NODE_STANDARD_MODULE_STUFF \
           NODE_MODULE_VERSION,     \
@@ -232,7 +237,7 @@ node_module_struct* get_builtin_module(const char *name);
     NODE_MODULE_EXPORT node::node_module_struct modname ## _module =  \
     {                                                                 \
       NODE_STANDARD_MODULE_STUFF,                                     \
-      regfunc,                                                        \
+      (node::addon_register_func)regfunc,                             \
       NODE_STRINGIFY(modname)                                         \
     };                                                                \
   }
