@@ -6,25 +6,28 @@ knowledge of several libraries:
 
  - V8 JavaScript, a C++ library. Used for interfacing with JavaScript:
    creating objects, calling functions, etc.  Documented mostly in the
-   `v8.h` header file (`deps/v8/include/v8.h` in the Node source tree),
-   which is also available [online](http://izs.me/v8-docs/main.html).
+   `v8.h` header file (`deps/v8/include/v8.h` in the Node source
+   tree), which is also available
+   [online](http://izs.me/v8-docs/main.html).
 
- - [libuv](https://github.com/joyent/libuv), C event loop library. Anytime one
-   needs to wait for a file descriptor to become readable, wait for a timer, or
-   wait for a signal to received one will need to interface with libuv. That is,
-   if you perform any I/O, libuv will need to be used.
+ - [libuv](https://github.com/joyent/libuv), C event loop library.
+   Anytime one needs to wait for a file descriptor to become readable,
+   wait for a timer, or wait for a signal to received one will need to
+   interface with libuv. That is, if you perform any I/O, libuv will
+   need to be used.
 
  - Internal Node libraries. Most importantly is the `node::ObjectWrap`
    class which you will likely want to derive from.
 
  - Others. Look in `deps/` for what else is available.
 
-Node statically compiles all its dependencies into the executable. When
-compiling your module, you don't need to worry about linking to any of these
-libraries.
+Node statically compiles all its dependencies into the executable.
+When compiling your module, you don't need to worry about linking to
+any of these libraries.
 
-All of the following examples are available for [download](https://github.com/rvagg/node-addon-examples)
-and may be used as a starting-point for your own Addon.
+All of the following examples are available for
+[download](https://github.com/rvagg/node-addon-examples) and may be
+used as a starting-point for your own Addon.
 
 ## Hello world
 
