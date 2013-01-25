@@ -398,13 +398,12 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
     return ThrowTypeError("First arg should be a Buffer");
   }
 
-  Local<Object> target = args[0]->ToObject();
+  Local<Value> target = args[0];
   char* target_data = Buffer::Data(target);
   size_t target_length = Buffer::Length(target);
-  size_t target_start = args[1]->IsUndefined() ? 0 : args[1]->Uint32Value();
-  size_t source_start = args[2]->IsUndefined() ? 0 : args[2]->Uint32Value();
-  size_t source_end = args[3]->IsUndefined() ? source->length_
-                                              : args[3]->Uint32Value();
+  size_t target_start = args[1]->Uint32Value();
+  size_t source_start = args[2]->Uint32Value();
+  size_t source_end = args[3]->Uint32Value();
 
   if (source_end < source_start) {
     return ThrowRangeError("sourceEnd < sourceStart");
