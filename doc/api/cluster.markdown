@@ -100,7 +100,7 @@ the worker pool for your application's needs.
     (Default=`false`)
 
 All settings set by the `.setupMaster` is stored in this settings object.
-This object is not supposed to be change or set manually, by you.
+This object is not supposed to be changed or set manually, by you.
 
 ## cluster.isMaster
 
