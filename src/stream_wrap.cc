@@ -77,6 +77,7 @@ static Persistent<String> bytes_sym;
 static Persistent<String> write_queue_size_sym;
 static Persistent<String> onread_sym;
 static Persistent<String> oncomplete_sym;
+static Persistent<String> handle_sym;
 static SlabAllocator* slab_allocator;
 static bool initialized;
 
@@ -411,6 +412,14 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
       StreamWrap* send_stream_wrap = static_cast<StreamWrap*>(
           send_stream_obj->GetAlignedPointerFromInternalField(0));
       send_stream = send_stream_wrap->GetStream();
+
+      // Reference StreamWrap instance to prevent it from being garbage
+      // collected before `AfterWrite` is called.
+      if (handle_sym.IsEmpty()) {
+        handle_sym = NODE_PSYMBOL("handle");
+      }
+      assert(!req_wrap->object_.IsEmpty());
+      req_wrap->object_->Set(handle_sym, send_stream_obj);
     }
 
     r = uv_write2(&req_wrap->req_,
@@ -467,6 +476,11 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   // The wrap and request objects should still be there.
   assert(req_wrap->object_.IsEmpty() == false);
   assert(wrap->object_.IsEmpty() == false);
+
+  // Unref handle property
+  if (!handle_sym.IsEmpty()) {
+    req_wrap->object_->Delete(handle_sym);
+  }
 
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
