@@ -61,6 +61,33 @@ process.nextTick(run);
 
 /////
 
+test('writable side consumption', function(t) {
+  var tx = new Transform({
+    highWaterMark: 10
+  });
+
+  var transformed = 0;
+  tx._transform = function(chunk, output, cb) {
+    transformed += chunk.length;
+    output(chunk);
+    cb();
+  };
+
+  for (var i = 1; i <= 10; i++) {
+    tx.write(new Buffer(i));
+  }
+  tx.end();
+
+  t.equal(tx._readableState.length, 10);
+  t.equal(transformed, 10);
+  t.equal(tx._transformState.writechunk.length, 5);
+  t.same(tx._writableState.buffer.map(function(c) {
+    return c[0].length;
+  }), [6, 7, 8, 9, 10]);
+
+  t.end();
+});
+
 test('passthrough', function(t) {
   var pt = new PassThrough();
 
