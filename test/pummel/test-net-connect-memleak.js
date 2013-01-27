@@ -30,7 +30,7 @@ net.createServer(function() {}).listen(common.PORT);
 
 (function() {
   // 2**26 == 64M entries
-  for (var i = 0, junk = [123.456]; i < 26; ++i) junk = junk.concat(junk);
+  for (var i = 0, junk = [0]; i < 26; ++i) junk = junk.concat(junk);
 
   net.createConnection(common.PORT, '127.0.0.1', function() {
     assert(junk.length != 0);  // keep reference alive
