@@ -113,6 +113,19 @@ FakeInput.prototype.end = function() {};
   assert.equal(callCount, expectedLines.length - 1);
   rli.close();
 
+  // \r\n should emit one line event, not two
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  expectedLines = ['foo', 'bar', 'baz', 'bat'];
+  callCount = 0;
+  rli.on('line', function(line) {
+    assert.equal(line, expectedLines[callCount]);
+    callCount++;
+  });
+  fi.emit('data', expectedLines.join('\r\n'));
+  assert.equal(callCount, expectedLines.length - 1);
+  rli.close();
+
   // sending a multi-byte utf8 char over multiple writes
   var buf = Buffer('☮', 'utf8');
   fi = new FakeInput();
