@@ -31,13 +31,13 @@ process.env.TMPDIR = '/tmpdir';
 process.env.TMP = '/tmp';
 process.env.TEMP = '/temp';
 var t = ( process.platform === 'win32' ? 'c:\\windows\\temp' : '/tmp' );
-assert.equal(os.tmpDir(), '/tmpdir');
+assert.equal(os.tmpdir(), '/tmpdir');
 process.env.TMPDIR = '';
-assert.equal(os.tmpDir(), '/tmp');
+assert.equal(os.tmpdir(), '/tmp');
 process.env.TMP = '';
-assert.equal(os.tmpDir(), '/temp');
+assert.equal(os.tmpdir(), '/temp');
 process.env.TEMP = '';
-assert.equal(os.tmpDir(), t);
+assert.equal(os.tmpdir(), t);
 
 var endianness = os.endianness();
 console.log('endianness = %s', endianness);

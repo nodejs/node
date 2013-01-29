@@ -6,7 +6,7 @@ Provides a few basic operating-system related utility functions.
 
 Use `require('os')` to access this module.
 
-## os.tmpDir()
+## os.tmpdir()
 
 Returns the operating system's default directory for temp files.
 
