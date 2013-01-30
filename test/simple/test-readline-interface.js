@@ -126,6 +126,36 @@ FakeInput.prototype.end = function() {};
   assert.equal(callCount, expectedLines.length - 1);
   rli.close();
 
+  // \r\n should emit one line event when split across multiple writes.
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
+  expectedLines = ['foo', 'bar', 'baz', 'bat'];
+  callCount = 0;
+  rli.on('line', function(line) {
+    assert.equal(line, expectedLines[callCount]);
+    callCount++;
+  });
+  expectedLines.forEach(function(line) {
+    fi.emit('data', line + '\r');
+    fi.emit('data', '\n');
+  });
+  assert.equal(callCount, expectedLines.length);
+  rli.close();
+
+  // \r should behave like \n when alone
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  expectedLines = ['foo', 'bar', 'baz', 'bat'];
+  callCount = 0;
+  rli.on('line', function(line) {
+    assert.equal(line, expectedLines[callCount]);
+    callCount++;
+  });
+  fi.emit('data', expectedLines.join('\r'));
+  assert.equal(callCount, expectedLines.length - 1);
+  rli.close();
+
+
   // sending a multi-byte utf8 char over multiple writes
   var buf = Buffer('☮', 'utf8');
   fi = new FakeInput();
