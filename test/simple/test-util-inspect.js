@@ -155,3 +155,8 @@ assert(util.inspect(subject, { customInspect: true }).indexOf('123') !== -1);
 assert(util.inspect(subject, { customInspect: true }).indexOf('inspect') === -1);
 assert(util.inspect(subject, { customInspect: false }).indexOf('123') === -1);
 assert(util.inspect(subject, { customInspect: false }).indexOf('inspect') !== -1);
+
+// custom inspect() functions should be able to return other Objects
+subject.inspect = function() { return { foo: 'bar' }; };
+
+assert.equal(util.inspect(subject), '{ foo: \'bar\' }');

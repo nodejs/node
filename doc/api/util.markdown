@@ -114,6 +114,8 @@ Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 
+### Custom `inpect()` function on Objects
+
 Objects also may define their own `inspect(depth)` function which `util.inspect()`
 will invoke and use the result of when inspecting the object:
 
@@ -126,6 +128,18 @@ will invoke and use the result of when inspecting the object:
 
     util.inspect(obj);
       // "{nate}"
+
+You may also return another Object entirely, and the returned String will be
+formatted according to the returned Object. This is similar to how
+`JSON.stringify()` works:
+
+    var obj = { foo: 'this will not show up in the inspect() output' };
+    obj.inspect = function(depth) {
+      return { bar: 'baz' };
+    };
+
+    util.inspect(obj);
+      // "{ bar: 'baz' }"
 
 
 ## util.isArray(object)
