@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -27,6 +26,7 @@
     <OutputPath>..\..\..\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NPMSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <Cultures>en-US</Cultures>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>..\..\..\$(Configuration)\</OutputPath>
@@ -34,11 +34,13 @@
     <DefineConstants>Debug;ProductVersion=$(NodeVersion);NoETW=$(NoETW);NoPerfCtr=$(NoPerfCtr);NPMSourceDir=..\..\..\deps\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup>
-	<EnableProjectHarvesting>True</EnableProjectHarvesting>
+    <EnableProjectHarvesting>True</EnableProjectHarvesting>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="product.wxs" />
-    <Compile Include="..\..\..\npm.wxs" />
+    <Compile Include="..\..\..\npm.wxs">
+      <Link>npm.wxs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <WixExtension Include="WixUIExtension">
@@ -50,9 +52,16 @@
       <Name>WiXUtilExtension</Name>
     </WixExtension>
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="WixUI_en-us.wxl" />
+  </ItemGroup>
   <Import Project="$(WixTargetsPath)" />
-    <Target Name="BeforeBuild">
-      <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\deps\npm" PreprocessorVariable="var.NPMSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NPMFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs">
-      </HeatDirectory>
-    </Target>
+  <Target Name="BeforeBuild">
+    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\deps\npm" PreprocessorVariable="var.NPMSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NPMFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\npm.wxs">
+    </HeatDirectory>
+  </Target>
+  <PropertyGroup>
+    <PostBuildEvent>move !(TargetPath) $(TargetDir)\$(TargetFileName)
+move !(TargetPdbPath) $(TargetDir)\$(TargetPdbName)</PostBuildEvent>
+  </PropertyGroup>
 </Project>

@@ -25,6 +25,13 @@
 
     <Icon Id="node.exe" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
     <Property Id="ARPPRODUCTICON" Value="node.exe" />
+    <Property Id="ApplicationFolderName" Value="nodejs" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+    <Property Id="INSTALLDIR">
+      <RegistrySearch Id='InstallPathRegistry' Type='raw'
+        Root='HKCU' Key='SOFTWARE\Joyent\Node.js\Installer' Name='PreviousPath' />
+    </Property>
 
     <Directory Id="TARGETDIR" Name="SourceDir">
 
@@ -33,7 +40,7 @@
       </Directory>
 
       <Directory Id="$(var.ProgramFilesFolderId)">
-        <Directory Id="APPLICATIONROOTDIRECTORY" Name="nodejs">
+        <Directory Id="INSTALLDIR" Name="nodejs">
           <Directory Id="NodeModulesFolder" Name="node_modules">
             <Directory Id="NPMFolder" Name="npm">
               <Component Id="npmrc" Guid="55B2B03F-8F32-4D62-A54A-FA428615591D">
@@ -45,12 +52,12 @@
             <File Id="filenodeexe" KeyPath="yes" Source="$(var.SourceDir)\node.exe" />
             <?if $(var.NoETW) != 1 ?>
             <File Id="node_etw_provider_man" Name="node_etw_provider.man" Source="$(var.RepoDir)\src\res\node_etw_provider.man" >
-              <util:EventManifest MessageFile="[APPLICATIONROOTDIRECTORY]node.exe" ResourceFile="[APPLICATIONROOTDIRECTORY]node.exe"/>
+              <util:EventManifest MessageFile="[INSTALLDIR]node.exe" ResourceFile="[INSTALLDIR]node.exe"/>
             </File>
             <?endif?>
             <?if $(var.NoPerfCtr) != 1 ?>
             <File Id="node_perfctr_provider_man" Name="node_perfctr_provider.man" Source="$(var.RepoDir)\src\res\node_perfctr_provider.man" >
-              <util:PerfCounterManifest ResourceFileDirectory="[APPLICATIONROOTDIRECTORY]"/>
+              <util:PerfCounterManifest ResourceFileDirectory="[INSTALLDIR]"/>
             </File>
             <?endif?>
             <Environment Id="npm_env"
@@ -64,7 +71,7 @@
                          Name="PATH"
                          Part="last"
                          System="yes"
-                         Value="[APPLICATIONROOTDIRECTORY]" />
+                         Value="[INSTALLDIR]" />
           </Component>
           <Component Id="npmcmd" Guid="31e9986d-74cd-44e1-878c-194d3e997d32">
             <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm.cmd" />
@@ -80,13 +87,24 @@
           <Component Id="nodejsvars" Guid="*">
             <File Id="filenodejsvars" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodejsvars.bat" />
           </Component>
+          <Component Id="noderegistry" Guid="*" >
+            <RegistryKey Root="HKCU" Key="Software">
+              <RegistryKey Key="Joyent">
+                <RegistryKey Key="Node.js">
+                  <RegistryKey Key="Installer">
+                    <RegistryValue Name="PreviousPath" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+                  </RegistryKey>
+                </RegistryKey>
+              </RegistryKey>
+            </RegistryKey>
+          </Component>
         </Directory>
       </Directory>
 
       <Directory Id="AppDataFolder">
         <Directory Id="NPMAppData" Name="npm">
           <Component Id="npmappdata_folder" Guid="994B1F7F-60CD-4792-A96D-63BC7FFF29BF" Permanent="yes">
-            <RegistryKey Action="none" Key="dummy" Root="HKCU" >
+            <RegistryKey Key="dummy" Root="HKCU" >
               <RegistryValue Type="integer"  Value="1" KeyPath="yes" />
             </RegistryKey >
             <CreateFolder/>
@@ -99,13 +117,13 @@
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="ApplicationShortcut" Guid="9b1ab94a-8f54-4f19-a5c4-b890de474162">
         <Shortcut Id="ApplicationStartMenuShortcut" Name="Node.js"
-                  Description="$(var.ProductDescription)" Target="[APPLICATIONROOTDIRECTORY]node.exe"
-                  WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+                  Description="$(var.ProductDescription)" Target="[INSTALLDIR]node.exe"
+                  WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="NodePromptStartMenuShortcut" Name="Node.js command prompt"
                   Description="Node.js Command Prompt" Target="[%ComSpec]"
-                  Arguments='/k "[APPLICATIONROOTDIRECTORY]nodejsvars.bat"'
+                  Arguments='/k "[INSTALLDIR]nodejsvars.bat"'
                   Show="normal"
-                  WorkingDirectory="APPLICATIONROOTDIRECTORY"/>
+                  WorkingDirectory="INSTALLDIR"/>
         <Shortcut Id="UninstallProduct"
                   Name="Uninstall Node.js"
                   Target="[SystemFolder]msiexec.exe"
@@ -114,7 +132,7 @@
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
         <RegistryValue Root="HKCU" Key="Software\Joyent\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
-      <Component Id="InternetShortcuts" Guid="3351B877-49BA-4BC0-BF5E-21BA623FD07C">        
+      <Component Id="InternetShortcuts" Guid="3351B877-49BA-4BC0-BF5E-21BA623FD07C">
         <util:InternetShortcut Id="OnlineWebsiteShortcut"
                   Name="Node.js website"
                   Target="http://nodejs.org"
@@ -127,7 +145,6 @@
       </Component>
     </DirectoryRef>
 
-
     <ComponentGroup Id="allfiles">
       <ComponentRef Id="nodeexe"/>
       <ComponentRef Id="npmcmd"/>
@@ -139,6 +156,7 @@
       <ComponentRef Id="nodepdb"/>
       <?endif?>
       <ComponentRef Id="nodejsvars" />
+      <ComponentRef Id="noderegistry" />
     </ComponentGroup>
 
     <ComponentGroup Id="application.shortcuts">
@@ -154,11 +172,11 @@
       <ComponentGroupRef Id="Product.Generated" />
     </Feature>
 
-    <Feature Id="nodejs.shortcuts" Title="node.js shortcuts" Description="$(var.ProductDescription) Shortcuts">
-      <Feature Id="feature.application.shortcuts" Title="Application Shortcuts" Level="1"  Description="$(var.ProductDescription) standard application shortcuts">
+    <Feature Id="nodejs.shortcuts" Title="node.js shortcuts" Level="1" Description="$(var.ProductDescription) Shortcuts">
+      <Feature Id="nodejs.shortcuts.application" Title="Application Shortcuts" Level="1"  Description="$(var.ProductDescription) standard application shortcuts">
         <ComponentGroupRef Id="application.shortcuts"/>
       </Feature>
-      <Feature Id="feature.internet.shortcuts" Title="Internet Shortcuts" Level="1"  Description="$(var.ProductDescription) internet shortcuts to the project's website and online documentation for this version">
+      <Feature Id="nodejs.shortcuts.internet" Title="Internet Shortcuts" Level="1"  Description="$(var.ProductDescription) internet shortcuts to the project's website and online documentation for this version">
         <ComponentGroupRef Id="internet.shortcuts"/>
       </Feature>
     </Feature>
@@ -181,11 +199,19 @@
       <DialogRef Id="UserExit" />
       <DialogRef Id="WelcomeDlg" />
       <DialogRef Id="LicenseAgreementDlg"/>
+      <DialogRef Id="InstallDirDlg"/>
+      <DialogRef Id="BrowseDlg"/>
+      <DialogRef Id="InvalidDirDlg"/>
 
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="LicenseAgreementDlg">NOT Installed</Publish>
       <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">Installed AND PATCH</Publish>
       <Publish Dialog="LicenseAgreementDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
-      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg">LicenseAccepted = "1"</Publish>
+      <Publish Dialog="LicenseAgreementDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">LicenseAccepted = "1"</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="CustomizeDlg" Order="20">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="10">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="10">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="20">1</Publish>
       <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="CustomizeDlg" Order="1">NOT Installed OR WixUI_InstallMode = "Change"</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed AND NOT PATCH</Publish>
@@ -196,12 +222,11 @@
       <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
       <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="1">Installed</Publish>
-      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="LicenseAgreementDlg" Order="2">NOT Installed</Publish>
+      <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="2">NOT Installed</Publish>
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
 
       <Property Id="ARPNOMODIFY" Value="1" />
       <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed. To run Node.js open command prompt (cmd.exe), and run 'node'." />
-
     </UI>
 
     <UIRef Id="WixUI_Common" />
