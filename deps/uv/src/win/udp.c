@@ -56,8 +56,8 @@ int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
 }
 
 
-static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
-    SOCKET socket) {
+static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle, SOCKET socket,
+    int family) {
   DWORD yes = 1;
   WSAPROTOCOL_INFOW info;
   int opt_len;
@@ -93,7 +93,7 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
     /* if the user is using the default UDP driver (AFD) and has no other */
     /* LSPs stacked on top. Here we check whether that is the case. */
     opt_len = (int) sizeof info;
-    if (!getsockopt(socket,
+    if (getsockopt(socket,
                    SOL_SOCKET,
                    SO_PROTOCOL_INFOW,
                    (char*) &info,
@@ -117,6 +117,12 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
   }
 
   handle->socket = socket;
+
+  if (family == AF_INET6) {
+    handle->flags |= UV_HANDLE_IPV6;
+  } else {
+    assert(!(handle->flags & UV_HANDLE_IPV6));
+  }
 
   return 0;
 }
@@ -164,33 +170,36 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
 
 
 static int uv__bind(uv_udp_t* handle,
-                    int domain,
+                    int family,
                     struct sockaddr* addr,
                     int addrsize,
                     unsigned int flags) {
   int r;
   DWORD no = 0, yes = 1;
 
-  if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
+  if ((flags & UV_UDP_IPV6ONLY) && family != AF_INET6) {
     /* UV_UDP_IPV6ONLY is supported only for IPV6 sockets */
     uv__set_artificial_error(handle->loop, UV_EINVAL);
     return -1;
   }
 
   if (handle->socket == INVALID_SOCKET) {
-    SOCKET sock = socket(domain, SOCK_DGRAM, 0);
+    SOCKET sock = socket(family, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET) {
       uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;
     }
 
-    if (uv_udp_set_socket(handle->loop, handle, sock) == -1) {
+    if (uv_udp_set_socket(handle->loop, handle, sock, family) < 0) {
       closesocket(sock);
       return -1;
     }
+
+    if (family == AF_INET6)
+      handle->flags |= UV_HANDLE_IPV6;
   }
 
-  if (domain == AF_INET6 && !(flags & UV_UDP_IPV6ONLY)) {
+  if (family == AF_INET6 && !(flags & UV_UDP_IPV6ONLY)) {
     /* On windows IPV6ONLY is on by default. */
     /* If the user doesn't specify it libuv turns it off. */
 
@@ -238,17 +247,11 @@ int uv__udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
 
 int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
     unsigned int flags) {
-  if (uv_allow_ipv6) {
-    handle->flags |= UV_HANDLE_IPV6;
-    return uv__bind(handle,
-                    AF_INET6,
-                    (struct sockaddr*) &addr,
-                    sizeof(struct sockaddr_in6),
-                    flags);
-  } else {
-    uv__set_sys_error(handle->loop, WSAEAFNOSUPPORT);
-    return -1;
-  }
+  return uv__bind(handle,
+                  AF_INET6,
+                  (struct sockaddr*) &addr,
+                  sizeof(struct sockaddr_in6),
+                  flags);
 }
 
 
@@ -645,10 +648,10 @@ int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
   }
 
   if (setsockopt(handle->socket,
-                  SOL_SOCKET,
-                  SO_BROADCAST,
-                  (char*) &optval,
-                  sizeof optval)) {
+                 SOL_SOCKET,
+                 SO_BROADCAST,
+                 (char*) &optval,
+                 sizeof optval)) {
     uv__set_sys_error(handle->loop, WSAGetLastError());
     return -1;
   }

@@ -81,7 +81,7 @@ static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsign
 
 
 static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
-    SOCKET socket, int imported) {
+    SOCKET socket, int family, int imported) {
   DWORD yes = 1;
   int non_ifs_lsp;
 
@@ -107,8 +107,11 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
     }
   }
 
-  non_ifs_lsp = (handle->flags & UV_HANDLE_IPV6) ? uv_tcp_non_ifs_lsp_ipv6 :
-    uv_tcp_non_ifs_lsp_ipv4;
+  if (family == AF_INET6) {
+    non_ifs_lsp = uv_tcp_non_ifs_lsp_ipv6;
+  } else {
+    non_ifs_lsp = uv_tcp_non_ifs_lsp_ipv4;
+  }
 
   if (pSetFileCompletionNotificationModes && !non_ifs_lsp) {
     if (pSetFileCompletionNotificationModes((HANDLE) socket,
@@ -133,6 +136,12 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   handle->socket = socket;
+
+  if (family == AF_INET6) {
+    handle->flags |= UV_HANDLE_IPV6;
+  } else {
+    assert(!(handle->flags & UV_HANDLE_IPV6));
+  }
 
   return 0;
 }
@@ -238,14 +247,14 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
 
 
 static int uv__bind(uv_tcp_t* handle,
-                    int domain,
+                    int family,
                     struct sockaddr* addr,
                     int addrsize) {
   DWORD err;
   int r;
 
   if (handle->socket == INVALID_SOCKET) {
-    SOCKET sock = socket(domain, SOCK_STREAM, 0);
+    SOCKET sock = socket(family, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
       uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;
@@ -258,7 +267,7 @@ static int uv__bind(uv_tcp_t* handle,
       return -1;
     }
 
-    if (uv_tcp_set_socket(handle->loop, handle, sock, 0) == -1) {
+    if (uv_tcp_set_socket(handle->loop, handle, sock, family, 0) < 0) {
       closesocket(sock);
       return -1;
     }
@@ -293,17 +302,10 @@ int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
 
 
 int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
-  if (uv_allow_ipv6) {
-    handle->flags |= UV_HANDLE_IPV6;
-    return uv__bind(handle,
-                    AF_INET6,
-                    (struct sockaddr*)&addr,
-                    sizeof(struct sockaddr_in6));
-
-  } else {
-    uv__set_sys_error(handle->loop, WSAEAFNOSUPPORT);
-    return -1;
-  }
+  return uv__bind(handle,
+                  AF_INET6,
+                  (struct sockaddr*)&addr,
+                  sizeof(struct sockaddr_in6));
 }
 
 
@@ -592,6 +594,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
 int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
   uv_loop_t* loop = server->loop;
   int rv = 0;
+  int family;
 
   uv_tcp_accept_t* req = server->pending_accepts;
 
@@ -606,7 +609,17 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
     return -1;
   }
 
-  if (uv_tcp_set_socket(client->loop, client, req->accept_socket, 0) == -1) {
+  if (server->flags & UV_HANDLE_IPV6) {
+    family = AF_INET6;
+  } else {
+    family = AF_INET;
+  }
+
+  if (uv_tcp_set_socket(client->loop,
+                        client,
+                        req->accept_socket,
+                        family,
+                        0) < 0) {
     closesocket(req->accept_socket);
     rv = -1;
   } else {
@@ -755,11 +768,6 @@ int uv__tcp_connect6(uv_connect_t* req,
   int addrsize = sizeof(struct sockaddr_in6);
   BOOL success;
   DWORD bytes;
-
-  if (!uv_allow_ipv6) {
-    uv__set_sys_error(loop, WSAEAFNOSUPPORT);
-    return -1;
-  }
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
     uv__set_sys_error(loop, handle->bind_error);
@@ -1181,7 +1189,11 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info,
     return -1;
   }
 
-  if (uv_tcp_set_socket(tcp->loop, tcp, socket, 1) != 0) {
+  if (uv_tcp_set_socket(tcp->loop,
+                        tcp,
+                        socket,
+                        socket_protocol_info->iAddressFamily,
+                        1) < 0) {
     closesocket(socket);
     return -1;
   }
@@ -1192,10 +1204,6 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info,
 
   tcp->flags |= UV_HANDLE_BOUND;
   tcp->flags |= UV_HANDLE_SHARED_TCP_SOCKET;
-
-  if (socket_protocol_info->iAddressFamily == AF_INET6) {
-    tcp->flags |= UV_HANDLE_IPV6;
-  }
 
   tcp->loop->active_tcp_streams++;
   return 0;
