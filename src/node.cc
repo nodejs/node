@@ -908,6 +908,11 @@ MakeCallback(const Handle<Object> object,
              Handle<Value> argv[]) {
   HandleScope scope;
 
+  if (argc > 6) {
+    fprintf(stderr, "node::MakeCallback - Too many args (%d)\n", argc);
+    abort();
+  }
+
   Local<Value> callback_v = object->Get(symbol);
   if (!callback_v->IsFunction()) {
     String::Utf8Value method(symbol);
@@ -917,18 +922,6 @@ MakeCallback(const Handle<Object> object,
     fprintf(stderr, "Non-function in MakeCallback. method = %s\n", *method);
     abort();
   }
-
-  Local<Function> callback = Local<Function>::Cast(callback_v);
-
-  return scope.Close(MakeCallback(object, callback, argc, argv));
-}
-
-Handle<Value>
-MakeCallback(const Handle<Object> object,
-             const Handle<Function> callback,
-             int argc,
-             Handle<Value> argv[]) {
-  HandleScope scope;
 
   // TODO Hook for long stack traces to be made here.
 
@@ -950,9 +943,9 @@ MakeCallback(const Handle<Object> object,
   }
 
   Local<Value> object_l = Local<Value>::New(node_isolate, object);
-  Local<Value> callback_l = Local<Value>::New(node_isolate, callback);
+  Local<Value> symbol_l = Local<Value>::New(node_isolate, symbol);
 
-  Local<Value> args[3] = { object_l, callback_l, argArray };
+  Local<Value> args[3] = { object_l, symbol_l, argArray };
 
   Local<Value> ret = process_makeCallback->Call(process, ARRAY_SIZE(args), args);
 
