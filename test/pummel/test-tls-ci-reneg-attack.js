@@ -87,7 +87,7 @@ function test(next) {
 
     var closed = false;
     child.stdin.on('error', function(err) {
-      assert.equal(err.code, 'EPIPE');
+      assert.equal(err.code, 'ECONNRESET');
       closed = true;
     });
     child.stdin.on('close', function() {
