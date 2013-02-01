@@ -100,6 +100,7 @@ Persistent<String> process_symbol;
 Persistent<String> domain_symbol;
 
 static Persistent<Object> process;
+static Persistent<Function> process_tickCallback;
 
 static Persistent<String> exports_symbol;
 
@@ -114,7 +115,9 @@ static Persistent<String> heap_used_symbol;
 
 static Persistent<String> fatal_exception_symbol;
 
-static Persistent<Function> process_makeCallback;
+static Persistent<String> enter_symbol;
+static Persistent<String> exit_symbol;
+static Persistent<String> disposed_symbol;
 
 
 static bool print_eval = false;
@@ -926,11 +929,6 @@ MakeCallback(const Handle<Object> object,
              Handle<Value> argv[]) {
   HandleScope scope;
 
-  if (argc > 6) {
-    fprintf(stderr, "node::MakeCallback - Too many args (%d)\n", argc);
-    abort();
-  }
-
   Local<Value> callback_v = object->Get(symbol);
   if (!callback_v->IsFunction()) {
     String::Utf8Value method(symbol);
@@ -945,27 +943,60 @@ MakeCallback(const Handle<Object> object,
 
   TryCatch try_catch;
 
-  if (process_makeCallback.IsEmpty()) {
-    Local<Value> cb_v = process->Get(String::New("_makeCallback"));
+  if (enter_symbol.IsEmpty()) {
+    enter_symbol = NODE_PSYMBOL("enter");
+    exit_symbol = NODE_PSYMBOL("exit");
+    disposed_symbol = NODE_PSYMBOL("_disposed");
+  }
+
+  Local<Value> domain_v = object->Get(domain_symbol);
+  Local<Object> domain;
+  Local<Function> enter;
+  Local<Function> exit;
+  if (!domain_v->IsUndefined()) {
+    domain = domain_v->ToObject();
+    if (domain->Get(disposed_symbol)->BooleanValue()) {
+      // domain has been disposed of.
+      return Undefined(node_isolate);
+    }
+    enter = Local<Function>::Cast(domain->Get(enter_symbol));
+    enter->Call(domain, 0, NULL);
+  }
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  Local<Function> callback = Local<Function>::Cast(callback_v);
+  Local<Value> ret = callback->Call(object, argc, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  if (!domain_v->IsUndefined()) {
+    exit = Local<Function>::Cast(domain->Get(exit_symbol));
+    exit->Call(domain, 0, NULL);
+  }
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  // process nextTicks after every time we get called.
+  if (process_tickCallback.IsEmpty()) {
+    Local<Value> cb_v = process->Get(String::New("_tickCallback"));
     if (!cb_v->IsFunction()) {
-      fprintf(stderr, "process._makeCallback assigned to non-function\n");
+      fprintf(stderr, "process._tickCallback assigned to non-function\n");
       abort();
     }
     Local<Function> cb = cb_v.As<Function>();
-    process_makeCallback = Persistent<Function>::New(cb);
+    process_tickCallback = Persistent<Function>::New(cb);
   }
-
-  Local<Array> argArray = Array::New(argc);
-  for (int i = 0; i < argc; i++) {
-    argArray->Set(Integer::New(i, node_isolate), argv[i]);
-  }
-
-  Local<Value> object_l = Local<Value>::New(node_isolate, object);
-  Local<Value> symbol_l = Local<Value>::New(node_isolate, symbol);
-
-  Local<Value> args[3] = { object_l, symbol_l, argArray };
-
-  Local<Value> ret = process_makeCallback->Call(process, ARRAY_SIZE(args), args);
+  process_tickCallback->Call(process, NULL, 0);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);

@@ -11,7 +11,6 @@ SyntaxError: Strict mode code may not include a with statement
     at Socket.EventEmitter.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
-    at process._makeCallback (node.js:*:*)
 42
 42
 
@@ -27,7 +26,6 @@ Error: hello
     at Socket.EventEmitter.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
-    at process._makeCallback (node.js:*:*)
 
 [stdin]:1
 throw new Error("hello")
@@ -41,7 +39,6 @@ Error: hello
     at Socket.EventEmitter.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
-    at process._makeCallback (node.js:*:*)
 100
 
 [stdin]:1
@@ -56,7 +53,6 @@ ReferenceError: y is not defined
     at Socket.EventEmitter.emit (events.js:*:*)
     at _stream_readable.js:*:*
     at process._tickCallback (node.js:*:*)
-    at process._makeCallback (node.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10

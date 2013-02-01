@@ -4,4 +4,3 @@
 ReferenceError: undefined_reference_error_maker is not defined
     at null._onTimeout (*test*message*timeout_throw.js:*:*)
     at Timer.listOnTimeout [as ontimeout] (timers.js:*:*)
-    at process._makeCallback (node.js:*:*)

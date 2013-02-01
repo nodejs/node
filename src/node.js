@@ -48,7 +48,6 @@
     startup.processAssert();
     startup.processConfig();
     startup.processNextTick();
-    startup.processMakeCallback();
     startup.processStdio();
     startup.processKillAndExit();
     startup.processSignalHandlers();
@@ -295,57 +294,6 @@
       if (value === 'false') return false;
       return value;
     });
-  };
-
-  startup.processMakeCallback = function() {
-    // Along with EventEmitter.emit, this is the hottest code in node.
-    // Everything that comes from C++ into JS passes through here.
-    process._makeCallback = function(obj, fn, args) {
-      var domain = obj.domain;
-      if (domain) {
-        if (domain._disposed) return;
-        domain.enter();
-      }
-
-      // I know what you're thinking, why not just use fn.apply
-      // Because we hit this function a lot, and really want to make sure
-      // that V8 can optimize it as well as possible.
-      var ret;
-      switch (args.length) {
-        case 0:
-          ret = obj[fn]();
-          break;
-        case 1:
-          ret = obj[fn](args[0]);
-          break;
-        case 2:
-          ret = obj[fn](args[0], args[1]);
-          break;
-        case 3:
-          ret = obj[fn](args[0], args[1], args[2]);
-          break;
-        case 4:
-          ret = obj[fn](args[0], args[1], args[2], args[3]);
-          break;
-        case 5:
-          ret = obj[fn](args[0], args[1], args[2], args[3], args[4]);
-          break;
-        case 6:
-          ret = obj[fn](args[0], args[1], args[2], args[3], args[4], args[5]);
-          break;
-
-        default:
-          // How did we even get here?  This should abort() in C++ land!
-          throw new Error('too many args to makeCallback');
-          break;
-      }
-
-      if (domain) domain.exit();
-
-      // process the nextTicks after each time we get called.
-      process._tickCallback();
-      return ret;
-    };
   };
 
   startup.processNextTick = function() {
