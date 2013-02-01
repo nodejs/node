@@ -277,6 +277,26 @@ Handle<Value> Buffer::Ucs2Slice(const Arguments &args) {
 }
 
 
+Handle<Value> Buffer::HexSlice(const Arguments &args) {
+  HandleScope scope;
+  Buffer* parent = ObjectWrap::Unwrap<Buffer>(args.This());
+  SLICE_ARGS(args[0], args[1])
+  char* src = parent->data_ + start;
+  uint32_t dstlen = (end - start) * 2;
+  if (dstlen == 0) return scope.Close(String::Empty(node_isolate));
+  char* dst = new char[dstlen];
+  for (uint32_t i = 0, k = 0; k < dstlen; i += 1, k += 2) {
+    static const char hex[] = "0123456789abcdef";
+    uint8_t val = static_cast<uint8_t>(src[i]);
+    dst[k + 0] = hex[val >> 4];
+    dst[k + 1] = hex[val & 15];
+  }
+  Local<String> string = String::New(dst, dstlen);
+  delete[] dst;
+  return scope.Close(string);
+}
+
+
 // supports regular and URL-safe base64
 static const int unbase64_table[] =
   {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-2,-1,-1,-2,-1,-1
@@ -920,6 +940,7 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiSlice", Buffer::AsciiSlice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Slice", Buffer::Base64Slice);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "ucs2Slice", Buffer::Ucs2Slice);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "hexSlice", Buffer::HexSlice);
   // TODO NODE_SET_PROTOTYPE_METHOD(t, "utf16Slice", Utf16Slice);
   // copy
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Slice", Buffer::Utf8Slice);
