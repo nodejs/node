@@ -545,6 +545,72 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
 }
 
 
+inline unsigned hex2bin(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
+  if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
+  return static_cast<unsigned>(-1);
+}
+
+
+Handle<Value> Buffer::HexWrite(const Arguments& args) {
+  HandleScope scope;
+  Buffer* parent = ObjectWrap::Unwrap<Buffer>(args.This());
+
+  if (args[0]->IsString() == false) {
+    return ThrowTypeError("Argument must be a string");
+  }
+
+  Local<String> s = args[0].As<String>();
+
+  if (s->Length() % 2 != 0) {
+    return ThrowTypeError("Invalid hex string");
+  }
+
+  uint32_t start = args[1]->Uint32Value();
+  uint32_t size = args[2]->Uint32Value();
+  uint32_t end = start + size;
+
+  if (start >= parent->length_) {
+    Local<Integer> val = Integer::New(0, node_isolate);
+    constructor_template->GetFunction()->Set(chars_written_sym, val);
+    return scope.Close(val);
+  }
+
+  if (end < start || end > parent->length_) {  // Overflow + bounds check.
+    end = parent->length_;
+    size = parent->length_ - start;
+  }
+
+  if (size == 0) {
+    Local<Integer> val = Integer::New(0, node_isolate);
+    constructor_template->GetFunction()->Set(chars_written_sym, val);
+    return scope.Close(val);
+  }
+
+  char* dst = parent->data_ + start;
+  String::AsciiValue string(s);
+  const char* src = *string;
+  uint32_t max = string.length() / 2;
+
+  if (max > size) {
+    max = size;
+  }
+
+  for (uint32_t i = 0; i < max; ++i) {
+    unsigned a = hex2bin(src[i * 2 + 0]);
+    unsigned b = hex2bin(src[i * 2 + 1]);
+    if (!~a || !~b) return ThrowTypeError("Invalid hex string");
+    dst[i] = a * 16 + b;
+  }
+
+  constructor_template->GetFunction()->Set(chars_written_sym,
+                                           Integer::New(max * 2, node_isolate));
+
+  return scope.Close(Integer::New(max, node_isolate));
+}
+
+
 // var charsWritten = buffer.asciiWrite(string, offset);
 Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
   HandleScope scope;
@@ -950,6 +1016,7 @@ void Buffer::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Write", Buffer::Base64Write);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "ucs2Write", Buffer::Ucs2Write);
+  NODE_SET_PROTOTYPE_METHOD(constructor_template, "hexWrite", Buffer::HexWrite);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readFloatLE", Buffer::ReadFloatLE);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readFloatBE", Buffer::ReadFloatBE);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "readDoubleLE", Buffer::ReadDoubleLE);
