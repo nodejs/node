@@ -51,3 +51,7 @@ deps/v8-*
 deps/openssl/openssl.props
 deps/openssl/openssl.targets
 deps/openssl/openssl.xml
+
+# build/release artifacts
+/*.tar.gz
+/SHASUMS.txt*
