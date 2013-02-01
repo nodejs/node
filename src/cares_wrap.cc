@@ -886,11 +886,15 @@ static void Initialize(Handle<Object> target) {
   assert(r == ARES_SUCCESS);
 
   struct ares_options options;
+  memset(&options, 0, sizeof(options));
+  options.flags = ARES_FLAG_NOCHECKRESP;
   options.sock_state_cb = ares_sockstate_cb;
   options.sock_state_cb_data = uv_default_loop();
 
   /* We do the call to ares_init_option for caller. */
-  r = ares_init_options(&ares_channel, &options, ARES_OPT_SOCK_STATE_CB);
+  r = ares_init_options(&ares_channel,
+                        &options,
+                        ARES_OPT_FLAGS | ARES_OPT_SOCK_STATE_CB);
   assert(r == ARES_SUCCESS);
 
   /* Initialize the timeout timer. The timer won't be started until the */
