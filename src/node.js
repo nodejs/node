@@ -111,7 +111,8 @@
         // global.v8debug object about a connection, and runMain when
         // that occurs.  --isaacs
 
-        setTimeout(Module.runMain, 50);
+        var debugTimeout = +process.env.NODE_DEBUG_TIMEOUT || 50;
+        setTimeout(Module.runMain, debugTimeout);
 
       } else {
         // REMOVEME: nextTick should not be necessary. This hack to get
