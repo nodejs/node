@@ -41,9 +41,7 @@ function test(httpVersion, callback) {
     var reply = 'HTTP/' + httpVersion + ' 200 OK\r\n\r\n' +
                 expected[httpVersion];
 
-    conn.write(reply, function() {
-      conn.destroy();
-    });
+    conn.end(reply);
   });
 
   server.listen(common.PORT, '127.0.0.1', function() {

@@ -45,7 +45,6 @@ function onListen() {
   });
   req.on('error', function(err) {
     assert.equal(err.code, 'ECONNRESET');
-    assert.equal(err.message, 'socket hang up');
     caughtError = true;
   });
   req.end();
