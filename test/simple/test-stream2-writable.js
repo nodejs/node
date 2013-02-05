@@ -251,3 +251,32 @@ test('write callbacks', function (t) {
   });
   tw.end();
 });
+
+test('end callback', function (t) {
+  var tw = new TestWriter();
+  tw.end(function () {
+    t.end();
+  });
+});
+
+test('end callback with chunk', function (t) {
+  var tw = new TestWriter();
+  tw.end(new Buffer('hello world'), function () {
+    t.end();
+  });
+});
+
+test('end callback with chunk and encoding', function (t) {
+  var tw = new TestWriter();
+  tw.end('hello world', 'ascii', function () {
+    t.end();
+  });
+});
+
+test('end callback after .write() call', function (t) {
+  var tw = new TestWriter();
+  tw.write(new Buffer('hello world'));
+  tw.end(function () {
+    t.end();
+  });
+});
