@@ -277,8 +277,7 @@ then the socket will be opened as a TCP socket, if `host` is omitted,
 opened as a unix socket to that path.
 
 Normally this method is not needed, as `net.createConnection` opens the
-socket. Use this only if you are implementing a custom Socket or if a
-Socket is closed and you want to reuse it to connect to another server.
+socket. Use this only if you are implementing a custom Socket.
 
 This function is asynchronous. When the ['connect'][] event is emitted the
 socket is established. If there is a problem connecting, the `'connect'` event
