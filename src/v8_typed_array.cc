@@ -681,12 +681,24 @@ class DataView {
     }
 
     void* buf = buffer->GetIndexedPropertiesExternalArrayData();
+    char* dst = NULL;
+    if (ArrayBuffer::HasInstance(buffer)) {
+      dst = reinterpret_cast<char*>(buf) + byte_offset;
+    } else {
+      // Make a copy. A violation of the spec but we're not supposed
+      // to accept typed arrays anyway, only ArrayBuffers.
+      dst = static_cast<char*>(malloc(byte_length));
+      if (dst == NULL) return ThrowError("Out of memory.");
+      memcpy(dst, buf, byte_length);
+      v8::V8::AdjustAmountOfExternalAllocatedMemory(byte_length);
+      v8::Persistent<v8::Object>::New(args.This()).MakeWeak(NULL, WeakCallback);
+    }
 
     // Like ArrayBuffer, we violate the spec and add an operator[].
-    args.This()->SetIndexedPropertiesToExternalArrayData(
-        reinterpret_cast<char*>(buf) + byte_offset,
-        v8::kExternalUnsignedByteArray, byte_length);
-
+    v8::ExternalArrayType array_type = v8::kExternalUnsignedByteArray;
+    args.This()->SetIndexedPropertiesToExternalArrayData(dst,
+                                                         array_type,
+                                                         byte_length);
     args.This()->Set(v8::String::New("buffer"),
                      buffer,
                      (v8::PropertyAttribute)(v8::ReadOnly|v8::DontDelete));
