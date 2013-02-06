@@ -1,4 +1,25 @@
-2013.01.18, Version 0.8.18 (Stable)
+2013.02.06, Version 0.8.19 (Stable)
+
+* npm: Upgrade to v1.2.10
+
+* zlib: pass object size hint to V8 (Ben Noordhuis)
+
+* zlib: reduce memory consumption, release early (Ben Noordhuis)
+
+* buffer: slow buffer copy compatibility fix (Trevor Norris)
+
+* zlib: don't assert on malformed dictionary (Ben Noordhuis)
+
+* zlib: don't assert on missing dictionary (Ben Noordhuis)
+
+* windows: better ipv6 support (Bert Belder)
+
+* windows: add error mappings related to unsupported protocols (Bert Belder)
+
+* windows: map ERROR_DIRECTORY to UV_ENOENT (Bert Belder)
+
+
+2013.01.18, Version 0.8.18 (Stable), 2c4eef0d972838c51999d32c0d251857a713dc18
 
 * npm: Upgrade to v1.2.2
 
