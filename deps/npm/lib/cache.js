@@ -139,7 +139,7 @@ function read (name, ver, forceBypass, cb) {
   }
 
   readJson(jsonFile, function (er, data) {
-    if (er && er.code !== "ENOENT") return cb(er)
+    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return addNamed(name, ver, c)
     deprCheck(data)
     c(er, data)
@@ -389,6 +389,7 @@ function addRemoteGit (u, parsed, name, cb_) {
     // it needs the ssh://
     // If the path is like ssh://foo:some/path then it works, but
     // only if you remove the ssh://
+    var origUrl = u
     u = u.replace(/^git\+/, "")
          .replace(/#.*$/, "")
 
@@ -404,16 +405,16 @@ function addRemoteGit (u, parsed, name, cb_) {
 
     p = path.join(npm.config.get("cache"), "_git-remotes", v)
 
-    checkGitDir(p, u, co, cb)
+    checkGitDir(p, u, co, origUrl, cb)
   })
 }
 
-function checkGitDir (p, u, co, cb) {
+function checkGitDir (p, u, co, origUrl, cb) {
   fs.stat(p, function (er, s) {
-    if (er) return cloneGitRemote(p, u, co, cb)
+    if (er) return cloneGitRemote(p, u, co, origUrl, cb)
     if (!s.isDirectory()) return rm(p, function (er){
       if (er) return cb(er)
-      cloneGitRemote(p, u, co, cb)
+      cloneGitRemote(p, u, co, origUrl, cb)
     })
 
     var git = npm.config.get("git")
@@ -427,16 +428,16 @@ function checkGitDir (p, u, co, cb) {
                 + "wrong result ("+u+")", stdoutTrimmed )
         return rm(p, function (er){
           if (er) return cb(er)
-          cloneGitRemote(p, u, co, cb)
+          cloneGitRemote(p, u, co, origUrl, cb)
         })
       }
       log.verbose("git remote.origin.url", stdoutTrimmed)
-      archiveGitRemote(p, u, co, cb)
+      archiveGitRemote(p, u, co, origUrl, cb)
     })
   })
 }
 
-function cloneGitRemote (p, u, co, cb) {
+function cloneGitRemote (p, u, co, origUrl, cb) {
   mkdir(p, function (er) {
     if (er) return cb(er)
     exec( npm.config.get("git"), ["clone", "--mirror", u, p], gitEnv(), false
@@ -447,12 +448,12 @@ function cloneGitRemote (p, u, co, cb) {
         return cb(er)
       }
       log.verbose("git clone " + u, stdout)
-      archiveGitRemote(p, u, co, cb)
+      archiveGitRemote(p, u, co, origUrl, cb)
     })
   })
 }
 
-function archiveGitRemote (p, u, co, cb) {
+function archiveGitRemote (p, u, co, origUrl, cb) {
   var git = npm.config.get("git")
   var archive = ["fetch", "-a", "origin"]
   var resolve = ["rev-list", "-n1", co]
@@ -481,9 +482,10 @@ function archiveGitRemote (p, u, co, cb) {
       return next(er)
     }
     log.verbose("git rev-list -n1 " + co, stdout)
-    var parsed = url.parse(u)
+    var parsed = url.parse(origUrl)
     parsed.hash = stdout
     resolved = url.format(parsed)
+    log.verbose('resolved git url', resolved)
     next()
   })
 
@@ -712,7 +714,7 @@ function addNameVersion (name, ver, data, cb) {
       if (!er) readJson( path.join( npm.cache, name, ver
                                   , "package", "package.json" )
                        , function (er, data) {
-          if (er && er.code !== "ENOENT") return cb(er)
+          if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           if (er) return fetchit()
           return cb(null, data)
         })
@@ -1071,6 +1073,7 @@ function lockFileName (u) {
 }
 
 var madeCache = false
+var myLocks = {}
 function lock (u, cb) {
   // the cache dir needs to exist already for this.
   if (madeCache) then()
@@ -1085,10 +1088,16 @@ function lock (u, cb) {
                , wait: npm.config.get("cache-lock-wait") }
     var lf = lockFileName(u)
     log.verbose("lock", u, lf)
-    lockFile.lock(lf, opts, cb)
+    lockFile.lock(lf, opts, function(er) {
+      if (!er) myLocks[lf] = true
+      cb(er)
+    })
   }
 }
 
 function unlock (u, cb) {
+  var lf = lockFileName(u)
+  if (!myLocks[lf]) return process.nextTick(cb)
+  myLocks[lf] = false
   lockFile.unlock(lockFileName(u), cb)
 }

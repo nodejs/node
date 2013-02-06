@@ -13,7 +13,12 @@ function encode (obj, section) {
 
   Object.keys(obj).forEach(function (k, _, __) {
     var val = obj[k]
-    if (val && typeof val === "object") {
+    if (val && Array.isArray(val)) {
+        val.forEach(function(item) {
+            out += safe(k + "[]") + " = " + safe(item) + "\n"
+        })
+    }
+    else if (val && typeof val === "object") {
       children.push(k)
     } else {
       out += safe(k) + " = " + safe(val) + eol
@@ -71,13 +76,32 @@ function decode (str) {
       case 'false':
       case 'null': value = JSON.parse(value)
     }
-    p[key] = value
+
+    // Convert keys with '[]' suffix to an array
+    if (key.length > 2 && key.slice(-2) === "[]") {
+        key = key.substring(0, key.length - 2)
+        if (!p[key]) {
+          p[key] = []
+        }
+        else if (!Array.isArray(p[key])) {
+          p[key] = [p[key]]
+        }
+    }
+
+    // safeguard against resetting a previously defined
+    // array by accidentally forgetting the brackets
+    if (Array.isArray(p[key])) {
+      p[key].push(value)
+    }
+    else {
+      p[key] = value
+    }
   })
 
   // {a:{y:1},"a.b":{x:2}} --> {a:{y:1,b:{x:2}}}
   // use a filter to return the keys that have to be deleted.
   Object.keys(out).filter(function (k, _, __) {
-    if (!out[k] || typeof out[k] !== "object") return false
+    if (!out[k] || typeof out[k] !== "object" || Array.isArray(out[k])) return false
     // see if the parent section is also an object.
     // if so, add it to that, and mark this one for deletion
     var parts = dotSplit(k)

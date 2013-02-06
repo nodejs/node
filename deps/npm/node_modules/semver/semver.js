@@ -84,7 +84,7 @@ function validPackage (version) {
 // ">1.0.2 <2.0.0" like 1.0.3 - 1.9999.9999
 var starExpression = /(<|>)?=?\s*\*/g
   , starReplace = ""
-  , compTrimExpression = new RegExp("((<|>)?=?)\\s*("
+  , compTrimExpression = new RegExp("((<|>)?=|<|>)\\s*("
                                     +semver+"|"+xRangePlain+")", "g")
   , compTrimReplace = "$1$3"
 
@@ -149,7 +149,6 @@ function replaceXRange (version) {
     } else if (!p || p === "*" || p.toLowerCase() === "x") {
       ret = ">="+M+"."+m+".0- <"+M+"."+(+m+1)+".0-"
     }
-    //console.error("parseXRange", [].slice.call(arguments), ret)
     return ret
   })
 }

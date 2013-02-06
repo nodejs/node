@@ -221,6 +221,9 @@ function makeEnv (data, prefix, env) {
 
   for (var i in data) if (i.charAt(0) !== "_") {
     var envKey = (prefix+i).replace(/[^a-zA-Z0-9_]/g, '_')
+    if (i === "readme") {
+      continue
+    }
     if (data[i] && typeof(data[i]) === "object") {
       try {
         // quick and dirty detection for cyclical structures

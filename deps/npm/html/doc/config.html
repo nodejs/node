@@ -152,6 +152,17 @@ the package.json has this:</p>
 <p>Force npm to always require authentication when accessing the registry,
 even for <code>GET</code> requests.</p>
 
+<h3 id="bin-links">bin-links</h3>
+
+<ul><li>Default: <code>true</code></li><li>Type: Boolean</li></ul>
+
+<p>Tells npm to create symlinks (or <code>.cmd</code> shims on Windows) for package
+executables.</p>
+
+<p>Set to false to have it not do this.  This can be used to work around
+the fact that some file systems don&#39;t support symlinks, even on
+ostensibly Unix systems.</p>
+
 <h3 id="browser">browser</h3>
 
 <ul><li>Default: OS X: <code>&quot;open&quot;</code>, others: <code>&quot;google-chrome&quot;</code></li><li>Type: String</li></ul>
@@ -206,7 +217,7 @@ explicitly used, and that only GET requests use the cache.</p>
 
 <h3 id="cache-min">cache-min</h3>
 
-<ul><li>Default: 0</li><li>Type: Number</li></ul>
+<ul><li>Default: 10</li><li>Type: Number</li></ul>
 
 <p>The minimum time (in seconds) to keep items in the registry cache before
 re-checking against the registry.</p>
@@ -317,8 +328,8 @@ the git binary.</p>
 <code>prefix</code> folder instead of the current working directory.  See
 <code><a href="../doc/folders.html">folders(1)</a></code> for more on the differences in behavior.</p>
 
-<ul><li>packages are installed into the <code>prefix/node_modules</code> folder, instead of the
-current working directory.</li><li>bin files are linked to <code>prefix/bin</code></li><li>man pages are linked to <code>prefix/share/man</code></li></ul>
+<ul><li>packages are installed into the <code>{prefix}/lib/node_modules</code> folder, instead of the
+current working directory.</li><li>bin files are linked to <code>{prefix}/bin</code></li><li>man pages are linked to <code>{prefix}/share/man</code></li></ul>
 
 <h3 id="globalconfig">globalconfig</h3>
 
@@ -352,7 +363,7 @@ user.</p>
 
 <h3 id="user-agent">user-agent</h3>
 
-<ul><li>Default: npm/{npm.version} node/{process.version}</li><li>Type: String</li></ul>
+<ul><li>Default: node/{process.version} {process.platform} {process.arch}</li><li>Type: String</li></ul>
 
 <p>Sets a User-Agent to the request header</p>
 
@@ -501,7 +512,7 @@ standard output.</p>
 
 <h3 id="prefix">prefix</h3>
 
-<ul><li>Default: node&#39;s process.installPrefix</li><li>Type: path</li></ul>
+<ul><li>Default: see <a href="../doc/folders.html">folders(1)</a></li><li>Type: path</li></ul>
 
 <p>The location to install global items.  If set on the command line, then
 it forces non-global commands to run in the specified folder.</p>
@@ -756,7 +767,7 @@ then answer &quot;no&quot; to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.2.2</p>
+<p id="footer">config &mdash; npm@1.2.10</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

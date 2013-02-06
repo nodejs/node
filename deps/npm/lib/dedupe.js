@@ -35,8 +35,16 @@ function dedupe (args, silent, cb) {
 
 function dedupe_ (dir, filter, unavoidable, dryrun, silent, cb) {
   readInstalled(path.resolve(dir), {}, null, function (er, data, counter) {
+    if (er) {
+      return cb(er)
+    }
+
+    if (!data) {
+      return cb()
+    }
+
     // find out which things are dupes
-    var dupes = Object.keys(counter).filter(function (k) {
+    var dupes = Object.keys(counter || {}).filter(function (k) {
       if (filter.length && -1 === filter.indexOf(k)) return false
       return counter[k] > 1 && !unavoidable[k]
     }).reduce(function (s, k) {
@@ -265,7 +273,7 @@ function readInstalled (dir, counter, parent, cb) {
   })
 
   readJson(path.resolve(dir, "package.json"), function (er, data) {
-    if (er && er.code !== "ENOENT") return cb(er)
+    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return cb() // not a package, probably.
     counter[data.name] = counter[data.name] || 0
     counter[data.name]++
@@ -294,6 +302,9 @@ function readInstalled (dir, counter, parent, cb) {
 
   fs.readdir(path.resolve(dir, "node_modules"), function (er, c) {
     children = c || [] // error is ok, just means no children.
+    children = children.filter(function (p) {
+      return !p.match(/^[\._-]/)
+    })
     next()
   })
 

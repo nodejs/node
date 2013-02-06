@@ -17,6 +17,8 @@ var tap = require("tap")
 tap.plan(8)
 
 test("\ncomparison tests", function (t) {
+// [version1, version2]
+// version1 should be greater than version2
 ; [ ["0.0.0", "0.0.0foo"]
   , ["0.0.1", "0.0.0"]
   , ["1.0.0", "0.9.9"]
@@ -61,6 +63,8 @@ test("\ncomparison tests", function (t) {
 })
 
 test("\nequality tests", function (t) {
+// [version1, version2]
+// version1 should be equivalent to version2
 ; [ ["1.2.3", "v1.2.3"]
   , ["1.2.3", "=1.2.3"]
   , ["1.2.3", "v 1.2.3"]
@@ -112,6 +116,8 @@ test("\nequality tests", function (t) {
 
 
 test("\nrange tests", function (t) {
+// [range, version]
+// version should be included by range
 ; [ ["1.0.0 - 2.0.0", "1.2.3"]
   , ["1.0.0", "1.0.0"]
   , [">=*", "0.2.4"]
@@ -177,6 +183,16 @@ test("\nrange tests", function (t) {
   , ["=0.7.x", "0.7.0-asdf"]
   , [">=0.7.x", "0.7.0-asdf"]
   , ["<=0.7.x", "0.6.2"]
+  , ["~1.2.1 >=1.2.3", "1.2.3"]
+  , ["~1.2.1 =1.2.3", "1.2.3"]
+  , ["~1.2.1 1.2.3", "1.2.3"]
+  , ['~1.2.1 >=1.2.3 1.2.3', '1.2.3']
+  , ['~1.2.1 1.2.3 >=1.2.3', '1.2.3']
+  , ['~1.2.1 1.2.3', '1.2.3']
+  , ['>=1.2.1 1.2.3', '1.2.3']
+  , ['1.2.3 >=1.2.1', '1.2.3']
+  , ['>=1.2.3 >=1.2.1', '1.2.3']
+  , ['>=1.2.1 >=1.2.3', '1.2.3']
   ].forEach(function (v) {
     t.ok(satisfies(v[1], v[0]), v[0]+" satisfied by "+v[1])
   })
@@ -184,6 +200,8 @@ test("\nrange tests", function (t) {
 })
 
 test("\nnegative range tests", function (t) {
+// [range, version]
+// version should not be included by range
 ; [ ["1.0.0 - 2.0.0", "2.2.3"]
   , ["1.0.0", "1.0.1"]
   , [">=1.0.0", "0.0.0"]
@@ -236,6 +254,8 @@ test("\nnegative range tests", function (t) {
 })
 
 test("\nincrement versions test", function (t) {
+// [version, inc, result]
+// inc(version, inc) -> result
 ; [ [ "1.2.3",   "major", "2.0.0"   ]
   , [ "1.2.3",   "minor", "1.3.0"   ]
   , [ "1.2.3",   "patch", "1.2.4"   ]
@@ -257,6 +277,7 @@ test("\nincrement versions test", function (t) {
 })
 
 test("\nreplace stars test", function (t) {
+// replace stars with ""
 ; [ [ "", "" ]
   , [ "*", "" ]
   , [ "> *", "" ]
@@ -271,6 +292,9 @@ test("\nreplace stars test", function (t) {
 })
 
 test("\nvalid range test", function (t) {
+// [range, result]
+// validRange(range) -> result
+// translate ranges into their canonical form
 ; [ ["1.0.0 - 2.0.0", ">=1.0.0 <=2.0.0"]
   , ["1.0.0", "1.0.0"]
   , [">=*", ""]
@@ -337,6 +361,8 @@ test("\nvalid range test", function (t) {
 })
 
 test("\ncomparators test", function (t) {
+// [range, comparators]
+// turn range into a set of individual comparators
 ; [ ["1.0.0 - 2.0.0", [[">=1.0.0", "<=2.0.0"]] ]
   , ["1.0.0", [["1.0.0"]] ]
   , [">=*", [[">=0.0.0-"]] ]
@@ -398,6 +424,7 @@ test("\ncomparators test", function (t) {
   , ["<1.2", [["<1.2.0-"]] ]
   , ["< 1.2", [["<1.2.0-"]] ]
   , ["1", [[">=1.0.0-", "<2.0.0-"]] ]
+  , ["1 2", [[">=1.0.0-", "<2.0.0-", ">=2.0.0-", "<3.0.0-"]] ]
   ].forEach(function (v) {
     t.equivalent(toComparators(v[0]), v[1], "toComparators("+v[0]+") === "+JSON.stringify(v[1]))
   })

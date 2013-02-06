@@ -76,7 +76,7 @@ function outdated_ (args, dir, parentHas, cb) {
 
   var deps = null
   readJson(path.resolve(dir, "package.json"), function (er, d) {
-    if (er && er.code !== "ENOENT") return cb(er)
+    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     deps = (er) ? true : (d.dependencies || {})
     return next()
   })
@@ -87,10 +87,13 @@ function outdated_ (args, dir, parentHas, cb) {
       has = Object.create(parentHas)
       return next()
     }
+    pkgs = pkgs.filter(function (p) {
+      return !p.match(/^[\._-]/)
+    })
     asyncMap(pkgs, function (pkg, cb) {
       var jsonFile = path.resolve(dir, "node_modules", pkg, "package.json")
       readJson(jsonFile, function (er, d) {
-        if (er && er.code !== "ENOENT") return cb(er)
+        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         cb(null, er ? [] : [[d.name, d.version]])
       })
     }, function (er, pvs) {

@@ -61,6 +61,7 @@ install.completion = function (opts, cb) {
 var npm = require("./npm.js")
   , semver = require("semver")
   , readJson = require("read-package-json")
+  , readInstalled = require("read-installed")
   , log = require("npmlog")
   , path = require("path")
   , fs = require("graceful-fs")
@@ -77,12 +78,24 @@ function install (args, cb_) {
   function cb (er, installed) {
     if (er) return cb_(er)
 
-    var tree = treeify(installed || [])
-      , pretty = prettify(tree, installed).trim()
+    findPeerInvalid(where, function (er, problem) {
+      if (er) return cb_(er)
 
-    if (pretty) console.log(pretty)
-    if (er) return cb_(er)
-    save(where, installed, tree, pretty, cb_)
+      if (problem) {
+        var peerInvalidError = new Error("The package " + problem.name +
+          " does not satisfy its siblings' peerDependencies requirements!")
+        peerInvalidError.code = "EPEERINVALID"
+        peerInvalidError.packageName = problem.name
+        peerInvalidError.peersDepending = problem.peersDepending
+        return cb(peerInvalidError)
+      }
+
+      var tree = treeify(installed || [])
+        , pretty = prettify(tree, installed).trim()
+
+      if (pretty) console.log(pretty)
+      save(where, installed, tree, pretty, cb_)
+    })
   }
 
   // the /path/to/node_modules/..
@@ -148,7 +161,7 @@ function install (args, cb_) {
     // initial "family" is the name:version of the root, if it's got
     // a package.json file.
     readJson(path.resolve(where, "package.json"), function (er, data) {
-      if (er && er.code !== "ENOENT") return cb(er)
+      if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
       if (er) data = null
       var context = { family: {}
                     , ancestors: {}
@@ -162,6 +175,45 @@ function install (args, cb_) {
       fn(args, where, context, cb)
     })
   })
+}
+
+function findPeerInvalid (where, cb) {
+  readInstalled(where, function (er, data) {
+    if (er) return cb(er)
+
+    cb(null, findPeerInvalid_(data.dependencies, []))
+  })
+}
+
+function findPeerInvalid_ (packageMap, fpiList) {
+  if (fpiList.indexOf(packageMap) !== -1)
+    return
+
+  fpiList.push(packageMap)
+
+  for (var packageName in packageMap) {
+    var pkg = packageMap[packageName]
+
+    if (pkg.peerInvalid) {
+      var peersDepending = {};
+      for (peerName in packageMap) {
+        var peer = packageMap[peerName]
+        if (peer.peerDependencies && peer.peerDependencies[packageName]) {
+          peersDepending[peer.name + "@" + peer.version] =
+            peer.peerDependencies[packageName]
+        }
+      }
+      return { name: pkg.name, peersDepending: peersDepending }
+    }
+
+    if (pkg.dependencies) {
+      var invalid = findPeerInvalid_(pkg.dependencies, fpiList)
+      if (invalid)
+        return invalid
+    }
+  }
+
+  return null
 }
 
 // reads dependencies for the package at "where". There are several cases,
@@ -186,7 +238,7 @@ function readDependencies (context, where, opts, cb) {
     if (er)  return cb(er)
 
     if (opts && opts.dev) {
-      if (!data.dependencies) data.dependencies = {};
+      if (!data.dependencies) data.dependencies = {}
       Object.keys(data.devDependencies || {}).forEach(function (k) {
         data.dependencies[k] = data.devDependencies[k]
       })
@@ -456,7 +508,7 @@ function installManyTop_ (what, where, context, cb) {
       return path.resolve(nm, p, "package.json")
     }), function (jsonfile, cb) {
       readJson(jsonfile, function (er, data) {
-        if (er && er.code !== "ENOENT") return cb(er)
+        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         if (er) return cb(null, [])
         return cb(null, [[data.name, data.version]])
       })
@@ -536,9 +588,15 @@ function targetResolver (where, context, deps) {
 
   if (!context.explicit) fs.readdir(nm, function (er, inst) {
     if (er) return alreadyInstalledManually = []
+
+    // don't even mess with non-package looking things
+    inst = inst.filter(function (p) {
+      return !p.match(/^[\._-]/)
+    })
+
     asyncMap(inst, function (pkg, cb) {
       readJson(path.resolve(nm, pkg, "package.json"), function (er, d) {
-        if (er && er.code !== "ENOENT") return cb(er)
+        if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
         // error means it's not a package, most likely.
         if (er) return cb(null, [])
 
@@ -657,7 +715,7 @@ function localLink (target, where, context, cb) {
     , parent = context.parent
 
   readJson(jsonFile, function (er, data) {
-    if (er && er.code !== "ENOENT") return cb(er)
+    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er || data._id === target._id) {
       if (er) {
         install( path.resolve(npm.globalDir, "..")
@@ -705,13 +763,35 @@ function resultList (target, where, parentId) {
          , target._from ]
 }
 
+// name => install locations
+var installOnesInProgress = Object.create(null)
+
+function isIncompatibleInstallOneInProgress(target, where) {
+  return target.name in installOnesInProgress &&
+         installOnesInProgress[target.name].indexOf(where) !== -1
+}
+
 function installOne_ (target, where, context, cb) {
   var nm = path.resolve(where, "node_modules")
     , targetFolder = path.resolve(nm, target.name)
-    , prettyWhere = path.relative(process.cwd, where)
+    , prettyWhere = path.relative(process.cwd(), where)
     , parent = context.parent
 
   if (prettyWhere === ".") prettyWhere = null
+
+  if (isIncompatibleInstallOneInProgress(target, where)) {
+    var prettyTarget = path.relative(process.cwd(), targetFolder)
+
+    // just call back, with no error.  the error will be detected in the
+    // final check for peer-invalid dependencies
+    return cb()
+  }
+
+  if (!(target.name in installOnesInProgress)) {
+    installOnesInProgress[target.name] = []
+  }
+  installOnesInProgress[target.name].push(where)
+  var indexOfIOIP = installOnesInProgress[target.name].length - 1
 
   chain
     ( [ [checkEngine, target]
@@ -720,7 +800,10 @@ function installOne_ (target, where, context, cb) {
       , [checkGit, targetFolder]
       , [write, target, targetFolder, context] ]
     , function (er, d) {
+        installOnesInProgress[target.name].splice(indexOfIOIP, 1)
+
         if (er) return cb(er)
+
         d.push(resultList(target, where, parent && parent._id))
         cb(er, d)
       }
@@ -786,14 +869,14 @@ function checkList (value, list) {
     list = [list]
   }
   if (list.length === 1 && list[0] === "any") {
-    return true;
+    return true
   }
   for (var i = 0; i < list.length; ++i) {
     tmp = list[i]
     if (tmp[0] === '!') {
       tmp = tmp.slice(1)
       if (tmp === value) {
-        return false;
+        return false
       }
       ++blc
     } else {
@@ -933,7 +1016,7 @@ function write (target, targetFolder, context, cb_) {
 
         if (peerDeps.length > 0) {
           actions.push(
-            [ installManyAndBuild, peerDeps, pdTargetFolder, pdContext ]
+            [ installMany, peerDeps, pdTargetFolder, pdContext ]
           )
         }
 

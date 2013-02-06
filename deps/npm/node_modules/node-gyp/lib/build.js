@@ -117,9 +117,9 @@ function build (gyp, argv, callback) {
    */
 
   function findMsbuild () {
-    log.verbose('could not find "msbuild.exe". guessing location')
+    log.verbose('could not find "msbuild.exe" in PATH - finding location in registry')
     var notfoundErr = new Error('Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2008+ installed?')
-    exec('reg query HKLM\\Software\\Microsoft\\MSBuild\\ToolsVersions /s /f MSBuildToolsPath /e /t REG_SZ', function (err, stdout, stderr) {
+    exec('reg query "HKLM\\Software\\Microsoft\\MSBuild\\ToolsVersions" /s', function (err, stdout, stderr) {
       var reVers = /Software\\Microsoft\\MSBuild\\ToolsVersions\\([^\r]+)\r\n\s+MSBuildToolsPath\s+REG_SZ\s+([^\r]+)/gi
         , msbuilds = []
         , r

@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-INSTALL" "1" "January 2013" "" ""
+.TH "NPM\-INSTALL" "1" "February 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-install\fR \-\- Install a package
@@ -286,6 +286,10 @@ rather than locally\.  See \fBnpm help folders\fR\|\.
 .P
 The \fB\-\-link\fR argument will cause npm to link global installs into the
 local space in some cases\.
+.
+.P
+The \fB\-\-no\-bin\-links\fR argument will prevent npm from creating symlinks for
+any binaries the package might contain\.
 .
 .P
 See \fBnpm help config\fR\|\.  Many of the configuration params have some

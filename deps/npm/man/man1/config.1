@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "1" "January 2013" "" ""
+.TH "NPM\-CONFIG" "1" "February 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- Manage the npm configuration file
@@ -277,6 +277,25 @@ Type: Boolean
 Force npm to always require authentication when accessing the registry,
 even for \fBGET\fR requests\.
 .
+.SS "bin\-links"
+.
+.IP "\(bu" 4
+Default: \fBtrue\fR
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Tells npm to create symlinks (or \fB\|\.cmd\fR shims on Windows) for package
+executables\.
+.
+.P
+Set to false to have it not do this\.  This can be used to work around
+the fact that some file systems don\'t support symlinks, even on
+ostensibly Unix systems\.
+.
 .SS "browser"
 .
 .IP "\(bu" 4
@@ -384,7 +403,7 @@ explicitly used, and that only GET requests use the cache\.
 .SS "cache\-min"
 .
 .IP "\(bu" 4
-Default: 0
+Default: 10
 .
 .IP "\(bu" 4
 Type: Number
@@ -611,14 +630,14 @@ Type: Boolean
 Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory\.  See \fBnpm help folders\fR for more on the differences in behavior\.
 .
 .IP "\(bu" 4
-packages are installed into the \fBprefix/node_modules\fR folder, instead of the
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the
 current working directory\.
 .
 .IP "\(bu" 4
-bin files are linked to \fBprefix/bin\fR
+bin files are linked to \fB{prefix}/bin\fR
 .
 .IP "\(bu" 4
-man pages are linked to \fBprefix/share/man\fR
+man pages are linked to \fB{prefix}/share/man\fR
 .
 .IP "" 0
 .
@@ -683,7 +702,7 @@ A proxy to use for outgoing https requests\.
 .SS "user\-agent"
 .
 .IP "\(bu" 4
-Default: npm/{npm\.version} node/{process\.version}
+Default: node/{process\.version} {process\.platform} {process\.arch}
 .
 .IP "\(bu" 4
 Type: String
@@ -976,7 +995,7 @@ standard output\.
 .SS "prefix"
 .
 .IP "\(bu" 4
-Default: node\'s process\.installPrefix
+Default: see npm help folders
 .
 .IP "\(bu" 4
 Type: path

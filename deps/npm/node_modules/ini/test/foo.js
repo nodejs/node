@@ -10,6 +10,11 @@ var i = require("../")
             + 'a with spaces = b  c\n'
             + '" xa  n          p " = "\\"\\r\\nyoyoyo\\r\\r\\n"\n'
             + '"[disturbing]" = hey you never know\n'
+            + 'zr[] = deedee\n'
+            + 'ar[] = one\n'
+            + 'ar[] = three\n'
+            + 'ar[] = this is included\n'
+            + 'br = warm\n'
             + '\n'
             + '[a]\n'
             + 'av = a val\n'
@@ -17,21 +22,26 @@ var i = require("../")
             + '{ av: a val, b: { c: { e: "this [value]" '
             + '} } } }\nj = "\\"{ o: \\"p\\", a: { av:'
             + ' \\"a val\\", b: { c: { e: \\"this [value]'
-            + '\\" } } } }\\""\n"[]" = a square?\n\n[a.b.c]\ne = 1\n'
+            + '\\" } } } }\\""\n"[]" = a square?\n'
+            + 'cr[] = four\ncr[] = eight\n\n'
+            +'[a.b.c]\ne = 1\n'
             + 'j = 2\n\n[x\\.y\\.z]\nx.y.z = xyz\n\n'
-            + '[x\\.y\\.z.a\\.b\\.c]\n'
-            + 'a.b.c = abc\n'
+            + '[x\\.y\\.z.a\\.b\\.c]\na.b.c = abc\n'
             + 'nocomment = this\\; this is not a comment\n'
   , expectD =
     { o: 'p',
       'a with spaces': 'b  c',
       " xa  n          p ":'"\r\nyoyoyo\r\r\n',
       '[disturbing]': 'hey you never know',
+      'zr': ['deedee'],
+      'ar': ['one', 'three', 'this is included'],
+      'br': 'warm',
       a:
        { av: 'a val',
          e: '{ o: p, a: { av: a val, b: { c: { e: "this [value]" } } } }',
          j: '"{ o: "p", a: { av: "a val", b: { c: { e: "this [value]" } } } }"',
          "[]": "a square?",
+         cr: ['four', 'eight'],
          b: { c: { e: '1', j: '2' } } },
       'x.y.z': {
         'x.y.z': 'xyz',

@@ -30,7 +30,7 @@ function uninstall (args, cb) {
   // remove this package from the global space, if it's installed there
   if (npm.config.get("global")) return cb(uninstall.usage)
   readJson(path.resolve(npm.prefix, "package.json"), function (er, pkg) {
-    if (er && er.code !== "ENOENT") return cb(er)
+    if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return cb(uninstall.usage)
     uninstall_( [pkg.name]
               , npm.dir

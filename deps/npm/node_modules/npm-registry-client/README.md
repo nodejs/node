@@ -37,7 +37,7 @@ also be accepted.
 * `strict-ssl` {Boolean} Whether or not to be strict with SSL
   certificates.  Default = `true`
 * `user-agent` {String} User agent header to send.  Default =
-  `"node/{process.version}"`
+  `"node/{process.version} {process.platform} {process.arch}"`
 * `log` {Object} The logger to use.  Defaults to `require("npmlog")` if
   that works, otherwise logs are disabled.
 * `fetch-retries` {Number} Number of times to retry on GET failures.

@@ -250,24 +250,20 @@ function configure (gyp, argv, callback) {
       , defaults = config.target_defaults
       , variables = config.variables
 
-    if (!defaults) {
-      defaults = config.target_defaults = {}
-    }
-    if (!variables) {
-      variables = config.variables = {}
-    }
-    if (!defaults.cflags) {
-      defaults.cflags = []
-    }
-    if (!defaults.defines) {
-      defaults.defines = []
-    }
-    if (!defaults.include_dirs) {
-      defaults.include_dirs = []
-    }
-    if (!defaults.libraries) {
-      defaults.libraries = []
-    }
+    // default "config.variables"
+    if (!variables) variables = config.variables = {}
+
+    // default "config.defaults"
+    if (!defaults) defaults = config.target_defaults = {}
+
+    // don't inherit the "defaults" from node's `process.config` object.
+    // doing so could cause problems in cases where the `node` executable was
+    // compiled on a different machine (with different lib/include paths) than
+    // the machine where the addon is being built to
+    defaults.cflags = []
+    defaults.defines = []
+    defaults.include_dirs = []
+    defaults.libraries = []
 
     // set the default_configuration prop
     if ('debug' in gyp.opts) {
