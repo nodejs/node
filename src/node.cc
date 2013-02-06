@@ -134,6 +134,11 @@ static uv_idle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
+static uv_check_t check_immediate_watcher;
+static uv_idle_t idle_immediate_dummy;
+static bool need_immediate_cb;
+static Persistent<String> immediate_callback_sym;
+
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 static bool use_npn = true;
@@ -208,6 +213,27 @@ static void StartTickSpinner() {
 static Handle<Value> NeedTickCallback(const Arguments& args) {
   StartTickSpinner();
   return Undefined(node_isolate);
+}
+
+
+static void CheckImmediate(uv_check_t* handle, int status) {
+  assert(handle == &check_immediate_watcher);
+  assert(status == 0);
+
+  HandleScope scope;
+
+  if (immediate_callback_sym.IsEmpty()) {
+    immediate_callback_sym = NODE_PSYMBOL("_immediateCallback");
+  }
+
+  MakeCallback(process, immediate_callback_sym, 0, NULL);
+}
+
+
+static void IdleImmediateDummy(uv_idle_t* handle, int status) {
+  // Do nothing. Only for maintaining event loop
+  assert(handle == &idle_immediate_dummy);
+  assert(status == 0);
 }
 
 
@@ -2176,6 +2202,35 @@ static Handle<Value> DebugProcess(const Arguments& args);
 static Handle<Value> DebugPause(const Arguments& args);
 static Handle<Value> DebugEnd(const Arguments& args);
 
+
+Handle<Value> NeedImmediateCallbackGetter(Local<String> property,
+                                          const AccessorInfo& info) {
+  return Boolean::New(need_immediate_cb);
+}
+
+
+static void NeedImmediateCallbackSetter(Local<String> property,
+                                        Local<Value> value,
+                                        const AccessorInfo& info) {
+  HandleScope scope;
+
+  bool bool_value = value->BooleanValue();
+
+  if (need_immediate_cb == bool_value) return;
+
+  need_immediate_cb = bool_value;
+
+  if (need_immediate_cb) {
+    uv_check_start(&check_immediate_watcher, node::CheckImmediate);
+    // idle handle is needed only to maintain event loop
+    uv_idle_start(&idle_immediate_dummy, node::IdleImmediateDummy);
+  } else {
+    uv_check_stop(&check_immediate_watcher);
+    uv_idle_stop(&idle_immediate_dummy);
+  }
+}
+
+
 Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   HandleScope scope;
 
@@ -2269,6 +2324,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   process->Set(String::NewSymbol("pid"), Integer::New(getpid(), node_isolate));
   process->Set(String::NewSymbol("features"), GetFeatures());
+  process->SetAccessor(String::New("_needImmediateCallback"),
+                       NeedImmediateCallbackGetter,
+                       NeedImmediateCallbackSetter);
 
   // -e, --eval
   if (eval_string) {
@@ -2850,6 +2908,10 @@ char** Init(int argc, char *argv[]) {
 #endif // __POSIX__
 
   uv_idle_init(uv_default_loop(), &tick_spinner);
+
+  uv_check_init(uv_default_loop(), &check_immediate_watcher);
+  uv_unref((uv_handle_t*) &check_immediate_watcher);
+  uv_idle_init(uv_default_loop(), &idle_immediate_dummy);
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 
