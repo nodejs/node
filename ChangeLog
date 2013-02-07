@@ -1,4 +1,31 @@
-2013.01.24, Version 0.9.8 (Unstable)
+2013.02.07, Version 0.9.9 (Unstable)
+
+* tls: port CryptoStream to streams2 (Fedor Indutny)
+
+* typed arrays: only share ArrayBuffer backing store (Ben Noordhuis)
+
+* stream: make Writable#end() accept a callback function (Nathan Rajlich)
+
+* buffer: optimize 'hex' handling (Ben Noordhuis)
+
+* dns, cares: don't filter NOTIMP, REFUSED, SERVFAIL (Ben Noordhuis)
+
+* readline: treat bare \r as a line ending (isaacs)
+
+* readline: make \r\n emit one 'line' event (Ben Noordhuis)
+
+* cluster: support datagram sockets (Bert Belder)
+
+* stream: Correct Transform class backpressure (isaacs)
+
+* addon: Pass module object to NODE_MODULE init function (isaacs, Rod Vagg)
+
+* buffer: slow buffer copy compatibility fix (Trevor Norris)
+
+* Add bytesWritten to tls.CryptoStream (Andy Burke)
+
+
+2013.01.24, Version 0.9.8 (Unstable), 5f2f8400f665dc32c3e10e7d31d53d756ded9156
 
 * npm: Upgrade to v1.2.3
 
