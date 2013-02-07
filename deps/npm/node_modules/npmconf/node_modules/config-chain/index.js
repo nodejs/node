@@ -47,7 +47,7 @@ var parse = exports.parse = function (content, file, type) {
   if (!type) {
     try { return JSON.parse(content) }
     catch (er) { return ini.parse(content) }
-  } if (type === 'json') {
+  } else if (type === 'json') {
     if (this.emit) {
       try { return JSON.parse(content) }
       catch (er) { this.emit('error', er) }

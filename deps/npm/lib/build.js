@@ -69,6 +69,9 @@ function writeBuiltinConf (folder, cb) {
 }
 
 function linkStuff (pkg, folder, global, didRB, cb) {
+  // allow to opt out of linking binaries.
+  if (npm.config.get("bin-links") === false) return cb()
+
   // if it's global, and folder is in {prefix}/node_modules,
   // then bins are in {prefix}/bin
   // otherwise, then bins are in folder/../.bin

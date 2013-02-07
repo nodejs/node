@@ -1,6 +1,11 @@
 var test = require('tap').test
 var fs = require('../graceful-fs.js')
 
+test('graceful fs is not fs', function (t) {
+  t.notEqual(fs, require('fs'))
+  t.end()
+})
+
 test('open an existing file works', function (t) {
   var start = fs._curOpen
   var fd = fs.openSync(__filename, 'r')

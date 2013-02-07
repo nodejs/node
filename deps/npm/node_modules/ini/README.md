@@ -17,6 +17,9 @@ Consider an ini-file `config.ini` that looks like this:
 
     [paths.default]
     datadir = /var/lib/data
+    array[] = first value
+    array[] = second value
+    array[] = third value
 
 You can read, manipulate and write the ini-file like so:
 
@@ -29,6 +32,7 @@ You can read, manipulate and write the ini-file like so:
     config.database.database = 'use_another_database'
     config.paths.default.tmpdir = '/tmp'
     delete config.paths.default.datadir
+    config.paths.default.array.push('fourth value')
 
     fs.writeFileSync('./config_modified.ini', ini.stringify(config, 'section'))
 
@@ -42,6 +46,11 @@ This will result in a file called `config_modified.ini` being written to the fil
     database = use_another_database
     [section.paths.default]
     tmpdir = /tmp
+    array[] = first value
+    array[] = second value
+    array[] = third value
+    array[] = fourth value
+
 
 ## API
 
@@ -68,4 +77,3 @@ would result in
 
 ### unsafe(val)
 Unescapes the string `val`
-

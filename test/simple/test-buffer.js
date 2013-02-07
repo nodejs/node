@@ -127,14 +127,23 @@ for (var i = 0; i < b.length; i++) {
   assert.strictEqual(cntr, b[i]);
 }
 
-// copy from b to c with negative targetStart
-b.fill(++cntr);
-c.fill(++cntr);
-var copied = b.copy(c, -1);
-console.log('copied %d bytes from b into c w/ negative targetStart', copied);
-assert.strictEqual(c.length, copied);
-for (var i = 0; i < c.length; i++) {
-  assert.strictEqual(b[i], c[i]);
+
+// copy from fast to slow buffer
+var sb = new SlowBuffer(b.length);
+var copied = b.copy(sb);
+console.log('copied %d bytes from b into sb');
+for (var i = 0; i < sb.length; i++) {
+  assert.strictEqual(sb[i], b[i]);
+}
+
+var caught_error = null;
+
+// try to copy from before the beginning of b
+caught_error = null;
+try {
+  var copied = b.copy(c, 0, 100, 10);
+} catch (err) {
+  caught_error = err;
 }
 
 // copy from b to c with negative sourceStart

@@ -7,7 +7,7 @@ delete process.env.npm_config_depth
 
 var npm = process.env.npm_execpath
 
-require("child_process").exec(npm + " ls --json", {
+require("child_process").execFile(process.execPath, [npm, "ls", "--json"], {
     stdio: "pipe", env: process.env, cwd: process.cwd() },
     function (err, stdout, stderr) {
   if (err) throw err

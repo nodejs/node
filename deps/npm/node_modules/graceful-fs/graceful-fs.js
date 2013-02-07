@@ -1,10 +1,14 @@
 // this keeps a queue of opened file descriptors, and will make
 // fs operations wait until some have closed before trying to open more.
 
-var fs = require("fs")
+var fs_ = require("fs")
 
-// there is such a thing as TOO graceful.
-if (fs.open === gracefulOpen) return
+var fs = module.exports = {}
+
+Object.getOwnPropertyNames(fs_).forEach(function(prop) {
+  var desc = Object.getOwnPropertyDescriptor(fs_, prop)
+  Object.defineProperty(fs, prop, desc)
+})
 
 var queue = []
   , constants = require("constants")

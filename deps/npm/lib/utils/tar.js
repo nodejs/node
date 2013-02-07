@@ -27,32 +27,57 @@ if (process.env.SUDO_UID && myUid === 0) {
 exports.pack = pack
 exports.unpack = unpack
 
-function pack (targetTarball, folder, pkg, dfc, cb) {
-  log.verbose("tar pack", [targetTarball, folder])
+function pack (tarball, folder, pkg, dfc, cb) {
+  log.verbose("tar pack", [tarball, folder])
   if (typeof cb !== "function") cb = dfc, dfc = false
 
-  log.verbose("tarball", targetTarball)
+  log.verbose("tarball", tarball)
   log.verbose("folder", folder)
 
   if (dfc) {
     // do fancy crap
     return lifecycle(pkg, "prepublish", folder, function (er) {
       if (er) return cb(er)
-      pack_(targetTarball, folder, pkg, cb)
+      pack_(tarball, folder, pkg, cb)
     })
   } else {
-    pack_(targetTarball, folder, pkg, cb)
+    pack_(tarball, folder, pkg, cb)
   }
 }
 
-function pack_ (targetTarball, folder, pkg, cb_) {
+function pack_ (tarball, folder, pkg, cb_) {
+  var tarballLock = false
+    , folderLock = false
+
   function cb (er) {
-    unlock(targetTarball, function () {
-      return cb_(er)
-    })
+    if (folderLock)
+      unlock(folder, function() {
+        folderLock = false
+        cb(er)
+      })
+    else if (tarballLock)
+      unlock(tarball, function() {
+        tarballLock = false
+        cb(er)
+      })
+    else
+      cb_(er)
   }
-  lock(targetTarball, function (er) {
+
+  lock(folder, function(er) {
     if (er) return cb(er)
+    folderLock = true
+    next()
+  })
+
+  lock(tarball, function (er) {
+    if (er) return cb(er)
+    tarballLock = true
+    next()
+  })
+
+  function next () {
+    if (!tarballLock || !folderLock) return
 
     new Packer({ path: folder, type: "Directory", isDirectory: true })
       .on("error", function (er) {
@@ -67,21 +92,21 @@ function pack_ (targetTarball, folder, pkg, cb_) {
       // non-compliant tar implementations.
       .pipe(tar.Pack({ noProprietary: !npm.config.get("proprietary-attribs") }))
       .on("error", function (er) {
-        if (er) log.error("tar.pack", "tar creation error", targetTarball)
+        if (er) log.error("tar.pack", "tar creation error", tarball)
         cb(er)
       })
       .pipe(zlib.Gzip())
       .on("error", function (er) {
-        if (er) log.error("tar.pack", "gzip error "+targetTarball)
+        if (er) log.error("tar.pack", "gzip error "+tarball)
         cb(er)
       })
-      .pipe(fstream.Writer({ type: "File", path: targetTarball }))
+      .pipe(fstream.Writer({ type: "File", path: tarball }))
       .on("error", function (er) {
-        if (er) log.error("tar.pack", "Could not write "+targetTarball)
+        if (er) log.error("tar.pack", "Could not write "+tarball)
         cb(er)
       })
       .on("close", cb)
-  })
+  }
 }
 
 
@@ -101,17 +126,40 @@ function unpack (tarball, unpackTarget, dMode, fMode, uid, gid, cb) {
 function unpack_ ( tarball, unpackTarget, dMode, fMode, uid, gid, cb_ ) {
   var parent = path.dirname(unpackTarget)
     , base = path.basename(unpackTarget)
+    , folderLock
+    , tarballLock
 
   function cb (er) {
-    unlock(unpackTarget, function () {
-      return cb_(er)
-    })
+    if (folderLock)
+      unlock(unpackTarget, function() {
+        folderLock = false
+        cb(er)
+      })
+    else if (tarballLock)
+      unlock(tarball, function() {
+        tarballLock = false
+        cb(er)
+      })
+    else
+      cb_(er)
   }
 
   lock(unpackTarget, function (er) {
     if (er) return cb(er)
-    rmGunz()
+    folderLock = true
+    next()
   })
+
+  lock(tarball, function (er) {
+    if (er) return cb(er)
+    tarballLock = true
+    next()
+  })
+
+  function next() {
+    if (!tarballLock || !folderLock) return
+    rmGunz()
+  }
 
   function rmGunz () {
     rm(unpackTarget, function (er) {

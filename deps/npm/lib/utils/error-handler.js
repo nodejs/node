@@ -203,6 +203,14 @@ function errorHandler (er) {
               ].join("\n"))
     break
 
+  case "EPEERINVALID":
+    var peerErrors = Object.keys(er.peersDepending).map(function (peer) {
+      return "Peer " + peer + " wants " + er.packageName + "@"
+        + er.peersDepending[peer]
+    })
+    log.error("peerinvalid", [er.message].concat(peerErrors).join("\n"))
+    break
+
   case "ENOTSUP":
     if (er.required) {
       log.error("notsup", [er.message

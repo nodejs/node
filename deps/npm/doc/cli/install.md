@@ -165,6 +165,9 @@ rather than locally.  See `npm-folders(1)`.
 The `--link` argument will cause npm to link global installs into the
 local space in some cases.
 
+The `--no-bin-links` argument will prevent npm from creating symlinks for
+any binaries the package might contain.
+
 See `npm-config(1)`.  Many of the configuration params have some
 effect on installation, since that's most of what npm does.
 

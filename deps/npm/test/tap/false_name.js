@@ -4,6 +4,7 @@ var test = require("tap").test
   , existsSync = fs.existsSync || path.existsSync
   , spawn = require("child_process").spawn
   , npm = require("../../")
+  , rimraf = require("rimraf")
 
 test("not every pkg.name can be required", function (t) {
   t.plan(1)
@@ -20,10 +21,8 @@ test("not every pkg.name can be required", function (t) {
 function setup (cb) {
   process.chdir(__dirname + "/false_name")
   npm.load(function () {
-    spawn("rm", [ "-rf", __dirname + "/false_name/node_modules" ])
-      .on("exit", function () {
-        fs.mkdirSync(__dirname + "/false_name/node_modules")
-        cb()
-      })
+    rimraf.sync(__dirname + "/false_name/node_modules")
+    fs.mkdirSync(__dirname + "/false_name/node_modules")
+    cb()
   })
 }

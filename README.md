@@ -15,6 +15,14 @@ Unix/Macintosh:
     make
     make install
 
+If your python binary is in a non-standard location or has a
+non-standard name, run the following instead:
+
+    export PYTHON=/path/to/python
+    $PYTHON ./configure
+    make
+    make install
+
 Windows:
 
     vcbuild.bat

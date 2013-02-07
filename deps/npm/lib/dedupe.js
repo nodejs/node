@@ -35,8 +35,16 @@ function dedupe (args, silent, cb) {
 
 function dedupe_ (dir, filter, unavoidable, dryrun, silent, cb) {
   readInstalled(path.resolve(dir), {}, null, function (er, data, counter) {
+    if (er) {
+      return cb(er)
+    }
+
+    if (!data) {
+      return cb()
+    }
+
     // find out which things are dupes
-    var dupes = Object.keys(counter).filter(function (k) {
+    var dupes = Object.keys(counter || {}).filter(function (k) {
       if (filter.length && -1 === filter.indexOf(k)) return false
       return counter[k] > 1 && !unavoidable[k]
     }).reduce(function (s, k) {

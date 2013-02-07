@@ -75,6 +75,7 @@ Object.keys(fields).forEach(function (f) {
 var types =
   { 0: "File"
   , "\0": "OldFile" // like 0
+  , "": "OldFile"
   , 1: "Link"
   , 2: "SymbolicLink"
   , 3: "CharacterDevice"
