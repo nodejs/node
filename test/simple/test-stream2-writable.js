@@ -280,3 +280,14 @@ test('end callback after .write() call', function (t) {
     t.end();
   });
 });
+
+test('encoding should be ignored for buffers', function(t) {
+  var tw = new W();
+  var hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
+  tw._write = function(chunk, cb) {
+    t.equal(chunk.toString('hex'), hex);
+    t.end();
+  };
+  var buf = new Buffer(hex, 'hex');
+  tw.write(buf, 'binary');
+});
