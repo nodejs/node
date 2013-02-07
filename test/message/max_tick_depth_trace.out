@@ -11,7 +11,8 @@ Trace: (node) warning: Recursive process.nextTick detected. This will break in t
     at maxTickWarn (node.js:*:*)
     at process.nextTick (node.js:*:*
     at f (*test*message*max_tick_depth_trace.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _tickCallback (node.js:*:*)
+    at process._tickFromSpinner (node.js:*:*)
 tick 11
 tick 10
 tick 9
@@ -26,6 +27,7 @@ Trace: (node) warning: Recursive process.nextTick detected. This will break in t
     at maxTickWarn (node.js:*:*)
     at process.nextTick (node.js:*:*
     at f (*test*message*max_tick_depth_trace.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at _tickCallback (node.js:*:*)
+    at process._tickFromSpinner (node.js:*:*)
 tick 1
 tick 0

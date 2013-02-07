@@ -100,6 +100,8 @@ Persistent<String> process_symbol;
 Persistent<String> domain_symbol;
 
 static Persistent<Object> process;
+static Persistent<Function> process_tickWDCallback;
+static Persistent<Function> process_tickFromSpinner;
 static Persistent<Function> process_tickCallback;
 
 static Persistent<String> exports_symbol;
@@ -174,20 +176,19 @@ static void Tick(void) {
 
   HandleScope scope;
 
-  if (tick_callback_sym.IsEmpty()) {
-    // Lazily set the symbol
-    tick_callback_sym = NODE_PSYMBOL("_tickCallback");
+  if (process_tickFromSpinner.IsEmpty()) {
+    Local<Value> cb_v = process->Get(String::New("_tickFromSpinner"));
+    if (!cb_v->IsFunction()) {
+      fprintf(stderr, "process._tickFromSpinner assigned to non-function\n");
+      abort();
+    }
+    Local<Function> cb = cb_v.As<Function>();
+    process_tickFromSpinner = Persistent<Function>::New(cb);
   }
-
-  Local<Value> cb_v = process->Get(tick_callback_sym);
-  if (!cb_v->IsFunction()) return;
-  Local<Function> cb = Local<Function>::Cast(cb_v);
 
   TryCatch try_catch;
 
-  // Let the tick callback know that this is coming from the spinner
-  Handle<Value> argv[] = { True(node_isolate) };
-  cb->Call(process, ARRAY_SIZE(argv), argv);
+  process_tickFromSpinner->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -903,24 +904,78 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 }
 
 
-// MakeCallback may only be made directly off the event loop.
-// That is there can be no JavaScript stack frames underneath it.
-// (Is there any way to assert that?)
-//
-// Maybe make this a method of a node::Handle super class
-//
 Handle<Value>
-MakeCallback(const Handle<Object> object,
-             const char* method,
+MCWithDomain(const Handle<Object> object,
+             const Handle<Function> callback,
              int argc,
              Handle<Value> argv[]) {
-  HandleScope scope;
+  // lazy load _tickWDCallback
+  if (process_tickWDCallback.IsEmpty()) {
+    Local<Value> cb_v = process->Get(String::New("_tickWDCallback"));
+    if (!cb_v->IsFunction()) {
+      fprintf(stderr, "process._tickWDCallback assigned to non-function\n");
+      abort();
+    }
+    Local<Function> cb = cb_v.As<Function>();
+    process_tickWDCallback = Persistent<Function>::New(cb);
+  }
 
-  Handle<Value> ret =
-    MakeCallback(object, String::NewSymbol(method), argc, argv);
+  // lazy load domain specific symbols
+  if (enter_symbol.IsEmpty()) {
+    enter_symbol = NODE_PSYMBOL("enter");
+    exit_symbol = NODE_PSYMBOL("exit");
+    disposed_symbol = NODE_PSYMBOL("_disposed");
+  }
 
-  return scope.Close(ret);
+  Local<Value> domain_v = object->Get(domain_symbol);
+  Local<Object> domain;
+  Local<Function> enter;
+  Local<Function> exit;
+
+  TryCatch try_catch;
+
+  domain = domain_v->ToObject();
+  assert(!domain.IsEmpty());
+  if (domain->Get(disposed_symbol)->IsTrue()) {
+    // domain has been disposed of.
+    return Undefined(node_isolate);
+  }
+  enter = Local<Function>::Cast(domain->Get(enter_symbol));
+  assert(!enter.IsEmpty());
+  enter->Call(domain, 0, NULL);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  Local<Value> ret = callback->Call(object, argc, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  exit = Local<Function>::Cast(domain->Get(exit_symbol));
+  assert(!exit.IsEmpty());
+  exit->Call(domain, 0, NULL);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  // process nextTicks after call
+  process_tickWDCallback->Call(process, 0, NULL);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  return ret;
 }
+
 
 Handle<Value>
 MakeCallback(const Handle<Object> object,
@@ -932,61 +987,15 @@ MakeCallback(const Handle<Object> object,
   Local<Value> callback_v = object->Get(symbol);
   if (!callback_v->IsFunction()) {
     String::Utf8Value method(symbol);
-    // XXX: If the object has a domain attached, handle it there?
-    // At least, would be good to get *some* sort of indication
-    // of how we got here, even if it's not catchable.
     fprintf(stderr, "Non-function in MakeCallback. method = %s\n", *method);
     abort();
   }
 
+  Local<Function> callback = Local<Function>::Cast(callback_v);
+
   // TODO Hook for long stack traces to be made here.
 
-  TryCatch try_catch;
-
-  if (enter_symbol.IsEmpty()) {
-    enter_symbol = NODE_PSYMBOL("enter");
-    exit_symbol = NODE_PSYMBOL("exit");
-    disposed_symbol = NODE_PSYMBOL("_disposed");
-  }
-
-  Local<Value> domain_v = object->Get(domain_symbol);
-  Local<Object> domain;
-  Local<Function> enter;
-  Local<Function> exit;
-  if (!domain_v->IsUndefined()) {
-    domain = domain_v->ToObject();
-    if (domain->Get(disposed_symbol)->BooleanValue()) {
-      // domain has been disposed of.
-      return Undefined(node_isolate);
-    }
-    enter = Local<Function>::Cast(domain->Get(enter_symbol));
-    enter->Call(domain, 0, NULL);
-  }
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined(node_isolate);
-  }
-
-  Local<Function> callback = Local<Function>::Cast(callback_v);
-  Local<Value> ret = callback->Call(object, argc, argv);
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined(node_isolate);
-  }
-
-  if (!domain_v->IsUndefined()) {
-    exit = Local<Function>::Cast(domain->Get(exit_symbol));
-    exit->Call(domain, 0, NULL);
-  }
-
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined(node_isolate);
-  }
-
-  // process nextTicks after every time we get called.
+  // lazy load no domain next tick callbacks
   if (process_tickCallback.IsEmpty()) {
     Local<Value> cb_v = process->Get(String::New("_tickCallback"));
     if (!cb_v->IsFunction()) {
@@ -996,12 +1005,43 @@ MakeCallback(const Handle<Object> object,
     Local<Function> cb = cb_v.As<Function>();
     process_tickCallback = Persistent<Function>::New(cb);
   }
-  process_tickCallback->Call(process, NULL, 0);
+
+  // has domain, off with you
+  if (object->Has(domain_symbol) &&
+      !object->Get(domain_symbol)->IsNull() &&
+      !object->Get(domain_symbol)->IsUndefined())
+    return scope.Close(MCWithDomain(object, callback, argc, argv));
+
+  TryCatch try_catch;
+
+  Local<Value> ret = callback->Call(object, argc, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
     return Undefined(node_isolate);
   }
+
+  // process nextTicks after call
+  process_tickCallback->Call(process, 0, NULL);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+    return Undefined(node_isolate);
+  }
+
+  return scope.Close(ret);
+}
+
+
+Handle<Value>
+MakeCallback(const Handle<Object> object,
+             const char* method,
+             int argc,
+             Handle<Value> argv[]) {
+  HandleScope scope;
+
+  Handle<Value> ret =
+    MakeCallback(object, String::NewSymbol(method), argc, argv);
 
   return scope.Close(ret);
 }
