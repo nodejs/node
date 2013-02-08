@@ -92,7 +92,7 @@ function server() {
 
   // the actual benchmark.
   var server = net.createServer(function(socket) {
-    socket.pipe(socket);
+    socket.pipe(writer);
   });
 
   server.listen(PORT, function() {
@@ -101,12 +101,9 @@ function server() {
       bench.start();
 
       reader.pipe(socket);
-      socket.pipe(writer);
 
       setTimeout(function() {
-        // multiply by 2 since we're sending it first one way
-        // then then back again.
-        var bytes = writer.received * 2;
+        var bytes = writer.received;
         var gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
       }, dur * 1000);
