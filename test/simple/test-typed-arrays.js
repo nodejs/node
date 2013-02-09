@@ -234,15 +234,3 @@ assert.throws(function() {
   assert.equal(a[0], 1);
   assert.equal(b[0], 1);
 })();
-
-(function() {
-  // DataView of typed array should make a copy. This is a minor violation
-  // of the spec because the DataView constructor is supposed to accept
-  // ArrayBuffers only.
-  var a = new Uint8Array(1);
-  var b = new DataView(a);
-  a[0] = 0;
-  b[0] = 1;
-  assert.equal(a[0], 0);
-  assert.equal(b[0], 1);
-})();
