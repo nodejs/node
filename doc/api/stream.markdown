@@ -376,11 +376,13 @@ subsequent `'drain'` event will be emitted, are determined by the
 `highWaterMark` and `lowWaterMark` options provided to the
 constructor.
 
-### writable.end([chunk], [encoding])
+### writable.end([chunk], [encoding], [callback])
 
 * `chunk` {Buffer | String} Optional final data to be written
 * `encoding` {String} Optional.  If `chunk` is a string, then encoding
   defaults to `'utf8'`
+* `callback` {Function} Optional.  Called when the final chunk is
+  successfully written.
 
 Call this method to signal the end of the data being written to the
 stream.
