@@ -107,6 +107,9 @@ void Log::Initialize() {
                 // one character so we can escape the loop properly.
                 p--;
                 break;
+              case 'p':
+                stream.Add("%d", OS::GetCurrentProcessId());
+                break;
               case 't': {
                 // %t expands to the current time in milliseconds.
                 double time = OS::TimeCurrentMillis();
