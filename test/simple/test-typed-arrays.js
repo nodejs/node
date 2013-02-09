@@ -47,7 +47,7 @@ var assert = require('assert');
   assert.equal(obj.toString(), expected);
   assert.equal(Object.prototype.toString.call(obj), expected);
 
-  obj = new DataView(obj);
+  obj = new DataView(obj.buffer || obj);
   assert.equal(obj.toString(), '[object DataView]');
   assert.equal(Object.prototype.toString.call(obj), '[object DataView]');
 });
@@ -197,7 +197,7 @@ assert.throws(function() {
 // see https://github.com/joyent/node/issues/4626
 (function() {
   var buf = new Uint8Array(2);
-  var view = new DataView(buf);
+  var view = new DataView(buf.buffer);
   view.setUint16(0, 1);
   assert.equal(view.getUint16(0), 1);
 })();
@@ -239,3 +239,7 @@ assert.throws(function() {
   assert.equal(b[0], 1);
   assert.equal(a.buffer, b.buffer);
 })();
+
+assert.throws(function() {
+  new DataView(new Int8Array(1));
+});

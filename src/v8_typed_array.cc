@@ -624,7 +624,7 @@ class DataView {
       return ThrowError("Object must be an ArrayBuffer.");
 
     v8::Handle<v8::Object> buffer = v8::Handle<v8::Object>::Cast(args[0]);
-    if (!buffer->HasIndexedPropertiesInExternalArrayData())
+    if (!ArrayBuffer::HasInstance(buffer))
       return ThrowError("Object must be an ArrayBuffer.");
 
     unsigned int byte_length =
