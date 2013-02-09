@@ -201,3 +201,41 @@ assert.throws(function() {
   view.setUint16(0, 1);
   assert.equal(view.getUint16(0), 1);
 })();
+
+(function() {
+  // Backing store should not be shared.
+  var a = new Uint8Array(1);
+  var b = new Uint8Array(a);
+  a[0] = 0;
+  b[0] = 1;
+  assert.equal(a[0], 0);
+  assert.equal(b[0], 1);
+  assert.notEqual(a, b.buffer);
+  assert.notEqual(a.buffer, b.buffer);
+})();
+
+(function() {
+  // Backing store should not be shared.
+  var a = new Uint8Array(2);
+  var b = new Uint16Array(a);
+  a[0] = 0;
+  a[1] = 0;
+  b[0] = 257;
+  assert.equal(a[0], 0);
+  assert.equal(a[1], 0);
+  assert.equal(b[0], 257);
+  assert.notEqual(a, b.buffer);
+  assert.notEqual(a.buffer, b.buffer);
+})();
+
+(function() {
+  // Backing store should be shared.
+  var abuf = new ArrayBuffer(32);
+  var a = new Uint8Array(abuf);
+  var b = new Uint8Array(abuf);
+  a[0] = 0;
+  b[0] = 1;
+  assert.equal(a[0], 1);
+  assert.equal(b[0], 1);
+  assert.equal(a.buffer, b.buffer);
+})();

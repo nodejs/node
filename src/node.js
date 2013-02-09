@@ -165,6 +165,7 @@
     global.GLOBAL = global;
     global.root = global;
     global.Buffer = NativeModule.require('buffer').Buffer;
+    process.binding('buffer').setFastBufferConstructor(global.Buffer);
   };
 
   startup.globalTimeouts = function() {
