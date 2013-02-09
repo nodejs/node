@@ -1098,14 +1098,15 @@ static MaybeObject* GetOwnProperty(Isolate* isolate,
 
   PropertyAttributes attrs = obj->GetLocalPropertyAttribute(*name);
   if (attrs == ABSENT) return heap->undefined_value();
-  AccessorPair* accessors = obj->GetLocalPropertyAccessorPair(*name);
+  AccessorPair* raw_accessors = obj->GetLocalPropertyAccessorPair(*name);
+  Handle<AccessorPair> accessors(raw_accessors, isolate);
 
   Handle<FixedArray> elms = isolate->factory()->NewFixedArray(DESCRIPTOR_SIZE);
   elms->set(ENUMERABLE_INDEX, heap->ToBoolean((attrs & DONT_ENUM) == 0));
   elms->set(CONFIGURABLE_INDEX, heap->ToBoolean((attrs & DONT_DELETE) == 0));
-  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(accessors != NULL));
+  elms->set(IS_ACCESSOR_INDEX, heap->ToBoolean(raw_accessors != NULL));
 
-  if (accessors == NULL) {
+  if (raw_accessors == NULL) {
     elms->set(WRITABLE_INDEX, heap->ToBoolean((attrs & READ_ONLY) == 0));
     // GetProperty does access check.
     Handle<Object> value = GetProperty(obj, name);
@@ -1790,7 +1791,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpInitializeObject) {
         JSRegExp::kIgnoreCaseFieldIndex, ignoreCase, SKIP_WRITE_BARRIER);
     regexp->InObjectPropertyAtPut(
         JSRegExp::kMultilineFieldIndex, multiline, SKIP_WRITE_BARRIER);
-    regexp->ResetLastIndex();
+    regexp->InObjectPropertyAtPut(
+        JSRegExp::kLastIndexFieldIndex, Smi::FromInt(0), SKIP_WRITE_BARRIER);
     return regexp;
   }
 
@@ -2145,7 +2147,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SetCode) {
   // target function to undefined.  SetCode is only used for built-in
   // constructors like String, Array, and Object, and some web code
   // doesn't like seeing source code for constructors.
-  target_shared->set_code(source_shared->code());
+  target_shared->ReplaceCode(source_shared->code());
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_formal_parameter_count(
@@ -2903,8 +2905,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceAtomRegExpWithString(
 
   int matches = indices.length();
   if (matches == 0) {
-    pattern_regexp->ResetLastIndex();
-    return *subject;
+    return isolate->heap()->undefined_value();
   }
 
   // Detect integer overflow.
@@ -3005,8 +3006,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithString(
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == NULL) {
     if (global_cache.HasException()) return Failure::Exception();
-    regexp->ResetLastIndex();
-    return *subject;
+    return isolate->heap()->undefined_value();
   }
 
   // Guessing the number of parts that the final result string is built
@@ -3104,8 +3104,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   int32_t* current_match = global_cache.FetchNext();
   if (current_match == NULL) {
     if (global_cache.HasException()) return Failure::Exception();
-    regexp->ResetLastIndex();
-    return *subject;
+    return isolate->heap()->undefined_value();
   }
 
   int start = current_match[0];

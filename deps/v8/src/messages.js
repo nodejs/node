@@ -1090,6 +1090,7 @@ function captureStackTrace(obj, cons_opt) {
   // with a data property as soon as the stack trace has been formatted.
   var getter = function() {
     var value = FormatRawStackTrace(obj, raw_stack);
+    raw_stack = void 0;
     %DefineOrRedefineDataProperty(obj, 'stack', value, NONE);
     return value;
   };

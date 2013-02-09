@@ -4368,6 +4368,19 @@ void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
 }
 
 
+void SharedFunctionInfo::ReplaceCode(Code* value) {
+  // If the GC metadata field is already used then the function was
+  // enqueued as a code flushing candidate and we remove it now.
+  if (code()->gc_metadata() != NULL) {
+    CodeFlusher* flusher = GetHeap()->mark_compact_collector()->code_flusher();
+    flusher->EvictCandidate(this);
+  }
+
+  ASSERT(code()->gc_metadata() == NULL && value->gc_metadata() == NULL);
+  set_code(value);
+}
+
+
 ScopeInfo* SharedFunctionInfo::scope_info() {
   return reinterpret_cast<ScopeInfo*>(READ_FIELD(this, kScopeInfoOffset));
 }
@@ -4952,13 +4965,6 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
     // We only do this during GC, so we don't need to notify the write barrier.
     fa->set_unchecked(heap, index, value, SKIP_WRITE_BARRIER);
   }
-}
-
-
-void JSRegExp::ResetLastIndex() {
-  InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                        Smi::FromInt(0),
-                        SKIP_WRITE_BARRIER);  // It's a Smi.
 }
 
 

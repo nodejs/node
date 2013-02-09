@@ -885,8 +885,8 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     if (!code_mark.Get()) {
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
-    } else if (code == lazy_compile) {
-      candidate->set_code(lazy_compile);
+    } else {
+      candidate->set_code(code);
     }
 
     // We are in the middle of a GC cycle so the write barrier in the code
@@ -935,13 +935,40 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
 }
 
 
+void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
+  // Make sure previous flushing decisions are revisited.
+  isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
+
+  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
+  SharedFunctionInfo* next_candidate;
+  if (candidate == shared_info) {
+    next_candidate = GetNextCandidate(shared_info);
+    shared_function_info_candidates_head_ = next_candidate;
+    ClearNextCandidate(shared_info);
+  } else {
+    while (candidate != NULL) {
+      next_candidate = GetNextCandidate(candidate);
+
+      if (next_candidate == shared_info) {
+        next_candidate = GetNextCandidate(shared_info);
+        SetNextCandidate(candidate, next_candidate);
+        ClearNextCandidate(shared_info);
+        break;
+      }
+
+      candidate = next_candidate;
+    }
+  }
+}
+
+
 void CodeFlusher::EvictCandidate(JSFunction* function) {
   ASSERT(!function->next_function_link()->IsUndefined());
   Object* undefined = isolate_->heap()->undefined_value();
 
-  // The function is no longer a candidate, make sure it gets visited
-  // again so that previous flushing decisions are revisited.
+  // Make sure previous flushing decisions are revisited.
   isolate_->heap()->incremental_marking()->RecordWrites(function);
+  isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
 
   JSFunction* candidate = jsfunction_candidates_head_;
   JSFunction* next_candidate;
@@ -957,6 +984,7 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
         next_candidate = GetNextCandidate(function);
         SetNextCandidate(candidate, next_candidate);
         ClearNextCandidate(function, undefined);
+        break;
       }
 
       candidate = next_candidate;

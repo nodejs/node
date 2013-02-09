@@ -5429,6 +5429,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
+  inline void ReplaceCode(Code* code);
 
   // [optimized_code_map]: Map from native context to optimized code
   // and a shared literals array or Smi 0 if none.
@@ -6648,7 +6649,6 @@ class JSRegExp: public JSObject {
   inline Object* DataAtUnchecked(int index);
   inline void SetDataAtUnchecked(int index, Object* value, Heap* heap);
   inline Type TypeTagUnchecked();
-  inline void ResetLastIndex();
 
   static int code_index(bool is_ascii) {
     if (is_ascii) {

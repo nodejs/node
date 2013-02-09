@@ -2575,3 +2575,128 @@ TEST(Regress159140) {
   // Unoptimized code is missing and the deoptimizer will go ballistic.
   CompileRun("g('bozo');");
 }
+
+
+TEST(Regress169209) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_flush_code_incrementally = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Perform one initial GC to enable code flushing.
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+
+  // Prepare a shared function info eligible for code flushing for which
+  // the unoptimized code will be replaced during optimization.
+  Handle<SharedFunctionInfo> shared1;
+  {
+    HandleScope inner_scope;
+    CompileRun("function f() { return 'foobar'; }"
+               "function g(x) { if (x) f(); }"
+               "f();"
+               "g(false);"
+               "g(false);");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+    CHECK(f->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    shared1 = inner_scope.CloseAndEscape(handle(f->shared(), ISOLATE));
+  }
+
+  // Prepare a shared function info eligible for code flushing that will
+  // represent the dangling tail of the candidate list.
+  Handle<SharedFunctionInfo> shared2;
+  {
+    HandleScope inner_scope;
+    CompileRun("function flushMe() { return 0; }"
+               "flushMe(1);");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                v8::Context::GetCurrent()->Global()->Get(v8_str("flushMe"))));
+    CHECK(f->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    shared2 = inner_scope.CloseAndEscape(handle(f->shared(), ISOLATE));
+  }
+
+  // Simulate incremental marking and collect code flushing candidates.
+  SimulateIncrementalMarking();
+  CHECK(shared1->code()->gc_metadata() != NULL);
+
+  // Optimize function and make sure the unoptimized code is replaced.
+#ifdef DEBUG
+  FLAG_stop_at = "f";
+#endif
+  CompileRun("%OptimizeFunctionOnNextCall(g);"
+             "g(false);");
+
+  // Finish garbage collection cycle.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(shared1->code()->gc_metadata() == NULL);
+}
+
+
+TEST(Regress168801) {
+  i::FLAG_always_compact = true;
+  i::FLAG_cache_optimized_code = false;
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_flush_code_incrementally = true;
+  InitializeVM();
+  v8::HandleScope scope;
+
+  // Perform one initial GC to enable code flushing.
+  HEAP->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+
+  // Ensure the code ends up on an evacuation candidate.
+  SimulateFullSpace(HEAP->code_space());
+
+  // Prepare an unoptimized function that is eligible for code flushing.
+  Handle<JSFunction> function;
+  {
+    HandleScope inner_scope;
+    CompileRun("function mkClosure() {"
+               "  return function(x) { return x + 1; };"
+               "}"
+               "var f = mkClosure();"
+               "f(1); f(2);");
+
+    Handle<JSFunction> f =
+        v8::Utils::OpenHandle(
+            *v8::Handle<v8::Function>::Cast(
+                v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+    CHECK(f->is_compiled());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      f->shared()->code()->MakeOlder(static_cast<MarkingParity>(i % 2));
+    }
+
+    function = inner_scope.CloseAndEscape(handle(*f, ISOLATE));
+  }
+
+  // Simulate incremental marking so that unoptimized function is enqueued as a
+  // candidate for code flushing. The shared function info however will not be
+  // explicitly enqueued.
+  SimulateIncrementalMarking();
+
+  // Now optimize the function so that it is taken off the candidate list.
+  {
+    HandleScope inner_scope;
+    CompileRun("%OptimizeFunctionOnNextCall(f); f(3);");
+  }
+
+  // This cycle will bust the heap and subsequent cycles will go ballistic.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+}

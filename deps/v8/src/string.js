@@ -194,6 +194,7 @@ function StringMatch(regexp) {
     // lastMatchInfo is defined in regexp.js.
     var result = %StringMatch(subject, regexp, lastMatchInfo);
     if (result !== null) lastMatchInfoOverride = null;
+    regexp.lastIndex = 0;
     return result;
   }
   // Non-regexp argument.
@@ -244,10 +245,16 @@ function StringReplace(search, replace) {
       }
     } else {
       if (lastMatchInfoOverride == null) {
-        return %StringReplaceRegExpWithString(subject,
-                                              search,
-                                              TO_STRING_INLINE(replace),
-                                              lastMatchInfo);
+        var answer = %StringReplaceRegExpWithString(subject,
+                                                    search,
+                                                    TO_STRING_INLINE(replace),
+                                                    lastMatchInfo);
+        if (IS_UNDEFINED(answer)) {  // No match.  Return subject string.
+          search.lastIndex = 0;
+          return subject;
+        }
+        if (search.global) search.lastIndex = 0;
+        return answer;
       } else {
         // We use this hack to detect whether StringReplaceRegExpWithString
         // found at least one hit.  In that case we need to remove any
@@ -258,11 +265,17 @@ function StringReplace(search, replace) {
                                                     search,
                                                     TO_STRING_INLINE(replace),
                                                     lastMatchInfo);
+        if (IS_UNDEFINED(answer)) {  // No match.  Return subject string.
+          search.lastIndex = 0;
+          lastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
+          return subject;
+        }
         if (%_IsSmi(lastMatchInfo[LAST_SUBJECT_INDEX])) {
           lastMatchInfo[LAST_SUBJECT_INDEX] = saved_subject;
         } else {
           lastMatchInfoOverride = null;
         }
+        if (search.global) search.lastIndex = 0;
         return answer;
       }
     }

@@ -697,7 +697,7 @@ static bool InstallFullCode(CompilationInfo* info) {
   Handle<ScopeInfo> scope_info =
       ScopeInfo::Create(info->scope(), info->zone());
   shared->set_scope_info(*scope_info);
-  shared->set_code(*code);
+  shared->ReplaceCode(*code);
   if (!function.is_null()) {
     function->ReplaceCode(*code);
     ASSERT(!function->IsOptimized());

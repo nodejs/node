@@ -529,9 +529,9 @@ void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
     __ Check(eq, "Non-smi value", at, Operand(zero_reg));
 
     __ lw(at, FieldMemOperand(string, String::kLengthOffset));
-    __ Check(lt, "Index is too large", at, Operand(index));
+    __ Check(lt, "Index is too large", index, Operand(at));
 
-    __ Check(ge, "Index is negative", index, Operand(Smi::FromInt(0)));
+    __ Check(ge, "Index is negative", index, Operand(zero_reg));
 
     __ lw(at, FieldMemOperand(string, HeapObject::kMapOffset));
     __ lbu(at, FieldMemOperand(at, Map::kInstanceTypeOffset));
@@ -539,9 +539,9 @@ void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
     __ And(at, at, Operand(kStringRepresentationMask | kStringEncodingMask));
     static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
     static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ Check(eq, "Unexpected string type", at,
-        Operand(encoding == String::ONE_BYTE_ENCODING
-                    ? one_byte_seq_type : two_byte_seq_type));
+    __ Subu(at, at, Operand(encoding == String::ONE_BYTE_ENCODING
+        ? one_byte_seq_type : two_byte_seq_type));
+    __ Check(eq, "Unexpected string type", at, Operand(zero_reg));
   }
 
   __ Addu(at,

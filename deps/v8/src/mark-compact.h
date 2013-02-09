@@ -434,6 +434,7 @@ class CodeFlusher {
     }
   }
 
+  void EvictCandidate(SharedFunctionInfo* shared_info);
   void EvictCandidate(JSFunction* function);
 
   void ProcessCandidates() {

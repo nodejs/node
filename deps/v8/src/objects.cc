@@ -8562,7 +8562,7 @@ void SharedFunctionInfo::EnableDeoptimizationSupport(Code* recompiled) {
     // old code, we have to replace it. We should try to avoid this
     // altogether because it flushes valuable type feedback by
     // effectively resetting all IC state.
-    set_code(recompiled);
+    ReplaceCode(recompiled);
   }
   ASSERT(has_deoptimization_support());
 }
