@@ -2641,7 +2641,11 @@ class Hmac : public ObjectWrap {
       return false;
     }
     HMAC_CTX_init(&ctx);
-    HMAC_Init(&ctx, key, key_len, md);
+    if (key_len == 0) {
+      HMAC_Init(&ctx, "", 0, md);
+    } else {
+      HMAC_Init(&ctx, key, key_len, md);
+    }
     initialised_ = true;
     return true;
 

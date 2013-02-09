@@ -81,6 +81,62 @@ var h1 = crypto.createHmac('sha1', 'Node')
                .digest('hex');
 assert.equal(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
+// Test HMAC (Wikipedia Test Cases)
+var wikipedia = [
+  {
+    key: 'key', data: 'The quick brown fox jumps over the lazy dog',
+    hmac: {  // HMACs lifted from Wikipedia.
+      md5: '80070713463e7749b90c2dc24911e275',
+      sha1: 'de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9',
+      sha256:
+          'f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc' +
+          '2d1a3cd8'
+    }
+  },
+  {
+    key: 'key', data: '',
+    hmac: {  // Intermediate test to help debugging.
+      md5: '63530468a04e386459855da0063b6596',
+      sha1: 'f42bb0eeb018ebbd4597ae7213711ec60760843f',
+      sha256:
+          '5d5d139563c95b5967b9bd9a8c9b233a9dedb45072794cd232dc1b74' +
+          '832607d0'
+    }
+  },
+  {
+    key: '', data: 'The quick brown fox jumps over the lazy dog',
+    hmac: {  // Intermediate test to help debugging.
+      md5: 'ad262969c53bc16032f160081c4a07a0',
+      sha1: '2ba7f707ad5f187c412de3106583c3111d668de8',
+      sha256:
+          'fb011e6154a19b9a4c767373c305275a5a69e8b68b0b4c9200c383dc' +
+          'ed19a416'
+    }
+  },
+  {
+    key: '', data: '',
+    hmac: {  // HMACs lifted from Wikipedia.
+      md5: '74e6f7298a9c2d168935f58c001bad88',
+      sha1: 'fbdb1d1b18aa6c08324b7d64b71fb76370690e1d',
+      sha256:
+          'b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c71214' +
+          '4292c5ad'
+    }
+  },
+]
+
+for (var i = 0, l = wikipedia.length; i < l; i++) {
+  for (var hash in wikipedia[i]['hmac']) {
+    var result = crypto.createHmac(hash, wikipedia[i]['key'])
+                     .update(wikipedia[i]['data'])
+                     .digest('hex');
+    assert.equal(wikipedia[i]['hmac'][hash],
+                 result,
+                 'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' wikipedia');
+  }
+}
+
+
 // Test HMAC-SHA-* (rfc 4231 Test Cases)
 var rfc4231 = [
   {
