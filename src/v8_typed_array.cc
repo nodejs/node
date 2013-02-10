@@ -251,9 +251,7 @@ class TypedArray {
     unsigned int length = 0;
     unsigned int byte_offset = 0;
 
-    // [m1k3] added support for Buffer constructor
-    if (node::Buffer::HasInstance(args[0])
-        || ArrayBuffer::HasInstance(args[0])) {  // ArrayBuffer constructor.
+    if (ArrayBuffer::HasInstance(args[0])) {  // ArrayBuffer constructor.
       buffer = v8::Local<v8::Object>::Cast(args[0]);
       size_t buflen =
           buffer->GetIndexedPropertiesExternalArrayDataLength();
