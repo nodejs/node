@@ -40,22 +40,16 @@ encoding method.  Here are the different string encodings.
 
 * `'hex'` - Encode each byte as two hexadecimal characters.
 
-`Buffer` can also be used with Typed Array Views and DataViews.
+A `Buffer` object can also be used with typed arrays.  The buffer object is
+cloned to an `ArrayBuffer` that is used as the backing store for the typed
+array.  The memory of the buffer and the `ArrayBuffer` is not shared.
 
-    var buff = new Buffer(4);
-    var ui16 = new Uint16Array(buff);
-    var view = new DataView(buff);
+NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
+instead of cloning it.
 
-    ui16[0] = 1;
-    ui16[1] = 2;
-    console.log(buff);
-
-    view.setInt16(0, 1);       // set big-endian int16 at byte offset 0
-    view.setInt16(2, 2, true); // set little-endian int16 at byte offset 2
-    console.log(buff);
-
-    // <Buffer 01 00 02 00>
-    // <Buffer 00 01 02 00>
+While more efficient, it introduces subtle incompatibilities with the typed
+arrays specification.  `ArrayBuffer#slice()` and `Buffer#slice()` behave
+differently when passed negative indices, for example.
 
 ## Class: Buffer
 
