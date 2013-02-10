@@ -127,17 +127,24 @@ Example inspection of os.cpus:
 
 Get a list of network interfaces:
 
-    { lo0: 
-       [ { address: '::1', family: 'IPv6', internal: true },
-         { address: 'fe80::1', family: 'IPv6', internal: true },
-         { address: '127.0.0.1', family: 'IPv4', internal: true } ],
-      en1: 
-       [ { address: 'fe80::cabc:c8ff:feef:f996', family: 'IPv6',
-           internal: false },
-         { address: '10.0.1.123', family: 'IPv4', internal: false } ],
-      vmnet1: [ { address: '10.99.99.254', family: 'IPv4', internal: false } ],
-      vmnet8: [ { address: '10.88.88.1', family: 'IPv4', internal: false } ],
-      ppp0: [ { address: '10.2.0.231', family: 'IPv4', internal: false } ] }
+    { lo0:
+       [ { address: 'fe80::1', netmask: 'ffff:ffff:ffff:ffff::',
+           family: 'IPv6', internal: true },
+         { address: '127.0.0.1', netmask: '255.0.0.0',
+           family: 'IPv4', internal: true },
+         { address: '::1', netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+           family: 'IPv6', internal: true } ],
+      en1:
+       [ { address: 'fe80::226:8ff:fedc:1dd', netmask: 'ffff:ffff:ffff:ffff::',
+           family: 'IPv6', internal: false },
+         { address: '10.0.1.6', netmask: '255.255.255.0',
+           family: 'IPv4', internal: false } ],
+      vmnet1:
+       [ { address: '192.168.252.1', netmask: '255.255.255.0',
+           family: 'IPv4', internal: false } ],
+      vmnet8:
+       [ { address: '192.168.207.1', netmask: '255.255.255.0',
+           family: 'IPv4', internal: false } ] }
 
 ## os.EOL
 
