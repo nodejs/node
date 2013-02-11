@@ -163,7 +163,9 @@ process.on('exit', function() {
 var mustCallChecks = [];
 
 
-function runCallChecks() {
+function runCallChecks(exitCode) {
+  if (exitCode !== 0) return;
+
   var failed = mustCallChecks.filter(function(context) {
     return context.actual !== context.expected;
   });
