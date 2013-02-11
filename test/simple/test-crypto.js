@@ -797,3 +797,8 @@ assert.notEqual(-1, crypto.getHashes().indexOf('sha'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA1'));
 assert.equal(-1, crypto.getHashes().indexOf('SHA'));
 assertSorted(crypto.getHashes());
+
+(function() {
+  var c = crypto.createDecipher('aes-128-ecb', '');
+  assert.throws(function() { c.final('utf8') }, /invalid public key/);
+})();
