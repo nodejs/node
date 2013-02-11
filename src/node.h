@@ -150,18 +150,6 @@ NODE_EXTERN ssize_t DecodeWrite(char *buf,
 v8::Local<v8::Object> BuildStatsObject(const uv_statbuf_t* s);
 
 
-/**
- * Call this when your constructor is invoked as a regular function, e.g.
- * Buffer(10) instead of new Buffer(10).
- * @param constructorTemplate Constructor template to instantiate from.
- * @param args The arguments object passed to your constructor.
- * @see v8::Arguments::IsConstructCall
- */
-v8::Handle<v8::Value> FromConstructorTemplate(
-    v8::Persistent<v8::FunctionTemplate>& constructorTemplate,
-    const v8::Arguments& args);
-
-
 static inline v8::Persistent<v8::Function>* cb_persist(
     const v8::Local<v8::Value> &v) {
   v8::Persistent<v8::Function> *fn = new v8::Persistent<v8::Function>();

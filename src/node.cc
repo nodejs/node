@@ -863,22 +863,14 @@ Local<Value> WinapiErrnoException(int errorno,
 #endif
 
 
-Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate>& t,
+Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
                                       const Arguments& args) {
   HandleScope scope;
-
-  const int argc = args.Length();
-  Local<Value>* argv = new Local<Value>[argc];
-
-  for (int i = 0; i < argc; ++i) {
-    argv[i] = args[i];
-  }
-
-  Local<Object> instance = t->GetFunction()->NewInstance(argc, argv);
-
-  delete[] argv;
-
-  return scope.Close(instance);
+  Local<Value> argv[32];
+  unsigned argc = args.Length();
+  if (argc > ARRAY_SIZE(argv)) argc = ARRAY_SIZE(argv);
+  for (unsigned i = 0; i < argc; ++i) argv[i] = args[i];
+  return scope.Close(t->GetFunction()->NewInstance(argc, argv));
 }
 
 
