@@ -50,7 +50,13 @@ var assert = require('assert');
   obj = new DataView(obj.buffer || obj);
   assert.equal(obj.toString(), '[object DataView]');
   assert.equal(Object.prototype.toString.call(obj), '[object DataView]');
+
+  // Calling constructor as function should work.
+  clazz(32);
 });
+
+// Calling constructor as function should work.
+DataView(ArrayBuffer(32));
 
 var buffer = new ArrayBuffer(16);
 var uint8 = new Uint8Array(buffer);

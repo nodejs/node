@@ -88,7 +88,7 @@ class ArrayBuffer {
 
   static v8::Handle<v8::Value> V8New(const v8::Arguments& args) {
     if (!args.IsConstructCall())
-      return ThrowTypeError("Constructor cannot be called as a function.");
+      return node::FromConstructorTemplate(GetTemplate(), args);
 
     // To match Chrome, we allow "new ArrayBuffer()".
     // if (args.Length() != 1)
@@ -241,7 +241,7 @@ class TypedArray {
  private:
   static v8::Handle<v8::Value> V8New(const v8::Arguments& args) {
     if (!args.IsConstructCall())
-      return ThrowTypeError("Constructor cannot be called as a function.");
+      return node::FromConstructorTemplate(GetTemplate(), args);
 
     // To match Chrome, we allow "new Float32Array()".
     // if (args.Length() != 1)
@@ -613,7 +613,7 @@ class DataView {
  private:
   static v8::Handle<v8::Value> V8New(const v8::Arguments& args) {
     if (!args.IsConstructCall())
-      return ThrowTypeError("Constructor cannot be called as a function.");
+      return node::FromConstructorTemplate(GetTemplate(), args);
 
     if (args.Length() < 1)
       return ThrowError("Wrong number of arguments.");
