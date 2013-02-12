@@ -20,6 +20,42 @@ function Benchmark(fn, options) {
   });
 }
 
+// run ab against a server.
+Benchmark.prototype.ab = function(path, args, cb) {
+  var url = 'http://127.0.0.1:' + exports.PORT + path;
+  args.push(url);
+
+  var self = this;
+  var out = '';
+  var spawn = require('child_process').spawn;
+  // console.error('ab %s', args.join(' '));
+  var child = spawn('ab', args);
+
+  child.stdout.setEncoding('utf8');
+
+  child.stdout.on('data', function(chunk) {
+    out += chunk;
+  });
+
+  child.on('close', function(code) {
+    if (cb)
+      cb(code);
+
+    if (code) {
+      console.error('ab failed with ' + code);
+      process.exit(code)
+    }
+    var m = out.match(/Requests per second: +([0-9\.]+)/);
+    var qps = m && +m[1];
+    if (!qps) {
+      process.stderr.write(out + '\n');
+      console.error('ab produced strange output');
+      process.exit(1);
+    }
+    self.report(+qps);
+  });
+};
+
 Benchmark.prototype._run = function() {
   if (this.config)
     return this.fn(this.config);
@@ -97,8 +133,12 @@ Benchmark.prototype.end = function(operations) {
     throw new Error('called end() without specifying operation count');
   var time = elapsed[0] + elapsed[1]/1e9;
   var rate = operations/time;
+  this.report(rate);
+};
+
+Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
-  console.log('%s: %s', heading, rate.toPrecision(5));
+  console.log('%s: %s', heading, value.toPrecision(5));
   process.exit(0);
 };
 
