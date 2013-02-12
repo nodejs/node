@@ -48,8 +48,8 @@ NOTE: Node.js v0.8 simply retained a reference to the buffer in `array.buffer`
 instead of cloning it.
 
 While more efficient, it introduces subtle incompatibilities with the typed
-arrays specification.  `ArrayBuffer#slice()` and `Buffer#slice()` behave
-differently when passed negative indices, for example.
+arrays specification.  `ArrayBuffer#slice()` makes a copy of the slice while
+`Buffer#slice()` creates a view.
 
 ## Class: Buffer
 
@@ -260,7 +260,7 @@ into `buf2`, starting at the 8th byte in `buf2`.
 
 Returns a new buffer which references the same memory as the old, but offset
 and cropped by the `start` (defaults to `0`) and `end` (defaults to
-`buffer.length`) indexes.
+`buffer.length`) indexes.  Negative indexes start from the end of the buffer.
 
 **Modifying the new buffer slice will modify memory in the original buffer!**
 
