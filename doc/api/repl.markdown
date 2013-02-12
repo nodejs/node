@@ -159,7 +159,7 @@ associated with each `REPLServer`.  For example:
     var repl = require("repl"),
         msg = "message";
 
-    repl.start().context.m = msg;
+    repl.start("> ").context.m = msg;
 
 Things in the `context` object appear as local within the REPL:
 
