@@ -6,6 +6,8 @@ NINJA ?= ninja
 DESTDIR ?=
 SIGN ?=
 
+NODE ?= ./node
+
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
 # or set the V environment variable to an empty string.
@@ -311,7 +313,31 @@ dist-upload: $(TARBALL) $(PKG)
 	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
 	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
-bench:
+bench-net: all
+	@$(NODE) benchmark/common.js net
+
+bench-tls: all
+	@$(NODE) benchmark/common.js tls
+
+bench-http: all
+	@$(NODE) benchmark/common.js http
+
+bench-fs: all
+	@$(NODE) benchmark/common.js fs
+
+bench-misc: all
+	@$(MAKE) -C benchmark/misc/function_call/
+	@$(NODE) benchmark/common.js misc
+
+bench-array: all
+	@$(NODE) benchmark/common.js arrays
+
+bench-buffer: all
+	@$(NODE) benchmark/common.js buffers
+
+bench: bench-misc bench-net bench-http bench-fs bench-array bench-buffer bench-tls
+
+bench-http-simple:
 	 benchmark/http_simple_bench.sh
 
 bench-idle:
