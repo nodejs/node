@@ -14,7 +14,7 @@
  
 static int c = 0;
 static int tsize = 1000 * 1048576;
-static const char path[] = "/tmp/wt.dat";
+static const char* path = "/tmp/wt.dat";
 static char buf[65536];
 
 static uint64_t now(void) {
@@ -106,10 +106,12 @@ void cleanup() {
   unlink(path);
 }
 
-int main()
+int main(int argc, char** argv)
 {
   int i;
   int bsizes[] = {1024, 4096, 8192, 16384, 32768, 65536, 0};
+
+  if (argc > 1) path = argv[1];
 
   for (i = 0; bsizes[i] != 0; i++) {
     writetest(tsize, bsizes[i]);
