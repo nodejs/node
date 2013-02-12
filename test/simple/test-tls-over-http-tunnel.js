@@ -34,6 +34,7 @@ var https = require('https');
 
 var proxyPort = common.PORT + 1;
 var gotRequest = false;
+var errorCount = 0;
 
 var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
@@ -162,10 +163,13 @@ proxy.listen(proxyPort, function() {
         proxy.close();
         server.close();
       });
+    }).on('error', function() {
+      errorCount++;
     }).end();
   }
 });
 
 process.on('exit', function() {
   assert.ok(gotRequest);
+  assert.equal(errorCount, 1);
 });
