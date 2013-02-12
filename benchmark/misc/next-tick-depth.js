@@ -19,23 +19,22 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var count = 2e6,
-    left = count,
-    start;
+var common = require('../common.js');
+var bench = common.createBenchmark(main, {
+  millions: [2]
+});
 
-function onNextTick() {
-  if (--left) {
-    process.nextTick(onNextTick);
-  } else {
-    finalize();
-  }  
+process.maxTickDepth = Infinity;
+
+function main(conf) {
+  var n = +conf.millions * 1e6;
+
+  bench.start();
+  process.nextTick(onNextTick);
+  function onNextTick() {
+    if (--n)
+      process.nextTick(onNextTick);
+    else
+      bench.end(+conf.millions);
+  }
 }
-
-function finalize() {
-  var duration = (new Date()).getTime() - start,
-      ticksPerSec = count / duration * 1000;
-  console.log("nextTick callbacks per second: " + Math.round(ticksPerSec));
-}
-
-start = (new Date()).getTime();
-process.nextTick(onNextTick);
