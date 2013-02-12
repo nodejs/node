@@ -3,6 +3,45 @@ var path = require('path');
 
 exports.PORT = process.env.PORT || 12346;
 
+// If this is the main module, then run the benchmarks
+if (module === require.main) {
+  var type = process.argv[2];
+  if (!type) {
+    console.error('usage:\n ./node benchmark/common.js <type>');
+    process.exit(1);
+  }
+
+  var path = require('path');
+  var fs = require('fs');
+  var dir = path.join(__dirname, type);
+  var tests = fs.readdirSync(dir);
+  var spawn = require('child_process').spawn;
+
+  runBenchmarks();
+
+  function runBenchmarks() {
+    var test = tests.shift();
+    if (!test)
+      return;
+
+    if (test.match(/^[\._]/))
+      return process.nextTick(runBenchmarks);
+
+    console.error(type + '/' + test);
+    test = path.resolve(dir, test);
+
+    var child = spawn(process.execPath, [ test ], { stdio: 'inherit' });
+    child.on('close', function(code) {
+      if (code)
+        process.exit(code);
+      else {
+        console.log('');
+        runBenchmarks();
+      }
+    });
+  }
+}
+
 exports.createBenchmark = function(fn, options) {
   return new Benchmark(fn, options);
 };
@@ -11,7 +50,7 @@ function Benchmark(fn, options) {
   this.fn = fn;
   this.options = options;
   this.config = parseOpts(options);
-  this._name = path.basename(require.main.filename, '.js');
+  this._name = require.main.filename.split(/benchmark[\/\\]/).pop();
   this._start = [0,0];
   this._started = false;
   var self = this;
@@ -76,7 +115,7 @@ Benchmark.prototype._run = function() {
     var j = 0;
     set.forEach(function(s) {
       vals.forEach(function(val) {
-        newSet[j++] = s.concat('--' + key + '=' + val);
+        newSet[j++] = s.concat(key + '=' + val);
       });
     });
     return newSet;
@@ -101,19 +140,25 @@ Benchmark.prototype._run = function() {
 };
 
 function parseOpts(options) {
-  // verify that there's an --option provided for each of the options
+  // verify that there's an option provided for each of the options
   // if they're not *all* specified, then we return null.
   var keys = Object.keys(options);
   var num = keys.length;
   var conf = {};
   for (var i = 2; i < process.argv.length; i++) {
-    var m = process.argv[i].match(/^--(.+)=(.+)$/);
+    var m = process.argv[i].match(/^(.+)=(.+)$/);
     if (!m || !m[1] || !m[2] || !options[m[1]])
       return null;
     else {
       conf[m[1]] = isFinite(m[2]) ? +m[2] : m[2]
       num--;
     }
+  }
+  // still go ahead and set whatever WAS set, if it was.
+  if (num !== 0) {
+    Object.keys(conf).forEach(function(k) {
+      options[k] = [conf[k]];
+    });
   }
   return num === 0 ? conf : null;
 };
@@ -144,7 +189,7 @@ Benchmark.prototype.report = function(value) {
 
 Benchmark.prototype.getHeading = function() {
   var conf = this.config;
-  return this._name + '_' + Object.keys(conf).map(function(key) {
-    return key + '_' + conf[key];
-  }).join('_');
+  return this._name + ' ' + Object.keys(conf).map(function(key) {
+    return key + '=' + conf[key];
+  }).join(' ');
 }
