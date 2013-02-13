@@ -1,7 +1,9 @@
-var usage = 'node benchmark/compare.js <node-binary1> <node-binary2>';
+var usage = 'node benchmark/compare.js <node-binary1> <node-binary2> [--html] [--red|-r] [--green|-g]';
 
 var show = 'both';
 var nodes = [];
+var html = false;
+
 for (var i = 2; i < process.argv.length; i++) {
   var arg = process.argv[i];
   switch (arg) {
@@ -11,10 +13,30 @@ for (var i = 2; i < process.argv.length; i++) {
     case '--green': case '-g':
       show = show === 'red' ? 'both' : 'green';
       break;
+    case '--html':
+      html = true;
+      break;
+    case '-h': case '-?': case '--help':
+      console.log(usage);
+      process.exit(0);
     default:
       nodes.push(arg);
       break;
   }
+}
+
+if (!html) {
+  var start = '';
+  var green = '\033[1;32m';
+  var red = '\033[1;31m';
+  var reset = '\033[m';
+  var end = '';
+} else {
+  var start = '<pre style="background-color:#333;color:#eee">';
+  var green = '<span style="background-color:#0f0;color:#000">';
+  var red = '<span style="background-color:#f00">';
+  var reset = '</span>';
+  var end = '</pre>';
 }
 
 var runBench = process.env.NODE_BENCH || 'bench';
@@ -79,11 +101,10 @@ function compare() {
 	// each result is an object with {"foo.js arg=bar":12345,...}
 	// compare each thing, and show which node did the best.
   // node[0] is shown in green, node[1] shown in red.
-  var green = '\033[1;32m';
-  var red = '\033[1;31m';
-  var reset = '\033[m';
   var maxLen = -Infinity;
   var util = require('util');
+  console.log(start);
+
 	Object.keys(results).map(function(bench) {
     var res = results[bench];
     var n0 = res[nodes[0]];
@@ -113,4 +134,5 @@ function compare() {
     var dots = ' ' + new Array(Math.max(0, dotLen)).join('.') + ' ';
     console.log(l + dots + pct);
   });
+  console.log(end);
 }
