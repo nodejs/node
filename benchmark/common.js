@@ -11,7 +11,6 @@ if (module === require.main) {
     process.exit(1);
   }
 
-  var path = require('path');
   var fs = require('fs');
   var dir = path.join(__dirname, type);
   var tests = fs.readdirSync(dir);
@@ -59,16 +58,18 @@ function Benchmark(fn, options) {
   });
 }
 
-// run ab against a server.
-Benchmark.prototype.ab = function(path, args, cb) {
-  var url = 'http://127.0.0.1:' + exports.PORT + path;
-  args.push(url);
-
+// benchmark an http server.
+Benchmark.prototype.http = function(p, args, cb) {
   var self = this;
-  var out = '';
+  var wrk = path.resolve(__dirname, '..', 'tools', 'wrk', 'wrk');
+  var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
   var spawn = require('child_process').spawn;
-  // console.error('ab %s', args.join(' '));
-  var child = spawn('ab', args);
+  var url = 'http://127.0.0.1:' + exports.PORT + p;
+
+  args = args.concat(url);
+
+  var out = '';
+  var child = spawn(wrk, args);
 
   child.stdout.setEncoding('utf8');
 
@@ -81,14 +82,14 @@ Benchmark.prototype.ab = function(path, args, cb) {
       cb(code);
 
     if (code) {
-      console.error('ab failed with ' + code);
+      console.error('wrk failed with ' + code);
       process.exit(code)
     }
-    var m = out.match(/Requests per second: +([0-9\.]+)/);
+    var m = out.match(regexp);
     var qps = m && +m[1];
     if (!qps) {
-      process.stderr.write(out + '\n');
-      console.error('ab produced strange output');
+      console.error('%j', out);
+      console.error('wrk produced strange output');
       process.exit(1);
     }
     self.report(+qps);

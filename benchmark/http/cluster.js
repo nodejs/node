@@ -7,7 +7,7 @@ if (cluster.isMaster) {
     // unicode confuses ab on os x.
     type: ['bytes', 'buffer'],
     length: [4, 1024, 102400],
-    c: [50, 150]
+    c: [50, 500]
   });
 } else {
   require('../http_simple.js');
@@ -27,11 +27,12 @@ function main(conf) {
     setTimeout(function() {
       var path = '/' + conf.type + '/' + conf.length;
       var args = ['-r', '-t', 5, '-c', conf.c, '-k'];
+      var args = ['-r', 5000, '-t', 8, '-c', conf.c];
 
-      bench.ab(path, args, function() {
+      bench.http(path, args, function() {
         w1.destroy();
         w2.destroy();
       });
-    }, 2000);
+    }, 100);
   });
 }

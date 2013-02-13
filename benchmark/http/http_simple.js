@@ -5,7 +5,7 @@ var bench = common.createBenchmark(main, {
   // unicode confuses ab on os x.
   type: ['bytes', 'buffer'],
   length: [4, 1024, 102400],
-  c: [50, 150]
+  c: [50, 500]
 });
 
 function main(conf) {
@@ -15,14 +15,9 @@ function main(conf) {
   var server = spawn(process.execPath, [simple]);
   setTimeout(function() {
     var path = '/' + conf.type + '/' + conf.length; //+ '/' + conf.chunks;
-    var args = ['-r', '-t', 5];
+    var args = ['-r', 5000, '-t', 8, '-c', conf.c];
 
-    if (+conf.c !== 1)
-      args.push('-c', conf.c);
-
-    args.push('-k');
-
-    bench.ab(path, args, function() {
+    bench.http(path, args, function() {
       server.kill();
     });
   }, 2000);

@@ -313,6 +313,10 @@ dist-upload: $(TARBALL) $(PKG)
 	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
 	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
+wrkclean:
+	$(MAKE) -C tools/wrk/ clean
+	rm tools/wrk/wrk
+
 wrk: tools/wrk/wrk
 tools/wrk/wrk:
 	$(MAKE) -C tools/wrk/
@@ -323,7 +327,7 @@ bench-net: all
 bench-tls: all
 	@$(NODE) benchmark/common.js tls
 
-bench-http: all
+bench-http: wrk all
 	@$(NODE) benchmark/common.js http
 
 bench-fs: all
