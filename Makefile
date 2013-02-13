@@ -313,6 +313,10 @@ dist-upload: $(TARBALL) $(PKG)
 	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
 	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
+wrk: tools/wrk/wrk
+tools/wrk/wrk:
+	$(MAKE) -C tools/wrk/
+
 bench-net: all
 	@$(NODE) benchmark/common.js net
 

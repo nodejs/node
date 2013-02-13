@@ -1,0 +1,37 @@
+wrk - a HTTP benchmarking tool
+
+  wrk is a modern HTTP benchmarking tool capable of generating significant
+  load when run on a single multi-core CPU. It combines a multithreaded
+  design with scalable event notification systems such as epoll and kqueue.
+
+Basic Usage
+
+  wrk -t8 -c400 -r10m http://localhost:8080/index.html
+
+  This runs wrk with 8 threads, keeping 400 connections open, and making a
+  total of 10 million HTTP GET requests to http://localhost:8080/index.html
+
+  Output:
+
+  Making 10000000 requests to http://localhost:8080/index.html
+    8 threads and 400 connections
+    Thread Stats   Avg      Stdev     Max   +/- Stdev
+      Latency   439.75us  350.49us   7.60ms   92.88%
+      Req/Sec    61.13k     8.26k   72.00k    87.54%
+    10000088 requests in 19.87s, 3.42GB read
+  Requests/sec: 503396.23
+  Transfer/sec:    176.16MB
+
+Benchmarking Tips
+
+  The machine running wrk must have a sufficient number of ephemeral ports
+  available and closed sockets should be recycled quickly. To handle the
+  initial connection burst the server's listen(2) backlog should be greater
+  than the number of concurrent connections being tested.
+
+Acknowledgements
+
+  wrk contains code from a number of open source projects including the
+  'ae' event loop from redis, the nginx/joyent/node.js 'http-parser' and
+  the Tiny Mersenne Twister PRNG. Please consult the NOTICE file for
+  licensing details.
