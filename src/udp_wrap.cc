@@ -31,9 +31,19 @@
 #define SLAB_SIZE (1024 * 1024)
 
 
-using namespace v8;
-
 namespace node {
+
+using v8::Arguments;
+using v8::Function;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Object;
+using v8::Persistent;
+using v8::String;
+using v8::Value;
 
 typedef ReqWrap<uv_udp_send_t> SendWrap;
 
