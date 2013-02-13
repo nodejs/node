@@ -2,6 +2,7 @@ category: npm
 title: Peer Dependencies
 date: 2013-02-08T00:00:00Z
 author: Domenic Denicola
+slug: peer-dependencies
 
 <i>Reposted from [Domenic's
 blog](http://domenic.me/2013/02/08/peer-dependencies/) with
