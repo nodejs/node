@@ -10,6 +10,8 @@ namespace node {
 class UDPWrap: public HandleWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
+  static v8::Handle<v8::Value> GetFD(v8::Local<v8::String>,
+                                     const v8::AccessorInfo&);
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> Bind(const v8::Arguments& args);
   static v8::Handle<v8::Value> Send(const v8::Arguments& args);

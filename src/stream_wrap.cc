@@ -38,22 +38,22 @@
 
 namespace node {
 
-using v8::Object;
-using v8::Handle;
-using v8::Local;
-using v8::Persistent;
-using v8::Value;
-using v8::HandleScope;
-using v8::FunctionTemplate;
-using v8::String;
-using v8::Function;
-using v8::TryCatch;
-using v8::Context;
+using v8::AccessorInfo;
 using v8::Arguments;
-using v8::Integer;
-using v8::Number;
+using v8::Context;
 using v8::Exception;
-
+using v8::Function;
+using v8::FunctionTemplate;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Number;
+using v8::Object;
+using v8::Persistent;
+using v8::String;
+using v8::TryCatch;
+using v8::Value;
 
 typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 
@@ -114,6 +114,19 @@ StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
   if (stream) {
     stream->data = this;
   }
+}
+
+
+Handle<Value> StreamWrap::GetFD(Local<String>, const AccessorInfo& args) {
+#if defined(_WIN32)
+  return v8::Null(node_isolate);
+#else
+  HandleScope scope;
+  UNWRAP(StreamWrap)
+  int fd = -1;
+  if (wrap != NULL && wrap->stream_ != NULL) fd = wrap->stream_->io_watcher.fd;
+  return scope.Close(Integer::New(fd, node_isolate));
+#endif
 }
 
 
