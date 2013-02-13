@@ -110,7 +110,7 @@ function compare() {
     var n0 = res[nodes[0]];
     var n1 = res[nodes[1]];
 
-    var pct = ((n0 - n1) / ((n0 + n1) / 2) * 100).toFixed(2);
+    var pct = ((n0 - n1) / n1 * 100).toFixed(2);
 
     var g = n0 > n1 ? green : '';
     var r = n0 > n1 ? '' : red;
