@@ -309,17 +309,24 @@
   startup.processNextTick = function() {
     var _needTickCallback = process._needTickCallback;
     var nextTickQueue = [];
-    var nextTickQueueLength = 0;
-    var nextTickIndex = 0;
-    var tickDepth = 0;
     var usingDomains = false;
     var needSpinner = true;
     var inTick = false;
 
+    // this infobox thing is used so that the C++ code in src/node.cc
+    // can have easy accesss to our nextTick state, and avoid unnecessary
+    // calls into process._tickCallback.
+    // order is [length, index, depth]
+    // Never write code like this without very good reason!
+    var infoBox = process._tickInfoBox;
+    var length = 0;
+    var index = 1;
+    var depth = 2;
+
     process._tickCallback = _tickCallback;
     process._tickFromSpinner = _tickFromSpinner;
     // needs to be accessible from cc land
-    process._tickWDCallback = _tickWDCallback;
+    process._tickDomainCallback = _tickDomainCallback;
     process.nextTick = nextTick;
 
     // the maximum number of times it'll process something like
@@ -332,13 +339,13 @@
     process.maxTickDepth = 1000;
 
     function tickDone(tickDepth_) {
-      if (nextTickQueueLength !== 0) {
-        if (nextTickQueueLength <= nextTickIndex) {
+      if (infoBox[length] !== 0) {
+        if (infoBox[length] <= infoBox[index]) {
           nextTickQueue = [];
-          nextTickQueueLength = 0;
+          infoBox[length] = 0;
         } else {
-          nextTickQueue.splice(0, nextTickIndex);
-          nextTickQueueLength = nextTickQueue.length;
+          nextTickQueue.splice(0, infoBox[index]);
+          infoBox[length] = nextTickQueue.length;
           if (needSpinner) {
             _needTickCallback();
             needSpinner = false;
@@ -346,8 +353,8 @@
         }
       }
       inTick = false;
-      nextTickIndex = 0;
-      tickDepth = tickDepth_;
+      infoBox[index] = 0;
+      infoBox[depth] = tickDepth_;
     }
 
     function maxTickWarn() {
@@ -364,44 +371,43 @@
     function _tickFromSpinner() {
       needSpinner = true;
       // coming from spinner, reset!
-      if (tickDepth !== 0)
-        tickDepth = 0;
+      if (infoBox[depth] !== 0)
+        infoBox[depth] = 0;
       // no callbacks to run
-      if (nextTickQueueLength === 0)
-        return nextTickIndex = tickDepth = 0;
-      if (nextTickQueue[nextTickQueueLength - 1].domain)
-        _tickWDCallback();
+      if (infoBox[length] === 0)
+        return infoBox[index] = infoBox[depth] = 0;
+      if (nextTickQueue[infoBox[length] - 1].domain)
+        _tickDomainCallback();
       else
         _tickCallback();
     }
 
-    // run callback that have no domain
-    // this is very hot, so has been super optimized
-    // this will be overridden if user uses domains
+    // run callbacks that have no domain
+    // using domains will cause this to be overridden
     function _tickCallback() {
       var callback, nextTickLength, threw;
 
       if (inTick) return;
-      if (nextTickQueueLength === 0) {
-        nextTickIndex = 0;
-        tickDepth = 0;
+      if (infoBox[length] === 0) {
+        infoBox[index] = 0;
+        infoBox[depth] = 0;
         return;
       }
       inTick = true;
 
-      while (tickDepth++ < process.maxTickDepth) {
-        nextTickLength = nextTickQueueLength;
-        if (nextTickIndex === nextTickLength)
+      while (infoBox[depth]++ < process.maxTickDepth) {
+        nextTickLength = infoBox[length];
+        if (infoBox[index] === nextTickLength)
           return tickDone(0);
 
-        while (nextTickIndex < nextTickLength) {
-          callback = nextTickQueue[nextTickIndex++].callback;
+        while (infoBox[index] < nextTickLength) {
+          callback = nextTickQueue[infoBox[index]++].callback;
           threw = true;
           try {
             callback();
             threw = false;
           } finally {
-            if (threw) tickDone(tickDepth);
+            if (threw) tickDone(infoBox[depth]);
           }
         }
       }
@@ -409,7 +415,7 @@
       tickDone(0);
     }
 
-    function _tickWDCallback() {
+    function _tickDomainCallback() {
       var nextTickLength, tock, callback, threw;
 
       // if you add a nextTick in a domain's error handler, then
@@ -418,7 +424,7 @@
       // that error handler ALSO triggers multiple MakeCallbacks, then
       // it'll try to keep clearing the queue, since the finally block
       // fires *before* the error hits the top level and is handled.
-      if (tickDepth >= process.maxTickDepth)
+      if (infoBox[depth] >= process.maxTickDepth)
         return _needTickCallback();
 
       if (inTick) return;
@@ -426,15 +432,15 @@
 
       // always do this at least once.  otherwise if process.maxTickDepth
       // is set to some negative value, or if there were repeated errors
-      // preventing tickDepth from being cleared, we'd never process any
+      // preventing depth from being cleared, we'd never process any
       // of them.
-      while (tickDepth++ < process.maxTickDepth) {
-        nextTickLength = nextTickQueueLength;
-        if (nextTickIndex === nextTickLength)
+      while (infoBox[depth]++ < process.maxTickDepth) {
+        nextTickLength = infoBox[length];
+        if (infoBox[index] === nextTickLength)
           return tickDone(0);
 
-        while (nextTickIndex < nextTickLength) {
-          tock = nextTickQueue[nextTickIndex++];
+        while (infoBox[index] < nextTickLength) {
+          tock = nextTickQueue[infoBox[index]++];
           callback = tock.callback;
           if (tock.domain) {
             if (tock.domain._disposed) continue;
@@ -446,8 +452,8 @@
             threw = false;
           } finally {
             // finally blocks fire before the error hits the top level,
-            // so we can't clear the tickDepth at this point.
-            if (threw) tickDone(tickDepth);
+            // so we can't clear the depth at this point.
+            if (threw) tickDone(infoBox[depth]);
           }
           if (tock.domain) {
             tock.domain.exit();
@@ -462,7 +468,7 @@
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
         return;
-      if (tickDepth >= process.maxTickDepth)
+      if (infoBox[depth] >= process.maxTickDepth)
         maxTickWarn();
 
       var obj = { callback: callback };
@@ -470,13 +476,13 @@
         obj.domain = process.domain;
         // user has opt'd to use domains, so override default functionality
         if (!usingDomains) {
-          process._tickCallback = _tickWDCallback;
+          process._tickCallback = _tickDomainCallback;
           usingDomains = true;
         }
       }
 
       nextTickQueue.push(obj);
-      nextTickQueueLength++;
+      infoBox[length]++;
     }
   };
 

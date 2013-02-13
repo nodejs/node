@@ -100,7 +100,7 @@ Persistent<String> process_symbol;
 Persistent<String> domain_symbol;
 
 static Persistent<Object> process;
-static Persistent<Function> process_tickWDCallback;
+static Persistent<Function> process_tickDomainCallback;
 static Persistent<Function> process_tickFromSpinner;
 static Persistent<Function> process_tickCallback;
 
@@ -144,6 +144,12 @@ static uv_idle_t idle_immediate_dummy;
 static bool need_immediate_cb;
 static Persistent<String> immediate_callback_sym;
 
+// for quick ref to tickCallback values
+struct {
+  uint32_t length;
+  uint32_t index;
+  uint32_t depth;
+} tick_infobox;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 static bool use_npn = true;
@@ -167,7 +173,10 @@ static uv_async_t dispatch_debug_messages_async;
 Isolate* node_isolate = NULL;
 
 
-static void Tick(void) {
+static void Spin(uv_idle_t* handle, int status) {
+  assert((uv_idle_t*) handle == &tick_spinner);
+  assert(status == 0);
+
   // Avoid entering a V8 scope.
   if (!need_tick_cb) return;
   need_tick_cb = false;
@@ -196,26 +205,9 @@ static void Tick(void) {
 }
 
 
-static void Spin(uv_idle_t* handle, int status) {
-  assert((uv_idle_t*) handle == &tick_spinner);
-  assert(status == 0);
-  Tick();
-}
-
-
-static void StartTickSpinner() {
-  need_tick_cb = true;
-  // TODO: this tick_spinner shouldn't be necessary. An ev_prepare should be
-  // sufficent, the problem is only in the case of the very last "tick" -
-  // there is nothing left to do in the event loop and libev will exit. The
-  // ev_prepare callback isn't called before exiting. Thus we start this
-  // tick_spinner to keep the event loop alive long enough to handle it.
-  uv_idle_start(&tick_spinner, Spin);
-}
-
-
 static Handle<Value> NeedTickCallback(const Arguments& args) {
-  StartTickSpinner();
+  need_tick_cb = true;
+  uv_idle_start(&tick_spinner, Spin);
   return Undefined(node_isolate);
 }
 
@@ -905,19 +897,19 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 
 
 Handle<Value>
-MCWithDomain(const Handle<Object> object,
+MakeDomainCallback(const Handle<Object> object,
              const Handle<Function> callback,
              int argc,
              Handle<Value> argv[]) {
-  // lazy load _tickWDCallback
-  if (process_tickWDCallback.IsEmpty()) {
-    Local<Value> cb_v = process->Get(String::New("_tickWDCallback"));
+  // lazy load _tickDomainCallback
+  if (process_tickDomainCallback.IsEmpty()) {
+    Local<Value> cb_v = process->Get(String::New("_tickDomainCallback"));
     if (!cb_v->IsFunction()) {
-      fprintf(stderr, "process._tickWDCallback assigned to non-function\n");
+      fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
       abort();
     }
     Local<Function> cb = cb_v.As<Function>();
-    process_tickWDCallback = Persistent<Function>::New(cb);
+    process_tickDomainCallback = Persistent<Function>::New(cb);
   }
 
   // lazy load domain specific symbols
@@ -965,8 +957,14 @@ MCWithDomain(const Handle<Object> object,
     return Undefined(node_isolate);
   }
 
+  if (tick_infobox.length == 0) {
+    tick_infobox.index = 0;
+    tick_infobox.depth = 0;
+    return ret;
+  }
+
   // process nextTicks after call
-  process_tickWDCallback->Call(process, 0, NULL);
+  process_tickDomainCallback->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -984,16 +982,14 @@ MakeCallback(const Handle<Object> object,
              Handle<Value> argv[]) {
   HandleScope scope;
 
-  Local<Value> callback_v = object->Get(symbol);
-  if (!callback_v->IsFunction()) {
-    String::Utf8Value method(symbol);
-    fprintf(stderr, "Non-function in MakeCallback. method = %s\n", *method);
-    abort();
-  }
-
-  Local<Function> callback = Local<Function>::Cast(callback_v);
+  Local<Function> callback = object->Get(symbol).As<Function>();
+  Local<Value> domain = object->Get(domain_symbol);
 
   // TODO Hook for long stack traces to be made here.
+
+  // has domain, off with you
+  if (!domain->IsNull() && !domain->IsUndefined())
+    return scope.Close(MakeDomainCallback(object, callback, argc, argv));
 
   // lazy load no domain next tick callbacks
   if (process_tickCallback.IsEmpty()) {
@@ -1006,12 +1002,6 @@ MakeCallback(const Handle<Object> object,
     process_tickCallback = Persistent<Function>::New(cb);
   }
 
-  // has domain, off with you
-  if (object->Has(domain_symbol) &&
-      !object->Get(domain_symbol)->IsNull() &&
-      !object->Get(domain_symbol)->IsUndefined())
-    return scope.Close(MCWithDomain(object, callback, argc, argv));
-
   TryCatch try_catch;
 
   Local<Value> ret = callback->Call(object, argc, argv);
@@ -1019,6 +1009,12 @@ MakeCallback(const Handle<Object> object,
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
     return Undefined(node_isolate);
+  }
+
+  if (tick_infobox.length == 0) {
+    tick_infobox.index = 0;
+    tick_infobox.depth = 0;
+    return scope.Close(ret);
   }
 
   // process nextTicks after call
@@ -2476,6 +2472,13 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   NODE_SET_METHOD(process, "binding", Binding);
+
+  // values use to cross communicate with processNextTick
+  Local<Object> info_box = Object::New();
+  info_box->SetIndexedPropertiesToExternalArrayData(&tick_infobox,
+                                                    kExternalUnsignedIntArray,
+                                                    3);
+  process->Set(String::NewSymbol("_tickInfoBox"), info_box);
 
   return process;
 }
