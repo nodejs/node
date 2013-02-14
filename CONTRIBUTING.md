@@ -29,10 +29,10 @@ In a nutshell, modules are at varying levels of API stability.  Bug fixes are
 always welcome but API or behavioral  changes to modules at stability level 3
 and up are off-limits.
 
-Node.js has several bundled dependencies in the deps/ directory that are not
-part of the project proper.  Any changes to files in that directory or its
-subdirectories should be sent to their respective projects.  Do not send
-that patch to us, we cannot accept it.
+Node.js has several bundled dependencies in the deps/ and the tools/
+directories that are not part of the project proper.  Any changes to files
+in those directories or its subdirectories should be sent to their respective
+projects.  Do not send your patch to us, we cannot accept it.
 
 In case of doubt, open an issue in the [issue tracker][], post your question
 to the [node.js mailing list][] or contact one of the [project maintainers][]
