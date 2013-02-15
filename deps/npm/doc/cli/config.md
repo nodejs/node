@@ -36,11 +36,15 @@ work the same.
 `$HOME/.npmrc` (or the `userconfig` param, if set above)
 
 This file is an ini-file formatted list of `key = value` parameters.
+Environment variables can be replaced using `${VARIABLE_NAME}`. For example:
+
+    prefix = ${HOME}/.npm-packages
 
 ### Global config file
 
 `$PREFIX/etc/npmrc` (or the `globalconfig` param, if set above):
-This file is an ini-file formatted list of `key = value` parameters
+This file is an ini-file formatted list of `key = value` parameters.
+Environment variables can be replaced as above.
 
 ### Built-in config file
 

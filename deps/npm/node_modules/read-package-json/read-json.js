@@ -554,14 +554,19 @@ function warn (f, d, m) {
 
 
 function validName (file, data) {
-                if (!data.name) return new Error("No 'name' field")
+                if (!data.name) {
+                                data.name = ""
+                                return true
+                }
                 data.name = data.name.trim()
                 if (data.name.charAt(0) === "." ||
                     data.name.match(/[\/@\s\+%:]/) ||
+                    data.name !== encodeURIComponent(data.name) ||
                     data.name.toLowerCase() === "node_modules" ||
                     data.name.toLowerCase() === "favicon.ico") {
-                                return new Error("Invalid name: " +
-                                                 JSON.stringify(data.name))
+                                var m = "Invalid name: "
+                                m += JSON.stringify(data.name)
+                                return new Error(m)
                 }
                 return true
 }
@@ -577,7 +582,10 @@ function parseKeywords (file, data) {
 
 function validVersion (file, data) {
                 var v = data.version
-                if (!v) return new Error("no version");
+                if (!v) {
+                                data.version = ""
+                                return true
+                }
                 if (!semver.valid(v)) {
                                 return new Error("invalid version: "+v)
                 }

@@ -32,6 +32,7 @@ function publish (args, isRetry, cb) {
   var arg = args[0]
   // if it's a local folder, then run the prepublish there, first.
   readJson(path.resolve(arg, "package.json"), function (er, data) {
+    er = needVersion(er, data)
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     // error is ok.  could be publishing a url or tarball
     // however, that means that we will not have automatically run
@@ -104,4 +105,10 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
     console.log("+ " + data._id)
     cb()
   })
+}
+
+function needVersion(er, data) {
+  return er ? er
+       : (data && !data.version) ? new Error("No version provided")
+       : null
 }

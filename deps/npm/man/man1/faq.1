@@ -89,6 +89,56 @@ Write your own package manager, then\.  It\'s not that hard\.
 .P
 npm will not help you do something that is known to be a bad idea\.
 .
+.SH "<code>&quot;node_modules&quot;</code>"
+No\.  This will never happen\.  This question comes up sometimes,
+because it seems silly from the outside that npm couldn\'t just be
+configured to put stuff somewhere else, and then npm could load them
+from there\.  It\'s an arbitrary spelling choice, right?  What\'s the bg
+deal?
+.
+.P
+At the time of this writing, the string \fB\'node_modules\'\fR appears 151
+times in 53 separate files in npm and node core (excluding tests and
+documentation)\.
+.
+.P
+Some of these references are in node\'s built\-in module loader\.  Since
+npm is not involved \fBat all\fR at run\-time, node itself would have to
+be configured to know where you\'ve decided to stick stuff\.  Complexity
+hurdle #1\.  Since the Node module system is locked, this cannot be
+changed, and is enough to kill this request\.  But I\'ll continue, in
+deference to your deity\'s delicate feelings regarding spelling\.
+.
+.P
+Many of the others are in dependencies that npm uses, which are not
+necessarily tightly coupled to npm (in the sense that they do not read
+npm\'s configuration files, etc\.)  Each of these would have to be
+configured to take the name of the \fBnode_modules\fR folder as a
+parameter\.  Complexity hurdle #2\.
+.
+.P
+Furthermore, npm has the ability to "bundle" dependencies by adding
+the dep names to the \fB"bundledDependencies"\fR list in package\.json,
+which causes the folder to be included in the package tarball\.  What
+if the author of a module bundles its dependencies, and they use a
+different spelling for \fBnode_modules\fR?  npm would have to rename the
+folder at publish time, and then be smart enough to unpack it using
+your locally configured name\.  Complexity hurdle #3\.
+.
+.P
+Furthermore, what happens when you \fIchange\fR this name?  Fine, it\'s
+easy enough the first time, just rename the \fBnode_modules\fR folders to \fB\|\./blergyblerp/\fR or whatever name you choose\.  But what about when you
+change it again?  npm doesn\'t currently track any state about past
+configuration settings, so this would be rather difficult to do
+properly\.  It would have to track every previous value for this
+config, and always accept any of them, or else yesterday\'s install may
+be broken tomorrow\.  Complexity hurdle #5\.
+.
+.P
+Never going to happen\.  The folder is named \fBnode_modules\fR\|\.  It is
+written indelibly in the Node Way, handed down from the ancient times
+of Node 0\.3\.
+.
 .SH "Should I check my "
 Mikeal Rogers answered this question very well:
 .
