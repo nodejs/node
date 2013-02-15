@@ -649,7 +649,7 @@ function targetResolver (where, context, deps) {
     }
 
     if (wrap) {
-      name = what.split(/@/).shift()
+      var name = what.split(/@/).shift()
       if (wrap[name]) {
         var wrapTarget = readWrap(wrap[name])
         what = name + "@" + wrapTarget

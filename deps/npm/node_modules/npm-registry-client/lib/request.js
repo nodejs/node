@@ -8,7 +8,8 @@ var url = require("url")
   , request = require("request")
   , retry = require("retry")
 
-function regRequest (method, where, what, etag, nofollow, cb_) {
+function regRequest (method, where, what, etag, nofollow, reauthed, cb_) {
+  if (typeof cb_ !== "function") cb_ = reauthed, reauthed = false
   if (typeof cb_ !== "function") cb_ = nofollow, nofollow = false
   if (typeof cb_ !== "function") cb_ = etag, etag = null
   if (typeof cb_ !== "function") cb_ = what, what = null
@@ -84,7 +85,7 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
         this.conf.set('_token', this.couchLogin.token)
         return regRequest.call(this,
                                method, where, what,
-                               etag, nofollow, cb_)
+                               etag, nofollow, reauthed, cb_)
       }.bind(this))
     }
   }
@@ -123,14 +124,22 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
 
       // Only retry on 408, 5xx or no `response`.
       var statusCode = response && response.statusCode
-      var reauth = statusCode === 401
+
+      var reauth = !reauthed &&
+                   ( statusCode === 401 ||
+                     statusCode === 400 ||
+                     statusCode === 403 )
+      if (reauth)
+        reauthed = true
+
       var timeout = statusCode === 408
       var serverError = statusCode >= 500
       var statusRetry = !statusCode || timeout || serverError
       if (reauth && this.conf.get('_auth') && this.conf.get('_token')) {
         this.conf.del('_token')
         this.couchLogin.token = null
-        return regRequest.call(this, method, where, what, etag, nofollow, cb_)
+        return regRequest.call(this, method, where, what,
+                               etag, nofollow, reauthed, cb_)
       }
       if (er && statusRetry && operation.retry(er)) {
         self.log.info("retry", "will retry, error on last attempt: " + er)

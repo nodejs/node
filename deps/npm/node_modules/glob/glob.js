@@ -325,9 +325,7 @@ Glob.prototype._process = function (pattern, depth, index, cb_) {
         if (exists) {
           if (prefix && isAbsolute(prefix) && !this.nomount) {
 	    if (prefix.charAt(0) === "/") {
-	      console.error('JOIN 0', this.root, prefix)
               prefix = path.join(this.root, prefix)
-	      console.error('JOIN 1', this.root, prefix)
 	    } else {
 	      prefix = path.resolve(this.root, prefix)
 	    }
@@ -364,9 +362,7 @@ Glob.prototype._process = function (pattern, depth, index, cb_) {
   if (prefix === null) read = "."
   else if (isAbsolute(prefix) || isAbsolute(pattern.join("/"))) {
     if (!prefix || !isAbsolute(prefix)) {
-	    console.error('JOIN 1', "/", prefix)
       prefix = path.join("/", prefix)
-	    console.error('JOIN 2', "/", prefix)
     }
     read = prefix = path.resolve(prefix)
 
@@ -444,9 +440,7 @@ Glob.prototype._process = function (pattern, depth, index, cb_) {
           else e = prefix + e
         }
         if (e.charAt(0) === "/" && !this.nomount) {
-	    console.error('JOIN 3', this.root, e)
           e = path.join(this.root, e)
-	    console.error('JOIN 4', this.root, e)
         }
 
         if (process.platform === "win32")
@@ -481,9 +475,7 @@ Glob.prototype._stat = function (f, cb) {
   assert(this instanceof Glob)
   var abs = f
   if (f.charAt(0) === "/") {
-	    console.error('JOIN 5', this.root, f)
     abs = path.join(this.root, f)
-	    console.error('JOIN 6', this.root, f)
   } else if (this.changedCwd) {
     abs = path.resolve(this.cwd, f)
   }
@@ -541,9 +533,7 @@ Glob.prototype._readdir = function (f, cb) {
   assert(this instanceof Glob)
   var abs = f
   if (f.charAt(0) === "/") {
-	    console.error('JOIN 5', this.root, f)
     abs = path.join(this.root, f)
-	    console.error('JOIN 5', abs)
   } else if (isAbsolute(f)) {
     abs = f
   } else if (this.changedCwd) {

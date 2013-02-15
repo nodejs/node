@@ -40,10 +40,21 @@ work the same\.
 .
 .P
 This file is an ini\-file formatted list of \fBkey = value\fR parameters\.
+Environment variables can be replaced using \fB${VARIABLE_NAME}\fR\|\. For example:
+.
+.IP "" 4
+.
+.nf
+prefix = ${HOME}/\.npm\-packages
+.
+.fi
+.
+.IP "" 0
 .
 .SS "Global config file"
 \fB$PREFIX/etc/npmrc\fR (or the \fBglobalconfig\fR param, if set above):
-This file is an ini\-file formatted list of \fBkey = value\fR parameters
+This file is an ini\-file formatted list of \fBkey = value\fR parameters\.
+Environment variables can be replaced as above\.
 .
 .SS "Built\-in config file"
 \fBpath/to/npm/itself/npmrc\fR

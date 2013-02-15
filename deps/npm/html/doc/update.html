@@ -10,7 +10,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm update [&lt;name&gt; [&lt;name&gt; ...]]</code></pre>
+<pre><code>npm update [-g] [&lt;name&gt; [&lt;name&gt; ...]]</code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -19,11 +19,14 @@
 
 <p>It will also install missing packages.</p>
 
+<p>If the <code>-g</code> flag is specified, this command will update globally installed packages.
+If no package name is specified, all packages in the specified location (global or local) will be updated.</p>
+
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/outdated.html">outdated(1)</a></li><li><a href="../doc/registry.html">registry(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/list.html">list(1)</a></li></ul>
 </div>
-<p id="footer">update &mdash; npm@1.2.10</p>
+<p id="footer">update &mdash; npm@1.2.11</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

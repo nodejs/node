@@ -1,33 +1,31 @@
 <!doctype html>
 <html>
-  <title>restart</title>
+  <title>stars</title>
   <meta http-equiv="content-type" value="text/html;utf-8">
   <link rel="stylesheet" type="text/css" href="../static/style.css">
 
   <body>
     <div id="wrapper">
-<h1><a href="../api/restart.html">restart</a></h1> <p>Start a package</p>
+<h1><a href="../doc/stars.html">stars</a></h1> <p>View packages marked as favorites</p>
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<pre><code>npm.commands.restart(packages, callback)</code></pre>
+<pre><code>npm stars
+npm stars [username]</code></pre>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p>This runs a package&#39;s &quot;restart&quot; script, if one was provided.
-Otherwise it runs package&#39;s &quot;stop&quot; script, if one was provided, and then
-the &quot;start&quot; script.</p>
+<p>If you have starred a lot of neat things and want to find them again
+quickly this command lets you do just that.</p>
 
-<p>If no version is specified, then it restarts the &quot;active&quot; version.</p>
-
-<p>npm can run tests on multiple packages. Just specify multiple packages
-in the <code>packages</code> parameter.</p>
+<p>You may also want to see your friend&#39;s favorite packages, in this case
+you will most certainly enjoy this command.</p>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
-<ul><li><a href="../api/start.html">start(3)</a></li><li><a href="../api/stop.html">stop(3)</a></li></ul>
+<ul><li><a href="../doc/star.html">star(1)</a></li><li><a href="../doc/view.html">view(1)</a></li><li><a href="../doc/whoami.html">whoami(1)</a></li><li><a href="../doc/adduser.html">adduser(1)</a></li></ul>
 </div>
-<p id="footer">restart &mdash; npm@1.2.11</p>
+<p id="footer">stars &mdash; npm@1.2.11</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
