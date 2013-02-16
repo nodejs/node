@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
-process.env.NODE_DEBUGGER_TIMEOUT = 200;
+process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var common = require('../common');
 var assert = require('assert');
 var spawn = require('child_process').spawn;

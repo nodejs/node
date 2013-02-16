@@ -22,7 +22,7 @@
 
 
 
-process.env.NODE_DEBUGGER_TIMEOUT = 200;
+process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var common = require('../common');
 var assert = require('assert');
 var debug = require('_debugger');
