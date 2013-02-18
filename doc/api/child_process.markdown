@@ -41,6 +41,10 @@ See `waitpid(2)`.
 
 ### Event: 'close'
 
+* `code` {Number} the exit code, if it exited normally.
+* `signal` {String} the signal passed to kill the child process, if it
+  was killed by the parent.
+
 This event is emitted when the stdio streams of a child process have all
 terminated.  This is distinct from 'exit', since multiple processes
 might share the same stdio streams.
@@ -112,7 +116,7 @@ be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.
     var spawn = require('child_process').spawn,
         grep  = spawn('grep', ['ssh']);
 
-    grep.on('exit', function (code, signal) {
+    grep.on('close', function (code, signal) {
       console.log('child process terminated due to receipt of signal '+signal);
     });
 
@@ -279,7 +283,7 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
       console.log('stderr: ' + data);
     });
 
-    ls.on('exit', function (code) {
+    ls.on('close', function (code) {
       console.log('child process exited with code ' + code);
     });
 
@@ -298,7 +302,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
       console.log('ps stderr: ' + data);
     });
 
-    ps.on('exit', function (code) {
+    ps.on('close', function (code) {
       if (code !== 0) {
         console.log('ps process exited with code ' + code);
       }
@@ -313,7 +317,7 @@ Example: A very elaborate way to run 'ps ax | grep ssh'
       console.log('grep stderr: ' + data);
     });
 
-    grep.on('exit', function (code) {
+    grep.on('close', function (code) {
       if (code !== 0) {
         console.log('grep process exited with code ' + code);
       }
