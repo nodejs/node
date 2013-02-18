@@ -19,11 +19,11 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (process.platform === 'win32') {
-  var assert = require('assert');
-  var path = require('path');
-  var common = require('../common');
+var assert = require('assert');
+var path = require('path');
+var common = require('../common');
 
+if (process.platform === 'win32') {
   var file = path.join(common.fixturesDir, 'a.js');
   var resolvedFile = path.resolve(file);
 
@@ -36,3 +36,9 @@ if (process.platform === 'win32') {
   assert.equal('\\\\.\\pipe\\somepipe',
                path._makeLong('\\\\.\\pipe\\somepipe'));
 }
+
+assert.equal(path._makeLong(null), null);
+assert.equal(path._makeLong(100), 100);
+assert.equal(path._makeLong(path), path);
+assert.equal(path._makeLong(false), false);
+assert.equal(path._makeLong(true), true);
