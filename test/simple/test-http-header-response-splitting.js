@@ -27,7 +27,6 @@ var testIndex = 0,
     responses = 0;
 
 var server = http.createServer(function(req, res) {
-  console.error('request', testIndex);
   switch (testIndex++) {
     case 0:
       res.writeHead(200, { test: 'foo \r\ninvalid: bar' });
@@ -42,7 +41,6 @@ var server = http.createServer(function(req, res) {
       res.writeHead(200, { test: 'foo \n\n\ninvalid: bar' });
       break;
     case 4:
-      console.error('send request, then close');
       res.writeHead(200, { test: 'foo \r\n \r\n \r\ninvalid: bar' });
       server.close();
       break;
@@ -51,6 +49,7 @@ var server = http.createServer(function(req, res) {
   }
   res.end('Hi mars!');
 });
+
 server.listen(common.PORT, function() {
   for (var i = 0; i < 5; i++) {
     var req = http.get({ port: common.PORT, path: '/' }, function(res) {

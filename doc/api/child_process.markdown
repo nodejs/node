@@ -434,6 +434,8 @@ See also: `child_process.exec()` and `child_process.fork()`
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
   * `stdio` {Array|String} Child's stdio configuration. (See above)
+    Only stdin is configurable, anything else will lead to unpredictable
+    results.
   * `customFds` {Array} **Deprecated** File descriptors for the child to use
     for stdio.  (See above)
   * `env` {Object} Environment key-value pairs

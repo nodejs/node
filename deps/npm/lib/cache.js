@@ -139,6 +139,7 @@ function read (name, ver, forceBypass, cb) {
   }
 
   readJson(jsonFile, function (er, data) {
+    er = needVersion(er, data)
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return addNamed(name, ver, c)
     deprCheck(data)
@@ -282,9 +283,11 @@ function fetchAndShaCheck (u, tmp, shasum, cb) {
       log.error("fetch failed", u)
       return cb(er, response)
     }
-    if (!shasum) return cb()
+    if (!shasum) return cb(null, response)
     // validate that the url we just downloaded matches the expected shasum.
-    sha.check(tmp, shasum, cb)
+    sha.check(tmp, shasum, function (er) {
+      return cb(er, response, shasum)
+    })
   })
 }
 
@@ -324,9 +327,9 @@ function addRemoteTarball (u, shasum, name, cb_) {
     })
   })
 
-  function done (er) {
+  function done (er, resp, shasum) {
     if (er) return cb(er)
-    addLocalTarball(tmp, name, cb)
+    addLocalTarball(tmp, name, shasum, cb)
   }
 }
 
@@ -342,7 +345,7 @@ function addRemoteTarball_(u, tmp, shasum, cb) {
   operation.attempt(function (currentAttempt) {
     log.info("retry", "fetch attempt " + currentAttempt
       + " at " + (new Date()).toLocaleTimeString())
-    fetchAndShaCheck(u, tmp, shasum, function (er, response) {
+    fetchAndShaCheck(u, tmp, shasum, function (er, response, shasum) {
       // Only retry on 408, 5xx or no `response`.
       var sc = response && response.statusCode
       var statusRetry = !sc || (sc === 408 || sc >= 500)
@@ -350,7 +353,7 @@ function addRemoteTarball_(u, tmp, shasum, cb) {
         log.info("retry", "will retry, error on last attempt: " + er)
         return
       }
-      cb(er)
+      cb(er, response, shasum)
     })
   })
 }
@@ -714,6 +717,7 @@ function addNameVersion (name, ver, data, cb) {
       if (!er) readJson( path.join( npm.cache, name, ver
                                   , "package", "package.json" )
                        , function (er, data) {
+          er = needVersion(er, data)
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           if (er) return fetchit()
           return cb(null, data)
@@ -732,6 +736,11 @@ function addNameVersion (name, ver, data, cb) {
       tb.protocol = url.parse(npm.config.get("registry")).protocol
       delete tb.href
       tb = url.format(tb)
+      // only add non-shasum'ed packages if --forced.
+      // only ancient things would lack this for good reasons nowadays.
+      if (!dist.shasum && !npm.config.get("force")) {
+        return cb(new Error("package lacks shasum"))
+      }
       return addRemoteTarball( tb
                              , dist.shasum
                              , name+"-"+ver
@@ -791,16 +800,18 @@ function maybeGithub (p, name, er, cb) {
   })
 }
 
-function addLocalTarball (p, name, cb_) {
+function addLocalTarball (p, name, shasum, cb_) {
+  if (typeof cb_ !== "function") cb_ = shasum, shasum = null
   if (typeof cb_ !== "function") cb_ = name, name = ""
   // if it's a tar, and not in place,
   // then unzip to .tmp, add the tmp folder, and clean up tmp
-  if (p.indexOf(npm.tmp) === 0) return addTmpTarball(p, name, cb_)
+  if (p.indexOf(npm.tmp) === 0)
+    return addTmpTarball(p, name, shasum, cb_)
 
   if (p.indexOf(npm.cache) === 0) {
     if (path.basename(p) !== "package.tgz") return cb_(new Error(
       "Not a valid cache tarball name: "+p))
-    return addPlacedTarball(p, name, cb_)
+    return addPlacedTarball(p, name, shasum, cb_)
   }
 
   function cb (er, data) {
@@ -827,7 +838,7 @@ function addLocalTarball (p, name, cb_) {
       log.verbose("chmod", tmp, npm.modes.file.toString(8))
       fs.chmod(tmp, npm.modes.file, function (er) {
         if (er) return cb(er)
-        addTmpTarball(tmp, name, cb)
+        addTmpTarball(tmp, name, shasum, cb)
       })
     })
     from.pipe(to)
@@ -890,15 +901,74 @@ function makeCacheDir (cb) {
 
 
 
-function addPlacedTarball (p, name, cb) {
+function addPlacedTarball (p, name, shasum, cb) {
   if (!cb) cb = name, name = ""
   getCacheStat(function (er, cs) {
     if (er) return cb(er)
-    return addPlacedTarball_(p, name, cs.uid, cs.gid, cb)
+    return addPlacedTarball_(p, name, cs.uid, cs.gid, shasum, cb)
   })
 }
 
-function addPlacedTarball_ (p, name, uid, gid, cb) {
+// Resolved sum is the shasum from the registry dist object, but
+// *not* necessarily the shasum of this tarball, because for stupid
+// historical reasons, npm re-packs each package an extra time through
+// a temp directory, so all installed packages are actually built with
+// *this* version of npm, on this machine.
+//
+// Once upon a time, this meant that we could change package formats
+// around and fix junk that might be added by incompatible tar
+// implementations.  Then, for a while, it was a way to correct bs
+// added by bugs in our own tar implementation.  Now, it's just
+// garbage, but cleaning it up is a pain, and likely to cause issues
+// if anything is overlooked, so it's not high priority.
+//
+// If you're bored, and looking to make npm go faster, and you've
+// already made it this far in this file, here's a better methodology:
+//
+// cache.add should really be cache.place.  That is, it should take
+// a set of arguments like it does now, but then also a destination
+// folder.
+//
+// cache.add('foo@bar', '/path/node_modules/foo', cb)
+//
+// 1. Resolve 'foo@bar' to some specific:
+//   - git url
+//   - local folder
+//   - local tarball
+//   - tarball url
+// 2. If resolved through the registry, then pick up the dist.shasum
+// along the way.
+// 3. Acquire request() stream fetching bytes: FETCH
+// 4. FETCH.pipe(tar unpack stream to dest)
+// 5. FETCH.pipe(shasum generator)
+// When the tar and shasum streams both finish, make sure that the
+// shasum matches dist.shasum, and if not, clean up and bail.
+//
+// publish(cb)
+//
+// 1. read package.json
+// 2. get root package object (for rev, and versions)
+// 3. update root package doc with version info
+// 4. remove _attachments object
+// 5. remove versions object
+// 5. jsonify, remove last }
+// 6. get stream: registry.put(/package)
+// 7. write trailing-}-less JSON
+// 8. write "_attachments":
+// 9. JSON.stringify(attachments), remove trailing }
+// 10. Write start of attachments (stubs)
+// 11. JSON(filename)+':{"type":"application/octet-stream","data":"'
+// 12. acquire tar packing stream, PACK
+// 13. PACK.pipe(PUT)
+// 14. PACK.pipe(shasum generator)
+// 15. when PACK finishes, get shasum
+// 16. PUT.write('"}},') (finish _attachments
+// 17. update "versions" object with current package version
+// (including dist.shasum and dist.tarball)
+// 18. write '"versions":' + JSON(versions)
+// 19. write '}}' (versions, close main doc)
+
+function addPlacedTarball_ (p, name, uid, gid, resolvedSum, cb) {
   // now we know it's in place already as .cache/name/ver/package.tgz
   // unpack to .cache/name/ver/package/, read the package.json,
   // and fire cb with the json data.
@@ -936,13 +1006,15 @@ function addPlacedTarball_ (p, name, uid, gid, cb) {
           return cb(er)
         }
         readJson(path.join(folder, "package.json"), function (er, data) {
+          er = needVersion(er, data)
           if (er) {
             log.error("addPlacedTarball", "Couldn't read json in %j"
                      , folder)
             return cb(er)
           }
+
           data.dist = data.dist || {}
-          if (shasum) data.dist.shasum = shasum
+          data.dist.shasum = shasum
           deprCheck(data)
           asyncMap([p], function (f, cb) {
             log.verbose("chmod", f, npm.modes.file.toString(8))
@@ -970,13 +1042,17 @@ function addPlacedTarball_ (p, name, uid, gid, cb) {
   }
 }
 
-function addLocalDirectory (p, name, cb) {
+// At this point, if shasum is set, it's something that we've already
+// read and checked.  Just stashing it in the data at this point.
+function addLocalDirectory (p, name, shasum, cb) {
+  if (typeof cb !== "function") cb = shasum, shasum = ""
   if (typeof cb !== "function") cb = name, name = ""
   // if it's a folder, then read the package.json,
   // tar it to the proper place, and add the cache tar
   if (p.indexOf(npm.cache) === 0) return cb(new Error(
     "Adding a cache directory to the cache will make the world implode."))
   readJson(path.join(p, "package.json"), function (er, data) {
+    er = needVersion(er, data)
     if (er) return cb(er)
     deprCheck(data)
     var random = Date.now() + "-" + Math.random()
@@ -1004,7 +1080,7 @@ function addLocalDirectory (p, name, cb) {
 
           chownr(made || tgz, cs.uid, cs.gid, function (er) {
             if (er) return cb(er)
-            addLocalTarball(tgz, name, cb)
+            addLocalTarball(tgz, name, shasum, cb)
           })
         })
       })
@@ -1012,7 +1088,7 @@ function addLocalDirectory (p, name, cb) {
   })
 }
 
-function addTmpTarball (tgz, name, cb) {
+function addTmpTarball (tgz, name, shasum, cb) {
   if (!cb) cb = name, name = ""
   getCacheStat(function (er, cs) {
     if (er) return cb(er)
@@ -1024,7 +1100,7 @@ function addTmpTarball (tgz, name, cb) {
       if (er) {
         return cb(er)
       }
-      addLocalDirectory(path.resolve(contents, "package"), name, cb)
+      addLocalDirectory(path.resolve(contents, "package"), name, shasum, cb)
     })
   })
 }
@@ -1100,4 +1176,10 @@ function unlock (u, cb) {
   if (!myLocks[lf]) return process.nextTick(cb)
   myLocks[lf] = false
   lockFile.unlock(lockFileName(u), cb)
+}
+
+function needVersion(er, data) {
+  return er ? er
+       : (data && !data.version) ? new Error("No version provided")
+       : null
 }

@@ -190,6 +190,10 @@ npm-index(1) -- Index of all npm documentation
 
  Mark your favorite packages
 
+## npm-stars(1)
+
+ View packages marked as favorites
+
 ## npm-start(1)
 
  Start a package

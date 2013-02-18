@@ -5,16 +5,17 @@ var fs = require("graceful-fs")
   , binding
 
 try { binding = process.binding("crypto") }
-catch (e) { binding = null }
+catch (e) {
+  var er = new Error( "crypto binding not found.\n"
+                    + "Please build node with openssl.\n"
+                    + e.message )
+  throw er
+}
 
 exports.check = check
 exports.get = get
 
 function check (file, sum, cb) {
-  if (!binding) {
-    log.warn("shasum", "crypto binding not found. Cannot verify shasum.")
-    return cb()
-  }
   get(file, function (er, actual) {
     if (er) {
       log.error("shasum", "error getting shasum")
@@ -30,10 +31,6 @@ function check (file, sum, cb) {
 }
 
 function get (file, cb) {
-  if (!binding) {
-    log.warn("shasum", "crypto binding not found. Cannot verify shasum.")
-    return cb()
-  }
   var h = crypto.createHash("sha1")
     , s = fs.createReadStream(file)
     , errState = null

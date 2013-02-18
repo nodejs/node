@@ -9,7 +9,7 @@
 .SH "SYNOPSIS"
 .
 .nf
-npm update [<name> [<name> \.\.\.]]
+npm update [\-g] [<name> [<name> \.\.\.]]
 .
 .fi
 .
@@ -19,6 +19,10 @@ This command will update all the packages listed to the latest version
 .
 .P
 It will also install missing packages\.
+.
+.P
+If the \fB\-g\fR flag is specified, this command will update globally installed packages\.
+If no package name is specified, all packages in the specified location (global or local) will be updated\.
 .
 .SH "SEE ALSO"
 .

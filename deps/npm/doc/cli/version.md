@@ -27,7 +27,16 @@ resulting version number.  For example:
 
 If the `sign-git-tag` config is set, then the tag will be signed using
 the `-s` flag to git.  Note that you must have a default GPG key set up
-in your git config for this to work properly.
+in your git config for this to work properly.  For example:
+
+    $ npm config set sign-git-tag true
+    $ npm version patch
+
+    You need a passphrase to unlock the secret key for
+    user: "isaacs (http://blog.izs.me/) <i@izs.me>"
+    2048-bit RSA key, ID 6C481CF6, created 2010-08-31
+
+    Enter passphrase:
 
 ## SEE ALSO
 

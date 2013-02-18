@@ -354,6 +354,17 @@
 * Fix #3521 Make process.env more like a regular Object (isaacs)
 
 
+2013.02.15, Version 0.8.20 (Stable), e10c75579b536581ddd7ae4e2c3bf8a9d550d343
+
+* npm: Upgrade to v1.2.11
+
+* http: Do not let Agent hand out destroyed sockets (isaacs)
+
+* http: Raise hangup error on destroyed socket write (isaacs)
+
+* http: protect against response splitting attacks (Bert Belder)
+
+
 2013.02.06, Version 0.8.19 (Stable), 53978bdf420622ff0121c63c0338c9e7c2e60869
 
 * npm: Upgrade to v1.2.10

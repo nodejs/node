@@ -42,12 +42,16 @@ work the same.</p>
 
 <p><code>$HOME/.npmrc</code> (or the <code>userconfig</code> param, if set above)</p>
 
-<p>This file is an ini-file formatted list of <code>key = value</code> parameters.</p>
+<p>This file is an ini-file formatted list of <code>key = value</code> parameters.
+Environment variables can be replaced using <code>${VARIABLE_NAME}</code>. For example:</p>
+
+<pre><code>prefix = ${HOME}/.npm-packages</code></pre>
 
 <h3 id="Global-config-file">Global config file</h3>
 
 <p><code>$PREFIX/etc/npmrc</code> (or the <code>globalconfig</code> param, if set above):
-This file is an ini-file formatted list of <code>key = value</code> parameters</p>
+This file is an ini-file formatted list of <code>key = value</code> parameters.
+Environment variables can be replaced as above.</p>
 
 <h3 id="Built-in-config-file">Built-in config file</h3>
 
@@ -767,7 +771,7 @@ then answer &quot;no&quot; to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.2.10</p>
+<p id="footer">config &mdash; npm@1.2.11</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")
