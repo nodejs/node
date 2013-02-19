@@ -8,7 +8,7 @@ var filename = path.resolve(__dirname, '.removeme-benchmark-garbage');
 var fs = require('fs');
 
 var bench = common.createBenchmark(main, {
-  dur: [1, 3],
+  dur: [5],
   len: [1024, 16 * 1024 * 1024],
   concurrent: [1, 10]
 });
