@@ -34,7 +34,6 @@ var https = require('https');
 
 var proxyPort = common.PORT + 1;
 var gotRequest = false;
-var errorCount = 0;
 
 var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
 var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
@@ -164,12 +163,15 @@ proxy.listen(proxyPort, function() {
         server.close();
       });
     }).on('error', function() {
-      errorCount++;
+      // We're ok with getting ECONNRESET in this test, but it's
+      // timing-dependent, and thus unreliable. Any other errors
+      // are just failures, though.
+      if (er.code !== 'ECONNRESET')
+        throw er;
     }).end();
   }
 });
 
 process.on('exit', function() {
   assert.ok(gotRequest);
-  assert.equal(errorCount, 1);
 });

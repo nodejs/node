@@ -50,12 +50,15 @@ function doTest() {
     requestCert: true
   };
   var requestCount = 0;
-  var errorCount = 0;
   var session;
 
   var server = tls.createServer(options, function(cleartext) {
-    cleartext.on('error', function() {
-      errorCount++;
+    cleartext.on('error', function(er) {
+      // We're ok with getting ECONNRESET in this test, but it's
+      // timing-dependent, and thus unreliable. Any other errors
+      // are just failures, though.
+      if (er.code !== 'ECONNRESET')
+        throw er;
     });
     ++requestCount;
     cleartext.end();
@@ -98,6 +101,5 @@ function doTest() {
 
     // initial request + reconnect requests (5 times)
     assert.equal(requestCount, 6);
-    assert.equal(errorCount, 4);
   });
 }
