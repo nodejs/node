@@ -739,7 +739,7 @@ function addNameVersion (name, ver, data, cb) {
       // only add non-shasum'ed packages if --forced.
       // only ancient things would lack this for good reasons nowadays.
       if (!dist.shasum && !npm.config.get("force")) {
-        return cb(new Error("package lacks shasum"))
+        return cb(new Error("package lacks shasum: " + data._id))
       }
       return addRemoteTarball( tb
                              , dist.shasum
