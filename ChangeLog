@@ -1,4 +1,37 @@
-2013.02.07, Version 0.9.9 (Unstable)
+2013.02.19, Version 0.9.10 (Unstable)
+
+* V8: Upgrade to 3.15.11.15
+
+* npm: Upgrade to 1.2.12
+
+* fs: Change default WriteStream config, increase perf (isaacs)
+
+* process: streamlining tick callback logic (Trevor Norris)
+
+* stream_wrap, udp_wrap: add read-only fd property (Ben Noordhuis)
+
+* buffer: accept negative indices in Buffer#slice() (Ben Noordhuis)
+
+* tls: Cycle data when underlying socket drains (isaacs)
+
+* stream: read(0) should not always trigger _read(n,cb) (isaacs)
+
+* stream: Empty strings/buffers do not signal EOF any longer (isaacs)
+
+* crypto: improve cipher/decipher error messages (Ben Noordhuis)
+
+* net: Respect the 'readable' flag on sockets (isaacs)
+
+* net: don't suppress ECONNRESET (Ben Noordhuis)
+
+* typed arrays: copy Buffer in typed array constructor (Ben Noordhuis)
+
+* typed arrays: make DataView throw on non-ArrayBuffer (Ben Noordhuis)
+
+* windows: MSI installer enhancements (Scott Blomquist, Jim Schubert)
+
+
+2013.02.07, Version 0.9.9 (Unstable), 4b9f0d190cd6b22853caeb0e07145a98ce1d1d7f
 
 * tls: port CryptoStream to streams2 (Fedor Indutny)
 
