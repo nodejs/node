@@ -6,6 +6,8 @@ NINJA ?= ninja
 DESTDIR ?=
 SIGN ?=
 
+NODE ?= ./node
+
 # Default to verbose builds.
 # To do quiet/pretty builds, run `make V=` to set V to an empty string,
 # or set the V environment variable to an empty string.
@@ -311,7 +313,44 @@ dist-upload: $(TARBALL) $(PKG)
 	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
 	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
 
-bench:
+wrkclean:
+	$(MAKE) -C tools/wrk/ clean
+	rm tools/wrk/wrk
+
+wrk: tools/wrk/wrk
+tools/wrk/wrk:
+	$(MAKE) -C tools/wrk/
+
+bench-net: all
+	@$(NODE) benchmark/common.js net
+
+bench-crypto: all
+	@$(NODE) benchmark/common.js crypto
+
+bench-tls: all
+	@$(NODE) benchmark/common.js tls
+
+bench-http: wrk all
+	@$(NODE) benchmark/common.js http
+
+bench-fs: all
+	@$(NODE) benchmark/common.js fs
+
+bench-misc: all
+	@$(MAKE) -C benchmark/misc/function_call/
+	@$(NODE) benchmark/common.js misc
+
+bench-array: all
+	@$(NODE) benchmark/common.js arrays
+
+bench-buffer: all
+	@$(NODE) benchmark/common.js buffers
+
+bench-all: bench bench-misc bench-array bench-buffer
+
+bench: bench-net bench-http bench-fs bench-tls
+
+bench-http-simple:
 	 benchmark/http_simple_bench.sh
 
 bench-idle:
@@ -330,4 +369,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary release-only
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all staticlib dynamiclib test test-all website-upload pkg blog blogclean tar binary release-only bench-http-simple bench-idle bench-all bench bench-misc bench-array bench-buffer bench-net bench-http bench-fs bench-tls

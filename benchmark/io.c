@@ -45,7 +45,6 @@ static void writetest(int size, size_t bsize)
 
   for (i = 0; i < size; i += bsize) {
     int rv = write(fd, buf, bsize);
-    if (c++ % 2000 == 0) fprintf(stderr, ".");
     if (rv < 0) {
       perror("write failed");
       exit(254);
@@ -66,7 +65,7 @@ static void writetest(int size, size_t bsize)
   elapsed = (end - start) / 1e6;
   mbps = ((tsize/elapsed)) / 1048576;
 
-  fprintf(stderr, "\nWrote %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
+  fprintf(stderr, "Wrote %d bytes in %03fs using %ld byte buffers: %03f\n", size, elapsed, bsize, mbps);
 }
 
 void readtest(int size, size_t bsize)
