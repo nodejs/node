@@ -27,7 +27,7 @@ E=.exe
 CFLAGS=$(CPPFLAGS) -g --std=gnu89 -D_WIN32_WINNT=0x0600
 LDFLAGS=-lm
 
-WIN_SRCS=$(wildcard src/win/*.c)
+WIN_SRCS=$(wildcard $(SRCDIR)/src/win/*.c)
 WIN_OBJS=$(WIN_SRCS:.c=.o)
 
 RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE # Need _GNU_SOURCE for strdup?

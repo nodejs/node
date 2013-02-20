@@ -62,7 +62,15 @@ To build via Makefile simply execute:
 
     make
 
-To build with Visual Studio run the vcbuilds.bat file which will
+MinGW users should run this instead:
+
+    make OS=mingw
+
+Out-of-tree builds are supported:
+
+    make builddir_name=/path/to/builddir
+
+To build with Visual Studio run the vcbuild.bat file which will
 checkout the GYP code into build/gyp and generate the uv.sln and
 related files.
 
@@ -90,6 +98,9 @@ Macintosh users run
 
     ./gyp_uv -f xcode
     xcodebuild -project uv.xcodeproj -configuration Release -target All
+
+Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and
+`-D_FILE_OFFSET_BITS=64`. GYP builds take care of that automatically.
 
 Note for Linux users: compile your project with `-D_GNU_SOURCE` when you
 include `uv.h`. GYP builds take care of that automatically. If you use

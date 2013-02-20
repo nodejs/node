@@ -277,7 +277,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     /* The loop's I/O completion port */                                      \
   HANDLE iocp;                                                                \
   /* The current time according to the event loop. in msecs. */               \
-  int64_t time;                                                               \
+  uint64_t time;                                                              \
   /* Tail of a single-linked circular queue of pending reqs. If the queue */  \
   /* is empty, tail_ is NULL. If there is only one item, */                   \
   /* tail_->next_req == tail_ */                                              \
@@ -302,7 +302,9 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   /* Counter to keep track of active tcp streams */                           \
   unsigned int active_tcp_streams;                                            \
   /* Counter to keep track of active udp streams */                           \
-  unsigned int active_udp_streams;
+  unsigned int active_udp_streams;                                            \
+  /* Counter to started timer */                                              \
+  uint64_t timer_counter;
 
 #define UV_REQ_TYPE_PRIVATE                                                   \
   /* TODO: remove the req suffix */                                           \
@@ -485,8 +487,9 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
   RB_ENTRY(uv_timer_s) tree_entry;                                            \
-  int64_t due;                                                                \
-  int64_t repeat;                                                             \
+  uint64_t due;                                                               \
+  uint64_t repeat;                                                            \
+  uint64_t start_id;                                                          \
   uv_timer_cb timer_cb;
 
 #define UV_ASYNC_PRIVATE_FIELDS                                               \
@@ -552,7 +555,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
       size_t length;                                                          \
       int64_t offset;                                                         \
     };                                                                        \
-    struct _stati64 stat;                                                     \
     struct {                                                                  \
       double atime;                                                           \
       double mtime;                                                           \

@@ -158,7 +158,7 @@ static void poll_cb(uv_fs_t* req) {
     goto out;
   }
 
-  statbuf = req->ptr;
+  statbuf = &req->statbuf;
 
   if (ctx->busy_polling != 0)
     if (ctx->busy_polling < 0 || !statbuf_eq(&ctx->statbuf, statbuf))

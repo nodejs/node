@@ -71,8 +71,8 @@ if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
 if exist build\gyp goto have_gyp
-echo svn co http://gyp.googlecode.com/svn/trunk@983 build/gyp
-svn co http://gyp.googlecode.com/svn/trunk@983 build/gyp
+echo git clone https://git.chromium.org/external/gyp.git build/gyp
+git clone https://git.chromium.org/external/gyp.git build/gyp
 if errorlevel 1 goto gyp_install_failed
 goto have_gyp
 

@@ -306,7 +306,7 @@ void uv_update_time(uv_loop_t* loop) {
 }
 
 
-int64_t uv_now(uv_loop_t* loop) {
+uint64_t uv_now(uv_loop_t* loop) {
   return loop->time;
 }
 
@@ -595,6 +595,11 @@ void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
   w->fd = fd;
   w->events = 0;
   w->pevents = 0;
+
+#if defined(UV_HAVE_KQUEUE)
+  w->rcount = 0;
+  w->wcount = 0;
+#endif /* defined(UV_HAVE_KQUEUE) */
 }
 
 

@@ -19,7 +19,7 @@
  */
 
 #include "uv.h"
-#include "../internal.h"
+#include "internal.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -218,11 +218,12 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       w = loop->watchers[fd];
 
       if (w == NULL) {
-        /* File descriptor that we've stopped watching, disarm it. */
-        if (uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, pe))
-          if (errno != EBADF && errno != ENOENT)
-            abort();
-
+        /* File descriptor that we've stopped watching, disarm it.
+         *
+         * Ignore all errors because we may be racing with another thread
+         * when the file descriptor is closed.
+         */
+        uv__epoll_ctl(loop->backend_fd, UV__EPOLL_CTL_DEL, fd, pe);
         continue;
       }
 

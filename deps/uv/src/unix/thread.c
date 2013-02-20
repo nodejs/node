@@ -323,19 +323,22 @@ void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex) {
     abort();
 }
 
+
+int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
+  int r;
+  struct timespec ts;
+
 #if defined(__APPLE__) && defined(__MACH__)
-
-int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
-  int r;
-  struct timeval tv;
-  struct timespec ts;
-  uint64_t abstime;
-
-  gettimeofday(&tv, NULL);
-  abstime = tv.tv_sec * 1e9 + tv.tv_usec * 1e3 + timeout;
-  ts.tv_sec = abstime / NANOSEC;
-  ts.tv_nsec = abstime % NANOSEC;
+  ts.tv_sec = timeout / NANOSEC;
+  ts.tv_nsec = timeout % NANOSEC;
+  r = pthread_cond_timedwait_relative_np(cond, mutex, &ts);
+#else
+  timeout += uv__hrtime();
+  ts.tv_sec = timeout / NANOSEC;
+  ts.tv_nsec = timeout % NANOSEC;
   r = pthread_cond_timedwait(cond, mutex, &ts);
+#endif
+
 
   if (r == 0)
     return 0;
@@ -346,30 +349,6 @@ int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
   abort();
   return -1; /* Satisfy the compiler. */
 }
-
-#else /* !(defined(__APPLE__) && defined(__MACH__)) */
-
-int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex, uint64_t timeout) {
-  int r;
-  struct timespec ts;
-  uint64_t abstime;
-
-  abstime = uv__hrtime() + timeout;
-  ts.tv_sec = abstime / NANOSEC;
-  ts.tv_nsec = abstime % NANOSEC;
-  r = pthread_cond_timedwait(cond, mutex, &ts);
-
-  if (r == 0)
-    return 0;
-
-  if (r == ETIMEDOUT)
-    return -1;
-
-  abort();
-  return -1; /* Satisfy the compiler. */
-}
-
-#endif /* defined(__APPLE__) && defined(__MACH__) */
 
 
 #if defined(__APPLE__) && defined(__MACH__)

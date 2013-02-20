@@ -170,10 +170,10 @@
         }],
         [ 'OS=="linux"', {
           'sources': [
-            'src/unix/linux/linux-core.c',
-            'src/unix/linux/inotify.c',
-            'src/unix/linux/syscalls.c',
-            'src/unix/linux/syscalls.h',
+            'src/unix/linux-core.c',
+            'src/unix/linux-inotify.c',
+            'src/unix/linux-syscalls.c',
+            'src/unix/linux-syscalls.h',
           ],
           'link_settings': {
             'libraries': [ '-ldl', '-lrt' ],

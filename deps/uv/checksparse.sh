@@ -195,10 +195,10 @@ Linux)
   SPARSE_FLAGS="$SPARSE_FLAGS -D__linux__=1"
   SOURCES="$SOURCES
            include/uv-private/uv-linux.h
-           src/unix/linux/inotify.c
-           src/unix/linux/linux-core.c
-           src/unix/linux/syscalls.c
-           src/unix/linux/syscalls.h"
+           src/unix/linux-inotify.c
+           src/unix/linux-core.c
+           src/unix/linux-syscalls.c
+           src/unix/linux-syscalls.h"
   ;;
 NetBSD)
   SPARSE_FLAGS="$SPARSE_FLAGS -D__NetBSD__=1"

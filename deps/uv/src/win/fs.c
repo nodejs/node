@@ -889,7 +889,7 @@ INLINE static void fs__stat_impl(uv_fs_t* req, int do_lstat) {
     return;
   }
 
-  if (fs__stat_handle(handle, &req->stat) != 0) {
+  if (fs__stat_handle(handle, &req->statbuf) != 0) {
     DWORD error = GetLastError();
     if (do_lstat && error == ERROR_SYMLINK_NOT_SUPPORTED) {
       /* We opened a reparse point but it was not a symlink. Try again. */
@@ -904,7 +904,7 @@ INLINE static void fs__stat_impl(uv_fs_t* req, int do_lstat) {
     return;
   }
 
-  req->ptr = &req->stat;
+  req->ptr = &req->statbuf;
   req->result = 0;
   CloseHandle(handle);
 }
@@ -935,12 +935,12 @@ static void fs__fstat(uv_fs_t* req) {
     return;
   }
 
-  if (fs__stat_handle(handle, &req->stat) != 0) {
+  if (fs__stat_handle(handle, &req->statbuf) != 0) {
     SET_REQ_WIN32_ERROR(req, GetLastError());
     return;
   }
 
-  req->ptr = &req->stat;
+  req->ptr = &req->statbuf;
   req->result = 0;
 }
 

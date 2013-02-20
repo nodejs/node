@@ -31,7 +31,7 @@ static int repeat_2_cb_allowed = 0;
 
 static uv_timer_t dummy, repeat_1, repeat_2;
 
-static int64_t start_time;
+static uint64_t start_time;
 
 
 static void close_cb(uv_handle_t* handle) {

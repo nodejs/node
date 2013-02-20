@@ -19,7 +19,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "syscalls.h"
+#include "linux-syscalls.h"
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>

@@ -45,7 +45,7 @@ void uv_update_time(uv_loop_t* loop) {
 }
 
 
-int64_t uv_now(uv_loop_t* loop) {
+uint64_t uv_now(uv_loop_t* loop) {
   return loop->time;
 }
 
@@ -55,9 +55,13 @@ static int uv_timer_compare(uv_timer_t* a, uv_timer_t* b) {
     return -1;
   if (a->due > b->due)
     return 1;
-  if ((intptr_t)a < (intptr_t)b)
+  /*
+   *  compare start_id when both has the same due. start_id is
+   *  allocated with loop->timer_counter in uv_timer_start().
+   */
+  if (a->start_id < b->start_id)
     return -1;
-  if ((intptr_t)a > (intptr_t)b)
+  if (a->start_id > b->start_id)
     return 1;
   return 0;
 }
@@ -83,8 +87,8 @@ void uv_timer_endgame(uv_loop_t* loop, uv_timer_t* handle) {
 }
 
 
-int uv_timer_start(uv_timer_t* handle, uv_timer_cb timer_cb, int64_t timeout,
-    int64_t repeat) {
+int uv_timer_start(uv_timer_t* handle, uv_timer_cb timer_cb, uint64_t timeout,
+    uint64_t repeat) {
   uv_loop_t* loop = handle->loop;
   uv_timer_t* old;
 
@@ -97,6 +101,9 @@ int uv_timer_start(uv_timer_t* handle, uv_timer_cb timer_cb, int64_t timeout,
   handle->repeat = repeat;
   handle->flags |= UV_HANDLE_ACTIVE;
   uv__handle_start(handle);
+
+  /* start_id is the second index to be compared in uv__timer_cmp() */
+  handle->start_id = handle->loop->timer_counter++;
 
   old = RB_INSERT(uv_timer_tree_s, &loop->timers, handle);
   assert(old == NULL);
@@ -150,13 +157,13 @@ int uv_timer_again(uv_timer_t* handle) {
 }
 
 
-void uv_timer_set_repeat(uv_timer_t* handle, int64_t repeat) {
+void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat) {
   assert(handle->type == UV_TIMER);
   handle->repeat = repeat;
 }
 
 
-int64_t uv_timer_get_repeat(uv_timer_t* handle) {
+uint64_t uv_timer_get_repeat(const uv_timer_t* handle) {
   assert(handle->type == UV_TIMER);
   return handle->repeat;
 }

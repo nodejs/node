@@ -96,6 +96,7 @@ TEST_DECLARE   (error_message)
 TEST_DECLARE   (timer)
 TEST_DECLARE   (timer_again)
 TEST_DECLARE   (timer_start_twice)
+TEST_DECLARE   (timer_order)
 TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (get_loadavg)
@@ -334,6 +335,7 @@ TASK_LIST_START
   TEST_ENTRY  (timer)
   TEST_ENTRY  (timer_again)
   TEST_ENTRY  (timer_start_twice)
+  TEST_ENTRY  (timer_order)
 
   TEST_ENTRY  (idle_starvation)
 

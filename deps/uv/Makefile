@@ -18,51 +18,36 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+SRCDIR ?= $(CURDIR)
 
-ifdef MSVC
-uname_S := MINGW
+ifeq (,$(builddir_name))
+
+VPATH := $(SRCDIR)
+include $(SRCDIR)/build.mk
+
+else  # Out of tree build.
+
+# Drop all built-in rules.
+.SUFFIXES:
+
+.PHONY:	$(builddir_name)
+$(builddir_name): $(builddir_name)/.buildstamp
+	$(MAKE) -C $@ -f $(CURDIR)/Makefile $(MAKECMDGOALS) \
+		SRCDIR=$(CURDIR) builddir_name=
+
+$(builddir_name)/.buildstamp:
+	mkdir -p $(dir $@)
+	touch $@
+
+# Add no-op rules for Makefiles to stop make from trying to rebuild them.
+Makefile:: ;
+%.mk:: ;
+
+# Turn everything else into a no-op rule that depends on the build directory.
+%:: $(builddir_name) ;
+
+.PHONY: clean
+clean:
+	$(RM) -fr $(builddir_name)
+
 endif
-
-CPPFLAGS += -Iinclude -Iinclude/uv-private
-
-ifeq (Darwin,$(uname_S))
-SOEXT = dylib
-else
-SOEXT = so
-endif
-
-ifneq (,$(findstring MINGW,$(uname_S)))
-include config-mingw.mk
-else
-include config-unix.mk
-endif
-
-TESTS=test/blackhole-server.c test/echo-server.c test/test-*.c
-BENCHMARKS=test/blackhole-server.c test/echo-server.c test/dns-server.c test/benchmark-*.c
-
-all: libuv.a
-
-test/run-tests$(E): test/run-tests.c test/runner.c $(RUNNER_SRC) $(TESTS) libuv.$(SOEXT)
-	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
-
-test/run-benchmarks$(E): test/run-benchmarks.c test/runner.c $(RUNNER_SRC) $(BENCHMARKS) libuv.$(SOEXT)
-	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o $@ $^ $(RUNNER_LIBS) $(RUNNER_LDFLAGS)
-
-test/echo.o: test/echo.c test/echo.h
-
-
-.PHONY: clean clean-platform distclean distclean-platform test bench
-
-
-test: test/run-tests$(E)
-	$<
-
-bench: test/run-benchmarks$(E)
-	$<
-
-clean: clean-platform
-	$(RM) -f *.a *.so test/run-tests$(E) test/run-benchmarks$(E)
-
-distclean: distclean-platform
-	$(RM) -f *.a *.so test/run-tests$(E) test/run-benchmarks$(E)

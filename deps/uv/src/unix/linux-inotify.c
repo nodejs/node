@@ -20,8 +20,7 @@
 
 #include "uv.h"
 #include "tree.h"
-#include "../internal.h"
-#include "syscalls.h"
+#include "internal.h"
 
 #include <stdint.h>
 #include <stdio.h>

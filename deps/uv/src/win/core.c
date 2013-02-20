@@ -115,6 +115,8 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->active_tcp_streams = 0;
   loop->active_udp_streams = 0;
 
+  loop->timer_counter = 0;
+
   loop->last_err = uv_ok_;
 }
 

@@ -484,6 +484,13 @@ static int uv__emfile_trick(uv_loop_t* loop, int accept_fd) {
 }
 
 
+#if defined(UV_HAVE_KQUEUE)
+# define UV_DEC_BACKLOG(w) w->rcount--;
+#else
+# define UV_DEC_BACKLOG(w) /* no-op */
+#endif /* defined(UV_HAVE_KQUEUE) */
+
+
 void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   static int use_emfile_trick = -1;
   uv_stream_t* stream;
@@ -503,6 +510,10 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
    */
   while (uv__stream_fd(stream) != -1) {
     assert(stream->accepted_fd == -1);
+#if defined(UV_HAVE_KQUEUE)
+    if (w->rcount <= 0)
+      return;
+#endif /* defined(UV_HAVE_KQUEUE) */
     fd = uv__accept(uv__stream_fd(stream));
 
     if (fd == -1) {
@@ -514,6 +525,7 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
         return; /* Not an error. */
 
       case ECONNABORTED:
+        UV_DEC_BACKLOG(w)
         continue; /* Ignore. */
 
       case EMFILE:
@@ -525,8 +537,10 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
 
         if (use_emfile_trick) {
           SAVE_ERRNO(r = uv__emfile_trick(loop, uv__stream_fd(stream)));
-          if (r == 0)
+          if (r == 0) {
+            UV_DEC_BACKLOG(w)
             continue;
+          }
         }
 
         /* Fall through. */
@@ -537,6 +551,8 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
         continue;
       }
     }
+
+    UV_DEC_BACKLOG(w)
 
     stream->accepted_fd = fd;
     stream->connection_cb(stream, 0);
@@ -554,6 +570,9 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
     }
   }
 }
+
+
+#undef UV_DEC_BACKLOG
 
 
 int uv_accept(uv_stream_t* server, uv_stream_t* client) {

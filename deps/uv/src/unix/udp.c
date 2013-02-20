@@ -35,8 +35,13 @@ static void uv__udp_io(uv_loop_t* loop, uv__io_t* w, unsigned int revents);
 static void uv__udp_recvmsg(uv_loop_t* loop, uv__io_t* w, unsigned int revents);
 static void uv__udp_sendmsg(uv_loop_t* loop, uv__io_t* w, unsigned int revents);
 static int uv__udp_maybe_deferred_bind(uv_udp_t* handle, int domain);
-static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
-    int bufcnt, struct sockaddr* addr, socklen_t addrlen, uv_udp_send_cb send_cb);
+static int uv__udp_send(uv_udp_send_t* req,
+                        uv_udp_t* handle,
+                        uv_buf_t bufs[],
+                        int bufcnt,
+                        struct sockaddr* addr,
+                        socklen_t addrlen,
+                        uv_udp_send_cb send_cb);
 
 
 void uv__udp_close(uv_udp_t* handle) {
@@ -519,11 +524,13 @@ out:
 }
 
 
-int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
-  const char* interface_addr, uv_membership membership) {
-
-  int optname;
+int uv_udp_set_membership(uv_udp_t* handle,
+                          const char* multicast_addr,
+                          const char* interface_addr,
+                          uv_membership membership) {
   struct ip_mreq mreq;
+  int optname;
+
   memset(&mreq, 0, sizeof mreq);
 
   if (interface_addr) {
@@ -545,9 +552,12 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
     return uv__set_artificial_error(handle->loop, UV_EINVAL);
   }
 
-  if (setsockopt(handle->io_watcher.fd, IPPROTO_IP, optname, (void*) &mreq, sizeof mreq) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    return -1;
+  if (setsockopt(handle->io_watcher.fd,
+                 IPPROTO_IP,
+                 optname,
+                 &mreq,
+                 sizeof(mreq))) {
+    return uv__set_sys_error(handle->loop, errno);
   }
 
   return 0;
@@ -572,8 +582,13 @@ static int uv__setsockopt_maybe_char(uv_udp_t* handle, int option, int val) {
 
 
 int uv_udp_set_broadcast(uv_udp_t* handle, int on) {
-  if (setsockopt(handle->io_watcher.fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)))
+  if (setsockopt(handle->io_watcher.fd,
+                 SOL_SOCKET,
+                 SO_BROADCAST,
+                 &on,
+                 sizeof(on))) {
     return uv__set_sys_error(handle->loop, errno);
+  }
 
   return 0;
 }

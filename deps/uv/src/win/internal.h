@@ -335,9 +335,6 @@ int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
 int WSAAPI uv_msafd_poll(SOCKET socket, AFD_POLL_INFO* info,
     OVERLAPPED* overlapped);
 
-/* Whether ipv6 is supported */
-extern int uv_allow_ipv6;
-
 /* Whether there are any non-IFS LSPs stacked on TCP */
 extern int uv_tcp_non_ifs_lsp_ipv4;
 extern int uv_tcp_non_ifs_lsp_ipv6;

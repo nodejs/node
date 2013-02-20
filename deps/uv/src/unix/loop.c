@@ -57,6 +57,8 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   loop->backend_fd = -1;
   loop->emfile_fd = -1;
 
+  loop->timer_counter = 0;
+
   if (uv__platform_loop_init(loop, default_loop))
     return -1;
 

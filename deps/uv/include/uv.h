@@ -266,7 +266,7 @@ UV_EXTERN void uv_ref(uv_handle_t*);
 UV_EXTERN void uv_unref(uv_handle_t*);
 
 UV_EXTERN void uv_update_time(uv_loop_t*);
-UV_EXTERN int64_t uv_now(uv_loop_t*);
+UV_EXTERN uint64_t uv_now(uv_loop_t*);
 
 /*
  * Get backend file descriptor. Only kqueue, epoll and event ports are
@@ -1161,7 +1161,7 @@ struct uv_timer_s {
   UV_TIMER_PRIVATE_FIELDS
 };
 
-UV_EXTERN int uv_timer_init(uv_loop_t*, uv_timer_t* timer);
+UV_EXTERN int uv_timer_init(uv_loop_t*, uv_timer_t* handle);
 
 /*
  * Start the timer. `timeout` and `repeat` are in milliseconds.
@@ -1170,24 +1170,20 @@ UV_EXTERN int uv_timer_init(uv_loop_t*, uv_timer_t* timer);
  *
  * If repeat is non-zero, the callback fires first after timeout milliseconds
  * and then repeatedly after repeat milliseconds.
- *
- * timeout and repeat are signed integers but that will change in a future
- * version of libuv. Don't pass in negative values, you'll get a nasty surprise
- * when that change becomes effective.
  */
-UV_EXTERN int uv_timer_start(uv_timer_t* timer,
+UV_EXTERN int uv_timer_start(uv_timer_t* handle,
                              uv_timer_cb cb,
-                             int64_t timeout,
-                             int64_t repeat);
+                             uint64_t timeout,
+                             uint64_t repeat);
 
-UV_EXTERN int uv_timer_stop(uv_timer_t* timer);
+UV_EXTERN int uv_timer_stop(uv_timer_t* handle);
 
 /*
  * Stop the timer, and if it is repeating restart it using the repeat value
  * as the timeout. If the timer has never been started before it returns -1 and
  * sets the error to UV_EINVAL.
  */
-UV_EXTERN int uv_timer_again(uv_timer_t* timer);
+UV_EXTERN int uv_timer_again(uv_timer_t* handle);
 
 /*
  * Set the repeat value in milliseconds. Note that if the repeat value is set
@@ -1195,9 +1191,9 @@ UV_EXTERN int uv_timer_again(uv_timer_t* timer);
  * non-repeating before, it will have been stopped. If it was repeating, then
  * the old repeat value will have been used to schedule the next timeout.
  */
-UV_EXTERN void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat);
+UV_EXTERN void uv_timer_set_repeat(uv_timer_t* handle, uint64_t repeat);
 
-UV_EXTERN int64_t uv_timer_get_repeat(uv_timer_t* timer);
+UV_EXTERN uint64_t uv_timer_get_repeat(const uv_timer_t* handle);
 
 
 /*
@@ -1515,6 +1511,7 @@ struct uv_fs_s {
   void* ptr;
   const char* path;
   uv_err_code errorno;
+  uv_statbuf_t statbuf;  /* Stores the result of uv_fs_stat and uv_fs_fstat. */
   UV_FS_PRIVATE_FIELDS
 };
 
@@ -1878,12 +1875,6 @@ UV_EXTERN void uv_cond_wait(uv_cond_t* cond, uv_mutex_t* mutex);
  * 1. callers should be prepared to deal with spurious wakeups.
  * 2. the granularity of timeout on Windows is never less than one millisecond.
  * 3. uv_cond_timedwait takes a relative timeout, not an absolute time.
- * 4. the precision of timeout on OSX is never less than one microsecond.
- *    Here is the reason.
- *    OSX doesn't support CLOCK_MONOTONIC nor pthread_condattr_setclock()
- *    (see man pthread_cond_init on OSX).
- *    An example in man pthread_cond_timedwait on OSX uses gettimeofday()
- *    and its resolution is a microsecond.
  */
 UV_EXTERN int uv_cond_timedwait(uv_cond_t* cond, uv_mutex_t* mutex,
     uint64_t timeout);
