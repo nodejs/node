@@ -145,7 +145,7 @@ static bool need_immediate_cb;
 static Persistent<String> immediate_callback_sym;
 
 // for quick ref to tickCallback values
-struct {
+static struct {
   uint32_t length;
   uint32_t index;
   uint32_t depth;
