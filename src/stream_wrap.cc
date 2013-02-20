@@ -293,14 +293,6 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
   Local<Object> buffer_obj = args[0]->ToObject();
   size_t offset = 0;
   size_t length = Buffer::Length(buffer_obj);
-
-  if (length > INT_MAX) {
-    uv_err_t err;
-    err.code = UV_ENOBUFS;
-    SetErrno(err);
-    return scope.Close(v8::Null(node_isolate));
-  }
-
   char* storage = new char[sizeof(WriteWrap)];
   WriteWrap* req_wrap = new (storage) WriteWrap();
 
@@ -317,7 +309,8 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
                    StreamWrap::AfterWrite);
 
   req_wrap->Dispatched();
-  req_wrap->object_->Set(bytes_sym, Number::New((uint32_t) length));
+  req_wrap->object_->Set(bytes_sym,
+                         Integer::NewFromUnsigned(length, node_isolate));
 
   wrap->UpdateWriteQueueSize();
 
