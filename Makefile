@@ -324,6 +324,9 @@ tools/wrk/wrk:
 bench-net: all
 	@$(NODE) benchmark/common.js net
 
+bench-crypto: all
+	@$(NODE) benchmark/common.js crypto
+
 bench-tls: all
 	@$(NODE) benchmark/common.js tls
 
