@@ -872,7 +872,7 @@ static int crl_extension_match(X509_CRL *a, X509_CRL *b, int nid)
 	{
 	ASN1_OCTET_STRING *exta, *extb;
 	int i;
-	i = X509_CRL_get_ext_by_NID(a, nid, 0);
+	i = X509_CRL_get_ext_by_NID(a, nid, -1);
 	if (i >= 0)
 		{
 		/* Can't have multiple occurrences */
@@ -883,7 +883,7 @@ static int crl_extension_match(X509_CRL *a, X509_CRL *b, int nid)
 	else
 		exta = NULL;
 
-	i = X509_CRL_get_ext_by_NID(b, nid, 0);
+	i = X509_CRL_get_ext_by_NID(b, nid, -1);
 
 	if (i >= 0)
 		{

@@ -70,18 +70,6 @@ $ssltest -client_auth $CA $extra || exit 1
 echo test sslv2/sslv3 with both client and server authentication
 $ssltest -server_auth -client_auth $CA $extra || exit 1
 
-echo test sslv2/sslv3 with both client and server authentication and small client buffers
-$ssltest -server_auth -client_auth -c_small_records $CA $extra || exit 1
-
-echo test sslv2/sslv3 with both client and server authentication and small server buffers
-$ssltest -server_auth -client_auth -s_small_records $CA $extra || exit 1
-
-echo test sslv2/sslv3 with both client and server authentication and small client and server buffers
-$ssltest -server_auth -client_auth -c_small_records -s_small_records $CA $extra || exit 1
-
-echo test sslv2/sslv3 with both client and server authentication and handshake cutthrough
-$ssltest -server_auth -client_auth -cutthrough $CA $extra || exit 1
-
 echo test sslv2 via BIO pair
 $ssltest -bio_pair -ssl2 $extra || exit 1
 
@@ -130,6 +118,23 @@ $ssltest -bio_pair -server_auth -client_auth $CA $extra || exit 1
 
 echo test sslv2/sslv3 with both client and server authentication via BIO pair and app verify
 $ssltest -bio_pair -server_auth -client_auth -app_verify $CA $extra || exit 1
+
+echo "Testing ciphersuites"
+for protocol in TLSv1.2 SSLv3; do
+  echo "Testing ciphersuites for $protocol"
+  for cipher in `../util/shlib_wrap.sh ../apps/openssl ciphers "RSA+$protocol" | tr ':' ' '`; do
+    echo "Testing $cipher"
+    prot=""
+    if [ $protocol = "SSLv3" ] ; then
+      prot="-ssl3"
+    fi
+    $ssltest -cipher $cipher $prot
+    if [ $? -ne 0 ] ; then
+	  echo "Failed $cipher"
+	  exit 1
+    fi
+  done
+done
 
 #############################################################################
 

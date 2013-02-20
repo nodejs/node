@@ -3,6 +3,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <unistd.h>
 #include <crypto.h>
 #include <openssl/bn.h>
 
@@ -53,6 +54,7 @@ static sigjmp_buf ill_jmp;
 static void ill_handler (int sig) { siglongjmp(ill_jmp,sig); }
 
 void OPENSSL_ppc64_probe(void);
+void OPENSSL_altivec_probe(void);
 
 void OPENSSL_cpuid_setup(void)
 	{
@@ -81,6 +83,15 @@ void OPENSSL_cpuid_setup(void)
 		}
 
 	OPENSSL_ppccap_P = 0;
+
+#if defined(_AIX)
+	if (sizeof(size_t)==4
+# if defined(_SC_AIX_KERNEL_BITMODE)
+	    && sysconf(_SC_AIX_KERNEL_BITMODE)!=64
+# endif
+	   )
+		return;
+#endif
 
 	memset(&ill_act,0,sizeof(ill_act));
 	ill_act.sa_handler = ill_handler;

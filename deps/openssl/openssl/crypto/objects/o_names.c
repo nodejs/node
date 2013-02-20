@@ -73,7 +73,7 @@ int OBJ_NAME_new_index(unsigned long (*hash_func)(const char *),
 		name_funcs_stack=sk_NAME_FUNCS_new_null();
 		MemCheck_on();
 		}
-	if ((name_funcs_stack == NULL))
+	if (name_funcs_stack == NULL)
 		{
 		/* ERROR */
 		return(0);

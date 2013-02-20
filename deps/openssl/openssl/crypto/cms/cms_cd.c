@@ -58,7 +58,9 @@
 #include <openssl/err.h>
 #include <openssl/cms.h>
 #include <openssl/bio.h>
+#ifndef OPENSSL_NO_COMP
 #include <openssl/comp.h>
+#endif
 #include "cms_lcl.h"
 
 DECLARE_ASN1_ITEM(CMS_CompressedData)

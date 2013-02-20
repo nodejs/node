@@ -1,5 +1,5 @@
 
- OpenSSL 1.0.1c 10 May 2012
+ OpenSSL 1.0.1e 11 Feb 2013
 
  Copyright (c) 1998-2011 The OpenSSL Project
  Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
@@ -190,7 +190,7 @@
  reason as to why that feature isn't implemented.
 
  Patches should be as up to date as possible, preferably relative to the
- current CVS or the last snapshot. They should follow the coding style of
+ current Git or the last snapshot. They should follow the coding style of
  OpenSSL and compile without warnings. Some of the core team developer targets
  can be used for testing purposes, (debug-steve64, debug-geoff etc). OpenSSL
  compiles on many varied platforms: try to ensure you only use portable

@@ -710,7 +710,7 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file)
 
 	ERR_clear_error(); /* clear error stack for SSL_CTX_use_certificate() */
 
-	in=BIO_new(BIO_s_file_internal());
+	in = BIO_new(BIO_s_file_internal());
 	if (in == NULL)
 		{
 		SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE,ERR_R_BUF_LIB);
@@ -723,14 +723,16 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file)
 		goto end;
 		}
 
-	x=PEM_read_bio_X509_AUX(in,NULL,ctx->default_passwd_callback,ctx->default_passwd_callback_userdata);
+	x=PEM_read_bio_X509_AUX(in,NULL,ctx->default_passwd_callback,
+				ctx->default_passwd_callback_userdata);
 	if (x == NULL)
 		{
 		SSLerr(SSL_F_SSL_CTX_USE_CERTIFICATE_CHAIN_FILE,ERR_R_PEM_LIB);
 		goto end;
 		}
 
-	ret=SSL_CTX_use_certificate(ctx,x);
+	ret = SSL_CTX_use_certificate(ctx, x);
+
 	if (ERR_peek_error() != 0)
 		ret = 0;  /* Key/certificate mismatch doesn't imply ret==0 ... */
 	if (ret)
@@ -742,13 +744,15 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file)
 		int r;
 		unsigned long err;
 		
-		if (ctx->extra_certs != NULL) 
+		if (ctx->extra_certs != NULL)
 			{
 			sk_X509_pop_free(ctx->extra_certs, X509_free);
 			ctx->extra_certs = NULL;
 			}
 
-		while ((ca = PEM_read_bio_X509(in,NULL,ctx->default_passwd_callback,ctx->default_passwd_callback_userdata))
+		while ((ca = PEM_read_bio_X509(in, NULL,
+					ctx->default_passwd_callback,
+					ctx->default_passwd_callback_userdata))
 			!= NULL)
 			{
 			r = SSL_CTX_add_extra_chain_cert(ctx, ca);

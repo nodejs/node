@@ -29,6 +29,7 @@ B<openssl> B<x509>
 [B<-purpose>]
 [B<-dates>]
 [B<-modulus>]
+[B<-pubkey>]
 [B<-fingerprint>]
 [B<-alias>]
 [B<-noout>]
@@ -134,6 +135,10 @@ section for more information.
 =item B<-noout>
 
 this option prevents output of the encoded version of the request.
+
+=item B<-pubkey>
+
+outputs the the certificate's SubjectPublicKeyInfo block in PEM format.
 
 =item B<-modulus>
 

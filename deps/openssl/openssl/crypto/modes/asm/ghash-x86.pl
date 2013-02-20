@@ -635,7 +635,7 @@ sub mmx_loop() {
     { my @lo  = ("mm0","mm1","mm2");
       my @hi  = ("mm3","mm4","mm5");
       my @tmp = ("mm6","mm7");
-      my $off1=0,$off2=0,$i;
+      my ($off1,$off2,$i) = (0,0,);
 
       &add	($Htbl,128);			# optimize for size
       &lea	("edi",&DWP(16+128,"esp"));
@@ -883,7 +883,7 @@ sub reduction_alg9 {	# 17/13 times faster than Intel version
 my ($Xhi,$Xi) = @_;
 
 	# 1st phase
-	&movdqa		($T1,$Xi)		#
+	&movdqa		($T1,$Xi);		#
 	&psllq		($Xi,1);
 	&pxor		($Xi,$T1);		#
 	&psllq		($Xi,5);		#
@@ -1019,7 +1019,7 @@ my ($Xhi,$Xi) = @_;
 	&movdqa		($Xhn,$Xn);
 	 &pxor		($Xhi,$T1);		# "Ii+Xi", consume early
 
-	  &movdqa	($T1,$Xi)		#&reduction_alg9($Xhi,$Xi); 1st phase
+	  &movdqa	($T1,$Xi);		#&reduction_alg9($Xhi,$Xi); 1st phase
 	  &psllq	($Xi,1);
 	  &pxor		($Xi,$T1);		#
 	  &psllq	($Xi,5);		#

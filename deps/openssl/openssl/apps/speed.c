@@ -254,7 +254,7 @@ static const char *names[ALGOR_NUM]={
   "aes-128 cbc","aes-192 cbc","aes-256 cbc",
   "camellia-128 cbc","camellia-192 cbc","camellia-256 cbc",
   "evp","sha256","sha512","whirlpool",
-  "aes-128 ige","aes-192 ige","aes-256 ige","ghash"};
+  "aes-128 ige","aes-192 ige","aes-256 ige","ghash" };
 static double results[ALGOR_NUM][SIZE_NUM];
 static int lengths[SIZE_NUM]={16,64,256,1024,8*1024};
 #ifndef OPENSSL_NO_RSA
@@ -299,7 +299,7 @@ static SIGRETTYPE sig_done(int sig)
 #if defined(_WIN32)
 
 #if !defined(SIGALRM)
-#define SIGALRM
+# define SIGALRM
 #endif
 static unsigned int lapse,schlock;
 static void alarm_win32(unsigned int secs) { lapse = secs*1000; }

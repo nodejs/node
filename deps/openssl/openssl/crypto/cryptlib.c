@@ -504,7 +504,7 @@ void CRYPTO_THREADID_current(CRYPTO_THREADID *id)
 	CRYPTO_THREADID_set_numeric(id, (unsigned long)find_thread(NULL));
 #else
 	/* For everything else, default to using the address of 'errno' */
-	CRYPTO_THREADID_set_pointer(id, &errno);
+	CRYPTO_THREADID_set_pointer(id, (void*)&errno);
 #endif
 	}
 
@@ -704,6 +704,7 @@ void OPENSSL_cpuid_setup(void)
     }
     else
 	vec = OPENSSL_ia32_cpuid();
+
     /*
      * |(1<<10) sets a reserved bit to signal that variable
      * was initialized already... This is to avoid interference
@@ -924,3 +925,16 @@ void OpenSSLDie(const char *file,int line,const char *assertion)
 	}
 
 void *OPENSSL_stderr(void)	{ return stderr; }
+
+int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len)
+	{
+	size_t i;
+	const unsigned char *a = in_a;
+	const unsigned char *b = in_b;
+	unsigned char x = 0;
+
+	for (i = 0; i < len; i++)
+		x |= a[i] ^ b[i];
+
+	return x;
+	}

@@ -288,7 +288,7 @@ int MAIN(int argc, char **argv)
 			days=atoi(*(++argv));
 			if (days == 0)
 				{
-				BIO_printf(STDout,"bad number of days\n");
+				BIO_printf(bio_err,"bad number of days\n");
 				goto bad;
 				}
 			}
@@ -912,7 +912,7 @@ bad:
 				}
 			else if (text == i)
 				{
-				X509_print_ex(out,x,nmflag, certflag);
+				X509_print_ex(STDout,x,nmflag, certflag);
 				}
 			else if (startdate == i)
 				{

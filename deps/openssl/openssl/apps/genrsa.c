@@ -78,7 +78,7 @@
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 
-#define DEFBITS	512
+#define DEFBITS	1024
 #undef PROG
 #define PROG genrsa_main
 

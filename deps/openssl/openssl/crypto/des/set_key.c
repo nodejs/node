@@ -63,9 +63,8 @@
  * 1.1 added norm_expand_bits
  * 1.0 First working version
  */
-#include "des_locl.h"
-
 #include <openssl/crypto.h>
+#include "des_locl.h"
 
 OPENSSL_IMPLEMENT_GLOBAL(int,DES_check_key,0)	/* defaults to false */
 

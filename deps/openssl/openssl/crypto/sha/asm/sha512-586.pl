@@ -142,9 +142,9 @@ sub BODY_00_15_x86 {
 	&mov	("edx",$Ehi);
 	&mov	("esi","ecx");
 
-	&shr	("ecx",9)	# lo>>9
+	&shr	("ecx",9);	# lo>>9
 	&mov	("edi","edx");
-	&shr	("edx",9)	# hi>>9
+	&shr	("edx",9);	# hi>>9
 	&mov	("ebx","ecx");
 	&shl	("esi",14);	# lo<<14
 	&mov	("eax","edx");
@@ -207,9 +207,9 @@ sub BODY_00_15_x86 {
 	&mov	($Dhi,"ebx");
 	&mov	("esi","ecx");
 
-	&shr	("ecx",2)	# lo>>2
+	&shr	("ecx",2);	# lo>>2
 	&mov	("edi","edx");
-	&shr	("edx",2)	# hi>>2
+	&shr	("edx",2);	# hi>>2
 	&mov	("ebx","ecx");
 	&shl	("esi",4);	# lo<<4
 	&mov	("eax","edx");
@@ -452,9 +452,9 @@ if ($sse2) {
 	&mov	("edx",&DWP(8*(9+15+16-1)+4,"esp"));
 	&mov	("esi","ecx");
 
-	&shr	("ecx",1)	# lo>>1
+	&shr	("ecx",1);	# lo>>1
 	&mov	("edi","edx");
-	&shr	("edx",1)	# hi>>1
+	&shr	("edx",1);	# hi>>1
 	&mov	("eax","ecx");
 	&shl	("esi",24);	# lo<<24
 	&mov	("ebx","edx");
@@ -488,9 +488,9 @@ if ($sse2) {
 	&mov	("edx",&DWP(8*(9+15+16-14)+4,"esp"));
 	&mov	("esi","ecx");
 
-	&shr	("ecx",6)	# lo>>6
+	&shr	("ecx",6);	# lo>>6
 	&mov	("edi","edx");
-	&shr	("edx",6)	# hi>>6
+	&shr	("edx",6);	# hi>>6
 	&mov	("eax","ecx");
 	&shl	("esi",3);	# lo<<3
 	&mov	("ebx","edx");

@@ -3510,6 +3510,7 @@ BIO_get_callback_arg                    3902	EXIST::FUNCTION:
 BIO_set_callback                        3903	EXIST::FUNCTION:
 d2i_ASIdOrRange                         3904	EXIST::FUNCTION:RFC3779
 i2d_ASIdentifiers                       3905	EXIST::FUNCTION:RFC3779
+CRYPTO_memcmp                           3906	EXIST::FUNCTION:
 SEED_decrypt                            3908	EXIST::FUNCTION:SEED
 SEED_encrypt                            3909	EXIST::FUNCTION:SEED
 SEED_cbc_encrypt                        3910	EXIST::FUNCTION:SEED
@@ -3687,7 +3688,7 @@ FIPS_dh_new                             4073	NOEXIST::FUNCTION:
 FIPS_corrupt_dsa_keygen                 4074	NOEXIST::FUNCTION:
 FIPS_dh_free                            4075	NOEXIST::FUNCTION:
 fips_pkey_signature_test                4076	NOEXIST::FUNCTION:
-EVP_add_alg_module                      4077	NOEXIST::FUNCTION:
+EVP_add_alg_module                      4077	EXIST::FUNCTION:
 int_RAND_init_engine_callbacks          4078	NOEXIST::FUNCTION:
 int_EVP_CIPHER_set_engine_callbacks     4079	NOEXIST::FUNCTION:
 int_EVP_MD_init_engine_callbacks        4080	NOEXIST::FUNCTION:

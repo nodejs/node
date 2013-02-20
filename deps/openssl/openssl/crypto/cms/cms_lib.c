@@ -411,9 +411,7 @@ int cms_DigestAlgorithm_find_ctx(EVP_MD_CTX *mctx, BIO *chain,
 		 * algorithm  OID instead of digest.
 		 */
 			|| EVP_MD_pkey_type(EVP_MD_CTX_md(mtmp)) == nid)
-			{
 			return EVP_MD_CTX_copy_ex(mctx, mtmp);
-			}
 		chain = BIO_next(chain);
 		}
 	}

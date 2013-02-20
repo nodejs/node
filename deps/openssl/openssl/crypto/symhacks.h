@@ -193,17 +193,17 @@
 #undef SSL_CTX_set_srp_username_callback
 #define SSL_CTX_set_srp_username_callback	SSL_CTX_set_srp_un_cb
 #undef ssl_add_clienthello_use_srtp_ext
-#define ssl_add_clienthello_use_srtp_ext ssl_add_clihello_use_srtp_ext
+#define ssl_add_clienthello_use_srtp_ext	ssl_add_clihello_use_srtp_ext
 #undef ssl_add_serverhello_use_srtp_ext
-#define ssl_add_serverhello_use_srtp_ext ssl_add_serhello_use_srtp_ext
+#define ssl_add_serverhello_use_srtp_ext	ssl_add_serhello_use_srtp_ext
 #undef ssl_parse_clienthello_use_srtp_ext
-#define ssl_parse_clienthello_use_srtp_ext ssl_parse_clihello_use_srtp_ext
+#define ssl_parse_clienthello_use_srtp_ext	ssl_parse_clihello_use_srtp_ext
 #undef ssl_parse_serverhello_use_srtp_ext
-#define ssl_parse_serverhello_use_srtp_ext ssl_parse_serhello_use_srtp_ext
+#define ssl_parse_serverhello_use_srtp_ext	ssl_parse_serhello_use_srtp_ext
 #undef SSL_CTX_set_next_protos_advertised_cb
-#define SSL_CTX_set_next_protos_advertised_cb SSL_CTX_set_next_protos_adv_cb
+#define SSL_CTX_set_next_protos_advertised_cb	SSL_CTX_set_next_protos_adv_cb
 #undef SSL_CTX_set_next_proto_select_cb
-#define SSL_CTX_set_next_proto_select_cb SSL_CTX_set_next_proto_sel_cb
+#define SSL_CTX_set_next_proto_select_cb	SSL_CTX_set_next_proto_sel_cb
 
 /* Hack some long ENGINE names */
 #undef ENGINE_get_default_BN_mod_exp_crt
@@ -316,8 +316,6 @@
 #define ec_GFp_simple_point_set_to_infinity     ec_GFp_simple_pt_set_to_inf
 #undef ec_GFp_simple_points_make_affine
 #define ec_GFp_simple_points_make_affine	ec_GFp_simple_pts_make_affine
-#undef ec_GFp_simple_group_get_curve_GFp
-#define ec_GFp_simple_group_get_curve_GFp       ec_GFp_simple_grp_get_curve_GFp
 #undef ec_GFp_simple_set_Jprojective_coordinates_GFp
 #define ec_GFp_simple_set_Jprojective_coordinates_GFp \
                                                 ec_GFp_smp_set_Jproj_coords_GFp

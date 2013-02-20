@@ -246,7 +246,7 @@ test_ecdh:
 test_verify:
 	@echo "The following command should have some OK's and some failures"
 	@echo "There are definitly a few expired certificates"
-	../util/shlib_wrap.sh ../apps/openssl verify -CApath ../certs ../certs/*.pem
+	../util/shlib_wrap.sh ../apps/openssl verify -CApath ../certs/demo ../certs/demo/*.pem
 
 test_dh:
 	@echo "Generate a set of DH parameters"

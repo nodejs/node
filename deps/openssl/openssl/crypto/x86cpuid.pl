@@ -165,7 +165,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 	&jnz	(&label("nohalt"));	# not enough privileges
 
 	&pushf	();
-	&pop	("eax")
+	&pop	("eax");
 	&bt	("eax",9);
 	&jnc	(&label("nohalt"));	# interrupts are disabled
 
@@ -280,7 +280,7 @@ for (@ARGV) { $sse2=1 if (/-DOPENSSL_IA32_SSE2/); }
 #	arguments is 1 or 2!
 &function_begin_B("OPENSSL_indirect_call");
 	{
-	my $i,$max=7;		# $max has to be chosen as 4*n-1
+	my ($max,$i)=(7,);	# $max has to be chosen as 4*n-1
 				# in order to preserve eventual
 				# stack alignment
 	&push	("ebp");

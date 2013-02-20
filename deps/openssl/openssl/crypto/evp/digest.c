@@ -267,6 +267,7 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *size)
 	return FIPS_digestfinal(ctx, md, size);
 #else
 	int ret;
+
 	OPENSSL_assert(ctx->digest->md_size <= EVP_MAX_MD_SIZE);
 	ret=ctx->digest->final(ctx,md);
 	if (size != NULL)

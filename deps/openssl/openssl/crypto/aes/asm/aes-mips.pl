@@ -1036,9 +1036,9 @@ _mips_AES_set_encrypt_key:
 	nop
 .end	_mips_AES_set_encrypt_key
 
-.globl	AES_set_encrypt_key
-.ent	AES_set_encrypt_key
-AES_set_encrypt_key:
+.globl	private_AES_set_encrypt_key
+.ent	private_AES_set_encrypt_key
+private_AES_set_encrypt_key:
 	.frame	$sp,$FRAMESIZE,$ra
 	.mask	$SAVED_REGS_MASK,-$SZREG
 	.set	noreorder
@@ -1060,7 +1060,7 @@ $code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
 ___
 $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 	.cplocal	$Tbl
-	.cpsetup	$pf,$zero,AES_set_encrypt_key
+	.cpsetup	$pf,$zero,private_AES_set_encrypt_key
 ___
 $code.=<<___;
 	.set	reorder
@@ -1083,7 +1083,7 @@ ___
 $code.=<<___;
 	jr	$ra
 	$PTR_ADD $sp,$FRAMESIZE
-.end	AES_set_encrypt_key
+.end	private_AES_set_encrypt_key
 ___
 
 my ($head,$tail)=($inp,$bits);
@@ -1091,9 +1091,9 @@ my ($tp1,$tp2,$tp4,$tp8,$tp9,$tpb,$tpd,$tpe)=($a4,$a5,$a6,$a7,$s0,$s1,$s2,$s3);
 my ($m,$x80808080,$x7f7f7f7f,$x1b1b1b1b)=($at,$t0,$t1,$t2);
 $code.=<<___;
 .align	5
-.globl	AES_set_decrypt_key
-.ent	AES_set_decrypt_key
-AES_set_decrypt_key:
+.globl	private_AES_set_decrypt_key
+.ent	private_AES_set_decrypt_key
+private_AES_set_decrypt_key:
 	.frame	$sp,$FRAMESIZE,$ra
 	.mask	$SAVED_REGS_MASK,-$SZREG
 	.set	noreorder
@@ -1115,7 +1115,7 @@ $code.=<<___ if ($flavour =~ /nubi/i);	# optimize non-nubi prologue
 ___
 $code.=<<___ if ($flavour !~ /o32/i);	# non-o32 PIC-ification
 	.cplocal	$Tbl
-	.cpsetup	$pf,$zero,AES_set_decrypt_key
+	.cpsetup	$pf,$zero,private_AES_set_decrypt_key
 ___
 $code.=<<___;
 	.set	reorder
@@ -1226,7 +1226,7 @@ ___
 $code.=<<___;
 	jr	$ra
 	$PTR_ADD $sp,$FRAMESIZE
-.end	AES_set_decrypt_key
+.end	private_AES_set_decrypt_key
 ___
 }}}
 

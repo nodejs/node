@@ -216,10 +216,10 @@ int MAIN(int argc, char **argv)
 			out_bin = 1;
 		else if (strcmp(*argv,"-d") == 0)
 			debug=1;
-		else if (strcmp(*argv,"-non-fips-allow") == 0)
-			non_fips_allow=1;
 		else if (!strcmp(*argv,"-fips-fingerprint"))
 			hmac_key = "etaonrishdlcupfm";
+		else if (strcmp(*argv,"-non-fips-allow") == 0)
+			non_fips_allow=1;
 		else if (!strcmp(*argv,"-hmac"))
 			{
 			if (--argc < 1)

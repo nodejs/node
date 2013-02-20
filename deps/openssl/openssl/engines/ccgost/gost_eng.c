@@ -64,6 +64,13 @@ static int gost_engine_finish(ENGINE *e)
 static int gost_engine_destroy(ENGINE *e)
 	{ 
 	gost_param_free();
+
+	pmeth_GostR3410_94 = NULL;
+	pmeth_GostR3410_2001 = NULL;
+	pmeth_Gost28147_MAC = NULL;
+	ameth_GostR3410_94 = NULL;
+	ameth_GostR3410_2001 = NULL;
+	ameth_Gost28147_MAC = NULL;
 	return 1;
 	}
 
@@ -71,6 +78,11 @@ static int bind_gost (ENGINE *e,const char *id)
 	{
 	int ret = 0;
 	if (id && strcmp(id, engine_gost_id)) return 0;
+	if (ameth_GostR3410_94)
+		{
+		printf("GOST engine already loaded\n");
+		goto end;
+		}
 
 	if (!ENGINE_set_id(e, engine_gost_id)) 
 		{
@@ -263,7 +275,10 @@ static ENGINE *engine_gost(void)
 	
 void ENGINE_load_gost(void)
 	{
-	ENGINE *toadd =engine_gost();
+	ENGINE *toadd;
+	if (pmeth_GostR3410_94)
+		return;
+	toadd = engine_gost();
 	if (!toadd) return;
 	ENGINE_add(toadd);
 	ENGINE_free(toadd);

@@ -105,7 +105,8 @@ $0 =~ m/(.*[\/\\])[^\/\\]+$/; $dir=$1;
 ( $xlate="${dir}../../perlasm/x86_64-xlate.pl" and -f $xlate) or
 die "can't locate x86_64-xlate.pl";
 
-open STDOUT,"| $^X $xlate $flavour $output";
+open OUT,"| \"$^X\" $xlate $flavour $output";
+*STDOUT=*OUT;
 
 my ($inp,$out,$len,$key,$ivp)=("%rdi","%rsi","%rdx","%rcx");
 my @XMM=map("%xmm$_",(15,0..14));	# best on Atom, +10% over (0..15)

@@ -106,22 +106,23 @@ void md4_block_data_order (MD4_CTX *c, const void *data_, size_t num)
 
 	for (;num--;)
 		{
-	HOST_c2l(data,l); X( 0)=l;		HOST_c2l(data,l); X( 1)=l;
+	(void)HOST_c2l(data,l); X( 0)=l;
+	(void)HOST_c2l(data,l); X( 1)=l;
 	/* Round 0 */
-	R0(A,B,C,D,X( 0), 3,0);	HOST_c2l(data,l); X( 2)=l;
-	R0(D,A,B,C,X( 1), 7,0);	HOST_c2l(data,l); X( 3)=l;
-	R0(C,D,A,B,X( 2),11,0);	HOST_c2l(data,l); X( 4)=l;
-	R0(B,C,D,A,X( 3),19,0);	HOST_c2l(data,l); X( 5)=l;
-	R0(A,B,C,D,X( 4), 3,0);	HOST_c2l(data,l); X( 6)=l;
-	R0(D,A,B,C,X( 5), 7,0);	HOST_c2l(data,l); X( 7)=l;
-	R0(C,D,A,B,X( 6),11,0);	HOST_c2l(data,l); X( 8)=l;
-	R0(B,C,D,A,X( 7),19,0);	HOST_c2l(data,l); X( 9)=l;
-	R0(A,B,C,D,X( 8), 3,0);	HOST_c2l(data,l); X(10)=l;
-	R0(D,A,B,C,X( 9), 7,0);	HOST_c2l(data,l); X(11)=l;
-	R0(C,D,A,B,X(10),11,0);	HOST_c2l(data,l); X(12)=l;
-	R0(B,C,D,A,X(11),19,0);	HOST_c2l(data,l); X(13)=l;
-	R0(A,B,C,D,X(12), 3,0);	HOST_c2l(data,l); X(14)=l;
-	R0(D,A,B,C,X(13), 7,0);	HOST_c2l(data,l); X(15)=l;
+	R0(A,B,C,D,X( 0), 3,0);	(void)HOST_c2l(data,l); X( 2)=l;
+	R0(D,A,B,C,X( 1), 7,0);	(void)HOST_c2l(data,l); X( 3)=l;
+	R0(C,D,A,B,X( 2),11,0);	(void)HOST_c2l(data,l); X( 4)=l;
+	R0(B,C,D,A,X( 3),19,0);	(void)HOST_c2l(data,l); X( 5)=l;
+	R0(A,B,C,D,X( 4), 3,0);	(void)HOST_c2l(data,l); X( 6)=l;
+	R0(D,A,B,C,X( 5), 7,0);	(void)HOST_c2l(data,l); X( 7)=l;
+	R0(C,D,A,B,X( 6),11,0);	(void)HOST_c2l(data,l); X( 8)=l;
+	R0(B,C,D,A,X( 7),19,0);	(void)HOST_c2l(data,l); X( 9)=l;
+	R0(A,B,C,D,X( 8), 3,0);	(void)HOST_c2l(data,l); X(10)=l;
+	R0(D,A,B,C,X( 9), 7,0);	(void)HOST_c2l(data,l); X(11)=l;
+	R0(C,D,A,B,X(10),11,0);	(void)HOST_c2l(data,l); X(12)=l;
+	R0(B,C,D,A,X(11),19,0);	(void)HOST_c2l(data,l); X(13)=l;
+	R0(A,B,C,D,X(12), 3,0);	(void)HOST_c2l(data,l); X(14)=l;
+	R0(D,A,B,C,X(13), 7,0);	(void)HOST_c2l(data,l); X(15)=l;
 	R0(C,D,A,B,X(14),11,0);
 	R0(B,C,D,A,X(15),19,0);
 	/* Round 1 */

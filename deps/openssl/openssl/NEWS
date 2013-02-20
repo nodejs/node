@@ -5,6 +5,18 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 1.0.1d and OpenSSL 1.0.1e:
+
+      o Corrected fix for CVE-2013-0169
+
+  Major changes between OpenSSL 1.0.1c and OpenSSL 1.0.1d:
+
+      o Fix renegotiation in TLS 1.1, 1.2 by using the correct TLS version.
+      o Include the fips configuration module.
+      o Fix OCSP bad key DoS attack CVE-2013-0166
+      o Fix for SSL/TLS/DTLS CBC plaintext recovery attack CVE-2013-0169
+      o Fix for TLS AESNI record handling flaw CVE-2012-2686
+
   Major changes between OpenSSL 1.0.1b and OpenSSL 1.0.1c:
 
       o Fix TLS/DTLS record length checking bug CVE-2012-2333

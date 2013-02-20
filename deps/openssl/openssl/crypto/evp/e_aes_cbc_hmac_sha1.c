@@ -1,5 +1,5 @@
 /* ====================================================================
- * Copyright (c) 2011 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2011-2013 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -90,6 +90,10 @@ typedef struct
 	defined(_M_AMD64)	|| defined(_M_X64)	|| \
 	defined(__INTEL__)	)
 
+#if defined(__GNUC__) && __GNUC__>=2 && !defined(PEDANTIC)
+# define BSWAP(x) ({ unsigned int r=(x); asm ("bswapl %0":"=r"(r):"0"(r)); r; })
+#endif
+
 extern unsigned int OPENSSL_ia32cap_P[2];
 #define AESNI_CAPABLE   (1<<(57-32))
 
@@ -167,6 +171,9 @@ static void sha1_update(SHA_CTX *c,const void *data,size_t len)
 		SHA1_Update(c,ptr,res);
 }
 
+#ifdef SHA1_Update
+#undef SHA1_Update
+#endif
 #define SHA1_Update sha1_update
 
 static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
@@ -183,6 +190,8 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 	sha_off = SHA_CBLOCK-key->md.num;
 #endif
+
+	key->payload_length = NO_PAYLOAD_LENGTH;
 
 	if (len%AES_BLOCK_SIZE) return 0;
 
@@ -234,46 +243,209 @@ static int aesni_cbc_hmac_sha1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 					&key->ks,ctx->iv,1);
 		}
 	} else {
-		unsigned char mac[SHA_DIGEST_LENGTH];
+		union { unsigned int  u[SHA_DIGEST_LENGTH/sizeof(unsigned int)];
+			unsigned char c[32+SHA_DIGEST_LENGTH]; } mac, *pmac;
+
+		/* arrange cache line alignment */
+		pmac = (void *)(((size_t)mac.c+31)&((size_t)0-32));
 
 		/* decrypt HMAC|padding at once */
 		aesni_cbc_encrypt(in,out,len,
 				&key->ks,ctx->iv,0);
 
 		if (plen) {	/* "TLS" mode of operation */
-			/* figure out payload length */
-			if (len<(size_t)(out[len-1]+1+SHA_DIGEST_LENGTH))
-				return 0;
-
-			len -= (out[len-1]+1+SHA_DIGEST_LENGTH);
+			size_t inp_len, mask, j, i;
+			unsigned int res, maxpad, pad, bitlen;
+			int ret = 1;
+			union {	unsigned int  u[SHA_LBLOCK];
+				unsigned char c[SHA_CBLOCK]; }
+				*data = (void *)key->md.data;
 
 			if ((key->aux.tls_aad[plen-4]<<8|key->aux.tls_aad[plen-3])
-			    >= TLS1_1_VERSION) {
-				len -= AES_BLOCK_SIZE;
+			    >= TLS1_1_VERSION)
 				iv = AES_BLOCK_SIZE;
-			}
 
-			key->aux.tls_aad[plen-2] = len>>8;
-			key->aux.tls_aad[plen-1] = len;
+			if (len<(iv+SHA_DIGEST_LENGTH+1))
+				return 0;
 
-			/* calculate HMAC and verify it */
+			/* omit explicit iv */
+			out += iv;
+			len -= iv;
+
+			/* figure out payload length */
+			pad = out[len-1];
+			maxpad = len-(SHA_DIGEST_LENGTH+1);
+			maxpad |= (255-maxpad)>>(sizeof(maxpad)*8-8);
+			maxpad &= 255;
+
+			inp_len = len - (SHA_DIGEST_LENGTH+pad+1);
+			mask = (0-((inp_len-len)>>(sizeof(inp_len)*8-1)));
+			inp_len &= mask;
+			ret &= (int)mask;
+
+			key->aux.tls_aad[plen-2] = inp_len>>8;
+			key->aux.tls_aad[plen-1] = inp_len;
+
+			/* calculate HMAC */
 			key->md = key->head;
 			SHA1_Update(&key->md,key->aux.tls_aad,plen);
-			SHA1_Update(&key->md,out+iv,len);
-			SHA1_Final(mac,&key->md);
 
+#if 1
+			len -= SHA_DIGEST_LENGTH;		/* amend mac */
+			if (len>=(256+SHA_CBLOCK)) {
+				j = (len-(256+SHA_CBLOCK))&(0-SHA_CBLOCK);
+				j += SHA_CBLOCK-key->md.num;
+				SHA1_Update(&key->md,out,j);
+				out += j;
+				len -= j;
+				inp_len -= j;
+			}
+
+			/* but pretend as if we hashed padded payload */
+			bitlen = key->md.Nl+(inp_len<<3);	/* at most 18 bits */
+#ifdef BSWAP
+			bitlen = BSWAP(bitlen);
+#else
+			mac.c[0] = 0;
+			mac.c[1] = (unsigned char)(bitlen>>16);
+			mac.c[2] = (unsigned char)(bitlen>>8);
+			mac.c[3] = (unsigned char)bitlen;
+			bitlen = mac.u[0];
+#endif
+
+			pmac->u[0]=0;
+			pmac->u[1]=0;
+			pmac->u[2]=0;
+			pmac->u[3]=0;
+			pmac->u[4]=0;
+
+			for (res=key->md.num, j=0;j<len;j++) {
+				size_t c = out[j];
+				mask = (j-inp_len)>>(sizeof(j)*8-8);
+				c &= mask;
+				c |= 0x80&~mask&~((inp_len-j)>>(sizeof(j)*8-8));
+				data->c[res++]=(unsigned char)c;
+
+				if (res!=SHA_CBLOCK) continue;
+
+				mask = 0-((inp_len+8-j)>>(sizeof(j)*8-1));
+				data->u[SHA_LBLOCK-1] |= bitlen&mask;
+				sha1_block_data_order(&key->md,data,1);
+				mask &= 0-((j-inp_len-73)>>(sizeof(j)*8-1));
+				pmac->u[0] |= key->md.h0 & mask;
+				pmac->u[1] |= key->md.h1 & mask;
+				pmac->u[2] |= key->md.h2 & mask;
+				pmac->u[3] |= key->md.h3 & mask;
+				pmac->u[4] |= key->md.h4 & mask;
+				res=0;
+			}
+
+			for(i=res;i<SHA_CBLOCK;i++,j++) data->c[i]=0;
+
+			if (res>SHA_CBLOCK-8) {
+				mask = 0-((inp_len+8-j)>>(sizeof(j)*8-1));
+				data->u[SHA_LBLOCK-1] |= bitlen&mask;
+				sha1_block_data_order(&key->md,data,1);
+				mask &= 0-((j-inp_len-73)>>(sizeof(j)*8-1));
+				pmac->u[0] |= key->md.h0 & mask;
+				pmac->u[1] |= key->md.h1 & mask;
+				pmac->u[2] |= key->md.h2 & mask;
+				pmac->u[3] |= key->md.h3 & mask;
+				pmac->u[4] |= key->md.h4 & mask;
+
+				memset(data,0,SHA_CBLOCK);
+				j+=64;
+			}
+			data->u[SHA_LBLOCK-1] = bitlen;
+			sha1_block_data_order(&key->md,data,1);
+			mask = 0-((j-inp_len-73)>>(sizeof(j)*8-1));
+			pmac->u[0] |= key->md.h0 & mask;
+			pmac->u[1] |= key->md.h1 & mask;
+			pmac->u[2] |= key->md.h2 & mask;
+			pmac->u[3] |= key->md.h3 & mask;
+			pmac->u[4] |= key->md.h4 & mask;
+
+#ifdef BSWAP
+			pmac->u[0] = BSWAP(pmac->u[0]);
+			pmac->u[1] = BSWAP(pmac->u[1]);
+			pmac->u[2] = BSWAP(pmac->u[2]);
+			pmac->u[3] = BSWAP(pmac->u[3]);
+			pmac->u[4] = BSWAP(pmac->u[4]);
+#else
+			for (i=0;i<5;i++) {
+				res = pmac->u[i];
+				pmac->c[4*i+0]=(unsigned char)(res>>24);
+				pmac->c[4*i+1]=(unsigned char)(res>>16);
+				pmac->c[4*i+2]=(unsigned char)(res>>8);
+				pmac->c[4*i+3]=(unsigned char)res;
+			}
+#endif
+			len += SHA_DIGEST_LENGTH;
+#else
+			SHA1_Update(&key->md,out,inp_len);
+			res = key->md.num;
+			SHA1_Final(pmac->c,&key->md);
+
+			{
+			unsigned int inp_blocks, pad_blocks;
+
+			/* but pretend as if we hashed padded payload */
+			inp_blocks = 1+((SHA_CBLOCK-9-res)>>(sizeof(res)*8-1));
+			res += (unsigned int)(len-inp_len);
+			pad_blocks = res / SHA_CBLOCK;
+			res %= SHA_CBLOCK;
+			pad_blocks += 1+((SHA_CBLOCK-9-res)>>(sizeof(res)*8-1));
+			for (;inp_blocks<pad_blocks;inp_blocks++)
+				sha1_block_data_order(&key->md,data,1);
+			}
+#endif
 			key->md = key->tail;
-			SHA1_Update(&key->md,mac,SHA_DIGEST_LENGTH);
-			SHA1_Final(mac,&key->md);
+			SHA1_Update(&key->md,pmac->c,SHA_DIGEST_LENGTH);
+			SHA1_Final(pmac->c,&key->md);
 
-			if (memcmp(out+iv+len,mac,SHA_DIGEST_LENGTH))
-				return 0;
+			/* verify HMAC */
+			out += inp_len;
+			len -= inp_len;
+#if 1
+			{
+			unsigned char *p = out+len-1-maxpad-SHA_DIGEST_LENGTH;
+			size_t off = out-p;
+			unsigned int c, cmask;
+
+			maxpad += SHA_DIGEST_LENGTH;
+			for (res=0,i=0,j=0;j<maxpad;j++) {
+				c = p[j];
+				cmask = ((int)(j-off-SHA_DIGEST_LENGTH))>>(sizeof(int)*8-1);
+				res |= (c^pad)&~cmask;	/* ... and padding */
+				cmask &= ((int)(off-1-j))>>(sizeof(int)*8-1);
+				res |= (c^pmac->c[i])&cmask;
+				i += 1&cmask;
+			}
+			maxpad -= SHA_DIGEST_LENGTH;
+
+			res = 0-((0-res)>>(sizeof(res)*8-1));
+			ret &= (int)~res;
+			}
+#else
+			for (res=0,i=0;i<SHA_DIGEST_LENGTH;i++)
+				res |= out[i]^pmac->c[i];
+			res = 0-((0-res)>>(sizeof(res)*8-1));
+			ret &= (int)~res;
+
+			/* verify padding */
+			pad = (pad&~res) | (maxpad&res);
+			out = out+len-1-pad;
+			for (res=0,i=0;i<pad;i++)
+				res |= out[i]^pad;
+
+			res = (0-res)>>(sizeof(res)*8-1);
+			ret &= (int)~res;
+#endif
+			return ret;
 		} else {
 			SHA1_Update(&key->md,out,len);
 		}
 	}
-
-	key->payload_length = NO_PAYLOAD_LENGTH;
 
 	return 1;
 	}
@@ -308,6 +480,8 @@ static int aesni_cbc_hmac_sha1_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg, void
 			hmac_key[i] ^= 0x36^0x5c;	/* opad */
 		SHA1_Init(&key->tail);
 		SHA1_Update(&key->tail,hmac_key,sizeof(hmac_key));
+
+		OPENSSL_cleanse(hmac_key,sizeof(hmac_key));
 
 		return 1;
 		}

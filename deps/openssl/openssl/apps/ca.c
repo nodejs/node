@@ -1408,6 +1408,7 @@ bad:
 			if (!NCONF_get_number(conf,section,
 				ENV_DEFAULT_CRL_HOURS, &crlhours))
 				crlhours = 0;
+			ERR_clear_error();
 			}
 		if ((crldays == 0) && (crlhours == 0) && (crlsec == 0))
 			{

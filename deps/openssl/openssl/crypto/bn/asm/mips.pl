@@ -819,7 +819,7 @@ ___
 $code.=<<___;
 	.set	reorder
 	move	$ta3,$ra
-	bal	bn_div_words
+	bal	bn_div_words_internal
 	move	$ra,$ta3
 	$MULTU	$ta2,$v0
 	$LD	$t2,-2*$BNSZ($a3)

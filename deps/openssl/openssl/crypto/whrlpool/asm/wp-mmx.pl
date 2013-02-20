@@ -119,7 +119,7 @@ $tbl="ebp";
 	&mov	("eax",&DWP(0,"esp"));
 	&mov	("ebx",&DWP(4,"esp"));
 for($i=0;$i<8;$i++) {
-    my $func = ($i==0)? movq : pxor;
+    my $func = ($i==0)? \&movq : \&pxor;
 	&movb	(&LB("ecx"),&LB("eax"));
 	&movb	(&LB("edx"),&HB("eax"));
 	&scale	("esi","ecx");

@@ -123,10 +123,10 @@
 
 #include "e_os.h"
 
+#include <openssl/crypto.h>
 #include <openssl/rand.h>
 #include "rand_lcl.h"
 
-#include <openssl/crypto.h>
 #include <openssl/err.h>
 
 #ifdef BN_DEBUG

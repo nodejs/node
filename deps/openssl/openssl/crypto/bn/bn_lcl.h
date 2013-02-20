@@ -282,16 +282,23 @@ extern "C" {
 #  endif
 # elif defined(__mips) && (defined(SIXTY_FOUR_BIT) || defined(SIXTY_FOUR_BIT_LONG))
 #  if defined(__GNUC__) && __GNUC__>=2
-#   define BN_UMULT_HIGH(a,b)	({	\
+#   if __GNUC__>=4 && __GNUC_MINOR__>=4 /* "h" constraint is no more since 4.4 */
+#     define BN_UMULT_HIGH(a,b)		 (((__uint128_t)(a)*(b))>>64)
+#     define BN_UMULT_LOHI(low,high,a,b) ({	\
+	__uint128_t ret=(__uint128_t)(a)*(b);	\
+	(high)=ret>>64; (low)=ret;	 })
+#   else
+#     define BN_UMULT_HIGH(a,b)	({	\
 	register BN_ULONG ret;		\
 	asm ("dmultu	%1,%2"		\
 	     : "=h"(ret)		\
 	     : "r"(a), "r"(b) : "l");	\
 	ret;			})
-#   define BN_UMULT_LOHI(low,high,a,b)	\
+#     define BN_UMULT_LOHI(low,high,a,b)\
 	asm ("dmultu	%2,%3"		\
 	     : "=l"(low),"=h"(high)	\
 	     : "r"(a), "r"(b));
+#    endif
 #  endif
 # endif		/* cpu */
 #endif		/* OPENSSL_NO_ASM */

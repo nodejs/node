@@ -326,6 +326,7 @@ bad:
 				goto end;
 				}
 #endif
+			ERR_print_errors(bio_err);
 			BIO_printf(bio_err,"Error, DSA key generation failed\n");
 			goto end;
 			}
@@ -429,13 +430,19 @@ bad:
 
 		assert(need_rand);
 		if ((dsakey=DSAparams_dup(dsa)) == NULL) goto end;
-		if (!DSA_generate_key(dsakey)) goto end;
+		if (!DSA_generate_key(dsakey))
+			{
+			ERR_print_errors(bio_err);
+			DSA_free(dsakey);
+			goto end;
+			}
 		if 	(outformat == FORMAT_ASN1)
 			i=i2d_DSAPrivateKey_bio(out,dsakey);
 		else if (outformat == FORMAT_PEM)
 			i=PEM_write_bio_DSAPrivateKey(out,dsakey,NULL,NULL,0,NULL,NULL);
 		else	{
 			BIO_printf(bio_err,"bad output format specified for outfile\n");
+			DSA_free(dsakey);
 			goto end;
 			}
 		DSA_free(dsakey);

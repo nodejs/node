@@ -69,7 +69,7 @@ RANLIB= ranlib
 NM= nm
 PERL= perl
 TAR= tar
-TARFLAGS= --no-recursion
+TARFLAGS= --no-recursion --record-size=10240
 MAKEDEPPROG=makedepend
 LIBDIR=lib
 
@@ -444,7 +444,7 @@ rehash.time: certs apps
 		[ -x "apps/openssl.exe" ] && OPENSSL="apps/openssl.exe" || :; \
 		OPENSSL_DEBUG_MEMORY=on; \
 		export OPENSSL OPENSSL_DEBUG_MEMORY; \
-		$(PERL) tools/c_rehash certs) && \
+		$(PERL) tools/c_rehash certs/demo) && \
 		touch rehash.time; \
 	else :; fi
 

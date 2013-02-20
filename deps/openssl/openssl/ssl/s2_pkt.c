@@ -269,8 +269,7 @@ static int ssl2_read_internal(SSL *s, void *buf, int len, int peek)
 			s->s2->ract_data_length-=mac_size;
 			ssl2_mac(s,mac,0);
 			s->s2->ract_data_length-=s->s2->padding;
-			if (	(memcmp(mac,s->s2->mac_data,
-				(unsigned int)mac_size) != 0) ||
+			if (	(CRYPTO_memcmp(mac,s->s2->mac_data,mac_size) != 0) ||
 				(s->s2->rlength%EVP_CIPHER_CTX_block_size(s->enc_read_ctx) != 0))
 				{
 				SSLerr(SSL_F_SSL2_READ_INTERNAL,SSL_R_BAD_MAC_DECODE);

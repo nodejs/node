@@ -520,18 +520,27 @@ void EC_KEY_set_conv_form(EC_KEY *key, point_conversion_form_t cform)
 void *EC_KEY_get_key_method_data(EC_KEY *key,
 	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *))
 	{
-	return EC_EX_DATA_get_data(key->method_data, dup_func, free_func, clear_free_func);
+	void *ret;
+
+	CRYPTO_r_lock(CRYPTO_LOCK_EC);
+	ret = EC_EX_DATA_get_data(key->method_data, dup_func, free_func, clear_free_func);
+	CRYPTO_r_unlock(CRYPTO_LOCK_EC);
+
+	return ret;
 	}
 
-void EC_KEY_insert_key_method_data(EC_KEY *key, void *data,
+void *EC_KEY_insert_key_method_data(EC_KEY *key, void *data,
 	void *(*dup_func)(void *), void (*free_func)(void *), void (*clear_free_func)(void *))
 	{
 	EC_EXTRA_DATA *ex_data;
+
 	CRYPTO_w_lock(CRYPTO_LOCK_EC);
 	ex_data = EC_EX_DATA_get_data(key->method_data, dup_func, free_func, clear_free_func);
 	if (ex_data == NULL)
 		EC_EX_DATA_set_data(&key->method_data, data, dup_func, free_func, clear_free_func);
 	CRYPTO_w_unlock(CRYPTO_LOCK_EC);
+
+	return ex_data;
 	}
 
 void EC_KEY_set_asn1_flag(EC_KEY *key, int flag)

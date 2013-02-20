@@ -474,11 +474,11 @@ static void x509v3_cache_extensions(X509 *x)
 	for (i = 0; i < X509_get_ext_count(x); i++)
 		{
 		ex = X509_get_ext(x, i);
-		if (!X509_EXTENSION_get_critical(ex))
-			continue;
 		if (OBJ_obj2nid(X509_EXTENSION_get_object(ex))
 					== NID_freshest_crl)
 			x->ex_flags |= EXFLAG_FRESHEST;
+		if (!X509_EXTENSION_get_critical(ex))
+			continue;
 		if (!X509_supported_extension(ex))
 			{
 			x->ex_flags |= EXFLAG_CRITICAL;

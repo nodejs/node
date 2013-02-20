@@ -76,5 +76,6 @@ void OPENSSL_load_builtin_modules(void)
 #ifndef OPENSSL_NO_ENGINE
 	ENGINE_add_conf_module();
 #endif
+	EVP_add_alg_module();
 	}
 

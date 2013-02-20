@@ -1125,7 +1125,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	0, /* not implemented (non-ephemeral DH) */
 	TLS1_TXT_DH_DSS_WITH_AES_128_SHA256,
 	TLS1_CK_DH_DSS_WITH_AES_128_SHA256,
-	SSL_kDHr,
+	SSL_kDHd,
 	SSL_aDH,
 	SSL_AES128,
 	SSL_SHA256,
@@ -1407,7 +1407,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	0, /* not implemented (non-ephemeral DH) */
 	TLS1_TXT_DH_DSS_WITH_AES_256_SHA256,
 	TLS1_CK_DH_DSS_WITH_AES_256_SHA256,
-	SSL_kDHr,
+	SSL_kDHd,
 	SSL_aDH,
 	SSL_AES256,
 	SSL_SHA256,
@@ -1958,7 +1958,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	0,
 	TLS1_TXT_DH_DSS_WITH_AES_128_GCM_SHA256,
 	TLS1_CK_DH_DSS_WITH_AES_128_GCM_SHA256,
-	SSL_kDHr,
+	SSL_kDHd,
 	SSL_aDH,
 	SSL_AES128GCM,
 	SSL_AEAD,
@@ -1974,7 +1974,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	0,
 	TLS1_TXT_DH_DSS_WITH_AES_256_GCM_SHA384,
 	TLS1_CK_DH_DSS_WITH_AES_256_GCM_SHA384,
-	SSL_kDHr,
+	SSL_kDHd,
 	SSL_aDH,
 	SSL_AES256GCM,
 	SSL_AEAD,
@@ -2669,7 +2669,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	1,
 	TLS1_TXT_ECDH_RSA_WITH_AES_128_SHA256,
 	TLS1_CK_ECDH_RSA_WITH_AES_128_SHA256,
-	SSL_kECDHe,
+	SSL_kECDHr,
 	SSL_aECDH,
 	SSL_AES128,
 	SSL_SHA256,
@@ -2685,7 +2685,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	1,
 	TLS1_TXT_ECDH_RSA_WITH_AES_256_SHA384,
 	TLS1_CK_ECDH_RSA_WITH_AES_256_SHA384,
-	SSL_kECDHe,
+	SSL_kECDHr,
 	SSL_aECDH,
 	SSL_AES256,
 	SSL_SHA384,
@@ -2799,7 +2799,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	1,
 	TLS1_TXT_ECDH_RSA_WITH_AES_128_GCM_SHA256,
 	TLS1_CK_ECDH_RSA_WITH_AES_128_GCM_SHA256,
-	SSL_kECDHe,
+	SSL_kECDHr,
 	SSL_aECDH,
 	SSL_AES128GCM,
 	SSL_AEAD,
@@ -2815,7 +2815,7 @@ OPENSSL_GLOBAL SSL_CIPHER ssl3_ciphers[]={
 	1,
 	TLS1_TXT_ECDH_RSA_WITH_AES_256_GCM_SHA384,
 	TLS1_CK_ECDH_RSA_WITH_AES_256_GCM_SHA384,
-	SSL_kECDHe,
+	SSL_kECDHr,
 	SSL_aECDH,
 	SSL_AES256GCM,
 	SSL_AEAD,
@@ -4199,22 +4199,9 @@ int ssl3_write(SSL *s, const void *buf, int len)
 
 static int ssl3_read_internal(SSL *s, void *buf, int len, int peek)
 	{
-	int n,ret;
+	int ret;
 	
 	clear_sys_error();
-	if ((s->s3->flags & SSL3_FLAGS_POP_BUFFER) && (s->wbio == s->bbio))
-		{
-		/* Deal with an application that calls SSL_read() when handshake data
-		 * is yet to be written.
-		 */
-		if (BIO_wpending(s->wbio) > 0)
-			{
-			s->rwstate=SSL_WRITING;
-			n=BIO_flush(s->wbio);
-			if (n <= 0) return(n);
-			s->rwstate=SSL_NOTHING;
-			}
-		}
 	if (s->s3->renegotiate) ssl3_renegotiate_check(s);
 	s->s3->in_read_app_data=1;
 	ret=s->method->ssl_read_bytes(s,SSL3_RT_APPLICATION_DATA,buf,len,peek);

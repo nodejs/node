@@ -271,7 +271,8 @@ tmp6=loc13;
 
 ___
 
-{ my $i,@V=($A,$B,$C,$D,$E);
+{ my $i;
+  my @V=($A,$B,$C,$D,$E);
 
 	for($i=0;$i<16;$i++)	{ &BODY_00_15(\$code,$i,@V); unshift(@V,pop(@V)); }
 	for(;$i<20;$i++)	{ &BODY_16_19(\$code,$i,@V); unshift(@V,pop(@V)); }

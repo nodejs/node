@@ -222,11 +222,19 @@ int MAIN(int argc, char **argv)
 			goto end;
 		}
 
-	if (argc < 1) check(cert_ctx, NULL, untrusted, trusted, crls, e);
+	ret = 0;
+	if (argc < 1)
+		{ 
+		if (1 != check(cert_ctx, NULL, untrusted, trusted, crls, e))
+			ret = -1;
+		}
 	else
+		{
 		for (i=0; i<argc; i++)
-			check(cert_ctx,argv[i], untrusted, trusted, crls, e);
-	ret=0;
+			if (1 != check(cert_ctx,argv[i], untrusted, trusted, crls, e))
+				ret = -1;
+		}
+
 end:
 	if (ret == 1) {
 		BIO_printf(bio_err,"usage: verify [-verbose] [-CApath path] [-CAfile file] [-purpose purpose] [-crl_check]");
@@ -235,13 +243,16 @@ end:
 		BIO_printf(bio_err," [-engine e]");
 #endif
 		BIO_printf(bio_err," cert1 cert2 ...\n");
+
 		BIO_printf(bio_err,"recognized usages:\n");
-		for(i = 0; i < X509_PURPOSE_get_count(); i++) {
+		for(i = 0; i < X509_PURPOSE_get_count(); i++)
+			{
 			X509_PURPOSE *ptmp;
 			ptmp = X509_PURPOSE_get0(i);
-			BIO_printf(bio_err, "\t%-10s\t%s\n", X509_PURPOSE_get0_sname(ptmp),
-								X509_PURPOSE_get0_name(ptmp));
-		}
+			BIO_printf(bio_err, "\t%-10s\t%s\n",
+				   X509_PURPOSE_get0_sname(ptmp),
+				   X509_PURPOSE_get0_name(ptmp));
+			}
 	}
 	if (vpm) X509_VERIFY_PARAM_free(vpm);
 	if (cert_ctx != NULL) X509_STORE_free(cert_ctx);
@@ -249,7 +260,7 @@ end:
 	sk_X509_pop_free(trusted, X509_free);
 	sk_X509_CRL_pop_free(crls, X509_CRL_free);
 	apps_shutdown();
-	OPENSSL_EXIT(ret);
+	OPENSSL_EXIT(ret < 0 ? 2 : ret);
 	}
 
 static int check(X509_STORE *ctx, char *file,

@@ -200,8 +200,15 @@ ECDSA_DATA *ecdsa_check(EC_KEY *key)
 		ecdsa_data = (ECDSA_DATA *)ecdsa_data_new();
 		if (ecdsa_data == NULL)
 			return NULL;
-		EC_KEY_insert_key_method_data(key, (void *)ecdsa_data,
-			ecdsa_data_dup, ecdsa_data_free, ecdsa_data_free);
+		data = EC_KEY_insert_key_method_data(key, (void *)ecdsa_data,
+			   ecdsa_data_dup, ecdsa_data_free, ecdsa_data_free);
+		if (data != NULL)
+			{
+			/* Another thread raced us to install the key_method
+			 * data and won. */
+			ecdsa_data_free(ecdsa_data);
+			ecdsa_data = (ECDSA_DATA *)data;
+			}
 	}
 	else
 		ecdsa_data = (ECDSA_DATA *)data;

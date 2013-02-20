@@ -617,7 +617,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-ndays n	 	 number of days before next update\n");
 		BIO_printf (bio_err, "-resp_key_id       identify reponse by signing certificate key ID\n");
 		BIO_printf (bio_err, "-nrequest n        number of requests to accept (default unlimited)\n");
-		BIO_printf (bio_err, "-<dgst alg>     use specified digest in the request");
+		BIO_printf (bio_err, "-<dgst alg>     use specified digest in the request\n");
 		goto end;
 		}
 

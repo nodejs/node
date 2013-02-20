@@ -210,8 +210,11 @@ static size_t drbg_get_entropy(DRBG_CTX *ctx, unsigned char **pout,
 
 static void drbg_free_entropy(DRBG_CTX *ctx, unsigned char *out, size_t olen)
 	{
-	OPENSSL_cleanse(out, olen);
-	OPENSSL_free(out);
+	if (out)
+		{
+		OPENSSL_cleanse(out, olen);
+		OPENSSL_free(out);
+		}
 	}
 
 /* Set "additional input" when generating random data. This uses the

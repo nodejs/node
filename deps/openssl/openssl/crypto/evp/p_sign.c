@@ -80,7 +80,7 @@ int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret, unsigned int *siglen,
 	{
 	unsigned char m[EVP_MAX_MD_SIZE];
 	unsigned int m_len;
-	int i=0,ok=0,v;
+	int i = 0,ok = 0,v;
 	EVP_MD_CTX tmp_ctx;
 	EVP_PKEY_CTX *pkctx = NULL;
 

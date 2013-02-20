@@ -236,7 +236,7 @@ static void group_order_tests(EC_GROUP *group)
 	}
 
 static void prime_field_tests(void)
-	{	
+	{
 	BN_CTX *ctx = NULL;
 	BIGNUM *p, *a, *b;
 	EC_GROUP *group;

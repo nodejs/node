@@ -649,6 +649,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 		}
 #endif
 
+#ifndef OPENSSL_NO_SRTP
         if(SSL_get_srtp_profiles(s))
                 {
                 int el;
@@ -667,6 +668,7 @@ unsigned char *ssl_add_clienthello_tlsext(SSL *s, unsigned char *p, unsigned cha
 			}
                 ret += el;
                 }
+#endif
 
 	if ((extdatalen = ret-p-2)== 0) 
 		return p;
@@ -781,6 +783,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 		}
 #endif
 
+#ifndef OPENSSL_NO_SRTP
         if(s->srtp_profile)
                 {
                 int el;
@@ -799,6 +802,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
 			}
                 ret+=el;
                 }
+#endif
 
 	if (((s->s3->tmp.new_cipher->id & 0xFFFF)==0x80 || (s->s3->tmp.new_cipher->id & 0xFFFF)==0x81) 
 		&& (SSL_get_options(s) & SSL_OP_CRYPTOPRO_TLSEXT_BUG))
@@ -1077,7 +1081,8 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			int ellipticcurvelist_length = (*(sdata++) << 8);
 			ellipticcurvelist_length += (*(sdata++));
 
-			if (ellipticcurvelist_length != size - 2)
+			if (ellipticcurvelist_length != size - 2 ||
+				ellipticcurvelist_length < 1)
 				{
 				*al = TLS1_AD_DECODE_ERROR;
 				return 0;
@@ -1328,12 +1333,14 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 #endif
 
 		/* session ticket processed earlier */
+#ifndef OPENSSL_NO_SRTP
 		else if (type == TLSEXT_TYPE_use_srtp)
-                        {
+			{
 			if(ssl_parse_clienthello_use_srtp_ext(s, data, size,
 							      al))
 				return 0;
-                        }
+			}
+#endif
 
 		data+=size;
 		}
@@ -1433,7 +1440,8 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			unsigned char *sdata = data;
 			int ecpointformatlist_length = *(sdata++);
 
-			if (ecpointformatlist_length != size - 1)
+			if (ecpointformatlist_length != size - 1 || 
+				ecpointformatlist_length < 1)
 				{
 				*al = TLS1_AD_DECODE_ERROR;
 				return 0;
@@ -1527,7 +1535,7 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 			unsigned char selected_len;
 
 			/* We must have requested it. */
-			if ((s->ctx->next_proto_select_cb == NULL))
+			if (s->ctx->next_proto_select_cb == NULL)
 				{
 				*al = TLS1_AD_UNSUPPORTED_EXTENSION;
 				return 0;
@@ -1577,12 +1585,14 @@ int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
 				}
 			}
 #endif
+#ifndef OPENSSL_NO_SRTP
 		else if (type == TLSEXT_TYPE_use_srtp)
-                        {
+			{
                         if(ssl_parse_serverhello_use_srtp_ext(s, data, size,
 							      al))
                                 return 0;
-                        }
+			}
+#endif
 
 		data+=size;		
 		}
@@ -1763,7 +1773,7 @@ int ssl_prepare_serverhello_tlsext(SSL *s)
 	return 1;
 	}
 
-int ssl_check_clienthello_tlsext(SSL *s)
+int ssl_check_clienthello_tlsext_early(SSL *s)
 	{
 	int ret=SSL_TLSEXT_ERR_NOACK;
 	int al = SSL_AD_UNRECOGNIZED_NAME;
@@ -1782,42 +1792,12 @@ int ssl_check_clienthello_tlsext(SSL *s)
 	else if (s->initial_ctx != NULL && s->initial_ctx->tlsext_servername_callback != 0) 		
 		ret = s->initial_ctx->tlsext_servername_callback(s, &al, s->initial_ctx->tlsext_servername_arg);
 
-	/* If status request then ask callback what to do.
- 	 * Note: this must be called after servername callbacks in case 
- 	 * the certificate has changed.
- 	 */
-	if ((s->tlsext_status_type != -1) && s->ctx && s->ctx->tlsext_status_cb)
-		{
-		int r;
-		r = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
-		switch (r)
-			{
-			/* We don't want to send a status request response */
-			case SSL_TLSEXT_ERR_NOACK:
-				s->tlsext_status_expected = 0;
-				break;
-			/* status request response should be sent */
-			case SSL_TLSEXT_ERR_OK:
-				if (s->tlsext_ocsp_resp)
-					s->tlsext_status_expected = 1;
-				else
-					s->tlsext_status_expected = 0;
-				break;
-			/* something bad happened */
-			case SSL_TLSEXT_ERR_ALERT_FATAL:
-				ret = SSL_TLSEXT_ERR_ALERT_FATAL;
-				al = SSL_AD_INTERNAL_ERROR;
-				goto err;
-			}
-		}
-	else
-		s->tlsext_status_expected = 0;
-
 #ifdef TLSEXT_TYPE_opaque_prf_input
  	{
 		/* This sort of belongs into ssl_prepare_serverhello_tlsext(),
 		 * but we might be sending an alert in response to the client hello,
-		 * so this has to happen here in ssl_check_clienthello_tlsext(). */
+		 * so this has to happen here in
+		 * ssl_check_clienthello_tlsext_early(). */
 
 		int r = 1;
 	
@@ -1869,8 +1849,8 @@ int ssl_check_clienthello_tlsext(SSL *s)
 			}
 	}
 
-#endif
  err:
+#endif
 	switch (ret)
 		{
 		case SSL_TLSEXT_ERR_ALERT_FATAL:
@@ -1885,6 +1865,71 @@ int ssl_check_clienthello_tlsext(SSL *s)
 			s->servername_done=0;
 			default:
 		return 1;
+		}
+	}
+
+int ssl_check_clienthello_tlsext_late(SSL *s)
+	{
+	int ret = SSL_TLSEXT_ERR_OK;
+	int al;
+
+	/* If status request then ask callback what to do.
+ 	 * Note: this must be called after servername callbacks in case 
+ 	 * the certificate has changed, and must be called after the cipher
+	 * has been chosen because this may influence which certificate is sent
+ 	 */
+	if ((s->tlsext_status_type != -1) && s->ctx && s->ctx->tlsext_status_cb)
+		{
+		int r;
+		CERT_PKEY *certpkey;
+		certpkey = ssl_get_server_send_pkey(s);
+		/* If no certificate can't return certificate status */
+		if (certpkey == NULL)
+			{
+			s->tlsext_status_expected = 0;
+			return 1;
+			}
+		/* Set current certificate to one we will use so
+		 * SSL_get_certificate et al can pick it up.
+		 */
+		s->cert->key = certpkey;
+		r = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
+		switch (r)
+			{
+			/* We don't want to send a status request response */
+			case SSL_TLSEXT_ERR_NOACK:
+				s->tlsext_status_expected = 0;
+				break;
+			/* status request response should be sent */
+			case SSL_TLSEXT_ERR_OK:
+				if (s->tlsext_ocsp_resp)
+					s->tlsext_status_expected = 1;
+				else
+					s->tlsext_status_expected = 0;
+				break;
+			/* something bad happened */
+			case SSL_TLSEXT_ERR_ALERT_FATAL:
+				ret = SSL_TLSEXT_ERR_ALERT_FATAL;
+				al = SSL_AD_INTERNAL_ERROR;
+				goto err;
+			}
+		}
+	else
+		s->tlsext_status_expected = 0;
+
+ err:
+	switch (ret)
+		{
+		case SSL_TLSEXT_ERR_ALERT_FATAL:
+			ssl3_send_alert(s,SSL3_AL_FATAL,al); 
+			return -1;
+
+		case SSL_TLSEXT_ERR_ALERT_WARNING:
+			ssl3_send_alert(s,SSL3_AL_WARNING,al);
+			return 1; 
+
+		default:
+			return 1;
 		}
 	}
 
@@ -2189,7 +2234,7 @@ static int tls_decrypt_ticket(SSL *s, const unsigned char *etick, int eticklen,
 	HMAC_Update(&hctx, etick, eticklen);
 	HMAC_Final(&hctx, tick_hmac, NULL);
 	HMAC_CTX_cleanup(&hctx);
-	if (memcmp(tick_hmac, etick + eticklen, mlen))
+	if (CRYPTO_memcmp(tick_hmac, etick + eticklen, mlen))
 		return 2;
 	/* Attempt to decrypt session data */
 	/* Move p after IV to start of encrypted ticket, update length */
@@ -2414,7 +2459,7 @@ int tls1_process_sigalgs(SSL *s, const unsigned char *data, int dsize)
 	 */
 #ifndef OPENSSL_NO_DSA
 	if (!c->pkeys[SSL_PKEY_DSA_SIGN].digest)
-		c->pkeys[SSL_PKEY_DSA_SIGN].digest = EVP_dss1();
+		c->pkeys[SSL_PKEY_DSA_SIGN].digest = EVP_sha1();
 #endif
 #ifndef OPENSSL_NO_RSA
 	if (!c->pkeys[SSL_PKEY_RSA_SIGN].digest)
@@ -2425,7 +2470,7 @@ int tls1_process_sigalgs(SSL *s, const unsigned char *data, int dsize)
 #endif
 #ifndef OPENSSL_NO_ECDSA
 	if (!c->pkeys[SSL_PKEY_ECC].digest)
-		c->pkeys[SSL_PKEY_ECC].digest = EVP_ecdsa();
+		c->pkeys[SSL_PKEY_ECC].digest = EVP_sha1();
 #endif
 	return 1;
 	}

@@ -1598,11 +1598,11 @@ $code.=<<___ if(1);
 	lghi	$s1,0x7f
 	nr	$s1,%r0
 	lghi	%r0,0			# query capability vector
-	la	%r1,2*$SIZE_T($sp)
+	la	%r1,$tweak-16($sp)
 	.long	0xb92e0042		# km %r4,%r2
 	llihh	%r1,0x8000
 	srlg	%r1,%r1,32($s1)		# check for 32+function code
-	ng	%r1,2*$SIZE_T($sp)
+	ng	%r1,$tweak-16($sp)
 	lgr	%r0,$s0			# restore the function code
 	la	%r1,0($key1)		# restore $key1
 	jz	.Lxts_km_vanilla
@@ -1628,7 +1628,7 @@ $code.=<<___ if(1);
 
 	lrvg	$s0,$tweak+0($sp)	# load the last tweak
 	lrvg	$s1,$tweak+8($sp)
-	stmg	%r0,%r3,$tweak-32(%r1)	# wipe copy of the key
+	stmg	%r0,%r3,$tweak-32($sp)	# wipe copy of the key
 
 	nill	%r0,0xffdf		# switch back to original function code
 	la	%r1,0($key1)		# restore pointer to $key1
@@ -1684,11 +1684,9 @@ $code.=<<___;
 	lghi	$i1,0x87
 	srag	$i2,$s1,63		# broadcast upper bit
 	ngr	$i1,$i2			# rem
-	srlg	$i2,$s0,63		# carry bit from lower half
-	sllg	$s0,$s0,1
-	sllg	$s1,$s1,1
+	algr	$s0,$s0
+	alcgr	$s1,$s1
 	xgr	$s0,$i1
-	ogr	$s1,$i2
 .Lxts_km_start:
 	lrvgr	$i1,$s0			# flip byte order
 	lrvgr	$i2,$s1
@@ -1745,11 +1743,9 @@ $code.=<<___;
 	lghi	$i1,0x87
 	srag	$i2,$s1,63		# broadcast upper bit
 	ngr	$i1,$i2			# rem
-	srlg	$i2,$s0,63		# carry bit from lower half
-	sllg	$s0,$s0,1
-	sllg	$s1,$s1,1
+	algr	$s0,$s0
+	alcgr	$s1,$s1
 	xgr	$s0,$i1
-	ogr	$s1,$i2
 
 	ltr	$len,$len		# clear zero flag
 	br	$ra
@@ -1781,8 +1777,8 @@ $code.=<<___ if (!$softonly);
 	clr	%r0,%r1
 	jl	.Lxts_enc_software
 
+	st${g}	$ra,5*$SIZE_T($sp)
 	stm${g}	%r6,$s3,6*$SIZE_T($sp)
-	st${g}	$ra,14*$SIZE_T($sp)
 
 	sllg	$len,$len,4		# $len&=~15
 	slgr	$out,$inp
@@ -1830,9 +1826,9 @@ $code.=<<___ if (!$softonly);
 	stg	$i2,8($i3)
 
 .Lxts_enc_km_done:
-	l${g}	$ra,14*$SIZE_T($sp)
-	st${g}	$sp,$tweak($sp)		# wipe tweak
-	st${g}	$sp,$tweak($sp)
+	stg	$sp,$tweak+0($sp)	# wipe tweak
+	stg	$sp,$tweak+8($sp)
+	l${g}	$ra,5*$SIZE_T($sp)
 	lm${g}	%r6,$s3,6*$SIZE_T($sp)
 	br	$ra
 .align	16
@@ -1843,12 +1839,11 @@ $code.=<<___;
 
 	slgr	$out,$inp
 
-	xgr	$s0,$s0			# clear upper half
-	xgr	$s1,$s1
-	lrv	$s0,$stdframe+4($sp)	# load secno
-	lrv	$s1,$stdframe+0($sp)
-	xgr	$s2,$s2
-	xgr	$s3,$s3
+	l${g}	$s3,$stdframe($sp)	# ivp
+	llgf	$s0,0($s3)		# load iv
+	llgf	$s1,4($s3)
+	llgf	$s2,8($s3)
+	llgf	$s3,12($s3)
 	stm${g}	%r2,%r5,2*$SIZE_T($sp)
 	la	$key,0($key2)
 	larl	$tbl,AES_Te
@@ -1864,11 +1859,9 @@ $code.=<<___;
 	lghi	%r1,0x87
 	srag	%r0,$s3,63		# broadcast upper bit
 	ngr	%r1,%r0			# rem
-	srlg	%r0,$s1,63		# carry bit from lower half
-	sllg	$s1,$s1,1
-	sllg	$s3,$s3,1
+	algr	$s1,$s1
+	alcgr	$s3,$s3
 	xgr	$s1,%r1
-	ogr	$s3,%r0
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
 	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits 
@@ -1917,11 +1910,9 @@ $code.=<<___;
 	lghi	%r1,0x87
 	srag	%r0,$s3,63		# broadcast upper bit
 	ngr	%r1,%r0			# rem
-	srlg	%r0,$s1,63		# carry bit from lower half
-	sllg	$s1,$s1,1
-	sllg	$s3,$s3,1
+	algr	$s1,$s1
+	alcgr	$s3,$s3
 	xgr	$s1,%r1
-	ogr	$s3,%r0
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
 	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits 
@@ -1956,7 +1947,8 @@ $code.=<<___;
 .size	AES_xts_encrypt,.-AES_xts_encrypt
 ___
 # void AES_xts_decrypt(const char *inp,char *out,size_t len,
-#	const AES_KEY *key1, const AES_KEY *key2,u64 secno);
+#	const AES_KEY *key1, const AES_KEY *key2,
+#	const unsigned char iv[16]);
 #
 $code.=<<___;
 .globl	AES_xts_decrypt
@@ -1988,8 +1980,8 @@ $code.=<<___ if (!$softonly);
 	clr	%r0,%r1
 	jl	.Lxts_dec_software
 
+	st${g}	$ra,5*$SIZE_T($sp)
 	stm${g}	%r6,$s3,6*$SIZE_T($sp)
-	st${g}	$ra,14*$SIZE_T($sp)
 
 	nill	$len,0xfff0		# $len&=~15
 	slgr	$out,$inp
@@ -2028,11 +2020,9 @@ $code.=<<___ if (!$softonly);
 	lghi	$i1,0x87
 	srag	$i2,$s1,63		# broadcast upper bit
 	ngr	$i1,$i2			# rem
-	srlg	$i2,$s0,63		# carry bit from lower half
-	sllg	$s0,$s0,1
-	sllg	$s1,$s1,1
+	algr	$s0,$s0
+	alcgr	$s1,$s1
 	xgr	$s0,$i1
-	ogr	$s1,$i2
 	lrvgr	$i1,$s0			# flip byte order
 	lrvgr	$i2,$s1
 
@@ -2075,9 +2065,9 @@ $code.=<<___ if (!$softonly);
 	stg	$s2,0($i3)
 	stg	$s3,8($i3)
 .Lxts_dec_km_done:
-	l${g}	$ra,14*$SIZE_T($sp)
-	st${g}	$sp,$tweak($sp)		# wipe tweak
-	st${g}	$sp,$tweak($sp)
+	stg	$sp,$tweak+0($sp)	# wipe tweak
+	stg	$sp,$tweak+8($sp)
+	l${g}	$ra,5*$SIZE_T($sp)
 	lm${g}	%r6,$s3,6*$SIZE_T($sp)
 	br	$ra
 .align	16
@@ -2089,12 +2079,11 @@ $code.=<<___;
 	srlg	$len,$len,4
 	slgr	$out,$inp
 
-	xgr	$s0,$s0			# clear upper half
-	xgr	$s1,$s1
-	lrv	$s0,$stdframe+4($sp)	# load secno
-	lrv	$s1,$stdframe+0($sp)
-	xgr	$s2,$s2
-	xgr	$s3,$s3
+	l${g}	$s3,$stdframe($sp)	# ivp
+	llgf	$s0,0($s3)		# load iv
+	llgf	$s1,4($s3)
+	llgf	$s2,8($s3)
+	llgf	$s3,12($s3)
 	stm${g}	%r2,%r5,2*$SIZE_T($sp)
 	la	$key,0($key2)
 	larl	$tbl,AES_Te
@@ -2113,11 +2102,9 @@ $code.=<<___;
 	lghi	%r1,0x87
 	srag	%r0,$s3,63		# broadcast upper bit
 	ngr	%r1,%r0			# rem
-	srlg	%r0,$s1,63		# carry bit from lower half
-	sllg	$s1,$s1,1
-	sllg	$s3,$s3,1
+	algr	$s1,$s1
+	alcgr	$s3,$s3
 	xgr	$s1,%r1
-	ogr	$s3,%r0
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
 	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits 
@@ -2156,11 +2143,9 @@ $code.=<<___;
 	lghi	%r1,0x87
 	srag	%r0,$s3,63		# broadcast upper bit
 	ngr	%r1,%r0			# rem
-	srlg	%r0,$s1,63		# carry bit from lower half
-	sllg	$s1,$s1,1
-	sllg	$s3,$s3,1
+	algr	$s1,$s1
+	alcgr	$s3,$s3
 	xgr	$s1,%r1
-	ogr	$s3,%r0
 	lrvgr	$i2,$s1			# flip byte order
 	lrvgr	$i3,$s3
 	stmg	$i2,$i3,$tweak($sp)	# save the 1st tweak
@@ -2176,11 +2161,9 @@ $code.=<<___;
 	lghi	%r1,0x87
 	srag	%r0,$s3,63		# broadcast upper bit
 	ngr	%r1,%r0			# rem
-	srlg	%r0,$s1,63		# carry bit from lower half
-	sllg	$s1,$s1,1
-	sllg	$s3,$s3,1
+	algr	$s1,$s1
+	alcgr	$s3,$s3
 	xgr	$s1,%r1
-	ogr	$s3,%r0
 	lrvgr	$s1,$s1			# flip byte order
 	lrvgr	$s3,$s3
 	srlg	$s0,$s1,32		# smash the tweak to 4x32-bits

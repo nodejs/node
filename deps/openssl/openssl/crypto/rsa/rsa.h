@@ -280,7 +280,7 @@ struct rsa_st
 
 RSA *	RSA_new(void);
 RSA *	RSA_new_method(ENGINE *engine);
-int	RSA_size(const RSA *);
+int	RSA_size(const RSA *rsa);
 
 /* Deprecated version */
 #ifndef OPENSSL_NO_DEPRECATED

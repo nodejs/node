@@ -493,6 +493,9 @@ struct ssl_session_st
 	char *psk_identity_hint;
 	char *psk_identity;
 #endif
+	/* Used to indicate that session resumption is not allowed.
+	 * Applications can also set this bit for a new session via
+	 * not_resumable_session_cb to disable session caching and tickets. */
 	int not_resumable;
 
 	/* The cert is the certificate used to establish this connection */
@@ -535,7 +538,7 @@ struct ssl_session_st
 #endif /* OPENSSL_NO_EC */
 	/* RFC4507 info */
 	unsigned char *tlsext_tick;	/* Session ticket */
-	size_t	tlsext_ticklen;		/* Session ticket length */	
+	size_t tlsext_ticklen;		/* Session ticket length */
 	long tlsext_tick_lifetime_hint;	/* Session lifetime hint in seconds */
 #endif
 #ifndef OPENSSL_NO_SRP
@@ -638,13 +641,6 @@ struct ssl_session_st
  * TLS only.)  "Released" buffers are put onto a free-list in the context
  * or just freed (depending on the context's setting for freelist_max_len). */
 #define SSL_MODE_RELEASE_BUFFERS 0x00000010L
-/* Use small read and write buffers: (a) lazy allocate read buffers for
- * large incoming records, and (b) limit the size of outgoing records. */
-#define SSL_MODE_SMALL_BUFFERS 0x00000020L
-/* When set, clients may send application data before receipt of CCS
- * and Finished.  This mode enables full-handshakes to 'complete' in
- * one RTT. */
-#define SSL_MODE_HANDSHAKE_CUTTHROUGH 0x00000040L
 
 /* Note: SSL[_CTX]_set_{options,mode} use |= op on the previous value,
  * they cannot be used to clear bits. */
@@ -934,6 +930,7 @@ struct ssl_ctx_st
 	/* Callback for status request */
 	int (*tlsext_status_cb)(SSL *ssl, void *arg);
 	void *tlsext_status_arg;
+
 	/* draft-rescorla-tls-opaque-prf-input-00.txt information */
 	int (*tlsext_opaque_prf_input_callback)(SSL *, void *peerinput, size_t len, void *arg);
 	void *tlsext_opaque_prf_input_callback_arg;
@@ -959,6 +956,7 @@ struct ssl_ctx_st
 #endif
 
 #ifndef OPENSSL_NO_TLSEXT
+
 # ifndef OPENSSL_NO_NEXTPROTONEG
 	/* Next protocol negotiation information */
 	/* (for experimental NPN extension). */
@@ -1413,12 +1411,10 @@ extern "C" {
 /* Is the SSL_connection established? */
 #define SSL_get_state(a)		SSL_state(a)
 #define SSL_is_init_finished(a)		(SSL_state(a) == SSL_ST_OK)
-#define SSL_in_init(a)			((SSL_state(a)&SSL_ST_INIT) && \
-                                  !SSL_cutthrough_complete(a))
+#define SSL_in_init(a)			(SSL_state(a)&SSL_ST_INIT)
 #define SSL_in_before(a)		(SSL_state(a)&SSL_ST_BEFORE)
 #define SSL_in_connect_init(a)		(SSL_state(a)&SSL_ST_CONNECT)
 #define SSL_in_accept_init(a)		(SSL_state(a)&SSL_ST_ACCEPT)
-int SSL_cutthrough_complete(const SSL *s);
 
 /* The following 2 states are kept in ssl->rstate when reads fail,
  * you should not need these */
@@ -2215,6 +2211,7 @@ void ERR_load_SSL_strings(void);
 #define SSL_F_SSL_GET_NEW_SESSION			 181
 #define SSL_F_SSL_GET_PREV_SESSION			 217
 #define SSL_F_SSL_GET_SERVER_SEND_CERT			 182
+#define SSL_F_SSL_GET_SERVER_SEND_PKEY			 317
 #define SSL_F_SSL_GET_SIGN_PKEY				 183
 #define SSL_F_SSL_INIT_WBIO_BUFFER			 184
 #define SSL_F_SSL_LOAD_CLIENT_CA_FILE			 185

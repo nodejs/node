@@ -357,13 +357,14 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -tlsextdebug      - hex dump of all TLS extensions received\n");
 	BIO_printf(bio_err," -status           - request certificate status from server\n");
 	BIO_printf(bio_err," -no_ticket        - disable use of RFC4507bis session tickets\n");
-# if !defined(OPENSSL_NO_NEXTPROTONEG)
+# ifndef OPENSSL_NO_NEXTPROTONEG
 	BIO_printf(bio_err," -nextprotoneg arg - enable NPN extension, considering named protocols supported (comma-separated list)\n");
 # endif
-	BIO_printf(bio_err," -cutthrough       - enable 1-RTT full-handshake for strong ciphers\n");
 #endif
 	BIO_printf(bio_err," -legacy_renegotiation - enable use of legacy renegotiation (dangerous)\n");
+#ifndef OPENSSL_NO_SRTP
 	BIO_printf(bio_err," -use_srtp profiles - Offer SRTP key management with a colon-separated profile list\n");
+#endif
  	BIO_printf(bio_err," -keymatexport label   - Export keying material using label\n");
  	BIO_printf(bio_err," -keymatexportlen len  - Export len bytes of keying material (default 20)\n");
 	}
@@ -503,7 +504,9 @@ static char * MS_CALLBACK ssl_give_srp_client_pwd_cb(SSL *s, void *arg)
 	}
 
 #endif
+#ifndef OPENSSL_NO_SRTP
 	char *srtp_profiles = NULL;
+#endif
 
 # ifndef OPENSSL_NO_NEXTPROTONEG
 /* This the context that we pass to next_proto_cb */
@@ -537,7 +540,7 @@ static int next_proto_cb(SSL *s, unsigned char **out, unsigned char *outlen, con
 	ctx->status = SSL_select_next_proto(out, outlen, in, inlen, ctx->data, ctx->len);
 	return SSL_TLSEXT_ERR_OK;
 	}
-# endif
+# endif  /* ndef OPENSSL_NO_NEXTPROTONEG */
 #endif
 
 enum
@@ -574,7 +577,6 @@ int MAIN(int argc, char **argv)
 	EVP_PKEY *key = NULL;
 	char *CApath=NULL,*CAfile=NULL,*cipher=NULL;
 	int reconnect=0,badop=0,verify=SSL_VERIFY_NONE,bugs=0;
-	int cutthrough=0;
 	int crlf=0;
 	int write_tty,read_tty,write_ssl,read_ssl,tty_on,ssl_pending;
 	SSL_CTX *ctx=NULL;
@@ -881,8 +883,6 @@ int MAIN(int argc, char **argv)
 			}
 # endif
 #endif
-		else if (strcmp(*argv,"-cutthrough") == 0)
-			cutthrough=1;
 		else if (strcmp(*argv,"-serverpref") == 0)
 			off|=SSL_OP_CIPHER_SERVER_PREFERENCE;
 		else if (strcmp(*argv,"-legacy_renegotiation") == 0)
@@ -949,11 +949,13 @@ int MAIN(int argc, char **argv)
 			jpake_secret = *++argv;
 			}
 #endif
+#ifndef OPENSSL_NO_SRTP
 		else if (strcmp(*argv,"-use_srtp") == 0)
 			{
 			if (--argc < 1) goto bad;
 			srtp_profiles = *(++argv);
 			}
+#endif
 		else if (strcmp(*argv,"-keymatexport") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -1134,6 +1136,8 @@ bad:
 			BIO_printf(bio_c_out, "PSK key given or JPAKE in use, setting client callback\n");
 		SSL_CTX_set_psk_client_callback(ctx, psk_client_cb);
 		}
+#endif
+#ifndef OPENSSL_NO_SRTP
 	if (srtp_profiles != NULL)
 		SSL_CTX_set_tlsext_use_srtp(ctx, srtp_profiles);
 #endif
@@ -1148,15 +1152,6 @@ bad:
 	 * Setting read ahead solves this problem.
 	 */
 	if (socket_type == SOCK_DGRAM) SSL_CTX_set_read_ahead(ctx, 1);
-
-	/* Enable handshake cutthrough for client connections using
-	 * strong ciphers. */
-	if (cutthrough)
-		{
-		int ssl_mode = SSL_CTX_get_mode(ctx);
-		ssl_mode |= SSL_MODE_HANDSHAKE_CUTTHROUGH;
-		SSL_CTX_set_mode(ctx, ssl_mode);
-		}
 
 #if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
 	if (next_proto.data)
@@ -1903,6 +1898,10 @@ end:
 			print_stuff(bio_c_out,con,1);
 		SSL_free(con);
 		}
+#if !defined(OPENSSL_NO_TLSEXT) && !defined(OPENSSL_NO_NEXTPROTONEG)
+	if (next_proto.data)
+		OPENSSL_free(next_proto.data);
+#endif
 	if (ctx != NULL) SSL_CTX_free(ctx);
 	if (cert)
 		X509_free(cert);
@@ -1910,6 +1909,8 @@ end:
 		EVP_PKEY_free(key);
 	if (pass)
 		OPENSSL_free(pass);
+	if (vpm)
+		X509_VERIFY_PARAM_free(vpm);
 	if (cbuf != NULL) { OPENSSL_cleanse(cbuf,BUFSIZZ); OPENSSL_free(cbuf); }
 	if (sbuf != NULL) { OPENSSL_cleanse(sbuf,BUFSIZZ); OPENSSL_free(sbuf); }
 	if (mbuf != NULL) { OPENSSL_cleanse(mbuf,BUFSIZZ); OPENSSL_free(mbuf); }
@@ -2074,6 +2075,7 @@ static void print_stuff(BIO *bio, SSL *s, int full)
 	}
 #endif
 
+#ifndef OPENSSL_NO_SRTP
  	{
  	SRTP_PROTECTION_PROFILE *srtp_profile=SSL_get_selected_srtp_profile(s);
  
@@ -2081,6 +2083,7 @@ static void print_stuff(BIO *bio, SSL *s, int full)
 		BIO_printf(bio,"SRTP Extension negotiated, profile=%s\n",
 			   srtp_profile->name);
 	}
+#endif
  
 	SSL_SESSION_print(bio,SSL_get_session(s));
 	if (keymatexportlabel != NULL)

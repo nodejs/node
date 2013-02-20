@@ -312,6 +312,7 @@ static const SSL_CIPHER cipher_aliases[]={
 	{0,SSL_TXT_SSLV2,0,   0,0,0,0,SSL_SSLV2, 0,0,0,0},
 	{0,SSL_TXT_SSLV3,0,   0,0,0,0,SSL_SSLV3, 0,0,0,0},
 	{0,SSL_TXT_TLSV1,0,   0,0,0,0,SSL_TLSV1, 0,0,0,0},
+	{0,SSL_TXT_TLSV1_2,0, 0,0,0,0,SSL_TLSV1_2, 0,0,0,0},
 
 	/* export flag */
 	{0,SSL_TXT_EXP,0,     0,0,0,0,0,SSL_EXPORT,0,0,0},
@@ -1150,9 +1151,9 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 			while (	((ch >= 'A') && (ch <= 'Z')) ||
 				((ch >= '0') && (ch <= '9')) ||
 				((ch >= 'a') && (ch <= 'z')) ||
-				 (ch == '-'))
+				 (ch == '-') || (ch == '.'))
 #else
-			while (	isalnum(ch) || (ch == '-'))
+			while (	isalnum(ch) || (ch == '-') || (ch == '.'))
 #endif
 				 {
 				 ch = *(++l);

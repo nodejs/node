@@ -2,6 +2,53 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.1d and 1.0.1e [11 Feb 2013]
+
+  *)
+
+ Changes between 1.0.1c and 1.0.1d [5 Feb 2013]
+
+  *) Make the decoding of SSLv3, TLS and DTLS CBC records constant time.
+
+     This addresses the flaw in CBC record processing discovered by 
+     Nadhem Alfardan and Kenny Paterson. Details of this attack can be found
+     at: http://www.isg.rhul.ac.uk/tls/     
+
+     Thanks go to Nadhem Alfardan and Kenny Paterson of the Information
+     Security Group at Royal Holloway, University of London
+     (www.isg.rhul.ac.uk) for discovering this flaw and Adam Langley and
+     Emilia Käsper for the initial patch.
+     (CVE-2013-0169)
+     [Emilia Käsper, Adam Langley, Ben Laurie, Andy Polyakov, Steve Henson]
+
+  *) Fix flaw in AESNI handling of TLS 1.2 and 1.1 records for CBC mode
+     ciphersuites which can be exploited in a denial of service attack.
+     Thanks go to and to Adam Langley <agl@chromium.org> for discovering
+     and detecting this bug and to Wolfgang Ettlinger
+     <wolfgang.ettlinger@gmail.com> for independently discovering this issue.
+     (CVE-2012-2686)
+     [Adam Langley]
+
+  *) Return an error when checking OCSP signatures when key is NULL.
+     This fixes a DoS attack. (CVE-2013-0166)
+     [Steve Henson]
+
+  *) Make openssl verify return errors.
+     [Chris Palmer <palmer@google.com> and Ben Laurie]
+
+  *) Call OCSP Stapling callback after ciphersuite has been chosen, so
+     the right response is stapled. Also change SSL_get_certificate()
+     so it returns the certificate actually sent.
+     See http://rt.openssl.org/Ticket/Display.html?id=2836.
+     [Rob Stradling <rob.stradling@comodo.com>]
+
+  *) Fix possible deadlock when decoding public keys.
+     [Steve Henson]
+
+  *) Don't use TLS 1.0 record version number in initial client hello
+     if renegotiating.
+     [Steve Henson]
+
  Changes between 1.0.1b and 1.0.1c [10 May 2012]
 
   *) Sanity check record length before skipping explicit IV in TLS

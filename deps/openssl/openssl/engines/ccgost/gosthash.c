@@ -42,7 +42,7 @@ static void circle_xor8 (const byte *w, byte *k)
 	byte buf[8];
 	int i;
 	memcpy(buf,w,8);
-	memcpy(k,w+8,24);
+	memmove(k,w+8,24);
 	for(i=0;i<8;i++) 
 		k[i+24]=buf[i]^k[i];
 	}

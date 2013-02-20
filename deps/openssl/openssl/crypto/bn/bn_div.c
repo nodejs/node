@@ -141,6 +141,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     *
     *					<appro@fy.chalmers.se>
     */
+#undef bn_div_words
 #  define bn_div_words(n0,n1,d0)		\
 	({  asm volatile (			\
 		"divl	%4"			\
@@ -155,6 +156,7 @@ int BN_div(BIGNUM *dv, BIGNUM *rem, const BIGNUM *m, const BIGNUM *d,
     * Same story here, but it's 128-bit by 64-bit division. Wow!
     *					<appro@fy.chalmers.se>
     */
+#  undef bn_div_words
 #  define bn_div_words(n0,n1,d0)		\
 	({  asm volatile (			\
 		"divq	%4"			\

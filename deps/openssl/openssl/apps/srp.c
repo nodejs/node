@@ -125,13 +125,13 @@ static int get_index(CA_DB *db, char* id, char type)
 	if (type == DB_SRP_INDEX) 
 	for (i = 0; i < sk_OPENSSL_PSTRING_num(db->db->data); i++)
 		{
-		pp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, i);
-		if (pp[DB_srptype][0] == DB_SRP_INDEX  && !strcmp(id, pp[DB_srpid])) 
+		pp = sk_OPENSSL_PSTRING_value(db->db->data,i);
+		if (pp[DB_srptype][0] == DB_SRP_INDEX  && !strcmp(id,pp[DB_srpid])) 
 			return i;
 		}
 	else for (i = 0; i < sk_OPENSSL_PSTRING_num(db->db->data); i++)
 		{
-		pp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, i);
+		pp = sk_OPENSSL_PSTRING_value(db->db->data,i);
 
 		if (pp[DB_srptype][0] != DB_SRP_INDEX && !strcmp(id,pp[DB_srpid])) 
 			return i;
@@ -145,7 +145,7 @@ static void print_entry(CA_DB *db, BIO *bio, int indx, int verbose, char *s)
 	if (indx >= 0 && verbose)
 		{
 		int j;
-		char **pp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, indx);
+		char **pp = sk_OPENSSL_PSTRING_value(db->db->data, indx);
 		BIO_printf(bio, "%s \"%s\"\n", s, pp[DB_srpid]);
 		for (j = 0; j < DB_NUMBER; j++)
 			{
@@ -163,7 +163,7 @@ static void print_user(CA_DB *db, BIO *bio, int userindex, int verbose)
 	{
 	if (verbose > 0)
 		{
-		char **pp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, userindex);
+		char **pp = sk_OPENSSL_PSTRING_value(db->db->data,userindex);
 
 		if (pp[DB_srptype][0] != 'I')
 			{
@@ -517,7 +517,7 @@ bad:
 	/* Lets check some fields */
 	for (i = 0; i < sk_OPENSSL_PSTRING_num(db->db->data); i++)
 		{
-		pp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, i);
+		pp = sk_OPENSSL_PSTRING_value(db->db->data, i);
 	
 		if (pp[DB_srptype][0] == DB_SRP_INDEX)
 			{
@@ -533,8 +533,8 @@ bad:
 
 	if (gNindex >= 0)
 		{
-		gNrow = (char **)sk_OPENSSL_PSTRING_value(db->db->data, gNindex);
-		print_entry(db, bio_err, gNindex, verbose > 1, "Default g and N") ;
+		gNrow = sk_OPENSSL_PSTRING_value(db->db->data,gNindex);
+		print_entry(db, bio_err, gNindex, verbose > 1, "Default g and N");
 		}
 	else if (maxgN > 0 && !SRP_get_default_gN(gN))
 		{
@@ -587,7 +587,7 @@ bad:
 			if (userindex >= 0)
 				{
 				/* reactivation of a new user */
-				char **row = (char **)sk_OPENSSL_PSTRING_value(db->db->data, userindex);
+				char **row = sk_OPENSSL_PSTRING_value(db->db->data, userindex);
 				BIO_printf(bio_err, "user \"%s\" reactivated.\n", user);
 				row[DB_srptype][0] = 'V';
 
@@ -634,7 +634,7 @@ bad:
 			else
 				{
 
-				char **row = (char **)sk_OPENSSL_PSTRING_value(db->db->data, userindex);
+				char **row = sk_OPENSSL_PSTRING_value(db->db->data, userindex);
 				char type = row[DB_srptype][0];
 				if (type == 'v')
 					{
@@ -664,9 +664,9 @@ bad:
 
 					if (!(gNid=srp_create_user(user,&(row[DB_srpverifier]), &(row[DB_srpsalt]),gNrow?gNrow[DB_srpsalt]:NULL, gNrow?gNrow[DB_srpverifier]:NULL, passout, bio_err,verbose)))
 						{
-							BIO_printf(bio_err, "Cannot create srp verifier for user \"%s\", operation abandoned.\n", user);
-							errors++;
-							goto err;
+						BIO_printf(bio_err, "Cannot create srp verifier for user \"%s\", operation abandoned.\n", user);
+						errors++;
+						goto err;
 						}
 
 					row[DB_srptype][0] = 'v';
@@ -689,7 +689,7 @@ bad:
 				}
 			else
 				{
-				char **xpp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, userindex);
+				char **xpp = sk_OPENSSL_PSTRING_value(db->db->data,userindex);
 				BIO_printf(bio_err, "user \"%s\" revoked. t\n", user);
 
 				xpp[DB_srptype][0] = 'R';
@@ -714,7 +714,7 @@ bad:
 		/* Lets check some fields */
 		for (i = 0; i < sk_OPENSSL_PSTRING_num(db->db->data); i++)
 			{
-			pp = (char **)sk_OPENSSL_PSTRING_value(db->db->data, i);
+			pp = sk_OPENSSL_PSTRING_value(db->db->data,i);
 	
 			if (pp[DB_srptype][0] == 'v')
 				{

@@ -390,7 +390,7 @@ int SRP_VBASE_init(SRP_VBASE *vb, char *verifier_file)
 		}
 	for (i = 0; i < sk_OPENSSL_PSTRING_num(tmpdb->data); i++)
 		{
-		pp = (char **)sk_OPENSSL_PSTRING_value(tmpdb->data,i);
+		pp = sk_OPENSSL_PSTRING_value(tmpdb->data,i);
 		if (pp[DB_srptype][0] == DB_SRP_INDEX)
 			{
 			/*we add this couple in the internal Stack */
@@ -581,7 +581,8 @@ char *SRP_create_verifier(const char *user, const char *pass, char **salt,
 	if (*salt == NULL)
 		{
 		char *tmp_salt;
-		if ((tmp_salt = (char *)OPENSSL_malloc(SRP_RANDOM_SALT_LEN * 2)) == NULL)
+
+		if ((tmp_salt = OPENSSL_malloc(SRP_RANDOM_SALT_LEN * 2)) == NULL)
 			{
 			OPENSSL_free(vf);
 			goto err;

@@ -74,7 +74,7 @@ BIO *cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec)
 	X509_ALGOR *calg = ec->contentEncryptionAlgorithm;
 	unsigned char iv[EVP_MAX_IV_LENGTH], *piv = NULL;
 	unsigned char *tkey = NULL;
-	size_t tkeylen;
+	size_t tkeylen = 0;
 
 	int ok = 0;
 

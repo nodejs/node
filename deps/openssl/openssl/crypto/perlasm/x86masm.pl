@@ -33,6 +33,7 @@ sub ::generic
 sub ::call	{ &::emit("call",(&::islabel($_[0]) or "$nmdecor$_[0]")); }
 sub ::call_ptr	{ &::emit("call",@_);	}
 sub ::jmp_ptr	{ &::emit("jmp",@_);	}
+sub ::lock	{ &::data_byte(0xf0);	}
 
 sub get_mem
 { my($size,$addr,$reg1,$reg2,$idx)=@_;
@@ -79,7 +80,7 @@ TITLE	$_[0].asm
 IF \@Version LT 800
 ECHO MASM version 8.00 or later is strongly recommended.
 ENDIF
-.686
+.486
 .MODEL	FLAT
 OPTION	DOTNAME
 IF \@Version LT 800
