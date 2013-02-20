@@ -34,7 +34,7 @@ if (!html) {
 } else {
   var start = '<pre style="background-color:#333;color:#eee">';
   var green = '<span style="background-color:#0f0;color:#000">';
-  var red = '<span style="background-color:#f00">';
+  var red = '<span style="background-color:#f00;color:#fff">';
   var reset = '</span>';
   var end = '</pre>';
 }
