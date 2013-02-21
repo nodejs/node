@@ -218,9 +218,7 @@ var joinTests =
      [['/', '//foo'], '/foo'],
      [['/', '', '/foo'], '/foo'],
      [['', '/', 'foo'], '/foo'],
-     [['', '/', '/foo'], '/foo'],
-     // filtration of non-strings.
-     [['x', true, 7, 'y', null, {}], 'x/y']
+     [['', '/', '/foo'], '/foo']
     ];
 
 // Windows-specific join tests
@@ -284,6 +282,13 @@ joinTests.forEach(function(test) {
   // assert.equal(actual, expected, message);
 });
 assert.equal(failures.length, 0, failures.join(''));
+var joinThrowTests = [true, false, 7, null, {}, undefined, [], NaN];
+joinThrowTests.forEach(function(test) {
+  assert.throws(function() {
+    path.join(test);
+  }, TypeError);
+});
+
 
 // path normalize tests
 if (isWindows) {
