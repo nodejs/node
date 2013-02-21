@@ -82,7 +82,6 @@ process.nextTick(run);
 
 test('write fast', function(t) {
   var tw = new TestWriter({
-    lowWaterMark: 5,
     highWaterMark: 100
   });
 
@@ -100,7 +99,6 @@ test('write fast', function(t) {
 
 test('write slow', function(t) {
   var tw = new TestWriter({
-    lowWaterMark: 5,
     highWaterMark: 100
   });
 
@@ -121,7 +119,6 @@ test('write slow', function(t) {
 
 test('write backpressure', function(t) {
   var tw = new TestWriter({
-    lowWaterMark: 5,
     highWaterMark: 50
   });
 
@@ -154,7 +151,6 @@ test('write backpressure', function(t) {
 
 test('write bufferize', function(t) {
   var tw = new TestWriter({
-    lowWaterMark: 5,
     highWaterMark: 100
   });
 
@@ -185,7 +181,6 @@ test('write bufferize', function(t) {
 
 test('write no bufferize', function(t) {
   var tw = new TestWriter({
-    lowWaterMark: 5,
     highWaterMark: 100,
     decodeStrings: false
   });
@@ -234,7 +229,6 @@ test('write callbacks', function (t) {
   callbacks._called = [];
 
   var tw = new TestWriter({
-    lowWaterMark: 5,
     highWaterMark: 100
   });
 

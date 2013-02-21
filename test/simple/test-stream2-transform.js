@@ -212,8 +212,6 @@ test('assymetric transform (compress)', function(t) {
     }.bind(this), 10);
   };
 
-  pt._writableState.lowWaterMark = 3;
-
   pt.write(new Buffer('aaaa'));
   pt.write(new Buffer('bbbb'));
   pt.write(new Buffer('cccc'));
@@ -241,9 +239,7 @@ test('assymetric transform (compress)', function(t) {
 
 
 test('passthrough event emission', function(t) {
-  var pt = new PassThrough({
-    lowWaterMark: 0
-  });
+  var pt = new PassThrough();
   var emits = 0;
   pt.on('readable', function() {
     var state = pt._readableState;

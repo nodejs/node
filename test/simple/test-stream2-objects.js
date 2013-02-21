@@ -215,35 +215,8 @@ test('falsey values', function(t) {
   }));
 });
 
-test('low watermark _read', function(t) {
-  var r = new Readable({
-    lowWaterMark: 2,
-    highWaterMark: 6,
-    objectMode: true
-  });
-
-  var calls = 0;
-
-  r._read = function(n, cb) {
-    calls++;
-    cb(null, 'foo');
-  };
-
-  // touch to cause it
-  r.read(0);
-
-  r.push(null);
-
-  r.pipe(toArray(function(list) {
-    assert.deepEqual(list, ['foo', 'foo', 'foo']);
-
-    t.end();
-  }));
-});
-
 test('high watermark _read', function(t) {
   var r = new Readable({
-    lowWaterMark: 0,
     highWaterMark: 6,
     objectMode: true
   });
@@ -283,61 +256,6 @@ test('high watermark push', function(t) {
   }
 
   t.end();
-});
-
-test('low watermark push', function(t) {
-  var r = new Readable({
-    lowWaterMark: 2,
-    highWaterMark: 4,
-    objectMode: true
-  });
-  var l = console.log;
-
-  var called = 0;
-  var reading = false;
-
-  r._read = function() {
-    called++;
-
-    if (reading) {
-      assert.equal(r.push(42), false);
-    }
-  }
-
-  assert.equal(called, 0);
-  assert.equal(r.push(0), true);
-  assert.equal(called, 1);
-  assert.equal(r.push(1), true);
-  assert.equal(called, 2);
-  assert.equal(r.push(2), true);
-  assert.equal(called, 2);
-  assert.equal(r.push(3), false);
-  assert.equal(called, 2);
-  assert.equal(r.push(4), false);
-  assert.equal(called, 2);
-  assert.equal(r.push(5), false);
-  assert.equal(called, 2);
-  assert.deepEqual(r._readableState.buffer, [0, 1, 2, 3, 4, 5]);
-
-  reading = true;
-
-  assert.equal(r.read(), 0);
-  assert.equal(called, 2);
-  assert.equal(r.read(), 1);
-  assert.equal(called, 3);
-  assert.equal(r.read(), 2);
-  assert.equal(called, 4);
-  assert.equal(r.read(), 3);
-  assert.equal(called, 5);
-  assert.equal(r.read(), 4);
-  assert.equal(called, 6);
-  r.push(null);
-
-  r.pipe(toArray(function(array) {
-    assert.deepEqual(array, [5, 42, 42, 42, 42]);
-
-    t.end();
-  }));
 });
 
 test('stream of buffers converted to object halfway through', function(t) {

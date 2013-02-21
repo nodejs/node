@@ -41,7 +41,6 @@ for (var i = 255; i >= 0; i--) {
 
 // safe constructor
 var echoServer = net.Server(function(connection) {
-  // connection._readableState.lowWaterMark = 0;
   console.error('SERVER got connection');
   connection.setEncoding('binary');
   connection.on('data', function(chunk) {
@@ -63,8 +62,6 @@ echoServer.on('listening', function() {
   var c = net.createConnection({
     port: common.PORT
   });
-
-  // c._readableState.lowWaterMark = 0;
 
   c.setEncoding('binary');
   c.on('data', function(chunk) {

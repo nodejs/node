@@ -625,7 +625,6 @@
           var tty = NativeModule.require('tty');
           stdin = new tty.ReadStream(fd, {
             highWaterMark: 0,
-            lowWaterMark: 0,
             readable: true,
             writable: false
           });

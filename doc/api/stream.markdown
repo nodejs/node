@@ -92,8 +92,6 @@ method. (See below.)
 * `options` {Object}
   * `bufferSize` {Number} The size of the chunks to consume from the
     underlying resource. Default=16kb
-  * `lowWaterMark` {Number} The minimum number of bytes to store in
-    the internal buffer before emitting `readable`.  Default=0
   * `highWaterMark` {Number} The maximum number of bytes to store in
     the internal buffer before ceasing to read from the underlying
     resource.  Default=16kb
@@ -193,9 +191,7 @@ myReader.on('readable', function() {
 
 ### Event: 'readable'
 
-When there is data ready to be consumed, this event will fire.  The
-number of bytes that are required to be considered "readable" depends
-on the `lowWaterMark` option set in the constructor.
+When there is data ready to be consumed, this event will fire.
 
 When this event emits, call the `read()` method to consume the data.
 
@@ -322,8 +318,6 @@ method. (See below.)
 * `options` {Object}
   * `highWaterMark` {Number} Buffer level when `write()` starts
     returning false. Default=16kb
-  * `lowWaterMark` {Number} The buffer level when `'drain'` is
-    emitted.  Default=0
   * `decodeStrings` {Boolean} Whether or not to decode strings into
     Buffers before passing them to `_write()`.  Default=true
 
@@ -371,10 +365,8 @@ flushed to the underlying resource.  Returns `false` to indicate that
 the buffer is full, and the data will be sent out in the future. The
 `'drain'` event will indicate when the buffer is empty again.
 
-The specifics of when `write()` will return false, and when a
-subsequent `'drain'` event will be emitted, are determined by the
-`highWaterMark` and `lowWaterMark` options provided to the
-constructor.
+The specifics of when `write()` will return false, is determined by
+the `highWaterMark` option provided to the constructor.
 
 ### writable.end([chunk], [encoding], [callback])
 

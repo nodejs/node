@@ -24,7 +24,6 @@ var assert = require('assert');
 var fs = require('fs');
 
 var stream = fs.createWriteStream(common.tmpDir + '/out', {
-  lowWaterMark: 0,
   highWaterMark: 10
 });
 var err = new Error('BAM');

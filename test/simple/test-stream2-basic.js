@@ -450,18 +450,3 @@ test('sync _read ending', function (t) {
     t.end();
   })
 });
-
-assert.throws(function() {
-  var bad = new R({
-    highWaterMark: 10,
-    lowWaterMark: 1000
-  });
-});
-
-assert.throws(function() {
-  var W = require('stream').Writable;
-  var bad = new W({
-    highWaterMark: 10,
-    lowWaterMark: 1000
-  });
-});

@@ -24,8 +24,7 @@ var assert = require('assert');
 var fs = require('fs');
 
 var stream = fs.createReadStream(__filename, {
-  bufferSize: 64,
-  lowWaterMark: 0
+  bufferSize: 64
 });
 var err = new Error('BAM');
 

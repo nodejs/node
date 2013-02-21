@@ -111,7 +111,7 @@ feedback.
 A stream is an abstract interface implemented by various objects in
 Node.  For example a request to an HTTP server is a stream, as is
 stdout. Streams are readable, writable, or both. All streams are
-instances of EventEmitter.
+instances of [EventEmitter][]
 
 You can load the Stream base classes by doing `require('stream')`.
 There are base classes provided for Readable streams, Writable
@@ -198,13 +198,14 @@ method. (See below.)
 * `options` {Object}
   * `bufferSize` {Number} The size of the chunks to consume from the
     underlying resource. Default=16kb
-  * `lowWaterMark` {Number} The minimum number of bytes to store in
-    the internal buffer before emitting `readable`.  Default=0
   * `highWaterMark` {Number} The maximum number of bytes to store in
     the internal buffer before ceasing to read from the underlying
     resource.  Default=16kb
   * `encoding` {String} If specified, then buffers will be decoded to
     strings using the specified encoding.  Default=null
+  * `objectMode` {Boolean} Whether this stream should behave
+    as a stream of objects. Meaning that stream.read(n) returns
+    a single value instead of a Buffer of size n
 
 In classes that extend the Readable class, make sure to call the
 constructor so that the buffering settings can be properly
@@ -218,7 +219,7 @@ initialized.
 All Readable stream implementations must provide a `_read` method
 to fetch data from the underlying resource.
 
-**This function MUST NOT be called directly.**  It should be
+Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Readable
 class methods only.
 
@@ -231,6 +232,46 @@ the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
+### readable.push(chunk)
+
+* `chunk` {Buffer | null | String} Chunk of data to push into the read queue
+* return {Boolean} Whether or not more pushes should be performed
+
+The `Readable` class works by putting data into a read queue to be
+pulled out later by calling the `read()` method when the `'readable'`
+event fires.
+
+The `push()` method will explicitly insert some data into the read
+queue.  If it is called with `null` then it will signal the end of the
+data.
+
+In some cases, you may be wrapping a lower-level source which has some
+sort of pause/resume mechanism, and a data callback.  In those cases,
+you could wrap the low-level source object by doing something like
+this:
+
+```javascript
+// source is an object with readStop() and readStart() methods,
+// and an `ondata` member that gets called when it has data, and
+// an `onend` member that gets called when the data is over.
+
+var stream = new Readable();
+
+source.ondata = function(chunk) {
+  // if push() returns false, then we need to stop reading from source
+  if (!stream.push(chunk))
+    source.readStop();
+};
+
+source.onend = function() {
+  stream.push(null);
+};
+
+// _read will be called when the stream wants to pull more data in
+stream._read = function(size, cb) {
+  source.readStart();
+};
+```
 
 ### readable.wrap(stream)
 
@@ -256,9 +297,7 @@ myReader.on('readable', function() {
 
 ### Event: 'readable'
 
-When there is data ready to be consumed, this event will fire.  The
-number of bytes that are required to be considered "readable" depends
-on the `lowWaterMark` option set in the constructor.
+When there is data ready to be consumed, this event will fire.
 
 When this event emits, call the `read()` method to consume the data.
 
@@ -385,8 +424,6 @@ method. (See below.)
 * `options` {Object}
   * `highWaterMark` {Number} Buffer level when `write()` starts
     returning false. Default=16kb
-  * `lowWaterMark` {Number} The buffer level when `'drain'` is
-    emitted.  Default=0
   * `decodeStrings` {Boolean} Whether or not to decode strings into
     Buffers before passing them to `_write()`.  Default=true
 
@@ -402,7 +439,7 @@ initialized.
 All Writable stream implementations must provide a `_write` method to
 send data to the underlying resource.
 
-**This function MUST NOT be called directly.**  It should be
+Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Writable
 class methods only.
 
@@ -434,16 +471,16 @@ flushed to the underlying resource.  Returns `false` to indicate that
 the buffer is full, and the data will be sent out in the future. The
 `'drain'` event will indicate when the buffer is empty again.
 
-The specifics of when `write()` will return false, and when a
-subsequent `'drain'` event will be emitted, are determined by the
-`highWaterMark` and `lowWaterMark` options provided to the
-constructor.
+The specifics of when `write()` will return false, is determined by
+the `highWaterMark` option provided to the constructor.
 
-### writable.end([chunk], [encoding])
+### writable.end([chunk], [encoding], [callback])
 
 * `chunk` {Buffer | String} Optional final data to be written
 * `encoding` {String} Optional.  If `chunk` is a string, then encoding
   defaults to `'utf8'`
+* `callback` {Function} Optional.  Called when the final chunk is
+  successfully written.
 
 Call this method to signal the end of the data being written to the
 stream.
@@ -458,6 +495,11 @@ without buffering again. Listen for it when `stream.write()` returns
 
 Emitted when the underlying resource (for example, the backing file
 descriptor) has been closed. Not all streams will emit this.
+
+### Event: 'finish'
+
+When `end()` is called and there are no more chunks to write, this
+event is emitted.
 
 ### Event: 'pipe'
 
@@ -538,7 +580,7 @@ initialized.
 All Transform stream implementations must provide a `_transform`
 method to accept input and produce output.
 
-**This function MUST NOT be called directly.**  It should be
+Note: **This function MUST NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Transform
 class methods only.
 
@@ -564,7 +606,7 @@ your own extension classes.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done flushing any remaining data.
 
-**This function MUST NOT be called directly.**  It MAY be implemented
+Note: **This function MUST NOT be called directly.**  It MAY be implemented
 by child classes, and if so, will be called by the internal Transform
 class methods only.
 
@@ -592,3 +634,6 @@ This is a trivial implementation of a `Transform` stream that simply
 passes the input bytes across to the output.  Its purpose is mainly
 for examples and testing, but there are occasionally use cases where
 it can come in handy.
+
+
+[EventEmitter]: http://nodejs.org/api/events.html#events_class_events_eventemitter

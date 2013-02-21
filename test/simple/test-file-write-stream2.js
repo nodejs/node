@@ -63,7 +63,6 @@ removeTestFile();
 
 // drain at 0, return false at 10.
 file = fs.createWriteStream(filepath, {
-  lowWaterMark: 0,
   highWaterMark: 11
 });
 
