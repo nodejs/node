@@ -483,6 +483,11 @@
 
       nextTickQueue.push(obj);
       infoBox[length]++;
+
+      if (needSpinner) {
+        _needTickCallback();
+        needSpinner = false;
+      }
     }
   };
 
