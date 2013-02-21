@@ -287,6 +287,9 @@ joinThrowTests.forEach(function(test) {
   assert.throws(function() {
     path.join(test);
   }, TypeError);
+  assert.throws(function() {
+    path.resolve(test);
+  }, TypeError);
 });
 
 
