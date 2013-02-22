@@ -75,11 +75,11 @@ function toArray(callback) {
 
 function fromArray(list) {
   var r = new Readable();
+  r._read = noop;
   list.forEach(function(chunk) {
     r.push(chunk);
   });
   r.push(null);
-  r._read = noop;
 
   return r;
 }

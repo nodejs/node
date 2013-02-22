@@ -334,13 +334,13 @@ test('back pressure respected', function (t) {
   function noop() {}
 
   var r = new R();
+  r._read = noop;
   var counter = 0;
   r.push(["one"]);
   r.push(["two"]);
   r.push(["three"]);
   r.push(["four"]);
   r.push(null);
-  r._read = noop;
 
   var w1 = new R();
   w1.write = function (chunk) {
