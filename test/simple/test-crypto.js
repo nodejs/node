@@ -858,3 +858,10 @@ assertSorted(crypto.getHashes());
   var c = crypto.createDecipher('aes-128-ecb', '');
   assert.throws(function() { c.final('utf8') }, /invalid public key/);
 })();
+
+// Base64 padding regression test, see #4837.
+(function() {
+  var c = crypto.createCipher('aes-256-cbc', 'secret');
+  var s = c.update('test', 'utf8', 'base64') + c.final('base64');
+  assert.equal(s, '375oxUQCIocvxmC5At+rvA==');
+})();
