@@ -221,8 +221,6 @@ Indicates that the underlaying connection was terminated before
 Just like `'end'`, this event occurs only once per request, and no more `'data'`
 events will fire afterwards.
 
-Note: `'close'` can fire after `'end'`, but not vice versa.
-
 ### request.method
 
 The request method as a string. Read only. Example:
@@ -880,8 +878,6 @@ Indicates that the underlaying connection was terminated before
 Just like `'end'`, this event occurs only once per response, and no more
 `'data'` events will fire afterwards. See [http.ServerResponse][]'s `'close'`
 event for more information.
-
-Note: `'close'` can fire after `'end'`, but not vice versa.
 
 
 ### response.statusCode
