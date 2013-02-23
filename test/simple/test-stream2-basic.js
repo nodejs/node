@@ -333,7 +333,7 @@ test('multipipe', function(t) {
 test('back pressure respected', function (t) {
   function noop() {}
 
-  var r = new R();
+  var r = new R({ objectMode: true });
   r._read = noop;
   var counter = 0;
   r.push(["one"]);
