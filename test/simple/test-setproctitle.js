@@ -22,7 +22,7 @@
 // Original test written by Jakub Lekstan <kuebzky@gmail.com>
 
 // FIXME add sunos support
-if ('linux freebsd'.indexOf(process.platform) === -1) {
+if ('linux freebsd darwin'.indexOf(process.platform) === -1) {
   console.error('Skipping test, platform not supported.');
   process.exit();
 }
