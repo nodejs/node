@@ -60,5 +60,5 @@ static int maybe_run_test(int argc, char **argv) {
     return 42;
   }
 
-  return run_test(argv[1], BENCHMARK_TIMEOUT, 1);
+  return run_test(argv[1], BENCHMARK_TIMEOUT, 1, 1);
 }

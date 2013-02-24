@@ -923,3 +923,16 @@ TEST_IMPL(spawn_setgid_fails) {
   return 0;
 }
 #endif
+
+
+TEST_IMPL(spawn_auto_unref) {
+  init_process_options("spawn_helper1", NULL);
+  ASSERT(0 == uv_spawn(uv_default_loop(), &process, options));
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT(0 == uv_is_closing((uv_handle_t*) &process));
+  uv_close((uv_handle_t*) &process, NULL);
+  ASSERT(0 == uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT(0 != uv_is_closing((uv_handle_t*) &process));
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}

@@ -102,7 +102,10 @@ int run_tests(int timeout, int benchmark_output);
 /*
  * Run a single test. Starts up any helpers.
  */
-int run_test(const char* test, int timeout, int benchmark_output);
+int run_test(const char* test,
+             int timeout,
+             int benchmark_output,
+             int test_count);
 
 /*
  * Run a test part, i.e. the test or one of its helpers.
@@ -155,5 +158,8 @@ void process_cleanup(process_info_t *p);
 
 /* Move the console cursor one line up and back to the first column. */
 void rewind_cursor(void);
+
+/* trigger output as tap */
+extern int tap_output;
 
 #endif /* RUNNER_H_ */

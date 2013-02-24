@@ -89,6 +89,8 @@ static void uv__chld(uv_signal_t* handle, int signum) {
     if (process == NULL)
       continue; /* XXX bug? abort? */
 
+    uv__handle_stop(process);
+
     if (process->exit_cb == NULL)
       continue;
 

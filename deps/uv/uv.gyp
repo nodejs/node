@@ -157,11 +157,20 @@
             }],
           ],
         }],
+        [ 'OS=="linux" or OS=="mac"', {
+          'sources': [ 'src/unix/proctitle.c' ],
+        }],
         [ 'OS=="mac"', {
-          'sources': [ 'src/unix/darwin.c', 'src/unix/fsevents.c' ],
+          'sources': [
+            'src/unix/darwin.c',
+            'src/unix/fsevents.c',
+            'src/unix/darwin-proctitle.m',
+          ],
           'link_settings': {
             'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
               '$(SDKROOT)/System/Library/Frameworks/CoreServices.framework',
+              '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework',
             ],
           },
           'defines': [

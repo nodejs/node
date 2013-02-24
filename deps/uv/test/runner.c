@@ -28,6 +28,8 @@
 
 char executable_path[PATHMAX] = { '\0' };
 
+int tap_output = 0;
+
 
 static void log_progress(int total, int passed, int failed, const char* name) {
   if (total == 0)
@@ -76,7 +78,7 @@ const char* fmt(double d) {
 
 
 int run_tests(int timeout, int benchmark_output) {
-  int total, passed, failed;
+  int total, passed, failed, current;
   task_entry_t* task;
 
   /* Count the number of tests. */
@@ -87,29 +89,35 @@ int run_tests(int timeout, int benchmark_output) {
     }
   }
 
+  if (tap_output) {
+    LOGF("1..%d\n", total);
+  }
+
   /* Run all tests. */
   passed = 0;
   failed = 0;
+  current = 1;
   for (task = TASKS; task->main; task++) {
     if (task->is_helper) {
       continue;
     }
 
     rewind_cursor();
-    if (!benchmark_output) {
+    if (!benchmark_output && !tap_output) {
       log_progress(total, passed, failed, task->task_name);
     }
 
-    if (run_test(task->task_name, timeout, benchmark_output) == 0) {
+    if (run_test(task->task_name, timeout, benchmark_output, current) == 0) {
       passed++;
     } else {
       failed++;
     }
+    current++;
   }
 
   rewind_cursor();
 
-  if (!benchmark_output) {
+  if (!benchmark_output && !tap_output) {
     log_progress(total, passed, failed, "Done.\n");
   }
 
@@ -117,7 +125,10 @@ int run_tests(int timeout, int benchmark_output) {
 }
 
 
-int run_test(const char* test, int timeout, int benchmark_output) {
+int run_test(const char* test,
+             int timeout,
+             int benchmark_output,
+             int test_count) {
   char errmsg[1024] = "no error";
   process_info_t processes[1024];
   process_info_t *main_proc;
@@ -243,7 +254,9 @@ out:
 
   /* Show error and output from processes if the test failed. */
   if (status != 0 || task->show_output) {
-    if (status != 0) {
+    if (tap_output) {
+      LOGF("not ok %d - %s\n#", test_count, test);
+    } else if (status != 0) {
       LOGF("\n`%s` failed: %s\n", test, errmsg);
     } else {
       LOGF("\n");
@@ -267,7 +280,10 @@ out:
         break;
       }
     }
-    LOG("=============================================================\n");
+
+    if (!tap_output) {
+      LOG("=============================================================\n");
+    }
 
   /* In benchmark mode show concise output from the main process. */
   } else if (benchmark_output) {
@@ -286,6 +302,8 @@ out:
       }
       break;
     }
+  } else if (tap_output) {
+    LOGF("ok %d - %s\n", test_count, test);
   }
 
   /* Clean up all process handles. */

@@ -1188,21 +1188,20 @@ int uv_write2(uv_write_t* req,
   int empty_queue;
 
   assert(bufcnt > 0);
+  assert((stream->type == UV_TCP ||
+          stream->type == UV_NAMED_PIPE ||
+          stream->type == UV_TTY) &&
+         "uv_write (unix) does not yet support other types of streams");
 
-  assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
-      stream->type == UV_TTY) &&
-      "uv_write (unix) does not yet support other types of streams");
-
-  if (uv__stream_fd(stream) < 0) {
-    uv__set_sys_error(stream->loop, EBADF);
-    return -1;
-  }
+  if (uv__stream_fd(stream) < 0)
+    return uv__set_artificial_error(stream->loop, UV_EBADF);
 
   if (send_handle) {
-    if (stream->type != UV_NAMED_PIPE || !((uv_pipe_t*)stream)->ipc) {
-      uv__set_sys_error(stream->loop, EOPNOTSUPP);
-      return -1;
-    }
+    if (stream->type != UV_NAMED_PIPE || !((uv_pipe_t*)stream)->ipc)
+      return uv__set_artificial_error(stream->loop, UV_EINVAL);
+
+    if (uv__stream_fd(send_handle) < 0)
+      return uv__set_artificial_error(stream->loop, UV_EBADF);
   }
 
   empty_queue = (stream->write_queue_size == 0);
@@ -1268,10 +1267,8 @@ static int uv__read_start_common(uv_stream_t* stream,
   assert(stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
       stream->type == UV_TTY);
 
-  if (stream->flags & UV_CLOSING) {
-    uv__set_sys_error(stream->loop, EINVAL);
-    return -1;
-  }
+  if (stream->flags & UV_CLOSING)
+    return uv__set_sys_error(stream->loop, EINVAL);
 
   /* The UV_STREAM_READING flag is irrelevant of the state of the tcp - it just
    * expresses the desired state of the user.

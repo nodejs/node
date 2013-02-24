@@ -57,23 +57,10 @@
 # define CLOCK_BOOTTIME 7
 #endif
 
-static void* args_mem;
-
-static struct {
-  char *str;
-  size_t len;
-} process_title;
-
 static void read_models(unsigned int numcpus, uv_cpu_info_t* ci);
 static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
 static void read_times(unsigned int numcpus, uv_cpu_info_t* ci);
 static unsigned long read_cpufreq(unsigned int cpunum);
-
-
-__attribute__((destructor))
-static void free_args_mem(void) {
-  free(args_mem); /* keep valgrind happy */
-}
 
 
 int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
@@ -139,12 +126,6 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     assert(w->pevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);
-
-    /* Filter out no-op changes. This is for compatibility with the event ports
-     * backend, see the comment in uv__io_start().
-     */
-    if (w->events == w->pevents)
-      continue;
 
     e.events = w->pevents;
     e.data = w->fd;
@@ -299,78 +280,6 @@ uint64_t uv_get_free_memory(void) {
 
 uint64_t uv_get_total_memory(void) {
   return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
-}
-
-
-char** uv_setup_args(int argc, char** argv) {
-  char **new_argv;
-  char **new_env;
-  size_t size;
-  int envc;
-  char *s;
-  int i;
-
-  for (envc = 0; environ[envc]; envc++);
-
-  s = envc ? environ[envc - 1] : argv[argc - 1];
-
-  process_title.str = argv[0];
-  process_title.len = s + strlen(s) + 1 - argv[0];
-
-  size = process_title.len;
-  size += (argc + 1) * sizeof(char **);
-  size += (envc + 1) * sizeof(char **);
-
-  if (NULL == (s = malloc(size))) {
-    process_title.str = NULL;
-    process_title.len = 0;
-    return argv;
-  }
-  args_mem = s;
-
-  new_argv = (char **) s;
-  new_env = new_argv + argc + 1;
-  s = (char *) (new_env + envc + 1);
-  memcpy(s, process_title.str, process_title.len);
-
-  for (i = 0; i < argc; i++)
-    new_argv[i] = s + (argv[i] - argv[0]);
-  new_argv[argc] = NULL;
-
-  s += environ[0] - argv[0];
-
-  for (i = 0; i < envc; i++)
-    new_env[i] = s + (environ[i] - environ[0]);
-  new_env[envc] = NULL;
-
-  environ = new_env;
-  return new_argv;
-}
-
-
-uv_err_t uv_set_process_title(const char* title) {
-  /* No need to terminate, last char is always '\0'. */
-  if (process_title.len)
-    strncpy(process_title.str, title, process_title.len - 1);
-
-#if defined(PR_SET_NAME)
-  prctl(PR_SET_NAME, title);
-#endif
-
-  return uv_ok_;
-}
-
-
-uv_err_t uv_get_process_title(char* buffer, size_t size) {
-  if (process_title.str) {
-    strncpy(buffer, process_title.str, size);
-  } else {
-    if (size > 0) {
-      buffer[0] = '\0';
-    }
-  }
-
-  return uv_ok_;
 }
 
 
@@ -792,4 +701,11 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
   }
 
   free(addresses);
+}
+
+
+void uv__set_process_title(const char* title) {
+#if defined(PR_SET_NAME)
+  prctl(PR_SET_NAME, title);  /* Only copies first 16 characters. */
+#endif
 }
