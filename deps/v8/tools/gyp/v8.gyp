@@ -69,14 +69,6 @@
                 ],
               },
               'conditions': [
-                ['OS=="android"', {
-                  'libraries': [
-                    '-llog',
-                  ],
-                  'include_dirs': [
-                    'src/common/android/include',
-                  ],
-                }],
                 ['OS=="mac"', {
                   'xcode_settings': {
                     'OTHER_LDFLAGS': ['-dynamiclib', '-all_load']
@@ -361,7 +353,6 @@
             '../../src/isolate.cc',
             '../../src/isolate.h',
             '../../src/json-parser.h',
-            '../../src/json-stringifier.h',
             '../../src/jsregexp.cc',
             '../../src/jsregexp.h',
             '../../src/lazy-instance.h',
@@ -788,7 +779,6 @@
               '../../src/macros.py',
               '../../src/proxy.js',
               '../../src/collection.js',
-              '../../src/object-observe.js'
             ],
           },
           'actions': [

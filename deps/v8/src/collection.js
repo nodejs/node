@@ -88,25 +88,6 @@ function SetDelete(key) {
 }
 
 
-function SetGetSize() {
-  if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.size', this]);
-  }
-  return %SetGetSize(this);
-}
-
-
-function SetClear() {
-  if (!IS_SET(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Set.prototype.clear', this]);
-  }
-  // Replace the internal table with a new empty table.
-  %SetInitialize(this);
-}
-
-
 function MapConstructor() {
   if (%_IsConstructCall()) {
     %MapInitialize(this);
@@ -161,25 +142,6 @@ function MapDelete(key) {
     key = undefined_sentinel;
   }
   return %MapDelete(this, key);
-}
-
-
-function MapGetSize() {
-  if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.size', this]);
-  }
-  return %MapGetSize(this);
-}
-
-
-function MapClear() {
-  if (!IS_MAP(this)) {
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['Map.prototype.clear', this]);
-  }
-  // Replace the internal table with a new empty table.
-  %MapInitialize(this);
 }
 
 
@@ -253,22 +215,18 @@ function WeakMapDelete(key) {
   %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 
   // Set up the non-enumerable functions on the Set prototype object.
-  InstallGetter($Set.prototype, "size", SetGetSize);
   InstallFunctions($Set.prototype, DONT_ENUM, $Array(
     "add", SetAdd,
     "has", SetHas,
-    "delete", SetDelete,
-    "clear", SetClear
+    "delete", SetDelete
   ));
 
   // Set up the non-enumerable functions on the Map prototype object.
-  InstallGetter($Map.prototype, "size", MapGetSize);
   InstallFunctions($Map.prototype, DONT_ENUM, $Array(
     "get", MapGet,
     "set", MapSet,
     "has", MapHas,
-    "delete", MapDelete,
-    "clear", MapClear
+    "delete", MapDelete
   ));
 
   // Set up the WeakMap constructor function.

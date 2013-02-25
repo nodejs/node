@@ -57,10 +57,11 @@ class MjsunitTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    flags = [] + context.mode_flags
+    flags = []
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
+    flags += context.mode_flags
 
     files_list = []  # List of file names to append to command arguments.
     files_match = FILES_PATTERN.search(source);

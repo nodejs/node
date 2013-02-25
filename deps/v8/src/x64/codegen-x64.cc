@@ -99,36 +99,6 @@ UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type) {
 }
 
 
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &exp;
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &exp;
-  ExternalReference::InitializeMathExpData();
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // xmm0: raw double input.
-  XMMRegister input = xmm0;
-  XMMRegister result = xmm1;
-  __ push(rax);
-  __ push(rbx);
-
-  MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
-
-  __ pop(rbx);
-  __ pop(rax);
-  __ movsd(xmm0, result);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-
-  CPU::FlushICache(buffer, actual_size);
-  OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-}
-
-
 UnaryMathFunction CreateSqrtFunction() {
   size_t actual_size;
   // Allocate buffer in executable space.
@@ -581,7 +551,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Dispatch on the encoding: ASCII or two-byte.
   Label ascii;
   __ bind(&seq_string);
-  STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
   STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testb(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii, Label::kNear);
@@ -601,166 +571,11 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ movzxbl(result, FieldOperand(string,
                                   index,
                                   times_1,
-                                  SeqOneByteString::kHeaderSize));
-  __ bind(&done);
-}
-
-
-void SeqStringSetCharGenerator::Generate(MacroAssembler* masm,
-                                         String::Encoding encoding,
-                                         Register string,
-                                         Register index,
-                                         Register value) {
-  if (FLAG_debug_code) {
-    __ Check(masm->CheckSmi(index), "Non-smi index");
-    __ Check(masm->CheckSmi(value), "Non-smi value");
-
-    __ SmiCompare(index, FieldOperand(string, String::kLengthOffset));
-    __ Check(less, "Index is too large");
-
-    __ SmiCompare(index, Smi::FromInt(0));
-    __ Check(greater_equal, "Index is negative");
-
-    __ push(value);
-    __ movq(value, FieldOperand(string, HeapObject::kMapOffset));
-    __ movzxbq(value, FieldOperand(value, Map::kInstanceTypeOffset));
-
-    __ andb(value, Immediate(kStringRepresentationMask | kStringEncodingMask));
-    static const uint32_t one_byte_seq_type = kSeqStringTag | kOneByteStringTag;
-    static const uint32_t two_byte_seq_type = kSeqStringTag | kTwoByteStringTag;
-    __ cmpq(value, Immediate(encoding == String::ONE_BYTE_ENCODING
-                                 ? one_byte_seq_type : two_byte_seq_type));
-    __ Check(equal, "Unexpected string type");
-    __ pop(value);
-  }
-
-  __ SmiToInteger32(value, value);
-  __ SmiToInteger32(index, index);
-  if (encoding == String::ONE_BYTE_ENCODING) {
-    __ movb(FieldOperand(string, index, times_1, SeqString::kHeaderSize),
-            value);
-  } else {
-    __ movw(FieldOperand(string, index, times_2, SeqString::kHeaderSize),
-            value);
-  }
-}
-
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   XMMRegister input,
-                                   XMMRegister result,
-                                   XMMRegister double_scratch,
-                                   Register temp1,
-                                   Register temp2) {
-  ASSERT(!input.is(result));
-  ASSERT(!input.is(double_scratch));
-  ASSERT(!result.is(double_scratch));
-  ASSERT(!temp1.is(temp2));
-  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
-
-  Label done;
-
-  __ movq(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
-  __ xorpd(result, result);
-  __ ucomisd(double_scratch, input);
-  __ j(above_equal, &done);
-  __ ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
-  __ movsd(result, Operand(kScratchRegister, 2 * kDoubleSize));
-  __ j(above_equal, &done);
-  __ movsd(double_scratch, Operand(kScratchRegister, 3 * kDoubleSize));
-  __ movsd(result, Operand(kScratchRegister, 4 * kDoubleSize));
-  __ mulsd(double_scratch, input);
-  __ addsd(double_scratch, result);
-  __ movq(temp2, double_scratch);
-  __ subsd(double_scratch, result);
-  __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ lea(temp1, Operand(temp2, 0x1ff800));
-  __ and_(temp2, Immediate(0x7ff));
-  __ shr(temp1, Immediate(11));
-  __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
-  __ movq(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shl(temp1, Immediate(52));
-  __ or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
-  __ movq(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ subsd(double_scratch, input);
-  __ movsd(input, double_scratch);
-  __ subsd(result, double_scratch);
-  __ mulsd(input, double_scratch);
-  __ mulsd(result, input);
-  __ movq(input, temp1);
-  __ mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
-  __ subsd(result, double_scratch);
-  __ addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
-  __ mulsd(result, input);
-
+                                  SeqAsciiString::kHeaderSize));
   __ bind(&done);
 }
 
 #undef __
-
-
-static const int kNoCodeAgeSequenceLength = 6;
-
-static byte* GetNoCodeAgeSequence(uint32_t* length) {
-  static bool initialized = false;
-  static byte sequence[kNoCodeAgeSequenceLength];
-  *length = kNoCodeAgeSequenceLength;
-  if (!initialized) {
-    // The sequence of instructions that is patched out for aging code is the
-    // following boilerplate stack-building prologue that is found both in
-    // FUNCTION and OPTIMIZED_FUNCTION code:
-    CodePatcher patcher(sequence, kNoCodeAgeSequenceLength);
-    patcher.masm()->push(rbp);
-    patcher.masm()->movq(rbp, rsp);
-    patcher.masm()->push(rsi);
-    patcher.masm()->push(rdi);
-    initialized = true;
-  }
-  return sequence;
-}
-
-
-bool Code::IsYoungSequence(byte* sequence) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  bool result = (!memcmp(sequence, young_sequence, young_length));
-  ASSERT(result || *sequence == kCallOpcode);
-  return result;
-}
-
-
-void Code::GetCodeAgeAndParity(byte* sequence, Age* age,
-                               MarkingParity* parity) {
-  if (IsYoungSequence(sequence)) {
-    *age = kNoAge;
-    *parity = NO_MARKING_PARITY;
-  } else {
-    sequence++;  // Skip the kCallOpcode byte
-    Address target_address = sequence + *reinterpret_cast<int*>(sequence) +
-        Assembler::kCallTargetAddressOffset;
-    Code* stub = GetCodeFromTargetAddress(target_address);
-    GetCodeAgeAndParity(stub, age, parity);
-  }
-}
-
-
-void Code::PatchPlatformCodeAge(byte* sequence,
-                                Code::Age age,
-                                MarkingParity parity) {
-  uint32_t young_length;
-  byte* young_sequence = GetNoCodeAgeSequence(&young_length);
-  if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
-    CPU::FlushICache(sequence, young_length);
-  } else {
-    Code* stub = GetCodeAgeStub(age, parity);
-    CodePatcher patcher(sequence, young_length);
-    patcher.masm()->call(stub->instruction_start());
-    patcher.masm()->nop();
-  }
-}
-
 
 } }  // namespace v8::internal
 

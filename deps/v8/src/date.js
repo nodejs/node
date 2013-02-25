@@ -107,7 +107,7 @@ function MakeDay(year, month, date) {
   }
 
   // Now we rely on year and month being SMIs.
-  return %DateMakeDay(year | 0, month | 0) + date - 1;
+  return %DateMakeDay(year, month) + date - 1;
 }
 
 

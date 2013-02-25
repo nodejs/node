@@ -1098,7 +1098,6 @@ int Decoder::DecodeType7(Instruction* instr) {
 // Dd = vadd(Dn, Dm)
 // Dd = vsub(Dn, Dm)
 // Dd = vmul(Dn, Dm)
-// Dd = vmla(Dn, Dm)
 // Dd = vdiv(Dn, Dm)
 // vcmp(Dd, Dm)
 // vmrs
@@ -1158,12 +1157,6 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
       if (instr->SzValue() == 0x1) {
         Format(instr, "vmul.f64'cond 'Dd, 'Dn, 'Dm");
-      } else {
-        Unknown(instr);  // Not used by V8.
-      }
-    } else if ((instr->Opc1Value() == 0x0) && !(instr->Opc3Value() & 0x1)) {
-      if (instr->SzValue() == 0x1) {
-        Format(instr, "vmla.f64'cond 'Dd, 'Dn, 'Dm");
       } else {
         Unknown(instr);  // Not used by V8.
       }
@@ -1395,7 +1388,7 @@ bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
 int Decoder::ConstantPoolSizeAt(byte* instr_ptr) {
   if (IsConstantPoolAt(instr_ptr)) {
     int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));
-    return DecodeConstantPoolLength(instruction_bits);
+    return instruction_bits & kConstantPoolLengthMask;
   } else {
     return -1;
   }
@@ -1417,7 +1410,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   if ((instruction_bits & kConstantPoolMarkerMask) == kConstantPoolMarker) {
     out_buffer_pos_ += OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "constant pool begin (length %d)",
-                                    DecodeConstantPoolLength(instruction_bits));
+                                    instruction_bits &
+                                    kConstantPoolLengthMask);
     return Instruction::kInstrSize;
   }
   switch (instr->TypeValue()) {

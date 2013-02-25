@@ -18,7 +18,6 @@
 #*#
 *~
 .cpplint-cache
-.d8_history
 d8
 d8_g
 shell
@@ -51,7 +50,3 @@ shell_g
 /xcodebuild
 TAGS
 *.Makefile
-GTAGS
-GRTAGS
-GSYMS
-GPATH

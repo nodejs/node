@@ -233,24 +233,4 @@ static inline int FlagDependentPortOffset() {
 }
 
 
-// Helper function that simulates a fill new-space in the heap.
-static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
-  int new_linear_size = static_cast<int>(
-      *space->allocation_limit_address() - *space->allocation_top_address());
-  v8::internal::MaybeObject* maybe = space->AllocateRaw(new_linear_size);
-  v8::internal::FreeListNode* node = v8::internal::FreeListNode::cast(maybe);
-  node->set_size(space->heap(), new_linear_size);
-}
-
-
-// Helper function that simulates a full old-space in the heap.
-static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
-  int old_linear_size = static_cast<int>(space->limit() - space->top());
-  space->Free(space->top(), old_linear_size);
-  space->SetTop(space->limit(), space->limit());
-  space->ResetFreeList();
-  space->ClearStats();
-}
-
-
 #endif  // ifndef CCTEST_H_

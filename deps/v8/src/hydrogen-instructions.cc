@@ -85,81 +85,6 @@ void HValue::AssumeRepresentation(Representation r) {
 }
 
 
-void HValue::InferRepresentation(HInferRepresentation* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
-  Representation new_rep = RepresentationFromInputs();
-  UpdateRepresentation(new_rep, h_infer, "inputs");
-  new_rep = RepresentationFromUses();
-  UpdateRepresentation(new_rep, h_infer, "uses");
-}
-
-
-Representation HValue::RepresentationFromUses() {
-  if (HasNoUses()) return Representation::None();
-
-  // Array of use counts for each representation.
-  int use_count[Representation::kNumRepresentations] = { 0 };
-
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    Representation rep = use->observed_input_representation(it.index());
-    if (rep.IsNone()) continue;
-    if (FLAG_trace_representation) {
-      PrintF("#%d %s is used by #%d %s as %s%s\n",
-             id(), Mnemonic(), use->id(), use->Mnemonic(), rep.Mnemonic(),
-             (use->CheckFlag(kTruncatingToInt32) ? "-trunc" : ""));
-    }
-    use_count[rep.kind()] += use->LoopWeight();
-  }
-  if (IsPhi()) HPhi::cast(this)->AddIndirectUsesTo(&use_count[0]);
-  int tagged_count = use_count[Representation::kTagged];
-  int double_count = use_count[Representation::kDouble];
-  int int32_count = use_count[Representation::kInteger32];
-
-  if (tagged_count > 0) return Representation::Tagged();
-  if (double_count > 0) return Representation::Double();
-  if (int32_count > 0) return Representation::Integer32();
-
-  return Representation::None();
-}
-
-
-void HValue::UpdateRepresentation(Representation new_rep,
-                                  HInferRepresentation* h_infer,
-                                  const char* reason) {
-  Representation r = representation();
-  if (new_rep.is_more_general_than(r)) {
-    // When an HConstant is marked "not convertible to integer", then
-    // never try to represent it as an integer.
-    if (new_rep.IsInteger32() && !IsConvertibleToInteger()) {
-      new_rep = Representation::Tagged();
-      if (FLAG_trace_representation) {
-        PrintF("Changing #%d %s representation %s -> %s because it's NCTI"
-               " (%s want i)\n",
-               id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
-      }
-    } else {
-      if (FLAG_trace_representation) {
-        PrintF("Changing #%d %s representation %s -> %s based on %s\n",
-               id(), Mnemonic(), r.Mnemonic(), new_rep.Mnemonic(), reason);
-      }
-    }
-    ChangeRepresentation(new_rep);
-    AddDependantsToWorklist(h_infer);
-  }
-}
-
-
-void HValue::AddDependantsToWorklist(HInferRepresentation* h_infer) {
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    h_infer->AddToWorklist(it.value());
-  }
-  for (int i = 0; i < OperandCount(); ++i) {
-    h_infer->AddToWorklist(OperandAt(i));
-  }
-}
-
-
 static int32_t ConvertAndSetOverflow(int64_t result, bool* overflow) {
   if (result > kMaxInt) {
     *overflow = true;
@@ -376,7 +301,6 @@ HUseListNode* HUseListNode::tail() {
 
 bool HValue::CheckUsesForFlag(Flag f) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    if (it.value()->IsSimulate()) continue;
     if (!it.value()->CheckFlag(f)) return false;
   }
   return true;
@@ -801,13 +725,6 @@ void HClassOfTestAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HWrapReceiver::PrintDataTo(StringStream* stream) {
-  receiver()->PrintNameTo(stream);
-  stream->Add(" ");
-  function()->PrintNameTo(stream);
-}
-
-
 void HAccessArgumentsAt::PrintDataTo(StringStream* stream) {
   arguments()->PrintNameTo(stream);
   stream->Add("[");
@@ -844,24 +761,6 @@ void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
 
 void HReturn::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-}
-
-
-Representation HBranch::observed_input_representation(int index) {
-  static const ToBooleanStub::Types tagged_types(
-      ToBooleanStub::UNDEFINED |
-      ToBooleanStub::NULL_TYPE |
-      ToBooleanStub::SPEC_OBJECT |
-      ToBooleanStub::STRING);
-  if (expected_input_types_.ContainsAnyOf(tagged_types)) {
-    return Representation::Tagged();
-  } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
-    return Representation::Double();
-  } else if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
-    return Representation::Integer32();
-  } else {
-    return Representation::None();
-  }
 }
 
 
@@ -957,6 +856,16 @@ void HLoadFieldByIndex::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(" ");
   index()->PrintNameTo(stream);
+}
+
+
+HValue* HConstant::Canonicalize() {
+  return HasNoUses() ? NULL : this;
+}
+
+
+HValue* HTypeof::Canonicalize() {
+  return HasNoUses() ? NULL : this;
 }
 
 
@@ -1440,11 +1349,15 @@ void HPhi::InitRealUses(int phi_id) {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
-      Representation rep = value->observed_input_representation(it.index());
+      Representation rep = value->ObservedInputRepresentation(it.index());
       non_phi_uses_[rep.kind()] += value->LoopWeight();
       if (FLAG_trace_representation) {
-        PrintF("#%d Phi is used by real #%d %s as %s\n",
-               id(), value->id(), value->Mnemonic(), rep.Mnemonic());
+        PrintF("%d %s is used by %d %s as %s\n",
+               this->id(),
+               this->Mnemonic(),
+               value->id(),
+               value->Mnemonic(),
+               rep.Mnemonic());
       }
     }
   }
@@ -1453,8 +1366,11 @@ void HPhi::InitRealUses(int phi_id) {
 
 void HPhi::AddNonPhiUsesFrom(HPhi* other) {
   if (FLAG_trace_representation) {
-    PrintF("adding to #%d Phi uses of #%d Phi: i%d d%d t%d\n",
-           id(), other->id(),
+    PrintF("adding to %d %s uses of %d %s: i%d d%d t%d\n",
+           this->id(),
+           this->Mnemonic(),
+           other->id(),
+           other->Mnemonic(),
            other->non_phi_uses_[Representation::kInteger32],
            other->non_phi_uses_[Representation::kDouble],
            other->non_phi_uses_[Representation::kTagged]);
@@ -1473,20 +1389,9 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 }
 
 
-void HSimulate::MergeInto(HSimulate* other) {
-  for (int i = 0; i < values_.length(); ++i) {
-    HValue* value = values_[i];
-    if (HasAssignedIndexAt(i)) {
-      other->AddAssignedValue(GetAssignedIndexAt(i), value);
-    } else {
-      if (other->pop_count_ > 0) {
-        other->pop_count_--;
-      } else {
-        other->AddPushedValue(value);
-      }
-    }
-  }
-  other->pop_count_ += pop_count();
+void HPhi::ResetInteger32Uses() {
+  non_phi_uses_[Representation::kInteger32] = 0;
+  indirect_uses_[Representation::kInteger32] = 0;
 }
 
 
@@ -1495,7 +1400,7 @@ void HSimulate::PrintDataTo(StringStream* stream) {
   if (pop_count_ > 0) stream->Add(" pop %d", pop_count_);
   if (values_.length() > 0) {
     if (pop_count_ > 0) stream->Add(" /");
-    for (int i = values_.length() - 1; i >= 0; --i) {
+    for (int i = 0; i < values_.length(); ++i) {
       if (i > 0) stream->Add(",");
       if (HasAssignedIndexAt(i)) {
         stream->Add(" var[%d] = ", GetAssignedIndexAt(i));
@@ -1534,6 +1439,7 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     : handle_(handle),
       has_int32_value_(false),
       has_double_value_(false) {
+  set_representation(r);
   SetFlag(kUseGVN);
   if (handle_->IsNumber()) {
     double n = handle_->Number();
@@ -1542,16 +1448,6 @@ HConstant::HConstant(Handle<Object> handle, Representation r)
     double_value_ = n;
     has_double_value_ = true;
   }
-  if (r.IsNone()) {
-    if (has_int32_value_) {
-      r = Representation::Integer32();
-    } else if (has_double_value_) {
-      r = Representation::Double();
-    } else {
-      r = Representation::Tagged();
-    }
-  }
-  set_representation(r);
 }
 
 
@@ -1650,60 +1546,6 @@ void HBinaryOperation::PrintDataTo(StringStream* stream) {
 }
 
 
-void HBinaryOperation::InferRepresentation(HInferRepresentation* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
-  Representation new_rep = RepresentationFromInputs();
-  UpdateRepresentation(new_rep, h_infer, "inputs");
-  // When the operation has information about its own output type, don't look
-  // at uses.
-  if (!observed_output_representation_.IsNone()) return;
-  new_rep = RepresentationFromUses();
-  UpdateRepresentation(new_rep, h_infer, "uses");
-}
-
-
-Representation HBinaryOperation::RepresentationFromInputs() {
-  // Determine the worst case of observed input representations and
-  // the currently assumed output representation.
-  Representation rep = representation();
-  if (observed_output_representation_.is_more_general_than(rep)) {
-    rep = observed_output_representation_;
-  }
-  for (int i = 1; i <= 2; ++i) {
-    Representation input_rep = observed_input_representation(i);
-    if (input_rep.is_more_general_than(rep)) rep = input_rep;
-  }
-  // If any of the actual input representation is more general than what we
-  // have so far but not Tagged, use that representation instead.
-  Representation left_rep = left()->representation();
-  Representation right_rep = right()->representation();
-
-  if (left_rep.is_more_general_than(rep) &&
-      left()->CheckFlag(kFlexibleRepresentation)) {
-    rep = left_rep;
-  }
-  if (right_rep.is_more_general_than(rep) &&
-      right()->CheckFlag(kFlexibleRepresentation)) {
-    rep = right_rep;
-  }
-  return rep;
-}
-
-
-void HBinaryOperation::AssumeRepresentation(Representation r) {
-  set_observed_input_representation(r, r);
-  HValue::AssumeRepresentation(r);
-}
-
-
-void HMathMinMax::InferRepresentation(HInferRepresentation* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
-  Representation new_rep = RepresentationFromInputs();
-  UpdateRepresentation(new_rep, h_infer, "inputs");
-  // Do not care about uses.
-}
-
-
 Range* HBitwise::InferRange(Zone* zone) {
   if (op() == Token::BIT_XOR) return HValue::InferRange(zone);
   const int32_t kDefaultMask = static_cast<int32_t>(0xffffffff);
@@ -1780,7 +1622,7 @@ Range* HShl::InferRange(Zone* zone) {
 }
 
 
-Range* HLoadKeyed::InferRange(Zone* zone) {
+Range* HLoadKeyedSpecializedArrayElement::InferRange(Zone* zone) {
   switch (elements_kind()) {
     case EXTERNAL_PIXEL_ELEMENTS:
       return new(zone) Range(0, 255);
@@ -1835,19 +1677,9 @@ void HGoto::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
-  Representation rep = Representation::None();
-  Representation left_rep = left()->representation();
-  Representation right_rep = right()->representation();
-  bool observed_integers =
-      observed_input_representation(0).IsInteger32() &&
-      observed_input_representation(1).IsInteger32();
-  bool inputs_are_not_doubles =
-      !left_rep.IsDouble() && !right_rep.IsDouble();
-  if (observed_integers && inputs_are_not_doubles) {
-    rep = Representation::Integer32();
-  } else {
-    rep = Representation::Double();
+void HCompareIDAndBranch::SetInputRepresentation(Representation r) {
+  input_representation_ = r;
+  if (r.IsDouble()) {
     // According to the ES5 spec (11.9.3, 11.8.5), Equality comparisons (==, ===
     // and !=) have special handling of undefined, e.g. undefined == undefined
     // is 'true'. Relational comparisons have a different semantic, first
@@ -1864,8 +1696,9 @@ void HCompareIDAndBranch::InferRepresentation(HInferRepresentation* h_infer) {
     if (!Token::IsOrderedRelationalCompareOp(token_)) {
       SetFlag(kDeoptimizeOnUndefined);
     }
+  } else {
+    ASSERT(r.IsInteger32());
   }
-  ChangeRepresentation(rep);
 }
 
 
@@ -2016,25 +1849,11 @@ void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void HLoadKeyed::PrintDataTo(StringStream* stream) {
-  if (!is_external()) {
-    elements()->PrintNameTo(stream);
-  } else {
-    ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
-           elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-    elements()->PrintNameTo(stream);
-    stream->Add(".");
-    stream->Add(ElementsKindToString(elements_kind()));
-  }
-
+void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
-  if (IsDehoisted()) {
-    stream->Add(" + %d] ", index_offset());
-  } else {
-    stream->Add("] ");
-  }
-
+  stream->Add("] ");
   dependency()->PrintNameTo(stream);
   if (RequiresHoleCheck()) {
     stream->Add(" check_hole");
@@ -2042,23 +1861,26 @@ void HLoadKeyed::PrintDataTo(StringStream* stream) {
 }
 
 
-bool HLoadKeyed::RequiresHoleCheck() const {
+bool HLoadKeyedFastElement::RequiresHoleCheck() const {
   if (IsFastPackedElementsKind(elements_kind())) {
     return false;
   }
 
-  if (IsFastDoubleElementsKind(elements_kind())) {
-    return true;
-  }
-
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
-    if (!use->IsChange()) {
-      return true;
-    }
+    if (!use->IsChange()) return true;
   }
 
   return false;
+}
+
+
+void HLoadKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
+  elements()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] ");
+  dependency()->PrintNameTo(stream);
 }
 
 
@@ -2074,22 +1896,21 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
   // Recognize generic keyed loads that use property name generated
   // by for-in statement as a key and rewrite them into fast property load
   // by index.
-  if (key()->IsLoadKeyed()) {
-    HLoadKeyed* key_load = HLoadKeyed::cast(key());
-    if (key_load->elements()->IsForInCacheArray()) {
+  if (key()->IsLoadKeyedFastElement()) {
+    HLoadKeyedFastElement* key_load = HLoadKeyedFastElement::cast(key());
+    if (key_load->object()->IsForInCacheArray()) {
       HForInCacheArray* names_cache =
-          HForInCacheArray::cast(key_load->elements());
+          HForInCacheArray::cast(key_load->object());
 
       if (names_cache->enumerable() == object()) {
         HForInCacheArray* index_cache =
             names_cache->index_cache();
         HCheckMapValue* map_check =
             new(block()->zone()) HCheckMapValue(object(), names_cache->map());
-        HInstruction* index = new(block()->zone()) HLoadKeyed(
+        HInstruction* index = new(block()->zone()) HLoadKeyedFastElement(
             index_cache,
             key_load->key(),
-            key_load->key(),
-            key_load->elements_kind());
+            key_load->key());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
         HLoadFieldByIndex* load = new(block()->zone()) HLoadFieldByIndex(
@@ -2101,6 +1922,56 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
   }
 
   return this;
+}
+
+
+void HLoadKeyedSpecializedArrayElement::PrintDataTo(
+    StringStream* stream) {
+  external_pointer()->PrintNameTo(stream);
+  stream->Add(".");
+  switch (elements_kind()) {
+    case EXTERNAL_BYTE_ELEMENTS:
+      stream->Add("byte");
+      break;
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      stream->Add("u_byte");
+      break;
+    case EXTERNAL_SHORT_ELEMENTS:
+      stream->Add("short");
+      break;
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      stream->Add("u_short");
+      break;
+    case EXTERNAL_INT_ELEMENTS:
+      stream->Add("int");
+      break;
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      stream->Add("u_int");
+      break;
+    case EXTERNAL_FLOAT_ELEMENTS:
+      stream->Add("float");
+      break;
+    case EXTERNAL_DOUBLE_ELEMENTS:
+      stream->Add("double");
+      break;
+    case EXTERNAL_PIXEL_ELEMENTS:
+      stream->Add("pixel");
+      break;
+    case FAST_ELEMENTS:
+    case FAST_SMI_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNREACHABLE();
+      break;
+  }
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] ");
+  dependency()->PrintNameTo(stream);
 }
 
 
@@ -2130,31 +2001,76 @@ void HStoreNamedField::PrintDataTo(StringStream* stream) {
 }
 
 
-void HStoreKeyed::PrintDataTo(StringStream* stream) {
-  if (!is_external()) {
-    elements()->PrintNameTo(stream);
-  } else {
-    elements()->PrintNameTo(stream);
-    stream->Add(".");
-    stream->Add(ElementsKindToString(elements_kind()));
-    ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
-           elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
-  }
-
+void HStoreKeyedFastElement::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
   stream->Add("[");
   key()->PrintNameTo(stream);
-  if (IsDehoisted()) {
-    stream->Add(" + %d] = ", index_offset());
-  } else {
-    stream->Add("] = ");
-  }
+  stream->Add("] = ");
+  value()->PrintNameTo(stream);
+}
 
+
+void HStoreKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
+  elements()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] = ");
   value()->PrintNameTo(stream);
 }
 
 
 void HStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
+  stream->Add("[");
+  key()->PrintNameTo(stream);
+  stream->Add("] = ");
+  value()->PrintNameTo(stream);
+}
+
+
+void HStoreKeyedSpecializedArrayElement::PrintDataTo(
+    StringStream* stream) {
+  external_pointer()->PrintNameTo(stream);
+  stream->Add(".");
+  switch (elements_kind()) {
+    case EXTERNAL_BYTE_ELEMENTS:
+      stream->Add("byte");
+      break;
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      stream->Add("u_byte");
+      break;
+    case EXTERNAL_SHORT_ELEMENTS:
+      stream->Add("short");
+      break;
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      stream->Add("u_short");
+      break;
+    case EXTERNAL_INT_ELEMENTS:
+      stream->Add("int");
+      break;
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      stream->Add("u_int");
+      break;
+    case EXTERNAL_FLOAT_ELEMENTS:
+      stream->Add("float");
+      break;
+    case EXTERNAL_DOUBLE_ELEMENTS:
+      stream->Add("double");
+      break;
+    case EXTERNAL_PIXEL_ELEMENTS:
+      stream->Add("pixel");
+      break;
+    case FAST_SMI_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS:
+    case FAST_HOLEY_DOUBLE_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNREACHABLE();
+      break;
+  }
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("] = ");
@@ -2452,10 +2368,10 @@ HValue* HAdd::EnsureAndPropagateNotMinusZero(BitVector* visited) {
 }
 
 
-bool HStoreKeyed::NeedsCanonicalization() {
-  // If value is an integer or comes from the result of a keyed load
-  // then it will be a non-hole value: no need for canonicalization.
-  if (value()->IsLoadKeyed() ||
+bool HStoreKeyedFastDoubleElement::NeedsCanonicalization() {
+  // If value was loaded from unboxed double backing store or
+  // converted from an integer then we don't have to canonicalize it.
+  if (value()->IsLoadKeyedFastDoubleElement() ||
       (value()->IsChange() && HChange::cast(value())->from().IsInteger32())) {
     return false;
   }
@@ -2638,41 +2554,7 @@ void HBitwise::PrintDataTo(StringStream* stream) {
 }
 
 
-void HPhi::InferRepresentation(HInferRepresentation* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
-  // If there are non-Phi uses, and all of them have observed the same
-  // representation, than that's what this Phi is going to use.
-  Representation new_rep = RepresentationObservedByAllNonPhiUses();
-  if (!new_rep.IsNone()) {
-    UpdateRepresentation(new_rep, h_infer, "unanimous use observations");
-    return;
-  }
-  new_rep = RepresentationFromInputs();
-  UpdateRepresentation(new_rep, h_infer, "inputs");
-  new_rep = RepresentationFromUses();
-  UpdateRepresentation(new_rep, h_infer, "uses");
-  new_rep = RepresentationFromUseRequirements();
-  UpdateRepresentation(new_rep, h_infer, "use requirements");
-}
-
-
-Representation HPhi::RepresentationObservedByAllNonPhiUses() {
-  int non_phi_use_count = 0;
-  for (int i = Representation::kInteger32;
-       i < Representation::kNumRepresentations; ++i) {
-    non_phi_use_count += non_phi_uses_[i];
-  }
-  if (non_phi_use_count <= 1) return Representation::None();
-  for (int i = 0; i < Representation::kNumRepresentations; ++i) {
-    if (non_phi_uses_[i] == non_phi_use_count) {
-      return Representation::FromKind(static_cast<Representation::Kind>(i));
-    }
-  }
-  return Representation::None();
-}
-
-
-Representation HPhi::RepresentationFromInputs() {
+Representation HPhi::InferredRepresentation() {
   bool double_occurred = false;
   bool int32_occurred = false;
   for (int i = 0; i < OperandCount(); ++i) {
@@ -2681,7 +2563,6 @@ Representation HPhi::RepresentationFromInputs() {
       HPhi* hint_value = HUnknownOSRValue::cast(value)->incoming_value();
       if (hint_value != NULL) {
         Representation hint = hint_value->representation();
-        if (hint.IsTagged()) return hint;
         if (hint.IsDouble()) double_occurred = true;
         if (hint.IsInteger32()) int32_occurred = true;
       }
@@ -2700,9 +2581,7 @@ Representation HPhi::RepresentationFromInputs() {
           return Representation::Tagged();
         }
       } else {
-        if (value->IsPhi() && !IsConvertibleToInteger()) {
-          return Representation::Tagged();
-        }
+        return Representation::Tagged();
       }
     }
   }
@@ -2710,37 +2589,6 @@ Representation HPhi::RepresentationFromInputs() {
   if (double_occurred) return Representation::Double();
 
   if (int32_occurred) return Representation::Integer32();
-
-  return Representation::None();
-}
-
-
-Representation HPhi::RepresentationFromUseRequirements() {
-  Representation all_uses_require = Representation::None();
-  bool all_uses_require_the_same = true;
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    // We check for observed_input_representation elsewhere.
-    Representation use_rep =
-        it.value()->RequiredInputRepresentation(it.index());
-    // No useful info from this use -> look at the next one.
-    if (use_rep.IsNone()) {
-      continue;
-    }
-    if (use_rep.Equals(all_uses_require)) {
-      continue;
-    }
-    // This use's representation contradicts what we've seen so far.
-    if (!all_uses_require.IsNone()) {
-      ASSERT(!use_rep.Equals(all_uses_require));
-      all_uses_require_the_same = false;
-      break;
-    }
-    // Otherwise, initialize observed representation.
-    all_uses_require = use_rep;
-  }
-  if (all_uses_require_the_same) {
-    return all_uses_require;
-  }
 
   return Representation::None();
 }
@@ -2780,6 +2628,12 @@ void HCheckNonSmi::Verify() {
 
 
 void HCheckFunction::Verify() {
+  HInstruction::Verify();
+  ASSERT(HasNoUses());
+}
+
+
+void HCheckPrototypeMaps::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

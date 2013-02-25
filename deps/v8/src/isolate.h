@@ -354,7 +354,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(uint64_t, enabled_cpu_features, 0)                                         \
   V(CpuProfiler*, cpu_profiler, NULL)                                          \
   V(HeapProfiler*, heap_profiler, NULL)                                        \
-  V(bool, observer_delivery_pending, false)                                    \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
@@ -716,10 +715,7 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
-  Handle<JSArray> CaptureSimpleStackTrace(Handle<JSObject> error_object,
-                                          Handle<Object> caller,
-                                          int limit);
-  void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
+  void CaptureAndSetCurrentStackTraceFor(Handle<JSObject> error_object);
 
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -743,8 +739,6 @@ class Isolate {
   Failure* ReThrow(MaybeObject* exception);
   void ScheduleThrow(Object* exception);
   void ReportPendingMessages();
-  // Return pending location if any or unfilled structure.
-  MessageLocation GetMessageLocation();
   Failure* ThrowIllegalOperation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
@@ -770,6 +764,7 @@ class Isolate {
   void Iterate(ObjectVisitor* v);
   void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   char* Iterate(ObjectVisitor* v, char* t);
+  void IterateThread(ThreadVisitor* v);
   void IterateThread(ThreadVisitor* v, char* t);
 
 
@@ -921,6 +916,10 @@ class Isolate {
   }
 
   bool fp_stubs_generated() { return fp_stubs_generated_; }
+
+  StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
+    return &compiler_safe_string_input_buffer_;
+  }
 
   Builtins* builtins() { return &builtins_; }
 
@@ -1228,6 +1227,7 @@ class Isolate {
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   bool fp_stubs_generated_;
+  StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   bool has_installed_extensions_;
   StringTracker* string_tracker_;
@@ -1394,7 +1394,12 @@ class StackLimitCheck BASE_EMBEDDED {
 
   bool HasOverflowed() const {
     StackGuard* stack_guard = isolate_->stack_guard();
-    return (reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit());
+    // Stack has overflowed in C++ code only if stack pointer exceeds the C++
+    // stack guard and the limits are not set to interrupt values.
+    // TODO(214): Stack overflows are ignored if a interrupt is pending. This
+    // code should probably always use the initial C++ limit.
+    return (reinterpret_cast<uintptr_t>(this) < stack_guard->climit()) &&
+           stack_guard->IsStackOverflow();
   }
  private:
   Isolate* isolate_;

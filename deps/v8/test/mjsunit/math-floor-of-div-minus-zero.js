@@ -35,7 +35,6 @@ function test_div_no_deopt_minus_zero() {
 }
 
 test_div_no_deopt_minus_zero();
-test_div_no_deopt_minus_zero();
 %OptimizeFunctionOnNextCall(test_div_no_deopt_minus_zero);
 test_div_no_deopt_minus_zero();
 assertTrue(2 != %GetOptimizationStatus(test_div_no_deopt_minus_zero));

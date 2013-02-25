@@ -41,9 +41,8 @@ const char* Variable::Mode2String(VariableMode mode) {
   switch (mode) {
     case VAR: return "VAR";
     case CONST: return "CONST";
-    case LET: return "LET";
     case CONST_HARMONY: return "CONST_HARMONY";
-    case MODULE: return "MODULE";
+    case LET: return "LET";
     case DYNAMIC: return "DYNAMIC";
     case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
     case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
@@ -85,8 +84,7 @@ Variable::Variable(Scope* scope,
 bool Variable::IsGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
-  return (IsDynamicVariableMode(mode_) ||
-          (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_)))
+  return mode_ != TEMPORARY && !IsLexicalVariableMode(mode_)
       && scope_ != NULL && scope_->is_global_scope();
 }
 

@@ -895,8 +895,7 @@ class MacroAssembler: public Assembler {
                                    Register elements,
                                    Register index,
                                    XMMRegister xmm_scratch,
-                                   Label* fail,
-                                   int elements_offset = 0);
+                                   Label* fail);
 
   // Compare an object's map with the specified map and its transitioned
   // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. FLAGS are set with

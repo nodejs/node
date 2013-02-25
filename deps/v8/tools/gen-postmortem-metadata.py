@@ -61,7 +61,7 @@ consts_misc = [
 
     { 'name': 'StringEncodingMask',     'value': 'kStringEncodingMask' },
     { 'name': 'TwoByteStringTag',       'value': 'kTwoByteStringTag' },
-    { 'name': 'AsciiStringTag',         'value': 'kOneByteStringTag' },
+    { 'name': 'AsciiStringTag',         'value': 'kAsciiStringTag' },
 
     { 'name': 'StringRepresentationMask',
         'value': 'kStringRepresentationMask' },
@@ -76,15 +76,16 @@ consts_misc = [
     { 'name': 'SmiTag',                 'value': 'kSmiTag' },
     { 'name': 'SmiTagMask',             'value': 'kSmiTagMask' },
     { 'name': 'SmiValueShift',          'value': 'kSmiTagSize' },
-    { 'name': 'SmiShiftSize',           'value': 'kSmiShiftSize' },
     { 'name': 'PointerSizeLog2',        'value': 'kPointerSizeLog2' },
 
+    { 'name': 'prop_idx_transitions',
+        'value': 'DescriptorArray::kTransitionsIndex' },
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_type_field',
         'value': 'FIELD' },
     { 'name': 'prop_type_first_phantom',
-        'value': 'TRANSITION' },
+        'value': 'MAP_TRANSITION' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
 
@@ -106,13 +107,14 @@ extras_accessors = [
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
     'Map, instance_attributes, int, kInstanceAttributesOffset',
+    'Map, instance_descriptors, int, kInstanceDescriptorsOrBitField3Offset',
     'Map, inobject_properties, int, kInObjectPropertiesOffset',
     'Map, instance_size, int, kInstanceSizeOffset',
     'HeapNumber, value, double, kValueOffset',
     'ConsString, first, String, kFirstOffset',
     'ConsString, second, String, kSecondOffset',
     'ExternalString, resource, Object, kResourceOffset',
-    'SeqOneByteString, chars, char, kHeaderSize',
+    'SeqAsciiString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -126,7 +128,7 @@ extras_accessors = [
 expected_classes = [
     'ConsString', 'FixedArray', 'HeapNumber', 'JSArray', 'JSFunction',
     'JSObject', 'JSRegExp', 'JSValue', 'Map', 'Oddball', 'Script',
-    'SeqOneByteString', 'SharedFunctionInfo'
+    'SeqAsciiString', 'SharedFunctionInfo'
 ];
 
 
@@ -291,7 +293,7 @@ def load_objects():
                             cctype.find('Sliced') == -1):
                                 if (cctype.find('Ascii') != -1):
                                         cctype = re.sub('AsciiString$',
-                                            'SeqOneByteString', cctype);
+                                            'SeqAsciiString', cctype);
                                 else:
                                         cctype = re.sub('String$',
                                             'SeqString', cctype);

@@ -507,8 +507,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
     Register scratch1,
     XMMRegister scratch2,
     Label* fail,
-    bool specialize_for_processor,
-    int elements_offset) {
+    bool specialize_for_processor) {
   Label smi_value, done, maybe_nan, not_nan, is_nan, have_double_value;
   JumpIfSmi(maybe_number, &smi_value, Label::kNear);
 
@@ -530,14 +529,12 @@ void MacroAssembler::StoreNumberToDoubleElements(
     CpuFeatures::Scope use_sse2(SSE2);
     movdbl(scratch2, FieldOperand(maybe_number, HeapNumber::kValueOffset));
     bind(&have_double_value);
-    movdbl(FieldOperand(elements, key, times_4,
-                        FixedDoubleArray::kHeaderSize - elements_offset),
+    movdbl(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize),
            scratch2);
   } else {
     fld_d(FieldOperand(maybe_number, HeapNumber::kValueOffset));
     bind(&have_double_value);
-    fstp_d(FieldOperand(elements, key, times_4,
-                        FixedDoubleArray::kHeaderSize - elements_offset));
+    fstp_d(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize));
   }
   jmp(&done);
 
@@ -564,15 +561,13 @@ void MacroAssembler::StoreNumberToDoubleElements(
   if (CpuFeatures::IsSupported(SSE2) && specialize_for_processor) {
     CpuFeatures::Scope fscope(SSE2);
     cvtsi2sd(scratch2, scratch1);
-    movdbl(FieldOperand(elements, key, times_4,
-                        FixedDoubleArray::kHeaderSize - elements_offset),
+    movdbl(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize),
            scratch2);
   } else {
     push(scratch1);
     fild_s(Operand(esp, 0));
     pop(scratch1);
-    fstp_d(FieldOperand(elements, key, times_4,
-                        FixedDoubleArray::kHeaderSize - elements_offset));
+    fstp_d(FieldOperand(elements, key, times_4, FixedDoubleArray::kHeaderSize));
   }
   bind(&done);
 }
@@ -1458,14 +1453,14 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
-  ASSERT((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
+  ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
   mov(scratch1, length);
   ASSERT(kCharSize == 1);
   add(scratch1, Immediate(kObjectAlignmentMask));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
   // Allocate ASCII string in new space.
-  AllocateInNewSpace(SeqOneByteString::kHeaderSize,
+  AllocateInNewSpace(SeqAsciiString::kHeaderSize,
                      times_1,
                      scratch1,
                      result,
@@ -1493,7 +1488,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   ASSERT(length > 0);
 
   // Allocate ASCII string in new space.
-  AllocateInNewSpace(SeqOneByteString::SizeFor(length),
+  AllocateInNewSpace(SeqAsciiString::SizeFor(length),
                      result,
                      scratch1,
                      scratch2,
@@ -1920,24 +1915,8 @@ void MacroAssembler::CallApiFunctionAndReturn(Address function_address,
   mov(edi, Operand::StaticVariable(limit_address));
   add(Operand::StaticVariable(level_address), Immediate(1));
 
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(0, eax);
-    CallCFunction(ExternalReference::log_enter_external_function(isolate()), 0);
-    PopSafepointRegisters();
-  }
-
   // Call the api function.
   call(function_address, RelocInfo::RUNTIME_ENTRY);
-
-  if (FLAG_log_timer_events) {
-    FrameScope frame(this, StackFrame::MANUAL);
-    PushSafepointRegisters();
-    PrepareCallCFunction(0, eax);
-    CallCFunction(ExternalReference::log_leave_external_function(isolate()), 0);
-    PopSafepointRegisters();
-  }
 
   if (!kReturnHandlesDirectly) {
     // PrepareCallApiFunction saved pointer to the output slot into
@@ -2636,7 +2615,7 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
   }
   and_(scratch,
        kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
-  cmp(scratch, kStringTag | kSeqStringTag | kOneByteStringTag);
+  cmp(scratch, kStringTag | kSeqStringTag | kAsciiStringTag);
   j(not_equal, failure);
 }
 
@@ -2659,17 +2638,15 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
   // Check that both are flat ASCII strings.
-  const int kFlatAsciiStringMask = kIsNotStringMask | kStringRepresentationMask
-          | kStringEncodingMask | kAsciiDataHintTag;
+  const int kFlatAsciiStringMask =
+      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;
   // Interleave bits from both instance types and compare them in one check.
-  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 8));
-  ASSERT_EQ(ASCII_STRING_TYPE, ASCII_STRING_TYPE & kFlatAsciiStringMask);
+  ASSERT_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
   and_(scratch1, kFlatAsciiStringMask);
   and_(scratch2, kFlatAsciiStringMask);
-  shl(scratch1, 8);
-  or_(scratch1, scratch2);
-  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 8));
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  cmp(scratch1, kFlatAsciiStringTag | (kFlatAsciiStringTag << 3));
   j(not_equal, failure);
 }
 
@@ -2929,15 +2906,15 @@ void MacroAssembler::EnsureNotWhite(
 
   bind(&not_external);
   // Sequential string, either ASCII or UC16.
-  ASSERT(kOneByteStringTag == 0x04);
+  ASSERT(kAsciiStringTag == 0x04);
   and_(length, Immediate(kStringEncodingMask));
   xor_(length, Immediate(kStringEncodingMask));
   add(length, Immediate(0x04));
   // Value now either 4 (if ASCII) or 8 (if UC16), i.e., char-size shifted
   // by 2. If we multiply the string length as smi by this, it still
   // won't overflow a 32-bit value.
-  ASSERT_EQ(SeqOneByteString::kMaxSize, SeqTwoByteString::kMaxSize);
-  ASSERT(SeqOneByteString::kMaxSize <=
+  ASSERT_EQ(SeqAsciiString::kMaxSize, SeqTwoByteString::kMaxSize);
+  ASSERT(SeqAsciiString::kMaxSize <=
          static_cast<int>(0xffffffffu >> (2 + kSmiTagSize)));
   imul(length, FieldOperand(value, String::kLengthOffset));
   shr(length, 2 + kSmiTagSize + kSmiShiftSize);

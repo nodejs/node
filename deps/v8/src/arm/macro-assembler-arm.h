@@ -322,7 +322,6 @@ class MacroAssembler: public Assembler {
 
   // Push a handle.
   void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi)); }
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -832,14 +831,14 @@ class MacroAssembler: public Assembler {
   // case scratch2, scratch3 and scratch4 are unmodified.
   void StoreNumberToDoubleElements(Register value_reg,
                                    Register key_reg,
+                                   Register receiver_reg,
                                    // All regs below here overwritten.
                                    Register elements_reg,
                                    Register scratch1,
                                    Register scratch2,
                                    Register scratch3,
                                    Register scratch4,
-                                   Label* fail,
-                                   int elements_offset = 0);
+                                   Label* fail);
 
   // Compare an object's map with the specified map and its transitioned
   // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Condition flags are
@@ -894,15 +893,12 @@ class MacroAssembler: public Assembler {
 
   // Load and check the instance type of an object for being a string.
   // Loads the type into the second argument register.
-  // Returns a condition that will be enabled if the object was a string
-  // and the passed-in condition passed. If the passed-in condition failed
-  // then flags remain unchanged.
+  // Returns a condition that will be enabled if the object was a string.
   Condition IsObjectStringType(Register obj,
-                               Register type,
-                               Condition cond = al) {
-    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset), cond);
-    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset), cond);
-    tst(type, Operand(kIsNotStringMask), cond);
+                               Register type) {
+    ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset));
+    ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset));
+    tst(type, Operand(kIsNotStringMask));
     ASSERT_EQ(0, kStringTag);
     return eq;
   }
@@ -959,14 +955,6 @@ class MacroAssembler: public Assembler {
                       DwVfpRegister double_scratch,
                       Label *not_int32);
 
-  // Try to convert a double to a signed 32-bit integer. If the double value
-  // can be exactly represented as an integer, the code jumps to 'done' and
-  // 'result' contains the integer value. Otherwise, the code falls through.
-  void TryFastDoubleToInt32(Register result,
-                            DwVfpRegister double_input,
-                            DwVfpRegister double_scratch,
-                            Label* done);
-
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
   // Clears the z flag (ne condition) if an overflow occurs.
@@ -997,7 +985,7 @@ class MacroAssembler: public Assembler {
   // Exits with 'result' holding the answer and all other registers clobbered.
   void EmitECMATruncate(Register result,
                         DwVfpRegister double_input,
-                        DwVfpRegister double_scratch,
+                        SwVfpRegister single_scratch,
                         Register scratch,
                         Register scratch2,
                         Register scratch3);
@@ -1214,7 +1202,7 @@ class MacroAssembler: public Assembler {
   // Souce and destination can be the same register.
   void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
 
-  // Jump if the register contains a smi.
+  // Jump the register contains a smi.
   inline void JumpIfSmi(Register value, Label* smi_label) {
     tst(value, Operand(kSmiTagMask));
     b(eq, smi_label);

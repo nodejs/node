@@ -214,19 +214,6 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
 }
 
 
-void MemoryChunk::UpdateHighWaterMark(Address mark) {
-  if (mark == NULL) return;
-  // Need to subtract one from the mark because when a chunk is full the
-  // top points to the next address after the chunk, which effectively belongs
-  // to another chunk. See the comment to Page::FromAllocationTop.
-  MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
-  int new_mark = static_cast<int>(mark - chunk->address());
-  if (new_mark > chunk->high_water_mark_) {
-    chunk->high_water_mark_ = new_mark;
-  }
-}
-
-
 PointerChunkIterator::PointerChunkIterator(Heap* heap)
     : state_(kOldPointerState),
       old_pointer_iterator_(heap->old_pointer_space()),

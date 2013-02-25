@@ -350,23 +350,18 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
                                             Register dst,
                                             Register src,
                                             Handle<JSObject> holder,
-                                            PropertyIndex index) {
-  if (index.is_header_index()) {
-    int offset = index.header_index() * kPointerSize;
+                                            int index) {
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
     __ movq(dst, FieldOperand(src, offset));
   } else {
-    // Adjust for the number of properties stored in the holder.
-    int slot = index.field_index() - holder->map()->inobject_properties();
-    if (slot < 0) {
-      // Get the property straight out of the holder.
-      int offset = holder->map()->instance_size() + (slot * kPointerSize);
-      __ movq(dst, FieldOperand(src, offset));
-    } else {
-      // Calculate the offset into the properties array.
-      int offset = slot * kPointerSize + FixedArray::kHeaderSize;
-      __ movq(dst, FieldOperand(src, JSObject::kPropertiesOffset));
-      __ movq(dst, FieldOperand(dst, offset));
-    }
+    // Calculate the offset into the properties array.
+    int offset = index * kPointerSize + FixedArray::kHeaderSize;
+    __ movq(dst, FieldOperand(src, JSObject::kPropertiesOffset));
+    __ movq(dst, FieldOperand(dst, offset));
   }
 }
 
@@ -1018,7 +1013,7 @@ void StubCompiler::GenerateLoadField(Handle<JSObject> object,
                                      Register scratch1,
                                      Register scratch2,
                                      Register scratch3,
-                                     PropertyIndex index,
+                                     int index,
                                      Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
@@ -1393,7 +1388,7 @@ void CallStubCompiler::GenerateMissBranch() {
 
 Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                PropertyIndex index,
+                                                int index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   // rcx                 : function name
@@ -1487,7 +1482,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     Label call_builtin;
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label attempt_to_grow_elements, with_write_barrier, check_double;
+      Label attempt_to_grow_elements, with_write_barrier;
 
       // Get the elements array of the object.
       __ movq(rdi, FieldOperand(rdx, JSArray::kElementsOffset));
@@ -1495,7 +1490,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Check that the elements are in fast mode and writable.
       __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
              factory()->fixed_array_map());
-      __ j(not_equal, &check_double);
+      __ j(not_equal, &call_builtin);
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1526,34 +1521,6 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
       __ ret((argc + 1) * kPointerSize);
 
-      __ bind(&check_double);
-
-      // Check that the elements are in double mode.
-      __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
-             factory()->fixed_double_array_map());
-      __ j(not_equal, &call_builtin);
-
-      // Get the array's length into rax and calculate new length.
-      __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
-      STATIC_ASSERT(FixedArray::kMaxLength < Smi::kMaxValue);
-      __ addl(rax, Immediate(argc));
-
-      // Get the elements' length into rcx.
-      __ SmiToInteger32(rcx, FieldOperand(rdi, FixedArray::kLengthOffset));
-
-      // Check if we could survive without allocation.
-      __ cmpl(rax, rcx);
-      __ j(greater, &call_builtin);
-
-      __ movq(rcx, Operand(rsp, argc * kPointerSize));
-      __ StoreNumberToDoubleElements(
-          rcx, rdi, rax, xmm0, &call_builtin, argc * kDoubleSize);
-
-      // Save new length.
-      __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
-      __ Integer32ToSmi(rax, rax);  // Return new length as smi.
-      __ ret((argc + 1) * kPointerSize);
-
       __ bind(&with_write_barrier);
 
       __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
@@ -1565,9 +1532,6 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         // In case of fast smi-only, convert to fast object, otherwise bail out.
         __ bind(&not_fast_object);
         __ CheckFastSmiElements(rbx, &call_builtin);
-        __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
-               factory()->heap_number_map());
-        __ j(equal, &call_builtin);
         // rdx: receiver
         // rbx: map
 
@@ -2816,7 +2780,7 @@ Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
 
 Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
                                                 Handle<JSObject> holder,
-                                                PropertyIndex index,
+                                                int index,
                                                 Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- rax    : receiver
@@ -3009,7 +2973,7 @@ Handle<Code> LoadStubCompiler::CompileLoadGlobal(
 Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
                                                      Handle<JSObject> receiver,
                                                      Handle<JSObject> holder,
-                                                     PropertyIndex index) {
+                                                     int index) {
   // ----------- S t a t e -------------
   //  -- rax     : key
   //  -- rdx     : receiver
@@ -3276,7 +3240,6 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
 #endif
 
   // Load the initial map and verify that it is in fact a map.
-  // rdi: constructor
   __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
   // Will both indicate a NULL and a Smi.
   STATIC_ASSERT(kSmiTag == 0);
@@ -3286,22 +3249,18 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
 
 #ifdef DEBUG
   // Cannot construct functions this way.
+  // rdi: constructor
   // rbx: initial map
   __ CmpInstanceType(rbx, JS_FUNCTION_TYPE);
-  __ Check(not_equal, "Function constructed by construct stub.");
+  __ Assert(not_equal, "Function constructed by construct stub.");
 #endif
 
   // Now allocate the JSObject in new space.
+  // rdi: constructor
   // rbx: initial map
-  ASSERT(function->has_initial_map());
-  int instance_size = function->initial_map()->instance_size();
-#ifdef DEBUG
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ shl(rcx, Immediate(kPointerSizeLog2));
-  __ cmpq(rcx, Immediate(instance_size));
-  __ Check(equal, "Instance size of initial map changed.");
-#endif
-  __ AllocateInNewSpace(instance_size, rdx, rcx, no_reg,
+  __ AllocateInNewSpace(rcx, rdx, rcx, no_reg,
                         &generic_stub_call, NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
@@ -3347,6 +3306,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   }
 
   // Fill the unused in-object property fields with undefined.
+  ASSERT(function->has_initial_map());
   for (int i = shared->this_property_assignments_count();
        i < function->initial_map()->inobject_properties();
        i++) {
@@ -4026,7 +3986,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- rsp[0] : return address
   // -----------------------------------
   Label miss_force_generic, transition_elements_kind, finish_store;
-  Label grow, slow, check_capacity, restore_key_transition_elements_kind;
+  Label grow, slow, check_capacity;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -4055,7 +4015,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ bind(&finish_store);
   __ SmiToInteger32(rcx, rcx);
   __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
-                                 &restore_key_transition_elements_kind);
+                                 &transition_elements_kind);
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -4064,10 +4024,9 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
 
-  __ bind(&restore_key_transition_elements_kind);
+  __ bind(&transition_elements_kind);
   // Restore smi-tagging of rcx.
   __ Integer32ToSmi(rcx, rcx);
-  __ bind(&transition_elements_kind);
   Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
   __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 
@@ -4108,16 +4067,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ Move(FieldOperand(rdi, FixedDoubleArray::kLengthOffset),
             Smi::FromInt(JSArray::kPreallocatedArrayElements));
 
-    // Increment the length of the array.
-    __ SmiToInteger32(rcx, rcx);
-    __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
-                                   &restore_key_transition_elements_kind);
-
-    __ movq(r8, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
-    for (int i = 1; i < JSArray::kPreallocatedArrayElements; i++) {
-      __ movq(FieldOperand(rdi, FixedDoubleArray::OffsetOfElementAt(i)), r8);
-    }
-
     // Install the new backing store in the JSArray.
     __ movq(FieldOperand(rdx, JSObject::kElementsOffset), rdi);
     __ RecordWriteField(rdx, JSObject::kElementsOffset, rdi, rbx,
@@ -4126,7 +4075,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     // Increment the length of the array.
     __ Move(FieldOperand(rdx, JSArray::kLengthOffset), Smi::FromInt(1));
     __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
-    __ ret(0);
+    __ jmp(&finish_store);
 
     __ bind(&check_capacity);
     // rax: value

@@ -95,13 +95,6 @@ class Handle {
 };
 
 
-// Convenience wrapper.
-template<class T>
-inline Handle<T> handle(T* t, Isolate* isolate) {
-  return Handle<T>(t, isolate);
-}
-
-
 class DeferredHandles;
 class HandleScopeImplementer;
 
@@ -216,8 +209,7 @@ Handle<String> FlattenGetString(Handle<String> str);
 
 int Utf8Length(Handle<String> str);
 
-Handle<Object> SetProperty(Isolate* isolate,
-                           Handle<Object> object,
+Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
@@ -268,7 +260,6 @@ int GetScriptLineNumber(Handle<Script> script, int code_position);
 // The safe version does not make heap allocations but may work much slower.
 int GetScriptLineNumberSafe(Handle<Script> script, int code_position);
 int GetScriptColumnNumber(Handle<Script> script, int code_position);
-Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script);
 
 // Computes the enumerable keys from interceptors. Used for debug mirrors and
 // by GetKeysInFixedArrayFor below.

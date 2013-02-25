@@ -210,6 +210,8 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
 static const byte kJnsInstruction = 0x79;
 static const byte kJnsOffset = 0x13;
+static const byte kJaeInstruction = 0x73;
+static const byte kJaeOffset = 0x07;
 static const byte kCallInstruction = 0xe8;
 static const byte kNopByteOne = 0x66;
 static const byte kNopByteTwo = 0x90;
@@ -222,26 +224,31 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   Address call_target_address = pc_after - kIntSize;
   ASSERT_EQ(check_code->entry(),
             Assembler::target_address_at(call_target_address));
-  // The back edge bookkeeping code matches the pattern:
+  // The stack check code matches the pattern:
   //
-  //     sub <profiling_counter>, <delta>
-  //     jns ok
+  //     cmp esp, <limit>
+  //     jae ok
   //     call <stack guard>
   //     test eax, <loop nesting depth>
   // ok: ...
   //
   // We will patch away the branch so the code is:
   //
-  //     sub <profiling_counter>, <delta>  ;; Not changed
+  //     cmp esp, <limit>  ;; Not changed
   //     nop
   //     nop
   //     call <on-stack replacment>
   //     test eax, <loop nesting depth>
   // ok:
 
-  ASSERT_EQ(kJnsInstruction,  *(call_target_address - 3));
-  ASSERT_EQ(kJnsOffset,       *(call_target_address - 2));
-  ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
+  if (FLAG_count_based_interrupts) {
+    ASSERT_EQ(kJnsInstruction, *(call_target_address - 3));
+    ASSERT_EQ(kJnsOffset,      *(call_target_address - 2));
+  } else {
+    ASSERT_EQ(kJaeInstruction, *(call_target_address - 3));
+    ASSERT_EQ(kJaeOffset,      *(call_target_address - 2));
+  }
+  ASSERT_EQ(kCallInstruction,  *(call_target_address - 1));
   *(call_target_address - 3) = kNopByteOne;
   *(call_target_address - 2) = kNopByteTwo;
   Assembler::set_target_address_at(call_target_address,
@@ -265,8 +272,13 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
   ASSERT_EQ(kNopByteOne,      *(call_target_address - 3));
   ASSERT_EQ(kNopByteTwo,      *(call_target_address - 2));
   ASSERT_EQ(kCallInstruction, *(call_target_address - 1));
-  *(call_target_address - 3) = kJnsInstruction;
-  *(call_target_address - 2) = kJnsOffset;
+  if (FLAG_count_based_interrupts) {
+    *(call_target_address - 3) = kJnsInstruction;
+    *(call_target_address - 2) = kJnsOffset;
+  } else {
+    *(call_target_address - 3) = kJaeInstruction;
+    *(call_target_address - 2) = kJaeOffset;
+  }
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
 

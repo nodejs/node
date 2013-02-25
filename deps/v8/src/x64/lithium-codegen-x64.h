@@ -335,12 +335,6 @@ class LCodeGen BASE_EMBEDDED {
   };
 
   void EnsureSpaceForLazyDeopt(int space_needed);
-  void DoLoadKeyedExternalArray(LLoadKeyed* instr);
-  void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
-  void DoLoadKeyedFixedArray(LLoadKeyed* instr);
-  void DoStoreKeyedExternalArray(LStoreKeyed* instr);
-  void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
-  void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
   Zone* zone_;
   LPlatformChunk* const chunk_;

@@ -161,7 +161,6 @@ function RegExpExecNoTests(regexp, string, start) {
     lastMatchInfoOverride = null;
     return BuildResultFromMatchInfo(matchInfo, string);
   }
-  regexp.lastIndex = 0;
   return null;
 }
 
@@ -194,7 +193,7 @@ function RegExpExec(string) {
   var matchIndices = %_RegExpExec(this, string, i, lastMatchInfo);
 
   if (matchIndices === null) {
-    this.lastIndex = 0;
+    if (global) this.lastIndex = 0;
     return null;
   }
 
@@ -257,10 +256,7 @@ function RegExpTest(string) {
     %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [regexp, string, lastIndex]);
     // matchIndices is either null or the lastMatchInfo array.
     var matchIndices = %_RegExpExec(regexp, string, 0, lastMatchInfo);
-    if (matchIndices === null) {
-      this.lastIndex = 0;
-      return false;
-    }
+    if (matchIndices === null) return false;
     lastMatchInfoOverride = null;
     return true;
   }

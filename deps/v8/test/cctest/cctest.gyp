@@ -79,7 +79,6 @@
         'test-lockers.cc',
         'test-log.cc',
         'test-mark-compact.cc',
-        'test-object-observe.cc',
         'test-parsing.cc',
         'test-platform-tls.cc',
         'test-profile-generator.cc',

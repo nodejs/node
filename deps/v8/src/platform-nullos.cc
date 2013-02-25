@@ -340,12 +340,6 @@ bool VirtualMemory::Guard(void* address) {
 }
 
 
-bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
-  return false;
-}
-
-
 class Thread::PlatformData : public Malloced {
  public:
   PlatformData() {

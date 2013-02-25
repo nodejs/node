@@ -52,53 +52,57 @@ namespace internal {
 
 
 CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE)),
+    : isolate_(script->GetIsolate()),
+      flags_(LanguageModeField::encode(CLASSIC_MODE)),
+      function_(NULL),
+      scope_(NULL),
+      global_scope_(NULL),
       script_(script),
-      osr_ast_id_(BailoutId::None()) {
-  Initialize(zone);
+      extension_(NULL),
+      pre_parse_data_(NULL),
+      osr_ast_id_(BailoutId::None()),
+      zone_(zone),
+      deferred_handles_(NULL) {
+  Initialize(BASE);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                                  Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
+    : isolate_(shared_info->GetIsolate()),
+      flags_(LanguageModeField::encode(CLASSIC_MODE) |
+             IsLazy::encode(true)),
+      function_(NULL),
+      scope_(NULL),
+      global_scope_(NULL),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
-      osr_ast_id_(BailoutId::None()) {
-  Initialize(zone);
+      extension_(NULL),
+      pre_parse_data_(NULL),
+      osr_ast_id_(BailoutId::None()),
+      zone_(zone),
+      deferred_handles_(NULL) {
+  Initialize(BASE);
 }
 
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
-    : flags_(LanguageModeField::encode(CLASSIC_MODE) | IsLazy::encode(true)),
+    : isolate_(closure->GetIsolate()),
+      flags_(LanguageModeField::encode(CLASSIC_MODE) |
+             IsLazy::encode(true)),
+      function_(NULL),
+      scope_(NULL),
+      global_scope_(NULL),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
+      extension_(NULL),
+      pre_parse_data_(NULL),
       context_(closure->context()),
-      osr_ast_id_(BailoutId::None()) {
-  Initialize(zone);
-}
-
-
-void CompilationInfo::Initialize(Zone* zone) {
-  isolate_ = script_->GetIsolate();
-  function_ = NULL;
-  scope_ = NULL;
-  global_scope_ = NULL;
-  extension_ = NULL;
-  pre_parse_data_ = NULL;
-  zone_ = zone;
-  deferred_handles_ = NULL;
-  prologue_offset_ = kPrologueOffsetNotSet;
-  mode_ = V8::UseCrankshaft() ? BASE : NONOPT;
-  if (script_->type()->value() == Script::TYPE_NATIVE) {
-    MarkAsNative();
-  }
-  if (!shared_info_.is_null()) {
-    ASSERT(language_mode() == CLASSIC_MODE);
-    SetLanguageMode(shared_info_->language_mode());
-  }
-  set_bailout_reason("unknown");
+      osr_ast_id_(BailoutId::None()),
+      zone_(zone),
+      deferred_handles_(NULL) {
+  Initialize(BASE);
 }
 
 
@@ -190,11 +194,6 @@ void OptimizingCompiler::RecordOptimizationStats() {
            code_size,
            compilation_time);
   }
-  if (FLAG_hydrogen_stats) {
-    HStatistics::Instance()->IncrementSubtotals(time_taken_to_create_graph_,
-                                                time_taken_to_optimize_,
-                                                time_taken_to_codegen_);
-  }
 }
 
 
@@ -285,6 +284,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   // doesn't have deoptimization support. Alternatively, we may decide to
   // run the full code generator to get a baseline for the compile-time
   // performance of the hydrogen-based compiler.
+  Timer t(this, &time_taken_to_create_graph_);
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
     HPhase phase(HPhase::kFullCodeGen);
@@ -324,8 +324,7 @@ OptimizingCompiler::Status OptimizingCompiler::CreateGraph() {
   oracle_ = new(info()->zone()) TypeFeedbackOracle(
       code, native_context, info()->isolate(), info()->zone());
   graph_builder_ = new(info()->zone()) HGraphBuilder(info(), oracle_);
-
-  Timer t(this, &time_taken_to_create_graph_);
+  HPhase phase(HPhase::kTotal);
   graph_ = graph_builder_->CreateGraph();
 
   if (info()->isolate()->has_pending_exception()) {
@@ -372,17 +371,15 @@ OptimizingCompiler::Status OptimizingCompiler::OptimizeGraph() {
 
 OptimizingCompiler::Status OptimizingCompiler::GenerateAndInstallCode() {
   ASSERT(last_status() == SUCCEEDED);
-  {  // Scope for timer.
-    Timer timer(this, &time_taken_to_codegen_);
-    ASSERT(chunk_ != NULL);
-    ASSERT(graph_ != NULL);
-    Handle<Code> optimized_code = chunk_->Codegen();
-    if (optimized_code.is_null()) {
-      info()->set_bailout_reason("code generation failed");
-      return AbortOptimization();
-    }
-    info()->SetCode(optimized_code);
+  Timer timer(this, &time_taken_to_codegen_);
+  ASSERT(chunk_ != NULL);
+  ASSERT(graph_ != NULL);
+  Handle<Code> optimized_code = chunk_->Codegen();
+  if (optimized_code.is_null()) {
+    info()->set_bailout_reason("code generation failed");
+    return AbortOptimization();
   }
+  info()->SetCode(optimized_code);
   RecordOptimizationStats();
   return SetLastStatus(SUCCEEDED);
 }
@@ -393,8 +390,6 @@ static bool GenerateCode(CompilationInfo* info) {
                        !info->IsCompilingForDebugging() &&
                        info->IsOptimizing();
   if (is_optimizing) {
-    Logger::TimerEventScope timer(
-        info->isolate(), Logger::TimerEventScope::v8_recompile_synchronous);
     return MakeCrankshaftCode(info);
   } else {
     if (info->IsOptimizing()) {
@@ -402,8 +397,6 @@ static bool GenerateCode(CompilationInfo* info) {
       // BASE or NONOPT.
       info->DisableOptimization();
     }
-    Logger::TimerEventScope timer(
-        info->isolate(), Logger::TimerEventScope::v8_compile_full_code);
     return FullCodeGenerator::MakeCode(info);
   }
 }
@@ -439,9 +432,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
 
   ASSERT(!isolate->native_context().is_null());
   Handle<Script> script = info->script();
-  // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
-  FixedArray* array = isolate->native_context()->embedder_data();
-  script->set_context_data(array->get(0));
+  script->set_context_data((*isolate->native_context())->data());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   if (info->is_eval()) {
@@ -697,7 +688,7 @@ static bool InstallFullCode(CompilationInfo* info) {
   Handle<ScopeInfo> scope_info =
       ScopeInfo::Create(info->scope(), info->zone());
   shared->set_scope_info(*scope_info);
-  shared->ReplaceCode(*code);
+  shared->set_code(*code);
   if (!function.is_null()) {
     function->ReplaceCode(*code);
     ASSERT(!function->IsOptimized());
@@ -850,11 +841,6 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   ASSERT(closure->IsMarkedForParallelRecompilation());
 
   Isolate* isolate = closure->GetIsolate();
-  // Here we prepare compile data for the parallel recompilation thread, but
-  // this still happens synchronously and interrupts execution.
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_recompile_synchronous);
-
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_parallel_recompilation) {
       PrintF("  ** Compilation queue, will retry opting on next run.\n");
@@ -863,7 +849,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   }
 
   SmartPointer<CompilationInfo> info(new CompilationInfoWithZone(closure));
-  VMState state(isolate, PARALLEL_COMPILER);
+  VMState state(isolate, PARALLEL_COMPILER_PROLOGUE);
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
@@ -874,10 +860,7 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
   {
     CompilationHandleScope handle_scope(*info);
 
-    if (!FLAG_manual_parallel_recompilation &&
-        InstallCodeFromOptimizedCodeMap(*info)) {
-      return;
-    }
+    if (InstallCodeFromOptimizedCodeMap(*info)) return;
 
     if (ParserApi::Parse(*info, kNoParsingFlags)) {
       LanguageMode language_mode = info->function()->language_mode();
@@ -911,10 +894,6 @@ void Compiler::RecompileParallel(Handle<JSFunction> closure) {
 
 void Compiler::InstallOptimizedCode(OptimizingCompiler* optimizing_compiler) {
   SmartPointer<CompilationInfo> info(optimizing_compiler->info());
-  Isolate* isolate = info->isolate();
-  VMState state(isolate, PARALLEL_COMPILER);
-  Logger::TimerEventScope timer(
-      isolate, Logger::TimerEventScope::v8_recompile_synchronous);
   // If crankshaft succeeded, install the optimized code else install
   // the unoptimized code.
   OptimizingCompiler::Status status = optimizing_compiler->last_status();

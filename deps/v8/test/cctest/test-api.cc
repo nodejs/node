@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// We want to test our deprecated API entries, too.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include <limits.h>
 
 #ifndef WIN32
@@ -626,8 +623,6 @@ THREADED_TEST(UsingExternalAsciiString) {
 
 
 THREADED_TEST(ScavengeExternalString) {
-  i::FLAG_stress_compaction = false;
-  i::FLAG_gc_global = false;
   int dispose_count = 0;
   bool in_new_space = false;
   {
@@ -648,8 +643,6 @@ THREADED_TEST(ScavengeExternalString) {
 
 
 THREADED_TEST(ScavengeExternalAsciiString) {
-  i::FLAG_stress_compaction = false;
-  i::FLAG_gc_global = false;
   int dispose_count = 0;
   bool in_new_space = false;
   {
@@ -2063,99 +2056,6 @@ THREADED_TEST(InternalFieldsNativePointersAndExternal) {
 }
 
 
-static void CheckAlignedPointerInInternalField(Handle<v8::Object> obj,
-                                               void* value) {
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
-  obj->SetPointerInInternalField(0, value);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(value, obj->GetPointerFromInternalField(0));
-}
-
-
-THREADED_TEST(InternalFieldsAlignedPointers) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
-  Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
-  instance_templ->SetInternalFieldCount(1);
-  Local<v8::Object> obj = templ->GetFunction()->NewInstance();
-  CHECK_EQ(1, obj->InternalFieldCount());
-
-  CheckAlignedPointerInInternalField(obj, NULL);
-
-  int* heap_allocated = new int[100];
-  CheckAlignedPointerInInternalField(obj, heap_allocated);
-  delete[] heap_allocated;
-
-  int stack_allocated[100];
-  CheckAlignedPointerInInternalField(obj, stack_allocated);
-
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
-  CheckAlignedPointerInInternalField(obj, huge);
-}
-
-
-static void CheckAlignedPointerInEmbedderData(LocalContext* env,
-                                              int index,
-                                              void* value) {
-  CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
-  (*env)->SetAlignedPointerInEmbedderData(index, value);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  CHECK_EQ(value, (*env)->GetAlignedPointerFromEmbedderData(index));
-}
-
-
-static void* AlignedTestPointer(int i) {
-  return reinterpret_cast<void*>(i * 1234);
-}
-
-
-THREADED_TEST(EmbedderDataAlignedPointers) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CheckAlignedPointerInEmbedderData(&env, 0, NULL);
-
-  int* heap_allocated = new int[100];
-  CheckAlignedPointerInEmbedderData(&env, 1, heap_allocated);
-  delete[] heap_allocated;
-
-  int stack_allocated[100];
-  CheckAlignedPointerInEmbedderData(&env, 2, stack_allocated);
-
-  void* huge = reinterpret_cast<void*>(~static_cast<uintptr_t>(1));
-  CheckAlignedPointerInEmbedderData(&env, 3, huge);
-
-  // Test growing of the embedder data's backing store.
-  for (int i = 0; i < 100; i++) {
-    env->SetAlignedPointerInEmbedderData(i, AlignedTestPointer(i));
-  }
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  for (int i = 0; i < 100; i++) {
-    CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
-  }
-}
-
-
-static void CheckEmbedderData(LocalContext* env,
-                              int index,
-                              v8::Handle<Value> data) {
-  (*env)->SetEmbedderData(index, data);
-  CHECK((*env)->GetEmbedderData(index)->StrictEquals(data));
-}
-
-THREADED_TEST(EmbedderData) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CheckEmbedderData(&env, 3, v8::String::New("The quick brown fox jumps"));
-  CheckEmbedderData(&env, 2, v8::String::New("over the lazy dog."));
-  CheckEmbedderData(&env, 1, v8::Number::New(1.2345));
-  CheckEmbedderData(&env, 0, v8::Boolean::New(true));
-}
-
-
 THREADED_TEST(IdentityHash) {
   v8::HandleScope scope;
   LocalContext env;
@@ -2349,24 +2249,6 @@ THREADED_TEST(GlobalHandle) {
   }
   CHECK_EQ(global->Length(), 3);
   global.Dispose();
-
-  {
-    v8::HandleScope scope;
-    Local<String> str = v8_str("str");
-    global = v8::Persistent<String>::New(str);
-  }
-  CHECK_EQ(global->Length(), 3);
-  global.Dispose(v8::Isolate::GetCurrent());
-}
-
-
-THREADED_TEST(LocalHandle) {
-  v8::HandleScope scope;
-  v8::Local<String> local = v8::Local<String>::New(v8_str("str"));
-  CHECK_EQ(local->Length(), 3);
-
-  local = v8::Local<String>::New(v8::Isolate::GetCurrent(), v8_str("str"));
-  CHECK_EQ(local->Length(), 3);
 }
 
 
@@ -2487,41 +2369,23 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   Persistent<Object> g2s2;
   Persistent<Object> g3s1;
   Persistent<Object> g3s2;
-  Persistent<Object> g4s1;
-  Persistent<Object> g4s2;
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   {
     HandleScope scope;
     g1s1 = Persistent<Object>::New(Object::New());
     g1s2 = Persistent<Object>::New(Object::New());
     g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
     g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g1s1.IsWeak());
-    CHECK(g1s2.IsWeak());
 
     g2s1 = Persistent<Object>::New(Object::New());
     g2s2 = Persistent<Object>::New(Object::New());
     g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
     g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g2s1.IsWeak());
-    CHECK(g2s2.IsWeak());
 
     g3s1 = Persistent<Object>::New(Object::New());
     g3s2 = Persistent<Object>::New(Object::New());
     g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
     g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g3s1.IsWeak());
-    CHECK(g3s2.IsWeak());
-
-    g4s1 = Persistent<Object>::New(Object::New());
-    g4s2 = Persistent<Object>::New(Object::New());
-    g4s1.MakeWeak(isolate,
-                  reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g4s2.MakeWeak(isolate,
-                  reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    CHECK(g4s1.IsWeak(isolate));
-    CHECK(g4s2.IsWeak(isolate));
   }
 
   Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
@@ -2535,17 +2399,13 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g2_children[] = { g3s1 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
-    Persistent<Value> g3_children[] = { g4s1 };
-    Persistent<Value> g4_objects[] = { g4s1, g4s2 };
-    Persistent<Value> g4_children[] = { g1s1 };
+    Persistent<Value> g3_children[] = { g1s1 };
     V8::AddObjectGroup(g1_objects, 2);
     V8::AddImplicitReferences(g1s1, g1_children, 1);
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s1, g2_children, 1);
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
-    V8::AddObjectGroup(isolate, g4_objects, 2);
-    V8::AddImplicitReferences(g4s1, g4_children, 1);
   }
   // Do a single full GC
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
@@ -2563,116 +2423,16 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     Persistent<Value> g2_objects[] = { g2s1, g2s2 };
     Persistent<Value> g2_children[] = { g3s1 };
     Persistent<Value> g3_objects[] = { g3s1, g3s2 };
-    Persistent<Value> g3_children[] = { g4s1 };
-    Persistent<Value> g4_objects[] = { g4s1, g4s2 };
-    Persistent<Value> g4_children[] = { g1s1 };
+    Persistent<Value> g3_children[] = { g1s1 };
     V8::AddObjectGroup(g1_objects, 2);
     V8::AddImplicitReferences(g1s1, g1_children, 1);
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s1, g2_children, 1);
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
-    V8::AddObjectGroup(g4_objects, 2);
-    V8::AddImplicitReferences(g4s1, g4_children, 1);
   }
 
   HEAP->CollectAllGarbage(i::Heap::kAbortIncrementalMarkingMask);
-
-  // All objects should be gone. 9 global handles in total.
-  CHECK_EQ(9, counter.NumberOfWeakCalls());
-}
-
-
-// TODO(mstarzinger): This should be a THREADED_TEST but causes failures
-// on the buildbots, so was made non-threaded for the time being.
-TEST(ApiObjectGroupsCycleForScavenger) {
-  i::FLAG_stress_compaction = false;
-  i::FLAG_gc_global = false;
-  HandleScope scope;
-  LocalContext env;
-
-  WeakCallCounter counter(1234);
-
-  Persistent<Object> g1s1;
-  Persistent<Object> g1s2;
-  Persistent<Object> g2s1;
-  Persistent<Object> g2s2;
-  Persistent<Object> g3s1;
-  Persistent<Object> g3s2;
-
-  {
-    HandleScope scope;
-    g1s1 = Persistent<Object>::New(Object::New());
-    g1s2 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-
-    g2s1 = Persistent<Object>::New(Object::New());
-    g2s2 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-
-    g3s1 = Persistent<Object>::New(Object::New());
-    g3s2 = Persistent<Object>::New(Object::New());
-    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  }
-
-  // Make a root.
-  Persistent<Object> root = Persistent<Object>::New(g1s1);
-  root.MarkPartiallyDependent();
-
-  // Connect groups.  We're building the following cycle:
-  // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
-  // groups.
-  {
-    g1s1.MarkPartiallyDependent();
-    g1s2.MarkPartiallyDependent();
-    g2s1.MarkPartiallyDependent();
-    g2s2.MarkPartiallyDependent();
-    g3s1.MarkPartiallyDependent();
-    g3s2.MarkPartiallyDependent();
-    Persistent<Value> g1_objects[] = { g1s1, g1s2 };
-    Persistent<Value> g2_objects[] = { g2s1, g2s2 };
-    Persistent<Value> g3_objects[] = { g3s1, g3s2 };
-    V8::AddObjectGroup(g1_objects, 2);
-    g1s1->Set(v8_str("x"), g2s1);
-    V8::AddObjectGroup(g2_objects, 2);
-    g2s1->Set(v8_str("x"), g3s1);
-    V8::AddObjectGroup(g3_objects, 2);
-    g3s1->Set(v8_str("x"), g1s1);
-  }
-
-  HEAP->CollectGarbage(i::NEW_SPACE);
-
-  // All objects should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
-
-  // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  root.MarkPartiallyDependent();
-
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
-  // Groups are deleted, rebuild groups.
-  {
-    g1s1.MarkPartiallyDependent(isolate);
-    g1s2.MarkPartiallyDependent(isolate);
-    g2s1.MarkPartiallyDependent(isolate);
-    g2s2.MarkPartiallyDependent(isolate);
-    g3s1.MarkPartiallyDependent(isolate);
-    g3s2.MarkPartiallyDependent(isolate);
-    Persistent<Value> g1_objects[] = { g1s1, g1s2 };
-    Persistent<Value> g2_objects[] = { g2s1, g2s2 };
-    Persistent<Value> g3_objects[] = { g3s1, g3s2 };
-    V8::AddObjectGroup(g1_objects, 2);
-    g1s1->Set(v8_str("x"), g2s1);
-    V8::AddObjectGroup(g2_objects, 2);
-    g2s1->Set(v8_str("x"), g3s1);
-    V8::AddObjectGroup(g3_objects, 2);
-    g3s1->Set(v8_str("x"), g1s1);
-  }
-
-  HEAP->CollectGarbage(i::NEW_SPACE);
 
   // All objects should be gone. 7 global handles in total.
   CHECK_EQ(7, counter.NumberOfWeakCalls());
@@ -2689,18 +2449,6 @@ THREADED_TEST(ScriptException) {
   CHECK(try_catch.HasCaught());
   String::AsciiValue exception_value(try_catch.Exception());
   CHECK_EQ(*exception_value, "panama!");
-}
-
-
-TEST(TryCatchCustomException) {
-  v8::HandleScope scope;
-  LocalContext env;
-  v8::TryCatch try_catch;
-  CompileRun("function CustomError() { this.a = 'b'; }"
-             "(function f() { throw new CustomError(); })();");
-  CHECK(try_catch.HasCaught());
-  CHECK(try_catch.Exception()->ToObject()->
-            Get(v8_str("a"))->Equals(v8_str("b")));
 }
 
 
@@ -3753,30 +3501,6 @@ THREADED_TEST(TryCatchAndFinally) {
       "  native_with_try_catch();\n"
       "}\n");
   CHECK(try_catch.HasCaught());
-}
-
-
-static void TryCatchNestedHelper(int depth) {
-  if (depth > 0) {
-    v8::TryCatch try_catch;
-    try_catch.SetVerbose(true);
-    TryCatchNestedHelper(depth - 1);
-    CHECK(try_catch.HasCaught());
-    try_catch.ReThrow();
-  } else {
-    v8::ThrowException(v8_str("back"));
-  }
-}
-
-
-TEST(TryCatchNested) {
-  v8::V8::Initialize();
-  v8::HandleScope scope;
-  LocalContext context;
-  v8::TryCatch try_catch;
-  TryCatchNestedHelper(5);
-  CHECK(try_catch.HasCaught());
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(try_catch.Exception()), "back"));
 }
 
 
@@ -5584,28 +5308,20 @@ THREADED_TEST(IndependentWeakHandle) {
   v8::Persistent<Context> context = Context::New();
   Context::Scope context_scope(context);
 
-  v8::Persistent<v8::Object> object_a, object_b;
+  v8::Persistent<v8::Object> object_a;
 
   {
     v8::HandleScope handle_scope;
     object_a = v8::Persistent<v8::Object>::New(v8::Object::New());
-    object_b = v8::Persistent<v8::Object>::New(v8::Object::New());
   }
 
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   bool object_a_disposed = false;
-  bool object_b_disposed = false;
   object_a.MakeWeak(&object_a_disposed, &DisposeAndSetFlag);
-  object_b.MakeWeak(&object_b_disposed, &DisposeAndSetFlag);
   CHECK(!object_a.IsIndependent());
-  CHECK(!object_b.IsIndependent(isolate));
   object_a.MarkIndependent();
-  object_b.MarkIndependent(isolate);
   CHECK(object_a.IsIndependent());
-  CHECK(object_b.IsIndependent(isolate));
   HEAP->PerformScavenge();
   CHECK(object_a_disposed);
-  CHECK(object_b_disposed);
 }
 
 
@@ -8129,8 +7845,12 @@ THREADED_TEST(ShadowObject) {
   Local<ObjectTemplate> proto = t->PrototypeTemplate();
   Local<ObjectTemplate> instance = t->InstanceTemplate();
 
+  // Only allow calls of f on instances of t.
+  Local<v8::Signature> signature = v8::Signature::New(t);
   proto->Set(v8_str("f"),
-             v8::FunctionTemplate::New(ShadowFunctionCallback, Local<Value>()));
+             v8::FunctionTemplate::New(ShadowFunctionCallback,
+                                       Local<Value>(),
+                                       signature));
   proto->Set(v8_str("x"), v8_num(12));
 
   instance->SetAccessor(v8_str("y"), ShadowYGetter, ShadowYSetter);
@@ -9995,7 +9715,6 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10026,7 +9745,6 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10063,7 +9781,6 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10100,7 +9817,6 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10140,7 +9856,6 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ = fun_templ->InstanceTemplate();
   templ->SetNamedPropertyHandler(InterceptorCallICFastApi,
                                  NULL, NULL, NULL, NULL,
@@ -10203,7 +9918,6 @@ THREADED_TEST(CallICFastApi_SimpleSignature) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
   CHECK(!templ.IsEmpty());
   LocalContext context;
@@ -10231,7 +9945,6 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
   CHECK(!templ.IsEmpty());
   LocalContext context;
@@ -10264,7 +9977,6 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
                                 v8::Signature::New(fun_templ));
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
   CHECK(!templ.IsEmpty());
   LocalContext context;
@@ -10287,42 +9999,6 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
       "}");
   CHECK(try_catch.HasCaught());
   CHECK_EQ(v8_str("TypeError: Object 333 has no method 'method'"),
-           try_catch.Exception()->ToString());
-  CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
-}
-
-THREADED_TEST(CallICFastApi_SimpleSignature_TypeError) {
-  v8::HandleScope scope;
-  v8::Handle<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New();
-  v8::Handle<v8::FunctionTemplate> method_templ =
-      v8::FunctionTemplate::New(FastApiCallback_SimpleSignature,
-                                v8_str("method_data"),
-                                v8::Signature::New(fun_templ));
-  v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
-  proto_templ->Set(v8_str("method"), method_templ);
-  fun_templ->SetHiddenPrototype(true);
-  v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
-  CHECK(!templ.IsEmpty());
-  LocalContext context;
-  v8::Handle<v8::Function> fun = fun_templ->GetFunction();
-  GenerateSomeGarbage();
-  context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::TryCatch try_catch;
-  CompileRun(
-      "o.foo = 17;"
-      "var receiver = {};"
-      "receiver.__proto__ = o;"
-      "var result = 0;"
-      "var saved_result = 0;"
-      "for (var i = 0; i < 100; i++) {"
-      "  result = receiver.method(41);"
-      "  if (i == 50) {"
-      "    saved_result = result;"
-      "    receiver = Object.create(receiver);"
-      "  }"
-      "}");
-  CHECK(try_catch.HasCaught());
-  CHECK_EQ(v8_str("TypeError: Illegal invocation"),
            try_catch.Exception()->ToString());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
@@ -11478,7 +11154,6 @@ static void RunLoopInNewEnv() {
 
 TEST(SetFunctionEntryHook) {
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_use_inlining = false;
 
   // Test setting and resetting the entry hook.
   // Nulling it should always succeed.
@@ -11609,6 +11284,10 @@ static void event_handler(const v8::JitCodeEvent* event) {
       break;
   }
 }
+
+
+// Implemented in the test-alloc.cc test suite.
+void SimulateFullSpace(i::PagedSpace* space);
 
 
 static bool MatchPointers(void* key1, void* key2) {
@@ -12732,7 +12411,7 @@ static void MorphAString(i::String* string,
                          AsciiVectorResource* ascii_resource,
                          UC16VectorResource* uc16_resource) {
   CHECK(i::StringShape(string).IsExternal());
-  if (string->IsOneByteRepresentation()) {
+  if (string->IsAsciiRepresentation()) {
     // Check old map is not symbol or long.
     CHECK(string->map() == HEAP->external_ascii_string_map());
     // Morph external string to be TwoByte string.
@@ -15137,12 +14816,11 @@ THREADED_TEST(GetHeapStatistics) {
 
 class VisitorImpl : public v8::ExternalResourceVisitor {
  public:
-  explicit VisitorImpl(TestResource** resource) {
-    for (int i = 0; i < 4; i++) {
-      resource_[i] = resource[i];
-      found_resource_[i] = false;
-    }
-  }
+  VisitorImpl(TestResource* r1, TestResource* r2)
+      : resource1_(r1),
+        resource2_(r2),
+        found_resource1_(false),
+        found_resource2_(false) {}
   virtual ~VisitorImpl() {}
   virtual void VisitExternalString(v8::Handle<v8::String> string) {
     if (!string->IsExternal()) {
@@ -15152,22 +14830,25 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
     v8::String::ExternalStringResource* resource =
         string->GetExternalStringResource();
     CHECK(resource);
-    for (int i = 0; i < 4; i++) {
-      if (resource_[i] == resource) {
-        CHECK(!found_resource_[i]);
-        found_resource_[i] = true;
-      }
+    if (resource1_ == resource) {
+      CHECK(!found_resource1_);
+      found_resource1_ = true;
+    }
+    if (resource2_ == resource) {
+      CHECK(!found_resource2_);
+      found_resource2_ = true;
     }
   }
   void CheckVisitedResources() {
-    for (int i = 0; i < 4; i++) {
-      CHECK(found_resource_[i]);
-    }
+    CHECK(found_resource1_);
+    CHECK(found_resource2_);
   }
 
  private:
-  v8::String::ExternalStringResource* resource_[4];
-  bool found_resource_[4];
+  v8::String::ExternalStringResource* resource1_;
+  v8::String::ExternalStringResource* resource2_;
+  bool found_resource1_;
+  bool found_resource2_;
 };
 
 TEST(VisitExternalStrings) {
@@ -15175,33 +14856,16 @@ TEST(VisitExternalStrings) {
   LocalContext env;
   const char* string = "Some string";
   uint16_t* two_byte_string = AsciiToTwoByteString(string);
-  TestResource* resource[4];
-  resource[0] = new TestResource(two_byte_string);
-  v8::Local<v8::String> string0 = v8::String::NewExternal(resource[0]);
-  resource[1] = new TestResource(two_byte_string);
-  v8::Local<v8::String> string1 = v8::String::NewExternal(resource[1]);
+  TestResource* resource1 = new TestResource(two_byte_string);
+  v8::Local<v8::String> string1 = v8::String::NewExternal(resource1);
+  TestResource* resource2 = new TestResource(two_byte_string);
+  v8::Local<v8::String> string2 = v8::String::NewExternal(resource2);
 
-  // Externalized symbol.
-  resource[2] = new TestResource(two_byte_string);
-  v8::Local<v8::String> string2 = v8::String::NewSymbol(string);
-  CHECK(string2->MakeExternal(resource[2]));
-
-  // Symbolized External.
-  resource[3] = new TestResource(AsciiToTwoByteString("Some other string"));
-  v8::Local<v8::String> string3 = v8::String::NewExternal(resource[3]);
-  HEAP->CollectAllAvailableGarbage();  // Tenure string.
-  // Turn into a symbol.
-  i::Handle<i::String> string3_i = v8::Utils::OpenHandle(*string3);
-  CHECK(!HEAP->LookupSymbol(*string3_i)->IsFailure());
-  CHECK(string3_i->IsSymbol());
-
-  // We need to add usages for string* to avoid warnings in GCC 4.7
-  CHECK(string0->IsExternal());
+  // We need to add usages for string1 and string2 to avoid warnings in GCC 4.7
   CHECK(string1->IsExternal());
   CHECK(string2->IsExternal());
-  CHECK(string3->IsExternal());
 
-  VisitorImpl visitor(resource);
+  VisitorImpl visitor(resource1, resource2);
   v8::V8::VisitExternalResources(&visitor);
   visitor.CheckVisitedResources();
 }
@@ -15891,13 +15555,13 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   CHECK(result->IsString());
   i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
   int length = string->length();
-  CHECK(string->IsOneByteRepresentation());
+  CHECK(string->IsAsciiRepresentation());
 
   FlattenString(string);
   i::Handle<i::String> flat_string = FlattenGetString(string);
 
-  CHECK(string->IsOneByteRepresentation());
-  CHECK(flat_string->IsOneByteRepresentation());
+  CHECK(string->IsAsciiRepresentation());
+  CHECK(flat_string->IsAsciiRepresentation());
 
   // Create external resource.
   uint16_t* uc16_buffer = new uint16_t[length + 1];
@@ -15916,7 +15580,7 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   // ASCII characters). This is a valid sequence of steps, and it can happen
   // in real pages.
 
-  CHECK(string->IsOneByteRepresentation());
+  CHECK(string->IsAsciiRepresentation());
   i::ConsString* cons = i::ConsString::cast(*string);
   CHECK_EQ(0, cons->second()->length());
   CHECK(cons->first()->IsTwoByteRepresentation());
@@ -18093,6 +17757,7 @@ class ThreadInterruptTest {
 
    private:
      ThreadInterruptTest* test_;
+     struct sigaction sa_;
   };
 
   i::Semaphore* sem_;

@@ -257,42 +257,6 @@ assertEquals("[1,2,[3,[4],5],6,7]",
 assertEquals("[2,4,[6,[8],10],12,14]",
              JSON.stringify([1, 2, [3, [4], 5], 6, 7], DoubleNumbers));
 assertEquals('["a","ab","abc"]', JSON.stringify(["a","ab","abc"]));
-assertEquals('{"a":1,"c":true}',
-              JSON.stringify({ a : 1,
-                               b : function() { 1 },
-                               c : true,
-                               d : function() { 2 } }));
-assertEquals('[1,null,true,null]',
-             JSON.stringify([1, function() { 1 }, true, function() { 2 }]));
-assertEquals('"toJSON 123"',
-             JSON.stringify({ toJSON : function() { return 'toJSON 123'; } }));
-assertEquals('{"a":321}',
-             JSON.stringify({ a : { toJSON : function() { return 321; } } }));
-var counter = 0;
-assertEquals('{"getter":123}',
-             JSON.stringify({ get getter() { counter++; return 123; } }));
-assertEquals(1, counter);
-assertEquals('{"a":"abc","b":"\u1234bc"}',
-             JSON.stringify({ a : "abc", b : "\u1234bc" }));
-
-
-var a = { a : 1, b : 2 };
-delete a.a;
-assertEquals('{"b":2}', JSON.stringify(a));
-
-var b = {};
-b.__proto__ = { toJSON : function() { return 321;} };
-assertEquals("321", JSON.stringify(b));
-
-var array = [""];
-var expected = '""';
-for (var i = 0; i < 10000; i++) {
-  array.push("");
-  expected = '"",' + expected;
-}
-expected = '[' + expected + ']';
-assertEquals(expected, JSON.stringify(array));
-
 
 var circular = [1, 2, 3];
 circular[2] = circular;

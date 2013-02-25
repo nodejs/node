@@ -51,7 +51,6 @@ RegExpStack::RegExpStack()
 
 
 RegExpStack::~RegExpStack() {
-  thread_local_.Free();
 }
 
 

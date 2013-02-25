@@ -112,7 +112,7 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   HandleScope scope(isolate);
 
   // Protect raw pointers.
-  Handle<JSArray> array_handle(JSArray::cast(object), isolate);
+  Handle<JSObject> object_handle(object, isolate);
   Handle<Object> value_handle(value, isolate);
 
   bool has_exception;
@@ -122,7 +122,7 @@ MaybeObject* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
   if (has_exception) return Failure::Exception();
 
   if (uint32_v->Number() == number_v->Number()) {
-    return array_handle->SetElementsLength(*uint32_v);
+    return Handle<JSArray>::cast(object_handle)->SetElementsLength(*uint32_v);
   }
   return isolate->Throw(
       *isolate->factory()->NewRangeError("invalid_array_length",
@@ -465,46 +465,24 @@ MaybeObject* Accessors::FunctionGetPrototype(Object* object, void*) {
 
 
 MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
-                                             Object* value_raw,
+                                             Object* value,
                                              void*) {
-  Isolate* isolate = object->GetIsolate();
-  Heap* heap = isolate->heap();
-  JSFunction* function_raw = FindInstanceOf<JSFunction>(object);
-  if (function_raw == NULL) return heap->undefined_value();
-  if (!function_raw->should_have_prototype()) {
+  Heap* heap = object->GetHeap();
+  JSFunction* function = FindInstanceOf<JSFunction>(object);
+  if (function == NULL) return heap->undefined_value();
+  if (!function->should_have_prototype()) {
     // Since we hit this accessor, object will have no prototype property.
     return object->SetLocalPropertyIgnoreAttributes(heap->prototype_symbol(),
-                                                    value_raw,
+                                                    value,
                                                     NONE);
   }
 
-  HandleScope scope(isolate);
-  Handle<JSFunction> function(function_raw, isolate);
-  Handle<Object> value(value_raw, isolate);
-
-  Handle<Object> old_value;
-  bool is_observed =
-      FLAG_harmony_observation &&
-      *function == object &&
-      function->map()->is_observed();
-  if (is_observed) {
-    if (function->has_prototype())
-      old_value = handle(function->prototype(), isolate);
-    else
-      old_value = isolate->factory()->NewFunctionPrototype(function);
+  Object* prototype;
+  { MaybeObject* maybe_prototype = function->SetPrototype(value);
+    if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;
   }
-
-  Handle<Object> result;
-  MaybeObject* maybe_result = function->SetPrototype(*value);
-  if (!maybe_result->ToHandle(&result, isolate)) return maybe_result;
-  ASSERT(function->prototype() == *value);
-
-  if (is_observed && !old_value->SameValue(*value)) {
-    JSObject::EnqueueChangeRecord(
-        function, "updated", isolate->factory()->prototype_symbol(), old_value);
-  }
-
-  return *function;
+  ASSERT(function->prototype() == value);
+  return function;
 }
 
 
@@ -671,6 +649,19 @@ const AccessorDescriptor Accessors::FunctionArguments = {
 //
 
 
+static MaybeObject* CheckNonStrictCallerOrThrow(
+    Isolate* isolate,
+    JSFunction* caller) {
+  DisableAssertNoAllocation enable_allocation;
+  if (!caller->shared()->is_classic_mode()) {
+    return isolate->Throw(
+        *isolate->factory()->NewTypeError("strict_caller",
+                                          HandleVector<Object>(NULL, 0)));
+  }
+  return caller;
+}
+
+
 class FrameFunctionIterator {
  public:
   FrameFunctionIterator(Isolate* isolate, const AssertNoAllocation& promise)
@@ -757,14 +748,7 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   if (caller->shared()->bound()) {
     return isolate->heap()->null_value();
   }
-  // Censor if the caller is not a classic mode function.
-  // Change from ES5, which used to throw, see:
-  // https://bugs.ecmascript.org/show_bug.cgi?id=310
-  if (!caller->shared()->is_classic_mode()) {
-    return isolate->heap()->null_value();
-  }
-
-  return caller;
+  return CheckNonStrictCallerOrThrow(isolate, caller);
 }
 
 
@@ -780,7 +764,7 @@ const AccessorDescriptor Accessors::FunctionCaller = {
 //
 
 
-static inline Object* GetPrototypeSkipHiddenPrototypes(Object* receiver) {
+MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
   Object* current = receiver->GetPrototype();
   while (current->IsJSObject() &&
          JSObject::cast(current)->map()->is_hidden_prototype()) {
@@ -790,36 +774,12 @@ static inline Object* GetPrototypeSkipHiddenPrototypes(Object* receiver) {
 }
 
 
-MaybeObject* Accessors::ObjectGetPrototype(Object* receiver, void*) {
-  return GetPrototypeSkipHiddenPrototypes(receiver);
-}
-
-
-MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver_raw,
-                                           Object* value_raw,
+MaybeObject* Accessors::ObjectSetPrototype(JSObject* receiver,
+                                           Object* value,
                                            void*) {
-  const bool kSkipHiddenPrototypes = true;
+  const bool skip_hidden_prototypes = true;
   // To be consistent with other Set functions, return the value.
-  if (!(FLAG_harmony_observation && receiver_raw->map()->is_observed()))
-    return receiver_raw->SetPrototype(value_raw, kSkipHiddenPrototypes);
-
-  Isolate* isolate = receiver_raw->GetIsolate();
-  HandleScope scope(isolate);
-  Handle<JSObject> receiver(receiver_raw);
-  Handle<Object> value(value_raw);
-  Handle<Object> old_value(GetPrototypeSkipHiddenPrototypes(*receiver));
-
-  MaybeObject* result = receiver->SetPrototype(*value, kSkipHiddenPrototypes);
-  Handle<Object> hresult;
-  if (!result->ToHandle(&hresult, isolate)) return result;
-
-  Handle<Object> new_value(GetPrototypeSkipHiddenPrototypes(*receiver));
-  if (!new_value->SameValue(*old_value)) {
-    JSObject::EnqueueChangeRecord(receiver, "prototype",
-                                  isolate->factory()->Proto_symbol(),
-                                  old_value);
-  }
-  return *hresult;
+  return receiver->SetPrototype(value, skip_hidden_prototypes);
 }
 
 

@@ -169,7 +169,7 @@ void Displacement::init(Label* L, Type type) {
 const int RelocInfo::kApplyMask =
   RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
     1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE |
-    1 << RelocInfo::DEBUG_BREAK_SLOT | 1 << RelocInfo::CODE_AGE_SEQUENCE;
+    1 << RelocInfo::DEBUG_BREAK_SLOT;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -312,23 +312,64 @@ Register Operand::reg() const {
 static void InitCoverageLog();
 #endif
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
-      positions_recorder_(this) {
+Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
+    : AssemblerBase(arg_isolate),
+      positions_recorder_(this),
+      emit_debug_code_(FLAG_debug_code) {
+  if (buffer == NULL) {
+    // Do our own buffer management.
+    if (buffer_size <= kMinimalBufferSize) {
+      buffer_size = kMinimalBufferSize;
+
+      if (isolate()->assembler_spare_buffer() != NULL) {
+        buffer = isolate()->assembler_spare_buffer();
+        isolate()->set_assembler_spare_buffer(NULL);
+      }
+    }
+    if (buffer == NULL) {
+      buffer_ = NewArray<byte>(buffer_size);
+    } else {
+      buffer_ = static_cast<byte*>(buffer);
+    }
+    buffer_size_ = buffer_size;
+    own_buffer_ = true;
+  } else {
+    // Use externally provided buffer instead.
+    ASSERT(buffer_size > 0);
+    buffer_ = static_cast<byte*>(buffer);
+    buffer_size_ = buffer_size;
+    own_buffer_ = false;
+  }
+
   // Clear the buffer in debug mode unless it was provided by the
   // caller in which case we can't be sure it's okay to overwrite
   // existing code in it; see CodePatcher::CodePatcher(...).
 #ifdef DEBUG
   if (own_buffer_) {
-    memset(buffer_, 0xCC, buffer_size_);  // int3
+    memset(buffer_, 0xCC, buffer_size);  // int3
   }
 #endif
 
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+  // Set up buffer pointers.
+  ASSERT(buffer_ != NULL);
+  pc_ = buffer_;
+  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
 #ifdef GENERATED_CODE_COVERAGE
   InitCoverageLog();
 #endif
+}
+
+
+Assembler::~Assembler() {
+  if (own_buffer_) {
+    if (isolate()->assembler_spare_buffer() == NULL &&
+        buffer_size_ == kMinimalBufferSize) {
+      isolate()->set_assembler_spare_buffer(buffer_);
+    } else {
+      DeleteArray(buffer_);
+    }
+  }
 }
 
 
@@ -1023,25 +1064,6 @@ void Assembler::rcr(Register dst, uint8_t imm8) {
   }
 }
 
-void Assembler::ror(Register dst, uint8_t imm8) {
-  EnsureSpace ensure_space(this);
-  ASSERT(is_uint5(imm8));  // illegal shift count
-  if (imm8 == 1) {
-    EMIT(0xD1);
-    EMIT(0xC8 | dst.code());
-  } else {
-    EMIT(0xC1);
-    EMIT(0xC8 | dst.code());
-    EMIT(imm8);
-  }
-}
-
-void Assembler::ror_cl(Register dst) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xD3);
-  EMIT(0xC8 | dst.code());
-}
-
 
 void Assembler::sar(Register dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
@@ -1479,7 +1501,7 @@ void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
 
 void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
   EnsureSpace ensure_space(this);
-  ASSERT(0 <= cc && static_cast<int>(cc) < 16);
+  ASSERT(0 <= cc && cc < 16);
   if (L->is_bound()) {
     const int short_size = 2;
     const int long_size  = 6;
@@ -1511,7 +1533,7 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
 
 void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
-  ASSERT((0 <= cc) && (static_cast<int>(cc) < 16));
+  ASSERT((0 <= cc) && (cc < 16));
   // 0000 1111 1000 tttn #32-bit disp.
   EMIT(0x0F);
   EMIT(0x80 | cc);
@@ -1966,27 +1988,7 @@ void Assembler::addsd(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::addsd(XMMRegister dst, const Operand& src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x58);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::mulsd(XMMRegister dst, XMMRegister src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x59);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::mulsd(XMMRegister dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
@@ -2097,15 +2099,6 @@ void Assembler::movmskpd(Register dst, XMMRegister src) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);
-  EMIT(0x0F);
-  EMIT(0x50);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::movmskps(Register dst, XMMRegister src) {
-  ASSERT(CpuFeatures::IsEnabled(SSE2));
-  EnsureSpace ensure_space(this);
   EMIT(0x0F);
   EMIT(0x50);
   emit_sse_operand(dst, src);
@@ -2401,7 +2394,7 @@ void Assembler::psrlq(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
+void Assembler::pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle) {
   ASSERT(CpuFeatures::IsEnabled(SSE2));
   EnsureSpace ensure_space(this);
   EMIT(0x66);

@@ -132,44 +132,6 @@ class CallbacksDescriptor:  public Descriptor {
 };
 
 
-// Holds a property index value distinguishing if it is a field index or an
-// index inside the object header.
-class PropertyIndex {
- public:
-  static PropertyIndex NewFieldIndex(int index) {
-    return PropertyIndex(index, false);
-  }
-  static PropertyIndex NewHeaderIndex(int index) {
-    return PropertyIndex(index, true);
-  }
-
-  bool is_field_index() { return (index_ & kHeaderIndexBit) == 0; }
-  bool is_header_index() { return (index_ & kHeaderIndexBit) != 0; }
-
-  int field_index() {
-    ASSERT(is_field_index());
-    return value();
-  }
-  int header_index() {
-    ASSERT(is_header_index());
-    return value();
-  }
-
- private:
-  static const int kHeaderIndexBit = 1 << 31;
-  static const int kIndexMask = ~kHeaderIndexBit;
-
-  int value() { return index_ & kIndexMask; }
-
-  PropertyIndex(int index, bool is_header_based)
-      : index_(index | (is_header_based ? kHeaderIndexBit : 0)) {
-    ASSERT(index <= kIndexMask);
-  }
-
-  int index_;
-};
-
-
 class LookupResult BASE_EMBEDDED {
  public:
   explicit LookupResult(Isolate* isolate)
@@ -316,7 +278,7 @@ class LookupResult BASE_EMBEDDED {
   Object* GetLazyValue() {
     switch (type()) {
       case FIELD:
-        return holder()->FastPropertyAt(GetFieldIndex().field_index());
+        return holder()->FastPropertyAt(GetFieldIndex());
       case NORMAL: {
         Object* value;
         value = holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
@@ -328,7 +290,7 @@ class LookupResult BASE_EMBEDDED {
       case CONSTANT_FUNCTION:
         return GetConstantFunction();
       default:
-        return Isolate::Current()->heap()->the_hole_value();
+        return Smi::FromInt(0);
     }
   }
 
@@ -372,11 +334,10 @@ class LookupResult BASE_EMBEDDED {
     return number_;
   }
 
-  PropertyIndex GetFieldIndex() {
+  int GetFieldIndex() {
     ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
     ASSERT(IsField());
-    return PropertyIndex::NewFieldIndex(
-        Descriptor::IndexFromValue(GetValue()));
+    return Descriptor::IndexFromValue(GetValue());
   }
 
   int GetLocalFieldIndexFromMap(Map* map) {

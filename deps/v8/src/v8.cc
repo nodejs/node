@@ -38,7 +38,6 @@
 #include "hydrogen.h"
 #include "lithium-allocator.h"
 #include "log.h"
-#include "objects.h"
 #include "once.h"
 #include "platform.h"
 #include "runtime-profiler.h"
@@ -115,7 +114,6 @@ void V8::TearDown() {
 
   ElementsAccessor::TearDown();
   LOperand::TearDownCaches();
-  ExternalReference::TearDownMathExpData();
   RegisteredExtension::UnregisterAll();
 
   is_running_ = false;
@@ -218,22 +216,14 @@ void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
 
 
 void V8::FireCallCompletedCallback(Isolate* isolate) {
-  bool has_call_completed_callbacks = call_completed_callbacks_ != NULL;
-  bool observer_delivery_pending =
-      FLAG_harmony_observation && isolate->observer_delivery_pending();
-  if (!has_call_completed_callbacks && !observer_delivery_pending) return;
+  if (call_completed_callbacks_ == NULL) return;
   HandleScopeImplementer* handle_scope_implementer =
       isolate->handle_scope_implementer();
   if (!handle_scope_implementer->CallDepthIsZero()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   handle_scope_implementer->IncrementCallDepth();
-  if (observer_delivery_pending) {
-    JSObject::DeliverChangeRecords(isolate);
-  }
-  if (has_call_completed_callbacks) {
-    for (int i = 0; i < call_completed_callbacks_->length(); i++) {
-      call_completed_callbacks_->at(i)();
-    }
+  for (int i = 0; i < call_completed_callbacks_->length(); i++) {
+    call_completed_callbacks_->at(i)();
   }
   handle_scope_implementer->DecrementCallDepth();
 }

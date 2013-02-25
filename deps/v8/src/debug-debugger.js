@@ -1306,12 +1306,9 @@ ProtocolMessage.prototype.setOption = function(name, value) {
 };
 
 
-ProtocolMessage.prototype.failed = function(message, opt_details) {
+ProtocolMessage.prototype.failed = function(message) {
   this.success = false;
   this.message = message;
-  if (IS_OBJECT(opt_details)) {
-    this.error_details = opt_details;
-  }
 };
 
 
@@ -1357,9 +1354,6 @@ ProtocolMessage.prototype.toJSONProtocol = function() {
   }
   if (this.message) {
     json.message = this.message;
-  }
-  if (this.error_details) {
-    json.error_details = this.error_details;
   }
   json.running = this.running;
   return JSON.stringify(json);
@@ -1433,8 +1427,6 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
         this.scopesRequest_(request, response);
       } else if (request.command == 'scope') {
         this.scopeRequest_(request, response);
-      } else if (request.command == 'setVariableValue') {
-        this.setVariableValueRequest_(request, response);
       } else if (request.command == 'evaluate') {
         this.evaluateRequest_(request, response);
       } else if (lol_is_enabled && request.command == 'getobj') {
@@ -1961,12 +1953,11 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
 };
 
 
-DebugCommandProcessor.prototype.resolveFrameFromScopeDescription_ =
-    function(scope_description) {
+DebugCommandProcessor.prototype.frameForScopeRequest_ = function(request) {
   // Get the frame for which the scope or scopes are requested.
   // With no frameNumber argument use the currently selected frame.
-  if (scope_description && !IS_UNDEFINED(scope_description.frameNumber)) {
-    frame_index = scope_description.frameNumber;
+  if (request.arguments && !IS_UNDEFINED(request.arguments.frameNumber)) {
+    frame_index = request.arguments.frameNumber;
     if (frame_index < 0 || this.exec_state_.frameCount() <= frame_index) {
       throw new Error('Invalid frame number');
     }
@@ -1980,13 +1971,13 @@ DebugCommandProcessor.prototype.resolveFrameFromScopeDescription_ =
 // Gets scope host object from request. It is either a function
 // ('functionHandle' argument must be specified) or a stack frame
 // ('frameNumber' may be specified and the current frame is taken by default).
-DebugCommandProcessor.prototype.resolveScopeHolder_ =
-    function(scope_description) {
-  if (scope_description && "functionHandle" in scope_description) {
-    if (!IS_NUMBER(scope_description.functionHandle)) {
+DebugCommandProcessor.prototype.scopeHolderForScopeRequest_ =
+    function(request) {
+  if (request.arguments && "functionHandle" in request.arguments) {
+    if (!IS_NUMBER(request.arguments.functionHandle)) {
       throw new Error('Function handle must be a number');
     }
-    var function_mirror = LookupMirror(scope_description.functionHandle);
+    var function_mirror = LookupMirror(request.arguments.functionHandle);
     if (!function_mirror) {
       throw new Error('Failed to find function object by handle');
     }
@@ -2001,14 +1992,14 @@ DebugCommandProcessor.prototype.resolveScopeHolder_ =
     }
 
     // Get the frame for which the scopes are requested.
-    var frame = this.resolveFrameFromScopeDescription_(scope_description);
+    var frame = this.frameForScopeRequest_(request);
     return frame;
   }
 }
 
 
 DebugCommandProcessor.prototype.scopesRequest_ = function(request, response) {
-  var scope_holder = this.resolveScopeHolder_(request.arguments);
+  var scope_holder = this.scopeHolderForScopeRequest_(request);
 
   // Fill all scopes for this frame or function.
   var total_scopes = scope_holder.scopeCount();
@@ -2027,7 +2018,7 @@ DebugCommandProcessor.prototype.scopesRequest_ = function(request, response) {
 
 DebugCommandProcessor.prototype.scopeRequest_ = function(request, response) {
   // Get the frame or function for which the scope is requested.
-  var scope_holder = this.resolveScopeHolder_(request.arguments);
+  var scope_holder = this.scopeHolderForScopeRequest_(request);
 
   // With no scope argument just return top scope.
   var scope_index = 0;
@@ -2039,77 +2030,6 @@ DebugCommandProcessor.prototype.scopeRequest_ = function(request, response) {
   }
 
   response.body = scope_holder.scope(scope_index);
-};
-
-
-// Reads value from protocol description. Description may be in form of type
-// (for singletons), raw value (primitive types supported in JSON),
-// string value description plus type (for primitive values) or handle id.
-// Returns raw value or throws exception.
-DebugCommandProcessor.resolveValue_ = function(value_description) {
-  if ("handle" in value_description) {
-    var value_mirror = LookupMirror(value_description.handle);
-    if (!value_mirror) {
-      throw new Error("Failed to resolve value by handle, ' #" +
-          mapping.handle + "# not found");
-    }
-    return value_mirror.value();
-  } else if ("stringDescription" in value_description) {
-    if (value_description.type == BOOLEAN_TYPE) {
-      return Boolean(value_description.stringDescription);
-    } else if (value_description.type == NUMBER_TYPE) {
-      return Number(value_description.stringDescription);
-    } if (value_description.type == STRING_TYPE) {
-      return String(value_description.stringDescription);
-    } else {
-      throw new Error("Unknown type");
-    }
-  } else if ("value" in value_description) {
-    return value_description.value;
-  } else if (value_description.type == UNDEFINED_TYPE) {
-    return void 0;
-  } else if (value_description.type == NULL_TYPE) {
-    return null;
-  } else {
-    throw new Error("Failed to parse value description");
-  }
-};
-
-
-DebugCommandProcessor.prototype.setVariableValueRequest_ =
-    function(request, response) {
-  if (!request.arguments) {
-    response.failed('Missing arguments');
-    return;
-  }
-
-  if (IS_UNDEFINED(request.arguments.name)) {
-    response.failed('Missing variable name');
-  }
-  var variable_name = request.arguments.name;
-
-  var scope_description = request.arguments.scope;
-
-  // Get the frame or function for which the scope is requested.
-  var scope_holder = this.resolveScopeHolder_(scope_description);
-
-  if (IS_UNDEFINED(scope_description.number)) {
-    response.failed('Missing scope number');
-  }
-  var scope_index = %ToNumber(scope_description.number);
-
-  var scope = scope_holder.scope(scope_index);
-
-  var new_value =
-      DebugCommandProcessor.resolveValue_(request.arguments.newValue);
-
-  scope.setVariableValue(variable_name, new_value);
-
-  var new_value_mirror = MakeMirror(new_value);
-
-  response.body = {
-    newValue: new_value_mirror
-  };
 };
 
 
@@ -2467,17 +2387,8 @@ DebugCommandProcessor.prototype.changeLiveRequest_ = function(
 
   var new_source = request.arguments.new_source;
 
-  var result_description;
-  try {
-    result_description = Debug.LiveEdit.SetScriptSource(the_script,
-        new_source, preview_only, change_log);
-  } catch (e) {
-    if (e instanceof Debug.LiveEdit.Failure && "details" in e) {
-      response.failed(e.message, e.details);
-      return;
-    }
-    throw e;
-  }
+  var result_description = Debug.LiveEdit.SetScriptSource(the_script,
+      new_source, preview_only, change_log);
   response.body = {change_log: change_log, result: result_description};
 
   if (!preview_only && !this.running_ && result_description.stack_modified) {
@@ -2752,7 +2663,3 @@ function ValueToProtocolValue_(value, mirror_serializer) {
   }
   return json;
 }
-
-Debug.TestApi = {
-  CommandProcessorResolveValue: DebugCommandProcessor.resolveValue_
-};

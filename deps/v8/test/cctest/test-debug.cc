@@ -27,9 +27,6 @@
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
-// TODO(svenpanne): Do not use Context::GetData and Context::SetData.
-#define V8_DISABLE_DEPRECATIONS 1
-
 #include <stdlib.h>
 
 #include "v8.h"
@@ -146,8 +143,7 @@ class DebugLocalContext {
   inline v8::Context* operator*() { return *context_; }
   inline bool IsReady() { return !context_.IsEmpty(); }
   void ExposeDebug() {
-    v8::internal::Isolate* isolate = v8::internal::Isolate::Current();
-    v8::internal::Debug* debug = isolate->debug();
+    v8::internal::Debug* debug = v8::internal::Isolate::Current()->debug();
     // Expose the debug context global object in the global object for testing.
     debug->Load();
     debug->debug_context()->set_security_token(
@@ -157,7 +153,7 @@ class DebugLocalContext {
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
         FACTORY->LookupAsciiSymbol("debug");
-    SetProperty(isolate, global, debug_string,
+    SetProperty(global, debug_string,
         Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM,
         ::v8::internal::kNonStrictMode);
   }

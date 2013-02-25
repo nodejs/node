@@ -62,7 +62,6 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       sweep_precisely_(false),
       reduce_memory_footprint_(false),
       abort_incremental_marking_(false),
-      marking_parity_(ODD_MARKING_PARITY),
       compacting_(false),
       was_marked_incrementally_(false),
       tracer_(NULL),
@@ -405,13 +404,6 @@ void MarkCompactCollector::CollectGarbage() {
 
   Finish();
 
-  if (marking_parity_ == EVEN_MARKING_PARITY) {
-    marking_parity_ = ODD_MARKING_PARITY;
-  } else {
-    ASSERT(marking_parity_ == ODD_MARKING_PARITY);
-    marking_parity_ = EVEN_MARKING_PARITY;
-  }
-
   tracer_ = NULL;
 }
 
@@ -488,7 +480,6 @@ void MarkCompactCollector::ClearMarkbits() {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
     mark_bit.Clear();
     mark_bit.Next().Clear();
-    Page::FromAddress(obj->address())->ResetProgressBar();
     Page::FromAddress(obj->address())->ResetLiveBytes();
   }
 }
@@ -885,8 +876,8 @@ void CodeFlusher::ProcessJSFunctionCandidates() {
     if (!code_mark.Get()) {
       shared->set_code(lazy_compile);
       candidate->set_code(lazy_compile);
-    } else {
-      candidate->set_code(code);
+    } else if (code == lazy_compile) {
+      candidate->set_code(lazy_compile);
     }
 
     // We are in the middle of a GC cycle so the write barrier in the code
@@ -932,107 +923,6 @@ void CodeFlusher::ProcessSharedFunctionInfoCandidates() {
   }
 
   shared_function_info_candidates_head_ = NULL;
-}
-
-
-void CodeFlusher::EvictCandidate(SharedFunctionInfo* shared_info) {
-  // Make sure previous flushing decisions are revisited.
-  isolate_->heap()->incremental_marking()->RecordWrites(shared_info);
-
-  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
-  SharedFunctionInfo* next_candidate;
-  if (candidate == shared_info) {
-    next_candidate = GetNextCandidate(shared_info);
-    shared_function_info_candidates_head_ = next_candidate;
-    ClearNextCandidate(shared_info);
-  } else {
-    while (candidate != NULL) {
-      next_candidate = GetNextCandidate(candidate);
-
-      if (next_candidate == shared_info) {
-        next_candidate = GetNextCandidate(shared_info);
-        SetNextCandidate(candidate, next_candidate);
-        ClearNextCandidate(shared_info);
-        break;
-      }
-
-      candidate = next_candidate;
-    }
-  }
-}
-
-
-void CodeFlusher::EvictCandidate(JSFunction* function) {
-  ASSERT(!function->next_function_link()->IsUndefined());
-  Object* undefined = isolate_->heap()->undefined_value();
-
-  // Make sure previous flushing decisions are revisited.
-  isolate_->heap()->incremental_marking()->RecordWrites(function);
-  isolate_->heap()->incremental_marking()->RecordWrites(function->shared());
-
-  JSFunction* candidate = jsfunction_candidates_head_;
-  JSFunction* next_candidate;
-  if (candidate == function) {
-    next_candidate = GetNextCandidate(function);
-    jsfunction_candidates_head_ = next_candidate;
-    ClearNextCandidate(function, undefined);
-  } else {
-    while (candidate != NULL) {
-      next_candidate = GetNextCandidate(candidate);
-
-      if (next_candidate == function) {
-        next_candidate = GetNextCandidate(function);
-        SetNextCandidate(candidate, next_candidate);
-        ClearNextCandidate(function, undefined);
-        break;
-      }
-
-      candidate = next_candidate;
-    }
-  }
-}
-
-
-void CodeFlusher::EvictJSFunctionCandidates() {
-  Object* undefined = isolate_->heap()->undefined_value();
-
-  JSFunction* candidate = jsfunction_candidates_head_;
-  JSFunction* next_candidate;
-  while (candidate != NULL) {
-    next_candidate = GetNextCandidate(candidate);
-    ClearNextCandidate(candidate, undefined);
-    candidate = next_candidate;
-  }
-
-  jsfunction_candidates_head_ = NULL;
-}
-
-
-void CodeFlusher::EvictSharedFunctionInfoCandidates() {
-  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
-  SharedFunctionInfo* next_candidate;
-  while (candidate != NULL) {
-    next_candidate = GetNextCandidate(candidate);
-    ClearNextCandidate(candidate);
-    candidate = next_candidate;
-  }
-
-  shared_function_info_candidates_head_ = NULL;
-}
-
-
-void CodeFlusher::IteratePointersToFromSpace(ObjectVisitor* v) {
-  Heap* heap = isolate_->heap();
-
-  JSFunction** slot = &jsfunction_candidates_head_;
-  JSFunction* candidate = jsfunction_candidates_head_;
-  while (candidate != NULL) {
-    if (heap->InFromSpace(candidate)) {
-      v->VisitPointer(reinterpret_cast<Object**>(slot));
-    }
-    candidate = GetNextCandidate(*slot);
-    slot = GetNextCandidateSlot(*slot);
-  }
 }
 
 
@@ -1540,13 +1430,21 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
 void MarkCompactCollector::PrepareForCodeFlushing() {
   ASSERT(heap() == Isolate::Current()->heap());
 
-  // Enable code flushing for non-incremental cycles.
-  if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
-    EnableCodeFlushing(!was_marked_incrementally_);
+  // TODO(1609) Currently incremental marker does not support code flushing.
+  if (!FLAG_flush_code || was_marked_incrementally_) {
+    EnableCodeFlushing(false);
+    return;
   }
 
-  // If code flushing is disabled, there is no need to prepare for it.
-  if (!is_code_flushing_enabled()) return;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  if (heap()->isolate()->debug()->IsLoaded() ||
+      heap()->isolate()->debug()->has_break_points()) {
+    EnableCodeFlushing(false);
+    return;
+  }
+#endif
+
+  EnableCodeFlushing(true);
 
   // Ensure that empty descriptor array is marked. Method MarkDescriptorArray
   // relies on it being marked before any other descriptor array.
@@ -1777,16 +1675,6 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
 }
 
 
-bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
-                                                        Object** p) {
-  Object* o = *p;
-  ASSERT(o->IsHeapObject());
-  HeapObject* heap_object = HeapObject::cast(o);
-  MarkBit mark = Marking::MarkBitFrom(heap_object);
-  return !mark.Get();
-}
-
-
 void MarkCompactCollector::MarkSymbolTable() {
   SymbolTable* symbol_table = heap()->symbol_table();
   // Mark the symbol table itself.
@@ -1812,6 +1700,54 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
     RefillMarkingDeque();
     EmptyMarkingDeque();
   }
+}
+
+
+void MarkCompactCollector::MarkObjectGroups() {
+  List<ObjectGroup*>* object_groups =
+      heap()->isolate()->global_handles()->object_groups();
+
+  int last = 0;
+  for (int i = 0; i < object_groups->length(); i++) {
+    ObjectGroup* entry = object_groups->at(i);
+    ASSERT(entry != NULL);
+
+    Object*** objects = entry->objects_;
+    bool group_marked = false;
+    for (size_t j = 0; j < entry->length_; j++) {
+      Object* object = *objects[j];
+      if (object->IsHeapObject()) {
+        HeapObject* heap_object = HeapObject::cast(object);
+        MarkBit mark = Marking::MarkBitFrom(heap_object);
+        if (mark.Get()) {
+          group_marked = true;
+          break;
+        }
+      }
+    }
+
+    if (!group_marked) {
+      (*object_groups)[last++] = entry;
+      continue;
+    }
+
+    // An object in the group is marked, so mark as grey all white heap
+    // objects in the group.
+    for (size_t j = 0; j < entry->length_; ++j) {
+      Object* object = *objects[j];
+      if (object->IsHeapObject()) {
+        HeapObject* heap_object = HeapObject::cast(object);
+        MarkBit mark = Marking::MarkBitFrom(heap_object);
+        MarkObject(heap_object, mark);
+      }
+    }
+
+    // Once the entire group has been colored grey, set the object group
+    // to NULL so it won't be processed again.
+    entry->Dispose();
+    object_groups->at(i) = NULL;
+  }
+  object_groups->Rewind(last);
 }
 
 
@@ -1933,12 +1869,11 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 }
 
 
-void MarkCompactCollector::ProcessExternalMarking(RootMarkingVisitor* visitor) {
+void MarkCompactCollector::ProcessExternalMarking() {
   bool work_to_do = true;
   ASSERT(marking_deque_.IsEmpty());
   while (work_to_do) {
-    heap()->isolate()->global_handles()->IterateObjectGroups(
-        visitor, &IsUnmarkedHeapObjectWithHeap);
+    MarkObjectGroups();
     MarkImplicitRefGroups();
     work_to_do = !marking_deque_.IsEmpty();
     ProcessMarkingDeque();
@@ -2017,7 +1952,7 @@ void MarkCompactCollector::MarkLiveObjects() {
   // The objects reachable from the roots are marked, yet unreachable
   // objects are unmarked.  Mark objects reachable due to host
   // application specific logic.
-  ProcessExternalMarking(&root_visitor);
+  ProcessExternalMarking();
 
   // The objects reachable from the roots or object groups are marked,
   // yet unreachable objects are unmarked.  Mark objects reachable
@@ -2036,7 +1971,7 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   // Repeat host application specific marking to mark unmarked objects
   // reachable from the weak roots.
-  ProcessExternalMarking(&root_visitor);
+  ProcessExternalMarking();
 
   AfterMarking();
 }
@@ -2070,11 +2005,9 @@ void MarkCompactCollector::AfterMarking() {
   // Flush code from collected candidates.
   if (is_code_flushing_enabled()) {
     code_flusher_->ProcessCandidates();
-    // If incremental marker does not support code flushing, we need to
-    // disable it before incremental marking steps for next cycle.
-    if (FLAG_flush_code && !FLAG_flush_code_incrementally) {
-      EnableCodeFlushing(false);
-    }
+    // TODO(1609) Currently incremental marker does not support code flushing,
+    // we need to disable it before incremental marking steps for next cycle.
+    EnableCodeFlushing(false);
   }
 
   if (!FLAG_watch_ic_patching) {
@@ -2398,16 +2331,6 @@ class PointersUpdatingVisitor: public ObjectVisitor {
     VisitPointer(&target);
     if (target != old_target) {
       rinfo->set_target_address(Code::cast(target)->instruction_start());
-    }
-  }
-
-  void VisitCodeAgeSequence(RelocInfo* rinfo) {
-    ASSERT(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
-    Object* stub = rinfo->code_age_stub();
-    ASSERT(stub != NULL);
-    VisitPointer(&stub);
-    if (stub != rinfo->code_age_stub()) {
-      rinfo->set_code_age_stub(Code::cast(stub));
     }
   }
 
@@ -3520,6 +3443,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
   intptr_t freed_bytes = 0;
   int pages_swept = 0;
+  intptr_t newspace_size = space->heap()->new_space()->Size();
   bool lazy_sweeping_active = false;
   bool unused_page_present = false;
 
@@ -3582,8 +3506,15 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         }
         freed_bytes += SweepConservatively(space, p);
         pages_swept++;
-        space->SetPagesToSweep(p->next_page());
-        lazy_sweeping_active = true;
+        if (freed_bytes > 2 * newspace_size) {
+          space->SetPagesToSweep(p->next_page());
+          lazy_sweeping_active = true;
+        } else {
+          if (FLAG_gc_verbose) {
+            PrintF("Only %" V8PRIdPTR " bytes freed.  Still sweeping.\n",
+                   freed_bytes);
+          }
+        }
         break;
       }
       case PRECISE: {
@@ -3651,19 +3582,11 @@ void MarkCompactCollector::SweepSpaces() {
 
 
 void MarkCompactCollector::EnableCodeFlushing(bool enable) {
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  if (heap()->isolate()->debug()->IsLoaded() ||
-      heap()->isolate()->debug()->has_break_points()) {
-    enable = false;
-  }
-#endif
-
   if (enable) {
     if (code_flusher_ != NULL) return;
     code_flusher_ = new CodeFlusher(heap()->isolate());
   } else {
     if (code_flusher_ == NULL) return;
-    code_flusher_->EvictAllCandidates();
     delete code_flusher_;
     code_flusher_ = NULL;
   }

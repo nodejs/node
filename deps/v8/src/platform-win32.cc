@@ -199,17 +199,9 @@ UNARY_MATH_FUNCTION(sin, CreateTranscendentalFunction(TranscendentalCache::SIN))
 UNARY_MATH_FUNCTION(cos, CreateTranscendentalFunction(TranscendentalCache::COS))
 UNARY_MATH_FUNCTION(tan, CreateTranscendentalFunction(TranscendentalCache::TAN))
 UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
-UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
 #undef MATH_FUNCTION
-
-
-void lazily_initialize_fast_exp() {
-  if (fast_exp_function == NULL) {
-    init_fast_exp_function();
-  }
-}
 
 
 void MathSetup() {
@@ -220,7 +212,6 @@ void MathSetup() {
   init_fast_cos_function();
   init_fast_tan_function();
   init_fast_log_function();
-  // fast_exp is initialized lazily.
   init_fast_sqrt_function();
 }
 
@@ -1560,12 +1551,6 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 }
 
 
-bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
-  return false;
-}
-
-
 // ----------------------------------------------------------------------------
 // Win32 thread support.
 
@@ -2010,12 +1995,23 @@ class SamplerThread : public Thread {
     SamplerRegistry::State state;
     while ((state = SamplerRegistry::GetState()) !=
            SamplerRegistry::HAS_NO_SAMPLERS) {
+      bool cpu_profiling_enabled =
+          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
+      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
-      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
-        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
+      if (!cpu_profiling_enabled) {
         if (rate_limiter_.SuspendIfNecessary()) continue;
+      }
+      if (cpu_profiling_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
+          return;
+        }
+      }
+      if (runtime_profiler_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
+          return;
+        }
       }
       OS::Sleep(interval_);
     }
@@ -2027,6 +2023,11 @@ class SamplerThread : public Thread {
     SamplerThread* sampler_thread =
         reinterpret_cast<SamplerThread*>(raw_sampler_thread);
     sampler_thread->SampleContext(sampler);
+  }
+
+  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
+    if (!sampler->isolate()->IsInitialized()) return;
+    sampler->isolate()->runtime_profiler()->NotifyTick();
   }
 
   void SampleContext(Sampler* sampler) {

@@ -759,7 +759,7 @@ TEST(MacroAssemblerNativeSuccess) {
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foofoo"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   const byte* start_adr =
       reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
 
@@ -805,7 +805,7 @@ TEST(MacroAssemblerNativeSimple) {
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foofoo"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -823,7 +823,7 @@ TEST(MacroAssemblerNativeSimple) {
   CHECK_EQ(-1, captures[3]);
 
   input = factory->NewStringFromAscii(CStrVector("barbarbar"));
-  seq_input = Handle<SeqOneByteString>::cast(input);
+  seq_input = Handle<SeqAsciiString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
   result = Execute(*code,
@@ -924,7 +924,7 @@ TEST(MacroAssemblerNativeBacktrack) {
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foofoo"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -967,7 +967,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = factory->NewStringFromAscii(CStrVector("fooofo"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
@@ -1072,7 +1072,7 @@ TEST(MacroAssemblernativeAtStart) {
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foobar"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -1133,7 +1133,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
 
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
@@ -1234,7 +1234,7 @@ TEST(MacroAssemblerNativeRegisters) {
   // String long enough for test (content doesn't matter).
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("foofoofoofoofoo"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[6];
@@ -1278,7 +1278,7 @@ TEST(MacroAssemblerStackOverflow) {
   // String long enough for test (content doesn't matter).
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("dummy"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -1325,7 +1325,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   // String long enough for test (content doesn't matter).
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("sample text"));
-  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int captures[2];

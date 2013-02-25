@@ -318,11 +318,46 @@ const Instr kLdrStrInstrArgumentMask = 0x0000ffff;
 const Instr kLdrStrOffsetMask = 0x00000fff;
 
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+// Spare buffer.
+static const int kMinimalBufferSize = 4*KB;
+
+
+Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
+    : AssemblerBase(arg_isolate),
       recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this) {
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+      positions_recorder_(this),
+      emit_debug_code_(FLAG_debug_code),
+      predictable_code_size_(false) {
+  if (buffer == NULL) {
+    // Do our own buffer management.
+    if (buffer_size <= kMinimalBufferSize) {
+      buffer_size = kMinimalBufferSize;
+
+      if (isolate()->assembler_spare_buffer() != NULL) {
+        buffer = isolate()->assembler_spare_buffer();
+        isolate()->set_assembler_spare_buffer(NULL);
+      }
+    }
+    if (buffer == NULL) {
+      buffer_ = NewArray<byte>(buffer_size);
+    } else {
+      buffer_ = static_cast<byte*>(buffer);
+    }
+    buffer_size_ = buffer_size;
+    own_buffer_ = true;
+
+  } else {
+    // Use externally provided buffer instead.
+    ASSERT(buffer_size > 0);
+    buffer_ = static_cast<byte*>(buffer);
+    buffer_size_ = buffer_size;
+    own_buffer_ = false;
+  }
+
+  // Set up buffer pointers.
+  ASSERT(buffer_ != NULL);
+  pc_ = buffer_;
+  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
   num_pending_reloc_info_ = 0;
   next_buffer_check_ = 0;
   const_pool_blocked_nesting_ = 0;
@@ -335,6 +370,14 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 Assembler::~Assembler() {
   ASSERT(const_pool_blocked_nesting_ == 0);
+  if (own_buffer_) {
+    if (isolate()->assembler_spare_buffer() == NULL &&
+        buffer_size_ == kMinimalBufferSize) {
+      isolate()->set_assembler_spare_buffer(buffer_);
+    } else {
+      DeleteArray(buffer_);
+    }
+  }
 }
 
 
@@ -2349,20 +2392,6 @@ void Assembler::vmul(const DwVfpRegister dst,
 }
 
 
-void Assembler::vmla(const DwVfpRegister dst,
-                     const DwVfpRegister src1,
-                     const DwVfpRegister src2,
-                     const Condition cond) {
-  // Instruction details available in ARM DDI 0406C.b, A8-892.
-  // cond(31-28) | 11100(27-23) | D=?(22) | 00(21-20) | Vn(19-16) |
-  // Vd(15-12) | 101(11-9) | sz(8)=1 | N=?(7) | op(6)=0 | M=?(5) | 0(4) |
-  // Vm(3-0)
-  unsigned x = (cond | 0x1C*B23 | src1.code()*B16 |
-      dst.code()*B12 | 0x5*B9 | B8 | src2.code());
-  emit(x);
-}
-
-
 void Assembler::vdiv(const DwVfpRegister dst,
                      const DwVfpRegister src1,
                      const DwVfpRegister src2,
@@ -2701,9 +2730,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
       b(&after_pool);
     }
 
-    // Put down constant pool marker "Undefined instruction".
-    emit(kConstantPoolMarker |
-         EncodeConstantPoolLength(num_pending_reloc_info_));
+    // Put down constant pool marker "Undefined instruction" as specified by
+    // A5.6 (ARMv7) Instruction set encoding.
+    emit(kConstantPoolMarker | num_pending_reloc_info_);
 
     // Emit constant pool entries.
     for (int i = 0; i < num_pending_reloc_info_; i++) {

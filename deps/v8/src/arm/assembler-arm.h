@@ -647,7 +647,15 @@ class Assembler : public AssemblerBase {
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size);
-  virtual ~Assembler();
+  ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
+  // Avoids using instructions that vary in size in unpredictable ways between
+  // the snapshot and the running VM.  This is needed by the full compiler so
+  // that it can recompile code with debug support and fix the PC.
+  void set_predictable_code_size(bool value) { predictable_code_size_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -1126,10 +1134,6 @@ class Assembler : public AssemblerBase {
             const DwVfpRegister src1,
             const DwVfpRegister src2,
             const Condition cond = al);
-  void vmla(const DwVfpRegister dst,
-            const DwVfpRegister src1,
-            const DwVfpRegister src2,
-            const Condition cond = al);
   void vdiv(const DwVfpRegister dst,
             const DwVfpRegister src1,
             const DwVfpRegister src2,
@@ -1180,6 +1184,8 @@ class Assembler : public AssemblerBase {
 
   // Jump unconditionally to given label.
   void jmp(Label* L) { b(L, al); }
+
+  bool predictable_code_size() const { return predictable_code_size_; }
 
   static bool use_immediate_embedded_pointer_loads(
       const Assembler* assembler) {
@@ -1276,6 +1282,8 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
+  int pc_offset() const { return pc_ - buffer_; }
+
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Read/patch instructions
@@ -1321,8 +1329,6 @@ class Assembler : public AssemblerBase {
   // and the accessed constant.
   static const int kMaxDistToPool = 4*KB;
   static const int kMaxNumPendingRelocInfo = kMaxDistToPool/kInstrSize;
-  STATIC_ASSERT((kConstantPoolLengthMaxMask & kMaxNumPendingRelocInfo) ==
-                kMaxNumPendingRelocInfo);
 
   // Postpone the generation of the constant pool for the specified number of
   // instructions.
@@ -1336,6 +1342,8 @@ class Assembler : public AssemblerBase {
   // member variable is a way to pass the information from the call site to
   // the relocation info.
   TypeFeedbackId recorded_ast_id_;
+
+  bool emit_debug_code() const { return emit_debug_code_; }
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
@@ -1378,6 +1386,13 @@ class Assembler : public AssemblerBase {
   }
 
  private:
+  // Code buffer:
+  // The buffer into which code and relocation info are generated.
+  byte* buffer_;
+  int buffer_size_;
+  // True if the assembler owns the buffer, false if buffer is external.
+  bool own_buffer_;
+
   int next_buffer_check_;  // pc offset of next buffer check
 
   // Code generation
@@ -1386,6 +1401,7 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static const int kGap = 32;
+  byte* pc_;  // the program counter; moves forward
 
   // Constant pool generation
   // Pools are emitted in the instruction stream, preferably after unconditional
@@ -1479,6 +1495,10 @@ class Assembler : public AssemblerBase {
   friend class BlockConstPoolScope;
 
   PositionsRecorder positions_recorder_;
+
+  bool emit_debug_code_;
+  bool predictable_code_size_;
+
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };
@@ -1489,6 +1509,26 @@ class EnsureSpace BASE_EMBEDDED {
   explicit EnsureSpace(Assembler* assembler) {
     assembler->CheckBuffer();
   }
+};
+
+
+class PredictableCodeSizeScope {
+ public:
+  explicit PredictableCodeSizeScope(Assembler* assembler)
+      : asm_(assembler) {
+    old_value_ = assembler->predictable_code_size();
+    assembler->set_predictable_code_size(true);
+  }
+
+  ~PredictableCodeSizeScope() {
+    if (!old_value_) {
+      asm_->set_predictable_code_size(false);
+    }
+  }
+
+ private:
+  Assembler* asm_;
+  bool old_value_;
 };
 
 

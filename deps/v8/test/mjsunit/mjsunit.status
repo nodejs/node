@@ -44,7 +44,6 @@ regress/regress-524: SKIP
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
-regress/regress-2318: PASS, SKIP if $mode == debug
 regress/regress-create-exception: PASS, SKIP if $mode == debug
 
 ##############################################################################
@@ -59,15 +58,6 @@ array-constructor: PASS || TIMEOUT
 
 # Very slow on ARM and MIPS, contains no architecture dependent code.
 unicode-case-overoptimization: PASS, TIMEOUT if ($arch == arm || $arch == android_arm || $arch == mipsel)
-
-##############################################################################
-# This test expects to reach a certain recursion depth, which may not work
-# for debug mode.
-json-recursive: PASS, (PASS || FAIL) if $mode == debug
-
-##############################################################################
-# Skip long running test that times out in debug mode.
-regress/regress-crbug-160010: PASS, SKIP if $mode == debug
 
 ##############################################################################
 # This test sets the umask on a per-process basis and hence cannot be

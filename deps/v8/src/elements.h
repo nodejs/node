@@ -71,39 +71,6 @@ class ElementsAccessor {
       uint32_t key,
       FixedArrayBase* backing_store = NULL) = 0;
 
-  // Returns an element's attributes, or ABSENT if there is no such
-  // element. This method doesn't iterate up the prototype chain.  The caller
-  // can optionally pass in the backing store to use for the check, which must
-  // be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual PropertyAttributes GetAttributes(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
-
-  // Returns an element's type, or NONEXISTENT if there is no such
-  // element. This method doesn't iterate up the prototype chain.  The caller
-  // can optionally pass in the backing store to use for the check, which must
-  // be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual PropertyType GetType(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
-
-  // Returns an element's accessors, or NULL if the element does not exist or
-  // is plain. This method doesn't iterate up the prototype chain.  The caller
-  // can optionally pass in the backing store to use for the check, which must
-  // be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual AccessorPair* GetAccessorPair(
-      Object* receiver,
-      JSObject* holder,
-      uint32_t key,
-      FixedArrayBase* backing_store = NULL) = 0;
-
   // Modifies the length data property as specified for JSArrays and resizes the
   // underlying backing store accordingly. The method honors the semantics of
   // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that
@@ -196,6 +163,16 @@ class ElementsAccessor {
 
   DISALLOW_COPY_AND_ASSIGN(ElementsAccessor);
 };
+
+
+void CopyObjectToObjectElements(FixedArray* from_obj,
+                                ElementsKind from_kind,
+                                uint32_t from_start,
+                                FixedArray* to_obj,
+                                ElementsKind to_kind,
+                                uint32_t to_start,
+                                int copy_size);
+
 
 } }  // namespace v8::internal
 

@@ -67,7 +67,8 @@ var should_throw_on_null_and_undefined =
      String.prototype.toLocaleLowerCase,
      String.prototype.toUpperCase,
      String.prototype.toLocaleUpperCase,
-     String.prototype.trim];
+     String.prototype.trim,
+     Number.prototype.toLocaleString];
 
 // Non generic natives do not work on any input other than the specific
 // type, but since this change will allow call to be invoked with undefined
@@ -149,11 +150,6 @@ var reducing_functions =
     [Array.prototype.reduce,
      Array.prototype.reduceRight];
 
-function checkExpectedMessage(e) {
-  assertTrue(e.message.indexOf("called on null or undefined") >= 0 ||
-             e.message.indexOf("Cannot convert null to object") >= 0);
-}
-
 // Test that all natives using the ToObject call throw the right exception.
 for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
   // Sanity check that all functions are correct
@@ -170,7 +166,8 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
     should_throw_on_null_and_undefined[i].call(null);
   } catch (e) {
     exception = true;
-    checkExpectedMessage(e);
+    assertTrue("called_on_null_or_undefined" == e.type ||
+               "null_to_object" == e.type);
   }
   assertTrue(exception);
 
@@ -179,7 +176,8 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
     should_throw_on_null_and_undefined[i].call(undefined);
   } catch (e) {
     exception = true;
-    checkExpectedMessage(e);
+    assertTrue("called_on_null_or_undefined" == e.type ||
+               "null_to_object" == e.type);
   }
   assertTrue(exception);
 
@@ -188,7 +186,8 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
     should_throw_on_null_and_undefined[i].apply(null);
   } catch (e) {
     exception = true;
-    checkExpectedMessage(e);
+    assertTrue("called_on_null_or_undefined" == e.type ||
+               "null_to_object" == e.type);
   }
   assertTrue(exception);
 
@@ -197,7 +196,8 @@ for (var i = 0; i < should_throw_on_null_and_undefined.length; i++) {
     should_throw_on_null_and_undefined[i].apply(undefined);
   } catch (e) {
     exception = true;
-    checkExpectedMessage(e);
+    assertTrue("called_on_null_or_undefined" == e.type ||
+               "null_to_object" == e.type);
   }
   assertTrue(exception);
 }
@@ -257,7 +257,8 @@ for (var j = 0; j < mapping_functions.length; j++) {
                                 null);
     } catch (e) {
       exception = true;
-      checkExpectedMessage(e);
+      assertTrue("called_on_null_or_undefined" == e.type ||
+                 "null_to_object" == e.type);
     }
     assertTrue(exception);
 
@@ -268,7 +269,8 @@ for (var j = 0; j < mapping_functions.length; j++) {
                                 undefined);
     } catch (e) {
       exception = true;
-      checkExpectedMessage(e);
+      assertTrue("called_on_null_or_undefined" == e.type ||
+                 "null_to_object" == e.type);
     }
     assertTrue(exception);
   }
@@ -309,7 +311,8 @@ for (var j = 0; j < reducing_functions.length; j++) {
       reducing_functions[j].call(array, should_throw_on_null_and_undefined[i]);
     } catch (e) {
       exception = true;
-      checkExpectedMessage(e);
+      assertTrue("called_on_null_or_undefined" == e.type ||
+                 "null_to_object" == e.type);
     }
     assertTrue(exception);
 
@@ -318,7 +321,8 @@ for (var j = 0; j < reducing_functions.length; j++) {
       reducing_functions[j].call(array, should_throw_on_null_and_undefined[i]);
     } catch (e) {
       exception = true;
-      checkExpectedMessage(e);
+      assertTrue("called_on_null_or_undefined" == e.type ||
+                 "null_to_object" == e.type);
     }
     assertTrue(exception);
   }

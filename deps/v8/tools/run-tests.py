@@ -66,11 +66,6 @@ SUPPORTED_ARCHS = ["android_arm",
                    "ia32",
                    "mipsel",
                    "x64"]
-# Double the timeout for these:
-SLOW_ARCHS = ["android_arm",
-              "android_ia32",
-              "arm",
-              "mipsel"]
 
 
 def BuildOptions():
@@ -155,7 +150,7 @@ def ProcessOptions(options):
     options.mode = tokens[1]
   options.mode = options.mode.split(",")
   for mode in options.mode:
-    if not mode.lower() in ["debug", "release"]:
+    if not mode in ["debug", "release"]:
       print "Unknown mode %s" % mode
       return False
   if options.arch in ["auto", "native"]:
@@ -273,12 +268,12 @@ def Execute(arch, mode, args, options, suites, workspace):
   timeout = options.timeout
   if timeout == -1:
     # Simulators are slow, therefore allow a longer default timeout.
-    if arch in SLOW_ARCHS:
+    if arch in ["android", "arm", "mipsel"]:
       timeout = 2 * TIMEOUT_DEFAULT;
     else:
       timeout = TIMEOUT_DEFAULT;
 
-  timeout *= TIMEOUT_SCALEFACTOR[mode]
+  options.timeout *= TIMEOUT_SCALEFACTOR[mode]
   ctx = context.Context(arch, mode, shell_dir,
                         mode_flags, options.verbose,
                         timeout, options.isolates,
@@ -298,9 +293,9 @@ def Execute(arch, mode, args, options, suites, workspace):
   for s in suites:
     s.ReadStatusFile(variables)
     s.ReadTestCases(ctx)
+    all_tests += s.tests
     if len(args) > 0:
       s.FilterTestCasesByArgs(args)
-    all_tests += s.tests
     s.FilterTestCasesByStatus(options.warn_unused)
     if options.cat:
       verbose.PrintTestSource(s.tests)

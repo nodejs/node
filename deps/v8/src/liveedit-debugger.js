@@ -76,17 +76,7 @@ Debug.LiveEdit = new function() {
     try {
       new_compile_info = GatherCompileInfo(new_source, script);
     } catch (e) {
-      var failure =
-          new Failure("Failed to compile new version of script: " + e);
-      if (e instanceof SyntaxError) {
-        var details = {
-          type: "liveedit_compile_error",
-          syntaxErrorMessage: e.message
-        };
-        CopyErrorPositionToDetails(e, details);
-        failure.details = details;
-      }
-      throw failure;
+      throw new Failure("Failed to compile new version of script: " + e);
     }
     var root_new_node = BuildCodeInfoTree(new_compile_info);
 
@@ -987,31 +977,6 @@ Debug.LiveEdit = new function() {
   Failure.prototype.toString = function() {
     return "LiveEdit Failure: " + this.message;
   };
-
-  function CopyErrorPositionToDetails(e, details) {
-    function createPositionStruct(script, position) {
-      if (position == -1) return;
-      var location = script.locationFromPosition(position, true);
-      if (location == null) return;
-      return {
-        line: location.line + 1,
-        column: location.column + 1,
-        position: position
-      };
-    }
-
-    if (!("scriptObject" in e) || !("startPosition" in e)) {
-      return;
-    }
-
-    var script = e.scriptObject;
-
-    var position_struct = {
-      start: createPositionStruct(script, e.startPosition),
-      end: createPositionStruct(script, e.endPosition)
-    };
-    details.position = position_struct;
-  }
 
   // A testing entry.
   function GetPcFromSourcePos(func, source_pos) {

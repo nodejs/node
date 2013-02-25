@@ -1015,6 +1015,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
  private:
   bool disposed_;
+  int category_;
   int hash_;
   const char* group_label_;
   const char* label_;
@@ -1224,33 +1225,6 @@ TEST(DeleteHeapSnapshot) {
   const_cast<v8::HeapSnapshot*>(s3)->Delete();
   CHECK_EQ(0, v8::HeapProfiler::GetSnapshotsCount());
   CHECK_EQ(NULL, v8::HeapProfiler::FindSnapshot(uid3));
-}
-
-
-class NameResolver : public v8::HeapProfiler::ObjectNameResolver {
- public:
-  virtual const char* GetName(v8::Handle<v8::Object> object) {
-    return "Global object name";
-  }
-};
-
-TEST(GlobalObjectName) {
-  v8::HandleScope scope;
-  LocalContext env;
-
-  CompileRun("document = { URL:\"abcdefgh\" };");
-
-  NameResolver name_resolver;
-  const v8::HeapSnapshot* snapshot =
-      v8::HeapProfiler::TakeSnapshot(v8_str("document"),
-      v8::HeapSnapshot::kFull,
-      NULL,
-      &name_resolver);
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  CHECK_NE(NULL, global);
-  CHECK_EQ("Object / Global object name" ,
-           const_cast<i::HeapEntry*>(
-               reinterpret_cast<const i::HeapEntry*>(global))->name());
 }
 
 

@@ -156,8 +156,8 @@ class LUnallocated: public LOperand {
   };
 
   static const int kMaxVirtualRegisters = 1 << kVirtualRegisterWidth;
-  static const int kMaxFixedIndex = (1 << (kFixedIndexWidth - 1)) - 1;
-  static const int kMinFixedIndex = -(1 << (kFixedIndexWidth - 1));
+  static const int kMaxFixedIndex = (1 << kFixedIndexWidth) - 1;
+  static const int kMinFixedIndex = -(1 << kFixedIndexWidth);
 
   bool HasAnyPolicy() const {
     return policy() == ANY;

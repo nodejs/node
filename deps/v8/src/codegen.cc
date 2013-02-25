@@ -107,7 +107,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   if (!code.is_null()) {
     isolate->counters()->total_compiled_code_size()->Increment(
         code->instruction_size());
-    code->set_prologue_offset(info->prologue_offset());
   }
   return code;
 }

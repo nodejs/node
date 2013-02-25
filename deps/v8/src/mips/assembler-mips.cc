@@ -267,11 +267,45 @@ const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
 
-Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
-    : AssemblerBase(isolate, buffer, buffer_size),
+// Spare buffer.
+static const int kMinimalBufferSize = 4 * KB;
+
+
+Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
+    : AssemblerBase(arg_isolate),
       recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this) {
-  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
+      positions_recorder_(this),
+      emit_debug_code_(FLAG_debug_code) {
+  if (buffer == NULL) {
+    // Do our own buffer management.
+    if (buffer_size <= kMinimalBufferSize) {
+      buffer_size = kMinimalBufferSize;
+
+      if (isolate()->assembler_spare_buffer() != NULL) {
+        buffer = isolate()->assembler_spare_buffer();
+        isolate()->set_assembler_spare_buffer(NULL);
+      }
+    }
+    if (buffer == NULL) {
+      buffer_ = NewArray<byte>(buffer_size);
+    } else {
+      buffer_ = static_cast<byte*>(buffer);
+    }
+    buffer_size_ = buffer_size;
+    own_buffer_ = true;
+
+  } else {
+    // Use externally provided buffer instead.
+    ASSERT(buffer_size > 0);
+    buffer_ = static_cast<byte*>(buffer);
+    buffer_size_ = buffer_size;
+    own_buffer_ = false;
+  }
+
+  // Set up buffer pointers.
+  ASSERT(buffer_ != NULL);
+  pc_ = buffer_;
+  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
   last_trampoline_pool_end_ = 0;
   no_trampoline_pool_before_ = 0;
@@ -287,6 +321,18 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   block_buffer_growth_ = false;
 
   ClearRecordedAstId();
+}
+
+
+Assembler::~Assembler() {
+  if (own_buffer_) {
+    if (isolate()->assembler_spare_buffer() == NULL &&
+        buffer_size_ == kMinimalBufferSize) {
+      isolate()->set_assembler_spare_buffer(buffer_);
+    } else {
+      DeleteArray(buffer_);
+    }
+  }
 }
 
 

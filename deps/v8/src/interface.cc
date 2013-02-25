@@ -170,8 +170,6 @@ void Interface::DoUnify(Interface* that, bool* ok, Zone* zone) {
   ASSERT(that->forward_ == NULL);
   ASSERT(!this->IsValue());
   ASSERT(!that->IsValue());
-  ASSERT(this->index_ == -1);
-  ASSERT(that->index_ == -1);
   ASSERT(*ok);
 
 #ifdef DEBUG
@@ -194,6 +192,15 @@ void Interface::DoUnify(Interface* that, bool* ok, Zone* zone) {
   if (that->IsFrozen() && this_size > that_size) {
     *ok = false;
     return;
+  }
+
+  // Merge instance.
+  if (!that->instance_.is_null()) {
+    if (!this->instance_.is_null() && *this->instance_ != *that->instance_) {
+      *ok = false;
+      return;
+    }
+    this->instance_ = that->instance_;
   }
 
   // Merge interfaces.
@@ -220,7 +227,7 @@ void Interface::Print(int n) {
   } else if (IsValue()) {
     PrintF("value\n");
   } else if (IsModule()) {
-    PrintF("module %d %s{", Index(), IsFrozen() ? "" : "(unresolved) ");
+    PrintF("module %s{", IsFrozen() ? "" : "(unresolved) ");
     ZoneHashMap* map = Chase()->exports_;
     if (map == NULL || map->occupancy() == 0) {
       PrintF("}\n");

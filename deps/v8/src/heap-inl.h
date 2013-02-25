@@ -91,7 +91,7 @@ MaybeObject* Heap::AllocateStringFromUtf8(Vector<const char> str,
   if (non_ascii_start >= length) {
     // If the string is ASCII, we do not need to convert the characters
     // since UTF8 is backwards compatible with ASCII.
-    return AllocateStringFromOneByte(str, pretenure);
+    return AllocateStringFromAscii(str, pretenure);
   }
   // Non-ASCII and we need to decode.
   return AllocateStringFromUtf8Slow(str, non_ascii_start, pretenure);
@@ -109,12 +109,12 @@ MaybeObject* Heap::AllocateSymbol(Vector<const char> str,
 
 MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
                                        uint32_t hash_field) {
-  if (str.length() > SeqOneByteString::kMaxLength) {
+  if (str.length() > SeqAsciiString::kMaxLength) {
     return Failure::OutOfMemoryException();
   }
   // Compute map and object size.
   Map* map = ascii_symbol_map();
-  int size = SeqOneByteString::SizeFor(str.length());
+  int size = SeqAsciiString::SizeFor(str.length());
 
   // Allocate string.
   Object* result;
@@ -134,7 +134,7 @@ MaybeObject* Heap::AllocateAsciiSymbol(Vector<const char> str,
   ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
-  memcpy(answer->address() + SeqOneByteString::kHeaderSize,
+  memcpy(answer->address() + SeqAsciiString::kHeaderSize,
          str.start(), str.length());
 
   return answer;
@@ -460,7 +460,7 @@ intptr_t Heap::AdjustAmountOfExternalAllocatedMemory(
     intptr_t change_in_bytes) {
   ASSERT(HasBeenSetUp());
   intptr_t amount = amount_of_external_allocated_memory_ + change_in_bytes;
-  if (change_in_bytes > 0) {
+  if (change_in_bytes >= 0) {
     // Avoid overflow.
     if (amount > amount_of_external_allocated_memory_) {
       amount_of_external_allocated_memory_ = amount;
@@ -607,7 +607,7 @@ void ExternalStringTable::Verify() {
     Object* obj = Object::cast(new_space_strings_[i]);
     // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->the_hole_value());
+    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
     if (obj->IsExternalAsciiString()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(obj);
       ASSERT(String::IsAscii(string->GetChars(), string->length()));
@@ -617,7 +617,7 @@ void ExternalStringTable::Verify() {
     Object* obj = Object::cast(old_space_strings_[i]);
     // TODO(yangguo): check that the object is indeed an external string.
     ASSERT(!heap_->InNewSpace(obj));
-    ASSERT(obj != HEAP->the_hole_value());
+    ASSERT(obj != HEAP->raw_unchecked_the_hole_value());
     if (obj->IsExternalAsciiString()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(obj);
       ASSERT(String::IsAscii(string->GetChars(), string->length()));

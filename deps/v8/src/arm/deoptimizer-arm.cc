@@ -114,6 +114,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
+static const int32_t kBranchBeforeStackCheck = 0x2a000001;
 static const int32_t kBranchBeforeInterrupt =  0x5a000004;
 
 
@@ -122,21 +123,24 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
                                         Code* check_code,
                                         Code* replacement_code) {
   const int kInstrSize = Assembler::kInstrSize;
-  // The back edge bookkeeping code matches the pattern:
-  //
-  //  <decrement profiling counter>
-  //  2a 00 00 01       bpl ok
+  // The call of the stack guard check has the following form:
+  //  e1 5d 00 0c       cmp sp, <limit>
+  //  2a 00 00 01       bcs ok
   //  e5 9f c? ??       ldr ip, [pc, <stack guard address>]
   //  e1 2f ff 3c       blx ip
   ASSERT(Memory::int32_at(pc_after - kInstrSize) == kBlxIp);
   ASSERT(Assembler::IsLdrPcImmediateOffset(
       Assembler::instr_at(pc_after - 2 * kInstrSize)));
-  ASSERT_EQ(kBranchBeforeInterrupt,
-            Memory::int32_at(pc_after - 3 * kInstrSize));
+  if (FLAG_count_based_interrupts) {
+    ASSERT_EQ(kBranchBeforeInterrupt,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+  } else {
+    ASSERT_EQ(kBranchBeforeStackCheck,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+  }
 
   // We patch the code to the following form:
-  //
-  //  <decrement profiling counter>
+  //  e1 5d 00 0c       cmp sp, <limit>
   //  e1 a0 00 00       mov r0, r0 (NOP)
   //  e5 9f c? ??       ldr ip, [pc, <on-stack replacement address>]
   //  e1 2f ff 3c       blx ip
@@ -173,9 +177,15 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
 
   // Replace NOP with conditional jump.
   CodePatcher patcher(pc_after - 3 * kInstrSize, 1);
-  patcher.masm()->b(+16, pl);
-  ASSERT_EQ(kBranchBeforeInterrupt,
-            Memory::int32_at(pc_after - 3 * kInstrSize));
+  if (FLAG_count_based_interrupts) {
+    patcher.masm()->b(+16, pl);
+    ASSERT_EQ(kBranchBeforeInterrupt,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+  } else {
+    patcher.masm()->b(+4, cs);
+    ASSERT_EQ(kBranchBeforeStackCheck,
+              Memory::int32_at(pc_after - 3 * kInstrSize));
+  }
 
   // Replace the stack check address in the constant pool
   // with the entry address of the replacement code.

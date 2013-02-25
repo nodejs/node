@@ -154,9 +154,7 @@ namespace internal {
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
   V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
-  V(JSObject, observation_state, ObservationState)                             \
-  V(Map, external_map, ExternalMap)
+  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -284,6 +282,14 @@ class StoreBufferRebuilder {
   MemoryChunk* current_page_;
 };
 
+
+
+// The all static Heap captures the interface to the global object heap.
+// All JavaScript contexts by this process share the same object heap.
+
+#ifdef DEBUG
+class HeapDebugUtils;
+#endif
 
 
 // A queue of objects promoted during scavenge. Each object is accompanied
@@ -481,9 +487,6 @@ class Heap {
   // Returns the amount of executable memory currently committed for the heap.
   intptr_t CommittedMemoryExecutable();
 
-  // Returns the amount of phyical memory currently committed for the heap.
-  size_t CommittedPhysicalMemory();
-
   // Returns the available bytes in space w/o growing.
   // Heap doesn't guarantee that it can allocate an object that requires
   // all available bytes. Check MaxHeapObjectSize() instead.
@@ -576,7 +579,6 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
       FixedArrayBase* array_base,
       ElementsKind elements_kind,
-      int length,
       PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
@@ -659,9 +661,6 @@ class Heap {
   // Allocates a serialized scope info.
   MUST_USE_RESULT MaybeObject* AllocateScopeInfo(int length);
 
-  // Allocates an External object for v8's external API.
-  MUST_USE_RESULT MaybeObject* AllocateExternal(void* value);
-
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
@@ -698,7 +697,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateStringFromOneByte(
+  MUST_USE_RESULT MaybeObject* AllocateStringFromAscii(
       Vector<const char> str,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT inline MaybeObject* AllocateStringFromUtf8(
@@ -742,7 +741,7 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateRawOneByteString(
+  MUST_USE_RESULT MaybeObject* AllocateRawAsciiString(
       int length,
       PretenureFlag pretenure = NOT_TENURED);
   MUST_USE_RESULT MaybeObject* AllocateRawTwoByteString(
@@ -1037,8 +1036,9 @@ class Heap {
     return LookupSymbol(CStrVector(str));
   }
   MUST_USE_RESULT MaybeObject* LookupSymbol(String* str);
-  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(
-      Handle<SeqOneByteString> string, int from, int length);
+  MUST_USE_RESULT MaybeObject* LookupAsciiSymbol(Handle<SeqAsciiString> string,
+                                                 int from,
+                                                 int length);
 
   bool LookupSymbolIfExists(String* str, String** symbol);
   bool LookupTwoCharsSymbolIfExists(String* str, String** symbol);
@@ -1448,10 +1448,6 @@ class Heap {
   STATIC_CHECK(kFalseValueRootIndex == Internals::kFalseValueRootIndex);
   STATIC_CHECK(kempty_symbolRootIndex == Internals::kEmptySymbolRootIndex);
 
-  // Generated code can embed direct references to non-writable roots if
-  // they are in new space.
-  static bool RootCanBeWrittenAfterInitialization(RootListIndex root_index);
-
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
   MUST_USE_RESULT MaybeObject* Uint32ToString(
@@ -1785,6 +1781,8 @@ class Heap {
   // Do we expect to be able to handle allocation failure at this
   // time?
   bool disallow_allocation_failure_;
+
+  HeapDebugUtils* debug_utils_;
 #endif  // DEBUG
 
   // Indicates that the new space should be kept small due to high promotion
@@ -1901,6 +1899,7 @@ class Heap {
   bool PerformGarbageCollection(GarbageCollector collector,
                                 GCTracer* tracer);
 
+
   inline void UpdateOldSpaceLimits();
 
   // Allocate an uninitialized object in map space.  The behavior is identical
@@ -1927,9 +1926,9 @@ class Heap {
 
   void CreateFixedStubs();
 
-  MUST_USE_RESULT MaybeObject* CreateOddball(const char* to_string,
-                                             Object* to_number,
-                                             byte kind);
+  MaybeObject* CreateOddball(const char* to_string,
+                             Object* to_number,
+                             byte kind);
 
   // Allocate a JSArray with no elements
   MUST_USE_RESULT MaybeObject* AllocateJSArray(
@@ -2549,18 +2548,6 @@ class GCTracer BASE_EMBEDDED {
     promoted_objects_size_ += object_size;
   }
 
-  void increment_nodes_died_in_new_space() {
-    nodes_died_in_new_space_++;
-  }
-
-  void increment_nodes_copied_in_new_space() {
-    nodes_copied_in_new_space_++;
-  }
-
-  void increment_nodes_promoted() {
-    nodes_promoted_++;
-  }
-
  private:
   // Returns a string matching the collector.
   const char* CollectorString();
@@ -2604,15 +2591,6 @@ class GCTracer BASE_EMBEDDED {
 
   // Size of objects promoted during the current collection.
   intptr_t promoted_objects_size_;
-
-  // Number of died nodes in the new space.
-  int nodes_died_in_new_space_;
-
-  // Number of copied nodes to the new space.
-  int nodes_copied_in_new_space_;
-
-  // Number of promoted nodes to the old space.
-  int nodes_promoted_;
 
   // Incremental marking steps counters.
   int steps_count_;

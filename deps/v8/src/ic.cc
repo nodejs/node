@@ -310,8 +310,7 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
   if (FLAG_type_info_threshold == 0 && !FLAG_watch_ic_patching) {
     return;
   }
-  Isolate* isolate = target->GetHeap()->isolate();
-  Code* host = isolate->
+  Code* host = target->GetHeap()->isolate()->
       inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   if (host->kind() != Code::FUNCTION) return;
 
@@ -334,7 +333,7 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
   }
   if (FLAG_watch_ic_patching) {
     host->set_profiler_ticks(0);
-    isolate->runtime_profiler()->NotifyICChanged();
+    Isolate::Current()->runtime_profiler()->NotifyICChanged();
   }
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
@@ -415,13 +414,11 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 
 
 void CompareIC::Clear(Address address, Code* target) {
-  ASSERT(target->major_key() == CodeStub::CompareIC);
-  CompareIC::State handler_state;
-  Token::Value op;
-  ICCompareStub::DecodeMinorKey(target->stub_info(), NULL, NULL,
-                                &handler_state, &op);
+  // Only clear ICCompareStubs, we currently cannot clear generic CompareStubs.
+  if (target->major_key() != CodeStub::CompareIC) return;
   // Only clear CompareICs that can retain objects.
-  if (handler_state != KNOWN_OBJECTS) return;
+  if (target->compare_state() != KNOWN_OBJECTS) return;
+  Token::Value op = CompareIC::ComputeOperation(target);
   SetTargetAtAddress(address, GetRawUninitialized(op));
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
@@ -649,7 +646,7 @@ Handle<Code> CallICBase::ComputeMonomorphicStub(LookupResult* lookup,
   Handle<JSObject> holder(lookup->holder());
   switch (lookup->type()) {
     case FIELD: {
-      PropertyIndex index = lookup->GetFieldIndex();
+      int index = lookup->GetFieldIndex();
       return isolate()->stub_cache()->ComputeCallField(
           argc, kind_, extra_state, name, object, holder, index);
     }
@@ -1380,11 +1377,6 @@ MaybeObject* StoreIC::Store(State state,
     return *value;
   }
 
-  // Observed objects are always modified through the runtime.
-  if (FLAG_harmony_observation && receiver->map()->is_observed()) {
-    return receiver->SetProperty(*name, *value, NONE, strict_mode);
-  }
-
   // Use specialized code for setting the length of arrays with fast
   // properties.  Slow properties might indicate redefinition of the
   // length property.
@@ -1470,9 +1462,11 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   Handle<Code> code;
   switch (type) {
     case FIELD:
-      code = isolate()->stub_cache()->ComputeStoreField(
-          name, receiver, lookup->GetFieldIndex().field_index(),
-          Handle<Map>::null(), strict_mode);
+      code = isolate()->stub_cache()->ComputeStoreField(name,
+                                                        receiver,
+                                                        lookup->GetFieldIndex(),
+                                                        Handle<Map>::null(),
+                                                        strict_mode);
       break;
     case NORMAL:
       if (receiver->IsGlobalObject()) {
@@ -1908,8 +1902,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
     }
 
     // Update inline cache and stub cache.
-    if (FLAG_use_ic && !receiver->IsJSGlobalProxy() &&
-        !(FLAG_harmony_observation && receiver->map()->is_observed())) {
+    if (FLAG_use_ic && !receiver->IsJSGlobalProxy()) {
       LookupResult lookup(isolate());
       if (LookupForWrite(receiver, name, &lookup)) {
         UpdateCaches(&lookup, state, strict_mode, receiver, name, value);
@@ -1921,10 +1914,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
   }
 
   // Do not use ICs for objects that require access checks (including
-  // the global object), or are observed.
-  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded() &&
-      !(FLAG_harmony_observation && object->IsJSObject() &&
-          JSObject::cast(*object)->map()->is_observed());
+  // the global object).
+  bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
   ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) {
@@ -1982,7 +1973,7 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   switch (type) {
     case FIELD:
       code = isolate()->stub_cache()->ComputeKeyedStoreField(
-          name, receiver, lookup->GetFieldIndex().field_index(),
+          name, receiver, lookup->GetFieldIndex(),
           Handle<Map>::null(), strict_mode);
       break;
     case TRANSITION: {
@@ -2316,10 +2307,11 @@ const char* BinaryOpIC::GetName(TypeInfo type_info) {
   switch (type_info) {
     case UNINITIALIZED: return "Uninitialized";
     case SMI: return "SMI";
-    case INT32: return "Int32";
-    case HEAP_NUMBER: return "HeapNumber";
+    case INT32: return "Int32s";
+    case HEAP_NUMBER: return "HeapNumbers";
     case ODDBALL: return "Oddball";
-    case STRING: return "String";
+    case BOTH_STRING: return "BothStrings";
+    case STRING: return "Strings";
     case GENERIC: return "Generic";
     default: return "Invalid";
   }
@@ -2334,6 +2326,7 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
     case INT32:
     case HEAP_NUMBER:
     case ODDBALL:
+    case BOTH_STRING:
     case STRING:
       return MONOMORPHIC;
     case GENERIC:
@@ -2341,6 +2334,58 @@ BinaryOpIC::State BinaryOpIC::ToState(TypeInfo type_info) {
   }
   UNREACHABLE();
   return ::v8::internal::UNINITIALIZED;
+}
+
+
+BinaryOpIC::TypeInfo BinaryOpIC::JoinTypes(BinaryOpIC::TypeInfo x,
+                                           BinaryOpIC::TypeInfo y) {
+  if (x == UNINITIALIZED) return y;
+  if (y == UNINITIALIZED) return x;
+  if (x == y) return x;
+  if (x == BOTH_STRING && y == STRING) return STRING;
+  if (x == STRING && y == BOTH_STRING) return STRING;
+  if (x == STRING || x == BOTH_STRING || y == STRING || y == BOTH_STRING) {
+    return GENERIC;
+  }
+  if (x > y) return x;
+  return y;
+}
+
+
+BinaryOpIC::TypeInfo BinaryOpIC::GetTypeInfo(Handle<Object> left,
+                                             Handle<Object> right) {
+  ::v8::internal::TypeInfo left_type =
+      ::v8::internal::TypeInfo::TypeFromValue(left);
+  ::v8::internal::TypeInfo right_type =
+      ::v8::internal::TypeInfo::TypeFromValue(right);
+
+  if (left_type.IsSmi() && right_type.IsSmi()) {
+    return SMI;
+  }
+
+  if (left_type.IsInteger32() && right_type.IsInteger32()) {
+    // Platforms with 32-bit Smis have no distinct INT32 type.
+    if (kSmiValueSize == 32) return SMI;
+    return INT32;
+  }
+
+  if (left_type.IsNumber() && right_type.IsNumber()) {
+    return HEAP_NUMBER;
+  }
+
+  // Patching for fast string ADD makes sense even if only one of the
+  // arguments is a string.
+  if (left_type.IsString())  {
+    return right_type.IsString() ? BOTH_STRING : STRING;
+  } else if (right_type.IsString()) {
+    return STRING;
+  }
+
+  // Check for oddball objects.
+  if (left->IsUndefined() && right->IsNumber()) return ODDBALL;
+  if (left->IsNumber() && right->IsUndefined()) return ODDBALL;
+
+  return GENERIC;
 }
 
 
@@ -2395,72 +2440,25 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
   return *result;
 }
 
-
-static BinaryOpIC::TypeInfo TypeInfoFromValue(Handle<Object> value,
-                                              Token::Value op) {
-  ::v8::internal::TypeInfo type =
-      ::v8::internal::TypeInfo::TypeFromValue(value);
-  if (type.IsSmi()) return BinaryOpIC::SMI;
-  if (type.IsInteger32()) {
-    if (kSmiValueSize == 32) return BinaryOpIC::SMI;
-    return BinaryOpIC::INT32;
-  }
-  if (type.IsNumber()) return BinaryOpIC::HEAP_NUMBER;
-  if (type.IsString()) return BinaryOpIC::STRING;
-  if (value->IsUndefined()) {
-    if (op == Token::BIT_AND ||
-        op == Token::BIT_OR ||
-        op == Token::BIT_XOR ||
-        op == Token::SAR ||
-        op == Token::SHL ||
-        op == Token::SHR) {
-      if (kSmiValueSize == 32) return BinaryOpIC::SMI;
-      return BinaryOpIC::INT32;
-    }
-    return BinaryOpIC::ODDBALL;
-  }
-  return BinaryOpIC::GENERIC;
-}
-
-
-static BinaryOpIC::TypeInfo InputState(BinaryOpIC::TypeInfo old_type,
-                                       Handle<Object> value,
-                                       Token::Value op) {
-  BinaryOpIC::TypeInfo new_type = TypeInfoFromValue(value, op);
-  if (old_type == BinaryOpIC::STRING) {
-    if (new_type == BinaryOpIC::STRING) return new_type;
-    return BinaryOpIC::GENERIC;
-  }
-  return Max(old_type, new_type);
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 5);
 
   HandleScope scope(isolate);
   Handle<Object> left = args.at<Object>(0);
   Handle<Object> right = args.at<Object>(1);
   int key = args.smi_at(2);
-  Token::Value op = BinaryOpStub::decode_op_from_minor_key(key);
-  BinaryOpIC::TypeInfo previous_left, previous_right, unused_previous_result;
-  BinaryOpStub::decode_types_from_minor_key(
-      key, &previous_left, &previous_right, &unused_previous_result);
+  Token::Value op = static_cast<Token::Value>(args.smi_at(3));
+  BinaryOpIC::TypeInfo previous_type =
+      static_cast<BinaryOpIC::TypeInfo>(args.smi_at(4));
 
-  BinaryOpIC::TypeInfo new_left = InputState(previous_left, left, op);
-  BinaryOpIC::TypeInfo new_right = InputState(previous_right, right, op);
+  BinaryOpIC::TypeInfo type = BinaryOpIC::GetTypeInfo(left, right);
+  type = BinaryOpIC::JoinTypes(type, previous_type);
   BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED;
-
-  // STRING is only used for ADD operations.
-  if ((new_left == BinaryOpIC::STRING || new_right == BinaryOpIC::STRING) &&
+  if ((type == BinaryOpIC::STRING || type == BinaryOpIC::BOTH_STRING) &&
       op != Token::ADD) {
-    new_left = new_right = BinaryOpIC::GENERIC;
+    type = BinaryOpIC::GENERIC;
   }
-
-  BinaryOpIC::TypeInfo new_overall = Max(new_left, new_right);
-  BinaryOpIC::TypeInfo previous_overall = Max(previous_left, previous_right);
-
-  if (new_overall == BinaryOpIC::SMI && previous_overall == BinaryOpIC::SMI) {
+  if (type == BinaryOpIC::SMI && previous_type == BinaryOpIC::SMI) {
     if (op == Token::DIV ||
         op == Token::MUL ||
         op == Token::SHR ||
@@ -2475,35 +2473,26 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
       result_type = BinaryOpIC::INT32;
     }
   }
-  if (new_overall == BinaryOpIC::INT32 &&
-      previous_overall == BinaryOpIC::INT32) {
-    if (new_left == previous_left && new_right == previous_right) {
-      result_type = BinaryOpIC::HEAP_NUMBER;
-    }
+  if (type == BinaryOpIC::INT32 && previous_type == BinaryOpIC::INT32) {
+    // We must be here because an operation on two INT32 types overflowed.
+    result_type = BinaryOpIC::HEAP_NUMBER;
   }
 
-  BinaryOpStub stub(key, new_left, new_right, result_type);
+  BinaryOpStub stub(key, type, result_type);
   Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
-#ifdef DEBUG
     if (FLAG_trace_ic) {
-      PrintF("[BinaryOpIC in ");
-      JavaScriptFrame::PrintTop(stdout, false, true);
-      PrintF(" ((%s+%s)->((%s+%s)->%s))#%s @ %p]\n",
-             BinaryOpIC::GetName(previous_left),
-             BinaryOpIC::GetName(previous_right),
-             BinaryOpIC::GetName(new_left),
-             BinaryOpIC::GetName(new_right),
+      PrintF("[BinaryOpIC (%s->(%s->%s))#%s]\n",
+             BinaryOpIC::GetName(previous_type),
+             BinaryOpIC::GetName(type),
              BinaryOpIC::GetName(result_type),
-             Token::Name(op),
-             static_cast<void*>(*code));
+             Token::Name(op));
     }
-#endif
     BinaryOpIC ic(isolate);
     ic.patch(*code);
 
     // Activate inlined smi code.
-    if (previous_overall == BinaryOpIC::UNINITIALIZED) {
+    if (previous_type == BinaryOpIC::UNINITIALIZED) {
       PatchInlinedSmiCode(ic.address(), ENABLE_INLINED_SMI_CHECK);
     }
   }
@@ -2566,28 +2555,43 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
 
 
 Code* CompareIC::GetRawUninitialized(Token::Value op) {
-  ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
+  ICCompareStub stub(op, UNINITIALIZED);
   Code* code = NULL;
-  CHECK(stub.FindCodeInCache(&code, Isolate::Current()));
+  CHECK(stub.FindCodeInCache(&code));
   return code;
 }
 
 
 Handle<Code> CompareIC::GetUninitialized(Token::Value op) {
-  ICCompareStub stub(op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
+  ICCompareStub stub(op, UNINITIALIZED);
   return stub.GetCode();
+}
+
+
+CompareIC::State CompareIC::ComputeState(Code* target) {
+  int key = target->major_key();
+  if (key == CodeStub::Compare) return GENERIC;
+  ASSERT(key == CodeStub::CompareIC);
+  return static_cast<State>(target->compare_state());
+}
+
+
+Token::Value CompareIC::ComputeOperation(Code* target) {
+  ASSERT(target->major_key() == CodeStub::CompareIC);
+  return static_cast<Token::Value>(
+      target->compare_operation() + Token::EQ);
 }
 
 
 const char* CompareIC::GetStateName(State state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
-    case SMI: return "SMI";
-    case HEAP_NUMBER: return "HEAP_NUMBER";
-    case OBJECT: return "OBJECTS";
+    case SMIS: return "SMIS";
+    case HEAP_NUMBERS: return "HEAP_NUMBERS";
+    case OBJECTS: return "OBJECTS";
     case KNOWN_OBJECTS: return "KNOWN_OBJECTS";
-    case SYMBOL: return "SYMBOL";
-    case STRING: return "STRING";
+    case SYMBOLS: return "SYMBOLS";
+    case STRINGS: return "STRINGS";
     case GENERIC: return "GENERIC";
     default:
       UNREACHABLE();
@@ -2596,67 +2600,28 @@ const char* CompareIC::GetStateName(State state) {
 }
 
 
-static CompareIC::State InputState(CompareIC::State old_state,
-                                   Handle<Object> value) {
-  switch (old_state) {
-    case CompareIC::UNINITIALIZED:
-      if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::HEAP_NUMBER;
-      if (value->IsSymbol()) return CompareIC::SYMBOL;
-      if (value->IsString()) return CompareIC::STRING;
-      if (value->IsJSObject()) return CompareIC::OBJECT;
-      break;
-    case CompareIC::SMI:
-      if (value->IsSmi()) return CompareIC::SMI;
-      if (value->IsHeapNumber()) return CompareIC::HEAP_NUMBER;
-      break;
-    case CompareIC::HEAP_NUMBER:
-      if (value->IsNumber()) return CompareIC::HEAP_NUMBER;
-      break;
-    case CompareIC::SYMBOL:
-      if (value->IsSymbol()) return CompareIC::SYMBOL;
-      if (value->IsString()) return CompareIC::STRING;
-      break;
-    case CompareIC::STRING:
-      if (value->IsSymbol() || value->IsString()) return CompareIC::STRING;
-      break;
-    case CompareIC::OBJECT:
-      if (value->IsJSObject()) return CompareIC::OBJECT;
-      break;
-    case CompareIC::GENERIC:
-      break;
-    case CompareIC::KNOWN_OBJECTS:
-      UNREACHABLE();
-      break;
-  }
-  return CompareIC::GENERIC;
-}
-
-
-CompareIC::State CompareIC::TargetState(State old_state,
-                                        State old_left,
-                                        State old_right,
+CompareIC::State CompareIC::TargetState(State state,
                                         bool has_inlined_smi_code,
                                         Handle<Object> x,
                                         Handle<Object> y) {
-  switch (old_state) {
+  switch (state) {
     case UNINITIALIZED:
-      if (x->IsSmi() && y->IsSmi()) return SMI;
-      if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBER;
+      if (x->IsSmi() && y->IsSmi()) return SMIS;
+      if (x->IsNumber() && y->IsNumber()) return HEAP_NUMBERS;
       if (Token::IsOrderedRelationalCompareOp(op_)) {
         // Ordered comparisons treat undefined as NaN, so the
         // HEAP_NUMBER stub will do the right thing.
         if ((x->IsNumber() && y->IsUndefined()) ||
             (y->IsNumber() && x->IsUndefined())) {
-          return HEAP_NUMBER;
+          return HEAP_NUMBERS;
         }
       }
       if (x->IsSymbol() && y->IsSymbol()) {
         // We compare symbols as strings if we need to determine
         // the order in a non-equality compare.
-        return Token::IsEqualityOp(op_) ? SYMBOL : STRING;
+        return Token::IsEqualityOp(op_) ? SYMBOLS : STRINGS;
       }
-      if (x->IsString() && y->IsString()) return STRING;
+      if (x->IsString() && y->IsString()) return STRINGS;
       if (!Token::IsEqualityOp(op_)) return GENERIC;
       if (x->IsJSObject() && y->IsJSObject()) {
         if (Handle<JSObject>::cast(x)->map() ==
@@ -2664,70 +2629,30 @@ CompareIC::State CompareIC::TargetState(State old_state,
             Token::IsEqualityOp(op_)) {
           return KNOWN_OBJECTS;
         } else {
-          return OBJECT;
+          return OBJECTS;
         }
       }
       return GENERIC;
-    case SMI:
-      return x->IsNumber() && y->IsNumber()
-          ? HEAP_NUMBER
+    case SMIS:
+      return has_inlined_smi_code && x->IsNumber() && y->IsNumber()
+          ? HEAP_NUMBERS
           : GENERIC;
-    case SYMBOL:
+    case SYMBOLS:
       ASSERT(Token::IsEqualityOp(op_));
-      return x->IsString() && y->IsString() ? STRING : GENERIC;
-    case HEAP_NUMBER:
-      if (old_left == SMI && x->IsHeapNumber()) return HEAP_NUMBER;
-      if (old_right == SMI && y->IsHeapNumber()) return HEAP_NUMBER;
-    case STRING:
-    case OBJECT:
+      return x->IsString() && y->IsString() ? STRINGS : GENERIC;
+    case HEAP_NUMBERS:
+    case STRINGS:
+    case OBJECTS:
     case KNOWN_OBJECTS:
     case GENERIC:
       return GENERIC;
   }
   UNREACHABLE();
-  return GENERIC;  // Make the compiler happy.
+  return GENERIC;
 }
 
 
-void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
-  HandleScope scope;
-  State previous_left, previous_right, previous_state;
-  ICCompareStub::DecodeMinorKey(target()->stub_info(), &previous_left,
-                                &previous_right, &previous_state, NULL);
-  State new_left = InputState(previous_left, x);
-  State new_right = InputState(previous_right, y);
-  State state = TargetState(previous_state, previous_left, previous_right,
-                            HasInlinedSmiCode(address()), x, y);
-  ICCompareStub stub(op_, new_left, new_right, state);
-  if (state == KNOWN_OBJECTS) {
-    stub.set_known_map(Handle<Map>(Handle<JSObject>::cast(x)->map()));
-  }
-  set_target(*stub.GetCode());
-
-#ifdef DEBUG
-  if (FLAG_trace_ic) {
-    PrintF("[CompareIC in ");
-    JavaScriptFrame::PrintTop(stdout, false, true);
-    PrintF(" ((%s+%s=%s)->(%s+%s=%s))#%s @ %p]\n",
-           GetStateName(previous_left),
-           GetStateName(previous_right),
-           GetStateName(previous_state),
-           GetStateName(new_left),
-           GetStateName(new_right),
-           GetStateName(state),
-           Token::Name(op_),
-           static_cast<void*>(*stub.GetCode()));
-  }
-#endif
-
-  // Activate inlined smi code.
-  if (previous_state == UNINITIALIZED) {
-    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
-  }
-}
-
-
-// Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
+// Used from ic_<arch>.cc.
 RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);

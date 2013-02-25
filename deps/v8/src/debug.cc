@@ -261,12 +261,8 @@ void BreakLocationIterator::Reset() {
   // Create relocation iterators for the two code objects.
   if (reloc_iterator_ != NULL) delete reloc_iterator_;
   if (reloc_iterator_original_ != NULL) delete reloc_iterator_original_;
-  reloc_iterator_ = new RelocIterator(
-      debug_info_->code(),
-      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE));
-  reloc_iterator_original_ = new RelocIterator(
-      debug_info_->original_code(),
-      ~RelocInfo::ModeMask(RelocInfo::CODE_AGE_SEQUENCE));
+  reloc_iterator_ = new RelocIterator(debug_info_->code());
+  reloc_iterator_original_ = new RelocIterator(debug_info_->original_code());
 
   // Position at the first break point.
   break_point_ = -1;
@@ -786,11 +782,9 @@ bool Debug::CompileDebuggerScript(int index) {
         "error_loading_debugger", &computed_location,
         Vector<Handle<Object> >::empty(), Handle<String>(), Handle<JSArray>());
     ASSERT(!isolate->has_pending_exception());
-    if (!exception.is_null()) {
-      isolate->set_pending_exception(*exception);
-      MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
-      isolate->clear_pending_exception();
-    }
+    isolate->set_pending_exception(*exception);
+    MessageHandler::ReportMessage(Isolate::Current(), NULL, message);
+    isolate->clear_pending_exception();
     return false;
   }
 

@@ -29,27 +29,25 @@
 var filler = "//" + new Array(1024).join('x');
 
 // Test strict eval in global context.
-assertEquals(23, eval(
+eval(
   "'use strict';" +
   "var x = 23;" +
   "var f = function bozo1() {" +
   "  return x;" +
   "};" +
   "assertSame(23, f());" +
-  "f;" +
   filler
-)());
+);
 
 // Test default eval in strict context.
-assertEquals(42, (function() {
+(function() {
   "use strict";
-  return eval(
+  eval(
     "var y = 42;" +
     "var g = function bozo2() {" +
     "  return y;" +
     "};" +
     "assertSame(42, g());" +
-    "g;" +
     filler
-  )();
-})());
+  );
+})();

@@ -311,7 +311,6 @@ static void WeakPointerCallback(v8::Persistent<v8::Value> handle, void* id) {
 }
 
 TEST(ObjectGroups) {
-  FLAG_incremental_marking = false;
   InitializeVM();
   GlobalHandles* global_handles = Isolate::Current()->global_handles();
 

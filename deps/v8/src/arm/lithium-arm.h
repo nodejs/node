@@ -125,18 +125,18 @@ class LCodeGen;
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
-  V(LoadKeyed)                                  \
+  V(LoadKeyedFastDoubleElement)                 \
+  V(LoadKeyedFastElement)                       \
   V(LoadKeyedGeneric)                           \
+  V(LoadKeyedSpecializedArrayElement)           \
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
-  V(MathExp)                                    \
   V(MathFloorOfDiv)                             \
   V(MathMinMax)                                 \
   V(ModI)                                       \
   V(MulI)                                       \
-  V(MultiplyAddD)                               \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberTagU)                                 \
@@ -150,7 +150,6 @@ class LCodeGen;
   V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
-  V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
@@ -158,8 +157,10 @@ class LCodeGen;
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
   V(StoreGlobalGeneric)                         \
-  V(StoreKeyed)                                 \
+  V(StoreKeyedFastDoubleElement)                \
+  V(StoreKeyedFastElement)                      \
   V(StoreKeyedGeneric)                          \
+  V(StoreKeyedSpecializedArrayElement)          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
   V(StringAdd)                                  \
@@ -168,7 +169,6 @@ class LCodeGen;
   V(StringCompareAndBranch)                     \
   V(StringLength)                               \
   V(SubI)                                       \
-  V(RSubI)                                      \
   V(TaggedToI)                                  \
   V(ThisFunction)                               \
   V(Throw)                                      \
@@ -625,24 +625,6 @@ class LMulI: public LTemplateInstruction<1, 2, 1> {
 };
 
 
-// Instruction for computing multiplier * multiplicand + addend.
-class LMultiplyAddD: public LTemplateInstruction<1, 3, 0> {
- public:
-  LMultiplyAddD(LOperand* addend, LOperand* multiplier,
-                LOperand* multiplicand) {
-    inputs_[0] = addend;
-    inputs_[1] = multiplier;
-    inputs_[2] = multiplicand;
-  }
-
-  LOperand* addend() { return inputs_[0]; }
-  LOperand* multiplier() { return inputs_[1]; }
-  LOperand* multiplicand() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MultiplyAddD, "multiply-add-d")
-};
-
-
 class LCmpIDAndBranch: public LControlInstruction<2, 0> {
  public:
   LCmpIDAndBranch(LOperand* left, LOperand* right) {
@@ -658,7 +640,7 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
 
   Token::Value op() const { return hydrogen()->token(); }
   bool is_double() const {
-    return hydrogen()->representation().IsDouble();
+    return hydrogen()->GetInputRepresentation().IsDouble();
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -680,30 +662,6 @@ class LUnaryMathOperation: public LTemplateInstruction<1, 1, 1> {
 
   virtual void PrintDataTo(StringStream* stream);
   BuiltinFunctionId op() const { return hydrogen()->op(); }
-};
-
-
-class LMathExp: public LTemplateInstruction<1, 1, 3> {
- public:
-  LMathExp(LOperand* value,
-           LOperand* double_temp,
-           LOperand* temp1,
-           LOperand* temp2) {
-    inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-    temps_[2] = double_temp;
-    ExternalReference::InitializeMathExpData();
-  }
-
-  LOperand* value() { return inputs_[0]; }
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-  LOperand* double_temp() { return temps_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
-
-  virtual void PrintDataTo(StringStream* stream);
 };
 
 
@@ -1031,21 +989,6 @@ class LSubI: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LRSubI: public LTemplateInstruction<1, 2, 0> {
- public:
-  LRSubI(LOperand* left, LOperand* right) {
-    inputs_[0] = left;
-    inputs_[1] = right;
-  }
-
-  LOperand* left() { return inputs_[0]; }
-  LOperand* right() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(RSubI, "rsub-i")
-  DECLARE_HYDROGEN_ACCESSOR(Sub)
-};
-
-
 class LConstantI: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ConstantI, "constant-i")
@@ -1196,30 +1139,6 @@ class LDateField: public LTemplateInstruction<1, 1, 1> {
 
  private:
   Smi* index_;
-};
-
-
-class LSeqStringSetChar: public LTemplateInstruction<1, 3, 0> {
- public:
-  LSeqStringSetChar(String::Encoding encoding,
-                    LOperand* string,
-                    LOperand* index,
-                    LOperand* value) : encoding_(encoding) {
-    inputs_[0] = string;
-    inputs_[1] = index;
-    inputs_[2] = value;
-  }
-
-  String::Encoding encoding() { return encoding_; }
-  LOperand* string() { return inputs_[0]; }
-  LOperand* index() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
-  DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
-
- private:
-  String::Encoding encoding_;
 };
 
 
@@ -1438,26 +1357,58 @@ class LLoadExternalArrayPointer: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
+class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
  public:
-  LLoadKeyed(LOperand* elements, LOperand* key) {
+  LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
     inputs_[0] = elements;
     inputs_[1] = key;
   }
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement, "load-keyed-fast-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
+
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+};
+
+
+class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadKeyedFastDoubleElement(LOperand* elements, LOperand* key) {
+    inputs_[0] = elements;
+    inputs_[1] = key;
+  }
+
+  LOperand* elements() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement,
+                               "load-keyed-fast-double-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastDoubleElement)
+
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+};
+
+
+class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
+ public:
+  LLoadKeyedSpecializedArrayElement(LOperand* external_pointer, LOperand* key) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+  }
+
+  LOperand* external_pointer() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement,
+                               "load-keyed-specialized-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedSpecializedArrayElement)
+
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
-  bool is_external() const {
-    return hydrogen()->is_external();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
-
-  virtual void PrintDataTo(StringStream* stream);
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
@@ -1971,28 +1922,51 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 2, 0> {
 };
 
 
-class LStoreKeyed: public LTemplateInstruction<0, 3, 0> {
+class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreKeyed(LOperand* object, LOperand* key, LOperand* value) {
+  LStoreKeyedFastElement(LOperand* object, LOperand* key, LOperand* value) {
     inputs_[0] = object;
     inputs_[1] = key;
     inputs_[2] = value;
   }
 
-  bool is_external() const { return hydrogen()->is_external(); }
+  LOperand* object() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
+                               "store-keyed-fast-element")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastElement)
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
+};
+
+
+class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
+ public:
+  LStoreKeyedFastDoubleElement(LOperand* elements,
+                               LOperand* key,
+                               LOperand* value) {
+    inputs_[0] = elements;
+    inputs_[1] = key;
+    inputs_[2] = value;
+  }
+
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
-  ElementsKind elements_kind() const {
-    return hydrogen()->elements_kind();
-  }
 
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyed, "store-keyed")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyed)
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement,
+                               "store-keyed-fast-double-element")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastDoubleElement)
 
   virtual void PrintDataTo(StringStream* stream);
-  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
+
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
+
+  bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
 };
 
 
@@ -2014,6 +1988,28 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
   virtual void PrintDataTo(StringStream* stream);
 
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
+};
+
+class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
+ public:
+  LStoreKeyedSpecializedArrayElement(LOperand* external_pointer,
+                                     LOperand* key,
+                                     LOperand* value) {
+    inputs_[0] = external_pointer;
+    inputs_[1] = key;
+    inputs_[2] = value;
+  }
+
+  LOperand* external_pointer() { return inputs_[0]; }
+  LOperand* key() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,
+                               "store-keyed-specialized-array-element")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedSpecializedArrayElement)
+
+  ElementsKind elements_kind() const { return hydrogen()->elements_kind(); }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 
@@ -2138,7 +2134,7 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckPrototypeMaps: public LTemplateInstruction<1, 0, 2> {
+class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
  public:
   LCheckPrototypeMaps(LOperand* temp, LOperand* temp2)  {
     temps_[0] = temp;
@@ -2481,9 +2477,6 @@ class LChunkBuilder BASE_EMBEDDED {
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
-
-  LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
-  LInstruction* DoRSub(HSub* instr);
 
   static bool HasMagicNumberForDivisor(int32_t divisor);
   static HValue* SimplifiedDividendForMathFloorOfDiv(HValue* val);

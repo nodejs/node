@@ -60,17 +60,7 @@ function InstallFunctions(object, attributes, functions) {
   %ToFastProperties(object);
 }
 
-
-// Helper function to install a getter only property.
-function InstallGetter(object, name, getter) {
-  %FunctionSetName(getter, name);
-  %FunctionRemovePrototype(getter);
-  %DefineOrRedefineAccessorProperty(object, name, getter, null, DONT_ENUM);
-  %SetNativeFlag(getter);
-}
-
-
-// Prevents changes to the prototype of a built-in function.
+// Prevents changes to the prototype of a built-infunction.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents
 // changing the __proto__ property.
@@ -970,7 +960,7 @@ function ToStringArray(obj, trap) {
   }
   var n = ToUint32(obj.length);
   var array = new $Array(n);
-  var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
+  var names = {};  // TODO(rossberg): use sets once they are ready.
   for (var index = 0; index < n; index++) {
     var s = ToString(obj[index]);
     if (%HasLocalProperty(names, s)) {
@@ -1025,7 +1015,7 @@ function ObjectGetOwnPropertyNames(obj) {
   }
 
   // Property names are expected to be unique strings.
-  var propertySet = { __proto__: null };
+  var propertySet = {};
   var j = 0;
   for (var i = 0; i < propertyNames.length; ++i) {
     var name = ToString(propertyNames[i]);
@@ -1066,7 +1056,7 @@ function ObjectDefineProperty(obj, p, attributes) {
     // Clone the attributes object for protection.
     // TODO(rossberg): not spec'ed yet, so not sure if this should involve
     // non-own properties as it does (or non-enumerable ones, as it doesn't?).
-    var attributesClone = { __proto__: null };
+    var attributesClone = {};
     for (var a in attributes) {
       attributesClone[a] = attributes[a];
     }
@@ -1413,7 +1403,11 @@ function NumberToString(radix) {
 
 // ECMA-262 section 15.7.4.3
 function NumberToLocaleString() {
-  return %_CallFunction(this, NumberToString);
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Number.prototype.toLocaleString"]);
+  }
+  return this.toString();
 }
 
 
@@ -1430,76 +1424,50 @@ function NumberValueOf() {
 
 // ECMA-262 section 15.7.4.5
 function NumberToFixed(fractionDigits) {
-  var x = this;
-  if (!IS_NUMBER(this)) {
-    if (!IS_NUMBER_WRAPPER(this)) {
-      throw MakeTypeError("incompatible_method_receiver",
-                          ["Number.prototype.toFixed", this]);
-    }
-    // Get the value of this number in case it's an object.
-    x = %_ValueOf(this);
-  }
   var f = TO_INTEGER(fractionDigits);
-
   if (f < 0 || f > 20) {
     throw new $RangeError("toFixed() digits argument must be between 0 and 20");
   }
-
-  if (NUMBER_IS_NAN(x)) return "NaN";
-  if (x == 1/0) return "Infinity";
-  if (x == -1/0) return "-Infinity";
-
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Number.prototype.toFixed"]);
+  }
+  var x = ToNumber(this);
   return %NumberToFixed(x, f);
 }
 
 
 // ECMA-262 section 15.7.4.6
 function NumberToExponential(fractionDigits) {
-  var x = this;
-  if (!IS_NUMBER(this)) {
-    if (!IS_NUMBER_WRAPPER(this)) {
-      throw MakeTypeError("incompatible_method_receiver",
-                          ["Number.prototype.toExponential", this]);
+  var f = -1;
+  if (!IS_UNDEFINED(fractionDigits)) {
+    f = TO_INTEGER(fractionDigits);
+    if (f < 0 || f > 20) {
+      throw new $RangeError(
+          "toExponential() argument must be between 0 and 20");
     }
-    // Get the value of this number in case it's an object.
-    x = %_ValueOf(this);
   }
-  var f = IS_UNDEFINED(fractionDigits) ? void 0 : TO_INTEGER(fractionDigits);
-
-  if (NUMBER_IS_NAN(x)) return "NaN";
-  if (x == 1/0) return "Infinity";
-  if (x == -1/0) return "-Infinity";
-
-  if (IS_UNDEFINED(f)) {
-    f = -1;  // Signal for runtime function that f is not defined.
-  } else if (f < 0 || f > 20) {
-    throw new $RangeError("toExponential() argument must be between 0 and 20");
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Number.prototype.toExponential"]);
   }
+  var x = ToNumber(this);
   return %NumberToExponential(x, f);
 }
 
 
 // ECMA-262 section 15.7.4.7
 function NumberToPrecision(precision) {
-  var x = this;
-  if (!IS_NUMBER(this)) {
-    if (!IS_NUMBER_WRAPPER(this)) {
-      throw MakeTypeError("incompatible_method_receiver",
-                          ["Number.prototype.toPrecision", this]);
-    }
-    // Get the value of this number in case it's an object.
-    x = %_ValueOf(this);
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Number.prototype.toPrecision"]);
   }
   if (IS_UNDEFINED(precision)) return ToString(%_ValueOf(this));
   var p = TO_INTEGER(precision);
-
-  if (NUMBER_IS_NAN(x)) return "NaN";
-  if (x == 1/0) return "Infinity";
-  if (x == -1/0) return "-Infinity";
-
   if (p < 1 || p > 21) {
     throw new $RangeError("toPrecision() argument must be between 1 and 21");
   }
+  var x = ToNumber(this);
   return %NumberToPrecision(x, p);
 }
 

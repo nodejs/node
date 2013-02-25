@@ -158,7 +158,7 @@ class SourceGroup {
 
   void End(int offset) { end_offset_ = offset; }
 
-  void Execute(Isolate* isolate);
+  void Execute();
 
 #ifndef V8_SHARED
   void StartExecuteInThread();
@@ -187,7 +187,7 @@ class SourceGroup {
 #endif  // V8_SHARED
 
   void ExitShell(int exit_code);
-  Handle<String> ReadFile(Isolate* isolate, const char* name);
+  Handle<String> ReadFile(const char* name);
 
   const char** argv_;
   int begin_offset_;
@@ -272,9 +272,9 @@ class Shell : public i::AllStatic {
                             bool report_exceptions);
   static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(TryCatch* try_catch);
-  static Handle<String> ReadFile(Isolate* isolate, const char* name);
-  static Persistent<Context> CreateEvaluationContext(Isolate* isolate);
-  static int RunMain(Isolate* isolate, int argc, char* argv[]);
+  static Handle<String> ReadFile(const char* name);
+  static Persistent<Context> CreateEvaluationContext();
+  static int RunMain(int argc, char* argv[]);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
 
@@ -310,9 +310,9 @@ class Shell : public i::AllStatic {
   static Handle<Value> DisableProfiler(const Arguments& args);
   static Handle<Value> Read(const Arguments& args);
   static Handle<Value> ReadBuffer(const Arguments& args);
-  static Handle<String> ReadFromStdin(Isolate* isolate);
+  static Handle<String> ReadFromStdin();
   static Handle<Value> ReadLine(const Arguments& args) {
-    return ReadFromStdin(args.GetIsolate());
+    return ReadFromStdin();
   }
   static Handle<Value> Load(const Arguments& args);
   static Handle<Value> ArrayBuffer(const Arguments& args);
@@ -365,6 +365,7 @@ class Shell : public i::AllStatic {
 
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
 
+  static LineEditor* console;
   static const char* kPrompt;
   static ShellOptions options;
 
@@ -383,18 +384,15 @@ class Shell : public i::AllStatic {
   static Counter* GetCounter(const char* name, bool is_histogram);
   static void InstallUtilityScript();
 #endif  // V8_SHARED
-  static void Initialize(Isolate* isolate);
-  static void InitializeDebugger(Isolate* isolate);
-  static void RunShell(Isolate* isolate);
+  static void Initialize();
+  static void RunShell();
   static bool SetOptions(int argc, char* argv[]);
-  static Handle<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
+  static Handle<ObjectTemplate> CreateGlobalTemplate();
   static Handle<FunctionTemplate> CreateArrayBufferTemplate(InvocationCallback);
   static Handle<FunctionTemplate> CreateArrayTemplate(InvocationCallback);
-  static Handle<Value> CreateExternalArrayBuffer(Isolate* isolate,
-                                                 Handle<Object> buffer,
+  static Handle<Value> CreateExternalArrayBuffer(Handle<Object> buffer,
                                                  int32_t size);
-  static Handle<Object> CreateExternalArray(Isolate* isolate,
-                                            Handle<Object> array,
+  static Handle<Object> CreateExternalArray(Handle<Object> array,
                                             Handle<Object> buffer,
                                             ExternalArrayType type,
                                             int32_t length,

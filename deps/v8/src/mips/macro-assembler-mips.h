@@ -65,14 +65,6 @@ enum AllocationFlags {
   SIZE_IN_WORDS = 1 << 2
 };
 
-// Flags used for AllocateHeapNumber
-enum TaggingMode {
-  // Tag the result.
-  TAG_RESULT,
-  // Don't tag
-  DONT_TAG_RESULT
-};
-
 // Flags used for the ObjectToDoubleFPURegister function.
 enum ObjectToDoubleFlags {
   // No special flags.
@@ -544,8 +536,7 @@ class MacroAssembler: public Assembler {
                           Register scratch1,
                           Register scratch2,
                           Register heap_number_map,
-                          Label* gc_required,
-                          TaggingMode tagging_mode = TAG_RESULT);
+                          Label* gc_required);
   void AllocateHeapNumberWithValue(Register result,
                                    FPURegister value,
                                    Register scratch1,
@@ -629,7 +620,6 @@ class MacroAssembler: public Assembler {
 
   // Push a handle.
   void Push(Handle<Object> handle);
-  void Push(Smi* smi) { Push(Handle<Smi>(smi)); }
 
   // Push two registers. Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2) {
@@ -762,16 +752,14 @@ class MacroAssembler: public Assembler {
                       FPURegister double_scratch,
                       Label *not_int32);
 
-  // Truncates a double using a specific rounding mode, and writes the value
-  // to the result register.
+  // Truncates a double using a specific rounding mode.
   // The except_flag will contain any exceptions caused by the instruction.
-  // If check_inexact is kDontCheckForInexactConversion, then the inexact
+  // If check_inexact is kDontCheckForInexactConversion, then the inexacat
   // exception is masked.
   void EmitFPUTruncate(FPURoundingMode rounding_mode,
-                       Register result,
+                       FPURegister result,
                        DoubleRegister double_input,
-                       Register scratch,
-                       DoubleRegister double_scratch,
+                       Register scratch1,
                        Register except_flag,
                        CheckForInexactConversion check_inexact
                            = kDontCheckForInexactConversion);
@@ -984,14 +972,14 @@ class MacroAssembler: public Assembler {
   // case scratch2, scratch3 and scratch4 are unmodified.
   void StoreNumberToDoubleElements(Register value_reg,
                                    Register key_reg,
+                                   Register receiver_reg,
                                    // All regs below here overwritten.
                                    Register elements_reg,
                                    Register scratch1,
                                    Register scratch2,
                                    Register scratch3,
                                    Register scratch4,
-                                   Label* fail,
-                                   int elements_offset = 0);
+                                   Label* fail);
 
   // Compare an object's map with the specified map and its transitioned
   // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Jumps to

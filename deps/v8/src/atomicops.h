@@ -151,9 +151,7 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 } }  // namespace v8::internal
 
 // Include our platform specific implementation.
-#if defined(THREAD_SANITIZER)
-#include "atomicops_internals_tsan.h"
-#elif defined(_MSC_VER) && \
+#if defined(_MSC_VER) && \
   (defined(V8_HOST_ARCH_IA32) || defined(V8_HOST_ARCH_X64))
 #include "atomicops_internals_x86_msvc.h"
 #elif defined(__APPLE__) && \

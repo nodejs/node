@@ -100,10 +100,8 @@ class DeoptimizerData {
 #endif
 
  private:
-  int eager_deoptimization_entry_code_entries_;
-  int lazy_deoptimization_entry_code_entries_;
-  VirtualMemory* eager_deoptimization_entry_code_;
-  VirtualMemory* lazy_deoptimization_entry_code_;
+  MemoryChunk* eager_deoptimization_entry_code_;
+  MemoryChunk* lazy_deoptimization_entry_code_;
   Deoptimizer* current_;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -228,17 +226,7 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-
-  enum GetEntryMode {
-    CALCULATE_ENTRY_ADDRESS,
-    ENSURE_ENTRY_CODE
-  };
-
-
-  static Address GetDeoptimizationEntry(
-      int id,
-      BailoutType type,
-      GetEntryMode mode = ENSURE_ENTRY_CODE);
+  static Address GetDeoptimizationEntry(int id, BailoutType type);
   static int GetDeoptimizationId(Address addr, BailoutType type);
   static int GetOutputInfo(DeoptimizationOutputData* data,
                            BailoutId node_id,
@@ -295,11 +283,8 @@ class Deoptimizer : public Malloced {
 
   int ConvertJSFrameIndexToFrameIndex(int jsframe_index);
 
-  static size_t GetMaxDeoptTableSize();
-
  private:
-  static const int kMinNumberOfEntries = 64;
-  static const int kMaxNumberOfEntries = 16384;
+  static const int kNumberOfEntries = 16384;
 
   Deoptimizer(Isolate* isolate,
               JSFunction* function,
@@ -342,8 +327,7 @@ class Deoptimizer : public Malloced {
   void AddArgumentsObjectValue(intptr_t value);
   void AddDoubleValue(intptr_t slot_address, double value);
 
-  static void EnsureCodeForDeoptimizationEntry(BailoutType type,
-                                               int max_entry_id);
+  static MemoryChunk* CreateCode(BailoutType type);
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
 
@@ -537,6 +521,9 @@ class FrameDescription {
   intptr_t context_;
   StackFrame::Type type_;
   Smi* state_;
+#ifdef DEBUG
+  Code::Kind kind_;
+#endif
 
   // Continuation is the PC where the execution continues after
   // deoptimizing.

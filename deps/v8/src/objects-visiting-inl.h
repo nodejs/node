@@ -68,7 +68,7 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   SharedFunctionInfo::BodyDescriptor,
                   int>::Visit);
 
-  table_.Register(kVisitSeqOneByteString, &VisitSeqOneByteString);
+  table_.Register(kVisitSeqAsciiString, &VisitSeqAsciiString);
 
   table_.Register(kVisitSeqTwoByteString, &VisitSeqTwoByteString);
 
@@ -110,7 +110,10 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
                   SlicedString::BodyDescriptor,
                   void>::Visit);
 
-  table_.Register(kVisitFixedArray, &FixedArrayVisitor::Visit);
+  table_.Register(kVisitFixedArray,
+                  &FlexibleBodyVisitor<StaticVisitor,
+                  FixedArray::BodyDescriptor,
+                  void>::Visit);
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
@@ -120,7 +123,7 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitSeqOneByteString, &DataObjectVisitor::Visit);
+  table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
 
   table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
 
@@ -222,17 +225,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
 
 
 template<typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
-    Heap* heap, RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
-  Code* target = rinfo->code_age_stub();
-  ASSERT(target != NULL);
-  heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
-  StaticVisitor::MarkObject(heap, target);
-}
-
-
-template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitNativeContext(
     Map* map, HeapObject* object) {
   FixedBodyVisitor<StaticVisitor,
@@ -284,9 +276,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCode(
   if (FLAG_cleanup_code_caches_at_gc) {
     code->ClearTypeFeedbackCells(heap);
   }
-  if (FLAG_age_code && !Serializer::enabled()) {
-    code->MakeOlder(heap->mark_compact_collector()->marking_parity());
-  }
   code->CodeIterateBody<StaticVisitor>(heap);
 }
 
@@ -298,13 +287,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
   SharedFunctionInfo* shared = SharedFunctionInfo::cast(object);
   if (shared->ic_age() != heap->global_ic_age()) {
     shared->ResetForNewContext(heap->global_ic_age());
-  }
-  if (FLAG_cache_optimized_code) {
-    // Flush optimized code map on major GC.
-    // TODO(mstarzinger): We may experiment with rebuilding it or with
-    // retaining entries which should survive as we iterate through
-    // optimized functions anyway.
-    shared->ClearOptimizedCodeMap();
   }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
@@ -467,10 +449,8 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   // by optimized version of function.
   MarkBit code_mark = Marking::MarkBitFrom(function->code());
   if (code_mark.Get()) {
-    if (!FLAG_age_code) {
-      if (!Marking::MarkBitFrom(shared_info).Get()) {
-        shared_info->set_code_age(0);
-      }
+    if (!Marking::MarkBitFrom(shared_info).Get()) {
+      shared_info->set_code_age(0);
     }
     return false;
   }
@@ -480,13 +460,8 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  // We do not (yet) flush code for optimized functions.
+  // We do not flush code for optimized functions.
   if (function->code() != shared_info->code()) {
-    return false;
-  }
-
-  // Check age of optimized code.
-  if (FLAG_age_code && !function->code()->IsOld()) {
     return false;
   }
 
@@ -531,20 +506,20 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
-  if (FLAG_age_code) {
-    return shared_info->code()->IsOld();
-  } else {
-    // How many collections newly compiled code object will survive before being
-    // flushed.
-    static const int kCodeAgeThreshold = 5;
+  // TODO(mstarzinger): The following will soon be replaced by a new way of
+  // aging code, that is based on an aging stub in the function prologue.
 
-    // Age this shared function info.
-    if (shared_info->code_age() < kCodeAgeThreshold) {
-      shared_info->set_code_age(shared_info->code_age() + 1);
-      return false;
-    }
-    return true;
+  // How many collections newly compiled code object will survive before being
+  // flushed.
+  static const int kCodeAgeThreshold = 5;
+
+  // Age this shared function info.
+  if (shared_info->code_age() < kCodeAgeThreshold) {
+    shared_info->set_code_age(shared_info->code_age() + 1);
+    return false;
   }
+
+  return true;
 }
 
 

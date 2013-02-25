@@ -178,29 +178,5 @@ short_test(a, 0);
 assertTrue(%GetOptimizationStatus(short_test) != 1);
 
 
-// A test for when we would modify a phi index.
-var data_phi = [0, 1, 2, 3, 4, 5, 6, 7, 8];
-function test_phi(a, base, check) {
-  var index;
-  if (check) {
-    index = base + 1;
-  } else {
-    index = base + 2;
-  }
-  var result = a[index];
-  result += a[index + 1];
-  result += a[index - 1];
-  return result;
-}
-var result_phi = 0;
-result_phi = test_phi(data_phi, 3,  true);
-assertEquals(12, result_phi);
-result_phi = test_phi(data_phi, 3,  true);
-assertEquals(12, result_phi);
-%OptimizeFunctionOnNextCall(test_phi);
-result_phi = test_phi(data_phi, 3,  true);
-assertEquals(12, result_phi);
-
-
 gc();
 

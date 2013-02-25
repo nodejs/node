@@ -190,8 +190,7 @@ v8::Handle<Integer> DeclarationContext::HandleQuery(Local<String> key,
 
 
 DeclarationContext* DeclarationContext::GetInstance(const AccessorInfo& info) {
-  void* value = External::Cast(*info.Data())->Value();
-  return static_cast<DeclarationContext*>(value);
+  return static_cast<DeclarationContext*>(External::Unwrap(info.Data()));
 }
 
 
@@ -735,7 +734,7 @@ class SimpleContext {
 };
 
 
-TEST(CrossScriptReferences) {
+TEST(MultiScriptConflicts) {
   HandleScope scope;
 
   { SimpleContext context;
@@ -773,70 +772,135 @@ TEST(CrossScriptReferences) {
     context.Check("function x() { return 7 }; x",
                   EXPECT_EXCEPTION);
   }
-}
 
-
-TEST(CrossScriptReferencesHarmony) {
   i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
-  i::FLAG_harmony_modules = true;
 
-  HandleScope scope;
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("this.x",
+                  EXPECT_RESULT, Number::New(1));
+  }
 
-  const char* decs[] = {
-    "var x = 1; x", "x", "this.x",
-    "function x() { return 1 }; x()", "x()", "this.x()",
-    "let x = 1; x", "x", "this.x",
-    "const x = 1; x", "x", "this.x",
-    "module x { export let a = 1 }; x.a", "x.a", "this.x.a",
-    NULL
-  };
+  { SimpleContext context;
+    context.Check("function x() { return 4 }; x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("x()",
+                  EXPECT_RESULT, Number::New(4));
+    context.Check("this.x()",
+                  EXPECT_RESULT, Number::New(4));
+  }
 
-  for (int i = 0; decs[i] != NULL; i += 3) {
-    SimpleContext context;
-    context.Check(decs[i], EXPECT_RESULT, Number::New(1));
-    context.Check(decs[i+1], EXPECT_RESULT, Number::New(1));
+  { SimpleContext context;
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(2));
     // TODO(rossberg): The current ES6 draft spec does not reflect lexical
     // bindings on the global object. However, this will probably change, in
     // which case we reactivate the following test.
-    if (i/3 < 2) context.Check(decs[i+2], EXPECT_RESULT, Number::New(1));
+    // context.Check("this.x",
+    //               EXPECT_RESULT, Number::New(2));
   }
-}
 
+  { SimpleContext context;
+    context.Check("const x = 3; x",
+                  EXPECT_RESULT, Number::New(3));
+    context.Check("x",
+                  EXPECT_RESULT, Number::New(3));
+    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
+    // bindings on the global object. However, this will probably change, in
+    // which case we reactivate the following test.
+    // context.Check("this.x",
+    //              EXPECT_RESULT, Number::New(3));
+  }
 
-TEST(CrossScriptConflicts) {
-  i::FLAG_use_strict = true;
-  i::FLAG_harmony_scoping = true;
-  i::FLAG_harmony_modules = true;
+  // TODO(rossberg): All of the below should actually be errors in Harmony.
 
-  HandleScope scope;
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
 
-  const char* firsts[] = {
-    "var x = 1; x",
-    "function x() { return 1 }; x()",
-    "let x = 1; x",
-    "const x = 1; x",
-    "module x { export let a = 1 }; x.a",
-    NULL
-  };
-  const char* seconds[] = {
-    "var x = 2; x",
-    "function x() { return 2 }; x()",
-    "let x = 2; x",
-    "const x = 2; x",
-    "module x { export let a = 2 }; x.a",
-    NULL
-  };
+  { SimpleContext context;
+    context.Check("var x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
 
-  for (int i = 0; firsts[i] != NULL; ++i) {
-    for (int j = 0; seconds[j] != NULL; ++j) {
-      SimpleContext context;
-      context.Check(firsts[i], EXPECT_RESULT, Number::New(1));
-      // TODO(rossberg): All tests should actually be errors in Harmony,
-      // but we currently do not detect the cases where the first declaration
-      // is not lexical.
-      context.Check(seconds[j],
-                    i < 2 ? EXPECT_RESULT : EXPECT_ERROR, Number::New(2));
-    }
+  { SimpleContext context;
+    context.Check("function x() { return 1 }; x()",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("function x() { return 1 }; x()",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_RESULT, Number::New(2));
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("let x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 2 }; x()",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("var x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("let x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("const x = 2; x",
+                  EXPECT_ERROR);
+  }
+
+  { SimpleContext context;
+    context.Check("const x = 1; x",
+                  EXPECT_RESULT, Number::New(1));
+    context.Check("function x() { return 2 }; x()",
+                  EXPECT_ERROR);
   }
 }

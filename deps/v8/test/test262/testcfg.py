@@ -36,11 +36,10 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-TEST_262_ARCHIVE_REVISION = "53c4ade82d14"  # This is the r360 revision.
-TEST_262_ARCHIVE_MD5 = "5fa4918b00e5d60e57bdd3c05deaeb0c"
+TEST_262_ARCHIVE_REVISION = "fb327c439e20"  # This is the r334 revision.
+TEST_262_ARCHIVE_MD5 = "307acd166ec34629592f240dc12d57ed"
 TEST_262_URL = "http://hg.ecmascript.org/tests/test262/archive/%s.tar.bz2"
-TEST_262_HARNESS = ["sta.js", "testBuiltInObject.js"]
-TEST_262_SKIP = ["intl402"]
+TEST_262_HARNESS = ["sta.js"]
 
 
 class Test262TestSuite(testsuite.TestSuite):
@@ -60,8 +59,6 @@ class Test262TestSuite(testsuite.TestSuite):
     for dirname, dirs, files in os.walk(self.testroot):
       for dotted in [x for x in dirs if x.startswith(".")]:
         dirs.remove(dotted)
-      for skipped in [x for x in dirs if x in TEST_262_SKIP]:
-        dirs.remove(skipped)
       dirs.sort()
       files.sort()
       for filename in files:
@@ -179,8 +176,6 @@ class Test262TestConfiguration(test.TestConfiguration):
     for root, dirs, files in os.walk(testroot):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
-      for skipped in [x for x in dirs if x in TEST_262_SKIP]:
-        dirs.remove(skipped)
       dirs.sort()
       root_path = root[len(self.root):].split(os.path.sep)
       root_path = current_path + [x for x in root_path if x]

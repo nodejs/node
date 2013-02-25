@@ -125,10 +125,7 @@ class HBasicBlock: public ZoneObject {
   void Goto(HBasicBlock* block, FunctionState* state = NULL);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
-  void AddSimulate(BailoutId ast_id,
-                   RemovableSimulate removable = FIXED_SIMULATE) {
-    AddInstruction(CreateSimulate(ast_id, removable));
-  }
+  void AddSimulate(BailoutId ast_id) { AddInstruction(CreateSimulate(ast_id)); }
   void AssignCommonDominator(HBasicBlock* other);
   void AssignLoopSuccessorDominators();
 
@@ -169,7 +166,7 @@ class HBasicBlock: public ZoneObject {
   void RegisterPredecessor(HBasicBlock* pred);
   void AddDominatedBlock(HBasicBlock* block);
 
-  HSimulate* CreateSimulate(BailoutId ast_id, RemovableSimulate removable);
+  HSimulate* CreateSimulate(BailoutId ast_id);
   HDeoptimize* CreateDeoptimize(HDeoptimize::UseEnvironment has_uses);
 
   int block_id_;
@@ -258,7 +255,6 @@ class HGraph: public ZoneObject {
 
   void InitializeInferredTypes();
   void InsertTypeConversions();
-  void MergeRemovableSimulates();
   void InsertRepresentationChanges();
   void MarkDeoptimizeOnUndefined();
   void ComputeMinusZeroChecks();
@@ -274,7 +270,6 @@ class HGraph: public ZoneObject {
   void DehoistSimpleArrayIndexComputations();
   void DeadCodeElimination();
   void PropagateDeoptimizingMark();
-  void EliminateUnusedInstructions();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
@@ -617,25 +612,6 @@ class HEnvironment: public ZoneObject {
 };
 
 
-class HInferRepresentation BASE_EMBEDDED {
- public:
-  explicit HInferRepresentation(HGraph* graph)
-      : graph_(graph),
-        worklist_(8, graph->zone()),
-        in_worklist_(graph->GetMaximumValueID(), graph->zone()) { }
-
-  void Analyze();
-  void AddToWorklist(HValue* current);
-
- private:
-  Zone* zone() const { return graph_->zone(); }
-
-  HGraph* graph_;
-  ZoneList<HValue*> worklist_;
-  BitVector in_worklist_;
-};
-
-
 class HGraphBuilder;
 
 enum ArgumentsAllowedFlag {
@@ -903,8 +879,7 @@ class HGraphBuilder: public AstVisitor {
 
   // Adding instructions.
   HInstruction* AddInstruction(HInstruction* instr);
-  void AddSimulate(BailoutId ast_id,
-                   RemovableSimulate removable = FIXED_SIMULATE);
+  void AddSimulate(BailoutId ast_id);
 
   // Bailout environment manipulation.
   void Push(HValue* value) { environment()->Push(value); }
@@ -1049,6 +1024,10 @@ class HGraphBuilder: public AstVisitor {
   // to push them as outgoing parameters.
   template <class Instruction> HInstruction* PreProcessCall(Instruction* call);
 
+  void TraceRepresentation(Token::Value op,
+                           TypeInfo info,
+                           HValue* value,
+                           Representation rep);
   static Representation ToRepresentation(TypeInfo info);
 
   void SetUpScope(Scope* scope);
@@ -1185,7 +1164,8 @@ class HGraphBuilder: public AstVisitor {
 
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        Handle<Map> map,
-                                       LookupResult* result);
+                                       LookupResult* result,
+                                       bool smi_and_map_check);
   HInstruction* BuildLoadNamedGeneric(HValue* object,
                                       Handle<String> name,
                                       Property* expr);
@@ -1206,14 +1186,12 @@ class HGraphBuilder: public AstVisitor {
       ElementsKind elements_kind,
       bool is_store);
 
-  void AddCheckMapsWithTransitions(HValue* object,
-                                   Handle<Map> map);
-
   HInstruction* BuildStoreNamedField(HValue* object,
                                      Handle<String> name,
                                      HValue* value,
                                      Handle<Map> map,
-                                     LookupResult* lookup);
+                                     LookupResult* lookup,
+                                     bool smi_and_map_check);
   HInstruction* BuildStoreNamedGeneric(HValue* object,
                                        Handle<String> name,
                                        HValue* value);
@@ -1234,17 +1212,10 @@ class HGraphBuilder: public AstVisitor {
 
   HInstruction* BuildThisFunction();
 
-  void AddCheckPrototypeMaps(Handle<JSObject> holder,
-                             Handle<Map> receiver_map);
-
   void AddCheckConstantFunction(Handle<JSObject> holder,
                                 HValue* receiver,
-                                Handle<Map> receiver_map);
-
-  bool MatchRotateRight(HValue* left,
-                        HValue* right,
-                        HValue** operand,
-                        HValue** shift_amount);
+                                Handle<Map> receiver_map,
+                                bool smi_and_map_check);
 
   Zone* zone() const { return zone_; }
 
@@ -1378,22 +1349,12 @@ class HStatistics: public Malloced {
     return instance.get();
   }
 
-  void IncrementSubtotals(int64_t create_graph,
-                          int64_t optimize_graph,
-                          int64_t generate_code) {
-    create_graph_ += create_graph;
-    optimize_graph_ += optimize_graph;
-    generate_code_ += generate_code;
-  }
-
  private:
   HStatistics()
       : timing_(5),
         names_(5),
         sizes_(5),
-        create_graph_(0),
-        optimize_graph_(0),
-        generate_code_(0),
+        total_(0),
         total_size_(0),
         full_code_gen_(0),
         source_size_(0) { }
@@ -1401,9 +1362,7 @@ class HStatistics: public Malloced {
   List<int64_t> timing_;
   List<const char*> names_;
   List<unsigned> sizes_;
-  int64_t create_graph_;
-  int64_t optimize_graph_;
-  int64_t generate_code_;
+  int64_t total_;
   unsigned total_size_;
   int64_t full_code_gen_;
   double source_size_;
@@ -1413,6 +1372,7 @@ class HStatistics: public Malloced {
 class HPhase BASE_EMBEDDED {
  public:
   static const char* const kFullCodeGen;
+  static const char* const kTotal;
 
   explicit HPhase(const char* name) { Begin(name, NULL, NULL, NULL); }
   HPhase(const char* name, HGraph* graph) {

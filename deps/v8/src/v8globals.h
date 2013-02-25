@@ -351,13 +351,20 @@ struct AccessorDescriptor {
 // VMState object leaves a state by popping the current state from the
 // stack.
 
+#define STATE_TAG_LIST(V)                       \
+  V(JS)                                         \
+  V(GC)                                         \
+  V(COMPILER)                                   \
+  V(PARALLEL_COMPILER_PROLOGUE)                 \
+  V(OTHER)                                      \
+  V(EXTERNAL)
+
 enum StateTag {
-  JS,
-  GC,
-  COMPILER,
-  PARALLEL_COMPILER,
-  OTHER,
-  EXTERNAL
+#define DEF_STATE_TAG(name) name,
+  STATE_TAG_LIST(DEF_STATE_TAG)
+#undef DEF_STATE_TAG
+  // Pseudo-types.
+  state_tag_count
 };
 
 
@@ -476,19 +483,11 @@ enum VariableMode {
 
   CONST,           // declared via 'const' declarations
 
-  LET,             // declared via 'let' declarations (first lexical)
+  LET,             // declared via 'let' declarations
 
   CONST_HARMONY,   // declared via 'const' declarations in harmony mode
 
-  MODULE,          // declared via 'module' declaration (last lexical)
-
   // Variables introduced by the compiler:
-  INTERNAL,        // like VAR, but not user-visible (may or may not
-                   // be in a context)
-
-  TEMPORARY,       // temporary variables (not user-visible), never
-                   // in a context
-
   DYNAMIC,         // always require dynamic lookup (we don't know
                    // the declaration)
 
@@ -496,10 +495,16 @@ enum VariableMode {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL    // requires dynamic lookup, but we know that the
+  DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
                    // variable is local and where it is unless it
                    // has been shadowed by an eval-introduced
                    // variable
+
+  INTERNAL,        // like VAR, but not user-visible (may or may not
+                   // be in a context)
+
+  TEMPORARY        // temporary variables (not user-visible), never
+                   // in a context
 };
 
 
@@ -509,17 +514,17 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= MODULE;
+  return mode >= VAR && mode <= CONST_HARMONY;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= MODULE;
+  return mode >= LET && mode <= CONST_HARMONY;
 }
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || (mode >= CONST_HARMONY && mode <= MODULE);
+  return mode == CONST || mode == CONST_HARMONY;
 }
 
 

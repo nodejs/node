@@ -50,6 +50,7 @@ namespace internal {
   HT(compile_eval, V8.CompileEval)                                    \
   HT(compile_lazy, V8.CompileLazy)
 
+
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
   HP(external_fragmentation_total,                                    \
      V8.MemoryExternalFragmentationTotal)                             \
@@ -373,8 +374,15 @@ class Counters {
     kSizeOfFIXED_ARRAY__##name,
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
 #undef COUNTER_ID
+#define COUNTER_ID(name) k_##name,
+    STATE_TAG_LIST(COUNTER_ID)
+#undef COUNTER_ID
     stats_counter_count
   };
+
+  StatsCounter* state_counters(StateTag state) {
+    return &state_counters_[state];
+  }
 
   void ResetHistograms();
 
@@ -418,6 +426,15 @@ class Counters {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
+  enum {
+#define COUNTER_ID(name) __##name,
+    STATE_TAG_LIST(COUNTER_ID)
+#undef COUNTER_ID
+    kSlidingStateWindowCounterCount
+  };
+
+  // Sliding state window counters.
+  StatsCounter state_counters_[kSlidingStateWindowCounterCount];
   friend class Isolate;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);

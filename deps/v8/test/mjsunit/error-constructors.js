@@ -36,6 +36,10 @@ assertFalse(desc['enumerable']);
 var e = new Error("foobar");
 desc = Object.getOwnPropertyDescriptor(e, 'message');
 assertFalse(desc['enumerable']);
+desc = Object.getOwnPropertyDescriptor(e, 'arguments');
+assertFalse(desc['enumerable']);
+desc = Object.getOwnPropertyDescriptor(e, 'type');
+assertFalse(desc['enumerable']);
 desc = Object.getOwnPropertyDescriptor(e, 'stack');
 assertFalse(desc['enumerable']);
 
@@ -53,17 +57,26 @@ for (var v in e) {
 function fail() { assertUnreachable(); };
 ReferenceError.prototype.__defineSetter__('name', fail);
 ReferenceError.prototype.__defineSetter__('message', fail);
+ReferenceError.prototype.__defineSetter__('type', fail);
+ReferenceError.prototype.__defineSetter__('arguments', fail);
 ReferenceError.prototype.__defineSetter__('stack', fail);
 
 var e = new ReferenceError();
 assertTrue(e.hasOwnProperty('stack'));
+assertTrue(e.hasOwnProperty('type'));
+assertTrue(e.hasOwnProperty('arguments'));
 
 var e = new ReferenceError('123');
 assertTrue(e.hasOwnProperty('message'));
 assertTrue(e.hasOwnProperty('stack'));
+assertTrue(e.hasOwnProperty('type'));
+assertTrue(e.hasOwnProperty('arguments'));
 
 var e = %MakeReferenceError("my_test_error", [0, 1]);
 assertTrue(e.hasOwnProperty('stack'));
+assertTrue(e.hasOwnProperty('type'));
+assertTrue(e.hasOwnProperty('arguments'));
+assertEquals("my_test_error", e.type)
 
 // Check that intercepting property access from toString is prevented for
 // compiler errors. This is not specified, but allowing interception
@@ -73,7 +86,7 @@ var errors = [SyntaxError, ReferenceError, TypeError];
 for (var i in errors) {
   var name = errors[i].prototype.toString();
   // Monkey-patch prototype.
-  var props = ["name", "message", "stack"];
+  var props = ["name", "message", "type", "arguments", "stack"];
   for (var j in props) {
     errors[i].prototype.__defineGetter__(props[j], fail);
   }

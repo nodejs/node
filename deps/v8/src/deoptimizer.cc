@@ -41,11 +41,8 @@ namespace v8 {
 namespace internal {
 
 DeoptimizerData::DeoptimizerData() {
-  eager_deoptimization_entry_code_entries_ = -1;
-  lazy_deoptimization_entry_code_entries_ = -1;
-  size_t deopt_table_size = Deoptimizer::GetMaxDeoptTableSize();
-  eager_deoptimization_entry_code_ = new VirtualMemory(deopt_table_size);
-  lazy_deoptimization_entry_code_ = new VirtualMemory(deopt_table_size);
+  eager_deoptimization_entry_code_ = NULL;
+  lazy_deoptimization_entry_code_ = NULL;
   current_ = NULL;
   deoptimizing_code_list_ = NULL;
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -55,18 +52,16 @@ DeoptimizerData::DeoptimizerData() {
 
 
 DeoptimizerData::~DeoptimizerData() {
-  delete eager_deoptimization_entry_code_;
-  eager_deoptimization_entry_code_ = NULL;
-  delete lazy_deoptimization_entry_code_;
-  lazy_deoptimization_entry_code_ = NULL;
-
-  DeoptimizingCodeListNode* current = deoptimizing_code_list_;
-  while (current != NULL) {
-    DeoptimizingCodeListNode* prev = current;
-    current = current->next();
-    delete prev;
+  if (eager_deoptimization_entry_code_ != NULL) {
+    Isolate::Current()->memory_allocator()->Free(
+        eager_deoptimization_entry_code_);
+    eager_deoptimization_entry_code_ = NULL;
   }
-  deoptimizing_code_list_ = NULL;
+  if (lazy_deoptimization_entry_code_ != NULL) {
+    Isolate::Current()->memory_allocator()->Free(
+        lazy_deoptimization_entry_code_);
+    lazy_deoptimization_entry_code_ = NULL;
+  }
 }
 
 
@@ -98,20 +93,6 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
   ASSERT(isolate->deoptimizer_data()->current_ == NULL);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
-}
-
-
-// No larger than 2K on all platforms
-static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
-
-
-size_t Deoptimizer::GetMaxDeoptTableSize() {
-  int entries_size =
-      Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
-  int commit_page_size = static_cast<int>(OS::CommitPageSize());
-  int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
-                    commit_page_size) + 1;
-  return static_cast<size_t>(commit_page_size * page_count);
 }
 
 
@@ -473,45 +454,44 @@ void Deoptimizer::DeleteFrameDescriptions() {
 }
 
 
-Address Deoptimizer::GetDeoptimizationEntry(int id,
-                                            BailoutType type,
-                                            GetEntryMode mode) {
+Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
   ASSERT(id >= 0);
-  if (id >= kMaxNumberOfEntries) return NULL;
-  VirtualMemory* base = NULL;
-  if (mode == ENSURE_ENTRY_CODE) {
-    EnsureCodeForDeoptimizationEntry(type, id);
-  } else {
-    ASSERT(mode == CALCULATE_ENTRY_ADDRESS);
-  }
+  if (id >= kNumberOfEntries) return NULL;
+  MemoryChunk* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
+    if (data->eager_deoptimization_entry_code_ == NULL) {
+      data->eager_deoptimization_entry_code_ = CreateCode(type);
+    }
     base = data->eager_deoptimization_entry_code_;
   } else {
+    if (data->lazy_deoptimization_entry_code_ == NULL) {
+      data->lazy_deoptimization_entry_code_ = CreateCode(type);
+    }
     base = data->lazy_deoptimization_entry_code_;
   }
   return
-      static_cast<Address>(base->address()) + (id * table_entry_size_);
+      static_cast<Address>(base->area_start()) + (id * table_entry_size_);
 }
 
 
 int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  VirtualMemory* base = NULL;
+  MemoryChunk* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     base = data->eager_deoptimization_entry_code_;
   } else {
     base = data->lazy_deoptimization_entry_code_;
   }
-  Address base_casted = reinterpret_cast<Address>(base->address());
   if (base == NULL ||
-      addr < base->address() ||
-      addr >= base_casted + (kMaxNumberOfEntries * table_entry_size_)) {
+      addr < base->area_start() ||
+      addr >= base->area_start() +
+          (kNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-            static_cast<int>(addr - base_casted) % table_entry_size_);
-  return static_cast<int>(addr - base_casted) / table_entry_size_;
+      static_cast<int>(addr - base->area_start()) % table_entry_size_);
+  return static_cast<int>(addr - base->area_start()) / table_entry_size_;
 }
 
 
@@ -535,7 +515,7 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
   shared->SourceCodePrint(&stream, -1);
   PrintF("[source:\n%s\n]", *stream.ToCString());
 
-  FATAL("unable to find pc offset during deoptimization");
+  UNREACHABLE();
   return -1;
 }
 
@@ -1397,45 +1377,31 @@ void Deoptimizer::AddDoubleValue(intptr_t slot_address, double value) {
 }
 
 
-void Deoptimizer::EnsureCodeForDeoptimizationEntry(BailoutType type,
-                                                   int max_entry_id) {
+MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
   // We cannot run this if the serializer is enabled because this will
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
   // isn't meant to be serialized at all.
   ASSERT(!Serializer::enabled());
 
-  ASSERT(type == EAGER || type == LAZY);
-  DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
-  int entry_count = (type == EAGER)
-      ? data->eager_deoptimization_entry_code_entries_
-      : data->lazy_deoptimization_entry_code_entries_;
-  if (max_entry_id < entry_count) return;
-  entry_count = Max(entry_count, Deoptimizer::kMinNumberOfEntries);
-  while (max_entry_id >= entry_count) entry_count *= 2;
-  ASSERT(entry_count <= Deoptimizer::kMaxNumberOfEntries);
-
   MacroAssembler masm(Isolate::Current(), NULL, 16 * KB);
   masm.set_emit_debug_code(false);
-  GenerateDeoptimizationEntries(&masm, entry_count, type);
+  GenerateDeoptimizationEntries(&masm, kNumberOfEntries, type);
   CodeDesc desc;
   masm.GetCode(&desc);
   ASSERT(desc.reloc_size == 0);
 
-  VirtualMemory* memory = type == EAGER
-      ? data->eager_deoptimization_entry_code_
-      : data->lazy_deoptimization_entry_code_;
-  size_t table_size = Deoptimizer::GetMaxDeoptTableSize();
-  ASSERT(static_cast<int>(table_size) >= desc.instr_size);
-  memory->Commit(memory->address(), table_size, true);
-  memcpy(memory->address(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(memory->address(), desc.instr_size);
-
-  if (type == EAGER) {
-    data->eager_deoptimization_entry_code_entries_ = entry_count;
-  } else {
-    data->lazy_deoptimization_entry_code_entries_ = entry_count;
+  MemoryChunk* chunk =
+      Isolate::Current()->memory_allocator()->AllocateChunk(desc.instr_size,
+                                                            EXECUTABLE,
+                                                            NULL);
+  ASSERT(chunk->area_size() >= desc.instr_size);
+  if (chunk == NULL) {
+    V8::FatalProcessOutOfMemory("Not enough memory for deoptimization table");
   }
+  memcpy(chunk->area_start(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(chunk->area_start(), desc.instr_size);
+  return chunk;
 }
 
 

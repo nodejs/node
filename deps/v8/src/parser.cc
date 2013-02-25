@@ -614,6 +614,11 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
+  // Compute the parsing mode.
+  Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
+  if (allow_natives_syntax_ || extension_ != NULL) mode = PARSE_EAGERLY;
+  ParsingModeScope parsing_mode(this, mode);
+
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
@@ -631,13 +636,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     }
     scope->set_start_position(0);
     scope->set_end_position(source->length());
-
-    // Compute the parsing mode.
-    Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
-    if (allow_natives_syntax_ || extension_ != NULL || scope->is_eval_scope()) {
-      mode = PARSE_EAGERLY;
-    }
-    ParsingModeScope parsing_mode(this, mode);
 
     FunctionState function_state(this, scope, isolate());  // Enters 'scope'.
     top_scope_->SetLanguageMode(info->language_mode());
@@ -1061,14 +1059,12 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           // as specified in ES5 10.4.2(3). The correct fix would be to always
           // add this scope in DoParseProgram(), but that requires adaptations
           // all over the code base, so we go with a quick-fix for now.
-          // In the same manner, we have to patch the parsing mode.
           if (is_eval && !top_scope_->is_eval_scope()) {
             ASSERT(top_scope_->is_global_scope());
             Scope* scope = NewScope(top_scope_, EVAL_SCOPE);
             scope->set_start_position(top_scope_->start_position());
             scope->set_end_position(top_scope_->end_position());
             top_scope_ = scope;
-            mode_ = PARSE_EAGERLY;
           }
           // TODO(ES6): Fix entering extended mode, once it is specified.
           top_scope_->SetLanguageMode(FLAG_harmony_scoping
@@ -1164,7 +1160,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
 #endif
 
   Module* module = ParseModule(CHECK_OK);
-  VariableProxy* proxy = NewUnresolved(name, MODULE, module->interface());
+  VariableProxy* proxy = NewUnresolved(name, LET, module->interface());
   Declaration* declaration =
       factory()->NewModuleDeclaration(proxy, module, top_scope_);
   Declare(declaration, true, CHECK_OK);
@@ -1183,7 +1179,7 @@ Statement* Parser::ParseModuleDeclaration(ZoneStringList* names, bool* ok) {
   if (module->body() == NULL)
     return factory()->NewEmptyStatement();
   else
-    return factory()->NewModuleStatement(proxy, module->body());
+    return module->body();
 }
 
 
@@ -1332,15 +1328,12 @@ Module* Parser::ParseModuleUrl(bool* ok) {
   if (FLAG_print_interface_details) PrintF("# Url ");
 #endif
 
-  // Create an empty literal as long as the feature isn't finished.
-  USE(symbol);
-  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
-  Block* body = factory()->NewBlock(NULL, 1, false);
-  body->set_scope(scope);
-  Interface* interface = scope->interface();
-  Module* result = factory()->NewModuleLiteral(body, interface);
+  Module* result = factory()->NewModuleUrl(symbol);
+  Interface* interface = result->interface();
   interface->Freeze(ok);
   ASSERT(*ok);
+  // Create dummy scope to avoid errors as long as the feature isn't finished.
+  Scope* scope = NewScope(top_scope_, MODULE_SCOPE);
   interface->Unify(scope->interface(), zone(), ok);
   ASSERT(*ok);
   return result;
@@ -1709,9 +1702,10 @@ void Parser::Declare(Declaration* declaration, bool resolve, bool* ok) {
         *ok = false;
         return;
       }
+      const char* type =
+          (var->mode() == VAR) ? "var" : var->is_const_mode() ? "const" : "let";
       Handle<String> type_string =
-          isolate()->factory()->NewStringFromUtf8(CStrVector("Variable"),
-                                                  TENURED);
+          isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
       Expression* expression =
           NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
                             type_string, name);
@@ -3209,8 +3203,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       if (op == Token::NOT) {
         // Convert the literal to a boolean condition and negate it.
         bool condition = literal->ToBoolean()->IsTrue();
-        Handle<Object> result(isolate()->heap()->ToBoolean(!condition),
-                              isolate());
+        Handle<Object> result(isolate()->heap()->ToBoolean(!condition));
         return factory()->NewLiteral(result);
       } else if (literal->IsNumber()) {
         // Compute some expressions involving only number literals.
@@ -3718,16 +3711,17 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
   // Allocate a fixed array to hold all the object literals.
-  Handle<JSArray> array =
-      isolate()->factory()->NewJSArray(0, FAST_HOLEY_SMI_ELEMENTS);
-  isolate()->factory()->SetElementsCapacityAndLength(
-      array, values->length(), values->length());
+  Handle<FixedArray> object_literals =
+      isolate()->factory()->NewFixedArray(values->length(), TENURED);
+  Handle<FixedDoubleArray> double_literals;
+  ElementsKind elements_kind = FAST_SMI_ELEMENTS;
+  bool has_only_undefined_values = true;
+  bool has_hole_values = false;
 
   // Fill in the literals.
   Heap* heap = isolate()->heap();
   bool is_simple = true;
   int depth = 1;
-  bool is_holey = false;
   for (int i = 0, n = values->length(); i < n; i++) {
     MaterializedLiteral* m_literal = values->at(i)->AsMaterializedLiteral();
     if (m_literal != NULL && m_literal->depth() + 1 > depth) {
@@ -3735,33 +3729,91 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
     if (boilerplate_value->IsTheHole()) {
-      is_holey = true;
+      has_hole_values = true;
+      object_literals->set_the_hole(i);
+      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        double_literals->set_the_hole(i);
+      }
     } else if (boilerplate_value->IsUndefined()) {
       is_simple = false;
-      JSObject::SetOwnElement(
-          array, i, handle(Smi::FromInt(0), isolate()), kNonStrictMode);
+      object_literals->set(i, Smi::FromInt(0));
+      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        double_literals->set(i, 0);
+      }
     } else {
-      JSObject::SetOwnElement(array, i, boilerplate_value, kNonStrictMode);
+      // Examine each literal element, and adjust the ElementsKind if the
+      // literal element is not of a type that can be stored in the current
+      // ElementsKind.  Start with FAST_SMI_ONLY_ELEMENTS, and transition to
+      // FAST_DOUBLE_ELEMENTS and FAST_ELEMENTS as necessary.  Always remember
+      // the tagged value, no matter what the ElementsKind is in case we
+      // ultimately end up in FAST_ELEMENTS.
+      has_only_undefined_values = false;
+      object_literals->set(i, *boilerplate_value);
+      if (elements_kind == FAST_SMI_ELEMENTS) {
+        // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
+        // FAST_ELEMENTS is required.
+        if (!boilerplate_value->IsSmi()) {
+          if (boilerplate_value->IsNumber() && FLAG_smi_only_arrays) {
+            // Allocate a double array on the FAST_DOUBLE_ELEMENTS transition to
+            // avoid over-allocating in TENURED space.
+            double_literals = isolate()->factory()->NewFixedDoubleArray(
+                values->length(), TENURED);
+            // Copy the contents of the FAST_SMI_ONLY_ELEMENT array to the
+            // FAST_DOUBLE_ELEMENTS array so that they are in sync.
+            for (int j = 0; j < i; ++j) {
+              Object* smi_value = object_literals->get(j);
+              if (smi_value->IsTheHole()) {
+                double_literals->set_the_hole(j);
+              } else {
+                double_literals->set(j, Smi::cast(smi_value)->value());
+              }
+            }
+            double_literals->set(i, boilerplate_value->Number());
+            elements_kind = FAST_DOUBLE_ELEMENTS;
+          } else {
+            elements_kind = FAST_ELEMENTS;
+          }
+        }
+      } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        // Continue to store double values in to FAST_DOUBLE_ELEMENTS arrays
+        // until the first value is seen that can't be stored as a double.
+        if (boilerplate_value->IsNumber()) {
+          double_literals->set(i, boilerplate_value->Number());
+        } else {
+          elements_kind = FAST_ELEMENTS;
+        }
+      }
     }
   }
 
-  Handle<FixedArrayBase> element_values(array->elements());
+  // Very small array literals that don't have a concrete hint about their type
+  // from a constant value should default to the slow case to avoid lots of
+  // elements transitions on really small objects.
+  if (has_only_undefined_values && values->length() <= 2) {
+    elements_kind = FAST_ELEMENTS;
+  }
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
   if (is_simple && depth == 1 && values->length() > 0 &&
-      array->HasFastSmiOrObjectElements()) {
-    element_values->set_map(heap->fixed_cow_array_map());
+      elements_kind != FAST_DOUBLE_ELEMENTS) {
+    object_literals->set_map(heap->fixed_cow_array_map());
   }
+
+  Handle<FixedArrayBase> element_values = elements_kind == FAST_DOUBLE_ELEMENTS
+      ? Handle<FixedArrayBase>(double_literals)
+      : Handle<FixedArrayBase>(object_literals);
 
   // Remember both the literal's constant values as well as the ElementsKind
   // in a 2-element FixedArray.
-  Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(2, TENURED);
+  Handle<FixedArray> literals =
+      isolate()->factory()->NewFixedArray(2, TENURED);
 
-  ElementsKind kind = array->GetElementsKind();
-  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
+  if (has_hole_values || !FLAG_packed_arrays) {
+    elements_kind = GetHoleyElementsKind(elements_kind);
+  }
 
-  literals->set(0, Smi::FromInt(kind));
+  literals->set(0, Smi::FromInt(elements_kind));
   literals->set(1, *element_values);
 
   return factory()->NewArrayLiteral(

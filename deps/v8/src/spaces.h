@@ -397,12 +397,6 @@ class MemoryChunk {
     WAS_SWEPT_PRECISELY,
     WAS_SWEPT_CONSERVATIVELY,
 
-    // Large objects can have a progress bar in their page header. These object
-    // are scanned in increments and will be kept black while being scanned.
-    // Even if the mutator writes to them they will be kept black and a white
-    // to grey transition is performed in the value.
-    HAS_PROGRESS_BAR,
-
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -486,29 +480,6 @@ class MemoryChunk {
     write_barrier_counter_ = counter;
   }
 
-  int progress_bar() {
-    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
-    return progress_bar_;
-  }
-
-  void set_progress_bar(int progress_bar) {
-    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
-    progress_bar_ = progress_bar;
-  }
-
-  void ResetProgressBar() {
-    if (IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-      set_progress_bar(0);
-      ClearFlag(MemoryChunk::HAS_PROGRESS_BAR);
-    }
-  }
-
-  bool IsLeftOfProgressBar(Object** slot) {
-    Address slot_address = reinterpret_cast<Address>(slot);
-    ASSERT(slot_address > this->address());
-    return (slot_address - (this->address() + kObjectStartOffset)) <
-           progress_bar();
-  }
 
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
@@ -533,8 +504,7 @@ class MemoryChunk {
   static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize + kPointerSize;
 
-  static const size_t kHeaderSize =
-      kWriteBarrierCounterOffset + kPointerSize + kIntSize + kIntSize;
+  static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -646,13 +616,6 @@ class MemoryChunk {
     return static_cast<int>(area_end() - area_start());
   }
 
-  // Approximate amount of physical memory committed for this chunk.
-  size_t CommittedPhysicalMemory() {
-    return high_water_mark_;
-  }
-
-  static inline void UpdateHighWaterMark(Address mark);
-
  protected:
   MemoryChunk* next_chunk_;
   MemoryChunk* prev_chunk_;
@@ -678,12 +641,6 @@ class MemoryChunk {
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
   intptr_t write_barrier_counter_;
-  // Used by the incremental marker to keep track of the scanning progress in
-  // large objects that have a progress bar and are scanned in increments.
-  int progress_bar_;
-  // Assuming the initial allocation on a page is sequential,
-  // count highest number of bytes ever allocated on the page.
-  int high_water_mark_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -1533,9 +1490,6 @@ class PagedSpace : public Space {
   // spaces this equals the capacity.
   intptr_t CommittedMemory() { return Capacity(); }
 
-  // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
-
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
@@ -1596,7 +1550,6 @@ class PagedSpace : public Space {
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
-    MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
     allocation_info_.top = top;
     allocation_info_.limit = limit;
   }
@@ -2008,9 +1961,6 @@ class SemiSpace : public Space {
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
-  // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
-
  private:
   // Flips the semispace between being from-space and to-space.
   // Copies the flags into the masked positions on all pages in the space.
@@ -2207,9 +2157,6 @@ class NewSpace : public Space {
     if (from_space_.is_committed()) return 2 * Capacity();
     return Capacity();
   }
-
-  // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
 
   // Return the available bytes without growing.
   intptr_t Available() {
@@ -2440,9 +2387,11 @@ class FixedSpace : public PagedSpace {
   FixedSpace(Heap* heap,
              intptr_t max_capacity,
              AllocationSpace id,
-             int object_size_in_bytes)
+             int object_size_in_bytes,
+             const char* name)
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
-        object_size_in_bytes_(object_size_in_bytes) {
+        object_size_in_bytes_(object_size_in_bytes),
+        name_(name) {
     page_extra_ = Page::kNonCodeObjectAreaSize % object_size_in_bytes;
   }
 
@@ -2459,6 +2408,9 @@ class FixedSpace : public PagedSpace {
  private:
   // The size of objects in this space.
   int object_size_in_bytes_;
+
+  // The name of this space.
+  const char* name_;
 };
 
 
@@ -2469,7 +2421,7 @@ class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
   MapSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, Map::kSize),
+      : FixedSpace(heap, max_capacity, id, Map::kSize, "map"),
         max_map_space_pages_(kMaxMapPageIndex - 1) {
   }
 
@@ -2510,7 +2462,7 @@ class CellSpace : public FixedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize)
+      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize, "cell")
   {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
@@ -2571,9 +2523,6 @@ class LargeObjectSpace : public Space {
   intptr_t CommittedMemory() {
     return Size();
   }
-
-  // Approximate amount of physical memory committed for this space.
-  size_t CommittedPhysicalMemory();
 
   int PageCount() {
     return page_count_;

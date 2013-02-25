@@ -523,7 +523,13 @@ class Assembler : public AssemblerBase {
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size);
-  virtual ~Assembler() { }
+  ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
+
+  // Dummy for cross platform compatibility.
+  void set_predictable_code_size(bool value) { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -663,9 +669,7 @@ class Assembler : public AssemblerBase {
     PROPERTY_ACCESS_INLINED_CONTEXT_DONT_DELETE,
     // Helper values.
     LAST_CODE_MARKER,
-    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
-    // Code aging
-    CODE_AGE_MARKER_NOP = 6
+    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED
   };
 
   // Type == 0 is the default non-marking nop. For mips this is a
@@ -943,6 +947,8 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
+  int32_t pc_offset() const { return pc_ - buffer_; }
+
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -1027,6 +1033,8 @@ class Assembler : public AssemblerBase {
   // the relocation info.
   TypeFeedbackId recorded_ast_id_;
 
+  bool emit_debug_code() const { return emit_debug_code_; }
+
   int32_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos.
@@ -1085,6 +1093,13 @@ class Assembler : public AssemblerBase {
   }
 
  private:
+  // Code buffer:
+  // The buffer into which code and relocation info are generated.
+  byte* buffer_;
+  int buffer_size_;
+  // True if the assembler owns the buffer, false if buffer is external.
+  bool own_buffer_;
+
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
   static const int kBufferCheckInterval = 1*KB/2;
@@ -1095,6 +1110,7 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static const int kGap = 32;
+  byte* pc_;  // The program counter - moves forward.
 
 
   // Repeated checking whether the trampoline pool should be emitted is rather
@@ -1269,6 +1285,7 @@ class Assembler : public AssemblerBase {
   friend class BlockTrampolinePoolScope;
 
   PositionsRecorder positions_recorder_;
+  bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

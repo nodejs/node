@@ -142,6 +142,108 @@ class UnaryOpStub: public CodeStub {
 };
 
 
+class BinaryOpStub: public CodeStub {
+ public:
+  BinaryOpStub(Token::Value op, OverwriteMode mode)
+      : op_(op),
+        mode_(mode),
+        operands_type_(BinaryOpIC::UNINITIALIZED),
+        result_type_(BinaryOpIC::UNINITIALIZED) {
+    use_vfp2_ = CpuFeatures::IsSupported(VFP2);
+    ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
+  }
+
+  BinaryOpStub(
+      int key,
+      BinaryOpIC::TypeInfo operands_type,
+      BinaryOpIC::TypeInfo result_type = BinaryOpIC::UNINITIALIZED)
+      : op_(OpBits::decode(key)),
+        mode_(ModeBits::decode(key)),
+        use_vfp2_(VFP2Bits::decode(key)),
+        operands_type_(operands_type),
+        result_type_(result_type) { }
+
+ private:
+  enum SmiCodeGenerateHeapNumberResults {
+    ALLOW_HEAPNUMBER_RESULTS,
+    NO_HEAPNUMBER_RESULTS
+  };
+
+  Token::Value op_;
+  OverwriteMode mode_;
+  bool use_vfp2_;
+
+  // Operand type information determined at runtime.
+  BinaryOpIC::TypeInfo operands_type_;
+  BinaryOpIC::TypeInfo result_type_;
+
+  virtual void PrintName(StringStream* stream);
+
+  // Minor key encoding in 16 bits RRRTTTVOOOOOOOMM.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 7> {};
+  class VFP2Bits: public BitField<bool, 9, 1> {};
+  class OperandTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 10, 3> {};
+  class ResultTypeInfoBits: public BitField<BinaryOpIC::TypeInfo, 13, 3> {};
+
+  Major MajorKey() { return BinaryOp; }
+  int MinorKey() {
+    return OpBits::encode(op_)
+           | ModeBits::encode(mode_)
+           | VFP2Bits::encode(use_vfp2_)
+           | OperandTypeInfoBits::encode(operands_type_)
+           | ResultTypeInfoBits::encode(result_type_);
+  }
+
+  void Generate(MacroAssembler* masm);
+  void GenerateGeneric(MacroAssembler* masm);
+  void GenerateSmiSmiOperation(MacroAssembler* masm);
+  void GenerateFPOperation(MacroAssembler* masm,
+                           bool smi_operands,
+                           Label* not_numbers,
+                           Label* gc_required);
+  void GenerateSmiCode(MacroAssembler* masm,
+                       Label* use_runtime,
+                       Label* gc_required,
+                       SmiCodeGenerateHeapNumberResults heapnumber_results);
+  void GenerateLoadArguments(MacroAssembler* masm);
+  void GenerateReturn(MacroAssembler* masm);
+  void GenerateUninitializedStub(MacroAssembler* masm);
+  void GenerateSmiStub(MacroAssembler* masm);
+  void GenerateInt32Stub(MacroAssembler* masm);
+  void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateOddballStub(MacroAssembler* masm);
+  void GenerateStringStub(MacroAssembler* masm);
+  void GenerateBothStringStub(MacroAssembler* masm);
+  void GenerateGenericStub(MacroAssembler* masm);
+  void GenerateAddStrings(MacroAssembler* masm);
+  void GenerateCallRuntime(MacroAssembler* masm);
+
+  void GenerateHeapResultAllocation(MacroAssembler* masm,
+                                    Register result,
+                                    Register heap_number_map,
+                                    Register scratch1,
+                                    Register scratch2,
+                                    Label* gc_required);
+  void GenerateRegisterArgsPush(MacroAssembler* masm);
+  void GenerateTypeTransition(MacroAssembler* masm);
+  void GenerateTypeTransitionWithSavedArgs(MacroAssembler* masm);
+
+  virtual int GetCodeKind() { return Code::BINARY_OP_IC; }
+
+  virtual InlineCacheState GetICState() {
+    return BinaryOpIC::ToState(operands_type_);
+  }
+
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_binary_op_type(operands_type_);
+    code->set_binary_op_result_type(result_type_);
+  }
+
+  friend class CodeGenerator;
+};
+
+
 class StringHelper : public AllStatic {
  public:
   // Generate code for copying characters using a simple loop. This should only
@@ -622,6 +724,20 @@ class FloatingPointHelper : public AllStatic {
                        Register scratch1,
                        Register scratch2);
 
+  // Loads objects from r0 and r1 (right and left in binary operations) into
+  // floating point registers. Depending on the destination the values ends up
+  // either d7 and d6 or in r2/r3 and r0/r1 respectively. If the destination is
+  // floating point registers VFP3 must be supported. If core registers are
+  // requested when VFP3 is supported d6 and d7 will still be scratched. If
+  // either r0 or r1 is not a number (not smi and not heap number object) the
+  // not_number label is jumped to with r0 and r1 intact.
+  static void LoadOperands(MacroAssembler* masm,
+                           FloatingPointHelper::Destination destination,
+                           Register heap_number_map,
+                           Register scratch1,
+                           Register scratch2,
+                           Label* not_number);
+
   // Convert the smi or heap number in object to an int32 using the rules
   // for ToInt32 as described in ECMAScript 9.5.: the value is truncated
   // and brought into the range -2^31 .. +2^31 - 1.
@@ -720,12 +836,7 @@ class FloatingPointHelper : public AllStatic {
                                           Register heap_number_result,
                                           Register scratch);
 
-  // Loads the objects from |object| into floating point registers.
-  // Depending on |destination| the value ends up either in |dst| or
-  // in |dst1|/|dst2|. If |destination| is kVFPRegisters, then VFP3
-  // must be supported. If kCoreRegisters are requested and VFP3 is
-  // supported, |dst| will be scratched. If |object| is neither smi nor
-  // heap number, |not_number| is jumped to with |object| still intact.
+ private:
   static void LoadNumber(MacroAssembler* masm,
                          FloatingPointHelper::Destination destination,
                          Register object,

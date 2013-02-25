@@ -1268,6 +1268,7 @@ static void KeyedStoreGenerateGenericHelper(
   __ bind(&fast_double_without_map_check);
   __ StoreNumberToDoubleElements(value,
                                  key,
+                                 receiver,
                                  elements,  // Overwritten.
                                  a3,        // Scratch regs...
                                  t0,
@@ -1694,16 +1695,36 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
 }
 
 
-bool CompareIC::HasInlinedSmiCode(Address address) {
-  // The address of the instruction following the call.
-  Address andi_instruction_address =
-      address + Assembler::kCallTargetAddressOffset;
+void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
+  HandleScope scope;
+  Handle<Code> rewritten;
+  State previous_state = GetState();
+  State state = TargetState(previous_state, false, x, y);
+  if (state == GENERIC) {
+    CompareStub stub(GetCondition(), strict(), NO_COMPARE_FLAGS, a1, a0);
+    rewritten = stub.GetCode();
+  } else {
+    ICCompareStub stub(op_, state);
+    if (state == KNOWN_OBJECTS) {
+      stub.set_known_map(Handle<Map>(Handle<JSObject>::cast(x)->map()));
+    }
+    rewritten = stub.GetCode();
+  }
+  set_target(*rewritten);
 
-  // If the instruction following the call is not a andi at, rx, #yyy, nothing
-  // was inlined.
-  Instr instr = Assembler::instr_at(andi_instruction_address);
-  return Assembler::IsAndImmediate(instr) &&
-      Assembler::GetRt(instr) == (uint32_t)zero_reg.code();
+#ifdef DEBUG
+  if (FLAG_trace_ic) {
+    PrintF("[CompareIC (%s->%s)#%s]\n",
+           GetStateName(previous_state),
+           GetStateName(state),
+           Token::Name(op_));
+  }
+#endif
+
+  // Activate inlined smi code.
+  if (previous_state == UNINITIALIZED) {
+    PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
+  }
 }
 
 

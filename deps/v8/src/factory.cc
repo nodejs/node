@@ -178,7 +178,7 @@ Handle<String> Factory::LookupAsciiSymbol(Vector<const char> string) {
 }
 
 
-Handle<String> Factory::LookupAsciiSymbol(Handle<SeqOneByteString> string,
+Handle<String> Factory::LookupAsciiSymbol(Handle<SeqAsciiString> string,
                                           int from,
                                           int length) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -200,7 +200,7 @@ Handle<String> Factory::NewStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateStringFromOneByte(string, pretenure),
+      isolate()->heap()->AllocateStringFromAscii(string, pretenure),
       String);
 }
 
@@ -222,12 +222,12 @@ Handle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
 }
 
 
-Handle<SeqOneByteString> Factory::NewRawOneByteString(int length,
+Handle<SeqAsciiString> Factory::NewRawAsciiString(int length,
                                                   PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateRawOneByteString(length, pretenure),
-      SeqOneByteString);
+      isolate()->heap()->AllocateRawAsciiString(length, pretenure),
+      SeqAsciiString);
 }
 
 
@@ -522,12 +522,6 @@ Handle<Map> Factory::GetElementsTransitionMap(
 
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
-}
-
-
-Handle<FixedArray> Factory::CopySizeFixedArray(Handle<FixedArray> array,
-                                               int new_length) {
-  CALL_HEAP_FUNCTION(isolate(), array->CopySize(new_length), FixedArray);
 }
 
 
@@ -876,13 +870,6 @@ Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
 }
 
 
-Handle<JSObject> Factory::NewExternal(void* value) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateExternal(value),
-                     JSObject);
-}
-
-
 Handle<Code> Factory::NewCode(const CodeDesc& desc,
                               Code::Flags flags,
                               Handle<Object> self_ref,
@@ -950,9 +937,6 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 Handle<JSArray> Factory::NewJSArray(int capacity,
                                     ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  if (capacity != 0) {
-    elements_kind = GetHoleyElementsKind(elements_kind);
-  }
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateJSArrayAndStorage(
                          elements_kind,
@@ -971,7 +955,6 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
       isolate(),
       isolate()->heap()->AllocateJSArrayWithElements(*elements,
                                                      elements_kind,
-                                                     elements->length(),
                                                      pretenure),
       JSArray);
 }
@@ -1370,7 +1353,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
   // Check to see whether there is a matching element in the cache.
   Handle<MapCache> cache =
       Handle<MapCache>(MapCache::cast(context->map_cache()));
-  Handle<Object> result = Handle<Object>(cache->Lookup(*keys), isolate());
+  Handle<Object> result = Handle<Object>(cache->Lookup(*keys));
   if (result->IsMap()) return Handle<Map>::cast(result);
   // Create a new map and add it to the cache.
   Handle<Map> map =
@@ -1422,7 +1405,7 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
                                 bool* pending_exception) {
   // Configure the instance by adding the properties specified by the
   // instance template.
-  Handle<Object> instance_template(desc->instance_template(), isolate());
+  Handle<Object> instance_template = Handle<Object>(desc->instance_template());
   if (!instance_template->IsUndefined()) {
     Execution::ConfigureInstance(instance,
                                  instance_template,

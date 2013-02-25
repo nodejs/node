@@ -204,7 +204,6 @@ class TypeInfo {
     kNonPrimitive = 0x40,  // 1000000
     kUninitialized = 0x7f  // 1111111
   };
-
   explicit inline TypeInfo(Type t) : type_(t) { }
 
   Type type_;
@@ -288,14 +287,9 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);
-  void BinaryType(BinaryOperation* expr,
-                  TypeInfo* left,
-                  TypeInfo* right,
-                  TypeInfo* result);
-  void CompareType(CompareOperation* expr,
-                   TypeInfo* left_type,
-                   TypeInfo* right_type,
-                   TypeInfo* overall_type);
+  TypeInfo BinaryType(BinaryOperation* expr);
+  TypeInfo CompareType(CompareOperation* expr);
+  bool IsSymbolCompare(CompareOperation* expr);
   Handle<Map> GetCompareMap(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
   TypeInfo IncrementType(CountOperation* expr);

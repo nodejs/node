@@ -112,7 +112,7 @@ module R {
   assertThrows(function() { eval("c = -1") }, SyntaxError)
   assertThrows(function() { R.c = -2 }, TypeError)
 
-  // Initialize first bunch of variables.
+  // Initialize first bunch or variables.
   export var v = 1
   export let l = 2
   export const c = 3

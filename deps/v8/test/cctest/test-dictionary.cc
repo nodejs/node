@@ -114,8 +114,7 @@ TEST(ObjectHashSetCausesGC) {
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
-  SimulateFullSpace(HEAP->new_space());
-  SimulateFullSpace(HEAP->old_pointer_space());
+  FLAG_gc_interval = 0;
 
   // Calling Contains() should not cause GC ever.
   CHECK(!table->Contains(*key));
@@ -144,8 +143,7 @@ TEST(ObjectHashTableCausesGC) {
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
-  SimulateFullSpace(HEAP->new_space());
-  SimulateFullSpace(HEAP->old_pointer_space());
+  FLAG_gc_interval = 0;
 
   // Calling Lookup() should not cause GC ever.
   CHECK(table->Lookup(*key)->IsTheHole());

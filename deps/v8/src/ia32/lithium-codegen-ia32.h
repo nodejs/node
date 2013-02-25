@@ -340,12 +340,6 @@ class LCodeGen BASE_EMBEDDED {
                     int* offset);
 
   void EnsureSpaceForLazyDeopt();
-  void DoLoadKeyedExternalArray(LLoadKeyed* instr);
-  void DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr);
-  void DoLoadKeyedFixedArray(LLoadKeyed* instr);
-  void DoStoreKeyedExternalArray(LStoreKeyed* instr);
-  void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
-  void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.

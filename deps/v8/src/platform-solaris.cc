@@ -125,8 +125,12 @@ const char* OS::LocalTimezone(double time) {
 
 
 double OS::LocalTimeOffset() {
-  tzset();
-  return -static_cast<double>(timezone * msPerSecond);
+  // On Solaris, struct tm does not contain a tm_gmtoff field.
+  time_t utc = time(NULL);
+  ASSERT(utc != -1);
+  struct tm* loc = localtime(&utc);
+  ASSERT(loc != NULL);
+  return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
 
 
@@ -444,12 +448,6 @@ bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
 }
 
 
-bool VirtualMemory::HasLazyCommits() {
-  // TODO(alph): implement for the platform.
-  return false;
-}
-
-
 class Thread::PlatformData : public Malloced {
  public:
   PlatformData() : thread_(kNoThread) {  }
@@ -701,6 +699,11 @@ class Sampler::PlatformData : public Malloced {
 
 class SignalSender : public Thread {
  public:
+  enum SleepInterval {
+    HALF_INTERVAL,
+    FULL_INTERVAL
+  };
+
   static const int kSignalSenderStackSize = 64 * KB;
 
   explicit SignalSender(int interval)
@@ -755,16 +758,44 @@ class SignalSender : public Thread {
     SamplerRegistry::State state;
     while ((state = SamplerRegistry::GetState()) !=
            SamplerRegistry::HAS_NO_SAMPLERS) {
+      bool cpu_profiling_enabled =
+          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
+      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
+      if (cpu_profiling_enabled && !signal_handler_installed_) {
+        InstallSignalHandler();
+      } else if (!cpu_profiling_enabled && signal_handler_installed_) {
+        RestoreSignalHandler();
+      }
+
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
-      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
-        if (!signal_handler_installed_) InstallSignalHandler();
-        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
-      } else {
-        if (signal_handler_installed_) RestoreSignalHandler();
+      if (!cpu_profiling_enabled) {
         if (rate_limiter_.SuspendIfNecessary()) continue;
       }
-      Sleep();  // TODO(svenpanne) Figure out if OS:Sleep(interval_) is enough.
+      if (cpu_profiling_enabled && runtime_profiler_enabled) {
+        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
+          return;
+        }
+        Sleep(HALF_INTERVAL);
+        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
+          return;
+        }
+        Sleep(HALF_INTERVAL);
+      } else {
+        if (cpu_profiling_enabled) {
+          if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile,
+                                                      this)) {
+            return;
+          }
+        }
+        if (runtime_profiler_enabled) {
+          if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile,
+                                                      NULL)) {
+            return;
+          }
+        }
+        Sleep(FULL_INTERVAL);
+      }
     }
   }
 
@@ -774,15 +805,21 @@ class SignalSender : public Thread {
     sender->SendProfilingSignal(sampler->platform_data()->vm_tid());
   }
 
+  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
+    if (!sampler->isolate()->IsInitialized()) return;
+    sampler->isolate()->runtime_profiler()->NotifyTick();
+  }
+
   void SendProfilingSignal(pthread_t tid) {
     if (!signal_handler_installed_) return;
     pthread_kill(tid, SIGPROF);
   }
 
-  void Sleep() {
+  void Sleep(SleepInterval full_or_half) {
     // Convert ms to us and subtract 100 us to compensate delays
     // occuring during signal delivery.
     useconds_t interval = interval_ * 1000 - 100;
+    if (full_or_half == HALF_INTERVAL) interval /= 2;
     int result = usleep(interval);
 #ifdef DEBUG
     if (result != 0 && errno != EINTR) {

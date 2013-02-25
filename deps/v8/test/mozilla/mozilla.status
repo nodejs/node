@@ -212,9 +212,6 @@ js1_5/Array/regress-101964: PASS || FAIL if $mode == debug
 # This section is for tests that fail in both V8 and JSC.  Thus they
 # have been determined to be incompatible between Mozilla and V8/JSC.
 
-# toPrecision argument restricted to range 1..21 in JSC/V8 and ECMA-262
-js1_5/Regress/regress-452346: FAIL_OK
-
 # Fail because it calls builtins as functions and do not expect the
 # builtin to have undefined as the receiver.
 ecma/String/15.5.4.6-2: FAIL_OK
@@ -247,6 +244,13 @@ js1_5/Function/regress-338121-03: FAIL_OK
 
 # Expectes 'prototype' property of functions to be enumerable.
 js1_5/Function/10.1.6-01: FAIL_OK
+
+# toPrecision argument restricted to range 1..21 in JSC/V8
+js1_5/Regress/regress-452346: FAIL_OK
+ecma_3/Number/15.7.4.7-1: FAIL_OK
+
+# toExponential argument restricted to range 0..20 in JSC/V8
+ecma_3/Number/15.7.4.6-1: FAIL_OK
 
 #:=== RegExp:===
 # We don't match the syntax error message of Mozilla for invalid

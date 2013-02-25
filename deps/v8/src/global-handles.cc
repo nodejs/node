@@ -69,7 +69,6 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
     independent_ = false;
-    partially_dependent_ = false;
     in_new_space_list_ = false;
     parameter_or_next_free_.next_free = NULL;
     callback_ = NULL;
@@ -90,7 +89,6 @@ class GlobalHandles::Node {
     object_ = object;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     independent_ = false;
-    partially_dependent_ = false;
     state_  = NORMAL;
     parameter_or_next_free_.parameter = NULL;
     callback_ = NULL;
@@ -155,15 +153,6 @@ class GlobalHandles::Node {
     independent_ = true;
   }
   bool is_independent() const { return independent_; }
-
-  void MarkPartiallyDependent(GlobalHandles* global_handles) {
-    ASSERT(state_ != FREE);
-    if (global_handles->isolate()->heap()->InNewSpace(object_)) {
-      partially_dependent_ = true;
-    }
-  }
-  bool is_partially_dependent() const { return partially_dependent_; }
-  void clear_partially_dependent() { partially_dependent_ = false; }
 
   // In-new-space-list flag accessors.
   void set_in_new_space_list(bool v) { in_new_space_list_ = v; }
@@ -271,7 +260,6 @@ class GlobalHandles::Node {
   State state_ : 4;
 
   bool independent_ : 1;
-  bool partially_dependent_ : 1;
   bool in_new_space_list_ : 1;
 
   // Handle specific callback.
@@ -460,11 +448,6 @@ void GlobalHandles::MarkIndependent(Object** location) {
 }
 
 
-void GlobalHandles::MarkPartiallyDependent(Object** location) {
-  Node::FromLocation(location)->MarkPartiallyDependent(this);
-}
-
-
 bool GlobalHandles::IsIndependent(Object** location) {
   return Node::FromLocation(location)->is_independent();
 }
@@ -518,9 +501,8 @@ void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     if (node->IsStrongRetainer() ||
-        (node->IsWeakRetainer() && !node->is_independent() &&
-         !node->is_partially_dependent())) {
-        v->VisitPointer(node->location());
+        (node->IsWeakRetainer() && !node->is_independent())) {
+      v->VisitPointer(node->location());
     }
   }
 }
@@ -531,8 +513,8 @@ void GlobalHandles::IdentifyNewSpaceWeakIndependentHandles(
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     ASSERT(node->is_in_new_space_list());
-    if ((node->is_independent() || node->is_partially_dependent()) &&
-        node->IsWeak() && f(isolate_->heap(), node->location())) {
+    if (node->is_independent() && node->IsWeak() &&
+        f(isolate_->heap(), node->location())) {
       node->MarkPending();
     }
   }
@@ -543,61 +525,15 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     ASSERT(node->is_in_new_space_list());
-    if ((node->is_independent() || node->is_partially_dependent()) &&
-        node->IsWeakRetainer()) {
+    if (node->is_independent() && node->IsWeakRetainer()) {
       v->VisitPointer(node->location());
     }
   }
 }
 
 
-bool GlobalHandles::IterateObjectGroups(ObjectVisitor* v,
-                                        WeakSlotCallbackWithHeap can_skip) {
-  int last = 0;
-  bool any_group_was_visited = false;
-  for (int i = 0; i < object_groups_.length(); i++) {
-    ObjectGroup* entry = object_groups_.at(i);
-    ASSERT(entry != NULL);
-
-    Object*** objects = entry->objects_;
-    bool group_should_be_visited = false;
-    for (size_t j = 0; j < entry->length_; j++) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        if (!can_skip(isolate_->heap(), &object)) {
-          group_should_be_visited = true;
-          break;
-        }
-      }
-    }
-
-    if (!group_should_be_visited) {
-      object_groups_[last++] = entry;
-      continue;
-    }
-
-    // An object in the group requires visiting, so iterate over all
-    // objects in the group.
-    for (size_t j = 0; j < entry->length_; ++j) {
-      Object* object = *objects[j];
-      if (object->IsHeapObject()) {
-        v->VisitPointer(&object);
-        any_group_was_visited = true;
-      }
-    }
-
-    // Once the entire group has been iterated over, set the object
-    // group to NULL so it won't be processed again.
-    entry->Dispose();
-    object_groups_.at(i) = NULL;
-  }
-  object_groups_.Rewind(last);
-  return any_group_was_visited;
-}
-
-
 bool GlobalHandles::PostGarbageCollectionProcessing(
-    GarbageCollector collector, GCTracer* tracer) {
+    GarbageCollector collector) {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
@@ -611,10 +547,7 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
       // Skip dependent handles. Their weak callbacks might expect to be
       // called between two global garbage collection callbacks which
       // are not called for minor collections.
-      if (!node->is_independent() && !node->is_partially_dependent()) {
-        continue;
-      }
-      node->clear_partially_dependent();
+      if (!node->is_independent()) continue;
       if (node->PostGarbageCollectionProcessing(isolate_, this)) {
         if (initial_post_gc_processing_count != post_gc_processing_count_) {
           // Weak callback triggered another GC and another round of
@@ -630,7 +563,6 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
     }
   } else {
     for (NodeIterator it(this); !it.done(); it.Advance()) {
-      it.node()->clear_partially_dependent();
       if (it.node()->PostGarbageCollectionProcessing(isolate_, this)) {
         if (initial_post_gc_processing_count != post_gc_processing_count_) {
           // See the comment above.
@@ -647,17 +579,10 @@ bool GlobalHandles::PostGarbageCollectionProcessing(
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     ASSERT(node->is_in_new_space_list());
-    if (node->IsRetainer()) {
-      if (isolate_->heap()->InNewSpace(node->object())) {
-        new_space_nodes_[last++] = node;
-        tracer->increment_nodes_copied_in_new_space();
-      } else {
-        node->set_in_new_space_list(false);
-        tracer->increment_nodes_promoted();
-      }
+    if (node->IsRetainer() && isolate_->heap()->InNewSpace(node->object())) {
+      new_space_nodes_[last++] = node;
     } else {
       node->set_in_new_space_list(false);
-      tracer->increment_nodes_died_in_new_space();
     }
   }
   new_space_nodes_.Rewind(last);
@@ -685,7 +610,7 @@ void GlobalHandles::IterateAllRoots(ObjectVisitor* v) {
 
 void GlobalHandles::IterateAllRootsWithClassIds(ObjectVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
-    if (it.node()->IsRetainer() && it.node()->has_wrapper_class_id()) {
+    if (it.node()->has_wrapper_class_id() && it.node()->IsRetainer()) {
       v->VisitEmbedderReference(it.node()->location(),
                                 it.node()->wrapper_class_id());
     }

@@ -1041,31 +1041,6 @@ TEST(ScopePositions) {
 }
 
 
-i::Handle<i::String> FormatMessage(i::ScriptDataImpl* data) {
-  i::Handle<i::String> format = v8::Utils::OpenHandle(
-                                    *v8::String::New(data->BuildMessage()));
-  i::Vector<const char*> args = data->BuildArgs();
-  i::Handle<i::JSArray> args_array = FACTORY->NewJSArray(args.length());
-  for (int i = 0; i < args.length(); i++) {
-    i::JSArray::SetElement(args_array,
-                           i,
-                           v8::Utils::OpenHandle(*v8::String::New(args[i])),
-                           NONE,
-                           i::kNonStrictMode);
-  }
-  i::Handle<i::JSObject> builtins(i::Isolate::Current()->js_builtins_object());
-  i::Handle<i::Object> format_fun =
-      i::GetProperty(builtins, "FormatMessage");
-  i::Handle<i::Object> arg_handles[] = { format, args_array };
-  bool has_exception = false;
-  i::Handle<i::Object> result =
-      i::Execution::Call(format_fun, builtins, 2, arg_handles, &has_exception);
-  CHECK(!has_exception);
-  CHECK(result->IsString());
-  return i::Handle<i::String>::cast(result);
-}
-
-
 void TestParserSync(i::Handle<i::String> source, int flags) {
   uintptr_t stack_limit = i::Isolate::Current()->stack_guard()->real_climit();
   bool harmony_scoping = ((i::kLanguageModeMask & flags) == i::EXTENDED_MODE);
@@ -1092,50 +1067,53 @@ void TestParserSync(i::Handle<i::String> source, int flags) {
   i::FunctionLiteral* function = parser.ParseProgram();
   i::FLAG_harmony_scoping = save_harmony_scoping;
 
-  // Check that preparsing fails iff parsing fails.
+  i::String* type_string = NULL;
   if (function == NULL) {
     // Extract exception from the parser.
+    i::Handle<i::String> type_symbol = FACTORY->LookupAsciiSymbol("type");
     CHECK(i::Isolate::Current()->has_pending_exception());
     i::MaybeObject* maybe_object = i::Isolate::Current()->pending_exception();
     i::JSObject* exception = NULL;
     CHECK(maybe_object->To(&exception));
-    i::Handle<i::JSObject> exception_handle(exception);
-    i::Handle<i::String> message_string =
-        i::Handle<i::String>::cast(i::GetProperty(exception_handle, "message"));
 
-    if (!data.has_error()) {
-      i::OS::Print(
-          "Parser failed on:\n"
-          "\t%s\n"
-          "with error:\n"
-          "\t%s\n"
-          "However, the preparser succeeded",
-          *source->ToCString(), *message_string->ToCString());
-      CHECK(false);
-    }
-    // Check that preparser and parser produce the same error.
-    i::Handle<i::String> preparser_message = FormatMessage(&data);
-    if (!message_string->Equals(*preparser_message)) {
-      i::OS::Print(
-          "Expected parser and preparser to produce the same error on:\n"
-          "\t%s\n"
-          "However, found the following error messages\n"
-          "\tparser:    %s\n"
-          "\tpreparser: %s\n",
-          *source->ToCString(),
-          *message_string->ToCString(),
-          *preparser_message->ToCString());
-      CHECK(false);
-    }
-  } else if (data.has_error()) {
+    // Get the type string.
+    maybe_object = exception->GetProperty(*type_symbol);
+    CHECK(maybe_object->To(&type_string));
+  }
+
+  // Check that preparsing fails iff parsing fails.
+  if (data.has_error() && function != NULL) {
     i::OS::Print(
         "Preparser failed on:\n"
         "\t%s\n"
         "with error:\n"
         "\t%s\n"
         "However, the parser succeeded",
-        *source->ToCString(), *FormatMessage(&data)->ToCString());
+        *source->ToCString(), data.BuildMessage());
     CHECK(false);
+  } else if (!data.has_error() && function == NULL) {
+    i::OS::Print(
+        "Parser failed on:\n"
+        "\t%s\n"
+        "with error:\n"
+        "\t%s\n"
+        "However, the preparser succeeded",
+        *source->ToCString(), *type_string->ToCString());
+    CHECK(false);
+  }
+
+  // Check that preparser and parser produce the same error.
+  if (function == NULL) {
+    if (!type_string->IsEqualTo(i::CStrVector(data.BuildMessage()))) {
+      i::OS::Print(
+          "Expected parser and preparser to produce the same error on:\n"
+          "\t%s\n"
+          "However, found the following error messages\n"
+          "\tparser:    %s\n"
+          "\tpreparser: %s\n",
+          *source->ToCString(), *type_string->ToCString(), data.BuildMessage());
+      CHECK(false);
+    }
   }
 }
 

@@ -210,7 +210,8 @@ class StoreBufferRebuildScope {
   explicit StoreBufferRebuildScope(Heap* heap,
                                    StoreBuffer* store_buffer,
                                    StoreBufferCallback callback)
-      : store_buffer_(store_buffer),
+      : heap_(heap),
+        store_buffer_(store_buffer),
         stored_state_(store_buffer->store_buffer_rebuilding_enabled_),
         stored_callback_(store_buffer->callback_) {
     store_buffer_->store_buffer_rebuilding_enabled_ = true;
@@ -225,6 +226,7 @@ class StoreBufferRebuildScope {
   }
 
  private:
+  Heap* heap_;
   StoreBuffer* store_buffer_;
   bool stored_state_;
   StoreBufferCallback stored_callback_;

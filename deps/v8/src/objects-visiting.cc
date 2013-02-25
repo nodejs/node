@@ -45,8 +45,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
   if (instance_type < FIRST_NONSTRING_TYPE) {
     switch (instance_type & kStringRepresentationMask) {
       case kSeqStringTag:
-        if ((instance_type & kStringEncodingMask) == kOneByteStringTag) {
-          return kVisitSeqOneByteString;
+        if ((instance_type & kStringEncodingMask) == kAsciiStringTag) {
+          return kVisitSeqAsciiString;
         } else {
           return kVisitSeqTwoByteString;
         }
