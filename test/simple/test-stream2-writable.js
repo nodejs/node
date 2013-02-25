@@ -21,6 +21,7 @@
 
 var common = require('../common.js');
 var W = require('_stream_writable');
+var D = require('_stream_duplex');
 var assert = require('assert');
 
 var util = require('util');
@@ -284,4 +285,29 @@ test('encoding should be ignored for buffers', function(t) {
   };
   var buf = new Buffer(hex, 'hex');
   tw.write(buf, 'binary');
+});
+
+test('writables are not pipable', function(t) {
+  var w = new W();
+  w._write = function() {};
+  var gotError = false;
+  w.on('error', function(er) {
+    gotError = true;
+  });
+  w.pipe(process.stdout);
+  assert(gotError);
+  t.end();
+});
+
+test('duplexes are pipable', function(t) {
+  var d = new D();
+  d._read = function() {};
+  d._write = function() {};
+  var gotError = false;
+  d.on('error', function(er) {
+    gotError = true;
+  });
+  d.pipe(process.stdout);
+  assert(!gotError);
+  t.end();
 });
