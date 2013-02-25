@@ -22,7 +22,7 @@ if (useDomains) {
   gdom.enter();
 }
 
-var server = http.createServer(function (req, res) {
+var server = module.exports = http.createServer(function (req, res) {
   if (useDomains) {
     var dom = domain.create();
     dom.add(req);

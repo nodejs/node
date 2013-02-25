@@ -11,14 +11,13 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   process.env.PORT = PORT;
   var spawn = require('child_process').spawn;
-  var simple = require('path').resolve(__dirname, '../http_simple.js');
-  var server = spawn(process.execPath, [simple]);
+  var server = require('../http_simple.js');
   setTimeout(function() {
     var path = '/' + conf.type + '/' + conf.length; //+ '/' + conf.chunks;
     var args = ['-r', 5000, '-t', 8, '-c', conf.c];
 
     bench.http(path, args, function() {
-      server.kill();
+      server.close();
     });
   }, 2000);
 }
