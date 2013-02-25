@@ -79,7 +79,7 @@ void StatWatcher::Callback(uv_fs_poll_t* handle,
   Local<Value> argv[3];
   argv[0] = BuildStatsObject(curr);
   argv[1] = BuildStatsObject(prev);
-  argv[2] = Integer::New(status, node_isolate);
+  argv[2] = Integer::New(status);
   if (status == -1) {
     SetErrno(uv_last_error(wrap->watcher_->loop));
   }
@@ -112,7 +112,7 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
   uv_fs_poll_start(wrap->watcher_, Callback, *path, interval);
   wrap->Ref();
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 
@@ -124,7 +124,7 @@ Handle<Value> StatWatcher::Stop(const Arguments& args) {
   }
   MakeCallback(wrap->handle_, onstop_sym, 0, NULL);
   wrap->Stop();
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 

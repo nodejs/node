@@ -69,7 +69,7 @@ Local<Object> PipeWrap::Instantiate() {
 PipeWrap* PipeWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);
-  return static_cast<PipeWrap*>(obj->GetAlignedPointerFromInternalField(0));
+  return static_cast<PipeWrap*>(obj->GetPointerFromInternalField(0));
 }
 
 
@@ -156,7 +156,7 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
   // Error starting the pipe.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r, node_isolate));
+  return scope.Close(Integer::New(r));
 }
 
 
@@ -170,7 +170,7 @@ Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
 
   uv_pipe_pending_instances(&wrap->handle_, instances);
 
-  return v8::Null(node_isolate);
+  return v8::Null();
 }
 #endif
 
@@ -187,7 +187,7 @@ Handle<Value> PipeWrap::Listen(const Arguments& args) {
   // Error starting the pipe.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r, node_isolate));
+  return scope.Close(Integer::New(r));
 }
 
 
@@ -214,7 +214,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   // Unwrap the client javascript object.
   assert(client_obj->InternalFieldCount() > 0);
   PipeWrap* client_wrap =
-      static_cast<PipeWrap*>(client_obj->GetAlignedPointerFromInternalField(0));
+      static_cast<PipeWrap*>(client_obj->GetPointerFromInternalField(0));
 
   if (uv_accept(handle, (uv_stream_t*)&client_wrap->handle_)) return;
 
@@ -248,11 +248,11 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   }
 
   Local<Value> argv[5] = {
-    Integer::New(status, node_isolate),
-    Local<Value>::New(node_isolate, wrap->object_),
-    Local<Value>::New(node_isolate, req_wrap->object_),
-    Local<Value>::New(node_isolate, Boolean::New(readable)),
-    Local<Value>::New(node_isolate, Boolean::New(writable))
+    Integer::New(status),
+    Local<Value>::New(wrap->object_),
+    Local<Value>::New(req_wrap->object_),
+    Local<Value>::New(Boolean::New(readable)),
+    Local<Value>::New(Boolean::New(writable))
   };
 
   if (oncomplete_sym.IsEmpty()) {
@@ -273,7 +273,7 @@ Handle<Value> PipeWrap::Open(const Arguments& args) {
 
   uv_pipe_open(&wrap->handle_, fd);
 
-  return scope.Close(v8::Null(node_isolate));
+  return scope.Close(v8::Null());
 }
 
 

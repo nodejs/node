@@ -117,7 +117,7 @@ Handle<Object> Buffer::New(Handle<String> string) {
   assert(bv->IsFunction());
   Local<Function> b = Local<Function>::Cast(bv);
 
-  Local<Value> argv[1] = { Local<Value>::New(node_isolate, string) };
+  Local<Value> argv[1] = { Local<Value>::New(string) };
   Local<Object> instance = b->NewInstance(1, argv);
 
   return scope.Close(instance);
@@ -127,7 +127,7 @@ Handle<Object> Buffer::New(Handle<String> string) {
 Buffer* Buffer::New(size_t length) {
   HandleScope scope;
 
-  Local<Value> arg = Integer::NewFromUnsigned(length, node_isolate);
+  Local<Value> arg = Integer::NewFromUnsigned(length);
   Local<Object> b = constructor_template->GetFunction()->NewInstance(1, &arg);
   if (b.IsEmpty()) return NULL;
 
@@ -138,7 +138,7 @@ Buffer* Buffer::New(size_t length) {
 Buffer* Buffer::New(const char* data, size_t length) {
   HandleScope scope;
 
-  Local<Value> arg = Integer::NewFromUnsigned(0, node_isolate);
+  Local<Value> arg = Integer::NewFromUnsigned(0);
   Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
@@ -152,7 +152,7 @@ Buffer* Buffer::New(char *data, size_t length,
                     free_callback callback, void *hint) {
   HandleScope scope;
 
-  Local<Value> arg = Integer::NewFromUnsigned(0, node_isolate);
+  Local<Value> arg = Integer::NewFromUnsigned(0);
   Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
@@ -229,7 +229,7 @@ void Buffer::Replace(char *data, size_t length,
   handle_->SetIndexedPropertiesToExternalArrayData(data_,
                                                    kExternalUnsignedByteArray,
                                                    length_);
-  handle_->Set(length_symbol, Integer::NewFromUnsigned(length_, node_isolate));
+  handle_->Set(length_symbol, Integer::NewFromUnsigned(length_));
 }
 
 
@@ -284,7 +284,7 @@ Handle<Value> Buffer::HexSlice(const Arguments &args) {
   SLICE_ARGS(args[0], args[1])
   char* src = parent->data_ + start;
   uint32_t dstlen = (end - start) * 2;
-  if (dstlen == 0) return scope.Close(String::Empty(node_isolate));
+  if (dstlen == 0) return scope.Close(String::Empty());
   char* dst = new char[dstlen];
   for (uint32_t i = 0, k = 0; k < dstlen; i += 1, k += 2) {
     static const char hex[] = "0123456789abcdef";
@@ -405,7 +405,7 @@ Handle<Value> Buffer::Fill(const Arguments &args) {
           value,
           end - start);
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 
@@ -433,7 +433,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
 
   // Copy 0 bytes; we're done
   if (source_end == source_start) {
-    return scope.Close(Integer::New(0, node_isolate));
+    return scope.Close(Integer::New(0));
   }
 
   if (target_start >= target_length) {
@@ -457,7 +457,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
           (const void*)(source->data_ + source_start),
           to_copy);
 
-  return scope.Close(Integer::New(to_copy, node_isolate));
+  return scope.Close(Integer::New(to_copy));
 }
 
 
@@ -479,8 +479,8 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   if (length == 0) {
     constructor_template->GetFunction()->Set(chars_written_sym,
-                                             Integer::New(0, node_isolate));
-    return scope.Close(Integer::New(0, node_isolate));
+                                             Integer::New(0));
+    return scope.Close(Integer::New(0));
   }
 
   if (length > 0 && offset >= buffer->length_) {
@@ -502,10 +502,9 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
                               String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(char_written,
-                                                        node_isolate));
+                                           Integer::New(char_written));
 
-  return scope.Close(Integer::New(written, node_isolate));
+  return scope.Close(Integer::New(written));
 }
 
 
@@ -540,9 +539,9 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
                           String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written, node_isolate));
+                                           Integer::New(written));
 
-  return scope.Close(Integer::New(written * 2, node_isolate));
+  return scope.Close(Integer::New(written * 2));
 }
 
 
@@ -573,7 +572,7 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
   uint32_t end = start + size;
 
   if (start >= parent->length_) {
-    Local<Integer> val = Integer::New(0, node_isolate);
+    Local<Integer> val = Integer::New(0);
     constructor_template->GetFunction()->Set(chars_written_sym, val);
     return scope.Close(val);
   }
@@ -584,7 +583,7 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
   }
 
   if (size == 0) {
-    Local<Integer> val = Integer::New(0, node_isolate);
+    Local<Integer> val = Integer::New(0);
     constructor_template->GetFunction()->Set(chars_written_sym, val);
     return scope.Close(val);
   }
@@ -606,9 +605,9 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
   }
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(max * 2, node_isolate));
+                                           Integer::New(max * 2));
 
-  return scope.Close(Integer::New(max, node_isolate));
+  return scope.Close(Integer::New(max));
 }
 
 
@@ -643,9 +642,9 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
                                String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written, node_isolate));
+                                           Integer::New(written));
 
-  return scope.Close(Integer::New(written, node_isolate));
+  return scope.Close(Integer::New(written));
 }
 
 
@@ -706,10 +705,9 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   }
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(dst - start,
-                                                        node_isolate));
+                                           Integer::New(dst - start));
 
-  return scope.Close(Integer::New(dst - start, node_isolate));
+  return scope.Close(Integer::New(dst - start));
 }
 
 
@@ -739,9 +737,9 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   int written = DecodeWrite(p, max_length, s, BINARY);
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written, node_isolate));
+                                           Integer::New(written));
 
-  return scope.Close(Integer::New(written, node_isolate));
+  return scope.Close(Integer::New(written));
 }
 
 
@@ -838,7 +836,7 @@ Handle<Value> WriteFloatGeneric(const Arguments& args) {
   if (ENDIANNESS != is_big_endian())
     swizzle(ptr, sizeof(T));
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 
@@ -873,7 +871,7 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
   Local<String> s = args[0]->ToString();
   enum encoding e = ParseEncoding(args[1], UTF8);
 
-  return scope.Close(Integer::New(node::ByteLength(s, e), node_isolate));
+  return scope.Close(Integer::New(node::ByteLength(s, e)));
 }
 
 
@@ -906,7 +904,7 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
                                                        kExternalUnsignedByteArray,
                                                        length);
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 

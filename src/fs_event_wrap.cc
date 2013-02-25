@@ -110,7 +110,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  return scope.Close(Integer::New(r, node_isolate));
+  return scope.Close(Integer::New(r));
 }
 
 
@@ -136,7 +136,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   // unreasonable, right? Still, we should revisit this before v1.0.
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
-    eventStr = String::Empty(node_isolate);
+    eventStr = String::Empty();
   }
   else if (events & UV_RENAME) {
     eventStr = String::New("rename");
@@ -150,10 +150,10 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   }
 
   Local<Value> argv[3] = {
-    Integer::New(status, node_isolate),
+    Integer::New(status),
     eventStr,
     filename ? static_cast<Local<Value> >(String::New(filename))
-             : Local<Value>::New(node_isolate, v8::Null(node_isolate))
+             : Local<Value>::New(v8::Null())
   };
 
   if (onchange_sym.IsEmpty()) {
@@ -172,11 +172,11 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   // and legal, HandleWrap::Close() deals with them the same way.
   assert(!args.Holder().IsEmpty());
   assert(args.Holder()->InternalFieldCount() > 0);
-  void* ptr = args.Holder()->GetAlignedPointerFromInternalField(0);
+  void* ptr = args.Holder()->GetPointerFromInternalField(0);
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
   if (wrap == NULL || wrap->initialized_ == false) {
-    return Undefined(node_isolate);
+    return Undefined();
   }
   wrap->initialized_ = false;
 

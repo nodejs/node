@@ -98,7 +98,7 @@ static Handle<Value> GetOSRelease(const Arguments& args) {
   info.dwOSVersionInfoSize = sizeof(info);
 
   if (GetVersionEx(&info) == 0) {
-    return Undefined(node_isolate);
+    return Undefined();
   }
 
   sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
@@ -116,7 +116,7 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   uv_err_t err = uv_cpu_info(&cpu_infos, &count);
 
   if (err.code != UV_OK) {
-    return Undefined(node_isolate);
+    return Undefined();
   }
 
   Local<Array> cpus = Array::New();
@@ -124,20 +124,20 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   for (i = 0; i < count; i++) {
     Local<Object> times_info = Object::New();
     times_info->Set(String::New("user"),
-      Integer::New(cpu_infos[i].cpu_times.user, node_isolate));
+      Integer::New(cpu_infos[i].cpu_times.user));
     times_info->Set(String::New("nice"),
-      Integer::New(cpu_infos[i].cpu_times.nice, node_isolate));
+      Integer::New(cpu_infos[i].cpu_times.nice));
     times_info->Set(String::New("sys"),
-      Integer::New(cpu_infos[i].cpu_times.sys, node_isolate));
+      Integer::New(cpu_infos[i].cpu_times.sys));
     times_info->Set(String::New("idle"),
-      Integer::New(cpu_infos[i].cpu_times.idle, node_isolate));
+      Integer::New(cpu_infos[i].cpu_times.idle));
     times_info->Set(String::New("irq"),
-      Integer::New(cpu_infos[i].cpu_times.irq, node_isolate));
+      Integer::New(cpu_infos[i].cpu_times.irq));
 
     Local<Object> cpu_info = Object::New();
     cpu_info->Set(String::New("model"), String::New(cpu_infos[i].model));
     cpu_info->Set(String::New("speed"),
-                  Integer::New(cpu_infos[i].speed, node_isolate));
+                  Integer::New(cpu_infos[i].speed));
     cpu_info->Set(String::New("times"), times_info);
     (*cpus)->Set(i,cpu_info);
   }
@@ -152,7 +152,7 @@ static Handle<Value> GetFreeMemory(const Arguments& args) {
   double amount = uv_get_free_memory();
 
   if (amount < 0) {
-    return Undefined(node_isolate);
+    return Undefined();
   }
 
   return scope.Close(Number::New(amount));
@@ -163,7 +163,7 @@ static Handle<Value> GetTotalMemory(const Arguments& args) {
   double amount = uv_get_total_memory();
 
   if (amount < 0) {
-    return Undefined(node_isolate);
+    return Undefined();
   }
 
   return scope.Close(Number::New(amount));
@@ -176,7 +176,7 @@ static Handle<Value> GetUptime(const Arguments& args) {
   uv_err_t err = uv_uptime(&uptime);
 
   if (err.code != UV_OK) {
-    return Undefined(node_isolate);
+    return Undefined();
   }
 
   return scope.Close(Number::New(uptime));
@@ -238,7 +238,7 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 
     const bool internal = interfaces[i].is_internal;
     o->Set(String::New("internal"),
-           internal ? True(node_isolate) : False(node_isolate));
+           internal ? True() : False());
 
     ifarr->Set(ifarr->Length(), o);
   }

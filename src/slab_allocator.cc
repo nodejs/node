@@ -71,7 +71,7 @@ void SlabAllocator::Initialize() {
 
 static Local<Object> NewSlab(unsigned int size) {
   HandleScope scope;
-  Local<Value> arg = Integer::NewFromUnsigned(ROUND_UP(size, 16), node_isolate);
+  Local<Value> arg = Integer::NewFromUnsigned(ROUND_UP(size, 16));
   Local<Object> buf = Buffer::constructor_template
                       ->GetFunction()
                       ->NewInstance(1, &arg);
@@ -114,7 +114,7 @@ Local<Object> SlabAllocator::Shrink(Handle<Object> obj,
                                     unsigned int size) {
   HandleScope scope;
   Local<Value> slab_v = obj->GetHiddenValue(slab_sym_);
-  obj->SetHiddenValue(slab_sym_, Null(node_isolate));
+  obj->SetHiddenValue(slab_sym_, Null());
   assert(!slab_v.IsEmpty());
   assert(slab_v->IsObject());
   Local<Object> slab = slab_v->ToObject();

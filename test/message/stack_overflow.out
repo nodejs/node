@@ -4,13 +4,3 @@ before
 function stackOverflow() {
                       ^
 RangeError: Maximum call stack size exceeded
-    at stackOverflow (*test/message/stack_overflow.js:31:23)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)
-    at stackOverflow (*test/message/stack_overflow.js:32:3)

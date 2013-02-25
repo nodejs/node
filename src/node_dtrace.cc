@@ -129,7 +129,7 @@ using namespace v8;
 Handle<Value> DTRACE_NET_SERVER_CONNECTION(const Arguments& args) {
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_SERVER_CONNECTION_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -142,13 +142,13 @@ Handle<Value> DTRACE_NET_SERVER_CONNECTION(const Arguments& args) {
   NODE_NET_SERVER_CONNECTION(&conn);
 #endif
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_NET_STREAM_END(const Arguments& args) {
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_STREAM_END_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -160,13 +160,13 @@ Handle<Value> DTRACE_NET_STREAM_END(const Arguments& args) {
   NODE_NET_STREAM_END(&conn);
 #endif
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_NET_SOCKET_READ(const Arguments& args) {
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_SOCKET_READ_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -184,13 +184,13 @@ Handle<Value> DTRACE_NET_SOCKET_READ(const Arguments& args) {
   NODE_NET_SOCKET_READ(&conn, nbytes);
 #endif
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_NET_SOCKET_WRITE(const Arguments& args) {
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_NET_SOCKET_WRITE_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -208,7 +208,7 @@ Handle<Value> DTRACE_NET_SOCKET_WRITE(const Arguments& args) {
   NODE_NET_SOCKET_WRITE(&conn, nbytes);
 #endif
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
@@ -216,7 +216,7 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
 
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_SERVER_REQUEST_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -249,13 +249,13 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
 #else
   NODE_HTTP_SERVER_REQUEST(&req, &conn);
 #endif
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_HTTP_SERVER_RESPONSE(const Arguments& args) {
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_SERVER_RESPONSE_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -267,7 +267,7 @@ Handle<Value> DTRACE_HTTP_SERVER_RESPONSE(const Arguments& args) {
   NODE_HTTP_SERVER_RESPONSE(&conn);
 #endif
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
@@ -276,7 +276,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
 
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_CLIENT_REQUEST_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
 
   HandleScope scope;
@@ -312,13 +312,13 @@ Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
 #else
   NODE_HTTP_CLIENT_REQUEST(&req, &conn);
 #endif
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
 #ifndef HAVE_SYSTEMTAP
   if (!NODE_HTTP_CLIENT_RESPONSE_ENABLED())
-    return Undefined(node_isolate);
+    return Undefined();
 #endif
   HandleScope scope;
 
@@ -329,7 +329,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
   NODE_HTTP_CLIENT_RESPONSE(&conn);
 #endif
 
-  return Undefined(node_isolate);
+  return Undefined();
 }
 
 #define NODE_PROBE(name) #name, name, Persistent<FunctionTemplate>()

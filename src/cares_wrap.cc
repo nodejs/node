@@ -203,7 +203,7 @@ static Local<Array> HostentToAddresses(struct hostent* host) {
     uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
 
     Local<String> address = String::New(ip);
-    addresses->Set(Integer::New(i, node_isolate), address);
+    addresses->Set(Integer::New(i), address);
   }
 
   return scope.Close(addresses);
@@ -216,7 +216,7 @@ static Local<Array> HostentToNames(struct hostent* host) {
 
   for (int i = 0; host->h_aliases[i]; ++i) {
     Local<String> address = String::New(host->h_aliases[i]);
-    names->Set(Integer::New(i, node_isolate), address);
+    names->Set(Integer::New(i), address);
   }
 
   return scope.Close(names);
@@ -337,13 +337,13 @@ class QueryWrap {
 
   void CallOnComplete(Local<Value> answer) {
     HandleScope scope;
-    Local<Value> argv[2] = { Integer::New(0, node_isolate), answer };
+    Local<Value> argv[2] = { Integer::New(0), answer };
     MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
     HandleScope scope;
-    Local<Value> argv[3] = { Integer::New(0, node_isolate), answer, family };
+    Local<Value> argv[3] = { Integer::New(0), answer, family };
     MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
@@ -352,7 +352,7 @@ class QueryWrap {
     SetAresErrno(status);
 
     HandleScope scope;
-    Local<Value> argv[1] = { Integer::New(-1, node_isolate) };
+    Local<Value> argv[1] = { Integer::New(-1) };
     MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
@@ -492,8 +492,8 @@ class QueryMxWrap: public QueryWrap {
       Local<Object> mx_record = Object::New();
       mx_record->Set(exchange_symbol, String::New(mx_current->host));
       mx_record->Set(priority_symbol,
-                     Integer::New(mx_current->priority, node_isolate));
-      mx_records->Set(Integer::New(i++, node_isolate), mx_record);
+                     Integer::New(mx_current->priority));
+      mx_records->Set(Integer::New(i++), mx_record);
     }
 
     ares_free_data(mx_start);
@@ -550,7 +550,7 @@ class QueryTxtWrap: public QueryWrap {
     struct ares_txt_reply *current = txt_out;
     for (int i = 0; current; ++i, current = current->next) {
       Local<String> txt = String::New(reinterpret_cast<char*>(current->txt));
-      txt_records->Set(Integer::New(i, node_isolate), txt);
+      txt_records->Set(Integer::New(i), txt);
     }
 
     ares_free_data(txt_out);
@@ -595,12 +595,12 @@ class QuerySrvWrap: public QueryWrap {
       Local<Object> srv_record = Object::New();
       srv_record->Set(name_symbol, String::New(srv_current->host));
       srv_record->Set(port_symbol,
-                      Integer::New(srv_current->port, node_isolate));
+                      Integer::New(srv_current->port));
       srv_record->Set(priority_symbol,
-                      Integer::New(srv_current->priority, node_isolate));
+                      Integer::New(srv_current->priority));
       srv_record->Set(weight_symbol,
-                      Integer::New(srv_current->weight, node_isolate));
-      srv_records->Set(Integer::New(i++, node_isolate), srv_record);
+                      Integer::New(srv_current->weight));
+      srv_records->Set(Integer::New(i++), srv_record);
     }
 
     ares_free_data(srv_start);
@@ -656,7 +656,7 @@ class GetHostByNameWrap: public QueryWrap {
     HandleScope scope;
 
     Local<Array> addresses = HostentToAddresses(host);
-    Local<Integer> family = Integer::New(host->h_addrtype, node_isolate);
+    Local<Integer> family = Integer::New(host->h_addrtype);
 
     this->CallOnComplete(addresses, family);
   }
@@ -677,7 +677,7 @@ static Handle<Value> Query(const Arguments& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
+  Local<Object> object = Local<Object>::New(wrap->GetObject());
 
   String::Utf8Value name(args[0]);
 
@@ -685,7 +685,7 @@ static Handle<Value> Query(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null(node_isolate));
+    return scope.Close(v8::Null());
   } else {
     return scope.Close(object);
   }
@@ -706,7 +706,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
+  Local<Object> object = Local<Object>::New(wrap->GetObject());
 
   String::Utf8Value name(args[0]);
   int family = args[1]->Int32Value();
@@ -715,7 +715,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null(node_isolate));
+    return scope.Close(v8::Null());
   } else {
     return scope.Close(object);
   }
@@ -732,7 +732,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status) {
     // Error
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
+    argv[0] = Local<Value>::New(Null());
   } else {
     // Success
     struct addrinfo *address;
@@ -824,14 +824,14 @@ static Handle<Value> IsIP(const Arguments& args) {
   char address_buffer[sizeof(struct in6_addr)];
 
   if (uv_inet_pton(AF_INET, *ip, &address_buffer).code == UV_OK) {
-    return scope.Close(v8::Integer::New(4, node_isolate));
+    return scope.Close(v8::Integer::New(4));
   }
 
   if (uv_inet_pton(AF_INET6, *ip, &address_buffer).code == UV_OK) {
-    return scope.Close(v8::Integer::New(6, node_isolate));
+    return scope.Close(v8::Integer::New(6));
   }
 
-  return scope.Close(v8::Integer::New(0, node_isolate));
+  return scope.Close(v8::Integer::New(0));
 }
 
 
@@ -871,7 +871,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return scope.Close(v8::Null(node_isolate));
+    return scope.Close(v8::Null());
   } else {
     return scope.Close(req_wrap->object_);
   }
@@ -915,11 +915,11 @@ static void Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "isIP", IsIP);
 
   target->Set(String::NewSymbol("AF_INET"),
-              Integer::New(AF_INET, node_isolate));
+              Integer::New(AF_INET));
   target->Set(String::NewSymbol("AF_INET6"),
-              Integer::New(AF_INET6, node_isolate));
+              Integer::New(AF_INET6));
   target->Set(String::NewSymbol("AF_UNSPEC"),
-              Integer::New(AF_UNSPEC, node_isolate));
+              Integer::New(AF_UNSPEC));
 
   oncomplete_sym = NODE_PSYMBOL("oncomplete");
 }

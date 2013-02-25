@@ -251,7 +251,7 @@ class ProcessWrap : public HandleWrap {
       wrap->SetHandle((uv_handle_t*)&wrap->process_);
       assert(wrap->process_.data == wrap);
       wrap->object_->Set(String::New("pid"),
-                         Integer::New(wrap->process_.pid, node_isolate));
+                         Integer::New(wrap->process_.pid));
     }
 
     if (options.args) {
@@ -266,7 +266,7 @@ class ProcessWrap : public HandleWrap {
 
     delete[] options.stdio;
 
-    return scope.Close(Integer::New(r, node_isolate));
+    return scope.Close(Integer::New(r));
   }
 
   static Handle<Value> Kill(const Arguments& args) {
@@ -280,7 +280,7 @@ class ProcessWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r, node_isolate));
+    return scope.Close(Integer::New(r));
   }
 
   static void OnExit(uv_process_t* handle, int exit_status, int term_signal) {
@@ -291,7 +291,7 @@ class ProcessWrap : public HandleWrap {
     assert(&wrap->process_ == handle);
 
     Local<Value> argv[2] = {
-      Integer::New(exit_status, node_isolate),
+      Integer::New(exit_status),
       String::New(signo_string(term_signal))
     };
 

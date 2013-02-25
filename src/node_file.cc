@@ -113,7 +113,7 @@ static void After(uv_fs_t *req) {
     }
   } else {
     // error value is empty or null for non-error.
-    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
+    argv[0] = Local<Value>::New(Null());
 
     // All have at least two args now.
     argc = 2;
@@ -144,11 +144,11 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
-        argv[1] = Integer::New(req->result, node_isolate);
+        argv[1] = Integer::New(req->result);
         break;
 
       case UV_FS_WRITE:
-        argv[1] = Integer::New(req->result, node_isolate);
+        argv[1] = Integer::New(req->result);
         break;
 
       case UV_FS_STAT:
@@ -163,7 +163,7 @@ static void After(uv_fs_t *req) {
 
       case UV_FS_READ:
         // Buffer interface
-        argv[1] = Integer::New(req->result, node_isolate);
+        argv[1] = Integer::New(req->result);
         break;
 
       case UV_FS_READDIR:
@@ -175,7 +175,7 @@ static void After(uv_fs_t *req) {
 
           for (int i = 0; i < nnames; i++) {
             Local<String> name = String::New(namebuf);
-            names->Set(Integer::New(i, node_isolate), name);
+            names->Set(Integer::New(i), name);
 #ifndef NDEBUG
             namebuf += strlen(namebuf);
             assert(*namebuf == '\0');
@@ -256,7 +256,7 @@ static Handle<Value> Close(const Arguments& args) {
     ASYNC_CALL(close, args[1], fd)
   } else {
     SYNC_CALL(close, 0, fd)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -314,7 +314,7 @@ Local<Object> BuildStatsObject(const uv_statbuf_t* s) {
   // and make sure that we bail out when V8 returns an empty handle.
 #define X(name)                                                               \
   {                                                                           \
-    Local<Value> val = Integer::New(s->st_##name, node_isolate);              \
+    Local<Value> val = Integer::New(s->st_##name);                            \
     if (val.IsEmpty()) return Local<Object>();                                \
     stats->Set(name##_symbol, val);                                           \
   }
@@ -437,7 +437,7 @@ static Handle<Value> Symlink(const Arguments& args) {
     ASYNC_CALL(symlink, args[3], *dest, *path, flags)
   } else {
     SYNC_CALL(symlink, *path, *dest, *path, flags)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -457,7 +457,7 @@ static Handle<Value> Link(const Arguments& args) {
     ASYNC_CALL(link, args[2], *orig_path, *new_path)
   } else {
     SYNC_CALL(link, *orig_path, *orig_path, *new_path)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -493,7 +493,7 @@ static Handle<Value> Rename(const Arguments& args) {
     ASYNC_CALL(rename, args[2], *old_path, *new_path)
   } else {
     SYNC_CALL(rename, *old_path, *old_path, *new_path)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -513,7 +513,7 @@ static Handle<Value> FTruncate(const Arguments& args) {
     ASYNC_CALL(ftruncate, args[2], fd, len)
   } else {
     SYNC_CALL(ftruncate, 0, fd, len)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -530,7 +530,7 @@ static Handle<Value> Fdatasync(const Arguments& args) {
     ASYNC_CALL(fdatasync, args[1], fd)
   } else {
     SYNC_CALL(fdatasync, 0, fd)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -547,7 +547,7 @@ static Handle<Value> Fsync(const Arguments& args) {
     ASYNC_CALL(fsync, args[1], fd)
   } else {
     SYNC_CALL(fsync, 0, fd)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -563,7 +563,7 @@ static Handle<Value> Unlink(const Arguments& args) {
     ASYNC_CALL(unlink, args[1], *path)
   } else {
     SYNC_CALL(unlink, *path, *path)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -579,7 +579,7 @@ static Handle<Value> RMDir(const Arguments& args) {
     ASYNC_CALL(rmdir, args[1], *path)
   } else {
     SYNC_CALL(rmdir, *path, *path)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -597,7 +597,7 @@ static Handle<Value> MKDir(const Arguments& args) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
   } else {
     SYNC_CALL(mkdir, *path, *path, mode)
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -620,7 +620,7 @@ static Handle<Value> ReadDir(const Arguments& args) {
 
     for (int i = 0; i < nnames; i++) {
       Local<String> name = String::New(namebuf);
-      names->Set(Integer::New(i, node_isolate), name);
+      names->Set(Integer::New(i), name);
 #ifndef NDEBUG
       namebuf += strlen(namebuf);
       assert(*namebuf == '\0');
@@ -654,7 +654,7 @@ static Handle<Value> Open(const Arguments& args) {
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
     int fd = SYNC_RESULT;
-    return scope.Close(Integer::New(fd, node_isolate));
+    return scope.Close(Integer::New(fd));
   }
 }
 
@@ -707,7 +707,7 @@ static Handle<Value> Write(const Arguments& args) {
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
     SYNC_CALL(write, 0, fd, buf, len, pos)
-    return scope.Close(Integer::New(SYNC_RESULT, node_isolate));
+    return scope.Close(Integer::New(SYNC_RESULT));
   }
 }
 
@@ -770,7 +770,7 @@ static Handle<Value> Read(const Arguments& args) {
     ASYNC_CALL(read, cb, fd, buf, len, pos);
   } else {
     SYNC_CALL(read, 0, fd, buf, len, pos)
-    Local<Integer> bytesRead = Integer::New(SYNC_RESULT, node_isolate);
+    Local<Integer> bytesRead = Integer::New(SYNC_RESULT);
     return scope.Close(bytesRead);
   }
 }
@@ -792,7 +792,7 @@ static Handle<Value> Chmod(const Arguments& args) {
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
     SYNC_CALL(chmod, *path, *path, mode);
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -813,7 +813,7 @@ static Handle<Value> FChmod(const Arguments& args) {
     ASYNC_CALL(fchmod, args[2], fd, mode);
   } else {
     SYNC_CALL(fchmod, 0, fd, mode);
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -840,7 +840,7 @@ static Handle<Value> Chown(const Arguments& args) {
     ASYNC_CALL(chown, args[3], *path, uid, gid);
   } else {
     SYNC_CALL(chown, *path, *path, uid, gid);
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -867,7 +867,7 @@ static Handle<Value> FChown(const Arguments& args) {
     ASYNC_CALL(fchown, args[3], fd, uid, gid);
   } else {
     SYNC_CALL(fchown, 0, fd, uid, gid);
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -891,7 +891,7 @@ static Handle<Value> UTimes(const Arguments& args) {
     ASYNC_CALL(utime, args[3], *path, atime, mtime);
   } else {
     SYNC_CALL(utime, *path, *path, atime, mtime);
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
@@ -914,7 +914,7 @@ static Handle<Value> FUTimes(const Arguments& args) {
     ASYNC_CALL(futime, args[3], fd, atime, mtime);
   } else {
     SYNC_CALL(futime, 0, fd, atime, mtime);
-    return Undefined(node_isolate);
+    return Undefined();
   }
 }
 
