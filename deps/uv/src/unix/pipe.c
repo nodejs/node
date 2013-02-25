@@ -186,16 +186,14 @@ void uv_pipe_connect(uv_connect_t* req,
   uv_strlcpy(saddr.sun_path, name, sizeof(saddr.sun_path));
   saddr.sun_family = AF_UNIX;
 
-  /* We don't check for EINPROGRESS. Think about it: the socket
-   * is either there or not.
-   */
   do {
     r = connect(handle->fd, (struct sockaddr*)&saddr, sizeof saddr);
   }
   while (r == -1 && errno == EINTR);
 
   if (r == -1)
-    goto out;
+    if (errno != EINPROGRESS)
+      goto out;
 
   if (new_sock)
     if (uv__stream_open((uv_stream_t*)handle,
@@ -216,8 +214,9 @@ out:
   req->cb = cb;
   ngx_queue_init(&req->queue);
 
-  /* Run callback on next tick. */
-  uv__io_feed(handle->loop, &handle->write_watcher, UV__IO_WRITE);
+  /* Force callback to run on next tick in case of error. */
+  if (err != 0)
+    uv__io_feed(handle->loop, &handle->write_watcher, UV__IO_WRITE);
 
   /* Mimic the Windows pipe implementation, always
    * return 0 and let the callback handle errors.
