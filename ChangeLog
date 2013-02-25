@@ -1,4 +1,15 @@
-2013.02.15, Version 0.8.20 (Stable)
+2013.02.25, Version 0.8.21 (Stable)
+
+* http: Do not free the wrong parser on socket close (isaacs)
+
+* http: Handle hangup writes more gently (isaacs)
+
+* zlib: fix assert on bad input (Ben Noordhuis)
+
+* test: add TAP output to the test runner (Timothy J Fontaine)
+
+
+2013.02.15, Version 0.8.20 (Stable), e10c75579b536581ddd7ae4e2c3bf8a9d550d343
 
 * npm: Upgrade to v1.2.11
 
