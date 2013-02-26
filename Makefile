@@ -225,6 +225,10 @@ ARCH=x86
 endif
 endif
 TARNAME=node-$(VERSION)
+ifeq ($(NIGHTLY),1)
+TAG = nightly-$(shell date "+%Y%m%d")
+TARNAME=node-$(VERSION)-$(TAG)
+endif
 TARBALL=$(TARNAME).tar.gz
 BINARYNAME=$(TARNAME)-$(PLATFORM)-$(ARCH)
 BINARYTAR=$(BINARYNAME).tar.gz
@@ -247,7 +251,7 @@ release-only:
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ "$(RELEASE)" = "1" ]; then \
+	@if [ "$(NIGHTLY)" = "1" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
 	  echo "" >&2 ; \
@@ -262,10 +266,10 @@ pkg: $(PKG)
 $(PKG): release-only
 	rm -rf $(PKGDIR)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32
+	$(PYTHON) ./configure --prefix=$(PKGDIR)/32/usr/local --without-snapshot --dest-cpu=ia32 --tag=$(TAG)
 	$(MAKE) install V=$(V)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64
+	$(PYTHON) ./configure --prefix=$(PKGDIR)/usr/local --without-snapshot --dest-cpu=x64 --tag=$(TAG)
 	$(MAKE) install V=$(V)
 	SIGN="$(SIGN)" PKGDIR="$(PKGDIR)" bash tools/osx-codesign.sh
 	lipo $(PKGDIR)/32/usr/local/bin/node \
@@ -297,7 +301,7 @@ tar: $(TARBALL)
 $(BINARYTAR): release-only
 	rm -rf $(BINARYNAME)
 	rm -rf out/deps out/Release
-	$(PYTHON) ./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU) $(CONFIG_FLAGS)
+	$(PYTHON) ./configure --prefix=/ --without-snapshot --dest-cpu=$(DESTCPU) --tag=$(TAG) $(CONFIG_FLAGS)
 	$(MAKE) install DESTDIR=$(BINARYNAME) V=$(V) PORTABLE=1
 	cp README.md $(BINARYNAME)
 	cp LICENSE $(BINARYNAME)
