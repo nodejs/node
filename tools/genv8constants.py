@@ -32,10 +32,8 @@ except OSError, e:
 
   sys.exit()
 
-pattern = re.compile('([0-9a-fA-F]{8}|[0-9a-fA-F]{16}) <(.*)>:');
-v8dbg = re.compile('^v8dbg.*$')
-numpattern = re.compile('^[0-9a-fA-F]{2} $');
-octets = 4
+pattern = re.compile('00000000 <(v8dbg_.*)>:');
+numpattern = re.compile('[0-9a-fA-F]{2}');
 
 outfile.write("""
 /*
@@ -48,28 +46,12 @@ outfile.write("""
 #ifndef V8_CONSTANTS_H
 #define V8_CONSTANTS_H
 
+#if defined(__i386)
 """);
 
 curr_sym = None;
 curr_val = 0;
 curr_octet = 0;
-
-def out_reset():
-  global curr_sym, curr_val, curr_octet
-  curr_sym = None;
-  curr_val = 0;
-  curr_octet = 0;
-
-def out_define():
-  global curr_sym, curr_val, curr_octet, outfile, octets
-  if curr_sym != None:
-    wrapped_val = curr_val & 0xffffffff;
-    if curr_val & 0x80000000 != 0:
-      wrapped_val = 0x100000000 - wrapped_val;
-      outfile.write("#define %s -0x%x\n" % (curr_sym.upper(), wrapped_val));
-    else:
-      outfile.write("#define %s 0x%x\n" % (curr_sym.upper(), wrapped_val));
-  out_reset();
 
 for line in pipe:
   if curr_sym != None:
@@ -83,32 +65,32 @@ for line in pipe:
     for i in range (0, 3):
       # 6-character margin, 2-characters + 1 space for each field
       idx = 6 + i * 3;
-      octetstr = line[idx:idx+3]
+      octetstr = line[idx:idx+2]
       if not numpattern.match(octetstr):
-        break;
-
-      if curr_octet > octets:
         break;
 
       curr_val += int('0x%s' % octetstr, 16) << (curr_octet * 8);
       curr_octet += 1;
 
+    if curr_octet < 4:
+      continue;
+
+    outfile.write("#define %s 0x%x\n" % (curr_sym.upper(), curr_val));
+    curr_sym = None;
+    curr_val = 0;
+    curr_octet = 0;
+    continue;
+
   match = pattern.match(line)
   if match == None:
     continue;
 
-  # Print previous symbol
-  out_define();
-
-  v8match = v8dbg.match(match.group(2));
-  if v8match != None:
-    out_reset();
-    curr_sym = match.group(2);
-
-# Print last symbol
-out_define();
+  curr_sym = match.group(1);
 
 outfile.write("""
+#else
+#error "only i386 is supported for DTrace ustack helper"
+#endif
 
 #endif /* V8_CONSTANTS_H */
 """);
