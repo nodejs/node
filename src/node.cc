@@ -2477,6 +2477,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
                                                     3);
   process->Set(String::NewSymbol("_tickInfoBox"), info_box);
 
+  // pre-set _events object for faster emit checks
+  process->Set(String::NewSymbol("_events"), Object::New());
+
   return process;
 }
 

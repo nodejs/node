@@ -25,6 +25,6 @@ var events = require('events');
 
 var e = new events.EventEmitter;
 
-assert.strictEqual(e._events, null);
+assert.deepEqual(e._events, {});
 e.setMaxListeners(5);
-assert.strictEqual(e._events, null);
+assert.deepEqual(e._events, {});
