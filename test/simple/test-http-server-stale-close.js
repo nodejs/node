@@ -22,6 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
+var util = require('util');
 var fork = require('child_process').fork;
 
 if (process.env.NODE_TEST_FORK) {
@@ -45,7 +46,7 @@ else {
   });
   server.listen(common.PORT, function() {
     fork(__filename, {
-      env: {NODE_TEST_FORK: '1'}
+      env: util._extend(process.env, {NODE_TEST_FORK: '1'})
     });
   });
 }
