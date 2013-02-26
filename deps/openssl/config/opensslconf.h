@@ -145,7 +145,7 @@
 
 #undef OPENSSL_UNISTD
 #define OPENSSL_UNISTD <unistd.h>
-#if !defined(_WIN32) && !defined(__arm__) && !defined(SWIG)
+#if !defined(_WIN32) && !defined(__arm__) && !defined(__mips__) && !defined(SWIG)
 # include <unistd.h>
 #endif
 
@@ -205,7 +205,7 @@
  /* If this is set to 'unsigned int' on a DEC Alpha, this gives about a
   * %20 speed up (longs are 8 bytes, int's are 4). */
 # undef DES_LONG
-# if defined(_M_X64) || defined(__x86_64__) || defined(__arm__)
+# if defined(_M_X64) || defined(__x86_64__) || defined(__arm__) || defined(__mips__)
 #  define DES_LONG unsigned int
 # elif defined(_M_IX86) || defined(__i386__)
 #  define DES_LONG unsigned long
@@ -235,7 +235,7 @@
 #  define SIXTY_FOUR_BIT
 # elif (defined(_M_X64) || defined(__x86_64__)) && !defined(_WIN32)
 #  define SIXTY_FOUR_BIT_LONG
-# elif defined(_M_IX86) || defined(__i386__) || defined(__arm__)
+# elif defined(_M_IX86) || defined(__i386__) || defined(__arm__) || defined(__mips__)
 #  define THIRTY_TWO_BIT
 # endif
 #endif
