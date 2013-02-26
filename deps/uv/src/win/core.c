@@ -116,6 +116,7 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->active_udp_streams = 0;
 
   loop->timer_counter = 0;
+  loop->stop_flag = 0;
 
   loop->last_err = uv_ok_;
 }
@@ -249,10 +250,13 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
   }
 }
 
-#define UV_LOOP_ALIVE(loop)                                                   \
-    ((loop)->active_handles > 0 ||                                            \
-     !ngx_queue_empty(&(loop)->active_reqs) ||                                \
-     (loop)->endgame_handles != NULL)
+
+static int uv__loop_alive(uv_loop_t* loop) {
+  return loop->active_handles > 0 ||
+         !ngx_queue_empty(&loop->active_reqs) ||
+         loop->endgame_handles != NULL;
+}
+
 
 int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   int r;
@@ -263,8 +267,11 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
   else
     poll = &uv_poll;
 
-  r = UV_LOOP_ALIVE(loop);
-  while (r) {
+  if (!uv__loop_alive(loop))
+    return 0;
+
+  r = uv__loop_alive(loop);
+  while (r != 0 && loop->stop_flag == 0) {
     uv_update_time(loop);
     uv_process_timers(loop);
 
@@ -282,14 +289,22 @@ int uv_run(uv_loop_t *loop, uv_run_mode mode) {
     (*poll)(loop, loop->idle_handles == NULL &&
                   loop->pending_reqs_tail == NULL &&
                   loop->endgame_handles == NULL &&
-                  UV_LOOP_ALIVE(loop) &&
+                  !loop->stop_flag &&
+                  (loop->active_handles > 0 ||
+                   !ngx_queue_empty(&loop->active_reqs)) &&
                   !(mode & UV_RUN_NOWAIT));
 
     uv_check_invoke(loop);
-    r = UV_LOOP_ALIVE(loop);
-
+    r = uv__loop_alive(loop);
     if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
       break;
   }
+
+  /* The if statement lets the compiler compile it to a conditional store.
+   * Avoids dirtying a cache line.
+   */
+  if (loop->stop_flag != 0)
+    loop->stop_flag = 0;
+
   return r;
 }

@@ -254,6 +254,53 @@ int uv_tcp_connect6(uv_connect_t* req,
 }
 
 
+int uv_udp_send(uv_udp_send_t* req,
+                uv_udp_t* handle,
+                uv_buf_t bufs[],
+                int bufcnt,
+                struct sockaddr_in addr,
+                uv_udp_send_cb send_cb) {
+  if (handle->type != UV_UDP || addr.sin_family != AF_INET) {
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+  }
+
+  return uv__udp_send(req, handle, bufs, bufcnt, addr, send_cb);
+}
+
+
+int uv_udp_send6(uv_udp_send_t* req,
+                 uv_udp_t* handle,
+                 uv_buf_t bufs[],
+                 int bufcnt,
+                 struct sockaddr_in6 addr,
+                 uv_udp_send_cb send_cb) {
+  if (handle->type != UV_UDP || addr.sin6_family != AF_INET6) {
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+  }
+
+  return uv__udp_send6(req, handle, bufs, bufcnt, addr, send_cb);
+}
+
+
+int uv_udp_recv_start(uv_udp_t* handle,
+                      uv_alloc_cb alloc_cb,
+                      uv_udp_recv_cb recv_cb) {
+  if (handle->type != UV_UDP || alloc_cb == NULL || recv_cb == NULL) {
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+  }
+
+  return uv__udp_recv_start(handle, alloc_cb, recv_cb);
+}
+
+
+int uv_udp_recv_stop(uv_udp_t* handle) {
+  if (handle->type != UV_UDP) {
+    return uv__set_artificial_error(handle->loop, UV_EINVAL);
+  }
+
+  return uv__udp_recv_stop(handle);
+}
+
 #ifdef _WIN32
 static UINT __stdcall uv__thread_start(void *ctx_v)
 #else
@@ -376,4 +423,9 @@ void uv_ref(uv_handle_t* handle) {
 
 void uv_unref(uv_handle_t* handle) {
   uv__handle_unref(handle);
+}
+
+
+void uv_stop(uv_loop_t* loop) {
+  loop->stop_flag = 1;
 }

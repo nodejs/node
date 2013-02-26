@@ -93,6 +93,25 @@ int uv__tcp_connect6(uv_connect_t* req,
                     struct sockaddr_in6 address,
                     uv_connect_cb cb);
 
+int uv__udp_send(uv_udp_send_t* req,
+                 uv_udp_t* handle,
+                 uv_buf_t bufs[],
+                 int bufcnt,
+                 struct sockaddr_in addr,
+                 uv_udp_send_cb send_cb);
+
+int uv__udp_send6(uv_udp_send_t* req,
+                  uv_udp_t* handle,
+                  uv_buf_t bufs[],
+                  int bufcnt,
+                  struct sockaddr_in6 addr,
+                  uv_udp_send_cb send_cb);
+
+int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloccb,
+                       uv_udp_recv_cb recv_cb);
+
+int uv__udp_recv_stop(uv_udp_t* handle);
+
 void uv__fs_poll_close(uv_fs_poll_t* handle);
 
 

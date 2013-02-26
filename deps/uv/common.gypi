@@ -45,7 +45,13 @@
       },
       'Release': {
         'defines': [ 'NDEBUG' ],
-        'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
+        'cflags': [
+          '-O3',
+          '-fstrict-aliasing',
+          '-fomit-frame-pointer',
+          '-fdata-sections',
+          '-ffunction-sections',
+        ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [
@@ -163,7 +169,7 @@
           'PREBINDING': 'NO',                       # No -Wl,-prebind
           'USE_HEADERMAP': 'NO',
           'OTHER_CFLAGS': [
-            '-fno-strict-aliasing',
+            '-fstrict-aliasing',
           ],
           'WARNING_CFLAGS': [
             '-Wall',

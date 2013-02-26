@@ -341,7 +341,7 @@ static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
 }
 
 
-int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
+int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
     uv_udp_recv_cb recv_cb) {
   uv_loop_t* loop = handle->loop;
 
@@ -371,7 +371,7 @@ int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
 }
 
 
-int uv_udp_recv_stop(uv_udp_t* handle) {
+int uv__udp_recv_stop(uv_udp_t* handle) {
   if (handle->flags & UV_HANDLE_READING) {
     handle->flags &= ~UV_HANDLE_READING;
     handle->loop->active_udp_streams--;
@@ -382,7 +382,7 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 }
 
 
-static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
+static int uv__send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     int bufcnt, struct sockaddr* addr, int addr_len, uv_udp_send_cb cb) {
   uv_loop_t* loop = handle->loop;
   DWORD result, bytes;
@@ -424,7 +424,7 @@ static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
 }
 
 
-int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
+int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     int bufcnt, struct sockaddr_in addr, uv_udp_send_cb cb) {
 
   if (!(handle->flags & UV_HANDLE_BOUND) &&
@@ -432,17 +432,17 @@ int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     return -1;
   }
 
-  return uv__udp_send(req,
-                      handle,
-                      bufs,
-                      bufcnt,
-                      (struct sockaddr*) &addr,
-                      sizeof addr,
-                      cb);
+  return uv__send(req,
+                  handle,
+                  bufs,
+                  bufcnt,
+                  (struct sockaddr*) &addr,
+                  sizeof addr,
+                  cb);
 }
 
 
-int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
+int uv__udp_send6(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     int bufcnt, struct sockaddr_in6 addr, uv_udp_send_cb cb) {
 
   if (!(handle->flags & UV_HANDLE_BOUND) &&
@@ -450,13 +450,13 @@ int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     return -1;
   }
 
-  return uv__udp_send(req,
-                      handle,
-                      bufs,
-                      bufcnt,
-                      (struct sockaddr*) &addr,
-                      sizeof addr,
-                      cb);
+  return uv__send(req,
+                  handle,
+                  bufs,
+                  bufcnt,
+                  (struct sockaddr*) &addr,
+                  sizeof addr,
+                  cb);
 }
 
 

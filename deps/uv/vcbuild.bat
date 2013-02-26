@@ -77,7 +77,7 @@ if errorlevel 1 goto gyp_install_failed
 goto have_gyp
 
 :gyp_install_failed
-echo Failed to download gyp. Make sure you have subversion installed, or
+echo Failed to download gyp. Make sure you have git installed, or
 echo manually install gyp into %~dp0build\gyp.
 goto exit
 

@@ -102,7 +102,9 @@ int run_tests(int timeout, int benchmark_output) {
       continue;
     }
 
-    rewind_cursor();
+    if (!tap_output)
+      rewind_cursor();
+
     if (!benchmark_output && !tap_output) {
       log_progress(total, passed, failed, task->task_name);
     }
@@ -115,7 +117,8 @@ int run_tests(int timeout, int benchmark_output) {
     current++;
   }
 
-  rewind_cursor();
+  if (!tap_output)
+    rewind_cursor();
 
   if (!benchmark_output && !tap_output) {
     log_progress(total, passed, failed, "Done.\n");

@@ -259,6 +259,9 @@ int uv_backend_fd(const uv_loop_t* loop) {
 
 
 int uv_backend_timeout(const uv_loop_t* loop) {
+  if (loop->stop_flag != 0)
+    return 0;
+
   if (!uv__has_active_handles(loop) && !uv__has_active_reqs(loop))
     return 0;
 
@@ -280,22 +283,35 @@ static int uv__loop_alive(uv_loop_t* loop) {
 
 
 int uv_run(uv_loop_t* loop, uv_run_mode mode) {
+  int timeout;
   int r;
 
-  if (!uv__loop_alive(loop))
-    return 0;
-
-  do {
+  r = uv__loop_alive(loop);
+  while (r != 0 && loop->stop_flag == 0) {
     uv__update_time(loop);
     uv__run_timers(loop);
     uv__run_idle(loop);
     uv__run_prepare(loop);
     uv__run_pending(loop);
-    uv__io_poll(loop, (mode & UV_RUN_NOWAIT ? 0 : uv_backend_timeout(loop)));
+
+    timeout = 0;
+    if ((mode & UV_RUN_NOWAIT) == 0)
+      timeout = uv_backend_timeout(loop);
+
+    uv__io_poll(loop, timeout);
     uv__run_check(loop);
     uv__run_closing_handles(loop);
     r = uv__loop_alive(loop);
-  } while (r && !(mode & (UV_RUN_ONCE | UV_RUN_NOWAIT)));
+
+    if (mode & (UV_RUN_ONCE | UV_RUN_NOWAIT))
+      break;
+  }
+
+  /* The if statement lets gcc compile it to a conditional store. Avoids
+   * dirtying a cache line.
+   */
+  if (loop->stop_flag != 0)
+    loop->stop_flag = 0;
 
   return r;
 }

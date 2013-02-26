@@ -54,15 +54,16 @@
 # include "uv-bsd.h"
 #endif
 
-struct uv__io_s;
-struct uv_loop_s;
-
 #ifndef UV_IO_PRIVATE_PLATFORM_FIELDS
 # define UV_IO_PRIVATE_PLATFORM_FIELDS /* empty */
 #endif
 
 #define UV_IO_PRIVATE_FIELDS                                                  \
   UV_IO_PRIVATE_PLATFORM_FIELDS                                               \
+
+struct uv__io_s;
+struct uv__async;
+struct uv_loop_s;
 
 typedef void (*uv__io_cb)(struct uv_loop_s* loop,
                           struct uv__io_s* w,
@@ -77,6 +78,16 @@ struct uv__io_s {
   unsigned int events;  /* Current event mask. */
   int fd;
   UV_IO_PRIVATE_FIELDS
+};
+
+typedef void (*uv__async_cb)(struct uv_loop_s* loop,
+                             struct uv__async* w,
+                             unsigned int nevents);
+
+struct uv__async {
+  uv__async_cb cb;
+  uv__io_t io_watcher;
+  int wfd;
 };
 
 struct uv__work {
@@ -167,8 +178,7 @@ typedef struct {
   ngx_queue_t check_handles;                                                  \
   ngx_queue_t idle_handles;                                                   \
   ngx_queue_t async_handles;                                                  \
-  uv__io_t async_watcher;                                                     \
-  int async_pipefd[2];                                                        \
+  struct uv__async async_watcher;                                             \
   /* RB_HEAD(uv__timers, uv_timer_s) */                                       \
   struct uv__timers {                                                         \
     struct uv_timer_s* rbh_root;                                              \
@@ -252,9 +262,9 @@ typedef struct {
   ngx_queue_t queue;
 
 #define UV_ASYNC_PRIVATE_FIELDS                                               \
-  volatile sig_atomic_t pending;                                              \
   uv_async_cb async_cb;                                                       \
-  ngx_queue_t queue;
+  ngx_queue_t queue;                                                          \
+  int pending;                                                                \
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
   /* RB_ENTRY(uv_timer_s) tree_entry; */                                      \

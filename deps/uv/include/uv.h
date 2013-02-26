@@ -259,6 +259,14 @@ UV_EXTERN uv_loop_t* uv_default_loop(void);
 UV_EXTERN int uv_run(uv_loop_t*, uv_run_mode mode);
 
 /*
+ * This function will stop the event loop by forcing uv_run to end
+ * as soon as possible, but not sooner than the next loop iteration.
+ * If this function was called before blocking for i/o, the loop won't
+ * block for i/o on this iteration.
+ */
+UV_EXTERN void uv_stop(uv_loop_t*);
+
+/*
  * Manually modify the event loop's reference count. Useful if the user wants
  * to have a handle or timeout that doesn't keep the loop alive.
  */
@@ -1934,6 +1942,8 @@ struct uv_loop_s {
   unsigned int active_handles;
   ngx_queue_t handle_queue;
   ngx_queue_t active_reqs;
+  /* Internal flag to signal loop stop */
+  unsigned int stop_flag;
   UV_LOOP_PRIVATE_FIELDS
 };
 

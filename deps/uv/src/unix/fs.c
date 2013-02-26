@@ -374,6 +374,7 @@ static ssize_t uv__fs_sendfile_emul(uv_fs_t* req) {
       while (n == -1 && errno == EINTR);
 
       if (n == -1 || (pfd.revents & ~POLLOUT) != 0) {
+        errno = EIO;
         nsent = -1;
         goto out;
       }

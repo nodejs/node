@@ -85,6 +85,7 @@ TESTS= \
 	test/test-ipc.o \
 	test/test-ipc-send-recv.o \
 	test/test-loop-handles.o \
+	test/test-loop-stop.o \
 	test/test-multiple-listen.o \
 	test/test-mutexes.o \
 	test/test-pass-always.o \

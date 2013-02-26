@@ -30,68 +30,45 @@ static void* args_mem;
 
 static struct {
   char* str;
-  int len;
+  size_t len;
 } process_title;
 
 
 char** uv_setup_args(int argc, char** argv) {
   char** new_argv;
-  char** new_env;
   size_t size;
-  int envc;
   char* s;
   int i;
 
-#if defined(__APPLE__)
-  char*** _NSGetArgv(void);
-  char*** _NSGetEnviron(void);
-  char** environ = *_NSGetEnviron();
-#else
-  extern char** environ;
-#endif
+  if (argc <= 0)
+    return argv;
 
-  for (envc = 0; environ[envc]; envc++);
-
-  if (envc == 0)
-    s = argv[argc - 1];
-  else
-    s = environ[envc - 1];
+  /* Calculate how much memory we need for the argv strings. */
+  size = 0;
+  for (i = 0; i < argc; i++)
+    size += strlen(argv[i]) + 1;
 
   process_title.str = argv[0];
-  process_title.len = s + strlen(s) + 1 - argv[0];
+  process_title.len = argv[argc - 1] + strlen(argv[argc - 1]) - argv[0];
+  assert(process_title.len + 1 == size);  /* argv memory should be adjacent. */
 
-  size = process_title.len;
-  size += (argc + 1) * sizeof(char**);
-  size += (envc + 1) * sizeof(char**);
-  s = args_mem = malloc(size);
+  /* Add space for the argv pointers. */
+  size += (argc + 1) * sizeof(char*);
 
-  if (s == NULL) {
-    process_title.str = NULL;
-    process_title.len = 0;
+  new_argv = malloc(size);
+  if (new_argv == NULL)
     return argv;
+  args_mem = new_argv;
+
+  /* Copy over the strings and set up the pointer table. */
+  s = (char*) &new_argv[argc + 1];
+  for (i = 0; i < argc; i++) {
+    size = strlen(argv[i]) + 1;
+    memcpy(s, argv[i], size);
+    new_argv[i] = s;
+    s += size;
   }
-
-  new_argv = (char**) s;
-  new_env = new_argv + argc + 1;
-  s = (char*) (new_env + envc + 1);
-  memcpy(s, process_title.str, process_title.len);
-
-  for (i = 0; i < argc; i++)
-    new_argv[i] = s + (argv[i] - argv[0]);
-  new_argv[argc] = NULL;
-
-  s += environ[0] - argv[0];
-
-  for (i = 0; i < envc; i++)
-    new_env[i] = s + (environ[i] - environ[0]);
-  new_env[envc] = NULL;
-
-#if defined(__APPLE__)
-  *_NSGetArgv() = new_argv;
-  *_NSGetEnviron() = new_env;
-#else
-  environ = new_env;
-#endif
+  new_argv[i] = NULL;
 
   return new_argv;
 }
@@ -101,8 +78,8 @@ uv_err_t uv_set_process_title(const char* title) {
   if (process_title.len == 0)
     return uv_ok_;
 
-  /* No need to terminate, last char is always '\0'. */
-  strncpy(process_title.str, title, process_title.len - 1);
+  /* No need to terminate, byte after is always '\0'. */
+  strncpy(process_title.str, title, process_title.len);
   uv__set_process_title(title);
 
   return uv_ok_;
