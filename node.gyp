@@ -168,13 +168,9 @@
           #
           'sources': [
             'src/node_dtrace.cc',
-            'src/node_dtrace_provider.cc'
+            'src/node_dtrace_provider.cc',
+            'src/node_dtrace_ustack.cc',
           ],
-          'conditions': [ [
-            'target_arch=="ia32"', {
-              'sources': [ 'src/node_dtrace_ustack.cc' ]
-            }
-          ] ],
         } ],
         [ 'node_use_systemtap=="true"', {
           'defines': [ 'HAVE_SYSTEMTAP=1', 'STAP_SDT_V1=1' ],
@@ -423,7 +419,7 @@
       'target_name': 'node_dtrace_ustack',
       'type': 'none',
       'conditions': [
-        [ 'node_use_dtrace=="true" and target_arch=="ia32"', {
+        [ 'node_use_dtrace=="true"', {
           'actions': [
             {
               'action_name': 'node_dtrace_ustack_constants',
@@ -448,9 +444,19 @@
               'outputs': [
                 '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace_ustack.o'
               ],
-              'action': [
-                'dtrace', '-32', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
-                '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
+              'conditions': [
+                [ 'target_arch=="ia32"', {
+                  'action': [
+                    'dtrace', '-32', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
+                    '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
+                  ]
+                } ],
+                [ 'target_arch=="x64"', {
+                  'action': [
+                    'dtrace', '-64', '-I<(SHARED_INTERMEDIATE_DIR)', '-Isrc',
+                    '-C', '-G', '-s', 'src/v8ustack.d', '-o', '<@(_outputs)',
+                  ]
+                } ],
               ]
             }
           ]
