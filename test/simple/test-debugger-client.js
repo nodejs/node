@@ -27,6 +27,8 @@ var common = require('../common');
 var assert = require('assert');
 var debug = require('_debugger');
 
+var debugPort = common.PORT + 1337;
+debug.port = debugPort;
 var spawn = require('child_process').spawn;
 
 setTimeout(function() {
@@ -155,7 +157,8 @@ var script = 'setTimeout(function () { console.log("blah"); });' +
 var nodeProcess;
 
 function doTest(cb, done) {
-  nodeProcess = spawn(process.execPath, ['-e', script]);
+  var args = ['--debug=' + debugPort, '-e', script];
+  nodeProcess = spawn(process.execPath, args);
 
   nodeProcess.stdout.once('data', function(c) {
     console.log('>>> new node process: %d', nodeProcess.pid);
