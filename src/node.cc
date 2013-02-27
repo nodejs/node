@@ -2715,7 +2715,7 @@ static void EnableDebug(bool wait_connect) {
 
 
 #ifdef __POSIX__
-static void EnableDebugSignalHandler(int signal) {
+static void EnableDebugSignalHandler(uv_signal_t* handle, int) {
   // Break once process will return execution to v8
   v8::Debug::DebugBreak(node_isolate);
 
@@ -2997,7 +2997,10 @@ char** Init(int argc, char *argv[]) {
 #ifdef _WIN32
     RegisterDebugSignalHandler();
 #else // Posix
-    RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
+    static uv_signal_t signal_watcher;
+    uv_signal_init(uv_default_loop(), &signal_watcher);
+    uv_signal_start(&signal_watcher, EnableDebugSignalHandler, SIGUSR1);
+    uv_unref((uv_handle_t*)&signal_watcher);
 #endif // __POSIX__
   }
 
