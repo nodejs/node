@@ -200,6 +200,10 @@ And the child would the receive the server object as:
 Note that the server is now shared between the parent and child, this means
 that some connections will be handled by the parent and some by the child.
 
+For `dgram` servers the workflow is exactly the same.  Here you listen on
+a `message` event instead of `connection` and use `server.bind` instead of
+`server.listen`.
+
 #### Example: sending socket object
 
 Here is an example of sending a socket. It will spawn two children and handle
