@@ -25,7 +25,8 @@ var assert = require('assert');
 
 var http = require('http');
 
-var port = 12345;
+var port = common.PORT;
+
 var server = http.createServer(function(req, res) {
       res.writeHead(200, {'Content-Type': 'text/plain'});
       res.end('OK');
