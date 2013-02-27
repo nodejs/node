@@ -9,6 +9,6 @@ AssertionError: 1 == 2
     at Object.Module._extensions..js (module.js:*:*)
     at Module.load (module.js:*:*)
     at Function.Module._load (module.js:*:*)
-    at Module.runMain (module.js:*:*)
-    at _tickCallback (node.js:*:*)
-    at process._tickFromSpinner (node.js:*:*)
+    at Function.Module.runMain (module.js:*:*)
+    at startup (node.js:*:*)
+    at node.js:*:*

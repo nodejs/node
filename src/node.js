@@ -114,10 +114,8 @@
         setTimeout(Module.runMain, debugTimeout);
 
       } else {
-        // REMOVEME: nextTick should not be necessary. This hack to get
-        // test/simple/test-exception-handler2.js working.
         // Main entry point into most programs:
-        process.nextTick(Module.runMain);
+        Module.runMain();
       }
 
     } else {
@@ -156,8 +154,6 @@
         });
       }
     }
-
-    process._needTickCallback();
   }
 
   startup.globalVariables = function() {

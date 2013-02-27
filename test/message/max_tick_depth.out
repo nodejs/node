@@ -7,8 +7,8 @@ tick 15
 tick 14
 tick 13
 tick 12
-(node) warning: Recursive process.nextTick detected. This will break in the next version of node. Please use setImmediate for recursive deferral.
 tick 11
+(node) warning: Recursive process.nextTick detected. This will break in the next version of node. Please use setImmediate for recursive deferral.
 tick 10
 tick 9
 tick 8
@@ -18,6 +18,6 @@ tick 5
 tick 4
 tick 3
 tick 2
-(node) warning: Recursive process.nextTick detected. This will break in the next version of node. Please use setImmediate for recursive deferral.
 tick 1
+(node) warning: Recursive process.nextTick detected. This will break in the next version of node. Please use setImmediate for recursive deferral.
 tick 0

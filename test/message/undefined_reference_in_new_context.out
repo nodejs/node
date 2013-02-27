@@ -9,7 +9,7 @@ ReferenceError: foo is not defined
     at Module._compile (module.js:*)
     at *..js (module.js:*)
     at Module.load (module.js:*)
-    at *._load (module.js:*)
-    at Module.runMain (module.js:*)
-    at _tickCallback (node.js:*)
-    at *._tickFromSpinner (node.js:*)
+    at Function.Module._load (module.js:*:*)
+    at Function.Module.runMain (module.js:*:*)
+    at startup (node.js:*:*)
+    at node.js:*:*

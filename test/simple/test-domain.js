@@ -110,6 +110,12 @@ d.on('error', function(er) {
       assert.ok(!er.domainBound);
       break;
 
+    case 'nextTick execution loop':
+      assert.equal(er.domain, d);
+      assert.ok(!er.domainEmitter);
+      assert.ok(!er.domainBound);
+      break;
+
     default:
       console.error('unexpected error, throwing %j', er.message, er);
       throw er;
@@ -125,6 +131,18 @@ process.on('exit', function() {
   assert.equal(caught, expectCaught, 'caught the expected number of errors');
   console.log('ok');
 });
+
+
+
+// revert to using the domain when a callback is passed to nextTick in
+// the middle of a tickCallback loop
+d.run(function() {
+  process.nextTick(function() {
+    throw new Error('nextTick execution loop');
+  });
+});
+expectCaught++;
+
 
 
 // catch thrown errors no matter how many times we enter the event loop
