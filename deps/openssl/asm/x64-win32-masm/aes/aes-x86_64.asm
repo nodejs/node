@@ -1395,8 +1395,8 @@ $L$cbc_picked_te::
 	jb	$L$cbc_slow_prologue
 	test	rdx,15
 	jnz	$L$cbc_slow_prologue
-	bt	r10d,28
-	jc	$L$cbc_slow_prologue
+
+
 
 
 	lea	r15,QWORD PTR[((-88-248))+rsp]
