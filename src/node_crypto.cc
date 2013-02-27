@@ -901,6 +901,16 @@ int Connection::HandleBIOError(BIO *bio, const char* func, int rv) {
 
 
 int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
+  // Forcibly clear OpenSSL's error stack on return. This stops stale errors
+  // from popping up later in the lifecycle of the SSL connection where they
+  // would cause spurious failures. It's a rather blunt method, though.
+  // ERR_clear_error() isn't necessarily cheap either.
+  struct ClearErrorOnReturn {
+    ~ClearErrorOnReturn() { ERR_clear_error(); }
+  };
+  ClearErrorOnReturn clear_error_on_return;
+  (void) &clear_error_on_return;  // Silence unused variable warning.
+
   if (rv > 0) return rv;
   if ((rv == 0) && (zs == kZeroIsNotAnError)) return rv;
 
