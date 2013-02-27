@@ -1337,13 +1337,13 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
   Local<v8::Script> script = v8::Script::Compile(source, filename);
   if (script.IsEmpty()) {
     ReportException(try_catch, true);
-    exit(1);
+    exit(3);
   }
 
   Local<Value> result = script->Run();
   if (result.IsEmpty()) {
     ReportException(try_catch, true);
-    exit(1);
+    exit(4);
   }
 
   return scope.Close(result);
@@ -1966,7 +1966,7 @@ static void OnFatalError(const char* location, const char* message) {
   } else {
     fprintf(stderr, "FATAL ERROR: %s\n", message);
   }
-  exit(1);
+  exit(5);
 }
 
 void FatalException(TryCatch &try_catch) {
@@ -1981,7 +1981,7 @@ void FatalException(TryCatch &try_catch) {
     // failed before the process._fatalException function was added!
     // this is probably pretty bad.  Nothing to do but report and exit.
     ReportException(try_catch, true);
-    exit(1);
+    exit(6);
   }
 
   Local<Function> fatal_f = Local<Function>::Cast(fatal_v);
@@ -1997,12 +1997,12 @@ void FatalException(TryCatch &try_catch) {
   if (fatal_try_catch.HasCaught()) {
     // the fatal exception function threw, so we must exit
     ReportException(fatal_try_catch, true);
-    exit(1);
+    exit(7);
   }
 
   if (false == caught->BooleanValue()) {
     ReportException(try_catch, true);
-    exit(1);
+    exit(8);
   }
 }
 
@@ -2488,7 +2488,7 @@ static void AtExit() {
 
 static void SignalExit(int signal) {
   uv_tty_reset_mode();
-  _exit(1);
+  _exit(128 + signal);
 }
 
 
@@ -2537,8 +2537,7 @@ void Load(Handle<Object> process_l) {
   f->Call(global, 1, args);
 
   if (try_catch.HasCaught())  {
-    ReportException(try_catch, true);
-    exit(11);
+    FatalException(try_catch);
   }
 }
 
@@ -2568,7 +2567,7 @@ static void ParseDebugOpt(const char* arg) {
   if (p) fprintf(stderr, "Debug port must be in range 1025 to 65535.\n");
 
   PrintHelp();
-  exit(1);
+  exit(12);
 }
 
 static void PrintHelp() {
@@ -2632,7 +2631,7 @@ static void ParseArgs(int argc, char **argv) {
       // argument to -p and --print is optional
       if (is_eval == true && i + 1 >= argc) {
         fprintf(stderr, "Error: %s requires an argument\n", arg);
-        exit(1);
+        exit(13);
       }
 
       print_eval = print_eval || is_print;
