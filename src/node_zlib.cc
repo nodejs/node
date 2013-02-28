@@ -59,7 +59,22 @@ void InitZlib(v8::Handle<v8::Object> target);
 class ZCtx : public ObjectWrap {
  public:
 
-  ZCtx(node_zlib_mode mode) : ObjectWrap(), dictionary_(NULL), mode_(mode) {}
+  ZCtx(node_zlib_mode mode)
+    : ObjectWrap()
+    , init_done_(false)
+    , level_(0)
+    , windowBits_(0)
+    , memLevel_(0)
+    , strategy_(0)
+    , err_(0)
+    , dictionary_(NULL)
+    , dictionary_len_(0)
+    , flush_(0)
+    , chunk_size_(0)
+    , write_in_progress_(false)
+    , mode_(mode)
+  {
+  }
 
 
   ~ZCtx() {
@@ -108,6 +123,7 @@ class ZCtx : public ObjectWrap {
 
     assert(!ctx->write_in_progress_ && "write already in progress");
     ctx->write_in_progress_ = true;
+    ctx->Ref();
 
     assert(!args[0]->IsUndefined() && "must provide flush value");
 
@@ -166,8 +182,6 @@ class ZCtx : public ObjectWrap {
                   work_req,
                   ZCtx::Process,
                   ZCtx::After);
-
-    ctx->Ref();
 
     return ctx->handle_;
   }
@@ -283,6 +297,7 @@ class ZCtx : public ObjectWrap {
     MakeCallback(ctx->handle_, onerror_sym, ARRAY_SIZE(args), args);
 
     // no hope of rescue.
+    ctx->write_in_progress_ = false;
     ctx->Unref();
   }
 

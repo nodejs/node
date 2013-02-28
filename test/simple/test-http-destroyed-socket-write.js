@@ -75,15 +75,6 @@ server.listen(common.PORT, function() {
     var writes = 0;
     var sawFalseWrite;
 
-    var gotError = false;
-    sec.on('error', function(er) {
-      assert.equal(gotError, false);
-      gotError = true;
-      assert(er.code === 'ECONNRESET');
-      clearTimeout(timer);
-      test();
-    });
-
     function write() {
       if (++writes === 64) {
         clearTimeout(timer);
@@ -121,7 +112,7 @@ server.listen(common.PORT, function() {
         console.error('bad happened', sec.output, sec.outputEncodings);
       assert.equal(sec.output.length, 0);
       assert.equal(sec.outputEncodings, 0);
-      assert(gotError);
+      assert(sawFalseWrite);
       assert(gotFirstResponse);
       assert(gotFirstData);
       assert(gotFirstEnd);
