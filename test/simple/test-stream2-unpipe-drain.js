@@ -45,9 +45,9 @@ function TestReader(id) {
 }
 util.inherits(TestReader, stream.Readable);
 
-TestReader.prototype._read = function (size, callback) {
+TestReader.prototype._read = function (size) {
   this.reads += 1;
-  crypto.randomBytes(size, callback);
+  this.push(crypto.randomBytes(size));
 };
 
 var src1 = new TestReader();

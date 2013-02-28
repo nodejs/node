@@ -72,25 +72,25 @@ function TestReader(n, opts) {
   this.len = n || 100;
 }
 
-TestReader.prototype._read = function(n, cb) {
+TestReader.prototype._read = function(n) {
   setTimeout(function() {
 
     if (this.pos >= this.len) {
-      return cb();
+      return this.push(null);
     }
 
     n = Math.min(n, this.len - this.pos);
     if (n <= 0) {
-      return cb();
+      return this.push(null);
     }
 
     this.pos += n;
     var ret = new Buffer(n);
     ret.fill('a');
 
-    console.log("cb(null, ret)", ret)
+    console.log("this.push(ret)", ret)
 
-    return cb(null, ret);
+    return this.push(ret);
   }.bind(this), 1);
 };
 

@@ -126,9 +126,9 @@ test('read(n) is ignored', function(t) {
 test('can read objects from _read (sync)', function(t) {
   var r = new Readable({ objectMode: true });
   var list = [{ one: '1'}, { two: '2' }];
-  r._read = function(n, cb) {
+  r._read = function(n) {
     var item = list.shift();
-    cb(null, item || null);
+    r.push(item || null);
   };
 
   r.pipe(toArray(function(list) {
@@ -144,10 +144,10 @@ test('can read objects from _read (sync)', function(t) {
 test('can read objects from _read (async)', function(t) {
   var r = new Readable({ objectMode: true });
   var list = [{ one: '1'}, { two: '2' }];
-  r._read = function(n, cb) {
+  r._read = function(n) {
     var item = list.shift();
     process.nextTick(function() {
-      cb(null, item || null);
+      r.push(item || null);
     });
   };
 
@@ -223,7 +223,7 @@ test('high watermark _read', function(t) {
   var calls = 0;
   var list = ['1', '2', '3', '4', '5', '6', '7', '8'];
 
-  r._read = function() {
+  r._read = function(n) {
     calls++;
   };
 
@@ -249,7 +249,7 @@ test('high watermark push', function(t) {
     highWaterMark: 6,
     objectMode: true
   });
-  r._read = function() {};
+  r._read = function(n) {};
   for (var i = 0; i < 6; i++) {
     var bool = r.push(i);
     assert.equal(bool, i === 5 ? false : true);

@@ -32,10 +32,10 @@ for (var i = 1; i <= 10; i++) {
 
 var test = new Readable();
 var n = 0;
-test._read = function(size, cb) {
+test._read = function(size) {
   var chunk = chunks[n++];
   setTimeout(function() {
-    cb(null, chunk);
+    test.push(chunk);
   });
 };
 

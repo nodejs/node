@@ -43,28 +43,28 @@ function test1() {
   var buf = new Buffer(5);
   buf.fill('x');
   var reads = 5;
-  r._read = function(n, cb) {
+  r._read = function(n) {
     switch (reads--) {
       case 0:
-        return cb(null, null); // EOF
+        return r.push(null); // EOF
       case 1:
-        return cb(null, buf);
+        return r.push(buf);
       case 2:
         setTimeout(r.read.bind(r, 0), 10);
-        return cb(null, new Buffer(0)); // Not-EOF!
+        return r.push(new Buffer(0)); // Not-EOF!
       case 3:
         setTimeout(r.read.bind(r, 0), 10);
         return process.nextTick(function() {
-          return cb(null, new Buffer(0));
+          return r.push(new Buffer(0));
         });
       case 4:
         setTimeout(r.read.bind(r, 0), 10);
         return setTimeout(function() {
-          return cb(null, new Buffer(0));
+          return r.push(new Buffer(0));
         });
       case 5:
         return setTimeout(function() {
-          return cb(null, buf);
+          return r.push(buf);
         });
       default:
         throw new Error('unreachable');
@@ -92,11 +92,11 @@ function test1() {
 function test2() {
   var r = new Readable({ encoding: 'base64' });
   var reads = 5;
-  r._read = function(n, cb) {
+  r._read = function(n) {
     if (!reads--)
-      return cb(null, null); // EOF
+      return r.push(null); // EOF
     else
-      return cb(null, new Buffer('x'));
+      return r.push(new Buffer('x'));
   };
 
   var results = [];

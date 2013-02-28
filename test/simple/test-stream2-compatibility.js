@@ -41,8 +41,8 @@ function TestReader() {
 
 util.inherits(TestReader, R);
 
-TestReader.prototype._read = function(n, cb) {
-  cb(null, this._buffer);
+TestReader.prototype._read = function(n) {
+  this.push(this._buffer);
   this._buffer = new Buffer(0);
 };
 

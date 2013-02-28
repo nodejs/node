@@ -33,10 +33,10 @@ var reads = 0;
 var eofed = false;
 var ended = false;
 
-r._read = function(n, cb) {
+r._read = function(n) {
   if (reads === 0) {
     setTimeout(function() {
-      cb(null, str);
+      r.push(str);
     });
     reads++;
   } else if (reads === 1) {
@@ -46,7 +46,7 @@ r._read = function(n, cb) {
   } else {
     assert(!eofed);
     eofed = true;
-    cb(null, null);
+    r.push(null);
   }
 };
 

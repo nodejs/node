@@ -23,19 +23,19 @@ var common = require('../common.js');
 var stream = require('stream');
 var Buffer = require('buffer').Buffer;
 
-var R = new stream.Readable();
-R._read = function(size, cb) {
-  cb(null, new Buffer(size));
+var r = new stream.Readable();
+r._read = function(size) {
+  r.push(new Buffer(size));
 };
 
-var W = new stream.Writable();
-W._write = function(data, cb) {
+var w = new stream.Writable();
+w._write = function(data, cb) {
   cb(null);
 };
 
-R.pipe(W);
+r.pipe(w);
 
 // This might sound unrealistic, but it happens in net.js. When
 // `socket.allowHalfOpen === false`, EOF will cause `.destroySoon()` call which
 // ends the writable side of net.Socket.
-W.end();
+w.end();

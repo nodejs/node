@@ -30,14 +30,15 @@ var s = new Readable({
 
 var list = ['1', '2', '3', '4', '5', '6'];
 
-s._read = function (n, cb) {
+s._read = function (n) {
   var one = list.shift();
-  if (!one)
-    return cb(null, null);
-
-  var two = list.shift();
-  s.push(one);
-  cb(null, two);
+  if (!one) {
+    s.push(null);
+  } else {
+    var two = list.shift();
+    s.push(one);
+    s.push(two);
+  }
 };
 
 var v = s.read(0);

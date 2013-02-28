@@ -406,7 +406,7 @@ test('read(0) for ended streams', function (t) {
   var r = new R();
   var written = false;
   var ended = false;
-  r._read = function () {};
+  r._read = function (n) {};
 
   r.push(new Buffer("foo"));
   r.push(null);
@@ -435,8 +435,8 @@ test('read(0) for ended streams', function (t) {
 test('sync _read ending', function (t) {
   var r = new R();
   var called = false;
-  r._read = function (n, cb) {
-    cb(null, null);
+  r._read = function (n) {
+    r.push(null);
   };
 
   r.once('end', function () {
