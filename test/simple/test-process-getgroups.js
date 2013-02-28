@@ -23,6 +23,11 @@ var common = require('../common');
 var assert = require('assert');
 var exec = require('child_process').exec;
 
+if (process.platform === 'darwin') {
+  console.log('Skipping. Output of `id -G` is unreliable on Darwin.');
+  return;
+}
+
 if (typeof process.getgroups === 'function') {
   var groups = process.getgroups();
   assert(Array.isArray(groups));
