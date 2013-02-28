@@ -33,10 +33,8 @@ var server = net.createServer(function(socket) {
   console.error('SERVER: got socket connection');
   socket.resume();
 
-  socket.on('connect', function() {
-    console.error('SERVER connect, writing');
-    socket.write('hello\r\n');
-  });
+  console.error('SERVER connect, writing');
+  socket.write('hello\r\n');
 
   socket.on('end', function() {
     console.error('SERVER socket end, calling end()');
