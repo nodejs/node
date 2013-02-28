@@ -708,7 +708,7 @@
       }
 
       if (r) {
-        throw errnoException(errno, 'kill');
+        throw errnoException(process._errno, 'kill');
       }
 
       return true;
@@ -746,7 +746,7 @@
         var r = wrap.start(signum);
         if (r) {
           wrap.close();
-          throw errnoException(errno, 'uv_signal_start');
+          throw errnoException(process._errno, 'uv_signal_start');
         }
 
         signalWraps[type] = wrap;

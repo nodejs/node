@@ -1046,17 +1046,17 @@ MakeCallback(const Handle<Object> object,
 void SetErrno(uv_err_t err) {
   HandleScope scope;
 
+  static Persistent<String> errno_symbol;
   if (errno_symbol.IsEmpty()) {
-    errno_symbol = NODE_PSYMBOL("errno");
+    errno_symbol = NODE_PSYMBOL("_errno");
   }
 
   if (err.code == UV_UNKNOWN) {
     char errno_buf[100];
     snprintf(errno_buf, 100, "Unknown system errno %d", err.sys_errno_);
-    Context::GetCurrent()->Global()->Set(errno_symbol, String::New(errno_buf));
+    process->Set(errno_symbol, String::New(errno_buf));
   } else {
-    Context::GetCurrent()->Global()->Set(errno_symbol,
-                                         String::NewSymbol(uv_err_name(err)));
+    process->Set(errno_symbol, String::NewSymbol(uv_err_name(err)));
   }
 }
 

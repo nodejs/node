@@ -101,10 +101,6 @@ process.on('exit', function() {
                       process,
                       global];
 
-  if (global.errno) {
-    knownGlobals.push(errno);
-  }
-
   if (global.gc) {
     knownGlobals.push(gc);
   }

@@ -32,7 +32,7 @@ if (process.argv[2] === 'child') {
   child.on('exit', function() {
     child._handle = {
       kill: function() {
-        global.errno = 42;
+        process._errno = 42;
         return -1;
       }
     };

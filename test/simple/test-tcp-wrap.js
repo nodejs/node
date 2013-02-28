@@ -33,7 +33,7 @@ assert.equal(0, r);
 // Should not be able to bind to the same port again
 var r = handle.bind('0.0.0.0', common.PORT);
 assert.equal(-1, r);
-console.log(errno);
-assert.equal(errno, 'EINVAL');
+console.log(process._errno);
+assert.equal(process._errno, 'EINVAL');
 
 handle.close();
