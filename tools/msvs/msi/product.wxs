@@ -33,6 +33,20 @@
         Root='HKCU' Key='SOFTWARE\Joyent\Node.js\Installer' Name='PreviousPath' />
     </Property>
 
+    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)" Absent="disallow">
+      <ComponentGroupRef Id="allfiles" />
+      <ComponentGroupRef Id="Product.Generated" />
+    </Feature>
+
+    <Feature Id="nodejs.shortcuts" Title="node.js shortcuts" Level="1" Description="$(var.ProductDescription) Shortcuts">
+      <Feature Id="nodejs.shortcuts.application" Title="Application Shortcuts" Level="1"  Description="$(var.ProductDescription) standard application shortcuts">
+        <ComponentGroupRef Id="application.shortcuts"/>
+      </Feature>
+      <Feature Id="nodejs.shortcuts.internet" Title="Internet Shortcuts" Level="1"  Description="$(var.ProductDescription) internet shortcuts to the project's website and online documentation for this version">
+        <ComponentGroupRef Id="internet.shortcuts"/>
+      </Feature>
+    </Feature>
+
     <Directory Id="TARGETDIR" Name="SourceDir">
 
       <Directory Id="ProgramMenuFolder">
@@ -166,20 +180,6 @@
     <ComponentGroup Id="internet.shortcuts">
       <ComponentRef Id="InternetShortcuts"/>
     </ComponentGroup>
-
-    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)" Absent="disallow">
-      <ComponentGroupRef Id="allfiles" />
-      <ComponentGroupRef Id="Product.Generated" />
-    </Feature>
-
-    <Feature Id="nodejs.shortcuts" Title="node.js shortcuts" Level="1" Description="$(var.ProductDescription) Shortcuts">
-      <Feature Id="nodejs.shortcuts.application" Title="Application Shortcuts" Level="1"  Description="$(var.ProductDescription) standard application shortcuts">
-        <ComponentGroupRef Id="application.shortcuts"/>
-      </Feature>
-      <Feature Id="nodejs.shortcuts.internet" Title="Internet Shortcuts" Level="1"  Description="$(var.ProductDescription) internet shortcuts to the project's website and online documentation for this version">
-        <ComponentGroupRef Id="internet.shortcuts"/>
-      </Feature>
-    </Feature>
 
     <UI Id="NodeInstallUI">
       <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
