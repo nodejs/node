@@ -130,9 +130,7 @@ if errorlevel 1 echo Failed to generate license.rtf&goto exit
 :msi
 @rem Skip msi generation if not requested
 if not defined msi goto run
-python "%~dp0tools\getnodeversion.py" > "%temp%\node_version.txt"
-if not errorlevel 0 echo Cannot determine current version of node.js & goto exit
-for /F "tokens=*" %%i in (%temp%\node_version.txt) do set NODE_VERSION=%%i
+call :getnodeversion
 
 if not defined NIGHTLY goto msibuild
 set NODE_VERSION=%NODE_VERSION%-%date:~10,4%%date:~4,2%%date:~7,2%
@@ -183,9 +181,7 @@ goto exit
 
 :upload
 echo uploading .exe .msi .pdb to nodejs.org
-python "%~dp0tools\getnodeversion.py" > "%temp%\node_version.txt"
-if not errorlevel 0 echo Cannot determine current version of node.js & goto exit
-for /F "tokens=*" %%i in (%temp%\node_version.txt) do set NODE_VERSION=%%i
+call :getnodeversion
 @echo on
 ssh node@nodejs.org mkdir -p web/nodejs.org/dist/v%NODE_VERSION%
 scp Release\node.msi node@nodejs.org:~/web/nodejs.org/dist/v%NODE_VERSION%/node-v%NODE_VERSION%.msi
@@ -210,3 +206,14 @@ echo   vcbuild.bat test           : builds debug build and runs tests
 goto exit
 
 :exit
+goto :EOF
+
+rem ***************
+rem   Subroutines
+rem ***************
+
+:getnodeversion
+set NODE_VERSION=
+for /F "usebackq tokens=*" %%i in (`python "%~dp0tools\getnodeversion.py"`) do set NODE_VERSION=%%i
+if not defined NODE_VERSION echo Cannot determine current version of node.js & exit /b 1
+goto :EOF
