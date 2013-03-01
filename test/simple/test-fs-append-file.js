@@ -101,11 +101,18 @@ fs.writeFileSync(filename4, currentFileData);
 
 common.error('appending to ' + filename4);
 
-fs.appendFile(filename4, n, function(e) {
+var m = 0600;
+fs.appendFile(filename4, n, { mode: m }, function(e) {
   if (e) throw e;
 
   ncallbacks++;
   common.error('appended to file4');
+
+  // windows permissions aren't unix
+  if (process.platform !== 'win32') {
+    var st = fs.statSync(filename4);
+    assert.equal(st.mode & 0700, m);
+  }
 
   fs.readFile(filename4, function(e, buffer) {
     if (e) throw e;

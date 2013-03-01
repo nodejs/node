@@ -410,7 +410,12 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 Synchronous version of `fs.read`. Returns the number of `bytesRead`.
 
-## fs.readFile(filename, [encoding], [callback])
+## fs.readFile(filename, [options], [callback])
+
+* `filename` {String}
+* `options` {Object}
+  * `encoding` {String | Null} default = `null`
+  * `flag` {String} default = `'r'`
 
 Asynchronously reads the entire contents of a file. Example:
 
@@ -425,19 +430,28 @@ contents of the file.
 If no encoding is specified, then the raw buffer is returned.
 
 
-## fs.readFileSync(filename, [encoding])
+## fs.readFileSync(filename, [options])
 
 Synchronous version of `fs.readFile`. Returns the contents of the `filename`.
 
-If `encoding` is specified then this function returns a string. Otherwise it
-returns a buffer.
+If the `encoding` option is specified then this function returns a
+string. Otherwise it returns a buffer.
 
 
-## fs.writeFile(filename, data, [encoding], [callback])
+## fs.writeFile(filename, data, [options], [callback])
+
+* `filename` {String}
+* `data` {String | Buffer}
+* `options` {Object}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Number} default = `438` (aka `0666` in Octal)
+  * `flag` {String} default = `'w'`
 
 Asynchronously writes data to a file, replacing the file if it already exists.
-`data` can be a string or a buffer. The `encoding` argument is ignored if
-`data` is a buffer. It defaults to `'utf8'`.
+`data` can be a string or a buffer.
+
+The `encoding` option is ignored if `data` is a buffer. It defaults
+to `'utf8'`.
 
 Example:
 
@@ -446,15 +460,21 @@ Example:
       console.log('It\'s saved!');
     });
 
-## fs.writeFileSync(filename, data, [encoding])
+## fs.writeFileSync(filename, data, [options])
 
 The synchronous version of `fs.writeFile`.
 
-## fs.appendFile(filename, data, encoding='utf8', [callback])
+## fs.appendFile(filename, data, [options], [callback])
+
+* `filename` {String}
+* `data` {String | Buffer}
+* `options` {Object}
+  * `encoding` {String | Null} default = `'utf8'`
+  * `mode` {Number} default = `438` (aka `0666` in Octal)
+  * `flag` {String} default = `'a'`
 
 Asynchronously append data to a file, creating the file if it not yet exists.
-`data` can be a string or a buffer. The `encoding` argument is ignored if
-`data` is a buffer.
+`data` can be a string or a buffer.
 
 Example:
 
@@ -463,7 +483,7 @@ Example:
       console.log('The "data to append" was appended to file!');
     });
 
-## fs.appendFileSync(filename, data, encoding='utf8')
+## fs.appendFileSync(filename, data, [options])
 
 The synchronous version of `fs.appendFile`.
 

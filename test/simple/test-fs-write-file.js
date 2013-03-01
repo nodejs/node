@@ -76,8 +76,15 @@ fs.writeFile(filename2, buf, function(e) {
 var filename3 = join(common.tmpDir, 'test3.txt');
 common.error('writing to ' + filename3);
 
-fs.writeFile(filename3, n, function(e) {
+var m = 0600;
+fs.writeFile(filename3, n, { mode: m }, function(e) {
   if (e) throw e;
+
+  // windows permissions aren't unix
+  if (process.platform !== 'win32') {
+    var st = fs.statSync(filename3);
+    assert.equal(st.mode & 0700, m);
+  }
 
   ncallbacks++;
   common.error('file3 written');
