@@ -24,7 +24,7 @@ var assert = require('assert');
 var fs = require('fs');
 var join = require('path').join;
 
-var filename = join(common.fixturesDir, 'append.txt');
+var filename = join(common.tmpDir, 'append.txt');
 
 common.error('appending to ' + filename);
 
@@ -57,7 +57,7 @@ fs.appendFile(filename, s, function(e) {
 });
 
 // test that appends data to a non empty file
-var filename2 = join(common.fixturesDir, 'append2.txt');
+var filename2 = join(common.tmpDir, 'append2.txt');
 fs.writeFileSync(filename2, currentFileData);
 
 fs.appendFile(filename2, s, function(e) {
@@ -75,7 +75,7 @@ fs.appendFile(filename2, s, function(e) {
 });
 
 // test that appendFile accepts buffers
-var filename3 = join(common.fixturesDir, 'append3.txt');
+var filename3 = join(common.tmpDir, 'append3.txt');
 fs.writeFileSync(filename3, currentFileData);
 
 var buf = new Buffer(s, 'utf8');
@@ -96,7 +96,7 @@ fs.appendFile(filename3, buf, function(e) {
 });
 
 // test that appendFile accepts numbers.
-var filename4 = join(common.fixturesDir, 'append4.txt');
+var filename4 = join(common.tmpDir, 'append4.txt');
 fs.writeFileSync(filename4, currentFileData);
 
 common.error('appending to ' + filename4);
