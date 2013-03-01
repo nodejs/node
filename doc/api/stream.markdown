@@ -108,7 +108,6 @@ initialized.
 ### readable.\_read(size)
 
 * `size` {Number} Number of bytes to read asynchronously
-* `callback` {Function} Called with an error or with data
 
 Note: **This function should NOT be called directly.**  It should be
 implemented by child classes, and called by the internal Readable
