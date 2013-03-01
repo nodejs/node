@@ -1,14 +1,38 @@
-2013.02.25, Version 0.8.21 (Stable)
+2013.03.01, Version 0.9.10 (Unstable)
 
-* http: Do not free the wrong parser on socket close (isaacs)
+* V8: downgrade 3.14.5
 
-* http: Handle hangup writes more gently (isaacs)
+* openssl: update to 1.0.1e
 
-* zlib: fix assert on bad input (Ben Noordhuis)
+* darwin: Make process.title work properly (Ben Noordhuis)
 
-* test: add TAP output to the test runner (Timothy J Fontaine)
+* fs: Support mode/flag options to read/append/writeFile (isaacs)
 
-* unix: Handle EINPROGRESS from domain sockets (Ben Noordhuis)
+* stream: _read() no longer takes a callback (isaacs)
+
+* stream: Add stream.unshift(chunk) (isaacs)
+
+* stream: remove lowWaterMark feature (isaacs)
+
+* net: omit superfluous 'connect' event (Ben Noordhuis)
+
+* build, windows: disable SEH (Ben Noordhuis)
+
+* core: remove errno global (Ben Noordhuis)
+
+* core: Remove the nextTick for running the main file (isaacs)
+
+* core: Mark exit() calls with status codes (isaacs)
+
+* core: Fix debug signal handler race condition lock (isaacs)
+
+* crypto: clear error stack (Ben Noordhuis)
+
+* test: optionally set common.PORT via env variable (Timothy J Fontaine)
+
+* path: Throw TypeError on non-string args to path.resolve/join (isaacs, Arianit Uka)
+
+* crypto: fix uninitialized memory access in openssl (Ben Noordhuis)
 
 
 2013.02.19, Version 0.9.10 (Unstable)
@@ -398,6 +422,19 @@
 * readline: Use one history item for reentered line (Vladimir Beloborodov)
 
 * Fix #3521 Make process.env more like a regular Object (isaacs)
+
+
+2013.02.25, Version 0.8.21 (Stable), 530d8c05d4c546146f18e5ba811d7eb3b7b7c0c5
+
+* http: Do not free the wrong parser on socket close (isaacs)
+
+* http: Handle hangup writes more gently (isaacs)
+
+* zlib: fix assert on bad input (Ben Noordhuis)
+
+* test: add TAP output to the test runner (Timothy J Fontaine)
+
+* unix: Handle EINPROGRESS from domain sockets (Ben Noordhuis)
 
 
 2013.02.15, Version 0.8.20 (Stable), e10c75579b536581ddd7ae4e2c3bf8a9d550d343
