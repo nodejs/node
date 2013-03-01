@@ -127,6 +127,13 @@ When data is available, put it into the read queue by calling
 reading.  When `_read` is called again, you should start pushing more
 data.
 
+The `size` argument is advisory.  Implementations where a "read" is a
+single call that returns data can use this to know how much data to
+fetch.  Implementations where that is not relevant, such as TCP or
+TLS, may ignore this argument, and simply provide data whenever it
+becomes available.  There is no need, for example to "wait" until
+`size` bytes are available before calling `stream.push(chunk)`.
+
 ### readable.push(chunk)
 
 * `chunk` {Buffer | null | String} Chunk of data to push into the read queue
