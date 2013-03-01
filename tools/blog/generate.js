@@ -113,7 +113,8 @@ function buildPermalink(key, post) {
 
 function writeFile(uri, data, templ) {
   if (!templ) templ = template;
-  data.uri = path.join(data.uri);
+  if (data.uri)
+    data.uri = path.join(data.uri);
   uri = path.join(uri);
   var contents = templ(data);
   var outdir = path.join(output, uri);
