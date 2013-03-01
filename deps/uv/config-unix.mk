@@ -158,10 +158,7 @@ test/%.o: test/%.c include/uv.h test/.buildstamp
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean-platform:
-	-rm -f libuv.a libuv.$(SOEXT) test/run-{tests,benchmarks}.dSYM
-
-distclean-platform:
-	-rm -f libuv.a libuv.$(SOEXT) test/run-{tests,benchmarks}.dSYM
+	$(RM) test/run-{tests,benchmarks}.dSYM $(OBJS) $(OBJS:%.o=%.pic.o)
 
 %.pic.o %.o:  %.m
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $^ -o $@

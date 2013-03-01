@@ -46,8 +46,8 @@ Makefile:: ;
 # Turn everything else into a no-op rule that depends on the build directory.
 %:: $(builddir_name) ;
 
-.PHONY: clean
-clean:
+.PHONY: clean distclean
+clean distclean:
 	$(RM) -fr $(builddir_name)
 
 endif

@@ -148,7 +148,7 @@ run-benchmarks$(E): test/run-benchmarks.o test/runner.o $(RUNNER_SRC) $(BENCHMAR
 test/echo.o: test/echo.c test/echo.h
 
 
-.PHONY: clean clean-platform distclean distclean-platform test bench
+.PHONY: clean clean-platform distclean test bench
 
 
 test: run-tests$(E)
@@ -157,8 +157,8 @@ test: run-tests$(E)
 bench: run-benchmarks$(E)
 	$(CURDIR)/$<
 
-clean: clean-platform
-	$(RM) -f *.a *.so test/run-tests$(E) test/run-benchmarks$(E)
-
-distclean: distclean-platform
-	$(RM) -f *.a *.so test/run-tests$(E) test/run-benchmarks$(E)
+clean distclean: clean-platform
+	$(RM) libuv.a libuv.$(SOEXT) \
+		test/run-tests.o test/run-benchmarks.o \
+		test/run-tests$(E) test/run-benchmarks$(E) \
+		$(BENCHMARKS) $(TESTS) $(RUNNER_LIBS)

@@ -46,6 +46,3 @@ src/win/%.o: src/win/%.c include/uv.h include/uv-private/uv-win.h src/win/intern
 
 clean-platform:
 	-rm -f src/win/*.o
-
-distclean-platform:
-	-rm -f src/win/*.o

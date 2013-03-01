@@ -41,15 +41,9 @@
 
 /* Do platform-specific initialization. */
 void platform_init(int argc, char **argv) {
-  const char* var = getenv("UV_RUN_AS_ROOT");
-  const char* tap = getenv("UV_TAP_OUTPUT");
+  const char* tap;
 
-  /* Running the tests as root is not smart - don't do it. */
-  if (getuid() == 0 && (var == NULL || atoi(var) <= 0)) {
-    fprintf(stderr, "Running the tests as root is not safe.\n");
-    exit(1);
-  }
-
+  tap = getenv("UV_TAP_OUTPUT");
   tap_output = (tap != NULL && atoi(tap) > 0);
 
   /* Disable stdio output buffering. */

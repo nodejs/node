@@ -125,7 +125,7 @@ void uv__stream_init(uv_loop_t* loop,
 
 
 #if defined(__APPLE__)
-void uv__stream_osx_select(void* arg) {
+static void uv__stream_osx_select(void* arg) {
   uv_stream_t* stream;
   uv__stream_select_t* s;
   char buf[1024];
@@ -216,7 +216,7 @@ void uv__stream_osx_select(void* arg) {
 }
 
 
-void uv__stream_osx_interrupt_select(uv_stream_t* stream) {
+static void uv__stream_osx_interrupt_select(uv_stream_t* stream) {
   /* Notify select() thread about state change */
   uv__stream_select_t* s;
   int r;
@@ -235,7 +235,7 @@ void uv__stream_osx_interrupt_select(uv_stream_t* stream) {
 }
 
 
-void uv__stream_osx_select_cb(uv_async_t* handle, int status) {
+static void uv__stream_osx_select_cb(uv_async_t* handle, int status) {
   uv__stream_select_t* s;
   uv_stream_t* stream;
   int events;
@@ -260,7 +260,7 @@ void uv__stream_osx_select_cb(uv_async_t* handle, int status) {
 }
 
 
-void uv__stream_osx_cb_close(uv_handle_t* async) {
+static void uv__stream_osx_cb_close(uv_handle_t* async) {
   uv__stream_select_t* s;
 
   s = container_of(async, uv__stream_select_t, async);
@@ -268,7 +268,7 @@ void uv__stream_osx_cb_close(uv_handle_t* async) {
 }
 
 
-int uv__stream_try_select(uv_stream_t* stream, int fd) {
+static int uv__stream_try_select(uv_stream_t* stream, int fd) {
   /*
    * kqueue doesn't work with some files from /dev mount on osx.
    * select(2) in separate thread for those fds
@@ -300,7 +300,7 @@ int uv__stream_try_select(uv_stream_t* stream, int fd) {
   if (ret == -1)
     return uv__set_sys_error(stream->loop, errno);
 
-  if ((events[0].flags & EV_ERROR) == 0 || events[0].data != EINVAL)
+  if (ret == 0 || (events[0].flags & EV_ERROR) == 0 || events[0].data != EINVAL)
     return 0;
 
   /* At this point we definitely know that this fd won't work with kqueue */
@@ -1200,7 +1200,13 @@ int uv_write2(uv_write_t* req,
     if (stream->type != UV_NAMED_PIPE || !((uv_pipe_t*)stream)->ipc)
       return uv__set_artificial_error(stream->loop, UV_EINVAL);
 
-    if (uv__stream_fd(send_handle) < 0)
+    /* XXX We abuse uv_write2() to send over UDP handles to child processes.
+     * Don't call uv__stream_fd() on those handles, it's a macro that on OS X
+     * evaluates to a function that operates on a uv_stream_t with a couple of
+     * OS X specific fields. On other Unices it does (handle)->io_watcher.fd,
+     * which works but only by accident.
+     */
+    if (uv__handle_fd((uv_handle_t*) send_handle) < 0)
       return uv__set_artificial_error(stream->loop, UV_EBADF);
   }
 
@@ -1342,6 +1348,10 @@ int uv_is_writable(const uv_stream_t* stream) {
 #if defined(__APPLE__)
 int uv___stream_fd(uv_stream_t* handle) {
   uv__stream_select_t* s;
+
+  assert(handle->type == UV_TCP ||
+         handle->type == UV_TTY ||
+         handle->type == UV_NAMED_PIPE);
 
   s = handle->select;
   if (s != NULL)

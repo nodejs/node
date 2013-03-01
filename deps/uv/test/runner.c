@@ -255,10 +255,17 @@ out:
     FATAL("process_wait failed");
   }
 
+  if (tap_output) {
+    if (status == 0)
+      LOGF("ok %d - %s\n", test_count, test);
+    else
+      LOGF("not ok %d - %s\n", test_count, test);
+  }
+
   /* Show error and output from processes if the test failed. */
   if (status != 0 || task->show_output) {
     if (tap_output) {
-      LOGF("not ok %d - %s\n#", test_count, test);
+      LOGF("#");
     } else if (status != 0) {
       LOGF("\n`%s` failed: %s\n", test, errmsg);
     } else {
@@ -305,8 +312,6 @@ out:
       }
       break;
     }
-  } else if (tap_output) {
-    LOGF("ok %d - %s\n", test_count, test);
   }
 
   /* Clean up all process handles. */
