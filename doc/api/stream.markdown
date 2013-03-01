@@ -169,7 +169,8 @@ source.onend = function() {
 };
 
 // _read will be called when the stream wants to pull more data in
-stream._read = function(size, cb) {
+// the advisory size argument is ignored in this case.
+stream._read = function(n) {
   source.readStart();
 };
 ```
