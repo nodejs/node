@@ -102,9 +102,9 @@ function pingPongTest(port, host) {
 }
 
 // All are run at once, so run on different ports
-pingPongTest(20989, 'localhost');
-pingPongTest(20990, 'localhost');
-pingPongTest(20988);
+pingPongTest(common.PORT + 0, 'localhost');
+pingPongTest(common.PORT + 1, 'localhost');
+pingPongTest(common.PORT + 2);
 //pingPongTest('/tmp/pingpong.sock');
 
 process.on('exit', function() {
