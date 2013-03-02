@@ -865,3 +865,21 @@ assertSorted(crypto.getHashes());
   var s = c.update('test', 'utf8', 'base64') + c.final('base64');
   assert.equal(s, '375oxUQCIocvxmC5At+rvA==');
 })();
+
+// Error path should not leak memory (check with valgrind).
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, 20, null);
+});
+
+// Calling Cipher.final() or Decipher.final() twice should error but
+// not assert. See #4886.
+(function() {
+  var c = crypto.createCipher('aes-256-cbc', 'secret');
+  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  var d = crypto.createDecipher('aes-256-cbc', 'secret');
+  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+})();

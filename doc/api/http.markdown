@@ -762,8 +762,6 @@ Just like `'end'`, this event occurs only once per response, and no more
 `'data'` events will fire afterwards. See [http.ServerResponse][]'s `'close'`
 event for more information.
 
-Note: `'close'` can fire after `'end'`, but not vice versa.
-
 ### message.httpVersion
 
 In case of server request, the HTTP version sent by the client. In the case of
