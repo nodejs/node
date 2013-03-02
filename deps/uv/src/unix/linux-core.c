@@ -57,9 +57,9 @@
 # define CLOCK_BOOTTIME 7
 #endif
 
-static void read_models(unsigned int numcpus, uv_cpu_info_t* ci);
+static int read_models(unsigned int numcpus, uv_cpu_info_t* ci);
+static int read_times(unsigned int numcpus, uv_cpu_info_t* ci);
 static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci);
-static void read_times(unsigned int numcpus, uv_cpu_info_t* ci);
 static unsigned long read_cpufreq(unsigned int cpunum);
 
 
@@ -420,10 +420,19 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   if (ci == NULL)
     return uv__new_sys_error(ENOMEM);
 
-  read_models(numcpus, ci);
-  read_times(numcpus, ci);
+  if (read_models(numcpus, ci)) {
+    SAVE_ERRNO(free(ci));
+    return uv__new_sys_error(errno);
+  }
 
-  /* read_models() on x86 also reads the CPU speed from /proc/cpuinfo */
+  if (read_times(numcpus, ci)) {
+    SAVE_ERRNO(free(ci));
+    return uv__new_sys_error(errno);
+  }
+
+  /* read_models() on x86 also reads the CPU speed from /proc/cpuinfo.
+   * We don't check for errors here. Worst case, the field is left zero.
+   */
   if (ci[0].speed == 0)
     read_speeds(numcpus, ci);
 
@@ -445,7 +454,7 @@ static void read_speeds(unsigned int numcpus, uv_cpu_info_t* ci) {
 /* Also reads the CPU frequency on x86. The other architectures only have
  * a BogoMIPS field, which may not be very accurate.
  */
-static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
+static int read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
 #if defined(__i386__) || defined(__x86_64__)
   static const char model_marker[] = "model name\t: ";
   static const char speed_marker[] = "cpu MHz\t\t: ";
@@ -470,7 +479,7 @@ static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
 
   fp = fopen("/proc/cpuinfo", "r");
   if (fp == NULL)
-    return;
+    return -1;
 
   model_idx = 0;
   speed_idx = 0;
@@ -515,10 +524,12 @@ static void read_models(unsigned int numcpus, uv_cpu_info_t* ci) {
     ci[model_idx].model = strndup(inferred_model, strlen(inferred_model));
     model_idx++;
   }
+
+  return 0;
 }
 
 
-static void read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
+static int read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
   unsigned long clock_ticks;
   struct uv_cpu_times_s ts;
   unsigned long user;
@@ -538,7 +549,7 @@ static void read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
 
   fp = fopen("/proc/stat", "r");
   if (fp == NULL)
-    return;
+    return -1;
 
   if (!fgets(buf, sizeof(buf), fp))
     abort();
@@ -583,6 +594,8 @@ static void read_times(unsigned int numcpus, uv_cpu_info_t* ci) {
     ci[num++].cpu_times = ts;
   }
   fclose(fp);
+
+  return 0;
 }
 
 
