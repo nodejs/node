@@ -38,6 +38,16 @@ var myee = new MyEE(function() {
   called = true;
 });
 
+
+util.inherits(ErrorEE, EventEmitter);
+function ErrorEE() {
+  this.emit('error', new Error('blerg'));
+}
+
+assert.throws(function() {
+  new ErrorEE();
+}, /blerg/);
+
 process.on('exit', function() {
   assert(called);
   console.log('ok');
