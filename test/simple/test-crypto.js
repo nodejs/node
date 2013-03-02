@@ -665,3 +665,16 @@ crypto.pbkdf2('pass\0word', 'sa\0lt', 4096, 16, function(err, result) {
 assert.throws(function() {
   crypto.pbkdf2('password', 'salt', 1, 20, null);
 });
+
+// Calling Cipher.final() or Decipher.final() twice should error but
+// not assert. See #4886.
+(function() {
+  var c = crypto.createCipher('aes-256-cbc', 'secret');
+  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  try { c.final('xxx') } catch (e) { /* Ignore. */ }
+  var d = crypto.createDecipher('aes-256-cbc', 'secret');
+  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+  try { d.final('xxx') } catch (e) { /* Ignore. */ }
+})();

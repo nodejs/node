@@ -2301,11 +2301,7 @@ class Cipher : public ObjectWrap {
 
     int r = cipher->CipherFinal(&out_value, &out_len);
 
-    assert(out_value != NULL);
-    assert(out_len != -1 || r == 0);
-
-    if (out_len == 0 || r == 0) {
-      // out_value always get allocated.
+    if (out_len <= 0 || r == 0) {
       delete[] out_value;
       if (r == 0) {
         Local<Value> exception = Exception::TypeError(
@@ -2756,10 +2752,7 @@ class Decipher : public ObjectWrap {
 
     int r = cipher->DecipherFinal<TOLERATE_PADDING>(&out_value, &out_len);
 
-    assert(out_value != NULL);
-    assert(out_len != -1);
-
-    if (out_len == 0 || r == 0) {
+    if (out_len <= 0 || r == 0) {
       delete [] out_value; // allocated even if out_len == 0
       if (r == 0) {
         Local<Value> exception = Exception::TypeError(
