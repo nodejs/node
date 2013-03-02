@@ -31,6 +31,13 @@ var fileNameLen = Math.max(260 - common.tmpDir.length - 1, 1);
 var fileName = path.join(common.tmpDir, new Array(fileNameLen + 1).join('x'));
 var fullPath = path.resolve(fileName);
 
+try {
+  fs.unlinkSync(fullPath);
+}
+catch (e) {
+  // Ignore.
+}
+
 console.log({
   filenameLength: fileName.length,
   fullPathLength: fullPath.length
