@@ -27,6 +27,7 @@ var util = require('util');
 util.inherits(MyEE, EventEmitter);
 
 function MyEE(cb) {
+  this.emit('bar');
   this.on('foo', cb);
   process.nextTick(this.emit.bind(this, 'foo'));
   EventEmitter.call(this);
