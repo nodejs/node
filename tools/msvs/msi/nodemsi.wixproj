@@ -8,6 +8,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <OutputName>node-v$(NodeVersion)-$(Platform)</OutputName>
     <OutputType>Package</OutputType>
+    <EnableProjectHarvesting>True</EnableProjectHarvesting>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <NodeVersion Condition=" '$(NodeVersion)' == '' ">0.0.0.0</NodeVersion>
