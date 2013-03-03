@@ -32,7 +32,7 @@ if (cluster.isMaster) {
     assert(port);
     // ensure that the port is numerical
     assert.strictEqual(typeof(port), 'number');
-    worker.destroy();
+    worker.kill();
   });
   process.on('exit', function() {
     // ensure that the 'listening' handler has been called

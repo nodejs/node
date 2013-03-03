@@ -102,7 +102,7 @@ else if (cluster.isMaster) {
 
   //Kill worker when listening
   cluster.on('listening', function() {
-    worker.destroy();
+    worker.kill();
   });
 
   //Kill process when worker is killed

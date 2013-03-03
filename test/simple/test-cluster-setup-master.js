@@ -66,7 +66,7 @@ if (cluster.isWorker) {
       if (correctIn === totalWorkers) {
         checks.args = true;
       }
-      worker.destroy();
+      worker.kill();
     });
 
     // All workers are online
