@@ -1,6 +1,6 @@
 2013.03.01, Version 0.9.11 (Unstable)
 
-* V8: downgrade 3.14.5
+* V8: downgrade to 3.14.5
 
 * openssl: update to 1.0.1e
 
