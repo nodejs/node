@@ -1,5 +1,6 @@
 var assert = require('assert');
 var path = require('path');
+var silent = +process.env.NODE_BENCH_SILENT;
 
 exports.PORT = process.env.PORT || 12346;
 
@@ -184,7 +185,8 @@ Benchmark.prototype.end = function(operations) {
 
 Benchmark.prototype.report = function(value) {
   var heading = this.getHeading();
-  console.log('%s: %s', heading, value.toPrecision(5));
+  if (!silent)
+    console.log('%s: %s', heading, value.toPrecision(5));
   process.exit(0);
 };
 
