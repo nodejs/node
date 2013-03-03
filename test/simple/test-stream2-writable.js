@@ -311,19 +311,3 @@ test('duplexes are pipable', function(t) {
   assert(!gotError);
   t.end();
 });
-
-test('end(chunk) two times is an error', function(t) {
-  var w = new W();
-  w._write = function() {};
-  var gotError = false;
-  w.on('error', function(er) {
-    gotError = true;
-    t.equal(er.message, 'write after end');
-  });
-  w.end('this is the end');
-  w.end('and so is this');
-  process.nextTick(function() {
-    assert(gotError);
-    t.end();
-  });
-});
