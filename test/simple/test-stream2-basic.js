@@ -38,6 +38,7 @@ function TestReader(n) {
 util.inherits(TestReader, R);
 
 TestReader.prototype.read = function(n) {
+  if (n === 0) return null;
   var max = this._buffer.length - this._pos;
   n = n || max;
   n = Math.max(n, 0);
@@ -80,11 +81,6 @@ TestWriter.prototype.write = function(c) {
   this.received.push(c.toString());
   this.emit('write', c);
   return true;
-
-  // flip back and forth between immediate acceptance and not.
-  this.flush = !this.flush;
-  if (!this.flush) setTimeout(this.emit.bind(this, 'drain'), 10);
-  return this.flush;
 };
 
 TestWriter.prototype.end = function(c) {
@@ -113,6 +109,7 @@ function run() {
   console.log('# %s', name);
   fn({
     same: assert.deepEqual,
+    ok: assert,
     equal: assert.equal,
     end: function () {
       count--;
@@ -187,6 +184,7 @@ test('pipe', function(t) {
 
   var w = new TestWriter;
   var flush = true;
+
   w.on('end', function(received) {
     t.same(received, expect);
     t.end();
@@ -449,4 +447,29 @@ test('sync _read ending', function (t) {
     assert.equal(called, true);
     t.end();
   })
+});
+
+test('adding readable triggers data flow', function(t) {
+  var r = new R({ highWaterMark: 5 });
+  var onReadable = false;
+  var readCalled = 0;
+
+  r._read = function(n) {
+    if (readCalled++ === 2)
+      r.push(null);
+    else
+      r.push(new Buffer('asdf'));
+  };
+
+  var called = false;
+  r.on('readable', function() {
+    onReadable = true;
+    r.read();
+  });
+
+  r.on('end', function() {
+    t.equal(readCalled, 3);
+    t.ok(onReadable);
+    t.end();
+  });
 });
