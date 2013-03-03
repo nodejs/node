@@ -183,8 +183,8 @@ Returned by `crypto.createCipher` and `crypto.createCipheriv`.
 
 Cipher objects are [streams](stream.html) that are both readable and
 writable.  The written plain text data is used to produce the
-encrypted data on the the readable side.  The legacy `update` and
-`final` methods are also supported.
+encrypted data on the readable side.  The legacy `update` and `final`
+methods are also supported.
 
 ### cipher.update(data, [input_encoding], [output_encoding])
 
@@ -463,6 +463,16 @@ Generates cryptographically strong pseudo-random data. Usage:
     } catch (ex) {
       // handle error
     }
+
+## crypto.pseudoRandomBytes(size, [callback])
+
+Generates *non*-cryptographically strong pseudo-random data. The data
+returned will be unique if it is sufficiently long, but is not
+necessarily unpredictable. For this reason, the output of this
+function should never be used where unpredictability is important,
+such as in the generation of encryption keys.
+
+Usage is otherwise identical to `crypto.randomBytes`.
 
 ## crypto.DEFAULT_ENCODING
 
