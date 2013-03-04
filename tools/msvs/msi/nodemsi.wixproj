@@ -62,7 +62,7 @@
     </HeatDirectory>
   </Target>
   <PropertyGroup>
-    <PostBuildEvent>move !(TargetPath) $(TargetDir)\$(TargetFileName)
-move !(TargetPdbPath) $(TargetDir)\$(TargetPdbName)</PostBuildEvent>
+    <PostBuildEvent>move "!(TargetPath)" "$(TargetDir)\$(TargetFileName)"
+move "!(TargetPdbPath)" "$(TargetDir)\$(TargetPdbName)"</PostBuildEvent>
   </PropertyGroup>
 </Project>
