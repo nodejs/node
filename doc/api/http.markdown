@@ -187,7 +187,36 @@ Stops the server from accepting new connections.  See [net.Server.close()][].
 Limits maximum incoming headers count, equal to 1000 by default. If set to 0 -
 no limit will be applied.
 
+### server.setTimeout(msecs, callback)
 
+* `msecs` {Number}
+* `callback` {Function}
+
+Sets the timeout value for sockets, and emits a `'timeout'` event on
+the Server object, passing the socket as an argument, if a timeout
+occurs.
+
+If there is a `'timeout'` event listener on the Server object, then it
+will be called with the timed-out socket as an argument.
+
+By default, the Server's timeout value is 2 minutes, and sockets are
+destroyed automatically if they time out.  However, if you assign a
+callback to the Server's `'timeout'` event, then you are responsible
+for handling socket timeouts.
+
+### server.timeout
+
+* {Number} Default = 120000 (2 minutes)
+
+The number of milliseconds of inactivity before a socket is presumed
+to have timed out.
+
+Note that the socket timeout logic is set up on connection, so
+changing this value only affects *new* connections to the server, not
+any existing connections.
+
+Set to 0 to disable any kind of automatic timeout behavior on incoming
+connections.
 
 ## Class: http.ServerResponse
 
@@ -235,6 +264,21 @@ If the body contains higher coded characters then `Buffer.byteLength()`
 should be used to determine the number of bytes in a given encoding.
 And Node does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
+
+### response.setTimeout(msecs, callback)
+
+* `msecs` {Number}
+* `callback` {Function}
+
+Sets the Socket's timeout value to `msecs`.  If a callback is
+provided, then it is added as a listener on the `'timeout'` event on
+the response object.
+
+If no `'timeout'` listener is added to the request, the response, or
+the server, then sockets are destroyed when they time out.  If you
+assign a handler on the request, the response, or the server's
+`'timeout'` events, then it is your responsibility to handle timed out
+sockets.
 
 ### response.statusCode
 
@@ -788,6 +832,13 @@ Example:
 ### message.trailers
 
 The request/response trailers object. Only populated after the 'end' event.
+
+### message.setTimeout(msecs, callback)
+
+* `msecs` {Number}
+* `callback` {Function}
+
+Calls `message.connection.setTimeout(msecs, callback)`.
 
 ### message.setEncoding([encoding])
 
