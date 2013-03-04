@@ -1,6 +1,6 @@
 # Domain
 
-    Stability: 1 - Experimental
+    Stability: 2 - Unstable
 
 Domains provide a way to handle multiple different IO operations as a
 single group.  If any of the event emitters or callbacks registered to a
