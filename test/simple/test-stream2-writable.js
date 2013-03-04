@@ -33,7 +33,7 @@ function TestWriter() {
   this.written = 0;
 }
 
-TestWriter.prototype._write = function(chunk, cb) {
+TestWriter.prototype._write = function(chunk, encoding, cb) {
   // simulate a small unpredictable latency
   setTimeout(function() {
     this.buffer.push(chunk.toString());
@@ -186,11 +186,10 @@ test('write no bufferize', function(t) {
     decodeStrings: false
   });
 
-  tw._write = function(chunk, cb) {
-    assert(Array.isArray(chunk));
-    assert(typeof chunk[0] === 'string');
-    chunk = new Buffer(chunk[0], chunk[1]);
-    return TestWriter.prototype._write.call(this, chunk, cb);
+  tw._write = function(chunk, encoding, cb) {
+    assert(typeof chunk === 'string');
+    chunk = new Buffer(chunk, encoding);
+    return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
 
   var encodings =
@@ -279,7 +278,7 @@ test('end callback after .write() call', function (t) {
 test('encoding should be ignored for buffers', function(t) {
   var tw = new W();
   var hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
-  tw._write = function(chunk, cb) {
+  tw._write = function(chunk, encoding, cb) {
     t.equal(chunk.toString('hex'), hex);
     t.end();
   };

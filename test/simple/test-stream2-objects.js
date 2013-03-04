@@ -261,7 +261,7 @@ test('high watermark push', function(t) {
 test('can write objects to stream', function(t) {
   var w = new Writable({ objectMode: true });
 
-  w._write = function(chunk, cb) {
+  w._write = function(chunk, encoding, cb) {
     assert.deepEqual(chunk, { foo: 'bar' });
     cb();
   };
@@ -278,7 +278,7 @@ test('can write multiple objects to stream', function(t) {
   var w = new Writable({ objectMode: true });
   var list = [];
 
-  w._write = function(chunk, cb) {
+  w._write = function(chunk, encoding, cb) {
     list.push(chunk);
     cb();
   };
@@ -303,7 +303,7 @@ test('can write strings as objects', function(t) {
   });
   var list = [];
 
-  w._write = function(chunk, cb) {
+  w._write = function(chunk, encoding, cb) {
     list.push(chunk);
     process.nextTick(cb);
   };
@@ -328,7 +328,7 @@ test('buffers finish until cb is called', function(t) {
   });
   var called = false;
 
-  w._write = function(chunk, cb) {
+  w._write = function(chunk, encoding, cb) {
     assert.equal(chunk, 'foo');
 
     process.nextTick(function() {

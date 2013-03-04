@@ -40,7 +40,7 @@ var stream = require('stream');
   };
 
   var dest = new stream.Writable();
-  dest._write = function(chunk, cb) {
+  dest._write = function(chunk, encoding, cb) {
     cb();
   };
 
@@ -80,7 +80,7 @@ var stream = require('stream');
   };
 
   var dest = new stream.Writable();
-  dest._write = function(chunk, cb) {
+  dest._write = function(chunk, encoding, cb) {
     cb();
   };
 

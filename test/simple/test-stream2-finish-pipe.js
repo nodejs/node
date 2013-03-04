@@ -29,7 +29,7 @@ r._read = function(size) {
 };
 
 var w = new stream.Writable();
-w._write = function(data, cb) {
+w._write = function(data, encoding, cb) {
   cb(null);
 };
 

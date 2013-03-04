@@ -90,9 +90,9 @@ var expectWritten =
     'asdfgasdfgasdfgasdfg',
     'asdfgasdfgasdfgasdfg' ];
 
-writer._write = function(chunk, cb) {
-  console.error('WRITE %s', chunk[0]);
-  written.push(chunk[0]);
+writer._write = function(chunk, encoding, cb) {
+  console.error('WRITE %s', chunk);
+  written.push(chunk);
   process.nextTick(cb);
 };
 

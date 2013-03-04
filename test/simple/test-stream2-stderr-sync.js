@@ -61,7 +61,7 @@ function child0() {
     Writable.call(this, opts);
   }
 
-  W.prototype._write = function(chunk, cb) {
+  W.prototype._write = function(chunk, encoding, cb) {
     var req = handle.writeUtf8String(chunk.toString() + '\n');
     // here's the problem.
     // it needs to tell the Writable machinery that it's ok to write

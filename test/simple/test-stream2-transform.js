@@ -67,7 +67,7 @@ test('writable side consumption', function(t) {
   });
 
   var transformed = 0;
-  tx._transform = function(chunk, cb) {
+  tx._transform = function(chunk, encoding, cb) {
     transformed += chunk.length;
     tx.push(chunk);
     cb();
@@ -106,7 +106,7 @@ test('passthrough', function(t) {
 
 test('simple transform', function(t) {
   var pt = new Transform;
-  pt._transform = function(c, cb) {
+  pt._transform = function(c, e, cb) {
     var ret = new Buffer(c.length);
     ret.fill('x');
     pt.push(ret);
@@ -128,7 +128,7 @@ test('simple transform', function(t) {
 
 test('async passthrough', function(t) {
   var pt = new Transform;
-  pt._transform = function(chunk, cb) {
+  pt._transform = function(chunk, encoding, cb) {
     setTimeout(function() {
       pt.push(chunk);
       cb();
@@ -154,7 +154,7 @@ test('assymetric transform (expand)', function(t) {
   var pt = new Transform;
 
   // emit each chunk 2 times.
-  pt._transform = function(chunk, cb) {
+  pt._transform = function(chunk, encoding, cb) {
     setTimeout(function() {
       pt.push(chunk);
       setTimeout(function() {
@@ -189,7 +189,7 @@ test('assymetric transform (compress)', function(t) {
   // or whatever's left.
   pt.state = '';
 
-  pt._transform = function(chunk, cb) {
+  pt._transform = function(chunk, encoding, cb) {
     if (!chunk)
       chunk = '';
     var s = chunk.toString();
@@ -359,7 +359,7 @@ test('passthrough facaded', function(t) {
 test('object transform (json parse)', function(t) {
   console.error('json parse stream');
   var jp = new Transform({ objectMode: true });
-  jp._transform = function(data, cb) {
+  jp._transform = function(data, encoding, cb) {
     try {
       jp.push(JSON.parse(data));
       cb();
@@ -399,7 +399,7 @@ test('object transform (json parse)', function(t) {
 test('object transform (json stringify)', function(t) {
   console.error('json parse stream');
   var js = new Transform({ objectMode: true });
-  js._transform = function(data, cb) {
+  js._transform = function(data, encoding, cb) {
     try {
       js.push(JSON.stringify(data));
       cb();
