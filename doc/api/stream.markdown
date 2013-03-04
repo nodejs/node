@@ -589,11 +589,9 @@ In classes that extend the Transform class, make sure to call the
 constructor so that the buffering settings can be properly
 initialized.
 
-### transform.\_transform(chunk, outputFn, callback)
+### transform.\_transform(chunk, callback)
 
 * `chunk` {Buffer} The chunk to be transformed.
-* `outputFn` {Function} Call this function with any output data to be
-  passed to the readable interface.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done processing the supplied chunk.
 
@@ -609,20 +607,21 @@ Transform class, to handle the bytes being written, and pass them off
 to the readable portion of the interface.  Do asynchronous I/O,
 process things, and so on.
 
+Call `transform.push(outputChunk)` 0 or more times to generate output
+from this input chunk, depending on how much data you want to output
+as a result of this chunk.
+
 Call the callback function only when the current chunk is completely
-consumed.  Note that this may mean that you call the `outputFn` zero
-or more times, depending on how much data you want to output as a
-result of this chunk.
+consumed.  Note that there may or may not be output as a result of any
+particular input chunk.
 
 This method is prefixed with an underscore because it is internal to
 the class that defines it, and should not be called directly by user
 programs.  However, you **are** expected to override this method in
 your own extension classes.
 
-### transform.\_flush(outputFn, callback)
+### transform.\_flush(callback)
 
-* `outputFn` {Function} Call this function with any output data to be
-  passed to the readable interface.
 * `callback` {Function} Call this function (optionally with an error
   argument) when you are done flushing any remaining data.
 
@@ -639,8 +638,9 @@ can with what is left, so that the data will be complete.
 In those cases, you can implement a `_flush` method, which will be
 called at the very end, after all the written data is consumed, but
 before emitting `end` to signal the end of the readable side.  Just
-like with `_transform`, call `outputFn` zero or more times, as
-appropriate, and call `callback` when the flush operation is complete.
+like with `_transform`, call `transform.push(chunk)` zero or more
+times, as appropriate, and call `callback` when the flush operation is
+complete.
 
 This method is prefixed with an underscore because it is internal to
 the class that defines it, and should not be called directly by user
@@ -671,7 +671,7 @@ function SimpleProtocol(options) {
 SimpleProtocol.prototype = Object.create(
   Transform.prototype, { constructor: { value: SimpleProtocol }});
 
-SimpleProtocol.prototype._transform = function(chunk, output, done) {
+SimpleProtocol.prototype._transform = function(chunk, done) {
   if (!this._inBody) {
     // check if the chunk has a \n\n
     var split = -1;
@@ -707,11 +707,11 @@ SimpleProtocol.prototype._transform = function(chunk, output, done) {
       this.emit('header', this.header);
 
       // now, because we got some extra data, emit this first.
-      output(b);
+      this.push(b);
     }
   } else {
     // from there on, just provide the data to our consumer as-is.
-    output(b);
+    this.push(b);
   }
   done();
 };

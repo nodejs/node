@@ -32,7 +32,7 @@ function TestWriter() {
 }
 util.inherits(TestWriter, stream.Writable);
 
-TestWriter.prototype._write = function (buffer, callback) {
+TestWriter.prototype._write = function (buffer, encoding, callback) {
   console.log('write called');
   // super slow write stream (callback never called)
 };
