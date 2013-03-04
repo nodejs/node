@@ -29,7 +29,7 @@ Node.js package ecosystem already:
 
 - Grunt [plugins](http://gruntjs.com/#plugins-all)
 - Chai [plugins](http://chaijs.com/plugins)
-- Levelup [plugins](https://npmjs.org/package/level-hooks)
+- LevelUP [plugins](https://github.com/rvagg/node-levelup/wiki/Modules)
 - Express [middleware](http://expressjs.com/api.html#middleware)
 - Winston [transports](https://github.com/flatiron/winston/blob/master/docs/transports.md)
 
