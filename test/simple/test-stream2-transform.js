@@ -82,7 +82,7 @@ test('writable side consumption', function(t) {
   t.equal(transformed, 10);
   t.equal(tx._transformState.writechunk.length, 5);
   t.same(tx._writableState.buffer.map(function(c) {
-    return c[0].length;
+    return c.chunk.length;
   }), [6, 7, 8, 9, 10]);
 
   t.end();
