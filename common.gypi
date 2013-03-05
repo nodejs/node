@@ -117,7 +117,6 @@
         'WarningLevel': 3,
         'BufferSecurityCheck': 'true',
         'ExceptionHandling': 1, # /EHsc
-        'ImageHasSafeExceptionHandlers': 0, # /SAFESEH:NO
         'SuppressStartupBanner': 'true',
         'WarnAsError': 'false',
       },
