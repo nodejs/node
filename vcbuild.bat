@@ -84,10 +84,12 @@ if defined noperfctr set noperfctr_arg=--without-perfctr& set noperfctr_msi_arg=
 @rem Skip project generation if requested.
 if defined noprojgen goto msbuild
 
+if defined NIGHTLY set TAG=nightly-%NIGHTLY%
+
 @rem Generate the VS project.
 SETLOCAL
   if defined VS100COMNTOOLS call "%VS100COMNTOOLS%\VCVarsQueryRegistry.bat"
-  python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch%
+  python configure %debug_arg% %nosnapshot_arg% %noetw_arg% %noperfctr_arg% --dest-cpu=%target_arch% --tag=%TAG%
   if errorlevel 1 goto create-msvs-files-failed
   if not exist node.sln goto create-msvs-files-failed
   echo Project files generated.
@@ -133,7 +135,7 @@ if not defined msi goto run
 call :getnodeversion
 
 if not defined NIGHTLY goto msibuild
-set NODE_VERSION=%NODE_VERSION%-%date:~10,4%%date:~4,2%%date:~7,2%
+set NODE_VERSION=%NODE_VERSION%.%NIGHTLY%
 
 :msibuild
 echo Building node-%NODE_VERSION%

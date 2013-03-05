@@ -225,8 +225,8 @@ ARCH=x86
 endif
 endif
 TARNAME=node-$(VERSION)
-ifeq ($(NIGHTLY),1)
-TAG = nightly-$(shell date "+%Y%m%d")
+ifdef NIGHTLY
+TAG = nightly-$(NIGHTLY)
 TARNAME=node-$(VERSION)-$(TAG)
 endif
 TARBALL=$(TARNAME).tar.gz
@@ -251,7 +251,7 @@ release-only:
 		echo "" >&2 ; \
 		exit 1 ; \
 	fi
-	@if [ "$(NIGHTLY)" = "1" -o "$(RELEASE)" = "1" ]; then \
+	@if [ "$(NIGHTLY)" != "" -o "$(RELEASE)" = "1" ]; then \
 		exit 0; \
 	else \
 	  echo "" >&2 ; \
