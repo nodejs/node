@@ -824,6 +824,7 @@
                   'action': [
                     'ml.exe',
                     '/Zi',
+                    '/safeseh',
                     '/Fo', '<(INTERMEDIATE_DIR)/<(RULE_INPUT_ROOT).obj',
                     '/c', '<(RULE_INPUT_PATH)',
                   ],
