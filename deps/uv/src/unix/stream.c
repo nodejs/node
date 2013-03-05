@@ -1119,7 +1119,7 @@ static void uv__stream_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
     return;
   }
 
-  if (events & UV__POLLIN) {
+  if (events & (UV__POLLIN | UV__POLLERR | UV__POLLHUP)) {
     assert(uv__stream_fd(stream) >= 0);
 
     uv__read(stream);
