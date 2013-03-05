@@ -35,6 +35,7 @@
         value: process.constructor
       }
     });
+    EventEmitter.call(process);
 
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
 
