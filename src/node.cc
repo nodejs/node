@@ -127,6 +127,7 @@ static Persistent<String> disposed_symbol;
 static bool print_eval = false;
 static bool force_repl = false;
 static bool trace_deprecation = false;
+static bool throw_deprecation = false;
 static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
@@ -2414,6 +2415,11 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
     process->Set(String::NewSymbol("noDeprecation"), True());
   }
 
+  // --throw-deprecation
+  if (throw_deprecation) {
+    process->Set(String::NewSymbol("throwDeprecation"), True());
+  }
+
   // --trace-deprecation
   if (trace_deprecation) {
     process->Set(String::NewSymbol("traceDeprecation"), True());
@@ -2666,6 +2672,9 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       argv[i] = const_cast<char*>("");
       trace_deprecation = true;
+    } else if (strcmp(arg, "--throw-deprecation") == 0) {
+      argv[i] = const_cast<char*>("");
+      throw_deprecation = true;
     } else if (argv[i][0] != '-') {
       break;
     }

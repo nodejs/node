@@ -359,7 +359,9 @@
       var msg = '(node) warning: Recursive process.nextTick detected. ' +
                 'This will break in the next version of node. ' +
                 'Please use setImmediate for recursive deferral.';
-      if (process.traceDeprecation)
+      if (process.throwDeprecation)
+        throw new Error(msg);
+      else if (process.traceDeprecation)
         console.trace(msg);
       else
         console.error(msg);
