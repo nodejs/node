@@ -8,7 +8,7 @@
 
 * stream: _write: takes an encoding argument (isaacs)
 
-* stream: _transform: remove no output() method, provide encoding (isaacs)
+* stream: _transform: remove output() method, provide encoding (isaacs)
 
 * stream: Don't require read(0) to emit 'readable' event (isaacs)
 
