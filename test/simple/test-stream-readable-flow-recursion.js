@@ -34,9 +34,15 @@ process.throwDeprecation = true;
 
 var stream = new Readable({ highWaterMark: 2 });
 var reads = 0;
+var total = 5000;
 stream._read = function(size) {
   reads++;
-  stream.push(new Buffer(size));
+  size = Math.min(size, total);
+  total -= size;
+  if (size === 0)
+    stream.push(null);
+  else
+    stream.push(new Buffer(size));
 };
 
 var depth = 0;
@@ -61,8 +67,9 @@ flow(stream, 5000, function() {
 process.on('exit', function(code) {
   assert.equal(reads, 2);
   // we pushed up the high water mark
-  assert.equal(stream._readableState.highWaterMark, 5000);
-  assert.equal(stream._readableState.length, 5000);
+  assert.equal(stream._readableState.highWaterMark, 8192);
+  // length is 0 right now, because we pulled it all out.
+  assert.equal(stream._readableState.length, 0);
   assert(!code);
   assert.equal(depth, 0);
   console.log('ok');
