@@ -72,22 +72,23 @@ function publish (data, tarball, cb) {
     this.request("GET", data.name, function (er, fullData) {
       if (er) return cb(er)
 
+      function handle(er) {
+        if (er.message.indexOf("conflict Document update conflict.") === 0) {
+          return cb(conflictError.call(this, data._id));
+        }
+        this.log.error("publish", "Error uploading package");
+        return cb(er)
+      }
+
       var exists = fullData.versions && fullData.versions[data.version]
       if (exists) return cb(conflictError.call(this, data._id))
 
-      this.request("PUT", dataURI, data, function (er) {
-        if (er) {
-          if (er.message.indexOf("conflict Document update conflict.") === 0) {
-            return cb(conflictError.call(this, data._id))
-          }
-          this.log.error("publish", "Error sending version data")
-          return cb(er)
-        }
-
-        this.log.verbose("publish", "attach 2", [data.name, tarball, tbName])
-        attach.call(this, data.name, tarball, tbName, function (er) {
-          this.log.verbose("publish", "attach 3"
-                          ,[er, data.name])
+      var rev = fullData._rev;
+      attach.call(this, data.name, tarball, tbName, rev, function (er) {
+        if (er) return handle.call(this, er)
+        this.log.verbose("publish", "attached", [data.name, tarball, tbName])
+        this.request("PUT", dataURI, data, function (er) {
+          if (er) return handle.call(this, er)
           return cb(er)
         }.bind(this))
       }.bind(this))
@@ -102,15 +103,10 @@ function conflictError (pkgid) {
   return e
 }
 
-function attach (doc, file, filename, cb) {
+function attach (doc, file, filename, rev, cb) {
   doc = encodeURIComponent(doc)
-  this.request("GET", doc, function (er, d) {
-    if (er) return cb(er)
-    if (!d) return cb(new Error(
-      "Attempting to upload to invalid doc "+doc))
-    var rev = "-rev/"+d._rev
-      , attURI = doc + "/-/" + encodeURIComponent(filename) + "/" + rev
-    this.log.verbose("uploading", [attURI, file])
-    this.upload(attURI, file, cb)
-  }.bind(this))
+  var revu = "-rev/"+rev
+    , attURI = doc + "/-/" + encodeURIComponent(filename) + "/" + revu
+  this.log.verbose("uploading", [attURI, file])
+  this.upload(attURI, file, cb)
 }

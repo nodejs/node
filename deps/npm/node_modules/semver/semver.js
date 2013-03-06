@@ -15,7 +15,8 @@ var semver = "\\s*[v=]*\\s*([0-9]+)"        // major
                 + "(?:\\.([0-9]+|x|X|\\*)"
                 + "([a-zA-Z-][a-zA-Z0-9-\.:]*)?)?)?"
   , xRange = "((?:<|>)=?)?\\s*" + xRangePlain
-  , exprSpermy = "(?:~>?)"+xRange
+  , exprLoneSpermy = "(?:~>?)"
+  , exprSpermy = exprLoneSpermy + xRange
   , expressions = exports.expressions =
     { parse : new RegExp("^\\s*"+semver+"\\s*$")
     , parsePackage : new RegExp("^\\s*([^\/]+)[-@](" +semver+")\\s*$")
@@ -97,6 +98,7 @@ function toComparators (range) {
     .split("||")
     .map(function (orchunk) {
       return orchunk
+        .replace(new RegExp("(" + exprLoneSpermy + ")\\s+"), "$1")
         .split(" ")
         .map(replaceXRanges)
         .map(replaceSpermies)

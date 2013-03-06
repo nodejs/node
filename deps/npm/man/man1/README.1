@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM" "1" "February 2013" "" ""
+.TH "NPM" "1" "March 2013" "" ""
 .
 .SH "NAME"
 \fBnpm\fR \-\- node package manager
@@ -41,14 +41,26 @@ There\'s a pretty robust install script at \fIhttps://npmjs\.org/install\.sh\fR\
 .SS "Slightly Fancier"
 You can set any npm configuration params with that script:
 .
-.P
-npm\fIconfig\fRprefix=/some/path sh install\.sh
+.IP "" 4
+.
+.nf
+npm_config_prefix=/some/path sh install\.sh
+.
+.fi
+.
+.IP "" 0
 .
 .P
 Or, you can run it in uber\-debuggery mode:
 .
-.P
+.IP "" 4
+.
+.nf
 npm_debug=1 sh install\.sh
+.
+.fi
+.
+.IP "" 0
 .
 .SS "Even Fancier"
 Get the code with git\.  Use \fBmake\fR to build the docs and do other stuff\.
