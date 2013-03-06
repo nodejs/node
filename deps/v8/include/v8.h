@@ -3102,8 +3102,12 @@ class V8EXPORT V8 {
    *
    * The same message listener can be added more than once and in that
    * case it will be called more than once for each message.
+   *
+   * If data is specified, it will be passed to the callback when it is called.
+   * Otherwise, the exception object will be passed to the callback instead.
    */
-  static bool AddMessageListener(MessageCallback that);
+  static bool AddMessageListener(MessageCallback that,
+                                 Handle<Value> data = Handle<Value>());
 
   /**
    * Remove all message listeners from the specified callback function.

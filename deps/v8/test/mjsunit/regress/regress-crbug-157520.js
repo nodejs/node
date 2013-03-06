@@ -25,31 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Filler long enough to trigger lazy parsing.
-var filler = "//" + new Array(1024).join('x');
+// Flags: --nocrankshaft
 
-// Test strict eval in global context.
-assertEquals(23, eval(
-  "'use strict';" +
-  "var x = 23;" +
-  "var f = function bozo1() {" +
-  "  return x;" +
-  "};" +
-  "assertSame(23, f());" +
-  "f;" +
-  filler
-)());
-
-// Test default eval in strict context.
-assertEquals(42, (function() {
-  "use strict";
-  return eval(
-    "var y = 42;" +
-    "var g = function bozo2() {" +
-    "  return y;" +
-    "};" +
-    "assertSame(42, g());" +
-    "g;" +
-    filler
-  )();
-})());
+(function(){
+  var f = function(arg) {
+    arg = 2;
+    return arguments[0];
+  };
+  for (var i = 0; i < 50000; i++) {
+    assertSame(2, f(1));
+  }
+})();

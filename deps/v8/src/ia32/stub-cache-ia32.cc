@@ -3421,6 +3421,7 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
 #endif
 
   // Load the initial map and verify that it is in fact a map.
+  // edi: constructor
   __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
   // Will both indicate a NULL and a Smi.
   __ JumpIfSmi(ebx, &generic_stub_call);
@@ -3429,19 +3430,23 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
 
 #ifdef DEBUG
   // Cannot construct functions this way.
-  // edi: constructor
   // ebx: initial map
   __ CmpInstanceType(ebx, JS_FUNCTION_TYPE);
-  __ Assert(not_equal, "Function constructed by construct stub.");
+  __ Check(not_equal, "Function constructed by construct stub.");
 #endif
 
   // Now allocate the JSObject on the heap by moving the new space allocation
   // top forward.
-  // edi: constructor
   // ebx: initial map
+  ASSERT(function->has_initial_map());
+  int instance_size = function->initial_map()->instance_size();
+#ifdef DEBUG
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ shl(ecx, kPointerSizeLog2);
-  __ AllocateInNewSpace(ecx, edx, ecx, no_reg,
+  __ cmp(ecx, Immediate(instance_size));
+  __ Check(equal, "Instance size of initial map changed.");
+#endif
+  __ AllocateInNewSpace(instance_size, edx, ecx, no_reg,
                         &generic_stub_call, NO_ALLOCATION_FLAGS);
 
   // Allocated the JSObject, now initialize the fields and add the heap tag.
@@ -3501,7 +3506,6 @@ Handle<Code> ConstructStubCompiler::CompileConstructStub(
   }
 
   // Fill the unused in-object property fields with undefined.
-  ASSERT(function->has_initial_map());
   for (int i = shared->this_property_assignments_count();
        i < function->initial_map()->inobject_properties();
        i++) {

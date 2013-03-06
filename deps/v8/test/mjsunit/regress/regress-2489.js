@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,31 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Filler long enough to trigger lazy parsing.
-var filler = "//" + new Array(1024).join('x');
+// Flags: --allow-natives-syntax
 
-// Test strict eval in global context.
-assertEquals(23, eval(
-  "'use strict';" +
-  "var x = 23;" +
-  "var f = function bozo1() {" +
-  "  return x;" +
-  "};" +
-  "assertSame(23, f());" +
-  "f;" +
-  filler
-)());
+"use strict";
 
-// Test default eval in strict context.
-assertEquals(42, (function() {
-  "use strict";
-  return eval(
-    "var y = 42;" +
-    "var g = function bozo2() {" +
-    "  return y;" +
-    "};" +
-    "assertSame(42, g());" +
-    "g;" +
-    filler
-  )();
-})());
+function f(a, b) {
+  return g("c", "d");
+}
+
+function g(a, b) {
+  g.constructor.apply(this, arguments);
+}
+
+g.constructor = function(a, b) {
+  assertEquals("c", a);
+  assertEquals("d", b);
+}
+
+f("a", "b");
+f("a", "b");
+%OptimizeFunctionOnNextCall(f);
+f("a", "b");
+g.x = "deopt";
+f("a", "b");

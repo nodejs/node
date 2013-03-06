@@ -25,31 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Filler long enough to trigger lazy parsing.
-var filler = "//" + new Array(1024).join('x');
+assertEquals("0023456",
+             Object.keys(JSON.parse('{"0023456": 1}'))[0]);
+assertEquals("1234567890123",
+             Object.keys(JSON.parse('{"1234567890123": 1}'))[0]);
+assertEquals("123456789ABCD",
+             Object.keys(JSON.parse('{"123456789ABCD": 1}'))[0]);
+assertEquals("12A",
+             Object.keys(JSON.parse('{"12A": 1}'))[0]);
 
-// Test strict eval in global context.
-assertEquals(23, eval(
-  "'use strict';" +
-  "var x = 23;" +
-  "var f = function bozo1() {" +
-  "  return x;" +
-  "};" +
-  "assertSame(23, f());" +
-  "f;" +
-  filler
-)());
-
-// Test default eval in strict context.
-assertEquals(42, (function() {
-  "use strict";
-  return eval(
-    "var y = 42;" +
-    "var g = function bozo2() {" +
-    "  return y;" +
-    "};" +
-    "assertSame(42, g());" +
-    "g;" +
-    filler
-  )();
-})());
+assertEquals(1, JSON.parse('{"0":1}')[0]);
+assertEquals(undefined, JSON.parse('{"00":1}')[0]);

@@ -6111,8 +6111,6 @@ class JSFunction: public JSObject {
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
   inline void set_initial_map(Map* value);
-  MUST_USE_RESULT inline MaybeObject* set_initial_map_and_cache_transitions(
-      Map* value);
   inline bool has_initial_map();
 
   // Get and set the prototype property on a JSFunction. If the

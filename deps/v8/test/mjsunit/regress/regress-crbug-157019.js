@@ -25,31 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Filler long enough to trigger lazy parsing.
-var filler = "//" + new Array(1024).join('x');
+// Flags: --allow-natives-syntax --nocrankshaft
 
-// Test strict eval in global context.
-assertEquals(23, eval(
-  "'use strict';" +
-  "var x = 23;" +
-  "var f = function bozo1() {" +
-  "  return x;" +
-  "};" +
-  "assertSame(23, f());" +
-  "f;" +
-  filler
-)());
+function makeConstructor() {
+  return function() {
+    this.a = 1;
+    this.b = 2;
+  };
+}
 
-// Test default eval in strict context.
-assertEquals(42, (function() {
-  "use strict";
-  return eval(
-    "var y = 42;" +
-    "var g = function bozo2() {" +
-    "  return y;" +
-    "};" +
-    "assertSame(42, g());" +
-    "g;" +
-    filler
-  )();
-})());
+var c1 = makeConstructor();
+var o1 = new c1();
+
+c1.prototype = {};
+
+for (var i = 0; i < 10; i++) {
+  var o = new c1();
+  for (var j = 0; j < 8; j++) {
+    o["x" + j] = 0;
+  }
+}
+
+var c2 = makeConstructor();
+var o2 = new c2();
+
+for (var i = 0; i < 50000; i++) {
+  new c2();
+}

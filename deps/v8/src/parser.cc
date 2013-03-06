@@ -614,11 +614,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
-  // Compute the parsing mode.
-  Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
-  if (allow_natives_syntax_ || extension_ != NULL) mode = PARSE_EAGERLY;
-  ParsingModeScope parsing_mode(this, mode);
-
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
@@ -636,6 +631,13 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     }
     scope->set_start_position(0);
     scope->set_end_position(source->length());
+
+    // Compute the parsing mode.
+    Mode mode = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
+    if (allow_natives_syntax_ || extension_ != NULL || scope->is_eval_scope()) {
+      mode = PARSE_EAGERLY;
+    }
+    ParsingModeScope parsing_mode(this, mode);
 
     FunctionState function_state(this, scope, isolate());  // Enters 'scope'.
     top_scope_->SetLanguageMode(info->language_mode());
@@ -1059,12 +1061,14 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           // as specified in ES5 10.4.2(3). The correct fix would be to always
           // add this scope in DoParseProgram(), but that requires adaptations
           // all over the code base, so we go with a quick-fix for now.
+          // In the same manner, we have to patch the parsing mode.
           if (is_eval && !top_scope_->is_eval_scope()) {
             ASSERT(top_scope_->is_global_scope());
             Scope* scope = NewScope(top_scope_, EVAL_SCOPE);
             scope->set_start_position(top_scope_->start_position());
             scope->set_end_position(top_scope_->end_position());
             top_scope_ = scope;
+            mode_ = PARSE_EAGERLY;
           }
           // TODO(ES6): Fix entering extended mode, once it is specified.
           top_scope_->SetLanguageMode(FLAG_harmony_scoping

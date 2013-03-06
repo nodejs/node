@@ -2457,6 +2457,7 @@ bool message_received;
 
 static void check_message_0(v8::Handle<v8::Message> message,
                             v8::Handle<Value> data) {
+  CHECK_EQ(5.76, data->NumberValue());
   CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
   CHECK_EQ(7.56, message->GetScriptData()->NumberValue());
   message_received = true;
@@ -2467,7 +2468,7 @@ THREADED_TEST(MessageHandler0) {
   message_received = false;
   v8::HandleScope scope;
   CHECK(!message_received);
-  v8::V8::AddMessageListener(check_message_0);
+  v8::V8::AddMessageListener(check_message_0, v8_num(5.76));
   LocalContext context;
   v8::ScriptOrigin origin =
       v8::ScriptOrigin(v8_str("6.75"));

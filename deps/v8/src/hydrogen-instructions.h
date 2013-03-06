@@ -2760,6 +2760,8 @@ class HWrapReceiver: public HTemplateInstruction<2> {
 
   virtual HValue* Canonicalize();
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(WrapReceiver)
 };
 
@@ -4805,6 +4807,7 @@ class HStringAdd: public HBinaryOperation {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kChangesNewSpacePromotion);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {

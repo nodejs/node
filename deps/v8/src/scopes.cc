@@ -702,17 +702,12 @@ bool Scope::HasTrivialOuterContext() const {
 bool Scope::HasLazyCompilableOuterContext() const {
   Scope* outer = outer_scope_;
   if (outer == NULL) return true;
-  // There are several reasons that prevent lazy compilation:
-  // - This scope is inside a with scope and all declaration scopes between
-  //   them have empty contexts. Such declaration scopes become invisible
-  //   during scope info deserialization.
-  // - This scope is inside a strict eval scope with variables that are
-  //   potentially context allocated in an artificial function scope that
-  //   is not deserialized correctly.
+  // We have to prevent lazy compilation if this scope is inside a with scope
+  // and all declaration scopes between them have empty contexts. Such
+  // declaration scopes may become invisible during scope info deserialization.
   outer = outer->DeclarationScope();
   bool found_non_trivial_declarations = false;
   for (const Scope* scope = outer; scope != NULL; scope = scope->outer_scope_) {
-    if (scope->is_eval_scope()) return false;
     if (scope->is_with_scope() && !found_non_trivial_declarations) return false;
     if (scope->is_declaration_scope() && scope->num_heap_slots() > 0) {
       found_non_trivial_declarations = true;

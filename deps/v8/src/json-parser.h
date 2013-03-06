@@ -192,8 +192,10 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
   AdvanceSkipWhitespace();
   Handle<Object> result = ParseJsonValue();
   if (result.is_null() || c0_ != kEndOfString) {
-    // Parse failed. Current character is the unexpected token.
+    // Some exception (for example stack overflow) is already pending.
+    if (isolate_->has_pending_exception()) return Handle<Object>::null();
 
+    // Parse failed. Current character is the unexpected token.
     const char* message;
     Factory* factory = this->factory();
     Handle<JSArray> array;
@@ -244,6 +246,12 @@ Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source,
 // Parse any JSON value.
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonValue() {
+  StackLimitCheck stack_check(isolate_);
+  if (stack_check.HasOverflowed()) {
+    isolate_->StackOverflow();
+    return Handle<Object>::null();
+  }
+
   if (c0_ == '"') return ParseJsonString();
   if ((c0_ >= '0' && c0_ <= '9') || c0_ == '-') return ParseJsonNumber();
   if (c0_ == '{') return ParseJsonObject();
@@ -293,45 +301,56 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       Advance();
 
       uint32_t index = 0;
-      while (c0_ >= '0' && c0_ <= '9') {
-        int d = c0_ - '0';
-        if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
-        index = (index * 10) + d;
-        Advance();
+      if (c0_ >= '0' && c0_ <= '9') {
+        // Maybe an array index, try to parse it.
+        if (c0_ == '0') {
+          // With a leading zero, the string has to be "0" only to be an index.
+          Advance();
+        } else {
+          do {
+            int d = c0_ - '0';
+            if (index > 429496729U - ((d > 5) ? 1 : 0)) break;
+            index = (index * 10) + d;
+            Advance();
+          } while (c0_ >= '0' && c0_ <= '9');
+        }
+
+        if (c0_ == '"') {
+          // Successfully parsed index, parse and store element.
+          AdvanceSkipWhitespace();
+
+          if (c0_ != ':') return ReportUnexpectedCharacter();
+          AdvanceSkipWhitespace();
+          Handle<Object> value = ParseJsonValue();
+          if (value.is_null()) return ReportUnexpectedCharacter();
+
+          JSObject::SetOwnElement(json_object, index, value, kNonStrictMode);
+          continue;
+        }
+        // Not an index, fallback to the slow path.
       }
 
-      if (position_ != start_position + 1 && c0_ == '"') {
-        AdvanceSkipWhitespace();
-
-        if (c0_ != ':') return ReportUnexpectedCharacter();
-        AdvanceSkipWhitespace();
-        Handle<Object> value = ParseJsonValue();
-        if (value.is_null()) return ReportUnexpectedCharacter();
-
-        JSObject::SetOwnElement(json_object, index, value, kNonStrictMode);
-      } else {
-        position_ = start_position;
+      position_ = start_position;
 #ifdef DEBUG
-        c0_ = '"';
+      c0_ = '"';
 #endif
 
-        Handle<String> key = ParseJsonSymbol();
-        if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
+      Handle<String> key = ParseJsonSymbol();
+      if (key.is_null() || c0_ != ':') return ReportUnexpectedCharacter();
 
-        AdvanceSkipWhitespace();
-        Handle<Object> value = ParseJsonValue();
-        if (value.is_null()) return ReportUnexpectedCharacter();
+      AdvanceSkipWhitespace();
+      Handle<Object> value = ParseJsonValue();
+      if (value.is_null()) return ReportUnexpectedCharacter();
 
-        if (key->Equals(isolate()->heap()->Proto_symbol())) {
-          prototype = value;
+      if (key->Equals(isolate()->heap()->Proto_symbol())) {
+        prototype = value;
+      } else {
+        if (JSObject::TryTransitionToField(json_object, key)) {
+          int index = json_object->LastAddedFieldIndex();
+          json_object->FastPropertyAtPut(index, *value);
         } else {
-          if (JSObject::TryTransitionToField(json_object, key)) {
-            int index = json_object->LastAddedFieldIndex();
-            json_object->FastPropertyAtPut(index, *value);
-          } else {
-            JSObject::SetLocalPropertyIgnoreAttributes(
-                json_object, key, value, NONE);
-          }
+          JSObject::SetLocalPropertyIgnoreAttributes(
+              json_object, key, value, NONE);
         }
       }
     } while (MatchSkipWhiteSpace(','));

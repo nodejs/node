@@ -7699,6 +7699,35 @@ MaybeObject* JSObject::OptimizeAsPrototype() {
 }
 
 
+MUST_USE_RESULT static MaybeObject* CacheInitialJSArrayMaps(
+    Context* native_context, Map* initial_map) {
+  // Replace all of the cached initial array maps in the native context with
+  // the appropriate transitioned elements kind maps.
+  Heap* heap = native_context->GetHeap();
+  MaybeObject* maybe_maps =
+      heap->AllocateFixedArrayWithHoles(kElementsKindCount);
+  FixedArray* maps;
+  if (!maybe_maps->To(&maps)) return maybe_maps;
+
+  Map* current_map = initial_map;
+  ElementsKind kind = current_map->elements_kind();
+  ASSERT(kind == GetInitialFastElementsKind());
+  maps->set(kind, current_map);
+  for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
+       i < kFastElementsKindCount; ++i) {
+    Map* new_map;
+    ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
+    MaybeObject* maybe_new_map =
+        current_map->CopyAsElementsKind(next_kind, INSERT_TRANSITION);
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    maps->set(next_kind, new_map);
+    current_map = new_map;
+  }
+  native_context->set_js_array_maps(maps);
+  return initial_map;
+}
+
+
 MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
   ASSERT(value->IsJSReceiver());
   Heap* heap = GetHeap();
@@ -7713,14 +7742,29 @@ MaybeObject* JSFunction::SetInstancePrototype(Object* value) {
   // Now some logic for the maps of the objects that are created by using this
   // function as a constructor.
   if (has_initial_map()) {
-    // If the function has allocated the initial map
-    // replace it with a copy containing the new prototype.
+    // If the function has allocated the initial map replace it with a
+    // copy containing the new prototype.  Also complete any in-object
+    // slack tracking that is in progress at this point because it is
+    // still tracking the old copy.
+    if (shared()->IsInobjectSlackTrackingInProgress()) {
+      shared()->CompleteInobjectSlackTracking();
+    }
     Map* new_map;
-    MaybeObject* maybe_new_map = initial_map()->Copy();
-    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    MaybeObject* maybe_object = initial_map()->Copy();
+    if (!maybe_object->To(&new_map)) return maybe_object;
     new_map->set_prototype(value);
-    MaybeObject* maybe_object = set_initial_map_and_cache_transitions(new_map);
-    if (maybe_object->IsFailure()) return maybe_object;
+
+    // If the function is used as the global Array function, cache the
+    // initial map (and transitioned versions) in the native context.
+    Context* native_context = context()->native_context();
+    Object* array_function = native_context->get(Context::ARRAY_FUNCTION_INDEX);
+    if (array_function->IsJSFunction() &&
+        this == JSFunction::cast(array_function)) {
+      MaybeObject* ok = CacheInitialJSArrayMaps(native_context, new_map);
+      if (ok->IsFailure()) return ok;
+    }
+
+    set_initial_map(new_map);
   } else {
     // Put the value in the initial map field until an initial map is
     // needed.  At that point, a new initial map is created and the

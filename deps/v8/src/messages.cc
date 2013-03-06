@@ -130,15 +130,19 @@ void MessageHandler::ReportMessage(Isolate* isolate,
     }
   } else {
     for (int i = 0; i < global_length; i++) {
-      HandleScope scope;
+      HandleScope scope(isolate);
       if (global_listeners.get(i)->IsUndefined()) continue;
-      Handle<Foreign> callback_obj(Foreign::cast(global_listeners.get(i)));
+      v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
+      Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
       v8::MessageCallback callback =
           FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
+      Handle<Object> callback_data(listener.get(1), isolate);
       {
         // Do not allow exceptions to propagate.
         v8::TryCatch try_catch;
-        callback(api_message_obj, api_exception_obj);
+        callback(api_message_obj, callback_data->IsUndefined()
+                                      ? api_exception_obj
+                                      : v8::Utils::ToLocal(callback_data));
       }
       if (isolate->has_scheduled_exception()) {
         isolate->clear_scheduled_exception();

@@ -3593,7 +3593,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ bind(&runtime);
   __ pop(eax);  // Remove saved parameter count.
   __ mov(Operand(esp, 1 * kPointerSize), ecx);  // Patch argument count.
-  __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 

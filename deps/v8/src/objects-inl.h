@@ -4412,42 +4412,6 @@ void JSFunction::set_initial_map(Map* value) {
 }
 
 
-MaybeObject* JSFunction::set_initial_map_and_cache_transitions(
-    Map* initial_map) {
-  Context* native_context = context()->native_context();
-  Object* array_function =
-      native_context->get(Context::ARRAY_FUNCTION_INDEX);
-  if (array_function->IsJSFunction() &&
-      this == JSFunction::cast(array_function)) {
-    // Replace all of the cached initial array maps in the native context with
-    // the appropriate transitioned elements kind maps.
-    Heap* heap = GetHeap();
-    MaybeObject* maybe_maps =
-        heap->AllocateFixedArrayWithHoles(kElementsKindCount);
-    FixedArray* maps;
-    if (!maybe_maps->To(&maps)) return maybe_maps;
-
-    Map* current_map = initial_map;
-    ElementsKind kind = current_map->elements_kind();
-    ASSERT(kind == GetInitialFastElementsKind());
-    maps->set(kind, current_map);
-    for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
-         i < kFastElementsKindCount; ++i) {
-      Map* new_map;
-      ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
-      MaybeObject* maybe_new_map =
-          current_map->CopyAsElementsKind(next_kind, INSERT_TRANSITION);
-      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-      maps->set(next_kind, new_map);
-      current_map = new_map;
-    }
-    native_context->set_js_array_maps(maps);
-  }
-  set_initial_map(initial_map);
-  return this;
-}
-
-
 bool JSFunction::has_initial_map() {
   return prototype_or_initial_map()->IsMap();
 }

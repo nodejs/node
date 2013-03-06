@@ -2604,7 +2604,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ bind(&runtime);
   __ Integer32ToSmi(rcx, rcx);
   __ movq(Operand(rsp, 1 * kPointerSize), rcx);  // Patch argument count.
-  __ TailCallRuntime(Runtime::kNewStrictArgumentsFast, 3, 1);
+  __ TailCallRuntime(Runtime::kNewArgumentsFast, 3, 1);
 }
 
 

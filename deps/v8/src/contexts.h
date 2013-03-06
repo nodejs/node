@@ -344,9 +344,13 @@ class Context: public FixedArray {
   // Compute the native context by traversing the context chain.
   Context* native_context();
 
-  // Predicates for context types.  IsNativeContext is defined on Object
+  // Predicates for context types.  IsNativeContext is also defined on Object
   // because we frequently have to know if arbitrary objects are natives
   // contexts.
+  bool IsNativeContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->native_context_map();
+  }
   bool IsFunctionContext() {
     Map* map = this->map();
     return map == map->GetHeap()->function_context_map();
