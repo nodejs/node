@@ -61,9 +61,6 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
 };
 
 
-static Persistent<String> encoding_symbol;
-static Persistent<String> errno_symbol;
-static Persistent<String> buf_symbol;
 static Persistent<String> oncomplete_sym;
 
 
@@ -951,10 +948,6 @@ void File::Initialize(Handle<Object> target) {
 
   NODE_SET_METHOD(target, "utimes", UTimes);
   NODE_SET_METHOD(target, "futimes", FUTimes);
-
-  errno_symbol = NODE_PSYMBOL("errno");
-  encoding_symbol = NODE_PSYMBOL("node:encoding");
-  buf_symbol = NODE_PSYMBOL("__buf");
 }
 
 void InitFs(Handle<Object> target) {
