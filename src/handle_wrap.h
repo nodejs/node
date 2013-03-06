@@ -73,6 +73,7 @@ class HandleWrap {
     unsigned int flags_;
 
     static const unsigned int kUnref = 1;
+    static const unsigned int kCloseCallback = 2;
 };
 
 
