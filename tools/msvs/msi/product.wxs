@@ -109,18 +109,6 @@
           </Component>
         </Directory>
       </Directory>
-
-      <Directory Id="AppDataFolder">
-        <Directory Id="NPMAppData" Name="npm">
-          <Component Id="npmappdata_folder" Guid="994B1F7F-60CD-4792-A96D-63BC7FFF29BF" Permanent="yes">
-            <RegistryKey Key="dummy" Root="HKCU" >
-              <RegistryValue Type="integer"  Value="1" KeyPath="yes" />
-            </RegistryKey >
-            <CreateFolder/>
-            <RemoveFolder Id="RemoveAppData" On="uninstall" />
-          </Component>
-        </Directory>
-      </Directory>
     </Directory>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
@@ -159,7 +147,6 @@
       <ComponentRef Id="npmcmd"/>
       <ComponentRef Id="npmsh"/>
       <ComponentRef Id="npmrc" />
-      <ComponentRef Id="npmappdata_folder" />
       <ComponentGroupRef Id="NPMFiles" />
       <ComponentRef Id="nodejsvars" />
       <ComponentRef Id="noderegistry" />
