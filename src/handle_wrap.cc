@@ -63,7 +63,7 @@ Handle<Value> HandleWrap::Ref(const Arguments& args) {
 
   if (wrap) {
     uv_ref(wrap->handle__);
-    wrap->unref_ = false;
+    wrap->flags_ &= ~kUnref;
   }
 
   return v8::Undefined();
@@ -77,7 +77,7 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
 
   if (wrap) {
     uv_unref(wrap->handle__);
-    wrap->unref_ = true;
+    wrap->flags_ |= kUnref;
   }
 
   return v8::Undefined();
@@ -102,7 +102,7 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
 
 
 HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
-  unref_ = false;
+  flags_ = 0;
   handle__ = h;
   if (h) {
     h->data = this;
