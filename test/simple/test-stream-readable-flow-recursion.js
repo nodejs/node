@@ -32,7 +32,7 @@ var Readable = require('stream').Readable;
 // throw an error if we trigger a nextTick warning.
 process.throwDeprecation = true;
 
-var stream = new Readable({ highWaterMark: 2, bufferSize: 2 });
+var stream = new Readable({ highWaterMark: 2 });
 var reads = 0;
 stream._read = function(size) {
   reads++;
@@ -59,7 +59,7 @@ flow(stream, 5000, function() {
 });
 
 process.on('exit', function(code) {
-  assert.equal(reads, 5000);
+  assert.equal(reads, 2);
   // we pushed up the high water mark
   assert.equal(stream._readableState.highWaterMark, 5000);
   assert.equal(stream._readableState.length, 5000);

@@ -64,9 +64,7 @@ process.nextTick(run);
 util.inherits(TestReader, R);
 
 function TestReader(n, opts) {
-  R.call(this, util._extend({
-    bufferSize: 5
-  }, opts));
+  R.call(this, opts);
 
   this.pos = 0;
   this.len = n || 100;

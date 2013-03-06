@@ -90,8 +90,6 @@ method. (See below.)
 ### new stream.Readable([options])
 
 * `options` {Object}
-  * `bufferSize` {Number} The size of the chunks to consume from the
-    underlying resource. Default=16kb
   * `highWaterMark` {Number} The maximum number of bytes to store in
     the internal buffer before ceasing to read from the underlying
     resource.  Default=16kb
