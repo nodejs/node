@@ -1,4 +1,6 @@
-var usage = 'node benchmark/compare.js <node-binary1> <node-binary2> [--html] [--red|-r] [--green|-g]';
+var usage = 'node benchmark/compare.js ' +
+            '<node-binary1> <node-binary2> ' +
+            '[--html] [--red|-r] [--green|-g]';
 
 var show = 'both';
 var nodes = [];
@@ -42,73 +44,85 @@ if (!html) {
 var runBench = process.env.NODE_BENCH || 'bench';
 
 if (nodes.length !== 2)
-	return console.error('usage:\n  %s', usage);
+  return console.error('usage:\n  %s', usage);
 
 var spawn = require('child_process').spawn;
 var results = {};
-var n = 2;
+var n = 1;
 
 run();
 
+var RUNS = +process.env.NODE_BENCH_RUNS || 1;
+var r = RUNS;
 function run() {
-  if (n === 0)
-		return compare();
+  // Flip back and forth between the two binaries.
+  if (n === 1) {
+    n--;
+  } else {
+    r--;
+    if (r === 0)
+      return compare();
+    else
+      n++;
+  }
 
-  n--;
+  if (n === -1)
+    return compare();
 
-	var node = nodes[n];
+  var node = nodes[n];
   console.error('running %s', node);
-	var env = {};
+  var env = {};
   for (var i in process.env)
     env[i] = process.env[i];
   env.NODE = node;
-	var child = spawn('make', [ runBench ], { env: env });
+  var child = spawn('make', [runBench], { env: env });
 
-	var out = '';
-	child.stdout.setEncoding('utf8');
-	child.stdout.on('data', function(c) {
-		out += c;
-	});
+  var out = '';
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', function(c) {
+    out += c;
+  });
 
   child.stderr.pipe(process.stderr);
 
-	child.on('close', function(code) {
-		if (code) {
-			console.error('%s exited with code=%d', node, code);
-			process.exit(code);
-		} else {
-			out.trim().split(/\r?\n/).forEach(function(line) {
+  child.on('close', function(code) {
+    if (code) {
+      console.error('%s exited with code=%d', node, code);
+      process.exit(code);
+    } else {
+      out.trim().split(/\r?\n/).forEach(function(line) {
         line = line.trim();
         if (!line)
           return;
 
-				var s = line.split(':');
-				var num = +s.pop();
-				if (!num && num !== 0)
-          return
+        var s = line.split(':');
+        var num = +s.pop();
+        if (!num && num !== 0)
+          return;
 
-				line = s.join(':');
-				var res = results[line] = results[line] || {};
-				res[node] = num;
-			});
+        line = s.join(':');
+        var res = results[line] = results[line] || {};
+        res[node] = res[node] || [];
+        res[node].push(num);
+      });
 
-			run();
-		}
-	});
+      run();
+    }
+  });
 }
 
 function compare() {
-	// each result is an object with {"foo.js arg=bar":12345,...}
-	// compare each thing, and show which node did the best.
+  // each result is an object with {"foo.js arg=bar":12345,...}
+  // compare each thing, and show which node did the best.
   // node[0] is shown in green, node[1] shown in red.
   var maxLen = -Infinity;
   var util = require('util');
   console.log(start);
 
-	Object.keys(results).map(function(bench) {
+  Object.keys(results).map(function(bench) {
     var res = results[bench];
-    var n0 = res[nodes[0]];
-    var n1 = res[nodes[1]];
+    var n0 = avg(res[nodes[0]]);
+    var n1 = avg(res[nodes[1]]);
 
     var pct = ((n0 - n1) / n1 * 100).toFixed(2);
 
@@ -119,8 +133,8 @@ function compare() {
     if (show === 'green' && !g || show === 'red' && !r)
       return;
 
-    var r0 = util.format('%s%s: %d%s', g, nodes[0], n0, reset);
-    var r1 = util.format('%s%s: %d%s', r, nodes[1], n1, reset);
+    var r0 = util.format('%s%s: %d%s', g, nodes[0], n0, g ? reset : '');
+    var r1 = util.format('%s%s: %d%s', r, nodes[1], n1, r ? reset : '');
     var pct = c + pct + '%' + reset;
     var l = util.format('%s: %s %s', bench, r0, r1);
     maxLen = Math.max(l.length + pct.length, maxLen);
@@ -135,4 +149,15 @@ function compare() {
     console.log(l + dots + pct);
   });
   console.log(end);
+}
+
+function avg(list) {
+  if (list.length >= 3) {
+    list = list.sort();
+    var q = Math.floor(list.length / 4) || 1;
+    list = list.slice(q, -q);
+  }
+  return (list.reduce(function(a, b) {
+    return a + b;
+  }, 0) / list.length).toPrecision(5);
 }
