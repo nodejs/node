@@ -31,6 +31,9 @@ namespace node {
 // Defined in node.cc
 extern v8::Isolate* node_isolate;
 
+// Defined in node.cc at startup.
+extern v8::Persistent<v8::Object> process;
+
 #ifdef _WIN32
 // emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
 // on overflow...

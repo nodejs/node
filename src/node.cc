@@ -99,7 +99,9 @@ ngx_queue_t req_wrap_queue = { &req_wrap_queue, &req_wrap_queue };
 Persistent<String> process_symbol;
 Persistent<String> domain_symbol;
 
-static Persistent<Object> process;
+// declared in node_internals.h
+Persistent<Object> process;
+
 static Persistent<Function> process_tickDomainCallback;
 static Persistent<Function> process_tickFromSpinner;
 static Persistent<Function> process_tickCallback;
