@@ -85,10 +85,10 @@ function publish (data, tarball, cb) {
 
       var rev = fullData._rev;
       attach.call(this, data.name, tarball, tbName, rev, function (er) {
-        if (er) return handle(er)
+        if (er) return handle.call(this, er)
         this.log.verbose("publish", "attached", [data.name, tarball, tbName])
         this.request("PUT", dataURI, data, function (er) {
-          if (er) return handle(er)
+          if (er) return handle.call(this, er)
           return cb(er)
         }.bind(this))
       }.bind(this))

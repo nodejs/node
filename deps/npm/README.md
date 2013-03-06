@@ -42,11 +42,11 @@ There's a pretty robust install script at
 
 You can set any npm configuration params with that script:
 
-npm_config_prefix=/some/path sh install.sh
+    npm_config_prefix=/some/path sh install.sh
 
 Or, you can run it in uber-debuggery mode:
 
-npm_debug=1 sh install.sh
+    npm_debug=1 sh install.sh
 
 ### Even Fancier
 

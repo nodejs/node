@@ -139,6 +139,7 @@ function build (gyp, argv, callback) {
         return (x.version < y.version ? -1 : 1)
       })
       ;(function verifyMsbuild () {
+        if (!msbuilds.length) return callback(notfoundErr);
         msbuildPath = path.resolve(msbuilds.pop().path, 'msbuild.exe')
         fs.stat(msbuildPath, function (err, stat) {
           if (err) {

@@ -481,7 +481,7 @@ function parse (pattern, isSub) {
   if (pattern === "") return ""
 
   var re = ""
-    , hasMagic = false
+    , hasMagic = !!options.nocase
     , escaping = false
     // ? => one single character
     , patternListStack = []

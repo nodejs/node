@@ -295,6 +295,7 @@
     "./test/bash-results.json",
     "./test/cwd-test.js",
     "./test/mark.js",
+    "./test/nocase-nomagic.js",
     "./test/pause-resume.js",
     "./test/root-nomount.js",
     "./test/root.js",

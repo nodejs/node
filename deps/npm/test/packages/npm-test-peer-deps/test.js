@@ -17,11 +17,20 @@ require("child_process").execFile(process.execPath, [npm, "ls", "--json"], {
   var expected = require("./npm-ls.json")
 
   // resolved url doesn't matter
-  delete actual.dict.resolved
-  delete expected.dict.resolved
+  clean(actual)
+  clean(expected)
 
   console.error(JSON.stringify(actual, null, 2))
   console.error(JSON.stringify(expected, null, 2))
 
   assert.deepEqual(actual, expected)
 })
+
+function clean (obj) {
+  for (var i in obj) {
+    if (i === "from" || i === "resolved")
+      delete obj[i]
+    else if (typeof obj[i] === "object" && obj[i])
+      clean(obj[i])
+  }
+}

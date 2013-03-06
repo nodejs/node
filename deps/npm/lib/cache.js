@@ -80,6 +80,7 @@ var mkdir = require("mkdirp")
   , crypto = require("crypto")
   , retry = require("retry")
   , zlib = require("zlib")
+  , chmodr = require("chmodr")
 
 cache.usage = "npm cache add <tarball file>"
             + "\nnpm cache add <folder>"
@@ -408,7 +409,12 @@ function addRemoteGit (u, parsed, name, cb_) {
 
     p = path.join(npm.config.get("cache"), "_git-remotes", v)
 
-    checkGitDir(p, u, co, origUrl, cb)
+    checkGitDir(p, u, co, origUrl, function(er, data) {
+      chmodr(p, npm.modes.file, function(erChmod) {
+        if (er) return cb(er, data)
+        return cb(erChmod, data)
+      })
+    })
   })
 }
 
@@ -471,33 +477,30 @@ function archiveGitRemote (p, u, co, origUrl, cb) {
     stdout = (stdout + "\n" + stderr).trim()
     if (er) {
       log.error("git fetch -a origin ("+u+")", stdout)
-      return next(er)
+      return cb(er)
     }
     log.verbose("git fetch -a origin ("+u+")", stdout)
     tmp = path.join(npm.tmp, Date.now()+"-"+Math.random(), "tmp.tgz")
-    next()
+    resolveHead()
   })
 
-  exec(git, resolve, env, false, p, function (er, code, stdout, stderr) {
-    stdout = (stdout + "\n" + stderr).trim()
-    if (er) {
-      log.error("Failed resolving git HEAD (" + u + ")", stderr)
-      return next(er)
-    }
-    log.verbose("git rev-list -n1 " + co, stdout)
-    var parsed = url.parse(origUrl)
-    parsed.hash = stdout
-    resolved = url.format(parsed)
-    log.verbose('resolved git url', resolved)
-    next()
-  })
+  function resolveHead () {
+    exec(git, resolve, env, false, p, function (er, code, stdout, stderr) {
+      stdout = (stdout + "\n" + stderr).trim()
+      if (er) {
+        log.error("Failed resolving git HEAD (" + u + ")", stderr)
+        return cb(er)
+      }
+      log.verbose("git rev-list -n1 " + co, stdout)
+      var parsed = url.parse(origUrl)
+      parsed.hash = stdout
+      resolved = url.format(parsed)
+      log.verbose('resolved git url', resolved)
+      next()
+    })
+  }
 
-  function next (er) {
-    if (errState) return
-    if (er) return cb(errState = er)
-
-    if (++n < 2) return
-
+  function next () {
     mkdir(path.dirname(tmp), function (er) {
       if (er) return cb(er)
       var gzip = zlib.createGzip({ level: 9 })
