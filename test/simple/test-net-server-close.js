@@ -28,7 +28,11 @@ var sockets = [];
 
 process.on('exit', function() {
   assert.equal(server.connections, 0);
-  assert.deepEqual(events, 'client client server'.split(' '));
+  assert.equal(events.length, 3);
+  // Expect to see one server event and two client events. The order of the
+  // events is undefined because they arrive on the same event loop tick.
+  assert.equal(events.join(' ').match(/server/g).length, 1);
+  assert.equal(events.join(' ').match(/client/g).length, 2);
 });
 
 var server = net.createServer(function(c) {

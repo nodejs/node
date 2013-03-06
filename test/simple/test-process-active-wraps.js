@@ -29,12 +29,15 @@ function expect(activeHandles, activeRequests) {
   assert.equal(process._getActiveRequests().length, activeRequests);
 }
 
+var handles = [];
+
 (function() {
   expect(0, 0);
   var server = net.createServer().listen(common.PORT);
   expect(1, 0);
   server.close();
   expect(1, 0); // server handle doesn't shut down until next tick
+  handles.push(server);
 })();
 
 (function() {
@@ -44,18 +47,15 @@ function expect(activeHandles, activeRequests) {
   expect(2, 1);
   conn.destroy();
   expect(2, 1); // client handle doesn't shut down until next tick
+  handles.push(conn);
 })();
 
-// Force the nextTicks to be deferred to a later time.
-process.maxTickDepth = 1;
-
-process.nextTick(function() {
-  process.nextTick(function() {
-    process.nextTick(function() {
-      process.nextTick(function() {
-        // the handles should be gone but the connect req could still be alive
-        assert.equal(process._getActiveHandles().length, 0);
-      });
-    });
+(function() {
+  var n = 0;
+  handles.forEach(function(handle) {
+    handle.once('close', onclose);
   });
-});
+  function onclose() {
+    if (++n === handles.length) setImmediate(expect, 0, 0);
+  }
+})();

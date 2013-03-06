@@ -65,7 +65,7 @@ var request1 = http.get(requestOptions, function(response) {
     // is triggered.
     request1.socket.destroy();
 
-    process.nextTick(function() {
+    response.once('close', function() {
       // assert request2 was removed from the queue
       assert(!agent.requests[key]);
       console.log("waiting for request2.onSocket's nextTick");
