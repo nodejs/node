@@ -50,8 +50,15 @@ function makeRequest() {
 
   var stderrBuffer = '';
 
-  var child = spawn(process.execPath,
-      [childScript, common.PORT, bytesExpected]);
+  // Pass along --trace-deprecation/--throw-deprecation in
+  // process.execArgv to track down nextTick recursion errors
+  // more easily.  Also, this is handy when using this test to
+  // view V8 opt/deopt behavior.
+  var args = process.execArgv.concat([ childScript,
+                                       common.PORT,
+                                       bytesExpected ]);
+
+  var child = spawn(process.execPath, args);
 
   child.on('exit', function(code) {
     assert.ok(/DONE/.test(stderrBuffer));
