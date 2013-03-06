@@ -1,4 +1,47 @@
-2013.03.01, Version 0.9.11 (Unstable)
+2013.03.06, Version 0.9.12 (Unstable)
+
+* stream: Allow strings in Readable.push/unshift (isaacs)
+
+* stream: Remove bufferSize option (isaacs)
+
+* stream: Increase highWaterMark on large reads (isaacs)
+
+* stream: _write: takes an encoding argument (isaacs)
+
+* stream: _transform: remove no output() method, provide encoding (isaacs)
+
+* stream: Don't require read(0) to emit 'readable' event (isaacs)
+
+* node: Add --throw-deprecation (isaacs)
+
+* http: fix multiple timeout events (Eugene Girshov)
+
+* http: More useful setTimeout API on server (isaacs)
+
+* net: use close callback, not process.nextTick (Ben Noordhuis)
+
+* net: Provide better error when writing after FIN (isaacs)
+
+* dns: Support NAPTR queries (Pavel Lang)
+
+* dns: fix ReferenceError in resolve() error path (Xidorn Quan)
+
+* child_process: handle ENOENT correctly on Windows (Scott Blomquist)
+
+* cluster: Rename destroy() to kill(signal=SIGTERM) (isaacs)
+
+* build: define nightly tag external to build system (Timothy J Fontaine)
+
+* build: make msi build work when spaces are present in the path (Bert Belder)
+
+* build: fix msi build issue with WiX 3.7/3.8 (Raymond Feng)
+
+* repl: make compatible with domains (Dave Olszewski)
+
+* events: Code cleanup and performance improvements (Trevor Norris)
+
+
+2013.03.01, Version 0.9.11 (Unstable), 83392403b7a9b7782b37c17688938c75010f81ba
 
 * V8: downgrade to 3.14.5
 
