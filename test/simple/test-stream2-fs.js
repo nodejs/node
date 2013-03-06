@@ -73,4 +73,4 @@ w.on('results', function(res) {
   console.log('ok');
 });
 
-r.pipe(w, { chunkSize: 10 });
+r.pipe(w);
