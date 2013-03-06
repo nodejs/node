@@ -446,7 +446,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
       HANDLE read_line_handle;                                                \
       uv_buf_t read_line_buffer;                                              \
       HANDLE read_raw_wait;                                                   \
-      DWORD original_console_mode;                                            \
       /* Fields used for translating win keystrokes into vt100 characters */  \
       char last_key[8];                                                       \
       unsigned char last_key_offset;                                          \
