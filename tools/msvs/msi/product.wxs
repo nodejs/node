@@ -76,8 +76,26 @@
       </Feature>
     </Feature>
 
-    <Directory Id="TARGETDIR" Name="SourceDir">
+    <Feature Id="EnvironmentPath"
+             Level="1"
+             Title="Add to PATH"
+             Description="Add Node, NPM, and modules that were globally installed by NPM to the PATH environment variable.">
+      <Feature Id="EnvironmentPathNode"
+               Level="1"
+               Title="Node and NPM"
+               Description="Add Node and NPM (if installed) to the PATH environment variable.">
+        <ComponentRef Id="EnvironmentPathNode"/>
+      </Feature>
 
+      <Feature Id="EnvironmentPathNpmModules"
+               Level="1"
+               Title="NPM modules"
+               Description="Add modules that are installed globablly by NPM to the PATH environment variable. This option works for the current user only; other users need to update their PATH manually.">
+        <ComponentRef Id="EnvironmentPathNpmModules"/>
+      </Feature>
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramMenuFolder">
           <Directory Id="ApplicationProgramsFolder" Name="Node.js ($(var.Platform))"/>
       </Directory>
@@ -86,18 +104,6 @@
         <Directory Id="INSTALLDIR" Name="nodejs">
           <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodeexe" KeyPath="yes" Source="$(var.SourceDir)\node.exe" />
-            <Environment Id="npm_env"
-                         Action="set"
-                         Name="PATH"
-                         Part="last"
-                         System="no"
-                         Value="[AppDataFolder]npm\" />
-            <Environment Id="node_env"
-                         Action="set"
-                         Name="PATH"
-                         Part="last"
-                         System="yes"
-                         Value="[INSTALLDIR]" />
           </Component>
           <Component Id="nodejsvars" Guid="*">
             <File Id="filenodejsvars" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodejsvars.bat" />
@@ -146,6 +152,38 @@
           </Component>
         </Directory>
       </Directory>
+    </DirectoryRef>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="EnvironmentPathNode">
+        <RegistryValue Root="HKLM"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="EnvironmentPathNode"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <Environment Id="EnvironmentPathNode"
+                     Action="set"
+                     Name="PATH"
+                     Part="last"
+                     System="yes"
+                     Value="[INSTALLDIR]"/>
+      </Component>
+
+      <Component Id="EnvironmentPathNpmModules">
+        <RegistryValue Root="HKCU"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="EnvironmentPathNpmModules"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <Environment Id="EnvironmentPathNpmModules"
+                     Action="set"
+                     Name="PATH"
+                     Part="last"
+                     System="no"
+                     Value="[AppDataFolder]npm"/>
+      </Component>
     </DirectoryRef>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
