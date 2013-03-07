@@ -133,8 +133,8 @@ function compare() {
     if (show === 'green' && !g || show === 'red' && !r)
       return;
 
-    var r0 = util.format('%s%s: %d%s', g, nodes[0], n0, g ? reset : '');
-    var r1 = util.format('%s%s: %d%s', r, nodes[1], n1, r ? reset : '');
+    var r0 = util.format('%s%s: %d%s', g, nodes[0], n0.toPrecision(5), g ? reset : '');
+    var r1 = util.format('%s%s: %d%s', r, nodes[1], n1.toPrecision(5), r ? reset : '');
     var pct = c + pct + '%' + reset;
     var l = util.format('%s: %s %s', bench, r0, r1);
     maxLen = Math.max(l.length + pct.length, maxLen);
@@ -157,7 +157,7 @@ function avg(list) {
     var q = Math.floor(list.length / 4) || 1;
     list = list.slice(q, -q);
   }
-  return (list.reduce(function(a, b) {
+  return list.reduce(function(a, b) {
     return a + b;
-  }, 0) / list.length).toPrecision(5);
+  }, 0) / list.length;
 }
