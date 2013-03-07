@@ -141,13 +141,13 @@ test('async passthrough', function(t) {
   pt.write(new Buffer('kuel'));
   pt.end();
 
-  setTimeout(function() {
+  pt.on('finish', function() {
     t.equal(pt.read(5).toString(), 'foogb');
     t.equal(pt.read(5).toString(), 'arkba');
     t.equal(pt.read(5).toString(), 'zykue');
     t.equal(pt.read(5).toString(), 'l');
     t.end();
-  }, 100);
+  });
 });
 
 test('assymetric transform (expand)', function(t) {
@@ -170,7 +170,7 @@ test('assymetric transform (expand)', function(t) {
   pt.write(new Buffer('kuel'));
   pt.end();
 
-  setTimeout(function() {
+  pt.on('finish', function() {
     t.equal(pt.read(5).toString(), 'foogf');
     t.equal(pt.read(5).toString(), 'oogba');
     t.equal(pt.read(5).toString(), 'rkbar');
@@ -179,7 +179,7 @@ test('assymetric transform (expand)', function(t) {
     t.equal(pt.read(5).toString(), 'uelku');
     t.equal(pt.read(5).toString(), 'el');
     t.end();
-  }, 200);
+  });
 });
 
 test('assymetric transform (compress)', function(t) {
@@ -205,11 +205,9 @@ test('assymetric transform (compress)', function(t) {
 
   pt._flush = function(cb) {
     // just output whatever we have.
-    setTimeout(function() {
-      pt.push(new Buffer(this.state));
-      this.state = '';
-      cb();
-    }.bind(this), 10);
+    pt.push(new Buffer(this.state));
+    this.state = '';
+    cb();
   };
 
   pt.write(new Buffer('aaaa'));
@@ -229,12 +227,12 @@ test('assymetric transform (compress)', function(t) {
   pt.end();
 
   // 'abcdeabcdeabcd'
-  setTimeout(function() {
+  pt.on('finish', function() {
     t.equal(pt.read(5).toString(), 'abcde');
     t.equal(pt.read(5).toString(), 'abcde');
     t.equal(pt.read(5).toString(), 'abcd');
     t.end();
-  }, 200);
+  });
 });
 
 
