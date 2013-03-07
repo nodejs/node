@@ -101,7 +101,7 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="Node.js ($(var.Platform))"/>
+        <Directory Id="ApplicationProgramsFolder" Name="Node.js"/>
       </Directory>
 
       <Directory Id="$(var.ProgramFilesFolderId)">
