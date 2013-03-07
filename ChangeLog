@@ -1,4 +1,15 @@
-2013.02.25, Version 0.8.21 (Stable)
+2013.03.07, Version 0.8.22 (Stable)
+
+* npm: Update to 1.2.14
+
+* cluster: propagate bind errors (Ben Noordhuis)
+
+* crypto: don't assert when calling Cipher#final() twice (Ben Noordhuis)
+
+* build, windows: disable SEH (Ben Noordhuis)
+
+
+2013.02.25, Version 0.8.21 (Stable), 530d8c05d4c546146f18e5ba811d7eb3b7b7c0c5
 
 * http: Do not free the wrong parser on socket close (isaacs)
 
