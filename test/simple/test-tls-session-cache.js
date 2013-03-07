@@ -51,6 +51,7 @@ function doTest() {
   };
   var requestCount = 0;
   var session;
+  var badOpenSSL = false;
 
   var server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
@@ -88,18 +89,30 @@ function doTest() {
       '-reconnect',
       '-no_ticket'
     ], {
-      customFds: [0, 1, 2]
+      stdio: [ 0, 1, 'pipe' ]
+    });
+    var err = '';
+    client.stderr.setEncoding('utf8');
+    client.stderr.on('data', function(chunk) {
+      err += chunk;
     });
     client.on('exit', function(code) {
-      assert.equal(code, 0);
+      if (/^unknown option/.test(err)) {
+        // using an incompatible version of openssl
+        assert(code);
+        badOpenSSL = true;
+      } else
+        assert.equal(code, 0);
       server.close();
     });
   });
 
   process.on('exit', function() {
-    assert.ok(session);
+    if (!badOpenSSL) {
+      assert.ok(session);
 
-    // initial request + reconnect requests (5 times)
-    assert.equal(requestCount, 6);
+      // initial request + reconnect requests (5 times)
+      assert.equal(requestCount, 6);
+    }
   });
 }
