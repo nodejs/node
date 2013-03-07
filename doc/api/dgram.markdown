@@ -108,13 +108,17 @@ a packet might travel, and that generally sending a datagram greater than
 the (receiver) `MTU` won't work (the packet gets silently dropped, without
 informing the source that the data did not reach its intended recipient).
 
-### dgram.bind(port, [address])
+### dgram.bind(port, [address], [callback])
 
 * `port` Integer
 * `address` String, Optional
+* `callback` Function, Optional
 
-For UDP sockets, listen for datagrams on a named `port` and optional `address`. If
-`address` is not specified, the OS will try to listen on all addresses.
+For UDP sockets, listen for datagrams on a named `port` and optional `address`.
+If `address` is not specified, the OS will try to listen on all addresses.
+
+The `callback` argument, if provided, is added as a one-shot `'listening'`
+event listener.
 
 Example of a UDP server listening on port 41234:
 
