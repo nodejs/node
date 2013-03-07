@@ -18,17 +18,17 @@
            Manufacturer="$(var.ProductAuthor)"
            UpgradeCode="1d60944c-b9ce-4a71-a7c0-0384eb884baa">
 
-    <Package InstallerVersion="200" Compressed="yes" />
+    <Package InstallerVersion="200" Compressed="yes"/>
 
-    <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
+    <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
 
     <MajorUpgrade AllowSameVersionUpgrades="yes"
-                  DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit." />
+                  DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit."/>
 
-    <Icon Id="node.exe" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
-    <Property Id="ARPPRODUCTICON" Value="node.exe" />
-    <Property Id="ApplicationFolderName" Value="nodejs" />
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    <Icon Id="NodeIcon" SourceFile="$(var.RepoDir)\src\res\node.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="NodeIcon"/>
+    <Property Id="ApplicationFolderName" Value="nodejs"/>
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
     <Property Id="INSTALLDIR">
       <RegistrySearch Id="InstallPathRegistry"
@@ -238,22 +238,22 @@
     </DirectoryRef>
 
     <UI Id="NodeInstallUI">
-      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
-      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
-      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8"/>
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12"/>
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes"/>
 
-      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
-      <Property Id="WixUI_Mode" Value="FeatureTree" />
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal"/>
+      <Property Id="WixUI_Mode" Value="FeatureTree"/>
 
-      <DialogRef Id="ErrorDlg" />
-      <DialogRef Id="FatalError" />
-      <DialogRef Id="FilesInUse" />
-      <DialogRef Id="MsiRMFilesInUse" />
-      <DialogRef Id="PrepareDlg" />
-      <DialogRef Id="ProgressDlg" />
-      <DialogRef Id="ResumeDlg" />
-      <DialogRef Id="UserExit" />
-      <DialogRef Id="WelcomeDlg" />
+      <DialogRef Id="ErrorDlg"/>
+      <DialogRef Id="FatalError"/>
+      <DialogRef Id="FilesInUse"/>
+      <DialogRef Id="MsiRMFilesInUse"/>
+      <DialogRef Id="PrepareDlg"/>
+      <DialogRef Id="ProgressDlg"/>
+      <DialogRef Id="ResumeDlg"/>
+      <DialogRef Id="UserExit"/>
+      <DialogRef Id="WelcomeDlg"/>
       <DialogRef Id="LicenseAgreementDlg"/>
       <DialogRef Id="InstallDirDlg"/>
       <DialogRef Id="BrowseDlg"/>
@@ -281,14 +281,14 @@
       <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="2">NOT Installed</Publish>
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
 
-      <Property Id="ARPNOMODIFY" Value="1" />
-      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed." />
+      <Property Id="ARPNOMODIFY" Value="1"/>
+      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed."/>
     </UI>
 
-    <UIRef Id="WixUI_Common" />
-    <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.jpg" />
-    <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.jpg" />
-    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf" />
+    <UIRef Id="WixUI_Common"/>
+    <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.jpg"/>
+    <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.jpg"/>
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf"/>
   </Product>
 
 </Wix>
