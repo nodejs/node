@@ -6,6 +6,8 @@
   <?define ProductDescription = "Node.js" ?>
   <?define ProductAuthor = "Joyent, Inc. and other Node contributors" ?>
 
+  <?define RegistryKeyPath = "SOFTWARE\Node.js" ?>
+
   <?define RepoDir="$(var.ProjectDir)..\..\..\" ?>
   <?define SourceDir="$(var.RepoDir)\$(var.Configuration)\" ?>
 
@@ -29,8 +31,11 @@
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
 
     <Property Id="INSTALLDIR">
-      <RegistrySearch Id='InstallPathRegistry' Type='raw'
-        Root='HKCU' Key='SOFTWARE\Joyent\Node.js\Installer' Name='PreviousPath' />
+      <RegistrySearch Id="InstallPathRegistry"
+                      Type="raw"
+                      Root="HKCU"
+                      Key="$(var.RegistryKeyPath)"
+                      Name="InstallPath"/>
     </Property>
 
     <Feature Id="nodejs" Title="node.js engine" Level="1" Description="$(var.ProductDescription)" Absent="disallow">
@@ -97,14 +102,9 @@
             <File Id="filenodejsvars" KeyPath="yes" Source="$(var.RepoDir)\tools\msvs\nodejsvars.bat" />
           </Component>
           <Component Id="noderegistry" Guid="*" >
-            <RegistryKey Root="HKCU" Key="Software">
-              <RegistryKey Key="Joyent">
-                <RegistryKey Key="Node.js">
-                  <RegistryKey Key="Installer">
-                    <RegistryValue Name="PreviousPath" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
-                  </RegistryKey>
-                </RegistryKey>
-              </RegistryKey>
+            <RegistryKey Root="HKCU" Key="$(var.RegistryKeyPath)">
+              <RegistryValue Name="InstallPath" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+              <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
             </RegistryKey>
           </Component>
         </Directory>
@@ -127,7 +127,7 @@
                   Arguments="/x [ProductCode]"
                   Description="Uninstalls $(var.ProductName)" />
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
-        <RegistryValue Root="HKCU" Key="Software\Joyent\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+        <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
       <Component Id="InternetShortcuts" Guid="3351B877-49BA-4BC0-BF5E-21BA623FD07C">
         <util:InternetShortcut Id="OnlineWebsiteShortcut"
@@ -138,7 +138,7 @@
                   Name="Node.js documentation"
                   Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"
                   Type="url"/>
-        <RegistryValue Root="HKCU" Key="Software\Joyent\$(var.ProductName)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+        <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
       </Component>
     </DirectoryRef>
 
