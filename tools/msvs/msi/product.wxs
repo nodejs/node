@@ -73,10 +73,11 @@
       <ComponentGroupRef Id="NpmSourceFiles"/>
     </Feature>
 
-    <Feature Id="nodejs.shortcuts" Title="node.js shortcuts" Level="1" Description="$(var.ProductDescription) Shortcuts">
-      <Feature Id="nodejs.shortcuts.internet" Title="Internet Shortcuts" Level="1"  Description="$(var.ProductDescription) internet shortcuts to the project's website and online documentation for this version">
-        <ComponentGroupRef Id="internet.shortcuts"/>
-      </Feature>
+    <Feature Level="1"
+             Id="DocumentationShortcuts"
+             Title="Online documentation shortcuts"
+             Description="Add start menu entries that link the the online documentation for Node.js $(var.ProductVersion) and the Node.js website.">
+      <ComponentRef Id="DocumentationShortcuts"/>
     </Feature>
 
     <Feature Id="EnvironmentPath"
@@ -185,6 +186,25 @@
       </Directory>
     </DirectoryRef>
 
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="DocumentationShortcuts">
+        <RegistryValue Root="HKCU"
+                       Key="$(var.RegistryKeyPath)\Components"
+                       Name="DocumentationShortcuts"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes"/>
+        <util:InternetShortcut Id="WebsiteShortcut"
+                               Name="Node.js website"
+                               Target="http://nodejs.org"
+                               Type="url"/>
+        <util:InternetShortcut Id="DocsShortcut"
+                               Name="Node.js documentation"
+                               Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"
+                               Type="url"/>
+      </Component>
+    </DirectoryRef>
+
     <DirectoryRef Id="INSTALLDIR">
       <Component Id="EnvironmentPathNode">
         <RegistryValue Root="HKLM"
@@ -216,24 +236,6 @@
                      Value="[AppDataFolder]npm"/>
       </Component>
     </DirectoryRef>
-
-    <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="InternetShortcuts" Guid="3351B877-49BA-4BC0-BF5E-21BA623FD07C">
-        <util:InternetShortcut Id="OnlineWebsiteShortcut"
-                  Name="Node.js website"
-                  Target="http://nodejs.org"
-                  Type="url"/>
-        <util:InternetShortcut Id="OnlineDocumentationShortcut"
-                  Name="Node.js documentation"
-                  Target="http://nodejs.org/dist/v$(var.ProductVersion)/docs/api/"
-                  Type="url"/>
-        <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
-      </Component>
-    </DirectoryRef>
-
-    <ComponentGroup Id="internet.shortcuts">
-      <ComponentRef Id="InternetShortcuts"/>
-    </ComponentGroup>
 
     <UI Id="NodeInstallUI">
       <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
