@@ -1893,7 +1893,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     Local<String> errmsg = String::New(uv_dlerror(&lib));
 #ifdef _WIN32
     // Windows needs to add the filename into the error message
-    errmsg = String::Concat(errmsg, args[0]->ToString());
+    errmsg = String::Concat(errmsg, args[1]->ToString());
 #endif
     return ThrowException(Exception::Error(errmsg));
   }
