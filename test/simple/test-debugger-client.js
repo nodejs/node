@@ -162,7 +162,15 @@ function doTest(cb, done) {
 
   nodeProcess.stdout.once('data', function(c) {
     console.log('>>> new node process: %d', nodeProcess.pid);
-    process._debugProcess(nodeProcess.pid);
+    var failed = true;
+    try {
+      process._debugProcess(nodeProcess.pid);
+      failed = false;
+    } finally {
+      // At least TRY not to leave zombie procs if this fails.
+      if (failed)
+        nodeProcess.kill('SIGTERM');
+    }
     console.log('>>> starting debugger session');
   });
 
