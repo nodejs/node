@@ -26,32 +26,33 @@ var path = require('path');
 var common = require('../common');
 var msg = {test: 'this'};
 var nodePath = process.execPath;
-var symlinkPath = path.join(common.tmpDir, 'node-symlink');
+var copyPath = path.join(common.tmpDir, 'node-copy.exe');
 
 if (process.env.FORK) {
   assert(process.send);
-  assert.equal(process.argv[0], symlinkPath);
+  assert.equal(process.argv[0], copyPath);
   process.send(msg);
   process.exit();
 }
 else {
   try {
-    fs.unlinkSync(symlinkPath);
+    fs.unlinkSync(copyPath);
   }
   catch (e) {
     if (e.code !== 'ENOENT') throw e;
   }
-  fs.symlinkSync(nodePath, symlinkPath);
+  fs.writeFileSync(copyPath, fs.readFileSync(nodePath));
+  fs.chmodSync(copyPath, '0755');
 
   var child = require('child_process').fork(__filename, {
-    execPath: symlinkPath,
+    execPath: copyPath,
     env: { FORK: 'true' }
   });
   child.on('message', common.mustCall(function(recv) {
     assert.deepEqual(msg, recv);
   }));
   child.on('exit', common.mustCall(function(code) {
-    fs.unlinkSync(symlinkPath);
+    fs.unlinkSync(copyPath);
     assert.equal(code, 0);
   }));
 }
