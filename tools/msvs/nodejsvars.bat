@@ -3,12 +3,20 @@
 rem Ensure this Node.js and NPM are first in the PATH
 set PATH=%APPDATA%\npm;%~dp0;%PATH%
 
-rem Figure out node version and architecture and print it.
-setlocal
+setlocal enabledelayedexpansion
 pushd "%~dp0"
+
+rem Figure out the node version.
 set print_version=.\node.exe -p -e "process.versions.node + ' (' + process.arch + ')'"
 for /F "usebackq delims=" %%v in (`%print_version%`) do set version=%%v
-echo Your environment has been set up for using Node.js %version% and NPM
+
+rem Print message.
+if exist npm.cmd (
+  echo Your environment has been set up for using Node.js !version! and NPM.
+) else (
+  echo Your environment has been set up for using Node.js !version!.
+)
+
 popd
 endlocal
 
