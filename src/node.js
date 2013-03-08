@@ -223,6 +223,8 @@
       var caught = false;
       if (process.domain) {
         var domain = process.domain;
+        var domainModule = NativeModule.require('domain');
+        var domainStack = domainModule._stack;
 
         // ignore errors on disposed domains.
         //
@@ -247,14 +249,22 @@
           caught = domain.emit('error', er);
 
           // Exit all domains on the stack.  Uncaught exceptions end the
-          // current tick and no domains should be left on the stack between
-          // ticks.  Since a domain exists, this require will not be loading
-          // it for the first time and should be safe.
+          // current tick and no domains should be left on the stack
+          // between ticks.
           var domainModule = NativeModule.require('domain');
-          domainModule._stack.length = 0;
+          domainStack.length = 0;
           domainModule.active = process.domain = null;
         } catch (er2) {
-          caught = false;
+          // The domain error handler threw!  oh no!
+          // See if another domain can catch THIS error,
+          // or else crash on the original one.
+          domainStack.pop();
+          if (domainStack.length) {
+            var parentDomain = domainStack[ domainStack.length - 1];
+            process.domain = domainModule.active = parentDomain;
+            caught = process._fatalException(er2);
+          } else
+            caught = false;
         }
       } else {
         caught = process.emit('uncaughtException', er);
