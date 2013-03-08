@@ -31,14 +31,7 @@ var http = require('http');
 var cp = require('child_process');
 var fs = require('fs');
 
-var filename = require('path').join(common.tmpDir || '/tmp', 'big');
-
-// Clean up after ourselves. Leaving files around
-// in the tmp/ directory may break tests that depend
-// on a certain number of files being there.
-process.on('exit', function() {
-  fs.unlink(filename);
-});
+var filename = require('path').join(common.tmpDir, 'big');
 
 var count = 0;
 function maybeMakeRequest() {
@@ -50,6 +43,7 @@ function maybeMakeRequest() {
     var hex = stdout.match(/([A-Fa-f0-9]{40})/)[0];
     assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a', hex);
     console.log('got the correct response');
+    fs.unlink(filename);
     server.close();
   });
 }
