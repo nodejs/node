@@ -44,7 +44,8 @@ function grandparent() {
   child.on('close', function(code, signal) {
     assert.equal(code, 0);
     assert.equal(signal, null);
-    assert.equal(output, input);
+    // cat on windows adds a \r\n at the end.
+    assert.equal(output.trim(), input.trim());
   });
 }
 
