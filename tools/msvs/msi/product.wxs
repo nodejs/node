@@ -281,7 +281,6 @@
       <Publish Dialog="CustomizeDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="2">NOT Installed</Publish>
       <Publish Dialog="CustomizeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
 
-      <Property Id="ARPNOMODIFY" Value="1"/>
       <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed."/>
     </UI>
 
