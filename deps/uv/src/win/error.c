@@ -157,6 +157,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_SEM_TIMEOUT:                 return UV_ETIMEDOUT;
     case WSAETIMEDOUT:                      return UV_ETIMEDOUT;
     case ERROR_NOT_SAME_DEVICE:             return UV_EXDEV;
+    case ERROR_INVALID_FUNCTION:            return UV_EISDIR;
     default:                                return UV_UNKNOWN;
   }
 }

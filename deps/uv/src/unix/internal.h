@@ -45,6 +45,9 @@
 # include <CoreServices/CoreServices.h>
 #endif
 
+#define STATIC_ASSERT(expr)                                                   \
+  void uv__static_assert(int static_assert_failed[0 - !(expr)])
+
 #define ACCESS_ONCE(type, var)                                                \
   (*(volatile type*) &(var))
 
@@ -109,7 +112,6 @@ enum {
 };
 
 /* core */
-void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle, uv_handle_type type);
 int uv__nonblock(int fd, int set);
 int uv__cloexec(int fd, int set);
 int uv__socket(int domain, int type, int protocol);

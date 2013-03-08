@@ -65,6 +65,17 @@ static void uv__run_pending(uv_loop_t* loop);
 static uv_loop_t default_loop_struct;
 static uv_loop_t* default_loop_ptr;
 
+/* Verify that uv_buf_t is ABI-compatible with struct iovec. */
+STATIC_ASSERT(sizeof(uv_buf_t) == sizeof(struct iovec));
+STATIC_ASSERT(sizeof(&((uv_buf_t*) 0)->base) ==
+              sizeof(((struct iovec*) 0)->iov_base));
+STATIC_ASSERT(sizeof(&((uv_buf_t*) 0)->len) ==
+              sizeof(((struct iovec*) 0)->iov_len));
+STATIC_ASSERT((uintptr_t) &((uv_buf_t*) 0)->base ==
+              (uintptr_t) &((struct iovec*) 0)->iov_base);
+STATIC_ASSERT((uintptr_t) &((uv_buf_t*) 0)->len ==
+              (uintptr_t) &((struct iovec*) 0)->iov_len);
+
 
 uint64_t uv_hrtime(void) {
   return uv__hrtime();

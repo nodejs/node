@@ -115,96 +115,90 @@ int uv__udp_recv_stop(uv_udp_t* handle);
 void uv__fs_poll_close(uv_fs_poll_t* handle);
 
 
-UNUSED static int uv__has_active_reqs(const uv_loop_t* loop) {
-  return !ngx_queue_empty(&loop->active_reqs);
-}
+#define uv__has_active_reqs(loop)                                             \
+  (ngx_queue_empty(&(loop)->active_reqs) == 0)
 
-UNUSED static void uv__req_register(uv_loop_t* loop, uv_req_t* req) {
-  ngx_queue_insert_tail(&loop->active_reqs, &req->active_queue);
-}
+#define uv__req_register(loop, req)                                           \
+  do {                                                                        \
+    ngx_queue_insert_tail(&(loop)->active_reqs, &(req)->active_queue);        \
+  }                                                                           \
+  while (0)
 
-UNUSED static void uv__req_unregister(uv_loop_t* loop, uv_req_t* req) {
-  assert(uv__has_active_reqs(loop));
-  ngx_queue_remove(&req->active_queue);
-}
+#define uv__req_unregister(loop, req)                                         \
+  do {                                                                        \
+    assert(uv__has_active_reqs(loop));                                        \
+    ngx_queue_remove(&(req)->active_queue);                                   \
+  }                                                                           \
+  while (0)
 
+#define uv__has_active_handles(loop)                                          \
+  ((loop)->active_handles > 0)
 
-UNUSED static int uv__has_active_handles(const uv_loop_t* loop) {
-  return loop->active_handles > 0;
-}
+#define uv__active_handle_add(h)                                              \
+  do {                                                                        \
+    (h)->loop->active_handles++;                                              \
+  }                                                                           \
+  while (0)
 
-UNUSED static void uv__active_handle_add(uv_handle_t* h) {
-  h->loop->active_handles++;
-}
+#define uv__active_handle_rm(h)                                               \
+  do {                                                                        \
+    (h)->loop->active_handles--;                                              \
+  }                                                                           \
+  while (0)
 
-UNUSED static void uv__active_handle_rm(uv_handle_t* h) {
-  h->loop->active_handles--;
-}
+#define uv__is_active(h)                                                      \
+  (((h)->flags & UV__HANDLE_ACTIVE) != 0)
 
+#define uv__handle_start(h)                                                   \
+  do {                                                                        \
+    assert(((h)->flags & UV__HANDLE_CLOSING) == 0);                           \
+    if (((h)->flags & UV__HANDLE_ACTIVE) != 0) break;                         \
+    (h)->flags |= UV__HANDLE_ACTIVE;                                          \
+    if (((h)->flags & UV__HANDLE_REF) != 0) uv__active_handle_add(h);         \
+  }                                                                           \
+  while (0)
 
-#define uv__active_handle_add(h) uv__active_handle_add((uv_handle_t*)(h))
-#define uv__active_handle_rm(h) uv__active_handle_rm((uv_handle_t*)(h))
+#define uv__handle_stop(h)                                                    \
+  do {                                                                        \
+    assert(((h)->flags & UV__HANDLE_CLOSING) == 0);                           \
+    if (((h)->flags & UV__HANDLE_ACTIVE) == 0) break;                         \
+    (h)->flags &= ~UV__HANDLE_ACTIVE;                                         \
+    if (((h)->flags & UV__HANDLE_REF) != 0) uv__active_handle_rm(h);          \
+  }                                                                           \
+  while (0)
 
-#define uv__req_register(loop, req) uv__req_register((loop), (uv_req_t*)(req))
-#define uv__req_unregister(loop, req) uv__req_unregister((loop), (uv_req_t*)(req))
+#define uv__handle_ref(h)                                                     \
+  do {                                                                        \
+    if (((h)->flags & UV__HANDLE_REF) != 0) break;                            \
+    (h)->flags |= UV__HANDLE_REF;                                             \
+    if (((h)->flags & UV__HANDLE_CLOSING) != 0) break;                        \
+    if (((h)->flags & UV__HANDLE_ACTIVE) != 0) uv__active_handle_add(h);      \
+  }                                                                           \
+  while (0)
 
-UNUSED static int uv__is_active(const uv_handle_t* h) {
-  return !!(h->flags & UV__HANDLE_ACTIVE);
-}
-#define uv__is_active(h) uv__is_active((const uv_handle_t*)(h))
+#define uv__handle_unref(h)                                                   \
+  do {                                                                        \
+    if (((h)->flags & UV__HANDLE_REF) == 0) break;                            \
+    (h)->flags &= ~UV__HANDLE_REF;                                            \
+    if (((h)->flags & UV__HANDLE_CLOSING) != 0) break;                        \
+    if (((h)->flags & UV__HANDLE_ACTIVE) != 0) uv__active_handle_rm(h);       \
+  }                                                                           \
+  while (0)
 
-UNUSED static void uv__handle_start(uv_handle_t* h) {
-  assert(!(h->flags & UV__HANDLE_CLOSING));
-  if (h->flags & UV__HANDLE_ACTIVE)
-    return;
-  h->flags |= UV__HANDLE_ACTIVE;
-  if (h->flags & UV__HANDLE_REF)
-    uv__active_handle_add(h);
-}
-#define uv__handle_start(h) uv__handle_start((uv_handle_t*)(h))
-
-UNUSED static void uv__handle_stop(uv_handle_t* h) {
-  assert(!(h->flags & UV__HANDLE_CLOSING));
-  if (!(h->flags & UV__HANDLE_ACTIVE))
-    return;
-  h->flags &= ~UV__HANDLE_ACTIVE;
-  if (h->flags & UV__HANDLE_REF)
-    uv__active_handle_rm(h);
-}
-#define uv__handle_stop(h) uv__handle_stop((uv_handle_t*)(h))
-
-UNUSED static void uv__handle_ref(uv_handle_t* h) {
-  if (h->flags & UV__HANDLE_REF)
-    return;
-  h->flags |= UV__HANDLE_REF;
-  if (h->flags & UV__HANDLE_CLOSING)
-    return;
-  if (h->flags & UV__HANDLE_ACTIVE)
-    uv__active_handle_add(h);
-}
-#define uv__handle_ref(h) uv__handle_ref((uv_handle_t*)(h))
-
-UNUSED static void uv__handle_unref(uv_handle_t* h) {
-  if (!(h->flags & UV__HANDLE_REF))
-    return;
-  h->flags &= ~UV__HANDLE_REF;
-  if (h->flags & UV__HANDLE_CLOSING)
-    return;
-  if (h->flags & UV__HANDLE_ACTIVE)
-    uv__active_handle_rm(h);
-}
-#define uv__handle_unref(h) uv__handle_unref((uv_handle_t*)(h))
-
-UNUSED static void uv__handle_init(uv_loop_t* loop,
-                                   uv_handle_t* handle,
-                                   uv_handle_type type) {
-  handle->loop = loop;
-  handle->type = type;
-  handle->flags = UV__HANDLE_REF; /* ref the loop when active */
-  ngx_queue_insert_tail(&loop->handle_queue, &handle->handle_queue);
-#ifndef _WIN32
-  handle->next_closing = NULL;
+#if defined(_WIN32)
+# define uv__handle_platform_init(h)
+#else
+# define uv__handle_platform_init(h) ((h)->next_closing = NULL)
 #endif
-}
+
+#define uv__handle_init(loop_, h, type_)                                      \
+  do {                                                                        \
+    (h)->loop = (loop_);                                                      \
+    (h)->type = (type_);                                                      \
+    (h)->flags = UV__HANDLE_REF;  /* Ref the loop when active. */             \
+    ngx_queue_insert_tail(&(loop_)->handle_queue, &(h)->handle_queue);        \
+    uv__handle_platform_init(h);                                              \
+  }                                                                           \
+  while (0)
 
 #endif /* UV_COMMON_H_ */

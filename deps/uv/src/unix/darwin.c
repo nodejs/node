@@ -73,7 +73,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
 
   /* Synchronize threads */
   uv_sem_wait(&loop->cf_sem);
-  assert(((volatile CFRunLoopRef) loop->cf_loop) != NULL);
+  assert(ACCESS_ONCE(CFRunLoopRef, loop->cf_loop) != NULL);
 
   return 0;
 }
@@ -109,7 +109,7 @@ void uv__cf_loop_runner(void* arg) {
   loop = arg;
 
   /* Get thread's loop */
-  *((volatile CFRunLoopRef*)&loop->cf_loop) = CFRunLoopGetCurrent();
+  ACCESS_ONCE(CFRunLoopRef, loop->cf_loop) = CFRunLoopGetCurrent();
 
   CFRunLoopAddSource(loop->cf_loop,
                      loop->cf_cb,
