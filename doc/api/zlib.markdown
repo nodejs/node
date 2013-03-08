@@ -228,9 +228,10 @@ Decompress a raw Buffer with Unzip.
 Each class takes an options object.  All options are optional.  (The
 convenience methods use the default settings for all options.)
 
-Note that some options are only
-relevant when compressing, and are ignored by the decompression classes.
+Note that some options are only relevant when compressing, and are
+ignored by the decompression classes.
 
+* flush (default: `zlib.Z_NO_FLUSH`)
 * chunkSize (default: 16*1024)
 * windowBits
 * level (compression only)
@@ -238,8 +239,8 @@ relevant when compressing, and are ignored by the decompression classes.
 * strategy (compression only)
 * dictionary (deflate/inflate only, empty dictionary by default)
 
-See the description of `deflateInit2` and `inflateInit2`
-at <http://zlib.net/manual.html#Advanced> for more information on these.
+See the description of `deflateInit2` and `inflateInit2` at
+<http://zlib.net/manual.html#Advanced> for more information on these.
 
 ## Memory Usage Tuning
 
