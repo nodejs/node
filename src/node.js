@@ -260,7 +260,7 @@
           // or else crash on the original one.
           domainStack.pop();
           if (domainStack.length) {
-            var parentDomain = domainStack[ domainStack.length - 1];
+            var parentDomain = domainStack[domainStack.length - 1];
             process.domain = domainModule.active = parentDomain;
             caught = process._fatalException(er2);
           } else
