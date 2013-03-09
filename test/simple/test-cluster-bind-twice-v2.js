@@ -50,6 +50,17 @@ if (!id) {
   var a = fork(__filename, ['one']);
   var b = fork(__filename, ['two']);
 
+  a.on('exit', function(c) {
+    if (c)
+      throw new Error('A exited with ' + c);
+  });
+
+  b.on('exit', function(c) {
+    if (c)
+      throw new Error('B exited with ' + c);
+  });
+
+
   a.on('message', function(m) {
     if (typeof m === 'object') return;
     assert.equal(m, 'READY');
