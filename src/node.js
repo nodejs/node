@@ -258,7 +258,9 @@
           // The domain error handler threw!  oh no!
           // See if another domain can catch THIS error,
           // or else crash on the original one.
-          domainStack.pop();
+          // If the user already exited it, then don't double-exit.
+          if (domain === domainModule.active)
+            domainStack.pop();
           if (domainStack.length) {
             var parentDomain = domainStack[domainStack.length - 1];
             process.domain = domainModule.active = parentDomain;
