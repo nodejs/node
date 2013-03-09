@@ -65,8 +65,8 @@
 
     <Feature Id="npm"
              Level="1"
-             Title="NPM package manager"
-             Description="Install NPM, the recommended package manager for Node.js.">
+             Title="npm package manager"
+             Description="Install npm, the recommended package manager for Node.js.">
       <ComponentRef Id="NpmCmdScript"/>
       <ComponentRef Id="NpmBashScript"/>
       <ComponentRef Id="NpmConfigurationFile"/>
@@ -83,18 +83,18 @@
     <Feature Id="EnvironmentPath"
              Level="1"
              Title="Add to PATH"
-             Description="Add Node, NPM, and modules that were globally installed by NPM to the PATH environment variable.">
+             Description="Add Node, npm, and modules that were globally installed by npm to the PATH environment variable.">
       <Feature Id="EnvironmentPathNode"
                Level="1"
-               Title="Node and NPM"
-               Description="Add Node and NPM (if installed) to the PATH environment variable.">
+               Title="Node and npm"
+               Description="Add Node and npm (if installed) to the PATH environment variable.">
         <ComponentRef Id="EnvironmentPathNode"/>
       </Feature>
 
       <Feature Id="EnvironmentPathNpmModules"
                Level="1"
-               Title="NPM modules"
-               Description="Add modules that are installed globablly by NPM to the PATH environment variable. This option works for the current user only; other users need to update their PATH manually.">
+               Title="npm modules"
+               Description="Add modules that are installed globally by npm to the PATH environment variable. This option works for the current user only; other users need to update their PATH manually.">
         <ComponentRef Id="EnvironmentPathNpmModules"/>
       </Feature>
     </Feature>
