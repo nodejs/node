@@ -86,6 +86,7 @@ function stripData (data) {
            })
          , url: !Object.keys(data.versions || {}).length ? data.url : null
          , keywords: data.keywords || []
+         , version: Object.keys(data.versions)[0] || []
          , time: data.time
                  && data.time.modified
                  && (new Date(data.time.modified).toISOString()
@@ -142,18 +143,19 @@ function prettify (data, args) {
   var longest = []
     , spaces
     , maxLen = npm.config.get("description")
-             ? [20, 60, 20, 20, Infinity]
-             : [20, 20, 20, Infinity]
+             ? [20, 60, 20, 20, 10, Infinity]
+             : [20, 20, 20, 10, Infinity]
     , headings = npm.config.get("description")
-               ? ["NAME", "DESCRIPTION", "AUTHOR", "DATE", "KEYWORDS"]
-               : ["NAME", "AUTHOR", "DATE", "KEYWORDS"]
+               ? ["NAME", "DESCRIPTION", "AUTHOR", "DATE", "VERSION", "KEYWORDS"]
+               : ["NAME", "AUTHOR", "DATE", "VERSION", "KEYWORDS"]
     , lines
     , searchsort = (npm.config.get("searchsort") || "NAME").toLowerCase()
     , sortFields = { name: 0
                    , description: 1
                    , author: 2
                    , date: 3
-                   , keywords: 4 }
+                   , version: 4
+                   , keywords: 5 }
     , searchRev = searchsort.charAt(0) === "-"
     , sortField = sortFields[searchsort.replace(/^\-+/, "")]
 
@@ -171,6 +173,7 @@ function prettify (data, args) {
             , data.description || ""
             , data.maintainers.join(" ")
             , data.time
+            , data.version || ""
             , (data.keywords || []).join(" ")
             ]
     l.forEach(function (s, i) {
