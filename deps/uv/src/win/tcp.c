@@ -113,7 +113,8 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
     non_ifs_lsp = uv_tcp_non_ifs_lsp_ipv4;
   }
 
-  if (pSetFileCompletionNotificationModes && !non_ifs_lsp) {
+  if (pSetFileCompletionNotificationModes &&
+      !(handle->flags & UV_HANDLE_EMULATE_IOCP) && !non_ifs_lsp) {
     if (pSetFileCompletionNotificationModes((HANDLE) socket,
         FILE_SKIP_SET_EVENT_ON_HANDLE |
         FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
