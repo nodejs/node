@@ -75,6 +75,7 @@ server.listen(common.PORT, function() {
           server.close();
         }
       });
+      res.resume();
     });
     req.maxHeadersCount = max;
     req.end();

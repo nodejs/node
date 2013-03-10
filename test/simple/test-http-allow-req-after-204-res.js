@@ -58,6 +58,7 @@ function nextRequest() {
         //process.nextTick(nextRequest);
       }
     });
+    response.resume();
   });
   request.end();
 }

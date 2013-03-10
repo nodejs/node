@@ -47,6 +47,7 @@ server.listen(common.PORT, function() {
       common.error('response end');
       gotEnd = true;
     });
+    response.resume();
   });
   request.end();
 });

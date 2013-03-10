@@ -60,6 +60,7 @@ function test() {
     res.on('end', function() {
       res.emit('error', new Error('should be caught by domain'));
     });
+    res.resume();
   });
   req.end();
 }

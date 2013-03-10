@@ -59,6 +59,7 @@ var server = net.createServer(function(socket) {
       } else {
         server.close();
       }
+      res.resume();
     });
   }
 

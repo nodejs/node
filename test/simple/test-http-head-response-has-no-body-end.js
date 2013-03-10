@@ -51,6 +51,7 @@ server.on('listening', function() {
       server.close();
       responseComplete = true;
     });
+    res.resume();
   });
   common.error('req');
   req.end();

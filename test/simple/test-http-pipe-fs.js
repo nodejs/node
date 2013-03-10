@@ -54,6 +54,7 @@ var server = http.createServer(function(req, res) {
             server.close();
           }
         });
+        res.resume();
       });
       req.on('socket', function(s) {
         common.debug('req' + i + ' start');
