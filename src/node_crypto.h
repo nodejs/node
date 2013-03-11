@@ -276,6 +276,238 @@ class Connection : ObjectWrap {
   friend class SecureContext;
 };
 
+class Cipher : public ObjectWrap {
+ public:
+  static void Initialize (v8::Handle<v8::Object> target);
+
+  bool CipherInit(char* cipherType, char* key_buf, int key_buf_len);
+  bool CipherInitIv(char* cipherType,
+                    char* key,
+                    int key_len,
+                    char* iv,
+                    int iv_len);
+  int CipherUpdate(char* data, int len, unsigned char** out, int* out_len);
+  int SetAutoPadding(bool auto_padding);
+  int CipherFinal(unsigned char** out, int *out_len);
+
+ protected:
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> CipherInit(const v8::Arguments& args);
+  static v8::Handle<v8::Value> CipherInitIv(const v8::Arguments& args);
+  static v8::Handle<v8::Value> CipherUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetAutoPadding(const v8::Arguments& args);
+  static v8::Handle<v8::Value> CipherFinal(const v8::Arguments& args);
+
+  Cipher() : ObjectWrap(), initialised_(false) {
+  }
+
+  ~Cipher() {
+    if (initialised_) {
+      EVP_CIPHER_CTX_cleanup(&ctx);
+    }
+  }
+
+ private:
+  EVP_CIPHER_CTX ctx; /* coverity[member_decl] */
+  const EVP_CIPHER *cipher; /* coverity[member_decl] */
+  bool initialised_;
+};
+
+class Decipher : public ObjectWrap {
+ public:
+  static void Initialize(v8::Handle<v8::Object> target);
+
+  bool DecipherInit(char* cipherType, char* key_buf, int key_buf_len);
+  bool DecipherInitIv(char* cipherType,
+                      char* key,
+                      int key_len,
+                      char* iv,
+                      int iv_len);
+  int DecipherUpdate(char* data, int len, unsigned char** out, int* out_len);
+  int SetAutoPadding(bool auto_padding);
+  int DecipherFinal(unsigned char** out, int *out_len);
+
+ protected:
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> DecipherInit(const v8::Arguments& args);
+
+  static v8::Handle<v8::Value> DecipherInitIv(const v8::Arguments& args);
+  static v8::Handle<v8::Value> DecipherUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetAutoPadding(const v8::Arguments& args);
+  static v8::Handle<v8::Value> DecipherFinal(const v8::Arguments& args);
+
+  Decipher() : ObjectWrap(), initialised_(false) {
+  }
+
+  ~Decipher() {
+    if (initialised_) {
+      EVP_CIPHER_CTX_cleanup(&ctx);
+    }
+  }
+
+ private:
+  EVP_CIPHER_CTX ctx;
+  const EVP_CIPHER *cipher_;
+  bool initialised_;
+};
+
+class Hmac : public ObjectWrap {
+ public:
+  static void Initialize (v8::Handle<v8::Object> target);
+
+  bool HmacInit(char* hashType, char* key, int key_len);
+  int HmacUpdate(char* data, int len);
+  int HmacDigest(unsigned char** md_value, unsigned int *md_len);
+
+ protected:
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> HmacInit(const v8::Arguments& args);
+  static v8::Handle<v8::Value> HmacUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> HmacDigest(const v8::Arguments& args);
+
+  Hmac() : ObjectWrap(), initialised_(false) {
+  }
+
+  ~Hmac() {
+    if (initialised_) {
+      HMAC_CTX_cleanup(&ctx);
+    }
+  }
+
+ private:
+  HMAC_CTX ctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
+  bool initialised_;
+};
+
+class Hash : public ObjectWrap {
+ public:
+  static void Initialize (v8::Handle<v8::Object> target);
+
+  bool HashInit (const char* hashType);
+  int HashUpdate(char* data, int len);
+
+ protected:
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> HashUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> HashDigest(const v8::Arguments& args);
+
+  Hash() : ObjectWrap(), initialised_(false) {
+  }
+
+  ~Hash() {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
+
+ private:
+  EVP_MD_CTX mdctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
+  bool initialised_;
+};
+
+class Sign : public ObjectWrap {
+ public:
+  static void Initialize(v8::Handle<v8::Object> target);
+
+  bool SignInit (const char* signType);
+  int SignUpdate(char* data, int len);
+  int SignFinal(unsigned char** md_value,
+                unsigned int *md_len,
+                char* key_pem,
+                int key_pemLen);
+
+ protected:
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SignInit(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SignUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SignFinal(const v8::Arguments& args);
+
+  Sign() : ObjectWrap(), initialised_(false) {
+  }
+
+  ~Sign () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
+
+ private:
+  EVP_MD_CTX mdctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
+  bool initialised_;
+};
+
+class Verify : public ObjectWrap {
+ public:
+  static void Initialize (v8::Handle<v8::Object> target);
+
+  bool VerifyInit (const char* verifyType);
+  int VerifyUpdate(char* data, int len);
+  int VerifyFinal(char* key_pem,
+                  int key_pemLen,
+                  unsigned char* sig,
+                  int siglen);
+
+ protected:
+  static v8::Handle<v8::Value> New (const v8::Arguments& args);
+  static v8::Handle<v8::Value> VerifyInit(const v8::Arguments& args);
+  static v8::Handle<v8::Value> VerifyUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> VerifyFinal(const v8::Arguments& args);
+
+  Verify() : ObjectWrap(), initialised_(false) {
+  }
+
+  ~Verify() {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
+
+ private:
+  EVP_MD_CTX mdctx; /* coverity[member_decl] */
+  const EVP_MD *md; /* coverity[member_decl] */
+  bool initialised_;
+
+};
+
+class DiffieHellman : public ObjectWrap {
+ public:
+  static void Initialize(v8::Handle<v8::Object> target);
+
+  bool Init(int primeLength);
+  bool Init(unsigned char* p, int p_len);
+  bool Init(unsigned char* p, int p_len, unsigned char* g, int g_len);
+
+ protected:
+  static v8::Handle<v8::Value> DiffieHellmanGroup(const v8::Arguments& args);
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static v8::Handle<v8::Value> GenerateKeys(const v8::Arguments& args);
+  static v8::Handle<v8::Value> GetPrime(const v8::Arguments& args);
+  static v8::Handle<v8::Value> GetGenerator(const v8::Arguments& args);
+  static v8::Handle<v8::Value> GetPublicKey(const v8::Arguments& args);
+  static v8::Handle<v8::Value> GetPrivateKey(const v8::Arguments& args);
+  static v8::Handle<v8::Value> ComputeSecret(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetPublicKey(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetPrivateKey(const v8::Arguments& args);
+
+  DiffieHellman() : ObjectWrap(), initialised_(false), dh(NULL) {
+  }
+
+  ~DiffieHellman() {
+    if (dh != NULL) {
+      DH_free(dh);
+    }
+  }
+
+ private:
+  bool VerifyContext();
+
+  bool initialised_;
+  DH* dh;
+};
+
 void InitCrypto(v8::Handle<v8::Object> target);
 
 }  // namespace crypto
