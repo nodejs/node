@@ -276,79 +276,48 @@ class Connection : ObjectWrap {
   friend class SecureContext;
 };
 
-class Cipher : public ObjectWrap {
- public:
-  static void Initialize (v8::Handle<v8::Object> target);
-
-  bool CipherInit(char* cipherType, char* key_buf, int key_buf_len);
-  bool CipherInitIv(char* cipherType,
-                    char* key,
-                    int key_len,
-                    char* iv,
-                    int iv_len);
-  int CipherUpdate(char* data, int len, unsigned char** out, int* out_len);
-  int SetAutoPadding(bool auto_padding);
-  int CipherFinal(unsigned char** out, int *out_len);
-
- protected:
-  static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> CipherInit(const v8::Arguments& args);
-  static v8::Handle<v8::Value> CipherInitIv(const v8::Arguments& args);
-  static v8::Handle<v8::Value> CipherUpdate(const v8::Arguments& args);
-  static v8::Handle<v8::Value> SetAutoPadding(const v8::Arguments& args);
-  static v8::Handle<v8::Value> CipherFinal(const v8::Arguments& args);
-
-  Cipher() : ObjectWrap(), initialised_(false) {
-  }
-
-  ~Cipher() {
-    if (initialised_) {
-      EVP_CIPHER_CTX_cleanup(&ctx);
-    }
-  }
-
- private:
-  EVP_CIPHER_CTX ctx; /* coverity[member_decl] */
-  const EVP_CIPHER *cipher; /* coverity[member_decl] */
-  bool initialised_;
-};
-
-class Decipher : public ObjectWrap {
+class CipherBase : public ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
-  bool DecipherInit(char* cipherType, char* key_buf, int key_buf_len);
-  bool DecipherInitIv(char* cipherType,
-                      char* key,
-                      int key_len,
-                      char* iv,
-                      int iv_len);
-  int DecipherUpdate(char* data, int len, unsigned char** out, int* out_len);
-  int SetAutoPadding(bool auto_padding);
-  int DecipherFinal(unsigned char** out, int *out_len);
-
  protected:
+  enum CipherKind {
+    kCipher,
+    kDecipher
+  };
+
+  v8::Handle<v8::Value> Init(char* cipher_type, char* key_buf, int key_buf_len);
+  v8::Handle<v8::Value> InitIv(char* cipher_type,
+                               char* key,
+                               int key_len,
+                               char* iv,
+                               int iv_len);
+  bool Update(char* data, int len, unsigned char** out, int* out_len);
+  bool Final(unsigned char** out, int *out_len);
+  bool SetAutoPadding(bool auto_padding);
+
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
-  static v8::Handle<v8::Value> DecipherInit(const v8::Arguments& args);
-
-  static v8::Handle<v8::Value> DecipherInitIv(const v8::Arguments& args);
-  static v8::Handle<v8::Value> DecipherUpdate(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Init(const v8::Arguments& args);
+  static v8::Handle<v8::Value> InitIv(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Update(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Final(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetAutoPadding(const v8::Arguments& args);
-  static v8::Handle<v8::Value> DecipherFinal(const v8::Arguments& args);
 
-  Decipher() : ObjectWrap(), initialised_(false) {
+  CipherBase(CipherKind kind) : cipher_(NULL),
+                                initialised_(false),
+                                kind_(kind) {
   }
 
-  ~Decipher() {
-    if (initialised_) {
-      EVP_CIPHER_CTX_cleanup(&ctx);
-    }
+  ~CipherBase() {
+    if (!initialised_) return;
+    EVP_CIPHER_CTX_cleanup(&ctx_);
   }
 
  private:
-  EVP_CIPHER_CTX ctx;
-  const EVP_CIPHER *cipher_;
+  EVP_CIPHER_CTX ctx_; /* coverity[member_decl] */
+  const EVP_CIPHER* cipher_; /* coverity[member_decl] */
   bool initialised_;
+  CipherKind kind_;
 };
 
 class Hmac : public ObjectWrap {
