@@ -2306,103 +2306,77 @@ void Hmac::Initialize(v8::Handle<v8::Object> target) {
 }
 
 
-bool Hmac::HmacInit(char* hashType, char* key, int key_len) {
-  md = EVP_get_digestbyname(hashType);
-  if(!md) {
-    fprintf(stderr, "node-crypto : Unknown message digest %s\n", hashType);
-    return false;
-  }
-  HMAC_CTX_init(&ctx);
-  if (key_len == 0) {
-    HMAC_Init(&ctx, "", 0, md);
-  } else {
-    HMAC_Init(&ctx, key, key_len, md);
-  }
-  initialised_ = true;
-  return true;
-
-}
-
-
-int Hmac::HmacUpdate(char* data, int len) {
-  if (!initialised_) return 0;
-  HMAC_Update(&ctx, (unsigned char*)data, len);
-  return 1;
-}
-
-
-int Hmac::HmacDigest(unsigned char** md_value, unsigned int *md_len) {
-  if (!initialised_) return 0;
-  *md_value = new unsigned char[EVP_MAX_MD_SIZE];
-  HMAC_Final(&ctx, *md_value, md_len);
-  HMAC_CTX_cleanup(&ctx);
-  initialised_ = false;
-  return 1;
-}
-
-
 Handle<Value> Hmac::New(const Arguments& args) {
   HandleScope scope;
 
-  Hmac *hmac = new Hmac();
+  Hmac* hmac = new Hmac();
   hmac->Wrap(args.This());
   return args.This();
 }
 
 
-Handle<Value> Hmac::HmacInit(const Arguments& args) {
-  Hmac *hmac = ObjectWrap::Unwrap<Hmac>(args.This());
-
+Handle<Value> Hmac::HmacInit(char* hashType, char* key, int key_len) {
   HandleScope scope;
 
-  if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New(
-      "Must give hashtype string as argument")));
+  assert(md_ == NULL);
+  md_ = EVP_get_digestbyname(hashType);
+  if (md_ == NULL) {
+    return ThrowError("Unknown message digest");
+  }
+  HMAC_CTX_init(&ctx_);
+  if (key_len == 0) {
+    HMAC_Init(&ctx_, "", 0, md_);
+  } else {
+    HMAC_Init(&ctx_, key, key_len, md_);
+  }
+  initialised_ = true;
+
+  return Null();
+}
+
+
+Handle<Value> Hmac::HmacInit(const Arguments& args) {
+  HandleScope scope;
+
+  Hmac* hmac = ObjectWrap::Unwrap<Hmac>(args.This());
+
+  if (args.Length() < 2 || !args[0]->IsString()) {
+    return ThrowError("Must give hashtype string, key as arguments");
   }
 
   ASSERT_IS_BUFFER(args[1]);
-  ssize_t len = Buffer::Length(args[1]);
-
-  if (len < 0) {
-    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
-    return ThrowException(exception);
-  }
 
   String::Utf8Value hashType(args[0]);
 
-  bool r;
+  char* buffer_data = Buffer::Data(args[1]);
+  size_t buffer_length = Buffer::Length(args[1]);
 
-  if( Buffer::HasInstance(args[1])) {
-    char* buffer_data = Buffer::Data(args[1]);
-    size_t buffer_length = Buffer::Length(args[1]);
+  Handle<Value> ret = hmac->HmacInit(*hashType, buffer_data, buffer_length);
 
-    r = hmac->HmacInit(*hashType, buffer_data, buffer_length);
+  if (ret->IsNull()) {
+    return args.This();
   } else {
-    char* buf = new char[len];
-    ssize_t written = DecodeWrite(buf, len, args[1], BINARY);
-    assert(written == len);
-
-    r = hmac->HmacInit(*hashType, buf, len);
-
-    delete [] buf;
+    // Exception
+    return ret;
   }
+}
 
-  if (!r) {
-    return ThrowException(Exception::Error(String::New("hmac error")));
-  }
 
-  return args.This();
+bool Hmac::HmacUpdate(char* data, int len) {
+  if (!initialised_) return false;
+  HMAC_Update(&ctx_, reinterpret_cast<unsigned char*>(data), len);
+  return true;
 }
 
 
 Handle<Value> Hmac::HmacUpdate(const Arguments& args) {
-  Hmac *hmac = ObjectWrap::Unwrap<Hmac>(args.This());
-
   HandleScope scope;
+
+  Hmac* hmac = ObjectWrap::Unwrap<Hmac>(args.This());
 
   ASSERT_IS_BUFFER(args[0]);
 
-  int r;
+  bool r;
 
   char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
@@ -2410,33 +2384,41 @@ Handle<Value> Hmac::HmacUpdate(const Arguments& args) {
   r = hmac->HmacUpdate(buffer_data, buffer_length);
 
   if (!r) {
-    Local<Value> exception = Exception::TypeError(String::New("HmacUpdate fail"));
-    return ThrowException(exception);
+    return ThrowTypeError("HmacUpdate fail");
   }
 
   return args.This();
 }
 
 
-Handle<Value> Hmac::HmacDigest(const Arguments& args) {
-  Hmac *hmac = ObjectWrap::Unwrap<Hmac>(args.This());
+bool Hmac::HmacDigest(unsigned char** md_value, unsigned int* md_len) {
+  if (!initialised_) return false;
+  *md_value = new unsigned char[EVP_MAX_MD_SIZE];
+  HMAC_Final(&ctx_, *md_value, md_len);
+  HMAC_CTX_cleanup(&ctx_);
+  initialised_ = false;
+  return true;
+}
 
+
+Handle<Value> Hmac::HmacDigest(const Arguments& args) {
   HandleScope scope;
+
+  Hmac* hmac = ObjectWrap::Unwrap<Hmac>(args.This());
 
   unsigned char* md_value = NULL;
   unsigned int md_len = 0;
   Local<Value> outString;
 
-  int r = hmac->HmacDigest(&md_value, &md_len);
-  if (r == 0) {
+  bool r = hmac->HmacDigest(&md_value, &md_len);
+  if (!r) {
     md_value = NULL;
     md_len = 0;
   }
 
-  outString = Encode(md_value, md_len, BUFFER);
+  Buffer* buf = Buffer::New(reinterpret_cast<char*>(md_value), md_len);
 
-  delete [] md_value;
-  return scope.Close(outString);
+  return scope.Close(buf->handle_);
 }
 
 
@@ -2454,38 +2436,19 @@ void Hash::Initialize(v8::Handle<v8::Object> target) {
 }
 
 
-bool Hash::HashInit(const char* hashType) {
-  md = EVP_get_digestbyname(hashType);
-  if(!md) return false;
-  EVP_MD_CTX_init(&mdctx);
-  EVP_DigestInit_ex(&mdctx, md, NULL);
-  initialised_ = true;
-  return true;
-}
-
-
-int Hash::HashUpdate(char* data, int len) {
-  if (!initialised_) return 0;
-  EVP_DigestUpdate(&mdctx, data, len);
-  return 1;
-}
-
-
 Handle<Value> Hash::New(const Arguments& args) {
   HandleScope scope;
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New(
-      "Must give hashtype string as argument")));
+    return ThrowError("Must give hashtype string as argument");
   }
 
   String::Utf8Value hashType(args[0]);
 
-  Hash *hash = new Hash();
+  Hash* hash = new Hash();
   if (!hash->HashInit(*hashType)) {
     delete hash;
-    return ThrowException(Exception::Error(String::New(
-      "Digest method not supported")));
+    return ThrowError("Digest method not supported");
   }
 
   hash->Wrap(args.This());
@@ -2493,22 +2456,39 @@ Handle<Value> Hash::New(const Arguments& args) {
 }
 
 
+bool Hash::HashInit(const char* hashType) {
+  assert(md_ == NULL);
+  md_ = EVP_get_digestbyname(hashType);
+  if (md_ == NULL) return false;
+  EVP_MD_CTX_init(&mdctx_);
+  EVP_DigestInit_ex(&mdctx_, md_, NULL);
+  initialised_ = true;
+  return true;
+}
+
+
+bool Hash::HashUpdate(char* data, int len) {
+  if (!initialised_) return false;
+  EVP_DigestUpdate(&mdctx_, data, len);
+  return true;
+}
+
+
 Handle<Value> Hash::HashUpdate(const Arguments& args) {
   HandleScope scope;
 
-  Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
+  Hash* hash = ObjectWrap::Unwrap<Hash>(args.This());
 
   ASSERT_IS_BUFFER(args[0]);
 
-  int r;
+  bool r;
 
   char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
   r = hash->HashUpdate(buffer_data, buffer_length);
 
   if (!r) {
-    Local<Value> exception = Exception::TypeError(String::New("HashUpdate fail"));
-    return ThrowException(exception);
+    return ThrowTypeError("HashUpdate fail");
   }
 
   return args.This();
@@ -2518,24 +2498,22 @@ Handle<Value> Hash::HashUpdate(const Arguments& args) {
 Handle<Value> Hash::HashDigest(const Arguments& args) {
   HandleScope scope;
 
-  Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
+  Hash* hash = ObjectWrap::Unwrap<Hash>(args.This());
 
   if (!hash->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   unsigned char md_value[EVP_MAX_MD_SIZE];
   unsigned int md_len;
 
-  EVP_DigestFinal_ex(&hash->mdctx, md_value, &md_len);
-  EVP_MD_CTX_cleanup(&hash->mdctx);
+  EVP_DigestFinal_ex(&hash->mdctx_, md_value, &md_len);
+  EVP_MD_CTX_cleanup(&hash->mdctx_);
   hash->initialised_ = false;
 
-  Local<Value> outString;
+  Buffer* buf = Buffer::New(reinterpret_cast<char*>(md_value), md_len);
 
-  outString = Encode(md_value, md_len, BUFFER);
-
-  return scope.Close(outString);
+  return scope.Close(buf->handle_);
 }
 
 
@@ -2554,90 +2532,68 @@ void Sign::Initialize(v8::Handle<v8::Object> target) {
 }
 
 
-bool Sign::SignInit(const char* signType) {
-  md = EVP_get_digestbyname(signType);
-  if(!md) {
-    printf("Unknown message digest %s\n", signType);
-    return false;
-  }
-  EVP_MD_CTX_init(&mdctx);
-  EVP_SignInit_ex(&mdctx, md, NULL);
-  initialised_ = true;
-  return true;
-
-}
-
-
-int Sign::SignUpdate(char* data, int len) {
-  if (!initialised_) return 0;
-  EVP_SignUpdate(&mdctx, data, len);
-  return 1;
-}
-
-
-int Sign::SignFinal(unsigned char** md_value,
-                    unsigned int *md_len,
-                    char* key_pem,
-                    int key_pemLen) {
-  if (!initialised_) return 0;
-
-  BIO *bp = NULL;
-  EVP_PKEY* pkey;
-  bp = BIO_new(BIO_s_mem());
-  if(!BIO_write(bp, key_pem, key_pemLen)) return 0;
-
-  pkey = PEM_read_bio_PrivateKey( bp, NULL, NULL, NULL );
-  if (pkey == NULL) return 0;
-
-  EVP_SignFinal(&mdctx, *md_value, md_len, pkey);
-  EVP_MD_CTX_cleanup(&mdctx);
-  initialised_ = false;
-  EVP_PKEY_free(pkey);
-  BIO_free(bp);
-  return 1;
-}
-
-
 Handle<Value> Sign::New(const Arguments& args) {
   HandleScope scope;
 
-  Sign *sign = new Sign();
+  Sign* sign = new Sign();
   sign->Wrap(args.This());
 
   return args.This();
 }
 
 
+Handle<Value> Sign::SignInit(const char* sign_type) {
+  HandleScope scope;
+
+  assert(md_ == NULL);
+  md_ = EVP_get_digestbyname(sign_type);
+  if (!md_) {
+    return ThrowError("Uknown message digest");
+  }
+  EVP_MD_CTX_init(&mdctx_);
+  EVP_SignInit_ex(&mdctx_, md_, NULL);
+  initialised_ = true;
+  return Null();
+}
+
+
 Handle<Value> Sign::SignInit(const Arguments& args) {
   HandleScope scope;
 
-  Sign *sign = ObjectWrap::Unwrap<Sign>(args.This());
+  Sign* sign = ObjectWrap::Unwrap<Sign>(args.This());
 
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New(
-      "Must give signtype string as argument")));
+    return ThrowError("Must give signtype string as argument");
   }
 
-  String::Utf8Value signType(args[0]);
+  String::Utf8Value sign_type(args[0]);
 
-  bool r = sign->SignInit(*signType);
+  Handle<Value> ret = sign->SignInit(*sign_type);
 
-  if (!r) {
-    return ThrowException(Exception::Error(String::New("SignInit error")));
+  if (ret->IsNull()) {
+    return args.This();
+  } else {
+    // Exception
+    return scope.Close(ret);
   }
+}
 
-  return args.This();
+
+bool Sign::SignUpdate(char* data, int len) {
+  if (!initialised_) return false;
+  EVP_SignUpdate(&mdctx_, data, len);
+  return true;
 }
 
 
 Handle<Value> Sign::SignUpdate(const Arguments& args) {
-  Sign *sign = ObjectWrap::Unwrap<Sign>(args.This());
-
   HandleScope scope;
+
+  Sign* sign = ObjectWrap::Unwrap<Sign>(args.This());
 
   ASSERT_IS_BUFFER(args[0]);
 
-  int r;
+  bool r;
 
   char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
@@ -2645,18 +2601,40 @@ Handle<Value> Sign::SignUpdate(const Arguments& args) {
   r = sign->SignUpdate(buffer_data, buffer_length);
 
   if (!r) {
-    Local<Value> exception = Exception::TypeError(String::New("SignUpdate fail"));
-    return ThrowException(exception);
+    return ThrowTypeError("SignUpdate fail");
   }
 
   return args.This();
 }
 
 
-Handle<Value> Sign::SignFinal(const Arguments& args) {
-  Sign *sign = ObjectWrap::Unwrap<Sign>(args.This());
+bool Sign::SignFinal(unsigned char** md_value,
+                     unsigned int *md_len,
+                     char* key_pem,
+                     int key_pem_len) {
+  if (!initialised_) return false;
 
+  BIO* bp = NULL;
+  EVP_PKEY* pkey = NULL;
+  bp = BIO_new(BIO_s_mem());
+  if (!BIO_write(bp, key_pem, key_pem_len)) return false;
+
+  pkey = PEM_read_bio_PrivateKey(bp, NULL, NULL, NULL);
+  if (pkey == NULL) return 0;
+
+  EVP_SignFinal(&mdctx_, *md_value, md_len, pkey);
+  EVP_MD_CTX_cleanup(&mdctx_);
+  initialised_ = false;
+  EVP_PKEY_free(pkey);
+  BIO_free(bp);
+  return true;
+}
+
+
+Handle<Value> Sign::SignFinal(const Arguments& args) {
   HandleScope scope;
+
+  Sign* sign = ObjectWrap::Unwrap<Sign>(args.This());
 
   unsigned char* md_value;
   unsigned int md_len;
@@ -2667,23 +2645,19 @@ Handle<Value> Sign::SignFinal(const Arguments& args) {
 
   ASSERT_IS_BUFFER(args[0]);
   ssize_t len = Buffer::Length(args[0]);
+  char* buf = Buffer::Data(args[0]);
 
-  char* buf = new char[len];
-  ssize_t written = DecodeWrite(buf, len, args[0], BUFFER);
-  assert(written == len);
-
-  int r = sign->SignFinal(&md_value, &md_len, buf, len);
-  if (r == 0) {
+  bool r = sign->SignFinal(&md_value, &md_len, buf, len);
+  if (!r) {
+    delete[] md_value;
     md_value = NULL;
-    md_len = r;
+    md_len = 0;
   }
 
-  delete [] buf;
+  Buffer* ret = Buffer::New(reinterpret_cast<char*>(md_value), md_len);
+  delete[] md_value;
 
-  outString = Encode(md_value, md_len, BUFFER);
-
-  delete [] md_value;
-  return scope.Close(outString);
+  return scope.Close(ret->handle_);
 }
 
 
@@ -2702,137 +2676,70 @@ void Verify::Initialize(v8::Handle<v8::Object> target) {
 }
 
 
-bool Verify::VerifyInit(const char* verifyType) {
-  md = EVP_get_digestbyname(verifyType);
-  if(!md) {
-    fprintf(stderr, "node-crypto : Unknown message digest %s\n", verifyType);
-    return false;
-  }
-  EVP_MD_CTX_init(&mdctx);
-  EVP_VerifyInit_ex(&mdctx, md, NULL);
-  initialised_ = true;
-  return true;
-}
-
-
-int Verify::VerifyUpdate(char* data, int len) {
-  if (!initialised_) return 0;
-  EVP_VerifyUpdate(&mdctx, data, len);
-  return 1;
-}
-
-
-int Verify::VerifyFinal(char* key_pem,
-                        int key_pemLen,
-                        unsigned char* sig,
-                        int siglen) {
-  if (!initialised_) return 0;
-
-  EVP_PKEY* pkey = NULL;
-  BIO *bp = NULL;
-  X509 *x509 = NULL;
-  int r = 0;
-
-  bp = BIO_new(BIO_s_mem());
-  if (bp == NULL) {
-    ERR_print_errors_fp(stderr);
-    return 0;
-  }
-  if(!BIO_write(bp, key_pem, key_pemLen)) {
-    ERR_print_errors_fp(stderr);
-    return 0;
-  }
-
-  // Check if this is a PKCS#8 or RSA public key before trying as X.509.
-  // Split this out into a separate function once we have more than one
-  // consumer of public keys.
-  if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
-    pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
-    if (pkey == NULL) {
-      ERR_print_errors_fp(stderr);
-      return 0;
-    }
-  } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
-    RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
-    if (rsa) {
-      pkey = EVP_PKEY_new();
-      if (pkey) EVP_PKEY_set1_RSA(pkey, rsa);
-      RSA_free(rsa);
-    }
-    if (pkey == NULL) {
-      ERR_print_errors_fp(stderr);
-      return 0;
-    }
-  } else {
-    // X.509 fallback
-    x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
-    if (x509 == NULL) {
-      ERR_print_errors_fp(stderr);
-      return 0;
-    }
-
-    pkey = X509_get_pubkey(x509);
-    if (pkey == NULL) {
-      ERR_print_errors_fp(stderr);
-      return 0;
-    }
-  }
-
-  r = EVP_VerifyFinal(&mdctx, sig, siglen, pkey);
-
-  if(pkey != NULL)
-    EVP_PKEY_free (pkey);
-  if (x509 != NULL)
-    X509_free(x509);
-  if (bp != NULL)
-    BIO_free(bp);
-  EVP_MD_CTX_cleanup(&mdctx);
-  initialised_ = false;
-
-  return r;
-}
-
-
 Handle<Value> Verify::New(const Arguments& args) {
   HandleScope scope;
 
-  Verify *verify = new Verify();
+  Verify* verify = new Verify();
   verify->Wrap(args.This());
 
   return args.This();
 }
 
 
-Handle<Value> Verify::VerifyInit(const Arguments& args) {
-  Verify *verify = ObjectWrap::Unwrap<Verify>(args.This());
-
+Handle<Value> Verify::VerifyInit(const char* verify_type) {
   HandleScope scope;
 
+  assert(md_ == NULL);
+  md_ = EVP_get_digestbyname(verify_type);
+  if (md_ == NULL) {
+    return ThrowError("Unknown message digest");
+  }
+
+  EVP_MD_CTX_init(&mdctx_);
+  EVP_VerifyInit_ex(&mdctx_, md_, NULL);
+  initialised_ = true;
+
+  return Null();
+}
+
+
+Handle<Value> Verify::VerifyInit(const Arguments& args) {
+  HandleScope scope;
+
+  Verify* verify = ObjectWrap::Unwrap<Verify>(args.This());
+
   if (args.Length() == 0 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(String::New(
-      "Must give verifytype string as argument")));
+    return ThrowError("Must give verifytype string as argument");
   }
 
-  String::Utf8Value verifyType(args[0]);
+  String::Utf8Value verify_type(args[0]);
 
-  bool r = verify->VerifyInit(*verifyType);
+  Handle<Value> ret = verify->VerifyInit(*verify_type);
 
-  if (!r) {
-    return ThrowException(Exception::Error(String::New("VerifyInit error")));
+  if (ret->IsNull()) {
+    return args.This();
+  } else {
+    // Exception
+    return scope.Close(ret);
   }
+}
 
-  return args.This();
+
+bool Verify::VerifyUpdate(char* data, int len) {
+  if (!initialised_) return false;
+  EVP_VerifyUpdate(&mdctx_, data, len);
+  return true;
 }
 
 
 Handle<Value> Verify::VerifyUpdate(const Arguments& args) {
   HandleScope scope;
 
-  Verify *verify = ObjectWrap::Unwrap<Verify>(args.This());
+  Verify* verify = ObjectWrap::Unwrap<Verify>(args.This());
 
   ASSERT_IS_BUFFER(args[0]);
 
-  int r;
+  bool r;
 
   char* buffer_data = Buffer::Data(args[0]);
   size_t buffer_length = Buffer::Length(args[0]);
@@ -2840,52 +2747,100 @@ Handle<Value> Verify::VerifyUpdate(const Arguments& args) {
   r = verify->VerifyUpdate(buffer_data, buffer_length);
 
   if (!r) {
-    Local<Value> exception = Exception::TypeError(String::New("VerifyUpdate fail"));
-    return ThrowException(exception);
+    return ThrowTypeError("VerifyUpdate fail");
   }
 
   return args.This();
 }
 
 
+Handle<Value> Verify::VerifyFinal(char* key_pem,
+                                  int key_pem_len,
+                                  unsigned char* sig,
+                                  int siglen) {
+  HandleScope scope;
+
+  if (!initialised_) {
+    return ThrowError("Verify not initalised");
+  }
+
+  EVP_PKEY* pkey = NULL;
+  BIO* bp = NULL;
+  X509* x509 = NULL;
+  bool fatal = true;
+  int r;
+
+  bp = BIO_new(BIO_s_mem());
+  if (bp == NULL)
+    goto exit;
+
+  if (!BIO_write(bp, key_pem, key_pem_len))
+    goto exit;
+
+  // Check if this is a PKCS#8 or RSA public key before trying as X.509.
+  // Split this out into a separate function once we have more than one
+  // consumer of public keys.
+  if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
+    pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
+    if (pkey == NULL)
+      goto exit;
+  } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
+    RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
+    if (rsa) {
+      pkey = EVP_PKEY_new();
+      if (pkey) EVP_PKEY_set1_RSA(pkey, rsa);
+      RSA_free(rsa);
+    }
+    if (pkey == NULL)
+      goto exit;
+  } else {
+    // X.509 fallback
+    x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+    if (x509 == NULL)
+      goto exit;
+
+    pkey = X509_get_pubkey(x509);
+    if (pkey == NULL)
+      goto exit;
+  }
+
+  fatal = false;
+  r = EVP_VerifyFinal(&mdctx_, sig, siglen, pkey);
+
+exit:
+  if (pkey != NULL)
+    EVP_PKEY_free(pkey);
+  if (bp != NULL)
+    BIO_free_all(bp);
+  if (x509 != NULL)
+    X509_free(x509);
+
+  EVP_MD_CTX_cleanup(&mdctx_);
+  initialised_ = false;
+
+  if (fatal) {
+    unsigned long err = ERR_get_error();
+    return ThrowCryptoError(err);
+  }
+
+  return scope.Close(r ? True() : False());
+}
+
+
 Handle<Value> Verify::VerifyFinal(const Arguments& args) {
   HandleScope scope;
 
-  Verify *verify = ObjectWrap::Unwrap<Verify>(args.This());
+  Verify* verify = ObjectWrap::Unwrap<Verify>(args.This());
 
   ASSERT_IS_BUFFER(args[0]);
+  char* kbuf = Buffer::Data(args[0]);
   ssize_t klen = Buffer::Length(args[0]);
 
-  if (klen < 0) {
-    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
-    return ThrowException(exception);
-  }
-
-  char* kbuf = new char[klen];
-  ssize_t kwritten = DecodeWrite(kbuf, klen, args[0], BINARY);
-  assert(kwritten == klen);
-
   ASSERT_IS_BUFFER(args[1]);
+  unsigned char* hbuf = reinterpret_cast<unsigned char*>(Buffer::Data(args[1]));
   ssize_t hlen = Buffer::Length(args[1]);
 
-  if (hlen < 0) {
-    delete [] kbuf;
-    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
-    return ThrowException(exception);
-  }
-
-  unsigned char* hbuf = new unsigned char[hlen];
-  ssize_t hwritten = DecodeWrite((char*)hbuf, hlen, args[1], BINARY);
-  assert(hwritten == hlen);
-
-  int r=-1;
-
-  r = verify->VerifyFinal(kbuf, klen, hbuf, hlen);
-
-  delete [] kbuf;
-  delete [] hbuf;
-
-  return Boolean::New(r && r != -1);
+  return scope.Close(verify->VerifyFinal(kbuf, klen, hbuf, hlen));
 }
 
 
@@ -2961,8 +2916,7 @@ Handle<Value> DiffieHellman::DiffieHellmanGroup(const Arguments& args) {
   DiffieHellman* diffieHellman = new DiffieHellman();
 
   if (args.Length() != 1 || !args[0]->IsString()) {
-    return ThrowException(Exception::Error(
-        String::New("No group name given")));
+    return ThrowError("No group name given");
   }
 
   String::Utf8Value group_name(args[0]);
@@ -2971,16 +2925,17 @@ Handle<Value> DiffieHellman::DiffieHellmanGroup(const Arguments& args) {
 
   while(it->name != NULL) {
     if (!strcasecmp(*group_name, it->name))
-        break;
+      break;
     it++;
   }
 
   if (it->name != NULL) {
-    diffieHellman->Init(it->prime, it->prime_size,
-            it->gen, it->gen_size);
+    diffieHellman->Init(it->prime,
+                        it->prime_size,
+                        it->gen,
+                        it->gen_size);
   } else {
-    return ThrowException(Exception::Error(
-        String::New("Unknown group")));
+    return ThrowError("Unknown group");
   }
 
   diffieHellman->Wrap(args.This());
@@ -3006,8 +2961,7 @@ Handle<Value> DiffieHellman::New(const Arguments& args) {
   }
 
   if (!initialized) {
-    return ThrowException(Exception::Error(
-          String::New("Initialization failed")));
+    return ThrowError("Initialization failed");
   }
 
   diffieHellman->Wrap(args.This());
@@ -3017,19 +2971,17 @@ Handle<Value> DiffieHellman::New(const Arguments& args) {
 
 
 Handle<Value> DiffieHellman::GenerateKeys(const Arguments& args) {
-  DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
-
   HandleScope scope;
 
+  DiffieHellman* diffieHellman =
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
+
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(
-          String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   if (!DH_generate_key(diffieHellman->dh)) {
-    return ThrowException(Exception::Error(
-          String::New("Key generation failed")));
+    return ThrowError("Key generation failed");
   }
 
   Local<Value> outString;
@@ -3037,7 +2989,7 @@ Handle<Value> DiffieHellman::GenerateKeys(const Arguments& args) {
   int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
   char* data = new char[dataSize];
   BN_bn2bin(diffieHellman->dh->pub_key,
-      reinterpret_cast<unsigned char*>(data));
+            reinterpret_cast<unsigned char*>(data));
 
   outString = Encode(data, dataSize, BUFFER);
   delete[] data;
@@ -3047,13 +2999,13 @@ Handle<Value> DiffieHellman::GenerateKeys(const Arguments& args) {
 
 
 Handle<Value> DiffieHellman::GetPrime(const Arguments& args) {
-  DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
-
   HandleScope scope;
 
+  DiffieHellman* diffieHellman =
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
+
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->p);
@@ -3071,13 +3023,13 @@ Handle<Value> DiffieHellman::GetPrime(const Arguments& args) {
 
 
 Handle<Value> DiffieHellman::GetGenerator(const Arguments& args) {
-  DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
-
   HandleScope scope;
 
+  DiffieHellman* diffieHellman =
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
+
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->g);
@@ -3095,24 +3047,23 @@ Handle<Value> DiffieHellman::GetGenerator(const Arguments& args) {
 
 
 Handle<Value> DiffieHellman::GetPublicKey(const Arguments& args) {
-  DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
-
   HandleScope scope;
 
+  DiffieHellman* diffieHellman =
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
+
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   if (diffieHellman->dh->pub_key == NULL) {
-    return ThrowException(Exception::Error(
-          String::New("No public key - did you forget to generate one?")));
+    return ThrowError("No public key - did you forget to generate one?");
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->pub_key);
   char* data = new char[dataSize];
   BN_bn2bin(diffieHellman->dh->pub_key,
-      reinterpret_cast<unsigned char*>(data));
+            reinterpret_cast<unsigned char*>(data));
 
   Local<Value> outString;
 
@@ -3125,24 +3076,23 @@ Handle<Value> DiffieHellman::GetPublicKey(const Arguments& args) {
 
 
 Handle<Value> DiffieHellman::GetPrivateKey(const Arguments& args) {
-  DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
-
   HandleScope scope;
 
+  DiffieHellman* diffieHellman =
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
+
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   if (diffieHellman->dh->priv_key == NULL) {
-    return ThrowException(Exception::Error(
-          String::New("No private key - did you forget to generate one?")));
+    return ThrowError("No private key - did you forget to generate one?");
   }
 
   int dataSize = BN_num_bytes(diffieHellman->dh->priv_key);
   char* data = new char[dataSize];
   BN_bn2bin(diffieHellman->dh->priv_key,
-      reinterpret_cast<unsigned char*>(data));
+            reinterpret_cast<unsigned char*>(data));
 
   Local<Value> outString;
 
@@ -3158,29 +3108,30 @@ Handle<Value> DiffieHellman::ComputeSecret(const Arguments& args) {
   HandleScope scope;
 
   DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
-  BIGNUM* key = 0;
+  BIGNUM* key = NULL;
 
   if (args.Length() == 0) {
-    return ThrowException(Exception::Error(
-          String::New("First argument must be other party's public key")));
+    return ThrowError("First argument must be other party's public key");
   } else {
     ASSERT_IS_BUFFER(args[0]);
     key = BN_bin2bn(
-      reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-      Buffer::Length(args[0]), 0);
+        reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
+        Buffer::Length(args[0]),
+        0);
   }
 
   int dataSize = DH_size(diffieHellman->dh);
   char* data = new char[dataSize];
 
   int size = DH_compute_key(reinterpret_cast<unsigned char*>(data),
-    key, diffieHellman->dh);
+                            key,
+                            diffieHellman->dh);
 
   if (size == -1) {
     int checkResult;
@@ -3191,19 +3142,17 @@ Handle<Value> DiffieHellman::ComputeSecret(const Arguments& args) {
     delete[] data;
 
     if (!checked) {
-      return ThrowException(Exception::Error(String::New("Invalid key")));
+      return ThrowError("Invalid key");
     } else if (checkResult) {
       if (checkResult & DH_CHECK_PUBKEY_TOO_SMALL) {
-        return ThrowException(Exception::Error(
-              String::New("Supplied key is too small")));
+        return ThrowError("Supplied key is too small");
       } else if (checkResult & DH_CHECK_PUBKEY_TOO_LARGE) {
-        return ThrowException(Exception::Error(
-              String::New("Supplied key is too large")));
+        return ThrowError("Supplied key is too large");
       } else {
-        return ThrowException(Exception::Error(String::New("Invalid key")));
+        return ThrowError("Invalid key");
       }
     } else {
-      return ThrowException(Exception::Error(String::New("Invalid key")));
+      return ThrowError("Invalid key");
     }
   }
 
@@ -3232,19 +3181,17 @@ Handle<Value> DiffieHellman::SetPublicKey(const Arguments& args) {
   HandleScope scope;
 
   DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   if (args.Length() == 0) {
-    return ThrowException(Exception::Error(
-          String::New("First argument must be public key")));
+    return ThrowError("First argument must be public key");
   } else {
     ASSERT_IS_BUFFER(args[0]);
-    diffieHellman->dh->pub_key =
-      BN_bin2bn(
+    diffieHellman->dh->pub_key = BN_bin2bn(
         reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
         Buffer::Length(args[0]), 0);
   }
@@ -3257,22 +3204,20 @@ Handle<Value> DiffieHellman::SetPrivateKey(const Arguments& args) {
   HandleScope scope;
 
   DiffieHellman* diffieHellman =
-    ObjectWrap::Unwrap<DiffieHellman>(args.This());
+      ObjectWrap::Unwrap<DiffieHellman>(args.This());
 
   if (!diffieHellman->initialised_) {
-    return ThrowException(Exception::Error(
-          String::New("Not initialized")));
+    return ThrowError("Not initialized");
   }
 
   if (args.Length() == 0) {
-    return ThrowException(Exception::Error(
-          String::New("First argument must be private key")));
+    return ThrowError("First argument must be private key");
   } else {
     ASSERT_IS_BUFFER(args[0]);
-    diffieHellman->dh->priv_key =
-      BN_bin2bn(
+    diffieHellman->dh->priv_key = BN_bin2bn(
         reinterpret_cast<unsigned char*>(Buffer::Data(args[0])),
-        Buffer::Length(args[0]), 0);
+        Buffer::Length(args[0]),
+        0);
   }
 
   return args.This();
