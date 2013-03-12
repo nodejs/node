@@ -289,7 +289,7 @@ int SecureContext::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
 
 
 // Takes a string or buffer and loads it into a BIO.
-// Caller responsible for BIO_free-ing the returned object.
+// Caller responsible for BIO_free_all-ing the returned object.
 static BIO* LoadBIO (Handle<Value> v) {
   BIO *bio = BIO_new(BIO_s_mem());
   if (!bio) return NULL;
@@ -308,7 +308,7 @@ static BIO* LoadBIO (Handle<Value> v) {
   }
 
   if (r <= 0) {
-    BIO_free(bio);
+    BIO_free_all(bio);
     return NULL;
   }
 
@@ -326,11 +326,11 @@ static X509* LoadX509 (Handle<Value> v) {
 
   X509 * x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
   if (!x509) {
-    BIO_free(bio);
+    BIO_free_all(bio);
     return NULL;
   }
 
-  BIO_free(bio);
+  BIO_free_all(bio);
   return x509;
 }
 
@@ -357,7 +357,7 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
                                           len == 1 ? NULL : *passphrase);
 
   if (!key) {
-    BIO_free(bio);
+    BIO_free_all(bio);
     unsigned long err = ERR_get_error();
     if (!err) {
       return ThrowException(Exception::Error(
@@ -368,7 +368,7 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
 
   SSL_CTX_use_PrivateKey(sc->ctx_, key);
   EVP_PKEY_free(key);
-  BIO_free(bio);
+  BIO_free_all(bio);
 
   return True();
 }
@@ -455,7 +455,7 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
 
   int rv = SSL_CTX_use_certificate_chain(sc->ctx_, bio);
 
-  BIO_free(bio);
+  BIO_free_all(bio);
 
   if (!rv) {
     unsigned long err = ERR_get_error();
@@ -516,7 +516,7 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
   X509_CRL *x509 = PEM_read_bio_X509_CRL(bio, NULL, NULL, NULL);
 
   if (x509 == NULL) {
-    BIO_free(bio);
+    BIO_free_all(bio);
     return False();
   }
 
@@ -525,7 +525,7 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
   X509_STORE_set_flags(sc->ca_store_, X509_V_FLAG_CRL_CHECK |
                                       X509_V_FLAG_CRL_CHECK_ALL);
 
-  BIO_free(bio);
+  BIO_free_all(bio);
   X509_CRL_free(x509);
 
   return True();
@@ -547,20 +547,20 @@ Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
       BIO *bp = BIO_new(BIO_s_mem());
 
       if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
-        BIO_free(bp);
+        BIO_free_all(bp);
         return False();
       }
 
       X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
 
       if (x509 == NULL) {
-        BIO_free(bp);
+        BIO_free_all(bp);
         return False();
       }
 
       X509_STORE_add_cert(root_cert_store, x509);
 
-      BIO_free(bp);
+      BIO_free_all(bp);
       X509_free(x509);
     }
   }
@@ -623,7 +623,7 @@ Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
       ERR_print_errors(bio);
       BIO_get_mem_ptr(bio, &mem);
       message = String::New(mem->data, mem->length);
-      BIO_free(bio);
+      BIO_free_all(bio);
     } else {
       message = String::New("SSL_CTX_set_session_id_context error");
     }
@@ -670,7 +670,7 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
 
     int passlen = Buffer::Length(args[1]);
     if (passlen < 0) {
-      BIO_free(in);
+      BIO_free_all(in);
       return ThrowException(Exception::TypeError(
             String::New("Bad password")));
     }
@@ -705,7 +705,7 @@ Handle<Value> SecureContext::LoadPKCS12(const Arguments& args) {
   }
 
   PKCS12_free(p12);
-  BIO_free(in);
+  BIO_free_all(in);
   delete[] pass;
 
   if (!ret) {
@@ -944,7 +944,7 @@ int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
       BIO_get_mem_ptr(bio, &mem);
       Local<Value> e = Exception::Error(String::New(mem->data, mem->length));
       handle_->Set(String::New("error"), e);
-      BIO_free(bio);
+      BIO_free_all(bio);
     }
 
     return rv;
@@ -1571,7 +1571,7 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
     ASN1_TIME_print(bio, X509_get_notAfter(peer_cert));
     BIO_get_mem_ptr(bio, &mem);
     info->Set(valid_to_symbol, String::New(mem->data, mem->length));
-    BIO_free(bio);
+    BIO_free_all(bio);
 
     unsigned int md_size, i;
     unsigned char md[EVP_MAX_MD_SIZE];
@@ -2626,7 +2626,7 @@ bool Sign::SignFinal(unsigned char** md_value,
   EVP_MD_CTX_cleanup(&mdctx_);
   initialised_ = false;
   EVP_PKEY_free(pkey);
-  BIO_free(bp);
+  BIO_free_all(bp);
   return true;
 }
 
