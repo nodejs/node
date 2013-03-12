@@ -114,7 +114,7 @@ Predefined color codes are: `white`, `grey`, `black`, `blue`, `cyan`,
 `green`, `magenta`, `red` and `yellow`.
 There are also `bold`, `italic`, `underline` and `inverse` codes.
 
-### Custom `inpect()` function on Objects
+### Custom `inspect()` function on Objects
 
 Objects also may define their own `inspect(depth)` function which `util.inspect()`
 will invoke and use the result of when inspecting the object:
