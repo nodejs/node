@@ -110,7 +110,7 @@ Calculates the digest of all of the passed data to be hashed.  The
 `encoding` can be `'hex'`, `'binary'` or `'base64'`.  If no encoding
 is provided, then a buffer is returned.
 
-Note: `hash` object can not be used after `digest()` method been
+Note: `hash` object can not be used after `digest()` method has been
 called.
 
 
@@ -144,7 +144,7 @@ Calculates the digest of all of the passed data to the hmac.  The
 `encoding` can be `'hex'`, `'binary'` or `'base64'`.  If no encoding
 is provided, then a buffer is returned.
 
-Note: `hmac` object can not be used after `digest()` method been
+Note: `hmac` object can not be used after `digest()` method has been
 called.
 
 
@@ -194,7 +194,7 @@ encoding is provided, then a buffer is expected.
 
 The `output_encoding` specifies the output format of the enciphered
 data, and can be `'binary'`, `'base64'` or `'hex'`.  If no encoding is
-provided, then a buffer iis returned.
+provided, then a buffer is returned.
 
 Returns the enciphered contents, and can be called many times with new
 data as it is streamed.
@@ -205,7 +205,7 @@ Returns any remaining enciphered contents, with `output_encoding`
 being one of: `'binary'`, `'base64'` or `'hex'`.  If no encoding is
 provided, then a buffer is returned.
 
-Note: `cipher` object can not be used after `final()` method been
+Note: `cipher` object can not be used after `final()` method has been
 called.
 
 ### cipher.setAutoPadding(auto_padding=true)
@@ -254,7 +254,7 @@ Returns any remaining plaintext which is deciphered, with
 `output_encoding` being one of: `'binary'`, `'ascii'` or `'utf8'`.  If
 no encoding is provided, then a buffer is returned.
 
-Note: `decipher` object can not be used after `final()` method been
+Note: `decipher` object can not be used after `final()` method has been
 called.
 
 ### decipher.setAutoPadding(auto_padding=true)
@@ -297,7 +297,7 @@ Returns the signature in `output_format` which can be `'binary'`,
 `'hex'` or `'base64'`. If no encoding is provided, then a buffer is
 returned.
 
-Note: `sign` object can not be used after `sign()` method been
+Note: `sign` object can not be used after `sign()` method has been
 called.
 
 ## crypto.createVerify(algorithm)
@@ -334,7 +334,7 @@ If no encoding is specified, then a buffer is expected.
 Returns true or false depending on the validity of the signature for
 the data and public key.
 
-Note: `verifier` object can not be used after `verify()` method been
+Note: `verifier` object can not be used after `verify()` method has been
 called.
 
 ## crypto.createDiffieHellman(prime_length)
