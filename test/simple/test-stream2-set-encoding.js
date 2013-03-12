@@ -163,6 +163,10 @@ test('setEncoding hex', function(t) {
 
   // just kick it off.
   tr.emit('readable');
+
+  process.on('exit', function() {
+    assert(!tr._readableState.decoder);
+  });
 });
 
 test('setEncoding hex with read(13)', function(t) {
