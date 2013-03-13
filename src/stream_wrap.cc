@@ -122,7 +122,7 @@ Handle<Value> StreamWrap::GetFD(Local<String>, const AccessorInfo& args) {
   return v8::Null();
 #else
   HandleScope scope;
-  UNWRAP(StreamWrap)
+  UNWRAP_NO_ABORT(StreamWrap)
   int fd = -1;
   if (wrap != NULL && wrap->stream_ != NULL) fd = wrap->stream_->io_watcher.fd;
   return scope.Close(Integer::New(fd));
