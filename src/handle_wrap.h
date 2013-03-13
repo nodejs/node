@@ -46,6 +46,12 @@ namespace node {
 //   js/c++ boundary crossing. At the javascript layer that should all be
 //   taken care of.
 
+#define UNWRAP_NO_ABORT(type)                                               \
+  assert(!args.Holder().IsEmpty());                                         \
+  assert(args.Holder()->InternalFieldCount() > 0);                          \
+  type* wrap = static_cast<type*>(                                          \
+      args.Holder()->GetPointerFromInternalField(0));
+
 class HandleWrap {
   public:
     static void Initialize(v8::Handle<v8::Object> target);
