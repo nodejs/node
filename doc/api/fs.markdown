@@ -63,11 +63,26 @@ Relative path to filename can be used, remember however that this path will be
 relative to `process.cwd()`.
 
 Most fs functions let you omit the callback argument. If you do, a default
-callback is used that ignores errors, but prints a deprecation
-warning.
+callback is used that rethrows errors. To get a trace to the original call
+site, set the NODE_DEBUG environment variable:
 
-**IMPORTANT**: Omitting the callback is deprecated.  v0.12 will throw the
-errors as exceptions.
+    $ cat script.js
+    function bad() {
+      require('fs').readFile('/');
+    }
+    bad();
+
+    $ env NODE_DEBUG=fs node script.js
+    fs.js:66
+            throw err;
+                  ^
+    Error: EISDIR, read
+        at rethrow (fs.js:61:21)
+        at maybeCallback (fs.js:79:42)
+        at Object.fs.readFile (fs.js:153:18)
+        at bad (/path/to/script.js:2:17)
+        at Object.<anonymous> (/path/to/script.js:5:1)
+        <etc.>
 
 
 ## fs.rename(oldPath, newPath, [callback])
