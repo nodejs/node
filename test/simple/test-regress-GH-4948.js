@@ -19,48 +19,44 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// https://github.com/joyent/node/issues/4948
+
 var common = require('../common');
 var http = require('http');
-var assert = require('assert');
 
-// first 204 or 304 works, subsequent anything fails
-var codes = [204, 200];
+var reqCount = 0;
+var server = http.createServer(function(serverReq, serverRes){
+  if (reqCount) {
+    serverRes.end();
+    server.close();
+    return;
+  }
+  reqCount = 1;
 
-// Methods don't really matter, but we put in something realistic.
-var methods = ['DELETE', 'DELETE'];
 
-var server = http.createServer(function(req, res) {
-  var code = codes.shift();
-  assert.equal('number', typeof code);
-  assert.ok(code > 0);
-  console.error('writing %d response', code);
-  res.writeHead(code, {});
-  res.end();
-});
+  // normally the use case would be to call an external site
+  // does not require connecting locally or to itself to fail
+  var r = http.request({hostname: 'localhost', port: common.PORT}, function(res) {
+    // required, just needs to be in the client response somewhere
+    serverRes.end(); 
 
-function nextRequest() {
-  var method = methods.shift();
-  console.error('writing request: %s', method);
+    // required for test to fail
+    res.on('data', function(data) { });
 
-  var request = http.request({
-    port: common.PORT,
-    method: method,
-    path: '/'
-  }, function(response) {
-    response.on('end', function() {
-      if (methods.length == 0) {
-        console.error('close server');
-        server.close();
-      } else {
-        // throws error:
-        nextRequest();
-        // works just fine:
-        //process.nextTick(nextRequest);
-      }
-    });
-    response.resume();
   });
-  request.end();
-}
+  r.on('error', function(e) {});
+  r.end();
 
-server.listen(common.PORT, nextRequest);
+  serverRes.write('some data');
+}).listen(common.PORT);
+
+// simulate a client request that closes early
+var net = require('net');
+
+var sock = new net.Socket();
+sock.connect(common.PORT, 'localhost');
+
+sock.on('connect', function() {
+  sock.write('GET / HTTP/1.1\r\n\r\n');
+  sock.end();
+});

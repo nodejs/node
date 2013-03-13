@@ -36,6 +36,7 @@ s.listen(common.PORT, function() {
   var request = http.request({ port: common.PORT }, function(response) {
     console.log('STATUS: ' + response.statusCode);
     s.close();
+    response.resume();
   });
 
   request.end();

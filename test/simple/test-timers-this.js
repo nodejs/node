@@ -19,48 +19,46 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
-var http = require('http');
 var assert = require('assert');
 
-// first 204 or 304 works, subsequent anything fails
-var codes = [204, 200];
+var immediateThis, intervalThis, timeoutThis,
+    immediateArgsThis, intervalArgsThis, timeoutArgsThis;
 
-// Methods don't really matter, but we put in something realistic.
-var methods = ['DELETE', 'DELETE'];
-
-var server = http.createServer(function(req, res) {
-  var code = codes.shift();
-  assert.equal('number', typeof code);
-  assert.ok(code > 0);
-  console.error('writing %d response', code);
-  res.writeHead(code, {});
-  res.end();
+var immediateHandler = setImmediate(function () {
+  immediateThis = this;
 });
 
-function nextRequest() {
-  var method = methods.shift();
-  console.error('writing request: %s', method);
+var immediateArgsHandler = setImmediate(function () {
+  immediateArgsThis = this;
+}, "args ...");
 
-  var request = http.request({
-    port: common.PORT,
-    method: method,
-    path: '/'
-  }, function(response) {
-    response.on('end', function() {
-      if (methods.length == 0) {
-        console.error('close server');
-        server.close();
-      } else {
-        // throws error:
-        nextRequest();
-        // works just fine:
-        //process.nextTick(nextRequest);
-      }
-    });
-    response.resume();
-  });
-  request.end();
-}
+var intervalHandler = setInterval(function () {
+  clearInterval(intervalHandler);
 
-server.listen(common.PORT, nextRequest);
+  intervalThis = this;
+});
+
+var intervalArgsHandler = setInterval(function () {
+  clearInterval(intervalArgsHandler);
+
+  intervalArgsThis = this;
+}, 0, "args ...");
+
+var timeoutHandler = setTimeout(function () {
+  timeoutThis = this;
+});
+
+var timeoutArgsHandler = setTimeout(function () {
+  timeoutArgsThis = this;
+}, 0, "args ...");
+
+process.once('exit', function () {
+  assert.strictEqual(immediateThis, immediateHandler);
+  assert.strictEqual(immediateArgsThis, immediateArgsHandler);
+
+  assert.strictEqual(intervalThis, intervalHandler);
+  assert.strictEqual(intervalArgsThis, intervalArgsHandler);
+
+  assert.strictEqual(timeoutThis, timeoutHandler);
+  assert.strictEqual(timeoutArgsThis, timeoutArgsHandler);
+});

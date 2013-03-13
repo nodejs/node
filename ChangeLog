@@ -1,4 +1,35 @@
-2013.03.06, Version 0.9.12 (Unstable)
+2013.03.11, Version 0.10.0 (Stable)
+
+* npm: Upgrade to 1.2.14
+
+* core: Append filename properly in dlopen on windows (isaacs)
+
+* zlib: Manage flush flags appropriately (isaacs)
+
+* domains: Handle errors thrown in nested error handlers (isaacs)
+
+* buffer: Strip high bits when converting to ascii (Ben Noordhuis)
+
+* win/msi: Enable modify and repair (Bert Belder)
+
+* win/msi: Add feature selection for various node parts (Bert Belder)
+
+* win/msi: use consistent registry key paths (Bert Belder)
+
+* child_process: support sending dgram socket (Andreas Madsen)
+
+* fs: Raise EISDIR on Windows when calling fs.read/write on a dir (isaacs)
+
+* unix: fix strict aliasing warnings, macro-ify functions (Ben Noordhuis)
+
+* unix: honor UV_THREADPOOL_SIZE environment var (Ben Noordhuis)
+
+* win/tty: fix typo in color attributes enumeration (Bert Belder)
+
+* win/tty: don't touch insert mode or quick edit mode (Bert Belder)
+
+
+2013.03.06, Version 0.9.12 (Unstable), 0debf5a82934da805592b6496756cdf27c993abc
 
 * stream: Allow strings in Readable.push/unshift (isaacs)
 

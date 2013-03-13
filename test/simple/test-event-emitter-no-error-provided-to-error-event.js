@@ -20,47 +20,23 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 var common = require('../common');
-var http = require('http');
 var assert = require('assert');
+var events = require('events');
+var domain = require('domain');
 
-// first 204 or 304 works, subsequent anything fails
-var codes = [204, 200];
+var errorCatched = false;
 
-// Methods don't really matter, but we put in something realistic.
-var methods = ['DELETE', 'DELETE'];
+var e = new events.EventEmitter();
 
-var server = http.createServer(function(req, res) {
-  var code = codes.shift();
-  assert.equal('number', typeof code);
-  assert.ok(code > 0);
-  console.error('writing %d response', code);
-  res.writeHead(code, {});
-  res.end();
+var d = domain.create();
+d.add(e);
+d.on('error', function (er) {
+  assert(er instanceof TypeError, 'type error created');
+  errorCatched = true;
 });
 
-function nextRequest() {
-  var method = methods.shift();
-  console.error('writing request: %s', method);
+e.emit('error');
 
-  var request = http.request({
-    port: common.PORT,
-    method: method,
-    path: '/'
-  }, function(response) {
-    response.on('end', function() {
-      if (methods.length == 0) {
-        console.error('close server');
-        server.close();
-      } else {
-        // throws error:
-        nextRequest();
-        // works just fine:
-        //process.nextTick(nextRequest);
-      }
-    });
-    response.resume();
-  });
-  request.end();
-}
-
-server.listen(common.PORT, nextRequest);
+process.on('exit', function () {
+  assert(errorCatched, 'error got catched');
+});

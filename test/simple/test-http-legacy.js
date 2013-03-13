@@ -61,6 +61,7 @@ var server = http.createServer(function(req, res) {
     res.end();
     responses_sent += 1;
   });
+  req.resume();
 
   //assert.equal('127.0.0.1', res.connection.remoteAddress);
 });

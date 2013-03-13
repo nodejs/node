@@ -99,3 +99,11 @@ Return the number of listeners for a given event.
 * `listener` {Function} The event handler function
 
 This event is emitted any time someone adds a new listener.
+
+
+### Event: 'removeListener'
+
+* `event` {String} The event name
+* `listener` {Function} The event handler function
+
+This event is emitted any time someone removes a listener.

@@ -915,7 +915,7 @@ static void uv_pipe_queue_read(uv_loop_t* loop, uv_pipe_t* handle) {
   } else {
     memset(&req->overlapped, 0, sizeof(req->overlapped));
     if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
-      req->overlapped.hEvent = (HANDLE) ((DWORD) req->event_handle | 1);
+      req->overlapped.hEvent = (HANDLE) ((uintptr_t) req->event_handle | 1);
     }
 
     /* Do 0-read */
