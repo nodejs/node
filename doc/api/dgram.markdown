@@ -38,7 +38,7 @@ to the "all interfaces" address on a random port (it does the right thing for
 both `udp4` and `udp6` sockets). You can then retrieve the address and port
 with `socket.address().address` and `socket.address().port`.
 
-## Class: Socket
+## Class: dgram.Socket
 
 The dgram Socket class encapsulates the datagram functionality.  It
 should be created via `dgram.createSocket(type, [callback])`.
@@ -67,7 +67,7 @@ on this socket.
 
 Emitted when an error occurs.
 
-### dgram.send(buf, offset, length, port, address, [callback])
+### socket.send(buf, offset, length, port, address, [callback])
 
 * `buf` Buffer object.  Message to be sent
 * `offset` Integer. Offset in the buffer where the message starts.
@@ -123,7 +123,7 @@ a packet might travel, and that generally sending a datagram greater than
 the (receiver) `MTU` won't work (the packet gets silently dropped, without
 informing the source that the data did not reach its intended recipient).
 
-### dgram.bind(port, [address], [callback])
+### socket.bind(port, [address], [callback])
 
 * `port` Integer
 * `address` String, Optional
@@ -156,23 +156,23 @@ Example of a UDP server listening on port 41234:
     // server listening 0.0.0.0:41234
 
 
-### dgram.close()
+### socket.close()
 
 Close the underlying socket and stop listening for data on it.
 
-### dgram.address()
+### socket.address()
 
 Returns an object containing the address information for a socket.  For UDP sockets,
 this object will contain `address` , `family` and `port`.
 
-### dgram.setBroadcast(flag)
+### socket.setBroadcast(flag)
 
 * `flag` Boolean
 
 Sets or clears the `SO_BROADCAST` socket option.  When this option is set, UDP packets
 may be sent to a local interface's broadcast address.
 
-### dgram.setTTL(ttl)
+### socket.setTTL(ttl)
 
 * `ttl` Integer
 
@@ -185,7 +185,7 @@ probes or when multicasting.
 The argument to `setTTL()` is a number of hops between 1 and 255.  The default on most
 systems is 64.
 
-### dgram.setMulticastTTL(ttl)
+### socket.setMulticastTTL(ttl)
 
 * `ttl` Integer
 
@@ -197,14 +197,14 @@ decrements the TTL. If the TTL is decremented to 0 by a router, it will not be f
 The argument to `setMulticastTTL()` is a number of hops between 0 and 255.  The default on most
 systems is 1.
 
-### dgram.setMulticastLoopback(flag)
+### socket.setMulticastLoopback(flag)
 
 * `flag` Boolean
 
 Sets or clears the `IP_MULTICAST_LOOP` socket option.  When this option is set, multicast
 packets will also be received on the local interface.
 
-### dgram.addMembership(multicastAddress, [multicastInterface])
+### socket.addMembership(multicastAddress, [multicastInterface])
 
 * `multicastAddress` String
 * `multicastInterface` String, Optional
@@ -214,7 +214,7 @@ Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket optio
 If `multicastInterface` is not specified, the OS will try to add membership to all valid
 interfaces.
 
-### dgram.dropMembership(multicastAddress, [multicastInterface])
+### socket.dropMembership(multicastAddress, [multicastInterface])
 
 * `multicastAddress` String
 * `multicastInterface` String, Optional
@@ -227,13 +227,13 @@ this.
 If `multicastInterface` is not specified, the OS will try to drop membership to all valid
 interfaces.
 
-### dgram.unref()
+### socket.unref()
 
 Calling `unref` on a socket will allow the program to exit if this is the only
 active socket in the event system. If the socket is already `unref`d calling
 `unref` again will have no effect.
 
-### dgram.ref()
+### socket.ref()
 
 Opposite of `unref`, calling `ref` on a previously `unref`d socket will *not*
 let the program exit if it's the only socket left (the default behavior). If
