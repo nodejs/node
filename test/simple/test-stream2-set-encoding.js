@@ -74,11 +74,15 @@ TestReader.prototype._read = function(n) {
   setTimeout(function() {
 
     if (this.pos >= this.len) {
+      // double push(null) to test eos handling
+      this.push(null);
       return this.push(null);
     }
 
     n = Math.min(n, this.len - this.pos);
     if (n <= 0) {
+      // double push(null) to test eos handling
+      this.push(null);
       return this.push(null);
     }
 
@@ -204,6 +208,41 @@ test('setEncoding hex with read(13)', function(t) {
   tr.emit('readable');
 });
 
+test('setEncoding base64', function(t) {
+  var tr = new TestReader(100);
+  tr.setEncoding('base64');
+  var out = [];
+  var expect =
+    [ 'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYQ==' ];
+
+  tr.on('readable', function flow() {
+    var chunk;
+    while (null !== (chunk = tr.read(10)))
+      out.push(chunk);
+  });
+
+  tr.on('end', function() {
+    t.same(out, expect);
+    t.end();
+  });
+
+  // just kick it off.
+  tr.emit('readable');
+});
+
 test('encoding: utf8', function(t) {
   var tr = new TestReader(100, { encoding: 'utf8' });
   var out = [];
@@ -299,6 +338,40 @@ test('encoding: hex with read(13)', function(t) {
   tr.on('readable', function flow() {
     var chunk;
     while (null !== (chunk = tr.read(13)))
+      out.push(chunk);
+  });
+
+  tr.on('end', function() {
+    t.same(out, expect);
+    t.end();
+  });
+
+  // just kick it off.
+  tr.emit('readable');
+});
+
+test('encoding: base64', function(t) {
+  var tr = new TestReader(100, { encoding: 'base64' });
+  var out = [];
+  var expect =
+    [ 'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYWFhYWFh',
+      'YWFhYWFhYW',
+      'FhYQ==' ];
+
+  tr.on('readable', function flow() {
+    var chunk;
+    while (null !== (chunk = tr.read(10)))
       out.push(chunk);
   });
 
