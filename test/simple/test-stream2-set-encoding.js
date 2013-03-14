@@ -122,9 +122,6 @@ test('setEncoding utf8', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 
@@ -164,9 +161,6 @@ test('setEncoding hex', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 test('setEncoding hex with read(13)', function(t) {
@@ -203,9 +197,6 @@ test('setEncoding hex with read(13)', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 test('setEncoding base64', function(t) {
@@ -238,9 +229,6 @@ test('setEncoding base64', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 test('encoding: utf8', function(t) {
@@ -268,9 +256,6 @@ test('encoding: utf8', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 
@@ -309,9 +294,6 @@ test('encoding: hex', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 test('encoding: hex with read(13)', function(t) {
@@ -345,9 +327,6 @@ test('encoding: hex with read(13)', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
 
 test('encoding: base64', function(t) {
@@ -379,7 +358,4 @@ test('encoding: base64', function(t) {
     t.same(out, expect);
     t.end();
   });
-
-  // just kick it off.
-  tr.emit('readable');
 });
