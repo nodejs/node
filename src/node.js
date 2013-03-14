@@ -569,6 +569,7 @@
         break;
 
       case 'PIPE':
+      case 'TCP':
         var net = NativeModule.require('net');
         stream = new net.Socket({
           fd: fd,
@@ -654,6 +655,7 @@
           break;
 
         case 'PIPE':
+        case 'TCP':
           var net = NativeModule.require('net');
           stdin = new net.Socket({
             fd: fd,

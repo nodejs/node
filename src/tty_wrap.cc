@@ -105,8 +105,14 @@ Handle<Value> TTYWrap::GuessHandleType(const Arguments& args) {
   uv_handle_type t = uv_guess_handle(fd);
 
   switch (t) {
+    case UV_TCP:
+      return scope.Close(String::New("TCP"));
+
     case UV_TTY:
       return scope.Close(String::New("TTY"));
+
+    case UV_UDP:
+      return scope.Close(String::New("UDP"));
 
     case UV_NAMED_PIPE:
       return scope.Close(String::New("PIPE"));

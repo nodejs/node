@@ -343,11 +343,11 @@ int uv_tcp_keepalive(uv_tcp_t* handle, int on, unsigned int delay) {
 }
 
 
-int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int on) {
-  if (on)
-    handle->flags |= UV_TCP_SINGLE_ACCEPT;
-  else
+int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
+  if (enable)
     handle->flags &= ~UV_TCP_SINGLE_ACCEPT;
+  else
+    handle->flags |= UV_TCP_SINGLE_ACCEPT;
   return 0;
 }
 
