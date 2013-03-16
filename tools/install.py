@@ -119,7 +119,6 @@ def npm_files(action):
     assert(0) # unhandled action type
 
 def files(action):
-  action(['doc/node.1'], 'share/man/man1/')
   action(['out/Release/node'], 'bin/node')
 
   # install unconditionally, checking if the platform supports dtrace doesn't
