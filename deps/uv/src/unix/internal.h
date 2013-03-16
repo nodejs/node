@@ -148,6 +148,9 @@ void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,
     uv_handle_type type);
 int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_destroy(uv_stream_t* stream);
+#if defined(__APPLE__)
+int uv__stream_try_select(uv_stream_t* stream, int* fd);
+#endif /* defined(__APPLE__) */
 void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 int uv__accept(int sockfd);
 

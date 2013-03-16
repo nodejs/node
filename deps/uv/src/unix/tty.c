@@ -36,6 +36,11 @@ static struct termios orig_termios;
 int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd, int readable) {
   uv__stream_init(loop, (uv_stream_t*)tty, UV_TTY);
 
+#if defined(__APPLE__)
+  if (uv__stream_try_select((uv_stream_t*) tty, &fd))
+    return -1;
+#endif /* defined(__APPLE__) */
+
   if (readable) {
     uv__nonblock(fd, 1);
     uv__stream_open((uv_stream_t*)tty, fd, UV_STREAM_READABLE);
