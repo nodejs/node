@@ -272,7 +272,7 @@ class QueryWrap {
   QueryWrap() {
     HandleScope scope;
 
-    object_ = Persistent<Object>::New(Object::New());
+    object_ = Persistent<Object>::New(node_isolate, Object::New());
   }
 
   virtual ~QueryWrap() {
@@ -280,7 +280,7 @@ class QueryWrap {
 
     object_->Delete(oncomplete_sym);
 
-    object_.Dispose();
+    object_.Dispose(node_isolate);
     object_.Clear();
   }
 

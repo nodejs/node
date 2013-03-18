@@ -373,7 +373,7 @@ void InitDTrace(Handle<Object> target) {
   };
 
   for (unsigned int i = 0; i < ARRAY_SIZE(tab); i++) {
-    tab[i].templ = Persistent<FunctionTemplate>::New(
+    tab[i].templ = Persistent<FunctionTemplate>::New(node_isolate,
         FunctionTemplate::New(tab[i].func));
     target->Set(String::NewSymbol(tab[i].name), tab[i].templ->GetFunction());
   }

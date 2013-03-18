@@ -195,7 +195,7 @@ static void Spin(uv_idle_t* handle, int status) {
       abort();
     }
     Local<Function> cb = cb_v.As<Function>();
-    process_tickFromSpinner = Persistent<Function>::New(cb);
+    process_tickFromSpinner = Persistent<Function>::New(node_isolate, cb);
   }
 
   TryCatch try_catch;
@@ -912,7 +912,7 @@ MakeDomainCallback(const Handle<Object> object,
       abort();
     }
     Local<Function> cb = cb_v.As<Function>();
-    process_tickDomainCallback = Persistent<Function>::New(cb);
+    process_tickDomainCallback = Persistent<Function>::New(node_isolate, cb);
   }
 
   // lazy load domain specific symbols
@@ -1002,7 +1002,7 @@ MakeCallback(const Handle<Object> object,
       abort();
     }
     Local<Function> cb = cb_v.As<Function>();
-    process_tickCallback = Persistent<Function>::New(cb);
+    process_tickCallback = Persistent<Function>::New(node_isolate, cb);
   }
 
   TryCatch try_catch;
@@ -1802,7 +1802,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 
   // V8 memory usage
   HeapStatistics v8_heap_stats;
-  V8::GetHeapStatistics(&v8_heap_stats);
+  node_isolate->GetHeapStatistics(&v8_heap_stats);
   info->Set(heap_total_symbol,
             Integer::NewFromUnsigned(v8_heap_stats.total_heap_size()));
   info->Set(heap_used_symbol,
@@ -2021,7 +2021,7 @@ static Handle<Value> Binding(const Arguments& args) {
   node_module_struct* modp;
 
   if (binding_cache.IsEmpty()) {
-    binding_cache = Persistent<Object>::New(Object::New());
+    binding_cache = Persistent<Object>::New(node_isolate, Object::New());
   }
 
   Local<Object> exports;
@@ -2307,7 +2307,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   process_template->SetClassName(String::NewSymbol("process"));
 
-  process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
+  process = Persistent<Object>::New(node_isolate,
+                                process_template->GetFunction()->NewInstance());
 
   process->SetAccessor(String::New("title"),
                        ProcessTitleGetter,
@@ -2317,7 +2318,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
 
   // process.moduleLoadList
-  module_load_list = Persistent<Array>::New(Array::New());
+  module_load_list = Persistent<Array>::New(node_isolate, Array::New());
   process->Set(String::NewSymbol("moduleLoadList"), module_load_list);
 
   // process.versions
@@ -2984,6 +2985,10 @@ char** Init(int argc, char *argv[]) {
   }
   V8::SetFlagsFromCommandLine(&v8argc, v8argv, false);
 
+  // Fetch a reference to the main isolate, so we have a reference to it
+  // even when we need it to access it from another (debugger) thread.
+  node_isolate = Isolate::GetCurrent();
+
 #ifdef __POSIX__
   // Ignore SIGPIPE
   RegisterSignalHandler(SIGPIPE, SIG_IGN);
@@ -2998,10 +3003,6 @@ char** Init(int argc, char *argv[]) {
   uv_idle_init(uv_default_loop(), &idle_immediate_dummy);
 
   V8::SetFatalErrorHandler(node::OnFatalError);
-
-  // Fetch a reference to the main isolate, so we have a reference to it
-  // even when we need it to access it from another (debugger) thread.
-  node_isolate = Isolate::GetCurrent();
 
   // If the --debug flag was specified then initialize the debug thread.
   if (use_debug_agent) {
@@ -3111,7 +3112,7 @@ int Start(int argc, char *argv[]) {
 
   V8::Initialize();
   {
-    Locker locker;
+    Locker locker(node_isolate);
     HandleScope handle_scope;
 
     // Create the one and only Context.
@@ -3137,7 +3138,7 @@ int Start(int argc, char *argv[]) {
     RunAtExit();
 
 #ifndef NDEBUG
-    context.Dispose();
+    context.Dispose(node_isolate);
 #endif
   }
 

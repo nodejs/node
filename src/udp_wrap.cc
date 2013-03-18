@@ -123,8 +123,8 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "ref", HandleWrap::Ref);
   NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
-  constructor = Persistent<Function>::New(
-      Persistent<FunctionTemplate>::New(t)->GetFunction());
+  constructor = Persistent<Function>::New(node_isolate,
+      Persistent<FunctionTemplate>::New(node_isolate, t)->GetFunction());
   target->Set(String::NewSymbol("UDP"), constructor);
 }
 
@@ -427,7 +427,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 UDPWrap* UDPWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);
-  return static_cast<UDPWrap*>(obj->GetPointerFromInternalField(0));
+  return static_cast<UDPWrap*>(obj->GetAlignedPointerFromInternalField(0));
 }
 
 

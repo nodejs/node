@@ -954,7 +954,8 @@ void InitFs(Handle<Object> target) {
   HandleScope scope;
   // Initialize the stats object
   Local<FunctionTemplate> stat_templ = FunctionTemplate::New();
-  stats_constructor_template = Persistent<FunctionTemplate>::New(stat_templ);
+  stats_constructor_template = Persistent<FunctionTemplate>::New(node_isolate,
+                                                                 stat_templ);
   target->Set(String::NewSymbol("Stats"),
                stats_constructor_template->GetFunction());
   File::Initialize(target);

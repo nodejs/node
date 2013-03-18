@@ -249,14 +249,14 @@ class Connection : ObjectWrap {
     }
 
 #ifdef OPENSSL_NPN_NEGOTIATED
-    if (!npnProtos_.IsEmpty()) npnProtos_.Dispose();
-    if (!selectedNPNProto_.IsEmpty()) selectedNPNProto_.Dispose();
+    if (!npnProtos_.IsEmpty()) npnProtos_.Dispose(node_isolate);
+    if (!selectedNPNProto_.IsEmpty()) selectedNPNProto_.Dispose(node_isolate);
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-   if (!sniObject_.IsEmpty()) sniObject_.Dispose();
-   if (!sniContext_.IsEmpty()) sniContext_.Dispose();
-   if (!servername_.IsEmpty()) servername_.Dispose();
+   if (!sniObject_.IsEmpty()) sniObject_.Dispose(node_isolate);
+   if (!sniContext_.IsEmpty()) sniContext_.Dispose(node_isolate);
+   if (!servername_.IsEmpty()) servername_.Dispose(node_isolate);
 #endif
   }
 

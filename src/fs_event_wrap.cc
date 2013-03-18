@@ -74,7 +74,8 @@ void FSEventWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
   target->Set(String::NewSymbol("FSEvent"),
-              Persistent<FunctionTemplate>::New(t)->GetFunction());
+              Persistent<FunctionTemplate>::New(node_isolate,
+                                                t)->GetFunction());
 }
 
 
@@ -172,7 +173,7 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   // and legal, HandleWrap::Close() deals with them the same way.
   assert(!args.Holder().IsEmpty());
   assert(args.Holder()->InternalFieldCount() > 0);
-  void* ptr = args.Holder()->GetPointerFromInternalField(0);
+  void* ptr = args.Holder()->GetAlignedPointerFromInternalField(0);
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
   if (wrap == NULL || wrap->initialized_ == false) {

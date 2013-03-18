@@ -199,7 +199,7 @@ static Local<Object> AcceptHandle(uv_stream_t* pipe) {
     return Local<Object>();
 
   wrap = static_cast<WrapType*>(
-      wrap_obj->GetPointerFromInternalField(0));
+      wrap_obj->GetAlignedPointerFromInternalField(0));
   handle = wrap->UVHandle();
 
   if (uv_accept(pipe, reinterpret_cast<uv_stream_t*>(handle)))
@@ -436,7 +436,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
       Local<Object> send_handle_obj = args[1]->ToObject();
       assert(send_handle_obj->InternalFieldCount() > 0);
       HandleWrap* send_handle_wrap = static_cast<HandleWrap*>(
-          send_handle_obj->GetPointerFromInternalField(0));
+          send_handle_obj->GetAlignedPointerFromInternalField(0));
       send_handle = send_handle_wrap->GetHandle();
 
       // Reference StreamWrap instance to prevent it from being garbage

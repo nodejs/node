@@ -141,7 +141,8 @@ void SecureContext::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(SecureContext::New);
-  secure_context_constructor = Persistent<FunctionTemplate>::New(t);
+  secure_context_constructor = Persistent<FunctionTemplate>::New(node_isolate,
+                                                                 t);
 
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(String::NewSymbol("SecureContext"));
@@ -1094,7 +1095,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
 
   // Release old protocol handler if present
   if (!p->selectedNPNProto_.IsEmpty()) {
-    p->selectedNPNProto_.Dispose();
+    p->selectedNPNProto_.Dispose(node_isolate);
   }
 
   if (p->npnProtos_.IsEmpty()) {
@@ -1104,7 +1105,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
     *outlen = 8;
 
     // set status unsupported
-    p->selectedNPNProto_ = Persistent<Value>::New(False());
+    p->selectedNPNProto_ = Persistent<Value>::New(node_isolate, False());
 
     return SSL_TLSEXT_ERR_OK;
   }
@@ -1117,15 +1118,15 @@ int Connection::SelectNextProtoCallback_(SSL *s,
 
   switch (status) {
     case OPENSSL_NPN_UNSUPPORTED:
-      p->selectedNPNProto_ = Persistent<Value>::New(Null());
+      p->selectedNPNProto_ = Persistent<Value>::New(node_isolate, Null());
       break;
     case OPENSSL_NPN_NEGOTIATED:
-      p->selectedNPNProto_ = Persistent<Value>::New(String::New(
+      p->selectedNPNProto_ = Persistent<Value>::New(node_isolate, String::New(
                                  reinterpret_cast<const char*>(*out), *outlen
                              ));
       break;
     case OPENSSL_NPN_NO_OVERLAP:
-      p->selectedNPNProto_ = Persistent<Value>::New(False());
+      p->selectedNPNProto_ = Persistent<Value>::New(node_isolate, False());
       break;
     default:
       break;
@@ -1145,14 +1146,15 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
 
   if (servername) {
     if (!p->servername_.IsEmpty()) {
-      p->servername_.Dispose();
+      p->servername_.Dispose(node_isolate);
     }
-    p->servername_ = Persistent<String>::New(String::New(servername));
+    p->servername_ = Persistent<String>::New(node_isolate,
+                                             String::New(servername));
 
     // Call the SNI callback and use its return value as context
     if (!p->sniObject_.IsEmpty()) {
       if (!p->sniContext_.IsEmpty()) {
-        p->sniContext_.Dispose();
+        p->sniContext_.Dispose(node_isolate);
       }
 
       // Get callback init args
@@ -1166,7 +1168,7 @@ int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
 
       // If ret is SecureContext
       if (secure_context_constructor->HasInstance(ret)) {
-        p->sniContext_ = Persistent<Value>::New(ret);
+        p->sniContext_ = Persistent<Value>::New(node_isolate, ret);
         SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(
                                 Local<Object>::Cast(ret));
         SSL_set_SSL_CTX(s, sc->ctx_);
@@ -1993,9 +1995,9 @@ Handle<Value> Connection::SetNPNProtocols(const Arguments& args) {
 
   // Release old handle
   if (!ss->npnProtos_.IsEmpty()) {
-    ss->npnProtos_.Dispose();
+    ss->npnProtos_.Dispose(node_isolate);
   }
-  ss->npnProtos_ = Persistent<Object>::New(args[0]->ToObject());
+  ss->npnProtos_ = Persistent<Object>::New(node_isolate, args[0]->ToObject());
 
   return True();
 };
@@ -2026,9 +2028,9 @@ Handle<Value> Connection::SetSNICallback(const Arguments& args) {
 
   // Release old handle
   if (!ss->sniObject_.IsEmpty()) {
-    ss->sniObject_.Dispose();
+    ss->sniObject_.Dispose(node_isolate);
   }
-  ss->sniObject_ = Persistent<Object>::New(Object::New());
+  ss->sniObject_ = Persistent<Object>::New(node_isolate, Object::New());
   ss->sniObject_->Set(String::New("onselect"), args[0]);
 
   return True();
@@ -3294,7 +3296,7 @@ void EIO_PBKDF2After(uv_work_t* work_req, int status) {
   Persistent<Object> obj = req->obj;
   EIO_PBKDF2After(req, argv);
   MakeCallback(obj, "ondone", ARRAY_SIZE(argv), argv);
-  obj.Dispose();
+  obj.Dispose(node_isolate);
 }
 
 
@@ -3372,7 +3374,7 @@ Handle<Value> PBKDF2(const Arguments& args) {
   req->keylen = keylen;
 
   if (args[4]->IsFunction()) {
-    req->obj = Persistent<Object>::New(Object::New());
+    req->obj = Persistent<Object>::New(node_isolate, Object::New());
     req->obj->Set(String::New("ondone"), args[4]);
     uv_queue_work(uv_default_loop(),
                   &req->work_req,
@@ -3406,7 +3408,7 @@ struct RandomBytesRequest {
 
 RandomBytesRequest::~RandomBytesRequest() {
   if (obj_.IsEmpty()) return;
-  obj_.Dispose();
+  obj_.Dispose(node_isolate);
   obj_.Clear();
 }
 
@@ -3492,7 +3494,7 @@ Handle<Value> RandomBytes(const Arguments& args) {
   req->size_ = size;
 
   if (args[1]->IsFunction()) {
-    req->obj_ = Persistent<Object>::New(Object::New());
+    req->obj_ = Persistent<Object>::New(node_isolate, Object::New());
     req->obj_->Set(String::New("ondone"), args[1]);
 
     uv_queue_work(uv_default_loop(),

@@ -187,7 +187,7 @@ Buffer::Buffer(Handle<Object> wrapper, size_t length) : ObjectWrap() {
 
   length_ = 0;
   callback_ = NULL;
-  handle_.SetWrapperClassId(BUFFER_CLASS_ID);
+  handle_.SetWrapperClassId(node_isolate, BUFFER_CLASS_ID);
 
   Replace(NULL, length, NULL, NULL);
 }
@@ -208,7 +208,7 @@ void Buffer::Replace(char *data, size_t length,
     callback_(data_, callback_hint_);
   } else if (length_) {
     delete [] data_;
-    V8::AdjustAmountOfExternalAllocatedMemory(
+    node_isolate->AdjustAmountOfExternalAllocatedMemory(
         -static_cast<intptr_t>(sizeof(Buffer) + length_));
   }
 
@@ -222,7 +222,8 @@ void Buffer::Replace(char *data, size_t length,
     data_ = new char[length_];
     if (data)
       memcpy(data_, data, length_);
-    V8::AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) + length_);
+    node_isolate->AdjustAmountOfExternalAllocatedMemory(sizeof(Buffer) +
+                                                        length_);
   } else {
     data_ = NULL;
   }
@@ -1039,7 +1040,8 @@ bool Buffer::HasInstance(Handle<Value> val) {
 
 Handle<Value> SetFastBufferConstructor(const Arguments& args) {
   assert(args[0]->IsFunction());
-  fast_buffer_constructor = Persistent<Function>::New(args[0].As<Function>());
+  fast_buffer_constructor = Persistent<Function>::New(node_isolate,
+                                                      args[0].As<Function>());
   return Undefined();
 }
 
@@ -1117,7 +1119,7 @@ void Buffer::Initialize(Handle<Object> target) {
   chars_written_sym = NODE_PSYMBOL("_charsWritten");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Buffer::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("SlowBuffer"));
 

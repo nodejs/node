@@ -88,7 +88,7 @@ void TTYWrap::Initialize(Handle<Object> target) {
 TTYWrap* TTYWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);
-  return static_cast<TTYWrap*>(obj->GetPointerFromInternalField(0));
+  return static_cast<TTYWrap*>(obj->GetAlignedPointerFromInternalField(0));
 }
 
 

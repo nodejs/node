@@ -48,7 +48,7 @@ class ArrayBuffer {
       return ft_cache;
 
     v8::HandleScope scope;
-    ft_cache = v8::Persistent<v8::FunctionTemplate>::New(
+    ft_cache = v8::Persistent<v8::FunctionTemplate>::New(node::node_isolate,
         v8::FunctionTemplate::New(&ArrayBuffer::V8New));
     ft_cache->SetClassName(v8::String::New("ArrayBuffer"));
     v8::Local<v8::ObjectTemplate> instance = ft_cache->InstanceTemplate();
@@ -69,7 +69,9 @@ class ArrayBuffer {
   }
 
  private:
-  static void WeakCallback(v8::Persistent<v8::Value> value, void* data) {
+  static void WeakCallback(v8::Isolate* env,
+                           v8::Persistent<v8::Value> value,
+                           void* data) {
     v8::Object* obj = v8::Object::Cast(*value);
 
     void* ptr = obj->GetIndexedPropertiesExternalArrayData();
@@ -78,10 +80,10 @@ class ArrayBuffer {
     int size =
         obj->GetIndexedPropertiesExternalArrayDataLength() * element_size;
 
-    v8::V8::AdjustAmountOfExternalAllocatedMemory(-size);
+    node::node_isolate->AdjustAmountOfExternalAllocatedMemory(-size);
 
-    value.ClearWeak();
-    value.Dispose();
+    value.ClearWeak(env);
+    value.Dispose(env);
 
     free(ptr);
   }
@@ -108,7 +110,7 @@ class ArrayBuffer {
     if (!buf)
       return ThrowError("Unable to allocate ArrayBuffer.");
 
-    args.This()->SetPointerInInternalField(0, buf);
+    args.This()->SetAlignedPointerInInternalField(0, buf);
 
     args.This()->Set(v8::String::New("byteLength"),
                      v8::Integer::NewFromUnsigned(num_bytes),
@@ -121,11 +123,11 @@ class ArrayBuffer {
     args.This()->SetIndexedPropertiesToExternalArrayData(
         buf, v8::kExternalUnsignedByteArray, num_bytes);
 
-    v8::V8::AdjustAmountOfExternalAllocatedMemory(num_bytes);
+    node::node_isolate->AdjustAmountOfExternalAllocatedMemory(num_bytes);
 
     v8::Persistent<v8::Object> persistent =
-        v8::Persistent<v8::Object>::New(args.This());
-    persistent.MakeWeak(NULL, &ArrayBuffer::WeakCallback);
+        v8::Persistent<v8::Object>::New(node::node_isolate, args.This());
+    persistent.MakeWeak(node::node_isolate, NULL, &ArrayBuffer::WeakCallback);
 
     return args.This();
   }
@@ -159,8 +161,8 @@ class ArrayBuffer {
 
     if (buffer.IsEmpty()) return v8::Undefined();  // constructor failed
 
-    void* src = args.This()->GetPointerFromInternalField(0);
-    void* dest = buffer->GetPointerFromInternalField(0);
+    void* src = args.This()->GetAlignedPointerFromInternalField(0);
+    void* dest = buffer->GetAlignedPointerFromInternalField(0);
     memcpy(dest, static_cast<char*>(src) + begin, slice_length);
 
     return buffer;
@@ -204,7 +206,7 @@ class TypedArray {
       return ft_cache;
 
     v8::HandleScope scope;
-    ft_cache = v8::Persistent<v8::FunctionTemplate>::New(
+    ft_cache = v8::Persistent<v8::FunctionTemplate>::New(node::node_isolate,
         v8::FunctionTemplate::New(&TypedArray<TBytes, TEAType>::V8New));
     ft_cache->SetClassName(v8::String::New(TEANameTrait<TEAType>::name));
     v8::Local<v8::ObjectTemplate> instance = ft_cache->InstanceTemplate();
@@ -298,7 +300,7 @@ class TypedArray {
                  GetFunction()->NewInstance(1, argv);
       if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
-      void* buf = buffer->GetPointerFromInternalField(0);
+      void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
           buf, TEAType, length);
       // TODO(deanm): check for failure.
@@ -327,7 +329,7 @@ class TypedArray {
                  GetFunction()->NewInstance(1, argv);
       if (buffer.IsEmpty()) return v8::Undefined(); // constructor failed
 
-      void* buf = buffer->GetPointerFromInternalField(0);
+      void* buf = buffer->GetAlignedPointerFromInternalField(0);
       args.This()->SetIndexedPropertiesToExternalArrayData(
           buf, TEAType, length);
       // TODO(deanm): check for failure.
@@ -569,7 +571,7 @@ class DataView {
       return ft_cache;
 
     v8::HandleScope scope;
-    ft_cache = v8::Persistent<v8::FunctionTemplate>::New(
+    ft_cache = v8::Persistent<v8::FunctionTemplate>::New(node::node_isolate,
         v8::FunctionTemplate::New(&DataView::V8New));
     ft_cache->SetClassName(v8::String::New("DataView"));
     v8::Local<v8::ObjectTemplate> instance = ft_cache->InstanceTemplate();

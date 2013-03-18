@@ -86,6 +86,8 @@
 
 namespace node {
 
+extern v8::Isolate* node_isolate;
+
 NODE_EXTERN extern bool no_deprecation;
 
 NODE_EXTERN int Start(int argc, char *argv[]);
@@ -96,7 +98,7 @@ void Load(v8::Handle<v8::Object> process);
 void EmitExit(v8::Handle<v8::Object> process);
 
 #define NODE_PSYMBOL(s) \
-  v8::Persistent<v8::String>::New(v8::String::NewSymbol(s))
+  v8::Persistent<v8::String>::New(node_isolate, v8::String::NewSymbol(s))
 
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(1000*static_cast<double>(t))
@@ -153,7 +155,7 @@ v8::Local<v8::Object> BuildStatsObject(const uv_statbuf_t* s);
 static inline v8::Persistent<v8::Function>* cb_persist(
     const v8::Local<v8::Value> &v) {
   v8::Persistent<v8::Function> *fn = new v8::Persistent<v8::Function>();
-  *fn = v8::Persistent<v8::Function>::New(v8::Local<v8::Function>::Cast(v));
+  *fn = v8::Persistent<v8::Function>::New(node_isolate, v8::Local<v8::Function>::Cast(v));
   return fn;
 }
 
@@ -165,7 +167,7 @@ static inline v8::Persistent<v8::Function>* cb_unwrap(void *data) {
 }
 
 static inline void cb_destroy(v8::Persistent<v8::Function> * cb) {
-  cb->Dispose();
+  cb->Dispose(node_isolate);
   delete cb;
 }
 

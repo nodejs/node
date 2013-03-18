@@ -36,7 +36,7 @@ class ReqWrap {
  public:
   ReqWrap() {
     v8::HandleScope scope;
-    object_ = v8::Persistent<v8::Object>::New(v8::Object::New());
+    object_ = v8::Persistent<v8::Object>::New(node_isolate, v8::Object::New());
 
     v8::Local<v8::Value> domain = v8::Context::GetCurrent()
                                   ->Global()
@@ -58,7 +58,7 @@ class ReqWrap {
     // Assert that someone has called Dispatched()
     assert(req_.data == this);
     assert(!object_.IsEmpty());
-    object_.Dispose();
+    object_.Dispose(node_isolate);
     object_.Clear();
   }
 

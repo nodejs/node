@@ -69,7 +69,7 @@ Local<Object> PipeWrap::Instantiate() {
 PipeWrap* PipeWrap::Unwrap(Local<Object> obj) {
   assert(!obj.IsEmpty());
   assert(obj->InternalFieldCount() > 0);
-  return static_cast<PipeWrap*>(obj->GetPointerFromInternalField(0));
+  return static_cast<PipeWrap*>(obj->GetAlignedPointerFromInternalField(0));
 }
 
 
@@ -114,7 +114,7 @@ void PipeWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setPendingInstances", SetPendingInstances);
 #endif
 
-  pipeConstructor = Persistent<Function>::New(t->GetFunction());
+  pipeConstructor = Persistent<Function>::New(node_isolate, t->GetFunction());
 
   target->Set(String::NewSymbol("Pipe"), pipeConstructor);
 }
@@ -214,7 +214,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   // Unwrap the client javascript object.
   assert(client_obj->InternalFieldCount() > 0);
   PipeWrap* client_wrap =
-      static_cast<PipeWrap*>(client_obj->GetPointerFromInternalField(0));
+      static_cast<PipeWrap*>(client_obj->GetAlignedPointerFromInternalField(0));
 
   if (uv_accept(handle, (uv_stream_t*)&client_wrap->handle_)) return;
 

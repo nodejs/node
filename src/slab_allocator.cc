@@ -51,9 +51,9 @@ SlabAllocator::SlabAllocator(unsigned int size) {
 SlabAllocator::~SlabAllocator() {
   if (!initialized_) return;
   if (V8::IsDead()) return;
-  slab_sym_.Dispose();
+  slab_sym_.Dispose(node_isolate);
   slab_sym_.Clear();
-  slab_.Dispose();
+  slab_.Dispose(node_isolate);
   slab_.Clear();
 }
 
@@ -65,7 +65,7 @@ void SlabAllocator::Initialize() {
   offset_ = 0;
   last_ptr_ = NULL;
   initialized_ = true;
-  slab_sym_ = Persistent<String>::New(String::New(sym));
+  slab_sym_ = Persistent<String>::New(node_isolate, String::New(sym));
 }
 
 
@@ -94,9 +94,9 @@ char* SlabAllocator::Allocate(Handle<Object> obj, unsigned int size) {
   }
 
   if (slab_.IsEmpty() || offset_ + size > size_) {
-    slab_.Dispose();
+    slab_.Dispose(node_isolate);
     slab_.Clear();
-    slab_ = Persistent<Object>::New(NewSlab(size_));
+    slab_ = Persistent<Object>::New(node_isolate, NewSlab(size_));
     offset_ = 0;
     last_ptr_ = NULL;
   }

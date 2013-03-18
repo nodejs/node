@@ -124,7 +124,8 @@ void CloneObject(Handle<Object> recv,
         })"
       ), String::New("binding:script"))->Run()
     );
-    cloneObjectMethod = Persistent<Function>::New(cloneObjectMethod_);
+    cloneObjectMethod = Persistent<Function>::New(node_isolate,
+                                                  cloneObjectMethod_);
   }
 
   cloneObjectMethod->Call(recv, 2, args);
@@ -135,7 +136,7 @@ void WrappedContext::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedContext::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("Context"));
 
@@ -165,7 +166,7 @@ WrappedContext::WrappedContext() : ObjectWrap() {
 
 
 WrappedContext::~WrappedContext() {
-  context_.Dispose();
+  context_.Dispose(node_isolate);
 }
 
 
@@ -187,7 +188,7 @@ void WrappedScript::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedScript::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   // Note: We use 'NodeScript' instead of 'Script' so that we do not
   // conflict with V8's Script class defined in v8/src/messages.js
@@ -247,7 +248,7 @@ Handle<Value> WrappedScript::New(const Arguments& args) {
 
 
 WrappedScript::~WrappedScript() {
-  script_.Dispose();
+  script_.Dispose(node_isolate);
 }
 
 
@@ -364,7 +365,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     // that when this function exits the context will be disposed.
     Persistent<Context> tmp = Context::New();
     context = Local<Context>::New(tmp);
-    tmp.Dispose();
+    tmp.Dispose(node_isolate);
 
   } else if (context_flag == userContext) {
     // Use the passed in context
