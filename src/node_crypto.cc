@@ -157,6 +157,8 @@ void SecureContext::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
   NODE_SET_PROTOTYPE_METHOD(t, "setSessionIdContext",
                                SecureContext::SetSessionIdContext);
+  NODE_SET_PROTOTYPE_METHOD(t, "setSessionTimeout",
+                               SecureContext::SetSessionTimeout);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
   NODE_SET_PROTOTYPE_METHOD(t, "loadPKCS12", SecureContext::LoadPKCS12);
 
@@ -632,6 +634,21 @@ Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
   }
 
   return True(node_isolate);
+}
+
+Handle<Value> SecureContext::SetSessionTimeout(const Arguments& args) {
+  HandleScope scope;
+
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+
+  if (args.Length() != 1 || !args[0]->IsInt32()) {
+    return ThrowTypeError("Bad parameter");
+  }
+
+  int32_t sessionTimeout = args[0]->Int32Value();
+  SSL_CTX_set_timeout(sc->ctx_, sessionTimeout);
+
+  return True();
 }
 
 Handle<Value> SecureContext::Close(const Arguments& args) {

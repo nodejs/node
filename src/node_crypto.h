@@ -73,6 +73,7 @@ class SecureContext : ObjectWrap {
   static v8::Handle<v8::Value> SetCiphers(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetOptions(const v8::Arguments& args);
   static v8::Handle<v8::Value> SetSessionIdContext(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetSessionTimeout(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
   static v8::Handle<v8::Value> LoadPKCS12(const v8::Arguments& args);
 
