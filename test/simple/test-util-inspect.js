@@ -160,3 +160,31 @@ assert(util.inspect(subject, { customInspect: false }).indexOf('inspect') !== -1
 subject.inspect = function() { return { foo: 'bar' }; };
 
 assert.equal(util.inspect(subject), '{ foo: \'bar\' }');
+
+// util.inspect with "colors" option should produce as many lines as without it
+function test_lines(input) {
+  var count_lines = function(str) {
+    return (str.match(/\n/g) || []).length;
+  }
+
+  var without_color = util.inspect(input);
+  var with_color = util.inspect(input, {colors: true});
+  assert.equal(count_lines(without_color), count_lines(with_color));
+}
+
+test_lines([1, 2, 3, 4, 5, 6, 7]);
+test_lines(function() {
+  var big_array = [];
+  for (var i = 0; i < 100; i++) {
+    big_array.push(i);
+  }
+  return big_array;
+}());
+test_lines({foo: 'bar', baz: 35, b: {a: 35}});
+test_lines({
+  foo: 'bar',
+  baz: 35,
+  b: {a: 35},
+  very_long_key: 'very_long_value',
+  even_longer_key: ['with even longer value in array']
+});
