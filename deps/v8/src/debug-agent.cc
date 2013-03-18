@@ -192,21 +192,14 @@ void DebuggerAgentSession::Run() {
     }
 
     // Convert UTF-8 to UTF-16.
-    unibrow::Utf8InputBuffer<> buf(msg, StrLength(msg));
-    int len = 0;
-    while (buf.has_more()) {
-      buf.GetNext();
-      len++;
-    }
-    ScopedVector<int16_t> temp(len + 1);
-    buf.Reset(msg, StrLength(msg));
-    for (int i = 0; i < len; i++) {
-      temp[i] = buf.GetNext();
-    }
+    unibrow::Utf8Decoder<128> decoder(msg, StrLength(msg));
+    int utf16_length = decoder.Utf16Length();
+    ScopedVector<uint16_t> temp(utf16_length + 1);
+    decoder.WriteUtf16(temp.start(), utf16_length);
 
     // Send the request received to the debugger.
-    v8::Debug::SendCommand(reinterpret_cast<const uint16_t *>(temp.start()),
-                           len,
+    v8::Debug::SendCommand(temp.start(),
+                           utf16_length,
                            NULL,
                            reinterpret_cast<v8::Isolate*>(agent_->isolate()));
 

@@ -74,6 +74,8 @@ class PrettyPrinter: public AstVisitor {
   void PrintDeclarations(ZoneList<Declaration*>* declarations);
   void PrintFunctionLiteral(FunctionLiteral* function);
   void PrintCaseClause(CaseClause* clause);
+
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 };
 
 

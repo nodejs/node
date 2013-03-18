@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --smi-only-arrays
+// Flags: --allow-natives-syntax --smi-only-arrays --notrack-allocation-sites
 
 support_smi_only_arrays = %HasFastSmiElements(new Array(1,2,3,4,5,6,7,8));
 

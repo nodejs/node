@@ -84,16 +84,25 @@ namespace v8 {
 namespace internal {
 
 // Constant pool marker.
-const int kConstantPoolMarkerMask = 0xffe00000;
-const int kConstantPoolMarker = 0x0c000000;
-const int kConstantPoolLengthMask = 0x001ffff;
+// Use UDF, the permanently undefined instruction.
+const int kConstantPoolMarkerMask = 0xfff000f0;
+const int kConstantPoolMarker = 0xe7f000f0;
+const int kConstantPoolLengthMaxMask = 0xffff;
+inline int EncodeConstantPoolLength(int length) {
+  ASSERT((length & kConstantPoolLengthMaxMask) == length);
+  return ((length & 0xfff0) << 4) | (length & 0xf);
+}
+inline int DecodeConstantPoolLength(int instr) {
+  ASSERT((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  return ((instr >> 4) & 0xfff0) | (instr & 0xf);
+}
 
 // Number of registers in normal ARM mode.
 const int kNumRegisters = 16;
 
 // VFP support.
 const int kNumVFPSingleRegisters = 32;
-const int kNumVFPDoubleRegisters = 16;
+const int kNumVFPDoubleRegisters = 32;
 const int kNumVFPRegisters = kNumVFPSingleRegisters + kNumVFPDoubleRegisters;
 
 // PC is register 15.
@@ -258,7 +267,8 @@ enum {
   kCoprocessorMask = 15 << 8,
   kOpCodeMask = 15 << 21,  // In data-processing instructions.
   kImm24Mask  = (1 << 24) - 1,
-  kOff12Mask  = (1 << 12) - 1
+  kOff12Mask  = (1 << 12) - 1,
+  kOff8Mask  = (1 << 8) - 1
 };
 
 
@@ -455,6 +465,9 @@ extern const Instr kMovLrPc;
 // ldr rd, [pc, #offset]
 extern const Instr kLdrPCMask;
 extern const Instr kLdrPCPattern;
+// vldr dd, [pc, #offset]
+extern const Instr kVldrDPCMask;
+extern const Instr kVldrDPCPattern;
 // blxcc rm
 extern const Instr kBlxRegMask;
 

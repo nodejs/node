@@ -172,7 +172,7 @@ v8::Handle<v8::Value> TraceExtension::JSEntrySP(const v8::Arguments& args) {
 
 v8::Handle<v8::Value> TraceExtension::JSEntrySPLevel2(
     const v8::Arguments& args) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(args.GetIsolate());
   const Address js_entry_sp = GetJsEntrySp();
   CHECK_NE(0, js_entry_sp);
   CompileRun("js_entry_sp();");
@@ -187,12 +187,10 @@ v8::DeclareExtension kTraceExtensionDeclaration(&kTraceExtension);
 
 static void InitializeVM() {
   if (env.IsEmpty()) {
-    v8::HandleScope scope;
     const char* extensions[] = { "v8/trace" };
     v8::ExtensionConfiguration config(1, extensions);
     env = v8::Context::New(&config);
   }
-  v8::HandleScope scope;
   env->Enter();
 }
 
@@ -214,7 +212,8 @@ static bool IsAddressWithinFuncCode(const char* func_name, Address addr) {
 // from the calling function.  When this function runs, the stack contains
 // a C_Entry frame and a Construct frame above the calling function's frame.
 static v8::Handle<Value> construct_call(const v8::Arguments& args) {
-  i::StackFrameIterator frame_iterator;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+  i::StackFrameIterator frame_iterator(isolate);
   CHECK(frame_iterator.frame()->is_exit());
   frame_iterator.Advance();
   CHECK(frame_iterator.frame()->is_construct());
@@ -282,7 +281,7 @@ TEST(CFromJSStackTrace) {
   InitTraceEnv(&sample);
 
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   // Create global function JSFuncDoTrace which calls
   // extension function trace() with the current frame pointer value.
   CreateTraceCallerFunction("JSFuncDoTrace", "trace");
@@ -327,7 +326,7 @@ TEST(PureJSStackTrace) {
   InitTraceEnv(&sample);
 
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   // Create global function JSFuncDoTrace which calls
   // extension function js_trace() with the current frame pointer value.
   CreateTraceCallerFunction("JSFuncDoTrace", "js_trace");
@@ -401,7 +400,7 @@ TEST(PureCStackTrace) {
 
 TEST(JsEntrySp) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   CHECK_EQ(0, GetJsEntrySp());
   CompileRun("a = 1; b = a + 1;");
   CHECK_EQ(0, GetJsEntrySp());

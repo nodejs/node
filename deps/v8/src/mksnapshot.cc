@@ -318,11 +318,12 @@ int main(int argc, char** argv) {
             "\nException thrown while compiling natives - see above.\n\n");
     exit(1);
   }
+  Isolate* isolate = context->GetIsolate();
   if (i::FLAG_extra_code != NULL) {
     context->Enter();
     // Capture 100 frames if anything happens.
     V8::SetCaptureStackTraceForUncaughtExceptions(true, 100);
-    HandleScope scope;
+    HandleScope scope(isolate);
     const char* name = i::FLAG_extra_code;
     FILE* file = i::OS::FOpen(name, "rb");
     if (file == NULL) {
@@ -375,7 +376,7 @@ int main(int argc, char** argv) {
     context->Exit();
   }
   // Make sure all builtin scripts are cached.
-  { HandleScope scope;
+  { HandleScope scope(isolate);
     for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
       i::Isolate::Current()->bootstrapper()->NativesSourceLookup(i);
     }
@@ -384,7 +385,7 @@ int main(int argc, char** argv) {
   // context even after we have disposed of the context.
   HEAP->CollectAllGarbage(i::Heap::kNoGCFlags, "mksnapshot");
   i::Object* raw_context = *(v8::Utils::OpenHandle(*context));
-  context.Dispose();
+  context.Dispose(context->GetIsolate());
   CppByteSink sink(argv[1]);
   // This results in a somewhat smaller snapshot, probably because it gets rid
   // of some things that are cached between garbage collections.

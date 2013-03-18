@@ -52,8 +52,6 @@ class RuntimeProfiler {
 
   void OptimizeNow();
 
-  void NotifyTick();
-
   void SetUp();
   void Reset();
   void TearDown();
@@ -73,17 +71,12 @@ class RuntimeProfiler {
 
   // Profiler thread interface.
   //
-  // IsSomeIsolateInJS():
-  // The profiler thread can query whether some isolate is currently
-  // running JavaScript code.
-  //
   // WaitForSomeIsolateToEnterJS():
   // When no isolates are running JavaScript code for some time the
   // profiler thread suspends itself by calling the wait function. The
   // wait function returns true after it waited or false immediately.
   // While the function was waiting the profiler may have been
   // disabled so it *must check* whether it is allowed to continue.
-  static bool IsSomeIsolateInJS();
   static bool WaitForSomeIsolateToEnterJS();
 
   // Stops the runtime profiler thread when profiling support is being
@@ -133,24 +126,6 @@ class RuntimeProfiler {
   static bool has_been_globally_set_up_;
 #endif
   static bool enabled_;
-};
-
-
-// Rate limiter intended to be used in the profiler thread.
-class RuntimeProfilerRateLimiter BASE_EMBEDDED {
- public:
-  RuntimeProfilerRateLimiter() {}
-
-  // Suspends the current thread (which must be the profiler thread)
-  // when not executing JavaScript to minimize CPU usage. Returns
-  // whether the thread was suspended (and so must check whether
-  // profiling is still active.)
-  //
-  // Does nothing when runtime profiling is not enabled.
-  bool SuspendIfNecessary();
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(RuntimeProfilerRateLimiter);
 };
 
 

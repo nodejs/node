@@ -41,7 +41,7 @@ class Disassembler : public AllStatic {
   // Decode instructions in the the interval [begin, end) and print the
   // code into f. Returns the number of bytes disassembled or 1 if no
   // instruction could be decoded.
-  static int Decode(FILE* f, byte* begin, byte* end);
+  static int Decode(Isolate* isolate, FILE* f, byte* begin, byte* end);
 
   // Decode instructions in code.
   static void Decode(FILE* f, Code* code);

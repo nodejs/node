@@ -30,6 +30,7 @@ import imp
 import os
 
 from . import statusfile
+from . import utils
 
 class TestSuite(object):
 
@@ -88,6 +89,8 @@ class TestSuite(object):
     used_rules = set()
     for t in self.tests:
       testname = self.CommonTestName(t)
+      if utils.IsWindows():
+        testname = testname.replace("\\", "/")
       if testname in self.rules:
         used_rules.add(testname)
         outcomes = self.rules[testname]

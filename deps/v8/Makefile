@@ -62,6 +62,12 @@ endif
 ifeq ($(verifyheap), on)
   GYPFLAGS += -Dv8_enable_verify_heap=1
 endif
+# backtrace=off
+ifeq ($(backtrace), off)
+  GYPFLAGS += -Dv8_enable_backtrace=0
+else
+  GYPFLAGS += -Dv8_enable_backtrace=1
+endif
 # snapshot=off
 ifeq ($(snapshot), off)
   GYPFLAGS += -Dv8_use_snapshot='false'
@@ -77,15 +83,17 @@ endif
 ifeq ($(gdbjit), on)
   GYPFLAGS += -Dv8_enable_gdbjit=1
 endif
-# liveobjectlist=on
-ifeq ($(liveobjectlist), on)
-  GYPFLAGS += -Dv8_use_liveobjectlist=true
+# vfp2=off
+ifeq ($(vfp2), off)
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=false
+else
+  GYPFLAGS += -Dv8_can_use_vfp2_instructions=true -Darm_fpu=vfpv2
 endif
 # vfp3=off
 ifeq ($(vfp3), off)
   GYPFLAGS += -Dv8_can_use_vfp3_instructions=false
 else
-  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true
+  GYPFLAGS += -Dv8_can_use_vfp3_instructions=true -Darm_fpu=vfpv3
 endif
 # debuggersupport=off
 ifeq ($(debuggersupport), off)
@@ -115,6 +123,10 @@ endif
 ifeq ($(hardfp), on)
   GYPFLAGS += -Dv8_use_arm_eabi_hardfloat=true
 endif
+# armv7=false
+ifeq ($(armv7), false)
+  GYPFLAGS += -Darmv7=0
+endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
@@ -136,7 +148,7 @@ endif
 ARCHES = ia32 x64 arm mipsel
 DEFAULT_ARCHES = ia32 x64 arm
 MODES = release debug
-ANDROID_ARCHES = android_ia32 android_arm
+ANDROID_ARCHES = android_ia32 android_arm android_mipsel
 
 # List of files that trigger Makefile regeneration:
 GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \

@@ -212,7 +212,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
       }
 
       // Rounding up may cause overflow.
-      if ((number & ((int64_t)1 << 53)) != 0) {
+      if ((number & (static_cast<int64_t>(1) << 53)) != 0) {
         exponent++;
         number >>= 1;
       }
@@ -481,9 +481,9 @@ double InternalStringToDouble(UnicodeCache* unicode_cache,
     sign = NEGATIVE;
   }
 
-  static const char kInfinitySymbol[] = "Infinity";
-  if (*current == kInfinitySymbol[0]) {
-    if (!SubStringEquals(&current, end, kInfinitySymbol)) {
+  static const char kInfinityString[] = "Infinity";
+  if (*current == kInfinityString[0]) {
+    if (!SubStringEquals(&current, end, kInfinityString)) {
       return JunkStringValue();
     }
 

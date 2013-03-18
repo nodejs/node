@@ -45,8 +45,7 @@ namespace v8 {
 namespace internal {
 
 
-int HandleScope::NumberOfHandles() {
-  Isolate* isolate = Isolate::Current();
+int HandleScope::NumberOfHandles(Isolate* isolate) {
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   int n = impl->blocks()->length();
   if (n == 0) return 0;
@@ -55,8 +54,7 @@ int HandleScope::NumberOfHandles() {
 }
 
 
-Object** HandleScope::Extend() {
-  Isolate* isolate = Isolate::Current();
+Object** HandleScope::Extend(Isolate* isolate) {
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
 
@@ -97,7 +95,6 @@ Object** HandleScope::Extend() {
 
 
 void HandleScope::DeleteExtensions(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
   v8::ImplementationUtilities::HandleScopeData* current =
       isolate->handle_scope_data();
   isolate->handle_scope_implementer()->DeleteExtensions(current->limit);
@@ -112,21 +109,18 @@ void HandleScope::ZapRange(Object** start, Object** end) {
 }
 
 
-Address HandleScope::current_level_address() {
-  return reinterpret_cast<Address>(
-      &Isolate::Current()->handle_scope_data()->level);
+Address HandleScope::current_level_address(Isolate* isolate) {
+  return reinterpret_cast<Address>(&isolate->handle_scope_data()->level);
 }
 
 
-Address HandleScope::current_next_address() {
-  return reinterpret_cast<Address>(
-      &Isolate::Current()->handle_scope_data()->next);
+Address HandleScope::current_next_address(Isolate* isolate) {
+  return reinterpret_cast<Address>(&isolate->handle_scope_data()->next);
 }
 
 
-Address HandleScope::current_limit_address() {
-  return reinterpret_cast<Address>(
-      &Isolate::Current()->handle_scope_data()->limit);
+Address HandleScope::current_limit_address(Isolate* isolate) {
+  return reinterpret_cast<Address>(&isolate->handle_scope_data()->limit);
 }
 
 
@@ -229,12 +223,12 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 }
 
 
-Handle<Object> SetProperty(Handle<Object> object,
+Handle<Object> SetProperty(Isolate* isolate,
+                           Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
                            StrictModeFlag strict_mode) {
-  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(
       isolate,
       Runtime::SetObjectProperty(
@@ -266,7 +260,7 @@ Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
 
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
-                                          Handle<String> key,
+                                          Handle<Name> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StrictModeFlag strict_mode) {
@@ -282,14 +276,14 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name) {
   Isolate* isolate = obj->GetIsolate();
-  Handle<String> str = isolate->factory()->LookupAsciiSymbol(name);
+  Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
   CALL_HEAP_FUNCTION(isolate, obj->GetProperty(*str), Object);
 }
 
 
-Handle<Object> GetProperty(Handle<Object> obj,
+Handle<Object> GetProperty(Isolate* isolate,
+                           Handle<Object> obj,
                            Handle<Object> key) {
-  Isolate* isolate = Isolate::Current();
   CALL_HEAP_FUNCTION(isolate,
                      Runtime::GetObjectProperty(isolate, obj, key), Object);
 }
@@ -297,7 +291,7 @@ Handle<Object> GetProperty(Handle<Object> obj,
 
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
-                                          Handle<String> name,
+                                          Handle<Name> name,
                                           PropertyAttributes* attributes) {
   Isolate* isolate = receiver->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
@@ -315,8 +309,8 @@ Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
 }
 
 
-Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
-  Isolate* isolate = Isolate::Current();
+Handle<Object> LookupSingleCharacterStringFromCode(Isolate* isolate,
+                                                   uint32_t index) {
   CALL_HEAP_FUNCTION(
       isolate,
       isolate->heap()->LookupSingleCharacterStringFromCode(index), Object);
@@ -350,14 +344,16 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
-static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
+static void ClearWrapperCache(v8::Isolate* v8_isolate,
+                              Persistent<v8::Value> handle,
+                              void*) {
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
   ASSERT(foreign->foreign_address() ==
          reinterpret_cast<Address>(cache.location()));
   foreign->set_foreign_address(0);
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   isolate->global_handles()->Destroy(cache.location());
   isolate->counters()->script_wrappers()->Decrement();
 }
@@ -369,19 +365,30 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
     return Handle<JSValue>(
         reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = script->GetIsolate();
   // Construct a new script wrapper.
   isolate->counters()->script_wrappers()->Increment();
   Handle<JSFunction> constructor = isolate->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
+
+  // The allocation might have triggered a GC, which could have called this
+  // function recursively, and a wrapper has already been created and cached.
+  // In that case, simply return the cached wrapper.
+  if (script->wrapper()->foreign_address() != NULL) {
+    return Handle<JSValue>(
+        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
+  }
+
   result->set_value(*script);
 
   // Create a new weak global handle and use it to cache the wrapper
   // for future use. The cache will automatically be cleared by the
   // garbage collector when it is not used anymore.
   Handle<Object> handle = isolate->global_handles()->Create(*result);
-  isolate->global_handles()->MakeWeak(handle.location(), NULL,
+  isolate->global_handles()->MakeWeak(handle.location(),
+                                      NULL,
+                                      NULL,
                                       &ClearWrapperCache);
   script->wrapper()->set_foreign_address(
       reinterpret_cast<Address>(handle.location()));
@@ -423,7 +430,7 @@ static void CalculateLineEnds(Isolate* isolate,
                               Vector<const SourceChar> src,
                               bool with_last_line) {
   const int src_len = src.length();
-  StringSearch<char, SourceChar> search(isolate, CStrVector("\n"));
+  StringSearch<uint8_t, SourceChar> search(isolate, STATIC_ASCII_VECTOR("\n"));
 
   // Find and record line ends.
   int position = 0;
@@ -457,7 +464,7 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
     if (content.IsAscii()) {
       CalculateLineEnds(isolate,
                         &line_ends,
-                        content.ToAsciiVector(),
+                        content.ToOneByteVector(),
                         with_last_line);
     } else {
       CalculateLineEnds(isolate,
@@ -544,6 +551,7 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 
 
 // Compute the property keys from the interceptor.
+// TODO(rossberg): support symbols in API, and filter here if needed.
 v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
@@ -593,6 +601,27 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
 }
 
 
+Handle<Object> GetScriptNameOrSourceURL(Handle<Script> script) {
+  Isolate* isolate = script->GetIsolate();
+  Handle<String> name_or_source_url_key =
+      isolate->factory()->InternalizeOneByteString(
+          STATIC_ASCII_VECTOR("nameOrSourceURL"));
+  Handle<JSValue> script_wrapper = GetScriptWrapper(script);
+  Handle<Object> property = GetProperty(isolate,
+                                        script_wrapper,
+                                        name_or_source_url_key);
+  ASSERT(property->IsJSFunction());
+  Handle<JSFunction> method = Handle<JSFunction>::cast(property);
+  bool caught_exception;
+  Handle<Object> result = Execution::TryCall(method, script_wrapper, 0,
+                                             NULL, &caught_exception);
+  if (caught_exception) {
+    result = isolate->factory()->undefined_value();
+  }
+  return result;
+}
+
+
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
@@ -619,7 +648,7 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
   // Only collect keys if access is permitted.
   for (Handle<Object> p = object;
        *p != isolate->heap()->null_value();
-       p = Handle<Object>(p->GetPrototype(), isolate)) {
+       p = Handle<Object>(p->GetPrototype(isolate), isolate)) {
     if (p->IsJSProxy()) {
       Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
       Handle<Object> args[] = { proxy };
@@ -726,10 +755,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
       // to kInvalidEnumCache, this means that the map itself has never used the
       // present enum cache. The first step to using the cache is to set the
       // enum length of the map by counting the number of own descriptors that
-      // are not DONT_ENUM.
+      // are not DONT_ENUM or SYMBOLIC.
       if (own_property_count == Map::kInvalidEnumCache) {
         own_property_count = object->map()->NumberOfDescribedProperties(
-            OWN_DESCRIPTORS, DONT_ENUM);
+            OWN_DESCRIPTORS, DONT_SHOW);
 
         if (cache_result) object->map()->SetEnumLength(own_property_count);
       }
@@ -756,7 +785,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     }
 
     isolate->counters()->enum_cache_misses()->Increment();
-    int num_enum = map->NumberOfDescribedProperties(ALL_DESCRIPTORS, DONT_ENUM);
+    int num_enum = map->NumberOfDescribedProperties(ALL_DESCRIPTORS, DONT_SHOW);
 
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(num_enum);
     Handle<FixedArray> indices = isolate->factory()->NewFixedArray(num_enum);
@@ -770,9 +799,10 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
     for (int i = 0; i < descs->number_of_descriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
-      if (!details.IsDontEnum()) {
+      Object* key = descs->GetKey(i);
+      if (!(details.IsDontEnum() || key->IsSymbol())) {
         if (i < real_size) ++enum_size;
-        storage->set(index, descs->GetKey(i));
+        storage->set(index, key);
         if (!indices.is_null()) {
           if (details.type() != FIELD) {
             indices = Handle<FixedArray>();
@@ -803,7 +833,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
     return ReduceFixedArrayTo(storage, enum_size);
   } else {
-    Handle<StringDictionary> dictionary(object->property_dictionary());
+    Handle<NameDictionary> dictionary(object->property_dictionary());
 
     int length = dictionary->NumberOfElements();
     if (length == 0) {
@@ -824,7 +854,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     // many properties were added but subsequently deleted.
     int next_enumeration = dictionary->NextEnumerationIndex();
     if (!object->IsGlobalObject() && next_enumeration > (length * 3) / 2) {
-      StringDictionary::DoGenerateNewEnumerationIndices(dictionary);
+      NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
       next_enumeration = dictionary->NextEnumerationIndex();
     }
 
@@ -832,7 +862,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
         isolate->factory()->NewFixedArray(next_enumeration);
 
     storage = Handle<FixedArray>(dictionary->CopyEnumKeysTo(*storage));
-    ASSERT(storage->length() == object->NumberOfLocalProperties(DONT_ENUM));
+    ASSERT(storage->length() == object->NumberOfLocalProperties(DONT_SHOW));
     return storage;
   }
 }
@@ -863,168 +893,8 @@ Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
 }
 
 
-// This method determines the type of string involved and then gets the UTF8
-// length of the string.  It doesn't flatten the string and has log(n) recursion
-// for a string of length n.  If the failure flag gets set, then we have to
-// flatten the string and retry.  Failures are caused by surrogate pairs in deep
-// cons strings.
-
-// Single surrogate characters that are encountered in the UTF-16 character
-// sequence of the input string get counted as 3 UTF-8 bytes, because that
-// is the way that WriteUtf8 will encode them.  Surrogate pairs are counted and
-// encoded as one 4-byte UTF-8 sequence.
-
-// This function conceptually uses recursion on the two halves of cons strings.
-// However, in order to avoid the recursion going too deep it recurses on the
-// second string of the cons, but iterates on the first substring (by manually
-// eliminating it as a tail recursion).  This means it counts the UTF-8 length
-// from the end to the start, which makes no difference to the total.
-
-// Surrogate pairs are recognized even if they are split across two sides of a
-// cons, which complicates the implementation somewhat.  Therefore, too deep
-// recursion cannot always be avoided.  This case is detected, and the failure
-// flag is set, a signal to the caller that the string should be flattened and
-// the operation retried.
-int Utf8LengthHelper(String* input,
-                     int from,
-                     int to,
-                     bool followed_by_surrogate,
-                     int max_recursion,
-                     bool* failure,
-                     bool* starts_with_surrogate) {
-  if (from == to) return 0;
-  int total = 0;
-  bool dummy;
-  while (true) {
-    if (input->IsAsciiRepresentation()) {
-      *starts_with_surrogate = false;
-      return total + to - from;
-    }
-    switch (StringShape(input).representation_tag()) {
-      case kConsStringTag: {
-        ConsString* str = ConsString::cast(input);
-        String* first = str->first();
-        String* second = str->second();
-        int first_length = first->length();
-        if (first_length - from > to - first_length) {
-          if (first_length < to) {
-            // Right hand side is shorter.  No need to check the recursion depth
-            // since this can only happen log(n) times.
-            bool right_starts_with_surrogate = false;
-            total += Utf8LengthHelper(second,
-                                      0,
-                                      to - first_length,
-                                      followed_by_surrogate,
-                                      max_recursion - 1,
-                                      failure,
-                                      &right_starts_with_surrogate);
-            if (*failure) return 0;
-            followed_by_surrogate = right_starts_with_surrogate;
-            input = first;
-            to = first_length;
-          } else {
-            // We only need the left hand side.
-            input = first;
-          }
-        } else {
-          if (first_length > from) {
-            // Left hand side is shorter.
-            if (first->IsAsciiRepresentation()) {
-              total += first_length - from;
-              *starts_with_surrogate = false;
-              starts_with_surrogate = &dummy;
-              input = second;
-              from = 0;
-              to -= first_length;
-            } else if (second->IsAsciiRepresentation()) {
-              followed_by_surrogate = false;
-              total += to - first_length;
-              input = first;
-              to = first_length;
-            } else if (max_recursion > 0) {
-              bool right_starts_with_surrogate = false;
-              // Recursing on the long one.  This may fail.
-              total += Utf8LengthHelper(second,
-                                        0,
-                                        to - first_length,
-                                        followed_by_surrogate,
-                                        max_recursion - 1,
-                                        failure,
-                                        &right_starts_with_surrogate);
-              if (*failure) return 0;
-              input = first;
-              to = first_length;
-              followed_by_surrogate = right_starts_with_surrogate;
-            } else {
-              *failure = true;
-              return 0;
-            }
-          } else {
-            // We only need the right hand side.
-            input = second;
-            from = 0;
-            to -= first_length;
-          }
-        }
-        continue;
-      }
-      case kExternalStringTag:
-      case kSeqStringTag: {
-        Vector<const uc16> vector = input->GetFlatContent().ToUC16Vector();
-        const uc16* p = vector.start();
-        int previous = unibrow::Utf16::kNoPreviousCharacter;
-        for (int i = from; i < to; i++) {
-          uc16 c = p[i];
-          total += unibrow::Utf8::Length(c, previous);
-          previous = c;
-        }
-        if (to - from > 0) {
-          if (unibrow::Utf16::IsLeadSurrogate(previous) &&
-              followed_by_surrogate) {
-            total -= unibrow::Utf8::kBytesSavedByCombiningSurrogates;
-          }
-          if (unibrow::Utf16::IsTrailSurrogate(p[from])) {
-            *starts_with_surrogate = true;
-          }
-        }
-        return total;
-      }
-      case kSlicedStringTag: {
-        SlicedString* str = SlicedString::cast(input);
-        int offset = str->offset();
-        input = str->parent();
-        from += offset;
-        to += offset;
-        continue;
-      }
-      default:
-        break;
-    }
-    UNREACHABLE();
-    return 0;
-  }
-  return 0;
-}
-
-
-int Utf8Length(Handle<String> str) {
-  bool dummy;
-  bool failure;
-  int len;
-  const int kRecursionBudget = 100;
-  do {
-    failure = false;
-    len = Utf8LengthHelper(
-        *str, 0, str->length(), false, kRecursionBudget, &failure, &dummy);
-    if (failure) FlattenString(str);
-  } while (failure);
-  return len;
-}
-
-
 DeferredHandleScope::DeferredHandleScope(Isolate* isolate)
     : impl_(isolate->handle_scope_implementer()) {
-  ASSERT(impl_->isolate() == Isolate::Current());
   impl_->BeginDeferredScope();
   v8::ImplementationUtilities::HandleScopeData* data =
       impl_->isolate()->handle_scope_data();

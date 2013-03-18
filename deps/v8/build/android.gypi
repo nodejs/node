@@ -35,9 +35,9 @@
     'variables': {
       'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
       'android_toolchain%': '<!(/bin/echo -n $ANDROID_TOOLCHAIN)',
-      # Switch between different build types, currently only '0' is
-      # supported.
-      'android_build_type%': 0,
+      # This is set when building the Android WebView inside the Android build
+      # system, using the 'android' gyp backend.
+      'android_webview_build%': 0,
     },
     'conditions': [
       ['android_ndk_root==""', {
@@ -62,10 +62,10 @@
     ],
     # Enable to use the system stlport, otherwise statically
     # link the NDK one?
-    'use_system_stlport%': '<(android_build_type)',
+    'use_system_stlport%': '<(android_webview_build)',
     'android_stlport_library': 'stlport_static',
     # Copy it out one scope.
-    'android_build_type%': '<(android_build_type)',
+    'android_webview_build%': '<(android_webview_build)',
     'OS': 'android',
   },  # variables
   'target_defaults': {
@@ -122,8 +122,6 @@
         'ldflags': [
           '-nostdlib',
           '-Wl,--no-undefined',
-          # Don't export symbols from statically linked libraries.
-          '-Wl,--exclude-libs=ALL',
         ],
         'libraries!': [
             '-lrt',  # librt is built into Bionic.
@@ -143,7 +141,7 @@
             '-lm',
         ],
         'conditions': [
-          ['android_build_type==0', {
+          ['android_webview_build==0', {
             'ldflags': [
               '-Wl,-rpath-link=<(android_lib)',
               '-L<(android_lib)',
@@ -183,6 +181,11 @@
                   '-L<(android_stlport_libs)/armeabi',
                 ],
               }],
+              ['target_arch=="mipsel"', {
+                'ldflags': [
+                  '-L<(android_stlport_libs)/mips',
+                ],
+              }],
               ['target_arch=="ia32"', {
                 'ldflags': [
                   '-L<(android_stlport_libs)/x86',
@@ -194,6 +197,16 @@
             # The x86 toolchain currently has problems with stack-protector.
             'cflags!': [
               '-fstack-protector',
+            ],
+            'cflags': [
+              '-fno-stack-protector',
+            ],
+          }],
+          ['target_arch=="mipsel"', {
+            # The mips toolchain currently has problems with stack-protector.
+            'cflags!': [
+              '-fstack-protector',
+              '-U__linux__'
             ],
             'cflags': [
               '-fno-stack-protector',
@@ -219,6 +232,13 @@
           ['_type=="shared_library"', {
             'ldflags': [
               '-Wl,-shared,-Bsymbolic',
+              '<(android_lib)/crtbegin_so.o',
+            ],
+          }],
+          ['_type=="static_library"', {
+            'ldflags': [
+              # Don't export symbols from statically linked libraries.
+              '-Wl,--exclude-libs=ALL',
             ],
           }],
         ],

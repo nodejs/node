@@ -4,11 +4,11 @@ tests from
 
   http://hg.ecmascript.org/tests/test262
 
-at revision 334 as 'data' in this directory.  Using later version
+at revision 360 as 'data' in this directory.  Using later version
 may be possible but the tests are only known to pass (and indeed run)
 with that revision.
 
-hg clone -r 334 http://hg.ecmascript.org/tests/test262 data
+hg clone -r 360 http://hg.ecmascript.org/tests/test262 data
 
 If you do update to a newer revision you may have to change the test
 harness adapter code since it uses internal functionality from the

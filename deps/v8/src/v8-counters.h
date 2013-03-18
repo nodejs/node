@@ -50,7 +50,6 @@ namespace internal {
   HT(compile_eval, V8.CompileEval)                                    \
   HT(compile_lazy, V8.CompileLazy)
 
-
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
   HP(external_fragmentation_total,                                    \
      V8.MemoryExternalFragmentationTotal)                             \
@@ -99,7 +98,7 @@ namespace internal {
   SC(alive_after_last_gc, V8.AliveAfterLastGC)                        \
   SC(objs_since_last_young, V8.ObjsSinceLastYoung)                    \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)                      \
-  SC(symbol_table_capacity, V8.SymbolTableCapacity)                   \
+  SC(string_table_capacity, V8.StringTableCapacity)                   \
   SC(number_of_symbols, V8.NumberOfSymbols)                           \
   SC(script_wrappers, V8.ScriptWrappers)                              \
   SC(call_initialize_stubs, V8.CallInitializeStubs)                   \
@@ -374,15 +373,8 @@ class Counters {
     kSizeOfFIXED_ARRAY__##name,
     FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COUNTER_ID)
 #undef COUNTER_ID
-#define COUNTER_ID(name) k_##name,
-    STATE_TAG_LIST(COUNTER_ID)
-#undef COUNTER_ID
     stats_counter_count
   };
-
-  StatsCounter* state_counters(StateTag state) {
-    return &state_counters_[state];
-  }
 
   void ResetHistograms();
 
@@ -426,15 +418,6 @@ class Counters {
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
 #undef SC
 
-  enum {
-#define COUNTER_ID(name) __##name,
-    STATE_TAG_LIST(COUNTER_ID)
-#undef COUNTER_ID
-    kSlidingStateWindowCounterCount
-  };
-
-  // Sliding state window counters.
-  StatsCounter state_counters_[kSlidingStateWindowCounterCount];
   friend class Isolate;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);

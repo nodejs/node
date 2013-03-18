@@ -29,6 +29,7 @@
 
 #include <math.h>  // For isfinite.
 #include "builtins.h"
+#include "code-stubs.h"
 #include "conversions.h"
 #include "hashmap.h"
 #include "parser.h"
@@ -96,13 +97,14 @@ VariableProxy::VariableProxy(Isolate* isolate,
       position_(position),
       interface_(interface) {
   // Names must be canonicalized for fast equality checks.
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
 }
 
 
 void VariableProxy::BindTo(Variable* var) {
   ASSERT(var_ == NULL);  // must be bound only once
   ASSERT(var != NULL);  // must bind
+  ASSERT(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
   ASSERT((is_this() && var->is_this()) || name_.is_identical_to(var->name()));
   // Ideally CONST-ness should match. However, this is very hard to achieve
   // because we don't know the exact semantics of conflicting (const and
@@ -180,8 +182,8 @@ ObjectLiteral::Property::Property(Literal* key,
   key_ = key;
   value_ = value;
   Object* k = *key->handle();
-  if (k->IsSymbol() &&
-      isolate->heap()->Proto_symbol()->Equals(String::cast(k))) {
+  if (k->IsInternalizedString() &&
+      isolate->heap()->proto_string()->Equals(String::cast(k))) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
     kind_ = MATERIALIZED_LITERAL;
@@ -411,12 +413,14 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
   receiver_types_.Clear();
   if (key()->IsPropertyName()) {
-    if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
+    ArrayLengthStub array_stub(Code::LOAD_IC);
+    FunctionPrototypeStub proto_stub(Code::LOAD_IC);
+    StringLengthStub string_stub(Code::LOAD_IC, false);
+    if (oracle->LoadIsStub(this, &array_stub)) {
       is_array_length_ = true;
-    } else if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_StringLength)) {
+    } else if (oracle->LoadIsStub(this, &string_stub)) {
       is_string_length_ = true;
-    } else if (oracle->LoadIsBuiltin(this,
-                                     Builtins::kLoadIC_FunctionPrototype)) {
+    } else if (oracle->LoadIsStub(this, &proto_stub)) {
       is_function_prototype_ = true;
     } else {
       Literal* lit_key = key()->AsLiteral();
@@ -429,7 +433,7 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (is_monomorphic_) {
     receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this),
                         zone);
-  } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
+  } else if (oracle->LoadIsPolymorphic(this)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(PropertyFeedbackId(), &receiver_types_);
   }
@@ -451,7 +455,7 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
+  } else if (oracle->StoreIsPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
@@ -467,7 +471,7 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
     // Record receiver type for monomorphic keyed stores.
     receiver_types_.Add(
         oracle->StoreMonomorphicReceiverType(id), zone);
-  } else if (oracle->StoreIsMegamorphicWithTypeInfo(id)) {
+  } else if (oracle->StoreIsPolymorphic(id)) {
     receiver_types_.Reserve(kMaxKeyedPolymorphism, zone);
     oracle->CollectKeyedReceiverTypes(id, &receiver_types_);
   }
@@ -476,11 +480,12 @@ void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle,
 
 void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   TypeInfo info = oracle->SwitchType(this);
+  if (info.IsUninitialized()) info = TypeInfo::Unknown();
   if (info.IsSmi()) {
     compare_type_ = SMI_ONLY;
-  } else if (info.IsSymbol()) {
-    compare_type_ = SYMBOL_ONLY;
-  } else if (info.IsNonSymbol()) {
+  } else if (info.IsInternalizedString()) {
+    compare_type_ = NAME_ONLY;
+  } else if (info.IsNonInternalizedString()) {
     compare_type_ = STRING_ONLY;
   } else if (info.IsNonPrimitive()) {
     compare_type_ = OBJECT_ONLY;
@@ -600,18 +605,7 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->CallNewIsMonomorphic(this);
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(this);
-  }
-}
-
-
-void CompareOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  TypeInfo info = oracle->CompareType(this);
-  if (info.IsSmi()) {
-    compare_type_ = SMI_ONLY;
-  } else if (info.IsNonPrimitive()) {
-    compare_type_ = OBJECT_ONLY;
-  } else {
-    ASSERT(compare_type_ == NONE);
+    elements_kind_ = oracle->GetCallNewElementsKind(this);
   }
 }
 
@@ -625,14 +619,6 @@ void ObjectLiteral::Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 // ----------------------------------------------------------------------------
 // Implementation of AstVisitor
-
-bool AstVisitor::CheckStackOverflow() {
-  if (stack_overflow_) return true;
-  StackLimitCheck check(isolate_);
-  if (!check.HasOverflowed()) return false;
-  return (stack_overflow_ = true);
-}
-
 
 void AstVisitor::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   for (int i = 0; i < declarations->length(); i++) {
@@ -1021,11 +1007,6 @@ CaseClause::CaseClause(Isolate* isolate,
     add_flag(kDontInline); \
     add_flag(kDontSelfOptimize); \
   }
-#define DONT_INLINE_NODE(NodeType) \
-  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
-    increase_node_count(); \
-    add_flag(kDontInline); \
-  }
 #define DONT_SELFOPTIMIZE_NODE(NodeType) \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
@@ -1052,8 +1033,10 @@ REGULAR_NODE(ReturnStatement)
 REGULAR_NODE(SwitchStatement)
 REGULAR_NODE(Conditional)
 REGULAR_NODE(Literal)
+REGULAR_NODE(ArrayLiteral)
 REGULAR_NODE(ObjectLiteral)
 REGULAR_NODE(RegExpLiteral)
+REGULAR_NODE(FunctionLiteral)
 REGULAR_NODE(Assignment)
 REGULAR_NODE(Throw)
 REGULAR_NODE(Property)
@@ -1070,24 +1053,19 @@ REGULAR_NODE(CallNew)
 // LOOKUP variables only result from constructs that cannot be inlined anyway.
 REGULAR_NODE(VariableProxy)
 
-// We currently do not optimize any modules. Note in particular, that module
-// instance objects associated with ModuleLiterals are allocated during
-// scope resolution, and references to them are embedded into the code.
-// That code may hence neither be cached nor re-compiled.
+// We currently do not optimize any modules.
 DONT_OPTIMIZE_NODE(ModuleDeclaration)
 DONT_OPTIMIZE_NODE(ImportDeclaration)
 DONT_OPTIMIZE_NODE(ExportDeclaration)
 DONT_OPTIMIZE_NODE(ModuleVariable)
 DONT_OPTIMIZE_NODE(ModulePath)
 DONT_OPTIMIZE_NODE(ModuleUrl)
+DONT_OPTIMIZE_NODE(ModuleStatement)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(TryCatchStatement)
 DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
 DONT_OPTIMIZE_NODE(SharedFunctionInfoLiteral)
-
-DONT_INLINE_NODE(ArrayLiteral)  // TODO(1322): Allow materialized literals.
-DONT_INLINE_NODE(FunctionLiteral)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
@@ -1103,8 +1081,9 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
     // optimize them.
     add_flag(kDontInline);
   } else if (node->function()->intrinsic_type == Runtime::INLINE &&
-      (node->name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
-       node->name()->IsEqualTo(CStrVector("_Arguments")))) {
+      (node->name()->IsOneByteEqualTo(
+          STATIC_ASCII_VECTOR("_ArgumentsLength")) ||
+       node->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_Arguments")))) {
     // Don't inline the %_ArgumentsLength or %_Arguments because their
     // implementation will not work.  There is no stack frame to get them
     // from.
@@ -1114,7 +1093,6 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 #undef REGULAR_NODE
 #undef DONT_OPTIMIZE_NODE
-#undef DONT_INLINE_NODE
 #undef DONT_SELFOPTIMIZE_NODE
 #undef DONT_CACHE_NODE
 

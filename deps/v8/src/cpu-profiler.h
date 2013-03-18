@@ -134,10 +134,10 @@ class ProfilerEventsProcessor : public Thread {
 
   // Events adding methods. Called by VM threads.
   void CallbackCreateEvent(Logger::LogEventsAndTags tag,
-                           const char* prefix, String* name,
+                           const char* prefix, Name* name,
                            Address start);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                       String* name,
+                       Name* name,
                        String* resource_name, int line_number,
                        Address start, unsigned size,
                        Address shared);
@@ -184,86 +184,71 @@ class ProfilerEventsProcessor : public Thread {
   unsigned enqueue_order_;
 };
 
-} }  // namespace v8::internal
 
-
-#define PROFILE(isolate, Call)                                \
-  LOG_CODE_EVENT(isolate, Call);                              \
-  do {                                                        \
-    if (v8::internal::CpuProfiler::is_profiling(isolate)) {   \
-      v8::internal::CpuProfiler::Call;                        \
-    }                                                         \
+#define PROFILE(IsolateGetter, Call)                                   \
+  do {                                                                 \
+    Isolate* cpu_profiler_isolate = (IsolateGetter);                   \
+    LOG_CODE_EVENT(cpu_profiler_isolate, Call);                        \
+    CpuProfiler* cpu_profiler = cpu_profiler_isolate->cpu_profiler();  \
+    if (cpu_profiler->is_profiling()) {                                \
+      cpu_profiler->Call;                                              \
+    }                                                                  \
   } while (false)
 
 
-namespace v8 {
-namespace internal {
-
-
-// TODO(isolates): isolatify this class.
 class CpuProfiler {
  public:
-  static void SetUp();
-  static void TearDown();
+  explicit CpuProfiler(Isolate* isolate);
+  ~CpuProfiler();
 
-  static void StartProfiling(const char* title);
-  static void StartProfiling(String* title);
-  static CpuProfile* StopProfiling(const char* title);
-  static CpuProfile* StopProfiling(Object* security_token, String* title);
-  static int GetProfilesCount();
-  static CpuProfile* GetProfile(Object* security_token, int index);
-  static CpuProfile* FindProfile(Object* security_token, unsigned uid);
-  static void DeleteAllProfiles();
-  static void DeleteProfile(CpuProfile* profile);
-  static bool HasDetachedProfiles();
+  void StartProfiling(const char* title, bool record_samples = false);
+  void StartProfiling(String* title, bool record_samples);
+  CpuProfile* StopProfiling(const char* title);
+  CpuProfile* StopProfiling(Object* security_token, String* title);
+  int GetProfilesCount();
+  CpuProfile* GetProfile(Object* security_token, int index);
+  CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  void DeleteAllProfiles();
+  void DeleteProfile(CpuProfile* profile);
+  bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
-  static TickSample* TickSampleEvent(Isolate* isolate);
+  TickSample* TickSampleEvent();
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
-  static void CallbackEvent(String* name, Address entry_point);
-  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code, const char* comment);
-  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code, String* name);
-  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code,
+  void CallbackEvent(Name* name, Address entry_point);
+  void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                       Code* code, const char* comment);
+  void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                       Code* code, Name* name);
+  void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                       Code* code,
                               SharedFunctionInfo* shared,
-                              String* name);
-  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code,
-                              SharedFunctionInfo* shared,
-                              String* source, int line);
-  static void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                              Code* code, int args_count);
-  static void CodeMovingGCEvent() {}
-  static void CodeMoveEvent(Address from, Address to);
-  static void CodeDeleteEvent(Address from);
-  static void GetterCallbackEvent(String* name, Address entry_point);
-  static void RegExpCodeCreateEvent(Code* code, String* source);
-  static void SetterCallbackEvent(String* name, Address entry_point);
-  static void SharedFunctionInfoMoveEvent(Address from, Address to);
+                              Name* name);
+  void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                       Code* code,
+                       SharedFunctionInfo* shared,
+                       String* source, int line);
+  void CodeCreateEvent(Logger::LogEventsAndTags tag,
+                       Code* code, int args_count);
+  void CodeMovingGCEvent() {}
+  void CodeMoveEvent(Address from, Address to);
+  void CodeDeleteEvent(Address from);
+  void GetterCallbackEvent(Name* name, Address entry_point);
+  void RegExpCodeCreateEvent(Code* code, String* source);
+  void SetterCallbackEvent(Name* name, Address entry_point);
+  void SharedFunctionInfoMoveEvent(Address from, Address to);
 
-  // TODO(isolates): this doesn't have to use atomics anymore.
-
-  static INLINE(bool is_profiling(Isolate* isolate)) {
-    CpuProfiler* profiler = isolate->cpu_profiler();
-    return profiler != NULL && NoBarrier_Load(&profiler->is_profiling_);
-  }
+  INLINE(bool is_profiling() const) { return is_profiling_; }
 
  private:
-  CpuProfiler();
-  ~CpuProfiler();
-  void StartCollectingProfile(const char* title);
-  void StartCollectingProfile(String* title);
   void StartProcessorIfNotStarted();
-  CpuProfile* StopCollectingProfile(const char* title);
-  CpuProfile* StopCollectingProfile(Object* security_token, String* title);
   void StopProcessorIfLastProfile(const char* title);
   void StopProcessor();
   void ResetProfiles();
 
+  Isolate* isolate_;
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
   TokenEnumerator* token_enumerator_;
@@ -271,7 +256,7 @@ class CpuProfiler {
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
   bool need_to_stop_sampler_;
-  Atomic32 is_profiling_;
+  bool is_profiling_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

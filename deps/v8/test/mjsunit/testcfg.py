@@ -57,11 +57,10 @@ class MjsunitTestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    flags = []
+    flags = [] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
-    flags += context.mode_flags
 
     files_list = []  # List of file names to append to command arguments.
     files_match = FILES_PATTERN.search(source);
@@ -76,7 +75,7 @@ class MjsunitTestSuite(testsuite.TestSuite):
               for f in files_list ]
     testfilename = os.path.join(self.root, testcase.path + self.suffix())
     if SELF_SCRIPT_PATTERN.search(source):
-      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename]
+      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
       files = env + files
     files.append(os.path.join(self.root, "mjsunit.js"))
     files.append(testfilename)

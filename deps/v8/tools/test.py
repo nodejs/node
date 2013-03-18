@@ -685,8 +685,10 @@ SUFFIX = {
     'release' : '' }
 FLAGS = {
     'debug'   : ['--nobreak-on-abort', '--nodead-code-elimination',
-                 '--enable-slow-asserts', '--debug-code', '--verify-heap'],
-    'release' : ['--nobreak-on-abort', '--nodead-code-elimination']}
+                 '--nofold-constants', '--enable-slow-asserts',
+                 '--debug-code', '--verify-heap'],
+    'release' : ['--nobreak-on-abort', '--nodead-code-elimination',
+                 '--nofold-constants']}
 TIMEOUT_SCALEFACTOR = {
     'debug'   : 4,
     'release' : 1 }

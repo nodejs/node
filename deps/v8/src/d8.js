@@ -71,7 +71,7 @@ function GetCompletions(global, last, full) {
         result.push(name);
       }
     }
-    current = ToInspectableObject(current.__proto__);
+    current = ToInspectableObject(Object.getPrototypeOf(current));
   }
   return result;
 }
@@ -123,10 +123,6 @@ Debug.State = {
 var trace_compile = false;  // Tracing all compile events?
 var trace_debug_json = false; // Tracing all debug json packets?
 var last_cmd = '';
-//var lol_is_enabled;  // Set to true in d8.cc if LIVE_OBJECT_LIST is defined.
-var lol_next_dump_index = 0;
-var kDefaultLolLinesToPrintAtATime = 10;
-var kMaxLolLinesToPrintAtATime = 1000;
 var repeat_cmd_line = '';
 var is_running = true;
 // Global variable used to store whether a handle was requested.
@@ -507,13 +503,6 @@ function DebugRequest(cmd_line) {
       this.request_ = void 0;
       break;
 
-    case 'liveobjectlist':
-    case 'lol':
-      if (lol_is_enabled) {
-        this.request_ = this.lolToJSONRequest_(args, is_repeating);
-        break;
-      }
-
     default:
       throw new Error('Unknown command "' + cmd + '"');
   }
@@ -558,52 +547,9 @@ DebugRequest.prototype.createRequest = function(command) {
 };
 
 
-// Note: we use detected command repetition as a signal for continuation here.
-DebugRequest.prototype.createLOLRequest = function(command,
-                                                   start_index,
-                                                   lines_to_dump,
-                                                   is_continuation) {
-  if (is_continuation) {
-    start_index = lol_next_dump_index;
-  }
-
-  if (lines_to_dump) {
-    lines_to_dump = parseInt(lines_to_dump);
-  } else {
-    lines_to_dump = kDefaultLolLinesToPrintAtATime;
-  }
-  if (lines_to_dump > kMaxLolLinesToPrintAtATime) {
-    lines_to_dump = kMaxLolLinesToPrintAtATime;
-  }
-
-  // Save the next start_index to dump from:
-  lol_next_dump_index = start_index + lines_to_dump;
-
-  var request = this.createRequest(command);
-  request.arguments = {};
-  request.arguments.start = start_index;
-  request.arguments.count = lines_to_dump;
-
-  return request;
-};
-
-
 // Create a JSON request for the evaluation command.
 DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
   lookup_handle = null;
-
-  if (lol_is_enabled) {
-    // Check if the expression is a obj id in the form @<obj id>.
-    var obj_id_match = expression.match(/^@([0-9]+)$/);
-    if (obj_id_match) {
-      var obj_id = parseInt(obj_id_match[1]);
-      // Build a dump request.
-      var request = this.createRequest('getobj');
-      request.arguments = {};
-      request.arguments.obj_id = obj_id;
-      return request.toJSONProtocol();
-    }
-  }
 
   // Check if the expression is a handle id in the form #<handle>#.
   var handle_match = expression.match(/^#([0-9]*)#$/);
@@ -1170,10 +1116,6 @@ DebugRequest.prototype.infoCommandToJSONRequest_ = function(args) {
     // Build a evaluate request from the text command.
     request = this.createRequest('frame');
     last_cmd = 'info args';
-  } else if (lol_is_enabled &&
-             args && (args == 'liveobjectlist' || args == 'lol')) {
-    // Build a evaluate request from the text command.
-    return this.liveObjectListToJSONRequest_(null);
   } else {
     throw new Error('Invalid info arguments.');
   }
@@ -1219,262 +1161,6 @@ DebugRequest.prototype.gcToJSONRequest_ = function(args) {
       // Else fall thru to the default case below to report the error.
     default:
       throw new Error('Missing arguments after ' + cmd + '.');
-  }
-  return request.toJSONProtocol();
-};
-
-
-// Args: [v[erbose]] [<N>] [i[ndex] <i>] [t[ype] <type>] [sp[ace] <space>]
-DebugRequest.prototype.lolMakeListRequest =
-    function(cmd, args, first_arg_index, is_repeating) {
-
-  var request;
-  var start_index = 0;
-  var dump_limit = void 0;
-  var type_filter = void 0;
-  var space_filter = void 0;
-  var prop_filter = void 0;
-  var is_verbose = false;
-  var i;
-
-  for (i = first_arg_index; i < args.length; i++) {
-    var arg = args[i];
-    // Check for [v[erbose]]:
-    if (arg === 'verbose' || arg === 'v') {
-      // Nothing to do.  This is already implied by args.length > 3.
-      is_verbose = true;
-
-    // Check for [<N>]:
-    } else if (arg.match(/^[0-9]+$/)) {
-      dump_limit = arg;
-      is_verbose = true;
-
-    // Check for i[ndex] <i>:
-    } else if (arg === 'index' || arg === 'i') {
-      i++;
-      if (args.length < i) {
-        throw new Error('Missing index after ' + arg + '.');
-      }
-      start_index = parseInt(args[i]);
-      // The user input start index starts at 1:
-      if (start_index <= 0) {
-        throw new Error('Invalid index ' + args[i] + '.');
-      }
-      start_index -= 1;
-      is_verbose = true;
-
-    // Check for t[ype] <type>:
-    } else if (arg === 'type' || arg === 't') {
-      i++;
-      if (args.length < i) {
-        throw new Error('Missing type after ' + arg + '.');
-      }
-      type_filter = args[i];
-
-    // Check for space <heap space name>:
-    } else if (arg === 'space' || arg === 'sp') {
-      i++;
-      if (args.length < i) {
-        throw new Error('Missing space name after ' + arg + '.');
-      }
-      space_filter = args[i];
-
-    // Check for property <prop name>:
-    } else if (arg === 'property' || arg === 'prop') {
-      i++;
-      if (args.length < i) {
-        throw new Error('Missing property name after ' + arg + '.');
-      }
-      prop_filter = args[i];
-
-    } else {
-      throw new Error('Unknown args at ' + arg + '.');
-    }
-  }
-
-  // Build the verbose request:
-  if (is_verbose) {
-    request = this.createLOLRequest('lol-'+cmd,
-                                    start_index,
-                                    dump_limit,
-                                    is_repeating);
-    request.arguments.verbose = true;
-  } else {
-    request = this.createRequest('lol-'+cmd);
-    request.arguments = {};
-  }
-
-  request.arguments.filter = {};
-  if (type_filter) {
-    request.arguments.filter.type = type_filter;
-  }
-  if (space_filter) {
-    request.arguments.filter.space = space_filter;
-  }
-  if (prop_filter) {
-    request.arguments.filter.prop = prop_filter;
-  }
-
-  return request;
-};
-
-
-function extractObjId(args) {
-  var id = args;
-  id = id.match(/^@([0-9]+)$/);
-  if (id) {
-    id = id[1];
-  } else {
-    throw new Error('Invalid obj id ' + args + '.');
-  }
-  return parseInt(id);
-}
-
-
-DebugRequest.prototype.lolToJSONRequest_ = function(args, is_repeating) {
-  var request;
-  // Use default command if one is not specified:
-  if (!args) {
-    args = 'info';
-  }
-
-  var orig_args = args;
-  var first_arg_index;
-
-  var arg, i;
-  var args = args.split(/\s+/g);
-  var cmd = args[0];
-  var id;
-
-  // Command: <id> [v[erbose]] ...
-  if (cmd.match(/^[0-9]+$/)) {
-    // Convert to the padded list command:
-    // Command: l[ist] <dummy> <id> [v[erbose]] ...
-
-    // Insert the implicit 'list' in front and process as normal:
-    cmd = 'list';
-    args.unshift(cmd);
-  }
-
-  switch(cmd) {
-    // Command: c[apture]
-    case 'capture':
-    case 'c':
-      request = this.createRequest('lol-capture');
-      break;
-
-    // Command: clear|d[elete] <id>|all
-    case 'clear':
-    case 'delete':
-    case 'del': {
-      if (args.length < 2) {
-        throw new Error('Missing argument after ' + cmd + '.');
-      } else if (args.length > 2) {
-        throw new Error('Too many arguments after ' + cmd + '.');
-      }
-      id = args[1];
-      if (id.match(/^[0-9]+$/)) {
-        // Delete a specific lol record:
-        request = this.createRequest('lol-delete');
-        request.arguments = {};
-        request.arguments.id = parseInt(id);
-      } else if (id === 'all') {
-        // Delete all:
-        request = this.createRequest('lol-reset');
-      } else {
-        throw new Error('Invalid argument after ' + cmd + '.');
-      }
-      break;
-    }
-
-    // Command: diff <id1> <id2> [<dump options>]
-    case 'diff':
-      first_arg_index = 3;
-
-    // Command: list <dummy> <id> [<dump options>]
-    case 'list':
-
-    // Command: ret[ainers] <obj id> [<dump options>]
-    case 'retainers':
-    case 'ret':
-    case 'retaining-paths':
-    case 'rp': {
-      if (cmd === 'ret') cmd = 'retainers';
-      else if (cmd === 'rp') cmd = 'retaining-paths';
-
-      if (!first_arg_index) first_arg_index = 2;
-
-      if (args.length < first_arg_index) {
-        throw new Error('Too few arguments after ' + cmd + '.');
-      }
-
-      var request_cmd = (cmd === 'list') ? 'diff':cmd;
-      request = this.lolMakeListRequest(request_cmd,
-                                        args,
-                                        first_arg_index,
-                                        is_repeating);
-
-      if (cmd === 'diff') {
-        request.arguments.id1 = parseInt(args[1]);
-        request.arguments.id2 = parseInt(args[2]);
-      } else if (cmd == 'list') {
-        request.arguments.id1 = 0;
-        request.arguments.id2 = parseInt(args[1]);
-      } else {
-        request.arguments.id = extractObjId(args[1]);
-      }
-      break;
-    }
-
-    // Command: getid
-    case 'getid': {
-      request = this.createRequest('lol-getid');
-      request.arguments = {};
-      request.arguments.address = args[1];
-      break;
-    }
-
-    // Command: inf[o] [<N>]
-    case 'info':
-    case 'inf': {
-      if (args.length > 2) {
-        throw new Error('Too many arguments after ' + cmd + '.');
-      }
-      // Built the info request:
-      request = this.createLOLRequest('lol-info', 0, args[1], is_repeating);
-      break;
-    }
-
-    // Command: path <obj id 1> <obj id 2>
-    case 'path': {
-      request = this.createRequest('lol-path');
-      request.arguments = {};
-      if (args.length > 2) {
-        request.arguments.id1 = extractObjId(args[1]);
-        request.arguments.id2 = extractObjId(args[2]);
-      } else {
-        request.arguments.id1 = 0;
-        request.arguments.id2 = extractObjId(args[1]);
-      }
-      break;
-    }
-
-    // Command: print
-    case 'print': {
-      request = this.createRequest('lol-print');
-      request.arguments = {};
-      request.arguments.id = extractObjId(args[1]);
-      break;
-    }
-
-    // Command: reset
-    case 'reset': {
-      request = this.createRequest('lol-reset');
-      break;
-    }
-
-    default:
-      throw new Error('Invalid arguments.');
   }
   return request.toJSONProtocol();
 };
@@ -1545,7 +1231,6 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('inf[o] br[eak]             - prints info about breakpoints in use');
   print('inf[o] ar[gs]              - prints info about arguments of the current function');
   print('inf[o] lo[cals]            - prints info about locals in the current function');
-  print('inf[o] liveobjectlist|lol  - same as \'lol info\'');
   print('');
   print('step [in | next | out| min [step count]]');
   print('c[ontinue]                 - continue executing after a breakpoint');
@@ -1566,49 +1251,6 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('');
   print('gc                         - runs the garbage collector');
   print('');
-
-  if (lol_is_enabled) {
-    print('liveobjectlist|lol <command> - live object list tracking.');
-    print('  where <command> can be:');
-    print('  c[apture]               - captures a LOL list.');
-    print('  clear|del[ete] <id>|all - clears LOL of id <id>.');
-    print('                            If \'all\' is unspecified instead, will clear all.');
-    print('  diff <id1> <id2> [<dump options>]');
-    print('                          - prints the diff between LOLs id1 and id2.');
-    print('                          - also see <dump options> below.');
-    print('  getid <address>         - gets the obj id for the specified address if available.');
-    print('                            The address must be in hex form prefixed with 0x.');
-    print('  inf[o] [<N>]            - lists summary info of all LOL lists.');
-    print('                            If N is specified, will print N items at a time.');
-    print('  [l[ist]] <id> [<dump options>]');
-    print('                          - prints the listing of objects in LOL id.');
-    print('                          - also see <dump options> below.');
-    print('  reset                   - clears all LOL lists.');
-    print('  ret[ainers] <id> [<dump options>]');
-    print('                          - prints the list of retainers of obj id.');
-    print('                          - also see <dump options> below.');
-    print('  path <id1> <id2>        - prints the retaining path from obj id1 to id2.');
-    print('                            If only one id is specified, will print the path from');
-    print('                            roots to the specified object if available.');
-    print('  print <id>              - prints the obj for the specified obj id if available.');
-    print('');
-    print('  <dump options> includes:');
-    print('     [v[erbose]]            - do verbose dump.');
-    print('     [<N>]                  - dump N items at a time.  Implies verbose dump.');
-    print('                             If unspecified, N will default to '+
-          kDefaultLolLinesToPrintAtATime+'.  Max N is '+
-          kMaxLolLinesToPrintAtATime+'.');
-    print('     [i[ndex] <i>]          - start dump from index i.  Implies verbose dump.');
-    print('     [t[ype] <type>]        - filter by type.');
-    print('     [sp[ace] <space name>] - filter by heap space where <space name> is one of');
-    print('                              { cell, code, lo, map, new, old-data, old-pointer }.');
-    print('');
-    print('     If the verbose option, or an option that implies a verbose dump');
-    print('     is specified, then a verbose dump will requested.  Else, a summary dump');
-    print('     will be requested.');
-    print('');
-  }
-
   print('trace compile');
   // hidden command: trace debug json - toggles tracing of debug json packets
   print('');
@@ -1706,237 +1348,6 @@ function refObjectToString_(protocolPackage, handle) {
     result += formatObject_(value, true);
   }
   return result;
-}
-
-
-function decodeLolCaptureResponse(body) {
-  var result;
-  result = 'Captured live object list '+ body.id +
-           ': count '+ body.count + ' size ' + body.size;
-  return result;
-}
-
-
-function decodeLolDeleteResponse(body) {
-  var result;
-  result = 'Deleted live object list '+ body.id;
-  return result;
-}
-
-
-function digitsIn(value) {
-  var digits = 0;
-  if (value === 0) value = 1;
-  while (value >= 1) {
-    digits++;
-    value /= 10;
-  }
-  return digits;
-}
-
-
-function padding(value, max_digits) {
-  var padding_digits = max_digits - digitsIn(value);
-  var padding = '';
-  while (padding_digits > 0) {
-    padding += ' ';
-    padding_digits--;
-  }
-  return padding;
-}
-
-
-function decodeLolInfoResponse(body) {
-  var result;
-  var lists = body.lists;
-  var length = lists.length;
-  var first_index = body.first_index + 1;
-  var has_more = ((first_index + length) <= body.count);
-  result = 'captured live object lists';
-  if (has_more || (first_index != 1)) {
-    result += ' ['+ length +' of '+ body.count +
-              ': starting from '+ first_index +']';
-  }
-  result += ':\n';
-  var max_digits = digitsIn(body.count);
-  var last_count = 0;
-  var last_size = 0;
-  for (var i = 0; i < length; i++) {
-    var entry = lists[i];
-    var count = entry.count;
-    var size = entry.size;
-    var index = first_index + i;
-    result += '  [' + padding(index, max_digits) + index + '] id '+ entry.id +
-              ': count '+ count;
-    if (last_count > 0) {
-      result += '(+' + (count - last_count) + ')';
-    }
-    result += ' size '+ size;
-    if (last_size > 0) {
-      result += '(+' + (size - last_size) + ')';
-    }
-    result += '\n';
-    last_count = count;
-    last_size = size;
-  }
-  result += '  total: '+length+' lists\n';
-  if (has_more) {
-    result += '  -- press <enter> for more --\n';
-  } else {
-    repeat_cmd_line = '';
-  }
-  if (length === 0) result += '  none\n';
-
-  return result;
-}
-
-
-function decodeLolListResponse(body, title) {
-
-  var result;
-  var total_count = body.count;
-  var total_size = body.size;
-  var length;
-  var max_digits;
-  var i;
-  var entry;
-  var index;
-
-  var max_count_digits = digitsIn(total_count);
-  var max_size_digits;
-
-  var summary = body.summary;
-  if (summary) {
-
-    var roots_count = 0;
-    var found_root = body.found_root || 0;
-    var found_weak_root = body.found_weak_root || 0;
-
-    // Print the summary result:
-    result = 'summary of objects:\n';
-    length = summary.length;
-    if (found_root !== 0) {
-      roots_count++;
-    }
-    if (found_weak_root !== 0) {
-      roots_count++;
-    }
-    max_digits = digitsIn(length + roots_count);
-    max_size_digits = digitsIn(total_size);
-
-    index = 1;
-    if (found_root !== 0) {
-      result += '  [' + padding(index, max_digits) + index + '] ' +
-                ' count '+ 1 + padding(0, max_count_digits) +
-                '      '+ padding(0, max_size_digits+1) +
-                ' : <root>\n';
-      index++;
-    }
-    if (found_weak_root !== 0) {
-      result += '  [' + padding(index, max_digits) + index + '] ' +
-                ' count '+ 1 + padding(0, max_count_digits) +
-                '      '+ padding(0, max_size_digits+1) +
-                ' : <weak root>\n';
-      index++;
-    }
-
-    for (i = 0; i < length; i++) {
-      entry = summary[i];
-      var count = entry.count;
-      var size = entry.size;
-      result += '  [' + padding(index, max_digits) + index + '] ' +
-                ' count '+ count + padding(count, max_count_digits) +
-                ' size '+ size + padding(size, max_size_digits) +
-                ' : <' + entry.desc + '>\n';
-      index++;
-    }
-    result += '\n  total count: '+(total_count+roots_count)+'\n';
-    if (body.size) {
-      result += '  total size:  '+body.size+'\n';
-    }
-
-  } else {
-    // Print the full dump result:
-    var first_index = body.first_index + 1;
-    var elements = body.elements;
-    length = elements.length;
-    var has_more = ((first_index + length) <= total_count);
-    result = title;
-    if (has_more || (first_index != 1)) {
-      result += ' ['+ length +' of '+ total_count +
-                ': starting from '+ first_index +']';
-    }
-    result += ':\n';
-    if (length === 0) result += '  none\n';
-    max_digits = digitsIn(length);
-
-    var max_id = 0;
-    var max_size = 0;
-    for (i = 0; i < length; i++) {
-      entry = elements[i];
-      if (entry.id > max_id) max_id = entry.id;
-      if (entry.size > max_size) max_size = entry.size;
-    }
-    var max_id_digits = digitsIn(max_id);
-    max_size_digits = digitsIn(max_size);
-
-    for (i = 0; i < length; i++) {
-      entry = elements[i];
-      index = first_index + i;
-      result += '  ['+ padding(index, max_digits) + index +']';
-      if (entry.id !== 0) {
-        result += ' @' + entry.id + padding(entry.id, max_id_digits) +
-                  ': size ' + entry.size + ', ' +
-                  padding(entry.size, max_size_digits) +  entry.desc + '\n';
-      } else {
-        // Must be a root or weak root:
-        result += ' ' + entry.desc + '\n';
-      }
-    }
-    if (has_more) {
-      result += '  -- press <enter> for more --\n';
-    } else {
-      repeat_cmd_line = '';
-    }
-    if (length === 0) result += '  none\n';
-  }
-
-  return result;
-}
-
-
-function decodeLolDiffResponse(body) {
-  var title = 'objects';
-  return decodeLolListResponse(body, title);
-}
-
-
-function decodeLolRetainersResponse(body) {
-  var title = 'retainers for @' + body.id;
-  return decodeLolListResponse(body, title);
-}
-
-
-function decodeLolPathResponse(body) {
-  return body.path;
-}
-
-
-function decodeLolResetResponse(body) {
-  return 'Reset all live object lists.';
-}
-
-
-function decodeLolGetIdResponse(body) {
-  if (body.id == 0) {
-    return 'Address is invalid, or object has been moved or collected';
-  }
-  return 'obj id is @' + body.id;
-}
-
-
-function decodeLolPrintResponse(body) {
-  return body.dump;
 }
 
 
@@ -2274,34 +1685,6 @@ function DebugResponseDetails(response) {
               " (" + roundNumber(body.before/1024, 1) + "K => " +
                      roundNumber(body.after/1024, 1) + "K)";
         }
-        break;
-
-      case 'lol-capture':
-        details.text = decodeLolCaptureResponse(body);
-        break;
-      case 'lol-delete':
-        details.text = decodeLolDeleteResponse(body);
-        break;
-      case 'lol-diff':
-        details.text = decodeLolDiffResponse(body);
-        break;
-      case 'lol-getid':
-        details.text = decodeLolGetIdResponse(body);
-        break;
-      case 'lol-info':
-        details.text = decodeLolInfoResponse(body);
-        break;
-      case 'lol-print':
-        details.text = decodeLolPrintResponse(body);
-        break;
-      case 'lol-reset':
-        details.text = decodeLolResetResponse(body);
-        break;
-      case 'lol-retainers':
-        details.text = decodeLolRetainersResponse(body);
-        break;
-      case 'lol-path':
-        details.text = decodeLolPathResponse(body);
         break;
 
       default:
@@ -2810,4 +2193,60 @@ function SimpleArrayToJSON_(array) {
   }
   json += ']';
   return json;
+}
+
+
+// A more universal stringify that supports more types than JSON.
+// Used by the d8 shell to output results.
+var stringifyDepthLimit = 4;  // To avoid crashing on cyclic objects
+
+function Stringify(x, depth) {
+  if (depth === undefined)
+    depth = stringifyDepthLimit;
+  else if (depth === 0)
+    return "*";
+  switch (typeof x) {
+    case "undefined":
+      return "undefined";
+    case "boolean":
+    case "number":
+    case "function":
+      return x.toString();
+    case "string":
+      return "\"" + x.toString() + "\"";
+    // TODO(rossberg): add symbol case
+    case "object":
+      if (x === null) return "null";
+      if (x.constructor && x.constructor.name === "Array") {
+        var elems = [];
+        for (var i = 0; i < x.length; ++i) {
+          elems.push(
+            {}.hasOwnProperty.call(x, i) ? Stringify(x[i], depth - 1) : "");
+        }
+        return "[" + elems.join(", ") + "]";
+      }
+      try {
+        var string = String(x);
+        if (string && string !== "[object Object]") return string;
+      } catch(e) {}
+      var props = [];
+      for (var name in x) {
+        var desc = Object.getOwnPropertyDescriptor(x, name);
+        if (desc === void 0) continue;
+        if ("value" in desc) {
+          props.push(name + ": " + Stringify(desc.value, depth - 1));
+        }
+        if ("get" in desc) {
+          var getter = desc.get.toString();
+          props.push("get " + name + getter.slice(getter.indexOf('(')));
+        }
+        if ("set" in desc) {
+          var setter = desc.set.toString();
+          props.push("set " + name + setter.slice(setter.indexOf('(')));
+        }
+      }
+      return "{" + props.join(", ") + "}";
+    default:
+      return "[crazy non-standard shit]";
+  }
 }

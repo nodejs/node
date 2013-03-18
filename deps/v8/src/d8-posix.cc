@@ -449,7 +449,7 @@ static bool WaitForChild(int pid,
 
 // Implementation of the system() function (see d8.h for details).
 Handle<Value> Shell::System(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(args.GetIsolate());
   int read_timeout = -1;
   int total_timeout = -1;
   if (!GetTimeouts(args, &read_timeout, &total_timeout)) return v8::Undefined();

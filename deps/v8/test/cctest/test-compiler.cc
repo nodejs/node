@@ -67,7 +67,7 @@ v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunction(
 v8::Handle<v8::Value> PrintExtension::Print(const v8::Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     if (i != 0) printf(" ");
-    v8::HandleScope scope;
+    v8::HandleScope scope(args.GetIsolate());
     v8::String::Utf8Value str(args[i]);
     if (*str == NULL) return v8::Undefined();
     printf("%s", *str);
@@ -83,27 +83,28 @@ v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
 
 static void InitializeVM() {
   if (env.IsEmpty()) {
-    v8::HandleScope scope;
     const char* extensions[] = { "v8/print", "v8/gc" };
     v8::ExtensionConfiguration config(2, extensions);
     env = v8::Context::New(&config);
   }
-  v8::HandleScope scope;
   env->Enter();
 }
 
 
 static MaybeObject* GetGlobalProperty(const char* name) {
-  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
-  return Isolate::Current()->context()->global_object()->GetProperty(*symbol);
+  Handle<String> internalized_name = FACTORY->InternalizeUtf8String(name);
+  return Isolate::Current()->context()->global_object()->GetProperty(
+      *internalized_name);
 }
 
 
 static void SetGlobalProperty(const char* name, Object* value) {
-  Handle<Object> object(value);
-  Handle<String> symbol = FACTORY->LookupAsciiSymbol(name);
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
-  SetProperty(global, symbol, object, NONE, kNonStrictMode);
+  Isolate* isolate = Isolate::Current();
+  Handle<Object> object(value, isolate);
+  Handle<String> internalized_name =
+      isolate->factory()->InternalizeUtf8String(name);
+  Handle<JSObject> global(isolate->context()->global_object());
+  SetProperty(isolate, global, internalized_name, object, NONE, kNonStrictMode);
 }
 
 
@@ -142,7 +143,7 @@ static double Inc(int x) {
 
 TEST(Inc) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   CHECK_EQ(4.0, Inc(3));
 }
 
@@ -163,7 +164,7 @@ static double Add(int x, int y) {
 
 TEST(Add) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   CHECK_EQ(5.0, Add(2, 3));
 }
 
@@ -183,7 +184,7 @@ static double Abs(int x) {
 
 TEST(Abs) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   CHECK_EQ(3.0, Abs(-3));
 }
 
@@ -204,14 +205,14 @@ static double Sum(int n) {
 
 TEST(Sum) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   CHECK_EQ(5050.0, Sum(100));
 }
 
 
 TEST(Print) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
@@ -226,7 +227,7 @@ TEST(Print) {
 // tests all the functionality I have added to the compiler today
 TEST(Stuff) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   const char* source =
     "r = 0;\n"
     "a = new Object;\n"
@@ -258,17 +259,17 @@ TEST(Stuff) {
 
 TEST(UncaughtThrow) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   const char* source = "throw 42;";
   Handle<JSFunction> fun = Compile(source);
   CHECK(!fun.is_null());
   bool has_pending_exception;
-  Handle<JSObject> global(Isolate::Current()->context()->global_object());
+  Isolate* isolate = fun->GetIsolate();
+  Handle<JSObject> global(isolate->context()->global_object());
   Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
-  CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
-           ToObjectChecked()->Number());
+  CHECK_EQ(42.0, isolate->pending_exception()->ToObjectChecked()->Number());
 }
 
 
@@ -280,12 +281,13 @@ TEST(UncaughtThrow) {
 //   |   C-to-JS     |
 TEST(C2JSFrames) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   const char* source = "function foo(a) { gc(), print(a); }";
 
   Handle<JSFunction> fun0 = Compile(source);
   CHECK(!fun0.is_null());
+  Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
   bool has_pending_exception;
@@ -293,13 +295,16 @@ TEST(C2JSFrames) {
   Execution::Call(fun0, global, 0, NULL, &has_pending_exception);
   CHECK(!has_pending_exception);
 
-  Object* foo_symbol = FACTORY->LookupAsciiSymbol("foo")->ToObjectChecked();
-  MaybeObject* fun1_object = Isolate::Current()->context()->global_object()->
-      GetProperty(String::cast(foo_symbol));
-  Handle<Object> fun1(fun1_object->ToObjectChecked());
+  Object* foo_string =
+      FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("foo"))->
+        ToObjectChecked();
+  MaybeObject* fun1_object = isolate->context()->global_object()->
+      GetProperty(String::cast(foo_string));
+  Handle<Object> fun1(fun1_object->ToObjectChecked(), isolate);
   CHECK(fun1->IsJSFunction());
 
-  Handle<Object> argv[] = { FACTORY->LookupAsciiSymbol("hello") };
+  Handle<Object> argv[] =
+    { FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("hello")) };
   Execution::Call(Handle<JSFunction>::cast(fun1),
                   global,
                   ARRAY_SIZE(argv),
@@ -313,7 +318,7 @@ TEST(C2JSFrames) {
 // source resulted in crash.
 TEST(Regression236) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   Handle<Script> script = FACTORY->NewScript(FACTORY->empty_string());
   script->set_source(HEAP->undefined_value());
@@ -325,7 +330,7 @@ TEST(Regression236) {
 
 TEST(GetScriptLineNumber) {
   LocalContext env;
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
   const char function_f[] = "function f() {}";
   const int max_rows = 1000;
@@ -355,7 +360,7 @@ TEST(OptimizedCodeSharing) {
   if (!FLAG_cache_optimized_code) return;
   FLAG_allow_natives_syntax = true;
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   for (int i = 0; i < 10; i++) {
     LocalContext env;
     env->Global()->Set(v8::String::New("x"), v8::Integer::New(i));
@@ -418,8 +423,8 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
 
 TEST(SplitConstantsInFullCompiler) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   CompileRun("function f() { a = 12345678 }; f();");
   CheckCodeForUnsafeLiteral(GetJSFunction(env->Global(), "f"));

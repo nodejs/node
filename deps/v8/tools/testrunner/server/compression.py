@@ -30,7 +30,6 @@ import cStringIO as StringIO
 try:
   import ujson as json
 except ImportError:
-  print("You should install UltraJSON, it is much faster!")
   import json
 import os
 import struct

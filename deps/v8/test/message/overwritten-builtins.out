@@ -28,3 +28,5 @@
 *%(basename)s:31: TypeError: Cannot read property 'x' of undefined
 undefined.x
          ^
+TypeError: Cannot read property 'x' of undefined
+    at *%(basename)s:31:10

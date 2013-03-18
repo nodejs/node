@@ -43,7 +43,8 @@ Address IC::address() const {
   Address result = Assembler::target_address_from_return_address(pc());
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debug* debug = Isolate::Current()->debug();
+  ASSERT(Isolate::Current() == isolate());
+  Debug* debug = isolate()->debug();
   // First check if any break points are active if not just return the address
   // of the call.
   if (!debug->has_break_points()) return result;
@@ -106,8 +107,9 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object,
     return GetCodeCacheForObject(JSObject::cast(object), holder);
   }
   // If the object is a value, we use the prototype map for the cache.
-  ASSERT(object->IsString() || object->IsNumber() || object->IsBoolean());
-  return PROTOTYPE_MAP;
+  ASSERT(object->IsString() || object->IsSymbol() ||
+         object->IsNumber() || object->IsBoolean());
+  return DELEGATE_MAP;
 }
 
 
@@ -122,14 +124,16 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(JSObject* object,
       !object->HasFastProperties() &&
       !object->IsJSGlobalProxy() &&
       !object->IsJSGlobalObject()) {
-    return PROTOTYPE_MAP;
+    return DELEGATE_MAP;
   }
   return OWN_MAP;
 }
 
 
-JSObject* IC::GetCodeCacheHolder(Object* object, InlineCacheHolderFlag holder) {
-  Object* map_owner = (holder == OWN_MAP ? object : object->GetPrototype());
+JSObject* IC::GetCodeCacheHolder(Isolate* isolate,
+                                 Object* object,
+                                 InlineCacheHolderFlag holder) {
+  Object* map_owner = holder == OWN_MAP ? object : object->GetDelegate(isolate);
   ASSERT(map_owner->IsJSObject());
   return JSObject::cast(map_owner);
 }

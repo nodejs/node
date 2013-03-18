@@ -1,4 +1,29 @@
 // Copyright 2010 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Tests of profiles generator and utilities.
 
@@ -36,7 +61,7 @@ class TokenEnumeratorTester {
 TEST(TokenEnumerator) {
   TokenEnumerator te;
   CHECK_EQ(TokenEnumerator::kNoSecurityToken, te.GetTokenId(NULL));
-  v8::HandleScope hs;
+  v8::HandleScope hs(v8::Isolate::GetCurrent());
   v8::Local<v8::String> token1(v8::String::New("1x"));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
@@ -45,7 +70,7 @@ TEST(TokenEnumerator) {
   CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   {
-    v8::HandleScope hs;
+    v8::HandleScope hs(v8::Isolate::GetCurrent());
     v8::Local<v8::String> token3(v8::String::New("3x"));
     CHECK_EQ(2, te.GetTokenId(*v8::Utils::OpenHandle(*token3)));
     CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
@@ -60,7 +85,8 @@ TEST(TokenEnumerator) {
 
 
 TEST(ProfileNodeFindOrAddChild) {
-  ProfileNode node(NULL, NULL);
+  ProfileTree tree;
+  ProfileNode node(&tree, NULL);
   CodeEntry entry1(i::Logger::FUNCTION_TAG, "", "aaa", "", 0,
                    TokenEnumerator::kNoSecurityToken);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
@@ -88,7 +114,8 @@ TEST(ProfileNodeFindOrAddChild) {
 TEST(ProfileNodeFindOrAddChildForSameFunction) {
   const char* empty = "";
   const char* aaa = "aaa";
-  ProfileNode node(NULL, NULL);
+  ProfileTree tree;
+  ProfileNode node(&tree, NULL);
   CodeEntry entry1(i::Logger::FUNCTION_TAG, empty, aaa, empty, 0,
                      TokenEnumerator::kNoSecurityToken);
   ProfileNode* childNode1 = node.FindOrAddChild(&entry1);
@@ -582,7 +609,7 @@ class TestSetup {
 TEST(RecordTickSample) {
   TestSetup test_setup;
   CpuProfilesCollection profiles;
-  profiles.StartProfiling("", 1);
+  profiles.StartProfiling("", 1, false);
   ProfileGenerator generator(&profiles);
   CodeEntry* entry1 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "bbb");
@@ -688,6 +715,88 @@ TEST(SampleRateCalculator) {
 }
 
 
+static void CheckNodeIds(ProfileNode* node, int* expectedId) {
+  CHECK_EQ((*expectedId)++, node->id());
+  for (int i = 0; i < node->children()->length(); i++) {
+    CheckNodeIds(node->children()->at(i), expectedId);
+  }
+}
+
+TEST(SampleIds) {
+  TestSetup test_setup;
+  CpuProfilesCollection profiles;
+  profiles.StartProfiling("", 1, true);
+  ProfileGenerator generator(&profiles);
+  CodeEntry* entry1 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  CodeEntry* entry2 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "bbb");
+  CodeEntry* entry3 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "ccc");
+  generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
+  generator.code_map()->AddCode(ToAddress(0x1700), entry2, 0x100);
+  generator.code_map()->AddCode(ToAddress(0x1900), entry3, 0x50);
+
+  // We are building the following calls tree:
+  //                    -> aaa #3           - sample1
+  // (root)#1 -> aaa #2 -> bbb #4 -> ccc #5 - sample2
+  //                    -> ccc #6 -> aaa #7 - sample3
+  TickSample sample1;
+  sample1.pc = ToAddress(0x1600);
+  sample1.stack[0] = ToAddress(0x1510);
+  sample1.frames_count = 1;
+  generator.RecordTickSample(sample1);
+  TickSample sample2;
+  sample2.pc = ToAddress(0x1925);
+  sample2.stack[0] = ToAddress(0x1780);
+  sample2.stack[1] = ToAddress(0x10000);  // non-existent.
+  sample2.stack[2] = ToAddress(0x1620);
+  sample2.frames_count = 3;
+  generator.RecordTickSample(sample2);
+  TickSample sample3;
+  sample3.pc = ToAddress(0x1510);
+  sample3.stack[0] = ToAddress(0x1910);
+  sample3.stack[1] = ToAddress(0x1610);
+  sample3.frames_count = 2;
+  generator.RecordTickSample(sample3);
+
+  CpuProfile* profile =
+      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  int nodeId = 1;
+  CheckNodeIds(profile->top_down()->root(), &nodeId);
+  CHECK_EQ(7, nodeId - 1);
+
+  CHECK_EQ(3, profile->samples_count());
+  int expected_id[] = {3, 5, 7};
+  for (int i = 0; i < 3; i++) {
+    CHECK_EQ(expected_id[i], profile->sample(i)->id());
+  }
+}
+
+
+TEST(NoSamples) {
+  TestSetup test_setup;
+  CpuProfilesCollection profiles;
+  profiles.StartProfiling("", 1, false);
+  ProfileGenerator generator(&profiles);
+  CodeEntry* entry1 = generator.NewCodeEntry(i::Logger::FUNCTION_TAG, "aaa");
+  generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
+
+  // We are building the following calls tree:
+  // (root)#1 -> aaa #2 -> aaa #3 - sample1
+  TickSample sample1;
+  sample1.pc = ToAddress(0x1600);
+  sample1.stack[0] = ToAddress(0x1510);
+  sample1.frames_count = 1;
+  generator.RecordTickSample(sample1);
+
+  CpuProfile* profile =
+      profiles.StopProfiling(TokenEnumerator::kNoSecurityToken, "", 1);
+  int nodeId = 1;
+  CheckNodeIds(profile->top_down()->root(), &nodeId);
+  CHECK_EQ(3, nodeId - 1);
+
+  CHECK_EQ(0, profile->samples_count());
+}
+
+
 // --- P r o f i l e r   E x t e n s i o n ---
 
 class ProfilerExtension : public v8::Extension {
@@ -759,24 +868,24 @@ TEST(RecordStackTraceAtStartProfiling) {
   i::FLAG_use_inlining = false;
 
   if (env.IsEmpty()) {
-    v8::HandleScope scope;
+    v8::HandleScope scope(v8::Isolate::GetCurrent());
     const char* extensions[] = { "v8/profiler" };
     v8::ExtensionConfiguration config(1, extensions);
     env = v8::Context::New(&config);
   }
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   env->Enter();
 
-  CHECK_EQ(0, CpuProfiler::GetProfilesCount());
+  CpuProfiler* profiler = i::Isolate::Current()->cpu_profiler();
+  CHECK_EQ(0, profiler->GetProfilesCount());
   CompileRun(
       "function c() { startProfiling(); }\n"
       "function b() { c(); }\n"
       "function a() { b(); }\n"
       "a();\n"
       "stopProfiling();");
-  CHECK_EQ(1, CpuProfiler::GetProfilesCount());
-  CpuProfile* profile =
-      CpuProfiler::GetProfile(NULL, 0);
+  CHECK_EQ(1, profiler->GetProfilesCount());
+  CpuProfile* profile = profiler->GetProfile(NULL, 0);
   const ProfileTree* topDown = profile->top_down();
   const ProfileNode* current = topDown->root();
   const_cast<ProfileNode*>(current)->Print(0);
@@ -813,11 +922,12 @@ TEST(Issue51919) {
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i) {
     i::Vector<char> title = i::Vector<char>::New(16);
     i::OS::SNPrintF(title, "%d", i);
-    CHECK(collection.StartProfiling(title.start(), i + 1));  // UID must be > 0.
+    // UID must be > 0.
+    CHECK(collection.StartProfiling(title.start(), i + 1, false));
     titles[i] = title.start();
   }
   CHECK(!collection.StartProfiling(
-      "maximum", CpuProfilesCollection::kMaxSimultaneousProfiles + 1));
+      "maximum", CpuProfilesCollection::kMaxSimultaneousProfiles + 1, false));
   for (int i = 0; i < CpuProfilesCollection::kMaxSimultaneousProfiles; ++i)
     i::DeleteArray(titles[i]);
 }

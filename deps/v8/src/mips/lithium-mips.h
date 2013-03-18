@@ -50,6 +50,7 @@ class LCodeGen;
   V(AccessArgumentsAt)                          \
   V(AddI)                                       \
   V(AllocateObject)                             \
+  V(Allocate)                                   \
   V(ApplyArguments)                             \
   V(ArgumentsElements)                          \
   V(ArgumentsLength)                            \
@@ -67,6 +68,7 @@ class LCodeGen;
   V(CallKnownGlobal)                            \
   V(CallNamed)                                  \
   V(CallNew)                                    \
+  V(CallNewArray)                               \
   V(CallRuntime)                                \
   V(CallStub)                                   \
   V(CheckFunction)                              \
@@ -93,6 +95,7 @@ class LCodeGen;
   V(Deoptimize)                                 \
   V(DivI)                                       \
   V(DoubleToI)                                  \
+  V(DummyUse)                                   \
   V(ElementsKind)                               \
   V(FastLiteral)                                \
   V(FixedArrayBaseLength)                       \
@@ -106,6 +109,7 @@ class LCodeGen;
   V(In)                                         \
   V(InstanceOf)                                 \
   V(InstanceOfKnownGlobal)                      \
+  V(InstanceSize)                               \
   V(InstructionGap)                             \
   V(Integer32ToDouble)                          \
   V(Uint32ToDouble)                             \
@@ -125,17 +129,17 @@ class LCodeGen;
   V(LoadFunctionPrototype)                      \
   V(LoadGlobalCell)                             \
   V(LoadGlobalGeneric)                          \
-  V(LoadKeyedFastDoubleElement)                 \
-  V(LoadKeyedFastElement)                       \
+  V(LoadKeyed)                                  \
   V(LoadKeyedGeneric)                           \
-  V(LoadKeyedSpecializedArrayElement)           \
   V(LoadNamedField)                             \
   V(LoadNamedFieldPolymorphic)                  \
   V(LoadNamedGeneric)                           \
   V(MapEnumLength)                              \
+  V(MathExp)                                    \
   V(MathMinMax)                                 \
   V(ModI)                                       \
   V(MulI)                                       \
+  V(MultiplyAddD)                               \
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberTagU)                                 \
@@ -149,6 +153,7 @@ class LCodeGen;
   V(Random)                                     \
   V(RegExpLiteral)                              \
   V(Return)                                     \
+  V(SeqStringSetChar)                           \
   V(ShiftI)                                     \
   V(SmiTag)                                     \
   V(SmiUntag)                                   \
@@ -156,10 +161,8 @@ class LCodeGen;
   V(StoreContextSlot)                           \
   V(StoreGlobalCell)                            \
   V(StoreGlobalGeneric)                         \
-  V(StoreKeyedFastDoubleElement)                \
-  V(StoreKeyedFastElement)                      \
+  V(StoreKeyed)                                 \
   V(StoreKeyedGeneric)                          \
-  V(StoreKeyedSpecializedArrayElement)          \
   V(StoreNamedField)                            \
   V(StoreNamedGeneric)                          \
   V(StringAdd)                                  \
@@ -173,6 +176,7 @@ class LCodeGen;
   V(Throw)                                      \
   V(ToFastProperties)                           \
   V(TransitionElementsKind)                     \
+  V(TrapAllocationMemento)                      \
   V(Typeof)                                     \
   V(TypeofIsAndBranch)                          \
   V(UnaryMathOperation)                         \
@@ -184,7 +188,9 @@ class LCodeGen;
   V(LoadFieldByIndex)                           \
   V(DateField)                                  \
   V(WrapReceiver)                               \
-  V(Drop)
+  V(Drop)                                       \
+  V(InnerAllocatedObject)
+
 
 #define DECLARE_CONCRETE_INSTRUCTION(type, mnemonic)              \
   virtual Opcode opcode() const { return LInstruction::k##type; } \
@@ -252,6 +258,11 @@ class LInstruction: public ZoneObject {
   virtual void SetDeferredLazyDeoptimizationEnvironment(LEnvironment* env) { }
 
   void MarkAsCall() { is_call_ = true; }
+
+  // Interface to the register allocator and iterators.
+  bool ClobbersTemps() const { return is_call_; }
+  bool ClobbersRegisters() const { return is_call_; }
+  bool ClobbersDoubleRegisters() const { return is_call_; }
 
   // Interface to the register allocator and iterators.
   bool IsMarkedAsCall() const { return is_call_; }
@@ -394,6 +405,15 @@ class LLazyBailout: public LTemplateInstruction<0, 0, 0> {
 
  private:
   int gap_instructions_size_;
+};
+
+
+class LDummyUse: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LDummyUse(LOperand* value) {
+    inputs_[0] = value;
+  }
+  DECLARE_CONCRETE_INSTRUCTION(DummyUse, "dummy-use")
 };
 
 
@@ -605,6 +625,24 @@ class LMulI: public LTemplateInstruction<1, 2, 1> {
 };
 
 
+// Instruction for computing multiplier * multiplicand + addend.
+class LMultiplyAddD: public LTemplateInstruction<1, 3, 0> {
+ public:
+  LMultiplyAddD(LOperand* addend, LOperand* multiplier,
+                LOperand* multiplicand) {
+    inputs_[0] = addend;
+    inputs_[1] = multiplier;
+    inputs_[2] = multiplicand;
+  }
+
+  LOperand* addend() { return inputs_[0]; }
+  LOperand* multiplier() { return inputs_[1]; }
+  LOperand* multiplicand() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MultiplyAddD, "multiply-add-d")
+};
+
+
 class LCmpIDAndBranch: public LControlInstruction<2, 0> {
  public:
   LCmpIDAndBranch(LOperand* left, LOperand* right) {
@@ -620,7 +658,7 @@ class LCmpIDAndBranch: public LControlInstruction<2, 0> {
 
   Token::Value op() const { return hydrogen()->token(); }
   bool is_double() const {
-    return hydrogen()->GetInputRepresentation().IsDouble();
+    return hydrogen()->representation().IsDouble();
   }
 
   virtual void PrintDataTo(StringStream* stream);
@@ -642,6 +680,30 @@ class LUnaryMathOperation: public LTemplateInstruction<1, 1, 1> {
 
   virtual void PrintDataTo(StringStream* stream);
   BuiltinFunctionId op() const { return hydrogen()->op(); }
+};
+
+
+class LMathExp: public LTemplateInstruction<1, 1, 3> {
+ public:
+  LMathExp(LOperand* value,
+           LOperand* double_temp,
+           LOperand* temp1,
+           LOperand* temp2) {
+    inputs_[0] = value;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+    temps_[2] = double_temp;
+    ExternalReference::InitializeMathExpData();
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+  LOperand* double_temp() { return temps_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathExp, "math-exp")
+
+  virtual void PrintDataTo(StringStream* stream);
 };
 
 
@@ -901,6 +963,19 @@ class LInstanceOfKnownGlobal: public LTemplateInstruction<1, 1, 1> {
 };
 
 
+class LInstanceSize: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInstanceSize(LOperand* object) {
+    inputs_[0] = object;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(InstanceSize, "instance-size")
+  DECLARE_HYDROGEN_ACCESSOR(InstanceSize)
+};
+
+
 class LBoundsCheck: public LTemplateInstruction<0, 2, 0> {
  public:
   LBoundsCheck(LOperand* index, LOperand* length) {
@@ -1122,6 +1197,30 @@ class LDateField: public LTemplateInstruction<1, 1, 1> {
 };
 
 
+class LSeqStringSetChar: public LTemplateInstruction<1, 3, 0> {
+ public:
+  LSeqStringSetChar(String::Encoding encoding,
+                    LOperand* string,
+                    LOperand* index,
+                    LOperand* value) : encoding_(encoding) {
+    inputs_[0] = string;
+    inputs_[1] = index;
+    inputs_[2] = value;
+  }
+
+  String::Encoding encoding() { return encoding_; }
+  LOperand* string() { return inputs_[0]; }
+  LOperand* index() { return inputs_[1]; }
+  LOperand* value() { return inputs_[2]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(SeqStringSetChar, "seq-string-set-char")
+  DECLARE_HYDROGEN_ACCESSOR(SeqStringSetChar)
+
+ private:
+  String::Encoding encoding_;
+};
+
+
 class LThrow: public LTemplateInstruction<0, 1, 0> {
  public:
   explicit LThrow(LOperand* value) {
@@ -1246,13 +1345,23 @@ class LArithmeticT: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LReturn: public LTemplateInstruction<0, 1, 0> {
+class LReturn: public LTemplateInstruction<0, 2, 0> {
  public:
-  explicit LReturn(LOperand* value) {
+  explicit LReturn(LOperand* value, LOperand* parameter_count) {
     inputs_[0] = value;
+    inputs_[1] = parameter_count;
   }
 
   LOperand* value() { return inputs_[0]; }
+
+  bool has_constant_parameter_count() {
+    return parameter_count()->IsConstantOperand();
+  }
+  LConstantOperand* constant_parameter_count() {
+    ASSERT(has_constant_parameter_count());
+    return LConstantOperand::cast(parameter_count());
+  }
+  LOperand* parameter_count() { return inputs_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(Return, "return")
 };
@@ -1337,59 +1446,26 @@ class LLoadExternalArrayPointer: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadKeyedFastElement: public LTemplateInstruction<1, 2, 0> {
+class LLoadKeyed: public LTemplateInstruction<1, 2, 0> {
  public:
-  LLoadKeyedFastElement(LOperand* elements, LOperand* key) {
+  LLoadKeyed(LOperand* elements, LOperand* key) {
     inputs_[0] = elements;
     inputs_[1] = key;
   }
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastElement, "load-keyed-fast-element")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastElement)
-
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
-
-
-class LLoadKeyedFastDoubleElement: public LTemplateInstruction<1, 2, 0> {
- public:
-  LLoadKeyedFastDoubleElement(LOperand* elements, LOperand* key) {
-    inputs_[0] = elements;
-    inputs_[1] = key;
-  }
-
-  LOperand* elements() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement,
-                               "load-keyed-fast-double-element")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedFastDoubleElement)
-
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
-
-
-class LLoadKeyedSpecializedArrayElement: public LTemplateInstruction<1, 2, 0> {
- public:
-    LLoadKeyedSpecializedArrayElement(LOperand* external_pointer,
-                                      LOperand* key) {
-    inputs_[0] = external_pointer;
-    inputs_[1] = key;
-  }
-
-  LOperand* external_pointer() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement,
-                               "load-keyed-specialized-array-element")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedSpecializedArrayElement)
-
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
+  bool is_external() const {
+    return hydrogen()->is_external();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyed, "load-keyed")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyed)
+
+  virtual void PrintDataTo(StringStream* stream);
   uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
@@ -1526,6 +1602,22 @@ class LDrop: public LTemplateInstruction<0, 0, 0> {
 };
 
 
+class LInnerAllocatedObject: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LInnerAllocatedObject(LOperand* base_object) {
+    inputs_[0] = base_object;
+  }
+
+  LOperand* base_object() { return inputs_[0]; }
+  int offset() { return hydrogen()->offset(); }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(InnerAllocatedObject, "sub-allocated-object")
+  DECLARE_HYDROGEN_ACCESSOR(InnerAllocatedObject)
+};
+
+
 class LThisFunction: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(ThisFunction, "this-function")
@@ -1536,6 +1628,7 @@ class LThisFunction: public LTemplateInstruction<1, 0, 0> {
 class LContext: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
+  DECLARE_HYDROGEN_ACCESSOR(Context)
 };
 
 
@@ -1698,6 +1791,23 @@ class LCallNew: public LTemplateInstruction<1, 1, 0> {
 };
 
 
+class LCallNewArray: public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LCallNewArray(LOperand* constructor) {
+    inputs_[0] = constructor;
+  }
+
+  LOperand* constructor() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(CallNewArray, "call-new-array")
+  DECLARE_HYDROGEN_ACCESSOR(CallNewArray)
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  int arity() const { return hydrogen()->argument_count() - 1; }
+};
+
+
 class LCallRuntime: public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(CallRuntime, "call-runtime")
@@ -1769,6 +1879,7 @@ class LNumberTagD: public LTemplateInstruction<1, 1, 2> {
   LOperand* temp2() { return temps_[1]; }
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagD, "number-tag-d")
+  DECLARE_HYDROGEN_ACCESSOR(Change)
 };
 
 
@@ -1903,51 +2014,28 @@ class LStoreNamedGeneric: public LTemplateInstruction<0, 2, 0> {
 };
 
 
-class LStoreKeyedFastElement: public LTemplateInstruction<0, 3, 0> {
+class LStoreKeyed: public LTemplateInstruction<0, 3, 0> {
  public:
-  LStoreKeyedFastElement(LOperand* object, LOperand* key, LOperand* value) {
+  LStoreKeyed(LOperand* object, LOperand* key, LOperand* value) {
     inputs_[0] = object;
     inputs_[1] = key;
     inputs_[2] = value;
   }
 
-  LOperand* object() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement,
-                               "store-keyed-fast-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastElement)
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
-
-
-class LStoreKeyedFastDoubleElement: public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreKeyedFastDoubleElement(LOperand* elements,
-                               LOperand* key,
-                               LOperand* value) {
-    inputs_[0] = elements;
-    inputs_[1] = key;
-    inputs_[2] = value;
-  }
-
+  bool is_external() const { return hydrogen()->is_external(); }
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  ElementsKind elements_kind() const {
+    return hydrogen()->elements_kind();
+  }
 
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement,
-                               "store-keyed-fast-double-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedFastDoubleElement)
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyed, "store-keyed")
+  DECLARE_HYDROGEN_ACCESSOR(StoreKeyed)
 
   virtual void PrintDataTo(StringStream* stream);
-
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-
   bool NeedsCanonicalization() { return hydrogen()->NeedsCanonicalization(); }
+  uint32_t additional_index() const { return hydrogen()->index_offset(); }
 };
 
 
@@ -1971,37 +2059,15 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
   StrictModeFlag strict_mode_flag() { return hydrogen()->strict_mode_flag(); }
 };
 
-class LStoreKeyedSpecializedArrayElement: public LTemplateInstruction<0, 3, 0> {
- public:
-  LStoreKeyedSpecializedArrayElement(LOperand* external_pointer,
-                                     LOperand* key,
-                                     LOperand* value) {
-    inputs_[0] = external_pointer;
-    inputs_[1] = key;
-    inputs_[2] = value;
-  }
-
-  LOperand* external_pointer() { return inputs_[0]; }
-  LOperand* key() { return inputs_[1]; }
-  LOperand* value() { return inputs_[2]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement,
-                               "store-keyed-specialized-array-element")
-  DECLARE_HYDROGEN_ACCESSOR(StoreKeyedSpecializedArrayElement)
-
-  ElementsKind elements_kind() const { return hydrogen()->elements_kind(); }
-  uint32_t additional_index() const { return hydrogen()->index_offset(); }
-};
-
 
 class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
  public:
   LTransitionElementsKind(LOperand* object,
                           LOperand* new_map_temp,
-                          LOperand* temp) {
+                          LOperand* fixed_object_temp) {
     inputs_[0] = object;
     temps_[0] = new_map_temp;
-    temps_[1] = temp;
+    temps_[1] = fixed_object_temp;
   }
 
   LOperand* object() { return inputs_[0]; }
@@ -2016,6 +2082,24 @@ class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
 
   Handle<Map> original_map() { return hydrogen()->original_map(); }
   Handle<Map> transitioned_map() { return hydrogen()->transitioned_map(); }
+  ElementsKind from_kind() { return hydrogen()->from_kind(); }
+  ElementsKind to_kind() { return hydrogen()->to_kind(); }
+};
+
+
+class LTrapAllocationMemento : public LTemplateInstruction<0, 1, 1> {
+ public:
+  LTrapAllocationMemento(LOperand* object,
+                         LOperand* temp) {
+    inputs_[0] = object;
+    temps_[0] = temp;
+  }
+
+  LOperand* object() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(TrapAllocationMemento,
+                               "trap-allocation-memento")
 };
 
 
@@ -2115,7 +2199,7 @@ class LCheckMaps: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
+class LCheckPrototypeMaps: public LTemplateInstruction<1, 0, 2> {
  public:
   LCheckPrototypeMaps(LOperand* temp, LOperand* temp2)  {
     temps_[0] = temp;
@@ -2128,8 +2212,10 @@ class LCheckPrototypeMaps: public LTemplateInstruction<0, 0, 2> {
   DECLARE_CONCRETE_INSTRUCTION(CheckPrototypeMaps, "check-prototype-maps")
   DECLARE_HYDROGEN_ACCESSOR(CheckPrototypeMaps)
 
-  Handle<JSObject> prototype() const { return hydrogen()->prototype(); }
-  Handle<JSObject> holder() const { return hydrogen()->holder(); }
+  ZoneList<Handle<JSObject> >* prototypes() const {
+    return hydrogen()->prototypes();
+  }
+  ZoneList<Handle<Map> >* maps() const { return hydrogen()->maps(); }
 };
 
 
@@ -2197,7 +2283,7 @@ class LClampTToUint8: public LTemplateInstruction<1, 1, 1> {
 };
 
 
-class LAllocateObject: public LTemplateInstruction<1, 0, 2> {
+class LAllocateObject: public LTemplateInstruction<1, 1, 2> {
  public:
   LAllocateObject(LOperand* temp, LOperand* temp2) {
     temps_[0] = temp;
@@ -2209,6 +2295,23 @@ class LAllocateObject: public LTemplateInstruction<1, 0, 2> {
 
   DECLARE_CONCRETE_INSTRUCTION(AllocateObject, "allocate-object")
   DECLARE_HYDROGEN_ACCESSOR(AllocateObject)
+};
+
+
+class LAllocate: public LTemplateInstruction<1, 2, 2> {
+ public:
+  LAllocate(LOperand* size, LOperand* temp1, LOperand* temp2) {
+    inputs_[1] = size;
+    temps_[0] = temp1;
+    temps_[1] = temp2;
+  }
+
+  LOperand* size() { return inputs_[1]; }
+  LOperand* temp1() { return temps_[0]; }
+  LOperand* temp2() { return temps_[1]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(Allocate, "allocate")
+  DECLARE_HYDROGEN_ACCESSOR(Allocate)
 };
 
 
@@ -2336,8 +2439,9 @@ class LOsrEntry: public LTemplateInstruction<0, 0, 0> {
   // slot, i.e., that must also be restored to the spill slot on OSR entry.
   // NULL if the register has no assigned spill slot.  Indexed by allocation
   // index.
-  LOperand* register_spills_[Register::kNumAllocatableRegisters];
-  LOperand* double_register_spills_[DoubleRegister::kNumAllocatableRegisters];
+  LOperand* register_spills_[Register::kMaxNumAllocatableRegisters];
+  LOperand* double_register_spills_[
+      DoubleRegister::kMaxNumAllocatableRegisters];
 };
 
 
@@ -2458,6 +2562,8 @@ class LChunkBuilder BASE_EMBEDDED {
 #define DECLARE_DO(type) LInstruction* Do##type(H##type* node);
   HYDROGEN_CONCRETE_INSTRUCTION_LIST(DECLARE_DO)
 #undef DECLARE_DO
+
+  LInstruction* DoMultiplyAdd(HMul* mul, HValue* addend);
 
  private:
   enum Status {

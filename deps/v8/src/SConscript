@@ -84,12 +84,12 @@ SOURCES = {
     global-handles.cc
     handles.cc
     heap-profiler.cc
+    heap-snapshot-generator.cc
     heap.cc
     hydrogen-instructions.cc
     hydrogen.cc
     ic.cc
     incremental-marking.cc
-    inspector.cc
     interface.cc
     interpreter-irregexp.cc
     isolate.cc
@@ -97,7 +97,6 @@ SOURCES = {
     lithium-allocator.cc
     lithium.cc
     liveedit.cc
-    liveobjectlist.cc
     log-utils.cc
     log.cc
     mark-compact.cc
@@ -328,6 +327,7 @@ debug-debugger.js
 
 
 EXPERIMENTAL_LIBRARY_FILES = '''
+symbol.js
 proxy.js
 collection.js
 '''.split()

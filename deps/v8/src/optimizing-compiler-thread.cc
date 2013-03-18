@@ -48,6 +48,13 @@ void OptimizingCompilerThread::Run() {
 
   while (true) {
     input_queue_semaphore_->Wait();
+    Logger::TimerEventScope timer(
+        isolate_, Logger::TimerEventScope::v8_recompile_parallel);
+
+    if (FLAG_parallel_recompilation_delay != 0) {
+      OS::Sleep(FLAG_parallel_recompilation_delay);
+    }
+
     if (Acquire_Load(&stop_thread_)) {
       stop_semaphore_->Signal();
       if (FLAG_trace_parallel_recompilation) {
@@ -59,20 +66,7 @@ void OptimizingCompilerThread::Run() {
     int64_t compiling_start = 0;
     if (FLAG_trace_parallel_recompilation) compiling_start = OS::Ticks();
 
-    Heap::RelocationLock relocation_lock(isolate_->heap());
-    OptimizingCompiler* optimizing_compiler = NULL;
-    input_queue_.Dequeue(&optimizing_compiler);
-    Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
-
-    ASSERT(!optimizing_compiler->info()->closure()->IsOptimized());
-
-    OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
-    ASSERT(status != OptimizingCompiler::FAILED);
-    // Prevent an unused-variable error in release mode.
-    USE(status);
-
-    output_queue_.Enqueue(optimizing_compiler);
-    isolate_->stack_guard()->RequestCodeReadyEvent();
+    CompileNext();
 
     if (FLAG_trace_parallel_recompilation) {
       time_spent_compiling_ += OS::Ticks() - compiling_start;
@@ -81,10 +75,39 @@ void OptimizingCompilerThread::Run() {
 }
 
 
+void OptimizingCompilerThread::CompileNext() {
+  OptimizingCompiler* optimizing_compiler = NULL;
+  input_queue_.Dequeue(&optimizing_compiler);
+  Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(-1));
+
+  // The function may have already been optimized by OSR.  Simply continue.
+  OptimizingCompiler::Status status = optimizing_compiler->OptimizeGraph();
+  USE(status);   // Prevent an unused-variable error in release mode.
+  ASSERT(status != OptimizingCompiler::FAILED);
+
+  // The function may have already been optimized by OSR.  Simply continue.
+  // Mark it for installing before queuing so that we can be sure of the write
+  // order: marking first and (after being queued) installing code second.
+  optimizing_compiler->info()->closure()->MarkForInstallingRecompiledCode();
+  output_queue_.Enqueue(optimizing_compiler);
+}
+
+
 void OptimizingCompilerThread::Stop() {
+  ASSERT(!IsOptimizerThread());
   Release_Store(&stop_thread_, static_cast<AtomicWord>(true));
   input_queue_semaphore_->Signal();
   stop_semaphore_->Wait();
+
+  if (FLAG_parallel_recompilation_delay != 0) {
+    InstallOptimizedFunctions();
+    // Barrier when loading queue length is not necessary since the write
+    // happens in CompileNext on the same thread.
+    while (NoBarrier_Load(&queue_length_) > 0) {
+      CompileNext();
+      InstallOptimizedFunctions();
+    }
+  }
 
   if (FLAG_trace_parallel_recompilation) {
     double compile_time = static_cast<double>(time_spent_compiling_);
@@ -96,25 +119,28 @@ void OptimizingCompilerThread::Stop() {
 
 
 void OptimizingCompilerThread::InstallOptimizedFunctions() {
+  ASSERT(!IsOptimizerThread());
   HandleScope handle_scope(isolate_);
   int functions_installed = 0;
   while (!output_queue_.IsEmpty()) {
-    OptimizingCompiler* compiler = NULL;
+    OptimizingCompiler* compiler;
     output_queue_.Dequeue(&compiler);
     Compiler::InstallOptimizedCode(compiler);
     functions_installed++;
-  }
-  if (FLAG_trace_parallel_recompilation && functions_installed != 0) {
-    PrintF("  ** Installed %d function(s).\n", functions_installed);
   }
 }
 
 
 void OptimizingCompilerThread::QueueForOptimization(
     OptimizingCompiler* optimizing_compiler) {
+  ASSERT(IsQueueAvailable());
+  ASSERT(!IsOptimizerThread());
+  Barrier_AtomicIncrement(&queue_length_, static_cast<Atomic32>(1));
+  optimizing_compiler->info()->closure()->MarkInRecompileQueue();
   input_queue_.Enqueue(optimizing_compiler);
   input_queue_semaphore_->Signal();
 }
+
 
 #ifdef DEBUG
 bool OptimizingCompilerThread::IsOptimizerThread() {

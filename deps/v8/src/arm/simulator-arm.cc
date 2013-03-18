@@ -34,6 +34,7 @@
 
 #include "disasm.h"
 #include "assembler.h"
+#include "codegen.h"
 #include "arm/constants-arm.h"
 #include "arm/simulator-arm.h"
 
@@ -398,7 +399,7 @@ void ArmDebugger::Debug() {
         int32_t words;
         if (argc == next_arg) {
           words = 10;
-        } else if (argc == next_arg + 1) {
+        } else {
           if (!GetValue(argv[next_arg], &words)) {
             words = 10;
           }
@@ -764,8 +765,8 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // All registers are initialized to zero to start with
   // even though s_registers_ & d_registers_ share the same
   // physical registers in the target.
-  for (int i = 0; i < num_s_registers; i++) {
-    vfp_register[i] = 0;
+  for (int i = 0; i < num_d_registers * 2; i++) {
+    vfp_registers_[i] = 0;
   }
   n_flag_FPSCR_ = false;
   z_flag_FPSCR_ = false;
@@ -900,7 +901,7 @@ double Simulator::get_double_from_register_pair(int reg) {
   double dm_val = 0.0;
   // Read the bits from the unsigned integer register_[] array
   // into the double precision floating point value and return it.
-  char buffer[2 * sizeof(vfp_register[0])];
+  char buffer[2 * sizeof(vfp_registers_[0])];
   memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
   memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
   return(dm_val);
@@ -935,13 +936,13 @@ int32_t Simulator::get_pc() const {
 // Getting from and setting into VFP registers.
 void Simulator::set_s_register(int sreg, unsigned int value) {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  vfp_register[sreg] = value;
+  vfp_registers_[sreg] = value;
 }
 
 
 unsigned int Simulator::get_s_register(int sreg) const {
   ASSERT((sreg >= 0) && (sreg < num_s_registers));
-  return vfp_register[sreg];
+  return vfp_registers_[sreg];
 }
 
 
@@ -949,12 +950,12 @@ template<class InputType, int register_size>
 void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
   ASSERT(reg_index >= 0);
   if (register_size == 1) ASSERT(reg_index < num_s_registers);
-  if (register_size == 2) ASSERT(reg_index < num_d_registers);
+  if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
-  char buffer[register_size * sizeof(vfp_register[0])];
-  memcpy(buffer, &value, register_size * sizeof(vfp_register[0]));
-  memcpy(&vfp_register[reg_index * register_size], buffer,
-         register_size * sizeof(vfp_register[0]));
+  char buffer[register_size * sizeof(vfp_registers_[0])];
+  memcpy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
+  memcpy(&vfp_registers_[reg_index * register_size], buffer,
+         register_size * sizeof(vfp_registers_[0]));
 }
 
 
@@ -962,13 +963,13 @@ template<class ReturnType, int register_size>
 ReturnType Simulator::GetFromVFPRegister(int reg_index) {
   ASSERT(reg_index >= 0);
   if (register_size == 1) ASSERT(reg_index < num_s_registers);
-  if (register_size == 2) ASSERT(reg_index < num_d_registers);
+  if (register_size == 2) ASSERT(reg_index < DwVfpRegister::NumRegisters());
 
   ReturnType value = 0;
-  char buffer[register_size * sizeof(vfp_register[0])];
-  memcpy(buffer, &vfp_register[register_size * reg_index],
-         register_size * sizeof(vfp_register[0]));
-  memcpy(&value, buffer, register_size * sizeof(vfp_register[0]));
+  char buffer[register_size * sizeof(vfp_registers_[0])];
+  memcpy(buffer, &vfp_registers_[register_size * reg_index],
+         register_size * sizeof(vfp_registers_[0]));
+  memcpy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
   return value;
 }
 
@@ -977,8 +978,8 @@ ReturnType Simulator::GetFromVFPRegister(int reg_index) {
 // from r0-r3 or d0 and d1.
 void Simulator::GetFpArgs(double* x, double* y) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_register[0];
-    *y = vfp_register[1];
+    *x = vfp_registers_[0];
+    *y = vfp_registers_[1];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -996,7 +997,7 @@ void Simulator::GetFpArgs(double* x, double* y) {
 // from r0 and r1 or d0.
 void Simulator::GetFpArgs(double* x) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_register[0];
+    *x = vfp_registers_[0];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
     // otherwise allow the compiler to optimize away the copy.
@@ -1012,7 +1013,7 @@ void Simulator::GetFpArgs(double* x) {
 // from r0 and r1 or d0 and one integer value.
 void Simulator::GetFpArgs(double* x, int32_t* y) {
   if (use_eabi_hardfloat()) {
-    *x = vfp_register[0];
+    *x = vfp_registers_[0];
     *y = registers_[1];
   } else {
     // We use a char buffer to get around the strict-aliasing rules which
@@ -1031,10 +1032,10 @@ void Simulator::GetFpArgs(double* x, int32_t* y) {
 // The return value is either in r0/r1 or d0.
 void Simulator::SetFpResult(const double& result) {
   if (use_eabi_hardfloat()) {
-    char buffer[2 * sizeof(vfp_register[0])];
+    char buffer[2 * sizeof(vfp_registers_[0])];
     memcpy(buffer, &result, sizeof(buffer));
     // Copy result to d0.
-    memcpy(vfp_register, buffer, sizeof(buffer));
+    memcpy(vfp_registers_, buffer, sizeof(buffer));
   } else {
     char buffer[2 * sizeof(registers_[0])];
     memcpy(buffer, &result, sizeof(buffer));
@@ -1387,7 +1388,14 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
       }
 
       case ROR: {
-        UNIMPLEMENTED();
+        if (shift_amount == 0) {
+          *carry_out = c_flag_;
+        } else {
+          uint32_t left = static_cast<uint32_t>(result) >> shift_amount;
+          uint32_t right = static_cast<uint32_t>(result) << (32 - shift_amount);
+          result = right | left;
+          *carry_out = (static_cast<uint32_t>(result) >> 31) != 0;
+        }
         break;
       }
 
@@ -1459,7 +1467,14 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
       }
 
       case ROR: {
-        UNIMPLEMENTED();
+        if (shift_amount == 0) {
+          *carry_out = c_flag_;
+        } else {
+          uint32_t left = static_cast<uint32_t>(result) >> shift_amount;
+          uint32_t right = static_cast<uint32_t>(result) << (32 - shift_amount);
+          result = right | left;
+          *carry_out = (static_cast<uint32_t>(result) >> 31) != 0;
+        }
         break;
       }
 
@@ -1599,15 +1614,19 @@ void Simulator::HandleVList(Instruction* instr) {
       address += 1;
     } else {
       if (load) {
-        set_s_register_from_sinteger(
-            2 * reg, ReadW(reinterpret_cast<int32_t>(address), instr));
-        set_s_register_from_sinteger(
-            2 * reg + 1, ReadW(reinterpret_cast<int32_t>(address + 1), instr));
+        int32_t data[] = {
+          ReadW(reinterpret_cast<int32_t>(address), instr),
+          ReadW(reinterpret_cast<int32_t>(address + 1), instr)
+        };
+        double d;
+        memcpy(&d, data, 8);
+        set_d_register_from_double(reg, d);
       } else {
-        WriteW(reinterpret_cast<int32_t>(address),
-               get_sinteger_from_s_register(2 * reg), instr);
-        WriteW(reinterpret_cast<int32_t>(address + 1),
-               get_sinteger_from_s_register(2 * reg + 1), instr);
+        int32_t data[2];
+        double d = get_double_from_d_register(reg);
+        memcpy(data, &d, 8);
+        WriteW(reinterpret_cast<int32_t>(address), data[0], instr);
+        WriteW(reinterpret_cast<int32_t>(address + 1), data[1], instr);
       }
       address += 2;
     }
@@ -1673,18 +1692,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         switch (redirection->type()) {
         case ExternalReference::BUILTIN_FP_FP_CALL:
         case ExternalReference::BUILTIN_COMPARE_CALL:
-          arg0 = vfp_register[0];
-          arg1 = vfp_register[1];
-          arg2 = vfp_register[2];
-          arg3 = vfp_register[3];
+          arg0 = vfp_registers_[0];
+          arg1 = vfp_registers_[1];
+          arg2 = vfp_registers_[2];
+          arg3 = vfp_registers_[3];
           break;
         case ExternalReference::BUILTIN_FP_CALL:
-          arg0 = vfp_register[0];
-          arg1 = vfp_register[1];
+          arg0 = vfp_registers_[0];
+          arg1 = vfp_registers_[1];
           break;
         case ExternalReference::BUILTIN_FP_INT_CALL:
-          arg0 = vfp_register[0];
-          arg1 = vfp_register[1];
+          arg0 = vfp_registers_[0];
+          arg1 = vfp_registers_[1];
           arg2 = get_register(0);
           break;
         default:
@@ -1762,7 +1781,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim) {
           PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
         }
-        set_register(r0, (int32_t) *result);
+        set_register(r0, reinterpret_cast<int32_t>(*result));
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
@@ -1779,7 +1798,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         if (::v8::internal::FLAG_trace_sim) {
           PrintF("Returned %p\n", reinterpret_cast<void *>(*result));
         }
-        set_register(r0, (int32_t) *result);
+        set_register(r0, reinterpret_cast<int32_t>(*result));
       } else {
         // builtin call.
         ASSERT(redirection->type() == ExternalReference::BUILTIN_CALL);
@@ -2764,6 +2783,26 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       double dm_value = get_double_from_d_register(vm);
       double dd_value = dn_value * dm_value;
       set_d_register_from_double(vd, dd_value);
+    } else if ((instr->Opc1Value() == 0x0)) {
+      // vmla, vmls
+      const bool is_vmls = (instr->Opc3Value() & 0x1);
+
+      if (instr->SzValue() != 0x1) {
+        UNREACHABLE();  // Not used by V8.
+      }
+
+      const double dd_val = get_double_from_d_register(vd);
+      const double dn_val = get_double_from_d_register(vn);
+      const double dm_val = get_double_from_d_register(vm);
+
+      // Note: we do the mul and add/sub in separate steps to avoid getting a
+      // result with too high precision.
+      set_d_register_from_double(vd, dn_val * dm_val);
+      if (is_vmls) {
+        set_d_register_from_double(vd, dd_val - get_double_from_d_register(vd));
+      } else {
+        set_d_register_from_double(vd, dd_val + get_double_from_d_register(vd));
+      }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       // vdiv
       if (instr->SzValue() != 0x1) {
@@ -2782,6 +2821,17 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
     if ((instr->VCValue() == 0x0) &&
         (instr->VAValue() == 0x0)) {
       DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(instr);
+    } else if ((instr->VLValue() == 0x0) &&
+               (instr->VCValue() == 0x1) &&
+               (instr->Bit(23) == 0x0)) {
+      // vmov (ARM core register to scalar)
+      int vd = instr->Bits(19, 16) | (instr->Bit(7) << 4);
+      double dd_value = get_double_from_d_register(vd);
+      int32_t data[2];
+      memcpy(data, &dd_value, 8);
+      data[instr->Bit(21)] = get_register(instr->RtValue());
+      memcpy(&dd_value, data, 8);
+      set_d_register_from_double(vd, dd_value);
     } else if ((instr->VLValue() == 0x1) &&
                (instr->VCValue() == 0x0) &&
                (instr->VAValue() == 0x7) &&
@@ -3055,15 +3105,15 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
 
     if (src_precision == kDoublePrecision) {
       if (unsigned_integer) {
-        set_d_register_from_double(dst,
-                                   static_cast<double>((uint32_t)val));
+        set_d_register_from_double(
+            dst, static_cast<double>(static_cast<uint32_t>(val)));
       } else {
         set_d_register_from_double(dst, static_cast<double>(val));
       }
     } else {
       if (unsigned_integer) {
-        set_s_register_from_float(dst,
-                                  static_cast<float>((uint32_t)val));
+        set_s_register_from_float(
+            dst, static_cast<float>(static_cast<uint32_t>(val)));
       } else {
         set_s_register_from_float(dst, static_cast<float>(val));
       }
@@ -3120,31 +3170,32 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
     switch (instr->OpcodeValue()) {
       case 0x2:
         // Load and store double to two GP registers
-        if (instr->Bits(7, 4) != 0x1) {
+        if (instr->Bits(7, 6) != 0 || instr->Bit(4) != 1) {
           UNIMPLEMENTED();  // Not used by V8.
         } else {
           int rt = instr->RtValue();
           int rn = instr->RnValue();
-          int vm = instr->VmValue();
+          int vm = instr->VFPMRegValue(kDoublePrecision);
           if (instr->HasL()) {
-            int32_t rt_int_value = get_sinteger_from_s_register(2*vm);
-            int32_t rn_int_value = get_sinteger_from_s_register(2*vm+1);
-
-            set_register(rt, rt_int_value);
-            set_register(rn, rn_int_value);
+            int32_t data[2];
+            double d = get_double_from_d_register(vm);
+            memcpy(data, &d, 8);
+            set_register(rt, data[0]);
+            set_register(rn, data[1]);
           } else {
-            int32_t rs_val = get_register(rt);
-            int32_t rn_val = get_register(rn);
-
-            set_s_register_from_sinteger(2*vm, rs_val);
-            set_s_register_from_sinteger((2*vm+1), rn_val);
+            int32_t data[] = { get_register(rt), get_register(rn) };
+            double d;
+            memcpy(&d, data, 8);
+            set_d_register_from_double(vm, d);
           }
         }
         break;
       case 0x8:
-      case 0xC: {  // Load and store double to memory.
+      case 0xA:
+      case 0xC:
+      case 0xE: {  // Load and store double to memory.
         int rn = instr->RnValue();
-        int vd = instr->VdValue();
+        int vd = instr->VFPDRegValue(kDoublePrecision);
         int offset = instr->Immed8Value();
         if (!instr->HasU()) {
           offset = -offset;
@@ -3152,18 +3203,29 @@ void Simulator::DecodeType6CoprocessorIns(Instruction* instr) {
         int32_t address = get_register(rn) + 4 * offset;
         if (instr->HasL()) {
           // Load double from memory: vldr.
-          set_s_register_from_sinteger(2*vd, ReadW(address, instr));
-          set_s_register_from_sinteger(2*vd + 1, ReadW(address + 4, instr));
+          int32_t data[] = {
+            ReadW(address, instr),
+            ReadW(address + 4, instr)
+          };
+          double val;
+          memcpy(&val, data, 8);
+          set_d_register_from_double(vd, val);
         } else {
           // Store double to memory: vstr.
-          WriteW(address, get_sinteger_from_s_register(2*vd), instr);
-          WriteW(address + 4, get_sinteger_from_s_register(2*vd + 1), instr);
+          int32_t data[2];
+          double val = get_double_from_d_register(vd);
+          memcpy(data, &val, 8);
+          WriteW(address, data[0], instr);
+          WriteW(address + 4, data[1], instr);
         }
         break;
       }
       case 0x4:
       case 0x5:
+      case 0x6:
+      case 0x7:
       case 0x9:
+      case 0xB:
         // Load/store multiple double from memory: vldm/vstm.
         HandleVList(instr);
         break;
@@ -3273,33 +3335,7 @@ void Simulator::Execute() {
 }
 
 
-int32_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
-  // Set up arguments
-
-  // First four arguments passed in registers.
-  ASSERT(argument_count >= 4);
-  set_register(r0, va_arg(parameters, int32_t));
-  set_register(r1, va_arg(parameters, int32_t));
-  set_register(r2, va_arg(parameters, int32_t));
-  set_register(r3, va_arg(parameters, int32_t));
-
-  // Remaining arguments passed on stack.
-  int original_stack = get_register(sp);
-  // Compute position of stack on entry to generated code.
-  int entry_stack = (original_stack - (argument_count - 4) * sizeof(int32_t));
-  if (OS::ActivationFrameAlignment() != 0) {
-    entry_stack &= -OS::ActivationFrameAlignment();
-  }
-  // Store remaining arguments on stack, from low to high memory.
-  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4] = va_arg(parameters, int32_t);
-  }
-  va_end(parameters);
-  set_register(sp, entry_stack);
-
+void Simulator::CallInternal(byte* entry) {
   // Prepare to execute the code at entry
   set_register(pc, reinterpret_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
@@ -3353,6 +3389,37 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   set_register(r9, r9_val);
   set_register(r10, r10_val);
   set_register(r11, r11_val);
+}
+
+
+int32_t Simulator::Call(byte* entry, int argument_count, ...) {
+  va_list parameters;
+  va_start(parameters, argument_count);
+  // Set up arguments
+
+  // First four arguments passed in registers.
+  ASSERT(argument_count >= 4);
+  set_register(r0, va_arg(parameters, int32_t));
+  set_register(r1, va_arg(parameters, int32_t));
+  set_register(r2, va_arg(parameters, int32_t));
+  set_register(r3, va_arg(parameters, int32_t));
+
+  // Remaining arguments passed on stack.
+  int original_stack = get_register(sp);
+  // Compute position of stack on entry to generated code.
+  int entry_stack = (original_stack - (argument_count - 4) * sizeof(int32_t));
+  if (OS::ActivationFrameAlignment() != 0) {
+    entry_stack &= -OS::ActivationFrameAlignment();
+  }
+  // Store remaining arguments on stack, from low to high memory.
+  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
+  for (int i = 4; i < argument_count; i++) {
+    stack_argument[i - 4] = va_arg(parameters, int32_t);
+  }
+  va_end(parameters);
+  set_register(sp, entry_stack);
+
+  CallInternal(entry);
 
   // Pop stack passed arguments.
   CHECK_EQ(entry_stack, get_register(sp));
@@ -3360,6 +3427,27 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
 
   int32_t result = get_register(r0);
   return result;
+}
+
+
+double Simulator::CallFP(byte* entry, double d0, double d1) {
+  if (use_eabi_hardfloat()) {
+    set_d_register_from_double(0, d0);
+    set_d_register_from_double(1, d1);
+  } else {
+    int buffer[2];
+    ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
+    memcpy(buffer, &d0, sizeof(d0));
+    set_dw_register(0, buffer);
+    memcpy(buffer, &d1, sizeof(d1));
+    set_dw_register(2, buffer);
+  }
+  CallInternal(entry);
+  if (use_eabi_hardfloat()) {
+    return get_double_from_d_register(0);
+  } else {
+    return get_double_from_register_pair(0);
+  }
 }
 
 

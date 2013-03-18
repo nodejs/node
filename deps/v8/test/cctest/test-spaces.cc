@@ -121,7 +121,146 @@ class TestMemoryAllocatorScope {
   DISALLOW_COPY_AND_ASSIGN(TestMemoryAllocatorScope);
 };
 
+
+// Temporarily sets a given code range in an isolate.
+class TestCodeRangeScope {
+ public:
+  TestCodeRangeScope(Isolate* isolate, CodeRange* code_range)
+      : isolate_(isolate),
+        old_code_range_(isolate->code_range_) {
+    isolate->code_range_ = code_range;
+  }
+
+  ~TestCodeRangeScope() {
+    isolate_->code_range_ = old_code_range_;
+  }
+
+ private:
+  Isolate* isolate_;
+  CodeRange* old_code_range_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
+};
+
 } }  // namespace v8::internal
+
+
+static void VerifyMemoryChunk(Isolate* isolate,
+                              Heap* heap,
+                              CodeRange* code_range,
+                              size_t reserve_area_size,
+                              size_t commit_area_size,
+                              size_t second_commit_area_size,
+                              Executability executable) {
+  MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
+  CHECK(memory_allocator->SetUp(heap->MaxReserved(),
+                                heap->MaxExecutableSize()));
+  TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
+  TestCodeRangeScope test_code_range_scope(isolate, code_range);
+
+  size_t header_size = (executable == EXECUTABLE)
+                       ? MemoryAllocator::CodePageGuardStartOffset()
+                       : MemoryChunk::kObjectStartOffset;
+  size_t guard_size = (executable == EXECUTABLE)
+                       ? MemoryAllocator::CodePageGuardSize()
+                       : 0;
+
+  MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(reserve_area_size,
+                                                              commit_area_size,
+                                                              executable,
+                                                              NULL);
+  size_t alignment = code_range->exists() ?
+                     MemoryChunk::kAlignment : OS::CommitPageSize();
+  size_t reserved_size = ((executable == EXECUTABLE))
+      ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
+                alignment)
+      : RoundUp(header_size + reserve_area_size, OS::CommitPageSize());
+  CHECK(memory_chunk->size() == reserved_size);
+  CHECK(memory_chunk->area_start() < memory_chunk->address() +
+                                     memory_chunk->size());
+  CHECK(memory_chunk->area_end() <= memory_chunk->address() +
+                                    memory_chunk->size());
+  CHECK(static_cast<size_t>(memory_chunk->area_size()) == commit_area_size);
+
+  Address area_start = memory_chunk->area_start();
+
+  memory_chunk->CommitArea(second_commit_area_size);
+  CHECK(area_start == memory_chunk->area_start());
+  CHECK(memory_chunk->area_start() < memory_chunk->address() +
+                                     memory_chunk->size());
+  CHECK(memory_chunk->area_end() <= memory_chunk->address() +
+                                    memory_chunk->size());
+  CHECK(static_cast<size_t>(memory_chunk->area_size()) ==
+      second_commit_area_size);
+
+  memory_allocator->Free(memory_chunk);
+  memory_allocator->TearDown();
+  delete memory_allocator;
+}
+
+
+static unsigned int Pseudorandom() {
+  static uint32_t lo = 2345;
+  lo = 18273 * (lo & 0xFFFFF) + (lo >> 16);
+  return lo & 0xFFFFF;
+}
+
+
+TEST(MemoryChunk) {
+  OS::SetUp();
+  Isolate* isolate = Isolate::Current();
+  isolate->InitializeLoggingAndCounters();
+  Heap* heap = isolate->heap();
+  CHECK(heap->ConfigureHeapDefault());
+
+  size_t reserve_area_size = 1 * MB;
+  size_t initial_commit_area_size, second_commit_area_size;
+
+  for (int i = 0; i < 100; i++) {
+    initial_commit_area_size = Pseudorandom();
+    second_commit_area_size = Pseudorandom();
+
+    // With CodeRange.
+    CodeRange* code_range = new CodeRange(isolate);
+    const int code_range_size = 32 * MB;
+    if (!code_range->SetUp(code_range_size)) return;
+
+    VerifyMemoryChunk(isolate,
+                      heap,
+                      code_range,
+                      reserve_area_size,
+                      initial_commit_area_size,
+                      second_commit_area_size,
+                      EXECUTABLE);
+
+    VerifyMemoryChunk(isolate,
+                      heap,
+                      code_range,
+                      reserve_area_size,
+                      initial_commit_area_size,
+                      second_commit_area_size,
+                      NOT_EXECUTABLE);
+    delete code_range;
+
+    // Without CodeRange.
+    code_range = NULL;
+    VerifyMemoryChunk(isolate,
+                      heap,
+                      code_range,
+                      reserve_area_size,
+                      initial_commit_area_size,
+                      second_commit_area_size,
+                      EXECUTABLE);
+
+    VerifyMemoryChunk(isolate,
+                      heap,
+                      code_range,
+                      reserve_area_size,
+                      initial_commit_area_size,
+                      second_commit_area_size,
+                      NOT_EXECUTABLE);
+  }
+}
 
 
 TEST(MemoryAllocator) {

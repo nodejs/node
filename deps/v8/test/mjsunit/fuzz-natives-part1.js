@@ -147,10 +147,13 @@ var knownProblems = {
   "PushWithContext": true,
   "PushCatchContext": true,
   "PushBlockContext": true,
+  "PushModuleContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
   "ParallelRecompile": true,
+  "InstallRecompiledCode": true,
   "NotifyDeoptimized": true,
+  "NotifyStubFailure": true,
   "NotifyOSR": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneLiteralBoilerplate": true,
@@ -195,7 +198,9 @@ var knownProblems = {
 
   // Only applicable to strings.
   "_HasCachedArrayIndex": true,
-  "_GetCachedArrayIndex": true
+  "_GetCachedArrayIndex": true,
+  "_OneByteSeqStringSetChar": true,
+  "_TwoByteSeqStringSetChar": true,
 };
 
 var currentlyUncallable = {

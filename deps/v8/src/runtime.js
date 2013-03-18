@@ -346,7 +346,7 @@ function SHR(y) {
 
 // ECMA-262, section 11.4.1, page 46.
 function DELETE(key, strict) {
-  return %DeleteProperty(%ToObject(this), %ToString(key), strict);
+  return %DeleteProperty(%ToObject(this), %ToName(key), strict);
 }
 
 
@@ -356,7 +356,7 @@ function IN(x) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
   return %_IsNonNegativeSmi(this) ?
-    %HasElement(x, this) : %HasProperty(x, %ToString(this));
+    %HasElement(x, this) : %HasProperty(x, %ToName(this));
 }
 
 
@@ -396,7 +396,7 @@ function INSTANCE_OF(F) {
 // has a property with the given key; return the key as a string if
 // it has. Otherwise returns 0 (smi). Used in for-in statements.
 function FILTER_KEY(key) {
-  var string = %ToString(key);
+  var string = %ToName(key);
   if (%HasProperty(this, string)) return string;
   return 0;
 }
@@ -560,6 +560,12 @@ function NonStringToString(x) {
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
+}
+
+
+// ES6 symbols
+function ToName(x) {
+  return IS_SYMBOL(x) ? x : %ToString(x);
 }
 
 

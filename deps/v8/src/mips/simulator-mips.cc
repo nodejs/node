@@ -1016,6 +1016,13 @@ void Simulator::set_register(int reg, int32_t value) {
 }
 
 
+void Simulator::set_dw_register(int reg, const int* dbl) {
+  ASSERT((reg >= 0) && (reg < kNumSimuRegisters));
+  registers_[reg] = dbl[0];
+  registers_[reg + 1] = dbl[1];
+}
+
+
 void Simulator::set_fpu_register(int fpureg, int32_t value) {
   ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters));
   FPUregisters_[fpureg] = value;
@@ -1042,6 +1049,19 @@ int32_t Simulator::get_register(int reg) const {
     return 0;
   else
     return registers_[reg] + ((reg == pc) ? Instruction::kPCReadOffset : 0);
+}
+
+
+double Simulator::get_double_from_register_pair(int reg) {
+  ASSERT((reg >= 0) && (reg < kNumSimuRegisters) && ((reg % 2) == 0));
+
+  double dm_val = 0.0;
+  // Read the bits from the unsigned integer register_[] array
+  // into the double precision floating point value and return it.
+  char buffer[2 * sizeof(registers_[0])];
+  memcpy(buffer, &registers_[reg], 2 * sizeof(registers_[0]));
+  memcpy(&dm_val, buffer, 2 * sizeof(registers_[0]));
+  return(dm_val);
 }
 
 
@@ -1525,7 +1545,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
                FUNCTION_ADDR(target), arg1);
       }
       v8::Handle<v8::Value> result = target(arg1);
-      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
       set_register(v0, arg0);
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       // See DirectCEntryStub::GenerateCall for explanation of register usage.
@@ -1536,7 +1556,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
                FUNCTION_ADDR(target), arg1, arg2);
       }
       v8::Handle<v8::Value> result = target(arg1, arg2);
-      *(reinterpret_cast<int*>(arg0)) = (int32_t) *result;
+      *(reinterpret_cast<int*>(arg0)) = reinterpret_cast<int32_t>(*result);
       set_register(v0, arg0);
     } else {
       SimulatorRuntimeCall target =
@@ -1740,6 +1760,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           UNIMPLEMENTED_MIPS();
       };
       break;
+    case COP1X:
+      break;
     case SPECIAL:
       switch (instr->FunctionFieldRaw()) {
         case JR:
@@ -1929,6 +1951,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   const uint32_t rt_u   = static_cast<uint32_t>(rt);
   const int32_t  rd_reg = instr->RdValue();
 
+  const int32_t  fr_reg = instr->FrValue();
   const int32_t  fs_reg = instr->FsValue();
   const int32_t  ft_reg = instr->FtValue();
   const int32_t  fd_reg = instr->FdValue();
@@ -2173,8 +2196,8 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           case CVT_D_L:  // Mips32r2 instruction.
             // Watch the signs here, we want 2 32-bit vals
             // to make a sign-64.
-            i64 = (uint32_t) get_fpu_register(fs_reg);
-            i64 |= ((int64_t) get_fpu_register(fs_reg + 1) << 32);
+            i64 = static_cast<uint32_t>(get_fpu_register(fs_reg));
+            i64 |= static_cast<int64_t>(get_fpu_register(fs_reg + 1)) << 32;
             set_fpu_register_double(fd_reg, static_cast<double>(i64));
             break;
             case CVT_S_L:
@@ -2185,6 +2208,19 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           }
           break;
         case PS:
+          break;
+        default:
+          UNREACHABLE();
+      };
+      break;
+    case COP1X:
+      switch (instr->FunctionFieldRaw()) {
+        case MADD_D:
+          double fr, ft, fs;
+          fr = get_fpu_register_double(fr_reg);
+          fs = get_fpu_register_double(fs_reg);
+          ft = get_fpu_register_double(ft_reg);
+          set_fpu_register_double(fd_reg, fs * ft + fr);
           break;
         default:
           UNREACHABLE();
@@ -2219,10 +2255,10 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           set_register(HI, static_cast<int32_t>(u64hilo >> 32));
           break;
         case DIV:
-          // Divide by zero was not checked in the configuration step - div and
-          // divu do not raise exceptions. On division by 0, the result will
-          // be UNPREDICTABLE.
-          if (rt != 0) {
+          // Divide by zero and overflow was not checked in the configuration
+          // step - div and divu do not raise exceptions. On division by 0 and
+          // on overflow (INT_MIN/-1), the result will be UNPREDICTABLE.
+          if (rt != 0 && !(rs == INT_MIN && rt == -1)) {
             set_register(LO, rs / rt);
             set_register(HI, rs % rt);
           }
@@ -2718,34 +2754,7 @@ void Simulator::Execute() {
 }
 
 
-int32_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
-  // Set up arguments.
-
-  // First four arguments passed in registers.
-  ASSERT(argument_count >= 4);
-  set_register(a0, va_arg(parameters, int32_t));
-  set_register(a1, va_arg(parameters, int32_t));
-  set_register(a2, va_arg(parameters, int32_t));
-  set_register(a3, va_arg(parameters, int32_t));
-
-  // Remaining arguments passed on stack.
-  int original_stack = get_register(sp);
-  // Compute position of stack on entry to generated code.
-  int entry_stack = (original_stack - (argument_count - 4) * sizeof(int32_t)
-                                    - kCArgsSlotsSize);
-  if (OS::ActivationFrameAlignment() != 0) {
-    entry_stack &= -OS::ActivationFrameAlignment();
-  }
-  // Store remaining arguments on stack, from low to high memory.
-  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4 + kCArgSlotCount] = va_arg(parameters, int32_t);
-  }
-  va_end(parameters);
-  set_register(sp, entry_stack);
-
+void Simulator::CallInternal(byte* entry) {
   // Prepare to execute the code at entry.
   set_register(pc, reinterpret_cast<int32_t>(entry));
   // Put down marker for end of simulation. The simulator will stop simulation
@@ -2809,6 +2818,38 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   set_register(gp, gp_val);
   set_register(sp, sp_val);
   set_register(fp, fp_val);
+}
+
+
+int32_t Simulator::Call(byte* entry, int argument_count, ...) {
+  va_list parameters;
+  va_start(parameters, argument_count);
+  // Set up arguments.
+
+  // First four arguments passed in registers.
+  ASSERT(argument_count >= 4);
+  set_register(a0, va_arg(parameters, int32_t));
+  set_register(a1, va_arg(parameters, int32_t));
+  set_register(a2, va_arg(parameters, int32_t));
+  set_register(a3, va_arg(parameters, int32_t));
+
+  // Remaining arguments passed on stack.
+  int original_stack = get_register(sp);
+  // Compute position of stack on entry to generated code.
+  int entry_stack = (original_stack - (argument_count - 4) * sizeof(int32_t)
+                                    - kCArgsSlotsSize);
+  if (OS::ActivationFrameAlignment() != 0) {
+    entry_stack &= -OS::ActivationFrameAlignment();
+  }
+  // Store remaining arguments on stack, from low to high memory.
+  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
+  for (int i = 4; i < argument_count; i++) {
+    stack_argument[i - 4 + kCArgSlotCount] = va_arg(parameters, int32_t);
+  }
+  va_end(parameters);
+  set_register(sp, entry_stack);
+
+  CallInternal(entry);
 
   // Pop stack passed arguments.
   CHECK_EQ(entry_stack, get_register(sp));
@@ -2816,6 +2857,27 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
 
   int32_t result = get_register(v0);
   return result;
+}
+
+
+double Simulator::CallFP(byte* entry, double d0, double d1) {
+  if (!IsMipsSoftFloatABI) {
+    set_fpu_register_double(f12, d0);
+    set_fpu_register_double(f14, d1);
+  } else {
+    int buffer[2];
+    ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
+    memcpy(buffer, &d0, sizeof(d0));
+    set_dw_register(a0, buffer);
+    memcpy(buffer, &d1, sizeof(d1));
+    set_dw_register(a2, buffer);
+  }
+  CallInternal(entry);
+  if (!IsMipsSoftFloatABI) {
+    return get_fpu_register_double(f0);
+  } else {
+    return get_double_from_register_pair(v0);
+  }
 }
 
 

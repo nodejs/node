@@ -52,13 +52,13 @@ test_do_not_assert_on_non_int32(v,"a");
 %OptimizeFunctionOnNextCall(test_do_not_assert_on_non_int32);
 test_do_not_assert_on_non_int32(v,0);
 
-function test_base(base,cond) {
+function test_base(a, base, condition) {
   a[base + 1] = 1;
   a[base + 4] = 2;
   a[base + 3] = 3;
   a[base + 2] = 4;
   a[base + 4] = base + 4;
-  if (cond) {
+  if (condition) {
     a[base + 1] = 1;
     a[base + 2] = 2;
     a[base + 2] = 3;
@@ -73,8 +73,8 @@ function test_base(base,cond) {
   }
 }
 
-function check_test_base(base,cond) {
-  if (cond) {
+function check_test_base(a, base, condition) {
+  if (condition) {
     assertEquals(1, a[base + 1]);
     assertEquals(4, a[base + 2]);
     assertEquals(base + 4, a[base + 4]);
@@ -86,6 +86,37 @@ function check_test_base(base,cond) {
   }
 }
 
+
+test_base(a, 1, true);
+test_base(a, 2, true);
+test_base(a, 1, false);
+test_base(a, 2, false);
+%OptimizeFunctionOnNextCall(test_base);
+test_base(a, 3, true);
+check_test_base(a, 3, true);
+test_base(a, 3, false);
+check_test_base(a, 3, false);
+
+// Test that we deopt on failed bounds checks.
+var dictionary_map_array = new Int32Array(128);
+test_base(dictionary_map_array, 5, true);
+test_base(dictionary_map_array, 6, true);
+test_base(dictionary_map_array, 5, false);
+test_base(dictionary_map_array, 6, false);
+%OptimizeFunctionOnNextCall(test_base);
+test_base(dictionary_map_array, -2, true);
+assertTrue(%GetOptimizationStatus(test_base) != 1);
+
+// Forget about the dictionary_map_array's map.
+%ClearFunctionTypeFeedback(test_base);
+
+test_base(a, 5, true);
+test_base(a, 6, true);
+test_base(a, 5, false);
+test_base(a, 6, false);
+%OptimizeFunctionOnNextCall(test_base);
+test_base(a, 2048, true);
+assertTrue(%GetOptimizationStatus(test_base) != 1);
 
 function test_minus(base,cond) {
   a[base - 1] = 1;
@@ -122,16 +153,6 @@ function check_test_minus(base,cond) {
   }
 }
 
-test_base(1,true);
-test_base(2,true);
-test_base(1,false);
-test_base(2,false);
-%OptimizeFunctionOnNextCall(test_base);
-test_base(3,true);
-check_test_base(3,true);
-test_base(3,false);
-check_test_base(3,false);
-
 test_minus(5,true);
 test_minus(6,true);
 %OptimizeFunctionOnNextCall(test_minus);
@@ -140,30 +161,7 @@ check_test_minus(7,true);
 test_minus(7,false);
 check_test_minus(7,false);
 
-// Optimization status:
-// YES: 1
-// NO: 2
-// ALWAYS: 3
-// NEVER: 4
-
-// Test that we still deopt on failed bound checks
-test_base(5,true);
-test_base(6,true);
-test_base(5,false);
-test_base(6,false);
-%OptimizeFunctionOnNextCall(test_base);
-test_base(-2,true);
-assertTrue(%GetOptimizationStatus(test_base) != 1);
-
-test_base(5,true);
-test_base(6,true);
-test_base(5,false);
-test_base(6,false);
-%OptimizeFunctionOnNextCall(test_base);
-test_base(2048,true);
-assertTrue(%GetOptimizationStatus(test_base) != 1);
-
-// Specific test on negative offsets
+// Specific test on negative offsets.
 var short_a = new Array(100);
 for (var i = 0; i < short_a.length; i++) short_a[i] = 0;
 function short_test(a, i) {
@@ -174,9 +172,60 @@ short_test(short_a, 50);
 short_test(short_a, 50);
 %OptimizeFunctionOnNextCall(short_test);
 short_a.length = 10;
-short_test(a, 0);
+short_test(short_a, 0);
 assertTrue(%GetOptimizationStatus(short_test) != 1);
 
 
-gc();
+// A test for when we would modify a phi index.
+var data_phi = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+function test_phi(a, base, check) {
+  var index;
+  if (check) {
+    index = base + 1;
+  } else {
+    index = base + 2;
+  }
+  var result = a[index];
+  result += a[index + 1];
+  result += a[index - 1];
+  return result;
+}
+var result_phi = 0;
+result_phi = test_phi(data_phi, 3,  true);
+assertEquals(12, result_phi);
+result_phi = test_phi(data_phi, 3,  true);
+assertEquals(12, result_phi);
+%OptimizeFunctionOnNextCall(test_phi);
+result_phi = test_phi(data_phi, 3,  true);
+assertEquals(12, result_phi);
 
+
+// A test for recursive decomposition
+var data_composition_long = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+var data_composition_short = [0, 1, 2, 3, 4];
+function test_composition(a, base0, check) {
+  var base1 = ((base0 + 2));
+  var base2 = ((base1 + 8) >> 2);
+  var base3 = ((base2 + 6) >> 1);
+  var base4 = ((base3 + 8) >> 1);
+
+  var result = 0;
+  result += a[base0];
+  result += a[base1];
+  result += a[base2];
+  result += a[base3];
+  result += a[base4];
+
+  return result;
+}
+var result_composition = 0;
+result_composition = test_composition(data_composition_long, 2);
+assertEquals(19, result_composition);
+result_composition = test_composition(data_composition_long, 2);
+assertEquals(19, result_composition);
+%OptimizeFunctionOnNextCall(test_composition);
+result_composition = test_composition(data_composition_short, 2);
+assertEquals(NaN, result_composition);
+
+
+gc();

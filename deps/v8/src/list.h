@@ -149,6 +149,9 @@ class List {
   // Drop the last 'count' elements from the list.
   INLINE(void RewindBy(int count)) { Rewind(length_ - count); }
 
+  // Halve the capacity if fill level is less than a quarter.
+  INLINE(void Trim(AllocationPolicy allocator = AllocationPolicy()));
+
   bool Contains(const T& elm) const;
   int CountOccurrences(const T& elm, int start, int end) const;
 

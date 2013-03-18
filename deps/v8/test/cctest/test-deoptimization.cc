@@ -113,8 +113,8 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
 
 
 TEST(DeoptimizeSimple) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Test lazy deoptimization of a simple function.
   {
@@ -151,8 +151,8 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Test lazy deoptimization of a simple function with some arguments.
   {
@@ -190,8 +190,8 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Test lazy deoptimization of a simple function. Have a nested function call
   // do the deoptimization.
@@ -215,8 +215,8 @@ TEST(DeoptimizeSimpleNested) {
 
 
 TEST(DeoptimizeRecursive) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   {
     // Test lazy deoptimization of a simple function called recursively. Call
@@ -242,8 +242,8 @@ TEST(DeoptimizeRecursive) {
 
 
 TEST(DeoptimizeMultiple) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   {
     AlwaysOptimizeAllowNativesSyntaxNoInlining options;
@@ -270,8 +270,8 @@ TEST(DeoptimizeMultiple) {
 
 
 TEST(DeoptimizeConstructor) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   {
     AlwaysOptimizeAllowNativesSyntaxNoInlining options;
@@ -308,8 +308,8 @@ TEST(DeoptimizeConstructor) {
 
 
 TEST(DeoptimizeConstructorMultiple) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   {
     AlwaysOptimizeAllowNativesSyntaxNoInlining options;
@@ -337,8 +337,8 @@ TEST(DeoptimizeConstructorMultiple) {
 
 
 TEST(DeoptimizeBinaryOperationADDString) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   const char* f_source = "function f(x, y) { return x + y; };";
 
@@ -427,8 +427,8 @@ static void TestDeoptimizeBinaryOpHelper(LocalContext* env,
 
 
 TEST(DeoptimizeBinaryOperationADD) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   TestDeoptimizeBinaryOpHelper(&env, "+");
 
@@ -439,8 +439,8 @@ TEST(DeoptimizeBinaryOperationADD) {
 
 
 TEST(DeoptimizeBinaryOperationSUB) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   TestDeoptimizeBinaryOpHelper(&env, "-");
 
@@ -451,8 +451,8 @@ TEST(DeoptimizeBinaryOperationSUB) {
 
 
 TEST(DeoptimizeBinaryOperationMUL) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   TestDeoptimizeBinaryOpHelper(&env, "*");
 
@@ -463,8 +463,8 @@ TEST(DeoptimizeBinaryOperationMUL) {
 
 
 TEST(DeoptimizeBinaryOperationDIV) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   TestDeoptimizeBinaryOpHelper(&env, "/");
 
@@ -475,8 +475,8 @@ TEST(DeoptimizeBinaryOperationDIV) {
 
 
 TEST(DeoptimizeBinaryOperationMOD) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   TestDeoptimizeBinaryOpHelper(&env, "%");
 
@@ -487,8 +487,8 @@ TEST(DeoptimizeBinaryOperationMOD) {
 
 
 TEST(DeoptimizeCompare) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   const char* f_source = "function f(x, y) { return x < y; };";
 
@@ -530,8 +530,8 @@ TEST(DeoptimizeCompare) {
 
 
 TEST(DeoptimizeLoadICStoreIC) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Functions to generate load/store/keyed load/keyed store IC calls.
   const char* f1_source = "function f1(x) { return x.y; };";
@@ -610,8 +610,8 @@ TEST(DeoptimizeLoadICStoreIC) {
 
 
 TEST(DeoptimizeLoadICStoreICNested) {
-  v8::HandleScope scope;
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
 
   // Functions to generate load/store/keyed load/keyed store IC calls.
   const char* f1_source = "function f1(x) { return x.y; };";

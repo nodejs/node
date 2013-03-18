@@ -184,7 +184,9 @@ class Simulator {
   // architecture specification and is off by a 8 from the currently executing
   // instruction.
   void set_register(int reg, int32_t value);
+  void set_dw_register(int dreg, const int* dbl);
   int32_t get_register(int reg) const;
+  double get_double_from_register_pair(int reg);
   // Same for FPURegisters.
   void set_fpu_register(int fpureg, int32_t value);
   void set_fpu_register_float(int fpureg, float value);
@@ -214,6 +216,8 @@ class Simulator {
   // generated RegExp code with 7 parameters. This is a convenience function,
   // which sets up the simulator state and grabs the result on return.
   int32_t Call(byte* entry, int argument_count, ...);
+  // Alternative: call a 2-argument double function.
+  double CallFP(byte* entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -353,6 +357,7 @@ class Simulator {
   void GetFpArgs(double* x, int32_t* y);
   void SetFpResult(const double& result);
 
+  void CallInternal(byte* entry);
 
   // Architecture state.
   // Registers.

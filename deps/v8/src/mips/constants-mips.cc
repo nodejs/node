@@ -302,6 +302,8 @@ Instruction::Type Instruction::InstructionType() const {
           return kRegisterType;
       };
       break;
+    case COP1X:
+      return kRegisterType;
     // 16 bits Immediate type instructions. e.g.: addi dest, src, imm16.
     case REGIMM:
     case BEQ:

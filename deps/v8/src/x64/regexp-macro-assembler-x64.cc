@@ -234,7 +234,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
   // If input is ASCII, don't even bother calling here if the string to
   // match contains a non-ASCII character.
   if (mode_ == ASCII) {
-    ASSERT(String::IsAscii(str.start(), str.length()));
+    ASSERT(String::IsOneByte(str.start(), str.length()));
   }
 #endif
   int byte_length = str.length() * char_size();
@@ -280,7 +280,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
             (static_cast<uint64_t>(str[i + 5]) << 40) ||
             (static_cast<uint64_t>(str[i + 6]) << 48) ||
             (static_cast<uint64_t>(str[i + 7]) << 56);
-        __ movq(rax, combined_chars, RelocInfo::NONE);
+        __ movq(rax, combined_chars, RelocInfo::NONE64);
         __ cmpq(rax, Operand(rbx, byte_offset + i));
         i += 8;
       } else if (i + 4 <= n) {
@@ -300,7 +300,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
       ASSERT(mode_ == UC16);
       if (i + 4 <= n) {
         uint64_t combined_chars = *reinterpret_cast<const uint64_t*>(&str[i]);
-        __ movq(rax, combined_chars, RelocInfo::NONE);
+        __ movq(rax, combined_chars, RelocInfo::NONE64);
         __ cmpq(rax,
                 Operand(rsi, rdi, times_1, byte_offset + i * sizeof(uc16)));
         i += 4;
@@ -393,8 +393,13 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     __ j(not_equal, on_no_match);  // Definitely not equal.
     __ subb(rax, Immediate('a'));
     __ cmpb(rax, Immediate('z' - 'a'));
-    __ j(above, on_no_match);  // Weren't letters anyway.
-
+    __ j(below_equal, &loop_increment);  // In range 'a'-'z'.
+    // Latin-1: Check for values in range [224,254] but not 247.
+    __ subb(rax, Immediate(224 - 'a'));
+    __ cmpb(rax, Immediate(254 - 224));
+    __ j(above, on_no_match);  // Weren't Latin-1 letters.
+    __ cmpb(rax, Immediate(247 - 224));  // Check for 247.
+    __ j(equal, on_no_match);
     __ bind(&loop_increment);
     // Increment pointers into match and capture strings.
     __ addq(r11, Immediate(1));
@@ -610,7 +615,7 @@ void RegExpMacroAssemblerX64::CheckBitInTable(
     Label* on_bit_set) {
   __ Move(rax, table);
   Register index = current_character();
-  if (mode_ != ASCII || kTableMask != String::kMaxAsciiCharCode) {
+  if (mode_ != ASCII || kTableMask != String::kMaxOneByteCharCode) {
     __ movq(rbx, current_character());
     __ and_(rbx, Immediate(kTableMask));
     index = rbx;
@@ -631,29 +636,23 @@ bool RegExpMacroAssemblerX64::CheckSpecialCharacterClass(uc16 type,
   case 's':
     // Match space-characters
     if (mode_ == ASCII) {
-      // ASCII space characters are '\t'..'\r' and ' '.
+      // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
       __ cmpl(current_character(), Immediate(' '));
-      __ j(equal, &success);
+      __ j(equal, &success, Label::kNear);
       // Check range 0x09..0x0d
       __ lea(rax, Operand(current_character(), -'\t'));
       __ cmpl(rax, Immediate('\r' - '\t'));
-      BranchOrBacktrack(above, on_no_match);
+      __ j(below_equal, &success, Label::kNear);
+      // \u00a0 (NBSP).
+      __ cmpl(rax, Immediate(0x00a0 - '\t'));
+      BranchOrBacktrack(not_equal, on_no_match);
       __ bind(&success);
       return true;
     }
     return false;
   case 'S':
-    // Match non-space characters.
-    if (mode_ == ASCII) {
-      // ASCII space characters are '\t'..'\r' and ' '.
-      __ cmpl(current_character(), Immediate(' '));
-      BranchOrBacktrack(equal, on_no_match);
-      __ lea(rax, Operand(current_character(), -'\t'));
-      __ cmpl(rax, Immediate('\r' - '\t'));
-      BranchOrBacktrack(below_equal, on_no_match);
-      return true;
-    }
+    // The emitted code for generic character classes is good enough.
     return false;
   case 'd':
     // Match ASCII digits ('0'..'9')
@@ -1305,7 +1304,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
 
   // Current string.
-  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
+  bool is_ascii = subject->IsOneByteRepresentationUnderneath();
 
   ASSERT(re_code->instruction_start() <= *return_address);
   ASSERT(*return_address <=
@@ -1336,7 +1335,7 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   }
 
   // String might have changed.
-  if (subject_tmp->IsAsciiRepresentation() != is_ascii) {
+  if (subject_tmp->IsOneByteRepresentation() != is_ascii) {
     // If we changed between an ASCII and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).

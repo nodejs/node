@@ -380,7 +380,10 @@ function driveTickProcessorTest(
                              separateIc,
                              TickProcessor.CALL_GRAPH_SIZE,
                              ignoreUnknown,
-                             stateFilter);
+                             stateFilter,
+                             undefined,
+                             "0",
+                             "auto,auto");
   var pm = new PrintMonitor(testsPath + refOutput);
   tp.processLogFileInTest(testsPath + logInput);
   tp.printStatistics();

@@ -67,6 +67,7 @@ namespace internal {
   F(GetDefaultReceiver, 1, 1) \
   \
   F(GetPrototype, 1, 1) \
+  F(SetPrototype, 2, 1) \
   F(IsInPrototypeChain, 2, 1) \
   \
   F(GetOwnProperty, 2, 1) \
@@ -85,22 +86,27 @@ namespace internal {
   F(NewStrictArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
-  F(ParallelRecompile, 1, 1)     \
+  F(ParallelRecompile, 1, 1) \
+  F(InstallRecompiledCode, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
+  F(NotifyStubFailure, 0, 1) \
   F(NotifyOSR, 0, 1) \
   F(DeoptimizeFunction, 1, 1) \
   F(ClearFunctionTypeFeedback, 1, 1) \
   F(RunningInSimulator, 0, 1) \
   F(OptimizeFunctionOnNextCall, -1, 1) \
+  F(WaitUntilOptimized, 1, 1) \
   F(GetOptimizationStatus, 1, 1) \
   F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
+  F(AllocateInOldPointerSpace, 1, 1) \
   F(SetNativeFlag, 1, 1) \
   F(StoreArrayLiteralElement, 5, 1) \
   F(DebugCallbackSupportsStepping, 1, 1) \
   F(DebugPrepareStepInIfStepping, 1, 1) \
+  F(FlattenString, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -111,7 +117,6 @@ namespace internal {
   F(Typeof, 1, 1) \
   \
   F(StringToNumber, 1, 1) \
-  F(StringFromCharCodeArray, 1, 1) \
   F(StringParseInt, 2, 1) \
   F(StringParseFloat, 1, 1) \
   F(StringToLowerCase, 1, 1) \
@@ -120,9 +125,6 @@ namespace internal {
   F(CharFromCode, 1, 1) \
   F(URIEscape, 1, 1) \
   F(URIUnescape, 1, 1) \
-  F(QuoteJSONString, 1, 1) \
-  F(QuoteJSONStringComma, 1, 1) \
-  F(QuoteJSONStringArray, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
@@ -191,6 +193,10 @@ namespace internal {
   \
   /* JSON */ \
   F(ParseJson, 1, 1) \
+  F(BasicJSONStringify, 1, 1) \
+  F(QuoteJSONString, 1, 1) \
+  F(QuoteJSONStringComma, 1, 1) \
+  F(QuoteJSONStringArray, 1, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
@@ -198,12 +204,14 @@ namespace internal {
   F(StringLastIndexOf, 3, 1) \
   F(StringLocaleCompare, 2, 1) \
   F(SubString, 3, 1) \
-  F(StringReplaceRegExpWithString, 4, 1) \
+  F(StringReplaceGlobalRegExpWithString, 4, 1) \
   F(StringReplaceOneCharWithString, 3, 1) \
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
   F(StringToArray, 2, 1) \
   F(NewStringWrapper, 1, 1) \
+  F(NewString, 2, 1) \
+  F(TruncateString, 2, 1) \
   \
   /* Numbers */ \
   F(NumberToRadixString, 2, 1) \
@@ -232,6 +240,9 @@ namespace internal {
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
   F(CollectStackTrace, 3, 1) \
+  F(MarkOneShotGetter, 1, 1) \
+  F(GetOverflowedStackTrace, 1, 1) \
+  F(SetOverflowedStackTrace, 2, 1) \
   F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \
@@ -255,7 +266,7 @@ namespace internal {
   /* Numbers */ \
   \
   /* Globals */ \
-  F(CompileString, 1, 1) \
+  F(CompileString, 2, 1) \
   F(GlobalPrint, 1, 1) \
   \
   /* Eval */ \
@@ -266,6 +277,7 @@ namespace internal {
   F(DefineOrRedefineDataProperty, 4, 1) \
   F(DefineOrRedefineAccessorProperty, 5, 1) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */, 1) \
+  F(GetDataProperty, 2, 1) \
   \
   /* Arrays */ \
   F(RemoveArrayHoles, 2, 1) \
@@ -286,6 +298,9 @@ namespace internal {
   /* Harmony modules */ \
   F(IsJSModule, 1, 1) \
   \
+  /* Harmony symbols */ \
+  F(CreateSymbol, 0, 1) \
+  \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
   F(CreateJSFunctionProxy, 4, 1) \
@@ -301,6 +316,7 @@ namespace internal {
   F(SetAdd, 2, 1) \
   F(SetHas, 2, 1) \
   F(SetDelete, 2, 1) \
+  F(SetGetSize, 1, 1) \
   \
   /* Harmony maps */ \
   F(MapInitialize, 1, 1) \
@@ -308,6 +324,7 @@ namespace internal {
   F(MapHas, 2, 1) \
   F(MapDelete, 2, 1) \
   F(MapSet, 3, 1) \
+  F(MapGetSize, 1, 1) \
   \
   /* Harmony weakmaps */ \
   F(WeakMapInitialize, 1, 1) \
@@ -315,6 +332,14 @@ namespace internal {
   F(WeakMapHas, 2, 1) \
   F(WeakMapDelete, 2, 1) \
   F(WeakMapSet, 3, 1) \
+  \
+  /* Harmony observe */ \
+  F(IsObserved, 1, 1) \
+  F(SetIsObserved, 2, 1) \
+  F(SetObserverDeliveryPending, 0, 1) \
+  F(GetObservationState, 0, 1) \
+  F(ObservationWeakMapCreate, 0, 1) \
+  F(UnwrapGlobalProxy, 1, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
@@ -335,7 +360,7 @@ namespace internal {
   F(PushWithContext, 2, 1) \
   F(PushCatchContext, 3, 1) \
   F(PushBlockContext, 2, 1) \
-  F(PushModuleContext, 1, 1) \
+  F(PushModuleContext, 2, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
@@ -343,6 +368,7 @@ namespace internal {
   \
   /* Declarations and initialization */ \
   F(DeclareGlobals, 3, 1) \
+  F(DeclareModules, 1, 1) \
   F(DeclareContextSlot, 4, 1) \
   F(InitializeVarGlobal, -1 /* 2 or 3 */, 1) \
   F(InitializeConstGlobal, 2, 1) \
@@ -363,9 +389,6 @@ namespace internal {
   F(GetFromCache, 2, 1) \
   \
   /* Message objects */ \
-  F(NewMessageObject, 2, 1) \
-  F(MessageGetType, 1, 1) \
-  F(MessageGetArguments, 1, 1) \
   F(MessageGetStartPosition, 1, 1) \
   F(MessageGetScript, 1, 1) \
   \
@@ -390,6 +413,7 @@ namespace internal {
   F(HasExternalFloatElements, 1, 1) \
   F(HasExternalDoubleElements, 1, 1) \
   F(HasFastProperties, 1, 1) \
+  F(TransitionElementsKind, 2, 1) \
   F(TransitionElementsSmiToDouble, 1, 1) \
   F(TransitionElementsDoubleToObject, 1, 1) \
   F(HaveSameMap, 2, 1) \
@@ -418,6 +442,7 @@ namespace internal {
   F(GetScopeDetails, 4, 1) \
   F(GetFunctionScopeCount, 1, 1) \
   F(GetFunctionScopeDetails, 2, 1) \
+  F(SetScopeVariableValue, 6, 1) \
   F(DebugPrintScopes, 0, 1) \
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
@@ -458,20 +483,6 @@ namespace internal {
   F(SetFlags, 1, 1) \
   F(CollectGarbage, 1, 1) \
   F(GetHeapUsage, 0, 1) \
-  \
-  /* LiveObjectList support*/ \
-  F(HasLOLEnabled, 0, 1) \
-  F(CaptureLOL, 0, 1) \
-  F(DeleteLOL, 1, 1) \
-  F(DumpLOL, 5, 1) \
-  F(GetLOLObj, 1, 1) \
-  F(GetLOLObjId, 1, 1) \
-  F(GetLOLObjRetainers, 6, 1) \
-  F(GetLOLPath, 3, 1) \
-  F(InfoLOL, 2, 1) \
-  F(PrintLOLObj, 1, 1) \
-  F(ResetLOL, 0, 1) \
-  F(SummarizeLOL, 3, 1)
 
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F)
@@ -503,6 +514,7 @@ namespace internal {
 #define INLINE_FUNCTION_LIST(F) \
   F(IsSmi, 1, 1)                                                             \
   F(IsNonNegativeSmi, 1, 1)                                                  \
+  F(IsSymbol, 1, 1)                                                          \
   F(IsArray, 1, 1)                                                           \
   F(IsRegExp, 1, 1)                                                          \
   F(IsConstructCall, 0, 1)                                                   \
@@ -514,6 +526,8 @@ namespace internal {
   F(DateField, 2 /* date object, field index */, 1)                          \
   F(StringCharFromCode, 1, 1)                                                \
   F(StringCharAt, 2, 1)                                                      \
+  F(OneByteSeqStringSetChar, 3, 1)                                           \
+  F(TwoByteSeqStringSetChar, 3, 1)                                           \
   F(ObjectEquals, 2, 1)                                                      \
   F(RandomHeapNumber, 0, 1)                                                  \
   F(IsObject, 1, 1)                                                          \
@@ -534,7 +548,7 @@ namespace internal {
 
 
 // ----------------------------------------------------------------------------
-// INLINE_AND_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
+// INLINE_RUNTIME_FUNCTION_LIST defines all inlined functions accessed
 // with a native call of the form %_name from within JS code that also have
 // a corresponding runtime function, that is called for slow cases.
 // Entries have the form F(name, number of arguments, number of return values).
@@ -556,8 +570,8 @@ namespace internal {
 
 class RuntimeState {
  public:
-  StaticResource<StringInputBuffer>* string_input_buffer() {
-    return &string_input_buffer_;
+  StaticResource<ConsStringIteratorOp>* string_iterator() {
+    return &string_iterator_;
   }
   unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
     return &to_upper_mapping_;
@@ -565,29 +579,29 @@ class RuntimeState {
   unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
     return &to_lower_mapping_;
   }
-  StringInputBuffer* string_input_buffer_compare_bufx() {
-    return &string_input_buffer_compare_bufx_;
+  ConsStringIteratorOp* string_iterator_compare_x() {
+    return &string_iterator_compare_x_;
   }
-  StringInputBuffer* string_input_buffer_compare_bufy() {
-    return &string_input_buffer_compare_bufy_;
+  ConsStringIteratorOp* string_iterator_compare_y() {
+    return &string_iterator_compare_y_;
   }
-  StringInputBuffer* string_locale_compare_buf1() {
-    return &string_locale_compare_buf1_;
+  ConsStringIteratorOp* string_locale_compare_it1() {
+    return &string_locale_compare_it1_;
   }
-  StringInputBuffer* string_locale_compare_buf2() {
-    return &string_locale_compare_buf2_;
+  ConsStringIteratorOp* string_locale_compare_it2() {
+    return &string_locale_compare_it2_;
   }
 
  private:
   RuntimeState() {}
   // Non-reentrant string buffer for efficient general use in the runtime.
-  StaticResource<StringInputBuffer> string_input_buffer_;
+  StaticResource<ConsStringIteratorOp> string_iterator_;
   unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
   unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
-  StringInputBuffer string_input_buffer_compare_bufx_;
-  StringInputBuffer string_input_buffer_compare_bufy_;
-  StringInputBuffer string_locale_compare_buf1_;
-  StringInputBuffer string_locale_compare_buf2_;
+  ConsStringIteratorOp string_iterator_compare_x_;
+  ConsStringIteratorOp string_iterator_compare_y_;
+  ConsStringIteratorOp string_locale_compare_it1_;
+  ConsStringIteratorOp string_locale_compare_it2_;
 
   friend class Isolate;
   friend class Runtime;
@@ -634,15 +648,16 @@ class Runtime : public AllStatic {
 
   static const int kNotFound = -1;
 
-  // Add symbols for all the intrinsic function names to a StringDictionary.
+  // Add internalized strings for all the intrinsic function names to a
+  // StringDictionary.
   // Returns failure if an allocation fails.  In this case, it must be
   // retried with a new, empty StringDictionary, not with the same one.
   // Alternatively, heap initialization can be completely restarted.
   MUST_USE_RESULT static MaybeObject* InitializeIntrinsicFunctionNames(
       Heap* heap, Object* dictionary);
 
-  // Get the intrinsic function with the given name, which must be a symbol.
-  static const Function* FunctionForSymbol(Handle<String> name);
+  // Get the intrinsic function with the given name, which must be internalized.
+  static const Function* FunctionForName(Handle<String> name);
 
   // Get the intrinsic function with the given FunctionId.
   static const Function* FunctionForId(FunctionId id);

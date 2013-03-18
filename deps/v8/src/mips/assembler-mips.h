@@ -72,20 +72,23 @@ namespace internal {
 // Core register.
 struct Register {
   static const int kNumRegisters = v8::internal::kNumRegisters;
-  static const int kNumAllocatableRegisters = 14;  // v0 through t7.
+  static const int kMaxNumAllocatableRegisters = 14;  // v0 through t7.
   static const int kSizeInBytes = 4;
+  static const int kGPRsPerNonFPUDouble = 2;
+
+  inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
     return reg.code() - 2;  // zero_reg and 'at' are skipped.
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index + 2);  // zero_reg and 'at' are skipped.
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "v0",
       "v1",
@@ -186,7 +189,7 @@ Register ToRegister(int num);
 
 // Coprocessor register.
 struct FPURegister {
-  static const int kNumRegisters = v8::internal::kNumFPURegisters;
+  static const int kMaxNumRegisters = v8::internal::kNumFPURegisters;
 
   // TODO(plind): Warning, inconsistent numbering here. kNumFPURegisters refers
   // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
@@ -197,36 +200,17 @@ struct FPURegister {
   //  f28: 0.0
   //  f30: scratch register.
   static const int kNumReservedRegisters = 2;
-  static const int kNumAllocatableRegisters = kNumRegisters / 2 -
+  static const int kMaxNumAllocatableRegisters = kMaxNumRegisters / 2 -
       kNumReservedRegisters;
 
-
+  inline static int NumRegisters();
+  inline static int NumAllocatableRegisters();
   inline static int ToAllocationIndex(FPURegister reg);
+  static const char* AllocationIndexToString(int index);
 
   static FPURegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index * 2);
-  }
-
-  static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    const char* const names[] = {
-      "f0",
-      "f2",
-      "f4",
-      "f6",
-      "f8",
-      "f10",
-      "f12",
-      "f14",
-      "f16",
-      "f18",
-      "f20",
-      "f22",
-      "f24",
-      "f26"
-    };
-    return names[index];
   }
 
   static FPURegister from_code(int code) {
@@ -234,7 +218,7 @@ struct FPURegister {
     return r;
   }
 
-  bool is_valid() const { return 0 <= code_ && code_ < kNumFPURegisters ; }
+  bool is_valid() const { return 0 <= code_ && code_ < kMaxNumRegisters ; }
   bool is(FPURegister creg) const { return code_ == creg.code_; }
   FPURegister low() const {
     // Find low reg of a Double-reg pair, which is the reg itself.
@@ -316,6 +300,9 @@ const FPURegister f29 = { 29 };
 const FPURegister f30 = { 30 };
 const FPURegister f31 = { 31 };
 
+const Register sfpd_lo  = { kRegister_t6_Code };
+const Register sfpd_hi  = { kRegister_t7_Code };
+
 // Register aliases.
 // cp is assumed to be a callee saved register.
 // Defined using #define instead of "static const Register&" because Clang
@@ -361,7 +348,7 @@ class Operand BASE_EMBEDDED {
  public:
   // Immediate.
   INLINE(explicit Operand(int32_t immediate,
-         RelocInfo::Mode rmode = RelocInfo::NONE));
+         RelocInfo::Mode rmode = RelocInfo::NONE32));
   INLINE(explicit Operand(const ExternalReference& f));
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
@@ -406,7 +393,7 @@ class MemOperand : public Operand {
 
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
-// Supported features must be enabled by a Scope before use.
+// Supported features must be enabled by a CpuFeatureScope before use.
 class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
@@ -420,89 +407,25 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
-
-#ifdef DEBUG
-  // Check whether a feature is currently enabled.
-  static bool IsEnabled(CpuFeature f) {
+  static bool IsFoundByRuntimeProbingOnly(CpuFeature f) {
     ASSERT(initialized_);
-    Isolate* isolate = Isolate::UncheckedCurrent();
-    if (isolate == NULL) {
-      // When no isolate is available, work as if we're running in
-      // release mode.
-      return IsSupported(f);
-    }
-    unsigned enabled = static_cast<unsigned>(isolate->enabled_cpu_features());
-    return (enabled & (1u << f)) != 0;
+    return (found_by_runtime_probing_only_ &
+            (static_cast<uint64_t>(1) << f)) != 0;
   }
-#endif
 
-  // Enable a specified feature within a scope.
-  class Scope BASE_EMBEDDED {
-#ifdef DEBUG
-
-   public:
-    explicit Scope(CpuFeature f) {
-      unsigned mask = 1u << f;
-      ASSERT(CpuFeatures::IsSupported(f));
-      ASSERT(!Serializer::enabled() ||
-             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
-      isolate_ = Isolate::UncheckedCurrent();
-      old_enabled_ = 0;
-      if (isolate_ != NULL) {
-        old_enabled_ = static_cast<unsigned>(isolate_->enabled_cpu_features());
-        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
-      }
-    }
-    ~Scope() {
-      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
-      if (isolate_ != NULL) {
-        isolate_->set_enabled_cpu_features(old_enabled_);
-      }
-    }
-
- private:
-    Isolate* isolate_;
-    unsigned old_enabled_;
-#else
-
- public:
-    explicit Scope(CpuFeature f) {}
-#endif
-  };
-
-  class TryForceFeatureScope BASE_EMBEDDED {
-   public:
-    explicit TryForceFeatureScope(CpuFeature f)
-        : old_supported_(CpuFeatures::supported_) {
-      if (CanForce()) {
-        CpuFeatures::supported_ |= (1u << f);
-      }
-    }
-
-    ~TryForceFeatureScope() {
-      if (CanForce()) {
-        CpuFeatures::supported_ = old_supported_;
-      }
-    }
-
-   private:
-    static bool CanForce() {
-      // It's only safe to temporarily force support of CPU features
-      // when there's only a single isolate, which is guaranteed when
-      // the serializer is enabled.
-      return Serializer::enabled();
-    }
-
-    const unsigned old_supported_;
-  };
+  static bool IsSafeForSnapshot(CpuFeature f) {
+    return (IsSupported(f) &&
+            (!Serializer::enabled() || !IsFoundByRuntimeProbingOnly(f)));
+  }
 
  private:
 #ifdef DEBUG
   static bool initialized_;
 #endif
   static unsigned supported_;
-  static unsigned found_by_runtime_probing_;
+  static unsigned found_by_runtime_probing_only_;
 
+  friend class ExternalReference;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
@@ -523,13 +446,7 @@ class Assembler : public AssemblerBase {
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size);
-  ~Assembler();
-
-  // Overrides the default provided by FLAG_debug_code.
-  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
-
-  // Dummy for cross platform compatibility.
-  void set_predictable_code_size(bool value) { }
+  virtual ~Assembler() { }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -669,7 +586,9 @@ class Assembler : public AssemblerBase {
     PROPERTY_ACCESS_INLINED_CONTEXT_DONT_DELETE,
     // Helper values.
     LAST_CODE_MARKER,
-    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED
+    FIRST_IC_MARKER = PROPERTY_ACCESS_INLINED,
+    // Code aging
+    CODE_AGE_MARKER_NOP = 6
   };
 
   // Type == 0 is the default non-marking nop. For mips this is a
@@ -822,6 +741,7 @@ class Assembler : public AssemblerBase {
   void add_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_d(FPURegister fd, FPURegister fs);
   void mov_d(FPURegister fd, FPURegister fs);
@@ -947,8 +867,6 @@ class Assembler : public AssemblerBase {
   void db(uint8_t data);
   void dd(uint32_t data);
 
-  int32_t pc_offset() const { return pc_ - buffer_; }
-
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -1033,8 +951,6 @@ class Assembler : public AssemblerBase {
   // the relocation info.
   TypeFeedbackId recorded_ast_id_;
 
-  bool emit_debug_code() const { return emit_debug_code_; }
-
   int32_t buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Decode branch instruction at pos and return branch target pos.
@@ -1093,13 +1009,6 @@ class Assembler : public AssemblerBase {
   }
 
  private:
-  // Code buffer:
-  // The buffer into which code and relocation info are generated.
-  byte* buffer_;
-  int buffer_size_;
-  // True if the assembler owns the buffer, false if buffer is external.
-  bool own_buffer_;
-
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
   static const int kBufferCheckInterval = 1*KB/2;
@@ -1110,7 +1019,6 @@ class Assembler : public AssemblerBase {
   // not have to check for overflow. The same is true for writes of large
   // relocation info entries.
   static const int kGap = 32;
-  byte* pc_;  // The program counter - moves forward.
 
 
   // Repeated checking whether the trampoline pool should be emitted is rather
@@ -1169,6 +1077,13 @@ class Assembler : public AssemblerBase {
 
   void GenInstrRegister(Opcode opcode,
                         SecondaryField fmt,
+                        FPURegister ft,
+                        FPURegister fs,
+                        FPURegister fd,
+                        SecondaryField func = NULLSF);
+
+  void GenInstrRegister(Opcode opcode,
+                        FPURegister fr,
                         FPURegister ft,
                         FPURegister fs,
                         FPURegister fd,
@@ -1285,7 +1200,6 @@ class Assembler : public AssemblerBase {
   friend class BlockTrampolinePoolScope;
 
   PositionsRecorder positions_recorder_;
-  bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

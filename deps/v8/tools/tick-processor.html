@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<!-- Copyright 2012 the V8 project authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+      copyright notice, this list of conditions and the following
+      disclaimer in the documentation and/or other materials provided
+      with the distribution.
+    * Neither the name of Google Inc. nor the names of its
+      contributors may be used to endorse or promote products derived
+      from this software without specific prior written permission.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. -->
+
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>V8 Tick Processor</title>
+
+  <style type="text/css">
+    body {
+      font-family: Verdana, Arial, Helvetica, sans-serif;
+      font-size: 10pt;
+    }
+    h4 {
+      margin-bottom: 0px;
+    }
+    p {
+      margin-top: 0px;
+    }
+  </style>
+
+  <script src="splaytree.js"></script>
+  <script src="codemap.js"></script>
+  <script src="csvparser.js"></script>
+  <script src="consarray.js"></script>
+  <script src="profile.js"></script>
+  <script src="profile_view.js"></script>
+  <script src="logreader.js"></script>
+  <script src="tickprocessor.js"></script>
+
+  <script type="text/javascript">
+
+var v8log_content;
+var textout;
+
+function load_logfile(evt) {
+  textout.value = "";
+  var f = evt.target.files[0];
+  if (f) {
+    var reader = new FileReader();
+    reader.onload = function(event) {
+      v8log_content = event.target.result;
+      start_process();
+    };
+    reader.onerror = function(event) {
+      console.error("File could not be read! Code " + event.target.error.code);
+    };
+    reader.readAsText(f);
+  } else {
+    alert("Failed to load file");
+  }
+}
+
+function print(arg) {
+  textout.value+=arg+"\n";
+}
+
+function start_process() {
+  ArgumentsProcessor.DEFAULTS = {
+    logFileName: 'v8.log',
+    snapshotLogFileName: null,
+    platform: 'unix',
+    stateFilter: null,
+    callGraphSize: 5,
+    ignoreUnknown: false,
+    separateIc: false,
+    targetRootFS: '',
+    nm: 'nm'
+  };
+
+  var entriesProviders = {
+    'unix': UnixCppEntriesProvider,
+    'windows': WindowsCppEntriesProvider,
+    'mac': MacCppEntriesProvider
+  };
+
+  var snapshotLogProcessor; // not used
+
+  var tickProcessor = new TickProcessor(
+    new (entriesProviders[ArgumentsProcessor.DEFAULTS.platform])(
+        ArgumentsProcessor.DEFAULTS.nm,
+        ArgumentsProcessor.DEFAULTS.targetRootFS),
+    ArgumentsProcessor.DEFAULTS.separateIc,
+    ArgumentsProcessor.DEFAULTS.callGraphSize,
+    ArgumentsProcessor.DEFAULTS.ignoreUnknown,
+    ArgumentsProcessor.DEFAULTS.stateFilter,
+    snapshotLogProcessor);
+
+  tickProcessor.processLogChunk(v8log_content);
+  tickProcessor.printStatistics();
+}
+
+function Load() {
+  document.getElementById('fileinput').addEventListener(
+      'change', load_logfile, false);
+  textout = document.getElementById('textout');
+}
+</script>
+</head>
+<body onLoad="Load()">
+
+<h3 style="margin-top: 2px;">
+  Chrome V8 profiling log processor
+</h3>
+<p>
+Process V8's profiling information log (sampling profiler tick information)
+in your browser. Particularly useful if you don't have the V8 shell (d8)
+at hand on your system. You still have to run Chrome with the appropriate
+<a href="https://code.google.com/p/v8/wiki/ProfilingChromiumWithV8">
+  command line flags</a>
+to produce the profiling log.
+</p>
+<h4>Usage:</h4>
+<p>
+Click on the button and browse to the profiling log file (usually, v8.log).
+Process will start automatically and the output will be visible in the below
+text area.
+</p>
+<h4>Limitations and disclaimer:</h4>
+<p>
+This page offers a subset of the functionalities of the command-line tick
+processor utility in the V8 repository. In particular, this page cannot
+access the command-line utility that provides library symbol information,
+hence the [C++] section of the output stays empty. Also consider that this
+web-based tool is provided only for convenience and quick reference, you
+should refer to the
+<a href="https://code.google.com/p/v8/wiki/V8Profiler">
+  command-line</a>
+version for full output.
+</p>
+<p>
+<input type="file" id="fileinput" />
+</p>
+<p>
+<textarea name="myTextArea" cols="120" rows="40" wrap="off" id="textout"
+          readonly="yes"></textarea>
+</p>
+<p style="font-style:italic;">
+Copyright the V8 Authors - Last change to this page: 12/12/2012
+</p>
+
+
+</body>
+</html>

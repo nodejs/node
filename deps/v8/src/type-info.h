@@ -65,12 +65,12 @@ class TypeInfo {
   static TypeInfo Integer32() { return TypeInfo(kInteger32); }
   // We know it's a Smi.
   static TypeInfo Smi() { return TypeInfo(kSmi); }
-  // We know it's a Symbol.
-  static TypeInfo Symbol() { return TypeInfo(kSymbol); }
   // We know it's a heap number.
   static TypeInfo Double() { return TypeInfo(kDouble); }
   // We know it's a string.
   static TypeInfo String() { return TypeInfo(kString); }
+  // We know it's an internalized string.
+  static TypeInfo InternalizedString() { return TypeInfo(kInternalizedString); }
   // We know it's a non-primitive (object) type.
   static TypeInfo NonPrimitive() { return TypeInfo(kNonPrimitive); }
   // We haven't started collecting info yet.
@@ -140,14 +140,14 @@ class TypeInfo {
     return ((type_ & kSmi) == kSmi);
   }
 
-  inline bool IsSymbol() {
+  inline bool IsInternalizedString() {
     ASSERT(type_ != kUninitialized);
-    return ((type_ & kSymbol) == kSymbol);
+    return ((type_ & kInternalizedString) == kInternalizedString);
   }
 
-  inline bool IsNonSymbol() {
+  inline bool IsNonInternalizedString() {
     ASSERT(type_ != kUninitialized);
-    return ((type_ & kSymbol) == kString);
+    return ((type_ & kInternalizedString) == kString);
   }
 
   inline bool IsInteger32() {
@@ -181,7 +181,7 @@ class TypeInfo {
       case kNumber: return "Number";
       case kInteger32: return "Integer32";
       case kSmi: return "Smi";
-      case kSymbol: return "Symbol";
+      case kInternalizedString: return "InternalizedString";
       case kDouble: return "Double";
       case kString: return "String";
       case kNonPrimitive: return "Object";
@@ -193,17 +193,18 @@ class TypeInfo {
 
  private:
   enum Type {
-    kUnknown = 0,          // 0000000
-    kPrimitive = 0x10,     // 0010000
-    kNumber = 0x11,        // 0010001
-    kInteger32 = 0x13,     // 0010011
-    kSmi = 0x17,           // 0010111
-    kDouble = 0x19,        // 0011001
-    kString = 0x30,        // 0110000
-    kSymbol = 0x32,        // 0110010
-    kNonPrimitive = 0x40,  // 1000000
-    kUninitialized = 0x7f  // 1111111
+    kUnknown = 0,                // 0000000
+    kPrimitive = 0x10,           // 0010000
+    kNumber = 0x11,              // 0010001
+    kInteger32 = 0x13,           // 0010011
+    kSmi = 0x17,                 // 0010111
+    kDouble = 0x19,              // 0011001
+    kString = 0x30,              // 0110000
+    kInternalizedString = 0x32,  // 0110010
+    kNonPrimitive = 0x40,        // 1000000
+    kUninitialized = 0x7f        // 1111111
   };
+
   explicit inline TypeInfo(Type t) : type_(t) { }
 
   Type type_;
@@ -226,10 +227,11 @@ class CompareOperation;
 class CompilationInfo;
 class CountOperation;
 class Expression;
+class ForInStatement;
+class ICStub;
 class Property;
 class SmallMapList;
 class UnaryOperation;
-class ForInStatement;
 
 
 class TypeFeedbackOracle: public ZoneObject {
@@ -241,9 +243,9 @@ class TypeFeedbackOracle: public ZoneObject {
 
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsUninitialized(Property* expr);
-  bool LoadIsMegamorphicWithTypeInfo(Property* expr);
+  bool LoadIsPolymorphic(Property* expr);
   bool StoreIsMonomorphicNormal(TypeFeedbackId ast_id);
-  bool StoreIsMegamorphicWithTypeInfo(TypeFeedbackId ast_id);
+  bool StoreIsPolymorphic(TypeFeedbackId ast_id);
   bool CallIsMonomorphic(Call* expr);
   bool CallNewIsMonomorphic(CallNew* expr);
   bool ObjectLiteralStoreIsMonomorphic(ObjectLiteral::Property* prop);
@@ -252,6 +254,8 @@ class TypeFeedbackOracle: public ZoneObject {
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(TypeFeedbackId ast_id);
+
+  KeyedAccessStoreMode GetStoreMode(TypeFeedbackId ast_id);
 
   void LoadReceiverTypes(Property* expr,
                          Handle<String> name,
@@ -270,15 +274,19 @@ class TypeFeedbackOracle: public ZoneObject {
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
+  void CollectPolymorphicMaps(Handle<Code> code, SmallMapList* types);
+
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 
   Handle<JSFunction> GetCallTarget(Call* expr);
   Handle<JSFunction> GetCallNewTarget(CallNew* expr);
+  ElementsKind GetCallNewElementsKind(CallNew* expr);
 
   Handle<Map> GetObjectLiteralStoreMap(ObjectLiteral::Property* prop);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
+  bool LoadIsStub(Property* expr, ICStub* stub);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cylces in our headers. Death to tons of implementations in
@@ -287,9 +295,14 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Get type information for arithmetic operations and compares.
   TypeInfo UnaryType(UnaryOperation* expr);
-  TypeInfo BinaryType(BinaryOperation* expr);
-  TypeInfo CompareType(CompareOperation* expr);
-  bool IsSymbolCompare(CompareOperation* expr);
+  void BinaryType(BinaryOperation* expr,
+                  TypeInfo* left,
+                  TypeInfo* right,
+                  TypeInfo* result);
+  void CompareType(CompareOperation* expr,
+                   TypeInfo* left_type,
+                   TypeInfo* right_type,
+                   TypeInfo* overall_type);
   Handle<Map> GetCompareMap(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
   TypeInfo IncrementType(CountOperation* expr);
@@ -315,12 +328,16 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
+ public:
+  // TODO(mvstanton): how to get this information without making the method
+  // public?
   Handle<Object> GetInfo(TypeFeedbackId ast_id);
 
+ private:
   Handle<Context> native_context_;
   Isolate* isolate_;
-  Handle<UnseededNumberDictionary> dictionary_;
   Zone* zone_;
+  Handle<UnseededNumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

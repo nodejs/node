@@ -244,10 +244,10 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
 
   static const byte* StringCharacterPosition(String* subject, int start_index);
 
-  // Byte map of ASCII characters with a 0xff if the character is a word
+  // Byte map of one byte characters with a 0xff if the character is a word
   // character (digit, letter or underscore) and 0x00 otherwise.
   // Used by generated RegExp code.
-  static const byte word_character_map[128];
+  static const byte word_character_map[256];
 
   static Address word_character_map_address() {
     return const_cast<Address>(&word_character_map[0]);

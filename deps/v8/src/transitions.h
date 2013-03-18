@@ -59,12 +59,12 @@ namespace internal {
 class TransitionArray: public FixedArray {
  public:
   // Accessors for fetching instance transition at transition number.
-  inline String* GetKey(int transition_number);
-  inline void SetKey(int transition_number, String* value);
+  inline Name* GetKey(int transition_number);
+  inline void SetKey(int transition_number, Name* value);
   inline Object** GetKeySlot(int transition_number);
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
 
-  String* GetSortedKey(int transition_number) {
+  Name* GetSortedKey(int transition_number) {
     return GetKey(transition_number);
   }
 
@@ -105,7 +105,7 @@ class TransitionArray: public FixedArray {
   // Allocate a new transition array with a single entry.
   static MUST_USE_RESULT MaybeObject* NewWith(
       SimpleTransitionFlag flag,
-      String* key,
+      Name* key,
       Map* target,
       Object* back_pointer);
 
@@ -114,7 +114,7 @@ class TransitionArray: public FixedArray {
   // Copy the transition array, inserting a new transition.
   // TODO(verwaest): This should not cause an existing transition to be
   // overwritten.
-  MUST_USE_RESULT MaybeObject* CopyInsert(String* name, Map* target);
+  MUST_USE_RESULT MaybeObject* CopyInsert(Name* name, Map* target);
 
   // Copy a single transition from the origin array.
   inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
@@ -122,7 +122,7 @@ class TransitionArray: public FixedArray {
                                                 int target_transition);
 
   // Search a transition for a given property name.
-  inline int Search(String* name);
+  inline int Search(Name* name);
 
   // Allocates a TransitionArray.
   MUST_USE_RESULT static MaybeObject* Allocate(int number_of_transitions);
@@ -195,7 +195,7 @@ class TransitionArray: public FixedArray {
   }
 
   inline void NoIncrementalWriteBarrierSet(int transition_number,
-                                           String* key,
+                                           Name* key,
                                            Map* target);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TransitionArray);

@@ -93,13 +93,13 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     return v8::ThrowException(v8::String::New(
         "externalizeString() can't externalize twice."));
   }
-  if (string->IsAsciiRepresentation() && !force_two_byte) {
-    char* data = new char[string->length()];
+  if (string->IsOneByteRepresentation() && !force_two_byte) {
+    uint8_t* data = new uint8_t[string->length()];
     String::WriteToFlat(*string, data, 0, string->length());
     SimpleAsciiStringResource* resource = new SimpleAsciiStringResource(
-        data, string->length());
+        reinterpret_cast<char*>(data), string->length());
     result = string->MakeExternal(resource);
-    if (result && !string->IsSymbol()) {
+    if (result && !string->IsInternalizedString()) {
       HEAP->external_string_table()->AddString(*string);
     }
     if (!result) delete resource;
@@ -109,7 +109,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
     SimpleTwoByteStringResource* resource = new SimpleTwoByteStringResource(
         data, string->length());
     result = string->MakeExternal(resource);
-    if (result && !string->IsSymbol()) {
+    if (result && !string->IsInternalizedString()) {
       HEAP->external_string_table()->AddString(*string);
     }
     if (!result) delete resource;
@@ -127,7 +127,8 @@ v8::Handle<v8::Value> ExternalizeStringExtension::IsAscii(
     return v8::ThrowException(v8::String::New(
         "isAsciiString() requires a single string argument."));
   }
-  return Utils::OpenHandle(*args[0].As<v8::String>())->IsAsciiRepresentation() ?
+  return
+      Utils::OpenHandle(*args[0].As<v8::String>())->IsOneByteRepresentation() ?
       v8::True() : v8::False();
 }
 

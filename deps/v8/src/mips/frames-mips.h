@@ -193,30 +193,6 @@ class ExitFrameConstants : public AllStatic {
 };
 
 
-class StandardFrameConstants : public AllStatic {
- public:
-  // Fixed part of the frame consists of return address, caller fp,
-  // context and function.
-  static const int kFixedFrameSize    =  4 * kPointerSize;
-  static const int kExpressionsOffset = -3 * kPointerSize;
-  static const int kMarkerOffset      = -2 * kPointerSize;
-  static const int kContextOffset     = -1 * kPointerSize;
-  static const int kCallerFPOffset    =  0 * kPointerSize;
-  static const int kCallerPCOffset    = +1 * kPointerSize;
-  static const int kCallerSPOffset    = +2 * kPointerSize;
-
-  // Size of the MIPS 4 32-bit argument slots.
-  // This is just an alias with a shorter name. Use it from now on.
-  static const int kRArgsSlotsSize = 4 * kPointerSize;
-  static const int kRegularArgsSlotsSize = kRArgsSlotsSize;
-
-  // JS argument slots size.
-  static const int kJSArgsSlotsSize = 0 * kPointerSize;
-  // Assembly builtins argument slots size.
-  static const int kBArgsSlotsSize = 0 * kPointerSize;
-};
-
-
 class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
@@ -232,14 +208,30 @@ class JavaScriptFrameConstants : public AllStatic {
 
 class ArgumentsAdaptorFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
+
   static const int kFrameSize =
       StandardFrameConstants::kFixedFrameSize + kPointerSize;
 };
 
 
+class ConstructFrameConstants : public AllStatic {
+ public:
+  // FP-relative.
+  static const int kImplicitReceiverOffset = -6 * kPointerSize;
+  static const int kConstructorOffset      = -5 * kPointerSize;
+  static const int kLengthOffset           = -4 * kPointerSize;
+  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
+
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
+};
+
+
 class InternalFrameConstants : public AllStatic {
  public:
+  // FP-relative.
   static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 };
 

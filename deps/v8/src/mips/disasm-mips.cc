@@ -350,6 +350,10 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
     int reg = instr->FdValue();
     PrintFPURegister(reg);
     return 2;
+  } else if (format[1] == 'r') {  // 'fr: fr register.
+    int reg = instr->FrValue();
+    PrintFPURegister(reg);
+    return 2;
   }
   UNREACHABLE();
   return -1;
@@ -617,6 +621,15 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
         default:
           UNREACHABLE();
       }
+      break;
+    case COP1X:
+      switch (instr->FunctionFieldRaw()) {
+        case MADD_D:
+          Format(instr, "madd.d  'fd, 'fr, 'fs, 'ft");
+          break;
+        default:
+          UNREACHABLE();
+      };
       break;
     case SPECIAL:
       switch (instr->FunctionFieldRaw()) {

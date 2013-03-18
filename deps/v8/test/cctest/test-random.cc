@@ -73,7 +73,7 @@ TEST(CrankshaftRandom) {
   if (env.IsEmpty()) env = v8::Context::New();
   // Skip test if crankshaft is disabled.
   if (!V8::UseCrankshaft()) return;
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
   env->Enter();
 
   Handle<Context> context(Isolate::Current()->context());
@@ -83,9 +83,10 @@ TEST(CrankshaftRandom) {
 
   CompileRun("function f() { return Math.random(); }");
 
-  Object* symbol = FACTORY->LookupAsciiSymbol("f")->ToObjectChecked();
+  Object* string = FACTORY->InternalizeOneByteString(STATIC_ASCII_VECTOR("f"))->
+      ToObjectChecked();
   MaybeObject* fun_object =
-      context->global_object()->GetProperty(String::cast(symbol));
+      context->global_object()->GetProperty(String::cast(string));
   Handle<JSFunction> fun(JSFunction::cast(fun_object->ToObjectChecked()));
 
   // Optimize function.

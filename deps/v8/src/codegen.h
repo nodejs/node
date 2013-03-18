@@ -90,18 +90,40 @@ namespace internal {
 typedef double (*UnaryMathFunction)(double x);
 
 UnaryMathFunction CreateTranscendentalFunction(TranscendentalCache::Type type);
+UnaryMathFunction CreateExpFunction();
 UnaryMathFunction CreateSqrtFunction();
 
 
 class ElementsTransitionGenerator : public AllStatic {
  public:
-  static void GenerateMapChangeElementsTransition(MacroAssembler* masm);
-  static void GenerateSmiToDouble(MacroAssembler* masm, Label* fail);
-  static void GenerateDoubleToObject(MacroAssembler* masm, Label* fail);
+  // If |mode| is set to DONT_TRACK_ALLOCATION_SITE,
+  // |allocation_site_info_found| may be NULL.
+  static void GenerateMapChangeElementsTransition(MacroAssembler* masm,
+      AllocationSiteMode mode,
+      Label* allocation_site_info_found);
+  static void GenerateSmiToDouble(MacroAssembler* masm,
+                                  AllocationSiteMode mode,
+                                  Label* fail);
+  static void GenerateDoubleToObject(MacroAssembler* masm,
+                                     AllocationSiteMode mode,
+                                     Label* fail);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);
 };
+
+
+class SeqStringSetCharGenerator : public AllStatic {
+ public:
+  static void Generate(MacroAssembler* masm,
+                       String::Encoding encoding,
+                       Register string,
+                       Register index,
+                       Register value);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SeqStringSetCharGenerator);
+};
+
 
 } }  // namespace v8::internal
 

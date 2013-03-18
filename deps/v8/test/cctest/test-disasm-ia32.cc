@@ -56,9 +56,10 @@ static void DummyStaticFunction(Object* result) {
 
 TEST(DisasmIa320) {
   InitializeVM();
-  v8::HandleScope scope;
+  Isolate* isolate = reinterpret_cast<Isolate*>(env->GetIsolate());
+  HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
-  Assembler assm(Isolate::Current(), buffer, sizeof buffer);
+  Assembler assm(isolate, buffer, sizeof buffer);
   DummyStaticFunction(NULL);  // just bloody use it (DELETE; debugging)
 
   // Short immediate instructions
@@ -76,7 +77,7 @@ TEST(DisasmIa320) {
 
   // ---- All instructions that I can think of
   __ add(edx, ebx);
-  __ add(edx, Operand(12, RelocInfo::NONE));
+  __ add(edx, Operand(12, RelocInfo::NONE32));
   __ add(edx, Operand(ebx, 0));
   __ add(edx, Operand(ebx, 16));
   __ add(edx, Operand(ebx, 1999));
@@ -108,12 +109,12 @@ TEST(DisasmIa320) {
   __ nop();
   {
     CHECK(CpuFeatures::IsSupported(CPUID));
-    CpuFeatures::Scope fscope(CPUID);
+    CpuFeatureScope fscope(&assm, CPUID);
     __ cpuid();
   }
   {
     CHECK(CpuFeatures::IsSupported(RDTSC));
-    CpuFeatures::Scope fscope(RDTSC);
+    CpuFeatureScope fscope(&assm, RDTSC);
     __ rdtsc();
   }
   __ movsx_b(edx, ecx);
@@ -270,8 +271,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic(Isolate::Current()->builtins()->builtin(
-      Builtins::kLoadIC_Initialize));
+  Handle<Code> ic(isolate->builtins()->builtin(Builtins::kLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -281,8 +281,7 @@ TEST(DisasmIa320) {
   __ jmp(Operand(ebx, ecx, times_4, 10000));
 #ifdef ENABLE_DEBUGGER_SUPPORT
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(),
-                        assm.isolate());
+      ExternalReference(Debug_Address::AfterBreakTarget(), isolate);
   __ jmp(Operand::StaticVariable(after_break_target));
 #endif  // ENABLE_DEBUGGER_SUPPORT
   __ jmp(ic, RelocInfo::CODE_TARGET);
@@ -369,7 +368,7 @@ TEST(DisasmIa320) {
   __ nop();
   {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
+      CpuFeatureScope fscope(&assm, SSE2);
       __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
       __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
       __ addsd(xmm1, xmm0);
@@ -391,7 +390,7 @@ TEST(DisasmIa320) {
   // cmov.
   {
     if (CpuFeatures::IsSupported(CMOV)) {
-      CpuFeatures::Scope use_cmov(CMOV);
+      CpuFeatureScope use_cmov(&assm, CMOV);
       __ cmov(overflow, eax, Operand(eax, 0));
       __ cmov(no_overflow, eax, Operand(eax, 1));
       __ cmov(below, eax, Operand(eax, 2));
@@ -414,7 +413,7 @@ TEST(DisasmIa320) {
   // andpd, cmpltsd, movaps, psllq, psrlq, por.
   {
     if (CpuFeatures::IsSupported(SSE2)) {
-      CpuFeatures::Scope fscope(SSE2);
+      CpuFeatureScope fscope(&assm, SSE2);
       __ andpd(xmm0, xmm1);
       __ andpd(xmm1, xmm2);
 
@@ -442,8 +441,9 @@ TEST(DisasmIa320) {
   }
 
   {
-    if (CpuFeatures::IsSupported(SSE4_1)) {
-      CpuFeatures::Scope scope(SSE4_1);
+    if (CpuFeatures::IsSupported(SSE2) &&
+        CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatureScope scope(&assm, SSE4_1);
       __ pextrd(eax, xmm0, 1);
       __ pinsrd(xmm1, eax, 0);
     }
@@ -458,10 +458,10 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = HEAP->CreateCode(
+  Object* code = isolate->heap()->CreateCode(
       desc,
       Code::ComputeFlags(Code::STUB),
-      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked();
+      Handle<Code>())->ToObjectChecked();
   CHECK(code->IsCode());
 #ifdef OBJECT_PRINT
   Code::cast(code)->Print();

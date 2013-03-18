@@ -113,7 +113,7 @@ CompleteParserRecorder::CompleteParserRecorder()
       literal_chars_(0),
       symbol_store_(0),
       symbol_keys_(0),
-      symbol_table_(vector_compare),
+      string_table_(vector_compare),
       symbol_id_(0) {
 }
 
@@ -123,7 +123,7 @@ void CompleteParserRecorder::LogSymbol(int start,
                                        bool is_ascii,
                                        Vector<const byte> literal_bytes) {
   Key key = { is_ascii, literal_bytes };
-  HashMap::Entry* entry = symbol_table_.Lookup(&key, hash, true);
+  HashMap::Entry* entry = string_table_.Lookup(&key, hash, true);
   int id = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   if (id == 0) {
     // Copy literal contents for later comparison.

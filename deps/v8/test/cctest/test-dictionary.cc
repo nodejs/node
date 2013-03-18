@@ -40,8 +40,8 @@ using namespace v8::internal;
 
 
 TEST(ObjectHashTable) {
-  v8::HandleScope scope;
   LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   Handle<ObjectHashTable> table = FACTORY->NewObjectHashTable(23);
   Handle<JSObject> a = FACTORY->NewJSArray(7);
   Handle<JSObject> b = FACTORY->NewJSArray(11);
@@ -101,8 +101,8 @@ TEST(ObjectHashTable) {
 
 #ifdef DEBUG
 TEST(ObjectHashSetCausesGC) {
-  v8::HandleScope scope;
   LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   Handle<ObjectHashSet> table = FACTORY->NewObjectHashSet(1);
   Handle<JSObject> key = FACTORY->NewJSArray(0);
   v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
@@ -114,7 +114,8 @@ TEST(ObjectHashSetCausesGC) {
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
-  FLAG_gc_interval = 0;
+  SimulateFullSpace(HEAP->new_space());
+  SimulateFullSpace(HEAP->old_pointer_space());
 
   // Calling Contains() should not cause GC ever.
   CHECK(!table->Contains(*key));
@@ -130,8 +131,8 @@ TEST(ObjectHashSetCausesGC) {
 
 #ifdef DEBUG
 TEST(ObjectHashTableCausesGC) {
-  v8::HandleScope scope;
   LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
   Handle<ObjectHashTable> table = FACTORY->NewObjectHashTable(1);
   Handle<JSObject> key = FACTORY->NewJSArray(0);
   v8::Handle<v8::Object> key_obj = v8::Utils::ToLocal(key);
@@ -143,7 +144,8 @@ TEST(ObjectHashTableCausesGC) {
 
   // Simulate a full heap so that generating an identity hash code
   // in subsequent calls will request GC.
-  FLAG_gc_interval = 0;
+  SimulateFullSpace(HEAP->new_space());
+  SimulateFullSpace(HEAP->old_pointer_space());
 
   // Calling Lookup() should not cause GC ever.
   CHECK(table->Lookup(*key)->IsTheHole());

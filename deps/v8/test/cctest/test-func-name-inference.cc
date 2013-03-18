@@ -52,10 +52,8 @@ static v8::Persistent<v8::Context> env;
 
 static void InitializeVM() {
   if (env.IsEmpty()) {
-    v8::HandleScope scope;
     env = v8::Context::New();
   }
-  v8::HandleScope scope;
   env->Enter();
 }
 
@@ -111,7 +109,7 @@ static v8::Handle<v8::Script> Compile(const char* src) {
 
 TEST(GlobalProperty) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "fun1 = function() { return 1; }\n"
@@ -123,7 +121,7 @@ TEST(GlobalProperty) {
 
 TEST(GlobalVar) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "var fun1 = function() { return 1; }\n"
@@ -135,7 +133,7 @@ TEST(GlobalVar) {
 
 TEST(LocalVar) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function outer() {\n"
@@ -149,7 +147,7 @@ TEST(LocalVar) {
 
 TEST(InConstructor) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function MyClass() {\n"
@@ -163,7 +161,7 @@ TEST(InConstructor) {
 
 TEST(Factory) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
@@ -179,7 +177,7 @@ TEST(Factory) {
 
 TEST(Static) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function MyClass() {}\n"
@@ -197,7 +195,7 @@ TEST(Static) {
 
 TEST(Prototype) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function MyClass() {}\n"
@@ -215,7 +213,7 @@ TEST(Prototype) {
 
 TEST(ObjectLiteral) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function MyClass() {}\n"
@@ -229,7 +227,7 @@ TEST(ObjectLiteral) {
 
 TEST(AsParameter) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function f1(a) { return a(); }\n"
@@ -245,7 +243,7 @@ TEST(AsParameter) {
 
 TEST(MultipleFuncsConditional) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "fun1 = 0 ?\n"
@@ -258,7 +256,7 @@ TEST(MultipleFuncsConditional) {
 
 TEST(MultipleFuncsInLiteral) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function MyClass() {}\n"
@@ -273,7 +271,7 @@ TEST(MultipleFuncsInLiteral) {
 // See http://code.google.com/p/v8/issues/detail?id=380
 TEST(Issue380) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function a() {\n"
@@ -286,7 +284,7 @@ TEST(Issue380) {
 
 TEST(MultipleAssignments) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "var fun1 = fun2 = function () { return 1; }\n"
@@ -302,7 +300,7 @@ TEST(MultipleAssignments) {
 
 TEST(AsConstructorParameter) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function Foo() {}\n"
@@ -316,7 +314,7 @@ TEST(AsConstructorParameter) {
 
 TEST(FactoryHashmap) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
@@ -332,7 +330,7 @@ TEST(FactoryHashmap) {
 
 TEST(FactoryHashmapVariable) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
@@ -351,7 +349,7 @@ TEST(FactoryHashmapVariable) {
 
 TEST(FactoryHashmapConditional) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "function createMyObj() {\n"
@@ -366,7 +364,7 @@ TEST(FactoryHashmapConditional) {
 
 TEST(GlobalAssignmentAndCall) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "var Foo = function() {\n"
@@ -384,7 +382,7 @@ TEST(GlobalAssignmentAndCall) {
 
 TEST(AssignmentAndCall) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "(function Enclosing() {\n"
@@ -407,7 +405,7 @@ TEST(AssignmentAndCall) {
 
 TEST(MethodAssignmentInAnonymousFunctionCall) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "(function () {\n"
@@ -423,7 +421,7 @@ TEST(MethodAssignmentInAnonymousFunctionCall) {
 
 TEST(ReturnAnonymousFunction) {
   InitializeVM();
-  v8::HandleScope scope;
+  v8::HandleScope scope(env->GetIsolate());
 
   v8::Handle<v8::Script> script = Compile(
       "(function() {\n"

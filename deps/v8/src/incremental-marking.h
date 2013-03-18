@@ -127,7 +127,7 @@ class IncrementalMarking {
   }
 
   static void RecordWriteFromCode(HeapObject* obj,
-                                  Object* value,
+                                  Object** slot,
                                   Isolate* isolate);
 
   static void RecordWriteForEvacuationFromCode(HeapObject* obj,
@@ -163,19 +163,6 @@ class IncrementalMarking {
   inline void BlackToGreyAndUnshift(HeapObject* obj, MarkBit mark_bit);
 
   inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
-
-  // Does white->black or keeps gray or black color. Returns true if converting
-  // white to black.
-  inline bool MarkBlackOrKeepGrey(MarkBit mark_bit) {
-    ASSERT(!Marking::IsImpossible(mark_bit));
-    if (mark_bit.Get()) {
-      // Grey or black: Keep the color.
-      return false;
-    }
-    mark_bit.Set();
-    ASSERT(Marking::IsBlack(mark_bit));
-    return true;
-  }
 
   inline int steps_count() {
     return steps_count_;
@@ -258,6 +245,12 @@ class IncrementalMarking {
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
 
   void EnsureMarkingDequeIsCommitted();
+
+  INLINE(void ProcessMarkingDeque());
+
+  INLINE(void ProcessMarkingDeque(intptr_t bytes_to_process));
+
+  INLINE(void VisitObject(Map* map, HeapObject* obj, int size));
 
   Heap* heap_;
 

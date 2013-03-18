@@ -164,7 +164,7 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  ASSERT(chunk->size() <= static_cast<size_t>(kPageSize));
+  ASSERT(page->area_size() <= kNonCodeObjectAreaSize);
   ASSERT(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
   owner->Free(page->area_start(), page->area_size());
@@ -211,6 +211,19 @@ MemoryChunk* MemoryChunk::FromAnyPointerAddress(Address addr) {
   }
   UNREACHABLE();
   return NULL;
+}
+
+
+void MemoryChunk::UpdateHighWaterMark(Address mark) {
+  if (mark == NULL) return;
+  // Need to subtract one from the mark because when a chunk is full the
+  // top points to the next address after the chunk, which effectively belongs
+  // to another chunk. See the comment to Page::FromAllocationTop.
+  MemoryChunk* chunk = MemoryChunk::FromAddress(mark - 1);
+  int new_mark = static_cast<int>(mark - chunk->address());
+  if (new_mark > chunk->high_water_mark_) {
+    chunk->high_water_mark_ = new_mark;
+  }
 }
 
 

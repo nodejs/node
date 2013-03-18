@@ -171,6 +171,11 @@ void OS::Sleep(int milliseconds) {
 }
 
 
+int OS::NumberOfCores() {
+  return sysconf(_SC_NPROCESSORS_ONLN);
+}
+
+
 void OS::Abort() {
   // Redirect to std abort to signal abnormal program termination
   abort();
@@ -179,6 +184,11 @@ void OS::Abort() {
 
 void OS::DebugBreak() {
   asm("int $3");
+}
+
+
+void OS::DumpBacktrace() {
+  // Currently unsupported.
 }
 
 
@@ -468,6 +478,11 @@ bool VirtualMemory::UncommitRegion(void* address, size_t size) {
 
 bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
   return munmap(address, size) == 0;
+}
+
+
+bool VirtualMemory::HasLazyCommits() {
+  return false;
 }
 
 
@@ -782,23 +797,12 @@ class SamplerThread : public Thread {
     SamplerRegistry::State state;
     while ((state = SamplerRegistry::GetState()) !=
            SamplerRegistry::HAS_NO_SAMPLERS) {
-      bool cpu_profiling_enabled =
-          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
-      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
-      if (!cpu_profiling_enabled) {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
-      }
-      if (cpu_profiling_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
-          return;
-        }
-      }
-      if (runtime_profiler_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
-          return;
-        }
+      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
+        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
+      } else {
+        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       OS::Sleep(interval_);
     }
@@ -812,15 +816,11 @@ class SamplerThread : public Thread {
     sampler_thread->SampleContext(sampler);
   }
 
-  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    sampler->isolate()->runtime_profiler()->NotifyTick();
-  }
-
   void SampleContext(Sampler* sampler) {
     thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
+    Isolate* isolate = sampler->isolate();
     TickSample sample_obj;
-    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
+    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
     if (sample == NULL) sample = &sample_obj;
 
     if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
@@ -851,7 +851,7 @@ class SamplerThread : public Thread {
                          flavor,
                          reinterpret_cast<natural_t*>(&state),
                          &count) == KERN_SUCCESS) {
-      sample->state = sampler->isolate()->current_vm_state();
+      sample->state = isolate->current_vm_state();
       sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
       sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
       sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
@@ -862,7 +862,6 @@ class SamplerThread : public Thread {
   }
 
   const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;

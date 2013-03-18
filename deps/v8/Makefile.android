@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Those definitions should be consistent with the main Makefile
-ANDROID_ARCHES = android_ia32 android_arm
+ANDROID_ARCHES = android_ia32 android_arm android_mipsel
 MODES = release debug
 
 # Generates all combinations of ANDROID ARCHES and MODES,
@@ -50,11 +50,17 @@ ifeq ($(ARCH), android_arm)
   DEFINES += arm_neon=0 armv7=1
   TOOLCHAIN_ARCH = arm-linux-androideabi-4.6
 else
-  ifeq ($(ARCH), android_ia32)
-    DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86
-    TOOLCHAIN_ARCH = x86-4.6
+  ifeq ($(ARCH), android_mipsel)
+    DEFINES  = target_arch=mipsel v8_target_arch=mipsel android_target_arch=mips
+    DEFINES += mips_arch_variant=mips32r2
+    TOOLCHAIN_ARCH = mipsel-linux-android-4.6
   else
-    $(error Target architecture "${ARCH}" is not supported)
+    ifeq ($(ARCH), android_ia32)
+      DEFINES = target_arch=ia32 v8_target_arch=ia32 android_target_arch=x86
+      TOOLCHAIN_ARCH = x86-4.6
+    else
+      $(error Target architecture "${ARCH}" is not supported)
+    endif
   endif
 endif
 

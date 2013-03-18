@@ -53,7 +53,7 @@ class StringSearchBase {
   // a potentially less efficient searching, but is a safe approximation.
   // For needles using only characters in the same Unicode 256-code point page,
   // there is no search speed degradation.
-  static const int kAsciiAlphabetSize = 128;
+  static const int kAsciiAlphabetSize = 256;
   static const int kUC16AlphabetSize = Isolate::kUC16AlphabetSize;
 
   // Bad-char shift table stored in the state. It's length is the alphabet size.
@@ -61,12 +61,12 @@ class StringSearchBase {
   // to compensate for the algorithmic overhead compared to simple brute force.
   static const int kBMMinPatternLength = 7;
 
-  static inline bool IsAsciiString(Vector<const char>) {
+  static inline bool IsOneByteString(Vector<const uint8_t> string) {
     return true;
   }
 
-  static inline bool IsAsciiString(Vector<const uc16> string) {
-    return String::IsAscii(string.start(), string.length());
+  static inline bool IsOneByteString(Vector<const uc16> string) {
+    return String::IsOneByte(string.start(), string.length());
   }
 
   friend class Isolate;
@@ -81,7 +81,7 @@ class StringSearch : private StringSearchBase {
         pattern_(pattern),
         start_(Max(0, pattern.length() - kBMMaxShift)) {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
-      if (!IsAsciiString(pattern_)) {
+      if (!IsOneByteString(pattern_)) {
         strategy_ = &FailSearch;
         return;
       }
@@ -150,13 +150,21 @@ class StringSearch : private StringSearchBase {
 
   void PopulateBoyerMooreTable();
 
+  static inline bool exceedsOneByte(uint8_t c) {
+    return false;
+  }
+
+  static inline bool exceedsOneByte(uint16_t c) {
+    return c > String::kMaxOneByteCharCodeU;
+  }
+
   static inline int CharOccurrence(int* bad_char_occurrence,
                                    SubjectChar char_code) {
     if (sizeof(SubjectChar) == 1) {
       return bad_char_occurrence[static_cast<int>(char_code)];
     }
     if (sizeof(PatternChar) == 1) {
-      if (static_cast<unsigned int>(char_code) > String::kMaxAsciiCharCodeU) {
+      if (exceedsOneByte(char_code)) {
         return -1;
       }
       return bad_char_occurrence[static_cast<unsigned int>(char_code)];
@@ -223,7 +231,7 @@ int StringSearch<PatternChar, SubjectChar>::SingleCharSearch(
     return static_cast<int>(pos - subject.start());
   } else {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
-      if (static_cast<uc16>(pattern_first_char) > String::kMaxAsciiCharCodeU) {
+      if (exceedsOneByte(pattern_first_char)) {
         return -1;
       }
     }

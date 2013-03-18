@@ -46,6 +46,10 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 class CodeGenerator: public AstVisitor {
  public:
+  CodeGenerator() {
+    InitializeAstVisitor();
+  }
+
   static bool MakeCode(CompilationInfo* info);
 
   // Printing of AST, etc. as requested by flags.
@@ -70,6 +74,8 @@ class CodeGenerator: public AstVisitor {
                               int pos,
                               bool right_here = false);
 
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
+
  private:
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
@@ -88,6 +94,22 @@ class StringCharLoadGenerator : public AllStatic {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
+};
+
+
+class MathExpGenerator : public AllStatic {
+ public:
+  static void EmitMathExp(MacroAssembler* masm,
+                          DoubleRegister input,
+                          DoubleRegister result,
+                          DoubleRegister double_scratch1,
+                          DoubleRegister double_scratch2,
+                          Register temp1,
+                          Register temp2,
+                          Register temp3);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
 };
 
 } }  // namespace v8::internal

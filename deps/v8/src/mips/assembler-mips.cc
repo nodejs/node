@@ -47,7 +47,13 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 unsigned CpuFeatures::supported_ = 0;
-unsigned CpuFeatures::found_by_runtime_probing_ = 0;
+unsigned CpuFeatures::found_by_runtime_probing_only_ = 0;
+
+
+ExternalReference ExternalReference::cpu_features() {
+  ASSERT(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
+}
 
 
 // Get the CPU features enabled by the build. For cross compilation the
@@ -57,7 +63,7 @@ unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 static uint64_t CpuFeaturesImpliedByCompiler() {
   uint64_t answer = 0;
 #ifdef CAN_USE_FPU_INSTRUCTIONS
-  answer |= 1u << FPU;
+  answer |= static_cast<uint64_t>(1) << FPU;
 #endif  // def CAN_USE_FPU_INSTRUCTIONS
 
 #ifdef __mips__
@@ -65,11 +71,38 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
   // generation even when generating snapshots.  This won't work for cross
   // compilation.
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
-  answer |= 1u << FPU;
+  answer |= static_cast<uint64_t>(1) << FPU;
 #endif  // defined(__mips_hard_float) && __mips_hard_float != 0
 #endif  // def __mips__
 
   return answer;
+}
+
+
+const char* DoubleRegister::AllocationIndexToString(int index) {
+  if (CpuFeatures::IsSupported(FPU)) {
+    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    const char* const names[] = {
+      "f0",
+      "f2",
+      "f4",
+      "f6",
+      "f8",
+      "f10",
+      "f12",
+      "f14",
+      "f16",
+      "f18",
+      "f20",
+      "f22",
+      "f24",
+      "f26"
+    };
+    return names[index];
+  } else {
+    ASSERT(index == 0);
+    return "sfpd0";
+  }
 }
 
 
@@ -96,15 +129,15 @@ void CpuFeatures::Probe() {
 #if !defined(__mips__)
   // For the simulator=mips build, use FPU when FLAG_enable_fpu is enabled.
   if (FLAG_enable_fpu) {
-      supported_ |= 1u << FPU;
+      supported_ |= static_cast<uint64_t>(1) << FPU;
   }
 #else
   // Probe for additional features not already known to be available.
   if (OS::MipsCpuHasFeature(FPU)) {
     // This implementation also sets the FPU flags if
     // runtime detection of FPU returns true.
-    supported_ |= 1u << FPU;
-    found_by_runtime_probing_ |= 1u << FPU;
+    supported_ |= static_cast<uint64_t>(1) << FPU;
+    found_by_runtime_probing_only_ |= static_cast<uint64_t>(1) << FPU;
   }
 #endif
 }
@@ -221,7 +254,7 @@ Operand::Operand(Handle<Object> handle) {
   } else {
     // No relocation needed.
     imm32_ = reinterpret_cast<intptr_t>(obj);
-    rmode_ = RelocInfo::NONE;
+    rmode_ = RelocInfo::NONE32;
   }
 }
 
@@ -267,45 +300,11 @@ const Instr kLwSwInstrArgumentMask  = ~kLwSwInstrTypeMask;
 const Instr kLwSwOffsetMask = kImm16Mask;
 
 
-// Spare buffer.
-static const int kMinimalBufferSize = 4 * KB;
-
-
-Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
-    : AssemblerBase(arg_isolate),
+Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
+    : AssemblerBase(isolate, buffer, buffer_size),
       recorded_ast_id_(TypeFeedbackId::None()),
-      positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code) {
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-
-      if (isolate()->assembler_spare_buffer() != NULL) {
-        buffer = isolate()->assembler_spare_buffer();
-        isolate()->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) {
-      buffer_ = NewArray<byte>(buffer_size);
-    } else {
-      buffer_ = static_cast<byte*>(buffer);
-    }
-    buffer_size_ = buffer_size;
-    own_buffer_ = true;
-
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    buffer_ = static_cast<byte*>(buffer);
-    buffer_size_ = buffer_size;
-    own_buffer_ = false;
-  }
-
-  // Set up buffer pointers.
-  ASSERT(buffer_ != NULL);
-  pc_ = buffer_;
-  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
+      positions_recorder_(this) {
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
   last_trampoline_pool_end_ = 0;
   no_trampoline_pool_before_ = 0;
@@ -321,18 +320,6 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   block_buffer_growth_ = false;
 
   ClearRecordedAstId();
-}
-
-
-Assembler::~Assembler() {
-  if (own_buffer_) {
-    if (isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
 }
 
 
@@ -602,7 +589,7 @@ bool Assembler::IsNop(Instr instr, unsigned int type) {
 
 int32_t Assembler::GetBranchOffset(Instr instr) {
   ASSERT(IsBranch(instr));
-  return ((int16_t)(instr & kImm16Mask)) << 2;
+  return (static_cast<int16_t>(instr & kImm16Mask)) << 2;
 }
 
 
@@ -735,7 +722,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos) {
     Instr instr_lui = instr_at(pos + 0 * Assembler::kInstrSize);
     Instr instr_ori = instr_at(pos + 1 * Assembler::kInstrSize);
     ASSERT(IsOri(instr_ori));
-    uint32_t imm = (uint32_t)buffer_ + target_pos;
+    uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
     ASSERT((imm & 3) == 0);
 
     instr_lui &= ~kImm16Mask;
@@ -746,7 +733,7 @@ void Assembler::target_at_put(int32_t pos, int32_t target_pos) {
     instr_at_put(pos + 1 * Assembler::kInstrSize,
                  instr_ori | (imm & kImm16Mask));
   } else {
-    uint32_t imm28 = (uint32_t)buffer_ + target_pos;
+    uint32_t imm28 = reinterpret_cast<uint32_t>(buffer_) + target_pos;
     imm28 &= kImm28Mask;
     ASSERT((imm28 & 3) == 0);
 
@@ -851,7 +838,7 @@ bool Assembler::is_near(Label* L) {
 // space.  There is no guarantee that the relocated location can be similarly
 // encoded.
 bool Assembler::MustUseReg(RelocInfo::Mode rmode) {
-  return rmode != RelocInfo::NONE;
+  return !RelocInfo::IsNone(rmode);
 }
 
 void Assembler::GenInstrRegister(Opcode opcode,
@@ -887,9 +874,23 @@ void Assembler::GenInstrRegister(Opcode opcode,
                                  FPURegister fd,
                                  SecondaryField func) {
   ASSERT(fd.is_valid() && fs.is_valid() && ft.is_valid());
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   Instr instr = opcode | fmt | (ft.code() << kFtShift) | (fs.code() << kFsShift)
       | (fd.code() << kFdShift) | func;
+  emit(instr);
+}
+
+
+void Assembler::GenInstrRegister(Opcode opcode,
+                                 FPURegister fr,
+                                 FPURegister ft,
+                                 FPURegister fs,
+                                 FPURegister fd,
+                                 SecondaryField func) {
+  ASSERT(fd.is_valid() && fr.is_valid() && fs.is_valid() && ft.is_valid());
+  ASSERT(IsEnabled(FPU));
+  Instr instr = opcode | (fr.code() << kFrShift) | (ft.code() << kFtShift)
+      | (fs.code() << kFsShift) | (fd.code() << kFdShift) | func;
   emit(instr);
 }
 
@@ -901,7 +902,7 @@ void Assembler::GenInstrRegister(Opcode opcode,
                                  FPURegister fd,
                                  SecondaryField func) {
   ASSERT(fd.is_valid() && fs.is_valid() && rt.is_valid());
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   Instr instr = opcode | fmt | (rt.code() << kRtShift)
       | (fs.code() << kFsShift) | (fd.code() << kFdShift) | func;
   emit(instr);
@@ -914,7 +915,7 @@ void Assembler::GenInstrRegister(Opcode opcode,
                                  FPUControlRegister fs,
                                  SecondaryField func) {
   ASSERT(fs.is_valid() && rt.is_valid());
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   Instr instr =
       opcode | fmt | (rt.code() << kRtShift) | (fs.code() << kFsShift) | func;
   emit(instr);
@@ -949,7 +950,7 @@ void Assembler::GenInstrImmediate(Opcode opcode,
                                   FPURegister ft,
                                   int32_t j) {
   ASSERT(rs.is_valid() && ft.is_valid() && (is_int16(j) || is_uint16(j)));
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   Instr instr = opcode | (rs.code() << kRsShift) | (ft.code() << kFtShift)
       | (j & kImm16Mask);
   emit(instr);
@@ -998,7 +999,7 @@ uint32_t Assembler::jump_address(Label* L) {
     }
   }
 
-  uint32_t imm = (uint32_t)buffer_ + target_pos;
+  uint32_t imm = reinterpret_cast<uint32_t>(buffer_) + target_pos;
   ASSERT((imm & 3) == 0);
 
   return imm;
@@ -1133,7 +1134,8 @@ void Assembler::j(int32_t target) {
 #if DEBUG
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
   ASSERT(in_range && ((target & 3) == 0));
 #endif
   GenInstrJump(J, target >> 2);
@@ -1154,7 +1156,8 @@ void Assembler::jal(int32_t target) {
 #ifdef DEBUG
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
   ASSERT(in_range && ((target & 3) == 0));
 #endif
   positions_recorder()->WriteRecordedPositions();
@@ -1173,8 +1176,8 @@ void Assembler::jalr(Register rs, Register rd) {
 void Assembler::j_or_jr(int32_t target, Register rs) {
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
-
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
   if (in_range) {
       j(target);
   } else {
@@ -1186,8 +1189,8 @@ void Assembler::j_or_jr(int32_t target, Register rs) {
 void Assembler::jal_or_jalr(int32_t target, Register rs) {
   // Get pc of delay slot.
   uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
-  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
-
+  bool in_range = (ipc ^ static_cast<uint32_t>(target) >>
+                  (kImm26Bits+kImmFieldShift)) == 0;
   if (in_range) {
       jal(target);
   } else {
@@ -1697,6 +1700,12 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 }
 
 
+void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
+    FPURegister ft) {
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
+}
+
+
 void Assembler::div_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, D, ft, fs, fd, DIV_D);
 }
@@ -1863,7 +1872,7 @@ void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) {
 // Conditions.
 void Assembler::c(FPUCondition cond, SecondaryField fmt,
     FPURegister fs, FPURegister ft, uint16_t cc) {
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   ASSERT(is_uint3(cc));
   ASSERT((fmt & ~(31 << kRsShift)) == 0);
   Instr instr = COP1 | fmt | ft.code() << 16 | fs.code() << kFsShift
@@ -1874,7 +1883,7 @@ void Assembler::c(FPUCondition cond, SecondaryField fmt,
 
 void Assembler::fcmp(FPURegister src1, const double src2,
       FPUCondition cond) {
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   ASSERT(src2 == 0.0);
   mtc1(zero_reg, f14);
   cvt_d_w(f14, f14);
@@ -1883,7 +1892,7 @@ void Assembler::fcmp(FPURegister src1, const double src2,
 
 
 void Assembler::bc1f(int16_t offset, uint16_t cc) {
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   ASSERT(is_uint3(cc));
   Instr instr = COP1 | BC1 | cc << 18 | 0 << 16 | (offset & kImm16Mask);
   emit(instr);
@@ -1891,7 +1900,7 @@ void Assembler::bc1f(int16_t offset, uint16_t cc) {
 
 
 void Assembler::bc1t(int16_t offset, uint16_t cc) {
-  ASSERT(CpuFeatures::IsEnabled(FPU));
+  ASSERT(IsEnabled(FPU));
   ASSERT(is_uint3(cc));
   Instr instr = COP1 | BC1 | cc << 18 | 1 << 16 | (offset & kImm16Mask);
   emit(instr);
@@ -1946,7 +1955,7 @@ int Assembler::RelocateInternalReference(byte* pc, intptr_t pc_delta) {
     return 2;  // Number of instructions patched.
   } else {
     uint32_t imm28 = (instr & static_cast<int32_t>(kImm26Mask)) << 2;
-    if ((int32_t)imm28 == kEndOfJumpChain) {
+    if (static_cast<int32_t>(imm28) == kEndOfJumpChain) {
       return 0;  // Number of instructions patched.
     }
     imm28 += pc_delta;
@@ -2036,7 +2045,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
            || RelocInfo::IsPosition(rmode));
     // These modes do not need an entry in the constant pool.
   }
-  if (rinfo.rmode() != RelocInfo::NONE) {
+  if (!RelocInfo::IsNone(rinfo.rmode())) {
     // Don't record external references unless the heap will be serialized.
     if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
@@ -2196,9 +2205,10 @@ void Assembler::set_target_address_at(Address pc, Address target) {
 
   Instr instr3 = instr_at(pc + 2 * kInstrSize);
   uint32_t ipc = reinterpret_cast<uint32_t>(pc + 3 * kInstrSize);
-  bool in_range =
-             ((uint32_t)(ipc ^ itarget) >> (kImm26Bits + kImmFieldShift)) == 0;
-  uint32_t target_field = (uint32_t)(itarget & kJumpAddrMask) >> kImmFieldShift;
+  bool in_range = (ipc ^ static_cast<uint32_t>(itarget) >>
+                  (kImm26Bits + kImmFieldShift)) == 0;
+  uint32_t target_field =
+      static_cast<uint32_t>(itarget & kJumpAddrMask) >>kImmFieldShift;
   bool patched_jump = false;
 
 #ifndef ALLOW_JAL_IN_BOUNDARY_REGION

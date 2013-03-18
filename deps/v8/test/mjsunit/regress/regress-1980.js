@@ -34,7 +34,7 @@ for (var i = 0; i < invalid_this.length; i++) {
     Error.prototype.toString.call(invalid_this[i]);
   } catch (e) {
     exception = true;
-    assertTrue("called_on_non_object" == e.type);
+    assertEquals("Error.prototype.toString called on non-object", e.message);
   }
   assertTrue(exception);
 }

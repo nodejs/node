@@ -27,6 +27,10 @@
 
 // Flags: --allow-natives-syntax
 
+// TODO(mstarzinger): This test does not succeed when GCs happen in
+// between prototype transitions, we disable GC stress for now.
+// Flags: --noincremental-marking
+
 // Check that objects that are used for prototypes are in the fast mode.
 
 function Super() {

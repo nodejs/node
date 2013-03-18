@@ -66,6 +66,23 @@ assertArrayEquals(["div", "#i", "d", ".class"], "div#id.class".split(/(?=[d#.])/
 
 assertArrayEquals(["a", "b", "c"], "abc".split(/(?=.)/));
 
+assertArrayEquals(["Wenige", "sind", "auserwählt."],
+                  "Wenige sind auserwählt.".split(" "));
+
+assertArrayEquals([], "Wenige sind auserwählt.".split(" ", 0));
+
+assertArrayEquals(["Wenige"], "Wenige sind auserwählt.".split(" ", 1));
+
+assertArrayEquals(["Wenige", "sind"], "Wenige sind auserwählt.".split(" ", 2));
+
+assertArrayEquals(["Wenige", "sind", "auserwählt."],
+                  "Wenige sind auserwählt.".split(" ", 3));
+
+assertArrayEquals(["Wenige sind auserw", "hlt."],
+                  "Wenige sind auserwählt.".split("ä"));
+
+assertArrayEquals(["Wenige sind ", "."],
+                  "Wenige sind auserwählt.".split("auserwählt"));
 
 /* "ab".split(/((?=.))/)
  *

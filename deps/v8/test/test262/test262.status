@@ -30,23 +30,26 @@ def FAIL_OK = FAIL, OKAY
 
 ############################### BUGS ###################################
 
-# '__proto__' should be treated as a normal property in JSON.
-S15.12.2_A1: FAIL
-
 # Sequencing of getter side effects on receiver and argument properties
 # is wrong. The receiver callback should be called before any arguments
 # are evaluated.
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=691
 11.2.3-3_3: FAIL
 
+# Strings that are considered canonically equivalent by the Unicode standard
+# return a non-zero value on String.prototype.localeCompare calls.
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=2413
+15.5.4.9_CE: FAIL
+
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
-# This tests precision of Math.tan and Math.sin.  The implementation for those
+# This tests precision of Math functions.  The implementation for those
 # trigonometric functions are platform/compiler dependent.  Furthermore, the
 # expectation values by far deviates from the actual result given by an
 # arbitrary-precision calculator, making those tests partly bogus.
-S15.8.2.16_A7: PASS || FAIL_OK
-S15.8.2.18_A7: PASS || FAIL_OK
+S15.8.2.8_A6: PASS || FAIL_OK   # Math.exp (less precise with --fast-math)
+S15.8.2.16_A7: PASS || FAIL_OK  # Math.sin
+S15.8.2.18_A7: PASS || FAIL_OK  # Math.tan
 
 # Linux for ia32 (and therefore simulators) default to extended 80 bit floating
 # point formats, so these tests checking 64-bit FP precision fail. The other

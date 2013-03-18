@@ -54,7 +54,7 @@ function checkConstructor(func, name) {
   assertFalse(proto_desc.writable, name);
   assertFalse(proto_desc.configurable, name);
   var prototype = proto_desc.value;
-  assertEquals(null, prototype.__proto__, name);
+  assertEquals(null, Object.getPrototypeOf(prototype), name);
   for (var i = 0; i < propNames.length; i++) {
     var propName = propNames[i];
     if (propName == "constructor") continue;

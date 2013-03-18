@@ -83,3 +83,11 @@ assertEquals(["Error: e2",[1,3,4]], testErrorToString(undefined, "e2"));
 assertEquals(["null: e2",[1,2,3,4]], testErrorToString(null, "e2"));
 assertEquals(["e2",[1,2,3,4]], testErrorToString("", "e2"));
 assertEquals(["e1: e2",[1,2,3,4]], testErrorToString("e1", "e2"));
+
+var obj = {
+  get constructor () {
+    assertUnreachable();
+  }
+};
+
+assertThrows(function() { obj.x(); });

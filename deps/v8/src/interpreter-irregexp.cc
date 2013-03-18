@@ -68,7 +68,7 @@ static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
                                  int from,
                                  int current,
                                  int len,
-                                 Vector<const char> subject) {
+                                 Vector<const uint8_t> subject) {
   for (int i = 0; i < len; i++) {
     unsigned int old_char = subject[from++];
     unsigned int new_char = subject[current++];
@@ -617,7 +617,7 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
   uc16 previous_char = '\n';
   String::FlatContent subject_content = subject->GetFlatContent();
   if (subject_content.IsAscii()) {
-    Vector<const char> subject_vector = subject_content.ToAsciiVector();
+    Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate,
                     code_base,

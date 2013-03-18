@@ -174,6 +174,9 @@ void LParallelMove::PrintDataTo(StringStream* stream) const {
 
 void LEnvironment::PrintTo(StringStream* stream) {
   stream->Add("[id=%d|", ast_id().ToInt());
+  if (deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
+    stream->Add("deopt_id=%d|", deoptimization_index());
+  }
   stream->Add("[parameters=%d|", parameter_count());
   stream->Add("[arguments_stack_height=%d|", arguments_stack_height());
   for (int i = 0; i < values_.length(); ++i) {
@@ -254,6 +257,28 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
   }
   UNREACHABLE();
   return 0;
+}
+
+
+int StackSlotOffset(int index) {
+  if (index >= 0) {
+    // Local or spill slot. Skip the frame pointer, function, and
+    // context in the fixed part of the frame.
+    return -(index + 3) * kPointerSize;
+  } else {
+    // Incoming parameter. Skip the return address.
+    return -(index - 1) * kPointerSize;
+  }
+}
+
+
+LChunk::LChunk(CompilationInfo* info, HGraph* graph)
+    : spill_slot_count_(0),
+      info_(info),
+      graph_(graph),
+      instructions_(32, graph->zone()),
+      pointer_maps_(8, graph->zone()),
+      inlined_closures_(1, graph->zone()) {
 }
 
 
@@ -391,7 +416,7 @@ Representation LChunk::LookupLiteralRepresentation(
 
 
 LChunk* LChunk::NewChunk(HGraph* graph) {
-  NoHandleAllocation no_handles;
+  NoHandleAllocation no_handles(graph->isolate());
   AssertNoAllocation no_gc;
 
   int values = graph->GetMaximumValueID();
@@ -410,12 +435,18 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
     return NULL;
   }
 
+  chunk->set_allocated_double_registers(
+      allocator.assigned_double_registers());
+
   return chunk;
 }
 
 
-Handle<Code> LChunk::Codegen() {
+Handle<Code> LChunk::Codegen(Code::Kind kind) {
   MacroAssembler assembler(info()->isolate(), NULL, 0);
+  LOG_CODE_EVENT(info()->isolate(),
+                 CodeStartLinePosInfoRecordEvent(
+                     assembler.positions_recorder()));
   LCodeGen generator(this, &assembler, info());
 
   MarkEmptyBlocks();
@@ -425,14 +456,39 @@ Handle<Code> LChunk::Codegen() {
       PrintF("Crankshaft Compiler - ");
     }
     CodeGenerator::MakeCodePrologue(info());
-    Code::Flags flags = Code::ComputeFlags(Code::OPTIMIZED_FUNCTION);
+    Code::Flags flags = Code::ComputeFlags(kind);
     Handle<Code> code =
         CodeGenerator::MakeCodeEpilogue(&assembler, flags, info());
     generator.FinishCode(code);
+
+    if (!code.is_null()) {
+      void* jit_handler_data =
+          assembler.positions_recorder()->DetachJITHandlerData();
+      LOG_CODE_EVENT(info()->isolate(),
+                     CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
+    }
+
     CodeGenerator::PrintCode(code, info());
     return code;
   }
   return Handle<Code>::null();
+}
+
+
+void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
+  allocated_double_registers_ = allocated_registers;
+  BitVector* doubles = allocated_double_registers();
+  BitVector::Iterator iterator(doubles);
+  while (!iterator.Done()) {
+    if (info()->saves_caller_doubles()) {
+      if (kDoubleSize == kPointerSize * 2) {
+        spill_slot_count_ += 2;
+      } else {
+        spill_slot_count_++;
+      }
+    }
+    iterator.Advance();
+  }
 }
 
 

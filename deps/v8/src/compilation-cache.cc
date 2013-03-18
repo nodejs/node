@@ -67,7 +67,7 @@ CompilationCache::~CompilationCache() {}
 
 static Handle<CompilationCacheTable> AllocateTable(Isolate* isolate, int size) {
   CALL_HEAP_FUNCTION(isolate,
-                     CompilationCacheTable::Allocate(size),
+                     CompilationCacheTable::Allocate(isolate->heap(), size),
                      CompilationCacheTable);
 }
 
@@ -98,7 +98,7 @@ void CompilationSubCache::Age() {
 
 
 void CompilationSubCache::IterateFunctions(ObjectVisitor* v) {
-  Object* undefined = isolate()->heap()->raw_unchecked_undefined_value();
+  Object* undefined = isolate()->heap()->undefined_value();
   for (int i = 0; i < generations_; i++) {
     if (tables_[i] != undefined) {
       reinterpret_cast<CompilationCacheTable*>(tables_[i])->IterateElements(v);

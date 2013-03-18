@@ -53,6 +53,7 @@ namespace internal {
 class Bootstrapper;
 class CodeGenerator;
 class CodeRange;
+struct CodeStubInterfaceDescriptor;
 class CompilationCache;
 class ContextSlotCache;
 class ContextSwitcher;
@@ -67,16 +68,20 @@ class Factory;
 class FunctionInfoListener;
 class HandleScopeImplementer;
 class HeapProfiler;
+class HStatistics;
+class HTracer;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
 class InnerPointerToCodeCache;
+class MarkingThread;
 class PreallocatedMemoryThread;
 class RegExpStack;
 class SaveContext;
 class UnicodeCache;
-class StringInputBuffer;
+class ConsStringIteratorOp;
 class StringTracker;
 class StubCache;
+class SweeperThread;
 class ThreadManager;
 class ThreadState;
 class ThreadVisitor;  // Defined in v8threads.h
@@ -284,6 +289,21 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
+class SystemThreadManager {
+ public:
+  enum ParallelSystemComponent {
+    PARALLEL_SWEEPING,
+    CONCURRENT_SWEEPING,
+    PARALLEL_MARKING,
+    PARALLEL_RECOMPILATION
+  };
+
+  static int NumberOfParallelSystemThreads(ParallelSystemComponent type);
+
+  static const int kMaxThreads = 4;
+};
+
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 #define ISOLATE_DEBUGGER_INIT_LIST(V)                                          \
@@ -337,9 +357,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(FunctionInfoListener*, active_function_info_listener, NULL)                \
   /* State for Relocatable. */                                                 \
   V(Relocatable*, relocatable_top, NULL)                                       \
-  /* State for CodeEntry in profile-generator. */                              \
-  V(CodeGenerator*, current_code_generator, NULL)                              \
-  V(bool, jump_target_compiling_deferred_code, false)                          \
   V(DebugObjectCache*, string_stream_debug_object_cache, NULL)                 \
   V(Object*, string_stream_current_security_token, NULL)                       \
   /* TODO(isolates): Release this on destruction? */                           \
@@ -351,9 +368,10 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(unsigned, ast_node_count, 0)                                               \
   /* SafeStackFrameIterator activations count. */                              \
   V(int, safe_stack_iterator_counter, 0)                                       \
-  V(uint64_t, enabled_cpu_features, 0)                                         \
-  V(CpuProfiler*, cpu_profiler, NULL)                                          \
   V(HeapProfiler*, heap_profiler, NULL)                                        \
+  V(bool, observer_delivery_pending, false)                                    \
+  V(HStatistics*, hstatistics, NULL)                                           \
+  V(HTracer*, htracer, NULL)                                                   \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
@@ -466,6 +484,8 @@ class Isolate {
   // for legacy API reasons.
   void TearDown();
 
+  static void GlobalTearDown();
+
   bool IsDefaultIsolate() const { return this == default_isolate_; }
 
   // Ensures that process-wide resources and the default isolate have been
@@ -527,11 +547,6 @@ class Isolate {
   SaveContext* save_context() {return thread_local_top_.save_context_; }
   void set_save_context(SaveContext* save) {
     thread_local_top_.save_context_ = save;
-  }
-
-  // Access to the map of "new Object()".
-  Map* empty_object_map() {
-    return context()->native_context()->object_function()->map();
   }
 
   // Access to current thread id.
@@ -613,7 +628,7 @@ class Isolate {
   bool IsExternallyCaught();
 
   bool is_catchable_by_javascript(MaybeObject* exception) {
-    return (exception != Failure::OutOfMemoryException()) &&
+    return (!exception->IsOutOfMemory()) &&
         (exception != heap()->termination_exception());
   }
 
@@ -672,7 +687,8 @@ class Isolate {
       // Scope currently can only be used for regular exceptions, not
       // failures like OOM or termination exception.
       isolate_(isolate),
-      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked()),
+      pending_exception_(isolate_->pending_exception()->ToObjectUnchecked(),
+                         isolate_),
       catcher_(isolate_->catcher())
     { }
 
@@ -715,7 +731,10 @@ class Isolate {
       int frame_limit,
       StackTrace::StackTraceOptions options);
 
-  void CaptureAndSetCurrentStackTraceFor(Handle<JSObject> error_object);
+  Handle<JSArray> CaptureSimpleStackTrace(Handle<JSObject> error_object,
+                                          Handle<Object> caller,
+                                          int limit);
+  void CaptureAndSetDetailedStackTrace(Handle<JSObject> error_object);
 
   // Returns if the top context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
@@ -739,6 +758,8 @@ class Isolate {
   Failure* ReThrow(MaybeObject* exception);
   void ScheduleThrow(Object* exception);
   void ReportPendingMessages();
+  // Return pending location if any or unfilled structure.
+  MessageLocation GetMessageLocation();
   Failure* ThrowIllegalOperation();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
@@ -764,7 +785,6 @@ class Isolate {
   void Iterate(ObjectVisitor* v);
   void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   char* Iterate(ObjectVisitor* v, char* t);
-  void IterateThread(ThreadVisitor* v);
   void IterateThread(ThreadVisitor* v, char* t);
 
 
@@ -808,9 +828,9 @@ class Isolate {
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
 #undef GLOBAL_ARRAY_ACCESSOR
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)      \
-  Handle<type> name() {                                       \
-    return Handle<type>(context()->native_context()->name()); \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)            \
+  Handle<type> name() {                                             \
+    return Handle<type>(context()->native_context()->name(), this); \
   }
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
@@ -875,7 +895,7 @@ class Isolate {
     return inner_pointer_to_code_cache_;
   }
 
-  StringInputBuffer* write_input_buffer() { return write_input_buffer_; }
+  ConsStringIteratorOp* write_iterator() { return write_iterator_; }
 
   GlobalHandles* global_handles() { return global_handles_; }
 
@@ -897,16 +917,16 @@ class Isolate {
     return &jsregexp_canonrange_;
   }
 
-  StringInputBuffer* objects_string_compare_buffer_a() {
-    return &objects_string_compare_buffer_a_;
+  ConsStringIteratorOp* objects_string_compare_iterator_a() {
+    return &objects_string_compare_iterator_a_;
   }
 
-  StringInputBuffer* objects_string_compare_buffer_b() {
-    return &objects_string_compare_buffer_b_;
+  ConsStringIteratorOp* objects_string_compare_iterator_b() {
+    return &objects_string_compare_iterator_b_;
   }
 
-  StaticResource<StringInputBuffer>* objects_string_input_buffer() {
-    return &objects_string_input_buffer_;
+  StaticResource<ConsStringIteratorOp>* objects_string_iterator() {
+    return &objects_string_iterator_;
   }
 
   RuntimeState* runtime_state() { return &runtime_state_; }
@@ -916,10 +936,6 @@ class Isolate {
   }
 
   bool fp_stubs_generated() { return fp_stubs_generated_; }
-
-  StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
-    return &compiler_safe_string_input_buffer_;
-  }
 
   Builtins* builtins() { return &builtins_; }
 
@@ -959,6 +975,8 @@ class Isolate {
   inline bool IsDebuggerActive();
   inline bool DebuggerHasBreakPoints();
 
+  CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+
 #ifdef DEBUG
   HistogramInfo* heap_histograms() { return heap_histograms_; }
 
@@ -967,6 +985,10 @@ class Isolate {
   }
 
   int* code_kind_statistics() { return code_kind_statistics_; }
+
+  bool AllowHandleDereference();
+
+  void SetAllowHandleDereference(bool allow);
 #endif
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
@@ -1014,7 +1036,6 @@ class Isolate {
         RuntimeProfiler::IsolateEnteredJS(this);
       } else if (current_state == JS && state != JS) {
         // JS -> non-JS transition.
-        ASSERT(RuntimeProfiler::IsSomeIsolateInJS());
         RuntimeProfiler::IsolateExitedJS(this);
       } else {
         // Other types of state transitions are not interesting to the
@@ -1058,6 +1079,9 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
+  CodeStubInterfaceDescriptor*
+      code_stub_interface_descriptor(int index);
+
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1066,8 +1090,26 @@ class Isolate {
     return &optimizing_compiler_thread_;
   }
 
+  // PreInits and returns a default isolate. Needed when a new thread tries
+  // to create a Locker for the first time (the lock itself is in the isolate).
+  // TODO(svenpanne) This method is on death row...
+  static v8::Isolate* GetDefaultIsolateForLocking();
+
+  MarkingThread** marking_threads() {
+    return marking_thread_;
+  }
+
+  SweeperThread** sweeper_threads() {
+    return sweeper_thread_;
+  }
+
+  HStatistics* GetHStatistics();
+  HTracer* GetHTracer();
+
  private:
   Isolate();
+
+  int id() const { return static_cast<int>(id_); }
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
@@ -1136,6 +1178,9 @@ class Isolate {
   static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
 
+  // A global counter for all generated Isolates, might overflow.
+  static Atomic32 isolate_counter_;
+
   void Deinit();
 
   static void SetIsolateThreadLocals(Isolate* isolate,
@@ -1148,10 +1193,6 @@ class Isolate {
   // Find the PerThread for this particular (isolate, thread) combination.
   // If one does not yet exist, allocate a new one.
   PerIsolateThreadData* FindOrAllocatePerThreadDataForThisThread();
-
-  // PreInits and returns a default isolate. Needed when a new thread tries
-  // to create a Locker for the first time (the lock itself is in the isolate).
-  static Isolate* GetDefaultIsolateForLocking();
 
   // Initializes the current thread to run this Isolate.
   // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
@@ -1184,6 +1225,7 @@ class Isolate {
   // the Error object.
   bool IsErrorObject(Handle<Object> obj);
 
+  Atomic32 id_;
   EntryStackItem* entry_stack_;
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;
@@ -1221,26 +1263,26 @@ class Isolate {
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;
   InnerPointerToCodeCache* inner_pointer_to_code_cache_;
-  StringInputBuffer* write_input_buffer_;
+  ConsStringIteratorOp* write_iterator_;
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
   bool fp_stubs_generated_;
-  StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   bool has_installed_extensions_;
   StringTracker* string_tracker_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
-  StringInputBuffer objects_string_compare_buffer_a_;
-  StringInputBuffer objects_string_compare_buffer_b_;
-  StaticResource<StringInputBuffer> objects_string_input_buffer_;
+  ConsStringIteratorOp objects_string_compare_iterator_a_;
+  ConsStringIteratorOp objects_string_compare_iterator_b_;
+  StaticResource<ConsStringIteratorOp> objects_string_iterator_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize>
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
+  CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
 
   // The garbage collector should be a little more aggressive when it knows
   // that a context was recently exited.
@@ -1261,12 +1303,16 @@ class Isolate {
   HistogramInfo heap_histograms_[LAST_TYPE + 1];
   JSObject::SpillInformation js_spill_information_;
   int code_kind_statistics_[Code::NUMBER_OF_KINDS];
+
+  bool allow_compiler_thread_handle_deref_;
+  bool allow_execution_thread_handle_deref_;
 #endif
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Debugger* debugger_;
   Debug* debug_;
 #endif
+  CpuProfiler* cpu_profiler_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;
@@ -1291,16 +1337,21 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread optimizing_compiler_thread_;
+  MarkingThread** marking_thread_;
+  SweeperThread** sweeper_thread_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class IsolateInitializer;
+  friend class MarkingThread;
   friend class OptimizingCompilerThread;
+  friend class SweeperThread;
   friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;
   friend class ThreadId;
   friend class TestMemoryAllocatorScope;
+  friend class TestCodeRangeScope;
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;
@@ -1394,12 +1445,7 @@ class StackLimitCheck BASE_EMBEDDED {
 
   bool HasOverflowed() const {
     StackGuard* stack_guard = isolate_->stack_guard();
-    // Stack has overflowed in C++ code only if stack pointer exceeds the C++
-    // stack guard and the limits are not set to interrupt values.
-    // TODO(214): Stack overflows are ignored if a interrupt is pending. This
-    // code should probably always use the initial C++ limit.
-    return (reinterpret_cast<uintptr_t>(this) < stack_guard->climit()) &&
-           stack_guard->IsStackOverflow();
+    return (reinterpret_cast<uintptr_t>(this) < stack_guard->real_climit());
   }
  private:
   Isolate* isolate_;

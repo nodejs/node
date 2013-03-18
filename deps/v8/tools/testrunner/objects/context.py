@@ -41,10 +41,10 @@ class Context():
 
   def Pack(self):
     return [self.arch, self.mode, self.mode_flags, self.timeout, self.isolates,
-            self.extra_flags]
+            self.command_prefix, self.extra_flags]
 
   @staticmethod
   def Unpack(packed):
     # For the order of the fields, refer to Pack() above.
     return Context(packed[0], packed[1], None, packed[2], False,
-                   packed[3], packed[4], "", packed[5])
+                   packed[3], packed[4], packed[5], packed[6])

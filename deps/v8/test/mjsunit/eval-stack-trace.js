@@ -26,12 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Return the stack frames of an Error object.
+
+Error.prepareStackTrace = function(error, frames) {
+  return frames;
+}
+
 Error.prototype.getFrames = function() {
-  Error.prepareStackTrace = function(error, frames) {
-    return frames;
-  }
   var frames = this.stack;
-  Error.prepareStackTrace = undefined;
   return frames;
 }
 

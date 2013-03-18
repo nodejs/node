@@ -67,16 +67,9 @@ LIBRARY_FLAGS = {
     'debuggersupport:on': {
       'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT'],
     },
-    'inspector:on': {
-      'CPPDEFINES':   ['INSPECTOR'],
-    },
     'fasttls:off': {
       'CPPDEFINES':   ['V8_NO_FAST_TLS'],
     },
-    'liveobjectlist:on': {
-      'CPPDEFINES':   ['ENABLE_DEBUGGER_SUPPORT', 'INSPECTOR',
-                       'LIVE_OBJECT_LIST', 'OBJECT_PRINT'],
-    }
   },
   'gcc': {
     'all': {
@@ -1051,16 +1044,6 @@ SIMPLE_OPTIONS = {
     'default': 'on',
     'help': 'enable debugging of JavaScript code'
   },
-  'inspector': {
-    'values': ['on', 'off'],
-    'default': 'off',
-    'help': 'enable inspector features'
-  },
-  'liveobjectlist': {
-    'values': ['on', 'off'],
-    'default': 'off',
-    'help': 'enable live object list features in the debugger'
-  },
   'soname': {
     'values': ['on', 'off'],
     'default': 'off',
@@ -1418,13 +1401,6 @@ def PostprocessOptions(options, os):
     options['msvcltcg'] = 'on'
   if (options['mipsabi'] != 'none') and (options['arch'] != 'mips') and (options['simulator'] != 'mips'):
     options['mipsabi'] = 'none'
-  if options['liveobjectlist'] == 'on':
-    if (options['debuggersupport'] != 'on') or (options['mode'] == 'release'):
-      # Print a warning that liveobjectlist will implicitly enable the debugger
-      print "Warning: forcing debuggersupport on for liveobjectlist"
-    options['debuggersupport'] = 'on'
-    options['inspector'] = 'on'
-    options['objectprint'] = 'on'
 
 
 def ParseEnvOverrides(arg, imports):

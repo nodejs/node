@@ -542,6 +542,7 @@ void FlagList::PrintHelp() {
 void FlagList::EnforceFlagImplications() {
 #define FLAG_MODE_DEFINE_IMPLICATIONS
 #include "flag-definitions.h"
+#undef FLAG_MODE_DEFINE_IMPLICATIONS
 }
 
 } }  // namespace v8::internal

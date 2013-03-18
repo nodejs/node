@@ -82,7 +82,7 @@ var o = Object("string");
 // Non-string property on String object.
 o[10] = 42;
 assertTrue(o.propertyIsEnumerable(10));
-assertFalse(o.propertyIsEnumerable(0));
+assertTrue(o.propertyIsEnumerable(0));
 
 // Fast elements.
 var o = [1,2,3,4,5];

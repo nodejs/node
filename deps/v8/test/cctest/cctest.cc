@@ -69,8 +69,12 @@ static void PrintTestList(CcTest* current) {
 }
 
 
+v8::Isolate* CcTest::default_isolate_;
+
 int main(int argc, char* argv[]) {
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  CcTest::set_default_isolate(v8::Isolate::GetCurrent());
+  CHECK(CcTest::default_isolate() != NULL);
   int tests_run = 0;
   bool print_run_count = true;
   for (int i = 1; i < argc; i++) {

@@ -98,13 +98,14 @@ enum MainCycleType {
 };
 
 const char* ToCString(const v8::String::Utf8Value& value);
-void ReportException(v8::TryCatch* handler);
+void ReportException(v8::Isolate* isolate, v8::TryCatch* handler);
 v8::Handle<v8::String> ReadFile(const char* name);
 v8::Handle<v8::String> ReadLine();
 
 v8::Handle<v8::Value> Print(const v8::Arguments& args);
 v8::Handle<v8::Value> ReadLine(const v8::Arguments& args);
-bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
+bool RunCppCycle(v8::Handle<v8::Script> script,
+                 v8::Local<v8::Context> context,
                  bool report_exceptions);
 
 
@@ -132,7 +133,8 @@ void DispatchDebugMessages() {
 
 int RunMain(int argc, char* argv[]) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-  v8::HandleScope handle_scope;
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::HandleScope handle_scope(isolate);
 
   v8::Handle<v8::String> script_source(NULL);
   v8::Handle<v8::Value> script_name(NULL);
@@ -212,9 +214,10 @@ int RunMain(int argc, char* argv[]) {
   v8::Context::Scope context_scope(context);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_message_context = v8::Persistent<v8::Context>::New(context);
+  debug_message_context =
+      v8::Persistent<v8::Context>::New(isolate, context);
 
-  v8::Locker locker;
+  v8::Locker locker(isolate);
 
   if (support_callback) {
     v8::Debug::SetDebugMessageDispatchHandler(DispatchDebugMessages, true);
@@ -235,7 +238,7 @@ int RunMain(int argc, char* argv[]) {
     if (script.IsEmpty()) {
       // Print errors that happened during compilation.
       if (report_exceptions)
-        ReportException(&try_catch);
+        ReportException(isolate, &try_catch);
       return 1;
     }
   }
@@ -246,13 +249,14 @@ int RunMain(int argc, char* argv[]) {
     script->Run();
     if (try_catch.HasCaught()) {
       if (report_exceptions)
-        ReportException(&try_catch);
+        ReportException(isolate, &try_catch);
       return 1;
     }
   }
 
   if (cycle_type == CycleInCpp) {
-    bool res = RunCppCycle(script, v8::Context::GetCurrent(),
+    bool res = RunCppCycle(script,
+                           v8::Context::GetCurrent(),
                            report_exceptions);
     return !res;
   } else {
@@ -262,15 +266,16 @@ int RunMain(int argc, char* argv[]) {
 }
 
 
-bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
+bool RunCppCycle(v8::Handle<v8::Script> script,
+                 v8::Local<v8::Context> context,
                  bool report_exceptions) {
+  v8::Isolate* isolate = context->GetIsolate();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  v8::Locker lock;
+  v8::Locker lock(isolate);
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
   v8::Handle<v8::String> fun_name = v8::String::New("ProcessLine");
-  v8::Handle<v8::Value> process_val =
-      v8::Context::GetCurrent()->Global()->Get(fun_name);
+  v8::Handle<v8::Value> process_val = context->Global()->Get(fun_name);
 
   // If there is no Process function, or if it is not a function,
   // bail out
@@ -285,7 +290,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
 
 
   while (!feof(stdin)) {
-    v8::HandleScope handle_scope;
+    v8::HandleScope handle_scope(isolate);
 
     v8::Handle<v8::String> input_line = ReadLine();
     if (input_line == v8::Undefined()) {
@@ -302,7 +307,7 @@ bool RunCppCycle(v8::Handle<v8::Script> script, v8::Local<v8::Context> context,
                                  argc, argv);
       if (try_catch.HasCaught()) {
         if (report_exceptions)
-          ReportException(&try_catch);
+          ReportException(isolate, &try_catch);
         return false;
       }
     }
@@ -349,8 +354,8 @@ v8::Handle<v8::String> ReadFile(const char* name) {
 }
 
 
-void ReportException(v8::TryCatch* try_catch) {
-  v8::HandleScope handle_scope;
+void ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
+  v8::HandleScope handle_scope(isolate);
   v8::String::Utf8Value exception(try_catch->Exception());
   const char* exception_string = ToCString(exception);
   v8::Handle<v8::Message> message = try_catch->Message();
@@ -388,7 +393,7 @@ void ReportException(v8::TryCatch* try_catch) {
 v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   bool first = true;
   for (int i = 0; i < args.Length(); i++) {
-    v8::HandleScope handle_scope;
+    v8::HandleScope handle_scope(args.GetIsolate());
     if (first) {
       first = false;
     } else {
@@ -420,7 +425,7 @@ v8::Handle<v8::String> ReadLine() {
   char* res;
   {
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    v8::Unlocker unlocker;
+    v8::Unlocker unlocker(v8::Isolate::GetCurrent());
 #endif  // ENABLE_DEBUGGER_SUPPORT
     res = fgets(buffer, kBufferSize, stdin);
   }

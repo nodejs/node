@@ -29,20 +29,24 @@
 #define V8_OPTIMIZING_COMPILER_THREAD_H_
 
 #include "atomicops.h"
-#include "platform.h"
 #include "flags.h"
+#include "platform.h"
 #include "unbound-queue.h"
 
 namespace v8 {
 namespace internal {
 
-class HGraphBuilder;
+class HOptimizedGraphBuilder;
 class OptimizingCompiler;
+class SharedFunctionInfo;
 
 class OptimizingCompilerThread : public Thread {
  public:
   explicit OptimizingCompilerThread(Isolate *isolate) :
       Thread("OptimizingCompilerThread"),
+#ifdef DEBUG
+      thread_id_(0),
+#endif
       isolate_(isolate),
       stop_semaphore_(OS::CreateSemaphore(0)),
       input_queue_semaphore_(OS::CreateSemaphore(0)),
@@ -54,6 +58,7 @@ class OptimizingCompilerThread : public Thread {
 
   void Run();
   void Stop();
+  void CompileNext();
   void QueueForOptimization(OptimizingCompiler* optimizing_compiler);
   void InstallOptimizedFunctions();
 
@@ -81,6 +86,10 @@ class OptimizingCompilerThread : public Thread {
   }
 
  private:
+#ifdef DEBUG
+  int thread_id_;
+#endif
+
   Isolate* isolate_;
   Semaphore* stop_semaphore_;
   Semaphore* input_queue_semaphore_;
@@ -90,10 +99,6 @@ class OptimizingCompilerThread : public Thread {
   volatile Atomic32 queue_length_;
   int64_t time_spent_compiling_;
   int64_t time_spent_total_;
-
-#ifdef DEBUG
-  int thread_id_;
-#endif
 };
 
 } }  // namespace v8::internal

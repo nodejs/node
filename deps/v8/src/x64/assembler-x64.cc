@@ -43,7 +43,13 @@ namespace internal {
 bool CpuFeatures::initialized_ = false;
 #endif
 uint64_t CpuFeatures::supported_ = CpuFeatures::kDefaultCpuFeatures;
-uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
+uint64_t CpuFeatures::found_by_runtime_probing_only_ = 0;
+
+
+ExternalReference ExternalReference::cpu_features() {
+  ASSERT(CpuFeatures::initialized_);
+  return ExternalReference(&CpuFeatures::supported_);
+}
 
 
 void CpuFeatures::Probe() {
@@ -102,7 +108,7 @@ void CpuFeatures::Probe() {
   __ bind(&cpuid);
   __ movl(rax, Immediate(1));
   supported_ = kDefaultCpuFeatures | (1 << CPUID);
-  { Scope fscope(CPUID);
+  { CpuFeatureScope fscope(&assm, CPUID);
     __ cpuid();
     // Move the result from ecx:edx to rdi.
     __ movl(rdi, rdx);  // Zero-extended to 64 bits.
@@ -110,7 +116,7 @@ void CpuFeatures::Probe() {
     __ or_(rdi, rcx);
 
     // Get the sahf supported flag, from CPUID(0x80000001)
-    __ movq(rax, 0x80000001, RelocInfo::NONE);
+    __ movq(rax, 0x80000001, RelocInfo::NONE64);
     __ cpuid();
   }
   supported_ = kDefaultCpuFeatures;
@@ -137,12 +143,13 @@ void CpuFeatures::Probe() {
 
   typedef uint64_t (*F0)();
   F0 probe = FUNCTION_CAST<F0>(reinterpret_cast<Address>(memory->address()));
-  supported_ = probe();
-  found_by_runtime_probing_ = supported_;
-  found_by_runtime_probing_ &= ~kDefaultCpuFeatures;
-  uint64_t os_guarantees = OS::CpuFeaturesImpliedByPlatform();
-  supported_ |= os_guarantees;
-  found_by_runtime_probing_ &= ~os_guarantees;
+
+  uint64_t probed_features = probe();
+  uint64_t platform_features = OS::CpuFeaturesImpliedByPlatform();
+  supported_ = probed_features | platform_features;
+  found_by_runtime_probing_only_
+      = probed_features & ~kDefaultCpuFeatures & ~platform_features;
+
   // SSE2 and CMOV must be available on an X64 CPU.
   ASSERT(IsSupported(CPUID));
   ASSERT(IsSupported(SSE2));
@@ -173,7 +180,7 @@ void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
 #endif
 
   // Patch the code.
-  patcher.masm()->movq(r10, target, RelocInfo::NONE);
+  patcher.masm()->movq(r10, target, RelocInfo::NONE64);
   patcher.masm()->call(r10);
 
   // Check that the size of the code generated is as expected.
@@ -201,7 +208,8 @@ void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
 // -----------------------------------------------------------------------------
 // Register constants.
 
-const int Register::kRegisterCodeByAllocationIndex[kNumAllocatableRegisters] = {
+const int
+    Register::kRegisterCodeByAllocationIndex[kMaxNumAllocatableRegisters] = {
   // rax, rbx, rdx, rcx, rdi, r8, r9, r11, r14, r15
   0, 3, 2, 1, 7, 8, 9, 11, 14, 15
 };
@@ -346,68 +354,25 @@ bool Operand::AddressUsesRegister(Register reg) const {
 static void InitCoverageLog();
 #endif
 
-Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
-    : AssemblerBase(arg_isolate),
+Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
+    : AssemblerBase(isolate, buffer, buffer_size),
       code_targets_(100),
-      positions_recorder_(this),
-      emit_debug_code_(FLAG_debug_code),
-      predictable_code_size_(false) {
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-
-      if (isolate() != NULL && isolate()->assembler_spare_buffer() != NULL) {
-        buffer = isolate()->assembler_spare_buffer();
-        isolate()->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) {
-      buffer_ = NewArray<byte>(buffer_size);
-    } else {
-      buffer_ = static_cast<byte*>(buffer);
-    }
-    buffer_size_ = buffer_size;
-    own_buffer_ = true;
-  } else {
-    // Use externally provided buffer instead.
-    ASSERT(buffer_size > 0);
-    buffer_ = static_cast<byte*>(buffer);
-    buffer_size_ = buffer_size;
-    own_buffer_ = false;
-  }
-
+      positions_recorder_(this) {
   // Clear the buffer in debug mode unless it was provided by the
   // caller in which case we can't be sure it's okay to overwrite
   // existing code in it.
 #ifdef DEBUG
   if (own_buffer_) {
-    memset(buffer_, 0xCC, buffer_size);  // int3
+    memset(buffer_, 0xCC, buffer_size_);  // int3
   }
 #endif
 
-  // Set up buffer pointers.
-  ASSERT(buffer_ != NULL);
-  pc_ = buffer_;
-  reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
+  reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 
 
 #ifdef GENERATED_CODE_COVERAGE
   InitCoverageLog();
 #endif
-}
-
-
-Assembler::~Assembler() {
-  if (own_buffer_) {
-    if (isolate() != NULL &&
-        isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
 }
 
 
@@ -876,6 +841,16 @@ void Assembler::call(Label* L) {
 }
 
 
+void Assembler::call(Address entry, RelocInfo::Mode rmode) {
+  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
+  positions_recorder()->WriteRecordedPositions();
+  EnsureSpace ensure_space(this);
+  // 1110 1000 #32-bit disp.
+  emit(0xE8);
+  emit_runtime_entry(entry, rmode);
+}
+
+
 void Assembler::call(Handle<Code> target,
                      RelocInfo::Mode rmode,
                      TypeFeedbackId ast_id) {
@@ -1014,7 +989,7 @@ void Assembler::cmpb_al(Immediate imm8) {
 
 
 void Assembler::cpuid() {
-  ASSERT(CpuFeatures::IsEnabled(CPUID));
+  ASSERT(IsEnabled(CPUID));
   EnsureSpace ensure_space(this);
   emit(0x0F);
   emit(0xA2);
@@ -1238,13 +1213,13 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
     // Determine whether we can use 1-byte offsets for backwards branches,
     // which have a max range of 128 bytes.
 
-    // We also need to check the predictable_code_size_ flag here, because
-    // on x64, when the full code generator recompiles code for debugging, some
-    // places need to be padded out to a certain size. The debugger is keeping
-    // track of how often it did this so that it can adjust return addresses on
-    // the stack, but if the size of jump instructions can also change, that's
-    // not enough and the calculated offsets would be incorrect.
-    if (is_int8(offs - short_size) && !predictable_code_size_) {
+    // We also need to check predictable_code_size() flag here, because on x64,
+    // when the full code generator recompiles code for debugging, some places
+    // need to be padded out to a certain size. The debugger is keeping track of
+    // how often it did this so that it can adjust return addresses on the
+    // stack, but if the size of jump instructions can also change, that's not
+    // enough and the calculated offsets would be incorrect.
+    if (is_int8(offs - short_size) && !predictable_code_size()) {
       // 0111 tttn #8-bit disp.
       emit(0x70 | cc);
       emit((offs - short_size) & 0xFF);
@@ -1282,6 +1257,16 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
 }
 
 
+void Assembler::j(Condition cc, Address entry, RelocInfo::Mode rmode) {
+  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
+  EnsureSpace ensure_space(this);
+  ASSERT(is_uint4(cc));
+  emit(0x0F);
+  emit(0x80 | cc);
+  emit_runtime_entry(entry, rmode);
+}
+
+
 void Assembler::j(Condition cc,
                   Handle<Code> target,
                   RelocInfo::Mode rmode) {
@@ -1301,7 +1286,7 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   if (L->is_bound()) {
     int offs = L->pos() - pc_offset() - 1;
     ASSERT(offs <= 0);
-    if (is_int8(offs - short_size) && !predictable_code_size_) {
+    if (is_int8(offs - short_size) && !predictable_code_size()) {
       // 1110 1011 #8-bit disp.
       emit(0xEB);
       emit((offs - short_size) & 0xFF);
@@ -1341,6 +1326,15 @@ void Assembler::jmp(Handle<Code> target, RelocInfo::Mode rmode) {
   // 1110 1001 #32-bit disp.
   emit(0xE9);
   emit_code_target(target, rmode);
+}
+
+
+void Assembler::jmp(Address entry, RelocInfo::Mode rmode) {
+  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
+  EnsureSpace ensure_space(this);
+  ASSERT(RelocInfo::IsRuntimeEntry(rmode));
+  emit(0xE9);
+  emit_runtime_entry(entry, rmode);
 }
 
 
@@ -1540,13 +1534,12 @@ void Assembler::movq(Register dst, void* value, RelocInfo::Mode rmode) {
 
 void Assembler::movq(Register dst, int64_t value, RelocInfo::Mode rmode) {
   // Non-relocatable values might not need a 64-bit representation.
-  if (rmode == RelocInfo::NONE) {
-    // Sadly, there is no zero or sign extending move for 8-bit immediates.
-    if (is_int32(value)) {
-      movq(dst, Immediate(static_cast<int32_t>(value)));
-      return;
-    } else if (is_uint32(value)) {
+  if (RelocInfo::IsNone(rmode)) {
+    if (is_uint32(value)) {
       movl(dst, Immediate(static_cast<int32_t>(value)));
+      return;
+    } else if (is_int32(value)) {
+      movq(dst, Immediate(static_cast<int32_t>(value)));
       return;
     }
     // Value cannot be represented by 32 bits, so do a full 64 bit immediate
@@ -1600,11 +1593,11 @@ void Assembler::movl(const Operand& dst, Label* src) {
 void Assembler::movq(Register dst, Handle<Object> value, RelocInfo::Mode mode) {
   // If there is no relocation info, emit the value of the handle efficiently
   // (possibly using less that 8 bytes for the value).
-  if (mode == RelocInfo::NONE) {
+  if (RelocInfo::IsNone(mode)) {
     // There is no possible reason to store a heap pointer without relocation
     // info, so it must be a smi.
     ASSERT(value->IsSmi());
-    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE);
+    movq(dst, reinterpret_cast<int64_t>(*value), RelocInfo::NONE64);
   } else {
     EnsureSpace ensure_space(this);
     ASSERT(value->IsHeapObject());
@@ -1685,6 +1678,15 @@ void Assembler::movzxwl(Register dst, const Operand& src) {
   emit(0x0F);
   emit(0xB7);
   emit_operand(dst, src);
+}
+
+
+void Assembler::movzxwl(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xB7);
+  emit_modrm(dst, src);
 }
 
 
@@ -2246,7 +2248,7 @@ void Assembler::fistp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_s(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  ASSERT(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(adr);
   emit(0xDB);
@@ -2255,7 +2257,7 @@ void Assembler::fisttp_s(const Operand& adr) {
 
 
 void Assembler::fisttp_d(const Operand& adr) {
-  ASSERT(CpuFeatures::IsEnabled(SSE3));
+  ASSERT(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(adr);
   emit(0xDD);
@@ -2850,7 +2852,27 @@ void Assembler::addsd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::addsd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x58);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::mulsd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x59);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::mulsd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
   emit_optional_rex_32(dst, src);
@@ -2951,7 +2973,7 @@ void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
 
 void Assembler::roundsd(XMMRegister dst, XMMRegister src,
                         Assembler::RoundingMode mode) {
-  ASSERT(CpuFeatures::IsEnabled(SSE4_1));
+  ASSERT(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);
@@ -2967,6 +2989,15 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src,
 void Assembler::movmskpd(Register dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0f);
+  emit(0x50);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::movmskps(Register dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);
   emit(0x0f);
   emit(0x50);
@@ -3008,7 +3039,7 @@ void Assembler::dd(uint32_t data) {
 // Relocation information implementations.
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  ASSERT(rmode != RelocInfo::NONE);
+  ASSERT(!RelocInfo::IsNone(rmode));
   // Don't record external references unless the heap will be serialized.
   if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
 #ifdef DEBUG
@@ -3047,7 +3078,9 @@ void Assembler::RecordComment(const char* msg, bool force) {
 
 
 const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-                                  1 << RelocInfo::INTERNAL_REFERENCE;
+    1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::INTERNAL_REFERENCE |
+    1 << RelocInfo::CODE_AGE_SEQUENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {

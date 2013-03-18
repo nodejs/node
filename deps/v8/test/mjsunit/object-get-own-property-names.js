@@ -77,6 +77,16 @@ propertyNames.sort();
 assertEquals(1, propertyNames.length);
 assertEquals("getter", propertyNames[0]);
 
+// Check that implementation does not access Array.prototype.
+var savedConcat = Array.prototype.concat;
+Array.prototype.concat = function() { return []; }
+propertyNames = Object.getOwnPropertyNames({0: 'foo', bar: 'baz'});
+assertEquals(2, propertyNames.length);
+assertEquals('0', propertyNames[0]);
+assertEquals('bar', propertyNames[1]);
+assertSame(Array.prototype, propertyNames.__proto__);
+Array.prototype.concat = savedConcat;
+
 try {
   Object.getOwnPropertyNames(4);
   assertTrue(false);

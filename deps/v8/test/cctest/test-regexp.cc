@@ -71,7 +71,7 @@ using namespace v8::internal;
 
 static bool CheckParse(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -82,7 +82,7 @@ static bool CheckParse(const char* input) {
 
 static SmartArrayPointer<const char> Parse(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -97,8 +97,7 @@ static SmartArrayPointer<const char> Parse(const char* input) {
 
 static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -116,8 +115,7 @@ struct MinMaxPair {
 
 static MinMaxPair CheckMinMaxMatch(const char* input) {
   V8::Initialize(NULL);
-  v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, StrLength(input));
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -390,7 +388,7 @@ TEST(ParserRegression) {
 static void ExpectError(const char* input,
                         const char* expected) {
   V8::Initialize(NULL);
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   FlatStringReader reader(Isolate::Current(), CStrVector(input));
   RegExpCompileData result;
@@ -532,7 +530,7 @@ static void Execute(const char* input,
                     bool multiline,
                     bool is_ascii,
                     bool dot_output = false) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   ZoneScope zone_scope(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT);
   RegExpNode* node = Compile(input, multiline, is_ascii);
   USE(node);
@@ -709,14 +707,15 @@ typedef RegExpMacroAssemblerMIPS ArchRegExpMacroAssembler;
 class ContextInitializer {
  public:
   ContextInitializer()
-      : env_(), scope_(), zone_(Isolate::Current()->runtime_zone(),
-                                DELETE_ON_EXIT) {
+      : env_(),
+        scope_(v8::Isolate::GetCurrent()),
+        zone_(Isolate::Current()->runtime_zone(), DELETE_ON_EXIT) {
     env_ = v8::Context::New();
     env_->Enter();
   }
   ~ContextInitializer() {
     env_->Exit();
-    env_.Dispose();
+    env_.Dispose(env_->GetIsolate());
   }
  private:
   v8::Persistent<v8::Context> env_;
@@ -759,7 +758,7 @@ TEST(MacroAssemblerNativeSuccess) {
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foofoo"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   const byte* start_adr =
       reinterpret_cast<const byte*>(seq_input->GetCharsAddress());
 
@@ -805,7 +804,7 @@ TEST(MacroAssemblerNativeSimple) {
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foofoo"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -823,7 +822,7 @@ TEST(MacroAssemblerNativeSimple) {
   CHECK_EQ(-1, captures[3]);
 
   input = factory->NewStringFromAscii(CStrVector("barbarbar"));
-  seq_input = Handle<SeqAsciiString>::cast(input);
+  seq_input = Handle<SeqOneByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
 
   result = Execute(*code,
@@ -863,7 +862,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
 
   int captures[4] = {42, 37, 87, 117};
   const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o',
-                              static_cast<uc16>('\xa0')};
+                              static_cast<uc16>(0x2603)};
   Handle<String> input =
       factory->NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
   Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
@@ -884,7 +883,7 @@ TEST(MacroAssemblerNativeSimpleUC16) {
   CHECK_EQ(-1, captures[3]);
 
   const uc16 input_data2[9] = {'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a',
-                               static_cast<uc16>('\xa0')};
+                               static_cast<uc16>(0x2603)};
   input = factory->NewStringFromTwoByte(Vector<const uc16>(input_data2, 9));
   seq_input = Handle<SeqTwoByteString>::cast(input);
   start_adr = seq_input->GetCharsAddress();
@@ -924,7 +923,7 @@ TEST(MacroAssemblerNativeBacktrack) {
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foofoo"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -967,7 +966,7 @@ TEST(MacroAssemblerNativeBackReferenceASCII) {
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = factory->NewStringFromAscii(CStrVector("fooofo"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
@@ -1072,7 +1071,7 @@ TEST(MacroAssemblernativeAtStart) {
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = factory->NewStringFromAscii(CStrVector("foobar"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -1133,7 +1132,7 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
 
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[4];
@@ -1234,7 +1233,7 @@ TEST(MacroAssemblerNativeRegisters) {
   // String long enough for test (content doesn't matter).
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("foofoofoofoofoo"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int output[6];
@@ -1278,7 +1277,7 @@ TEST(MacroAssemblerStackOverflow) {
   // String long enough for test (content doesn't matter).
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("dummy"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   NativeRegExpMacroAssembler::Result result =
@@ -1325,7 +1324,7 @@ TEST(MacroAssemblerNativeLotsOfRegisters) {
   // String long enough for test (content doesn't matter).
   Handle<String> input =
       factory->NewStringFromAscii(CStrVector("sample text"));
-  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Handle<SeqOneByteString> seq_input = Handle<SeqOneByteString>::cast(input);
   Address start_adr = seq_input->GetCharsAddress();
 
   int captures[2];

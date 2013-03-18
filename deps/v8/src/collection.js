@@ -88,6 +88,25 @@ function SetDelete(key) {
 }
 
 
+function SetGetSize() {
+  if (!IS_SET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Set.prototype.size', this]);
+  }
+  return %SetGetSize(this);
+}
+
+
+function SetClear() {
+  if (!IS_SET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Set.prototype.clear', this]);
+  }
+  // Replace the internal table with a new empty table.
+  %SetInitialize(this);
+}
+
+
 function MapConstructor() {
   if (%_IsConstructCall()) {
     %MapInitialize(this);
@@ -145,6 +164,25 @@ function MapDelete(key) {
 }
 
 
+function MapGetSize() {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.size', this]);
+  }
+  return %MapGetSize(this);
+}
+
+
+function MapClear() {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.clear', this]);
+  }
+  // Replace the internal table with a new empty table.
+  %MapInitialize(this);
+}
+
+
 function WeakMapConstructor() {
   if (%_IsConstructCall()) {
     %WeakMapInitialize(this);
@@ -159,7 +197,7 @@ function WeakMapGet(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.get', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapGet(this, key);
@@ -171,7 +209,7 @@ function WeakMapSet(key, value) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.set', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapSet(this, key, value);
@@ -183,7 +221,7 @@ function WeakMapHas(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.has', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapHas(this, key);
@@ -195,7 +233,7 @@ function WeakMapDelete(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['WeakMap.prototype.delete', this]);
   }
-  if (!IS_SPEC_OBJECT(key)) {
+  if (!(IS_SPEC_OBJECT(key) || IS_SYMBOL(key))) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
   return %WeakMapDelete(this, key);
@@ -215,18 +253,22 @@ function WeakMapDelete(key) {
   %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
 
   // Set up the non-enumerable functions on the Set prototype object.
+  InstallGetter($Set.prototype, "size", SetGetSize);
   InstallFunctions($Set.prototype, DONT_ENUM, $Array(
     "add", SetAdd,
     "has", SetHas,
-    "delete", SetDelete
+    "delete", SetDelete,
+    "clear", SetClear
   ));
 
   // Set up the non-enumerable functions on the Map prototype object.
+  InstallGetter($Map.prototype, "size", MapGetSize);
   InstallFunctions($Map.prototype, DONT_ENUM, $Array(
     "get", MapGet,
     "set", MapSet,
     "has", MapHas,
-    "delete", MapDelete
+    "delete", MapDelete,
+    "clear", MapClear
   ));
 
   // Set up the WeakMap constructor function.

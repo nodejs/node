@@ -53,7 +53,7 @@ class DeclarationContext {
   virtual ~DeclarationContext() {
     if (is_initialized_) {
       context_->Exit();
-      context_.Dispose();
+      context_.Dispose(context_->GetIsolate());
     }
   }
 
@@ -113,7 +113,7 @@ DeclarationContext::DeclarationContext()
 
 void DeclarationContext::InitializeIfNeeded() {
   if (is_initialized_) return;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
   Local<FunctionTemplate> function = FunctionTemplate::New();
   Local<Value> data = External::New(this);
   GetHolder(function)->SetNamedPropertyHandler(&HandleGet,
@@ -136,7 +136,7 @@ void DeclarationContext::Check(const char* source,
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
   HEAP->CollectGarbage(v8::internal::NEW_SPACE);
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
   TryCatch catcher;
   catcher.SetVerbose(true);
   Local<Script> script = Script::Compile(String::New(source));
@@ -161,6 +161,7 @@ void DeclarationContext::Check(const char* source,
       CHECK_EQ(value, catcher.Exception());
     }
   }
+  HEAP->CollectAllAvailableGarbage();  // Clean slate for the next test.
 }
 
 
@@ -190,7 +191,8 @@ v8::Handle<Integer> DeclarationContext::HandleQuery(Local<String> key,
 
 
 DeclarationContext* DeclarationContext::GetInstance(const AccessorInfo& info) {
-  return static_cast<DeclarationContext*>(External::Unwrap(info.Data()));
+  void* value = External::Cast(*info.Data())->Value();
+  return static_cast<DeclarationContext*>(value);
 }
 
 
@@ -213,7 +215,7 @@ v8::Handle<Integer> DeclarationContext::Query(Local<String> key) {
 // Test global declaration of a property the interceptor doesn't know
 // about and doesn't handle.
 TEST(Unknown) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { DeclarationContext context;
     context.Check("var x; x",
@@ -268,7 +270,7 @@ class PresentPropertyContext: public DeclarationContext {
 
 
 TEST(Present) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { PresentPropertyContext context;
     context.Check("var x; x",
@@ -322,7 +324,7 @@ class AbsentPropertyContext: public DeclarationContext {
 
 
 TEST(Absent) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { AbsentPropertyContext context;
     context.Check("var x; x",
@@ -412,7 +414,7 @@ class AppearingPropertyContext: public DeclarationContext {
 
 
 TEST(Appearing) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { AppearingPropertyContext context;
     context.Check("var x; x",
@@ -504,7 +506,7 @@ class ReappearingPropertyContext: public DeclarationContext {
 
 
 TEST(Reappearing) {
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { ReappearingPropertyContext context;
     context.Check("const x; var x = 0",
@@ -533,7 +535,7 @@ class ExistsInPrototypeContext: public DeclarationContext {
 
 TEST(ExistsInPrototype) {
   i::FLAG_es52_globals = true;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   // Sanity check to make sure that the holder of the interceptor
   // really is the prototype object.
@@ -596,7 +598,7 @@ class AbsentInPrototypeContext: public DeclarationContext {
 
 TEST(AbsentInPrototype) {
   i::FLAG_es52_globals = true;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { AbsentInPrototypeContext context;
     context.Check("if (false) { var x = 0; }; x",
@@ -643,7 +645,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
 
 TEST(ExistsInHiddenPrototype) {
   i::FLAG_es52_globals = true;
-  HandleScope scope;
+  HandleScope scope(Isolate::GetCurrent());
 
   { ExistsInHiddenPrototypeContext context;
     context.Check("var x; x",
@@ -699,13 +701,13 @@ class SimpleContext {
 
   virtual ~SimpleContext() {
     context_->Exit();
-    context_.Dispose();
+    context_.Dispose(context_->GetIsolate());
   }
 
   void Check(const char* source,
              Expectations expectations,
              v8::Handle<Value> value = Local<Value>()) {
-    HandleScope scope;
+    HandleScope scope(context_->GetIsolate());
     TryCatch catcher;
     catcher.SetVerbose(true);
     Local<Script> script = Script::Compile(String::New(source));
@@ -734,8 +736,8 @@ class SimpleContext {
 };
 
 
-TEST(MultiScriptConflicts) {
-  HandleScope scope;
+TEST(CrossScriptReferences) {
+  HandleScope scope(Isolate::GetCurrent());
 
   { SimpleContext context;
     context.Check("var x = 1; x",
@@ -772,135 +774,70 @@ TEST(MultiScriptConflicts) {
     context.Check("function x() { return 7 }; x",
                   EXPECT_EXCEPTION);
   }
+}
 
+
+TEST(CrossScriptReferencesHarmony) {
   i::FLAG_use_strict = true;
   i::FLAG_harmony_scoping = true;
+  i::FLAG_harmony_modules = true;
 
-  { SimpleContext context;
-    context.Check("var x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("this.x",
-                  EXPECT_RESULT, Number::New(1));
-  }
+  HandleScope scope(Isolate::GetCurrent());
 
-  { SimpleContext context;
-    context.Check("function x() { return 4 }; x()",
-                  EXPECT_RESULT, Number::New(4));
-    context.Check("x()",
-                  EXPECT_RESULT, Number::New(4));
-    context.Check("this.x()",
-                  EXPECT_RESULT, Number::New(4));
-  }
+  const char* decs[] = {
+    "var x = 1; x", "x", "this.x",
+    "function x() { return 1 }; x()", "x()", "this.x()",
+    "let x = 1; x", "x", "this.x",
+    "const x = 1; x", "x", "this.x",
+    "module x { export let a = 1 }; x.a", "x.a", "this.x.a",
+    NULL
+  };
 
-  { SimpleContext context;
-    context.Check("let x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
-    context.Check("x",
-                  EXPECT_RESULT, Number::New(2));
+  for (int i = 0; decs[i] != NULL; i += 3) {
+    SimpleContext context;
+    context.Check(decs[i], EXPECT_RESULT, Number::New(1));
+    context.Check(decs[i+1], EXPECT_RESULT, Number::New(1));
     // TODO(rossberg): The current ES6 draft spec does not reflect lexical
     // bindings on the global object. However, this will probably change, in
     // which case we reactivate the following test.
-    // context.Check("this.x",
-    //               EXPECT_RESULT, Number::New(2));
+    if (i/3 < 2) context.Check(decs[i+2], EXPECT_RESULT, Number::New(1));
   }
+}
 
-  { SimpleContext context;
-    context.Check("const x = 3; x",
-                  EXPECT_RESULT, Number::New(3));
-    context.Check("x",
-                  EXPECT_RESULT, Number::New(3));
-    // TODO(rossberg): The current ES6 draft spec does not reflect lexical
-    // bindings on the global object. However, this will probably change, in
-    // which case we reactivate the following test.
-    // context.Check("this.x",
-    //              EXPECT_RESULT, Number::New(3));
-  }
 
-  // TODO(rossberg): All of the below should actually be errors in Harmony.
+TEST(CrossScriptConflicts) {
+  i::FLAG_use_strict = true;
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_harmony_modules = true;
 
-  { SimpleContext context;
-    context.Check("var x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("let x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
-  }
+  HandleScope scope(Isolate::GetCurrent());
 
-  { SimpleContext context;
-    context.Check("var x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("const x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
-  }
+  const char* firsts[] = {
+    "var x = 1; x",
+    "function x() { return 1 }; x()",
+    "let x = 1; x",
+    "const x = 1; x",
+    "module x { export let a = 1 }; x.a",
+    NULL
+  };
+  const char* seconds[] = {
+    "var x = 2; x",
+    "function x() { return 2 }; x()",
+    "let x = 2; x",
+    "const x = 2; x",
+    "module x { export let a = 2 }; x.a",
+    NULL
+  };
 
-  { SimpleContext context;
-    context.Check("function x() { return 1 }; x()",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("let x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
-  }
-
-  { SimpleContext context;
-    context.Check("function x() { return 1 }; x()",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("const x = 2; x",
-                  EXPECT_RESULT, Number::New(2));
-  }
-
-  { SimpleContext context;
-    context.Check("let x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("var x = 2; x",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("let x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("let x = 2; x",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("let x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("const x = 2; x",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("let x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("function x() { return 2 }; x()",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("var x = 2; x",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("let x = 2; x",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("const x = 2; x",
-                  EXPECT_ERROR);
-  }
-
-  { SimpleContext context;
-    context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(1));
-    context.Check("function x() { return 2 }; x()",
-                  EXPECT_ERROR);
+  for (int i = 0; firsts[i] != NULL; ++i) {
+    for (int j = 0; seconds[j] != NULL; ++j) {
+      SimpleContext context;
+      context.Check(firsts[i], EXPECT_RESULT, Number::New(1));
+      // TODO(rossberg): All tests should actually be errors in Harmony,
+      // but we currently do not detect the cases where the first declaration
+      // is not lexical.
+      context.Check(seconds[j],
+                    i < 2 ? EXPECT_RESULT : EXPECT_ERROR, Number::New(2));
+    }
   }
 }

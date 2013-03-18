@@ -1,3 +1,4 @@
+
 // Copyright (c) 1994-2006 Sun Microsystems Inc.
 // All Rights Reserved.
 //
@@ -65,7 +66,7 @@ Operand::Operand(const ExternalReference& f)  {
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
   imm32_ =  reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE;
+  rmode_ = RelocInfo::NONE32;
 }
 
 
@@ -79,9 +80,36 @@ bool Operand::is_reg() const {
 }
 
 
+int Register::NumAllocatableRegisters() {
+  if (CpuFeatures::IsSupported(FPU)) {
+    return kMaxNumAllocatableRegisters;
+  } else {
+    return kMaxNumAllocatableRegisters - kGPRsPerNonFPUDouble;
+  }
+}
+
+
+int DoubleRegister::NumRegisters() {
+  if (CpuFeatures::IsSupported(FPU)) {
+    return FPURegister::kMaxNumRegisters;
+  } else {
+    return 1;
+  }
+}
+
+
+int DoubleRegister::NumAllocatableRegisters() {
+  if (CpuFeatures::IsSupported(FPU)) {
+    return FPURegister::kMaxNumAllocatableRegisters;
+  } else {
+    return 1;
+  }
+}
+
+
 int FPURegister::ToAllocationIndex(FPURegister reg) {
   ASSERT(reg.code() % 2 == 0);
-  ASSERT(reg.code() / 2 < kNumAllocatableRegisters);
+  ASSERT(reg.code() / 2 < kMaxNumAllocatableRegisters);
   ASSERT(reg.is_valid());
   ASSERT(!reg.is(kDoubleRegZero));
   ASSERT(!reg.is(kLithiumScratchDouble));
@@ -111,14 +139,14 @@ void RelocInfo::apply(intptr_t delta) {
 
 
 Address RelocInfo::target_address() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_);
 }
 
 
 Address RelocInfo::target_address_address() {
   ASSERT(IsCodeTarget(rmode_) ||
-         rmode_ == RUNTIME_ENTRY ||
+         IsRuntimeEntry(rmode_) ||
          rmode_ == EMBEDDED_OBJECT ||
          rmode_ == EXTERNAL_REFERENCE);
   // Read the address of the word containing the target_address in an
@@ -146,7 +174,7 @@ int RelocInfo::target_address_size() {
 
 
 void RelocInfo::set_target_address(Address target, WriteBarrierMode mode) {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   Assembler::set_target_address_at(pc_, target);
   if (mode == UPDATE_WRITE_BARRIER && host() != NULL && IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
@@ -203,6 +231,19 @@ Address* RelocInfo::target_reference_address() {
 }
 
 
+Address RelocInfo::target_runtime_entry(Assembler* origin) {
+  ASSERT(IsRuntimeEntry(rmode_));
+  return target_address();
+}
+
+
+void RelocInfo::set_target_runtime_entry(Address target,
+                                         WriteBarrierMode mode) {
+  ASSERT(IsRuntimeEntry(rmode_));
+  if (target_address() != target) set_target_address(target, mode);
+}
+
+
 Handle<JSGlobalPropertyCell> RelocInfo::target_cell_handle() {
   ASSERT(rmode_ == RelocInfo::GLOBAL_PROPERTY_CELL);
   Address address = Memory::Address_at(pc_);
@@ -228,6 +269,24 @@ void RelocInfo::set_target_cell(JSGlobalPropertyCell* cell,
     host()->GetHeap()->incremental_marking()->RecordWrite(
         host(), NULL, cell);
   }
+}
+
+
+static const int kNoCodeAgeSequenceLength = 7;
+
+Code* RelocInfo::code_age_stub() {
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  return Code::GetCodeFromTargetAddress(
+      Memory::Address_at(pc_ + Assembler::kInstrSize *
+                         (kNoCodeAgeSequenceLength - 1)));
+}
+
+
+void RelocInfo::set_code_age_stub(Code* stub) {
+  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  Memory::Address_at(pc_ + Assembler::kInstrSize *
+                     (kNoCodeAgeSequenceLength - 1)) =
+      stub->instruction_start();
 }
 
 
@@ -302,6 +361,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(this);
+  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
+    visitor->VisitCodeAgeSequence(this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // TODO(isolates): Get a cached isolate below.
   } else if (((RelocInfo::IsJSReturn(mode) &&
@@ -311,7 +372,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
              Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
 #endif
-  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+  } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(this);
   }
 }
@@ -328,6 +389,8 @@ void RelocInfo::Visit(Heap* heap) {
     StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(this);
+  } else if (RelocInfo::IsCodeAgeSequence(mode)) {
+    StaticVisitor::VisitCodeAgeSequence(heap, this);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
@@ -336,7 +399,7 @@ void RelocInfo::Visit(Heap* heap) {
               IsPatchedDebugBreakSlotSequence()))) {
     StaticVisitor::VisitDebugTarget(heap, this);
 #endif
-  } else if (mode == RelocInfo::RUNTIME_ENTRY) {
+  } else if (RelocInfo::IsRuntimeEntry(mode)) {
     StaticVisitor::VisitRuntimeEntry(this);
   }
 }

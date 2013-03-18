@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2013 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,36 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
-#ifndef V8_INSPECTOR_H_
-#define V8_INSPECTOR_H_
+// Test usage of static type information for loads that would otherwise
+// turn into polymorphic or generic loads.
 
-// Only build this code if we're configured with the INSPECTOR.
-#ifdef INSPECTOR
+// Prepare a highly polymorphic load to be used by all tests.
+Object.prototype.load = function() { return this.property; };
+Object.prototype.load.call({ A:0, property:10 });
+Object.prototype.load.call({ A:0, B:0, property:11 });
+Object.prototype.load.call({ A:0, B:0, C:0, property:12 });
+Object.prototype.load.call({ A:0, B:0, C:0, D:0, property:13 });
+Object.prototype.load.call({ A:0, B:0, C:0, D:0, E:0, property:14 });
+Object.prototype.load.call({ A:0, B:0, C:0, D:0, E:0, F:0, property:15 });
 
-#include "v8.h"
-
-#include "objects.h"
-
-namespace v8 {
-namespace internal {
-
-class Inspector {
- public:
-  static void DumpObjectType(FILE* out, Object* obj, bool print_more);
-  static void DumpObjectType(FILE* out, Object* obj) {
-    DumpObjectType(out, obj, false);
+// Test for object literals.
+(function() {
+  function f(x) {
+    var object = { property:x };
+    return object.load();
   }
-  static void DumpObjectType(Object* obj, bool print_more) {
-    DumpObjectType(stdout, obj, print_more);
+
+  assertSame(1, f(1));
+  assertSame(2, f(2));
+  %OptimizeFunctionOnNextCall(f);
+  assertSame(3, f(3));
+})();
+
+// Test for inlined constructors.
+(function() {
+  function c(x) {
+    this.property = x;
   }
-  static void DumpObjectType(Object* obj) {
-    DumpObjectType(stdout, obj, false);
+  function f(x) {
+    var object = new c(x);
+    return object.load();
   }
-};
 
-} }  // namespace v8::internal
-
-#endif  // INSPECTOR
-
-#endif  // V8_INSPECTOR_H_
+  assertSame(1, f(1));
+  assertSame(2, f(2));
+  %OptimizeFunctionOnNextCall(f);
+  assertSame(3, f(3));
+})();

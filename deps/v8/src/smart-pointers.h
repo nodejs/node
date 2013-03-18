@@ -58,8 +58,13 @@ class SmartPointerBase {
   // You can get the underlying pointer out with the * operator.
   inline T* operator*() { return p_; }
 
-  // You can use [n] to index as if it was a plain pointer
+  // You can use [n] to index as if it was a plain pointer.
   inline T& operator[](size_t i) {
+    return p_[i];
+  }
+
+  // You can use [n] to index as if it was a plain pointer.
+  const inline T& operator[](size_t i) const {
     return p_[i];
   }
 
@@ -75,6 +80,11 @@ class SmartPointerBase {
     T* temp = p_;
     p_ = NULL;
     return temp;
+  }
+
+  inline void Reset(T* new_value) {
+    if (p_) Deallocator::Delete(p_);
+    p_ = new_value;
   }
 
   // Assignment requires an empty (NULL) SmartArrayPointer as the receiver. Like
@@ -119,10 +129,11 @@ class SmartArrayPointer: public SmartPointerBase<ArrayDeallocator<T>, T> {
 
 template<typename T>
 struct ObjectDeallocator {
-  static void Delete(T* array) {
-    Malloced::Delete(array);
+  static void Delete(T* object) {
+    delete object;
   }
 };
+
 
 template<typename T>
 class SmartPointer: public SmartPointerBase<ObjectDeallocator<T>, T> {

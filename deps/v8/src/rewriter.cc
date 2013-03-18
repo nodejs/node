@@ -43,7 +43,9 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         is_set_(false),
         in_try_(false),
-        factory_(isolate(), zone) { }
+        factory_(Isolate::Current(), zone) {
+    InitializeAstVisitor();
+  }
 
   virtual ~Processor() { }
 
@@ -86,6 +88,8 @@ class Processor: public AstVisitor {
 #undef DEF_VISIT
 
   void VisitIterationStatement(IterationStatement* stmt);
+
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 };
 
 
@@ -106,6 +110,13 @@ void Processor::VisitBlock(Block* node) {
   // returns 'undefined'. To obtain the same behavior with v8, we need
   // to prevent rewriting in that case.
   if (!node->is_initializer_block()) Process(node->statements());
+}
+
+
+void Processor::VisitModuleStatement(ModuleStatement* node) {
+  bool set_after_body = is_set_;
+  Visit(node->body());
+  is_set_ = is_set_ && set_after_body;
 }
 
 
@@ -242,7 +253,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
   ZoneList<Statement*>* body = function->body();
   if (!body->is_empty()) {
     Variable* result = scope->NewTemporary(
-        info->isolate()->factory()->result_symbol());
+        info->isolate()->factory()->result_string());
     Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
@@ -257,7 +268,7 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // coincides with the end of the with scope which is the position of '1'.
       int position = function->end_position();
       VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->name(), false, Interface::NewValue(), position);
+          result->name(), false, result->interface(), position);
       result_proxy->BindTo(result);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy);

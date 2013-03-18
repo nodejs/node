@@ -277,84 +277,74 @@ uchar Utf8::CalculateValue(const byte* str,
 }
 
 
-const byte* Utf8::ReadBlock(Buffer<const char*> str, byte* buffer,
-    unsigned capacity, unsigned* chars_read_ptr, unsigned* offset_ptr) {
-  unsigned offset = *offset_ptr;
-  // Bail out early if we've reached the end of the string.
-  if (offset == str.length()) {
-    *chars_read_ptr = 0;
-    return NULL;
-  }
-  const byte* data = reinterpret_cast<const byte*>(str.data());
-  if (data[offset] <= kMaxOneByteChar) {
-    // The next character is an ASCII char so we scan forward over
-    // the following ASCII characters and return the next pure ASCII
-    // substring
-    const byte* result = data + offset;
-    offset++;
-    while ((offset < str.length()) && (data[offset] <= kMaxOneByteChar))
-      offset++;
-    *chars_read_ptr = offset - *offset_ptr;
-    *offset_ptr = offset;
-    return result;
-  } else {
-    // The next character is non-ASCII so we just fill the buffer
+void Utf8DecoderBase::Reset(uint16_t* buffer,
+                            unsigned buffer_length,
+                            const uint8_t* stream,
+                            unsigned stream_length) {
+  // Assume everything will fit in the buffer and stream won't be needed.
+  last_byte_of_buffer_unused_ = false;
+  unbuffered_start_ = NULL;
+  bool writing_to_buffer = true;
+  // Loop until stream is read, writing to buffer as long as buffer has space.
+  unsigned utf16_length = 0;
+  while (stream_length != 0) {
     unsigned cursor = 0;
-    unsigned chars_read = 0;
-    while (offset < str.length()) {
-      uchar c = data[offset];
-      if (c <= kMaxOneByteChar) {
-        // Fast case for ASCII characters
-        if (!CharacterStream::EncodeAsciiCharacter(c,
-                                                   buffer,
-                                                   capacity,
-                                                   cursor))
-          break;
-        offset += 1;
+    uint32_t character = Utf8::ValueOf(stream, stream_length, &cursor);
+    ASSERT(cursor > 0 && cursor <= stream_length);
+    stream += cursor;
+    stream_length -= cursor;
+    bool is_two_characters = character > Utf16::kMaxNonSurrogateCharCode;
+    utf16_length += is_two_characters ? 2 : 1;
+    // Don't need to write to the buffer, but still need utf16_length.
+    if (!writing_to_buffer) continue;
+    // Write out the characters to the buffer.
+    // Must check for equality with buffer_length as we've already updated it.
+    if (utf16_length <= buffer_length) {
+      if (is_two_characters) {
+        *buffer++ = Utf16::LeadSurrogate(character);
+        *buffer++ = Utf16::TrailSurrogate(character);
       } else {
-        unsigned chars = 0;
-        c = Utf8::ValueOf(data + offset, str.length() - offset, &chars);
-        if (!CharacterStream::EncodeNonAsciiCharacter(c,
-                                                      buffer,
-                                                      capacity,
-                                                      cursor))
-          break;
-        offset += chars;
+        *buffer++ = character;
       }
-      chars_read++;
+      if (utf16_length == buffer_length) {
+        // Just wrote last character of buffer
+        writing_to_buffer = false;
+        unbuffered_start_ = stream;
+      }
+      continue;
     }
-    *offset_ptr = offset;
-    *chars_read_ptr = chars_read;
-    return buffer;
+    // Have gone over buffer.
+    // Last char of buffer is unused, set cursor back.
+    ASSERT(is_two_characters);
+    writing_to_buffer = false;
+    last_byte_of_buffer_unused_ = true;
+    unbuffered_start_ = stream - cursor;
+  }
+  utf16_length_ = utf16_length;
+}
+
+
+void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
+                                     uint16_t* data,
+                                     unsigned data_length) {
+  while (data_length != 0) {
+    unsigned cursor = 0;
+    uint32_t character = Utf8::ValueOf(stream, Utf8::kMaxEncodedSize, &cursor);
+    // There's a total lack of bounds checking for stream
+    // as it was already done in Reset.
+    stream += cursor;
+    if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      *data++ = Utf16::LeadSurrogate(character);
+      *data++ = Utf16::TrailSurrogate(character);
+      ASSERT(data_length > 1);
+      data_length -= 2;
+    } else {
+      *data++ = character;
+      data_length -= 1;
+    }
   }
 }
 
-unsigned CharacterStream::Length() {
-  unsigned result = 0;
-  while (has_more()) {
-    result++;
-    GetNext();
-  }
-  Rewind();
-  return result;
-}
-
-unsigned CharacterStream::Utf16Length() {
-  unsigned result = 0;
-  while (has_more()) {
-    uchar c = GetNext();
-    result += c > Utf16::kMaxNonSurrogateCharCode ? 2 : 1;
-  }
-  Rewind();
-  return result;
-}
-
-void CharacterStream::Seek(unsigned position) {
-  Rewind();
-  for (unsigned i = 0; i < position; i++) {
-    GetNext();
-  }
-}
 
 // Uppercase:            point.category == 'Lu'
 

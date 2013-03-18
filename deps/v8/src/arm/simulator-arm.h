@@ -142,7 +142,9 @@ class Simulator {
     num_s_registers = 32,
     d0 = 0, d1, d2, d3, d4, d5, d6, d7,
     d8, d9, d10, d11, d12, d13, d14, d15,
-    num_d_registers = 16
+    d16, d17, d18, d19, d20, d21, d22, d23,
+    d24, d25, d26, d27, d28, d29, d30, d31,
+    num_d_registers = 32
   };
 
   explicit Simulator(Isolate* isolate);
@@ -205,6 +207,8 @@ class Simulator {
   // generated RegExp code with 7 parameters. This is a convenience function,
   // which sets up the simulator state and grabs the result on return.
   int32_t Call(byte* entry, int argument_count, ...);
+  // Alternative: call a 2-argument double function.
+  double CallFP(byte* entry, double d0, double d1);
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -356,6 +360,8 @@ class Simulator {
   template<class InputType, int register_size>
       void SetVFPRegister(int reg_index, const InputType& value);
 
+  void CallInternal(byte* entry);
+
   // Architecture state.
   // Saturating instructions require a Q flag to indicate saturation.
   // There is currently no way to read the CPSR directly, and thus read the Q
@@ -367,7 +373,7 @@ class Simulator {
   bool v_flag_;
 
   // VFP architecture state.
-  unsigned int vfp_register[num_s_registers];
+  unsigned int vfp_registers_[num_d_registers * 2];
   bool n_flag_FPSCR_;
   bool z_flag_FPSCR_;
   bool c_flag_FPSCR_;

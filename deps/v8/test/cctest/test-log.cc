@@ -1,4 +1,29 @@
 // Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 // Tests of logging functions from log.h
 
@@ -36,7 +61,7 @@ class ScopedLoggerInitializer {
         temp_file_(NULL),
         // Need to run this prior to creating the scope.
         trick_to_run_init_flags_(init_flags_(prof_lazy)),
-        scope_(),
+        scope_(v8::Isolate::GetCurrent()),
         env_(v8::Context::New()) {
     env_->Enter();
   }
@@ -340,7 +365,7 @@ class SimpleExternalString : public v8::String::ExternalStringResource {
 }  // namespace
 
 TEST(Issue23768) {
-  v8::HandleScope scope;
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
   v8::Handle<v8::Context> env = v8::Context::New();
   env->Enter();
 
@@ -370,7 +395,8 @@ TEST(LogCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
 
   v8::Persistent<v8::FunctionTemplate> obj =
-      v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New());
+      v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+                                                v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> proto = obj->PrototypeTemplate();
   v8::Local<v8::Signature> signature = v8::Signature::New(obj);
@@ -392,12 +418,12 @@ TEST(LogCallbacks) {
 
   i::EmbeddedVector<char, 100> ref_data;
   i::OS::SNPrintF(ref_data,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"method1\"\0",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"method1\"\0",
                   ObjMethod1);
 
   CHECK_NE(NULL, StrNStr(log.start(), ref_data.start(), log.length()));
 
-  obj.Dispose();
+  obj.Dispose(v8::Isolate::GetCurrent());
 }
 
 
@@ -420,7 +446,8 @@ TEST(LogAccessorCallbacks) {
   ScopedLoggerInitializer initialize_logger(false);
 
   v8::Persistent<v8::FunctionTemplate> obj =
-      v8::Persistent<v8::FunctionTemplate>::New(v8::FunctionTemplate::New());
+      v8::Persistent<v8::FunctionTemplate>::New(v8::Isolate::GetCurrent(),
+                                                v8::FunctionTemplate::New());
   obj->SetClassName(v8_str("Obj"));
   v8::Handle<v8::ObjectTemplate> inst = obj->InstanceTemplate();
   inst->SetAccessor(v8_str("prop1"), Prop1Getter, Prop1Setter);
@@ -435,26 +462,26 @@ TEST(LogAccessorCallbacks) {
 
   EmbeddedVector<char, 100> prop1_getter_record;
   i::OS::SNPrintF(prop1_getter_record,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop1\"",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop1\"",
                   Prop1Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop1_setter_record;
   i::OS::SNPrintF(prop1_setter_record,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"set prop1\"",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"set prop1\"",
                   Prop1Setter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
   EmbeddedVector<char, 100> prop2_getter_record;
   i::OS::SNPrintF(prop2_getter_record,
-                  "code-creation,Callback,0x%" V8PRIxPTR ",1,\"get prop2\"",
+                  "code-creation,Callback,-3,0x%" V8PRIxPTR ",1,\"get prop2\"",
                   Prop2Getter);
   CHECK_NE(NULL,
            StrNStr(log.start(), prop2_getter_record.start(), log.length()));
 
-  obj.Dispose();
+  obj.Dispose(v8::Isolate::GetCurrent());
 }
 
 

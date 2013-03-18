@@ -257,6 +257,42 @@ assertEquals("[1,2,[3,[4],5],6,7]",
 assertEquals("[2,4,[6,[8],10],12,14]",
              JSON.stringify([1, 2, [3, [4], 5], 6, 7], DoubleNumbers));
 assertEquals('["a","ab","abc"]', JSON.stringify(["a","ab","abc"]));
+assertEquals('{"a":1,"c":true}',
+              JSON.stringify({ a : 1,
+                               b : function() { 1 },
+                               c : true,
+                               d : function() { 2 } }));
+assertEquals('[1,null,true,null]',
+             JSON.stringify([1, function() { 1 }, true, function() { 2 }]));
+assertEquals('"toJSON 123"',
+             JSON.stringify({ toJSON : function() { return 'toJSON 123'; } }));
+assertEquals('{"a":321}',
+             JSON.stringify({ a : { toJSON : function() { return 321; } } }));
+var counter = 0;
+assertEquals('{"getter":123}',
+             JSON.stringify({ get getter() { counter++; return 123; } }));
+assertEquals(1, counter);
+assertEquals('{"a":"abc","b":"\u1234bc"}',
+             JSON.stringify({ a : "abc", b : "\u1234bc" }));
+
+
+var a = { a : 1, b : 2 };
+delete a.a;
+assertEquals('{"b":2}', JSON.stringify(a));
+
+var b = {};
+b.__proto__ = { toJSON : function() { return 321;} };
+assertEquals("321", JSON.stringify(b));
+
+var array = [""];
+var expected = '""';
+for (var i = 0; i < 10000; i++) {
+  array.push("");
+  expected = '"",' + expected;
+}
+expected = '[' + expected + ']';
+assertEquals(expected, JSON.stringify(array));
+
 
 var circular = [1, 2, 3];
 circular[2] = circular;
@@ -417,16 +453,23 @@ falseNum.__proto__ = Number.prototype;
 falseNum.toString = function() { return 42; };
 assertEquals('"42"', JSON.stringify(falseNum));
 
-// We don't currently allow plain properties called __proto__ in JSON
-// objects in JSON.parse. Instead we read them as we would JS object
-// literals. If we change that, this test should change with it.
-//
-// Parse a non-object value as __proto__. This must not create a
-// __proto__ property different from the original, and should not
-// change the original.
-var o = JSON.parse('{"__proto__":5}');
-assertEquals(Object.prototype, o.__proto__);  // __proto__ isn't changed.
-assertEquals(0, Object.keys(o).length);  // __proto__ isn't added as enumerable.
+// Parse an object value as __proto__.
+var o1 = JSON.parse('{"__proto__":[]}');
+assertEquals([], o1.__proto__);
+assertEquals(["__proto__"], Object.keys(o1));
+assertEquals([], Object.getOwnPropertyDescriptor(o1, "__proto__").value);
+assertEquals(["__proto__"], Object.getOwnPropertyNames(o1));
+assertTrue(o1.hasOwnProperty("__proto__"));
+assertTrue(Object.prototype.isPrototypeOf(o1));
+
+// Parse a non-object value as __proto__.
+var o2 = JSON.parse('{"__proto__":5}');
+assertEquals(5, o2.__proto__);
+assertEquals(["__proto__"], Object.keys(o2));
+assertEquals(5, Object.getOwnPropertyDescriptor(o2, "__proto__").value);
+assertEquals(["__proto__"], Object.getOwnPropertyNames(o2));
+assertTrue(o2.hasOwnProperty("__proto__"));
+assertTrue(Object.prototype.isPrototypeOf(o2));
 
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 assertEquals(json, JSON.stringify(JSON.parse(json)));

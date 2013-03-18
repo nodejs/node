@@ -119,8 +119,8 @@ static void CheckDST(int64_t time) {
 
 TEST(DaylightSavingsTime) {
   LocalContext context;
-  v8::HandleScope scope;
-  Isolate* isolate = Isolate::Current();
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
   DateCacheMock::Rule rules[] = {
     {0, 2, 0, 10, 0, 3600},  // DST from March to November in any year.
     {2010, 2, 0, 7, 20, 3600},  // DST from March to August 20 in 2010.
@@ -133,7 +133,7 @@ TEST(DaylightSavingsTime) {
   DateCacheMock* date_cache =
     new DateCacheMock(local_offset_ms, rules, ARRAY_SIZE(rules));
 
-  isolate->set_date_cache(date_cache);
+  reinterpret_cast<Isolate*>(isolate)->set_date_cache(date_cache);
 
   int64_t start_of_2010 = TimeFromYearMonthDay(date_cache, 2010, 0, 1);
   int64_t start_of_2011 = TimeFromYearMonthDay(date_cache, 2011, 0, 1);

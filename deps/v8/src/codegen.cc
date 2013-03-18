@@ -76,16 +76,22 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info) {
 
   if (FLAG_trace_codegen || print_source || print_ast) {
     PrintF("*** Generate code for %s function: ", ftype);
-    info->function()->name()->ShortPrint();
+    if (info->IsStub()) {
+      const char* name =
+          CodeStub::MajorName(info->code_stub()->MajorKey(), true);
+      PrintF("%s", name == NULL ? "<unknown>" : name);
+    } else {
+      info->function()->name()->ShortPrint();
+    }
     PrintF(" ***\n");
   }
 
-  if (print_source) {
+  if (!info->IsStub() && print_source) {
     PrintF("--- Source from AST ---\n%s\n",
            PrettyPrinter().PrintProgram(info->function()));
   }
 
-  if (print_ast) {
+  if (!info->IsStub() && print_ast) {
     PrintF("--- AST ---\n%s\n",
            AstPrinter().PrintProgram(info->function()));
   }
@@ -107,6 +113,7 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
   if (!code.is_null()) {
     isolate->counters()->total_compiled_code_size()->Increment(
         code->instruction_size());
+    code->set_prologue_offset(info->prologue_offset());
   }
   return code;
 }
@@ -116,23 +123,29 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #ifdef ENABLE_DISASSEMBLER
   bool print_code = Isolate::Current()->bootstrapper()->IsActive()
       ? FLAG_print_builtin_code
-      : (FLAG_print_code || (info->IsOptimizing() && FLAG_print_opt_code));
+      : (FLAG_print_code ||
+         (info->IsStub() && FLAG_print_code_stubs) ||
+         (info->IsOptimizing() && FLAG_print_opt_code));
   if (print_code) {
     // Print the source code if available.
     FunctionLiteral* function = info->function();
-    Handle<Script> script = info->script();
-    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-      PrintF("--- Raw source ---\n");
-      StringInputBuffer stream(String::cast(script->source()));
-      stream.Seek(function->start_position());
-      // fun->end_position() points to the last character in the stream. We
-      // need to compensate by adding one to calculate the length.
-      int source_len =
-          function->end_position() - function->start_position() + 1;
-      for (int i = 0; i < source_len; i++) {
-        if (stream.has_more()) PrintF("%c", stream.GetNext());
+    if (code->kind() != Code::COMPILED_STUB) {
+      Handle<Script> script = info->script();
+      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+        PrintF("--- Raw source ---\n");
+        ConsStringIteratorOp op;
+        StringCharacterStream stream(String::cast(script->source()),
+                                     &op,
+                                     function->start_position());
+        // fun->end_position() points to the last character in the stream. We
+        // need to compensate by adding one to calculate the length.
+        int source_len =
+            function->end_position() - function->start_position() + 1;
+        for (int i = 0; i < source_len; i++) {
+          if (stream.HasMore()) PrintF("%c", stream.GetNext());
+        }
+        PrintF("\n\n");
       }
-      PrintF("\n\n");
     }
     if (info->IsOptimizing()) {
       if (FLAG_print_unopt_code) {
@@ -144,7 +157,12 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
     } else {
       PrintF("--- Code ---\n");
     }
-    code->Disassemble(*function->debug_name()->ToCString());
+    if (info->IsStub()) {
+      CodeStub::Major major_key = info->code_stub()->MajorKey();
+      code->Disassemble(CodeStub::MajorName(major_key, false));
+    } else {
+      code->Disassemble(*function->debug_name()->ToCString());
+    }
   }
 #endif  // ENABLE_DISASSEMBLER
 }
@@ -153,12 +171,13 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
   Isolate* isolate = Isolate::Current();
-  if (!isolate->logger()->is_logging() && !CpuProfiler::is_profiling(isolate)) {
+  if (!isolate->logger()->is_logging() &&
+      !isolate->cpu_profiler()->is_profiling()) {
     return false;
   }
   Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
   if (FLAG_log_regexp) {
-    if (name->IsEqualTo(CStrVector("regexp")))
+    if (name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("regexp")))
       return true;
   }
   return false;

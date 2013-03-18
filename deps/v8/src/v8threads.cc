@@ -42,15 +42,18 @@ namespace v8 {
 bool Locker::active_ = false;
 
 
-// Constructor for the Locker object.  Once the Locker is constructed the
-// current thread will be guaranteed to have the lock for a given isolate.
-Locker::Locker(v8::Isolate* isolate)
-  : has_lock_(false),
-    top_level_(true),
-    isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
-  if (isolate_ == NULL) {
-    isolate_ = i::Isolate::GetDefaultIsolateForLocking();
-  }
+Locker::Locker() {
+  Initialize(i::Isolate::GetDefaultIsolateForLocking());
+}
+
+
+// Once the Locker is initialized, the current thread will be guaranteed to have
+// the lock for a given isolate.
+void Locker::Initialize(v8::Isolate* isolate) {
+  ASSERT(isolate != NULL);
+  has_lock_= false;
+  top_level_ = true;
+  isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   // Record that the Locker has been used at least once.
   active_ = true;
   // Get the big lock if necessary.
@@ -86,10 +89,8 @@ Locker::Locker(v8::Isolate* isolate)
 
 
 bool Locker::IsLocked(v8::Isolate* isolate) {
+  ASSERT(isolate != NULL);
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (internal_isolate == NULL) {
-    internal_isolate = i::Isolate::GetDefaultIsolateForLocking();
-  }
   return internal_isolate->thread_manager()->IsLockedByCurrentThread();
 }
 
@@ -115,11 +116,14 @@ Locker::~Locker() {
 }
 
 
-Unlocker::Unlocker(v8::Isolate* isolate)
-  : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
-  if (isolate_ == NULL) {
-    isolate_ = i::Isolate::GetDefaultIsolateForLocking();
-  }
+Unlocker::Unlocker() {
+  Initialize(i::Isolate::GetDefaultIsolateForLocking());
+}
+
+
+void Unlocker::Initialize(v8::Isolate* isolate) {
+  ASSERT(isolate != NULL);
+  isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
   if (isolate_->IsDefaultIsolate()) {
     isolate_->Exit();
@@ -479,7 +483,7 @@ void ContextSwitcher::Run() {
 
 // Acknowledge the preemption by the receiving thread.
 void ContextSwitcher::PreemptionReceived() {
-  ASSERT(Locker::IsLocked());
+  ASSERT(Locker::IsLocked(i::Isolate::GetDefaultIsolateForLocking()));
   // There is currently no accounting being done for this. But could be in the
   // future, which is why we leave this in.
 }

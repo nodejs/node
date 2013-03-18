@@ -43,7 +43,7 @@ void HandleDebugEvent(DebugEvent event,
 
 // Start the remove debugger connecting to a V8 debugger agent on the specified
 // port.
-void RunRemoteDebugger(int port);
+void RunRemoteDebugger(Isolate* isolate, int port);
 
 // Forward declerations.
 class RemoteDebuggerEvent;
@@ -53,8 +53,9 @@ class ReceiverThread;
 // Remote debugging class.
 class RemoteDebugger {
  public:
-  explicit RemoteDebugger(int port)
-      : port_(port),
+  explicit RemoteDebugger(Isolate* isolate, int port)
+      : isolate_(isolate),
+        port_(port),
         event_access_(i::OS::CreateMutex()),
         event_available_(i::OS::CreateSemaphore(0)),
         head_(NULL), tail_(NULL) {}
@@ -79,6 +80,7 @@ class RemoteDebugger {
   // Get connection to agent in debugged V8.
   i::Socket* conn() { return conn_; }
 
+  Isolate* isolate_;
   int port_;  // Port used to connect to debugger V8.
   i::Socket* conn_;  // Connection to debugger agent in debugged V8.
 

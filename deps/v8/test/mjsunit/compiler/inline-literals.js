@@ -87,3 +87,24 @@ TestRegExpLiteral("-b", "reg", "exp", "-expreg");
 %OptimizeFunctionOnNextCall(TestRegExpLiteral);
 TestRegExpLiteral("ab", "reg", "exp", "regexpexpreg");
 TestRegExpLiteral("ab", 12345, 54321, "6666666666");
+
+function f2(b, c) {
+  var closure = function(b, c) { return b + c; }
+  var value = b + c;
+  return closure;
+}
+
+function f1(a, b, c) {
+  return a + f2(b, c)(b, c);
+}
+
+function TestFunctionLiteral(a, b, c, expected) {
+  var result = f1(a, b, c);
+  assertEquals(expected, result, "TestFunctionLiteral");
+}
+
+TestFunctionLiteral(1, 2, 3, 6);
+TestFunctionLiteral(4, 5, 6, 15);
+%OptimizeFunctionOnNextCall(TestFunctionLiteral);
+TestFunctionLiteral(7, 8, 9, 24);
+TestFunctionLiteral("a", "b", "c", "abc");

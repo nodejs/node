@@ -97,7 +97,7 @@ class BreakLocationIterator {
   void ClearBreakPoint(Handle<Object> break_point_object);
   void SetOneShot();
   void ClearOneShot();
-  void PrepareStepIn();
+  void PrepareStepIn(Isolate* isolate);
   bool IsExit() const;
   bool HasBreakPoint();
   bool IsDebugBreak();
@@ -189,7 +189,9 @@ class ScriptCache : private HashMap {
   void Clear();
 
   // Weak handle callback for scripts in the cache.
-  static void HandleWeakScript(v8::Persistent<v8::Value> obj, void* data);
+  static void HandleWeakScript(v8::Isolate* isolate,
+                               v8::Persistent<v8::Value> obj,
+                               void* data);
 
   // List used during GC to temporarily store id's of collected scripts.
   List<int> collected_scripts_;
@@ -384,7 +386,9 @@ class Debug {
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
   // Passed to MakeWeak.
-  static void HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data);
+  static void HandleWeakDebugInfo(v8::Isolate* isolate,
+                                  v8::Persistent<v8::Value> obj,
+                                  void* data);
 
   friend class Debugger;
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
@@ -875,7 +879,9 @@ class Debugger {
   void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
   bool is_loading_debugger() const { return is_loading_debugger_; }
   void set_live_edit_enabled(bool v) { live_edit_enabled_ = v; }
-  bool live_edit_enabled() const { return live_edit_enabled_; }
+  bool live_edit_enabled() const {
+    return FLAG_enable_liveedit && live_edit_enabled_ ;
+  }
   void set_force_debugger_active(bool force_debugger_active) {
     force_debugger_active_ = force_debugger_active;
   }

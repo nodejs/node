@@ -235,6 +235,11 @@ inline Object* JavaScriptFrame::function() const {
 }
 
 
+inline StubFrame::StubFrame(StackFrameIterator* iterator)
+    : StandardFrame(iterator) {
+}
+
+
 inline OptimizedFrame::OptimizedFrame(StackFrameIterator* iterator)
     : JavaScriptFrame(iterator) {
 }
@@ -247,6 +252,11 @@ inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
 
 inline InternalFrame::InternalFrame(StackFrameIterator* iterator)
     : StandardFrame(iterator) {
+}
+
+
+inline StubFailureTrampolineFrame::StubFailureTrampolineFrame(
+    StackFrameIterator* iterator) : StandardFrame(iterator) {
 }
 
 

@@ -418,8 +418,8 @@ try {
   exception = true;
   assertTrue(e instanceof TypeError,
              "reduce callback not a function not throwing TypeError");
-  assertEquals("called_non_callable", e.type,
-               "reduce non function TypeError type");
+  assertTrue(e.message.indexOf(" is not a function") >= 0,
+             "reduce non function TypeError type");
 }
 assertTrue(exception);
 
@@ -430,8 +430,8 @@ try {
   exception = true;
   assertTrue(e instanceof TypeError,
              "reduceRight callback not a function not throwing TypeError");
-  assertEquals("called_non_callable", e.type,
-               "reduceRight non function TypeError type");
+  assertTrue(e.message.indexOf(" is not a function") >= 0,
+             "reduceRight non function TypeError type");
 }
 assertTrue(exception);
 
@@ -442,7 +442,7 @@ try {
   exception = true;
   assertTrue(e instanceof TypeError,
              "reduce no initial value not throwing TypeError");
-  assertEquals("reduce_no_initial", e.type,
+  assertEquals("Reduce of empty array with no initial value", e.message,
                "reduce no initial TypeError type");
 }
 assertTrue(exception);
@@ -454,7 +454,7 @@ try {
   exception = true;
   assertTrue(e instanceof TypeError,
              "reduceRight no initial value not throwing TypeError");
-  assertEquals("reduce_no_initial", e.type,
+  assertEquals("Reduce of empty array with no initial value", e.message,
                "reduceRight no initial TypeError type");
 }
 assertTrue(exception);
@@ -466,7 +466,7 @@ try {
   exception = true;
   assertTrue(e instanceof TypeError,
              "reduce sparse no initial value not throwing TypeError");
-  assertEquals("reduce_no_initial", e.type,
+  assertEquals("Reduce of empty array with no initial value", e.message,
                "reduce no initial TypeError type");
 }
 assertTrue(exception);
@@ -478,7 +478,7 @@ try {
   exception = true;
   assertTrue(e instanceof TypeError,
              "reduceRight sparse no initial value not throwing TypeError");
-  assertEquals("reduce_no_initial", e.type,
+  assertEquals("Reduce of empty array with no initial value", e.message,
                "reduceRight no initial TypeError type");
 }
 assertTrue(exception);

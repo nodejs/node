@@ -76,3 +76,15 @@ assertEquals(cc8_2, decodeURI(encodeURI(s8)).charCodeAt(1));
 assertEquals(cc9_1, decodeURI(encodeURI(s9)).charCodeAt(0));
 assertEquals(cc9_2, decodeURI(encodeURI(s9)).charCodeAt(1));
 assertEquals(cc10, decodeURI(encodeURI(s10)).charCodeAt(0));
+
+assertEquals("", decodeURI(""));
+assertEquals("", encodeURI(""));
+
+function test(string) {
+  assertEquals(string, decodeURI(encodeURI(string)));
+}
+
+test("\u1234\u0123\uabcd");
+test("abcd");
+test("ab<\u1234\u0123");
+test("ab\u1234<\u0123");

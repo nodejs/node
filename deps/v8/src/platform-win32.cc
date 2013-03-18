@@ -27,6 +27,17 @@
 
 // Platform specific code for Win32.
 
+// Secure API functions are not available using MinGW with msvcrt.dll
+// on Windows XP. Make sure MINGW_HAS_SECURE_API is not defined to
+// disable definition of secure API functions in standard headers that
+// would conflict with our own implementation.
+#ifdef __MINGW32__
+#include <_mingw.h>
+#ifdef MINGW_HAS_SECURE_API
+#undef MINGW_HAS_SECURE_API
+#endif  // MINGW_HAS_SECURE_API
+#endif  // __MINGW32__
+
 #define V8_WIN32_HEADERS_FULL
 #include "win32-headers.h"
 
@@ -64,8 +75,6 @@ inline void MemoryBarrier() {
 
 #endif  // __MINGW64_VERSION_MAJOR
 
-
-#ifndef MINGW_HAS_SECURE_API
 
 int localtime_s(tm* out_tm, const time_t* time) {
   tm* posix_local_time_struct = localtime(time);
@@ -112,8 +121,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
   *dest = 0;
   return 0;
 }
-
-#endif  // MINGW_HAS_SECURE_API
 
 #endif  // __MINGW32__
 
@@ -199,9 +206,17 @@ UNARY_MATH_FUNCTION(sin, CreateTranscendentalFunction(TranscendentalCache::SIN))
 UNARY_MATH_FUNCTION(cos, CreateTranscendentalFunction(TranscendentalCache::COS))
 UNARY_MATH_FUNCTION(tan, CreateTranscendentalFunction(TranscendentalCache::TAN))
 UNARY_MATH_FUNCTION(log, CreateTranscendentalFunction(TranscendentalCache::LOG))
+UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
-#undef MATH_FUNCTION
+#undef UNARY_MATH_FUNCTION
+
+
+void lazily_initialize_fast_exp() {
+  if (fast_exp_function == NULL) {
+    init_fast_exp_function();
+  }
+}
 
 
 void MathSetup() {
@@ -212,6 +227,7 @@ void MathSetup() {
   init_fast_cos_function();
   init_fast_tan_function();
   init_fast_log_function();
+  // fast_exp is initialized lazily.
   init_fast_sqrt_function();
 }
 
@@ -803,6 +819,9 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
+#undef _TRUNCATE
+#undef STRUNCATE
+
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
 // and verification).  The estimate is conservative, i.e., not all addresses in
@@ -959,6 +978,13 @@ void OS::Sleep(int milliseconds) {
 }
 
 
+int OS::NumberOfCores() {
+  SYSTEM_INFO info;
+  GetSystemInfo(&info);
+  return info.dwNumberOfProcessors;
+}
+
+
 void OS::Abort() {
   if (IsDebuggerPresent() || FLAG_break_on_abort) {
     DebugBreak();
@@ -975,6 +1001,11 @@ void OS::DebugBreak() {
 #else
   ::DebugBreak();
 #endif
+}
+
+
+void OS::DumpBacktrace() {
+  // Currently unsupported.
 }
 
 
@@ -1203,6 +1234,11 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
   // NOTE: The modules are never unloaded and will stay around until the
   // application is closed.
 }
+
+#undef DBGHELP_FUNCTION_LIST
+#undef TLHELP32_FUNCTION_LIST
+#undef DLL_FUNC_VAR
+#undef DLL_FUNC_TYPE
 
 
 // Load the symbols for generating stack traces.
@@ -1548,6 +1584,12 @@ bool VirtualMemory::UncommitRegion(void* base, size_t size) {
 
 bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
   return VirtualFree(base, 0, MEM_RELEASE) != 0;
+}
+
+
+bool VirtualMemory::HasLazyCommits() {
+  // TODO(alph): implement for the platform.
+  return false;
 }
 
 
@@ -1995,23 +2037,12 @@ class SamplerThread : public Thread {
     SamplerRegistry::State state;
     while ((state = SamplerRegistry::GetState()) !=
            SamplerRegistry::HAS_NO_SAMPLERS) {
-      bool cpu_profiling_enabled =
-          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
-      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
-      if (!cpu_profiling_enabled) {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
-      }
-      if (cpu_profiling_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
-          return;
-        }
-      }
-      if (runtime_profiler_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
-          return;
-        }
+      if (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS) {
+        SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this);
+      } else {
+        if (RuntimeProfiler::WaitForSomeIsolateToEnterJS()) continue;
       }
       OS::Sleep(interval_);
     }
@@ -2025,11 +2056,6 @@ class SamplerThread : public Thread {
     sampler_thread->SampleContext(sampler);
   }
 
-  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    sampler->isolate()->runtime_profiler()->NotifyTick();
-  }
-
   void SampleContext(Sampler* sampler) {
     HANDLE profiled_thread = sampler->platform_data()->profiled_thread();
     if (profiled_thread == NULL) return;
@@ -2038,13 +2064,14 @@ class SamplerThread : public Thread {
     CONTEXT context;
     memset(&context, 0, sizeof(context));
 
+    Isolate* isolate = sampler->isolate();
     TickSample sample_obj;
-    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
+    TickSample* sample = isolate->cpu_profiler()->TickSampleEvent();
     if (sample == NULL) sample = &sample_obj;
 
     static const DWORD kSuspendFailed = static_cast<DWORD>(-1);
     if (SuspendThread(profiled_thread) == kSuspendFailed) return;
-    sample->state = sampler->isolate()->current_vm_state();
+    sample->state = isolate->current_vm_state();
 
     context.ContextFlags = CONTEXT_FULL;
     if (GetThreadContext(profiled_thread, &context) != 0) {
@@ -2064,7 +2091,6 @@ class SamplerThread : public Thread {
   }
 
   const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
 
   // Protects the process wide state below.
   static Mutex* mutex_;

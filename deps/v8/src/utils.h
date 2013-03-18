@@ -249,6 +249,7 @@ class BitField {
   // using a shift count of 32.
   static const uint32_t kMask = ((1U << shift) << size) - (1U << shift);
   static const uint32_t kShift = shift;
+  static const uint32_t kSize = size;
 
   // Value for the field with all bits set.
   static const T kMax = static_cast<T>((1U << size) - 1);
@@ -304,7 +305,7 @@ inline uint32_t ComputeLongHash(uint64_t key) {
   hash = hash ^ (hash >> 11);
   hash = hash + (hash << 6);
   hash = hash ^ (hash >> 22);
-  return (uint32_t) hash;
+  return static_cast<uint32_t>(hash);
 }
 
 
@@ -522,9 +523,20 @@ class ScopedVector : public Vector<T> {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedVector);
 };
 
+#define STATIC_ASCII_VECTOR(x)                        \
+  v8::internal::Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(x), \
+                                      ARRAY_SIZE(x)-1)
 
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, StrLength(data));
+}
+
+inline Vector<const uint8_t> OneByteVector(const char* data, int length) {
+  return Vector<const uint8_t>(reinterpret_cast<const uint8_t*>(data), length);
+}
+
+inline Vector<const uint8_t> OneByteVector(const char* data) {
+  return OneByteVector(data, StrLength(data));
 }
 
 inline Vector<char> MutableCStrVector(char* data) {
@@ -765,7 +777,9 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 
 // Compare ASCII/16bit chars to ASCII/16bit chars.
 template <typename lchar, typename rchar>
-inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+inline int CompareCharsUnsigned(const lchar* lhs,
+                                const rchar* rhs,
+                                int chars) {
   const lchar* limit = lhs + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*lhs) == sizeof(*rhs)) {
@@ -788,6 +802,33 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
     ++rhs;
   }
   return 0;
+}
+
+template<typename lchar, typename rchar>
+inline int CompareChars(const lchar* lhs, const rchar* rhs, int chars) {
+  ASSERT(sizeof(lchar) <= 2);
+  ASSERT(sizeof(rchar) <= 2);
+  if (sizeof(lchar) == 1) {
+    if (sizeof(rchar) == 1) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
+                                  reinterpret_cast<const uint8_t*>(rhs),
+                                  chars);
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs),
+                                  reinterpret_cast<const uint16_t*>(rhs),
+                                  chars);
+    }
+  } else {
+    if (sizeof(rchar) == 1) {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
+                                  reinterpret_cast<const uint8_t*>(rhs),
+                                  chars);
+    } else {
+      return CompareCharsUnsigned(reinterpret_cast<const uint16_t*>(lhs),
+                                  reinterpret_cast<const uint16_t*>(rhs),
+                                  chars);
+    }
+  }
 }
 
 
@@ -1015,6 +1056,7 @@ class BailoutId {
   static BailoutId FunctionEntry() { return BailoutId(kFunctionEntryId); }
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
+  static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
 
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
@@ -1030,8 +1072,11 @@ class BailoutId {
   // code (function declarations).
   static const int kDeclarationsId = 3;
 
-  // Ever FunctionState starts with this id.
+  // Every FunctionState starts with this id.
   static const int kFirstUsableId = 4;
+
+  // Every compiled stub starts with this id.
+  static const int kStubEntryId = 5;
 
   int id_;
 };

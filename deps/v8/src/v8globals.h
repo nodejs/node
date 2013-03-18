@@ -71,6 +71,8 @@ const Address kZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0xdeadbeedbeadbeef));
 const Address kHandleZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1baddead0baddeaf));
+const Address kGlobalHandleZapValue =
+    reinterpret_cast<Address>(V8_UINT64_C(0x1baffed00baffedf));
 const Address kFromSpaceZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdaf));
 const uint64_t kDebugZapValue = V8_UINT64_C(0xbadbaddbbadbaddb);
@@ -79,6 +81,7 @@ const uint64_t kFreeListZapValue = 0xfeed1eaffeed1eaf;
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeef);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddeaf);
+const Address kGlobalHandleZapValue = reinterpret_cast<Address>(0xbaffedf);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdaf);
 const uint32_t kSlotsZapValue = 0xbeefdeef;
 const uint32_t kDebugZapValue = 0xbadbaddb;
@@ -125,12 +128,13 @@ class FunctionTemplateInfo;
 class MemoryChunk;
 class SeededNumberDictionary;
 class UnseededNumberDictionary;
-class StringDictionary;
+class NameDictionary;
 template <typename T> class Handle;
 class Heap;
 class HeapObject;
 class IC;
 class InterceptorInfo;
+class JSReceiver;
 class JSArray;
 class JSFunction;
 class JSObject;
@@ -152,6 +156,7 @@ class Smi;
 template <typename Config, class Allocator = FreeStoreAllocationPolicy>
     class SplayTree;
 class String;
+class Name;
 class Struct;
 class Variable;
 class RelocInfo;
@@ -260,16 +265,20 @@ enum InlineCacheState {
   // Like MONOMORPHIC but check failed due to prototype.
   MONOMORPHIC_PROTOTYPE_FAILURE,
   // Multiple receiver types have been seen.
+  POLYMORPHIC,
+  // Many receiver types have been seen.
   MEGAMORPHIC,
-  // Special states for debug break or step in prepare stubs.
-  DEBUG_BREAK,
-  DEBUG_PREPARE_STEP_IN
+  // A generic handler is installed and no extra typefeedback is recorded.
+  GENERIC,
+  // Special state for debug break or step in prepare stubs.
+  DEBUG_STUB
 };
 
 
 enum CheckType {
   RECEIVER_MAP_CHECK,
   STRING_CHECK,
+  SYMBOL_CHECK,
   NUMBER_CHECK,
   BOOLEAN_CHECK
 };
@@ -287,7 +296,7 @@ enum CallFunctionFlags {
 
 enum InlineCacheHolderFlag {
   OWN_MAP,  // For fast properties objects.
-  PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
+  DELEGATE_MAP  // For slow properties objects (except GlobalObjects).
 };
 
 
@@ -351,20 +360,13 @@ struct AccessorDescriptor {
 // VMState object leaves a state by popping the current state from the
 // stack.
 
-#define STATE_TAG_LIST(V)                       \
-  V(JS)                                         \
-  V(GC)                                         \
-  V(COMPILER)                                   \
-  V(PARALLEL_COMPILER_PROLOGUE)                 \
-  V(OTHER)                                      \
-  V(EXTERNAL)
-
 enum StateTag {
-#define DEF_STATE_TAG(name) name,
-  STATE_TAG_LIST(DEF_STATE_TAG)
-#undef DEF_STATE_TAG
-  // Pseudo-types.
-  state_tag_count
+  JS,
+  GC,
+  COMPILER,
+  PARALLEL_COMPILER,
+  OTHER,
+  EXTERNAL
 };
 
 
@@ -435,6 +437,7 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   SUDIV = 4,   // ARM
                   UNALIGNED_ACCESSES = 5,  // ARM
                   MOVW_MOVT_IMMEDIATE_LOADS = 6,  // ARM
+                  VFP32DREGS = 7,  // ARM
                   SAHF = 0,    // x86
                   FPU = 1};    // MIPS
 
@@ -483,11 +486,19 @@ enum VariableMode {
 
   CONST,           // declared via 'const' declarations
 
-  LET,             // declared via 'let' declarations
+  LET,             // declared via 'let' declarations (first lexical)
 
   CONST_HARMONY,   // declared via 'const' declarations in harmony mode
 
+  MODULE,          // declared via 'module' declaration (last lexical)
+
   // Variables introduced by the compiler:
+  INTERNAL,        // like VAR, but not user-visible (may or may not
+                   // be in a context)
+
+  TEMPORARY,       // temporary variables (not user-visible), never
+                   // in a context
+
   DYNAMIC,         // always require dynamic lookup (we don't know
                    // the declaration)
 
@@ -495,16 +506,10 @@ enum VariableMode {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
+  DYNAMIC_LOCAL    // requires dynamic lookup, but we know that the
                    // variable is local and where it is unless it
                    // has been shadowed by an eval-introduced
                    // variable
-
-  INTERNAL,        // like VAR, but not user-visible (may or may not
-                   // be in a context)
-
-  TEMPORARY        // temporary variables (not user-visible), never
-                   // in a context
 };
 
 
@@ -514,17 +519,17 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= CONST_HARMONY;
+  return mode >= VAR && mode <= MODULE;
 }
 
 
 inline bool IsLexicalVariableMode(VariableMode mode) {
-  return mode >= LET && mode <= CONST_HARMONY;
+  return mode >= LET && mode <= MODULE;
 }
 
 
 inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_HARMONY;
+  return mode == CONST || (mode >= CONST_HARMONY && mode <= MODULE);
 }
 
 

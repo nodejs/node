@@ -1110,24 +1110,8 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
       break;
     }
 
-    case i::Token::FUTURE_RESERVED_WORD: {
-      Next();
-      i::Scanner::Location location = scanner_->location();
-      ReportMessageAt(location.beg_pos, location.end_pos,
-                      "reserved_word", NULL);
-      *ok = false;
-      return Expression::Default();
-    }
-
+    case i::Token::FUTURE_RESERVED_WORD:
     case i::Token::FUTURE_STRICT_RESERVED_WORD:
-      if (!is_classic_mode()) {
-        Next();
-        i::Scanner::Location location = scanner_->location();
-        ReportMessageAt(location, "strict_reserved_word", NULL);
-        *ok = false;
-        return Expression::Default();
-      }
-      // FALLTHROUGH
     case i::Token::IDENTIFIER: {
       Identifier id = ParseIdentifier(CHECK_OK);
       result = Expression::FromIdentifier(id);

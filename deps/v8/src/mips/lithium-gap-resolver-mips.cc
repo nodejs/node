@@ -172,8 +172,10 @@ void LGapResolver::BreakCycle(int index) {
   } else if (source->IsStackSlot()) {
     __ lw(kLithiumScratchReg, cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
+    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ mov_d(kLithiumScratchDouble, cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
+    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ ldc1(kLithiumScratchDouble, cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
@@ -193,9 +195,11 @@ void LGapResolver::RestoreValue() {
   } else if (saved_destination_->IsStackSlot()) {
     __ sw(kLithiumScratchReg, cgen_->ToMemOperand(saved_destination_));
   } else if (saved_destination_->IsDoubleRegister()) {
+    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ mov_d(cgen_->ToDoubleRegister(saved_destination_),
             kLithiumScratchDouble);
   } else if (saved_destination_->IsDoubleStackSlot()) {
+    CpuFeatureScope scope(cgen_->masm(), FPU);
     __ sdc1(kLithiumScratchDouble,
             cgen_->ToMemOperand(saved_destination_));
   } else {
@@ -232,6 +236,7 @@ void LGapResolver::EmitMove(int index) {
       MemOperand destination_operand = cgen_->ToMemOperand(destination);
       if (in_cycle_) {
         if (!destination_operand.OffsetIsInt16Encodable()) {
+          CpuFeatureScope scope(cgen_->masm(), FPU);
           // 'at' is overwritten while saving the value to the destination.
           // Therefore we can't use 'at'.  It is OK if the read from the source
           // destroys 'at', since that happens before the value is read.
@@ -271,6 +276,7 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleRegister()) {
+    CpuFeatureScope scope(cgen_->masm(), FPU);
     DoubleRegister source_register = cgen_->ToDoubleRegister(source);
     if (destination->IsDoubleRegister()) {
       __ mov_d(cgen_->ToDoubleRegister(destination), source_register);
@@ -281,6 +287,7 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsDoubleStackSlot()) {
+    CpuFeatureScope scope(cgen_->masm(), FPU);
     MemOperand source_operand = cgen_->ToMemOperand(source);
     if (destination->IsDoubleRegister()) {
       __ ldc1(cgen_->ToDoubleRegister(destination), source_operand);

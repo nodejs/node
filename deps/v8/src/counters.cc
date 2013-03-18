@@ -81,16 +81,21 @@ void HistogramTimer::Start() {
     stop_time_ = 0;
     start_time_ = OS::Ticks();
   }
+  if (FLAG_log_internal_timer_events) {
+    LOG(Isolate::Current(), TimerEvent(Logger::START, histogram_.name_));
+  }
 }
 
 // Stop the timer and record the results.
 void HistogramTimer::Stop() {
   if (histogram_.Enabled()) {
     stop_time_ = OS::Ticks();
-
     // Compute the delta between start and stop, in milliseconds.
     int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
     histogram_.AddSample(milliseconds);
+  }
+  if (FLAG_log_internal_timer_events) {
+    LOG(Isolate::Current(), TimerEvent(Logger::END, histogram_.name_));
   }
 }
 

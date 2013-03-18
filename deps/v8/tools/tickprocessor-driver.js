@@ -55,6 +55,8 @@ var tickProcessor = new TickProcessor(
   params.callGraphSize,
   params.ignoreUnknown,
   params.stateFilter,
-  snapshotLogProcessor);
+  snapshotLogProcessor,
+  params.distortion,
+  params.range);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();

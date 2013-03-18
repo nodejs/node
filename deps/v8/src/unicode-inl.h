@@ -79,6 +79,34 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
 }
 
 
+uint16_t Latin1::ConvertNonLatin1ToLatin1(uint16_t c) {
+  ASSERT(c > Latin1::kMaxChar);
+  switch (c) {
+    // This are equivalent characters in unicode.
+    case 0x39c:
+    case 0x3bc:
+      return 0xb5;
+    // This is an uppercase of a Latin-1 character
+    // outside of Latin-1.
+    case 0x178:
+      return 0xff;
+  }
+  return 0;
+}
+
+
+unsigned Utf8::EncodeOneByte(char* str, uint8_t c) {
+  static const int kMask = ~(1 << 6);
+  if (c <= kMaxOneByteChar) {
+    str[0] = c;
+    return 1;
+  }
+  str[0] = 0xC0 | (c >> 6);
+  str[1] = 0x80 | (c & kMask);
+  return 2;
+}
+
+
 unsigned Utf8::Encode(char* str, uchar c, int previous) {
   static const int kMask = ~(1 << 6);
   if (c <= kMaxOneByteChar) {
@@ -137,113 +165,51 @@ unsigned Utf8::Length(uchar c, int previous) {
   }
 }
 
-uchar CharacterStream::GetNext() {
-  uchar result = DecodeCharacter(buffer_, &cursor_);
-  if (remaining_ == 1) {
-    cursor_ = 0;
-    FillBuffer();
-  } else {
-    remaining_--;
-  }
-  ASSERT(BoundsCheck(cursor_));
-  return result;
+Utf8DecoderBase::Utf8DecoderBase()
+  : unbuffered_start_(NULL),
+    utf16_length_(0),
+    last_byte_of_buffer_unused_(false) {}
+
+Utf8DecoderBase::Utf8DecoderBase(uint16_t* buffer,
+                                 unsigned buffer_length,
+                                 const uint8_t* stream,
+                                 unsigned stream_length) {
+  Reset(buffer, buffer_length, stream, stream_length);
 }
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define IF_LITTLE(expr) expr
-#define IF_BIG(expr)    ((void) 0)
-#elif __BYTE_ORDER == __BIG_ENDIAN
-#define IF_LITTLE(expr) ((void) 0)
-#define IF_BIG(expr)    expr
-#else
-#warning Unknown byte ordering
-#endif
-
-bool CharacterStream::EncodeAsciiCharacter(uchar c, byte* buffer,
-    unsigned capacity, unsigned& offset) {
-  if (offset >= capacity) return false;
-  buffer[offset] = c;
-  offset += 1;
-  return true;
+template<unsigned kBufferSize>
+Utf8Decoder<kBufferSize>::Utf8Decoder(const char* stream, unsigned length)
+  : Utf8DecoderBase(buffer_,
+                    kBufferSize,
+                    reinterpret_cast<const uint8_t*>(stream),
+                    length) {
 }
 
-bool CharacterStream::EncodeNonAsciiCharacter(uchar c, byte* buffer,
-    unsigned capacity, unsigned& offset) {
-  unsigned aligned = (offset + 0x3) & ~0x3;
-  if ((aligned + sizeof(uchar)) > capacity)
-    return false;
-  if (offset == aligned) {
-    IF_LITTLE(*reinterpret_cast<uchar*>(buffer + aligned) = (c << 8) | 0x80);
-    IF_BIG(*reinterpret_cast<uchar*>(buffer + aligned) = c | (1 << 31));
-  } else {
-    buffer[offset] = 0x80;
-    IF_LITTLE(*reinterpret_cast<uchar*>(buffer + aligned) = c << 8);
-    IF_BIG(*reinterpret_cast<uchar*>(buffer + aligned) = c);
-  }
-  offset = aligned + sizeof(uchar);
-  return true;
+template<unsigned kBufferSize>
+void Utf8Decoder<kBufferSize>::Reset(const char* stream, unsigned length) {
+  Utf8DecoderBase::Reset(buffer_,
+                         kBufferSize,
+                         reinterpret_cast<const uint8_t*>(stream),
+                         length);
 }
 
-bool CharacterStream::EncodeCharacter(uchar c, byte* buffer, unsigned capacity,
-    unsigned& offset) {
-  if (c <= Utf8::kMaxOneByteChar) {
-    return EncodeAsciiCharacter(c, buffer, capacity, offset);
-  } else {
-    return EncodeNonAsciiCharacter(c, buffer, capacity, offset);
-  }
-}
-
-uchar CharacterStream::DecodeCharacter(const byte* buffer, unsigned* offset) {
-  byte b = buffer[*offset];
-  if (b <= Utf8::kMaxOneByteChar) {
-    (*offset)++;
-    return b;
-  } else {
-    unsigned aligned = (*offset + 0x3) & ~0x3;
-    *offset = aligned + sizeof(uchar);
-    IF_LITTLE(return *reinterpret_cast<const uchar*>(buffer + aligned) >> 8);
-    IF_BIG(return *reinterpret_cast<const uchar*>(buffer + aligned) &
-                    ~(1 << 31));
-  }
-}
-
-#undef IF_LITTLE
-#undef IF_BIG
-
-template <class R, class I, unsigned s>
-void InputBuffer<R, I, s>::FillBuffer() {
-  buffer_ = R::ReadBlock(input_, util_buffer_, s, &remaining_, &offset_);
-}
-
-template <class R, class I, unsigned s>
-void InputBuffer<R, I, s>::Rewind() {
-  Reset(input_);
-}
-
-template <class R, class I, unsigned s>
-void InputBuffer<R, I, s>::Reset(unsigned position, I input) {
-  input_ = input;
-  remaining_ = 0;
-  cursor_ = 0;
-  offset_ = position;
-  buffer_ = R::ReadBlock(input_, util_buffer_, s, &remaining_, &offset_);
-}
-
-template <class R, class I, unsigned s>
-void InputBuffer<R, I, s>::Reset(I input) {
-  Reset(0, input);
-}
-
-template <class R, class I, unsigned s>
-void InputBuffer<R, I, s>::Seek(unsigned position) {
-  offset_ = position;
-  buffer_ = R::ReadBlock(input_, util_buffer_, s, &remaining_, &offset_);
-}
-
-template <unsigned s>
-Utf8InputBuffer<s>::Utf8InputBuffer(const char* data, unsigned length)
-    : InputBuffer<Utf8, Buffer<const char*>, s>(Buffer<const char*>(data,
-                                                                    length)) {
+template <unsigned kBufferSize>
+unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
+                                              unsigned length) const {
+  ASSERT(length > 0);
+  if (length > utf16_length_) length = utf16_length_;
+  // memcpy everything in buffer.
+  unsigned buffer_length =
+      last_byte_of_buffer_unused_ ? kBufferSize - 1 : kBufferSize;
+  unsigned memcpy_length = length <= buffer_length  ? length : buffer_length;
+  memcpy(data, buffer_, memcpy_length*sizeof(uint16_t));
+  if (length <= buffer_length) return length;
+  ASSERT(unbuffered_start_ != NULL);
+  // Copy the rest the slow way.
+  WriteUtf16Slow(unbuffered_start_,
+                 data + buffer_length,
+                 length - buffer_length);
+  return length;
 }
 
 }  // namespace unibrow

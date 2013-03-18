@@ -99,7 +99,7 @@ const int kInvalidFPURegister = -1;
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
-const uint32_t kFPUInvalidResult = (uint32_t) (1 << 31) - 1;
+const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
 
 // FCSR constants.
 const uint32_t kFCSRInexactFlagBit = 2;
@@ -216,6 +216,8 @@ const int kImm28Bits  = 28;
 // and are therefore shifted by 2.
 const int kImmFieldShift = 2;
 
+const int kFrBits        = 5;
+const int kFrShift       = 21;
 const int kFsShift       = 11;
 const int kFsBits        = 5;
 const int kFtShift       = 16;
@@ -295,7 +297,9 @@ enum Opcode {
   LDC1      =   ((6 << 3) + 5) << kOpcodeShift,
 
   SWC1      =   ((7 << 3) + 1) << kOpcodeShift,
-  SDC1      =   ((7 << 3) + 5) << kOpcodeShift
+  SDC1      =   ((7 << 3) + 5) << kOpcodeShift,
+
+  COP1X     =   ((1 << 4) + 3) << kOpcodeShift
 };
 
 enum SecondaryField {
@@ -416,6 +420,8 @@ enum SecondaryField {
   CVT_S_L   =   ((4 << 3) + 0),
   CVT_D_L   =   ((4 << 3) + 1),
   // COP1 Encoding of Function Field When rs=PS.
+  // COP1X Encoding of Function Field.
+  MADD_D    =   ((4 << 3) + 1),
 
   NULLSF    =   0
 };
@@ -423,7 +429,9 @@ enum SecondaryField {
 
 // ----- Emulated conditions.
 // On MIPS we use this enum to abstract from conditionnal branch instructions.
-// the 'U' prefix is used to specify unsigned comparisons.
+// The 'U' prefix is used to specify unsigned comparisons.
+// Oppposite conditions must be paired as odd/even numbers
+// because 'NegateCondition' function flips LSB to negate condition.
 enum Condition {
   // Any value < 0 is considered no_condition.
   kNoCondition  = -1,
@@ -444,8 +452,10 @@ enum Condition {
   greater_equal = 13,
   less_equal    = 14,
   greater       = 15,
+  ueq           = 16,  // Unordered or Equal.
+  nue           = 17,  // Not (Unordered or Equal).
 
-  cc_always     = 16,
+  cc_always     = 18,
 
   // Aliases.
   carry         = Uless,
@@ -675,6 +685,10 @@ class Instruction {
 
   inline int FtValue() const {
     return Bits(kFtShift + kFtBits - 1, kFtShift);
+  }
+
+  inline int FrValue() const {
+    return Bits(kFrShift + kFrBits -1, kFrShift);
   }
 
   // Float Compare condition code instruction bits.

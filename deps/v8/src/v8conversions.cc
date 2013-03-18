@@ -41,40 +41,40 @@ namespace internal {
 
 namespace {
 
-// C++-style iterator adaptor for StringInputBuffer
+// C++-style iterator adaptor for StringCharacterStream
 // (unlike C++ iterators the end-marker has different type).
-class StringInputBufferIterator {
+class StringCharacterStreamIterator {
  public:
   class EndMarker {};
 
-  explicit StringInputBufferIterator(StringInputBuffer* buffer);
+  explicit StringCharacterStreamIterator(StringCharacterStream* stream);
 
-  int operator*() const;
+  uint16_t operator*() const;
   void operator++();
   bool operator==(EndMarker const&) const { return end_; }
   bool operator!=(EndMarker const& m) const { return !end_; }
 
  private:
-  StringInputBuffer* const buffer_;
-  int current_;
+  StringCharacterStream* const stream_;
+  uint16_t current_;
   bool end_;
 };
 
 
-StringInputBufferIterator::StringInputBufferIterator(
-    StringInputBuffer* buffer) : buffer_(buffer) {
+StringCharacterStreamIterator::StringCharacterStreamIterator(
+    StringCharacterStream* stream) : stream_(stream) {
   ++(*this);
 }
 
-int StringInputBufferIterator::operator*() const {
+uint16_t StringCharacterStreamIterator::operator*() const {
   return current_;
 }
 
 
-void StringInputBufferIterator::operator++() {
-  end_ = !buffer_->has_more();
+void StringCharacterStreamIterator::operator++() {
+  end_ = !stream_->HasMore();
   if (!end_) {
-    current_ = buffer_->GetNext();
+    current_ = stream_->GetNext();
   }
 }
 }  // End anonymous namespace.
@@ -83,9 +83,10 @@ void StringInputBufferIterator::operator++() {
 double StringToDouble(UnicodeCache* unicode_cache,
                       String* str, int flags, double empty_string_val) {
   StringShape shape(str);
+  // TODO(dcarney): Use a Visitor here.
   if (shape.IsSequentialAscii()) {
-    const char* begin = SeqAsciiString::cast(str)->GetChars();
-    const char* end = begin + str->length();
+    const uint8_t* begin = SeqOneByteString::cast(str)->GetChars();
+    const uint8_t* end = begin + str->length();
     return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
   } else if (shape.IsSequentialTwoByte()) {
@@ -94,10 +95,11 @@ double StringToDouble(UnicodeCache* unicode_cache,
     return InternalStringToDouble(unicode_cache, begin, end, flags,
                                   empty_string_val);
   } else {
-    StringInputBuffer buffer(str);
+    ConsStringIteratorOp op;
+    StringCharacterStream stream(str, &op);
     return InternalStringToDouble(unicode_cache,
-                                  StringInputBufferIterator(&buffer),
-                                  StringInputBufferIterator::EndMarker(),
+                                  StringCharacterStreamIterator(&stream),
+                                  StringCharacterStreamIterator::EndMarker(),
                                   flags,
                                   empty_string_val);
   }
@@ -108,19 +110,21 @@ double StringToInt(UnicodeCache* unicode_cache,
                    String* str,
                    int radix) {
   StringShape shape(str);
+  // TODO(dcarney): Use a Visitor here.
   if (shape.IsSequentialAscii()) {
-    const char* begin = SeqAsciiString::cast(str)->GetChars();
-    const char* end = begin + str->length();
+    const uint8_t* begin = SeqOneByteString::cast(str)->GetChars();
+    const uint8_t* end = begin + str->length();
     return InternalStringToInt(unicode_cache, begin, end, radix);
   } else if (shape.IsSequentialTwoByte()) {
     const uc16* begin = SeqTwoByteString::cast(str)->GetChars();
     const uc16* end = begin + str->length();
     return InternalStringToInt(unicode_cache, begin, end, radix);
   } else {
-    StringInputBuffer buffer(str);
+    ConsStringIteratorOp op;
+    StringCharacterStream stream(str, &op);
     return InternalStringToInt(unicode_cache,
-                               StringInputBufferIterator(&buffer),
-                               StringInputBufferIterator::EndMarker(),
+                               StringCharacterStreamIterator(&stream),
+                               StringCharacterStreamIterator::EndMarker(),
                                radix);
   }
 }

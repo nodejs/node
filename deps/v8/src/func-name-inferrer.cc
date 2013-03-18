@@ -55,14 +55,14 @@ void FuncNameInferrer::PushEnclosingName(Handle<String> name) {
 
 
 void FuncNameInferrer::PushLiteralName(Handle<String> name) {
-  if (IsOpen() && !isolate()->heap()->prototype_symbol()->Equals(*name)) {
+  if (IsOpen() && !isolate()->heap()->prototype_string()->Equals(*name)) {
     names_stack_.Add(Name(name, kLiteralName), zone());
   }
 }
 
 
 void FuncNameInferrer::PushVariableName(Handle<String> name) {
-  if (IsOpen() && !isolate()->heap()->result_symbol()->Equals(*name)) {
+  if (IsOpen() && !isolate()->heap()->result_string()->Equals(*name)) {
     names_stack_.Add(Name(name, kVariableName), zone());
   }
 }
@@ -85,7 +85,7 @@ Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
     if (prev->length() > 0) {
       Factory* factory = isolate()->factory();
       Handle<String> curr = factory->NewConsString(
-          factory->dot_symbol(), names_stack_.at(pos).name);
+          factory->dot_string(), names_stack_.at(pos).name);
       return MakeNameFromStackHelper(pos + 1,
                                      factory->NewConsString(prev, curr));
     } else {

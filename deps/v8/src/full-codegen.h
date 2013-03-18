@@ -35,6 +35,7 @@
 #include "code-stubs.h"
 #include "codegen.h"
 #include "compiler.h"
+#include "data-flow.h"
 
 namespace v8 {
 namespace internal {
@@ -48,7 +49,9 @@ class JumpPatchSite;
 // debugger to piggybag on.
 class BreakableStatementChecker: public AstVisitor {
  public:
-  BreakableStatementChecker() : is_breakable_(false) {}
+  BreakableStatementChecker() : is_breakable_(false) {
+    InitializeAstVisitor();
+  }
 
   void Check(Statement* stmt);
   void Check(Expression* stmt);
@@ -63,6 +66,7 @@ class BreakableStatementChecker: public AstVisitor {
 
   bool is_breakable_;
 
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(BreakableStatementChecker);
 };
 
@@ -396,8 +400,14 @@ class FullCodeGenerator: public AstVisitor {
   void VisitInDuplicateContext(Expression* expr);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void DeclareModules(Handle<FixedArray> descriptions);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
+
+  // Generate code to allocate all (including nested) modules and contexts.
+  // Because of recursive linking and the presence of module alias declarations,
+  // this has to be a separate pass _before_ populating or executing any module.
+  void AllocateModules(ZoneList<Declaration*>* declarations);
 
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
@@ -442,14 +452,13 @@ class FullCodeGenerator: public AstVisitor {
   // neither a with nor a catch context.
   void EmitDebugCheckDeclarationContext(Variable* variable);
 
-  // Platform-specific code for checking the stack limit at the back edge of
-  // a loop.
   // This is meant to be called at loop back edges, |back_edge_target| is
   // the jump target of the back edge and is used to approximate the amount
   // of code inside the loop.
-  void EmitStackCheck(IterationStatement* stmt, Label* back_edge_target);
-  // Record the OSR AST id corresponding to a stack check in the code.
-  void RecordStackCheck(BailoutId osr_ast_id);
+  void EmitBackEdgeBookkeeping(IterationStatement* stmt,
+                               Label* back_edge_target);
+  // Record the OSR AST id corresponding to a back edge in the code.
+  void RecordBackEdge(BailoutId osr_ast_id);
   // Emit a table of stack check ids and pcs into the code stream.  Return
   // the offset of the start of the table.
   unsigned EmitStackCheckTable();
@@ -804,8 +813,13 @@ class FullCodeGenerator: public AstVisitor {
   NestedStatement* nesting_stack_;
   int loop_depth_;
   ZoneList<Handle<Object> >* globals_;
+  Handle<FixedArray> modules_;
+  int module_index_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
+  GrowableBitVector prepared_bailout_ids_;
+  // TODO(svenpanne) Rename this to something like back_edges_ and rename
+  // related functions accordingly.
   ZoneList<BailoutEntry> stack_checks_;
   ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   int ic_total_count_;
@@ -816,6 +830,7 @@ class FullCodeGenerator: public AstVisitor {
 
   friend class NestedStatement;
 
+  DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(FullCodeGenerator);
 };
 

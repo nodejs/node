@@ -32,6 +32,8 @@ const NONE        = 0;
 const READ_ONLY   = 1;
 const DONT_ENUM   = 2;
 const DONT_DELETE = 4;
+const NEW_ONE_BYTE_STRING = true;
+const NEW_TWO_BYTE_STRING = false;
 
 # Constants used for getter and setter operations.
 const GETTER = 0;
@@ -97,6 +99,7 @@ macro IS_UNDEFINED(arg)         = (typeof(arg) === 'undefined');
 macro IS_NUMBER(arg)            = (typeof(arg) === 'number');
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
+macro IS_SYMBOL(arg)            = (%_IsSymbol(arg));
 macro IS_OBJECT(arg)            = (%_IsObject(arg));
 macro IS_ARRAY(arg)             = (%_IsArray(arg));
 macro IS_FUNCTION(arg)          = (%_IsFunction(arg));

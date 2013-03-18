@@ -45,13 +45,12 @@ class CcTestSuite(testsuite.TestSuite):
     os.makedirs(self.serdes_dir)
 
   def ListTests(self, context):
-    if utils.IsWindows():
-      shell += '.exe'
     shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
-    output = commands.Execute([context.command_prefix,
-                               shell,
-                               '--list',
-                               context.extra_flags])
+    if utils.IsWindows():
+      shell += ".exe"
+    output = commands.Execute(context.command_prefix +
+                              [shell, "--list"] +
+                              context.extra_flags)
     if output.exit_code != 0:
       print output.stdout
       print output.stderr

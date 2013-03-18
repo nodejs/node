@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var x;
+var x = 0;
 try {
   Function("}), x = this, (function() {");
 } catch(e) {
   print("Caught " + e);
 }
-assertTrue(x == "[object global]");
+assertTrue(x === 0);

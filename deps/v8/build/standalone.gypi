@@ -29,9 +29,9 @@
 
 {
   'variables': {
-    'library%': 'static_library',
     'component%': 'static_library',
     'visibility%': 'hidden',
+    'v8_enable_backtrace%': 0,
     'msvs_multi_core_compile%': '1',
     'mac_deployment_target%': '10.5',
     'variables': {
@@ -86,6 +86,9 @@
       'Debug': {
         'cflags': [ '-g', '-O0' ],
       },
+      'Release': {
+        # Xcode insists on this empty entry.
+      },
     },
   },
   'conditions': [
@@ -100,7 +103,7 @@
           [ 'OS=="linux"', {
             'cflags': [ '-ansi' ],
           }],
-          [ 'visibility=="hidden"', {
+          [ 'visibility=="hidden" and v8_enable_backtrace==0', {
             'cflags': [ '-fvisibility=hidden' ],
           }],
           [ 'component=="shared_library"', {
@@ -191,7 +194,7 @@
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
-          'GCC_VERSION': '4.2',
+          'GCC_VERSION': 'com.apple.compilers.llvmgcc42',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
           'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',

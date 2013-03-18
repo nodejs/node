@@ -85,8 +85,9 @@ void List<T, P>::ResizeAddInternal(const T& element, P alloc) {
 
 template<typename T, class P>
 void List<T, P>::Resize(int new_capacity, P alloc) {
+  ASSERT_LE(length_, new_capacity);
   T* new_data = NewData(new_capacity, alloc);
-  memcpy(new_data, data_, capacity_ * sizeof(T));
+  memcpy(new_data, data_, length_ * sizeof(T));
   List<T, P>::DeleteData(data_);
   data_ = new_data;
   capacity_ = new_capacity;
@@ -158,6 +159,14 @@ void List<T, P>::Clear() {
 template<typename T, class P>
 void List<T, P>::Rewind(int pos) {
   length_ = pos;
+}
+
+
+template<typename T, class P>
+void List<T, P>::Trim(P alloc) {
+  if (length_ < capacity_ / 4) {
+    Resize(capacity_ / 2, alloc);
+  }
 }
 
 

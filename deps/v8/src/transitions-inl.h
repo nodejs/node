@@ -143,19 +143,19 @@ Object** TransitionArray::GetKeySlot(int transition_number) {
 }
 
 
-String* TransitionArray::GetKey(int transition_number) {
+Name* TransitionArray::GetKey(int transition_number) {
   if (IsSimpleTransition()) {
     Map* target = GetTarget(kSimpleTransitionIndex);
     int descriptor = target->LastAdded();
-    String* key = target->instance_descriptors()->GetKey(descriptor);
+    Name* key = target->instance_descriptors()->GetKey(descriptor);
     return key;
   }
   ASSERT(transition_number < number_of_transitions());
-  return String::cast(get(ToKeyIndex(transition_number)));
+  return Name::cast(get(ToKeyIndex(transition_number)));
 }
 
 
-void TransitionArray::SetKey(int transition_number, String* key) {
+void TransitionArray::SetKey(int transition_number, Name* key) {
   ASSERT(!IsSimpleTransition());
   ASSERT(transition_number < number_of_transitions());
   set(ToKeyIndex(transition_number), key);
@@ -190,9 +190,9 @@ PropertyDetails TransitionArray::GetTargetDetails(int transition_number) {
 }
 
 
-int TransitionArray::Search(String* name) {
+int TransitionArray::Search(Name* name) {
   if (IsSimpleTransition()) {
-    String* key = GetKey(kSimpleTransitionIndex);
+    Name* key = GetKey(kSimpleTransitionIndex);
     if (key->Equals(name)) return kSimpleTransitionIndex;
     return kNotFound;
   }
@@ -201,7 +201,7 @@ int TransitionArray::Search(String* name) {
 
 
 void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
-                                                   String* key,
+                                                   Name* key,
                                                    Map* target) {
   FixedArray::NoIncrementalWriteBarrierSet(
       this, ToKeyIndex(transition_number), key);

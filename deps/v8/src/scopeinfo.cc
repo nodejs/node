@@ -149,8 +149,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
 }
 
 
-ScopeInfo* ScopeInfo::Empty() {
-  return reinterpret_cast<ScopeInfo*>(HEAP->empty_fixed_array());
+ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
+  return reinterpret_cast<ScopeInfo*>(isolate->heap()->empty_fixed_array());
 }
 
 
@@ -280,7 +280,7 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
 
 
 int ScopeInfo::StackSlotIndex(String* name) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   if (length() > 0) {
     int start = StackLocalEntriesIndex();
     int end = StackLocalEntriesIndex() + StackLocalCount();
@@ -297,7 +297,7 @@ int ScopeInfo::StackSlotIndex(String* name) {
 int ScopeInfo::ContextSlotIndex(String* name,
                                 VariableMode* mode,
                                 InitializationFlag* init_flag) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   ASSERT(init_flag != NULL);
   if (length() > 0) {
@@ -321,6 +321,7 @@ int ScopeInfo::ContextSlotIndex(String* name,
         return result;
       }
     }
+    // Cache as not found. Mode and init flag don't matter.
     context_slot_cache->Update(this, name, INTERNAL, kNeedsInitialization, -1);
   }
   return -1;
@@ -328,7 +329,7 @@ int ScopeInfo::ContextSlotIndex(String* name,
 
 
 int ScopeInfo::ParameterIndex(String* name) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   if (length() > 0) {
     // We must read parameters from the end since for
     // multiply declared parameters the value of the
@@ -348,7 +349,7 @@ int ScopeInfo::ParameterIndex(String* name) {
 
 
 int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
-  ASSERT(name->IsSymbol());
+  ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
@@ -358,6 +359,31 @@ int ScopeInfo::FunctionContextSlotIndex(String* name, VariableMode* mode) {
     }
   }
   return -1;
+}
+
+
+bool ScopeInfo::CopyContextLocalsToScopeObject(
+    Isolate* isolate,
+    Handle<Context> context,
+    Handle<JSObject> scope_object) {
+  int local_count = ContextLocalCount();
+  if (local_count == 0) return true;
+  // Fill all context locals to the context extension.
+  int start = ContextLocalNameEntriesIndex();
+  int end = start + local_count;
+  for (int i = start; i < end; ++i) {
+    int context_index = Context::MIN_CONTEXT_SLOTS + i - start;
+    RETURN_IF_EMPTY_HANDLE_VALUE(
+        isolate,
+        SetProperty(isolate,
+                    scope_object,
+                    Handle<String>(String::cast(get(i))),
+                    Handle<Object>(context->get(context_index), isolate),
+                    ::NONE,
+                    kNonStrictMode),
+        false);
+  }
+  return true;
 }
 
 
@@ -416,13 +442,13 @@ void ContextSlotCache::Update(Object* data,
                               VariableMode mode,
                               InitializationFlag init_flag,
                               int slot_index) {
-  String* symbol;
+  String* internalized_name;
   ASSERT(slot_index > kNotFound);
-  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
-    int index = Hash(data, symbol);
+  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
+    int index = Hash(data, internalized_name);
     Key& key = keys_[index];
     key.data = data;
-    key.name = symbol;
+    key.name = internalized_name;
     // Please note value only takes a uint as index.
     values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
 #ifdef DEBUG
@@ -444,8 +470,8 @@ void ContextSlotCache::ValidateEntry(Object* data,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
                                      int slot_index) {
-  String* symbol;
-  if (HEAP->LookupSymbolIfExists(name, &symbol)) {
+  String* internalized_name;
+  if (HEAP->InternalizeStringIfExists(name, &internalized_name)) {
     int index = Hash(data, name);
     Key& key = keys_[index];
     ASSERT(key.data == data);
@@ -503,5 +529,33 @@ void ScopeInfo::Print() {
   PrintF("}\n");
 }
 #endif  // DEBUG
+
+
+//---------------------------------------------------------------------------
+// ModuleInfo.
+
+Handle<ModuleInfo> ModuleInfo::Create(
+    Isolate* isolate, Interface* interface, Scope* scope) {
+  Handle<ModuleInfo> info = Allocate(isolate, interface->Length());
+  info->set_host_index(interface->Index());
+  int i = 0;
+  for (Interface::Iterator it = interface->iterator();
+       !it.done(); it.Advance(), ++i) {
+    Variable* var = scope->LocalLookup(it.name());
+    info->set_name(i, *it.name());
+    info->set_mode(i, var->mode());
+    ASSERT((var->mode() == MODULE) == (it.interface()->IsModule()));
+    if (var->mode() == MODULE) {
+      ASSERT(it.interface()->IsFrozen());
+      ASSERT(it.interface()->Index() >= 0);
+      info->set_index(i, it.interface()->Index());
+    } else {
+      ASSERT(var->index() >= 0);
+      info->set_index(i, var->index());
+    }
+  }
+  ASSERT(i == info->length());
+  return info;
+}
 
 } }  // namespace v8::internal

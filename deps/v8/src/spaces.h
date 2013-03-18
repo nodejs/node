@@ -320,7 +320,8 @@ class MemoryChunk {
   Space* owner() const {
     if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
         kFailureTag) {
-      return reinterpret_cast<Space*>(owner_ - kFailureTag);
+      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
+                                      kFailureTag);
     } else {
       return NULL;
     }
@@ -397,6 +398,12 @@ class MemoryChunk {
     WAS_SWEPT_PRECISELY,
     WAS_SWEPT_CONSERVATIVELY,
 
+    // Large objects can have a progress bar in their page header. These object
+    // are scanned in increments and will be kept black while being scanned.
+    // Even if the mutator writes to them they will be kept black and a white
+    // to grey transition is performed in the value.
+    HAS_PROGRESS_BAR,
+
     // Last flag, keep at bottom.
     NUM_MEMORY_CHUNK_FLAGS
   };
@@ -448,6 +455,18 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
+  intptr_t parallel_sweeping() const {
+    return parallel_sweeping_;
+  }
+
+  void set_parallel_sweeping(intptr_t state) {
+    parallel_sweeping_ = state;
+  }
+
+  bool TryParallelSweeping() {
+    return NoBarrier_CompareAndSwap(&parallel_sweeping_, 1, 0) == 1;
+  }
+
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).
   void ResetLiveBytes() {
@@ -480,6 +499,29 @@ class MemoryChunk {
     write_barrier_counter_ = counter;
   }
 
+  int progress_bar() {
+    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
+    return progress_bar_;
+  }
+
+  void set_progress_bar(int progress_bar) {
+    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
+    progress_bar_ = progress_bar;
+  }
+
+  void ResetProgressBar() {
+    if (IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
+      set_progress_bar(0);
+      ClearFlag(MemoryChunk::HAS_PROGRESS_BAR);
+    }
+  }
+
+  bool IsLeftOfProgressBar(Object** slot) {
+    Address slot_address = reinterpret_cast<Address>(slot);
+    ASSERT(slot_address > this->address());
+    return (slot_address - (this->address() + kObjectStartOffset)) <
+           progress_bar();
+  }
 
   static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
@@ -504,7 +546,8 @@ class MemoryChunk {
   static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize + kPointerSize;
 
-  static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize;
+  static const size_t kHeaderSize = kWriteBarrierCounterOffset + kPointerSize +
+                                    kIntSize + kIntSize + kPointerSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -615,6 +658,14 @@ class MemoryChunk {
   int area_size() {
     return static_cast<int>(area_end() - area_start());
   }
+  bool CommitArea(size_t requested);
+
+  // Approximate amount of physical memory committed for this chunk.
+  size_t CommittedPhysicalMemory() {
+    return high_water_mark_;
+  }
+
+  static inline void UpdateHighWaterMark(Address mark);
 
  protected:
   MemoryChunk* next_chunk_;
@@ -641,6 +692,14 @@ class MemoryChunk {
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
   intptr_t write_barrier_counter_;
+  // Used by the incremental marker to keep track of the scanning progress in
+  // large objects that have a progress bar and are scanned in increments.
+  int progress_bar_;
+  // Assuming the initial allocation on a page is sequential,
+  // count highest number of bytes ever allocated on the page.
+  int high_water_mark_;
+
+  intptr_t parallel_sweeping_;
 
   static MemoryChunk* Initialize(Heap* heap,
                                  Address base,
@@ -835,6 +894,10 @@ class CodeRange {
   void TearDown();
 
   bool exists() { return this != NULL && code_range_ != NULL; }
+  Address start() {
+    if (this == NULL || code_range_ == NULL) return NULL;
+    return static_cast<Address>(code_range_->address());
+  }
   bool contains(Address address) {
     if (this == NULL || code_range_ == NULL) return false;
     Address start = static_cast<Address>(code_range_->address());
@@ -844,8 +907,11 @@ class CodeRange {
   // Allocates a chunk of memory from the large-object portion of
   // the code range.  On platforms with no separate code range, should
   // not be called.
-  MUST_USE_RESULT Address AllocateRawMemory(const size_t requested,
+  MUST_USE_RESULT Address AllocateRawMemory(const size_t requested_size,
+                                            const size_t commit_size,
                                             size_t* allocated);
+  bool CommitRawMemory(Address start, size_t length);
+  bool UncommitRawMemory(Address start, size_t length);
   void FreeRawMemory(Address buf, size_t length);
 
  private:
@@ -993,14 +1059,19 @@ class MemoryAllocator {
   void ReportStatistics();
 #endif
 
-  MemoryChunk* AllocateChunk(intptr_t body_size,
+  // Returns a MemoryChunk in which the memory region from commit_area_size to
+  // reserve_area_size of the chunk area is reserved but not committed, it
+  // could be committed later by calling MemoryChunk::CommitArea.
+  MemoryChunk* AllocateChunk(intptr_t reserve_area_size,
+                             intptr_t commit_area_size,
                              Executability executable,
                              Space* space);
 
   Address ReserveAlignedMemory(size_t requested,
                                size_t alignment,
                                VirtualMemory* controller);
-  Address AllocateAlignedMemory(size_t requested,
+  Address AllocateAlignedMemory(size_t reserve_size,
+                                size_t commit_size,
                                 size_t alignment,
                                 Executability executable,
                                 VirtualMemory* controller);
@@ -1050,9 +1121,10 @@ class MemoryAllocator {
     return CodePageAreaEndOffset() - CodePageAreaStartOffset();
   }
 
-  MUST_USE_RESULT static bool CommitCodePage(VirtualMemory* vm,
-                                             Address start,
-                                             size_t size);
+  MUST_USE_RESULT static bool CommitExecutableMemory(VirtualMemory* vm,
+                                                     Address start,
+                                                     size_t commit_size,
+                                                     size_t reserved_size);
 
  private:
   Isolate* isolate_;
@@ -1338,6 +1410,63 @@ class FreeListNode: public HeapObject {
 };
 
 
+// The free list category holds a pointer to the top element and a pointer to
+// the end element of the linked list of free memory blocks.
+class FreeListCategory {
+ public:
+  FreeListCategory() :
+      top_(NULL),
+      end_(NULL),
+      mutex_(OS::CreateMutex()),
+      available_(0) {}
+
+  ~FreeListCategory() {
+    delete mutex_;
+  }
+
+  intptr_t Concatenate(FreeListCategory* category);
+
+  void Reset();
+
+  void Free(FreeListNode* node, int size_in_bytes);
+
+  FreeListNode* PickNodeFromList(int *node_size);
+
+  intptr_t CountFreeListItemsInList(Page* p);
+
+  intptr_t EvictFreeListItemsInList(Page* p);
+
+  void RepairFreeList(Heap* heap);
+
+  FreeListNode** GetTopAddress() { return &top_; }
+  FreeListNode* top() const { return top_; }
+  void set_top(FreeListNode* top) { top_ = top; }
+
+  FreeListNode** GetEndAddress() { return &end_; }
+  FreeListNode* end() const { return end_; }
+  void set_end(FreeListNode* end) { end_ = end; }
+
+  int* GetAvailableAddress() { return &available_; }
+  int available() const { return available_; }
+  void set_available(int available) { available_ = available; }
+
+  Mutex* mutex() { return mutex_; }
+
+#ifdef DEBUG
+  intptr_t SumFreeList();
+  int FreeListLength();
+#endif
+
+ private:
+  FreeListNode* top_;
+  FreeListNode* end_;
+  Mutex* mutex_;
+
+  // Total available bytes in all blocks of this free list category.
+  int available_;
+};
+
+
 // The free list for the old space.  The free list is organized in such a way
 // as to encourage objects allocated around the same time to be near each
 // other.  The normal way to allocate is intended to be by bumping a 'top'
@@ -1365,11 +1494,16 @@ class FreeList BASE_EMBEDDED {
  public:
   explicit FreeList(PagedSpace* owner);
 
+  intptr_t Concatenate(FreeList* free_list);
+
   // Clear the free list.
   void Reset();
 
   // Return the number of bytes available on the free list.
-  intptr_t available() { return available_; }
+  intptr_t available() {
+    return small_list_.available() + medium_list_.available() +
+           large_list_.available() + huge_list_.available();
+  }
 
   // Place a node on the free list.  The block of size 'size_in_bytes'
   // starting at 'start' is placed on the free list.  The return value is the
@@ -1387,8 +1521,6 @@ class FreeList BASE_EMBEDDED {
 
 #ifdef DEBUG
   void Zap();
-  static intptr_t SumFreeList(FreeListNode* node);
-  static int FreeListLength(FreeListNode* cur);
   intptr_t SumFreeLists();
   bool IsVeryLong();
 #endif
@@ -1411,20 +1543,20 @@ class FreeList BASE_EMBEDDED {
 
   intptr_t EvictFreeListItems(Page* p);
 
+  FreeListCategory* small_list() { return &small_list_; }
+  FreeListCategory* medium_list() { return &medium_list_; }
+  FreeListCategory* large_list() { return &large_list_; }
+  FreeListCategory* huge_list() { return &huge_list_; }
+
  private:
   // The size range of blocks, in bytes.
   static const int kMinBlockSize = 3 * kPointerSize;
   static const int kMaxBlockSize = Page::kMaxNonCodeHeapObjectSize;
 
-  FreeListNode* PickNodeFromList(FreeListNode** list, int* node_size);
-
   FreeListNode* FindNodeFor(int size_in_bytes, int* node_size);
 
   PagedSpace* owner_;
   Heap* heap_;
-
-  // Total available bytes in all blocks on this free list.
-  int available_;
 
   static const int kSmallListMin = 0x20 * kPointerSize;
   static const int kSmallListMax = 0xff * kPointerSize;
@@ -1433,10 +1565,10 @@ class FreeList BASE_EMBEDDED {
   static const int kSmallAllocationMax = kSmallListMin - kPointerSize;
   static const int kMediumAllocationMax = kSmallListMax;
   static const int kLargeAllocationMax = kMediumListMax;
-  FreeListNode* small_list_;
-  FreeListNode* medium_list_;
-  FreeListNode* large_list_;
-  FreeListNode* huge_list_;
+  FreeListCategory small_list_;
+  FreeListCategory medium_list_;
+  FreeListCategory large_list_;
+  FreeListCategory huge_list_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
@@ -1490,6 +1622,9 @@ class PagedSpace : public Space {
   // spaces this equals the capacity.
   intptr_t CommittedMemory() { return Capacity(); }
 
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
+
   // Sets the capacity, the available space and the wasted space to zero.
   // The stats are rebuilt during sweeping by adding each page to the
   // capacity and the size when it is encountered.  As free spaces are
@@ -1497,6 +1632,11 @@ class PagedSpace : public Space {
   // to the available and wasted totals.
   void ClearStats() {
     accounting_stats_.ClearSizeWaste();
+  }
+
+  // Increases the number of available bytes of that space.
+  void AddToAccountingStats(intptr_t bytes) {
+    accounting_stats_.DeallocateBytes(bytes);
   }
 
   // Available bytes without growing.  These are the bytes on the free list.
@@ -1512,10 +1652,7 @@ class PagedSpace : public Space {
 
   // As size, but the bytes in lazily swept pages are estimated and the bytes
   // in the current linear allocation area are not included.
-  virtual intptr_t SizeOfObjects() {
-    ASSERT(!IsSweepingComplete() || (unswept_free_bytes_ == 0));
-    return Size() - unswept_free_bytes_ - (limit() - top());
-  }
+  virtual intptr_t SizeOfObjects();
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.  They do not include the
@@ -1525,6 +1662,10 @@ class PagedSpace : public Space {
   // Returns the allocation pointer in this space.
   Address top() { return allocation_info_.top; }
   Address limit() { return allocation_info_.limit; }
+
+  // The allocation top and limit addresses.
+  Address* allocation_top_address() { return &allocation_info_.top; }
+  Address* allocation_limit_address() { return &allocation_info_.limit; }
 
   // Allocate the requested number of bytes in the space if possible, return a
   // failure object if not.
@@ -1550,6 +1691,7 @@ class PagedSpace : public Space {
   void SetTop(Address top, Address limit) {
     ASSERT(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
+    MemoryChunk::UpdateHighWaterMark(allocation_info_.top);
     allocation_info_.top = top;
     allocation_info_.limit = limit;
   }
@@ -1563,10 +1705,7 @@ class PagedSpace : public Space {
   }
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page);
-
-  // Releases all of the unused pages.
-  void ReleaseAllUnusedPages();
+  void ReleasePage(Page* page, bool unlink);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -1610,7 +1749,7 @@ class PagedSpace : public Space {
     first_unswept_page_ = first;
   }
 
-  void IncrementUnsweptFreeBytes(int by) {
+  void IncrementUnsweptFreeBytes(intptr_t by) {
     unswept_free_bytes_ += by;
   }
 
@@ -1619,14 +1758,27 @@ class PagedSpace : public Space {
     unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
   }
 
+  void DecrementUnsweptFreeBytes(intptr_t by) {
+    unswept_free_bytes_ -= by;
+  }
+
   void DecreaseUnsweptFreeBytes(Page* p) {
     ASSERT(ShouldBeSweptLazily(p));
     unswept_free_bytes_ -= (p->area_size() - p->LiveBytes());
   }
 
+  void ResetUnsweptFreeBytes() {
+    unswept_free_bytes_ = 0;
+  }
+
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
 
-  bool IsSweepingComplete() {
+  // When parallel sweeper threads are active and the main thread finished
+  // its sweeping phase, this function waits for them to complete, otherwise
+  // AdvanceSweeper with size_in_bytes is called.
+  bool EnsureSweeperProgress(intptr_t size_in_bytes);
+
+  bool IsLazySweepingComplete() {
     return !first_unswept_page_->is_valid();
   }
 
@@ -1650,6 +1802,8 @@ class PagedSpace : public Space {
   }
 
  protected:
+  FreeList* free_list() { return &free_list_; }
+
   int area_size_;
 
   // Maximum capacity of this space.
@@ -1699,6 +1853,7 @@ class PagedSpace : public Space {
   MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class PageIterator;
+  friend class SweeperThread;
 };
 
 
@@ -1961,6 +2116,9 @@ class SemiSpace : public Space {
 
   static void Swap(SemiSpace* from, SemiSpace* to);
 
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
+
  private:
   // Flips the semispace between being from-space and to-space.
   // Copies the flags into the masked positions on all pages in the space.
@@ -2157,6 +2315,9 @@ class NewSpace : public Space {
     if (from_space_.is_committed()) return 2 * Capacity();
     return Capacity();
   }
+
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
 
   // Return the available bytes without growing.
   intptr_t Available() {
@@ -2387,11 +2548,9 @@ class FixedSpace : public PagedSpace {
   FixedSpace(Heap* heap,
              intptr_t max_capacity,
              AllocationSpace id,
-             int object_size_in_bytes,
-             const char* name)
+             int object_size_in_bytes)
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE),
-        object_size_in_bytes_(object_size_in_bytes),
-        name_(name) {
+        object_size_in_bytes_(object_size_in_bytes) {
     page_extra_ = Page::kNonCodeObjectAreaSize % object_size_in_bytes;
   }
 
@@ -2408,9 +2567,6 @@ class FixedSpace : public PagedSpace {
  private:
   // The size of objects in this space.
   int object_size_in_bytes_;
-
-  // The name of this space.
-  const char* name_;
 };
 
 
@@ -2421,7 +2577,7 @@ class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
   MapSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, Map::kSize, "map"),
+      : FixedSpace(heap, max_capacity, id, Map::kSize),
         max_map_space_pages_(kMaxMapPageIndex - 1) {
   }
 
@@ -2462,7 +2618,7 @@ class CellSpace : public FixedSpace {
  public:
   // Creates a property cell space object with a maximum capacity.
   CellSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
-      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize, "cell")
+      : FixedSpace(heap, max_capacity, id, JSGlobalPropertyCell::kSize)
   {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
@@ -2523,6 +2679,9 @@ class LargeObjectSpace : public Space {
   intptr_t CommittedMemory() {
     return Size();
   }
+
+  // Approximate amount of physical memory committed for this space.
+  size_t CommittedPhysicalMemory();
 
   int PageCount() {
     return page_count_;

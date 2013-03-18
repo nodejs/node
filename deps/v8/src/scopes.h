@@ -186,6 +186,12 @@ class Scope: public ZoneObject {
   // such a variable again if it was added; otherwise this is a no-op.
   void RemoveUnresolved(VariableProxy* var);
 
+  // Creates a new internal variable in this scope.  The name is only used
+  // for printing and cannot be used to find the variable.  In particular,
+  // the only way to get hold of the temporary is by keeping the Variable*
+  // around.
+  Variable* NewInternal(Handle<String> name);
+
   // Creates a new temporary variable in this scope.  The name is only used
   // for printing and cannot be used to find the variable.  In particular,
   // the only way to get hold of the temporary is by keeping the Variable*
@@ -217,11 +223,6 @@ class Scope: public ZoneObject {
   // declarations, i.e. a var declaration that has been hoisted from a nested
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
-
-  // For harmony block scoping mode: Check if the scope has variable proxies
-  // that are used as lvalues and point to const variables. Assumes that scopes
-  // have been analyzed and variables been resolved.
-  VariableProxy* CheckAssignmentToConst();
 
   // ---------------------------------------------------------------------------
   // Scope-specific info.
@@ -369,6 +370,12 @@ class Scope: public ZoneObject {
   int StackLocalCount() const;
   int ContextLocalCount() const;
 
+  // For global scopes, the number of module literals (including nested ones).
+  int num_modules() const { return num_modules_; }
+
+  // For module scopes, the host scope's internal variable binding this module.
+  Variable* module_var() const { return module_var_; }
+
   // Make sure this scope and all outer scopes are eagerly compiled.
   void ForceEagerCompilation()  { force_eager_compilation_ = true; }
 
@@ -386,6 +393,9 @@ class Scope: public ZoneObject {
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
+
+  // Find the innermost global scope.
+  Scope* GlobalScope();
 
   // Find the first function, global, or eval scope.  This is the scope
   // where var declarations will be hoisted to in the implementation.
@@ -441,6 +451,8 @@ class Scope: public ZoneObject {
   // variables may be implicitly 'declared' by being used (possibly in
   // an inner scope) with no intervening with statements or eval calls.
   VariableMap variables_;
+  // Compiler-allocated (user-invisible) internals.
+  ZoneList<Variable*> internals_;
   // Compiler-allocated (user-invisible) temporaries.
   ZoneList<Variable*> temps_;
   // Parameter list in source order.
@@ -493,6 +505,12 @@ class Scope: public ZoneObject {
   // Computed via AllocateVariables; function, block and catch scopes only.
   int num_stack_slots_;
   int num_heap_slots_;
+
+  // The number of modules (including nested ones).
+  int num_modules_;
+
+  // For module scopes, the host scope's internal variable binding this module.
+  Variable* module_var_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;
@@ -578,6 +596,7 @@ class Scope: public ZoneObject {
   void AllocateNonParameterLocal(Variable* var);
   void AllocateNonParameterLocals();
   void AllocateVariablesRecursively();
+  void AllocateModulesRecursively(Scope* host_scope);
 
   // Resolve and fill in the allocation information for all variables
   // in this scopes. Must be called *after* all scopes have been
@@ -590,13 +609,6 @@ class Scope: public ZoneObject {
   MUST_USE_RESULT
   bool AllocateVariables(CompilationInfo* info,
                          AstNodeFactory<AstNullVisitor>* factory);
-
-  // Instance objects have to be created ahead of time (before code generation)
-  // because of potentially cyclic references between them.
-  // Linking also has to be a separate stage, since populating one object may
-  // potentially require (forward) references to others.
-  void AllocateModules(CompilationInfo* info);
-  void LinkModules(CompilationInfo* info);
 
  private:
   // Construct a scope based on the scope info.

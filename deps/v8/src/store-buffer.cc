@@ -687,10 +687,15 @@ void StoreBuffer::Compact() {
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;
-    int hash1 =
-        ((int_addr ^ (int_addr >> kHashSetLengthLog2)) & (kHashSetLength - 1));
+    // The upper part of an address is basically random because of ASLR and OS
+    // non-determinism, so we use only the bits within a page for hashing to
+    // make v8's behavior (more) deterministic.
+    uintptr_t hash_addr =
+        int_addr & (Page::kPageAlignmentMask >> kPointerSizeLog2);
+    int hash1 = ((hash_addr ^ (hash_addr >> kHashSetLengthLog2)) &
+                 (kHashSetLength - 1));
     if (hash_set_1_[hash1] == int_addr) continue;
-    uintptr_t hash2 = (int_addr - (int_addr >> kHashSetLengthLog2));
+    uintptr_t hash2 = (hash_addr - (hash_addr >> kHashSetLengthLog2));
     hash2 ^= hash2 >> (kHashSetLengthLog2 * 2);
     hash2 &= (kHashSetLength - 1);
     if (hash_set_2_[hash2] == int_addr) continue;

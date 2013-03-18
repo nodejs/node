@@ -145,7 +145,7 @@ class UnicodeCache {
 // Caching predicates used by scanners.
  public:
   UnicodeCache() {}
-  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
+  typedef unibrow::Utf8Decoder<512> Utf8Decoder;
 
   StaticResource<Utf8Decoder>* utf8_decoder() {
     return &utf8_decoder_;
@@ -183,9 +183,9 @@ class LiteralBuffer {
   INLINE(void AddChar(uint32_t code_unit)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     if (is_ascii_) {
-      if (code_unit < kMaxAsciiCharCodeU) {
+      if (code_unit <= unibrow::Latin1::kMaxChar) {
         backing_store_[position_] = static_cast<byte>(code_unit);
-        position_ += kASCIISize;
+        position_ += kOneByteSize;
         return;
       }
       ConvertToUtf16();
@@ -250,7 +250,7 @@ class LiteralBuffer {
     } else {
       new_store = backing_store_;
     }
-    char* src = reinterpret_cast<char*>(backing_store_.start());
+    uint8_t* src = backing_store_.start();
     uc16* dst = reinterpret_cast<uc16*>(new_store.start());
     for (int i = position_ - 1; i >= 0; i--) {
       dst[i] = src[i];
@@ -314,8 +314,6 @@ class Scanner {
 
   // -1 is outside of the range of any real source code.
   static const int kNoOctalLocation = -1;
-
-  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
   explicit Scanner(UnicodeCache* scanner_contants);
 
@@ -431,10 +429,6 @@ class Scanner {
   // Returns true if regexp flags are scanned (always since flags can
   // be empty).
   bool ScanRegExpFlags();
-
-  // Tells whether the buffer contains an identifier (no escapes).
-  // Used for checking if a property name is an identifier.
-  static bool IsIdentifier(unibrow::CharacterStream* buffer);
 
  private:
   // The current and look-ahead token.

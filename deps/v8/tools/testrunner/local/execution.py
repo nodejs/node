@@ -90,7 +90,7 @@ class Runner(object):
     self.indicator.Starting()
     self._RunInternal(jobs)
     self.indicator.Done()
-    if self.failed:
+    if self.failed or self.remaining:
       return 1
     return 0
 
@@ -167,11 +167,11 @@ class Runner(object):
       d8testflag = ["--test"]
     if utils.IsWindows():
       shell += ".exe"
-    cmd = ([self.context.command_prefix] +
+    cmd = (self.context.command_prefix +
            [os.path.abspath(os.path.join(self.context.shell_dir, shell))] +
            d8testflag +
            test.suite.GetFlagsForTestCase(test, self.context) +
-           [self.context.extra_flags])
+           self.context.extra_flags)
     return cmd
 
 
