@@ -267,6 +267,10 @@ function test_cyclic_link_overprotection(callback) {
 
 function test_relative_input_cwd(callback) {
   console.log('test_relative_input_cwd');
+  if (skipSymlinks) {
+    console.log('skipping symlink test (no privs)');
+    return runNextTest();
+  }
 
   // we need to get the relative path to the tmp dir from cwd.
   // When the test runner is running it, that will be .../node/test
