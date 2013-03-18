@@ -76,6 +76,16 @@ handshake extensions allowing you:
     certificates.
 
 
+## tls.getCiphers()
+
+Returns an array with the names of the supported SSL ciphers.
+
+Example:
+
+    var ciphers = tls.getCiphers();
+    console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
+
+
 ## tls.createServer(options, [secureConnectionListener])
 
 Creates a new [tls.Server][].  The `connectionListener` argument is

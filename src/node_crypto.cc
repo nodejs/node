@@ -3948,7 +3948,7 @@ Handle<Value> RandomBytes(const Arguments& args) {
 }
 
 
-Handle<Value> GetCiphers(const Arguments& args) {
+Handle<Value> GetSSLCiphers(const Arguments& args) {
   HandleScope scope;
 
   SSL_CTX* ctx = SSL_CTX_new(TLSv1_server_method());
@@ -3977,19 +3977,28 @@ Handle<Value> GetCiphers(const Arguments& args) {
 }
 
 
-static void add_hash_to_array(const EVP_MD* md,
-                              const char* from,
-                              const char* to,
-                              void* arg) {
+template <class TypeName>
+static void array_push_back(const TypeName* md,
+                            const char* from,
+                            const char* to,
+                            void* arg) {
   Local<Array>& arr = *static_cast<Local<Array>*>(arg);
   arr->Set(arr->Length(), String::New(from));
+}
+
+
+Handle<Value> GetCiphers(const Arguments& args) {
+  HandleScope scope;
+  Local<Array> arr = Array::New();
+  EVP_CIPHER_do_all_sorted(array_push_back<EVP_CIPHER>, &arr);
+  return scope.Close(arr);
 }
 
 
 Handle<Value> GetHashes(const Arguments& args) {
   HandleScope scope;
   Local<Array> arr = Array::New();
-  EVP_MD_do_all_sorted(add_hash_to_array, &arr);
+  EVP_MD_do_all_sorted(array_push_back<EVP_MD>, &arr);
   return scope.Close(arr);
 }
 
@@ -4033,6 +4042,7 @@ void InitCrypto(Handle<Object> target) {
   NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
   NODE_SET_METHOD(target, "randomBytes", RandomBytes<false>);
   NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<true>);
+  NODE_SET_METHOD(target, "getSSLCiphers", GetSSLCiphers);
   NODE_SET_METHOD(target, "getCiphers", GetCiphers);
   NODE_SET_METHOD(target, "getHashes", GetHashes);
 
