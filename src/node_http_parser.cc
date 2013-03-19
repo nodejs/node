@@ -170,7 +170,7 @@ struct StringPtr {
     if (str_)
       return String::New(str_, size_);
     else
-      return String::Empty();
+      return String::Empty(node_isolate);
   }
 
 
@@ -270,22 +270,22 @@ public:
     // STATUS
     if (parser_.type == HTTP_RESPONSE) {
       message_info->Set(status_code_sym,
-                        Integer::New(parser_.status_code));
+                        Integer::New(parser_.status_code, node_isolate));
     }
 
     // VERSION
     message_info->Set(version_major_sym,
-                      Integer::New(parser_.http_major));
+                      Integer::New(parser_.http_major, node_isolate));
     message_info->Set(version_minor_sym,
-                      Integer::New(parser_.http_minor));
+                      Integer::New(parser_.http_minor, node_isolate));
 
     message_info->Set(should_keep_alive_sym,
-                      http_should_keep_alive(&parser_) ? True()
-                                                       : False());
+                      http_should_keep_alive(&parser_) ? True(node_isolate)
+                                                       : False(node_isolate));
 
     message_info->Set(upgrade_sym,
-                      parser_.upgrade ? True()
-                                      : False());
+                      parser_.upgrade ? True(node_isolate)
+                                      : False(node_isolate));
 
     Local<Value> argv[1] = { message_info };
 
@@ -302,7 +302,7 @@ public:
 
 
   HTTP_DATA_CB(on_body) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     Local<Value> cb = handle_->Get(on_body_sym);
     if (!cb->IsFunction())
@@ -310,8 +310,8 @@ public:
 
     Local<Value> argv[3] = {
       *current_buffer,
-      Integer::New(at - current_buffer_data),
-      Integer::New(length)
+      Integer::New(at - current_buffer_data, node_isolate),
+      Integer::New(length, node_isolate)
     };
 
     Local<Value> r = Local<Function>::Cast(cb)->Call(handle_, 3, argv);
@@ -326,7 +326,7 @@ public:
 
 
   HTTP_CB(on_message_complete) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     if (num_fields_)
       Flush(); // Flush trailing HTTP headers.
@@ -348,7 +348,7 @@ public:
 
 
   static Handle<Value> New(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
@@ -380,7 +380,7 @@ public:
 
   // var bytesParsed = parser->execute(buffer, off, len);
   static Handle<Value> Execute(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
 
@@ -434,7 +434,7 @@ public:
     // If there was an exception in one of the callbacks
     if (parser->got_exception_) return Local<Value>();
 
-    Local<Integer> nparsed_obj = Integer::New(nparsed);
+    Local<Integer> nparsed_obj = Integer::New(nparsed, node_isolate);
     // If there was a parse error in one of the callbacks
     // TODO What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != len) {
@@ -452,7 +452,7 @@ public:
 
 
   static Handle<Value> Finish(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
 
@@ -468,17 +468,17 @@ public:
 
       Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
       Local<Object> obj = e->ToObject();
-      obj->Set(String::NewSymbol("bytesParsed"), Integer::New(0));
+      obj->Set(String::NewSymbol("bytesParsed"), Integer::New(0, node_isolate));
       obj->Set(String::NewSymbol("code"), String::New(http_errno_name(err)));
       return scope.Close(e);
     }
 
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
 
   static Handle<Value> Reinitialize(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     http_parser_type type =
         static_cast<http_parser_type>(args[0]->Int32Value());
@@ -491,7 +491,7 @@ public:
     Parser* parser = ObjectWrap::Unwrap<Parser>(args.This());
     parser->Init(type);
 
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
 
@@ -513,7 +513,7 @@ private:
 
   // spill headers and request path to JS land
   void Flush() {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     Local<Value> cb = handle_->Get(on_headers_sym);
 
@@ -557,7 +557,7 @@ private:
 
 
 void InitHttpParser(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Parser::New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -565,10 +565,10 @@ void InitHttpParser(Handle<Object> target) {
 
   PropertyAttribute attrib = (PropertyAttribute) (ReadOnly | DontDelete);
   t->Set(String::NewSymbol("REQUEST"),
-         Integer::New(HTTP_REQUEST),
+         Integer::New(HTTP_REQUEST, node_isolate),
          attrib);
   t->Set(String::NewSymbol("RESPONSE"),
-         Integer::New(HTTP_RESPONSE),
+         Integer::New(HTTP_RESPONSE, node_isolate),
          attrib);
 
   NODE_SET_PROTOTYPE_METHOD(t, "execute", Parser::Execute);

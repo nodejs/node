@@ -48,7 +48,7 @@ using v8::Value;
 void TTYWrap::Initialize(Handle<Object> target) {
   StreamWrap::Initialize(target);
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->SetClassName(String::NewSymbol("TTY"));
@@ -98,7 +98,7 @@ uv_tty_t* TTYWrap::UVHandle() {
 
 
 Handle<Value> TTYWrap::GuessHandleType(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
 
@@ -119,26 +119,26 @@ Handle<Value> TTYWrap::GuessHandleType(const Arguments& args) {
 
     default:
       assert(0);
-      return v8::Undefined();
+      return v8::Undefined(node_isolate);
   }
 }
 
 
 Handle<Value> TTYWrap::IsTTY(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   int fd = args[0]->Int32Value();
   assert(fd >= 0);
 
   if (uv_guess_handle(fd) == UV_TTY) {
-    return v8::True();
+    return v8::True(node_isolate);
   }
 
-  return v8::False();
+  return v8::False(node_isolate);
 }
 
 
 Handle<Value> TTYWrap::GetWindowSize(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(TTYWrap)
 
@@ -147,19 +147,19 @@ Handle<Value> TTYWrap::GetWindowSize(const Arguments& args) {
 
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
-    return v8::Undefined();
+    return v8::Undefined(node_isolate);
   }
 
   Local<v8::Array> a = v8::Array::New(2);
-  a->Set(0, Integer::New(width));
-  a->Set(1, Integer::New(height));
+  a->Set(0, Integer::New(width, node_isolate));
+  a->Set(1, Integer::New(height, node_isolate));
 
   return scope.Close(a);
 }
 
 
 Handle<Value> TTYWrap::SetRawMode(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(TTYWrap)
 
@@ -169,12 +169,12 @@ Handle<Value> TTYWrap::SetRawMode(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
 Handle<Value> TTYWrap::New(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   // This constructor should not be exposed to public javascript.
   // Therefore we assert that we are not trying to call this as a

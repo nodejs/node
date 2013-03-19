@@ -195,7 +195,7 @@ static void ares_sockstate_cb(void* data, ares_socket_t sock,
 
 
 static Local<Array> HostentToAddresses(struct hostent* host) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<Array> addresses = Array::New();
 
   char ip[INET6_ADDRSTRLEN];
@@ -203,7 +203,7 @@ static Local<Array> HostentToAddresses(struct hostent* host) {
     uv_inet_ntop(host->h_addrtype, host->h_addr_list[i], ip, sizeof(ip));
 
     Local<String> address = String::New(ip);
-    addresses->Set(Integer::New(i), address);
+    addresses->Set(Integer::New(i, node_isolate), address);
   }
 
   return scope.Close(addresses);
@@ -211,12 +211,12 @@ static Local<Array> HostentToAddresses(struct hostent* host) {
 
 
 static Local<Array> HostentToNames(struct hostent* host) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<Array> names = Array::New();
 
   for (int i = 0; host->h_aliases[i]; ++i) {
     Local<String> address = String::New(host->h_aliases[i]);
-    names->Set(Integer::New(i), address);
+    names->Set(Integer::New(i, node_isolate), address);
   }
 
   return scope.Close(names);
@@ -260,7 +260,7 @@ static const char* AresErrnoString(int errorno) {
 
 
 static void SetAresErrno(int errorno) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<Value> key = String::NewSymbol("_errno");
   Local<Value> value = String::NewSymbol(AresErrnoString(errorno));
   node::process->Set(key, value);
@@ -270,7 +270,7 @@ static void SetAresErrno(int errorno) {
 class QueryWrap {
  public:
   QueryWrap() {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     object_ = Persistent<Object>::New(node_isolate, Object::New());
   }
@@ -336,14 +336,14 @@ class QueryWrap {
   }
 
   void CallOnComplete(Local<Value> answer) {
-    HandleScope scope;
-    Local<Value> argv[2] = { Integer::New(0), answer };
+    HandleScope scope(node_isolate);
+    Local<Value> argv[2] = { Integer::New(0, node_isolate), answer };
     MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
   void CallOnComplete(Local<Value> answer, Local<Value> family) {
-    HandleScope scope;
-    Local<Value> argv[3] = { Integer::New(0), answer, family };
+    HandleScope scope(node_isolate);
+    Local<Value> argv[3] = { Integer::New(0, node_isolate), answer, family };
     MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
@@ -351,8 +351,8 @@ class QueryWrap {
     assert(status != ARES_SUCCESS);
     SetAresErrno(status);
 
-    HandleScope scope;
-    Local<Value> argv[1] = { Integer::New(-1) };
+    HandleScope scope(node_isolate);
+    Local<Value> argv[1] = { Integer::New(-1, node_isolate) };
     MakeCallback(object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
   }
 
@@ -379,7 +379,7 @@ class QueryAWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     struct hostent* host;
 
@@ -411,7 +411,7 @@ class QueryAaaaWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     struct hostent* host;
 
@@ -443,7 +443,7 @@ class QueryCnameWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     struct hostent* host;
 
@@ -473,7 +473,7 @@ class QueryMxWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     struct ares_mx_reply* mx_start;
     int status = ares_parse_mx_reply(buf, len, &mx_start);
@@ -492,8 +492,8 @@ class QueryMxWrap: public QueryWrap {
       Local<Object> mx_record = Object::New();
       mx_record->Set(exchange_symbol, String::New(mx_current->host));
       mx_record->Set(priority_symbol,
-                     Integer::New(mx_current->priority));
-      mx_records->Set(Integer::New(i++), mx_record);
+                     Integer::New(mx_current->priority, node_isolate));
+      mx_records->Set(Integer::New(i++, node_isolate), mx_record);
     }
 
     ares_free_data(mx_start);
@@ -550,7 +550,7 @@ class QueryTxtWrap: public QueryWrap {
     struct ares_txt_reply *current = txt_out;
     for (int i = 0; current; ++i, current = current->next) {
       Local<String> txt = String::New(reinterpret_cast<char*>(current->txt));
-      txt_records->Set(Integer::New(i), txt);
+      txt_records->Set(Integer::New(i, node_isolate), txt);
     }
 
     ares_free_data(txt_out);
@@ -574,7 +574,7 @@ class QuerySrvWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     struct ares_srv_reply* srv_start;
     int status = ares_parse_srv_reply(buf, len, &srv_start);
@@ -595,12 +595,12 @@ class QuerySrvWrap: public QueryWrap {
       Local<Object> srv_record = Object::New();
       srv_record->Set(name_symbol, String::New(srv_current->host));
       srv_record->Set(port_symbol,
-                      Integer::New(srv_current->port));
+                      Integer::New(srv_current->port, node_isolate));
       srv_record->Set(priority_symbol,
-                      Integer::New(srv_current->priority));
+                      Integer::New(srv_current->priority, node_isolate));
       srv_record->Set(weight_symbol,
-                      Integer::New(srv_current->weight));
-      srv_records->Set(Integer::New(i++), srv_record);
+                      Integer::New(srv_current->weight, node_isolate));
+      srv_records->Set(Integer::New(i++, node_isolate), srv_record);
     }
 
     ares_free_data(srv_start);
@@ -623,7 +623,7 @@ class QueryNaptrWrap: public QueryWrap {
 
  protected:
   void Parse(unsigned char* buf, int len) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     ares_naptr_reply* naptr_start;
     int status = ares_parse_naptr_reply(buf, len, &naptr_start);
@@ -656,11 +656,12 @@ class QueryNaptrWrap: public QueryWrap {
           String::New(reinterpret_cast<char*>(naptr_current->regexp)));
       naptr_record->Set(replacement_symbol,
           String::New(naptr_current->replacement));
-      naptr_record->Set(order_symbol, Integer::New(naptr_current->order));
+      naptr_record->Set(order_symbol, Integer::New(naptr_current->order,
+                                                   node_isolate));
       naptr_record->Set(preference_symbol,
-          Integer::New(naptr_current->preference));
+          Integer::New(naptr_current->preference, node_isolate));
 
-      naptr_records->Set(Integer::New(i++), naptr_record);
+      naptr_records->Set(Integer::New(i++, node_isolate), naptr_record);
     }
 
     ares_free_data(naptr_start);
@@ -697,7 +698,7 @@ class GetHostByAddrWrap: public QueryWrap {
 
  protected:
   void Parse(struct hostent* host) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     this->CallOnComplete(HostentToNames(host));
   }
@@ -713,10 +714,10 @@ class GetHostByNameWrap: public QueryWrap {
 
  protected:
   void Parse(struct hostent* host) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     Local<Array> addresses = HostentToAddresses(host);
-    Local<Integer> family = Integer::New(host->h_addrtype);
+    Local<Integer> family = Integer::New(host->h_addrtype, node_isolate);
 
     this->CallOnComplete(addresses, family);
   }
@@ -725,7 +726,7 @@ class GetHostByNameWrap: public QueryWrap {
 
 template <class Wrap>
 static Handle<Value> Query(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   assert(!args.IsConstructCall());
   assert(args.Length() >= 2);
@@ -737,7 +738,7 @@ static Handle<Value> Query(const Arguments& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(wrap->GetObject());
+  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
 
   String::Utf8Value name(args[0]);
 
@@ -745,7 +746,7 @@ static Handle<Value> Query(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(object);
   }
@@ -754,7 +755,7 @@ static Handle<Value> Query(const Arguments& args) {
 
 template <class Wrap>
 static Handle<Value> QueryWithFamily(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   assert(!args.IsConstructCall());
   assert(args.Length() >= 3);
@@ -766,7 +767,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
   // object reference, causing wrap->GetObject() to return undefined.
-  Local<Object> object = Local<Object>::New(wrap->GetObject());
+  Local<Object> object = Local<Object>::New(node_isolate, wrap->GetObject());
 
   String::Utf8Value name(args[0]);
   int family = args[1]->Int32Value();
@@ -775,7 +776,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   if (r) {
     SetAresErrno(r);
     delete wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(object);
   }
@@ -783,7 +784,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
 
 
 void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   GetAddrInfoReqWrap* req_wrap = (GetAddrInfoReqWrap*) req->data;
 
@@ -792,7 +793,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
   if (status) {
     // Error
     SetErrno(uv_last_error(uv_default_loop()));
-    argv[0] = Local<Value>::New(Null());
+    argv[0] = Local<Value>::New(node_isolate, Null(node_isolate));
   } else {
     // Success
     struct addrinfo *address;
@@ -878,25 +879,25 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
 
 static Handle<Value> IsIP(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   String::AsciiValue ip(args[0]);
   char address_buffer[sizeof(struct in6_addr)];
 
   if (uv_inet_pton(AF_INET, *ip, &address_buffer).code == UV_OK) {
-    return scope.Close(v8::Integer::New(4));
+    return scope.Close(v8::Integer::New(4, node_isolate));
   }
 
   if (uv_inet_pton(AF_INET6, *ip, &address_buffer).code == UV_OK) {
-    return scope.Close(v8::Integer::New(6));
+    return scope.Close(v8::Integer::New(6, node_isolate));
   }
 
-  return scope.Close(v8::Integer::New(0));
+  return scope.Close(v8::Integer::New(0, node_isolate));
 }
 
 
 static Handle<Value> GetAddrInfo(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   String::Utf8Value hostname(args[0]);
 
@@ -931,7 +932,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(req_wrap->object_);
   }
@@ -939,7 +940,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
 
 
 static void Initialize(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   int r;
 
   r = ares_library_init(ARES_LIB_INIT_ALL);
@@ -976,11 +977,11 @@ static void Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "isIP", IsIP);
 
   target->Set(String::NewSymbol("AF_INET"),
-              Integer::New(AF_INET));
+              Integer::New(AF_INET, node_isolate));
   target->Set(String::NewSymbol("AF_INET6"),
-              Integer::New(AF_INET6));
+              Integer::New(AF_INET6, node_isolate));
   target->Set(String::NewSymbol("AF_UNSPEC"),
-              Integer::New(AF_UNSPEC));
+              Integer::New(AF_UNSPEC, node_isolate));
 
   oncomplete_sym = NODE_PSYMBOL("oncomplete");
 }

@@ -45,7 +45,7 @@ static Persistent<String> onsignal_sym;
 class SignalWrap : public HandleWrap {
  public:
   static void Initialize(Handle<Object> target) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     HandleWrap::Initialize(target);
 
@@ -71,7 +71,7 @@ class SignalWrap : public HandleWrap {
     // normal function.
     assert(args.IsConstructCall());
 
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     new SignalWrap(args.This());
 
     return scope.Close(args.This());
@@ -87,7 +87,7 @@ class SignalWrap : public HandleWrap {
   }
 
   static Handle<Value> Start(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(SignalWrap)
 
@@ -97,11 +97,11 @@ class SignalWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static Handle<Value> Stop(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(SignalWrap)
 
@@ -109,16 +109,16 @@ class SignalWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static void OnSignal(uv_signal_t* handle, int signum) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     SignalWrap* wrap = container_of(handle, SignalWrap, handle_);
     assert(wrap);
 
-    Local<Value> argv[1] = { Integer::New(signum) };
+    Local<Value> argv[1] = { Integer::New(signum, node_isolate) };
     MakeCallback(wrap->object_, onsignal_sym, ARRAY_SIZE(argv), argv);
   }
 

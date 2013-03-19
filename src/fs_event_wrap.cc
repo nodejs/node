@@ -64,7 +64,7 @@ FSEventWrap::~FSEventWrap() {
 void FSEventWrap::Initialize(Handle<Object> target) {
   HandleWrap::Initialize(target);
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->InstanceTemplate()->SetInternalFieldCount(1);
@@ -80,7 +80,7 @@ void FSEventWrap::Initialize(Handle<Object> target) {
 
 
 Handle<Value> FSEventWrap::New(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   assert(args.IsConstructCall());
   new FSEventWrap(args.This());
@@ -90,7 +90,7 @@ Handle<Value> FSEventWrap::New(const Arguments& args) {
 
 
 Handle<Value> FSEventWrap::Start(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(FSEventWrap)
 
@@ -111,13 +111,13 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
 void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
     int events, int status) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<String> eventStr;
 
   FSEventWrap* wrap = static_cast<FSEventWrap*>(handle->data);
@@ -137,7 +137,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   // unreasonable, right? Still, we should revisit this before v1.0.
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
-    eventStr = String::Empty();
+    eventStr = String::Empty(node_isolate);
   }
   else if (events & UV_RENAME) {
     eventStr = String::New("rename");
@@ -151,10 +151,10 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   }
 
   Local<Value> argv[3] = {
-    Integer::New(status),
+    Integer::New(status, node_isolate),
     eventStr,
     filename ? static_cast<Local<Value> >(String::New(filename))
-             : Local<Value>::New(v8::Null())
+             : Local<Value>::New(node_isolate, v8::Null(node_isolate))
   };
 
   if (onchange_sym.IsEmpty()) {
@@ -166,7 +166,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
 
 Handle<Value> FSEventWrap::Close(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   // Unwrap manually here. The UNWRAP() macro asserts that wrap != NULL.
   // That usually indicates an error but not here: double closes are possible
@@ -177,7 +177,7 @@ Handle<Value> FSEventWrap::Close(const Arguments& args) {
   FSEventWrap* wrap = static_cast<FSEventWrap*>(ptr);
 
   if (wrap == NULL || wrap->initialized_ == false) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
   wrap->initialized_ = false;
 

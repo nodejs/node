@@ -37,7 +37,7 @@ Handle<String> MainSource() {
 }
 
 void DefineJavaScript(v8::Handle<v8::Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   for (int i = 0; natives[i].name; i++) {
     if (natives[i].source != node_native) {

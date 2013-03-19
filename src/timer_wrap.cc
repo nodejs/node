@@ -43,7 +43,7 @@ static Persistent<String> ontimeout_sym;
 class TimerWrap : public HandleWrap {
  public:
   static void Initialize(Handle<Object> target) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     HandleWrap::Initialize(target);
 
@@ -73,7 +73,7 @@ class TimerWrap : public HandleWrap {
     // normal function.
     assert(args.IsConstructCall());
 
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     TimerWrap *wrap = new TimerWrap(args.This());
     assert(wrap);
 
@@ -91,7 +91,7 @@ class TimerWrap : public HandleWrap {
   }
 
   static Handle<Value> Start(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(TimerWrap)
 
@@ -102,11 +102,11 @@ class TimerWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static Handle<Value> Stop(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(TimerWrap)
 
@@ -114,11 +114,11 @@ class TimerWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static Handle<Value> Again(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(TimerWrap)
 
@@ -126,11 +126,11 @@ class TimerWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static Handle<Value> SetRepeat(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(TimerWrap)
 
@@ -138,11 +138,11 @@ class TimerWrap : public HandleWrap {
 
     uv_timer_set_repeat(&wrap->handle_, repeat);
 
-    return scope.Close(Integer::New(0));
+    return scope.Close(Integer::New(0, node_isolate));
   }
 
   static Handle<Value> GetRepeat(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(TimerWrap)
 
@@ -150,16 +150,16 @@ class TimerWrap : public HandleWrap {
 
     if (repeat < 0) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(repeat));
+    return scope.Close(Integer::New(repeat, node_isolate));
   }
 
   static void OnTimeout(uv_timer_t* handle, int status) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     assert(wrap);
 
-    Local<Value> argv[1] = { Integer::New(status) };
+    Local<Value> argv[1] = { Integer::New(status, node_isolate) };
     MakeCallback(wrap->object_, ontimeout_sym, ARRAY_SIZE(argv), argv);
   }
 

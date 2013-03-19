@@ -59,7 +59,7 @@ SlabAllocator::~SlabAllocator() {
 
 
 void SlabAllocator::Initialize() {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   char sym[256];
   snprintf(sym, sizeof(sym), "slab_%p", this); // namespace object key
   offset_ = 0;
@@ -70,8 +70,8 @@ void SlabAllocator::Initialize() {
 
 
 static Local<Object> NewSlab(unsigned int size) {
-  HandleScope scope;
-  Local<Value> arg = Integer::NewFromUnsigned(ROUND_UP(size, 16));
+  HandleScope scope(node_isolate);
+  Local<Value> arg = Integer::NewFromUnsigned(ROUND_UP(size, 16), node_isolate);
   Local<Object> buf = Buffer::constructor_template
                       ->GetFunction()
                       ->NewInstance(1, &arg);
@@ -80,7 +80,7 @@ static Local<Object> NewSlab(unsigned int size) {
 
 
 char* SlabAllocator::Allocate(Handle<Object> obj, unsigned int size) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   assert(!obj.IsEmpty());
 
@@ -112,9 +112,9 @@ char* SlabAllocator::Allocate(Handle<Object> obj, unsigned int size) {
 Local<Object> SlabAllocator::Shrink(Handle<Object> obj,
                                     char* ptr,
                                     unsigned int size) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<Value> slab_v = obj->GetHiddenValue(slab_sym_);
-  obj->SetHiddenValue(slab_sym_, Null());
+  obj->SetHiddenValue(slab_sym_, Null(node_isolate));
   assert(!slab_v.IsEmpty());
   assert(slab_v->IsObject());
   Local<Object> slab = slab_v->ToObject();

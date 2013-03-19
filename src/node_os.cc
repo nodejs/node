@@ -42,7 +42,7 @@ namespace node {
 using namespace v8;
 
 static Handle<Value> GetEndianness(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   int i = 1;
   bool big = (*(char *)&i) == 0;
   Local<String> endianness = String::New(big ? "BE" : "LE");
@@ -50,7 +50,7 @@ static Handle<Value> GetEndianness(const Arguments& args) {
 }
 
 static Handle<Value> GetHostname(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   char s[255];
   int r = gethostname(s, 255);
 
@@ -66,7 +66,7 @@ static Handle<Value> GetHostname(const Arguments& args) {
 }
 
 static Handle<Value> GetOSType(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
 #ifdef __POSIX__
   char type[256];
@@ -83,7 +83,7 @@ static Handle<Value> GetOSType(const Arguments& args) {
 }
 
 static Handle<Value> GetOSRelease(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   char release[256];
 
 #ifdef __POSIX__
@@ -98,7 +98,7 @@ static Handle<Value> GetOSRelease(const Arguments& args) {
   info.dwOSVersionInfoSize = sizeof(info);
 
   if (GetVersionEx(&info) == 0) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   sprintf(release, "%d.%d.%d", static_cast<int>(info.dwMajorVersion),
@@ -109,14 +109,14 @@ static Handle<Value> GetOSRelease(const Arguments& args) {
 }
 
 static Handle<Value> GetCPUInfo(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   uv_cpu_info_t* cpu_infos;
   int count, i;
 
   uv_err_t err = uv_cpu_info(&cpu_infos, &count);
 
   if (err.code != UV_OK) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   Local<Array> cpus = Array::New();
@@ -124,20 +124,20 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
   for (i = 0; i < count; i++) {
     Local<Object> times_info = Object::New();
     times_info->Set(String::New("user"),
-      Integer::New(cpu_infos[i].cpu_times.user));
+      Integer::New(cpu_infos[i].cpu_times.user, node_isolate));
     times_info->Set(String::New("nice"),
-      Integer::New(cpu_infos[i].cpu_times.nice));
+      Integer::New(cpu_infos[i].cpu_times.nice, node_isolate));
     times_info->Set(String::New("sys"),
-      Integer::New(cpu_infos[i].cpu_times.sys));
+      Integer::New(cpu_infos[i].cpu_times.sys, node_isolate));
     times_info->Set(String::New("idle"),
-      Integer::New(cpu_infos[i].cpu_times.idle));
+      Integer::New(cpu_infos[i].cpu_times.idle, node_isolate));
     times_info->Set(String::New("irq"),
-      Integer::New(cpu_infos[i].cpu_times.irq));
+      Integer::New(cpu_infos[i].cpu_times.irq, node_isolate));
 
     Local<Object> cpu_info = Object::New();
     cpu_info->Set(String::New("model"), String::New(cpu_infos[i].model));
     cpu_info->Set(String::New("speed"),
-                  Integer::New(cpu_infos[i].speed));
+                  Integer::New(cpu_infos[i].speed, node_isolate));
     cpu_info->Set(String::New("times"), times_info);
     (*cpus)->Set(i,cpu_info);
   }
@@ -148,42 +148,42 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
 }
 
 static Handle<Value> GetFreeMemory(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   double amount = uv_get_free_memory();
 
   if (amount < 0) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(amount));
 }
 
 static Handle<Value> GetTotalMemory(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   double amount = uv_get_total_memory();
 
   if (amount < 0) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(amount));
 }
 
 static Handle<Value> GetUptime(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   double uptime;
 
   uv_err_t err = uv_uptime(&uptime);
 
   if (err.code != UV_OK) {
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   return scope.Close(Number::New(uptime));
 }
 
 static Handle<Value> GetLoadAvg(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   double loadavg[3];
   uv_loadavg(loadavg);
 
@@ -197,7 +197,7 @@ static Handle<Value> GetLoadAvg(const Arguments& args) {
 
 
 static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   uv_interface_address_t* interfaces;
   int count, i;
   char ip[INET6_ADDRSTRLEN];
@@ -238,7 +238,7 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 
     const bool internal = interfaces[i].is_internal;
     o->Set(String::New("internal"),
-           internal ? True() : False());
+           internal ? True(node_isolate) : False(node_isolate));
 
     ifarr->Set(ifarr->Length(), o);
   }
@@ -250,7 +250,7 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 
 
 void OS::Initialize(v8::Handle<v8::Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   NODE_SET_METHOD(target, "getEndianness", GetEndianness);
   NODE_SET_METHOD(target, "getHostname", GetHostname);

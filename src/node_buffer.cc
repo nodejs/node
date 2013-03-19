@@ -92,7 +92,7 @@ static inline size_t base64_decoded_size(const char *src, size_t size) {
 
 
 static size_t ByteLength (Handle<String> string, enum encoding enc) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (enc == UTF8) {
     return string->Utf8Length();
@@ -110,7 +110,7 @@ static size_t ByteLength (Handle<String> string, enum encoding enc) {
 
 
 Handle<Object> Buffer::New(Handle<String> string) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   // get Buffer from global scope.
   Local<Object> global = v8::Context::GetCurrent()->Global();
@@ -118,7 +118,7 @@ Handle<Object> Buffer::New(Handle<String> string) {
   assert(bv->IsFunction());
   Local<Function> b = Local<Function>::Cast(bv);
 
-  Local<Value> argv[1] = { Local<Value>::New(string) };
+  Local<Value> argv[1] = { Local<Value>::New(node_isolate, string) };
   Local<Object> instance = b->NewInstance(1, argv);
 
   return scope.Close(instance);
@@ -126,9 +126,9 @@ Handle<Object> Buffer::New(Handle<String> string) {
 
 
 Buffer* Buffer::New(size_t length) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
-  Local<Value> arg = Integer::NewFromUnsigned(length);
+  Local<Value> arg = Integer::NewFromUnsigned(length, node_isolate);
   Local<Object> b = constructor_template->GetFunction()->NewInstance(1, &arg);
   if (b.IsEmpty()) return NULL;
 
@@ -137,9 +137,9 @@ Buffer* Buffer::New(size_t length) {
 
 
 Buffer* Buffer::New(const char* data, size_t length) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
-  Local<Value> arg = Integer::NewFromUnsigned(0);
+  Local<Value> arg = Integer::NewFromUnsigned(0, node_isolate);
   Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
@@ -151,9 +151,9 @@ Buffer* Buffer::New(const char* data, size_t length) {
 
 Buffer* Buffer::New(char *data, size_t length,
                     free_callback callback, void *hint) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
-  Local<Value> arg = Integer::NewFromUnsigned(0);
+  Local<Value> arg = Integer::NewFromUnsigned(0, node_isolate);
   Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
@@ -168,7 +168,7 @@ Handle<Value> Buffer::New(const Arguments &args) {
     return FromConstructorTemplate(constructor_template, args);
   }
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (!args[0]->IsUint32()) return ThrowTypeError("Bad argument");
 
@@ -202,7 +202,7 @@ Buffer::~Buffer() {
 // const_cast in Buffer::New requires this
 void Buffer::Replace(char *data, size_t length,
                      free_callback callback, void *hint) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (callback_) {
     callback_(data_, callback_hint_);
@@ -231,12 +231,12 @@ void Buffer::Replace(char *data, size_t length,
   handle_->SetIndexedPropertiesToExternalArrayData(data_,
                                                    kExternalUnsignedByteArray,
                                                    length_);
-  handle_->Set(length_symbol, Integer::NewFromUnsigned(length_));
+  handle_->Set(length_symbol, Integer::NewFromUnsigned(length_, node_isolate));
 }
 
 
 Handle<Value> Buffer::BinarySlice(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
@@ -352,7 +352,7 @@ static void force_ascii(const char* src, char* dst, size_t len) {
 
 
 Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
@@ -372,7 +372,7 @@ Handle<Value> Buffer::AsciiSlice(const Arguments &args) {
 
 
 Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
   char *data = parent->data_ + start;
@@ -382,7 +382,7 @@ Handle<Value> Buffer::Utf8Slice(const Arguments &args) {
 
 
 Handle<Value> Buffer::Ucs2Slice(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
   uint16_t *data = (uint16_t*)(parent->data_ + start);
@@ -392,12 +392,12 @@ Handle<Value> Buffer::Ucs2Slice(const Arguments &args) {
 
 
 Handle<Value> Buffer::HexSlice(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer* parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
   char* src = parent->data_ + start;
   uint32_t dstlen = (end - start) * 2;
-  if (dstlen == 0) return scope.Close(String::Empty());
+  if (dstlen == 0) return scope.Close(String::Empty(node_isolate));
   char* dst = new char[dstlen];
   for (uint32_t i = 0, k = 0; k < dstlen; i += 1, k += 2) {
     static const char hex[] = "0123456789abcdef";
@@ -434,7 +434,7 @@ static const int unbase64_table[] =
 
 
 Handle<Value> Buffer::Base64Slice(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *parent = ObjectWrap::Unwrap<Buffer>(args.This());
   SLICE_ARGS(args[0], args[1])
 
@@ -503,7 +503,7 @@ Handle<Value> Buffer::Base64Slice(const Arguments &args) {
 
 // buffer.fill(value, start, end);
 Handle<Value> Buffer::Fill(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (!args[0]->IsInt32()) {
     return ThrowException(Exception::Error(String::New(
@@ -518,13 +518,13 @@ Handle<Value> Buffer::Fill(const Arguments &args) {
           value,
           end - start);
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
 // var bytesCopied = buffer.copy(target, targetStart, sourceStart, sourceEnd);
 Handle<Value> Buffer::Copy(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Buffer *source = ObjectWrap::Unwrap<Buffer>(args.This());
 
@@ -546,7 +546,7 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
 
   // Copy 0 bytes; we're done
   if (source_end == source_start) {
-    return scope.Close(Integer::New(0));
+    return scope.Close(Integer::New(0, node_isolate));
   }
 
   if (target_start >= target_length) {
@@ -570,13 +570,13 @@ Handle<Value> Buffer::Copy(const Arguments &args) {
           (const void*)(source->data_ + source_start),
           to_copy);
 
-  return scope.Close(Integer::New(to_copy));
+  return scope.Close(Integer::New(to_copy, node_isolate));
 }
 
 
 // var charsWritten = buffer.utf8Write(string, offset, [maxLength]);
 Handle<Value> Buffer::Utf8Write(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
@@ -592,8 +592,8 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   if (length == 0) {
     constructor_template->GetFunction()->Set(chars_written_sym,
-                                             Integer::New(0));
-    return scope.Close(Integer::New(0));
+                                             Integer::New(0, node_isolate));
+    return scope.Close(Integer::New(0, node_isolate));
   }
 
   if (length > 0 && offset >= buffer->length_) {
@@ -615,15 +615,16 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
                               String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(char_written));
+                                           Integer::New(char_written,
+                                                        node_isolate));
 
-  return scope.Close(Integer::New(written));
+  return scope.Close(Integer::New(written, node_isolate));
 }
 
 
 // var charsWritten = buffer.ucs2Write(string, offset, [maxLength]);
 Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
@@ -652,9 +653,9 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
                           String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written));
+                                           Integer::New(written, node_isolate));
 
-  return scope.Close(Integer::New(written * 2));
+  return scope.Close(Integer::New(written * 2, node_isolate));
 }
 
 
@@ -667,7 +668,7 @@ inline unsigned hex2bin(char c) {
 
 
 Handle<Value> Buffer::HexWrite(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Buffer* parent = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (args[0]->IsString() == false) {
@@ -685,7 +686,7 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
   uint32_t end = start + size;
 
   if (start >= parent->length_) {
-    Local<Integer> val = Integer::New(0);
+    Local<Integer> val = Integer::New(0, node_isolate);
     constructor_template->GetFunction()->Set(chars_written_sym, val);
     return scope.Close(val);
   }
@@ -696,7 +697,7 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
   }
 
   if (size == 0) {
-    Local<Integer> val = Integer::New(0);
+    Local<Integer> val = Integer::New(0, node_isolate);
     constructor_template->GetFunction()->Set(chars_written_sym, val);
     return scope.Close(val);
   }
@@ -718,15 +719,15 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
   }
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(max * 2));
+                                           Integer::New(max * 2, node_isolate));
 
-  return scope.Close(Integer::New(max));
+  return scope.Close(Integer::New(max, node_isolate));
 }
 
 
 // var charsWritten = buffer.asciiWrite(string, offset);
 Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
@@ -755,15 +756,15 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
                                String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written));
+                                           Integer::New(written, node_isolate));
 
-  return scope.Close(Integer::New(written));
+  return scope.Close(Integer::New(written, node_isolate));
 }
 
 
 // var bytesWritten = buffer.base64Write(string, offset, [maxLength]);
 Handle<Value> Buffer::Base64Write(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
@@ -818,14 +819,15 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
   }
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(dst - start));
+                                           Integer::New(dst - start,
+                                                        node_isolate));
 
-  return scope.Close(Integer::New(dst - start));
+  return scope.Close(Integer::New(dst - start, node_isolate));
 }
 
 
 Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
@@ -850,9 +852,9 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   int written = DecodeWrite(p, max_length, s, BINARY);
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written));
+                                           Integer::New(written, node_isolate));
 
-  return scope.Close(Integer::New(written));
+  return scope.Close(Integer::New(written, node_isolate));
 }
 
 
@@ -949,7 +951,7 @@ Handle<Value> WriteFloatGeneric(const Arguments& args) {
   if (ENDIANNESS != is_big_endian())
     swizzle(ptr, sizeof(T));
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -975,7 +977,7 @@ Handle<Value> Buffer::WriteDoubleBE(const Arguments& args) {
 
 // var nbytes = Buffer.byteLength("string", "utf8")
 Handle<Value> Buffer::ByteLength(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (!args[0]->IsString()) {
     return ThrowTypeError("Argument must be a string");
@@ -984,12 +986,12 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
   Local<String> s = args[0]->ToString();
   enum encoding e = ParseEncoding(args[1], UTF8);
 
-  return scope.Close(Integer::New(node::ByteLength(s, e)));
+  return scope.Close(Integer::New(node::ByteLength(s, e), node_isolate));
 }
 
 
 Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (!Buffer::HasInstance(args[0])) {
     return ThrowTypeError("First argument must be a Buffer");
@@ -1017,7 +1019,7 @@ Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
                                                        kExternalUnsignedByteArray,
                                                        length);
 
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1042,7 +1044,7 @@ Handle<Value> SetFastBufferConstructor(const Arguments& args) {
   assert(args[0]->IsFunction());
   fast_buffer_constructor = Persistent<Function>::New(node_isolate,
                                                       args[0].As<Function>());
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -1102,7 +1104,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Handle<Value> wrapper) {
 
 
 void Buffer::Initialize(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   // sanity checks
   assert(unbase64('/') == 63);

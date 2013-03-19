@@ -103,7 +103,7 @@ Persistent<Function> cloneObjectMethod;
 
 void CloneObject(Handle<Object> recv,
                  Handle<Value> source, Handle<Value> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Handle<Value> args[] = {source, target};
 
@@ -133,7 +133,7 @@ void CloneObject(Handle<Object> recv,
 
 
 void WrappedContext::Initialize(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedContext::New);
   constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);
@@ -151,7 +151,7 @@ bool WrappedContext::InstanceOf(Handle<Value> value) {
 
 
 Handle<Value> WrappedContext::New(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   WrappedContext *t = new WrappedContext();
   t->Wrap(args.This());
@@ -185,7 +185,7 @@ Persistent<FunctionTemplate> WrappedScript::constructor_template;
 
 
 void WrappedScript::Initialize(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedScript::New);
   constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);
@@ -237,7 +237,7 @@ Handle<Value> WrappedScript::New(const Arguments& args) {
     return FromConstructorTemplate(constructor_template, args);
   }
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   WrappedScript *t = new WrappedScript();
   t->Wrap(args.Holder());
@@ -253,7 +253,7 @@ WrappedScript::~WrappedScript() {
 
 
 Handle<Value> WrappedScript::CreateContext(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<Object> context = WrappedContext::NewInstance();
 
@@ -313,7 +313,7 @@ template <WrappedScript::EvalInputFlags input_flag,
           WrappedScript::EvalContextFlags context_flag,
           WrappedScript::EvalOutputFlags output_flag>
 Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (input_flag == compileCode && args.Length() < 1) {
     return ThrowException(Exception::TypeError(
@@ -364,7 +364,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     // to a local handle, and then dispose the persistent handle. This ensures
     // that when this function exits the context will be disposed.
     Persistent<Context> tmp = Context::New();
-    context = Local<Context>::New(tmp);
+    context = Local<Context>::New(node_isolate, tmp);
     tmp.Dispose(node_isolate);
 
   } else if (context_flag == userContext) {
@@ -427,7 +427,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
       return ThrowException(Exception::Error(
             String::New("Must be called as a method of Script.")));
     }
-    n_script->script_ = Persistent<Script>::New(script);
+    n_script->script_ = Persistent<Script>::New(node_isolate, script);
     result = args.This();
   }
 
@@ -441,7 +441,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
 
 void InitEvals(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   WrappedContext::Initialize(target);
   WrappedScript::Initialize(target);

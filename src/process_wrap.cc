@@ -54,7 +54,7 @@ static Persistent<String> onexit_sym;
 class ProcessWrap : public HandleWrap {
  public:
   static void Initialize(Handle<Object> target) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     HandleWrap::Initialize(target);
 
@@ -80,7 +80,7 @@ class ProcessWrap : public HandleWrap {
     // normal function.
     assert(args.IsConstructCall());
 
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     ProcessWrap *wrap = new ProcessWrap(args.This());
     assert(wrap);
 
@@ -142,7 +142,7 @@ class ProcessWrap : public HandleWrap {
   }
 
   static Handle<Value> Spawn(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(ProcessWrap)
 
@@ -251,7 +251,7 @@ class ProcessWrap : public HandleWrap {
       wrap->SetHandle((uv_handle_t*)&wrap->process_);
       assert(wrap->process_.data == wrap);
       wrap->object_->Set(String::New("pid"),
-                         Integer::New(wrap->process_.pid));
+                         Integer::New(wrap->process_.pid, node_isolate));
     }
 
     if (options.args) {
@@ -266,11 +266,11 @@ class ProcessWrap : public HandleWrap {
 
     delete[] options.stdio;
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static Handle<Value> Kill(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     UNWRAP(ProcessWrap)
 
@@ -280,18 +280,18 @@ class ProcessWrap : public HandleWrap {
 
     if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-    return scope.Close(Integer::New(r));
+    return scope.Close(Integer::New(r, node_isolate));
   }
 
   static void OnExit(uv_process_t* handle, int exit_status, int term_signal) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     ProcessWrap* wrap = static_cast<ProcessWrap*>(handle->data);
     assert(wrap);
     assert(&wrap->process_ == handle);
 
     Local<Value> argv[2] = {
-      Integer::New(exit_status),
+      Integer::New(exit_status, node_isolate),
       String::New(signo_string(term_signal))
     };
 

@@ -60,7 +60,7 @@ uv_pipe_t* PipeWrap::UVHandle() {
 
 
 Local<Object> PipeWrap::Instantiate() {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   assert(!pipeConstructor.IsEmpty());
   return scope.Close(pipeConstructor->NewInstance());
 }
@@ -76,7 +76,7 @@ PipeWrap* PipeWrap::Unwrap(Local<Object> obj) {
 void PipeWrap::Initialize(Handle<Object> target) {
   StreamWrap::Initialize(target);
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> t = FunctionTemplate::New(New);
   t->SetClassName(String::NewSymbol("Pipe"));
@@ -126,7 +126,7 @@ Handle<Value> PipeWrap::New(const Arguments& args) {
   // normal function.
   assert(args.IsConstructCall());
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   PipeWrap* wrap = new PipeWrap(args.This(), args[0]->IsTrue());
   assert(wrap);
 
@@ -145,7 +145,7 @@ PipeWrap::PipeWrap(Handle<Object> object, bool ipc)
 
 
 Handle<Value> PipeWrap::Bind(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(PipeWrap)
 
@@ -156,13 +156,13 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
   // Error starting the pipe.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
 #ifdef _WIN32
 Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(PipeWrap)
 
@@ -170,13 +170,13 @@ Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
 
   uv_pipe_pending_instances(&wrap->handle_, instances);
 
-  return v8::Null();
+  return v8::Null(node_isolate);
 }
 #endif
 
 
 Handle<Value> PipeWrap::Listen(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(PipeWrap)
 
@@ -187,13 +187,13 @@ Handle<Value> PipeWrap::Listen(const Arguments& args) {
   // Error starting the pipe.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
 // TODO maybe share with TCPWrap?
 void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   PipeWrap* wrap = static_cast<PipeWrap*>(handle->data);
   assert(&wrap->handle_ == (uv_pipe_t*)handle);
@@ -231,7 +231,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   ConnectWrap* req_wrap = (ConnectWrap*) req->data;
   PipeWrap* wrap = (PipeWrap*) req->handle->data;
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   // The wrap and request objects should still be there.
   assert(req_wrap->object_.IsEmpty() == false);
@@ -248,11 +248,11 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   }
 
   Local<Value> argv[5] = {
-    Integer::New(status),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_),
-    Local<Value>::New(Boolean::New(readable)),
-    Local<Value>::New(Boolean::New(writable))
+    Integer::New(status, node_isolate),
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_),
+    Local<Value>::New(node_isolate, Boolean::New(readable)),
+    Local<Value>::New(node_isolate, Boolean::New(writable))
   };
 
   if (oncomplete_sym.IsEmpty()) {
@@ -265,7 +265,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
 
 
 Handle<Value> PipeWrap::Open(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(PipeWrap)
 
@@ -273,12 +273,12 @@ Handle<Value> PipeWrap::Open(const Arguments& args) {
 
   uv_pipe_open(&wrap->handle_, fd);
 
-  return scope.Close(v8::Null());
+  return scope.Close(v8::Null(node_isolate));
 }
 
 
 Handle<Value> PipeWrap::Connect(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(PipeWrap)
 

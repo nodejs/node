@@ -96,7 +96,7 @@ void StreamWrap::Initialize(Handle<Object> target) {
   slab_allocator = new SlabAllocator(SLAB_SIZE);
   AtExit(DeleteSlabAllocator, NULL);
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   HandleWrap::Initialize(target);
 
@@ -119,13 +119,13 @@ StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
 
 Handle<Value> StreamWrap::GetFD(Local<String>, const AccessorInfo& args) {
 #if defined(_WIN32)
-  return v8::Null();
+  return v8::Null(node_isolate);
 #else
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   UNWRAP_NO_ABORT(StreamWrap)
   int fd = -1;
   if (wrap != NULL && wrap->stream_ != NULL) fd = wrap->stream_->io_watcher.fd;
-  return scope.Close(Integer::New(fd));
+  return scope.Close(Integer::New(fd, node_isolate));
 #endif
 }
 
@@ -138,14 +138,14 @@ void StreamWrap::SetHandle(uv_handle_t* h) {
 
 
 void StreamWrap::UpdateWriteQueueSize() {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   object_->Set(write_queue_size_sym,
-               Integer::New(stream_->write_queue_size));
+               Integer::New(stream_->write_queue_size, node_isolate));
 }
 
 
 Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(StreamWrap)
 
@@ -161,12 +161,12 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
 Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(StreamWrap)
 
@@ -175,7 +175,7 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
   // Error starting the tcp.
   if (r) SetErrno(uv_last_error(uv_default_loop()));
 
-  return scope.Close(Integer::New(r));
+  return scope.Close(Integer::New(r, node_isolate));
 }
 
 
@@ -189,7 +189,7 @@ uv_buf_t StreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
 
 template <class WrapType, class UVType>
 static Local<Object> AcceptHandle(uv_stream_t* pipe) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<Object> wrap_obj;
   WrapType* wrap;
   UVType* handle;
@@ -211,7 +211,7 @@ static Local<Object> AcceptHandle(uv_stream_t* pipe) {
 
 void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
     uv_buf_t buf, uv_handle_type pending) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
 
@@ -242,8 +242,8 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
   int argc = 3;
   Local<Value> argv[4] = {
     slab,
-    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab)),
-    Integer::NewFromUnsigned(nread)
+    Integer::NewFromUnsigned(buf.base - Buffer::Data(slab), node_isolate),
+    Integer::NewFromUnsigned(nread, node_isolate)
   };
 
   Local<Object> pending_obj;
@@ -284,7 +284,7 @@ void StreamWrap::OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
 
 
 Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(StreamWrap)
 
@@ -310,7 +310,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
 
   req_wrap->Dispatched();
   req_wrap->object_->Set(bytes_sym,
-                         Integer::NewFromUnsigned(length));
+                         Integer::NewFromUnsigned(length, node_isolate));
 
   wrap->UpdateWriteQueueSize();
 
@@ -318,7 +318,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
     req_wrap->~WriteWrap();
     delete[] storage;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     if (wrap->stream_->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(length);
@@ -333,7 +333,7 @@ Handle<Value> StreamWrap::WriteBuffer(const Arguments& args) {
 
 template <WriteEncoding encoding>
 Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   int r;
 
   UNWRAP(StreamWrap)
@@ -381,7 +381,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
     uv_err_t err;
     err.code = UV_ENOBUFS;
     SetErrno(err);
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   }
 
   char* storage = new char[sizeof(WriteWrap) + storage_size + 15];
@@ -465,7 +465,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()));
     req_wrap->~WriteWrap();
     delete[] storage;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     if (wrap->stream_->type == UV_TCP) {
       NODE_COUNT_NET_BYTES_SENT(buf.len);
@@ -497,7 +497,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   WriteWrap* req_wrap = (WriteWrap*) req->data;
   StreamWrap* wrap = (StreamWrap*) req->handle->data;
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   // The wrap and request objects should still be there.
   assert(req_wrap->object_.IsEmpty() == false);
@@ -515,9 +515,9 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   wrap->UpdateWriteQueueSize();
 
   Local<Value> argv[] = {
-    Integer::New(status),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Integer::New(status, node_isolate),
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_)
   };
 
   MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);
@@ -528,7 +528,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
 
 
 Handle<Value> StreamWrap::Shutdown(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   UNWRAP(StreamWrap)
 
@@ -541,7 +541,7 @@ Handle<Value> StreamWrap::Shutdown(const Arguments& args) {
   if (r) {
     SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
-    return scope.Close(v8::Null());
+    return scope.Close(v8::Null(node_isolate));
   } else {
     return scope.Close(req_wrap->object_);
   }
@@ -556,16 +556,16 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   assert(req_wrap->object_.IsEmpty() == false);
   assert(wrap->object_.IsEmpty() == false);
 
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
   Local<Value> argv[3] = {
-    Integer::New(status),
-    Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Integer::New(status, node_isolate),
+    Local<Value>::New(node_isolate, wrap->object_),
+    Local<Value>::New(node_isolate, req_wrap->object_)
   };
 
   MakeCallback(req_wrap->object_, oncomplete_sym, ARRAY_SIZE(argv), argv);

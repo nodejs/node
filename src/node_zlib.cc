@@ -105,16 +105,16 @@ class ZCtx : public ObjectWrap {
 
 
   static Handle<Value> Close(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
     ctx->Close();
-    return scope.Close(Undefined());
+    return scope.Close(Undefined(node_isolate));
   }
 
 
   // write(flush, in, in_off, in_len, out, out_off, out_len)
   static Handle<Value> Write(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     assert(args.Length() == 7);
 
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
@@ -244,7 +244,7 @@ class ZCtx : public ObjectWrap {
   static void After(uv_work_t* work_req, int status) {
     assert(status == 0);
 
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     ZCtx *ctx = container_of(work_req, ZCtx, work_req_);
 
     // Acceptable error states depend on the type of zlib stream.
@@ -267,8 +267,8 @@ class ZCtx : public ObjectWrap {
         return;
     }
 
-    Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
-    Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in);
+    Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out, node_isolate);
+    Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in, node_isolate);
 
     ctx->write_in_progress_ = false;
 
@@ -291,9 +291,10 @@ class ZCtx : public ObjectWrap {
 
     assert(ctx->handle_->Get(onerror_sym)->IsFunction() &&
            "Invalid error handler");
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     Local<Value> args[2] = { String::New(msg),
-                             Local<Value>::New(Number::New(ctx->err_)) };
+                             Local<Value>::New(node_isolate,
+                                               Number::New(ctx->err_)) };
     MakeCallback(ctx->handle_, onerror_sym, ARRAY_SIZE(args), args);
 
     // no hope of rescue.
@@ -302,7 +303,7 @@ class ZCtx : public ObjectWrap {
   }
 
   static Handle<Value> New(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
     if (args.Length() < 1 || !args[0]->IsInt32()) {
       return ThrowException(Exception::TypeError(String::New("Bad argument")));
     }
@@ -319,7 +320,7 @@ class ZCtx : public ObjectWrap {
 
   // just pull the ints out of the args and call the other Init
   static Handle<Value> Init(const Arguments& args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     assert((args.Length() == 4 || args.Length() == 5) &&
            "init(windowBits, level, memLevel, strategy, [dictionary])");
@@ -356,17 +357,17 @@ class ZCtx : public ObjectWrap {
     Init(ctx, level, windowBits, memLevel, strategy,
          dictionary, dictionary_len);
     SetDictionary(ctx);
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   static Handle<Value> Reset(const Arguments &args) {
-    HandleScope scope;
+    HandleScope scope(node_isolate);
 
     ZCtx *ctx = ObjectWrap::Unwrap<ZCtx>(args.This());
 
     Reset(ctx);
     SetDictionary(ctx);
-    return Undefined();
+    return Undefined(node_isolate);
   }
 
   static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,
@@ -504,7 +505,7 @@ class ZCtx : public ObjectWrap {
 
 
 void InitZlib(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   Local<FunctionTemplate> z = FunctionTemplate::New(ZCtx::New);
 

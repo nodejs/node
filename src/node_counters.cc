@@ -44,37 +44,37 @@ static uint64_t counter_gc_end_time;
 
 Handle<Value> COUNTER_NET_SERVER_CONNECTION(const Arguments& args) {
   NODE_COUNT_SERVER_CONN_OPEN();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
 Handle<Value> COUNTER_NET_SERVER_CONNECTION_CLOSE(const Arguments& args) {
   NODE_COUNT_SERVER_CONN_CLOSE();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
 Handle<Value> COUNTER_HTTP_SERVER_REQUEST(const Arguments& args) {
   NODE_COUNT_HTTP_SERVER_REQUEST();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
 Handle<Value> COUNTER_HTTP_SERVER_RESPONSE(const Arguments& args) {
   NODE_COUNT_HTTP_SERVER_RESPONSE();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
 Handle<Value> COUNTER_HTTP_CLIENT_REQUEST(const Arguments& args) {
   NODE_COUNT_HTTP_CLIENT_REQUEST();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
 Handle<Value> COUNTER_HTTP_CLIENT_RESPONSE(const Arguments& args) {
   NODE_COUNT_HTTP_CLIENT_RESPONSE();
-  return Undefined();
+  return Undefined(node_isolate);
 }
 
 
@@ -106,7 +106,7 @@ static void counter_gc_done(GCType type, GCCallbackFlags flags) {
 #define NODE_PROBE(name) #name, name
 
 void InitPerfCounters(Handle<Object> target) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   static struct {
     const char* name;
