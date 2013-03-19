@@ -93,6 +93,20 @@ that writes to them are usually blocking.  They are blocking in the case
 that they refer to regular files or TTY file descriptors. In the case they
 refer to pipes, they are non-blocking like other streams.
 
+To check if Node is being run in a TTY context, read the `isTTY` property
+on `process.stderr`, `process.stdout`, or `process.stdin`:
+
+    $ node -p "Boolean(process.stdin.isTTY)"
+    true
+    $ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
+    false
+
+    $ node -p "Boolean(process.stdout.isTTY)"
+    true
+    $ node -p "Boolean(process.stdout.isTTY)" | cat
+    false
+
+See [the tty docs](tty.html#tty_tty) for more information.
 
 ## process.stderr
 
