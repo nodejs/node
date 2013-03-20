@@ -209,7 +209,7 @@ node_module_struct* get_builtin_module(const char *name);
  * an API is broken in the C++ side, including in v8 or
  * other dependencies.
  */
-#define NODE_MODULE_VERSION 0x000B /* v0.11 */
+#define NODE_MODULE_VERSION 0x000C /* v0.12 */
 
 #define NODE_STANDARD_MODULE_STUFF \
           NODE_MODULE_VERSION,     \
