@@ -18,17 +18,17 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-OS ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
+PLATFORM ?= $(shell sh -c 'uname -s | tr "[A-Z]" "[a-z]"')
 
 CPPFLAGS += -I$(SRCDIR)/include -I$(SRCDIR)/include/uv-private
 
-ifeq (darwin,$(OS))
+ifeq (darwin,$(PLATFORM))
 SOEXT = dylib
 else
 SOEXT = so
 endif
 
-ifneq (,$(findstring mingw,$(OS)))
+ifneq (,$(findstring mingw,$(PLATFORM)))
 include $(SRCDIR)/config-mingw.mk
 else
 include $(SRCDIR)/config-unix.mk
