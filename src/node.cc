@@ -1212,7 +1212,10 @@ ssize_t DecodeWrite(char *buf,
   }
 
   if (encoding == ASCII) {
-    str->WriteAscii(buf, 0, buflen, String::HINT_MANY_WRITES_EXPECTED);
+    str->WriteOneByte(reinterpret_cast<uint8_t*>(buf),
+                      0,
+                      buflen,
+                      String::HINT_MANY_WRITES_EXPECTED);
     return buflen;
   }
 

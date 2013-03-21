@@ -392,7 +392,7 @@ Handle<Value> StreamWrap::WriteStringImpl(const Arguments& args) {
   size_t data_size;
   switch (encoding) {
   case kAscii:
-      data_size = string->WriteAscii(data, 0, -1,
+      data_size = string->WriteOneByte(reinterpret_cast<uint8_t*>(data), 0, -1,
           String::NO_NULL_TERMINATION | String::HINT_MANY_WRITES_EXPECTED);
       break;
 

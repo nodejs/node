@@ -749,11 +749,11 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 
   char *p = buffer->data_ + offset;
 
-  int written = s->WriteAscii(p,
-                              0,
-                              max_length,
-                              (String::HINT_MANY_WRITES_EXPECTED |
-                               String::NO_NULL_TERMINATION));
+  int written = s->WriteOneByte(reinterpret_cast<uint8_t*>(p),
+                                0,
+                                max_length,
+                                (String::HINT_MANY_WRITES_EXPECTED |
+                                 String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(written, node_isolate));
