@@ -48,36 +48,24 @@ if (nodes.length !== 2)
 
 var spawn = require('child_process').spawn;
 var results = {};
-var n = 1;
+var toggle = 1;
+var r = (+process.env.NODE_BENCH_RUNS || 1) * 2;
 
 run();
-
-var RUNS = +process.env.NODE_BENCH_RUNS || 1;
-var r = RUNS;
 function run() {
-  // Flip back and forth between the two binaries.
-  if (n === 1) {
-    n--;
-  } else {
-    r--;
-    if (r === 0)
-      return compare();
-    else
-      n++;
-  }
-
-  if (n === -1)
+  if (--r < 0)
     return compare();
+  toggle = ++toggle % 2;
 
-  var node = nodes[n];
+  var node = nodes[toggle];
   console.error('running %s', node);
   var env = {};
   for (var i in process.env)
     env[i] = process.env[i];
   env.NODE = node;
-  var child = spawn('make', [runBench], { env: env });
 
   var out = '';
+  var child = spawn('make', [runBench], { env: env });
   child.stdout.setEncoding('utf8');
   child.stdout.on('data', function(c) {
     out += c;

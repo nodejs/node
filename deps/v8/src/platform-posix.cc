@@ -110,19 +110,25 @@ void* OS::GetRandomMmapAddr() {
 #else
     uint32_t raw_addr = V8::RandomPrivate(isolate);
 
-    // For our 32-bit mmap() hint, we pick a random address in the bottom
+    raw_addr &= 0x3ffff000;
+
+# ifdef __sun
+    // For our Solaris/illumos mmap hint, we pick a random address in the bottom
     // half of the top half of the address space (that is, the third quarter).
     // Because we do not MAP_FIXED, this will be treated only as a hint -- the
     // system will not fail to mmap() because something else happens to already
     // be mapped at our random address. We deliberately set the hint high enough
-    // to get well above the system's break (that is, the heap); systems will
-    // either try the hint and if that fails move higher (MacOS and other BSD
-    // derivatives) or try the hint and if that fails allocate as if there were
-    // no hint at all (Linux, Solaris, illumos and derivatives). The high hint
-    // prevents the break from getting hemmed in at low values, ceding half of
-    // the address space to the system heap.
-    raw_addr &= 0x3ffff000;
+    // to get well above the system's break (that is, the heap); Solaris and
+    // illumos will try the hint and if that fails allocate as if there were
+    // no hint at all. The high hint prevents the break from getting hemmed in
+    // at low values, ceding half of the address space to the system heap.
     raw_addr += 0x80000000;
+# else
+    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
+    // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
+    // 10.6 and 10.7.
+    raw_addr += 0x20000000;
+# endif
 #endif
     return reinterpret_cast<void*>(raw_addr);
   }

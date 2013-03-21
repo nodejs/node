@@ -901,9 +901,11 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 
 Handle<Value>
 MakeDomainCallback(const Handle<Object> object,
-             const Handle<Function> callback,
-             int argc,
-             Handle<Value> argv[]) {
+                   const Handle<Function> callback,
+                   int argc,
+                   Handle<Value> argv[]) {
+  // TODO Hook for long stack traces to be made here.
+
   // lazy load _tickDomainCallback
   if (process_tickDomainCallback.IsEmpty()) {
     Local<Value> cb_v = process->Get(String::New("_tickDomainCallback"));
@@ -980,19 +982,10 @@ MakeDomainCallback(const Handle<Object> object,
 
 Handle<Value>
 MakeCallback(const Handle<Object> object,
-             const Handle<String> symbol,
+             const Handle<Function> callback,
              int argc,
              Handle<Value> argv[]) {
-  HandleScope scope(node_isolate);
-
-  Local<Function> callback = object->Get(symbol).As<Function>();
-  Local<Value> domain = object->Get(domain_symbol);
-
   // TODO Hook for long stack traces to be made here.
-
-  // has domain, off with you
-  if (!domain->IsNull() && !domain->IsUndefined())
-    return scope.Close(MakeDomainCallback(object, callback, argc, argv));
 
   // lazy load no domain next tick callbacks
   if (process_tickCallback.IsEmpty()) {
@@ -1017,7 +1010,7 @@ MakeCallback(const Handle<Object> object,
   if (tick_infobox.length == 0) {
     tick_infobox.index = 0;
     tick_infobox.depth = 0;
-    return scope.Close(ret);
+    return ret;
   }
 
   // process nextTicks after call
@@ -1028,7 +1021,24 @@ MakeCallback(const Handle<Object> object,
     return Undefined(node_isolate);
   }
 
-  return scope.Close(ret);
+  return ret;
+}
+
+
+Handle<Value>
+MakeCallback(const Handle<Object> object,
+             const Handle<String> symbol,
+             int argc,
+             Handle<Value> argv[]) {
+  HandleScope scope(node_isolate);
+
+  Local<Function> callback = object->Get(symbol).As<Function>();
+  Local<Value> domain = object->Get(domain_symbol);
+
+  // has domain, off with you
+  if (!domain->IsNull() && !domain->IsUndefined())
+    return scope.Close(MakeDomainCallback(object, callback, argc, argv));
+  return scope.Close(MakeCallback(object, callback, argc, argv));
 }
 
 

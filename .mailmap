@@ -8,12 +8,13 @@ Arlo Breault <arlolra@gmail.com>
 Artem Zaytsev <a.arepo@gmail.com>
 Atsuo Fukaya <fukayatsu@gmail.com>
 Ben Noordhuis <info@bnoordhuis.nl> <bnoordhuis@bender.(none)>
+Ben Taber <ben.taber@gmail.com>
 Bert Belder <bertbelder@gmail.com> <bert@piscisaureus2.(none)>
+Bert Belder <bertbelder@gmail.com> <info@2bs.nl>
 Bert Belder <bertbelder@gmail.com> <piscisaureus@Berts-MacBook-Pro.local>
 Brandon Benvie <brandon@bbenvie.com> <brandon@brandonbenvie.com>
 Brian White <mscdex@mscdex.net>
 Brian White <mscdex@mscdex.net> <mscdex@gmail.com>
-Bryan Cantrill <bmc@joyent.com> <bryan@joyent.com>
 Chew Choon Keat <choonkeat@gmail.com>
 Christopher Lenz <cmlenz@gmail.com> <chris@lamech.local>
 Daniel Berger <code+node@dpbis.net>
@@ -30,28 +31,37 @@ Elliott Cable <me@ell.io>
 EungJun Yi <semtlenori@gmail.com>
 Evan Larkin <evan.larkin.il.com> <evan.larkin.iit@gmail.com>
 Farid Neshat <FaridN_SOAD@yahoo.com>
+Felix Böhm <felixboehm55@googlemail.com> <me@feedic.com>
 Felix Geisendörfer <felix@debuggable.com>
 Felix Geisendörfer <felix@debuggable.com>
 Friedemann Altrock <frodenius@gmail.com>
 Fuji Goro <gfuji@cpan.org>
 Gabriel de Perthuis <g2p.code@gmail.com>
+Gil Pedersen <git@gpost.dk> <github@gpost.dk>
+Henry Chin <hheennrryy@gmail.com>
 Herbert Vojčík <herby@mailbox.sk>
+Igor Soarez <igorsoarez@gmail.com>
 Igor Zinkovsky <igorzi@microsoft.com>
 Isaac Z. Schlueter <i@izs.me>
 Isaac Z. Schlueter <i@izs.me> <i@foohack.com>
-Jérémy Lal <kapouer@melix.org>
-Jérémy Lal <kapouer@melix.org> <holisme@gmail.com>
+Jake Verbaten <raynos2@gmail.com>
 Jered Schmidt <tr@nslator.jp>
 Joe Shaw <joe@joeshaw.org> <joeshaw@litl.com>
 Johan Bergström <bugs@bergstroem.nu>
 Johan Dahlberg <jfd@distrop.com> <dahlberg.johan@gmail.com>
 Jonas Pfenniger <jonas@pfenniger.name> <jonas@stvs.ch>
 Jonathan Rentzsch <jwr.git@redshed.net>
+Josh Erickson <josh@snoj.us>
 Joshua S. Weinstein <josher19@users.sf.net>
+Jérémy Lal <kapouer@melix.org>
+Jérémy Lal <kapouer@melix.org> <holisme@gmail.com>
+Kai Sasaki Lewuathe <sasaki_kai@lewuathe.sakura.ne.jp>
 Kazuyuki Yamada <tasogare.pg@gmail.com>
 Koichi Kobayashi <koichik@improvement.jp>
 Kris Kowal <kris.kowal@cixar.com>
 Kyle Robinson Young <kyle@dontkry.com>
+Luke Bayes <lbayes@patternpark.com>
+Maciej Małecki <maciej.malecki@notimplemented.org> <me@mmalecki.com>
 Mathias Pettersson <mape@mape.me>
 Michael Bernstein <michaelrbernstein@gmail.com>
 Michael Wilber <gcr@sneakygcr.net>
@@ -70,6 +80,7 @@ Sam Shull <brickysam26@gmail.com> <brickysam26@samuel-shulls-computer.local>
 Sam Shull <brickysam26@gmail.com> <sshull@squaremouth.com>
 Sambasiva Suda <sambasivarao@gmail.com>
 San-Tai Hsu <v@fatpipi.com>
+Scott Blomquist <github@scott.blomqui.st> <sblom@microsoft.com>
 Sergey Kryzhanovsky <skryzhanovsky@gmail.com> <another@dhcp199-223-red.yandex.net>
 Shannen Saez <shannenlaptop@gmail.com>
 Shigeki Ohtsu <ohtsu@d.jp> <ohtsu@iij.ad.jp>
@@ -77,15 +88,17 @@ Siddharth Mahendraker <siddharth_mahen@hotmail.com> <siddharth_mahen@me.com>
 Simon Willison <simon@simonwillison.net>
 Stanislav Opichal <opichals@gmail.com>
 Stefan Bühler <stbuehler@web.de>
+TJ Holowaychuk <tj@vision-media.ca>
+TJ Holowaychuk <tj@vision-media.ca> <tjholowayhuk@gmail.com>
 Tadashi SAWADA <cesare@mayverse.jp>
 Takahiro ANDO <takahiro.ando@gmail.com>
 Ted Young <ted@radicaldesigns.org>
 Thomas Lee <thomas.lee@shinetech.com> <tom@tom-debian.sensis.com.au>
 Tim Caswell <tim@creationix.com> <tim@0-26-8-e9-4c-e1.dyn.utdallas.edu>
+Tim Price <timprice@mangoraft.com>
 Tim Smart <timehandgod@gmail.com> <tim@fostle.com>
 Tim Smart <timehandgod@gmail.com> <timehandgod@gmail.com>
-TJ Holowaychuk <tj@vision-media.ca>
-TJ Holowaychuk <tj@vision-media.ca> <tjholowayhuk@gmail.com>
+Tom Hughes-Croucher <tom.hughes@palm.com>
 Tom Hughes-Croucher <tom.hughes@palm.com> <tom_croucher@yahoo.com>
 Trevor Burnham <trevor@databraid.com> <trevorburnham@gmail.com>
 Tyler Larson <talltyler@gmail.com>

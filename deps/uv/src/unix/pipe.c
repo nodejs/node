@@ -155,6 +155,11 @@ void uv__pipe_close(uv_pipe_t* handle) {
 
 
 int uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
+#if defined(__APPLE__)
+  if (uv__stream_try_select((uv_stream_t*) handle, &fd))
+    return -1;
+#endif /* defined(__APPLE__) */
+
   return uv__stream_open((uv_stream_t*)handle,
                          fd,
                          UV_STREAM_READABLE | UV_STREAM_WRITABLE);

@@ -47,7 +47,7 @@ extern "C" {
 
 
 #define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 9
+#define UV_VERSION_MINOR 10
 
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -660,12 +660,12 @@ UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
                                unsigned int delay);
 
 /*
- * This setting applies to Windows only.
  * Enable/disable simultaneous asynchronous accept requests that are
  * queued by the operating system when listening for new tcp connections.
  * This setting is used to tune a tcp server for the desired performance.
  * Having simultaneous accepts can significantly improve the rate of
- * accepting connections (which is why it is enabled by default).
+ * accepting connections (which is why it is enabled by default) but
+ * may lead to uneven load distribution in multi-process setups.
  */
 UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 

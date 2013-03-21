@@ -77,7 +77,7 @@ npm will not help you do something that is known to be a bad idea.
 No.  This will never happen.  This question comes up sometimes,
 because it seems silly from the outside that npm couldn't just be
 configured to put stuff somewhere else, and then npm could load them
-from there.  It's an arbitrary spelling choice, right?  What's the bg
+from there.  It's an arbitrary spelling choice, right?  What's the big
 deal?
 
 At the time of this writing, the string `'node_modules'` appears 151

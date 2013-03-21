@@ -717,11 +717,11 @@ SimpleProtocol.prototype._transform = function(chunk, encoding, done) {
       this.emit('header', this.header);
 
       // now, because we got some extra data, emit this first.
-      this.push(b);
+      this.push(chunk.slice(split));
     }
   } else {
     // from there on, just provide the data to our consumer as-is.
-    this.push(b);
+    this.push(chunk);
   }
   done();
 };

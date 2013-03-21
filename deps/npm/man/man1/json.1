@@ -155,6 +155,43 @@ you can specify the value for "bugs" as a simple string instead of an object\.
 .P
 If a url is provided, it will be used by the \fBnpm bugs\fR command\.
 .
+.SH "license"
+You should specify a license for your package so that people know how they are
+permitted to use it, and any restrictions you\'re placing on it\.
+.
+.P
+The simplest way, assuming you\'re using a common license such as BSD or MIT, is
+to just specify the name of the license you\'re using, like this:
+.
+.IP "" 4
+.
+.nf
+{ "license" : "BSD" }
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If you have more complex licensing terms, or you want to provide more detail
+in your package\.json file, you can use the more verbose plural form, like this:
+.
+.IP "" 4
+.
+.nf
+"licenses" : [
+  { "type" : "MyLicense"
+  , "url" : "http://github\.com/owner/project/path/to/license"
+  }
+]
+.
+.fi
+.
+.IP "" 0
+.
+.P
+It\'s also a good idea to include a license file at the top level in your package\.
+.
 .SH "people fields: author, contributors"
 The "author" is one person\.  "contributors" is an array of people\.  A "person"
 is an object with a "name" field and optionally "url" and "email", like this:
@@ -594,9 +631,8 @@ In this case, it\'s best to list these additional items in a \fBdevDependencies\
 .
 .P
 These things will be installed whenever the \fB\-\-dev\fR configuration flag
-is set\.  This flag is set automatically when doing \fBnpm link\fR, and can
-be managed like any other npm configuration param\.  See \fBnpm help config\fR
-for more on the topic\.
+is set\.  This flag is set automatically when doing \fBnpm link\fR or when doing \fBnpm install\fR from the root of a package, and can be managed like any other npm
+configuration param\.  See \fBnpm help config\fR for more on the topic\.
 .
 .SH "bundledDependencies"
 Array of package names that will be bundled when publishing the package\.

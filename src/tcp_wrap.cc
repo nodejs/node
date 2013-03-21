@@ -104,6 +104,7 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
 
+  NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
   NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
   NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
   NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
@@ -254,6 +255,15 @@ Handle<Value> TCPWrap::SetSimultaneousAccepts(const Arguments& args) {
   return Undefined(node_isolate);
 }
 #endif
+
+
+Handle<Value> TCPWrap::Open(const Arguments& args) {
+  HandleScope scope;
+  UNWRAP(TCPWrap)
+  int fd = args[0]->IntegerValue();
+  uv_tcp_open(&wrap->handle_, fd);
+  return Null();
+}
 
 
 Handle<Value> TCPWrap::Bind(const Arguments& args) {

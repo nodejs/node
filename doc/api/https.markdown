@@ -205,5 +205,5 @@ Global instance of [https.Agent][] for all HTTPS client requests.
 [http.request()]: http.html#http_http_request_options_callback
 [https.Agent]: #https_class_https_agent
 [https.request()]: #https_https_request_options_callback
-[tls.connect()]: tls.html#tls_tls_connect_options_secureconnectlistener
+[tls.connect()]: tls.html#tls_tls_connect_options_callback
 [tls.createServer()]: tls.html#tls_tls_createserver_options_secureconnectionlistener

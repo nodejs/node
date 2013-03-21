@@ -573,13 +573,22 @@ function addNamed (name, x, data, cb_) {
   })
 }
 
-function addNameTag (name, tag, data, cb) {
-  if (typeof cb !== "function") cb = data, data = null
+function addNameTag (name, tag, data, cb_) {
+  if (typeof cb_ !== "function") cb_ = data, data = null
   log.info("addNameTag", [name, tag])
   var explicit = true
   if (!tag) {
     explicit = false
     tag = npm.config.get("tag")
+  }
+
+  function cb(er, data) {
+    // might be username/project
+    // in that case, try it as a github url.
+    if (er && tag.split("/").length === 2) {
+      return maybeGithub(tag, name, er, cb_)
+    }
+    return cb_(er, data)
   }
 
   registry.get(name, function (er, data, json, response) {
@@ -595,13 +604,6 @@ function addNameTag (name, tag, data, cb) {
     }
 
     er = installTargetsError(tag, data)
-
-    // might be username/project
-    // in that case, try it as a github url.
-    if (tag.split("/").length === 2) {
-      return maybeGithub(tag, name, er, cb)
-    }
-
     return cb(er)
   })
 }

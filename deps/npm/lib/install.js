@@ -679,7 +679,7 @@ function targetResolver (where, context, deps) {
 
       if (data && !data._from) data._from = what
 
-      return cb(er, data)
+      return cb(er, data || [])
     })
   }
 }

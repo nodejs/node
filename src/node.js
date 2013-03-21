@@ -569,6 +569,7 @@
         break;
 
       case 'PIPE':
+      case 'TCP':
         var net = NativeModule.require('net');
         stream = new net.Socket({
           fd: fd,
@@ -654,6 +655,7 @@
           break;
 
         case 'PIPE':
+        case 'TCP':
           var net = NativeModule.require('net');
           stdin = new net.Socket({
             fd: fd,
@@ -731,10 +733,6 @@
   };
 
   startup.processSignalHandlers = function() {
-    // Not supported on Windows.
-    if (process.platform === 'win32')
-      return;
-
     // Load events module in order to access prototype elements on process like
     // process.addListener.
     var signalWraps = {};
