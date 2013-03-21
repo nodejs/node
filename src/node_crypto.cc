@@ -1307,11 +1307,6 @@ Handle<Value> Connection::EncIn(const Arguments& args) {
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Offset is out of bounds")));
-  }
-
   size_t len = args[2]->Int32Value();
   if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
@@ -1353,11 +1348,6 @@ Handle<Value> Connection::ClearOut(const Arguments& args) {
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Offset is out of bounds")));
-  }
-
   size_t len = args[2]->Int32Value();
   if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
@@ -1425,11 +1415,6 @@ Handle<Value> Connection::EncOut(const Arguments& args) {
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
-  if (off >= buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Offset is out of bounds")));
-  }
-
   size_t len = args[2]->Int32Value();
   if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
@@ -1464,11 +1449,6 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
   size_t buffer_length = Buffer::Length(args[0]);
 
   size_t off = args[1]->Int32Value();
-  if (off > buffer_length) {
-    return ThrowException(Exception::Error(
-          String::New("Offset is out of bounds")));
-  }
-
   size_t len = args[2]->Int32Value();
   if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
