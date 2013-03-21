@@ -1,5 +1,5 @@
 {
-  "version": "1.2.14",
+  "version": "1.2.15",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -59,7 +59,7 @@
     "npmlog": "0",
     "ansi": "~0.1.2",
     "npm-registry-client": "~0.2.18",
-    "read-package-json": "~0.2.2",
+    "read-package-json": "~0.3.0",
     "read-installed": "0",
     "glob": "~3.1.21",
     "init-package-json": "0.0.6",
