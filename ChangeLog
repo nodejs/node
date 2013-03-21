@@ -1,4 +1,35 @@
-2013.03.11, Version 0.10.0 (Stable)
+2013.03.21, Version 0.10.1 (Stable)
+
+* npm: upgrade to 1.2.15
+
+* crypto: Improve performance of non-stream APIs (Fedor Indutny)
+
+* tls: always reset this.ssl.error after handling (Fedor Indutny)
+
+* tls: Prevent mid-stream hangs (Fedor Indutny, isaacs)
+
+* net: improve arbitrary tcp socket support (Ben Noordhuis)
+
+* net: handle 'finish' event only after 'connect' (Fedor Indutny)
+
+* http: Don't hot-path end() for large buffers (isaacs)
+
+* fs: Missing cb errors are deprecated, not a throw (isaacs)
+
+* fs: make write/appendFileSync correctly set file mode (Raymond Feng)
+
+* stream: Return self from readable.wrap (isaacs)
+
+* stream: Never call decoder.end() multiple times (Gil Pedersen)
+
+* windows: enable watching signals with process.on('SIGXYZ') (Bert Belder)
+
+* node: revert removal of MakeCallback (Trevor Norris)
+
+* node: Unwrap without aborting in handle fd getter (isaacs)
+
+
+2013.03.11, Version 0.10.0 (Stable), 163ca274230fce536afe76c64676c332693ad7c1
 
 * npm: Upgrade to 1.2.14
 
