@@ -149,7 +149,7 @@ NODE_EXTERN ssize_t DecodeWrite(char *buf,
                                 v8::Handle<v8::Value>,
                                 enum encoding encoding = BINARY);
 
-v8::Local<v8::Object> BuildStatsObject(const uv_statbuf_t* s);
+v8::Local<v8::Object> BuildStatsObject(const uv_stat_t* s);
 
 
 static inline v8::Persistent<v8::Function>* cb_persist(

@@ -44,8 +44,8 @@ class StatWatcher : ObjectWrap {
  private:
   static void Callback(uv_fs_poll_t* handle,
                        int status,
-                       const uv_statbuf_t* prev,
-                       const uv_statbuf_t* curr);
+                       const uv_stat_t* prev,
+                       const uv_stat_t* curr);
   void Stop();
 
   uv_fs_poll_t* watcher_;

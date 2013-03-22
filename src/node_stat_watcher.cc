@@ -71,8 +71,8 @@ StatWatcher::~StatWatcher() {
 
 void StatWatcher::Callback(uv_fs_poll_t* handle,
                            int status,
-                           const uv_statbuf_t* prev,
-                           const uv_statbuf_t* curr) {
+                           const uv_stat_t* prev,
+                           const uv_stat_t* curr) {
   StatWatcher* wrap = static_cast<StatWatcher*>(handle->data);
   assert(wrap->watcher_ == handle);
   HandleScope scope(node_isolate);

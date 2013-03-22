@@ -151,7 +151,7 @@ static void After(uv_fs_t *req) {
       case UV_FS_STAT:
       case UV_FS_LSTAT:
       case UV_FS_FSTAT:
-        argv[1] = BuildStatsObject(static_cast<const uv_statbuf_t*>(req->ptr));
+        argv[1] = BuildStatsObject(static_cast<const uv_stat_t*>(req->ptr));
         break;
 
       case UV_FS_READLINK:
@@ -274,7 +274,7 @@ static Persistent<String> atime_symbol;
 static Persistent<String> mtime_symbol;
 static Persistent<String> ctime_symbol;
 
-Local<Object> BuildStatsObject(const uv_statbuf_t* s) {
+Local<Object> BuildStatsObject(const uv_stat_t* s) {
   HandleScope scope(node_isolate);
 
   if (dev_symbol.IsEmpty()) {
@@ -339,15 +339,17 @@ Local<Object> BuildStatsObject(const uv_statbuf_t* s) {
 # endif
 #undef X
 
-#define X(name)                                                               \
+#define X(name, rec)                                                          \
   {                                                                           \
-    Local<Value> val = NODE_UNIXTIME_V8(s->st_##name);                        \
+    double msecs = static_cast<double>(s->st_##rec.tv_sec) * 1000;            \
+    msecs += static_cast<double>(s->st_##rec.tv_nsec / 1000000);              \
+    Local<Value> val = v8::Date::New(msecs);                                  \
     if (val.IsEmpty()) return Local<Object>();                                \
     stats->Set(name##_symbol, val);                                           \
   }
-  X(atime)
-  X(mtime)
-  X(ctime)
+  X(atime, atim)
+  X(mtime, mtim)
+  X(ctime, ctim)
 #undef X
 
   return scope.Close(stats);
@@ -366,7 +368,7 @@ static Handle<Value> Stat(const Arguments& args) {
   } else {
     SYNC_CALL(stat, *path, *path)
     return scope.Close(
-        BuildStatsObject(static_cast<const uv_statbuf_t*>(SYNC_REQ.ptr)));
+        BuildStatsObject(static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
   }
 }
 
@@ -383,7 +385,7 @@ static Handle<Value> LStat(const Arguments& args) {
   } else {
     SYNC_CALL(lstat, *path, *path)
     return scope.Close(
-        BuildStatsObject(static_cast<const uv_statbuf_t*>(SYNC_REQ.ptr)));
+        BuildStatsObject(static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
   }
 }
 
@@ -401,7 +403,7 @@ static Handle<Value> FStat(const Arguments& args) {
   } else {
     SYNC_CALL(fstat, 0, fd)
     return scope.Close(
-        BuildStatsObject(static_cast<const uv_statbuf_t*>(SYNC_REQ.ptr)));
+        BuildStatsObject(static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
   }
 }
 
