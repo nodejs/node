@@ -3930,11 +3930,13 @@ Handle<Value> RandomBytes(const Arguments& args) {
   // maybe allow a buffer to write to? cuts down on object creation
   // when generating random data in a loop
   if (!args[0]->IsUint32()) {
-    Local<String> s = String::New("Argument #1 must be number > 0");
-    return ThrowException(Exception::TypeError(s));
+    return ThrowTypeError("Argument #1 must be number > 0");
   }
 
-  const size_t size = args[0]->Uint32Value();
+  const uint32_t size = args[0]->Uint32Value();
+  if (size > Buffer::kMaxLength) {
+    return ThrowTypeError("size > Buffer::kMaxLength");
+  }
 
   RandomBytesRequest* req = new RandomBytesRequest();
   req->error_ = 0;
