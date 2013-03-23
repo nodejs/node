@@ -497,6 +497,69 @@ static ssize_t uv__fs_write(uv_fs_t* req) {
   return r;
 }
 
+static inline void uv__to_stat(struct stat* src, uv_stat_t* dst) {
+  dst->st_dev = src->st_dev;
+  dst->st_mode = src->st_mode;
+  dst->st_nlink = src->st_nlink;
+  dst->st_uid = src->st_uid;
+  dst->st_gid = src->st_gid;
+  dst->st_rdev = src->st_rdev;
+  dst->st_ino = src->st_ino;
+  dst->st_size = src->st_size;
+  dst->st_blksize = src->st_blksize;
+  dst->st_blocks = src->st_blocks;
+
+#if defined(__APPLE__)
+  dst->st_atim.tv_sec = src->st_atimespec.tv_sec;
+  dst->st_atim.tv_nsec = src->st_atimespec.tv_nsec;
+  dst->st_mtim.tv_sec = src->st_mtimespec.tv_sec;
+  dst->st_mtim.tv_nsec = src->st_mtimespec.tv_nsec;
+  dst->st_ctim.tv_sec = src->st_ctimespec.tv_sec;
+  dst->st_ctim.tv_nsec = src->st_ctimespec.tv_nsec;
+#elif defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE)
+  dst->st_atim.tv_sec = src->st_atim.tv_sec;
+  dst->st_atim.tv_nsec = src->st_atim.tv_nsec;
+  dst->st_mtim.tv_sec = src->st_mtim.tv_sec;
+  dst->st_mtim.tv_nsec = src->st_mtim.tv_nsec;
+  dst->st_ctim.tv_sec = src->st_ctim.tv_sec;
+  dst->st_ctim.tv_nsec = src->st_ctim.tv_nsec;
+#else
+  dst->st_atim.tv_sec = src->st_atime;
+  dst->st_atim.tv_nsec = 0;
+  dst->st_mtim.tv_sec = src->st_mtime;
+  dst->st_mtim.tv_nsec = 0;
+  dst->st_ctim.tv_sec = src->st_ctime;
+  dst->st_ctim.tv_nsec = 0;
+#endif
+}
+
+
+static int uv__fs_stat(const char *path, uv_stat_t *buf) {
+  struct stat pbuf;
+  int ret;
+  ret = stat(path, &pbuf);
+  uv__to_stat(&pbuf, buf);
+  return ret;
+}
+
+
+static int uv__fs_lstat(const char *path, uv_stat_t *buf) {
+  struct stat pbuf;
+  int ret;
+  ret = lstat(path, &pbuf);
+  uv__to_stat(&pbuf, buf);
+  return ret;
+}
+
+
+static int uv__fs_fstat(int fd, uv_stat_t *buf) {
+  struct stat pbuf;
+  int ret;
+  ret = fstat(fd, &pbuf);
+  uv__to_stat(&pbuf, buf);
+  return ret;
+}
+
 
 static void uv__fs_work(struct uv__work* w) {
   int retry_on_eintr;
@@ -521,11 +584,11 @@ static void uv__fs_work(struct uv__work* w) {
     X(FCHMOD, fchmod(req->file, req->mode));
     X(FCHOWN, fchown(req->file, req->uid, req->gid));
     X(FDATASYNC, uv__fs_fdatasync(req));
-    X(FSTAT, fstat(req->file, &req->statbuf));
+    X(FSTAT, uv__fs_fstat(req->file, &req->statbuf));
     X(FSYNC, fsync(req->file));
     X(FTRUNCATE, ftruncate(req->file, req->off));
     X(FUTIME, uv__fs_futime(req));
-    X(LSTAT, lstat(req->path, &req->statbuf));
+    X(LSTAT, uv__fs_lstat(req->path, &req->statbuf));
     X(LINK, link(req->path, req->new_path));
     X(MKDIR, mkdir(req->path, req->mode));
     X(OPEN, open(req->path, req->flags, req->mode));
@@ -535,7 +598,7 @@ static void uv__fs_work(struct uv__work* w) {
     X(RENAME, rename(req->path, req->new_path));
     X(RMDIR, rmdir(req->path));
     X(SENDFILE, uv__fs_sendfile(req));
-    X(STAT, stat(req->path, &req->statbuf));
+    X(STAT, uv__fs_stat(req->path, &req->statbuf));
     X(SYMLINK, symlink(req->path, req->new_path));
     X(UNLINK, unlink(req->path));
     X(UTIME, uv__fs_utime(req));

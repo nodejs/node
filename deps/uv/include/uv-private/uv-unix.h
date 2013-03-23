@@ -121,7 +121,6 @@ typedef struct {
 
 typedef int uv_file;
 typedef int uv_os_sock_t;
-typedef struct stat uv_statbuf_t;
 
 #define UV_ONCE_INIT PTHREAD_ONCE_INIT
 

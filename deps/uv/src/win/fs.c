@@ -77,15 +77,26 @@
     return;                                                                 \
   }
 
+#define FILETIME_TO_UINT(filetime)                                          \
+   (*((uint64_t*) &(filetime)) - 116444736000000000ULL)
+
 #define FILETIME_TO_TIME_T(filetime)                                        \
-   ((*((uint64_t*) &(filetime)) - 116444736000000000ULL) / 10000000ULL);
+   (FILETIME_TO_UINT(filetime) / 10000000ULL);
+
+#define FILETIME_TO_TIME_NS(filetime, secs)                                 \
+   ((FILETIME_TO_UINT(filetime) - (secs * 10000000ULL)) * 100);
+
+#define FILETIME_TO_TIMESPEC(ts, filetime)                                  \
+   do {                                                                     \
+     (ts).tv_sec = FILETIME_TO_TIME_T(filetime);                            \
+     (ts).tv_nsec = FILETIME_TO_TIME_NS(filetime, (ts).tv_sec);             \
+   } while(0)
 
 #define TIME_T_TO_FILETIME(time, filetime_ptr)                              \
   do {                                                                      \
     *(uint64_t*) (filetime_ptr) = ((int64_t) (time) * 10000000LL) +         \
                                   116444736000000000ULL;                    \
   } while(0)
-
 
 #define IS_SLASH(c) ((c) == L'\\' || (c) == L'/')
 #define IS_LETTER(c) (((c) >= L'a' && (c) <= L'z') || \
@@ -808,7 +819,7 @@ void fs__readdir(uv_fs_t* req) {
 }
 
 
-INLINE static int fs__stat_handle(HANDLE handle, uv_statbuf_t* statbuf) {
+INLINE static int fs__stat_handle(HANDLE handle, uv_stat_t* statbuf) {
   BY_HANDLE_FILE_INFORMATION info;
 
   if (!GetFileInformationByHandle(handle, &info)) {
@@ -824,6 +835,9 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_statbuf_t* statbuf) {
   statbuf->st_uid = 0;
 
   statbuf->st_mode = 0;
+
+  statbuf->st_blksize = 0;
+  statbuf->st_blocks = 0;
 
   if (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
     if (fs__readlink_handle(handle, NULL, &statbuf->st_size) != 0) {
@@ -846,9 +860,9 @@ INLINE static int fs__stat_handle(HANDLE handle, uv_statbuf_t* statbuf) {
       ((_S_IREAD|_S_IWRITE) >> 6));
   }
 
-  statbuf->st_mtime = FILETIME_TO_TIME_T(info.ftLastWriteTime);
-  statbuf->st_atime = FILETIME_TO_TIME_T(info.ftLastAccessTime);
-  statbuf->st_ctime = FILETIME_TO_TIME_T(info.ftCreationTime);
+  FILETIME_TO_TIMESPEC(statbuf->st_mtim, info.ftLastWriteTime);
+  FILETIME_TO_TIMESPEC(statbuf->st_atim, info.ftLastAccessTime);
+  FILETIME_TO_TIMESPEC(statbuf->st_ctim, info.ftCreationTime);
 
   statbuf->st_nlink = (info.nNumberOfLinks <= SHRT_MAX) ?
                       (short) info.nNumberOfLinks : SHRT_MAX;

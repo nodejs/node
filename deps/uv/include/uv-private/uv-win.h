@@ -207,8 +207,6 @@ typedef struct uv_buf_t {
 
 typedef int uv_file;
 
-typedef struct _stati64 uv_statbuf_t;
-
 typedef SOCKET uv_os_sock_t;
 
 typedef HANDLE uv_thread_t;

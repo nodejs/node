@@ -107,7 +107,7 @@ static char test_buf[] = "test-buffer\n";
 static void check_permission(const char* filename, int mode) {
   int r;
   uv_fs_t req;
-  uv_statbuf_t* s;
+  uv_stat_t* s;
 
   r = uv_fs_stat(uv_default_loop(), &req, filename, NULL);
   ASSERT(r == 0);
@@ -213,7 +213,7 @@ static void unlink_cb(uv_fs_t* req) {
 }
 
 static void fstat_cb(uv_fs_t* req) {
-  struct stat* s = req->ptr;
+  uv_stat_t* s = req->ptr;
   ASSERT(req->fs_type == UV_FS_FSTAT);
   ASSERT(req->result == 0);
   ASSERT(s->st_size == sizeof(test_buf));
@@ -543,7 +543,7 @@ TEST_IMPL(fs_file_loop) {
 }
 
 static void check_utime(const char* path, double atime, double mtime) {
-  uv_statbuf_t* s;
+  uv_stat_t* s;
   uv_fs_t req;
   int r;
 
@@ -553,16 +553,8 @@ static void check_utime(const char* path, double atime, double mtime) {
   ASSERT(req.result == 0);
   s = &req.statbuf;
 
-#if defined(_WIN32) || defined(_AIX)
-  ASSERT(s->st_atime == atime);
-  ASSERT(s->st_mtime == mtime);
-#elif !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
-  ASSERT(s->st_atimespec.tv_sec  == atime);
-  ASSERT(s->st_mtimespec.tv_sec  == mtime);
-#else
   ASSERT(s->st_atim.tv_sec  == atime);
   ASSERT(s->st_mtim.tv_sec  == mtime);
-#endif
 
   uv_fs_req_cleanup(&req);
 }
@@ -906,7 +898,10 @@ TEST_IMPL(fs_fstat) {
   int r;
   uv_fs_t req;
   uv_file file;
-  struct stat* s;
+  uv_stat_t* s;
+#ifndef _WIN32
+  struct stat t;
+#endif
 
   /* Setup. */
   unlink("test_file");
@@ -930,6 +925,45 @@ TEST_IMPL(fs_fstat) {
   ASSERT(req.result == 0);
   s = req.ptr;
   ASSERT(s->st_size == sizeof(test_buf));
+
+#ifndef _WIN32
+  r = fstat(file, &t);
+  ASSERT(r == 0);
+
+  ASSERT(s->st_dev == t.st_dev);
+  ASSERT(s->st_mode == t.st_mode);
+  ASSERT(s->st_nlink == t.st_nlink);
+  ASSERT(s->st_uid == t.st_uid);
+  ASSERT(s->st_gid == t.st_gid);
+  ASSERT(s->st_rdev == t.st_rdev);
+  ASSERT(s->st_ino == t.st_ino);
+  ASSERT(s->st_size == t.st_size);
+  ASSERT(s->st_blksize == t.st_blksize);
+  ASSERT(s->st_blocks == t.st_blocks);
+#if defined(__APPLE__)
+  ASSERT(s->st_atim.tv_sec == t.st_atimespec.tv_sec);
+  ASSERT(s->st_atim.tv_nsec == t.st_atimespec.tv_nsec);
+  ASSERT(s->st_mtim.tv_sec == t.st_mtimespec.tv_sec);
+  ASSERT(s->st_mtim.tv_nsec == t.st_mtimespec.tv_nsec);
+  ASSERT(s->st_ctim.tv_sec == t.st_ctimespec.tv_sec);
+  ASSERT(s->st_ctim.tv_nsec == t.st_ctimespec.tv_nsec);
+#elif defined(_BSD_SOURCE) || defined(_SVID_SOURCE) || defined(_XOPEN_SOURCE)
+  ASSERT(s->st_atim.tv_sec == t.st_atim.tv_sec);
+  ASSERT(s->st_atim.tv_nsec == t.st_atim.tv_nsec);
+  ASSERT(s->st_mtim.tv_sec == t.st_mtim.tv_sec);
+  ASSERT(s->st_mtim.tv_nsec == t.st_mtim.tv_nsec);
+  ASSERT(s->st_ctim.tv_sec == t.st_ctim.tv_sec);
+  ASSERT(s->st_ctim.tv_nsec == t.st_ctim.tv_nsec);
+#else
+  ASSERT(s->st_atim.tv_sec == t.st_atime);
+  ASSERT(s->st_atim.tv_nsec == 0);
+  ASSERT(s->st_mtim.tv_sec == t.st_mtime);
+  ASSERT(s->st_mtim.tv_nsec == 0);
+  ASSERT(s->st_ctim.tv_sec == t.st_ctime);
+  ASSERT(s->st_ctim.tv_nsec == 0);
+#endif
+#endif
+
   uv_fs_req_cleanup(&req);
 
   /* Now do the uv_fs_fstat call asynchronously */
@@ -1382,16 +1416,16 @@ TEST_IMPL(fs_symlink_dir) {
 
   r = uv_fs_stat(loop, &req, "test_dir_symlink", NULL);
   ASSERT(r == 0);
-  ASSERT(((struct stat*)req.ptr)->st_mode & S_IFDIR);
+  ASSERT(((uv_stat_t*)req.ptr)->st_mode & S_IFDIR);
   uv_fs_req_cleanup(&req);
 
   r = uv_fs_lstat(loop, &req, "test_dir_symlink", NULL);
   ASSERT(r == 0);
-  ASSERT(((struct stat*)req.ptr)->st_mode & S_IFLNK);
+  ASSERT(((uv_stat_t*)req.ptr)->st_mode & S_IFLNK);
 #ifdef _WIN32
-  ASSERT(((struct stat*)req.ptr)->st_size == strlen(test_dir + 4));
+  ASSERT(((uv_stat_t*)req.ptr)->st_size == strlen(test_dir + 4));
 #else
-  ASSERT(((struct stat*)req.ptr)->st_size == strlen(test_dir));
+  ASSERT(((uv_stat_t*)req.ptr)->st_size == strlen(test_dir));
 #endif
   uv_fs_req_cleanup(&req);
 

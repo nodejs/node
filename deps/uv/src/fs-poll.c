@@ -35,16 +35,16 @@ struct poll_ctx {
   uv_fs_poll_cb poll_cb;
   uv_timer_t timer_handle;
   uv_fs_t fs_req; /* TODO(bnoordhuis) mark fs_req internal */
-  uv_statbuf_t statbuf;
+  uv_stat_t statbuf;
   char path[1]; /* variable length */
 };
 
-static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b);
+static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b);
 static void poll_cb(uv_fs_t* req);
 static void timer_cb(uv_timer_t* timer, int status);
 static void timer_close_cb(uv_handle_t* handle);
 
-static uv_statbuf_t zero_statbuf;
+static uv_stat_t zero_statbuf;
 
 
 int uv_fs_poll_init(uv_loop_t* loop, uv_fs_poll_t* handle) {
@@ -137,7 +137,7 @@ static void timer_cb(uv_timer_t* timer, int status) {
 
 
 static void poll_cb(uv_fs_t* req) {
-  uv_statbuf_t* statbuf;
+  uv_stat_t* statbuf;
   struct poll_ctx* ctx;
   uint64_t interval;
 
@@ -189,48 +189,17 @@ static void timer_close_cb(uv_handle_t* handle) {
 }
 
 
-static int statbuf_eq(const uv_statbuf_t* a, const uv_statbuf_t* b) {
-#if defined(_WIN32)
-  return a->st_mtime == b->st_mtime
-      && a->st_size == b->st_size
-      && a->st_mode == b->st_mode;
-#else
-
-  /* Jump through a few hoops to get sub-second granularity on Linux. */
-# if defined(__linux__)
-#  if defined(__USE_MISC) /* _BSD_SOURCE || _SVID_SOURCE */
-  if (a->st_ctim.tv_nsec != b->st_ctim.tv_nsec) return 0;
-  if (a->st_mtim.tv_nsec != b->st_mtim.tv_nsec) return 0;
-#  else
-  if (a->st_ctimensec != b->st_ctimensec) return 0;
-  if (a->st_mtimensec != b->st_mtimensec) return 0;
-#  endif
-# endif
-
-  /* Jump through different hoops on OS X. */
-# if defined(__APPLE__)
-#  if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
-  if (a->st_ctimespec.tv_nsec != b->st_ctimespec.tv_nsec) return 0;
-  if (a->st_mtimespec.tv_nsec != b->st_mtimespec.tv_nsec) return 0;
-#  else
-  if (a->st_ctimensec != b->st_ctimensec) return 0;
-  if (a->st_mtimensec != b->st_mtimensec) return 0;
-#  endif
-# endif
-
-  /* TODO(bnoordhuis) Other Unices have st_ctim and friends too, provided
-   * the stars and compiler flags are right...
-   */
-
-  return a->st_ctime == b->st_ctime
-      && a->st_mtime == b->st_mtime
+static int statbuf_eq(const uv_stat_t* a, const uv_stat_t* b) {
+  return a->st_ctim.tv_nsec == b->st_ctim.tv_nsec
+      && a->st_mtim.tv_nsec == b->st_mtim.tv_nsec
+      && a->st_ctim.tv_sec == b->st_ctim.tv_sec
+      && a->st_mtim.tv_sec == b->st_mtim.tv_sec
       && a->st_size == b->st_size
       && a->st_mode == b->st_mode
       && a->st_uid == b->st_uid
       && a->st_gid == b->st_gid
       && a->st_ino == b->st_ino
       && a->st_dev == b->st_dev;
-#endif
 }
 
 
