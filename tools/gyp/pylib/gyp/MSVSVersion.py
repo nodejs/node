@@ -1,4 +1,4 @@
-# Copyright (c) 2012 Google Inc. All rights reserved.
+# Copyright (c) 2013 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -355,6 +355,13 @@ def SelectVisualStudioVersion(version='auto'):
     '2012': ('11.0',),
     '2012e': ('11.0',),
   }
+  override_path = os.environ.get('GYP_MSVS_OVERRIDE_PATH')
+  if override_path:
+    msvs_version = os.environ.get('GYP_MSVS_VERSION')
+    if not msvs_version or 'e' not in msvs_version:
+      raise ValueError('GYP_MSVS_OVERRIDE_PATH requires GYP_MSVS_VERSION to be '
+                       'set to an "e" version (e.g. 2010e)')
+    return _CreateVersion(msvs_version, override_path, sdk_based=True)
   version = str(version)
   versions = _DetectVisualStudioVersions(version_map[version], 'e' in version)
   if not versions:

@@ -168,8 +168,6 @@ class MsvsSettings(object):
     equivalents."""
     target_platform = 'Win32' if self.GetArch(config) == 'x86' else 'x64'
     replacements = {
-        '$(VSInstallDir)': self.vs_version.Path(),
-        '$(VCInstallDir)': os.path.join(self.vs_version.Path(), 'VC') + '\\',
         '$(OutDir)\\': base_to_build + '\\' if base_to_build else '',
         '$(IntDir)': '$!INTERMEDIATE_DIR',
         '$(InputPath)': '${source}',
@@ -178,6 +176,12 @@ class MsvsSettings(object):
         '$(PlatformName)': target_platform,
         '$(ProjectDir)\\': '',
     }
+    # '$(VSInstallDir)' and '$(VCInstallDir)' are available when and only when
+    # Visual Studio is actually installed.
+    if self.vs_version.Path():
+      replacements['$(VSInstallDir)'] = self.vs_version.Path()
+      replacements['$(VCInstallDir)'] = os.path.join(self.vs_version.Path(),
+                                                     'VC') + '\\'
     # Chromium uses DXSDK_DIR in include/lib paths, but it may or may not be
     # set. This happens when the SDK is sync'd via src-internal, rather than
     # by typical end-user installation of the SDK. If it's not set, we don't
@@ -275,6 +279,16 @@ class MsvsSettings(object):
         ('VCCLCompilerTool', 'PreprocessorDefinitions'), config, default=[]))
     return defines
 
+  def GetCompilerPdbName(self, config, expand_special):
+    """Get the pdb file name that should be used for compiler invocations, or
+    None if there's no explicit name specified."""
+    config = self._TargetConfig(config)
+    pdbname = self._Setting(
+        ('VCCLCompilerTool', 'ProgramDataBaseFileName'), config)
+    if pdbname:
+      pdbname = expand_special(self.ConvertVSMacros(pdbname))
+    return pdbname
+
   def GetOutputName(self, config, expand_special):
     """Gets the explicitly overridden output name for a target or returns None
     if it's not overridden."""
@@ -309,6 +323,7 @@ class MsvsSettings(object):
        map={'0': 'd', '1': '1', '2': '2', '3': 'x'}, prefix='/O')
     cl('InlineFunctionExpansion', prefix='/Ob')
     cl('OmitFramePointers', map={'false': '-', 'true': ''}, prefix='/Oy')
+    cl('EnableIntrinsicFunctions', map={'false': '-', 'true': ''}, prefix='/Oi')
     cl('FavorSizeOrSpeed', map={'1': 't', '2': 's'}, prefix='/O')
     cl('WholeProgramOptimization', map={'true': '/GL'})
     cl('WarningLevel', prefix='/W')
@@ -323,8 +338,13 @@ class MsvsSettings(object):
     cl('RuntimeLibrary',
         map={'0': 'T', '1': 'Td', '2': 'D', '3': 'Dd'}, prefix='/M')
     cl('ExceptionHandling', map={'1': 'sc','2': 'a'}, prefix='/EH')
+    cl('DefaultCharIsUnsigned', map={'true': '/J'})
+    cl('TreatWChar_tAsBuiltInType',
+        map={'false': '-', 'true': ''}, prefix='/Zc:wchar_t')
     cl('EnablePREfast', map={'true': '/analyze'})
     cl('AdditionalOptions', prefix='')
+    cflags.extend(['/FI' + f for f in self._Setting(
+        ('VCCLCompilerTool', 'ForcedIncludeFiles'), config, default=[])])
     # ninja handles parallelism by itself, don't have the compiler do it too.
     cflags = filter(lambda x: not x.startswith('/MP'), cflags)
     return cflags
@@ -378,6 +398,7 @@ class MsvsSettings(object):
                           'VCLibrarianTool', append=libflags)
     libflags.extend(self._GetAdditionalLibraryDirectories(
         'VCLibrarianTool', config, gyp_to_build_path))
+    lib('LinkTimeCodeGeneration', map={'true': '/LTCG'})
     lib('AdditionalOptions')
     return libflags
 
@@ -414,6 +435,7 @@ class MsvsSettings(object):
       ldflags.append('/PDB:' + pdb)
     ld('AdditionalOptions', prefix='')
     ld('SubSystem', map={'1': 'CONSOLE', '2': 'WINDOWS'}, prefix='/SUBSYSTEM:')
+    ld('TerminalServerAware', map={'1': ':NO', '2': ''}, prefix='/TSAWARE')
     ld('LinkIncremental', map={'1': ':NO', '2': ''}, prefix='/INCREMENTAL')
     ld('FixedBaseAddress', map={'1': ':NO', '2': ''}, prefix='/FIXED')
     ld('RandomizedBaseAddress',
@@ -426,13 +448,11 @@ class MsvsSettings(object):
     ld('IgnoreDefaultLibraryNames', prefix='/NODEFAULTLIB:')
     ld('ResourceOnlyDLL', map={'true': '/NOENTRY'})
     ld('EntryPointSymbol', prefix='/ENTRY:')
-    ld('Profile', map={ 'true': '/PROFILE'})
+    ld('Profile', map={'true': '/PROFILE'})
+    ld('LargeAddressAware',
+        map={'1': ':NO', '2': ''}, prefix='/LARGEADDRESSAWARE')
     # TODO(scottmg): This should sort of be somewhere else (not really a flag).
     ld('AdditionalDependencies', prefix='')
-    # TODO(scottmg): These too.
-    ldflags.extend(('kernel32.lib', 'user32.lib', 'gdi32.lib', 'winspool.lib',
-        'comdlg32.lib', 'advapi32.lib', 'shell32.lib', 'ole32.lib',
-        'oleaut32.lib', 'uuid.lib', 'odbc32.lib', 'DelayImp.lib'))
 
     # If the base address is not specifically controlled, DYNAMICBASE should
     # be on by default.
@@ -576,7 +596,8 @@ class MsvsSettings(object):
                  ('iid', iid),
                  ('proxy', proxy)]
     # TODO(scottmg): Are there configuration settings to set these flags?
-    flags = ['/char', 'signed', '/env', 'win32', '/Oicf']
+    target_platform = 'win32' if self.GetArch(config) == 'x86' else 'x64'
+    flags = ['/char', 'signed', '/env', target_platform, '/Oicf']
     return outdir, output, variables, flags
 
 
@@ -586,28 +607,24 @@ def _LanguageMatchesForPch(source_ext, pch_source_ext):
   return ((source_ext in c_exts and pch_source_ext in c_exts) or
           (source_ext in cc_exts and pch_source_ext in cc_exts))
 
+
 class PrecompiledHeader(object):
   """Helper to generate dependencies and build rules to handle generation of
   precompiled headers. Interface matches the GCH handler in xcode_emulation.py.
   """
-  def __init__(self, settings, config, gyp_to_build_path):
+  def __init__(
+      self, settings, config, gyp_to_build_path, gyp_to_unique_output, obj_ext):
     self.settings = settings
     self.config = config
-    self.gyp_to_build_path = gyp_to_build_path
+    pch_source = self.settings.msvs_precompiled_source[self.config]
+    self.pch_source = gyp_to_build_path(pch_source)
+    filename, _ = os.path.splitext(pch_source)
+    self.output_obj = gyp_to_unique_output(filename + obj_ext).lower()
 
   def _PchHeader(self):
     """Get the header that will appear in an #include line for all source
     files."""
     return os.path.split(self.settings.msvs_precompiled_header[self.config])[1]
-
-  def _PchSource(self):
-    """Get the source file that is built once to compile the pch data."""
-    return self.gyp_to_build_path(
-        self.settings.msvs_precompiled_source[self.config])
-
-  def _PchOutput(self):
-    """Get the name of the output of the compiled pch data."""
-    return '${pchprefix}.' + self._PchHeader() + '.pch'
 
   def GetObjDependencies(self, sources, objs):
     """Given a list of sources files and the corresponding object files,
@@ -616,24 +633,30 @@ class PrecompiledHeader(object):
     with make.py on Mac, and xcode_emulation.py."""
     if not self._PchHeader():
       return []
-    source = self._PchSource()
-    assert source
-    pch_ext = os.path.splitext(self._PchSource())[1]
+    pch_ext = os.path.splitext(self.pch_source)[1]
     for source in sources:
       if _LanguageMatchesForPch(os.path.splitext(source)[1], pch_ext):
-        return [(None, None, self._PchOutput())]
+        return [(None, None, self.output_obj)]
     return []
 
   def GetPchBuildCommands(self):
-    """Returns [(path_to_pch, language_flag, language, header)].
-    |path_to_gch| and |header| are relative to the build directory."""
-    header = self._PchHeader()
-    source = self._PchSource()
-    if not source or not header:
-      return []
-    ext = os.path.splitext(source)[1]
-    lang = 'c' if ext == '.c' else 'cc'
-    return [(self._PchOutput(), '/Yc' + header, lang, source)]
+    """Not used on Windows as there are no additional build steps required
+    (instead, existing steps are modified in GetFlagsModifications below)."""
+    return []
+
+  def GetFlagsModifications(self, input, output, implicit, command,
+                            cflags_c, cflags_cc, expand_special):
+    """Get the modified cflags and implicit dependencies that should be used
+    for the pch compilation step."""
+    if input == self.pch_source:
+      pch_output = ['/Yc' + self._PchHeader()]
+      if command == 'cxx':
+        return ([('cflags_cc', map(expand_special, cflags_cc + pch_output))],
+                self.output_obj, [])
+      elif command == 'cc':
+        return ([('cflags_c', map(expand_special, cflags_c + pch_output))],
+                self.output_obj, [])
+    return [], output, implicit
 
 
 vs_version = None
@@ -711,7 +734,13 @@ def GenerateEnvironmentFiles(toplevel_build_dir, generator_flags, open_out):
   of compiler tools (cl, link, lib, rc, midl, etc.) via win_tool.py which
   sets up the environment, and then we do not prefix the compiler with
   an absolute path, instead preferring something like "cl.exe" in the rule
-  which will then run whichever the environment setup has put in the path."""
+  which will then run whichever the environment setup has put in the path.
+  When the following procedure to generate environment files does not
+  meet your requirement (e.g. for custom toolchains), you can pass
+  "-G ninja_use_custom_environment_files" to the gyp to suppress file
+  generation and use custom environment files prepared by yourself."""
+  if generator_flags.get('ninja_use_custom_environment_files', 0):
+    return
   vs = GetVSVersion(generator_flags)
   for arch in ('x86', 'x64'):
     args = vs.SetupScript(arch)

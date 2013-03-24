@@ -23,8 +23,8 @@ DEBUG_VARIABLES = 'variables'
 DEBUG_INCLUDES = 'includes'
 
 
-def DebugOutput(mode, message):
-  if 'all' in gyp.debug.keys() or mode in gyp.debug.keys():
+def DebugOutput(mode, message, *args):
+  if 'all' in gyp.debug or mode in gyp.debug:
     ctx = ('unknown', 0, 'unknown')
     try:
       f = traceback.extract_stack(limit=2)
@@ -32,6 +32,8 @@ def DebugOutput(mode, message):
         ctx = f[0][:3]
     except:
       pass
+    if args:
+      message %= args
     print '%s:%s:%d:%s %s' % (mode.upper(), os.path.basename(ctx[0]),
                               ctx[1], ctx[2], message)
 
@@ -376,21 +378,22 @@ def gyp_main(args):
       options.generator_output = g_o
 
   if not options.parallel and options.use_environment:
-    options.parallel = bool(os.environ.get('GYP_PARALLEL'))
+    p = os.environ.get('GYP_PARALLEL')
+    options.parallel = bool(p and p != '0')
 
   for mode in options.debug:
     gyp.debug[mode] = 1
 
   # Do an extra check to avoid work when we're not debugging.
-  if DEBUG_GENERAL in gyp.debug.keys():
+  if DEBUG_GENERAL in gyp.debug:
     DebugOutput(DEBUG_GENERAL, 'running with these options:')
     for option, value in sorted(options.__dict__.items()):
       if option[0] == '_':
         continue
       if isinstance(value, basestring):
-        DebugOutput(DEBUG_GENERAL, "  %s: '%s'" % (option, value))
+        DebugOutput(DEBUG_GENERAL, "  %s: '%s'", option, value)
       else:
-        DebugOutput(DEBUG_GENERAL, "  %s: %s" % (option, str(value)))
+        DebugOutput(DEBUG_GENERAL, "  %s: %s", option, value)
 
   if not build_files:
     build_files = FindBuildFiles()
@@ -440,9 +443,9 @@ def gyp_main(args):
   if options.defines:
     defines += options.defines
   cmdline_default_variables = NameValueListToDict(defines)
-  if DEBUG_GENERAL in gyp.debug.keys():
+  if DEBUG_GENERAL in gyp.debug:
     DebugOutput(DEBUG_GENERAL,
-                "cmdline_default_variables: %s" % cmdline_default_variables)
+                "cmdline_default_variables: %s", cmdline_default_variables)
 
   # Set up includes.
   includes = []
@@ -468,7 +471,7 @@ def gyp_main(args):
     gen_flags += options.generator_flags
   generator_flags = NameValueListToDict(gen_flags)
   if DEBUG_GENERAL in gyp.debug.keys():
-    DebugOutput(DEBUG_GENERAL, "generator_flags: %s" % generator_flags)
+    DebugOutput(DEBUG_GENERAL, "generator_flags: %s", generator_flags)
 
   # TODO: Remove this and the option after we've gotten folks to move to the
   # generator flag.

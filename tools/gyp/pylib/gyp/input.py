@@ -46,21 +46,16 @@ base_path_sections = [
 ]
 path_sections = []
 
+is_path_section_charset = set('=+?!')
+is_path_section_match_re = re.compile('_(dir|file|path)s?$')
 
 def IsPathSection(section):
   # If section ends in one of these characters, it's applied to a section
   # without the trailing characters.  '/' is notably absent from this list,
   # because there's no way for a regular expression to be treated as a path.
-  while section[-1:] in ('=', '+', '?', '!'):
-    section = section[0:-1]
-
-  if section in path_sections or \
-     section.endswith('_dir') or section.endswith('_dirs') or \
-     section.endswith('_file') or section.endswith('_files') or \
-     section.endswith('_path') or section.endswith('_paths'):
-    return True
-  return False
-
+  while section[-1:] in is_path_section_charset:
+    section = section[:-1]
+  return section in path_sections or is_path_section_match_re.search(section)
 
 # base_non_configuraiton_keys is a list of key names that belong in the target
 # itself and should not be propagated into its configurations.  It is merged
@@ -269,7 +264,7 @@ def LoadBuildFileIncludesIntoDict(subdict, subdict_path, data, aux_data,
       aux_data[subdict_path]['included'] = []
     aux_data[subdict_path]['included'].append(include)
 
-    gyp.DebugOutput(gyp.DEBUG_INCLUDES, "Loading Included File: '%s'" % include)
+    gyp.DebugOutput(gyp.DEBUG_INCLUDES, "Loading Included File: '%s'", include)
 
     MergeDicts(subdict,
                LoadOneBuildFile(include, data, aux_data, variables, None,
@@ -359,7 +354,7 @@ def LoadTargetBuildFile(build_file_path, data, aux_data, variables, includes,
   data['target_build_files'].add(build_file_path)
 
   gyp.DebugOutput(gyp.DEBUG_INCLUDES,
-                  "Loading Target Build File '%s'" % build_file_path)
+                  "Loading Target Build File '%s'", build_file_path)
 
   build_file_data = LoadOneBuildFile(build_file_path, data, aux_data, variables,
                                      includes, True, check)
@@ -494,7 +489,7 @@ def CallLoadTargetBuildFile(global_flags,
             aux_data_out,
             dependencies)
   except Exception, e:
-    print "Exception: ", e
+    print >>sys.stderr, 'Exception: ', e
     return None
 
 
@@ -569,6 +564,12 @@ def LoadTargetBuildFileParallel(build_file_path, data, aux_data,
     parallel_state.condition.acquire()
     while parallel_state.dependencies or parallel_state.pending:
       if parallel_state.error:
+        print >>sys.stderr, (
+            '\n'
+            'Note: an error occurred while running gyp using multiprocessing.\n'
+            'For more verbose output, set GYP_PARALLEL=0 in your environment.\n'
+            'If the error only occurs when GYP_PARALLEL=1, '
+            'please report a bug!')
         break
       if not parallel_state.dependencies:
         parallel_state.condition.wait()
@@ -608,32 +609,27 @@ def LoadTargetBuildFileParallel(build_file_path, data, aux_data,
 # the input is something like "<(foo <(bar)) blah", then it would
 # return (1, 13), indicating the entire string except for the leading
 # "<" and trailing " blah".
-def FindEnclosingBracketGroup(input):
-  brackets = { '}': '{',
-               ']': '[',
-               ')': '(', }
+LBRACKETS= set('{[(')
+BRACKETS = {'}': '{', ']': '[', ')': '('}
+def FindEnclosingBracketGroup(input_str):
   stack = []
-  count = 0
   start = -1
-  for char in input:
-    if char in brackets.values():
+  for index, char in enumerate(input_str):
+    if char in LBRACKETS:
       stack.append(char)
       if start == -1:
-        start = count
-    if char in brackets.keys():
-      try:
-        last_bracket = stack.pop()
-      except IndexError:
+        start = index
+    elif char in BRACKETS:
+      if not stack:
         return (-1, -1)
-      if last_bracket != brackets[char]:
+      if stack.pop() != BRACKETS[char]:
         return (-1, -1)
-      if len(stack) == 0:
-        return (start, count + 1)
-    count = count + 1
+      if not stack:
+        return (start, index + 1)
   return (-1, -1)
 
 
-canonical_int_re = re.compile('^(0|-?[1-9][0-9]*)$')
+canonical_int_re = re.compile('(0|-?[1-9][0-9]*)$')
 
 
 def IsStrCanonicalInt(string):
@@ -641,10 +637,7 @@ def IsStrCanonicalInt(string):
 
   The canonical form is such that str(int(string)) == string.
   """
-  if not isinstance(string, str) or not canonical_int_re.match(string):
-    return False
-
-  return True
+  return isinstance(string, str) and canonical_int_re.match(string)
 
 
 # This matches things like "<(asdf)", "<!(cmd)", "<!@(cmd)", "<|(list)",
@@ -713,7 +706,7 @@ def ExpandVariables(input, phase, variables, build_file):
 
   # Get the entire list of matches as a list of MatchObject instances.
   # (using findall here would return strings instead of MatchObjects).
-  matches = [match for match in variable_re.finditer(input_str)]
+  matches = list(variable_re.finditer(input_str))
   if not matches:
     return input_str
 
@@ -725,8 +718,7 @@ def ExpandVariables(input, phase, variables, build_file):
   matches.reverse()
   for match_group in matches:
     match = match_group.groupdict()
-    gyp.DebugOutput(gyp.DEBUG_VARIABLES,
-                    "Matches: %s" % repr(match))
+    gyp.DebugOutput(gyp.DEBUG_VARIABLES, "Matches: %r", match)
     # match['replace'] is the substring to look for, match['type']
     # is the character code for the replacement type (< > <! >! <| >| <@
     # >@ <!@ >!@), match['is_array'] contains a '[' for command
@@ -839,8 +831,8 @@ def ExpandVariables(input, phase, variables, build_file):
       cached_value = cached_command_results.get(cache_key, None)
       if cached_value is None:
         gyp.DebugOutput(gyp.DEBUG_VARIABLES,
-                        "Executing command '%s' in directory '%s'" %
-                        (contents,build_file_dir))
+                        "Executing command '%s' in directory '%s'",
+                        contents, build_file_dir)
 
         replacement = ''
 
@@ -852,12 +844,17 @@ def ExpandVariables(input, phase, variables, build_file):
           # <!(python modulename param eters). Do this in |build_file_dir|.
           oldwd = os.getcwd()  # Python doesn't like os.open('.'): no fchdir.
           os.chdir(build_file_dir)
+          try:
 
-          parsed_contents = shlex.split(contents)
-          py_module = __import__(parsed_contents[0])
-          replacement = str(py_module.DoMain(parsed_contents[1:])).rstrip()
-
-          os.chdir(oldwd)
+            parsed_contents = shlex.split(contents)
+            try:
+              py_module = __import__(parsed_contents[0])
+            except ImportError as e:
+              raise GypError("Error importing pymod_do_main"
+                             "module (%s): %s" % (parsed_contents[0], e))
+            replacement = str(py_module.DoMain(parsed_contents[1:])).rstrip()
+          finally:
+            os.chdir(oldwd)
           assert replacement != None
         elif command_string:
           raise GypError("Unknown command string '%s' in '%s'." %
@@ -884,8 +881,8 @@ def ExpandVariables(input, phase, variables, build_file):
         cached_command_results[cache_key] = replacement
       else:
         gyp.DebugOutput(gyp.DEBUG_VARIABLES,
-                        "Had cache value for command '%s' in directory '%s'" %
-                        (contents,build_file_dir))
+                        "Had cache value for command '%s' in directory '%s'",
+                        contents,build_file_dir)
         replacement = cached_value
 
     else:
@@ -960,8 +957,7 @@ def ExpandVariables(input, phase, variables, build_file):
   # Look for more matches now that we've replaced some, to deal with
   # expanding local variables (variables defined in the same
   # variables block as this one).
-  gyp.DebugOutput(gyp.DEBUG_VARIABLES,
-                  "Found output %s, recursing." % repr(output))
+  gyp.DebugOutput(gyp.DEBUG_VARIABLES, "Found output %r, recursing.", output)
   if isinstance(output, list):
     if output and isinstance(output[0], list):
       # Leave output alone if it's a list of lists.
@@ -1062,7 +1058,7 @@ def ProcessConditionsInDict(the_dict, phase, variables, build_file):
     except NameError, e:
       gyp.common.ExceptionAppend(e, 'while evaluating condition \'%s\' in %s' %
                                  (cond_expr_expanded, build_file))
-      raise
+      raise GypError(e)
 
     if merge_dict != None:
       # Expand variables and nested conditinals in the merge_dict before
@@ -1405,6 +1401,25 @@ def RemoveDuplicateDependencies(targets):
       dependencies = target_dict.get(dependency_key, [])
       if dependencies:
         target_dict[dependency_key] = Unify(dependencies)
+
+
+def Filter(l, item):
+  """Removes item from l."""
+  res = {}
+  return [res.setdefault(e, e) for e in l if e != item]
+
+
+def RemoveSelfDependencies(targets):
+  """Remove self dependencies from targets that have the prune_self_dependency
+  variable set."""
+  for target_name, target_dict in targets.iteritems():
+    for dependency_key in dependency_sections:
+      dependencies = target_dict.get(dependency_key, [])
+      if dependencies:
+        for t in dependencies:
+          if t == target_name:
+            if targets[t].get('variables', {}).get('prune_self_dependency', 0):
+              target_dict[dependency_key] = Filter(dependencies, target_name)
 
 
 class DependencyGraphNode(object):
@@ -1845,12 +1860,10 @@ def MakePathRelative(to_file, fro_file, item):
     return ret
 
 def MergeLists(to, fro, to_file, fro_file, is_paths=False, append=True):
-  def is_hashable(x):
-    try:
-      hash(x)
-    except TypeError:
-      return False
-    return True
+  # Python documentation recommends objects which do not support hash
+  # set this value to None. Python library objects follow this rule.
+  is_hashable = lambda val: val.__hash__
+
   # If x is hashable, returns whether x is in s. Else returns whether x is in l.
   def is_in_set_or_list(x, s, l):
     if is_hashable(x):
@@ -1861,8 +1874,7 @@ def MergeLists(to, fro, to_file, fro_file, is_paths=False, append=True):
 
   # Make membership testing of hashables in |to| (in particular, strings)
   # faster.
-  hashable_to_set = set([x for x in to if is_hashable(x)])
-
+  hashable_to_set = set(x for x in to if is_hashable(x))
   for item in fro:
     singleton = False
     if isinstance(item, str) or isinstance(item, int):
@@ -2056,7 +2068,7 @@ def SetUpConfigurations(target, target_dict):
   if not 'configurations' in target_dict:
     target_dict['configurations'] = {'Default': {}}
   if not 'default_configuration' in target_dict:
-    concrete = [i for i in target_dict['configurations'].keys()
+    concrete = [i for i in target_dict['configurations'].iterkeys()
                 if not target_dict['configurations'][i].get('abstract')]
     target_dict['default_configuration'] = sorted(concrete)[0]
 
@@ -2315,8 +2327,8 @@ def ValidateTargetType(target, target_dict):
 
 
 def ValidateSourcesInTarget(target, target_dict, build_file):
-  # TODO: Check if MSVC allows this for non-static_library targets.
-  if target_dict.get('type', None) != 'static_library':
+  # TODO: Check if MSVC allows this for loadable_module targets.
+  if target_dict.get('type', None) not in ('static_library', 'shared_library'):
     return
   sources = target_dict.get('sources', [])
   basenames = {}
@@ -2548,7 +2560,7 @@ def Load(build_files, variables, includes, depth, generator_input_info, check,
     build_file = os.path.normpath(build_file)
     try:
       if parallel:
-        print >>sys.stderr, 'Using parallel processing (experimental).'
+        print >>sys.stderr, 'Using parallel processing.'
         LoadTargetBuildFileParallel(build_file, data, aux_data,
                                     variables, includes, depth, check)
       else:
@@ -2563,6 +2575,10 @@ def Load(build_files, variables, includes, depth, generator_input_info, check,
 
   # Fully qualify all dependency links.
   QualifyDependencies(targets)
+
+  # Remove self-dependencies from targets that have 'prune_self_dependencies'
+  # set to 1.
+  RemoveSelfDependencies(targets)
 
   # Expand dependencies specified as build_file:*.
   ExpandWildcardDependencies(targets, data)
