@@ -60,7 +60,6 @@ using namespace v8;
 
 
 static Persistent<String> length_symbol;
-static Persistent<String> chars_written_sym;
 static Persistent<String> write_sym;
 static Persistent<Function> fast_buffer_constructor;
 Persistent<FunctionTemplate> Buffer::constructor_template;
@@ -591,8 +590,6 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   int length = s->Length();
 
   if (length == 0) {
-    constructor_template->GetFunction()->Set(chars_written_sym,
-                                             Integer::New(0, node_isolate));
     return scope.Close(Integer::New(0, node_isolate));
   }
 
@@ -613,10 +610,6 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
                              &char_written,
                              (String::HINT_MANY_WRITES_EXPECTED |
                               String::NO_NULL_TERMINATION));
-
-  constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(char_written,
-                                                        node_isolate));
 
   return scope.Close(Integer::New(written, node_isolate));
 }
@@ -652,9 +645,6 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
                          (String::HINT_MANY_WRITES_EXPECTED |
                           String::NO_NULL_TERMINATION));
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written, node_isolate));
-
   return scope.Close(Integer::New(written * 2, node_isolate));
 }
 
@@ -687,7 +677,6 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
 
   if (start >= parent->length_) {
     Local<Integer> val = Integer::New(0, node_isolate);
-    constructor_template->GetFunction()->Set(chars_written_sym, val);
     return scope.Close(val);
   }
 
@@ -698,7 +687,6 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
 
   if (size == 0) {
     Local<Integer> val = Integer::New(0, node_isolate);
-    constructor_template->GetFunction()->Set(chars_written_sym, val);
     return scope.Close(val);
   }
 
@@ -717,9 +705,6 @@ Handle<Value> Buffer::HexWrite(const Arguments& args) {
     if (!~a || !~b) return ThrowTypeError("Invalid hex string");
     dst[i] = a * 16 + b;
   }
-
-  constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(max * 2, node_isolate));
 
   return scope.Close(Integer::New(max, node_isolate));
 }
@@ -754,9 +739,6 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
                                 max_length,
                                 (String::HINT_MANY_WRITES_EXPECTED |
                                  String::NO_NULL_TERMINATION));
-
-  constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written, node_isolate));
 
   return scope.Close(Integer::New(written, node_isolate));
 }
@@ -818,10 +800,6 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
     *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
   }
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(dst - start,
-                                                        node_isolate));
-
   return scope.Close(Integer::New(dst - start, node_isolate));
 }
 
@@ -850,9 +828,6 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   max_length = MIN(length, MIN(buffer->length_ - offset, max_length));
 
   int written = DecodeWrite(p, max_length, s, BINARY);
-
-  constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(written, node_isolate));
 
   return scope.Close(Integer::New(written, node_isolate));
 }
@@ -1118,7 +1093,6 @@ void Buffer::Initialize(Handle<Object> target) {
   assert(unbase64('\r') == -2);
 
   length_symbol = NODE_PSYMBOL("length");
-  chars_written_sym = NODE_PSYMBOL("_charsWritten");
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Buffer::New);
   constructor_template = Persistent<FunctionTemplate>::New(node_isolate, t);

@@ -98,10 +98,6 @@ The method will not write partial characters.
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
 
-The number of characters written (which may be different than the number of
-bytes written) is set in `Buffer._charsWritten` and will be overwritten the
-next time `buf.write()` is called.
-
 
 ### buf.toString([encoding], [start], [end])
 

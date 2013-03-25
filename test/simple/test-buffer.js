@@ -336,11 +336,8 @@ assert.deepEqual(f, new Buffer([252, 98, 101, 114]));
   var f = new Buffer([0, 0, 0, 0, 0]);
   assert.equal(f.length, 5);
   var size = f.write('あいうえお', encoding);
-  var charsWritten = Buffer._charsWritten; // Copy value out.
   console.error('bytes written to buffer: %d     (should be 4)', size);
-  console.error('chars written to buffer: %d     (should be 2)', charsWritten);
   assert.equal(size, 4);
-  assert.equal(charsWritten, 2);
   assert.deepEqual(f, new Buffer([0x42, 0x30, 0x44, 0x30, 0x00]));
 });
 
@@ -787,23 +784,6 @@ var sub = buf.slice(0, 4);         // length: 4
 written = sub.write('12345', 'binary');
 assert.equal(written, 4);
 assert.equal(buf[4], 0);
-
-// test for _charsWritten
-buf = new Buffer(9);
-buf.write('あいうえ', 'utf8'); // 3bytes * 4
-assert.equal(Buffer._charsWritten, 3);
-['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
-  buf.write('あいうえお', encoding); // 2bytes * 5
-  assert.equal(Buffer._charsWritten, 4);
-});
-buf.write('0123456789', 'ascii');
-assert.equal(Buffer._charsWritten, 9);
-buf.write('0123456789', 'binary');
-assert.equal(Buffer._charsWritten, 9);
-buf.write('123456', 'base64');
-assert.equal(Buffer._charsWritten, 4);
-buf.write('00010203040506070809', 'hex');
-assert.equal(Buffer._charsWritten, 18);
 
 // Check for fractional length args, junk length args, etc.
 // https://github.com/joyent/node/issues/1758
