@@ -187,37 +187,35 @@ the header.
 
 <!--type=misc-->
 
-All of these take a string or buffer as the first argument, and call the
-supplied callback with `callback(error, result)`.  The
-compression/decompression engine is created using the default settings
-in all convenience methods.  To supply different options, use the
-zlib classes directly.
+All of these take a string or buffer as the first argument, an optional second
+argument to supply options to the zlib classes and will call the supplied
+callback with `callback(error, result)`.
 
-## zlib.deflate(buf, callback)
+## zlib.deflate(buf, [options], callback)
 
 Compress a string with Deflate.
 
-## zlib.deflateRaw(buf, callback)
+## zlib.deflateRaw(buf, [options], callback)
 
 Compress a string with DeflateRaw.
 
-## zlib.gzip(buf, callback)
+## zlib.gzip(buf, [options], callback)
 
 Compress a string with Gzip.
 
-## zlib.gunzip(buf, callback)
+## zlib.gunzip(buf, [options], callback)
 
 Decompress a raw Buffer with Gunzip.
 
-## zlib.inflate(buf, callback)
+## zlib.inflate(buf, [options], callback)
 
 Decompress a raw Buffer with Inflate.
 
-## zlib.inflateRaw(buf, callback)
+## zlib.inflateRaw(buf, [options], callback)
 
 Decompress a raw Buffer with InflateRaw.
 
-## zlib.unzip(buf, callback)
+## zlib.unzip(buf, [options], callback)
 
 Decompress a raw Buffer with Unzip.
 
@@ -225,8 +223,7 @@ Decompress a raw Buffer with Unzip.
 
 <!--type=misc-->
 
-Each class takes an options object.  All options are optional.  (The
-convenience methods use the default settings for all options.)
+Each class takes an options object.  All options are optional.
 
 Note that some options are only relevant when compressing, and are
 ignored by the decompression classes.
