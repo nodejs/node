@@ -80,6 +80,19 @@ class MacTool(object):
   def _CopyStringsFile(self, source, dest):
     """Copies a .strings file using iconv to reconvert the input into UTF-16."""
     input_code = self._DetectInputEncoding(source) or "UTF-8"
+
+    # Xcode's CpyCopyStringsFile / builtin-copyStrings seems to call
+    # CFPropertyListCreateFromXMLData() behind the scenes; at least it prints
+    #     CFPropertyListCreateFromXMLData(): Old-style plist parser: missing
+    #     semicolon in dictionary.
+    # on invalid files. Do the same kind of validation.
+    import CoreFoundation
+    s = open(source).read()
+    d = CoreFoundation.CFDataCreate(None, s, len(s))
+    _, error = CoreFoundation.CFPropertyListCreateFromXMLData(None, d, 0, None)
+    if error:
+      return
+
     fp = open(dest, 'w')
     args = ['/usr/bin/iconv', '--from-code', input_code, '--to-code',
         'UTF-16', source]

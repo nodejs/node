@@ -11,13 +11,16 @@ import gyp.common
 import os.path
 import re
 import shlex
+import subprocess
+import sys
+from gyp.common import GypError
 
 class XcodeSettings(object):
   """A class that understands the gyp 'xcode_settings' object."""
 
-  # Computed lazily by _GetSdkBaseDir(). Shared by all XcodeSettings, so cached
+  # Populated lazily by _SdkPath(). Shared by all XcodeSettings, so cached
   # at class-level for efficiency.
-  _sdk_base_dir = None
+  _sdk_path_cache = {}
 
   def __init__(self, spec):
     self.spec = spec
@@ -219,34 +222,34 @@ class XcodeSettings(object):
     else:
       return self._GetStandaloneBinaryPath()
 
-  def _GetSdkBaseDir(self):
-    """Returns the root of the 'Developer' directory. On Xcode 4.2 and prior,
-    this is usually just /Developer. Xcode 4.3 moved that folder into the Xcode
-    bundle."""
-    if not XcodeSettings._sdk_base_dir:
-      import subprocess
-      job = subprocess.Popen(['xcode-select', '-print-path'],
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT)
-      out, err = job.communicate()
-      if job.returncode != 0:
-        print out
-        raise Exception('Error %d running xcode-select' % job.returncode)
-      # The Developer folder moved in Xcode 4.3.
-      xcode43_sdk_path = os.path.join(
-          out.rstrip(), 'Platforms/MacOSX.platform/Developer/SDKs')
-      if os.path.isdir(xcode43_sdk_path):
-        XcodeSettings._sdk_base_dir = xcode43_sdk_path
-      else:
-        XcodeSettings._sdk_base_dir = os.path.join(out.rstrip(), 'SDKs')
-    return XcodeSettings._sdk_base_dir
+  def _GetSdkVersionInfoItem(self, sdk, infoitem):
+    job = subprocess.Popen(['xcodebuild', '-version', '-sdk', sdk, infoitem],
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT)
+    out = job.communicate()[0]
+    if job.returncode != 0:
+      sys.stderr.write(out + '\n')
+      raise GypError('Error %d running xcodebuild' % job.returncode)
+    return out.rstrip('\n')
 
   def _SdkPath(self):
-    sdk_root = self.GetPerTargetSetting('SDKROOT', default='macosx10.5')
-    if sdk_root.startswith('macosx'):
-      return os.path.join(self._GetSdkBaseDir(),
-                          'MacOSX' + sdk_root[len('macosx'):] + '.sdk')
-    return sdk_root
+    sdk_root = self.GetPerTargetSetting('SDKROOT', default='macosx')
+    if sdk_root not in XcodeSettings._sdk_path_cache:
+      XcodeSettings._sdk_path_cache[sdk_root] = self._GetSdkVersionInfoItem(
+          sdk_root, 'Path')
+    return XcodeSettings._sdk_path_cache[sdk_root]
+
+  def _AppendPlatformVersionMinFlags(self, lst):
+    self._Appendf(lst, 'MACOSX_DEPLOYMENT_TARGET', '-mmacosx-version-min=%s')
+    if 'IPHONEOS_DEPLOYMENT_TARGET' in self._Settings():
+      # TODO: Implement this better?
+      sdk_path_basename = os.path.basename(self._SdkPath())
+      if sdk_path_basename.lower().startswith('iphonesimulator'):
+        self._Appendf(lst, 'IPHONEOS_DEPLOYMENT_TARGET',
+                      '-mios-simulator-version-min=%s')
+      else:
+        self._Appendf(lst, 'IPHONEOS_DEPLOYMENT_TARGET',
+                      '-miphoneos-version-min=%s')
 
   def GetCflags(self, configname):
     """Returns flags that need to be added to .c, .cc, .m, and .mm
@@ -260,6 +263,9 @@ class XcodeSettings(object):
     sdk_root = self._SdkPath()
     if 'SDKROOT' in self._Settings():
       cflags.append('-isysroot %s' % sdk_root)
+
+    if self._Test('CLANG_WARN_CONSTANT_CONVERSION', 'YES', default='NO'):
+      cflags.append('-Wconstant-conversion')
 
     if self._Test('GCC_CHAR_IS_UNSIGNED_CHAR', 'YES', default='NO'):
       cflags.append('-funsigned-char')
@@ -301,7 +307,7 @@ class XcodeSettings(object):
     if self._Test('GCC_WARN_ABOUT_MISSING_NEWLINE', 'YES', default='NO'):
       cflags.append('-Wnewline-eof')
 
-    self._Appendf(cflags, 'MACOSX_DEPLOYMENT_TARGET', '-mmacosx-version-min=%s')
+    self._AppendPlatformVersionMinFlags(cflags)
 
     # TODO:
     if self._Test('COPY_PHASE_STRIP', 'YES', default='NO'):
@@ -354,6 +360,16 @@ class XcodeSettings(object):
     """Returns flags that need to be added to .cc, and .mm compilations."""
     self.configname = configname
     cflags_cc = []
+
+    clang_cxx_language_standard = self._Settings().get(
+        'CLANG_CXX_LANGUAGE_STANDARD')
+    # Note: Don't make c++0x to c++11 so that c++0x can be used with older
+    # clangs that don't understand c++11 yet (like Xcode 4.2's).
+    if clang_cxx_language_standard:
+      cflags_cc.append('-std=%s' % clang_cxx_language_standard)
+
+    self._Appendf(cflags_cc, 'CLANG_CXX_LIBRARY', '-stdlib=%s')
+
     if self._Test('GCC_ENABLE_CPP_RTTI', 'NO', default='YES'):
       cflags_cc.append('-fno-rtti')
     if self._Test('GCC_ENABLE_CPP_EXCEPTIONS', 'NO', default='YES'):
@@ -362,6 +378,7 @@ class XcodeSettings(object):
       cflags_cc.append('-fvisibility-inlines-hidden')
     if self._Test('GCC_THREADSAFE_STATICS', 'NO', default='YES'):
       cflags_cc.append('-fno-threadsafe-statics')
+    # Note: This flag is a no-op for clang, it only has an effect for gcc.
     if self._Test('GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO', 'NO', default='YES'):
       cflags_cc.append('-Wno-invalid-offsetof')
 
@@ -524,8 +541,9 @@ class XcodeSettings(object):
         ldflags, 'DYLIB_COMPATIBILITY_VERSION', '-compatibility_version %s')
     self._Appendf(
         ldflags, 'DYLIB_CURRENT_VERSION', '-current_version %s')
-    self._Appendf(
-        ldflags, 'MACOSX_DEPLOYMENT_TARGET', '-mmacosx-version-min=%s')
+
+    self._AppendPlatformVersionMinFlags(ldflags)
+
     if 'SDKROOT' in self._Settings():
       ldflags.append('-isysroot ' + self._SdkPath())
 
@@ -1042,7 +1060,7 @@ def _TopologicallySortedEnvVarKeys(env):
     order.reverse()
     return order
   except gyp.common.CycleError, e:
-    raise Exception(
+    raise GypError(
         'Xcode environment variables are cyclically dependent: ' + str(e.nodes))
 
 

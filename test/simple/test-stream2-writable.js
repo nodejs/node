@@ -326,3 +326,23 @@ test('end(chunk) two times is an error', function(t) {
     t.end();
   });
 });
+
+test('dont end while writing', function(t) {
+  var w = new W();
+  var wrote = false;
+  w._write = function(chunk, e, cb) {
+    assert(!this.writing);
+    wrote = true;
+    this.writing = true;
+    setTimeout(function() {
+      this.writing = false;
+      cb();
+    });
+  };
+  w.on('finish', function() {
+    assert(wrote);
+    t.end();
+  });
+  w.write(Buffer(0));
+  w.end();
+});

@@ -235,6 +235,42 @@ test('assymetric transform (compress)', function(t) {
   });
 });
 
+// this tests for a stall when data is written to a full stream
+// that has empty transforms.
+test('complex transform', function(t) {
+  var count = 0;
+  var saved = null;
+  var pt = new Transform({highWaterMark:3});
+  pt._transform = function(c, e, cb) {
+    if (count++ === 1)
+      saved = c;
+    else {
+      if (saved) {
+        pt.push(saved);
+        saved = null;
+      }
+      pt.push(c);
+    }
+
+    cb();
+  };
+
+  pt.once('readable', function() {
+    process.nextTick(function() {
+      pt.write(new Buffer('d'));
+      pt.write(new Buffer('ef'), function() {
+        pt.end();
+        t.end();
+      });
+      t.equal(pt.read().toString(), 'abc');
+      t.equal(pt.read().toString(), 'def');
+      t.equal(pt.read(), null);
+    });
+  });
+
+  pt.write(new Buffer('abc'));
+});
+
 
 test('passthrough event emission', function(t) {
   var pt = new PassThrough();

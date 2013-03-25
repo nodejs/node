@@ -70,3 +70,9 @@ function checkCall(cb, desc) {
     return called_ = true, cb.apply(cb, Array.prototype.slice.call(arguments));
   };
 }
+
+// #5126, "FATAL ERROR: v8::Object::SetIndexedPropertiesToExternalArrayData()
+// length exceeds max acceptable value"
+assert.throws(function() {
+  crypto.randomBytes(0x3fffffff + 1);
+}, TypeError);

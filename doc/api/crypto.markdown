@@ -19,7 +19,7 @@ Returns an array with the names of the supported ciphers.
 Example:
 
     var ciphers = crypto.getCiphers();
-    console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
+    console.log(ciphers); // ['AES-128-CBC', 'AES-128-CBC-HMAC-SHA1', ...]
 
 
 ## crypto.getHashes()

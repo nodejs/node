@@ -35,6 +35,7 @@ if (process.argv[2] === 'child') {
     }
 
     if (m.cmd === 'close') {
+      assert.equal(socket, undefined);
       sockets[m.id].once('close', function() {
         process.send({ id: m.id, status: 'closed' });
       });

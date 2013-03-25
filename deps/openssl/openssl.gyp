@@ -882,7 +882,13 @@
           'defines': [
             'MK1MF_BUILD',
             'WIN32_LEAN_AND_MEAN'
-          ]
+          ],
+          'link_settings': {
+            'libraries': [
+              '-lgdi32.lib',
+              '-luser32.lib',
+            ]
+          }
         }, {
           'defines': [
             # ENGINESDIR must be defined if OPENSSLDIR is.
