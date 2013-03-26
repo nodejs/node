@@ -69,7 +69,7 @@ child.stdout.once('data', function() {
   }
 });
 
-child.on('exit', function(c) {
+child.on('close', function(c) {
   assert(!c);
   // make sure we got 3 throws, in the end.
   var lastLine = stdout.trim().split(/\r?\n/).pop();
