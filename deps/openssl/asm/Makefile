@@ -1,3 +1,4 @@
+SED	?= sed
 PERL	?= perl
 PERL	+= -I../openssl/crypto/perlasm -I../openssl/crypto/bn/asm
 
@@ -111,7 +112,7 @@ x86-win32-masm/%.asm:
 .PHONY:	all
 all:	$(OUTPUTS)
 	# strip trailing whitespace and final blank newline
-	sed -sri -e 's/\s+$$/\n/' -e '$$ { /^$$/d }' $^
+	$(SED) -sri -e 's/\s+$$/\n/' -e '$$ { /^$$/d }' $^
 
 clean:
 	find . -iname '*.asm' -exec rm "{}" \;
