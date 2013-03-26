@@ -833,8 +833,19 @@ Buffer(Buffer(0), 0, 0);
   });
 
 
-// GH-3905
-assert.equal(JSON.stringify(Buffer('test')), '[116,101,115,116]');
+// GH-5110
+(function () {
+  var buffer = new Buffer('test'),
+      string = JSON.stringify(buffer);
+
+  assert.equal(string, '{"type":"Buffer","data":[116,101,115,116]}');
+
+  assert.deepEqual(buffer, JSON.parse(string, function(key, value) {
+    return value && value.type === 'Buffer'
+      ? new Buffer(value.data)
+      : value;
+  }));
+})();
 
 // issue GH-4331
 assert.throws(function() {

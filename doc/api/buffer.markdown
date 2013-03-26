@@ -114,9 +114,8 @@ See `buffer.write()` example, above.
 
 ### buf.toJSON()
 
-Returns a JSON-representation of the Buffer instance, which is identical to the
-output for JSON Arrays. `JSON.stringify` implicitly calls this function when
-stringifying a Buffer instance.
+Returns a JSON-representation of the Buffer instance.  `JSON.stringify`
+implicitly calls this function when stringifying a Buffer instance.
 
 Example:
 
@@ -124,9 +123,13 @@ Example:
     var json = JSON.stringify(buf);
 
     console.log(json);
-    // '[116,101,115,116]'
+    // '{"type":"Buffer","data":[116,101,115,116]}'
 
-    var copy = new Buffer(JSON.parse(json));
+    var copy = JSON.parse(json, function(key, value) {
+        return value && value.type === 'Buffer'
+          ? new Buffer(value.data)
+          : value;
+      });
 
     console.log(copy);
     // <Buffer 74 65 73 74>
