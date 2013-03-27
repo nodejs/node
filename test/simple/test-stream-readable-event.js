@@ -80,3 +80,27 @@ var Readable = require('stream').Readable;
     console.log('ok 2');
   });
 })();
+
+(function third() {
+  // Third test, not reading when the stream has not passed
+  // the highWaterMark but *has* reached EOF.
+  var r = new Readable({
+    highWaterMark: 30
+  });
+
+  // This triggers a 'readable' event, which is lost.
+  r.push(new Buffer('blerg'));
+  r.push(null);
+
+  var caughtReadable = false;
+  setTimeout(function() {
+    r.on('readable', function() {
+      caughtReadable = true;
+    });
+  });
+
+  process.on('exit', function() {
+    assert(caughtReadable);
+    console.log('ok 3');
+  });
+})();
