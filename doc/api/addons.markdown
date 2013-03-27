@@ -12,8 +12,8 @@ knowledge of several libraries:
 
  - [libuv](https://github.com/joyent/libuv), C event loop library.
    Anytime one needs to wait for a file descriptor to become readable,
-   wait for a timer, or wait for a signal to received one will need to
-   interface with libuv. That is, if you perform any I/O, libuv will
+   wait for a timer, or wait for a signal to be received one will need
+   to interface with libuv. That is, if you perform any I/O, libuv will
    need to be used.
 
  - Internal Node libraries. Most importantly is the `node::ObjectWrap`
