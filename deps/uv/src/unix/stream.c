@@ -131,7 +131,6 @@ static void uv__stream_osx_select(void* arg) {
   char buf[1024];
   fd_set sread;
   fd_set swrite;
-  fd_set serror;
   int events;
   int fd;
   int r;
@@ -154,17 +153,15 @@ static void uv__stream_osx_select(void* arg) {
     /* Watch fd using select(2) */
     FD_ZERO(&sread);
     FD_ZERO(&swrite);
-    FD_ZERO(&serror);
 
     if (uv_is_readable(stream))
       FD_SET(fd, &sread);
     if (uv_is_writable(stream))
       FD_SET(fd, &swrite);
-    FD_SET(fd, &serror);
     FD_SET(s->int_fd, &sread);
 
     /* Wait indefinitely for fd events */
-    r = select(max_fd + 1, &sread, &swrite, &serror, NULL);
+    r = select(max_fd + 1, &sread, &swrite, NULL, NULL);
     if (r == -1) {
       if (errno == EINTR)
         continue;
@@ -203,8 +200,6 @@ static void uv__stream_osx_select(void* arg) {
       events |= UV__POLLIN;
     if (FD_ISSET(fd, &swrite))
       events |= UV__POLLOUT;
-    if (FD_ISSET(fd, &serror))
-      events |= UV__POLLERR;
 
     uv_mutex_lock(&s->mutex);
     s->events |= events;
@@ -249,7 +244,8 @@ static void uv__stream_osx_select_cb(uv_async_t* handle, int status) {
   s->events = 0;
   uv_mutex_unlock(&s->mutex);
 
-  assert(0 == (events & UV__POLLERR));
+  assert(events != 0);
+  assert(events == (events & (UV__POLLIN | UV__POLLOUT)));
 
   /* Invoke callback on event-loop */
   if ((events & UV__POLLIN) && uv__io_active(&stream->io_watcher, UV__POLLIN))

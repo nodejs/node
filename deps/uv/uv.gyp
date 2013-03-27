@@ -56,6 +56,7 @@
         'src/inet.c',
         'src/uv-common.c',
         'src/uv-common.h',
+        'src/version.c'
       ],
       'conditions': [
         [ 'OS=="win"', {
@@ -114,7 +115,6 @@
             '-pedantic',
             '-Wall',
             '-Wextra',
-            '-Wstrict-aliasing',
             '-Wno-unused-parameter',
           ],
           'sources': [
@@ -179,6 +179,11 @@
           'defines': [
             '_DARWIN_USE_64_BIT_INODE=1',
           ]
+        }],
+        [ 'OS!="mac"', {
+          # Enable on all platforms except OS X. The antique gcc/clang that
+          # ships with Xcode emits waaaay too many false positives.
+          'cflags': [ '-Wstrict-aliasing' ],
         }],
         [ 'OS=="linux"', {
           'sources': [
@@ -424,5 +429,3 @@
     }
   ]
 }
-
-

@@ -28,7 +28,7 @@ Marek Jelen <marek@jelen.biz>
 Fedor Indutny <fedor.indutny@gmail.com>
 Saúl Ibarra Corretgé <saghul@gmail.com>
 Felix Geisendörfer <felix@debuggable.com>
-Yuki OKUMURA <mjt@cltn.org>
+Yuki Okumura <mjt@cltn.org>
 Roman Shtylman <shtylman@gmail.com>
 Frank Denis <github@pureftpd.org>
 Carter Allen <CarterA@opt-6.com>
@@ -44,7 +44,6 @@ Dan VerWeire <dverweire@gmail.com>
 Brandon Benvie <brandon@bbenvie.com>
 Brandon Philips <brandon.philips@rackspace.com>
 Nathan Rajlich <nathan@tootallnate.net>
-Brandon Philips <brandon@ifup.org>
 Charlie McConnell <charlie@charlieistheman.com>
 Vladimir Dronnikov <dronnikov@gmail.com>
 Aaron Bieber <qbit@deftly.net>
@@ -54,8 +53,29 @@ Erik Dubbelboer <erik@dubbelboer.com>
 Keno Fischer <kenof@stanford.edu>
 Ira Cooper <Ira.Cooper@mathworks.com>
 Andrius Bentkus <andrius.bentkus@gmail.com>
-Brian White <mscdex@gmail.com>
 Iñaki Baz Castillo <ibc@aliax.net>
 Mark Cavage <mark.cavage@joyent.com>
 George Yohng <georgegh@oss3d.com>
 Xidorn Quan <quanxunzhen@gmail.com>
+Roman Neuhauser <rneuhauser@suse.cz>
+Shuhei Tanuma <shuhei.tanuma@gmail.com>
+Bryan Cantrill <bcantrill@acm.org>
+Trond Norbye <trond.norbye@gmail.com>
+Tim Holy <holy@wustl.edu>
+Prancesco Pertugio <meh@schizofreni.co>
+Leonard Hecker <leonard.hecker91@gmail.com>
+Andrew Paprocki <andrew@ishiboo.com>
+Luigi Grilli <luigi.grilli@gmail.com>
+Shannen Saez <shannenlaptop@gmail.com>
+Artur Adib <arturadib@gmail.com>
+Hiroaki Nakamura <hnakamur@gmail.com>
+Ting-Yu Lin <ph.minamo@cytisan.com>
+Stephen Gallagher <sgallagh@redhat.com>
+Shane Holloway <shane.holloway@ieee.org>
+Andrew Shaffer <darawk@gmail.com>
+Vlad Tudose <vlad.tudose@intel.com>
+Ben Leslie <benno@benno.id.au>
+Tim Bradshaw <tfb@cley.com>
+Timothy J. Fontaine <tjfontaine@gmail.com>
+Marc Schlaich <marc.schlaich@googlemail.com>
+Brian Mazza <louseman@gmail.com>

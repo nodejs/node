@@ -1,13 +1,16 @@
-# update AUTHORS with:
-#   git log --all --reverse --format='%aN <%aE>' | perl -ne 'BEGIN{print "# Authors ordered by first contribution.\n"} print unless $h{$_}; $h{$_} = 1' > AUTHORS
-<rm@joyent.com> <rm@fingolfin.org>
-<ryan@joyent.com> <ry@tinyclouds.org>
-<bertbelder@gmail.com> <info@2bs.nl>
-<alan@prettyrobots.com> <alan@blogometer.com>
-San-Tai Hsu <vanilla@fatpipi.com>
-Isaac Z. Schlueter <i@izs.me>
-Saúl Ibarra Corretgé <saghul@gmail.com>
-Yuki OKUMURA <mjt@cltn.org>
+Alan Gutierrez <alan@prettyrobots.com> <alan@blogometer.com>
+Bert Belder <bertbelder@gmail.com> <info@2bs.nl>
+Bert Belder <bertbelder@gmail.com> <user@ChrUbuntu.(none)>
+Brandon Philips <brandon.philips@rackspace.com> <brandon@ifup.org>
+Brian White <mscdex@mscdex.net> <mscdex@gmail.com>
 Frank Denis <github@pureftpd.org>
+Isaac Z. Schlueter <i@izs.me>
+Robert Mustacchi <rm@joyent.com> <rm@fingolfin.org>
+Ryan Dahl <ryan@joyent.com> <ry@tinyclouds.org>
 Ryan Emery <seebees@gmail.com>
+San-Tai Hsu <vanilla@fatpipi.com>
+Saúl Ibarra Corretgé <saghul@gmail.com>
+Shigeki Ohtsu <ohtsu@iij.ad.jp> <ohtsu@ohtsu.org>
+Timothy J. Fontaine <tjfontaine@gmail.com>
 Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Yuki Okumura <mjt@cltn.org>

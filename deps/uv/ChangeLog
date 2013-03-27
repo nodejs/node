@@ -1,0 +1,28 @@
+2013.03.25, Version 0.10.2 (Stable)
+
+This is the first officially versioned release of libuv. Starting now
+libuv will make releases independently of Node.js.
+
+Changes since Node.js v0.10.0:
+
+* test: add tap output for windows (Timothy J. Fontaine)
+
+* unix: fix uv_tcp_simultaneous_accepts() logic (Ben Noordhuis)
+
+* include: bump UV_VERSION_MINOR (Ben Noordhuis)
+
+* unix: improve uv_guess_handle() implementation (Ben Noordhuis)
+
+* stream: run try_select only for pipes and ttys (Fedor Indutny)
+
+Changes since Node.js v0.10.1:
+
+* build: rename OS to PLATFORM (Ben Noordhuis)
+
+* unix: make uv_timer_init() initialize repeat (Brian Mazza)
+
+* unix: make timers handle large timeouts (Ben Noordhuis)
+
+* build: add OBJC makefile var (Ben Noordhuis)
+
+* Add `uv_version()` and `uv_version_string()` APIs (Bert Belder)

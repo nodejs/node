@@ -18,6 +18,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
+OBJC ?= $(CC)
+
 E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS += -g
@@ -53,6 +55,7 @@ OBJS += src/unix/udp.o
 OBJS += src/fs-poll.o
 OBJS += src/uv-common.o
 OBJS += src/inet.o
+OBJS += src/version.o
 
 ifeq (sunos,$(PLATFORM))
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
@@ -145,7 +148,7 @@ include/uv-private/uv-unix.h: \
 src/unix/internal.h: src/unix/linux-syscalls.h
 
 src/.buildstamp src/unix/.buildstamp test/.buildstamp:
-	mkdir -p $(dir $@)
+	mkdir -p $(@D)
 	touch $@
 
 src/unix/%.o src/unix/%.pic.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h src/unix/.buildstamp
@@ -161,4 +164,4 @@ clean-platform:
 	$(RM) test/run-{tests,benchmarks}.dSYM $(OBJS) $(OBJS:%.o=%.pic.o)
 
 %.pic.o %.o:  %.m
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $^ -o $@
+	$(OBJC) $(CPPFLAGS) $(CFLAGS) -c $^ -o $@

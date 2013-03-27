@@ -64,7 +64,7 @@ To build via Makefile simply execute:
 
 MinGW users should run this instead:
 
-    make OS=mingw
+    make PLATFORM=mingw
 
 Out-of-tree builds are supported:
 
