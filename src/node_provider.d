@@ -53,25 +53,28 @@ typedef struct {
 
 provider node {
 	probe net__server__connection(node_dtrace_connection_t *c,
-	    const char *a, int p) : (node_connection_t *c, string a, int p);
+	    const char *a, int p, int fd) : (node_connection_t *c, string a, int p,
+      int fd);
 	probe net__stream__end(node_dtrace_connection_t *c, const char *a,
-	    int p) : (node_connection_t *c, string a, int p);
+	    int p, int fd) : (node_connection_t *c, string a, int p, int fd);
 	probe net__socket__read(node_dtrace_connection_t *c, int b,
-	    const char *a, int p) : (node_connection_t *c, int b, string a, int p);
+	    const char *a, int p, int fd) : (node_connection_t *c, int b, string a,
+      int p, int fd);
 	probe net__socket__write(node_dtrace_connection_t *c, int b,
-	    const char *a, int p) : (node_connection_t *c, int b, string a, int p);
+	    const char *a, int p, int fd) : (node_connection_t *c, int b, string a,
+      int p, int fd);
 	probe http__server__request(node_dtrace_http_server_request_t *h,
 	    node_dtrace_connection_t *c, const char *a, int p, const char *m,
-	    const char *u) : (node_http_request_t *h, node_connection_t *c,
-      string a, int p, string m, string u);
+	    const char *u, int fd) : (node_http_request_t *h, node_connection_t *c,
+      string a, int p, string m, string u, int fd);
 	probe http__server__response(node_dtrace_connection_t *c, const char *a,
-	    int p) : (node_connection_t *c, string a, int p);
+	    int p, int fd) : (node_connection_t *c, string a, int p, int fd);
 	probe http__client__request(node_dtrace_http_client_request_t *h,
 	    node_dtrace_connection_t *c, const char *a, int p, const char *m,
-	    const char *u) : (node_http_request_t *h, node_connection_t *c, string a,
-      int p, string m, string u);
+	    const char *u, int fd) : (node_http_request_t *h, node_connection_t *c,
+      string a, int p, string m, string u, int fd);
 	probe http__client__response(node_dtrace_connection_t *c, const char *a,
-	    int p) : (node_connection_t *c, string a, int p);
+	    int p, int fd) : (node_connection_t *c, string a, int p, int fd);
 	probe gc__start(int t, int f);
 	probe gc__done(int t, int f);
 };
