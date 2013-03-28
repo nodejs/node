@@ -139,7 +139,7 @@ Handle<Value> DTRACE_NET_SERVER_CONNECTION(const Arguments& args) {
   NODE_NET_SERVER_CONNECTION(conn.fd, conn.remote, conn.port, \
                              conn.buffered);
 #else
-  NODE_NET_SERVER_CONNECTION(&conn);
+  NODE_NET_SERVER_CONNECTION(&conn, conn.remote, conn.port);
 #endif
 
   return Undefined();
@@ -157,7 +157,7 @@ Handle<Value> DTRACE_NET_STREAM_END(const Arguments& args) {
 #ifdef HAVE_SYSTEMTAP
   NODE_NET_STREAM_END(conn.fd, conn.remote, conn.port, conn.buffered);
 #else
-  NODE_NET_STREAM_END(&conn);
+  NODE_NET_STREAM_END(&conn, conn.remote, conn.port);
 #endif
 
   return Undefined();
@@ -181,7 +181,7 @@ Handle<Value> DTRACE_NET_SOCKET_READ(const Arguments& args) {
       "argument 1 to be number of bytes"))));
   }
   int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_READ(&conn, nbytes);
+  NODE_NET_SOCKET_READ(&conn, nbytes, conn.remote, conn.port);
 #endif
 
   return Undefined();
@@ -205,7 +205,7 @@ Handle<Value> DTRACE_NET_SOCKET_WRITE(const Arguments& args) {
       "argument 1 to be number of bytes"))));
   }
   int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_WRITE(&conn, nbytes);
+  NODE_NET_SOCKET_WRITE(&conn, nbytes, conn.remote, conn.port);
 #endif
 
   return Undefined();
@@ -247,7 +247,8 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
   NODE_HTTP_SERVER_REQUEST(&req, conn.fd, conn.remote, conn.port, \
                            conn.buffered);
 #else
-  NODE_HTTP_SERVER_REQUEST(&req, &conn);
+  NODE_HTTP_SERVER_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \
+                           req.url);
 #endif
   return Undefined();
 }
@@ -264,7 +265,7 @@ Handle<Value> DTRACE_HTTP_SERVER_RESPONSE(const Arguments& args) {
 #ifdef HAVE_SYSTEMTAP
   NODE_HTTP_SERVER_RESPONSE(conn.fd, conn.remote, conn.port, conn.buffered);
 #else
-  NODE_HTTP_SERVER_RESPONSE(&conn);
+  NODE_HTTP_SERVER_RESPONSE(&conn, conn.remote, conn.port);
 #endif
 
   return Undefined();
@@ -310,7 +311,8 @@ Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
   NODE_HTTP_CLIENT_REQUEST(&req, conn.fd, conn.remote, conn.port, \
                            conn.buffered);
 #else
-  NODE_HTTP_CLIENT_REQUEST(&req, &conn);
+  NODE_HTTP_CLIENT_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \
+                           req.url);
 #endif
   return Undefined();
 }
@@ -326,7 +328,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
 #ifdef HAVE_SYSTEMTAP
   NODE_HTTP_CLIENT_RESPONSE(conn.fd, conn.remote, conn.port, conn.buffered);
 #else
-  NODE_HTTP_CLIENT_RESPONSE(&conn);
+  NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port);
 #endif
 
   return Undefined();
