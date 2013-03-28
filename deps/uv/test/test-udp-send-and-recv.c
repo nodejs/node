@@ -53,6 +53,7 @@ static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
 
 static void close_cb(uv_handle_t* handle) {
   CHECK_HANDLE(handle);
+  ASSERT(uv_is_closing(handle));
   close_cb_called++;
 }
 
