@@ -15,9 +15,9 @@ There sometimes arise cases where a user publishes a module, and then
 later, some other user wants to use that name.  Here are some common
 ways that happens (each of these is based on actual events.)
 
-1. Bob writes a JavaScript module `foo`, which is not node-specific.
-   Bob doesn't use node at all.  Joe wants to use `foo` in node, so he
-   wraps it in an npm module.  Some time later, Bob starts using node,
+1. Joe writes a JavaScript module `foo`, which is not node-specific.
+   Joe doesn't use node at all.  Bob   wants to use `foo` in node, so he
+   wraps it in an npm module.  Some time later, Joe starts using node,
    and wants to take over management of his program.
 2. Bob writes an npm module `foo`, and publishes it.  Perhaps much
    later, Joe finds a bug in `foo`, and fixes it.  He sends a pull
@@ -49,7 +49,8 @@ Joe's appropriate course of action in each case is the same.
    the `foo` package.
 3. After a reasonable amount of time, if Bob has not responded, or if
    Bob and Joe can't come to any sort of resolution, email isaacs
-   <i@izs.me> and we'll sort it out.
+   <i@izs.me> and we'll sort it out.  ("Reasonable" is usually about 4
+   weeks, but extra time is allowed around common holidays.)
 
 ## REASONING
 
@@ -71,17 +72,23 @@ Some things are not allowed, and will be removed without discussion if
 they are brought to the attention of the npm registry admins, including
 but not limited to:
 
-1. Malware (that is, a module designed to exploit or harm the machine on
-   which it is installed)
+1. Malware (that is, a package designed to exploit or harm the machine on
+   which it is installed).
 2. Violations of copyright or licenses (for example, cloning an
    MIT-licensed program, and then removing or changing the copyright and
-   license statement)
+   license statement).
 3. Illegal content.
 4. "Squatting" on a package name that you *plan* to use, but aren't
    actually using.  Sorry, I don't care how great the name is, or how
    perfect a fit it is for the thing that someday might happen.  If
    someone wants to use it today, and you're just taking up space with
    an empty tarball, you're going to be evicted.
+5. Putting empty packages in the registry.  Packages must have SOME
+   functionality.  It can be silly, but it can't be *nothing*.  (See
+   also: squatting.)
+6. Doing weird things with the registry, like using it as your own
+   personal application database or otherwise putting non-packagey
+   things into it.
 
 If you see bad behavior like this, please report it right away.
 
