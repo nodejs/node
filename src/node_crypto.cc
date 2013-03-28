@@ -927,6 +927,11 @@ int Connection::HandleSSLError(const char* func, int rv, ZeroStatus zs) {
     DEBUG_PRINT("[%p] SSL: %s want read\n", ssl_, func);
     return 0;
 
+  } else if (err == SSL_ERROR_ZERO_RETURN) {
+    handle_->Set(String::New("error"),
+                 Exception::Error(String::New("ZERO_RETURN")));
+    return rv;
+
   } else {
     HandleScope scope;
     BUF_MEM* mem;
