@@ -230,7 +230,7 @@ The response implements the [Writable Stream][] interface. This is an
 
 `function () { }`
 
-Indicates that the underlaying connection was terminated before
+Indicates that the underlying connection was terminated before
 `response.end()` was called or able to flush.
 
 ### response.writeContinue()
