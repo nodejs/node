@@ -13,7 +13,7 @@ category: feature
 * Readable streams have a `read()` method that returns a buffer or
   null.  (More documentation included below.)
 * `'data'` events, `pause()`, and `resume()` will still work as before
-  (except that they'll actully work how you'd expect).
+  (except that they'll actually work how you'd expect).
 * Old programs will **almost always** work without modification, but
   streams start out in a paused state, and need to be read from to be
   consumed.

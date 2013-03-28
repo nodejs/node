@@ -164,7 +164,7 @@ automatically set as a listener for the [secureConnection][] event.  The
     SecureContext). If `SNICallback` wasn't provided - default callback with
     high-level API will be used (see below).
 
-  - `sessionTimeout`: An integer specifiying the seconds after which TLS
+  - `sessionTimeout`: An integer specifying the seconds after which TLS
     session identifiers and TLS session tickets created by the server are
     timed out. See [SSL_CTX_set_timeout] for more details.
 

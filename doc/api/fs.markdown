@@ -666,7 +666,7 @@ the file instead of the entire file.  Both `start` and `end` are inclusive and
 start at 0. The `encoding` can be `'utf8'`, `'ascii'`, or `'base64'`.
 
 If `autoClose` is false, then the file descriptor won't be closed, even if
-there's an error.  It is your responsiblity to close it and make sure
+there's an error.  It is your responsibility to close it and make sure
 there's no file descriptor leak.  If `autoClose` is set to true (default
 behavior), on `error` or `end` the file descriptor will be closed
 automatically.
