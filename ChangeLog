@@ -1,4 +1,39 @@
-2013.03.21, Version 0.10.1 (Stable)
+2013.03.28, Version 0.10.2 (Stable)
+
+* npm: Upgrade to 1.2.15
+
+* uv: Upgrade to 0.10.3
+
+* tls: handle SSL_ERROR_ZERO_RETURN (Fedor Indutny)
+
+* tls: handle errors before calling C++ methods (Fedor Indutny)
+
+* tls: remove harmful unnecessary bounds checking (Marcel Laverdet)
+
+* crypto: make getCiphers() return non-SSL ciphers (Ben Noordhuis)
+
+* crypto: check randomBytes() size argument (Ben Noordhuis)
+
+* timers: do not calculate Timeout._when property (Alexey Kupershtokh)
+
+* timers: fix off-by-one ms error (Alexey Kupershtokh)
+
+* timers: handle signed int32 overflow in enroll() (Fedor Indutny)
+
+* stream: Fix stall in Transform under very specific conditions (Gil Pedersen)
+
+* stream: Handle late 'readable' event listeners (isaacs)
+
+* stream: Fix early end in Writables on zero-length writes (isaacs)
+
+* domain: fix domain callback from MakeCallback (Trevor Norris)
+
+* child_process: don't emit same handle twice (Ben Noordhuis)
+
+* child_process: fix sending utf-8 to child process (Ben Noordhuis)
+
+
+2013.03.21, Version 0.10.1 (Stable), c274d1643589bf104122674a8c3fd147527a667d
 
 * npm: upgrade to 1.2.15
 
