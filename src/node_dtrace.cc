@@ -91,7 +91,8 @@ using namespace v8;
   } \
   node_dtrace_connection_t conn; \
   Local<Object> _##conn = Local<Object>::Cast(arg); \
-  SLURP_INT(_##conn, fd, &conn.fd); \
+  Local<Object> _handle = (_##conn)->Get(String::New("_handle"))->ToObject(); \
+  SLURP_INT(_handle, fd, &conn.fd); \
   SLURP_STRING(_##conn, remoteAddress, &conn.remote); \
   SLURP_INT(_##conn, remotePort, &conn.port); \
   SLURP_INT(_##conn, bufferSize, &conn.buffered);
@@ -139,7 +140,7 @@ Handle<Value> DTRACE_NET_SERVER_CONNECTION(const Arguments& args) {
   NODE_NET_SERVER_CONNECTION(conn.fd, conn.remote, conn.port, \
                              conn.buffered);
 #else
-  NODE_NET_SERVER_CONNECTION(&conn, conn.remote, conn.port);
+  NODE_NET_SERVER_CONNECTION(&conn, conn.remote, conn.port, conn.fd);
 #endif
 
   return Undefined();
@@ -157,7 +158,7 @@ Handle<Value> DTRACE_NET_STREAM_END(const Arguments& args) {
 #ifdef HAVE_SYSTEMTAP
   NODE_NET_STREAM_END(conn.fd, conn.remote, conn.port, conn.buffered);
 #else
-  NODE_NET_STREAM_END(&conn, conn.remote, conn.port);
+  NODE_NET_STREAM_END(&conn, conn.remote, conn.port, conn.fd);
 #endif
 
   return Undefined();
@@ -181,7 +182,7 @@ Handle<Value> DTRACE_NET_SOCKET_READ(const Arguments& args) {
       "argument 1 to be number of bytes"))));
   }
   int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_READ(&conn, nbytes, conn.remote, conn.port);
+  NODE_NET_SOCKET_READ(&conn, nbytes, conn.remote, conn.port, conn.fd);
 #endif
 
   return Undefined();
@@ -205,7 +206,7 @@ Handle<Value> DTRACE_NET_SOCKET_WRITE(const Arguments& args) {
       "argument 1 to be number of bytes"))));
   }
   int nbytes = args[1]->Int32Value();
-  NODE_NET_SOCKET_WRITE(&conn, nbytes, conn.remote, conn.port);
+  NODE_NET_SOCKET_WRITE(&conn, nbytes, conn.remote, conn.port, conn.fd);
 #endif
 
   return Undefined();
@@ -248,7 +249,7 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
                            conn.buffered);
 #else
   NODE_HTTP_SERVER_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \
-                           req.url);
+                           req.url, conn.fd);
 #endif
   return Undefined();
 }
@@ -265,7 +266,7 @@ Handle<Value> DTRACE_HTTP_SERVER_RESPONSE(const Arguments& args) {
 #ifdef HAVE_SYSTEMTAP
   NODE_HTTP_SERVER_RESPONSE(conn.fd, conn.remote, conn.port, conn.buffered);
 #else
-  NODE_HTTP_SERVER_RESPONSE(&conn, conn.remote, conn.port);
+  NODE_HTTP_SERVER_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
 #endif
 
   return Undefined();
@@ -312,7 +313,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
                            conn.buffered);
 #else
   NODE_HTTP_CLIENT_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \
-                           req.url);
+                           req.url, conn.fd);
 #endif
   return Undefined();
 }
@@ -328,7 +329,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
 #ifdef HAVE_SYSTEMTAP
   NODE_HTTP_CLIENT_RESPONSE(conn.fd, conn.remote, conn.port, conn.buffered);
 #else
-  NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port);
+  NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
 #endif
 
   return Undefined();
