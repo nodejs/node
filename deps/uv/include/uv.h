@@ -229,6 +229,20 @@ typedef enum {
 
 
 /*
+ * Returns the libuv version packed into a single integer. 8 bits are used for
+ * each component, with the patch number stored in the 8 least significant
+ * bits. E.g. for libuv 1.2.3 this would return 0x010203.
+ */
+UV_EXTERN unsigned int uv_version(void);
+
+/*
+ * Returns the libuv version number as a string. For non-release versions
+ * "-pre" is appended, so the version number could be "1.2.3-pre".
+ */
+UV_EXTERN const char* uv_version_string(void);
+
+
+/*
  * This function must be called before any other functions in libuv.
  *
  * All functions besides uv_run() are non-blocking.

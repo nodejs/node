@@ -140,6 +140,7 @@ function read (name, ver, forceBypass, cb) {
   }
 
   readJson(jsonFile, function (er, data) {
+    er = needName(er, data)
     er = needVersion(er, data)
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return addNamed(name, ver, c)
@@ -722,6 +723,7 @@ function addNameVersion (name, ver, data, cb) {
       if (!er) readJson( path.join( npm.cache, name, ver
                                   , "package", "package.json" )
                        , function (er, data) {
+          er = needName(er, data)
           er = needVersion(er, data)
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           if (er) return fetchit()
@@ -1011,6 +1013,7 @@ function addPlacedTarball_ (p, name, uid, gid, resolvedSum, cb) {
           return cb(er)
         }
         readJson(path.join(folder, "package.json"), function (er, data) {
+          er = needName(er, data)
           er = needVersion(er, data)
           if (er) {
             log.error("addPlacedTarball", "Couldn't read json in %j"
@@ -1057,6 +1060,7 @@ function addLocalDirectory (p, name, shasum, cb) {
   if (p.indexOf(npm.cache) === 0) return cb(new Error(
     "Adding a cache directory to the cache will make the world implode."))
   readJson(path.join(p, "package.json"), function (er, data) {
+    er = needName(er, data)
     er = needVersion(er, data)
     if (er) return cb(er)
     deprCheck(data)
@@ -1181,6 +1185,12 @@ function unlock (u, cb) {
   if (!myLocks[lf]) return process.nextTick(cb)
   myLocks[lf] = false
   lockFile.unlock(lockFileName(u), cb)
+}
+
+function needName(er, data) {
+  return er ? er
+       : (data && !data.name) ? new Error("No name provided")
+       : null
 }
 
 function needVersion(er, data) {

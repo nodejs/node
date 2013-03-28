@@ -79,7 +79,6 @@ void uv__udp_finish_close(uv_udp_t* handle) {
   }
 
   /* Now tear down the handle. */
-  handle->flags = 0;
   handle->recv_cb = NULL;
   handle->alloc_cb = NULL;
   /* but _do not_ touch close_cb */

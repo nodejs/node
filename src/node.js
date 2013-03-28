@@ -331,12 +331,12 @@
     var index = 1;
     var depth = 2;
 
-    process._tickCallback = _tickCallback;
-    process._tickFromSpinner = _tickFromSpinner;
-    // needs to be accessible from cc land
-    process._tickDomainCallback = _tickDomainCallback;
     process.nextTick = nextTick;
+    // needs to be accessible from cc land
     process._nextDomainTick = _nextDomainTick;
+    process._tickCallback = _tickCallback;
+    process._tickDomainCallback = _tickDomainCallback;
+    process._tickFromSpinner = _tickFromSpinner;
 
     // the maximum number of times it'll process something like
     // nextTick(function f(){nextTick(f)})

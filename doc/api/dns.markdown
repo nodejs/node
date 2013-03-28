@@ -7,7 +7,7 @@ use C-Ares except for `dns.lookup` which uses `getaddrinfo(3)` in a thread
 pool. C-Ares is much faster than `getaddrinfo` but the system resolver is
 more constant with how other programs operate. When a user does
 `net.connect(80, 'google.com')` or `http.get({ host: 'google.com' })` the
-`dns.lookup` method is used. Users who need to do a large number of look ups
+`dns.lookup` method is used. Users who need to do a large number of lookups
 quickly should use the methods that go through C-Ares.
 
 Here is an example which resolves `'www.google.com'` then reverse

@@ -46,7 +46,7 @@ of the `tty.ReadStream` instance.
 to the resulting mode.
 
 
-## Class WriteStream
+## Class: WriteStream
 
 A `net.Socket` subclass that represents the writable portion of a tty. In normal
 circumstances, `process.stdout` will be the only `tty.WriteStream` instance

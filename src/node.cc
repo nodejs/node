@@ -102,7 +102,6 @@ Persistent<String> domain_symbol;
 // declared in node_internals.h
 Persistent<Object> process;
 
-static Persistent<Function> process_tickDomainCallback;
 static Persistent<Function> process_tickFromSpinner;
 static Persistent<Function> process_tickCallback;
 
@@ -134,6 +133,7 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port=5858;
 static int max_stack_size = 0;
+static bool using_domains = false;
 
 // used by C++ modules as well
 bool no_deprecation = false;
@@ -899,23 +899,36 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 }
 
 
+Handle<Value> UsingDomains(const Arguments& args) {
+  HandleScope scope;
+  if (using_domains)
+    return scope.Close(Undefined());
+  using_domains = true;
+  Local<Value> tdc_v = process->Get(String::New("_tickDomainCallback"));
+  Local<Value> ndt_v = process->Get(String::New("_nextDomainTick"));
+  if (!tdc_v->IsFunction()) {
+    fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
+    abort();
+  }
+  if (!ndt_v->IsFunction()) {
+    fprintf(stderr, "process._nextDomainTick assigned to non-function\n");
+    abort();
+  }
+  Local<Function> tdc = tdc_v.As<Function>();
+  Local<Function> ndt = ndt_v.As<Function>();
+  process->Set(String::New("_tickCallback"), tdc);
+  process->Set(String::New("nextTick"), ndt);
+  process_tickCallback = Persistent<Function>::New(tdc);
+  return Undefined();
+}
+
+
 Handle<Value>
 MakeDomainCallback(const Handle<Object> object,
                    const Handle<Function> callback,
                    int argc,
                    Handle<Value> argv[]) {
   // TODO Hook for long stack traces to be made here.
-
-  // lazy load _tickDomainCallback
-  if (process_tickDomainCallback.IsEmpty()) {
-    Local<Value> cb_v = process->Get(String::New("_tickDomainCallback"));
-    if (!cb_v->IsFunction()) {
-      fprintf(stderr, "process._tickDomainCallback assigned to non-function\n");
-      abort();
-    }
-    Local<Function> cb = cb_v.As<Function>();
-    process_tickDomainCallback = Persistent<Function>::New(node_isolate, cb);
-  }
 
   // lazy load domain specific symbols
   if (enter_symbol.IsEmpty()) {
@@ -931,19 +944,22 @@ MakeDomainCallback(const Handle<Object> object,
 
   TryCatch try_catch;
 
-  domain = domain_v->ToObject();
-  assert(!domain.IsEmpty());
-  if (domain->Get(disposed_symbol)->IsTrue()) {
-    // domain has been disposed of.
-    return Undefined(node_isolate);
-  }
-  enter = Local<Function>::Cast(domain->Get(enter_symbol));
-  assert(!enter.IsEmpty());
-  enter->Call(domain, 0, NULL);
+  bool has_domain = domain_v->IsObject();
+  if (has_domain) {
+    domain = domain_v->ToObject();
+    assert(!domain.IsEmpty());
+    if (domain->Get(disposed_symbol)->IsTrue()) {
+      // domain has been disposed of.
+      return Undefined(node_isolate);
+    }
+    enter = Local<Function>::Cast(domain->Get(enter_symbol));
+    assert(!enter.IsEmpty());
+    enter->Call(domain, 0, NULL);
 
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined(node_isolate);
+    if (try_catch.HasCaught()) {
+      FatalException(try_catch);
+      return Undefined(node_isolate);
+    }
   }
 
   Local<Value> ret = callback->Call(object, argc, argv);
@@ -953,13 +969,15 @@ MakeDomainCallback(const Handle<Object> object,
     return Undefined(node_isolate);
   }
 
-  exit = Local<Function>::Cast(domain->Get(exit_symbol));
-  assert(!exit.IsEmpty());
-  exit->Call(domain, 0, NULL);
+  if (has_domain) {
+    exit = Local<Function>::Cast(domain->Get(exit_symbol));
+    assert(!exit.IsEmpty());
+    exit->Call(domain, 0, NULL);
 
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-    return Undefined(node_isolate);
+    if (try_catch.HasCaught()) {
+      FatalException(try_catch);
+      return Undefined(node_isolate);
+    }
   }
 
   if (tick_infobox.length == 0) {
@@ -969,7 +987,7 @@ MakeDomainCallback(const Handle<Object> object,
   }
 
   // process nextTicks after call
-  process_tickDomainCallback->Call(process, 0, NULL);
+  process_tickCallback->Call(process, 0, NULL);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -1033,10 +1051,8 @@ MakeCallback(const Handle<Object> object,
   HandleScope scope(node_isolate);
 
   Local<Function> callback = object->Get(symbol).As<Function>();
-  Local<Value> domain = object->Get(domain_symbol);
 
-  // has domain, off with you
-  if (!domain->IsNull() && !domain->IsUndefined())
+  if (using_domains)
     return scope.Close(MakeDomainCallback(object, callback, argc, argv));
   return scope.Close(MakeCallback(object, callback, argc, argv));
 }
@@ -2347,9 +2363,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("node"), String::New(NODE_VERSION+1));
   versions->Set(String::NewSymbol("v8"), String::New(V8::GetVersion()));
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
-  versions->Set(String::NewSymbol("uv"), String::New(
-               NODE_STRINGIFY(UV_VERSION_MAJOR) "."
-               NODE_STRINGIFY(UV_VERSION_MINOR)));
+  versions->Set(String::NewSymbol("uv"), String::New(uv_version_string()));
   versions->Set(String::NewSymbol("zlib"), String::New(ZLIB_VERSION));
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
@@ -2494,6 +2508,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   NODE_SET_METHOD(process, "binding", Binding);
+
+  NODE_SET_METHOD(process, "_usingDomains", UsingDomains);
 
   // values use to cross communicate with processNextTick
   Local<Object> info_box = Object::New();

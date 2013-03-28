@@ -20,9 +20,9 @@
 later, some other user wants to use that name.  Here are some common
 ways that happens (each of these is based on actual events.)</p>
 
-<ol><li>Bob writes a JavaScript module <code>foo</code>, which is not node-specific.
-Bob doesn&#39;t use node at all.  Joe wants to use <code>foo</code> in node, so he
-wraps it in an npm module.  Some time later, Bob starts using node,
+<ol><li>Joe writes a JavaScript module <code>foo</code>, which is not node-specific.
+Joe doesn&#39;t use node at all.  Bob   wants to use <code>foo</code> in node, so he
+wraps it in an npm module.  Some time later, Joe starts using node,
 and wants to take over management of his program.</li><li>Bob writes an npm module <code>foo</code>, and publishes it.  Perhaps much
 later, Joe finds a bug in <code>foo</code>, and fixes it.  He sends a pull
 request to Bob, but Bob doesn&#39;t have the time to deal with it,
@@ -49,7 +49,8 @@ isaacs <a href="mailto:i@izs.me">i@izs.me</a> to the CC list of the email.  Ment
 that Bob can run <code>npm owner add joe foo</code> to add Joe as an owner of
 the <code>foo</code> package.</li><li>After a reasonable amount of time, if Bob has not responded, or if
 Bob and Joe can&#39;t come to any sort of resolution, email isaacs
-<a href="mailto:i@izs.me">i@izs.me</a> and we&#39;ll sort it out.</li></ol>
+<a href="mailto:i@izs.me">i@izs.me</a> and we&#39;ll sort it out.  (&quot;Reasonable&quot; is usually about 4
+weeks, but extra time is allowed around common holidays.)</li></ol>
 
 <h2 id="REASONING">REASONING</h2>
 
@@ -71,14 +72,18 @@ feeling good about the interaction.</p>
 they are brought to the attention of the npm registry admins, including
 but not limited to:</p>
 
-<ol><li>Malware (that is, a module designed to exploit or harm the machine on
-which it is installed)</li><li>Violations of copyright or licenses (for example, cloning an
+<ol><li>Malware (that is, a package designed to exploit or harm the machine on
+which it is installed).</li><li>Violations of copyright or licenses (for example, cloning an
 MIT-licensed program, and then removing or changing the copyright and
-license statement)</li><li>Illegal content.</li><li>&quot;Squatting&quot; on a package name that you <em>plan</em> to use, but aren&#39;t
+license statement).</li><li>Illegal content.</li><li>&quot;Squatting&quot; on a package name that you <em>plan</em> to use, but aren&#39;t
 actually using.  Sorry, I don&#39;t care how great the name is, or how
 perfect a fit it is for the thing that someday might happen.  If
 someone wants to use it today, and you&#39;re just taking up space with
-an empty tarball, you&#39;re going to be evicted.</li></ol>
+an empty tarball, you&#39;re going to be evicted.</li><li>Putting empty packages in the registry.  Packages must have SOME
+functionality.  It can be silly, but it can&#39;t be <em>nothing</em>.  (See
+also: squatting.)</li><li>Doing weird things with the registry, like using it as your own
+personal application database or otherwise putting non-packagey
+things into it.</li></ol>
 
 <p>If you see bad behavior like this, please report it right away.</p>
 

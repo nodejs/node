@@ -86,6 +86,7 @@ proto.configDefs = {
   , python: String    // 'configure'
   , 'dist-url': String // 'install'
   , jobs: String      // 'build'
+  , thin: String      // 'configure'
 }
 
 /**

@@ -35,7 +35,7 @@ RUNNER_LDFLAGS=$(LDFLAGS)
 RUNNER_LIBS=-lws2_32 -lpsapi -liphlpapi
 RUNNER_SRC=test/runner-win.c
 
-libuv.a: $(WIN_OBJS) src/fs-poll.o src/inet.o src/uv-common.o
+libuv.a: $(WIN_OBJS) src/fs-poll.o src/inet.o src/uv-common.o src/version.o
 	$(AR) rcs $@ $^
 
 src/%.o: src/%.c include/uv.h include/uv-private/uv-win.h
