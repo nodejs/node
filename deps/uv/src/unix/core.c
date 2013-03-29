@@ -198,7 +198,7 @@ static void uv__finish_close(uv_handle_t* handle) {
   }
 
   uv__handle_unref(handle);
-  ngx_queue_remove(&handle->handle_queue);
+  QUEUE_REMOVE(&handle->handle_queue);
 
   if (handle->close_cb) {
     handle->close_cb(handle);
@@ -276,7 +276,7 @@ int uv_backend_timeout(const uv_loop_t* loop) {
   if (!uv__has_active_handles(loop) && !uv__has_active_reqs(loop))
     return 0;
 
-  if (!ngx_queue_empty(&loop->idle_handles))
+  if (!QUEUE_EMPTY(&loop->idle_handles))
     return 0;
 
   if (loop->closing_handles)
@@ -566,15 +566,15 @@ void uv_disable_stdio_inheritance(void) {
 
 
 static void uv__run_pending(uv_loop_t* loop) {
-  ngx_queue_t* q;
+  QUEUE* q;
   uv__io_t* w;
 
-  while (!ngx_queue_empty(&loop->pending_queue)) {
-    q = ngx_queue_head(&loop->pending_queue);
-    ngx_queue_remove(q);
-    ngx_queue_init(q);
+  while (!QUEUE_EMPTY(&loop->pending_queue)) {
+    q = QUEUE_HEAD(&loop->pending_queue);
+    QUEUE_REMOVE(q);
+    QUEUE_INIT(q);
 
-    w = ngx_queue_data(q, uv__io_t, pending_queue);
+    w = QUEUE_DATA(q, uv__io_t, pending_queue);
     w->cb(loop, w, UV__POLLOUT);
   }
 }
@@ -616,8 +616,8 @@ static void maybe_resize(uv_loop_t* loop, unsigned int len) {
 void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd) {
   assert(cb != NULL);
   assert(fd >= -1);
-  ngx_queue_init(&w->pending_queue);
-  ngx_queue_init(&w->watcher_queue);
+  QUEUE_INIT(&w->pending_queue);
+  QUEUE_INIT(&w->watcher_queue);
   w->cb = cb;
   w->fd = fd;
   w->events = 0;
@@ -645,16 +645,16 @@ void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
    * short-circuit here if the event mask is unchanged.
    */
   if (w->events == w->pevents) {
-    if (w->events == 0 && !ngx_queue_empty(&w->watcher_queue)) {
-      ngx_queue_remove(&w->watcher_queue);
-      ngx_queue_init(&w->watcher_queue);
+    if (w->events == 0 && !QUEUE_EMPTY(&w->watcher_queue)) {
+      QUEUE_REMOVE(&w->watcher_queue);
+      QUEUE_INIT(&w->watcher_queue);
     }
     return;
   }
 #endif
 
-  if (ngx_queue_empty(&w->watcher_queue))
-    ngx_queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
+  if (QUEUE_EMPTY(&w->watcher_queue))
+    QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
 
   if (loop->watchers[w->fd] == NULL) {
     loop->watchers[w->fd] = w;
@@ -679,8 +679,8 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   w->pevents &= ~events;
 
   if (w->pevents == 0) {
-    ngx_queue_remove(&w->watcher_queue);
-    ngx_queue_init(&w->watcher_queue);
+    QUEUE_REMOVE(&w->watcher_queue);
+    QUEUE_INIT(&w->watcher_queue);
 
     if (loop->watchers[w->fd] != NULL) {
       assert(loop->watchers[w->fd] == w);
@@ -690,20 +690,20 @@ void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
       w->events = 0;
     }
   }
-  else if (ngx_queue_empty(&w->watcher_queue))
-    ngx_queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
+  else if (QUEUE_EMPTY(&w->watcher_queue))
+    QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
 }
 
 
 void uv__io_close(uv_loop_t* loop, uv__io_t* w) {
   uv__io_stop(loop, w, UV__POLLIN | UV__POLLOUT);
-  ngx_queue_remove(&w->pending_queue);
+  QUEUE_REMOVE(&w->pending_queue);
 }
 
 
 void uv__io_feed(uv_loop_t* loop, uv__io_t* w) {
-  if (ngx_queue_empty(&w->pending_queue))
-    ngx_queue_insert_tail(&loop->pending_queue, &w->pending_queue);
+  if (QUEUE_EMPTY(&w->pending_queue))
+    QUEUE_INSERT_TAIL(&loop->pending_queue, &w->pending_queue);
 }
 
 

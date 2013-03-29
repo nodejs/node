@@ -54,18 +54,18 @@ void uv__udp_close(uv_udp_t* handle) {
 
 void uv__udp_finish_close(uv_udp_t* handle) {
   uv_udp_send_t* req;
-  ngx_queue_t* q;
+  QUEUE* q;
 
   assert(!uv__io_active(&handle->io_watcher, UV__POLLIN | UV__POLLOUT));
   assert(handle->io_watcher.fd == -1);
 
   uv__udp_run_completed(handle);
 
-  while (!ngx_queue_empty(&handle->write_queue)) {
-    q = ngx_queue_head(&handle->write_queue);
-    ngx_queue_remove(q);
+  while (!QUEUE_EMPTY(&handle->write_queue)) {
+    q = QUEUE_HEAD(&handle->write_queue);
+    QUEUE_REMOVE(q);
 
-    req = ngx_queue_data(q, uv_udp_send_t, queue);
+    req = QUEUE_DATA(q, uv_udp_send_t, queue);
     uv__req_unregister(handle->loop, req);
 
     if (req->bufs != req->bufsml)
@@ -87,15 +87,15 @@ void uv__udp_finish_close(uv_udp_t* handle) {
 
 static void uv__udp_run_pending(uv_udp_t* handle) {
   uv_udp_send_t* req;
-  ngx_queue_t* q;
+  QUEUE* q;
   struct msghdr h;
   ssize_t size;
 
-  while (!ngx_queue_empty(&handle->write_queue)) {
-    q = ngx_queue_head(&handle->write_queue);
+  while (!QUEUE_EMPTY(&handle->write_queue)) {
+    q = QUEUE_HEAD(&handle->write_queue);
     assert(q != NULL);
 
-    req = ngx_queue_data(q, uv_udp_send_t, queue);
+    req = QUEUE_DATA(q, uv_udp_send_t, queue);
     assert(req != NULL);
 
     memset(&h, 0, sizeof h);
@@ -136,21 +136,21 @@ static void uv__udp_run_pending(uv_udp_t* handle) {
      * why we don't handle partial writes. Just pop the request
      * off the write queue and onto the completed queue, done.
      */
-    ngx_queue_remove(&req->queue);
-    ngx_queue_insert_tail(&handle->write_completed_queue, &req->queue);
+    QUEUE_REMOVE(&req->queue);
+    QUEUE_INSERT_TAIL(&handle->write_completed_queue, &req->queue);
   }
 }
 
 
 static void uv__udp_run_completed(uv_udp_t* handle) {
   uv_udp_send_t* req;
-  ngx_queue_t* q;
+  QUEUE* q;
 
-  while (!ngx_queue_empty(&handle->write_completed_queue)) {
-    q = ngx_queue_head(&handle->write_completed_queue);
-    ngx_queue_remove(q);
+  while (!QUEUE_EMPTY(&handle->write_completed_queue)) {
+    q = QUEUE_HEAD(&handle->write_completed_queue);
+    QUEUE_REMOVE(q);
 
-    req = ngx_queue_data(q, uv_udp_send_t, queue);
+    req = QUEUE_DATA(q, uv_udp_send_t, queue);
     uv__req_unregister(handle->loop, req);
 
     if (req->bufs != req->bufsml)
@@ -263,8 +263,8 @@ static void uv__udp_sendmsg(uv_loop_t* loop,
   assert(handle->type == UV_UDP);
   assert(revents & UV__POLLOUT);
 
-  assert(!ngx_queue_empty(&handle->write_queue)
-      || !ngx_queue_empty(&handle->write_completed_queue));
+  assert(!QUEUE_EMPTY(&handle->write_queue)
+      || !QUEUE_EMPTY(&handle->write_completed_queue));
 
   /* Write out pending data first. */
   uv__udp_run_pending(handle);
@@ -272,11 +272,11 @@ static void uv__udp_sendmsg(uv_loop_t* loop,
   /* Drain 'request completed' queue. */
   uv__udp_run_completed(handle);
 
-  if (!ngx_queue_empty(&handle->write_completed_queue)) {
+  if (!QUEUE_EMPTY(&handle->write_completed_queue)) {
     /* Schedule completion callbacks. */
     uv__io_feed(handle->loop, &handle->io_watcher);
   }
-  else if (ngx_queue_empty(&handle->write_queue)) {
+  else if (QUEUE_EMPTY(&handle->write_queue)) {
     /* Pending queue and completion queue empty, stop watcher. */
     uv__io_stop(loop, &handle->io_watcher, UV__POLLOUT);
 
@@ -441,7 +441,7 @@ static int uv__send(uv_udp_send_t* req,
   }
 
   memcpy(req->bufs, bufs, bufcnt * sizeof(bufs[0]));
-  ngx_queue_insert_tail(&handle->write_queue, &req->queue);
+  QUEUE_INSERT_TAIL(&handle->write_queue, &req->queue);
   uv__io_start(handle->loop, &handle->io_watcher, UV__POLLOUT);
   uv__handle_start(handle);
 
@@ -454,8 +454,8 @@ int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
   handle->alloc_cb = NULL;
   handle->recv_cb = NULL;
   uv__io_init(&handle->io_watcher, uv__udp_io, -1);
-  ngx_queue_init(&handle->write_queue);
-  ngx_queue_init(&handle->write_completed_queue);
+  QUEUE_INIT(&handle->write_queue);
+  QUEUE_INIT(&handle->write_completed_queue);
   return 0;
 }
 

@@ -45,7 +45,7 @@ typedef struct uv__cf_loop_signal_s uv__cf_loop_signal_t;
 struct uv__cf_loop_signal_s {
   void* arg;
   cf_loop_signal_cb cb;
-  ngx_queue_t member;
+  QUEUE member;
 };
 
 
@@ -61,7 +61,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
     return r;
   if ((r = uv_sem_init(&loop->cf_sem, 0)))
     return r;
-  ngx_queue_init(&loop->cf_signals);
+  QUEUE_INIT(&loop->cf_signals);
 
   memset(&ctx, 0, sizeof(ctx));
   ctx.info = loop;
@@ -80,7 +80,7 @@ int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
 
 
 void uv__platform_loop_delete(uv_loop_t* loop) {
-  ngx_queue_t* item;
+  QUEUE* item;
   uv__cf_loop_signal_t* s;
 
   assert(loop->cf_loop != NULL);
@@ -92,12 +92,12 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
   uv_mutex_destroy(&loop->cf_mutex);
 
   /* Free any remaining data */
-  while (!ngx_queue_empty(&loop->cf_signals)) {
-    item = ngx_queue_head(&loop->cf_signals);
+  while (!QUEUE_EMPTY(&loop->cf_signals)) {
+    item = QUEUE_HEAD(&loop->cf_signals);
 
-    s = ngx_queue_data(item, uv__cf_loop_signal_t, member);
+    s = QUEUE_DATA(item, uv__cf_loop_signal_t, member);
 
-    ngx_queue_remove(item);
+    QUEUE_REMOVE(item);
     free(s);
   }
 }
@@ -127,27 +127,27 @@ void uv__cf_loop_runner(void* arg) {
 
 void uv__cf_loop_cb(void* arg) {
   uv_loop_t* loop;
-  ngx_queue_t* item;
-  ngx_queue_t split_head;
+  QUEUE* item;
+  QUEUE split_head;
   uv__cf_loop_signal_t* s;
 
   loop = arg;
 
   uv_mutex_lock(&loop->cf_mutex);
-  ngx_queue_init(&split_head);
-  if (!ngx_queue_empty(&loop->cf_signals)) {
-    ngx_queue_t* split_pos = ngx_queue_next(&loop->cf_signals);
-    ngx_queue_split(&loop->cf_signals, split_pos, &split_head);
+  QUEUE_INIT(&split_head);
+  if (!QUEUE_EMPTY(&loop->cf_signals)) {
+    QUEUE* split_pos = QUEUE_HEAD(&loop->cf_signals);
+    QUEUE_SPLIT(&loop->cf_signals, split_pos, &split_head);
   }
   uv_mutex_unlock(&loop->cf_mutex);
 
-  while (!ngx_queue_empty(&split_head)) {
-    item = ngx_queue_head(&split_head);
+  while (!QUEUE_EMPTY(&split_head)) {
+    item = QUEUE_HEAD(&split_head);
 
-    s = ngx_queue_data(item, uv__cf_loop_signal_t, member);
+    s = QUEUE_DATA(item, uv__cf_loop_signal_t, member);
     s->cb(s->arg);
 
-    ngx_queue_remove(item);
+    QUEUE_REMOVE(item);
     free(s);
   }
 }
@@ -165,7 +165,7 @@ void uv__cf_loop_signal(uv_loop_t* loop, cf_loop_signal_cb cb, void* arg) {
   item->cb = cb;
 
   uv_mutex_lock(&loop->cf_mutex);
-  ngx_queue_insert_tail(&loop->cf_signals, &item->member);
+  QUEUE_INSERT_TAIL(&loop->cf_signals, &item->member);
   uv_mutex_unlock(&loop->cf_mutex);
 
   assert(loop->cf_loop != NULL);

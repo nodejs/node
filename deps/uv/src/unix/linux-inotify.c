@@ -34,7 +34,7 @@
 
 struct watcher_list {
   RB_ENTRY(watcher_list) entry;
-  ngx_queue_t watchers;
+  QUEUE watchers;
   char* path;
   int wd;
 };
@@ -119,7 +119,7 @@ static void uv__inotify_read(uv_loop_t* loop,
   const struct uv__inotify_event* e;
   struct watcher_list* w;
   uv_fs_event_t* h;
-  ngx_queue_t* q;
+  QUEUE* q;
   const char* path;
   ssize_t size;
   const char *p;
@@ -158,8 +158,8 @@ static void uv__inotify_read(uv_loop_t* loop,
        */
       path = e->len ? (const char*) (e + 1) : basename_r(w->path);
 
-      ngx_queue_foreach(q, &w->watchers) {
-        h = ngx_queue_data(q, uv_fs_event_t, watchers);
+      QUEUE_FOREACH(q, &w->watchers) {
+        h = QUEUE_DATA(q, uv_fs_event_t, watchers);
         h->cb(h, path, events, 0);
       }
     }
@@ -201,13 +201,13 @@ int uv_fs_event_init(uv_loop_t* loop,
 
   w->wd = wd;
   w->path = strcpy((char*)(w + 1), path);
-  ngx_queue_init(&w->watchers);
+  QUEUE_INIT(&w->watchers);
   RB_INSERT(watcher_root, CAST(&loop->inotify_watchers), w);
 
 no_insert:
   uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
   uv__handle_start(handle); /* FIXME shouldn't start automatically */
-  ngx_queue_insert_tail(&w->watchers, &handle->watchers);
+  QUEUE_INSERT_TAIL(&w->watchers, &handle->watchers);
   handle->filename = w->path;
   handle->cb = cb;
   handle->wd = wd;
@@ -225,9 +225,9 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
   handle->wd = -1;
   handle->filename = NULL;
   uv__handle_stop(handle);
-  ngx_queue_remove(&handle->watchers);
+  QUEUE_REMOVE(&handle->watchers);
 
-  if (ngx_queue_empty(&w->watchers)) {
+  if (QUEUE_EMPTY(&w->watchers)) {
     /* No watchers left for this path. Clean up. */
     RB_REMOVE(watcher_root, CAST(&handle->loop->inotify_watchers), w);
     uv__inotify_rm_watch(handle->loop->inotify_fd, w->wd);

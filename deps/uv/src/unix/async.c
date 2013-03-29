@@ -46,7 +46,7 @@ int uv_async_init(uv_loop_t* loop, uv_async_t* handle, uv_async_cb async_cb) {
   handle->async_cb = async_cb;
   handle->pending = 0;
 
-  ngx_queue_insert_tail(&loop->async_handles, &handle->queue);
+  QUEUE_INSERT_TAIL(&loop->async_handles, &handle->queue);
   uv__handle_start(handle);
 
   return 0;
@@ -62,7 +62,7 @@ int uv_async_send(uv_async_t* handle) {
 
 
 void uv__async_close(uv_async_t* handle) {
-  ngx_queue_remove(&handle->queue);
+  QUEUE_REMOVE(&handle->queue);
   uv__handle_stop(handle);
 }
 
@@ -70,11 +70,11 @@ void uv__async_close(uv_async_t* handle) {
 static void uv__async_event(uv_loop_t* loop,
                             struct uv__async* w,
                             unsigned int nevents) {
-  ngx_queue_t* q;
+  QUEUE* q;
   uv_async_t* h;
 
-  ngx_queue_foreach(q, &loop->async_handles) {
-    h = ngx_queue_data(q, uv_async_t, queue);
+  QUEUE_FOREACH(q, &loop->async_handles) {
+    h = QUEUE_DATA(q, uv_async_t, queue);
     if (!h->pending) continue;
     h->pending = 0;
     h->async_cb(h, 0);

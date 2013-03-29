@@ -223,14 +223,14 @@ static int uv__signal_loop_once_init(uv_loop_t* loop) {
 
 
 void uv__signal_loop_cleanup(uv_loop_t* loop) {
-  ngx_queue_t* q;
+  QUEUE* q;
 
   /* Stop all the signal watchers that are still attached to this loop. This
    * ensures that the (shared) signal tree doesn't contain any invalid entries
    * entries, and that signal handlers are removed when appropriate.
    */
-  ngx_queue_foreach(q, &loop->handle_queue) {
-    uv_handle_t* handle = ngx_queue_data(q, uv_handle_t, handle_queue);
+  QUEUE_FOREACH(q, &loop->handle_queue) {
+    uv_handle_t* handle = QUEUE_DATA(q, uv_handle_t, handle_queue);
 
     if (handle->type == UV_SIGNAL)
       uv__signal_stop((uv_signal_t*) handle);

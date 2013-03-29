@@ -28,7 +28,7 @@
   int inotify_fd;                                                             \
 
 #define UV_PLATFORM_FS_EVENT_FIELDS                                           \
-  ngx_queue_t watchers;                                                       \
+  void* watchers[2];                                                          \
   int wd;                                                                     \
 
 #endif /* UV_LINUX_H */

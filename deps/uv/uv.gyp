@@ -50,10 +50,10 @@
       'sources': [
         'common.gypi',
         'include/uv.h',
-        'include/uv-private/ngx-queue.h',
         'include/uv-private/tree.h',
         'src/fs-poll.c',
         'src/inet.c',
+        'src/queue.h',
         'src/uv-common.c',
         'src/uv-common.h',
         'src/version.c'

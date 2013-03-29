@@ -41,7 +41,7 @@ extern char **environ;
 #endif
 
 
-static ngx_queue_t* uv__process_queue(uv_loop_t* loop, int pid) {
+static QUEUE* uv__process_queue(uv_loop_t* loop, int pid) {
   assert(pid > 0);
   return loop->process_handles + pid % ARRAY_SIZE(loop->process_handles);
 }
@@ -49,13 +49,13 @@ static ngx_queue_t* uv__process_queue(uv_loop_t* loop, int pid) {
 
 static uv_process_t* uv__process_find(uv_loop_t* loop, int pid) {
   uv_process_t* handle;
-  ngx_queue_t* h;
-  ngx_queue_t* q;
+  QUEUE* h;
+  QUEUE* q;
 
   h = uv__process_queue(loop, pid);
 
-  ngx_queue_foreach(q, h) {
-    handle = ngx_queue_data(q, uv_process_t, queue);
+  QUEUE_FOREACH(q, h) {
+    handle = QUEUE_DATA(q, uv_process_t, queue);
     if (handle->pid == pid) return handle;
   }
 
@@ -351,7 +351,7 @@ int uv_spawn(uv_loop_t* loop,
   int signal_pipe[2] = { -1, -1 };
   int (*pipes)[2];
   int stdio_count;
-  ngx_queue_t* q;
+  QUEUE* q;
   ssize_t r;
   pid_t pid;
   int i;
@@ -364,7 +364,7 @@ int uv_spawn(uv_loop_t* loop,
                              UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS)));
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
-  ngx_queue_init(&process->queue);
+  QUEUE_INIT(&process->queue);
 
   stdio_count = options.stdio_count;
   if (stdio_count < 3)
@@ -449,7 +449,7 @@ int uv_spawn(uv_loop_t* loop,
   }
 
   q = uv__process_queue(loop, pid);
-  ngx_queue_insert_tail(q, &process->queue);
+  QUEUE_INSERT_TAIL(q, &process->queue);
 
   process->pid = pid;
   process->exit_cb = options.exit_cb;
@@ -496,6 +496,6 @@ uv_err_t uv_kill(int pid, int signum) {
 
 void uv__process_close(uv_process_t* handle) {
   /* TODO stop signal watcher when this is the last handle */
-  ngx_queue_remove(&handle->queue);
+  QUEUE_REMOVE(&handle->queue);
   uv__handle_stop(handle);
 }

@@ -121,7 +121,9 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* req,
                            int status,
                            struct addrinfo* res) {
   ASSERT(UV_ECANCELED == uv_last_error(req->loop).code);
-  ASSERT(UV_ECANCELED == status);
+  ASSERT(status == -1);
+  ASSERT(res == NULL);
+  uv_freeaddrinfo(res);  /* Should not crash. */
   getaddrinfo_cb_called++;
 }
 

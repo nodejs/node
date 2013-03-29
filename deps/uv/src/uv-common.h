@@ -38,6 +38,7 @@
 
 #include "uv.h"
 #include "tree.h"
+#include "queue.h"
 
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
@@ -116,18 +117,18 @@ void uv__fs_poll_close(uv_fs_poll_t* handle);
 
 
 #define uv__has_active_reqs(loop)                                             \
-  (ngx_queue_empty(&(loop)->active_reqs) == 0)
+  (QUEUE_EMPTY(&(loop)->active_reqs) == 0)
 
 #define uv__req_register(loop, req)                                           \
   do {                                                                        \
-    ngx_queue_insert_tail(&(loop)->active_reqs, &(req)->active_queue);        \
+    QUEUE_INSERT_TAIL(&(loop)->active_reqs, &(req)->active_queue);            \
   }                                                                           \
   while (0)
 
 #define uv__req_unregister(loop, req)                                         \
   do {                                                                        \
     assert(uv__has_active_reqs(loop));                                        \
-    ngx_queue_remove(&(req)->active_queue);                                   \
+    QUEUE_REMOVE(&(req)->active_queue);                                       \
   }                                                                           \
   while (0)
 
@@ -196,7 +197,7 @@ void uv__fs_poll_close(uv_fs_poll_t* handle);
     (h)->loop = (loop_);                                                      \
     (h)->type = (type_);                                                      \
     (h)->flags = UV__HANDLE_REF;  /* Ref the loop when active. */             \
-    ngx_queue_insert_tail(&(loop_)->handle_queue, &(h)->handle_queue);        \
+    QUEUE_INSERT_TAIL(&(loop_)->handle_queue, &(h)->handle_queue);            \
     uv__handle_platform_init(h);                                              \
   }                                                                           \
   while (0)

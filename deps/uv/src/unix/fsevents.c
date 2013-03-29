@@ -44,28 +44,28 @@ typedef struct uv__fsevents_event_s uv__fsevents_event_t;
 
 struct uv__fsevents_event_s {
   int events;
-  ngx_queue_t member;
+  QUEUE member;
   char path[1];
 };
 
 
 #define UV__FSEVENTS_WALK(handle, block)                                      \
     {                                                                         \
-      ngx_queue_t* curr;                                                      \
-      ngx_queue_t split_head;                                                 \
+      QUEUE* curr;                                                            \
+      QUEUE split_head;                                                       \
       uv__fsevents_event_t* event;                                            \
       uv_mutex_lock(&(handle)->cf_mutex);                                     \
-      ngx_queue_init(&split_head);                                            \
-      if (!ngx_queue_empty(&(handle)->cf_events)) {                           \
-        ngx_queue_t* split_pos = ngx_queue_next(&(handle)->cf_events);        \
-        ngx_queue_split(&(handle)->cf_events, split_pos, &split_head);        \
+      QUEUE_INIT(&split_head);                                                \
+      if (!QUEUE_EMPTY(&(handle)->cf_events)) {                               \
+        QUEUE* split_pos = QUEUE_HEAD(&(handle)->cf_events);                  \
+        QUEUE_SPLIT(&(handle)->cf_events, split_pos, &split_head);            \
       }                                                                       \
       uv_mutex_unlock(&(handle)->cf_mutex);                                   \
-      while (!ngx_queue_empty(&split_head)) {                                 \
-        curr = ngx_queue_head(&split_head);                                   \
+      while (!QUEUE_EMPTY(&split_head)) {                                     \
+        curr = QUEUE_HEAD(&split_head);                                       \
         /* Invoke callback */                                                 \
-        event = ngx_queue_data(curr, uv__fsevents_event_t, member);           \
-        ngx_queue_remove(curr);                                               \
+        event = QUEUE_DATA(curr, uv__fsevents_event_t, member);               \
+        QUEUE_REMOVE(curr);                                                   \
         /* Invoke block code, but only if handle wasn't closed */             \
         if (((handle)->flags & (UV_CLOSING | UV_CLOSED)) == 0)                \
           block                                                               \
@@ -105,7 +105,7 @@ void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
   char* pos;
   uv_fs_event_t* handle;
   uv__fsevents_event_t* event;
-  ngx_queue_t add_list;
+  QUEUE add_list;
   int kFSEventsModified;
   int kFSEventsRenamed;
 
@@ -120,7 +120,7 @@ void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
 
   handle = info;
   paths = eventPaths;
-  ngx_queue_init(&add_list);
+  QUEUE_INIT(&add_list);
 
   for (i = 0; i < numEvents; i++) {
     /* Ignore system events */
@@ -180,10 +180,10 @@ void uv__fsevents_event_cb(ConstFSEventStreamRef streamRef,
     else
       event->events = UV_RENAME;
 
-    ngx_queue_insert_tail(&add_list, &event->member);
+    QUEUE_INSERT_TAIL(&add_list, &event->member);
   }
   uv_mutex_lock(&handle->cf_mutex);
-  ngx_queue_add(&handle->cf_events, &add_list);
+  QUEUE_ADD(&handle->cf_events, &add_list);
   uv_mutex_unlock(&handle->cf_mutex);
 
   uv_async_send(handle->cf_cb);
@@ -257,7 +257,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
 
   uv_mutex_init(&handle->cf_mutex);
   uv_sem_init(&handle->cf_sem, 0);
-  ngx_queue_init(&handle->cf_events);
+  QUEUE_INIT(&handle->cf_events);
 
   uv__cf_loop_signal(handle->loop, uv__fsevents_schedule, handle);
 

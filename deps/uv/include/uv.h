@@ -45,11 +45,6 @@ extern "C" {
 # define UV_EXTERN /* nothing */
 #endif
 
-
-#define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 10
-
-
 #if defined(_MSC_VER) && _MSC_VER < 1600
 # include "uv-private/stdint-msvc2008.h"
 #else
@@ -434,7 +429,7 @@ UV_EXTERN const char* uv_err_name(uv_err_t err);
   /* read-only */                                                             \
   uv_req_type type;                                                           \
   /* private */                                                               \
-  ngx_queue_t active_queue;                                                   \
+  void* active_queue[2];                                                      \
   UV_REQ_PRIVATE_FIELDS                                                       \
 
 /* Abstract base class of all requests. */
@@ -474,7 +469,7 @@ struct uv_shutdown_s {
   uv_loop_t* loop;                                                            \
   uv_handle_type type;                                                        \
   /* private */                                                               \
-  ngx_queue_t handle_queue;                                                   \
+  void* handle_queue[2];                                                      \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
 
 /* The abstract base class of all handles.  */
@@ -1958,8 +1953,8 @@ struct uv_loop_s {
   uv_err_t last_err;
   /* Loop reference counting */
   unsigned int active_handles;
-  ngx_queue_t handle_queue;
-  ngx_queue_t active_reqs;
+  void* handle_queue[2];
+  void* active_reqs[2];
   /* Internal flag to signal loop stop */
   unsigned int stop_flag;
   UV_LOOP_PRIVATE_FIELDS

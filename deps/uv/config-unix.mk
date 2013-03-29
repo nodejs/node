@@ -145,7 +145,8 @@ include/uv-private/uv-unix.h: \
 	include/uv-private/uv-linux.h \
 	include/uv-private/uv-sunos.h
 
-src/unix/internal.h: src/unix/linux-syscalls.h
+src/unix/internal.h: src/unix/linux-syscalls.h src/uv-common.h
+src/uv-common.h: src/queue.h
 
 src/.buildstamp src/unix/.buildstamp test/.buildstamp:
 	mkdir -p $(@D)

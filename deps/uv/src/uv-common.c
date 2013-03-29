@@ -361,11 +361,11 @@ unsigned long uv_thread_self(void) {
 
 
 void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
-  ngx_queue_t* q;
+  QUEUE* q;
   uv_handle_t* h;
 
-  ngx_queue_foreach(q, &loop->handle_queue) {
-    h = ngx_queue_data(q, uv_handle_t, handle_queue);
+  QUEUE_FOREACH(q, &loop->handle_queue) {
+    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
     if (h->flags & UV__HANDLE_INTERNAL) continue;
     walk_cb(h, arg);
   }
@@ -375,14 +375,14 @@ void uv_walk(uv_loop_t* loop, uv_walk_cb walk_cb, void* arg) {
 #ifndef NDEBUG
 static void uv__print_handles(uv_loop_t* loop, int only_active) {
   const char* type;
-  ngx_queue_t* q;
+  QUEUE* q;
   uv_handle_t* h;
 
   if (loop == NULL)
     loop = uv_default_loop();
 
-  ngx_queue_foreach(q, &loop->handle_queue) {
-    h = ngx_queue_data(q, uv_handle_t, handle_queue);
+  QUEUE_FOREACH(q, &loop->handle_queue) {
+    h = QUEUE_DATA(q, uv_handle_t, handle_queue);
 
     if (only_active && !uv__is_active(h))
       continue;

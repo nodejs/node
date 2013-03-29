@@ -91,7 +91,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
   struct timespec spec;
-  ngx_queue_t* q;
+  QUEUE* q;
   uv__io_t* w;
   uint64_t base;
   uint64_t diff;
@@ -103,16 +103,16 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int fd;
 
   if (loop->nfds == 0) {
-    assert(ngx_queue_empty(&loop->watcher_queue));
+    assert(QUEUE_EMPTY(&loop->watcher_queue));
     return;
   }
 
-  while (!ngx_queue_empty(&loop->watcher_queue)) {
-    q = ngx_queue_head(&loop->watcher_queue);
-    ngx_queue_remove(q);
-    ngx_queue_init(q);
+  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
+    q = QUEUE_HEAD(&loop->watcher_queue);
+    QUEUE_REMOVE(q);
+    QUEUE_INIT(q);
 
-    w = ngx_queue_data(q, uv__io_t, watcher_queue);
+    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
 
     if (port_associate(loop->backend_fd, PORT_SOURCE_FD, w->fd, w->pevents, 0))
@@ -190,8 +190,8 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       nevents++;
 
       /* Events Ports operates in oneshot mode, rearm timer on next run. */
-      if (w->pevents != 0 && ngx_queue_empty(&w->watcher_queue))
-        ngx_queue_insert_tail(&loop->watcher_queue, &w->watcher_queue);
+      if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
+        QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
     }
 
     if (nevents != 0) {

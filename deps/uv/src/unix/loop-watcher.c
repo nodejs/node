@@ -33,7 +33,7 @@
     if (uv__is_active(handle)) return 0;                                      \
     if (cb == NULL)                                                           \
       return uv__set_artificial_error(handle->loop, UV_EINVAL);               \
-    ngx_queue_insert_head(&handle->loop->name##_handles, &handle->queue);     \
+    QUEUE_INSERT_HEAD(&handle->loop->name##_handles, &handle->queue);         \
     handle->name##_cb = cb;                                                   \
     uv__handle_start(handle);                                                 \
     return 0;                                                                 \
@@ -41,16 +41,16 @@
                                                                               \
   int uv_##name##_stop(uv_##name##_t* handle) {                               \
     if (!uv__is_active(handle)) return 0;                                     \
-    ngx_queue_remove(&handle->queue);                                         \
+    QUEUE_REMOVE(&handle->queue);                                             \
     uv__handle_stop(handle);                                                  \
     return 0;                                                                 \
   }                                                                           \
                                                                               \
   void uv__run_##name(uv_loop_t* loop) {                                      \
     uv_##name##_t* h;                                                         \
-    ngx_queue_t* q;                                                           \
-    ngx_queue_foreach(q, &loop->name##_handles) {                             \
-      h = ngx_queue_data(q, uv_##name##_t, queue);                            \
+    QUEUE* q;                                                                 \
+    QUEUE_FOREACH(q, &loop->name##_handles) {                                 \
+      h = QUEUE_DATA(q, uv_##name##_t, queue);                                \
       h->name##_cb(h, 0);                                                     \
     }                                                                         \
   }                                                                           \

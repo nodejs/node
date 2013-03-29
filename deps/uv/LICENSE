@@ -31,8 +31,6 @@ The externally maintained libraries used by libuv are:
 
   - tree.h (from FreeBSD), copyright Niels Provos. Two clause BSD license.
 
-  - ngx_queue.h (from Nginx), copyright Igor Sysoev. Two clause BSD license.
-
   - inet_pton and inet_ntop implementations, contained in src/inet.c, are
     copyright the Internet Systems Consortium, Inc., and licensed under the ISC
     license.

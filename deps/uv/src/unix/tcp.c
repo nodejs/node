@@ -116,7 +116,7 @@ static int uv__connect(uv_connect_t* req,
   uv__req_init(handle->loop, req, UV_CONNECT);
   req->cb = cb;
   req->handle = (uv_stream_t*) handle;
-  ngx_queue_init(&req->queue);
+  QUEUE_INIT(&req->queue);
   handle->connect_req = req;
 
   uv__io_start(handle->loop, &handle->io_watcher, UV__POLLOUT);

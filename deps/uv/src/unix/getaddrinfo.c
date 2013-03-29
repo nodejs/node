@@ -38,22 +38,24 @@ static void uv__getaddrinfo_work(struct uv__work* w) {
 
 
 static void uv__getaddrinfo_done(struct uv__work* w, int status) {
-  uv_getaddrinfo_t* req = container_of(w, uv_getaddrinfo_t, work_req);
-  struct addrinfo *res = req->res;
-#if defined(__sun)
+  uv_getaddrinfo_t* req;
+  struct addrinfo *res;
   size_t hostlen;
 
-  if (req->hostname)
-    hostlen = strlen(req->hostname);
-  else
-    hostlen = 0;
-#endif
-
-  req->res = NULL;
-
+  req = container_of(w, uv_getaddrinfo_t, work_req);
   uv__req_unregister(req->loop, req);
 
-  /* see initialization in uv_getaddrinfo() */
+  res = req->res;
+  req->res = NULL;
+
+  (void) &hostlen;  /* Silence unused variable warning. */
+  hostlen = 0;
+#if defined(__sun)
+  if (req->hostname != NULL)
+    hostlen = strlen(req->hostname);
+#endif
+
+  /* See initialization in uv_getaddrinfo(). */
   if (req->hints)
     free(req->hints);
   else if (req->service)
@@ -67,30 +69,34 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
   req->service = NULL;
   req->hostname = NULL;
 
-  if (req->retcode == 0) {
-    /* OK */
-#if defined(EAI_NODATA) /* FreeBSD deprecated EAI_NODATA */
-  } else if (req->retcode == EAI_NONAME || req->retcode == EAI_NODATA) {
-#else
-  } else if (req->retcode == EAI_NONAME) {
-#endif
-    uv__set_sys_error(req->loop, ENOENT); /* FIXME compatibility hack */
-#if defined(__sun)
-  } else if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
-    uv__set_sys_error(req->loop, ENOENT);
-#endif
-  } else {
-    req->loop->last_err.code = UV_EADDRINFO;
-    req->loop->last_err.sys_errno_ = req->retcode;
-  }
-
   if (status == -UV_ECANCELED) {
     assert(req->retcode == 0);
     req->retcode = UV_ECANCELED;
     uv__set_artificial_error(req->loop, UV_ECANCELED);
+    req->cb(req, -1, NULL);
+    return;
   }
 
-  req->cb(req, req->retcode, res);
+  if (req->retcode == 0) {
+    req->cb(req, 0, res);
+    return;
+  }
+
+  if (req->retcode == EAI_NONAME)
+    uv__set_sys_error(req->loop, ENOENT);
+#if defined(EAI_NODATA)  /* Newer FreeBSDs don't have EAI_NODATA. */
+  else if (req->retcode == EAI_NODATA)
+    uv__set_sys_error(req->loop, ENOENT);
+#elif defined(__sun)
+  if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
+    uv__set_sys_error(req->loop, ENOENT);
+#endif
+  else {
+    req->loop->last_err.code = UV_EADDRINFO;
+    req->loop->last_err.sys_errno_ = req->retcode;
+  }
+
+  req->cb(req, -1, res);
 }
 
 

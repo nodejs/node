@@ -55,7 +55,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct timespec spec;
   unsigned int nevents;
   unsigned int revents;
-  ngx_queue_t* q;
+  QUEUE* q;
   uint64_t base;
   uint64_t diff;
   uv__io_t* w;
@@ -68,18 +68,18 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   int i;
 
   if (loop->nfds == 0) {
-    assert(ngx_queue_empty(&loop->watcher_queue));
+    assert(QUEUE_EMPTY(&loop->watcher_queue));
     return;
   }
 
   nevents = 0;
 
-  while (!ngx_queue_empty(&loop->watcher_queue)) {
-    q = ngx_queue_head(&loop->watcher_queue);
-    ngx_queue_remove(q);
-    ngx_queue_init(q);
+  while (!QUEUE_EMPTY(&loop->watcher_queue)) {
+    q = QUEUE_HEAD(&loop->watcher_queue);
+    QUEUE_REMOVE(q);
+    QUEUE_INIT(q);
 
-    w = ngx_queue_data(q, uv__io_t, watcher_queue);
+    w = QUEUE_DATA(q, uv__io_t, watcher_queue);
     assert(w->pevents != 0);
     assert(w->fd >= 0);
     assert(w->fd < (int) loop->nwatchers);

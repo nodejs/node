@@ -34,19 +34,19 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
 
   memset(loop, 0, sizeof(*loop));
   RB_INIT(&loop->timer_handles);
-  ngx_queue_init(&loop->wq);
-  ngx_queue_init(&loop->active_reqs);
-  ngx_queue_init(&loop->idle_handles);
-  ngx_queue_init(&loop->async_handles);
-  ngx_queue_init(&loop->check_handles);
-  ngx_queue_init(&loop->prepare_handles);
-  ngx_queue_init(&loop->handle_queue);
+  QUEUE_INIT(&loop->wq);
+  QUEUE_INIT(&loop->active_reqs);
+  QUEUE_INIT(&loop->idle_handles);
+  QUEUE_INIT(&loop->async_handles);
+  QUEUE_INIT(&loop->check_handles);
+  QUEUE_INIT(&loop->prepare_handles);
+  QUEUE_INIT(&loop->handle_queue);
 
   loop->nfds = 0;
   loop->watchers = NULL;
   loop->nwatchers = 0;
-  ngx_queue_init(&loop->pending_queue);
-  ngx_queue_init(&loop->watcher_queue);
+  QUEUE_INIT(&loop->pending_queue);
+  QUEUE_INIT(&loop->watcher_queue);
 
   loop->closing_handles = NULL;
   loop->time = uv__hrtime() / 1000000;
@@ -67,7 +67,7 @@ int uv__loop_init(uv_loop_t* loop, int default_loop) {
   loop->child_watcher.flags |= UV__HANDLE_INTERNAL;
 
   for (i = 0; i < ARRAY_SIZE(loop->process_handles); i++)
-    ngx_queue_init(loop->process_handles + i);
+    QUEUE_INIT(loop->process_handles + i);
 
   if (uv_mutex_init(&loop->wq_mutex))
     abort();
@@ -98,13 +98,13 @@ void uv__loop_delete(uv_loop_t* loop) {
   }
 
   uv_mutex_lock(&loop->wq_mutex);
-  assert(ngx_queue_empty(&loop->wq) && "thread pool work queue not empty!");
+  assert(QUEUE_EMPTY(&loop->wq) && "thread pool work queue not empty!");
   uv_mutex_unlock(&loop->wq_mutex);
   uv_mutex_destroy(&loop->wq_mutex);
 
 #if 0
-  assert(ngx_queue_empty(&loop->pending_queue));
-  assert(ngx_queue_empty(&loop->watcher_queue));
+  assert(QUEUE_EMPTY(&loop->pending_queue));
+  assert(QUEUE_EMPTY(&loop->watcher_queue));
   assert(loop->nfds == 0);
 #endif
 

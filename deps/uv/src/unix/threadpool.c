@@ -30,8 +30,8 @@ static uv_mutex_t mutex;
 static unsigned int nthreads;
 static uv_thread_t* threads;
 static uv_thread_t default_threads[4];
-static ngx_queue_t exit_message;
-static ngx_queue_t wq;
+static QUEUE exit_message;
+static QUEUE wq;
 static volatile int initialized;
 
 
@@ -45,23 +45,23 @@ static void uv__cancelled(struct uv__work* w) {
  */
 static void worker(void* arg) {
   struct uv__work* w;
-  ngx_queue_t* q;
+  QUEUE* q;
 
   (void) arg;
 
   for (;;) {
     uv_mutex_lock(&mutex);
 
-    while (ngx_queue_empty(&wq))
+    while (QUEUE_EMPTY(&wq))
       uv_cond_wait(&cond, &mutex);
 
-    q = ngx_queue_head(&wq);
+    q = QUEUE_HEAD(&wq);
 
     if (q == &exit_message)
       uv_cond_signal(&cond);
     else {
-      ngx_queue_remove(q);
-      ngx_queue_init(q);  /* Signal uv_cancel() that the work req is
+      QUEUE_REMOVE(q);
+      QUEUE_INIT(q);  /* Signal uv_cancel() that the work req is
                              executing. */
     }
 
@@ -70,22 +70,22 @@ static void worker(void* arg) {
     if (q == &exit_message)
       break;
 
-    w = ngx_queue_data(q, struct uv__work, wq);
+    w = QUEUE_DATA(q, struct uv__work, wq);
     w->work(w);
 
     uv_mutex_lock(&w->loop->wq_mutex);
     w->work = NULL;  /* Signal uv_cancel() that the work req is done
                         executing. */
-    ngx_queue_insert_tail(&w->loop->wq, &w->wq);
+    QUEUE_INSERT_TAIL(&w->loop->wq, &w->wq);
     uv_async_send(&w->loop->wq_async);
     uv_mutex_unlock(&w->loop->wq_mutex);
   }
 }
 
 
-static void post(ngx_queue_t* q) {
+static void post(QUEUE* q) {
   uv_mutex_lock(&mutex);
-  ngx_queue_insert_tail(&wq, q);
+  QUEUE_INSERT_TAIL(&wq, q);
   uv_cond_signal(&cond);
   uv_mutex_unlock(&mutex);
 }
@@ -119,7 +119,7 @@ static void init_once(void) {
   if (uv_mutex_init(&mutex))
     abort();
 
-  ngx_queue_init(&wq);
+  QUEUE_INIT(&wq);
 
   for (i = 0; i < nthreads; i++)
     if (uv_thread_create(threads + i, worker, NULL))
@@ -174,9 +174,9 @@ static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
   uv_mutex_lock(&mutex);
   uv_mutex_lock(&w->loop->wq_mutex);
 
-  cancelled = !ngx_queue_empty(&w->wq) && w->work != NULL;
+  cancelled = !QUEUE_EMPTY(&w->wq) && w->work != NULL;
   if (cancelled)
-    ngx_queue_remove(&w->wq);
+    QUEUE_REMOVE(&w->wq);
 
   uv_mutex_unlock(&w->loop->wq_mutex);
   uv_mutex_unlock(&mutex);
@@ -186,7 +186,7 @@ static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
 
   w->work = uv__cancelled;
   uv_mutex_lock(&loop->wq_mutex);
-  ngx_queue_insert_tail(&loop->wq, &w->wq);
+  QUEUE_INSERT_TAIL(&loop->wq, &w->wq);
   uv_async_send(&loop->wq_async);
   uv_mutex_unlock(&loop->wq_mutex);
 
@@ -197,23 +197,23 @@ static int uv__work_cancel(uv_loop_t* loop, uv_req_t* req, struct uv__work* w) {
 void uv__work_done(uv_async_t* handle, int status) {
   struct uv__work* w;
   uv_loop_t* loop;
-  ngx_queue_t* q;
-  ngx_queue_t wq;
+  QUEUE* q;
+  QUEUE wq;
   int err;
 
   loop = container_of(handle, uv_loop_t, wq_async);
-  ngx_queue_init(&wq);
+  QUEUE_INIT(&wq);
 
   uv_mutex_lock(&loop->wq_mutex);
-  if (!ngx_queue_empty(&loop->wq)) {
-    q = ngx_queue_head(&loop->wq);
-    ngx_queue_split(&loop->wq, q, &wq);
+  if (!QUEUE_EMPTY(&loop->wq)) {
+    q = QUEUE_HEAD(&loop->wq);
+    QUEUE_SPLIT(&loop->wq, q, &wq);
   }
   uv_mutex_unlock(&loop->wq_mutex);
 
-  while (!ngx_queue_empty(&wq)) {
-    q = ngx_queue_head(&wq);
-    ngx_queue_remove(q);
+  while (!QUEUE_EMPTY(&wq)) {
+    q = QUEUE_HEAD(&wq);
+    QUEUE_REMOVE(q);
 
     w = container_of(q, struct uv__work, wq);
     err = (w->work == uv__cancelled) ? -UV_ECANCELED : 0;

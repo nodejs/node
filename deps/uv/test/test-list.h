@@ -136,6 +136,7 @@ TEST_DECLARE   (process_title)
 TEST_DECLARE   (cwd_and_chdir)
 TEST_DECLARE   (get_memory)
 TEST_DECLARE   (hrtime)
+TEST_DECLARE   (getaddrinfo_fail)
 TEST_DECLARE   (getaddrinfo_basic)
 TEST_DECLARE   (getaddrinfo_concurrent)
 TEST_DECLARE   (getsockname_tcp)
@@ -398,6 +399,7 @@ TASK_LIST_START
 
   TEST_ENTRY  (hrtime)
 
+  TEST_ENTRY  (getaddrinfo_fail)
   TEST_ENTRY  (getaddrinfo_basic)
   TEST_ENTRY  (getaddrinfo_concurrent)
 

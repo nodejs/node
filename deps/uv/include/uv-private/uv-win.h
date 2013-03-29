@@ -45,7 +45,6 @@ typedef intptr_t ssize_t;
 #endif
 
 #include "tree.h"
-#include "ngx-queue.h"
 
 #define MAX_PIPENAME_LEN 256
 
