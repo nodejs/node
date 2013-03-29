@@ -918,7 +918,7 @@ Handle<Value> UsingDomains(const Arguments& args) {
   Local<Function> ndt = ndt_v.As<Function>();
   process->Set(String::New("_tickCallback"), tdc);
   process->Set(String::New("nextTick"), ndt);
-  process_tickCallback = Persistent<Function>::New(tdc);
+  process_tickCallback = Persistent<Function>::New(node_isolate, tdc);
   return Undefined();
 }
 
