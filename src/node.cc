@@ -900,9 +900,9 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 
 
 Handle<Value> UsingDomains(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   if (using_domains)
-    return scope.Close(Undefined());
+    return Undefined();
   using_domains = true;
   Local<Value> tdc_v = process->Get(String::New("_tickDomainCallback"));
   Local<Value> ndt_v = process->Get(String::New("_nextDomainTick"));
