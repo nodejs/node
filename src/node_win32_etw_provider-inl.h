@@ -112,7 +112,8 @@ extern int events_enabled;
 
 
 void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
-    node_dtrace_connection_t* conn) {
+    node_dtrace_connection_t* conn, const char *remote, int port,
+    const char *method, const char *url, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[7];
   ETW_WRITE_HTTP_SERVER_REQUEST(descriptors, req);
   ETW_WRITE_NET_CONNECTION(descriptors + 3, conn);
@@ -120,7 +121,8 @@ void NODE_HTTP_SERVER_REQUEST(node_dtrace_http_server_request_t* req,
 }
 
 
-void NODE_HTTP_SERVER_RESPONSE(node_dtrace_connection_t* conn) {
+void NODE_HTTP_SERVER_RESPONSE(node_dtrace_connection_t* conn,
+    const char *remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_HTTP_SERVER_RESPONSE_EVENT, descriptors);
@@ -128,7 +130,8 @@ void NODE_HTTP_SERVER_RESPONSE(node_dtrace_connection_t* conn) {
 
 
 void NODE_HTTP_CLIENT_REQUEST(node_dtrace_http_client_request_t* req,
-    node_dtrace_connection_t* conn) {
+    node_dtrace_connection_t* conn, const char *remote, int port,
+    const char *method, const char *url, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[6];
   ETW_WRITE_HTTP_CLIENT_REQUEST(descriptors, req);
   ETW_WRITE_NET_CONNECTION(descriptors + 2, conn);
@@ -136,21 +139,24 @@ void NODE_HTTP_CLIENT_REQUEST(node_dtrace_http_client_request_t* req,
 }
 
 
-void NODE_HTTP_CLIENT_RESPONSE(node_dtrace_connection_t* conn) {
+void NODE_HTTP_CLIENT_RESPONSE(node_dtrace_connection_t* conn,
+    const char *remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_HTTP_CLIENT_RESPONSE_EVENT, descriptors);
 }
 
 
-void NODE_NET_SERVER_CONNECTION(node_dtrace_connection_t* conn) {
+void NODE_NET_SERVER_CONNECTION(node_dtrace_connection_t* conn,
+    const char *remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_NET_SERVER_CONNECTION_EVENT, descriptors);
 }
 
 
-void NODE_NET_STREAM_END(node_dtrace_connection_t* conn) {
+void NODE_NET_STREAM_END(node_dtrace_connection_t* conn,
+    const char *remote, int port, int fd) {
   EVENT_DATA_DESCRIPTOR descriptors[4];
   ETW_WRITE_NET_CONNECTION(descriptors, conn);
   ETW_WRITE_EVENT(NODE_NET_STREAM_END_EVENT, descriptors);
