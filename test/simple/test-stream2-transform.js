@@ -104,6 +104,28 @@ test('passthrough', function(t) {
   t.end();
 });
 
+test('object passthrough', function (t) {
+  var pt = new PassThrough({ objectMode: true });
+
+  pt.write(1);
+  pt.write(true);
+  pt.write(false);
+  pt.write(0);
+  pt.write('foo');
+  pt.write('');
+  pt.write({ a: 'b'});
+  pt.end();
+
+  t.equal(pt.read(), 1);
+  t.equal(pt.read(), true);
+  t.equal(pt.read(), false);
+  t.equal(pt.read(), 0);
+  t.equal(pt.read(), 'foo');
+  t.equal(pt.read(), '');
+  t.same(pt.read(), { a: 'b'});
+  t.end();
+});
+
 test('simple transform', function(t) {
   var pt = new Transform;
   pt._transform = function(c, e, cb) {
@@ -123,6 +145,32 @@ test('simple transform', function(t) {
   t.equal(pt.read(5).toString(), 'xxxxx');
   t.equal(pt.read(5).toString(), 'xxxxx');
   t.equal(pt.read(5).toString(), 'x');
+  t.end();
+});
+
+test('simple object transform', function(t) {
+  var pt = new Transform({ objectMode: true });
+  pt._transform = function(c, e, cb) {
+    pt.push(JSON.stringify(c));
+    cb();
+  };
+
+  pt.write(1);
+  pt.write(true);
+  pt.write(false);
+  pt.write(0);
+  pt.write('foo');
+  pt.write('');
+  pt.write({ a: 'b'});
+  pt.end();
+
+  t.equal(pt.read(), '1');
+  t.equal(pt.read(), 'true');
+  t.equal(pt.read(), 'false');
+  t.equal(pt.read(), '0');
+  t.equal(pt.read(), '"foo"');
+  t.equal(pt.read(), '""');
+  t.equal(pt.read(), '{"a":"b"}');
   t.end();
 });
 
