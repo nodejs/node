@@ -126,6 +126,9 @@ def files(action):
   # with dtrace support now (oracle's "unbreakable" linux)
   action(['src/node.d'], 'lib/dtrace/')
 
+  # behave similarly for systemtap
+  action(['src/node.stp'], 'share/systemtap/tapset/')
+
   if 'freebsd' in sys.platform or 'openbsd' in sys.platform:
     action(['doc/node.1'], 'man/man1/')
   else:

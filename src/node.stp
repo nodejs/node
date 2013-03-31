@@ -1,0 +1,177 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+probe node_net_server_connection = process("node").mark("net__server__connection")
+{
+  remote = user_string($arg2);
+  port = $arg3;
+  fd = $arg4;
+
+  probestr = sprintf("%s(remote=%s, port=%d, fd=%d)",
+    $$name,
+    remote,
+    port,
+    fd);
+}
+
+probe node_net_stream_end = process("node").mark("net__stream__end")
+{
+  remote = user_string($arg2);
+  port = $arg3;
+  fd = $arg4;
+
+  probestr = sprintf("%s(remote=%s, port=%d, fd=%d)",
+    $$name,
+    remote,
+    port,
+    fd);
+}
+
+probe node_net_socket_write = process("node").mark("net__socket__write")
+{
+  bytes = $arg2;
+  remote = user_string($arg3);
+  port = $arg4;
+  fd = $arg5;
+
+  probestr = sprintf("%s(bytes=%d, remote=%s, port=%d, fd=%d)",
+    $$name,
+    bytes,
+    remote,
+    port,
+    fd);
+}
+
+probe node_net_socket_read = process("node").mark("net__socket__read")
+{
+  bytes = $arg2;
+  remote = user_string($arg3);
+  port = $arg4;
+  fd = $arg5;
+
+  probestr = sprintf("%s(bytes=%d, remote=%s, port=%d, fd=%d)",
+    $$name,
+    bytes,
+    remote,
+    port,
+    fd);
+}
+
+probe node_http_server_request = process("node").mark("http__server__request")
+{
+  remote = user_string($arg3);
+  port = $arg4;
+  method = user_string($arg5);
+  url = user_string($arg6);
+  fd = $arg7;
+
+  probestr = sprintf("%s(remote=%s, port=%d, method=%s, url=%s, fd=%d)",
+    $$name,
+    remote,
+    port,
+    method,
+    url,
+    fd);
+}
+
+probe node_http_server_response = process("node").mark("http__server__response")
+{
+  remote = user_string($arg2);
+  port = $arg3;
+  fd = $arg4;
+
+  probestr = sprintf("%s(remote=%s, port=%d, fd=%d)",
+    $$name,
+    remote,
+    port,
+    fd);
+}
+
+probe node_http_client_request = process("node").mark("http__client__request")
+{
+  remote = user_string($arg3);
+  port = $arg4;
+  method = user_string($arg5);
+  url = user_string($arg6);
+  fd = $arg7;
+
+  probestr = sprintf("%s(remote=%s, port=%d, method=%s, url=%s, fd=%d)",
+    $$name,
+    remote,
+    port,
+    method,
+    url,
+    fd);
+}
+
+probe node_http_client_response = process("node").mark("http__client__response")
+{
+  remote = user_string($arg2);
+  port = $arg3;
+  fd = $arg4;
+
+  probestr = sprintf("%s(remote=%s, port=%d, fd=%d)",
+    $$name,
+    remote,
+    port,
+    fd);
+}
+
+probe node_gc_start = process("node").mark("gc__start")
+{
+  scavenge = 1 << 0;
+  compact = 1 << 1;
+
+  if ($arg1 == scavenge)
+    type = "kGCTypeScavenge";
+  else if ($arg1 == compact)
+    type = "kGCTypeMarkSweepCompact";
+  else
+    type = "kGCTypeAll";
+
+  flags = $arg2;
+
+  probestr = sprintf("%s(type=%s,flags=%d)",
+    $$name,
+    type,
+    flags);
+}
+
+probe node_gc_stop = process("node").mark("gc__stop")
+{
+  scavenge = 1 << 0;
+  compact = 1 << 1;
+
+  if ($arg1 == scavenge)
+    type = "kGCTypeScavenge";
+  else if ($arg1 == compact)
+    type = "kGCTypeMarkSweepCompact";
+  else
+    type = "kGCTypeAll";
+
+  flags = $arg2;
+
+  probestr = sprintf("%s(type=%s,flags=%d)",
+    $$name,
+    type,
+    flags);
+}
