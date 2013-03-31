@@ -34,7 +34,7 @@
 #include <node.h>
 #include <v8.h>
 #include <sys/sdt.h>
-#include "node_systemtap.h"
+#include "node_provider.h"
 #include "node_dtrace.h"
 #else
 #define NODE_HTTP_SERVER_REQUEST(arg0, arg1)
@@ -140,12 +140,8 @@ Handle<Value> DTRACE_NET_SERVER_CONNECTION(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   SLURP_CONNECTION(args[0], conn);
-#ifdef HAVE_SYSTEMTAP
-  NODE_NET_SERVER_CONNECTION(conn.fd, conn.remote, conn.port, \
-                             conn.buffered);
-#else
+
   NODE_NET_SERVER_CONNECTION(&conn, conn.remote, conn.port, conn.fd);
-#endif
 
   return Undefined(node_isolate);
 }
@@ -159,11 +155,8 @@ Handle<Value> DTRACE_NET_STREAM_END(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   SLURP_CONNECTION(args[0], conn);
-#ifdef HAVE_SYSTEMTAP
-  NODE_NET_STREAM_END(conn.fd, conn.remote, conn.port, conn.buffered);
-#else
+
   NODE_NET_STREAM_END(&conn, conn.remote, conn.port, conn.fd);
-#endif
 
   return Undefined(node_isolate);
 }
@@ -178,16 +171,12 @@ Handle<Value> DTRACE_NET_SOCKET_READ(const Arguments& args) {
 
   SLURP_CONNECTION(args[0], conn);
 
-#ifdef HAVE_SYSTEMTAP
-  NODE_NET_SOCKET_READ(conn.fd, conn.remote, conn.port, conn.buffered);
-#else
   if (!args[1]->IsNumber()) {
     return (ThrowException(Exception::Error(String::New("expected " 
       "argument 1 to be number of bytes"))));
   }
   int nbytes = args[1]->Int32Value();
   NODE_NET_SOCKET_READ(&conn, nbytes, conn.remote, conn.port, conn.fd);
-#endif
 
   return Undefined(node_isolate);
 }
@@ -202,16 +191,12 @@ Handle<Value> DTRACE_NET_SOCKET_WRITE(const Arguments& args) {
 
   SLURP_CONNECTION(args[0], conn);
 
-#ifdef HAVE_SYSTEMTAP
-  NODE_NET_SOCKET_WRITE(conn.fd, conn.remote, conn.port, conn.buffered);
-#else
   if (!args[1]->IsNumber()) {
     return (ThrowException(Exception::Error(String::New("expected " 
       "argument 1 to be number of bytes"))));
   }
   int nbytes = args[1]->Int32Value();
   NODE_NET_SOCKET_WRITE(&conn, nbytes, conn.remote, conn.port, conn.fd);
-#endif
 
   return Undefined(node_isolate);
 }
@@ -248,13 +233,9 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
 
   SLURP_CONNECTION(args[1], conn);
 
-#ifdef HAVE_SYSTEMTAP
-  NODE_HTTP_SERVER_REQUEST(&req, conn.fd, conn.remote, conn.port, \
-                           conn.buffered);
-#else
   NODE_HTTP_SERVER_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \
                            req.url, conn.fd);
-#endif
+
   return Undefined(node_isolate);
 }
 
@@ -267,11 +248,8 @@ Handle<Value> DTRACE_HTTP_SERVER_RESPONSE(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   SLURP_CONNECTION(args[0], conn);
-#ifdef HAVE_SYSTEMTAP
-  NODE_HTTP_SERVER_RESPONSE(conn.fd, conn.remote, conn.port, conn.buffered);
-#else
+
   NODE_HTTP_SERVER_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
-#endif
 
   return Undefined(node_isolate);
 }
@@ -312,13 +290,10 @@ Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
   *header = '\0';
 
   SLURP_CONNECTION_HTTP_CLIENT(args[1], conn);
-#ifdef HAVE_SYSTEMTAP
-  NODE_HTTP_CLIENT_REQUEST(&req, conn.fd, conn.remote, conn.port, \
-                           conn.buffered);
-#else
+
   NODE_HTTP_CLIENT_REQUEST(&req, &conn, conn.remote, conn.port, req.method, \
                            req.url, conn.fd);
-#endif
+
   return Undefined(node_isolate);
 }
 
@@ -330,11 +305,8 @@ Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
   HandleScope scope(node_isolate);
 
   SLURP_CONNECTION_HTTP_CLIENT_RESPONSE(args[0], args[1], conn);
-#ifdef HAVE_SYSTEMTAP
-  NODE_HTTP_CLIENT_RESPONSE(conn.fd, conn.remote, conn.port, conn.buffered);
-#else
+
   NODE_HTTP_CLIENT_RESPONSE(&conn, conn.remote, conn.port, conn.fd);
-#endif
 
   return Undefined(node_isolate);
 }
@@ -342,11 +314,7 @@ Handle<Value> DTRACE_HTTP_CLIENT_RESPONSE(const Arguments& args) {
 #define NODE_PROBE(name) #name, name, Persistent<FunctionTemplate>()
 
 static int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
-#ifdef HAVE_SYSTEMTAP
-  NODE_GC_START();
-#else
   NODE_GC_START(type, flags);
-#endif
   /*
    * We avoid the tail-call elimination of the USDT probe (which screws up
    * args) by forcing a return of 0.
@@ -355,11 +323,7 @@ static int dtrace_gc_start(GCType type, GCCallbackFlags flags) {
 }
 
 static int dtrace_gc_done(GCType type, GCCallbackFlags flags) {
-#ifdef HAVE_SYSTEMTAP
-  NODE_GC_DONE();
-#else
   NODE_GC_DONE(type, flags);
-#endif
   return 0;
 }
 

@@ -77,7 +77,7 @@ typedef int mode_t;
 # include "node_crypto.h"
 #endif
 #if HAVE_SYSTEMTAP
-#include "node_systemtap.h"
+#include "node_provider.h"
 #endif
 #include "node_script.h"
 #include "v8_typed_array.h"
