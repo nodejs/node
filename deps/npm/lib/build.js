@@ -16,7 +16,7 @@ var npm = require("./npm.js")
   , readJson = require("read-package-json")
   , link = require("./utils/link.js")
   , linkIfExists = link.ifExists
-  , cmdShim = require("./utils/cmd-shim.js")
+  , cmdShim = require("cmd-shim")
   , cmdShimIfExists = cmdShim.ifExists
   , asyncMap = require("slide").asyncMap
 
