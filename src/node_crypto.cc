@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_crypto.h"
+#include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
 #include "v8.h"
 
@@ -291,7 +292,7 @@ int SecureContext::NewSessionCallback(SSL* s, SSL_SESSION* sess) {
 // Takes a string or buffer and loads it into a BIO.
 // Caller responsible for BIO_free-ing the returned object.
 static BIO* LoadBIO (Handle<Value> v) {
-  BIO *bio = BIO_new(BIO_s_mem());
+  BIO *bio = BIO_new(NodeBIO::GetMethod());
   if (!bio) return NULL;
 
   HandleScope scope;
@@ -544,7 +545,7 @@ Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
     root_cert_store = X509_STORE_new();
 
     for (int i = 0; root_certs[i]; i++) {
-      BIO *bp = BIO_new(BIO_s_mem());
+      BIO *bp = BIO_new(NodeBIO::GetMethod());
 
       if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
         BIO_free(bp);
@@ -1201,8 +1202,8 @@ Handle<Value> Connection::New(const Arguments& args) {
   bool is_server = args[1]->BooleanValue();
 
   p->ssl_ = SSL_new(sc->ctx_);
-  p->bio_read_ = BIO_new(BIO_s_mem());
-  p->bio_write_ = BIO_new(BIO_s_mem());
+  p->bio_read_ = BIO_new(NodeBIO::GetMethod());
+  p->bio_write_ = BIO_new(NodeBIO::GetMethod());
 
   SSL_set_app_data(p->ssl_, p);
 
