@@ -17,7 +17,9 @@
 
     # Enable V8's post-mortem debugging only on unix flavors.
     'conditions': [
-      ['OS != "win"', {
+      ['OS == "win"', {
+        'v8_postmortem_support': 'false'
+      }, {
         'v8_postmortem_support': 'true'
       }]
     ],
