@@ -220,6 +220,9 @@
             'tools/msvs/genfiles/node_perfctr_provider.rc',
           ]
         } ],
+        [ 'v8_postmortem_support=="true"', {
+          'dependencies': [ 'deps/v8/tools/gyp/v8.gyp:postmortem-metadata' ],
+        }],
         [ 'node_shared_v8=="false"', {
           'sources': [
             'deps/v8/include/v8.h',
