@@ -30,8 +30,14 @@ if (process.argv[2] === 'child') {
   var id = process.argv[3];
 
   process.on('message', function(m, socket) {
-    if (socket) {
+    if (m.cmd === 'new') {
+      assert(socket);
+      assert(socket instanceof net.Socket, 'should be a net.Socket');
       sockets.push(socket);
+      socket.on('end', function() {
+        if (!this.closingOnPurpose)
+          throw new Error('[c] closing by accident! ' + process._errno);
+      });
     }
 
     if (m.cmd === 'close') {
@@ -42,8 +48,14 @@ if (process.argv[2] === 'child') {
       sockets[m.id].destroy();
     }
   });
+
 } else {
   var child = fork(process.argv[1], ['child']);
+
+  child.on('exit', function(code, signal) {
+    if (!childKilled)
+      throw new Error('child died unexpectedly!');
+  });
 
   var server = net.createServer();
   var sockets = [];
@@ -55,29 +67,31 @@ if (process.argv[2] === 'child') {
 
     if (sockets.length === count) {
       closeSockets(0);
-      server.close();
     }
   });
 
   var disconnected = 0;
+  var clients = [];
   server.on('listening', function() {
-
     var j = count, client;
     while (j--) {
       client = net.connect(common.PORT, '127.0.0.1');
+      client.id = j;
       client.on('close', function() {
-        console.error('[m] CLIENT: close event');
         disconnected += 1;
       });
-      // XXX This resume() should be unnecessary.
-      // a stream high water mark should be enough to keep
-      // consuming the input.
-      client.resume();
+      clients.push(client);
     }
   });
 
+  var childKilled = false;
   function closeSockets(i) {
-    if (i === count) return;
+    if (i === count) {
+      childKilled = true;
+      server.close();
+      child.kill();
+      return;
+    }
 
     sent++;
     child.send({ id: i, cmd: 'close' });
@@ -91,10 +105,7 @@ if (process.argv[2] === 'child') {
 
   var closeEmitted = false;
   server.on('close', function() {
-    console.error('[m] server close');
     closeEmitted = true;
-
-    child.kill();
   });
 
   server.listen(common.PORT, '127.0.0.1');
@@ -103,5 +114,6 @@ if (process.argv[2] === 'child') {
     assert.equal(sent, count);
     assert.equal(disconnected, count);
     assert.ok(closeEmitted);
+    console.log('ok');
   });
 }
