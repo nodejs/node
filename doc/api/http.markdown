@@ -557,28 +557,14 @@ headers have been received.  The `'response'` event is executed with one
 argument which is an instance of `http.IncomingMessage`.
 
 During the `'response'` event, one can add listeners to the
-response object; particularly to listen for the `'data'` event. Note that
-the `'response'` event is called before any part of the response body is received,
-so there is no need to worry about racing to catch the first part of the
-body. As long as a listener for `'data'` is added during the `'response'`
-event, the entire body will be caught.
+response object; particularly to listen for the `'data'` event.
 
-
-    // Good
-    request.on('response', function (response) {
-      response.on('data', function (chunk) {
-        console.log('BODY: ' + chunk);
-      });
-    });
-
-    // Bad - misses all or part of the body
-    request.on('response', function (response) {
-      setTimeout(function () {
-        response.on('data', function (chunk) {
-          console.log('BODY: ' + chunk);
-        });
-      }, 10);
-    });
+If no `'response'` handler is added, then the response will be
+entirely discarded.  However, if you add a `'response'` event handler,
+then you **must** consume the data from the response object, either by
+calling `response.read()` whenever there is a `'readable'` event, or
+by adding a `'data'` handler, or by calling the `.resume()` method.
+Until the data is consumed, the `'end'` event will not fire.
 
 Note: Node does not check whether Content-Length and the length of the body
 which has been transmitted are equal or not.
@@ -774,26 +760,8 @@ An `IncomingMessage` object is created by `http.Server` or `http.ClientRequest`
 and passed as the first argument to the `'request'` and `'response'` event
 respectively. It may be used to access response status, headers and data.
 
-It implements the [Readable Stream][] interface. `http.IncomingMessage` is an
-[EventEmitter][] with the following events:
-
-### Event: 'data'
-
-`function (chunk) { }`
-
-Emitted when a piece of the message body is received. The chunk is a string if
-an encoding has been set with `message.setEncoding()`, otherwise it's
-a [Buffer][].
-
-Note that the __data will be lost__ if there is no listener when a
-`IncomingMessage` emits a `'data'` event.
-
-### Event: 'end'
-
-`function () { }`
-
-Emitted exactly once for each response. After that, no more `'data'` events
-will be emitted on the response.
+It implements the [Readable Stream][] interface, as well as the
+following additional events, methods, and properties.
 
 ### Event: 'close'
 
@@ -802,9 +770,8 @@ will be emitted on the response.
 Indicates that the underlaying connection was terminated before
 `response.end()` was called or able to flush.
 
-Just like `'end'`, this event occurs only once per response, and no more
-`'data'` events will fire afterwards. See [http.ServerResponse][]'s `'close'`
-event for more information.
+Just like `'end'`, this event occurs only once per response. See
+[http.ServerResponse][]'s `'close'` event for more information.
 
 ### message.httpVersion
 
@@ -839,21 +806,6 @@ The request/response trailers object. Only populated after the 'end' event.
 * `callback` {Function}
 
 Calls `message.connection.setTimeout(msecs, callback)`.
-
-### message.setEncoding([encoding])
-
-Set the encoding for data emitted by the `'data'` event. See [stream.setEncoding()][] for more
-information.
-
-Should be set before any `'data'` events have been emitted.
-
-### message.pause()
-
-Pauses request/response from emitting events.  Useful to throttle back a download.
-
-### message.resume()
-
-Resumes a paused request/response.
 
 ### message.method
 
