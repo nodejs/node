@@ -908,6 +908,39 @@ assert.throws(function() {
   buf.writeFloatLE(0.0, -1);
 }, /offset is not uint/);
 
+// offset checks
+var buf = new Buffer(0);
+
+assert.throws(function() { buf.readUInt8(0); }, /beyond buffer length/);
+assert.throws(function() { buf.readInt8(0); }, /beyond buffer length/);
+
+[16, 32].forEach(function(bits) {
+  var buf = new Buffer(bits / 8 - 1);
+
+  assert.throws(
+    function() { buf['readUInt' + bits + 'BE'](0); },
+    /beyond buffer length/,
+    'readUInt' + bits + 'BE'
+  );
+
+  assert.throws(
+    function() { buf['readUInt' + bits + 'LE'](0); },
+    /beyond buffer length/,
+    'readUInt' + bits + 'LE'
+  );
+
+  assert.throws(
+    function() { buf['readInt' + bits + 'BE'](0); },
+    /beyond buffer length/,
+    'readInt' + bits + 'BE()'
+  );
+
+  assert.throws(
+    function() { buf['readInt' + bits + 'LE'](0); },
+    /beyond buffer length/,
+    'readInt' + bits + 'LE()'
+  );
+});
 
 // SlowBuffer sanity checks.
 assert.throws(function() {
