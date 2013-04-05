@@ -1,0 +1,28 @@
+{
+  "name": "cmd-shim",
+  "version": "1.1.0",
+  "description": "Used in npm for command line application support",
+  "scripts": {
+    "test": "tap test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ForbesLindesay/cmd-shim.git"
+  },
+  "license": "BSD",
+  "optionalDependencies": {
+    "graceful-fs": "1.2"
+  },
+  "dependencies": {
+    "mkdirp": "~0.3.3",
+    "graceful-fs": "1.2"
+  },
+  "devDependencies": {
+    "tap": "~0.4.1",
+    "rimraf": "~2.1.4"
+  },
+  "readme": "# cmd-shim\r\n\r\nThe cmd-shim used in npm to create executable scripts on Windows,\r\nsince symlinks are not suitable for this purpose there.\r\n\r\nOn Unix systems, you should use a symbolic link instead.\r\n\r\n[![Build Status](https://travis-ci.org/ForbesLindesay/cmd-shim.png?branch=master)](https://travis-ci.org/ForbesLindesay/cmd-shim) [![Dependency Status](https://gemnasium.com/ForbesLindesay/cmd-shim.png)](https://gemnasium.com/ForbesLindesay/cmd-shim)\r\n\r\n## Installation\r\n\r\n```\r\nnpm install cmd-shim\r\n```\r\n\r\n## API\r\n\r\n### cmdShim(from, to, cb)\r\n\r\nCreate a cmd shim at `to` for the command line program at `from`.\r\ne.g.\r\n\r\n```javascript\r\nvar cmdShim = require('cmd-shim');\r\ncmdShim(__dirname + '/cli.js', '/usr/bin/command-name', function (err) {\r\n  if (err) throw err;\r\n});\r\n```\r\n\r\n### cmdShim.ifExists(from, to, cb)\r\n\r\nThe same as above, but will just continue if the file does not exist.\r\nSource:\r\n\r\n```javascript\r\nfunction cmdShimIfExists (from, to, cb) {\r\n  fs.stat(from, function (er) {\r\n    if (er) return cb()\r\n    cmdShim(from, to, cb)\r\n  })\r\n}\r\n```\r\n",
+  "readmeFilename": "README.md",
+  "_id": "cmd-shim@1.1.0",
+  "_from": "cmd-shim@"
+}

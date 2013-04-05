@@ -144,6 +144,21 @@ function error_test() {
     // should throw (GH-4012)
     { client: client_unix, send: 'new RegExp("foo", "wrong modifier");',
       expect: /^SyntaxError: Invalid flags supplied to RegExp constructor/ },
+    // strict mode syntax errors should be caught (GH-5178)
+    { client: client_unix, send: '(function() { "use strict"; return 0755; })()',
+      expect: /^SyntaxError: Octal literals are not allowed in strict mode/ },
+    { client: client_unix, send: '(function() { "use strict"; return { p: 1, p: 2 }; })()',
+      expect: /^SyntaxError: Duplicate data property in object literal not allowed in strict mode/ },
+    { client: client_unix, send: '(function(a, a, b) { "use strict"; return a + b + c; })()',
+      expect: /^SyntaxError: Strict mode function may not have duplicate parameter names/ },
+    { client: client_unix, send: '(function() { "use strict"; with (this) {} })()',
+      expect: /^SyntaxError: Strict mode code may not include a with statement/ },
+    { client: client_unix, send: '(function() { "use strict"; var x; delete x; })()',
+      expect: /^SyntaxError: Delete of an unqualified identifier in strict mode/ },
+    { client: client_unix, send: '(function() { "use strict"; eval = 17; })()',
+      expect: /^SyntaxError: Assignment to eval or arguments is not allowed in strict mode/ },
+    { client: client_unix, send: '(function() { "use strict"; if (true){ function f() { } } })()',
+      expect: /^SyntaxError: In strict mode code, functions can only be declared at top level or immediately within another function/ },
     // Named functions can be used:
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
