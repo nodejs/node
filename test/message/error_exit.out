@@ -3,7 +3,7 @@ Exiting with code=1
 assert.js:*
   throw new assert.AssertionError({
         ^
-AssertionError
+AssertionError: 1 == 2
     at Object.<anonymous> (*test*message*error_exit.js:*:*)
     at Module._compile (module.js:*:*)
     at Object.Module._extensions..js (module.js:*:*)
