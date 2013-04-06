@@ -70,7 +70,7 @@ class NodeBIO {
   void Reset();
 
   // Put `len` bytes from `data` into buffer
-  void Write(const char* data, size_t len);
+  void Write(const char* data, size_t size);
 
   // Return size of buffer in bytes
   size_t inline Length() {
