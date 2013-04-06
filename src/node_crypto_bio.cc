@@ -301,6 +301,7 @@ void NodeBIO::Reset() {
 
     read_head_ = read_head_->next_;
   }
+  write_head_ = read_head_;
   assert(length_ == 0);
 }
 
