@@ -1476,7 +1476,9 @@ Handle<Value> Connection::ClearIn(const Arguments& args) {
 
   int bytes_written = SSL_write(ss->ssl_, buffer_data + off, len);
 
-  ss->HandleSSLError("SSL_write:ClearIn", bytes_written, kZeroIsAnError);
+  ss->HandleSSLError("SSL_write:ClearIn",
+                     bytes_written,
+                     len == 0 ? kZeroIsNotAnError : kZeroIsAnError);
   ss->SetShutdownFlags();
 
   return scope.Close(Integer::New(bytes_written));
