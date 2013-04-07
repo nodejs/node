@@ -330,6 +330,10 @@ Exclusive mode (`O_EXCL`) ensures that `path` is newly created. `fs.open()`
 fails if a file by that name already exists. On POSIX systems, symlinks are
 not followed. Exclusive mode may or may not work with network file systems.
 
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
+
 ## fs.openSync(path, flags, [mode])
 
 Synchronous open(2).
@@ -371,6 +375,10 @@ specifies how many _bytes_ were written from `buffer`.
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
+
+On Linux, positional writes don't work when the file is opened in append mode.
+The kernel ignores the position argument and always appends the data to
+the end of the file.
 
 ## fs.writeSync(fd, buffer, offset, length, position)
 
