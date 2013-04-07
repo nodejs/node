@@ -695,7 +695,7 @@ some position past the beginning of the file.  Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
 default mode `w`.
 
-## fs.WriteStream
+## Class: fs.WriteStream
 
 `WriteStream` is a [Writable Stream](stream.html#stream_class_stream_writable).
 
