@@ -34,6 +34,15 @@ var httpServer = http.createServer(function(req, res) {
     console.log('ok');
   });
   res.writeHead(200, { 'Content-Type': 'text/plain' });
+
+  // Write 1mb to cause some requests to buffer
+  var chunk = new Array(1024).join('A');
+  for (var i = 0; i < 1024; i++) {
+    res.write(chunk);
+  }
+  // Get .bytesWritten while buffer is not empty
+  assert(res.connection.bytesWritten > 0);
+
   res.end(body);
 });
 
