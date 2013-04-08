@@ -2356,6 +2356,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
   versions->Set(String::NewSymbol("uv"), String::New(uv_version_string()));
   versions->Set(String::NewSymbol("zlib"), String::New(ZLIB_VERSION));
+  versions->Set(String::NewSymbol("modules"),
+                String::New(NODE_STRINGIFY(NODE_MODULE_VERSION)));
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
   int c, l = strlen(OPENSSL_VERSION_TEXT);
