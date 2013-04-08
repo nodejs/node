@@ -213,6 +213,8 @@ namespace internal {
   V(prototype_string, "prototype")                                       \
   V(string_string, "string")                                             \
   V(String_string, "String")                                             \
+  V(symbol_string, "symbol")                                             \
+  V(Symbol_string, "Symbol")                                             \
   V(Date_string, "Date")                                                 \
   V(this_string, "this")                                                 \
   V(to_string_string, "toString")                                        \
@@ -220,6 +222,7 @@ namespace internal {
   V(undefined_string, "undefined")                                       \
   V(value_of_string, "valueOf")                                          \
   V(stack_string, "stack")                                               \
+  V(toJSON_string, "toJSON")                                             \
   V(InitializeVarGlobal_string, "InitializeVarGlobal")                   \
   V(InitializeConstGlobal_string, "InitializeConstGlobal")               \
   V(KeyedLoadElementMonomorphic_string,                                  \
@@ -520,6 +523,7 @@ class Heap {
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
   intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
   intptr_t MaxExecutableSize() { return max_executable_size_; }
+  int MaxNewSpaceAllocationSize() { return InitialSemiSpaceSize() * 3/4; }
 
   // Returns the capacity of the heap in bytes w/o growing. Heap grows when
   // more spaces are needed until it reaches the limit.
@@ -878,12 +882,11 @@ class Heap {
       void* external_pointer,
       PretenureFlag pretenure);
 
-  // Allocate a symbol.
+  // Allocate a symbol in old space.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateSymbol(
-      PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT MaybeObject* AllocateSymbol();
 
   // Allocate a tenured JS global property cell.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

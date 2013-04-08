@@ -510,6 +510,7 @@ void ToBooleanStub::Types::Print(StringStream* stream) const {
   if (Contains(SMI)) stream->Add("Smi");
   if (Contains(SPEC_OBJECT)) stream->Add("SpecObject");
   if (Contains(STRING)) stream->Add("String");
+  if (Contains(SYMBOL)) stream->Add("Symbol");
   if (Contains(HEAP_NUMBER)) stream->Add("HeapNumber");
 }
 
@@ -549,6 +550,9 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
     Add(STRING);
     return !object->IsUndetectableObject() &&
         String::cast(*object)->length() != 0;
+  } else if (object->IsSymbol()) {
+    Add(SYMBOL);
+    return true;
   } else if (object->IsHeapNumber()) {
     ASSERT(!object->IsUndetectableObject());
     Add(HEAP_NUMBER);
@@ -565,6 +569,7 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
 bool ToBooleanStub::Types::NeedsMap() const {
   return Contains(ToBooleanStub::SPEC_OBJECT)
       || Contains(ToBooleanStub::STRING)
+      || Contains(ToBooleanStub::SYMBOL)
       || Contains(ToBooleanStub::HEAP_NUMBER);
 }
 
@@ -614,10 +619,8 @@ void ElementsTransitionAndStoreStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::GenerateAheadOfTime(Isolate* isolate) {
-  int i = 0;
-  for (; i <= StubFailureTrampolineStub::kMaxExtraExpressionStackCount; ++i) {
-    StubFailureTrampolineStub(i).GetCode(isolate);
-  }
+  StubFailureTrampolineStub(NOT_JS_FUNCTION_STUB_MODE).GetCode(isolate);
+  StubFailureTrampolineStub(JS_FUNCTION_STUB_MODE).GetCode(isolate);
 }
 
 

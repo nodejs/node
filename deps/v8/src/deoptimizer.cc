@@ -1280,29 +1280,37 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   intptr_t caller_arg_count = 0;
-  if (descriptor->stack_parameter_count_ != NULL) {
-    caller_arg_count =
-        input_->GetRegister(descriptor->stack_parameter_count_->code());
-  }
+  bool arg_count_known = descriptor->stack_parameter_count_ == NULL;
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
   output_frame_offset -= kPointerSize;
-  value = frame_ptr + StandardFrameConstants::kCallerSPOffset +
-      (caller_arg_count - 1) * kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
+  int args_arguments_offset = output_frame_offset;
+  intptr_t the_hole = reinterpret_cast<intptr_t>(
+      isolate_->heap()->the_hole_value());
+  if (arg_count_known) {
+    value = frame_ptr + StandardFrameConstants::kCallerSPOffset +
+        (caller_arg_count - 1) * kPointerSize;
+  } else {
+    value = the_hole;
+  }
+
+  output_frame->SetFrameSlot(args_arguments_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-           V8PRIxPTR " ; args.arguments\n",
-           top_address + output_frame_offset, output_frame_offset, value);
+           V8PRIxPTR " ; args.arguments %s\n",
+           top_address + args_arguments_offset, args_arguments_offset, value,
+           arg_count_known ? "" : "(the hole)");
   }
 
   output_frame_offset -= kPointerSize;
-  value = caller_arg_count;
-  output_frame->SetFrameSlot(output_frame_offset, value);
+  int length_frame_offset = output_frame_offset;
+  value = arg_count_known ? caller_arg_count : the_hole;
+  output_frame->SetFrameSlot(length_frame_offset, value);
   if (trace_) {
     PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
-           V8PRIxPTR " ; args.length\n",
-           top_address + output_frame_offset, output_frame_offset, value);
+           V8PRIxPTR " ; args.length %s\n",
+           top_address + length_frame_offset, length_frame_offset, value,
+           arg_count_known ? "" : "(the hole)");
   }
 
   output_frame_offset -= kPointerSize;
@@ -1321,6 +1329,20 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     DoTranslateCommand(iterator, 0, output_frame_offset);
   }
 
+  if (!arg_count_known) {
+    DoTranslateCommand(iterator, 0, length_frame_offset,
+                       TRANSLATED_VALUE_IS_NATIVE);
+    caller_arg_count = output_frame->GetFrameSlot(length_frame_offset);
+    value = frame_ptr + StandardFrameConstants::kCallerSPOffset +
+        (caller_arg_count - 1) * kPointerSize;
+    output_frame->SetFrameSlot(args_arguments_offset, value);
+    if (trace_) {
+      PrintF("    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08"
+             V8PRIxPTR " ; args.arguments\n",
+             top_address + args_arguments_offset, args_arguments_offset, value);
+    }
+  }
+
   ASSERT(0 == output_frame_offset);
 
   // Copy the double registers from the input into the output frame.
@@ -1331,8 +1353,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
-  int extra = descriptor->extra_expression_stack_count_;
-  StubFailureTrampolineStub(extra).FindCodeInCache(&trampoline, isolate_);
+  StubFunctionMode function_mode = descriptor->function_mode_;
+  StubFailureTrampolineStub(function_mode).FindCodeInCache(&trampoline,
+                                                           isolate_);
   ASSERT(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));
@@ -1476,12 +1499,25 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
 #endif
 
 
+static const char* TraceValueType(bool is_smi, bool is_native) {
+  if (is_native) {
+    return "native";
+  } else if (is_smi) {
+    return "smi";
+  }
+
+  return "heap number";
+}
+
+
 void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
-                                     int frame_index,
-                                     unsigned output_offset) {
+    int frame_index,
+    unsigned output_offset,
+    DeoptimizerTranslatedValueType value_type) {
   disasm::NameConverter converter;
   // A GC-safe temporary placeholder that we can put in the output frame.
   const intptr_t kPlaceholder = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+  bool is_native = value_type == TRANSLATED_VALUE_IS_NATIVE;
 
   // Ignore commands marked as duplicate and act on the first non-duplicate.
   Translation::Opcode opcode =
@@ -1524,7 +1560,9 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::INT32_REGISTER: {
       int input_reg = iterator->Next();
       intptr_t value = input_->GetRegister(input_reg);
-      bool is_smi = Smi::IsValid(value);
+      bool is_smi = (value_type == TRANSLATED_VALUE_IS_TAGGED) &&
+          Smi::IsValid(value);
+
       if (trace_) {
         PrintF(
             "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIdPTR " ; %s (%s)\n",
@@ -1532,15 +1570,18 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
             output_offset,
             value,
             converter.NameOfCPURegister(input_reg),
-            is_smi ? "smi" : "heap number");
+            TraceValueType(is_smi, is_native));
       }
       if (is_smi) {
         intptr_t tagged_value =
             reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else if (value_type == TRANSLATED_VALUE_IS_NATIVE) {
+        output_[frame_index]->SetFrameSlot(output_offset, value);
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
+        ASSERT(value_type == TRANSLATED_VALUE_IS_TAGGED);
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<int32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
@@ -1551,7 +1592,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
     case Translation::UINT32_REGISTER: {
       int input_reg = iterator->Next();
       uintptr_t value = static_cast<uintptr_t>(input_->GetRegister(input_reg));
-      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      bool is_smi = (value_type == TRANSLATED_VALUE_IS_TAGGED) &&
+          (value <= static_cast<uintptr_t>(Smi::kMaxValue));
       if (trace_) {
         PrintF(
             "    0x%08" V8PRIxPTR ": [top + %d] <- %" V8PRIuPTR
@@ -1560,15 +1602,18 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
             output_offset,
             value,
             converter.NameOfCPURegister(input_reg),
-            is_smi ? "smi" : "heap number");
+            TraceValueType(is_smi, is_native));
       }
       if (is_smi) {
         intptr_t tagged_value =
             reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else if (value_type == TRANSLATED_VALUE_IS_NATIVE) {
+        output_[frame_index]->SetFrameSlot(output_offset, value);
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
+        ASSERT(value_type == TRANSLATED_VALUE_IS_TAGGED);
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<uint32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
@@ -1617,7 +1662,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       unsigned input_offset =
           input_->GetOffsetFromSlotIndex(input_slot_index);
       intptr_t value = input_->GetFrameSlot(input_offset);
-      bool is_smi = Smi::IsValid(value);
+      bool is_smi = (value_type == TRANSLATED_VALUE_IS_TAGGED) &&
+          Smi::IsValid(value);
       if (trace_) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
@@ -1625,15 +1671,18 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
                output_offset,
                value,
                input_offset,
-               is_smi ? "smi" : "heap number");
+               TraceValueType(is_smi, is_native));
       }
       if (is_smi) {
         intptr_t tagged_value =
             reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else if (value_type == TRANSLATED_VALUE_IS_NATIVE) {
+        output_[frame_index]->SetFrameSlot(output_offset, value);
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
+        ASSERT(value_type == TRANSLATED_VALUE_IS_TAGGED);
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<int32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
@@ -1647,7 +1696,8 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
           input_->GetOffsetFromSlotIndex(input_slot_index);
       uintptr_t value =
           static_cast<uintptr_t>(input_->GetFrameSlot(input_offset));
-      bool is_smi = (value <= static_cast<uintptr_t>(Smi::kMaxValue));
+      bool is_smi = (value_type == TRANSLATED_VALUE_IS_TAGGED) &&
+          (value <= static_cast<uintptr_t>(Smi::kMaxValue));
       if (trace_) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
@@ -1655,15 +1705,18 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
                output_offset,
                value,
                input_offset,
-               is_smi ? "smi" : "heap number");
+               TraceValueType(is_smi, is_native));
       }
       if (is_smi) {
         intptr_t tagged_value =
             reinterpret_cast<intptr_t>(Smi::FromInt(static_cast<int>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, tagged_value);
+      } else if (value_type == TRANSLATED_VALUE_IS_NATIVE) {
+        output_[frame_index]->SetFrameSlot(output_offset, value);
       } else {
         // We save the untagged value on the side and store a GC-safe
         // temporary placeholder in the frame.
+        ASSERT(value_type == TRANSLATED_VALUE_IS_TAGGED);
         AddDoubleValue(output_[frame_index]->GetTop() + output_offset,
                        static_cast<double>(static_cast<uint32_t>(value)));
         output_[frame_index]->SetFrameSlot(output_offset, kPlaceholder);
@@ -2130,7 +2183,8 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   ASSERT(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
          desc.instr_size);
   chunk->CommitArea(desc.instr_size);
-  memcpy(chunk->area_start(), desc.buffer, desc.instr_size);
+  CopyBytes(chunk->area_start(), desc.buffer,
+      static_cast<size_t>(desc.instr_size));
   CPU::FlushICache(chunk->area_start(), desc.instr_size);
 
   if (type == EAGER) {

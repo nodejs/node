@@ -1005,6 +1005,7 @@ void RegExpMacroAssemblerMIPS::PushBacktrack(Label* label) {
     int target = label->pos();
     __ li(a0, Operand(target + Code::kHeaderSize - kHeapObjectTag));
   } else {
+    Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
     Label after_constant;
     __ Branch(&after_constant);
     int offset = masm_->pc_offset();

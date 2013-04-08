@@ -184,6 +184,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_GLOBAL_PROPERTY_CELL_TYPE:
       JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint(out);
       break;
+    case JS_ARRAY_BUFFER_TYPE:
+      JSArrayBuffer::cast(this)->JSArrayBufferPrint(out);
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     Name::cast(this)->Name##Print(out);    \
@@ -552,6 +554,9 @@ static const char* TypeToString(InstanceType type) {
 void Symbol::SymbolPrint(FILE* out) {
   HeapObject::PrintHeader(out, "Symbol");
   PrintF(out, " - hash: %d\n", Hash());
+  PrintF(out, " - name: ");
+  name()->ShortPrint();
+  PrintF(out, "\n");
 }
 
 
@@ -788,6 +793,16 @@ void JSWeakMap::JSWeakMapPrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
+  PrintF(out, "\n");
+}
+
+
+void JSArrayBuffer::JSArrayBufferPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSArrayBuffer");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - backing_store = -0x%p\n", backing_store());
+  PrintF(out, " - byte_length = ");
+  byte_length()->ShortPrint(out);
   PrintF(out, "\n");
 }
 

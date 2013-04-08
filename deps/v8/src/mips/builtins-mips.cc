@@ -227,13 +227,12 @@ static void AllocateJSArray(MacroAssembler* masm,
         (JSArray::kSize + FixedArray::kHeaderSize) / kPointerSize);
   __ sra(scratch1, array_size, kSmiTagSize);
   __ Addu(elements_array_end, elements_array_end, scratch1);
-  __ AllocateInNewSpace(
-      elements_array_end,
-      result,
-      scratch1,
-      scratch2,
-      gc_required,
-      static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
+  __ Allocate(elements_array_end,
+              result,
+              scratch1,
+              scratch2,
+              gc_required,
+              static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -895,7 +894,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // a1: constructor function
       // a2: initial map
       __ lbu(a3, FieldMemOperand(a2, Map::kInstanceSizeOffset));
-      __ AllocateInNewSpace(a3, t4, t5, t6, &rt_call, SIZE_IN_WORDS);
+      __ Allocate(a3, t4, t5, t6, &rt_call, SIZE_IN_WORDS);
 
       // Allocated the JSObject, now initialize the fields. Map is set to
       // initial map and properties and elements are set to empty fixed array.
@@ -974,7 +973,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // t4: JSObject
       // t5: start of next object
       __ Addu(a0, a3, Operand(FixedArray::kHeaderSize / kPointerSize));
-      __ AllocateInNewSpace(
+      __ Allocate(
           a0,
           t5,
           t6,
@@ -1129,10 +1128,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
     __ GetObjectType(v0, a1, a3);
     __ Branch(&exit, greater_equal, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
-
-    // Symbols are "objects".
-    __ lbu(a3, FieldMemOperand(a1, Map::kInstanceTypeOffset));
-    __ Branch(&exit, eq, a3, Operand(SYMBOL_TYPE));
 
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.

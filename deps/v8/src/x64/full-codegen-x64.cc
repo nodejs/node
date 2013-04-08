@@ -2678,28 +2678,6 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 }
 
 
-void FullCodeGenerator::EmitIsSymbol(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  __ JumpIfSmi(rax, if_false);
-  __ CmpObjectType(rax, SYMBOL_TYPE, rbx);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(equal, if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
@@ -4271,6 +4249,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ testb(FieldOperand(rdx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
     Split(zero, if_true, if_false, fall_through);
+  } else if (check->Equals(isolate()->heap()->symbol_string())) {
+    __ JumpIfSmi(rax, if_false);
+    __ CmpObjectType(rax, SYMBOL_TYPE, rdx);
+    Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->boolean_string())) {
     __ CompareRoot(rax, Heap::kTrueValueRootIndex);
     __ j(equal, if_true);
@@ -4300,10 +4282,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(rax, if_false);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(rax, Heap::kNullValueRootIndex);
-      __ j(equal, if_true);
-    }
-    if (FLAG_harmony_symbols) {
-      __ CmpObjectType(rax, SYMBOL_TYPE, rdx);
       __ j(equal, if_true);
     }
     __ CmpObjectType(rax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, rdx);

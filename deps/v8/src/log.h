@@ -77,6 +77,7 @@ class Semaphore;
 class Ticker;
 class Isolate;
 class PositionsRecorder;
+class CpuProfiler;
 
 #undef LOG
 #define LOG(isolate, Call)                          \

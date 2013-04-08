@@ -877,7 +877,7 @@ uc32 Scanner::ScanIdentifierUnicodeEscape() {
   KEYWORD("while", Token::WHILE)                                    \
   KEYWORD("with", Token::WITH)                                      \
   KEYWORD_GROUP('y')                                                \
-  KEYWORD("yield", Token::FUTURE_STRICT_RESERVED_WORD)
+  KEYWORD("yield", Token::YIELD)
 
 
 static Token::Value KeywordOrIdentifierToken(const char* input,

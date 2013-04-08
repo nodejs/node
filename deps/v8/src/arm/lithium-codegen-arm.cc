@@ -239,7 +239,7 @@ bool LCodeGen::GeneratePrologue() {
         __ str(r0, target);
         // Update the write barrier. This clobbers r3 and r0.
         __ RecordWriteContextSlot(
-            cp, target.offset(), r0, r3, kLRHasBeenSaved, kSaveFPRegs);
+            cp, target.offset(), r0, r3, GetLinkRegisterState(), kSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -1918,13 +1918,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ ldr(result, FieldMemOperand(array, JSArray::kLengthOffset));
-}
-
-
 void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->value());
@@ -2299,6 +2292,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ b(ne, true_label);
         __ b(false_label);
         __ bind(&not_string);
+      }
+
+      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+        // Symbol value -> true.
+        __ CompareInstanceType(map, ip, SYMBOL_TYPE);
+        __ b(eq, true_label);
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -3075,7 +3074,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               target.offset(),
                               value,
                               scratch,
-                              kLRHasBeenSaved,
+                              GetLinkRegisterState(),
                               kSaveFPRegs,
                               EMIT_REMEMBERED_SET,
                               check_needed);
@@ -4367,7 +4366,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           HeapObject::kMapOffset,
                           scratch,
                           temp,
-                          kLRHasBeenSaved,
+                          GetLinkRegisterState(),
                           kSaveFPRegs,
                           OMIT_REMEMBERED_SET,
                           OMIT_SMI_CHECK);
@@ -4386,7 +4385,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           offset,
                           value,
                           scratch,
-                          kLRHasBeenSaved,
+                          GetLinkRegisterState(),
                           kSaveFPRegs,
                           EMIT_REMEMBERED_SET,
                           check_needed);
@@ -4401,7 +4400,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           offset,
                           value,
                           object,
-                          kLRHasBeenSaved,
+                          GetLinkRegisterState(),
                           kSaveFPRegs,
                           EMIT_REMEMBERED_SET,
                           check_needed);
@@ -4602,7 +4601,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     __ RecordWrite(elements,
                    key,
                    value,
-                   kLRHasBeenSaved,
+                   GetLinkRegisterState(),
                    kSaveFPRegs,
                    EMIT_REMEMBERED_SET,
                    check_needed);
@@ -4654,7 +4653,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ str(new_map_reg, FieldMemOperand(object_reg, HeapObject::kMapOffset));
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
-                        scratch, kLRHasBeenSaved, kDontSaveFPRegs);
+                        scratch, GetLinkRegisterState(), kDontSaveFPRegs);
   } else if (FLAG_compiled_transitions) {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ Move(r0, object_reg);
@@ -4897,10 +4896,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 // Convert unsigned integer with specified number of leading zeroes in binary
 // representation to IEEE 754 double.
-// Integer to convert is passed in register hiword.
+// Integer to convert is passed in register src.
 // Resulting double is returned in registers hiword:loword.
 // This functions does not work correctly for 0.
 static void GenerateUInt2Double(MacroAssembler* masm,
+                                Register src,
                                 Register hiword,
                                 Register loword,
                                 Register scratch,
@@ -4914,13 +4914,13 @@ static void GenerateUInt2Double(MacroAssembler* masm,
       kBitsPerInt - mantissa_shift_for_hi_word;
   masm->mov(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
   if (mantissa_shift_for_hi_word > 0) {
-    masm->mov(loword, Operand(hiword, LSL, mantissa_shift_for_lo_word));
+    masm->mov(loword, Operand(src, LSL, mantissa_shift_for_lo_word));
     masm->orr(hiword, scratch,
-              Operand(hiword, LSR, mantissa_shift_for_hi_word));
+              Operand(src, LSR, mantissa_shift_for_hi_word));
   } else {
     masm->mov(loword, Operand::Zero());
     masm->orr(hiword, scratch,
-              Operand(hiword, LSL, -mantissa_shift_for_hi_word));
+              Operand(src, LSL, -mantissa_shift_for_hi_word));
   }
 
   // If least significant bit of biased exponent was not 1 it was corrupted
@@ -4969,17 +4969,17 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ vmov(flt_scratch, src);
       __ vcvt_f64_u32(dbl_scratch, flt_scratch);
     } else {
-      Label no_leading_zero, done;
+      Label no_leading_zero, convert_done;
       __ tst(src, Operand(0x80000000));
       __ b(ne, &no_leading_zero);
 
       // Integer has one leading zeros.
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, r9, 1);
-      __ b(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, r9, 1);
+      __ b(&convert_done);
 
       __ bind(&no_leading_zero);
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, r9, 0);
-      __ b(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, r9, 0);
+      __ bind(&convert_done);
     }
   }
 
@@ -4996,10 +4996,18 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
   // TODO(3095996): Put a valid pointer value in the stack slot where the result
   // register is stored, as this register is in the pointer map, but contains an
   // integer value.
+  if (!CpuFeatures::IsSupported(VFP2)) {
+    // Preserve sfpd_lo.
+    __ mov(r9, sfpd_lo);
+  }
   __ mov(ip, Operand::Zero());
   __ StoreToSafepointRegisterSlot(ip, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
   __ Move(dst, r0);
+  if (!CpuFeatures::IsSupported(VFP2)) {
+    // Restore sfpd_lo.
+    __ mov(sfpd_lo, r9);
+  }
   __ sub(dst, dst, Operand(kHeapObjectTag));
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
@@ -5671,12 +5679,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
-    __ AllocateInNewSpace(size,
-                          result,
-                          scratch,
-                          scratch2,
-                          deferred->entry(),
-                          flags);
+    __ Allocate(size,
+                result,
+                scratch,
+                scratch2,
+                deferred->entry(),
+                flags);
   }
 
   __ bind(deferred->exit());
@@ -6074,6 +6082,11 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(ip, Operand(1 << Map::kIsUndetectable));
     final_branch_condition = eq;
 
+  } else if (type_name->Equals(heap()->symbol_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CompareObjectType(input, input, scratch, SYMBOL_TYPE);
+    final_branch_condition = eq;
+
   } else if (type_name->Equals(heap()->boolean_string())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ b(eq, true_label);
@@ -6108,15 +6121,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ CompareRoot(input, Heap::kNullValueRootIndex);
       __ b(eq, true_label);
     }
-    if (FLAG_harmony_symbols) {
-      __ CompareObjectType(input, input, scratch, SYMBOL_TYPE);
-      __ b(eq, true_label);
-      __ CompareInstanceType(input, scratch,
-                             FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    } else {
-      __ CompareObjectType(input, input, scratch,
-                           FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    }
+    __ CompareObjectType(input, input, scratch,
+                         FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(lt, false_label);
     __ CompareInstanceType(input, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(gt, false_label);

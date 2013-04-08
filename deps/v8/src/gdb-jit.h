@@ -118,12 +118,12 @@ class GDBJITInterface: public AllStatic {
                       Script* script,
                       CompilationInfo* info);
 
-  static void AddCode(Handle<String> name,
+  static void AddCode(Handle<Name> name,
                       Handle<Script> script,
                       Handle<Code> code,
                       CompilationInfo* info);
 
-  static void AddCode(CodeTag tag, String* name, Code* code);
+  static void AddCode(CodeTag tag, Name* name, Code* code);
 
   static void AddCode(CodeTag tag, const char* name, Code* code);
 

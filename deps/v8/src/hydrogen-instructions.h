@@ -134,7 +134,6 @@ class LChunkBuilder;
   V(IsStringAndBranch)                         \
   V(IsSmiAndBranch)                            \
   V(IsUndetectableAndBranch)                   \
-  V(JSArrayLength)                             \
   V(LeaveInlined)                              \
   V(LoadContextSlot)                           \
   V(LoadElements)                              \
@@ -2389,45 +2388,6 @@ class HCallRuntime: public HCall<1> {
  private:
   const Runtime::Function* c_function_;
   Handle<String> name_;
-};
-
-
-class HJSArrayLength: public HTemplateInstruction<2> {
- public:
-  HJSArrayLength(HValue* value, HValue* typecheck,
-                 HType type = HType::Tagged()) {
-    set_type(type);
-    // The length of an array is stored as a tagged value in the array
-    // object. It is guaranteed to be 32 bit integer, but it can be
-    // represented as either a smi or heap number.
-    SetOperandAt(0, value);
-    SetOperandAt(1, typecheck != NULL ? typecheck : value);
-    set_representation(Representation::Tagged());
-    SetFlag(kUseGVN);
-    SetGVNFlag(kDependsOnArrayLengths);
-    SetGVNFlag(kDependsOnMaps);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) {
-    return Representation::Tagged();
-  }
-
-  virtual void PrintDataTo(StringStream* stream);
-
-  HValue* value() { return OperandAt(0); }
-  HValue* typecheck() {
-    ASSERT(HasTypeCheck());
-    return OperandAt(1);
-  }
-  bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
-
-  DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
-
- protected:
-  virtual bool DataEquals(HValue* other_raw) { return true; }
-
- private:
-  virtual bool IsDeletable() const { return true; }
 };
 
 
@@ -4693,6 +4653,14 @@ class HParameter: public HTemplateInstruction<0> {
     set_representation(Representation::Tagged());
   }
 
+  explicit HParameter(unsigned index,
+                      ParameterKind kind,
+                      Representation r)
+      : index_(index),
+        kind_(kind) {
+    set_representation(r);
+  }
+
   unsigned index() const { return index_; }
   ParameterKind kind() const { return kind_; }
 
@@ -5184,12 +5152,16 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
 };
 
 
-class HLoadNamedField: public HUnaryOperation {
+class HLoadNamedField: public HTemplateInstruction<2> {
  public:
-  HLoadNamedField(HValue* object, bool is_in_object, int offset)
-      : HUnaryOperation(object),
-        is_in_object_(is_in_object),
+  HLoadNamedField(HValue* object, bool is_in_object, int offset,
+                  HValue* typecheck = NULL)
+      : is_in_object_(is_in_object),
         offset_(offset) {
+    ASSERT(object != NULL);
+    SetOperandAt(0, object);
+    SetOperandAt(1, typecheck != NULL ? typecheck : object);
+
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetGVNFlag(kDependsOnMaps);
@@ -5200,7 +5172,24 @@ class HLoadNamedField: public HUnaryOperation {
     }
   }
 
+  static HLoadNamedField* NewArrayLength(Zone* zone, HValue* object,
+                                         HValue* typecheck,
+                                         HType type = HType::Tagged()) {
+    HLoadNamedField* result = new(zone) HLoadNamedField(
+        object, true, JSArray::kLengthOffset, typecheck);
+    result->set_type(type);
+    result->SetGVNFlag(kDependsOnArrayLengths);
+    result->ClearGVNFlag(kDependsOnInobjectFields);
+    return result;
+  }
+
   HValue* object() { return OperandAt(0); }
+  HValue* typecheck() {
+    ASSERT(HasTypeCheck());
+    return OperandAt(1);
+  }
+
+  bool HasTypeCheck() const { return OperandAt(0) != OperandAt(1); }
   bool is_in_object() const { return is_in_object_; }
   int offset() const { return offset_; }
 

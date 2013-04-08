@@ -87,6 +87,10 @@ class LCodeGen BASE_EMBEDDED {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
   }
 
+  RAStatus GetRAState() const {
+    return frame_is_built_ ? kRAHasBeenSaved : kRAHasNotBeenSaved;
+  }
+
   // Support for converting LOperands to assembler types.
   // LOperand must be a register.
   Register ToRegister(LOperand* op) const;

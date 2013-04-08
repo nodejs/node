@@ -1121,6 +1121,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_dont_optimize(lit->flags()->Contains(kDontOptimize));
   function_info->set_dont_inline(lit->flags()->Contains(kDontInline));
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
+  function_info->set_is_generator(lit->is_generator());
 }
 
 

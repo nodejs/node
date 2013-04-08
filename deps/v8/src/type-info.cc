@@ -126,9 +126,9 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(TypeFeedbackId ast_id) {
   if (map_or_code->IsMap()) return true;
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    bool standard_store =
-        Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
-        STANDARD_STORE;
+    bool standard_store = FLAG_compiled_keyed_stores ||
+        (Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
+         STANDARD_STORE);
     bool preliminary_checks =
         code->is_keyed_store_stub() &&
         standard_store &&
@@ -146,9 +146,9 @@ bool TypeFeedbackOracle::StoreIsPolymorphic(TypeFeedbackId ast_id) {
   Handle<Object> map_or_code = GetInfo(ast_id);
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    bool standard_store =
-        Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
-        STANDARD_STORE;
+    bool standard_store = FLAG_compiled_keyed_stores ||
+        (Code::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
+         STANDARD_STORE);
     return code->is_keyed_store_stub() && standard_store  &&
         code->ic_state() == POLYMORPHIC;
   }
@@ -283,10 +283,11 @@ Handle<JSObject> TypeFeedbackOracle::GetPrototypeForPrimitiveCheck(
     case RECEIVER_MAP_CHECK:
       UNREACHABLE();
       break;
-    case SYMBOL_CHECK:
-      return Handle<JSObject>(native_context_->symbol_delegate());
     case STRING_CHECK:
       function = native_context_->string_function();
+      break;
+    case SYMBOL_CHECK:
+      function = native_context_->symbol_function();
       break;
     case NUMBER_CHECK:
       function = native_context_->number_function();

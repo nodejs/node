@@ -53,12 +53,13 @@ int isfinite(double value);
 namespace preparser {
 
 PreParser::PreParseResult PreParser::PreParseLazyFunction(
-    i::LanguageMode mode, i::ParserRecorder* log) {
+    i::LanguageMode mode, bool is_generator, i::ParserRecorder* log) {
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   Scope top_scope(&scope_, kTopLevelScope);
   set_language_mode(mode);
   Scope function_scope(&scope_, kFunctionScope);
+  function_scope.set_is_generator(is_generator);
   ASSERT_EQ(i::Token::LBRACE, scanner_->current_token());
   bool ok = true;
   int start_position = scanner_->peek_location().beg_pos;
@@ -154,6 +155,7 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
   // SourceElement:
   //    LetDeclaration
   //    ConstDeclaration
+  //    GeneratorDeclaration
 
   switch (peek()) {
     case i::Token::FUNCTION:
@@ -294,19 +296,23 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
 PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   // FunctionDeclaration ::
   //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
+  // GeneratorDeclaration ::
+  //   'function' '*' Identifier '(' FormalParameterListopt ')'
+  //      '{' FunctionBody '}'
   Expect(i::Token::FUNCTION, CHECK_OK);
 
+  bool is_generator = allow_generators_ && Check(i::Token::MUL);
   Identifier identifier = ParseIdentifier(CHECK_OK);
   i::Scanner::Location location = scanner_->location();
 
-  Expression function_value = ParseFunctionLiteral(CHECK_OK);
+  Expression function_value = ParseFunctionLiteral(is_generator, CHECK_OK);
 
   if (function_value.IsStrictFunction() &&
       !identifier.IsValidStrictVariable()) {
     // Strict mode violation, using either reserved word or eval/arguments
     // as name of strict function.
     const char* type = "strict_function_name";
-    if (identifier.IsFutureStrictReserved()) {
+    if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
       type = "strict_reserved_word";
     }
     ReportMessageAt(location, type, NULL);
@@ -475,7 +481,9 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
   Expression expr = ParseExpression(true, CHECK_OK);
   if (expr.IsRawIdentifier()) {
     ASSERT(!expr.AsIdentifier().IsFutureReserved());
-    ASSERT(is_classic_mode() || !expr.AsIdentifier().IsFutureStrictReserved());
+    ASSERT(is_classic_mode() ||
+           (!expr.AsIdentifier().IsFutureStrictReserved() &&
+            !expr.AsIdentifier().IsYield()));
     if (peek() == i::Token::COLON) {
       Consume(i::Token::COLON);
       return ParseStatement(ok);
@@ -810,7 +818,12 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
                                                            bool* ok) {
   // AssignmentExpression ::
   //   ConditionalExpression
+  //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
+
+  if (scope_->is_generator() && peek() == i::Token::YIELD) {
+    return ParseYieldExpression(ok);
+  }
 
   i::Scanner::Location before = scanner_->peek_location();
   Expression expression = ParseConditionalExpression(accept_IN, CHECK_OK);
@@ -836,6 +849,19 @@ PreParser::Expression PreParser::ParseAssignmentExpression(bool accept_IN,
   if ((op == i::Token::ASSIGN) && expression.IsThisProperty()) {
     scope_->AddProperty();
   }
+
+  return Expression::Default();
+}
+
+
+// Precedence = 3
+PreParser::Expression PreParser::ParseYieldExpression(bool* ok) {
+  // YieldExpression ::
+  //   'yield' '*'? AssignmentExpression
+  Consume(i::Token::YIELD);
+  Check(i::Token::MUL);
+
+  ParseAssignmentExpression(false, CHECK_OK);
 
   return Expression::Default();
 }
@@ -1034,11 +1060,13 @@ PreParser::Expression PreParser::ParseMemberWithNewPrefixesExpression(
   Expression result = Expression::Default();
   if (peek() == i::Token::FUNCTION) {
     Consume(i::Token::FUNCTION);
+
+    bool is_generator = allow_generators_ && Check(i::Token::MUL);
     Identifier identifier = Identifier::Default();
     if (peek_any_identifier()) {
       identifier = ParseIdentifier(CHECK_OK);
     }
-    result = ParseFunctionLiteral(CHECK_OK);
+    result = ParseFunctionLiteral(is_generator, CHECK_OK);
     if (result.IsStrictFunction() && !identifier.IsValidStrictVariable()) {
       StrictModeIdentifierViolation(scanner_->location(),
                                     "strict_function_name",
@@ -1112,6 +1140,7 @@ PreParser::Expression PreParser::ParsePrimaryExpression(bool* ok) {
 
     case i::Token::FUTURE_RESERVED_WORD:
     case i::Token::FUTURE_STRICT_RESERVED_WORD:
+    case i::Token::YIELD:
     case i::Token::IDENTIFIER: {
       Identifier id = ParseIdentifier(CHECK_OK);
       result = Expression::FromIdentifier(id);
@@ -1257,7 +1286,7 @@ PreParser::Expression PreParser::ParseObjectLiteral(bool* ok) {
             }
             PropertyType type = is_getter ? kGetterProperty : kSetterProperty;
             CheckDuplicate(&duplicate_finder, name, type, CHECK_OK);
-            ParseFunctionLiteral(CHECK_OK);
+            ParseFunctionLiteral(false, CHECK_OK);
             if (peek() != i::Token::RBRACE) {
               Expect(i::Token::COMMA, CHECK_OK);
             }
@@ -1344,7 +1373,8 @@ PreParser::Arguments PreParser::ParseArguments(bool* ok) {
 }
 
 
-PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
+PreParser::Expression PreParser::ParseFunctionLiteral(bool is_generator,
+                                                      bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
 
@@ -1352,6 +1382,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
   ScopeType outer_scope_type = scope_->type();
   bool inside_with = scope_->IsInsideWith();
   Scope function_scope(&scope_, kFunctionScope);
+  function_scope.set_is_generator(is_generator);
   //  FormalParameterList ::
   //    '(' (Identifier)*[','] ')'
   Expect(i::Token::LPAREN, CHECK_OK);
@@ -1497,6 +1528,8 @@ PreParser::Identifier PreParser::GetIdentifierSymbol() {
   } else if (scanner_->current_token() ==
              i::Token::FUTURE_STRICT_RESERVED_WORD) {
     return Identifier::FutureStrictReserved();
+  } else if (scanner_->current_token() == i::Token::YIELD) {
+    return Identifier::Yield();
   }
   if (scanner_->is_literal_ascii()) {
     // Detect strict-mode poison words.
@@ -1523,6 +1556,14 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
       *ok = false;
       return GetIdentifierSymbol();
     }
+    case i::Token::YIELD:
+      if (scope_->is_generator()) {
+        // 'yield' in a generator is only valid as part of a YieldExpression.
+        ReportMessageAt(scanner_->location(), "unexpected_token", "yield");
+        *ok = false;
+        return Identifier::Yield();
+      }
+      // FALLTHROUGH
     case i::Token::FUTURE_STRICT_RESERVED_WORD:
       if (!is_classic_mode()) {
         i::Scanner::Location location = scanner_->location();
@@ -1580,7 +1621,7 @@ void PreParser::StrictModeIdentifierViolation(i::Scanner::Location location,
   const char* type = eval_args_type;
   if (identifier.IsFutureReserved()) {
     type = "reserved_word";
-  } else if (identifier.IsFutureStrictReserved()) {
+  } else if (identifier.IsFutureStrictReserved() || identifier.IsYield()) {
     type = "strict_reserved_word";
   }
   if (!is_classic_mode()) {
@@ -1634,7 +1675,8 @@ bool PreParser::peek_any_identifier() {
   i::Token::Value next = peek();
   return next == i::Token::IDENTIFIER ||
          next == i::Token::FUTURE_RESERVED_WORD ||
-         next == i::Token::FUTURE_STRICT_RESERVED_WORD;
+         next == i::Token::FUTURE_STRICT_RESERVED_WORD ||
+         next == i::Token::YIELD;
 }
 
 

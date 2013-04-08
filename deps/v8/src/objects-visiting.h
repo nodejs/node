@@ -84,6 +84,7 @@ class StaticVisitorBase : public AllStatic {
   V(StructGeneric)            \
   V(ConsString)               \
   V(SlicedString)             \
+  V(Symbol)                   \
   V(Oddball)                  \
   V(Code)                     \
   V(Map)                      \

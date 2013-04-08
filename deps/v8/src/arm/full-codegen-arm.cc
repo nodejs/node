@@ -2764,28 +2764,6 @@ void FullCodeGenerator::EmitIsStringWrapperSafeForDefaultValueOf(
 }
 
 
-void FullCodeGenerator::EmitIsSymbol(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  ASSERT(args->length() == 1);
-
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  __ JumpIfSmi(r0, if_false);
-  __ CompareObjectType(r0, r1, r2, SYMBOL_TYPE);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   ASSERT(args->length() == 1);
@@ -4292,6 +4270,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
     __ tst(r1, Operand(1 << Map::kIsUndetectable));
     Split(eq, if_true, if_false, fall_through);
+  } else if (check->Equals(isolate()->heap()->symbol_string())) {
+    __ JumpIfSmi(r0, if_false);
+    __ CompareObjectType(r0, r0, r1, SYMBOL_TYPE);
+    Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->boolean_string())) {
     __ CompareRoot(r0, Heap::kTrueValueRootIndex);
     __ b(eq, if_true);
@@ -4322,10 +4304,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(r0, if_false);
     if (!FLAG_harmony_typeof) {
       __ CompareRoot(r0, Heap::kNullValueRootIndex);
-      __ b(eq, if_true);
-    }
-    if (FLAG_harmony_symbols) {
-      __ CompareObjectType(r0, r0, r1, SYMBOL_TYPE);
       __ b(eq, if_true);
     }
     // Check for JS objects => true.

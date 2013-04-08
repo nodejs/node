@@ -674,6 +674,7 @@ bool Object::IsBoolean() {
 
 
 TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
+TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 
 
@@ -1490,13 +1491,17 @@ MaybeObject* JSObject::AddFastPropertyUsingMap(Map* map) {
 bool JSObject::TryTransitionToField(Handle<JSObject> object,
                                     Handle<Name> key) {
   if (!object->map()->HasTransitionArray()) return false;
-  Handle<TransitionArray> transitions(object->map()->transitions());
-  int transition = transitions->Search(*key);
-  if (transition == TransitionArray::kNotFound) return false;
-  PropertyDetails target_details = transitions->GetTargetDetails(transition);
-  if (target_details.type() != FIELD) return false;
-  if (target_details.attributes() != NONE) return false;
-  Handle<Map> target(transitions->GetTarget(transition));
+  Handle<Map> target;
+  {
+    AssertNoAllocation no_allocation;
+    TransitionArray* transitions = object->map()->transitions();
+    int transition = transitions->Search(*key);
+    if (transition == TransitionArray::kNotFound) return false;
+    PropertyDetails target_details = transitions->GetTargetDetails(transition);
+    if (target_details.type() != FIELD) return false;
+    if (target_details.attributes() != NONE) return false;
+    target = Handle<Map>(transitions->GetTarget(transition));
+  }
   JSObject::AddFastPropertyUsingMap(object, target);
   return true;
 }
@@ -1558,6 +1563,8 @@ int JSObject::GetHeaderSize() {
       return JSDate::kSize;
     case JS_ARRAY_TYPE:
       return JSArray::kSize;
+    case JS_ARRAY_BUFFER_TYPE:
+      return JSArrayBuffer::kSize;
     case JS_SET_TYPE:
       return JSSet::kSize;
     case JS_MAP_TYPE:
@@ -2444,6 +2451,7 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
+CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
@@ -2500,9 +2508,15 @@ void Name::set_hash_field(uint32_t value) {
 
 bool Name::Equals(Name* other) {
   if (other == this) return true;
-  if (this->IsUniqueName() && other->IsUniqueName()) return false;
+  if (this->IsSymbol() || other->IsSymbol() ||
+      (this->IsInternalizedString() && other->IsInternalizedString())) {
+    return false;
+  }
   return String::cast(this)->SlowEquals(String::cast(other));
 }
+
+
+ACCESSORS(Symbol, name, Object, kNameOffset)
 
 
 bool String::Equals(String* other) {
@@ -4125,9 +4139,12 @@ TransitionArray* Map::transitions() {
 
 void Map::set_transitions(TransitionArray* transition_array,
                           WriteBarrierMode mode) {
-  // In release mode, only run this code if verify_heap is on.
-  if (Heap::ShouldZapGarbage() && HasTransitionArray()) {
-    CHECK(transitions() != transition_array);
+  // Transition arrays are not shared. When one is replaced, it should not
+  // keep referenced objects alive, so we zap it.
+  // When there is another reference to the array somewhere (e.g. a handle),
+  // not zapping turns from a waste of memory into a source of crashes.
+  if (HasTransitionArray()) {
+    ASSERT(transitions() != transition_array);
     ZapTransitions();
   }
 
@@ -4505,6 +4522,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_optimize,
                kDontOptimize)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
 
 void SharedFunctionInfo::BeforeVisitingPointers() {
   if (IsInobjectSlackTrackingInProgress()) DetachInitialMap();
@@ -5119,6 +5137,21 @@ bool Code::contains(byte* inner_pointer) {
 
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
+
+
+void* JSArrayBuffer::backing_store() {
+  intptr_t ptr = READ_INTPTR_FIELD(this, kBackingStoreOffset);
+  return reinterpret_cast<void*>(ptr);
+}
+
+
+void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
+  intptr_t ptr = reinterpret_cast<intptr_t>(value);
+  WRITE_INTPTR_FIELD(this, kBackingStoreOffset, ptr);
+}
+
+
+ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
 
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)

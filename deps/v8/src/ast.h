@@ -102,6 +102,7 @@ namespace internal {
   V(ObjectLiteral)                              \
   V(ArrayLiteral)                               \
   V(Assignment)                                 \
+  V(Yield)                                      \
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
@@ -118,6 +119,10 @@ namespace internal {
   MODULE_NODE_LIST(V)                           \
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
+
+#ifdef WIN32
+#undef Yield
+#endif
 
 // Forward declarations
 class AstConstructionVisitor;
@@ -348,6 +353,10 @@ class Expression: public AstNode {
     SmallMapList* types = GetReceiverTypes();
     ASSERT(types != NULL && types->length() == 1);
     return types->at(0);
+  }
+  virtual KeyedAccessStoreMode GetStoreMode() {
+    UNREACHABLE();
+    return STANDARD_STORE;
   }
 
   BailoutId id() const { return id_; }
@@ -1481,7 +1490,9 @@ class Property: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
-  bool IsArrayLength() { return is_array_length_; }
+  virtual KeyedAccessStoreMode GetStoreMode() {
+    return STANDARD_STORE;
+  }
   bool IsUninitialized() { return is_uninitialized_; }
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
@@ -1497,7 +1508,6 @@ class Property: public Expression {
         load_id_(GetNextId(isolate)),
         is_monomorphic_(false),
         is_uninitialized_(false),
-        is_array_length_(false),
         is_string_length_(false),
         is_string_access_(false),
         is_function_prototype_(false) { }
@@ -1511,7 +1521,6 @@ class Property: public Expression {
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;
   bool is_uninitialized_ : 1;
-  bool is_array_length_ : 1;
   bool is_string_length_ : 1;
   bool is_string_access_ : 1;
   bool is_function_prototype_ : 1;
@@ -1773,6 +1782,9 @@ class CountOperation: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* znoe);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
+  virtual KeyedAccessStoreMode GetStoreMode() {
+    return store_mode_;
+  }
 
   BailoutId AssignmentId() const { return assignment_id_; }
 
@@ -1788,6 +1800,8 @@ class CountOperation: public Expression {
       : Expression(isolate),
         op_(op),
         is_prefix_(is_prefix),
+        is_monomorphic_(false),
+        store_mode_(STANDARD_STORE),
         expression_(expr),
         pos_(pos),
         assignment_id_(GetNextId(isolate)),
@@ -1795,8 +1809,9 @@ class CountOperation: public Expression {
 
  private:
   Token::Value op_;
-  bool is_prefix_;
-  bool is_monomorphic_;
+  bool is_prefix_ : 1;
+  bool is_monomorphic_ : 1;
+  KeyedAccessStoreMode store_mode_: 4;
   Expression* expression_;
   int pos_;
   const BailoutId assignment_id_;
@@ -1909,6 +1924,9 @@ class Assignment: public Expression {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle, Zone* zone);
   virtual bool IsMonomorphic() { return is_monomorphic_; }
   virtual SmallMapList* GetReceiverTypes() { return &receiver_types_; }
+  virtual KeyedAccessStoreMode GetStoreMode() {
+    return store_mode_;
+  }
 
  protected:
   Assignment(Isolate* isolate,
@@ -1934,8 +1952,34 @@ class Assignment: public Expression {
   BinaryOperation* binary_operation_;
   const BailoutId assignment_id_;
 
-  bool is_monomorphic_;
+  bool is_monomorphic_ : 1;
+  KeyedAccessStoreMode store_mode_ : 4;
   SmallMapList receiver_types_;
+};
+
+
+class Yield: public Expression {
+ public:
+  DECLARE_NODE_TYPE(Yield)
+
+  Expression* expression() const { return expression_; }
+  bool is_delegating_yield() const { return is_delegating_yield_; }
+  virtual int position() const { return pos_; }
+
+ protected:
+  Yield(Isolate* isolate,
+        Expression* expression,
+        bool is_delegating_yield,
+        int pos)
+      : Expression(isolate),
+        expression_(expression),
+        is_delegating_yield_(is_delegating_yield),
+        pos_(pos) { }
+
+ private:
+  Expression* expression_;
+  bool is_delegating_yield_;
+  int pos_;
 };
 
 
@@ -1977,6 +2021,11 @@ class FunctionLiteral: public Expression {
   enum IsParenthesizedFlag {
     kIsParenthesized,
     kNotParenthesized
+  };
+
+  enum IsGeneratorFlag {
+    kIsGenerator,
+    kNotGenerator
   };
 
   DECLARE_NODE_TYPE(FunctionLiteral)
@@ -2039,6 +2088,10 @@ class FunctionLiteral: public Expression {
     bitfield_ = IsParenthesized::update(bitfield_, kIsParenthesized);
   }
 
+  bool is_generator() {
+    return IsGenerator::decode(bitfield_) == kIsGenerator;
+  }
+
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
   void set_ast_properties(AstProperties* ast_properties) {
@@ -2059,7 +2112,8 @@ class FunctionLiteral: public Expression {
                   Type type,
                   ParameterFlag has_duplicate_parameters,
                   IsFunctionFlag is_function,
-                  IsParenthesizedFlag is_parenthesized)
+                  IsParenthesizedFlag is_parenthesized,
+                  IsGeneratorFlag is_generator)
       : Expression(isolate),
         name_(name),
         scope_(scope),
@@ -2079,7 +2133,8 @@ class FunctionLiteral: public Expression {
         Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters) |
         IsFunction::encode(is_function) |
-        IsParenthesized::encode(is_parenthesized);
+        IsParenthesized::encode(is_parenthesized) |
+        IsGenerator::encode(is_generator);
   }
 
  private:
@@ -2104,6 +2159,7 @@ class FunctionLiteral: public Expression {
   class HasDuplicateParameters: public BitField<ParameterFlag, 4, 1> {};
   class IsFunction: public BitField<IsFunctionFlag, 5, 1> {};
   class IsParenthesized: public BitField<IsParenthesizedFlag, 6, 1> {};
+  class IsGenerator: public BitField<IsGeneratorFlag, 7, 1> {};
 };
 
 
@@ -2902,6 +2958,12 @@ class AstNodeFactory BASE_EMBEDDED {
     VISIT_AND_RETURN(Assignment, assign)
   }
 
+  Yield* NewYield(Expression* expression, bool is_delegating_yield, int pos) {
+    Yield* yield =
+        new(zone_) Yield(isolate_, expression, is_delegating_yield, pos);
+    VISIT_AND_RETURN(Yield, yield)
+  }
+
   Throw* NewThrow(Expression* exception, int pos) {
     Throw* t = new(zone_) Throw(isolate_, exception, pos);
     VISIT_AND_RETURN(Throw, t)
@@ -2920,13 +2982,14 @@ class AstNodeFactory BASE_EMBEDDED {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::Type type,
       FunctionLiteral::IsFunctionFlag is_function,
-      FunctionLiteral::IsParenthesizedFlag is_parenthesized) {
+      FunctionLiteral::IsParenthesizedFlag is_parenthesized,
+      FunctionLiteral::IsGeneratorFlag is_generator) {
     FunctionLiteral* lit = new(zone_) FunctionLiteral(
         isolate_, name, scope, body,
         materialized_literal_count, expected_property_count, handler_count,
         has_only_simple_this_property_assignments, this_property_assignments,
         parameter_count, type, has_duplicate_parameters, is_function,
-        is_parenthesized);
+        is_parenthesized, is_generator);
     // Top-level literal doesn't count for the AST's properties.
     if (is_function == FunctionLiteral::kIsFunction) {
       visitor_.VisitFunctionLiteral(lit);

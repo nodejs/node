@@ -107,7 +107,7 @@ void HandleScope::CloseScope() {
     current->limit = prev_limit_;
     DeleteExtensions(isolate_);
   }
-#ifdef DEBUG
+#ifdef ENABLE_EXTRA_CHECKS
   ZapRange(prev_next_, prev_limit_);
 #endif
 }

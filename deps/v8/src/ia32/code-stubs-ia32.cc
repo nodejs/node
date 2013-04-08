@@ -67,6 +67,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { edx, ecx, eax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure);
+}
+
+
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -89,7 +100,7 @@ static void InitializeArrayConstructorDescriptor(Isolate* isolate,
   // stack param count needs (constructor pointer, and single argument)
   descriptor->stack_parameter_count_ = &eax;
   descriptor->register_params_ = registers;
-  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ArrayConstructor_StubFailure);
 }
@@ -619,6 +630,14 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ mov(tos_, FieldOperand(argument, String::kLengthOffset));
     __ ret(1 * kPointerSize);  // the string length is OK as the return value
     __ bind(&not_string);
+  }
+
+  if (types_.Contains(SYMBOL)) {
+    // Symbol value -> true.
+    Label not_symbol;
+    __ CmpInstanceType(map, SYMBOL_TYPE);
+    __ j(not_equal, &not_symbol, Label::kNear);
+    __ bind(&not_symbol);
   }
 
   if (types_.Contains(HEAP_NUMBER)) {
@@ -3285,25 +3304,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArrayLengthStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
-  Label miss;
-
-  if (kind() == Code::KEYED_LOAD_IC) {
-    __ cmp(ecx, Immediate(masm->isolate()->factory()->length_string()));
-    __ j(not_equal, &miss);
-  }
-
-  StubCompiler::GenerateLoadArrayLength(masm, edx, eax, &miss);
-  __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
-}
-
-
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
@@ -3558,7 +3558,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ add(ebx, Immediate(Heap::kArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
-  __ AllocateInNewSpace(ebx, eax, edx, edi, &runtime, TAG_OBJECT);
+  __ Allocate(ebx, eax, edx, edi, &runtime, TAG_OBJECT);
 
   // eax = address of new object(s) (tagged)
   // ecx = argument count (tagged)
@@ -3756,7 +3756,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ add(ecx, Immediate(Heap::kArgumentsObjectSizeStrict));
 
   // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
+  __ Allocate(ecx, eax, edx, ebx, &runtime, TAG_OBJECT);
 
   // Get the arguments boilerplate from the current native context.
   __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
@@ -4280,15 +4280,15 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Allocate RegExpResult followed by FixedArray with size in ebx.
   // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
   // Elements:  [Map][Length][..elements..]
-  __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-                        times_pointer_size,
-                        ebx,  // In: Number of elements as a smi
-                        REGISTER_VALUE_IS_SMI,
-                        eax,  // Out: Start of allocation (tagged).
-                        ecx,  // Out: End of allocation.
-                        edx,  // Scratch register
-                        &slowcase,
-                        TAG_OBJECT);
+  __ Allocate(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+              times_pointer_size,
+              ebx,  // In: Number of elements as a smi
+              REGISTER_VALUE_IS_SMI,
+              eax,  // Out: Start of allocation (tagged).
+              ecx,  // Out: End of allocation.
+              edx,  // Scratch register
+              &slowcase,
+              TAG_OBJECT);
   // eax: Start of allocated area, object-tagged.
 
   // Set JSArray map to global.regexp_result_map().
@@ -4525,6 +4525,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Identical objects can be compared fast, but there are some tricky cases
   // for NaN and undefined.
+  Label generic_heap_number_comparison;
   {
     Label not_identical;
     __ cmp(eax, edx);
@@ -4541,12 +4542,11 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
       __ bind(&check_for_nan);
     }
 
-    // Test for NaN. Sadly, we can't just compare to factory->nan_value(),
-    // so we do the second best thing - test it ourselves.
-    Label heap_number;
+    // Test for NaN. Compare heap numbers in a general way,
+    // to hanlde NaNs correctly.
     __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
            Immediate(masm->isolate()->factory()->heap_number_map()));
-    __ j(equal, &heap_number, Label::kNear);
+    __ j(equal, &generic_heap_number_comparison, Label::kNear);
     if (cc != equal) {
       // Call runtime on identical JSObjects.  Otherwise return equal.
       __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
@@ -4555,37 +4555,6 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
     __ ret(0);
 
-    __ bind(&heap_number);
-    // It is a heap number, so return non-equal if it's NaN and equal if
-    // it's not NaN.
-    // The representation of NaN values has all exponent bits (52..62) set,
-    // and not all mantissa bits (0..51) clear.
-    // We only accept QNaNs, which have bit 51 set.
-    // Read top bits of double representation (second word of value).
-
-    // Value is a QNaN if value & kQuietNaNMask == kQuietNaNMask, i.e.,
-    // all bits in the mask are set. We only need to check the word
-    // that contains the exponent and high bit of the mantissa.
-    STATIC_ASSERT(((kQuietNaNHighBitsMask << 1) & 0x80000000u) != 0);
-    __ mov(edx, FieldOperand(edx, HeapNumber::kExponentOffset));
-    __ Set(eax, Immediate(0));
-    // Shift value and mask so kQuietNaNHighBitsMask applies to topmost
-    // bits.
-    __ add(edx, edx);
-    __ cmp(edx, kQuietNaNHighBitsMask << 1);
-    if (cc == equal) {
-      STATIC_ASSERT(EQUAL != 1);
-      __ setcc(above_equal, eax);
-      __ ret(0);
-    } else {
-      Label nan;
-      __ j(above_equal, &nan, Label::kNear);
-      __ Set(eax, Immediate(Smi::FromInt(EQUAL)));
-      __ ret(0);
-      __ bind(&nan);
-      __ Set(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
-      __ ret(0);
-    }
 
     __ bind(&not_identical);
   }
@@ -4665,6 +4634,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Generate the number comparison code.
   Label non_number_comparison;
   Label unordered;
+  __ bind(&generic_heap_number_comparison);
   if (CpuFeatures::IsSupported(SSE2)) {
     CpuFeatureScope use_sse2(masm, SSE2);
     CpuFeatureScope use_cmov(masm, CMOV);
@@ -7825,8 +7795,10 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ mov(ebx, MemOperand(ebp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ pop(ecx);
-  __ lea(esp, MemOperand(esp, ebx, times_pointer_size,
-                         extra_expression_stack_count_ * kPointerSize));
+  int additional_offset = function_mode_ == JS_FUNCTION_STUB_MODE
+      ? kPointerSize
+      : 0;
+  __ lea(esp, MemOperand(esp, ebx, times_pointer_size, additional_offset));
   __ jmp(ecx);  // Return to IC Miss stub, continuation still on stack.
 }
 

@@ -348,7 +348,7 @@ class OS {
   static void MemCopy(void* dest, const void* src, size_t size) {
     memcpy(dest, src, size);
   }
-  static const int kMinComplexMemCopy = 256;
+  static const int kMinComplexMemCopy = 16 * kPointerSize;
 #endif  // V8_TARGET_ARCH_IA32
 
   static int GetCurrentProcessId();

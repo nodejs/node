@@ -399,7 +399,9 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
   ASSERT(type != ODDBALL_TYPE);
   ASSERT(type != JS_GLOBAL_PROPERTY_CELL_TYPE);
 
-  if (type < FIRST_NONSTRING_TYPE) {
+  if (type <= LAST_NAME_TYPE) {
+    if (type == SYMBOL_TYPE) return OLD_POINTER_SPACE;
+    ASSERT(type < FIRST_NONSTRING_TYPE);
     // There are four string representations: sequential strings, external
     // strings, cons strings, and sliced strings.
     // Only the latter two contain non-map-word pointers to heap objects.

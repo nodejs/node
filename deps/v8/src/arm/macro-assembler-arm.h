@@ -679,12 +679,12 @@ class MacroAssembler: public Assembler {
                 Label* gc_required,
                 AllocationFlags flags);
 
-  void AllocateInNewSpace(Register object_size,
-                          Register result,
-                          Register scratch1,
-                          Register scratch2,
-                          Label* gc_required,
-                          AllocationFlags flags);
+  void Allocate(Register object_size,
+                Register result,
+                Register scratch1,
+                Register scratch2,
+                Label* gc_required,
+                AllocationFlags flags);
 
   // Undo allocation in new space. The object passed and objects allocated after
   // it will no longer be allocated. The caller must make sure that no pointers
@@ -960,9 +960,9 @@ class MacroAssembler: public Assembler {
   // Exits with 'result' holding the answer.
   void ECMAConvertNumberToInt32(Register source,
                                 Register result,
-                                Register scratch,
-                                Register input_high,
                                 Register input_low,
+                                Register input_high,
+                                Register scratch,
                                 DwVfpRegister double_scratch1,
                                 DwVfpRegister double_scratch2);
 

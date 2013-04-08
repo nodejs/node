@@ -30,3 +30,4 @@ undefined.x
          ^
 TypeError: Cannot read property 'x' of undefined
     at *%(basename)s:31:10
+

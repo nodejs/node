@@ -1779,6 +1779,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SlicedString::kSize>);
 
+    table_.Register(kVisitSymbol,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                        template VisitSpecialized<Symbol::kSize>);
+
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
@@ -3785,11 +3789,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
   code->set_instruction_size(desc.instr_size);
-  // TODO(mstarzinger): Remove once we found the bug.
-  CHECK(reloc_info->IsByteArray());
   code->set_relocation_info(reloc_info);
-  // TODO(mstarzinger): Remove once we found the bug.
-  CHECK(code->relocation_info()->IsByteArray());
   code->set_flags(flags);
   if (code->is_call_stub() || code->is_keyed_call_stub()) {
     code->set_check_type(RECEIVER_MAP_CHECK);
@@ -3805,8 +3805,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   }
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
-  CHECK(code->IsCode());
-  CHECK(code->relocation_info()->IsByteArray());
   if (!self_reference.is_null()) {
     *(self_reference.location()) = code;
   }
@@ -3815,8 +3813,6 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   // that are dereferenced during the copy to point directly to the actual heap
   // objects. These pointers can include references to the code object itself,
   // through the self_reference parameter.
-  CHECK(code->IsCode());
-  CHECK(code->relocation_info()->IsByteArray());
   code->CopyFrom(desc);
 
 #ifdef VERIFY_HEAP
@@ -3888,13 +3884,15 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
 
   // Copy header and instructions.
-  memcpy(new_addr, old_addr, relocation_offset);
+  CopyBytes(new_addr, old_addr, relocation_offset);
 
   Code* new_code = Code::cast(result);
   new_code->set_relocation_info(ByteArray::cast(reloc_info_array));
 
   // Copy patched rinfo.
-  memcpy(new_code->relocation_start(), reloc_info.start(), reloc_info.length());
+  CopyBytes(new_code->relocation_start(),
+            reloc_info.start(),
+            static_cast<size_t>(reloc_info.length()));
 
   // Relocate the copy.
   ASSERT(!isolate_->code_range()->exists() ||
@@ -5430,13 +5428,13 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
 }
 
 
-MaybeObject* Heap::AllocateSymbol(PretenureFlag pretenure) {
+MaybeObject* Heap::AllocateSymbol() {
   // Statically ensure that it is safe to allocate symbols in paged spaces.
   STATIC_ASSERT(Symbol::kSize <= Page::kNonCodeObjectAreaSize);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
 
   Object* result;
-  MaybeObject* maybe = AllocateRaw(Symbol::kSize, space, OLD_DATA_SPACE);
+  MaybeObject* maybe =
+      AllocateRaw(Symbol::kSize, OLD_POINTER_SPACE, OLD_POINTER_SPACE);
   if (!maybe->ToObject(&result)) return maybe;
 
   HeapObject::cast(result)->set_map_no_write_barrier(symbol_map());
@@ -5452,6 +5450,7 @@ MaybeObject* Heap::AllocateSymbol(PretenureFlag pretenure) {
 
   Symbol::cast(result)->set_hash_field(
       Name::kIsNotArrayIndexMask | (hash << Name::kHashShift));
+  Symbol::cast(result)->set_name(undefined_value());
 
   ASSERT(result->IsSymbol());
   return result;
@@ -7471,6 +7470,9 @@ void KeyedLookupCache::Update(Map* map, Name* name, int field_offset) {
     }
     name = internalized_string;
   }
+  // This cache is cleared only between mark compact passes, so we expect the
+  // cache to only contain old space names.
+  ASSERT(!HEAP->InNewSpace(name));
 
   int index = (Hash(map, name) & kHashMask);
   // After a GC there will be free slots, so we use them in order (this may

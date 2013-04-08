@@ -942,6 +942,7 @@ class Assembler : public AssemblerBase {
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
 
   static bool IsAndImmediate(Instr instr);
+  static bool IsEmittedConstant(Instr instr);
 
   void CheckTrampolinePool();
 

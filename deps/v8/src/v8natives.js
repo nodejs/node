@@ -233,7 +233,6 @@ $Object.prototype.constructor = $Object;
 function ObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
-  if (IS_SYMBOL(this)) return "[object Symbol]";
   return "[object " + %_ClassOf(ToObject(this)) + "]";
 }
 
@@ -257,6 +256,9 @@ function ObjectValueOf() {
 // ECMA-262 - 15.2.4.5
 function ObjectHasOwnProperty(V) {
   if (%IsJSProxy(this)) {
+    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+    if (IS_SYMBOL(V)) return false;
+
     var handler = %GetHandler(this);
     return CallTrap1(handler, "hasOwn", DerivedHasOwnTrap, ToName(V));
   }
@@ -279,6 +281,9 @@ function ObjectIsPrototypeOf(V) {
 function ObjectPropertyIsEnumerable(V) {
   var P = ToName(V);
   if (%IsJSProxy(this)) {
+    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+    if (IS_SYMBOL(V)) return false;
+
     var desc = GetOwnProperty(this, P);
     return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
   }
@@ -646,6 +651,9 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 function GetOwnProperty(obj, v) {
   var p = ToName(v);
   if (%IsJSProxy(obj)) {
+    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+    if (IS_SYMBOL(v)) return void 0;
+
     var handler = %GetHandler(obj);
     var descriptor = CallTrap1(handler, "getOwnPropertyDescriptor", void 0, p);
     if (IS_UNDEFINED(descriptor)) return descriptor;
@@ -686,6 +694,9 @@ function Delete(obj, p, should_throw) {
 
 // Harmony proxies.
 function DefineProxyProperty(obj, p, attributes, should_throw) {
+  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+  if (IS_SYMBOL(p)) return false;
+
   var handler = %GetHandler(obj);
   var result = CallTrap2(handler, "defineProperty", void 0, p, attributes);
   if (!ToBoolean(result)) {
@@ -865,7 +876,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
   // DefineObjectProperty() to modify its value.
 
   // Step 3 - Special handling for length property.
-  if (p == "length") {
+  if (p === "length") {
     var length = obj.length;
     if (!desc.hasValue()) {
       return DefineObjectProperty(obj, "length", desc, should_throw);
@@ -951,6 +962,9 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
 // ES5 section 8.12.9, ES5 section 15.4.5.1 and Harmony proxies.
 function DefineOwnProperty(obj, p, desc, should_throw) {
   if (%IsJSProxy(obj)) {
+    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+    if (IS_SYMBOL(p)) return false;
+
     var attributes = FromGenericPropertyDescriptor(desc);
     return DefineProxyProperty(obj, p, attributes, should_throw);
   } else if (IS_ARRAY(obj)) {
@@ -988,16 +1002,20 @@ function ToNameArray(obj, trap, includeSymbols) {
   }
   var n = ToUint32(obj.length);
   var array = new $Array(n);
+  var realLength = 0;
   var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
   for (var index = 0; index < n; index++) {
     var s = ToName(obj[index]);
+    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(s) && !includeSymbols) continue;
     if (%HasLocalProperty(names, s)) {
       throw MakeTypeError("proxy_repeated_prop_name", [obj, trap, s]);
     }
     array[index] = s;
+    ++realLength;
     names[s] = 0;
   }
+  array.length = realLength;
   return array;
 }
 
@@ -1011,7 +1029,7 @@ function ObjectGetOwnPropertyNames(obj) {
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "getOwnPropertyNames", void 0);
-    return ToNameArray(names, "getOwnPropertyNames", true);
+    return ToNameArray(names, "getOwnPropertyNames", false);
   }
 
   var nameArrays = new InternalArray();
@@ -1037,7 +1055,7 @@ function ObjectGetOwnPropertyNames(obj) {
   // Find all the named properties.
 
   // Get the local property names.
-  nameArrays.push(%GetLocalPropertyNames(obj));
+  nameArrays.push(%GetLocalPropertyNames(obj, false));
 
   // Get names for named interceptor properties if any.
   if ((interceptorInfo & 2) != 0) {
@@ -1057,7 +1075,8 @@ function ObjectGetOwnPropertyNames(obj) {
     var propertySet = { __proto__: null };
     var j = 0;
     for (var i = 0; i < propertyNames.length; ++i) {
-      var name = ToName(propertyNames[i]);
+      if (IS_SYMBOL(propertyNames[i])) continue;
+      var name = ToString(propertyNames[i]);
       // We need to check for the exact property value since for intrinsic
       // properties like toString if(propertySet["toString"]) will always
       // succeed.

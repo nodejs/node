@@ -368,7 +368,6 @@ typedef List<HeapObject*, PreallocatedStorageAllocationPolicy> DebugObjectCache;
   V(unsigned, ast_node_count, 0)                                               \
   /* SafeStackFrameIterator activations count. */                              \
   V(int, safe_stack_iterator_counter, 0)                                       \
-  V(HeapProfiler*, heap_profiler, NULL)                                        \
   V(bool, observer_delivery_pending, false)                                    \
   V(HStatistics*, hstatistics, NULL)                                           \
   V(HTracer*, htracer, NULL)                                                   \
@@ -976,6 +975,7 @@ class Isolate {
   inline bool DebuggerHasBreakPoints();
 
   CpuProfiler* cpu_profiler() const { return cpu_profiler_; }
+  HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
   HistogramInfo* heap_histograms() { return heap_histograms_; }
@@ -1313,6 +1313,7 @@ class Isolate {
   Debug* debug_;
 #endif
   CpuProfiler* cpu_profiler_;
+  HeapProfiler* heap_profiler_;
 
 #define GLOBAL_BACKING_STORE(type, name, initialvalue)                         \
   type name##_;

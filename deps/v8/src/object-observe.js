@@ -117,6 +117,9 @@ function ObjectUnobserve(object, callback) {
 }
 
 function EnqueueChangeRecord(changeRecord, observers) {
+  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
+  if (IS_SYMBOL(changeRecord.name)) return;
+
   for (var i = 0; i < observers.length; i++) {
     var observer = observers[i];
     var observerInfo = observerInfoMap.get(observer);

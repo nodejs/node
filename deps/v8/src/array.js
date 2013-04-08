@@ -38,22 +38,21 @@ var visited_arrays = new InternalArray();
 
 // Gets a sorted array of array keys.  Useful for operations on sparse
 // arrays.  Dupes have not been removed.
-function GetSortedArrayKeys(array, intervals) {
-  var length = intervals.length;
-  var keys = [];
-  for (var k = 0; k < length; k++) {
-    var key = intervals[k];
-    if (key < 0) {
-      var j = -1 - key;
-      var limit = j + intervals[++k];
-      for (; j < limit; j++) {
-        var e = array[j];
-        if (!IS_UNDEFINED(e) || j in array) {
-          keys.push(j);
-        }
+function GetSortedArrayKeys(array, indices) {
+  var keys = new InternalArray();
+  if (IS_NUMBER(indices)) {
+    // It's an interval
+    var limit = indices;
+    for (var i = 0; i < limit; ++i) {
+      var e = array[i];
+      if (!IS_UNDEFINED(e) || i in array) {
+        keys.push(i);
       }
-    } else {
-      // The case where key is undefined also ends here.
+    }
+  } else {
+    var length = indices.length;
+    for (var k = 0; k < length; ++k) {
+      var key = indices[k];
       if (!IS_UNDEFINED(key)) {
         var e = array[key];
         if (!IS_UNDEFINED(e) || key in array) {
@@ -61,8 +60,8 @@ function GetSortedArrayKeys(array, intervals) {
         }
       }
     }
+    %_CallFunction(keys, function(a, b) { return a - b; }, ArraySort);
   }
-  %_CallFunction(keys, function(a, b) { return a - b; }, ArraySort);
   return keys;
 }
 
@@ -217,34 +216,21 @@ function ConvertToLocaleString(e) {
 // special array operations to handle sparse arrays in a sensible fashion.
 function SmartSlice(array, start_i, del_count, len, deleted_elements) {
   // Move deleted elements to a new array (the return value from splice).
-  // Intervals array can contain keys and intervals.  See comment in Concat.
-  var intervals = %GetArrayKeys(array, start_i + del_count);
-  var length = intervals.length;
-  for (var k = 0; k < length; k++) {
-    var key = intervals[k];
-    if (key < 0) {
-      var j = -1 - key;
-      var interval_limit = j + intervals[++k];
-      if (j < start_i) {
-        j = start_i;
+  var indices = %GetArrayKeys(array, start_i + del_count);
+  if (IS_NUMBER(indices)) {
+    var limit = indices;
+    for (var i = start_i; i < limit; ++i) {
+      var current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
+        deleted_elements[i - start_i] = current;
       }
-      for (; j < interval_limit; j++) {
-        // ECMA-262 15.4.4.12 line 10.  The spec could also be
-        // interpreted such that %HasLocalProperty would be the
-        // appropriate test.  We follow KJS in consulting the
-        // prototype.
-        var current = array[j];
-        if (!IS_UNDEFINED(current) || j in array) {
-          deleted_elements[j - start_i] = current;
-        }
-      }
-    } else {
+    }
+  } else {
+    var length = indices.length;
+    for (var k = 0; k < length; ++k) {
+      var key = indices[k];
       if (!IS_UNDEFINED(key)) {
         if (key >= start_i) {
-          // ECMA-262 15.4.4.12 line 10.  The spec could also be
-          // interpreted such that %HasLocalProperty would be the
-          // appropriate test.  We follow KJS in consulting the
-          // prototype.
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
             deleted_elements[key - start_i] = current;
@@ -261,50 +247,32 @@ function SmartSlice(array, start_i, del_count, len, deleted_elements) {
 function SmartMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
   var new_array = new InternalArray(len - del_count + num_additional_args);
-  var intervals = %GetArrayKeys(array, len);
-  var length = intervals.length;
-  for (var k = 0; k < length; k++) {
-    var key = intervals[k];
-    if (key < 0) {
-      var j = -1 - key;
-      var interval_limit = j + intervals[++k];
-      while (j < start_i && j < interval_limit) {
-        // The spec could also be interpreted such that
-        // %HasLocalProperty would be the appropriate test.  We follow
-        // KJS in consulting the prototype.
-        var current = array[j];
-        if (!IS_UNDEFINED(current) || j in array) {
-          new_array[j] = current;
-        }
-        j++;
+  var indices = %GetArrayKeys(array, len);
+  if (IS_NUMBER(indices)) {
+    var limit = indices;
+    for (var i = 0; i < start_i && i < limit; ++i) {
+      var current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
+        new_array[i] = current;
       }
-      j = start_i + del_count;
-      while (j < interval_limit) {
-        // ECMA-262 15.4.4.12 lines 24 and 41.  The spec could also be
-        // interpreted such that %HasLocalProperty would be the
-        // appropriate test.  We follow KJS in consulting the
-        // prototype.
-        var current = array[j];
-        if (!IS_UNDEFINED(current) || j in array) {
-          new_array[j - del_count + num_additional_args] = current;
-        }
-        j++;
+    }
+    for (var i = start_i + del_count; i < limit; ++i) {
+      var current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
+        new_array[i - del_count + num_additional_args] = current;
       }
-    } else {
+    }
+  } else {
+    var length = indices.length;
+    for (var k = 0; k < length; ++k) {
+      var key = indices[k];
       if (!IS_UNDEFINED(key)) {
         if (key < start_i) {
-          // The spec could also be interpreted such that
-          // %HasLocalProperty would be the appropriate test.  We follow
-          // KJS in consulting the prototype.
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
             new_array[key] = current;
           }
         } else if (key >= start_i + del_count) {
-          // ECMA-262 15.4.4.12 lines 24 and 41.  The spec could also
-          // be interpreted such that %HasLocalProperty would be the
-          // appropriate test.  We follow KJS in consulting the
-          // prototype.
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
             new_array[key - del_count + num_additional_args] = current;
@@ -887,24 +855,22 @@ function ArraySort(comparefn) {
     var max = 0;
     for (var proto = %GetPrototype(obj); proto; proto = %GetPrototype(proto)) {
       var indices = %GetArrayKeys(proto, length);
-      if (indices.length > 0) {
-        if (indices[0] == -1) {
-          // It's an interval.
-          var proto_length = indices[1];
-          for (var i = 0; i < proto_length; i++) {
-            if (!obj.hasOwnProperty(i) && proto.hasOwnProperty(i)) {
-              obj[i] = proto[i];
-              if (i >= max) { max = i + 1; }
-            }
+      if (IS_NUMBER(indices)) {
+        // It's an interval.
+        var proto_length = indices;
+        for (var i = 0; i < proto_length; i++) {
+          if (!obj.hasOwnProperty(i) && proto.hasOwnProperty(i)) {
+            obj[i] = proto[i];
+            if (i >= max) { max = i + 1; }
           }
-        } else {
-          for (var i = 0; i < indices.length; i++) {
-            var index = indices[i];
-            if (!IS_UNDEFINED(index) &&
-                !obj.hasOwnProperty(index) && proto.hasOwnProperty(index)) {
-              obj[index] = proto[index];
-              if (index >= max) { max = index + 1; }
-            }
+        }
+      } else {
+        for (var i = 0; i < indices.length; i++) {
+          var index = indices[i];
+          if (!IS_UNDEFINED(index) &&
+              !obj.hasOwnProperty(index) && proto.hasOwnProperty(index)) {
+            obj[index] = proto[index];
+            if (index >= max) { max = index + 1; }
           }
         }
       }
@@ -918,22 +884,20 @@ function ArraySort(comparefn) {
   var ShadowPrototypeElements = function(obj, from, to) {
     for (var proto = %GetPrototype(obj); proto; proto = %GetPrototype(proto)) {
       var indices = %GetArrayKeys(proto, to);
-      if (indices.length > 0) {
-        if (indices[0] == -1) {
-          // It's an interval.
-          var proto_length = indices[1];
-          for (var i = from; i < proto_length; i++) {
-            if (proto.hasOwnProperty(i)) {
-              obj[i] = void 0;
-            }
+      if (IS_NUMBER(indices)) {
+        // It's an interval.
+        var proto_length = indices;
+        for (var i = from; i < proto_length; i++) {
+          if (proto.hasOwnProperty(i)) {
+            obj[i] = void 0;
           }
-        } else {
-          for (var i = 0; i < indices.length; i++) {
-            var index = indices[i];
-            if (!IS_UNDEFINED(index) && from <= index &&
-                proto.hasOwnProperty(index)) {
-              obj[index] = void 0;
-            }
+        }
+      } else {
+        for (var i = 0; i < indices.length; i++) {
+          var index = indices[i];
+          if (!IS_UNDEFINED(index) && from <= index &&
+              proto.hasOwnProperty(index)) {
+            obj[index] = void 0;
           }
         }
       }
@@ -1284,18 +1248,15 @@ function ArrayIndexOf(element, index) {
   var min = index;
   var max = length;
   if (UseSparseVariant(this, length, IS_ARRAY(this))) {
-    var intervals = %GetArrayKeys(this, length);
-    if (intervals.length == 2 && intervals[0] < 0) {
-      // A single interval.
-      var intervalMin = -(intervals[0] + 1);
-      var intervalMax = intervalMin + intervals[1];
-      if (min < intervalMin) min = intervalMin;
-      max = intervalMax;  // Capped by length already.
+    var indices = %GetArrayKeys(this, length);
+    if (IS_NUMBER(indices)) {
+      // It's an interval.
+      max = indices;  // Capped by length already.
       // Fall through to loop below.
     } else {
-      if (intervals.length == 0) return -1;
+      if (indices.length == 0) return -1;
       // Get all the keys in sorted order.
-      var sortedKeys = GetSortedArrayKeys(this, intervals);
+      var sortedKeys = GetSortedArrayKeys(this, indices);
       var n = sortedKeys.length;
       var i = 0;
       while (i < n && sortedKeys[i] < index) i++;
@@ -1345,18 +1306,15 @@ function ArrayLastIndexOf(element, index) {
   var min = 0;
   var max = index;
   if (UseSparseVariant(this, length, IS_ARRAY(this))) {
-    var intervals = %GetArrayKeys(this, index + 1);
-    if (intervals.length == 2 && intervals[0] < 0) {
-      // A single interval.
-      var intervalMin = -(intervals[0] + 1);
-      var intervalMax = intervalMin + intervals[1];
-      if (min < intervalMin) min = intervalMin;
-      max = intervalMax;  // Capped by index already.
+    var indices = %GetArrayKeys(this, index + 1);
+    if (IS_NUMBER(indices)) {
+      // It's an interval.
+      max = indices;  // Capped by index already.
       // Fall through to loop below.
     } else {
-      if (intervals.length == 0) return -1;
+      if (indices.length == 0) return -1;
       // Get all the keys in sorted order.
-      var sortedKeys = GetSortedArrayKeys(this, intervals);
+      var sortedKeys = GetSortedArrayKeys(this, indices);
       var i = sortedKeys.length - 1;
       while (i >= 0) {
         var key = sortedKeys[i];

@@ -1574,13 +1574,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ movq(result, FieldOperand(array, JSArray::kLengthOffset));
-}
-
-
 void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->value());
@@ -5129,7 +5122,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
-    __ AllocateInNewSpace(size, result, temp, no_reg, deferred->entry(), flags);
+    __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
   }
 
   __ bind(deferred->exit());
@@ -5538,6 +5531,11 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
              Immediate(1 << Map::kIsUndetectable));
     final_branch_condition = zero;
 
+  } else if (type_name->Equals(heap()->symbol_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CmpObjectType(input, SYMBOL_TYPE, input);
+    final_branch_condition = equal;
+
   } else if (type_name->Equals(heap()->boolean_string())) {
     __ CompareRoot(input, Heap::kTrueValueRootIndex);
     __ j(equal, true_label);
@@ -5572,13 +5570,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ CompareRoot(input, Heap::kNullValueRootIndex);
       __ j(equal, true_label);
     }
-    if (FLAG_harmony_symbols) {
-      __ CmpObjectType(input, SYMBOL_TYPE, input);
-      __ j(equal, true_label);
-      __ CmpInstanceType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    } else {
-      __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
-    }
+    __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ j(above, false_label);

@@ -160,13 +160,14 @@ class HandleScope {
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend(Isolate* isolate);
 
+#ifdef ENABLE_EXTRA_CHECKS
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(internal::Object** start, internal::Object** end);
+#endif
 
-  friend class v8::internal::DeferredHandles;
   friend class v8::HandleScope;
+  friend class v8::internal::DeferredHandles;
   friend class v8::internal::HandleScopeImplementer;
-  friend class v8::ImplementationUtilities;
   friend class v8::internal::Isolate;
 };
 
@@ -231,11 +232,6 @@ Handle<Object> GetProperty(Handle<JSReceiver> obj,
 Handle<Object> GetProperty(Isolate* isolate,
                            Handle<Object> obj,
                            Handle<Object> key);
-
-Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
-                                          Handle<JSObject> holder,
-                                          Handle<String> name,
-                                          PropertyAttributes* attributes);
 
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 

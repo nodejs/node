@@ -100,6 +100,7 @@ var kMessages = {
   observe_notify_non_notifier:   ["notify called on non-notifier object"],
   // RangeError
   invalid_array_length:          ["Invalid array length"],
+  invalid_array_buffer_length:   ["Invalid array buffer length"],
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   // SyntaxError
@@ -150,6 +151,7 @@ var kMessages = {
   cant_prevent_ext_external_array_elements: ["Cannot prevent extension of an object with external array elements"],
   redef_external_array_element:  ["Cannot redefine a property of an object with external array elements"],
   harmony_const_assign:          ["Assignment to constant variable."],
+  symbol_to_string:              ["Conversion from symbol to string"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
@@ -745,64 +747,70 @@ function GetPositionInLine(message) {
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
-  return new CallSite(recv, fun, pos).toString();
+  return new CallSite(recv, fun, pos, false).toString();
 }
 
 // ----------------------------------------------------------------------------
 // Error implementation
 
-function CallSite(receiver, fun, pos) {
-  this.receiver = receiver;
-  this.fun = fun;
-  this.pos = pos;
+var CallSiteReceiverKey = %CreateSymbol("receiver");
+var CallSiteFunctionKey = %CreateSymbol("function");
+var CallSitePositionKey = %CreateSymbol("position");
+var CallSiteStrictModeKey = %CreateSymbol("strict mode");
+
+function CallSite(receiver, fun, pos, strict_mode) {
+  this[CallSiteReceiverKey] = receiver;
+  this[CallSiteFunctionKey] = fun;
+  this[CallSitePositionKey] = pos;
+  this[CallSiteStrictModeKey] = strict_mode;
 }
 
 function CallSiteGetThis() {
-  return this.receiver;
+  return this[CallSiteStrictModeKey] ? void 0 : this[CallSiteReceiverKey];
 }
 
 function CallSiteGetTypeName() {
-  return GetTypeName(this, false);
+  return GetTypeName(this[CallSiteReceiverKey], false);
 }
 
 function CallSiteIsToplevel() {
-  if (this.receiver == null) {
+  if (this[CallSiteReceiverKey] == null) {
     return true;
   }
-  return IS_GLOBAL(this.receiver);
+  return IS_GLOBAL(this[CallSiteReceiverKey]);
 }
 
 function CallSiteIsEval() {
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   return script && script.compilation_type == COMPILATION_TYPE_EVAL;
 }
 
 function CallSiteGetEvalOrigin() {
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   return FormatEvalOrigin(script);
 }
 
 function CallSiteGetScriptNameOrSourceURL() {
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   return script ? script.nameOrSourceURL() : null;
 }
 
 function CallSiteGetFunction() {
-  return this.fun;
+  return this[CallSiteStrictModeKey] ? void 0 : this[CallSiteFunctionKey];
 }
 
 function CallSiteGetFunctionName() {
   // See if the function knows its own name
-  var name = this.fun.name;
+  var name = this[CallSiteFunctionKey].name;
   if (name) {
     return name;
   }
-  name = %FunctionGetInferredName(this.fun);
+  name = %FunctionGetInferredName(this[CallSiteFunctionKey]);
   if (name) {
     return name;
   }
   // Maybe this is an evaluation?
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   if (script && script.compilation_type == COMPILATION_TYPE_EVAL) {
     return "eval";
   }
@@ -812,26 +820,22 @@ function CallSiteGetFunctionName() {
 function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
-  var ownName = this.fun.name;
-  if (ownName && this.receiver &&
-      (%_CallFunction(this.receiver,
-                      ownName,
-                      ObjectLookupGetter) === this.fun ||
-       %_CallFunction(this.receiver,
-                      ownName,
-                      ObjectLookupSetter) === this.fun ||
-       (IS_OBJECT(this.receiver) &&
-        %GetDataProperty(this.receiver, ownName) === this.fun))) {
+  var receiver = this[CallSiteReceiverKey];
+  var fun = this[CallSiteFunctionKey];
+  var ownName = fun.name;
+  if (ownName && receiver &&
+      (%_CallFunction(receiver, ownName, ObjectLookupGetter) === fun ||
+       %_CallFunction(receiver, ownName, ObjectLookupSetter) === fun ||
+       (IS_OBJECT(receiver) && %GetDataProperty(receiver, ownName) === fun))) {
     // To handle DontEnum properties we guess that the method has
     // the same name as the function.
     return ownName;
   }
   var name = null;
-  for (var prop in this.receiver) {
-    if (%_CallFunction(this.receiver, prop, ObjectLookupGetter) === this.fun ||
-        %_CallFunction(this.receiver, prop, ObjectLookupSetter) === this.fun ||
-        (IS_OBJECT(this.receiver) &&
-         %GetDataProperty(this.receiver, prop) === this.fun)) {
+  for (var prop in receiver) {
+    if (%_CallFunction(receiver, prop, ObjectLookupGetter) === fun ||
+        %_CallFunction(receiver, prop, ObjectLookupSetter) === fun ||
+        (IS_OBJECT(receiver) && %GetDataProperty(receiver, prop) === fun)) {
       // If we find more than one match bail out to avoid confusion.
       if (name) {
         return null;
@@ -846,49 +850,49 @@ function CallSiteGetMethodName() {
 }
 
 function CallSiteGetFileName() {
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   return script ? script.name : null;
 }
 
 function CallSiteGetLineNumber() {
-  if (this.pos == -1) {
+  if (this[CallSitePositionKey] == -1) {
     return null;
   }
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   var location = null;
   if (script) {
-    location = script.locationFromPosition(this.pos, true);
+    location = script.locationFromPosition(this[CallSitePositionKey], true);
   }
   return location ? location.line + 1 : null;
 }
 
 function CallSiteGetColumnNumber() {
-  if (this.pos == -1) {
+  if (this[CallSitePositionKey] == -1) {
     return null;
   }
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   var location = null;
   if (script) {
-    location = script.locationFromPosition(this.pos, true);
+    location = script.locationFromPosition(this[CallSitePositionKey], true);
   }
   return location ? location.column + 1: null;
 }
 
 function CallSiteIsNative() {
-  var script = %FunctionGetScript(this.fun);
+  var script = %FunctionGetScript(this[CallSiteFunctionKey]);
   return script ? (script.type == TYPE_NATIVE) : false;
 }
 
 function CallSiteGetPosition() {
-  return this.pos;
+  return this[CallSitePositionKey];
 }
 
 function CallSiteIsConstructor() {
-  var receiver = this.receiver;
+  var receiver = this[CallSiteReceiverKey];
   var constructor =
       IS_OBJECT(receiver) ? %GetDataProperty(receiver, "constructor") : null;
   if (!constructor) return false;
-  return this.fun === constructor;
+  return this[CallSiteFunctionKey] === constructor;
 }
 
 function CallSiteToString() {
@@ -931,7 +935,7 @@ function CallSiteToString() {
   var isConstructor = this.isConstructor();
   var isMethodCall = !(this.isToplevel() || isConstructor);
   if (isMethodCall) {
-    var typeName = GetTypeName(this, true);
+    var typeName = GetTypeName(this[CallSiteReceiverKey], true);
     var methodName = this.getMethodName();
     if (functionName) {
       if (typeName &&
@@ -1035,13 +1039,15 @@ function FormatErrorString(error) {
 
 function GetStackFrames(raw_stack) {
   var frames = new InternalArray();
-  for (var i = 0; i < raw_stack.length; i += 4) {
+  var non_strict_frames = raw_stack[0];
+  for (var i = 1; i < raw_stack.length; i += 4) {
     var recv = raw_stack[i];
     var fun = raw_stack[i + 1];
     var code = raw_stack[i + 2];
     var pc = raw_stack[i + 3];
     var pos = %FunctionGetPositionForOffset(code, pc);
-    frames.push(new CallSite(recv, fun, pos));
+    non_strict_frames--;
+    frames.push(new CallSite(recv, fun, pos, (non_strict_frames < 0)));
   }
   return frames;
 }
@@ -1069,16 +1075,16 @@ function FormatStackTrace(error_string, frames) {
 }
 
 
-function GetTypeName(obj, requireConstructor) {
-  var constructor = obj.receiver.constructor;
+function GetTypeName(receiver, requireConstructor) {
+  var constructor = receiver.constructor;
   if (!constructor) {
     return requireConstructor ? null :
-        %_CallFunction(obj.receiver, ObjectToString);
+        %_CallFunction(receiver, ObjectToString);
   }
   var constructorName = constructor.name;
   if (!constructorName) {
     return requireConstructor ? null :
-        %_CallFunction(obj.receiver, ObjectToString);
+        %_CallFunction(receiver, ObjectToString);
   }
   return constructorName;
 }

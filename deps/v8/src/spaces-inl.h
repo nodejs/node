@@ -351,23 +351,6 @@ intptr_t LargeObjectSpace::Available() {
 }
 
 
-template <typename StringType>
-void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
-  ASSERT(length <= string->length());
-  ASSERT(string->IsSeqString());
-  ASSERT(string->address() + StringType::SizeFor(string->length()) ==
-         allocation_info_.top);
-  Address old_top = allocation_info_.top;
-  allocation_info_.top =
-      string->address() + StringType::SizeFor(length);
-  string->set_length(length);
-  if (Marking::IsBlack(Marking::MarkBitFrom(string))) {
-    int delta = static_cast<int>(old_top - allocation_info_.top);
-    MemoryChunk::IncrementLiveBytesFromMutator(string->address(), -delta);
-  }
-}
-
-
 bool FreeListNode::IsFreeListNode(HeapObject* object) {
   Map* map = object->map();
   Heap* heap = object->GetHeap();

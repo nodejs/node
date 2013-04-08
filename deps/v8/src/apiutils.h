@@ -67,10 +67,6 @@ class ImplementationUtilities {
   // Introduce an alias for the handle scope data to allow non-friends
   // to access the HandleScope data.
   typedef v8::HandleScope::Data HandleScopeData;
-
-#ifdef DEBUG
-  static void ZapHandleRange(internal::Object** begin, internal::Object** end);
-#endif
 };
 
 }  // namespace v8

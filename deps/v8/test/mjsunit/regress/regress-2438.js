@@ -49,3 +49,4 @@ testSideEffects("zzzz", /a/);
 testSideEffects("zzzz", /a/g);
 testSideEffects("xaxa", /a/);
 testSideEffects("xaxa", /a/g);
+

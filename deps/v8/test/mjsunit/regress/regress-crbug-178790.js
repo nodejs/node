@@ -49,3 +49,4 @@ for (var i = 0; i < 1000; i++) {
   r3 = "(" + r3 + ")a";
 }
 "test".match(RegExp(r3));
+

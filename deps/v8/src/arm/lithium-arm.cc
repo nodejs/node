@@ -871,6 +871,35 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
   LInstruction* instr = current->CompileToLithium(this);
 
   if (instr != NULL) {
+#if DEBUG
+    // Make sure that the lithium instruction has either no fixed register
+    // constraints in temps or the result OR no uses that are only used at
+    // start. If this invariant doesn't hold, the register allocator can decide
+    // to insert a split of a range immediately before the instruction due to an
+    // already allocated register needing to be used for the instruction's fixed
+    // register constraint. In this case, The register allocator won't see an
+    // interference between the split child and the use-at-start (it would if
+    // the it was just a plain use), so it is free to move the split child into
+    // the same register that is used for the use-at-start.
+    // See https://code.google.com/p/chromium/issues/detail?id=201590
+    if (!(instr->ClobbersRegisters() && instr->ClobbersDoubleRegisters())) {
+      int fixed = 0;
+      int used_at_start = 0;
+      for (UseIterator it(instr); !it.Done(); it.Advance()) {
+        LUnallocated* operand = LUnallocated::cast(it.Current());
+        if (operand->IsUsedAtStart()) ++used_at_start;
+      }
+      if (instr->Output() != NULL) {
+        if (LUnallocated::cast(instr->Output())->HasFixedPolicy()) ++fixed;
+      }
+      for (TempIterator it(instr); !it.Done(); it.Advance()) {
+        LUnallocated* operand = LUnallocated::cast(it.Current());
+        if (operand->HasFixedPolicy()) ++fixed;
+      }
+      ASSERT(fixed == 0 || used_at_start == 0);
+    }
+#endif
+
     if (FLAG_stress_pointer_maps && !instr->HasPointerMap()) {
       instr = AssignPointerMap(instr);
     }
@@ -1115,7 +1144,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, temp);
     return DefineFixedDouble(result, d2);
   } else {
-    LOperand* input = UseRegisterAtStart(instr->value());
+    LOperand* input = UseRegister(instr->value());
 
     LOperand* temp = (op == kMathRound) ? FixedTemp(d3) : NULL;
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(input, temp);
@@ -1711,12 +1740,6 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
 }
 
 
-LInstruction* LChunkBuilder::DoJSArrayLength(HJSArrayLength* instr) {
-  LOperand* array = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LJSArrayLength(array));
-}
-
-
 LInstruction* LChunkBuilder::DoFixedArrayBaseLength(
     HFixedArrayBaseLength* instr) {
   LOperand* array = UseRegisterAtStart(instr->value());
@@ -1823,11 +1846,13 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       return AssignEnvironment(DefineAsRegister(res));
     } else {
       ASSERT(to.IsInteger32());
-      LOperand* value = UseRegisterAtStart(instr->value());
+      LOperand* value = NULL;
       LInstruction* res = NULL;
       if (instr->value()->type().IsSmi()) {
+        value = UseRegisterAtStart(instr->value());
         res = DefineAsRegister(new(zone()) LSmiUntag(value, false));
       } else {
+        value = UseRegister(instr->value());
         LOperand* temp1 = TempRegister();
         LOperand* temp2 = instr->CanTruncateToInt32() ? TempRegister()
                                                       : NULL;
@@ -2205,7 +2230,7 @@ LInstruction* LChunkBuilder::DoTransitionElementsKind(
     LOperand* new_map_reg = TempRegister();
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, new_map_reg, NULL);
-    return DefineSameAsFirst(result);
+    return result;
   } else if (FLAG_compiled_transitions) {
     LTransitionElementsKind* result =
         new(zone()) LTransitionElementsKind(object, NULL, NULL);

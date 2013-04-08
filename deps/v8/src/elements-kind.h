@@ -110,10 +110,15 @@ inline bool IsFastDoubleElementsKind(ElementsKind kind) {
 }
 
 
+inline bool IsExternalFloatOrDoubleElementsKind(ElementsKind kind) {
+  return kind == EXTERNAL_DOUBLE_ELEMENTS ||
+      kind == EXTERNAL_FLOAT_ELEMENTS;
+}
+
+
 inline bool IsDoubleOrFloatElementsKind(ElementsKind kind) {
   return IsFastDoubleElementsKind(kind) ||
-      kind == EXTERNAL_DOUBLE_ELEMENTS ||
-      kind == EXTERNAL_FLOAT_ELEMENTS;
+      IsExternalFloatOrDoubleElementsKind(kind);
 }
 
 

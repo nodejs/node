@@ -207,7 +207,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Use lr as a temporary register.
   __ mov(lr, Operand(r5, LSL, 2));
   __ add(lr, lr, Operand(FixedDoubleArray::kHeaderSize));
-  __ AllocateInNewSpace(lr, r6, r7, r9, &gc_required, DOUBLE_ALIGNMENT);
+  __ Allocate(lr, r6, r7, r9, &gc_required, DOUBLE_ALIGNMENT);
   // r6: destination FixedDoubleArray, not tagged as heap object.
 
   // Set destination FixedDoubleArray's length and map.
@@ -348,7 +348,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Allocate new FixedArray.
   __ mov(r0, Operand(FixedDoubleArray::kHeaderSize));
   __ add(r0, r0, Operand(r5, LSL, 1));
-  __ AllocateInNewSpace(r0, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
+  __ Allocate(r0, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
   // r6: destination FixedArray, not tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(r9, Heap::kFixedArrayMapRootIndex);
@@ -691,7 +691,7 @@ void Code::PatchPlatformCodeAge(byte* sequence,
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
   if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
+    CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(age, parity);

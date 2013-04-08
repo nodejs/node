@@ -49,6 +49,11 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                   SlicedString::BodyDescriptor,
                   int>::Visit);
 
+  table_.Register(kVisitSymbol,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Symbol::BodyDescriptor,
+                  int>::Visit);
+
   table_.Register(kVisitFixedArray,
                   &FlexibleBodyVisitor<StaticVisitor,
                   FixedArray::BodyDescriptor,
@@ -108,6 +113,11 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitSlicedString,
                   &FixedBodyVisitor<StaticVisitor,
                   SlicedString::BodyDescriptor,
+                  void>::Visit);
+
+  table_.Register(kVisitSymbol,
+                  &FixedBodyVisitor<StaticVisitor,
+                  Symbol::BodyDescriptor,
                   void>::Visit);
 
   table_.Register(kVisitFixedArray, &FixedArrayVisitor::Visit);
@@ -397,7 +407,7 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
   }
 
   // Since descriptor arrays are potentially shared, ensure that only the
-  // descriptors that appeared for this map are marked. The first time a
+  // descriptors that belong to this map are marked. The first time a
   // non-empty descriptor array is marked, its header is also visited. The slot
   // holding the descriptor array will be implicitly recorded when the pointer
   // fields of this map are visited.
@@ -410,13 +420,6 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(
   }
   int start = 0;
   int end = map->NumberOfOwnDescriptors();
-  Object* back_pointer = map->GetBackPointer();
-  if (!back_pointer->IsUndefined()) {
-    Map* parent_map = Map::cast(back_pointer);
-    if (descriptors == parent_map->instance_descriptors()) {
-      start = parent_map->NumberOfOwnDescriptors();
-    }
-  }
   if (start < end) {
     StaticVisitor::VisitPointers(heap,
         descriptors->GetDescriptorStartSlot(start),

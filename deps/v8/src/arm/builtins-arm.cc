@@ -221,13 +221,12 @@ static void AllocateJSArray(MacroAssembler* masm,
   __ add(elements_array_end,
          elements_array_end,
          Operand(array_size, ASR, kSmiTagSize));
-  __ AllocateInNewSpace(
-      elements_array_end,
-      result,
-      scratch1,
-      scratch2,
-      gc_required,
-      static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
+  __ Allocate(elements_array_end,
+              result,
+              scratch1,
+              scratch2,
+              gc_required,
+              static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.
@@ -874,7 +873,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r1: constructor function
       // r2: initial map
       __ ldrb(r3, FieldMemOperand(r2, Map::kInstanceSizeOffset));
-      __ AllocateInNewSpace(r3, r4, r5, r6, &rt_call, SIZE_IN_WORDS);
+      __ Allocate(r3, r4, r5, r6, &rt_call, SIZE_IN_WORDS);
 
       // Allocated the JSObject, now initialize the fields. Map is set to
       // initial map and properties and elements are set to empty fixed array.
@@ -949,7 +948,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r4: JSObject
       // r5: start of next object
       __ add(r0, r3, Operand(FixedArray::kHeaderSize / kPointerSize));
-      __ AllocateInNewSpace(
+      __ Allocate(
           r0,
           r5,
           r6,
@@ -1104,10 +1103,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
     __ CompareObjectType(r0, r1, r3, FIRST_SPEC_OBJECT_TYPE);
     __ b(ge, &exit);
-
-    // Symbols are "objects".
-    __ CompareInstanceType(r1, r3, SYMBOL_TYPE);
-    __ b(eq, &exit);
 
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.

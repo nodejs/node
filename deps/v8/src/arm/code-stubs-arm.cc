@@ -61,6 +61,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { r2, r1, r0 };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure);
+}
+
+
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -84,7 +95,7 @@ static void InitializeArrayConstructorDescriptor(Isolate* isolate,
   // stack param count needs (constructor pointer, and single argument)
   descriptor->stack_parameter_count_ = &r0;
   descriptor->register_params_ = registers;
-  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ArrayConstructor_StubFailure);
 }
@@ -2623,8 +2634,8 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
                                       OverwriteMode mode) {
   Register left = r1;
   Register right = r0;
-  Register scratch1 = r7;
-  Register scratch2 = r9;
+  Register scratch1 = r6;
+  Register scratch2 = r7;
   Register scratch3 = r4;
 
   ASSERT(smi_operands || (not_numbers != NULL));
@@ -2639,7 +2650,7 @@ void BinaryOpStub_GenerateFPOperation(MacroAssembler* masm,
     __ JumpIfNotSmi(right, miss);
   }
 
-  Register heap_number_map = r6;
+  Register heap_number_map = r9;
   __ LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
 
   switch (op) {
@@ -4477,35 +4488,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArrayLengthStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver;
-  if (kind() == Code::KEYED_LOAD_IC) {
-    // ----------- S t a t e -------------
-    //  -- lr    : return address
-    //  -- r0    : key
-    //  -- r1    : receiver
-    // -----------------------------------
-    __ cmp(r0, Operand(masm->isolate()->factory()->length_string()));
-    __ b(ne, &miss);
-    receiver = r1;
-  } else {
-    ASSERT(kind() == Code::LOAD_IC);
-    // ----------- S t a t e -------------
-    //  -- r2    : name
-    //  -- lr    : return address
-    //  -- r0    : receiver
-    //  -- sp[0] : receiver
-    // -----------------------------------
-    receiver = r0;
-  }
-
-  StubCompiler::GenerateLoadArrayLength(masm, receiver, r3, &miss);
-  __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
-}
-
-
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver;
@@ -4780,7 +4762,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ add(r9, r9, Operand(Heap::kArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
-  __ AllocateInNewSpace(r9, r0, r3, r4, &runtime, TAG_OBJECT);
+  __ Allocate(r9, r0, r3, r4, &runtime, TAG_OBJECT);
 
   // r0 = address of new object(s) (tagged)
   // r2 = argument count (tagged)
@@ -4956,13 +4938,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ add(r1, r1, Operand(Heap::kArgumentsObjectSizeStrict / kPointerSize));
 
   // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(r1,
-                        r0,
-                        r2,
-                        r3,
-                        &runtime,
-                        static_cast<AllocationFlags>(TAG_OBJECT |
-                                                     SIZE_IN_WORDS));
+  __ Allocate(r1, r0, r2, r3, &runtime,
+              static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Get the arguments boilerplate from the current native context.
   __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
@@ -5466,7 +5443,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
       (JSRegExpResult::kSize + FixedArray::kHeaderSize) / kPointerSize;
   __ mov(r5, Operand(r1, LSR, kSmiTagSize + kSmiShiftSize));
   __ add(r2, r5, Operand(objects_size));
-  __ AllocateInNewSpace(
+  __ Allocate(
       r2,  // In: Size, in words.
       r0,  // Out: Start of allocation (tagged).
       r3,  // Scratch register.
@@ -7408,33 +7385,31 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ cmp(entity_name, tmp);
     __ b(eq, done);
 
-    if (i != kInlinedProbes - 1) {
-      // Load the hole ready for use below:
-      __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
+    // Load the hole ready for use below:
+    __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
 
-      // Stop if found the property.
-      __ cmp(entity_name, Operand(Handle<Name>(name)));
-      __ b(eq, miss);
+    // Stop if found the property.
+    __ cmp(entity_name, Operand(Handle<Name>(name)));
+    __ b(eq, miss);
 
-      Label good;
-      __ cmp(entity_name, tmp);
-      __ b(eq, &good);
+    Label good;
+    __ cmp(entity_name, tmp);
+    __ b(eq, &good);
 
-      // Check if the entry name is not a unique name.
-      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-      __ ldrb(entity_name,
-              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ tst(entity_name, Operand(kIsInternalizedMask));
-      __ b(ne, &good);
-      __ cmp(entity_name, Operand(SYMBOL_TYPE));
-      __ b(ne, miss);
+    // Check if the entry name is not a unique name.
+    __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+    __ ldrb(entity_name,
+            FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+    __ tst(entity_name, Operand(kIsInternalizedMask));
+    __ b(ne, &good);
+    __ cmp(entity_name, Operand(SYMBOL_TYPE));
+    __ b(ne, miss);
 
-      __ bind(&good);
+    __ bind(&good);
 
-      // Restore the properties.
-      __ ldr(properties,
-             FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-    }
+    // Restore the properties.
+    __ ldr(properties,
+           FieldMemOperand(receiver, JSObject::kPropertiesOffset));
   }
 
   const int spill_mask =
@@ -7987,6 +7962,9 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;
   __ ldr(r1, MemOperand(fp, parameter_count_offset));
+  if (function_mode_ == JS_FUNCTION_STUB_MODE) {
+    __ add(r1, r1, Operand(1));
+  }
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ mov(r1, Operand(r1, LSL, kPointerSizeLog2));
   __ add(sp, sp, r1);

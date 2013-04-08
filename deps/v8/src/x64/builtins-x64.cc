@@ -220,12 +220,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
       __ shl(rdi, Immediate(kPointerSizeLog2));
       // rdi: size of new object
-      __ AllocateInNewSpace(rdi,
-                            rbx,
-                            rdi,
-                            no_reg,
-                            &rt_call,
-                            NO_ALLOCATION_FLAGS);
+      __ Allocate(rdi,
+                  rbx,
+                  rdi,
+                  no_reg,
+                  &rt_call,
+                  NO_ALLOCATION_FLAGS);
       // Allocated the JSObject, now initialize the fields.
       // rax: initial map
       // rbx: JSObject (not HeapObject tagged - the actual address).
@@ -287,14 +287,14 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rbx: JSObject
       // rdi: start of next object (will be start of FixedArray)
       // rdx: number of elements in properties array
-      __ AllocateInNewSpace(FixedArray::kHeaderSize,
-                            times_pointer_size,
-                            rdx,
-                            rdi,
-                            rax,
-                            no_reg,
-                            &undo_allocation,
-                            RESULT_CONTAINS_TOP);
+      __ Allocate(FixedArray::kHeaderSize,
+                  times_pointer_size,
+                  rdx,
+                  rdi,
+                  rax,
+                  no_reg,
+                  &undo_allocation,
+                  RESULT_CONTAINS_TOP);
 
       // Initialize the FixedArray.
       // rbx: JSObject
@@ -415,10 +415,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
     __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
     __ j(above_equal, &exit);
-
-    // Symbols are "objects".
-    __ CmpInstanceType(rcx, SYMBOL_TYPE);
-    __ j(equal, &exit);
 
     // Throw away the result of the constructor invocation and use the
     // on-stack receiver as the result.
@@ -1216,14 +1212,14 @@ static void AllocateJSArray(MacroAssembler* masm,
   // requested elements.
   SmiIndex index =
       masm->SmiToIndex(kScratchRegister, array_size, kPointerSizeLog2);
-  __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
-                        index.scale,
-                        index.reg,
-                        result,
-                        elements_array_end,
-                        scratch,
-                        gc_required,
-                        TAG_OBJECT);
+  __ Allocate(JSArray::kSize + FixedArray::kHeaderSize,
+              index.scale,
+              index.reg,
+              result,
+              elements_array_end,
+              scratch,
+              gc_required,
+              TAG_OBJECT);
 
   // Allocated the JSArray. Now initialize the fields except for the elements
   // array.

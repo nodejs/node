@@ -34,20 +34,22 @@ var symbols = []
 function TestNew() {
   function IndirectSymbol() { return new Symbol }
   function indirect() { return new IndirectSymbol() }
-  for (var i = 0; i < 10; ++i) {
-    symbols.push(new Symbol)
-    symbols.push(new Symbol())
-    symbols.push(Symbol())
-    symbols.push(indirect())
-  }
-  %OptimizeFunctionOnNextCall(indirect)
-  indirect()  // Call once before GC throws away type feedback.
-  gc()        // Promote existing symbols and then allocate some more.
-  for (var i = 0; i < 10; ++i) {
-    symbols.push(new Symbol)
-    symbols.push(new Symbol())
-    symbols.push(Symbol())
-    symbols.push(indirect())
+  for (var i = 0; i < 2; ++i) {
+    for (var j = 0; j < 5; ++j) {
+      symbols.push(Symbol())
+      symbols.push(Symbol(undefined))
+      symbols.push(Symbol("66"))
+      symbols.push(Symbol(66))
+      symbols.push(Symbol(Symbol()))
+      symbols.push((new Symbol).valueOf())
+      symbols.push((new Symbol()).valueOf())
+      symbols.push((new Symbol(Symbol())).valueOf())
+      symbols.push(Object(Symbol()).valueOf())
+      symbols.push((indirect()).valueOf())
+    }
+    %OptimizeFunctionOnNextCall(indirect)
+    indirect()  // Call once before GC throws away type feedback.
+    gc()        // Promote existing symbols and then allocate some more.
   }
 }
 TestNew()
@@ -55,23 +57,91 @@ TestNew()
 
 function TestType() {
   for (var i in symbols) {
-    assertTrue(%_IsSymbol(symbols[i]))
-    assertEquals("object", typeof symbols[i])
-    assertTrue(typeof symbols[i] === "object")
-    assertEquals("[object Symbol]", Object.prototype.toString.call(symbols[i]))
+    assertEquals("symbol", typeof symbols[i])
+    assertTrue(typeof symbols[i] === "symbol")
+    assertEquals(null, %_ClassOf(symbols[i]))
+    assertEquals("Symbol", %_ClassOf(new Symbol(symbols[i])))
+    assertEquals("Symbol", %_ClassOf(Object(symbols[i])))
   }
 }
 TestType()
 
 
+function TestPrototype() {
+  assertSame(Object.prototype, Symbol.prototype.__proto__)
+  assertSame(Symbol.prototype, Symbol().__proto__)
+  assertSame(Symbol.prototype, Symbol(Symbol()).__proto__)
+  assertSame(Symbol.prototype, (new Symbol).__proto__)
+  assertSame(Symbol.prototype, (new Symbol()).__proto__)
+  assertSame(Symbol.prototype, (new Symbol(Symbol())).__proto__)
+  assertSame(Symbol.prototype, Object(Symbol()).__proto__)
+  for (var i in symbols) {
+    assertSame(Symbol.prototype, symbols[i].__proto__)
+  }
+}
+TestPrototype()
+
+
+function TestName() {
+  for (var i in symbols) {
+    var name = symbols[i].name
+    assertTrue(name === undefined || name === "66")
+  }
+}
+TestName()
+
+
+function TestToString() {
+  for (var i in symbols) {
+    assertThrows(function() { String(symbols[i]) }, TypeError)
+    assertThrows(function() { symbols[i] + "" }, TypeError)
+    assertThrows(function() { symbols[i].toString() }, TypeError)
+    assertThrows(function() { (new Symbol(symbols[i])).toString() }, TypeError)
+    assertThrows(function() { Object(symbols[i]).toString() }, TypeError)
+    assertEquals("[object Symbol]", Object.prototype.toString.call(symbols[i]))
+  }
+}
+TestToString()
+
+
+function TestToBoolean() {
+  for (var i in symbols) {
+    assertTrue(Boolean(symbols[i]).valueOf())
+    assertFalse(!symbols[i])
+    assertTrue(!!symbols[i])
+    assertTrue(symbols[i] && true)
+    assertFalse(!symbols[i] && false)
+    assertTrue(!symbols[i] || true)
+    assertEquals(1, symbols[i] ? 1 : 2)
+    assertEquals(2, !symbols[i] ? 1 : 2)
+    if (!symbols[i]) assertUnreachable();
+    if (symbols[i]) {} else assertUnreachable();
+  }
+}
+TestToBoolean()
+
+
+function TestToNumber() {
+  for (var i in symbols) {
+    assertSame(NaN, Number(symbols[i]).valueOf())
+    assertSame(NaN, symbols[i] + 0)
+  }
+}
+TestToNumber()
+
+
 function TestEquality() {
-  // Every symbol should equal itself.
+  // Every symbol should equal itself, and non-strictly equal its wrapper.
   for (var i in symbols) {
     assertSame(symbols[i], symbols[i])
     assertEquals(symbols[i], symbols[i])
     assertTrue(Object.is(symbols[i], symbols[i]))
     assertTrue(symbols[i] === symbols[i])
     assertTrue(symbols[i] == symbols[i])
+    assertFalse(symbols[i] === new Symbol(symbols[i]))
+    assertFalse(new Symbol(symbols[i]) === symbols[i])
+    assertTrue(symbols[i] == new Symbol(symbols[i]))
+    assertTrue(new Symbol(symbols[i]) == symbols[i])
   }
 
   // All symbols should be distinct.
@@ -82,14 +152,25 @@ function TestEquality() {
       assertFalse(symbols[i] == symbols[j])
     }
   }
+
+  // Symbols should not be equal to any other value (and the test terminates).
+  var values = [347, 1.275, NaN, "string", null, undefined, {}, function() {}]
+  for (var i in symbols) {
+    for (var j in values) {
+      assertFalse(symbols[i] === values[j])
+      assertFalse(values[j] === symbols[i])
+      assertFalse(symbols[i] == values[j])
+      assertFalse(values[j] == symbols[i])
+    }
+  }
 }
 TestEquality()
 
 
 function TestGet() {
   for (var i in symbols) {
-    assertEquals("[object Symbol]", symbols[i].toString())
-    assertEquals(undefined, symbols[i].valueOf)
+    assertThrows(function() { symbols[i].toString() }, TypeError)
+    assertEquals(symbols[i], symbols[i].valueOf())
     assertEquals(undefined, symbols[i].a)
     assertEquals(undefined, symbols[i]["a" + "b"])
     assertEquals(undefined, symbols[i]["" + "1"])
@@ -102,7 +183,9 @@ TestGet()
 function TestSet() {
   for (var i in symbols) {
     symbols[i].toString = 0
-    assertEquals("[object Symbol]", symbols[i].toString())
+    assertThrows(function() { symbols[i].toString() }, TypeError)
+    symbols[i].valueOf = 0
+    assertEquals(symbols[i], symbols[i].valueOf())
     symbols[i].a = 0
     assertEquals(undefined, symbols[i].a)
     symbols[i]["a" + "b"] = 0
@@ -145,9 +228,12 @@ TestCollections()
 
 
 function TestKeySet(obj) {
+  assertTrue(%HasFastProperties(obj))
   // Set the even symbols via assignment.
   for (var i = 0; i < symbols.length; i += 2) {
     obj[symbols[i]] = i
+    // Object should remain in fast mode until too many properties were added.
+    assertTrue(%HasFastProperties(obj) || i >= 30)
   }
 }
 
@@ -179,7 +265,7 @@ function TestKeyHas() {
 
 function TestKeyEnum(obj) {
   for (var name in obj) {
-    assertFalse(%_IsSymbol(name))
+    assertEquals("string", typeof name)
   }
 }
 
@@ -188,21 +274,9 @@ function TestKeyNames(obj) {
   assertEquals(0, Object.keys(obj).length)
 
   var names = Object.getOwnPropertyNames(obj)
-  assertTrue(symbols.length <= names.length)
-  // TODO(rossberg): once we have iterators, the following would be:
-  //   var expected = new Set(symbols)
-  var expected = new Set
-  for (var i = 0; i < symbols.length; ++i) expected.add(symbols[i])
-  for (var i = 0; i < names.length; ++i) {
-    var name = names[i]
-    var asString = String(name)
-    if (asString !== name) {
-      assertEquals("[object Symbol]", asString)
-      assertTrue(expected.has(name))
-      expected.delete(name)
-    }
+  for (var i in names) {
+    assertEquals("string", typeof names[i])
   }
-  assertEquals(0, expected.size)
 }
 
 
@@ -242,3 +316,19 @@ for (var i in objs) {
   TestKeyDescriptor(obj)
   TestKeyDelete(obj)
 }
+
+
+function TestCachedKeyAfterScavenge() {
+  gc();
+  // Keyed property lookup are cached.  Hereby we assume that the keys are
+  // tenured, so that we only have to clear the cache between mark compacts,
+  // but not between scavenges.  This must also apply for symbol keys.
+  var key = Symbol("key");
+  var a = {};
+  a[key] = "abc";
+
+  for (var i = 0; i < 1000000; i++) {
+    a[key] += "a";  // Allocations cause a scavenge.
+  }
+}
+TestCachedKeyAfterScavenge();

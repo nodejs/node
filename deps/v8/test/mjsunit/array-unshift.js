@@ -194,7 +194,7 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array((1 << 32) - 3).unshift(1, 2, 3, 4, 5);
+      new Array(Math.pow(2, 32) - 3).unshift(1, 2, 3, 4, 5);
       throw 'Should have thrown RangeError';
     } catch (e) {
       assertTrue(e instanceof RangeError);
@@ -212,4 +212,19 @@
     a.unshift(1, 2, 3, 4, 5);
     assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], a);
   }
+})();
+
+// Check that non-enumerable elements are treated appropriately
+(function() {
+  var array = [2, 3];
+  Object.defineProperty(array, '1', {enumerable: false});
+  array.unshift(1)
+  assertEquals([1, 2, 3], array);
+
+  array = [2];
+  array.length = 2;
+  array.__proto__[1] = 3;
+  Object.defineProperty(array.__proto__, '1', {enumerable: false});
+  array.unshift(1);
+  assertEquals([1, 2, 3], array);
 })();

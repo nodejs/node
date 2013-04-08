@@ -1332,18 +1332,16 @@ void MacroAssembler::Allocate(int object_size,
 }
 
 
-void MacroAssembler::AllocateInNewSpace(
-    int header_size,
-    ScaleFactor element_size,
-    Register element_count,
-    RegisterValueType element_count_type,
-    Register result,
-    Register result_end,
-    Register scratch,
-    Label* gc_required,
-    AllocationFlags flags) {
+void MacroAssembler::Allocate(int header_size,
+                              ScaleFactor element_size,
+                              Register element_count,
+                              RegisterValueType element_count_type,
+                              Register result,
+                              Register result_end,
+                              Register scratch,
+                              Label* gc_required,
+                              AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1365,6 +1363,7 @@ void MacroAssembler::AllocateInNewSpace(
   // Align the next allocation. Storing the filler map without checking top is
   // always safe because the limit of the heap is always aligned.
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
     test(result, Immediate(kDoubleAlignmentMask));
@@ -1375,9 +1374,9 @@ void MacroAssembler::AllocateInNewSpace(
     bind(&aligned);
   }
 
-  // Calculate new top and bail out if new space is exhausted.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address(isolate());
+  // Calculate new top and bail out if space is exhausted.
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
 
   // We assume that element_count*element_size + header_size does not
   // overflow.
@@ -1394,7 +1393,7 @@ void MacroAssembler::AllocateInNewSpace(
   lea(result_end, Operand(element_count, element_size, header_size));
   add(result_end, result);
   j(carry, gc_required);
-  cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
+  cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 
   if ((flags & TAG_OBJECT) != 0) {
@@ -1407,14 +1406,13 @@ void MacroAssembler::AllocateInNewSpace(
 }
 
 
-void MacroAssembler::AllocateInNewSpace(Register object_size,
-                                        Register result,
-                                        Register result_end,
-                                        Register scratch,
-                                        Label* gc_required,
-                                        AllocationFlags flags) {
+void MacroAssembler::Allocate(Register object_size,
+                              Register result,
+                              Register result_end,
+                              Register scratch,
+                              Label* gc_required,
+                              AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
-  ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -1436,6 +1434,7 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // Align the next allocation. Storing the filler map without checking top is
   // always safe because the limit of the heap is always aligned.
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
+    ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
     ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
     Label aligned;
     test(result, Immediate(kDoubleAlignmentMask));
@@ -1446,15 +1445,16 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
     bind(&aligned);
   }
 
-  // Calculate new top and bail out if new space is exhausted.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address(isolate());
+  // Calculate new top and bail out if space is exhausted.
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
+
   if (!object_size.is(result_end)) {
     mov(result_end, object_size);
   }
   add(result_end, result);
   j(carry, gc_required);
-  cmp(result_end, Operand::StaticVariable(new_space_allocation_limit));
+  cmp(result_end, Operand::StaticVariable(allocation_limit));
   j(above, gc_required);
 
   // Tag result if requested.
@@ -1511,15 +1511,15 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
   // Allocate two byte string in new space.
-  AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
-                     times_1,
-                     scratch1,
-                     REGISTER_VALUE_IS_INT32,
-                     result,
-                     scratch2,
-                     scratch3,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(SeqTwoByteString::kHeaderSize,
+           times_1,
+           scratch1,
+           REGISTER_VALUE_IS_INT32,
+           result,
+           scratch2,
+           scratch3,
+           gc_required,
+           TAG_OBJECT);
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),
@@ -1547,15 +1547,15 @@ void MacroAssembler::AllocateAsciiString(Register result,
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
   // Allocate ASCII string in new space.
-  AllocateInNewSpace(SeqOneByteString::kHeaderSize,
-                     times_1,
-                     scratch1,
-                     REGISTER_VALUE_IS_INT32,
-                     result,
-                     scratch2,
-                     scratch3,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(SeqOneByteString::kHeaderSize,
+           times_1,
+           scratch1,
+           REGISTER_VALUE_IS_INT32,
+           result,
+           scratch2,
+           scratch3,
+           gc_required,
+           TAG_OBJECT);
 
   // Set the map, length and hash field.
   mov(FieldOperand(result, HeapObject::kMapOffset),

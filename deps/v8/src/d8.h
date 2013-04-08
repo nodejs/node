@@ -298,13 +298,8 @@ class Shell : public i::AllStatic {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 #endif  // V8_SHARED
 
-#ifdef WIN32
-#undef Yield
-#endif
-
   static Handle<Value> Print(const Arguments& args);
   static Handle<Value> Write(const Arguments& args);
-  static Handle<Value> Yield(const Arguments& args);
   static Handle<Value> Quit(const Arguments& args);
   static Handle<Value> Version(const Arguments& args);
   static Handle<Value> EnableProfiler(const Arguments& args);

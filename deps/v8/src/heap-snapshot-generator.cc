@@ -189,7 +189,7 @@ template <> struct SnapshotSizeConstants<4> {
   static const int kExpectedHeapGraphEdgeSize = 12;
   static const int kExpectedHeapEntrySize = 24;
   static const int kExpectedHeapSnapshotsCollectionSize = 100;
-  static const int kExpectedHeapSnapshotSize = 136;
+  static const int kExpectedHeapSnapshotSize = 132;
   static const size_t kMaxSerializableSnapshotRawSize = 256 * MB;
 };
 
@@ -197,7 +197,7 @@ template <> struct SnapshotSizeConstants<8> {
   static const int kExpectedHeapGraphEdgeSize = 24;
   static const int kExpectedHeapEntrySize = 32;
   static const int kExpectedHeapSnapshotsCollectionSize = 152;
-  static const int kExpectedHeapSnapshotSize = 168;
+  static const int kExpectedHeapSnapshotSize = 160;
   static const uint64_t kMaxSerializableSnapshotRawSize =
       static_cast<uint64_t>(6000) * MB;
 };
@@ -205,11 +205,9 @@ template <> struct SnapshotSizeConstants<8> {
 }  // namespace
 
 HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
-                           HeapSnapshot::Type type,
                            const char* title,
                            unsigned uid)
     : collection_(collection),
-      type_(type),
       title_(title),
       uid_(uid),
       root_index_(HeapEntry::kNoEntry),
@@ -599,11 +597,10 @@ HeapSnapshotsCollection::~HeapSnapshotsCollection() {
 }
 
 
-HeapSnapshot* HeapSnapshotsCollection::NewSnapshot(HeapSnapshot::Type type,
-                                                   const char* name,
+HeapSnapshot* HeapSnapshotsCollection::NewSnapshot(const char* name,
                                                    unsigned uid) {
   is_tracking_objects_ = true;  // Start watching for heap objects moves.
-  return new HeapSnapshot(this, type, name, uid);
+  return new HeapSnapshot(this, name, uid);
 }
 
 
@@ -2410,7 +2407,6 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
 
 HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
   HeapSnapshot* result = new HeapSnapshot(snapshot_->collection(),
-                                          HeapSnapshot::kFull,
                                           snapshot_->title(),
                                           snapshot_->uid());
   result->AddRootEntry();

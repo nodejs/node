@@ -1041,6 +1041,7 @@ class MessageDispatchHelperThread: public Thread {
  private:
   void Run();
 
+  Isolate* isolate_;
   Semaphore* const sem_;
   Mutex* const mutex_;
   bool already_signalled_;

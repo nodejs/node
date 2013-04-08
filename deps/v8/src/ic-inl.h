@@ -109,7 +109,7 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object,
   // If the object is a value, we use the prototype map for the cache.
   ASSERT(object->IsString() || object->IsSymbol() ||
          object->IsNumber() || object->IsBoolean());
-  return DELEGATE_MAP;
+  return PROTOTYPE_MAP;
 }
 
 
@@ -124,7 +124,7 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(JSObject* object,
       !object->HasFastProperties() &&
       !object->IsJSGlobalProxy() &&
       !object->IsJSGlobalObject()) {
-    return DELEGATE_MAP;
+    return PROTOTYPE_MAP;
   }
   return OWN_MAP;
 }
@@ -133,7 +133,8 @@ InlineCacheHolderFlag IC::GetCodeCacheForObject(JSObject* object,
 JSObject* IC::GetCodeCacheHolder(Isolate* isolate,
                                  Object* object,
                                  InlineCacheHolderFlag holder) {
-  Object* map_owner = holder == OWN_MAP ? object : object->GetDelegate(isolate);
+  Object* map_owner =
+      holder == OWN_MAP ? object : object->GetPrototype(isolate);
   ASSERT(map_owner->IsJSObject());
   return JSObject::cast(map_owner);
 }

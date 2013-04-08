@@ -1082,7 +1082,9 @@ TEST(SliceFromCons) {
   CHECK(parent->IsFlat());
   CHECK(slice->IsSlicedString());
   CHECK_EQ(SlicedString::cast(*slice)->parent(),
-           ConsString::cast(*parent)->first());
+           // Parent could have been short-circuited.
+           parent->IsConsString() ? ConsString::cast(*parent)->first()
+                                  : *parent);
   CHECK(SlicedString::cast(*slice)->parent()->IsSeqString());
   CHECK(slice->IsFlat());
 }

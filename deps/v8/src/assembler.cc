@@ -927,20 +927,9 @@ void ExternalReference::InitializeMathExpData() {
     math_exp_log_table_array = new double[kTableSize];
     for (int i = 0; i < kTableSize; i++) {
       double value = pow(2, i / kTableSizeDouble);
-
       uint64_t bits = BitCast<uint64_t, double>(value);
       bits &= (static_cast<uint64_t>(1) << 52) - 1;
       double mantissa = BitCast<double, uint64_t>(bits);
-
-      // <just testing>
-      uint64_t doublebits;
-      memcpy(&doublebits, &value, sizeof doublebits);
-      doublebits &= (static_cast<uint64_t>(1) << 52) - 1;
-      double mantissa2;
-      memcpy(&mantissa2, &doublebits, sizeof mantissa2);
-      CHECK_EQ(mantissa, mantissa2);
-      // </just testing>
-
       math_exp_log_table_array[i] = mantissa;
     }
 

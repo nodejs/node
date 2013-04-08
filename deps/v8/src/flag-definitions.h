@@ -148,6 +148,9 @@ DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony_observation, false,
             "enable harmony object observation (implies harmony collections")
+DEFINE_bool(harmony_typed_arrays, false,
+            "enable harmony typed arrays")
+DEFINE_bool(harmony_generators, false, "enable harmony generators")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_modules)
@@ -155,14 +158,18 @@ DEFINE_implication(harmony, harmony_symbols)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 DEFINE_implication(harmony, harmony_observation)
+DEFINE_implication(harmony, harmony_generators)
 DEFINE_implication(harmony_modules, harmony_scoping)
 DEFINE_implication(harmony_observation, harmony_collections)
+DEFINE_implication(harmony, harmony_typed_arrays)
 
 // Flags for experimental implementation features.
 DEFINE_bool(packed_arrays, true, "optimizes arrays that have no holes")
 DEFINE_bool(smi_only_arrays, true, "tracks arrays with only smi values")
 DEFINE_bool(compiled_transitions, false, "use optimizing compiler to "
             "generate array elements transition stubs")
+DEFINE_bool(compiled_keyed_stores, false, "use optimizing compiler to "
+            "generate keyed store stubs")
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
@@ -424,7 +431,7 @@ DEFINE_bool(trace_external_memory, false,
             "it is adjusted.")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
-DEFINE_bool(weak_embedded_maps_in_optimized_code, true,
+DEFINE_bool(weak_embedded_maps_in_optimized_code, false,
             "make maps embedded in optimized code weak")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again (during full gc)")

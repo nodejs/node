@@ -474,6 +474,7 @@ class Parser {
    public:
     FunctionState(Parser* parser,
                   Scope* scope,
+                  bool is_generator,
                   Isolate* isolate);
     ~FunctionState();
 
@@ -504,6 +505,8 @@ class Parser {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
+    bool is_generator() const { return is_generator_; }
+
     AstNodeFactory<AstConstructionVisitor>* factory() { return &factory_; }
 
    private:
@@ -517,6 +520,9 @@ class Parser {
 
     // Properties count estimation.
     int expected_property_count_;
+
+    // Indicates that this function is a generator.
+    bool is_generator_;
 
     // Keeps track of assignments to properties of this. Used for
     // optimizing constructors.
@@ -631,6 +637,7 @@ class Parser {
 
   Expression* ParseExpression(bool accept_IN, bool* ok);
   Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
+  Expression* ParseYieldExpression(bool* ok);
   Expression* ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression* ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression* ParseUnaryExpression(bool* ok);
@@ -674,6 +681,7 @@ class Parser {
   ZoneList<Expression*>* ParseArguments(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(Handle<String> var_name,
                                         bool name_is_reserved,
+                                        bool is_generator,
                                         int function_token_position,
                                         FunctionLiteral::Type type,
                                         bool* ok);
@@ -702,6 +710,8 @@ class Parser {
     }
     return scanner().Next();
   }
+
+  bool is_generator() const { return current_function_state_->is_generator(); }
 
   bool peek_any_identifier();
 

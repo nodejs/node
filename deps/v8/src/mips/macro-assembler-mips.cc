@@ -1108,6 +1108,7 @@ void MacroAssembler::BranchF(Label* target,
                              FPURegister cmp1,
                              FPURegister cmp2,
                              BranchDelaySlot bd) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   if (cc == al) {
     Branch(bd, target);
     return;
@@ -1700,6 +1701,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
   if (rt.is_reg()) {
     // NOTE: 'at' can be clobbered by Branch but it is legal to use it as rs or
     // rt.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     r2 = rt.rm_;
     switch (cond) {
       case cc_always:
@@ -1785,6 +1787,7 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
     // Be careful to always use shifted_branch_offset only just before the
     // branch instruction, as the location will be remember for patching the
     // target.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     switch (cond) {
       case cc_always:
         b(offset);
@@ -1925,10 +1928,11 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
                                  BranchDelaySlot bdslot) {
   BRANCH_ARGS_CHECK(cond, rs, rt);
 
-  int32_t offset;
+  int32_t offset = 0;
   Register r2 = no_reg;
   Register scratch = at;
   if (rt.is_reg()) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     r2 = rt.rm_;
     // Be careful to always use shifted_branch_offset only just before the
     // branch instruction, as the location will be remember for patching the
@@ -2035,6 +2039,7 @@ void MacroAssembler::BranchShort(Label* L, Condition cond, Register rs,
     // Be careful to always use shifted_branch_offset only just before the
     // branch instruction, as the location will be remember for patching the
     // target.
+    BlockTrampolinePoolScope block_trampoline_pool(this);
     switch (cond) {
       case cc_always:
         offset = shifted_branch_offset(L, false);
@@ -2271,67 +2276,70 @@ void MacroAssembler::BranchAndLinkShort(int16_t offset, Condition cond,
     li(r2, rt);
   }
 
-  switch (cond) {
-    case cc_always:
-      bal(offset);
-      break;
-    case eq:
-      bne(rs, r2, 2);
-      nop();
-      bal(offset);
-      break;
-    case ne:
-      beq(rs, r2, 2);
-      nop();
-      bal(offset);
-      break;
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    switch (cond) {
+      case cc_always:
+        bal(offset);
+        break;
+      case eq:
+        bne(rs, r2, 2);
+        nop();
+        bal(offset);
+        break;
+      case ne:
+        beq(rs, r2, 2);
+        nop();
+        bal(offset);
+        break;
 
-    // Signed comparison.
-    case greater:
-      slt(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      bgezal(scratch, offset);
-      break;
-    case greater_equal:
-      slt(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      bltzal(scratch, offset);
-      break;
-    case less:
-      slt(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      bgezal(scratch, offset);
-      break;
-    case less_equal:
-      slt(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      bltzal(scratch, offset);
-      break;
+      // Signed comparison.
+      case greater:
+        slt(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        bgezal(scratch, offset);
+        break;
+      case greater_equal:
+        slt(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        bltzal(scratch, offset);
+        break;
+      case less:
+        slt(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        bgezal(scratch, offset);
+        break;
+      case less_equal:
+        slt(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        bltzal(scratch, offset);
+        break;
 
-    // Unsigned comparison.
-    case Ugreater:
-      sltu(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      bgezal(scratch, offset);
-      break;
-    case Ugreater_equal:
-      sltu(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      bltzal(scratch, offset);
-      break;
-    case Uless:
-      sltu(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      bgezal(scratch, offset);
-      break;
-    case Uless_equal:
-      sltu(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      bltzal(scratch, offset);
-      break;
+      // Unsigned comparison.
+      case Ugreater:
+        sltu(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        bgezal(scratch, offset);
+        break;
+      case Ugreater_equal:
+        sltu(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        bltzal(scratch, offset);
+        break;
+      case Uless:
+        sltu(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        bgezal(scratch, offset);
+        break;
+      case Uless_equal:
+        sltu(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        bltzal(scratch, offset);
+        break;
 
-    default:
-      UNREACHABLE();
+      default:
+        UNREACHABLE();
+    }
   }
   // Emit a nop in the branch delay slot if required.
   if (bdslot == PROTECT)
@@ -2353,7 +2361,7 @@ void MacroAssembler::BranchAndLinkShort(Label* L, Condition cond, Register rs,
                                         BranchDelaySlot bdslot) {
   BRANCH_ARGS_CHECK(cond, rs, rt);
 
-  int32_t offset;
+  int32_t offset = 0;
   Register r2 = no_reg;
   Register scratch = at;
   if (rt.is_reg()) {
@@ -2363,80 +2371,82 @@ void MacroAssembler::BranchAndLinkShort(Label* L, Condition cond, Register rs,
     li(r2, rt);
   }
 
-  switch (cond) {
-    case cc_always:
-      offset = shifted_branch_offset(L, false);
-      bal(offset);
-      break;
-    case eq:
-      bne(rs, r2, 2);
-      nop();
-      offset = shifted_branch_offset(L, false);
-      bal(offset);
-      break;
-    case ne:
-      beq(rs, r2, 2);
-      nop();
-      offset = shifted_branch_offset(L, false);
-      bal(offset);
-      break;
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    switch (cond) {
+      case cc_always:
+        offset = shifted_branch_offset(L, false);
+        bal(offset);
+        break;
+      case eq:
+        bne(rs, r2, 2);
+        nop();
+        offset = shifted_branch_offset(L, false);
+        bal(offset);
+        break;
+      case ne:
+        beq(rs, r2, 2);
+        nop();
+        offset = shifted_branch_offset(L, false);
+        bal(offset);
+        break;
 
-    // Signed comparison.
-    case greater:
-      slt(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bgezal(scratch, offset);
-      break;
-    case greater_equal:
-      slt(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bltzal(scratch, offset);
-      break;
-    case less:
-      slt(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bgezal(scratch, offset);
-      break;
-    case less_equal:
-      slt(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bltzal(scratch, offset);
-      break;
+      // Signed comparison.
+      case greater:
+        slt(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bgezal(scratch, offset);
+        break;
+      case greater_equal:
+        slt(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bltzal(scratch, offset);
+        break;
+      case less:
+        slt(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bgezal(scratch, offset);
+        break;
+      case less_equal:
+        slt(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bltzal(scratch, offset);
+        break;
 
-    // Unsigned comparison.
-    case Ugreater:
-      sltu(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bgezal(scratch, offset);
-      break;
-    case Ugreater_equal:
-      sltu(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bltzal(scratch, offset);
-      break;
-    case Uless:
-      sltu(scratch, rs, r2);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bgezal(scratch, offset);
-      break;
-    case Uless_equal:
-      sltu(scratch, r2, rs);
-      addiu(scratch, scratch, -1);
-      offset = shifted_branch_offset(L, false);
-      bltzal(scratch, offset);
-      break;
+      // Unsigned comparison.
+      case Ugreater:
+        sltu(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bgezal(scratch, offset);
+        break;
+      case Ugreater_equal:
+        sltu(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bltzal(scratch, offset);
+        break;
+      case Uless:
+        sltu(scratch, rs, r2);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bgezal(scratch, offset);
+        break;
+      case Uless_equal:
+        sltu(scratch, r2, rs);
+        addiu(scratch, scratch, -1);
+        offset = shifted_branch_offset(L, false);
+        bltzal(scratch, offset);
+        break;
 
-    default:
-      UNREACHABLE();
+      default:
+        UNREACHABLE();
+    }
   }
-
   // Check that offset could actually hold on an int16_t.
   ASSERT(is_int16(offset));
 
@@ -2992,13 +3002,12 @@ void MacroAssembler::Allocate(int object_size,
 }
 
 
-void MacroAssembler::AllocateInNewSpace(Register object_size,
-                                        Register result,
-                                        Register scratch1,
-                                        Register scratch2,
-                                        Label* gc_required,
-                                        AllocationFlags flags) {
-  ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
+void MacroAssembler::Allocate(Register object_size,
+                              Register result,
+                              Register scratch1,
+                              Register scratch2,
+                              Label* gc_required,
+                              AllocationFlags flags) {
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3019,19 +3028,19 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   // Check relative positions of allocation top and limit addresses.
   // ARM adds additional checks to make sure the ldm instruction can be
   // used. On MIPS we don't have ldm so we don't need additional checks either.
-  ExternalReference new_space_allocation_top =
-      ExternalReference::new_space_allocation_top_address(isolate());
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address(isolate());
+  ExternalReference allocation_top =
+      AllocationUtils::GetAllocationTopReference(isolate(), flags);
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
   intptr_t top   =
-      reinterpret_cast<intptr_t>(new_space_allocation_top.address());
+      reinterpret_cast<intptr_t>(allocation_top.address());
   intptr_t limit =
-      reinterpret_cast<intptr_t>(new_space_allocation_limit.address());
+      reinterpret_cast<intptr_t>(allocation_limit.address());
   ASSERT((limit - top) == kPointerSize);
 
   // Set up allocation top address and object size registers.
   Register topaddr = scratch1;
-  li(topaddr, Operand(new_space_allocation_top));
+  li(topaddr, Operand(allocation_top));
 
   // This code stores a temporary value in t9.
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
@@ -3110,12 +3119,12 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   And(scratch1, scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate two-byte string in new space.
-  AllocateInNewSpace(scratch1,
-                     result,
-                     scratch2,
-                     scratch3,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(scratch1,
+           result,
+           scratch2,
+           scratch3,
+           gc_required,
+           TAG_OBJECT);
 
   // Set the map, length and hash field.
   InitializeNewString(result,
@@ -3140,12 +3149,12 @@ void MacroAssembler::AllocateAsciiString(Register result,
   And(scratch1, scratch1, Operand(~kObjectAlignmentMask));
 
   // Allocate ASCII string in new space.
-  AllocateInNewSpace(scratch1,
-                     result,
-                     scratch2,
-                     scratch3,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(scratch1,
+           result,
+           scratch2,
+           scratch3,
+           gc_required,
+           TAG_OBJECT);
 
   // Set the map, length and hash field.
   InitializeNewString(result,
@@ -5505,7 +5514,6 @@ bool AreAliased(Register r1, Register r2, Register r3, Register r4) {
 
 CodePatcher::CodePatcher(byte* address, int instructions)
     : address_(address),
-      instructions_(instructions),
       size_(instructions * Assembler::kInstrSize),
       masm_(NULL, address, size_ + Assembler::kGap) {
   // Create a new macro assembler pointing to the address of the code to patch.

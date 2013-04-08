@@ -104,6 +104,11 @@ class DuplicateFinder {
 };
 
 
+#ifdef WIN32
+#undef Yield
+#endif
+
+
 class PreParser {
  public:
   enum PreParseResult {
@@ -117,7 +122,8 @@ class PreParser {
             uintptr_t stack_limit,
             bool allow_lazy,
             bool allow_natives_syntax,
-            bool allow_modules)
+            bool allow_modules,
+            bool allow_generators)
       : scanner_(scanner),
         log_(log),
         scope_(NULL),
@@ -128,6 +134,7 @@ class PreParser {
         allow_lazy_(allow_lazy),
         allow_modules_(allow_modules),
         allow_natives_syntax_(allow_natives_syntax),
+        allow_generators_(allow_generators),
         parenthesized_function_(false),
         harmony_scoping_(scanner->HarmonyScoping()) { }
 
@@ -144,19 +151,22 @@ class PreParser {
     bool allow_lazy = (flags & i::kAllowLazy) != 0;
     bool allow_natives_syntax = (flags & i::kAllowNativesSyntax) != 0;
     bool allow_modules = (flags & i::kAllowModules) != 0;
+    bool allow_generators = (flags & i::kAllowGenerators) != 0;
     return PreParser(scanner, log, stack_limit, allow_lazy,
-                     allow_natives_syntax, allow_modules).PreParse();
+                     allow_natives_syntax, allow_modules,
+                     allow_generators).PreParse();
   }
 
   // Parses a single function literal, from the opening parentheses before
   // parameters to the closing brace after the body.
   // Returns a FunctionEntry describing the body of the function in enough
   // detail that it can be lazily compiled.
-  // The scanner is expected to have matched the "function" keyword and
-  // parameters, and have consumed the initial '{'.
+  // The scanner is expected to have matched the "function" or "function*"
+  // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
   PreParseResult PreParseLazyFunction(i::LanguageMode mode,
+                                      bool is_generator,
                                       i::ParserRecorder* log);
 
  private:
@@ -240,9 +250,13 @@ class PreParser {
     static Identifier FutureStrictReserved()  {
       return Identifier(kFutureStrictReservedIdentifier);
     }
+    static Identifier Yield()  {
+      return Identifier(kYieldIdentifier);
+    }
     bool IsEval() { return type_ == kEvalIdentifier; }
     bool IsArguments() { return type_ == kArgumentsIdentifier; }
     bool IsEvalOrArguments() { return type_ >= kEvalIdentifier; }
+    bool IsYield() { return type_ == kYieldIdentifier; }
     bool IsFutureReserved() { return type_ == kFutureReservedIdentifier; }
     bool IsFutureStrictReserved() {
       return type_ == kFutureStrictReservedIdentifier;
@@ -254,6 +268,7 @@ class PreParser {
       kUnknownIdentifier,
       kFutureReservedIdentifier,
       kFutureStrictReservedIdentifier,
+      kYieldIdentifier,
       kEvalIdentifier,
       kArgumentsIdentifier
     };
@@ -347,7 +362,7 @@ class PreParser {
         // Identifiers and string literals can be parenthesized.
         // They no longer work as labels or directive prologues,
         // but are still recognized in other contexts.
-        return Expression(code_ | kParentesizedExpressionFlag);
+        return Expression(code_ | kParenthesizedExpressionFlag);
       }
       // For other types of expressions, it's not important to remember
       // the parentheses.
@@ -373,7 +388,8 @@ class PreParser {
       kUseStrictString = kStringLiteralFlag | 8,
       kStringLiteralMask = kUseStrictString,
 
-      kParentesizedExpressionFlag = 4,  // Only if identifier or string literal.
+      // Only if identifier or string literal.
+      kParenthesizedExpressionFlag = 4,
 
       // Below here applies if neither identifier nor string literal.
       kThisExpression = 4,
@@ -451,7 +467,8 @@ class PreParser {
           expected_properties_(0),
           with_nesting_count_(0),
           language_mode_(
-              (prev_ != NULL) ? prev_->language_mode() : i::CLASSIC_MODE) {
+              (prev_ != NULL) ? prev_->language_mode() : i::CLASSIC_MODE),
+          is_generator_(false) {
       *variable = this;
     }
     ~Scope() { *variable_ = prev_; }
@@ -461,6 +478,8 @@ class PreParser {
     int expected_properties() { return expected_properties_; }
     int materialized_literal_count() { return materialized_literal_count_; }
     bool IsInsideWith() { return with_nesting_count_ != 0; }
+    bool is_generator() { return is_generator_; }
+    void set_is_generator(bool is_generator) { is_generator_ = is_generator; }
     bool is_classic_mode() {
       return language_mode_ == i::CLASSIC_MODE;
     }
@@ -492,6 +511,7 @@ class PreParser {
     int expected_properties_;
     int with_nesting_count_;
     i::LanguageMode language_mode_;
+    bool is_generator_;
   };
 
   // Preparse the program. Only called in PreParseProgram after creating
@@ -557,6 +577,7 @@ class PreParser {
 
   Expression ParseExpression(bool accept_IN, bool* ok);
   Expression ParseAssignmentExpression(bool accept_IN, bool* ok);
+  Expression ParseYieldExpression(bool* ok);
   Expression ParseConditionalExpression(bool accept_IN, bool* ok);
   Expression ParseBinaryExpression(int prec, bool accept_IN, bool* ok);
   Expression ParseUnaryExpression(bool* ok);
@@ -572,7 +593,7 @@ class PreParser {
   Expression ParseV8Intrinsic(bool* ok);
 
   Arguments ParseArguments(bool* ok);
-  Expression ParseFunctionLiteral(bool* ok);
+  Expression ParseFunctionLiteral(bool is_generator, bool* ok);
   void ParseLazyFunctionLiteralBody(bool* ok);
 
   Identifier ParseIdentifier(bool* ok);
@@ -664,6 +685,7 @@ class PreParser {
   bool allow_lazy_;
   bool allow_modules_;
   bool allow_natives_syntax_;
+  bool allow_generators_;
   bool parenthesized_function_;
   bool harmony_scoping_;
 };

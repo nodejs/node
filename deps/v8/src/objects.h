@@ -56,6 +56,7 @@
 //       - JSReceiver  (suitable for property access)
 //         - JSObject
 //           - JSArray
+//           - JSArrayBuffer
 //           - JSSet
 //           - JSMap
 //           - JSWeakMap
@@ -399,6 +400,7 @@ const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
   V(JS_BUILTINS_OBJECT_TYPE)                                                   \
   V(JS_GLOBAL_PROXY_TYPE)                                                      \
   V(JS_ARRAY_TYPE)                                                             \
+  V(JS_ARRAY_BUFFER_TYPE)                                                      \
   V(JS_PROXY_TYPE)                                                             \
   V(JS_WEAK_MAP_TYPE)                                                          \
   V(JS_REGEXP_TYPE)                                                            \
@@ -729,6 +731,7 @@ enum InstanceType {
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
+  JS_ARRAY_BUFFER_TYPE,
   JS_SET_TYPE,
   JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
@@ -974,6 +977,7 @@ class MaybeObject BASE_EMBEDDED {
   V(Foreign)                                   \
   V(Boolean)                                   \
   V(JSArray)                                   \
+  V(JSArrayBuffer)                             \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
   V(JSSet)                                     \
@@ -1101,9 +1105,6 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype(Isolate* isolate);
-
-  // Return the prototype, or the method holder for a value-like object.
-  Object* GetDelegate(Isolate* isolate);
 
   // Returns the permanent hash code associated with this object depending on
   // the actual object type.  Might return a failure in case no hash was
@@ -2060,7 +2061,8 @@ class JSObject: public JSReceiver {
   int NumberOfLocalProperties(PropertyAttributes filter = NONE);
   // Fill in details for properties into storage starting at the specified
   // index.
-  void GetLocalPropertyNames(FixedArray* storage, int index);
+  void GetLocalPropertyNames(
+      FixedArray* storage, int index, PropertyAttributes filter = NONE);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -2216,6 +2218,8 @@ class JSObject: public JSReceiver {
   static Handle<Object> PreventExtensions(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* PreventExtensions();
 
+  // Copy object
+  MUST_USE_RESULT MaybeObject* DeepCopy(Isolate* isolate);
 
   // Dispatched behavior.
   void JSObjectShortPrint(StringStream* accumulator);
@@ -3258,7 +3262,10 @@ class Dictionary: public HashTable<Shape, Key> {
                   PropertyAttributes filter,
                   SortMode sort_mode);
   // Fill in details for properties into storage.
-  void CopyKeysTo(FixedArray* storage, int index, SortMode sort_mode);
+  void CopyKeysTo(FixedArray* storage,
+                  int index,
+                  PropertyAttributes filter,
+                  SortMode sort_mode);
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
@@ -4347,6 +4354,11 @@ class Code: public HeapObject {
     NONEXISTENT
   };
 
+  enum StubHolder {
+    OWN_STUB,
+    PROTOTYPE_STUB
+  };
+
   enum {
     NUMBER_OF_KINDS = LAST_IC_KIND + 1
   };
@@ -4542,6 +4554,8 @@ class Code: public HeapObject {
   class ExtraICStateKeyedAccessStoreMode:
       public BitField<KeyedAccessStoreMode, 1, 4> {};  // NOLINT
 
+  class ExtraICStateStubHolder: public BitField<StubHolder, 0, 1> {};
+
   static inline StrictModeFlag GetStrictMode(ExtraICState extra_ic_state) {
     return ExtraICStateStrictMode::decode(extra_ic_state);
   }
@@ -4556,6 +4570,10 @@ class Code: public HeapObject {
       StrictModeFlag strict_mode) {
     return ExtraICStateKeyedAccessStoreMode::encode(store_mode) |
         ExtraICStateStrictMode::encode(strict_mode);
+  }
+
+  static inline ExtraICState ComputeExtraICState(StubHolder stub_holder) {
+    return ExtraICStateStubHolder::encode(stub_holder);
   }
 
   // Flags operations.
@@ -5943,6 +5961,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be cached.
   DECL_BOOLEAN_ACCESSORS(dont_cache)
 
+  // Indicates that this function is a generator.
+  DECL_BOOLEAN_ACCESSORS(is_generator)
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -6169,6 +6190,7 @@ class SharedFunctionInfo: public HeapObject {
     kDontOptimize,
     kDontInline,
     kDontCache,
+    kIsGenerator,
     kCompilerHintsCount  // Pseudo entry
   };
 
@@ -7401,6 +7423,9 @@ class Name: public HeapObject {
 // ES6 symbols.
 class Symbol: public Name {
  public:
+  // [name]: the print name of a symbol, or undefined if none.
+  DECL_ACCESSORS(name, Object)
+
   // Casting.
   static inline Symbol* cast(Object* obj);
 
@@ -7409,7 +7434,11 @@ class Symbol: public Name {
   DECLARE_VERIFIER(Symbol)
 
   // Layout description.
-  static const int kSize = Name::kSize;
+  static const int kNameOffset = Name::kSize;
+  static const int kSize = kNameOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kNameOffset, kNameOffset + kPointerSize, kSize>
+          BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
@@ -7754,8 +7783,8 @@ class SeqString: public String {
   // Truncate the string in-place if possible and return the result.
   // In case of new_length == 0, the empty string is returned without
   // truncating the original string.
-  MUST_USE_RESULT String* Truncate(int new_length);
-
+  MUST_USE_RESULT static Handle<String> Truncate(Handle<SeqString> string,
+                                                 int new_length);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SeqString);
 };
@@ -8461,6 +8490,30 @@ class JSWeakMap: public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
+};
+
+
+class JSArrayBuffer: public JSObject {
+ public:
+  // [backing_store]: backing memory for thsi array
+  DECL_ACCESSORS(backing_store, void)
+
+  // [byte_length]: length in bytes
+  DECL_ACCESSORS(byte_length, Object)
+
+  // Casting.
+  static inline JSArrayBuffer* cast(Object* obj);
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(JSArrayBuffer)
+  DECLARE_VERIFIER(JSArrayBuffer)
+
+  static const int kBackingStoreOffset = JSObject::kHeaderSize;
+  static const int kByteLengthOffset = kBackingStoreOffset + kPointerSize;
+  static const int kSize = kByteLengthOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
 
 

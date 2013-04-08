@@ -296,7 +296,7 @@ enum CallFunctionFlags {
 
 enum InlineCacheHolderFlag {
   OWN_MAP,  // For fast properties objects.
-  DELEGATE_MAP  // For slow properties objects (except GlobalObjects).
+  PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
 };
 
 

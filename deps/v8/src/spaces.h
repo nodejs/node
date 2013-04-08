@@ -2419,11 +2419,6 @@ class NewSpace : public Space {
 
   virtual bool ReserveSpace(int bytes);
 
-  // Resizes a sequential string which must be the most recent thing that was
-  // allocated in new space.
-  template <typename StringType>
-  inline void ShrinkStringAtAllocationBoundary(String* string, int len);
-
 #ifdef VERIFY_HEAP
   // Verify the active semispace.
   virtual void Verify();

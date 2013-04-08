@@ -1277,7 +1277,8 @@ Representation HBranch::observed_input_representation(int index) {
       ToBooleanStub::UNDEFINED |
       ToBooleanStub::NULL_TYPE |
       ToBooleanStub::SPEC_OBJECT |
-      ToBooleanStub::STRING);
+      ToBooleanStub::STRING |
+      ToBooleanStub::SYMBOL);
   if (expected_input_types_.ContainsAnyOf(tagged_types)) {
     return Representation::Tagged();
   } else if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -1464,15 +1465,6 @@ void HChange::PrintDataTo(StringStream* stream) {
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
   if (CheckFlag(kDeoptimizeOnUndefined)) stream->Add(" deopt-on-undefined");
-}
-
-
-void HJSArrayLength::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  if (HasTypeCheck()) {
-    stream->Add(" ");
-    typecheck()->PrintNameTo(stream);
-  }
 }
 
 
@@ -2415,6 +2407,10 @@ void HParameter::PrintDataTo(StringStream* stream) {
 void HLoadNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
+  if (HasTypeCheck()) {
+    stream->Add(" ");
+    typecheck()->PrintNameTo(stream);
+  }
 }
 
 
@@ -2589,6 +2585,10 @@ bool HLoadKeyed::UsesMustHandleHole() const {
     return false;
   }
 
+  if (IsExternalArrayElementsKind(elements_kind())) {
+    return false;
+  }
+
   if (hole_mode() == ALLOW_RETURN_HOLE) return true;
 
   if (IsFastDoubleElementsKind(elements_kind())) {
@@ -2608,6 +2608,10 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
 bool HLoadKeyed::RequiresHoleCheck() const {
   if (IsFastPackedElementsKind(elements_kind())) {
+    return false;
+  }
+
+  if (IsExternalArrayElementsKind(elements_kind())) {
     return false;
   }
 
@@ -3036,8 +3040,17 @@ bool HStoreKeyed::NeedsCanonicalization() {
   // If value is an integer or smi or comes from the result of a keyed load or
   // constant then it is either be a non-hole value or in the case of a constant
   // the hole is only being stored explicitly: no need for canonicalization.
-  if (value()->IsLoadKeyed() || value()->IsConstant()) {
+  //
+  // The exception to that is keyed loads from external float or double arrays:
+  // these can load arbitrary representation of NaN.
+
+  if (value()->IsConstant()) {
     return false;
+  }
+
+  if (value()->IsLoadKeyed()) {
+    return IsExternalFloatOrDoubleElementsKind(
+        HLoadKeyed::cast(value())->elements_kind());
   }
 
   if (value()->IsChange()) {

@@ -362,10 +362,14 @@ class LookupResult BASE_EMBEDDED {
     return NULL;
   }
 
-  Map* GetTransitionTarget() {
+  Map* GetTransitionTarget(Map* map) {
     ASSERT(IsTransition());
-    TransitionArray* transitions = holder()->map()->transitions();
+    TransitionArray* transitions = map->transitions();
     return transitions->GetTarget(number_);
+  }
+
+  Map* GetTransitionTarget() {
+    return GetTransitionTarget(holder()->map());
   }
 
   PropertyDetails GetTransitionDetails(Map* map) {

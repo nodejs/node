@@ -121,7 +121,6 @@ class LCodeGen;
   V(IsStringAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
-  V(JSArrayLength)                              \
   V(Label)                                      \
   V(LazyBailout)                                \
   V(LoadContextSlot)                            \
@@ -1109,19 +1108,6 @@ class LCmpMapAndBranch: public LTemplateInstruction<0, 1, 0> {
 };
 
 
-class LJSArrayLength: public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LJSArrayLength(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(JSArrayLength, "js-array-length")
-  DECLARE_HYDROGEN_ACCESSOR(JSArrayLength)
-};
-
-
 class LFixedArrayBaseLength: public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LFixedArrayBaseLength(LOperand* value) {
@@ -2034,7 +2020,7 @@ class LStoreKeyedGeneric: public LTemplateInstruction<0, 3, 0> {
 };
 
 
-class LTransitionElementsKind: public LTemplateInstruction<1, 1, 2> {
+class LTransitionElementsKind: public LTemplateInstruction<0, 1, 2> {
  public:
   LTransitionElementsKind(LOperand* object,
                           LOperand* new_map_temp,

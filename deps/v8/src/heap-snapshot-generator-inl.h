@@ -85,3 +85,4 @@ int V8HeapExplorer::GetGcSubrootOrder(HeapObject* subroot) {
 } }  // namespace v8::internal
 
 #endif  // V8_HEAP_SNAPSHOT_GENERATOR_INL_H_
+

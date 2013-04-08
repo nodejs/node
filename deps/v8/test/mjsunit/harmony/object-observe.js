@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --harmony-observation --harmony-proxies --harmony-collections
-// Flags: --allow-natives-syntax
+// Flags: --harmony-symbols --allow-natives-syntax
 
 var allObservers = [];
 function reset() {
@@ -446,6 +446,29 @@ observer.assertCallbackRecords([
   { object: obj, name: "1", type: "deleted", oldValue: 36 },
   { object: obj, name: "1", type: "new" },
 ]);
+
+
+// Observing symbol properties (not).
+print("*****")
+reset();
+var obj = {}
+var symbol = Symbol("secret");
+Object.observe(obj, observer.callback);
+obj[symbol] = 3;
+delete obj[symbol];
+Object.defineProperty(obj, symbol, {get: function() {}, configurable: true});
+Object.defineProperty(obj, symbol, {value: 6});
+Object.defineProperty(obj, symbol, {writable: false});
+delete obj[symbol];
+Object.defineProperty(obj, symbol, {value: 7});
+++obj[symbol];
+obj[symbol]++;
+obj[symbol] *= 3;
+delete obj[symbol];
+obj.__defineSetter__(symbol, function() {});
+obj.__defineGetter__(symbol, function() {});
+Object.deliverChangeRecords(observer.callback);
+observer.assertNotCalled();
 
 
 // Test all kinds of objects generically.

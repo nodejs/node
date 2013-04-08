@@ -353,6 +353,12 @@ void PrettyPrinter::VisitAssignment(Assignment* node) {
 }
 
 
+void PrettyPrinter::VisitYield(Yield* node) {
+  Print("yield ");
+  Visit(node->expression());
+}
+
+
 void PrettyPrinter::VisitThrow(Throw* node) {
   Print("throw ");
   Visit(node->exception());
@@ -1056,6 +1062,11 @@ void AstPrinter::VisitAssignment(Assignment* node) {
   IndentedScope indent(this, Token::Name(node->op()), node);
   Visit(node->target());
   Visit(node->value());
+}
+
+
+void AstPrinter::VisitYield(Yield* node) {
+  PrintIndentedVisit("YIELD", node->expression());
 }
 
 

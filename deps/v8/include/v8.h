@@ -103,12 +103,14 @@ class Array;
 class Boolean;
 class BooleanObject;
 class Context;
+class CpuProfiler;
 class Data;
 class Date;
 class DeclaredAccessorDescriptor;
 class External;
 class Function;
 class FunctionTemplate;
+class HeapProfiler;
 class ImplementationUtilities;
 class Int32;
 class Integer;
@@ -3022,6 +3024,18 @@ class V8EXPORT Isolate {
    */
   intptr_t AdjustAmountOfExternalAllocatedMemory(intptr_t change_in_bytes);
 
+  /**
+   * Returns heap profiler for this isolate. Will return NULL until the isolate
+   * is initialized.
+   */
+  HeapProfiler* GetHeapProfiler();
+
+  /**
+   * Returns CPU profiler for this isolate. Will return NULL until the isolate
+   * is initialized.
+   */
+  CpuProfiler* GetCpuProfiler();
+
  private:
   Isolate();
   Isolate(const Isolate&);
@@ -4274,7 +4288,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 54;
+  static const int kContextEmbedderDataIndex = 55;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;

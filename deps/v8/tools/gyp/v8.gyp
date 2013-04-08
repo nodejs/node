@@ -797,7 +797,8 @@
               '../../src/symbol.js',
               '../../src/proxy.js',
               '../../src/collection.js',
-              '../../src/object-observe.js'
+              '../../src/object-observe.js',
+              '../../src/typedarray.js'
             ],
           },
           'actions': [

@@ -36,3 +36,4 @@ assertEquals(1, mod(3, 2));
 
 // Surprise mod with overflow.
 assertEquals(-Infinity, 1/mod(-2147483648, -1));
+

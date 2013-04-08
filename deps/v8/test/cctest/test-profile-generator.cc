@@ -830,20 +830,22 @@ v8::Handle<v8::FunctionTemplate> ProfilerExtension::GetNativeFunction(
 
 v8::Handle<v8::Value> ProfilerExtension::StartProfiling(
     const v8::Arguments& args) {
+  v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
   if (args.Length() > 0)
-    v8::CpuProfiler::StartProfiling(args[0].As<v8::String>());
+    cpu_profiler->StartCpuProfiling(args[0].As<v8::String>());
   else
-    v8::CpuProfiler::StartProfiling(v8::String::New(""));
+    cpu_profiler->StartCpuProfiling(v8::String::New(""));
   return v8::Undefined();
 }
 
 
 v8::Handle<v8::Value> ProfilerExtension::StopProfiling(
     const v8::Arguments& args) {
+  v8::CpuProfiler* cpu_profiler = args.GetIsolate()->GetCpuProfiler();
   if (args.Length() > 0)
-    v8::CpuProfiler::StopProfiling(args[0].As<v8::String>());
+    cpu_profiler->StopCpuProfiling(args[0].As<v8::String>());
   else
-    v8::CpuProfiler::StopProfiling(v8::String::New(""));
+    cpu_profiler->StopCpuProfiling(v8::String::New(""));
   return v8::Undefined();
 }
 

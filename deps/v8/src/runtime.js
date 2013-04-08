@@ -69,9 +69,16 @@ function EQUALS(y) {
     } else if (IS_STRING(x)) {
       while (true) {
         if (IS_STRING(y)) return %StringEquals(x, y);
+        if (IS_SYMBOL(y)) return 1;  // not equal
         if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
         if (IS_BOOLEAN(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        y = %ToPrimitive(y, NO_HINT);
+      }
+    } else if (IS_SYMBOL(x)) {
+      while (true) {
+        if (IS_SYMBOL(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+        if (!IS_SPEC_OBJECT(y)) return 1;  // not equal
         y = %ToPrimitive(y, NO_HINT);
       }
     } else if (IS_BOOLEAN(x)) {
@@ -79,6 +86,7 @@ function EQUALS(y) {
       if (IS_NULL_OR_UNDEFINED(y)) return 1;
       if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
       if (IS_STRING(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
+      if (IS_SYMBOL(y)) return 1;  // not equal
       // y is object.
       x = %ToNumber(x);
       y = %ToPrimitive(y, NO_HINT);
@@ -508,6 +516,7 @@ function ToPrimitive(x, hint) {
   if (IS_STRING(x)) return x;
   // Normal behavior.
   if (!IS_SPEC_OBJECT(x)) return x;
+  if (IS_SYMBOL_WRAPPER(x)) return %_ValueOf(x);
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
 }
@@ -532,6 +541,7 @@ function ToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return $NaN;
+  if (IS_SYMBOL(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -542,6 +552,7 @@ function NonNumberToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return $NaN;
+  if (IS_SYMBOL(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -572,6 +583,7 @@ function ToName(x) {
 // ECMA-262, section 9.9, page 36.
 function ToObject(x) {
   if (IS_STRING(x)) return new $String(x);
+  if (IS_SYMBOL(x)) return new $Symbol(x);
   if (IS_NUMBER(x)) return new $Number(x);
   if (IS_BOOLEAN(x)) return new $Boolean(x);
   if (IS_NULL_OR_UNDEFINED(x) && !IS_UNDETECTABLE(x)) {

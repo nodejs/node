@@ -62,6 +62,17 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
+void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
+    Isolate* isolate,
+    CodeStubInterfaceDescriptor* descriptor) {
+  static Register registers[] = { rdx, rcx, rax };
+  descriptor->register_param_count_ = 3;
+  descriptor->register_params_ = registers;
+  descriptor->deoptimization_handler_ =
+      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure);
+}
+
+
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     Isolate* isolate,
     CodeStubInterfaceDescriptor* descriptor) {
@@ -84,7 +95,7 @@ static void InitializeArrayConstructorDescriptor(Isolate* isolate,
   // stack param count needs (constructor pointer, and single argument)
   descriptor->stack_parameter_count_ = &rax;
   descriptor->register_params_ = registers;
-  descriptor->extra_expression_stack_count_ = 1;
+  descriptor->function_mode_ = JS_FUNCTION_STUB_MODE;
   descriptor->deoptimization_handler_ =
       FUNCTION_ADDR(ArrayConstructor_StubFailure);
 }
@@ -2375,34 +2386,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArrayLengthStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver;
-  if (kind() == Code::KEYED_LOAD_IC) {
-    // ----------- S t a t e -------------
-    //  -- rax    : key
-    //  -- rdx    : receiver
-    //  -- rsp[0] : return address
-    // -----------------------------------
-    __ Cmp(rax, masm->isolate()->factory()->length_string());
-    __ j(not_equal, &miss);
-    receiver = rdx;
-  } else {
-    ASSERT(kind() == Code::LOAD_IC);
-    // ----------- S t a t e -------------
-    //  -- rax    : receiver
-    //  -- rcx    : name
-    //  -- rsp[0] : return address
-    // -----------------------------------
-    receiver = rax;
-  }
-
-  StubCompiler::GenerateLoadArrayLength(masm, receiver, r8, &miss);
-  __ bind(&miss);
-  StubCompiler::TailCallBuiltin(masm, StubCompiler::MissBuiltin(kind()));
-}
-
-
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver;
@@ -2652,7 +2635,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
   __ addq(r8, Immediate(Heap::kArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
-  __ AllocateInNewSpace(r8, rax, rdx, rdi, &runtime, TAG_OBJECT);
+  __ Allocate(r8, rax, rdx, rdi, &runtime, TAG_OBJECT);
 
   // rax = address of new object(s) (tagged)
   // rcx = argument count (untagged)
@@ -2870,7 +2853,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ addq(rcx, Immediate(Heap::kArgumentsObjectSizeStrict));
 
   // Do the allocation of both objects in one go.
-  __ AllocateInNewSpace(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
+  __ Allocate(rcx, rax, rdx, rbx, &runtime, TAG_OBJECT);
 
   // Get the arguments boilerplate from the current native context.
   __ movq(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
@@ -3403,14 +3386,14 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
   // Allocate RegExpResult followed by FixedArray with size in rbx.
   // JSArray:   [Map][empty properties][Elements][Length-smi][index][input]
   // Elements:  [Map][Length][..elements..]
-  __ AllocateInNewSpace(JSRegExpResult::kSize + FixedArray::kHeaderSize,
-                        times_pointer_size,
-                        rbx,  // In: Number of elements.
-                        rax,  // Out: Start of allocation (tagged).
-                        rcx,  // Out: End of allocation.
-                        rdx,  // Scratch register
-                        &slowcase,
-                        TAG_OBJECT);
+  __ Allocate(JSRegExpResult::kSize + FixedArray::kHeaderSize,
+              times_pointer_size,
+              rbx,  // In: Number of elements.
+              rax,  // Out: Start of allocation (tagged).
+              rcx,  // Out: End of allocation.
+              rdx,  // Scratch register
+              &slowcase,
+              TAG_OBJECT);
   // rax: Start of allocated area, object-tagged.
   // rbx: Number of array elements as int32.
   // r8: Number of array elements as smi.
@@ -6800,8 +6783,10 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ movq(rbx, MemOperand(rbp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ pop(rcx);
-  __ lea(rsp, MemOperand(rsp, rbx, times_pointer_size,
-                         extra_expression_stack_count_ * kPointerSize));
+  int additional_offset = function_mode_ == JS_FUNCTION_STUB_MODE
+      ? kPointerSize
+      : 0;
+  __ lea(rsp, MemOperand(rsp, rbx, times_pointer_size, additional_offset));
   __ jmp(rcx);  // Return to IC Miss stub, continuation still on stack.
 }
 

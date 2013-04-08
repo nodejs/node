@@ -1,3 +1,43 @@
+2013-04-04: Version 3.17.16
+
+        Stack trace API: poison stack frames below the first strict mode frame.
+        (issue 2564)
+
+        Made Isolate::GetHeapStatistics robust against half-initialized
+        isolates (Chromium issue 2591).
+
+        Finished implementation of ES6 symbols aka. private names (issue 2158).
+
+        Performance and stability improvements on all platforms.
+
+
+2013-03-21: Version 3.17.15
+
+        Rolled back API changes to maintain compatibility with older
+        3.17.x versions of V8.
+
+        Disable zapping of global handles in release mode.
+
+        Always mark the entire valid prefix of the descriptor array.
+        (Chromium issue 196331)
+
+        Use internal memcpy for CopyWords and when copying code.
+        (Chromium issue 196330)
+
+        Performance and stability improvements on all platforms.
+
+
+2013-03-20: Version 3.17.14
+
+        Use internal memcpy when initializing code objects.
+        (Chromium issue 196330)
+
+        Disabled weak embedded maps because of crashes.
+        (Chromium issues 172489, 217858)
+
+        Performance and stability improvements on all platforms.
+
+
 2013-03-19: Version 3.17.13
 
         Turned Flags into a uint32_t typedef (Chromium issue 194749).

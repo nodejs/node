@@ -55,7 +55,7 @@ namespace internal {
   F(IsPropertyEnumerable, 2, 1) \
   F(GetPropertyNames, 1, 1) \
   F(GetPropertyNamesFast, 1, 1) \
-  F(GetLocalPropertyNames, 1, 1) \
+  F(GetLocalPropertyNames, 2, 1) \
   F(GetLocalElementNames, 1, 1) \
   F(GetInterceptorInfo, 1, 1) \
   F(GetNamedInterceptorPropertyNames, 1, 1) \
@@ -129,6 +129,7 @@ namespace internal {
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
   F(NumberToInteger, 1, 1) \
+  F(NumberToPositiveInteger, 1, 1) \
   F(NumberToIntegerMapMinusZero, 1, 1) \
   F(NumberToJSUint32, 1, 1) \
   F(NumberToJSInt32, 1, 1) \
@@ -195,8 +196,6 @@ namespace internal {
   F(ParseJson, 1, 1) \
   F(BasicJSONStringify, 1, 1) \
   F(QuoteJSONString, 1, 1) \
-  F(QuoteJSONStringComma, 1, 1) \
-  F(QuoteJSONStringArray, 1, 1) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2, 1) \
@@ -299,7 +298,8 @@ namespace internal {
   F(IsJSModule, 1, 1) \
   \
   /* Harmony symbols */ \
-  F(CreateSymbol, 0, 1) \
+  F(CreateSymbol, 1, 1) \
+  F(SymbolName, 1, 1) \
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
@@ -340,6 +340,11 @@ namespace internal {
   F(GetObservationState, 0, 1) \
   F(ObservationWeakMapCreate, 0, 1) \
   F(UnwrapGlobalProxy, 1, 1) \
+  \
+  /* Harmony typed arrays */ \
+  F(ArrayBufferInitialize, 2, 1)\
+  F(ArrayBufferGetByteLength, 1, 1)\
+  F(ArrayBufferSliceImpl, 3, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
@@ -514,7 +519,6 @@ namespace internal {
 #define INLINE_FUNCTION_LIST(F) \
   F(IsSmi, 1, 1)                                                             \
   F(IsNonNegativeSmi, 1, 1)                                                  \
-  F(IsSymbol, 1, 1)                                                          \
   F(IsArray, 1, 1)                                                           \
   F(IsRegExp, 1, 1)                                                          \
   F(IsConstructCall, 0, 1)                                                   \

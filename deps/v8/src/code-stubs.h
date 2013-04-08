@@ -47,7 +47,6 @@ namespace internal {
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
-  V(ArrayLength)                         \
   V(StringLength)                        \
   V(FunctionPrototype)                   \
   V(StoreArrayLength)                    \
@@ -259,15 +258,17 @@ class PlatformCodeStub : public CodeStub {
 };
 
 
+enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
+
 struct CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor()
       : register_param_count_(-1),
         stack_parameter_count_(NULL),
-        extra_expression_stack_count_(0),
+        function_mode_(NOT_JS_FUNCTION_STUB_MODE),
         register_params_(NULL) { }
   int register_param_count_;
   const Register* stack_parameter_count_;
-  int extra_expression_stack_count_;
+  StubFunctionMode function_mode_;
   Register* register_params_;
   Address deoptimization_handler_;
 
@@ -594,16 +595,6 @@ class ICStub: public PlatformCodeStub {
 
  private:
   Code::Kind kind_;
-};
-
-
-class ArrayLengthStub: public ICStub {
- public:
-  explicit ArrayLengthStub(Code::Kind kind) : ICStub(kind) { }
-  virtual void Generate(MacroAssembler* masm);
-
- private:
-  virtual CodeStub::Major MajorKey() { return ArrayLength; }
 };
 
 
@@ -1312,6 +1303,47 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
 };
 
 
+class KeyedStoreFastElementStub : public HydrogenCodeStub {
+ public:
+  KeyedStoreFastElementStub(bool is_js_array,
+                            ElementsKind elements_kind,
+                            KeyedAccessStoreMode mode) {
+    bit_field_ = ElementsKindBits::encode(elements_kind) |
+        IsJSArrayBits::encode(is_js_array) |
+        StoreModeBits::encode(mode);
+  }
+
+  Major MajorKey() { return KeyedStoreElement; }
+  int MinorKey() { return bit_field_; }
+
+  bool is_js_array() const {
+    return IsJSArrayBits::decode(bit_field_);
+  }
+
+  ElementsKind elements_kind() const {
+    return ElementsKindBits::decode(bit_field_);
+  }
+
+  KeyedAccessStoreMode store_mode() const {
+    return StoreModeBits::decode(bit_field_);
+  }
+
+  virtual Handle<Code> GenerateCode();
+
+  virtual void InitializeInterfaceDescriptor(
+      Isolate* isolate,
+      CodeStubInterfaceDescriptor* descriptor);
+
+ private:
+  class ElementsKindBits: public BitField<ElementsKind,      0, 8> {};
+  class StoreModeBits: public BitField<KeyedAccessStoreMode, 8, 4> {};
+  class IsJSArrayBits: public BitField<bool,                12, 1> {};
+  uint32_t bit_field_;
+
+  DISALLOW_COPY_AND_ASSIGN(KeyedStoreFastElementStub);
+};
+
+
 class TransitionElementsKindStub : public HydrogenCodeStub {
  public:
   TransitionElementsKindStub(ElementsKind from_kind,
@@ -1447,6 +1479,7 @@ class ToBooleanStub: public PlatformCodeStub {
     SMI,
     SPEC_OBJECT,
     STRING,
+    SYMBOL,
     HEAP_NUMBER,
     NUMBER_OF_TYPES
   };
@@ -1570,10 +1603,8 @@ class StoreArrayLiteralElementStub : public PlatformCodeStub {
 
 class StubFailureTrampolineStub : public PlatformCodeStub {
  public:
-  static const int kMaxExtraExpressionStackCount = 1;
-
-  explicit StubFailureTrampolineStub(int extra_expression_stack_count)
-      : extra_expression_stack_count_(extra_expression_stack_count) {}
+  explicit StubFailureTrampolineStub(StubFunctionMode function_mode)
+      : function_mode_(function_mode) {}
 
   virtual bool IsPregenerated() { return true; }
 
@@ -1581,11 +1612,11 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
 
  private:
   Major MajorKey() { return StubFailureTrampoline; }
-  int MinorKey() { return extra_expression_stack_count_; }
+  int MinorKey() { return static_cast<int>(function_mode_); }
 
   void Generate(MacroAssembler* masm);
 
-  int extra_expression_stack_count_;
+  StubFunctionMode function_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(StubFailureTrampolineStub);
 };

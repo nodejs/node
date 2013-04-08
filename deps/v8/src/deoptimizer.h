@@ -356,9 +356,17 @@ class Deoptimizer : public Malloced {
                                   bool is_setter_stub_frame);
   void DoComputeCompiledStubFrame(TranslationIterator* iterator,
                                   int frame_index);
+
+  enum DeoptimizerTranslatedValueType {
+    TRANSLATED_VALUE_IS_NATIVE,
+    TRANSLATED_VALUE_IS_TAGGED
+  };
+
   void DoTranslateCommand(TranslationIterator* iterator,
-                          int frame_index,
-                          unsigned output_offset);
+      int frame_index,
+      unsigned output_offset,
+      DeoptimizerTranslatedValueType value_type = TRANSLATED_VALUE_IS_TAGGED);
+
   // Translate a command for OSR.  Updates the input offset to be used for
   // the next command.  Returns false if translation of the command failed
   // (e.g., a number conversion failed) and may or may not have updated the

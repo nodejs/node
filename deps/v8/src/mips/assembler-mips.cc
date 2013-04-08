@@ -490,7 +490,6 @@ bool Assembler::IsBranch(Instr instr) {
   uint32_t opcode   = GetOpcodeField(instr);
   uint32_t rt_field = GetRtField(instr);
   uint32_t rs_field = GetRsField(instr);
-  uint32_t label_constant = GetLabelConst(instr);
   // Checks if the instruction is a branch.
   return opcode == BEQ ||
       opcode == BNE ||
@@ -502,10 +501,13 @@ bool Assembler::IsBranch(Instr instr) {
       opcode == BGTZL ||
       (opcode == REGIMM && (rt_field == BLTZ || rt_field == BGEZ ||
                             rt_field == BLTZAL || rt_field == BGEZAL)) ||
-      (opcode == COP1 && rs_field == BC1) ||  // Coprocessor branch.
-      label_constant == 0;  // Emitted label const in reg-exp engine.
+      (opcode == COP1 && rs_field == BC1);  // Coprocessor branch.
 }
 
+bool Assembler::IsEmittedConstant(Instr instr) {
+  uint32_t label_constant = GetLabelConst(instr);
+  return label_constant == 0;  // Emitted label const in reg-exp engine.
+}
 
 bool Assembler::IsBeq(Instr instr) {
   return GetOpcodeField(instr) == BEQ;
@@ -796,7 +798,7 @@ void Assembler::bind_to(Label* L, int pos) {
       }
       target_at_put(fixup_pos, pos);
     } else {
-      ASSERT(IsJ(instr) || IsLui(instr));
+      ASSERT(IsJ(instr) || IsLui(instr) || IsEmittedConstant(instr));
       target_at_put(fixup_pos, pos);
     }
   }

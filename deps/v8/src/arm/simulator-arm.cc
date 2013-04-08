@@ -112,8 +112,8 @@ void ArmDebugger::Stop(Instruction* instr) {
   ASSERT(msg != NULL);
 
   // Update this stop description.
-  if (isWatchedStop(code) && !watched_stops[code].desc) {
-    watched_stops[code].desc = msg;
+  if (isWatchedStop(code) && !watched_stops_[code].desc) {
+    watched_stops_[code].desc = msg;
   }
 
   if (strlen(msg) > 0) {
@@ -141,8 +141,8 @@ void ArmDebugger::Stop(Instruction* instr) {
   char* msg = *reinterpret_cast<char**>(sim_->get_pc()
                                         + Instruction::kInstrSize);
   // Update this stop description.
-  if (sim_->isWatchedStop(code) && !sim_->watched_stops[code].desc) {
-    sim_->watched_stops[code].desc = msg;
+  if (sim_->isWatchedStop(code) && !sim_->watched_stops_[code].desc) {
+    sim_->watched_stops_[code].desc = msg;
   }
   // Print the stop message and code if it is not the default code.
   if (code != kMaxStopCode) {
@@ -1880,14 +1880,14 @@ bool Simulator::isEnabledStop(uint32_t code) {
   ASSERT(code <= kMaxStopCode);
   // Unwatched stops are always enabled.
   return !isWatchedStop(code) ||
-    !(watched_stops[code].count & kStopDisabledBit);
+    !(watched_stops_[code].count & kStopDisabledBit);
 }
 
 
 void Simulator::EnableStop(uint32_t code) {
   ASSERT(isWatchedStop(code));
   if (!isEnabledStop(code)) {
-    watched_stops[code].count &= ~kStopDisabledBit;
+    watched_stops_[code].count &= ~kStopDisabledBit;
   }
 }
 
@@ -1895,7 +1895,7 @@ void Simulator::EnableStop(uint32_t code) {
 void Simulator::DisableStop(uint32_t code) {
   ASSERT(isWatchedStop(code));
   if (isEnabledStop(code)) {
-    watched_stops[code].count |= kStopDisabledBit;
+    watched_stops_[code].count |= kStopDisabledBit;
   }
 }
 
@@ -1903,13 +1903,13 @@ void Simulator::DisableStop(uint32_t code) {
 void Simulator::IncreaseStopCounter(uint32_t code) {
   ASSERT(code <= kMaxStopCode);
   ASSERT(isWatchedStop(code));
-  if ((watched_stops[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
     PrintF("Stop counter for code %i has overflowed.\n"
            "Enabling this code and reseting the counter to 0.\n", code);
-    watched_stops[code].count = 0;
+    watched_stops_[code].count = 0;
     EnableStop(code);
   } else {
-    watched_stops[code].count++;
+    watched_stops_[code].count++;
   }
 }
 
@@ -1921,12 +1921,12 @@ void Simulator::PrintStopInfo(uint32_t code) {
     PrintF("Stop not watched.");
   } else {
     const char* state = isEnabledStop(code) ? "Enabled" : "Disabled";
-    int32_t count = watched_stops[code].count & ~kStopDisabledBit;
+    int32_t count = watched_stops_[code].count & ~kStopDisabledBit;
     // Don't print the state of unused breakpoints.
     if (count != 0) {
-      if (watched_stops[code].desc) {
+      if (watched_stops_[code].desc) {
         PrintF("stop %i - 0x%x: \t%s, \tcounter = %i, \t%s\n",
-               code, code, state, count, watched_stops[code].desc);
+               code, code, state, count, watched_stops_[code].desc);
       } else {
         PrintF("stop %i - 0x%x: \t%s, \tcounter = %i\n",
                code, code, state, count);

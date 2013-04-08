@@ -1030,10 +1030,10 @@ intptr_t PagedSpace::SizeOfFirstPage() {
       size = 16 * kPointerSize * KB;
       break;
     case CODE_SPACE:
-      if (kPointerSize == 8) {
-        // On x64 we allocate code pages in a special way (from the reserved
-        // 2Byte area). That part of the code is not yet upgraded to handle
-        // small pages.
+      if (heap()->isolate()->code_range()->exists()) {
+        // When code range exists, code pages are allocated in a special way
+        // (from the reserved code range). That part of the code is not yet
+        // upgraded to handle small pages.
         size = AreaSize();
       } else {
         size = 384 * KB;

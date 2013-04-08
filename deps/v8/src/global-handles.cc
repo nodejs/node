@@ -72,7 +72,7 @@ class GlobalHandles::Node {
                   Internals::kNodeIsPartiallyDependentShift);
   }
 
-#ifdef DEBUG
+#ifdef ENABLE_EXTRA_CHECKS
   ~Node() {
     // TODO(1428): if it's a weak handle we should have invoked its callback.
     // Zap the values for eager trapping.
@@ -111,10 +111,9 @@ class GlobalHandles::Node {
   void Release(GlobalHandles* global_handles) {
     ASSERT(state() != FREE);
     set_state(FREE);
-    // TODO(mstarzinger): Put behind debug flag once embedders are stabilized.
-    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
-#ifdef DEBUG
+#ifdef ENABLE_EXTRA_CHECKS
     // Zap the values for eager trapping.
+    object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_partially_dependent(false);

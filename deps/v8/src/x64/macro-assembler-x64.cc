@@ -3830,16 +3830,15 @@ void MacroAssembler::Allocate(int object_size,
 }
 
 
-void MacroAssembler::AllocateInNewSpace(int header_size,
-                                        ScaleFactor element_size,
-                                        Register element_count,
-                                        Register result,
-                                        Register result_end,
-                                        Register scratch,
-                                        Label* gc_required,
-                                        AllocationFlags flags) {
+void MacroAssembler::Allocate(int header_size,
+                              ScaleFactor element_size,
+                              Register element_count,
+                              Register result,
+                              Register result_end,
+                              Register scratch,
+                              Label* gc_required,
+                              AllocationFlags flags) {
   ASSERT((flags & SIZE_IN_WORDS) == 0);
-  ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3866,15 +3865,15 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
   }
 
   // Calculate new top and bail out if new space is exhausted.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address(isolate());
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
 
   // We assume that element_count*element_size + header_size does not
   // overflow.
   lea(result_end, Operand(element_count, element_size, header_size));
   addq(result_end, result);
   j(carry, gc_required);
-  Operand limit_operand = ExternalOperand(new_space_allocation_limit);
+  Operand limit_operand = ExternalOperand(allocation_limit);
   cmpq(result_end, limit_operand);
   j(above, gc_required);
 
@@ -3889,14 +3888,13 @@ void MacroAssembler::AllocateInNewSpace(int header_size,
 }
 
 
-void MacroAssembler::AllocateInNewSpace(Register object_size,
-                                        Register result,
-                                        Register result_end,
-                                        Register scratch,
-                                        Label* gc_required,
-                                        AllocationFlags flags) {
+void MacroAssembler::Allocate(Register object_size,
+                              Register result,
+                              Register result_end,
+                              Register scratch,
+                              Label* gc_required,
+                              AllocationFlags flags) {
   ASSERT((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
-  ASSERT((flags & PRETENURE_OLD_POINTER_SPACE) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -3916,14 +3914,14 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   LoadAllocationTopHelper(result, scratch, flags);
 
   // Calculate new top and bail out if new space is exhausted.
-  ExternalReference new_space_allocation_limit =
-      ExternalReference::new_space_allocation_limit_address(isolate());
+  ExternalReference allocation_limit =
+      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
   if (!object_size.is(result_end)) {
     movq(result_end, object_size);
   }
   addq(result_end, result);
   j(carry, gc_required);
-  Operand limit_operand = ExternalOperand(new_space_allocation_limit);
+  Operand limit_operand = ExternalOperand(allocation_limit);
   cmpq(result_end, limit_operand);
   j(above, gc_required);
 
@@ -3991,14 +3989,14 @@ void MacroAssembler::AllocateTwoByteString(Register result,
   }
 
   // Allocate two byte string in new space.
-  AllocateInNewSpace(SeqTwoByteString::kHeaderSize,
-                     times_1,
-                     scratch1,
-                     result,
-                     scratch2,
-                     scratch3,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(SeqTwoByteString::kHeaderSize,
+           times_1,
+           scratch1,
+           result,
+           scratch2,
+           scratch3,
+           gc_required,
+           TAG_OBJECT);
 
   // Set the map, length and hash field.
   LoadRoot(kScratchRegister, Heap::kStringMapRootIndex);
@@ -4029,14 +4027,14 @@ void MacroAssembler::AllocateAsciiString(Register result,
   }
 
   // Allocate ASCII string in new space.
-  AllocateInNewSpace(SeqOneByteString::kHeaderSize,
-                     times_1,
-                     scratch1,
-                     result,
-                     scratch2,
-                     scratch3,
-                     gc_required,
-                     TAG_OBJECT);
+  Allocate(SeqOneByteString::kHeaderSize,
+           times_1,
+           scratch1,
+           result,
+           scratch2,
+           scratch3,
+           gc_required,
+           TAG_OBJECT);
 
   // Set the map, length and hash field.
   LoadRoot(kScratchRegister, Heap::kAsciiStringMapRootIndex);

@@ -187,7 +187,7 @@ class Writer BASE_EMBEDDED {
   byte* buffer_;
 };
 
-class StringTable;
+class ELFStringTable;
 
 template<typename THeader>
 class DebugSectionBase : public ZoneObject {
@@ -338,7 +338,7 @@ class ELFSection : public DebugSectionBase<ELFSectionHeader> {
 
   virtual ~ELFSection() { }
 
-  void PopulateHeader(Writer::Slot<Header> header, StringTable* strtab);
+  void PopulateHeader(Writer::Slot<Header> header, ELFStringTable* strtab);
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
     uintptr_t start = w->position();
@@ -438,9 +438,9 @@ class FullHeaderELFSection : public ELFSection {
 };
 
 
-class StringTable : public ELFSection {
+class ELFStringTable : public ELFSection {
  public:
-  explicit StringTable(const char* name)
+  explicit ELFStringTable(const char* name)
       : ELFSection(name, TYPE_STRTAB, 1), writer_(NULL), offset_(0), size_(0) {
   }
 
@@ -488,7 +488,7 @@ class StringTable : public ELFSection {
 
 
 void ELFSection::PopulateHeader(Writer::Slot<ELFSection::Header> header,
-                                StringTable* strtab) {
+                                ELFStringTable* strtab) {
   header->name = strtab->Add(name_);
   header->type = type_;
   header->alignment = align_;
@@ -631,7 +631,7 @@ class ELF BASE_EMBEDDED {
  public:
   ELF(Zone* zone) : sections_(6, zone) {
     sections_.Add(new(zone) ELFSection("", ELFSection::TYPE_NULL, 0), zone);
-    sections_.Add(new(zone) StringTable(".shstrtab"), zone);
+    sections_.Add(new(zone) ELFStringTable(".shstrtab"), zone);
   }
 
   void Write(Writer* w) {
@@ -718,7 +718,7 @@ class ELF BASE_EMBEDDED {
         w->CreateSlotsHere<ELFSection::Header>(sections_.length());
 
     // String table for section table is the first section.
-    StringTable* strtab = static_cast<StringTable*>(SectionAt(1));
+    ELFStringTable* strtab = static_cast<ELFStringTable*>(SectionAt(1));
     strtab->AttachWriter(w);
     for (int i = 0, length = sections_.length();
          i < length;
@@ -832,7 +832,7 @@ class ELFSymbol BASE_EMBEDDED {
   };
 #endif
 
-  void Write(Writer::Slot<SerializedLayout> s, StringTable* t) {
+  void Write(Writer::Slot<SerializedLayout> s, ELFStringTable* t) {
     // Convert symbol names from strings to indexes in the string table.
     s->name = t->Add(name);
     s->value = value;
@@ -871,8 +871,8 @@ class ELFSymbolTable : public ELFSection {
     header->size = w->position() - header->offset;
 
     // String table for this symbol table should follow it in the section table.
-    StringTable* strtab =
-        static_cast<StringTable*>(w->debug_object()->SectionAt(index() + 1));
+    ELFStringTable* strtab =
+        static_cast<ELFStringTable*>(w->debug_object()->SectionAt(index() + 1));
     strtab->AttachWriter(w);
     symbols.at(0).set(ELFSymbol::SerializedLayout(0,
                                                   0,
@@ -905,7 +905,7 @@ class ELFSymbolTable : public ELFSection {
  private:
   void WriteSymbolsList(const ZoneList<ELFSymbol>* src,
                         Writer::Slot<ELFSymbol::SerializedLayout> dst,
-                        StringTable* strtab) {
+                        ELFStringTable* strtab) {
     for (int i = 0, len = src->length();
          i < len;
          i++) {
@@ -1023,7 +1023,7 @@ static void CreateSymbolsTable(CodeDescription* desc,
                                int text_section_index) {
   Zone* zone = desc->info()->zone();
   ELFSymbolTable* symtab = new(zone) ELFSymbolTable(".symtab", zone);
-  StringTable* strtab = new(zone) StringTable(".strtab");
+  ELFStringTable* strtab = new(zone) ELFStringTable(".strtab");
 
   // Symbol table should be followed by the linked string table.
   elf->AddSection(symtab, zone);
@@ -1996,7 +1996,7 @@ static GDBJITLineInfo* UntagLineInfo(void* ptr) {
 }
 
 
-void GDBJITInterface::AddCode(Handle<String> name,
+void GDBJITInterface::AddCode(Handle<Name> name,
                               Handle<Script> script,
                               Handle<Code> code,
                               CompilationInfo* info) {
@@ -2005,8 +2005,9 @@ void GDBJITInterface::AddCode(Handle<String> name,
   // Force initialization of line_ends array.
   GetScriptLineNumber(script, 0);
 
-  if (!name.is_null()) {
-    SmartArrayPointer<char> name_cstring = name->ToCString(DISALLOW_NULLS);
+  if (!name.is_null() && name->IsString()) {
+    SmartArrayPointer<char> name_cstring =
+        Handle<String>::cast(name)->ToCString(DISALLOW_NULLS);
     AddCode(*name_cstring, *code, GDBJITInterface::FUNCTION, *script, info);
   } else {
     AddCode("", *code, GDBJITInterface::FUNCTION, *script, info);
@@ -2124,10 +2125,14 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
 
 
 void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag,
-                              String* name,
+                              Name* name,
                               Code* code) {
   if (!FLAG_gdbjit) return;
-  AddCode(tag, name != NULL ? *name->ToCString(DISALLOW_NULLS) : NULL, code);
+  if (name != NULL && name->IsString()) {
+    AddCode(tag, *String::cast(name)->ToCString(DISALLOW_NULLS), code);
+  } else {
+    AddCode(tag, "", code);
+  }
 }
 
 

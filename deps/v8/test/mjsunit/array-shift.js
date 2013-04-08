@@ -106,3 +106,17 @@
   assertEquals(array[7], array_proto[7]);
   assertFalse(array.hasOwnProperty(7));
 })();
+
+// Check that non-enumerable elements are treated appropriately
+(function() {
+  var array = [1, 2, 3];
+  Object.defineProperty(array, '1', {enumerable: false});
+  assertEquals(1, array.shift());
+  assertEquals([2, 3], array);
+
+  array = [1,,3];
+  array.__proto__[1] = 2;
+  Object.defineProperty(array.__proto__, '1', {enumerable: false});
+  assertEquals(1, array.shift());
+  assertEquals([2, 3], array);
+})();

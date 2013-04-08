@@ -53,7 +53,8 @@ enum ParsingFlags {
   kLanguageModeMask = 0x03,
   kAllowLazy = 0x04,
   kAllowNativesSyntax = 0x08,
-  kAllowModules = 0x10
+  kAllowModules = 0x10,
+  kAllowGenerators = 0x20
 };
 
 STATIC_ASSERT((kLanguageModeMask & CLASSIC_MODE) == CLASSIC_MODE);

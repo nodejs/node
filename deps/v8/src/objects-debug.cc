@@ -195,6 +195,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_MESSAGE_OBJECT_TYPE:
       JSMessageObject::cast(this)->JSMessageObjectVerify();
       break;
+    case JS_ARRAY_BUFFER_TYPE:
+      JSArrayBuffer::cast(this)->JSArrayBufferVerify();
+      break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -220,6 +223,7 @@ void Symbol::SymbolVerify() {
   CHECK(IsSymbol());
   CHECK(HasHashCode());
   CHECK_GT(Hash(), 0);
+  CHECK(name()->IsUndefined() || name()->IsString());
 }
 
 
@@ -709,6 +713,14 @@ void JSFunctionProxy::JSFunctionProxyVerify() {
   JSProxyVerify();
   VerifyPointer(call_trap());
   VerifyPointer(construct_trap());
+}
+
+void JSArrayBuffer::JSArrayBufferVerify() {
+  CHECK(IsJSArrayBuffer());
+  JSObjectVerify();
+  VerifyPointer(byte_length());
+  CHECK(byte_length()->IsSmi() || byte_length()->IsHeapNumber()
+        || byte_length()->IsUndefined());
 }
 
 

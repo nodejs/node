@@ -73,9 +73,15 @@ static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
     unsigned int old_char = subject[from++];
     unsigned int new_char = subject[current++];
     if (old_char == new_char) continue;
-    if (old_char - 'A' <= 'Z' - 'A') old_char |= 0x20;
-    if (new_char - 'A' <= 'Z' - 'A') new_char |= 0x20;
+    // Convert both characters to lower case.
+    old_char |= 0x20;
+    new_char |= 0x20;
     if (old_char != new_char) return false;
+    // Not letters in the ASCII range and Latin-1 range.
+    if (!(old_char - 'a' <= 'z' - 'a') &&
+        !(old_char - 224 <= 254 - 224 && old_char != 247)) {
+      return false;
+    }
   }
   return true;
 }

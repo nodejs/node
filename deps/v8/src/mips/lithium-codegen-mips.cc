@@ -237,7 +237,7 @@ bool LCodeGen::GeneratePrologue() {
         __ sw(a0, target);
         // Update the write barrier. This clobbers a3 and a0.
         __ RecordWriteContextSlot(
-            cp, target.offset(), a0, a3, kRAHasBeenSaved, kSaveFPRegs);
+            cp, target.offset(), a0, a3, GetRAState(), kSaveFPRegs);
       }
     }
     Comment(";;; End allocate local context");
@@ -1492,13 +1492,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ lw(result, FieldMemOperand(array, JSArray::kLengthOffset));
-}
-
-
 void LCodeGen::DoFixedArrayBaseLength(LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->value());
@@ -1899,6 +1892,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ Branch(true_label, ne, at, Operand(zero_reg));
         __ Branch(false_label);
         __ bind(&not_string);
+      }
+
+      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+        // Symbol value -> true.
+        const Register scratch = scratch1();
+        __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+        __ Branch(true_label, eq, scratch, Operand(SYMBOL_TYPE));
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -2687,7 +2687,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               target.offset(),
                               value,
                               scratch0(),
-                              kRAHasBeenSaved,
+                              GetRAState(),
                               kSaveFPRegs,
                               EMIT_REMEMBERED_SET,
                               check_needed);
@@ -4030,7 +4030,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           HeapObject::kMapOffset,
                           scratch,
                           temp,
-                          kRAHasBeenSaved,
+                          GetRAState(),
                           kSaveFPRegs,
                           OMIT_REMEMBERED_SET,
                           OMIT_SMI_CHECK);
@@ -4049,7 +4049,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           offset,
                           value,
                           scratch,
-                          kRAHasBeenSaved,
+                          GetRAState(),
                           kSaveFPRegs,
                           EMIT_REMEMBERED_SET,
                           check_needed);
@@ -4064,7 +4064,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                           offset,
                           value,
                           object,
-                          kRAHasBeenSaved,
+                          GetRAState(),
                           kSaveFPRegs,
                           EMIT_REMEMBERED_SET,
                           check_needed);
@@ -4275,7 +4275,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     __ RecordWrite(elements,
                    key,
                    value,
-                   kRAHasBeenSaved,
+                   GetRAState(),
                    kSaveFPRegs,
                    EMIT_REMEMBERED_SET,
                    check_needed);
@@ -4326,7 +4326,7 @@ void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
     __ sw(new_map_reg, FieldMemOperand(object_reg, HeapObject::kMapOffset));
     // Write barrier.
     __ RecordWriteField(object_reg, HeapObject::kMapOffset, new_map_reg,
-                        scratch, kRAHasBeenSaved, kDontSaveFPRegs);
+                        scratch, GetRAState(), kDontSaveFPRegs);
   } else if (FLAG_compiled_transitions) {
     PushSafepointRegistersScope scope(this, Safepoint::kWithRegisters);
     __ mov(a0, object_reg);
@@ -4571,10 +4571,11 @@ void LCodeGen::DoNumberTagU(LNumberTagU* instr) {
 
 // Convert unsigned integer with specified number of leading zeroes in binary
 // representation to IEEE 754 double.
-// Integer to convert is passed in register hiword.
+// Integer to convert is passed in register src.
 // Resulting double is returned in registers hiword:loword.
 // This functions does not work correctly for 0.
 static void GenerateUInt2Double(MacroAssembler* masm,
+                                Register src,
                                 Register hiword,
                                 Register loword,
                                 Register scratch,
@@ -4588,12 +4589,12 @@ static void GenerateUInt2Double(MacroAssembler* masm,
       kBitsPerInt - mantissa_shift_for_hi_word;
   masm->li(scratch, Operand(biased_exponent << HeapNumber::kExponentShift));
   if (mantissa_shift_for_hi_word > 0) {
-    masm->sll(loword, hiword, mantissa_shift_for_lo_word);
-    masm->srl(hiword, hiword, mantissa_shift_for_hi_word);
+    masm->sll(loword, src, mantissa_shift_for_lo_word);
+    masm->srl(hiword, src, mantissa_shift_for_hi_word);
     masm->Or(hiword, scratch, hiword);
   } else {
     masm->mov(loword, zero_reg);
-    masm->sll(hiword, hiword, mantissa_shift_for_hi_word);
+    masm->sll(hiword, src, mantissa_shift_for_hi_word);
     masm->Or(hiword, scratch, hiword);
   }
 
@@ -4644,17 +4645,17 @@ void LCodeGen::DoDeferredNumberTagI(LInstruction* instr,
       __ mtc1(src, dbl_scratch);
       __ Cvt_d_uw(dbl_scratch, dbl_scratch, f22);
     } else {
-      Label no_leading_zero, done;
+      Label no_leading_zero, convert_done;
       __ And(at, src, Operand(0x80000000));
       __ Branch(&no_leading_zero, ne, at, Operand(zero_reg));
 
       // Integer has one leading zeros.
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, t0, 1);
-      __ Branch(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, t0, 1);
+      __ Branch(&convert_done);
 
       __ bind(&no_leading_zero);
-      GenerateUInt2Double(masm(), sfpd_hi, sfpd_lo, t0, 0);
-      __ Branch(&done);
+      GenerateUInt2Double(masm(), src, sfpd_hi, sfpd_lo, t0, 0);
+      __ bind(&convert_done);
     }
   }
 
@@ -5344,12 +5345,12 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     __ Allocate(size, result, scratch, scratch2, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
-    __ AllocateInNewSpace(size,
-                          result,
-                          scratch,
-                          scratch2,
-                          deferred->entry(),
-                          flags);
+    __ Allocate(size,
+                result,
+                scratch,
+                scratch2,
+                deferred->entry(),
+                flags);
   }
 
   __ bind(deferred->exit());
@@ -5771,6 +5772,13 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
 
+  } else if (type_name->Equals(heap()->symbol_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ GetObjectType(input, input, scratch);
+    cmp1 = scratch;
+    cmp2 = Operand(SYMBOL_TYPE);
+    final_branch_condition = eq;
+
   } else if (type_name->Equals(heap()->boolean_string())) {
     __ LoadRoot(at, Heap::kTrueValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
@@ -5814,27 +5822,15 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ LoadRoot(at, Heap::kNullValueRootIndex);
       __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     }
-    if (FLAG_harmony_symbols) {
-      // input is an object, it is safe to use GetObjectType in the delay slot.
-      __ GetObjectType(input, input, scratch);
-      __ Branch(USE_DELAY_SLOT, true_label, eq, scratch, Operand(SYMBOL_TYPE));
-      // Still an object, so the InstanceType can be loaded.
-      __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
-      __ Branch(USE_DELAY_SLOT, false_label,
-                lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    } else {
-      // input is an object, it is safe to use GetObjectType in the delay slot.
-      __ GetObjectType(input, input, scratch);
-      __ Branch(USE_DELAY_SLOT, false_label,
-                lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    }
-    // Still an object, so the InstanceType can be loaded.
-    __ lbu(scratch, FieldMemOperand(input, Map::kInstanceTypeOffset));
+    Register map = input;
+    __ GetObjectType(input, map, scratch);
+    __ Branch(false_label,
+              lt, scratch, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
     __ Branch(USE_DELAY_SLOT, false_label,
               gt, scratch, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE));
-    // Still an object, so the BitField can be loaded.
+    // map is still valid, so the BitField can be loaded in delay slot.
     // Check for undetectable objects => false.
-    __ lbu(at, FieldMemOperand(input, Map::kBitFieldOffset));
+    __ lbu(at, FieldMemOperand(map, Map::kBitFieldOffset));
     __ And(at, at, 1 << Map::kIsUndetectable);
     cmp1 = at;
     cmp2 = Operand(zero_reg);

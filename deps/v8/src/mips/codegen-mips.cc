@@ -206,8 +206,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new FixedDoubleArray.
   __ sll(scratch, t1, 2);
   __ Addu(scratch, scratch, FixedDoubleArray::kHeaderSize);
-  __ AllocateInNewSpace(scratch, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
+  __ Allocate(scratch, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
   // t2: destination FixedDoubleArray, not tagged as heap object
+
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(t5, Heap::kFixedDoubleArrayMapRootIndex);
   __ sw(t1, MemOperand(t2, FixedDoubleArray::kLengthOffset));
@@ -351,7 +352,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Allocate new FixedArray.
   __ sll(a0, t1, 1);
   __ Addu(a0, a0, FixedDoubleArray::kHeaderSize);
-  __ AllocateInNewSpace(a0, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
+  __ Allocate(a0, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
   // t2: destination FixedArray, not tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(t5, Heap::kFixedArrayMapRootIndex);
@@ -702,7 +703,7 @@ void Code::PatchPlatformCodeAge(byte* sequence,
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
   if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
+    CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(age, parity);

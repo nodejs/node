@@ -221,3 +221,4 @@ for (var i = 0; i <= 100; i++) {
   %OptimizeFunctionOnNextCall(ROR4);
   assertEquals(1 << ((i % 32)), ROR4(1, i));
 }
+

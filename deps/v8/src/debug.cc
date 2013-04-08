@@ -3761,8 +3761,8 @@ void LockingCommandMessageQueue::Clear() {
 
 MessageDispatchHelperThread::MessageDispatchHelperThread(Isolate* isolate)
     : Thread("v8:MsgDispHelpr"),
-      sem_(OS::CreateSemaphore(0)), mutex_(OS::CreateMutex()),
-      already_signalled_(false) {
+      isolate_(isolate), sem_(OS::CreateSemaphore(0)),
+      mutex_(OS::CreateMutex()), already_signalled_(false) {
 }
 
 
@@ -3785,7 +3785,6 @@ void MessageDispatchHelperThread::Schedule() {
 
 
 void MessageDispatchHelperThread::Run() {
-  Isolate* isolate = Isolate::Current();
   while (true) {
     sem_->Wait();
     {
@@ -3793,8 +3792,8 @@ void MessageDispatchHelperThread::Run() {
       already_signalled_ = false;
     }
     {
-      Locker locker(reinterpret_cast<v8::Isolate*>(isolate));
-      isolate->debugger()->CallMessageDispatchHandler();
+      Locker locker(reinterpret_cast<v8::Isolate*>(isolate_));
+      isolate_->debugger()->CallMessageDispatchHandler();
     }
   }
 }

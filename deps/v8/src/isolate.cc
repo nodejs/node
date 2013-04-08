@@ -612,13 +612,16 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   limit = Max(limit, 0);  // Ensure that limit is not negative.
   int initial_size = Min(limit, 10);
   Handle<FixedArray> elements =
-      factory()->NewFixedArrayWithHoles(initial_size * 4);
+      factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
 
   // If the caller parameter is a function we skip frames until we're
   // under it before starting to collect.
   bool seen_caller = !caller->IsJSFunction();
-  int cursor = 0;
+  // First element is reserved to store the number of non-strict frames.
+  int cursor = 1;
   int frames_seen = 0;
+  int non_strict_frames = 0;
+  bool encountered_strict_function = false;
   for (StackFrameIterator iter(this);
        !iter.done() && frames_seen < limit;
        iter.Advance()) {
@@ -646,6 +649,17 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
         Handle<JSFunction> fun = frames[i].function();
         Handle<Code> code = frames[i].code();
         Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
+        // The stack trace API should not expose receivers and function
+        // objects on frames deeper than the top-most one with a strict
+        // mode function.  The number of non-strict frames is stored as
+        // first element in the result array.
+        if (!encountered_strict_function) {
+          if (!fun->shared()->is_classic_mode()) {
+            encountered_strict_function = true;
+          } else {
+            non_strict_frames++;
+          }
+        }
         elements->set(cursor++, *recv);
         elements->set(cursor++, *fun);
         elements->set(cursor++, *code);
@@ -653,6 +667,7 @@ Handle<JSArray> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       }
     }
   }
+  elements->set(0, Smi::FromInt(non_strict_frames));
   Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
   result->set_length(Smi::FromInt(cursor));
   return result;
@@ -1679,6 +1694,7 @@ Isolate::Isolate()
       code_stub_interface_descriptors_(NULL),
       context_exit_happened_(false),
       cpu_profiler_(NULL),
+      heap_profiler_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(this),
       marking_thread_(NULL),
@@ -1810,7 +1826,8 @@ void Isolate::Deinit() {
     preallocated_message_space_ = NULL;
     PreallocatedMemoryThreadStop();
 
-    HeapProfiler::TearDown();
+    delete heap_profiler_;
+    heap_profiler_ = NULL;
     delete cpu_profiler_;
     cpu_profiler_ = NULL;
 
@@ -2043,7 +2060,7 @@ bool Isolate::Init(Deserializer* des) {
   logger_->SetUp();
 
   cpu_profiler_ = new CpuProfiler(this);
-  HeapProfiler::SetUp();
+  heap_profiler_ = new HeapProfiler(heap());
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)

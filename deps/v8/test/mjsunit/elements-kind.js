@@ -28,9 +28,10 @@
 // Flags: --allow-natives-syntax --smi-only-arrays --expose-gc
 // Flags: --notrack_allocation_sites
 
-// Limit the number of stress runs to reduce polymorphism it defeats some of
-// they assumptions made about how elements transitions work because transition
-// stubs end up going generic.  Flags: --stress-runs=2
+// Limit the number of stress runs to reduce polymorphism it defeats some of the
+// assumptions made about how elements transitions work because transition stubs
+// end up going generic.
+// Flags: --stress-runs=2
 
 // Test element kind of objects.
 // Since --smi-only-arrays affects builtins, its default setting at compile

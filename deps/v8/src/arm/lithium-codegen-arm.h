@@ -87,6 +87,10 @@ class LCodeGen BASE_EMBEDDED {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
   }
 
+  LinkRegisterStatus GetLinkRegisterState() const {
+    return frame_is_built_ ? kLRHasBeenSaved : kLRHasNotBeenSaved;
+  }
+
   // Support for converting LOperands to assembler types.
   // LOperand must be a register.
   Register ToRegister(LOperand* op) const;

@@ -347,7 +347,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new backing store.
   __ bind(&new_backing_store);
   __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ AllocateInNewSpace(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
   __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
@@ -435,7 +435,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // r8 : source FixedDoubleArray
   // r9 : number of elements
   __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ AllocateInNewSpace(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
+  __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
   __ movq(FieldOperand(r11, HeapObject::kMapOffset), rdi);
@@ -769,7 +769,7 @@ void Code::PatchPlatformCodeAge(byte* sequence,
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
   if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
+    CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(age, parity);

@@ -1740,13 +1740,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->value());
-  __ mov(result, FieldOperand(array, JSArray::kLengthOffset));
-}
-
-
 void LCodeGen::DoFixedArrayBaseLength(
     LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
@@ -2114,6 +2107,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(not_zero, true_label);
         __ jmp(false_label);
         __ bind(&not_string);
+      }
+
+      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+        // Symbol value -> true.
+        __ CmpInstanceType(map, SYMBOL_TYPE);
+        __ j(equal, true_label);
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -5566,7 +5565,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
     __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
   } else {
     Register size = ToRegister(instr->size());
-    __ AllocateInNewSpace(size, result, temp, no_reg, deferred->entry(), flags);
+    __ Allocate(size, result, temp, no_reg, deferred->entry(), flags);
   }
 
   __ bind(deferred->exit());
@@ -5979,6 +5978,11 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
               1 << Map::kIsUndetectable);
     final_branch_condition = zero;
 
+  } else if (type_name->Equals(heap()->symbol_string())) {
+    __ JumpIfSmi(input, false_label);
+    __ CmpObjectType(input, SYMBOL_TYPE, input);
+    final_branch_condition = equal;
+
   } else if (type_name->Equals(heap()->boolean_string())) {
     __ cmp(input, factory()->true_value());
     __ j(equal, true_label);
@@ -6013,13 +6017,7 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
       __ cmp(input, factory()->null_value());
       __ j(equal, true_label);
     }
-    if (FLAG_harmony_symbols) {
-      __ CmpObjectType(input, SYMBOL_TYPE, input);
-      __ j(equal, true_label);
-      __ CmpInstanceType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-    } else {
-      __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
-    }
+    __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ j(above, false_label);

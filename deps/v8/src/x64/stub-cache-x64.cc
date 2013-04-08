@@ -716,7 +716,7 @@ void BaseStoreStubCompiler::GenerateRestoreName(MacroAssembler* masm,
 // but may be destroyed if store is successful.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Handle<JSObject> object,
-                                      int index,
+                                      LookupResult* lookup,
                                       Handle<Map> transition,
                                       Handle<Name> name,
                                       Register receiver_reg,
@@ -726,16 +726,6 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                                       Register scratch2,
                                       Label* miss_label,
                                       Label* miss_restore_name) {
-  LookupResult lookup(masm->isolate());
-  object->Lookup(*name, &lookup);
-  if (lookup.IsFound() && (lookup.IsReadOnly() || !lookup.IsCacheable())) {
-    // In sloppy mode, we could just return the value and be done. However, we
-    // might be in strict mode, where we have to throw. Since we cannot tell,
-    // go into slow case unconditionally.
-    __ jmp(miss_label);
-    return;
-  }
-
   // Check that the map of the object hasn't changed.
   CompareMapMode mode = transition.is_null() ? ALLOW_ELEMENT_TRANSITION_MAPS
                                              : REQUIRE_EXACT_MAP;
@@ -750,8 +740,9 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // Check that we are allowed to write this.
   if (!transition.is_null() && object->GetPrototype()->IsJSObject()) {
     JSObject* holder;
-    if (lookup.IsFound()) {
-      holder = lookup.holder();
+    // holder == object indicates that no property was found.
+    if (lookup->holder() != *object) {
+      holder = lookup->holder();
     } else {
       // Find the top object.
       holder = *object;
@@ -759,8 +750,19 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
         holder = JSObject::cast(holder->GetPrototype());
       } while (holder->GetPrototype()->IsJSObject());
     }
-    CheckPrototypes(object, receiver_reg, Handle<JSObject>(holder), name_reg,
-                    scratch1, scratch2, name, miss_restore_name);
+    Register holder_reg = CheckPrototypes(
+        object, receiver_reg, Handle<JSObject>(holder), name_reg,
+        scratch1, scratch2, name, miss_restore_name);
+    // If no property was found, and the holder (the last object in the
+    // prototype chain) is in slow mode, we need to do a negative lookup on the
+    // holder.
+    if (lookup->holder() == *object &&
+        !holder->HasFastProperties() &&
+        !holder->IsJSGlobalProxy() &&
+        !holder->IsJSGlobalObject()) {
+      GenerateDictionaryNegativeLookup(
+          masm, miss_restore_name, holder_reg, name, scratch1, scratch2);
+    }
   }
 
   // Stub never generated for non-global objects that require access
@@ -784,6 +786,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
+  int index;
   if (!transition.is_null()) {
     // Update the map of the object.
     __ Move(scratch1, transition);
@@ -798,6 +801,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
                         kDontSaveFPRegs,
                         OMIT_REMEMBERED_SET,
                         OMIT_SMI_CHECK);
+    index = transition->instance_descriptors()->GetFieldIndex(
+        transition->LastAdded());
+  } else {
+    index = lookup->GetFieldIndex().field_index();
   }
 
   // Adjust for the number of properties stored in the object. Even in the
@@ -2174,6 +2181,12 @@ void CallStubCompiler::CompileHandlerFrontend(Handle<Object> object,
       // Check that the object is a symbol.
       __ CmpObjectType(rdx, SYMBOL_TYPE, rax);
       __ j(not_equal, &miss);
+      // Check that the maps starting from the prototype haven't changed.
+      GenerateDirectLoadGlobalFunctionPrototype(
+          masm(), Context::SYMBOL_FUNCTION_INDEX, rax, &miss);
+      CheckPrototypes(
+          Handle<JSObject>(JSObject::cast(object->GetPrototype(isolate()))),
+          rax, holder, rbx, rdx, rdi, name, &miss);
       break;
 
     case NUMBER_CHECK: {

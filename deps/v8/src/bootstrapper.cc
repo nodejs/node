@@ -303,9 +303,9 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     v8::ExtensionConfiguration* extensions) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, global_object, global_template, extensions);
-  Handle<Object> context(isolate_->global_handles()->Create(*genesis.result()));
-  Handle<Context> env = Handle<Context>::cast(context);
-  if (!env.is_null()) {
+  if (!genesis.result().is_null()) {
+    Handle<Object> ctx(isolate_->global_handles()->Create(*genesis.result()));
+    Handle<Context> env = Handle<Context>::cast(ctx);
     if (InstallExtensions(env, extensions)) {
       return env;
     }
@@ -1280,7 +1280,17 @@ void Genesis::InitializeExperimentalGlobal() {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
 
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
-  // longer need to live behind a flag, so functions get added to the snapshot.
+  // longer need to live behind flags, so functions get added to the snapshot.
+
+  if (FLAG_harmony_symbols) {
+    // --- S y m b o l ---
+    Handle<JSFunction> symbol_fun =
+        InstallFunction(global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
+                        isolate()->initial_object_prototype(),
+                        Builtins::kIllegal, true);
+    native_context()->set_symbol_function(*symbol_fun);
+  }
+
   if (FLAG_harmony_collections) {
     {  // -- S e t
       Handle<JSObject> prototype =
@@ -1299,6 +1309,16 @@ void Genesis::InitializeExperimentalGlobal() {
           factory()->NewJSObject(isolate()->object_function(), TENURED);
       InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
                       prototype, Builtins::kIllegal, true);
+    }
+  }
+
+  if (FLAG_harmony_typed_arrays) {
+    { // -- A r r a y B u f f e r
+      Handle<JSObject> prototype =
+          factory()->NewJSObject(isolate()->object_function(), TENURED);
+      InstallFunction(global, "__ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
+                      JSArrayBuffer::kSize, prototype,
+                      Builtins::kIllegal, true);
     }
   }
 }
@@ -1436,9 +1456,6 @@ void Genesis::InstallNativeFunctions() {
 }
 
 void Genesis::InstallExperimentalNativeFunctions() {
-  if (FLAG_harmony_symbols) {
-    INSTALL_NATIVE(JSObject, "SymbolDelegate", symbol_delegate);
-  }
   if (FLAG_harmony_proxies) {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
@@ -1909,6 +1926,11 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_observation &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native object-observe.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_typed_arrays &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native typedarray.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }

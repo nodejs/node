@@ -450,9 +450,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // edi: length of source FixedArray (smi-tagged)
   AllocationFlags flags =
       static_cast<AllocationFlags>(TAG_OBJECT | DOUBLE_ALIGNMENT);
-  __ AllocateInNewSpace(FixedDoubleArray::kHeaderSize, times_8,
-                        edi, REGISTER_VALUE_IS_SMI,
-                        eax, ebx, no_reg, &gc_required, flags);
+  __ Allocate(FixedDoubleArray::kHeaderSize, times_8, edi,
+              REGISTER_VALUE_IS_SMI, eax, ebx, no_reg, &gc_required, flags);
 
   // eax: destination FixedDoubleArray
   // edi: number of elements
@@ -589,7 +588,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Allocate new FixedArray.
   // ebx: length of source FixedDoubleArray (smi-tagged)
   __ lea(edi, Operand(ebx, times_2, FixedArray::kHeaderSize));
-  __ AllocateInNewSpace(edi, eax, esi, no_reg, &gc_required, TAG_OBJECT);
+  __ Allocate(edi, eax, esi, no_reg, &gc_required, TAG_OBJECT);
 
   // eax: destination FixedArray
   // ebx: number of elements
@@ -952,7 +951,7 @@ void Code::PatchPlatformCodeAge(byte* sequence,
   uint32_t young_length;
   byte* young_sequence = GetNoCodeAgeSequence(&young_length);
   if (age == kNoAge) {
-    memcpy(sequence, young_sequence, young_length);
+    CopyBytes(sequence, young_sequence, young_length);
     CPU::FlushICache(sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(age, parity);

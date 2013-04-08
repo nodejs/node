@@ -129,9 +129,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
                                  Foreign::kSize);
 
     case SYMBOL_TYPE:
-      return GetVisitorIdForSize(kVisitDataObject,
-                                 kVisitDataObjectGeneric,
-                                 Symbol::kSize);
+      return kVisitSymbol;
 
     case FILLER_TYPE:
       return kVisitDataObjectGeneric;
@@ -146,6 +144,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_BUILTINS_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
+    case JS_ARRAY_BUFFER_TYPE:
       return GetVisitorIdForSize(kVisitJSObject,
                                  kVisitJSObjectGeneric,
                                  instance_size);
