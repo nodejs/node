@@ -3586,7 +3586,8 @@ class DiffieHellman : public ObjectWrap {
     // allocated buffer.
     if (size != dataSize) {
       assert(dataSize > size);
-      memset(data + size, 0, dataSize - size);
+      memmove(data + dataSize - size, data, size);
+      memset(data, 0, dataSize - size);
     }
 
     Local<Value> outString;
