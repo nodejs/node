@@ -107,6 +107,27 @@ you can specify the value for &quot;bugs&quot; as a simple string instead of an 
 
 <p>If a url is provided, it will be used by the <code>npm bugs</code> command.</p>
 
+<h2 id="license">license</h2>
+
+<p>You should specify a license for your package so that people know how they are
+permitted to use it, and any restrictions you&#39;re placing on it.</p>
+
+<p>The simplest way, assuming you&#39;re using a common license such as BSD or MIT, is
+to just specify the name of the license you&#39;re using, like this:</p>
+
+<pre><code>{ &quot;license&quot; : &quot;BSD&quot; }</code></pre>
+
+<p>If you have more complex licensing terms, or you want to provide more detail
+in your package.json file, you can use the more verbose plural form, like this:</p>
+
+<pre><code>&quot;licenses&quot; : [
+  { &quot;type&quot; : &quot;MyLicense&quot;
+  , &quot;url&quot; : &quot;http://github.com/owner/project/path/to/license&quot;
+  }
+]</code></pre>
+
+<p>It&#39;s also a good idea to include a license file at the top level in your package.</p>
+
 <h2 id="people-fields-author-contributors">people fields: author, contributors</h2>
 
 <p>The &quot;author&quot; is one person.  &quot;contributors&quot; is an array of people.  A &quot;person&quot;
@@ -384,9 +405,9 @@ the external test or documentation framework that you use.</p>
 <code>devDependencies</code> hash.</p>
 
 <p>These things will be installed whenever the <code>--dev</code> configuration flag
-is set.  This flag is set automatically when doing <code>npm link</code>, and can
-be managed like any other npm configuration param.  See <code><a href="../doc/config.html">config(1)</a></code>
-for more on the topic.</p>
+is set.  This flag is set automatically when doing <code>npm link</code> or when doing
+<code>npm install</code> from the root of a package, and can be managed like any other npm
+configuration param.  See <code><a href="../doc/config.html">config(1)</a></code> for more on the topic.</p>
 
 <h2 id="bundledDependencies">bundledDependencies</h2>
 
@@ -525,7 +546,7 @@ overridden.</p>
 
 <ul><li><a href="../doc/semver.html">semver(1)</a></li><li><a href="../doc/init.html">init(1)</a></li><li><a href="../doc/version.html">version(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/publish.html">publish(1)</a></li><li><a href="../doc/rm.html">rm(1)</a></li></ul>
 </div>
-<p id="footer">json &mdash; npm@1.2.14</p>
+<p id="footer">json &mdash; npm@1.2.18</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

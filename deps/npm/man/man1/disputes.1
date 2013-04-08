@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs 0.3.8
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-DISPUTES" "1" "March 2013" "" ""
+.TH "NPM\-DISPUTES" "1" "April 2013" "" ""
 .
 .SH "NAME"
 \fBnpm-disputes\fR \-\- Handling Module Name Disputes
@@ -28,9 +28,9 @@ later, some other user wants to use that name\.  Here are some common
 ways that happens (each of these is based on actual events\.)
 .
 .IP "1" 4
-Bob writes a JavaScript module \fBfoo\fR, which is not node\-specific\.
-Bob doesn\'t use node at all\.  Joe wants to use \fBfoo\fR in node, so he
-wraps it in an npm module\.  Some time later, Bob starts using node,
+Joe writes a JavaScript module \fBfoo\fR, which is not node\-specific\.
+Joe doesn\'t use node at all\.  Bob   wants to use \fBfoo\fR in node, so he
+wraps it in an npm module\.  Some time later, Joe starts using node,
 and wants to take over management of his program\.
 .
 .IP "2" 4
@@ -75,7 +75,8 @@ the \fBfoo\fR package\.
 .
 .IP "3" 4
 After a reasonable amount of time, if Bob has not responded, or if
-Bob and Joe can\'t come to any sort of resolution, email isaacs \fIi@izs\.me\fR and we\'ll sort it out\.
+Bob and Joe can\'t come to any sort of resolution, email isaacs \fIi@izs\.me\fR and we\'ll sort it out\.  ("Reasonable" is usually about 4
+weeks, but extra time is allowed around common holidays\.)
 .
 .IP "" 0
 .
@@ -99,13 +100,13 @@ they are brought to the attention of the npm registry admins, including
 but not limited to:
 .
 .IP "1" 4
-Malware (that is, a module designed to exploit or harm the machine on
-which it is installed)
+Malware (that is, a package designed to exploit or harm the machine on
+which it is installed)\.
 .
 .IP "2" 4
 Violations of copyright or licenses (for example, cloning an
 MIT\-licensed program, and then removing or changing the copyright and
-license statement)
+license statement)\.
 .
 .IP "3" 4
 Illegal content\.
@@ -116,6 +117,16 @@ actually using\.  Sorry, I don\'t care how great the name is, or how
 perfect a fit it is for the thing that someday might happen\.  If
 someone wants to use it today, and you\'re just taking up space with
 an empty tarball, you\'re going to be evicted\.
+.
+.IP "5" 4
+Putting empty packages in the registry\.  Packages must have SOME
+functionality\.  It can be silly, but it can\'t be \fInothing\fR\|\.  (See
+also: squatting\.)
+.
+.IP "6" 4
+Doing weird things with the registry, like using it as your own
+personal application database or otherwise putting non\-packagey
+things into it\.
 .
 .IP "" 0
 .

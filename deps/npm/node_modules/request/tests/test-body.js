@@ -2,7 +2,7 @@ var server = require('./server')
   , events = require('events')
   , stream = require('stream')
   , assert = require('assert')
-  , request = require('../main.js')
+  , request = require('../index')
   ;
 
 var s = server.createServer();
@@ -35,6 +35,11 @@ var tests =
     , encoding: 'hex'
     , expectBody: "efa3bfcea9e29883"
     }
+  , testGetUTF8:
+     { resp: server.createGetResponse(new Buffer([0xEF, 0xBB, 0xBF, 226, 152, 131]))
+     , encoding: "utf8"
+     , expectBody: "☃"
+     }
   , testGetJSON :
      { resp : server.createGetResponse('{"test":true}', 'application/json')
      , json : true

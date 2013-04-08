@@ -11,11 +11,13 @@ var request = require("request")
   , mkdir = require("mkdirp")
   , chownr = require("chownr")
   , regHost
+  , once = require("once")
 
 module.exports = fetch
 
 function fetch (remote, local, headers, cb) {
   if (typeof cb !== "function") cb = headers, headers = {}
+  cb = once(cb)
   log.verbose("fetch", "to=", local)
   mkdir(path.dirname(local), function (er, made) {
     if (er) return cb(er)
@@ -26,30 +28,36 @@ function fetch (remote, local, headers, cb) {
 function fetch_ (remote, local, headers, cb) {
   var fstr = fs.createWriteStream(local, { mode : npm.modes.file })
   var response = null
-  var calledback = false
+
   fstr.on("error", function (er) {
-    fs.close(fstr.fd, function () {})
-    if (calledback) return
-    calledback = true
-    cb(fstr._ERROR = er)
+    cb(er)
+    fstr.close()
   })
-  fstr.on("open", function () {
-    var req = makeRequest(remote, fstr, headers)
-    req.on("response", function (res) {
-      log.http(res.statusCode, remote)
-      response = res
-    })
-  })
-  fstr.on("close", function () {
-    if (calledback) return
-    calledback = true
-    if (response && response.statusCode && response.statusCode >= 400) {
-      var er = new Error(response.statusCode + " "
-                        + require("http").STATUS_CODES[response.statusCode])
-      cb(fstr._ERROR = er, response)
-    } else {
-      cb(null, response)
+
+  var req = makeRequest(remote, fstr, headers)
+  req.on("response", function (res) {
+    log.http(res.statusCode, remote)
+    response = res
+    response.resume()
+    // Work around bug in node v0.10.0 where the CryptoStream
+    // gets stuck and never starts reading again.
+    if (process.version === "v0.10.0") {
+      response.resume = function (orig) { return function() {
+        var ret = orig.apply(response, arguments)
+        if (response.socket.encrypted)
+          response.socket.encrypted.read(0)
+        return ret
+      }}(response.resume)
     }
+  })
+
+  fstr.on("close", function () {
+    var er
+    if (response && response.statusCode && response.statusCode >= 400) {
+      er = new Error(response.statusCode + " "
+                    + require("http").STATUS_CODES[response.statusCode])
+    }
+    cb(er, response)
   })
 }
 
@@ -73,6 +81,7 @@ function makeRequest (remote, fstr, headers) {
   var opts = { url: remote
              , proxy: proxy
              , strictSSL: npm.config.get("strict-ssl")
+             , rejectUnauthorized: npm.config.get("strict-ssl")
              , ca: remote.host === regHost ? npm.config.get("ca") : undefined
              , headers: { "user-agent": npm.config.get("user-agent") }}
   var req = request(opts)
@@ -80,5 +89,5 @@ function makeRequest (remote, fstr, headers) {
     fstr.emit("error", er)
   })
   req.pipe(fstr)
-  return req;
+  return req
 }

@@ -12,7 +12,12 @@
       ['_type=="loadable_module"', {
         'product_extension': 'node',
         'defines': [ 'BUILDING_NODE_EXTENSION' ],
-      }]
+      }],
+      ['_type=="static_library"', {
+        # set to `1` to *disable* the -T thin archive 'ld' flag.
+        # older linkers don't support this flag.
+        'standalone_static_library': '<(standalone_static_library)'
+      }],
     ],
 
     'conditions': [
