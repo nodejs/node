@@ -54,5 +54,7 @@ server.listen(options.port, options.host, function() {
     req.destroy();
     assert.equal(timeout_events, 1);
   }, 10);
-  req.end();
+  setTimeout(function () {
+    req.end();
+  }, 5);
 });

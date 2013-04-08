@@ -155,7 +155,7 @@ function test_standard_http() {
     writeReq(conn, 'GET / HTTP/1.1\r\n\r\n');
   });
 
-  conn.on('data', function(data) {
+  conn.once('data', function(data) {
     assert.equal('string', typeof data);
     assert.equal('HTTP/1.1 200', data.substr(0, 12));
     conn.end();
