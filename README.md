@@ -24,9 +24,14 @@ non-standard name, run the following instead:
     make
     make install
 
+Prerequisites (Windows only):
+
+    * Python 2.6 or 2.7
+    * Visual Studio 2010 or 2012
+
 Windows:
 
-    vcbuild.bat
+    vcbuild nosign
 
 ### To run the tests:
 
@@ -36,7 +41,7 @@ Unix/Macintosh:
 
 Windows:
 
-    vcbuild.bat test
+    vcbuild test
 
 ### To build the documentation:
 
