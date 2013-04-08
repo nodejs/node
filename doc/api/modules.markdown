@@ -87,7 +87,7 @@ Consider this situation:
 When `main.js` loads `a.js`, then `a.js` in turn loads `b.js`.  At that
 point, `b.js` tries to load `a.js`.  In order to prevent an infinite
 loop an **unfinished copy** of the `a.js` exports object is returned to the
-`b.js` module.  `b.js` then finishes loading, and its exports object is
+`b.js` module.  `b.js` then finishes loading, and its `exports` object is
 provided to the `a.js` module.
 
 By the time `main.js` has loaded both modules, they're both finished.
@@ -240,7 +240,7 @@ representing the current module.  In particular
 
 * {Object}
 
-The `exports` object is created by the Module system. Sometimes this is not
+The `module.exports` object is created by the Module system. Sometimes this is not
 acceptable, many want their module to be an instance of some class. To do this
 assign the desired export object to `module.exports`. For example suppose we
 were making a module called `a.js`
@@ -281,13 +281,13 @@ y.js:
 ### module.require(id)
 
 * `id` {String}
-* Return: {Object} `exports` from the resolved module
+* Return: {Object} `module.exports` from the resolved module
 
 The `module.require` method provides a way to load a module as if
 `require()` was called from the original module.
 
 Note that in order to do this, you must get a reference to the `module`
-object.  Since `require()` returns the `exports`, and the `module` is
+object.  Since `require()` returns the `module.exports`, and the `module` is
 typically *only* available within a specific module's code, it must be
 explicitly exported in order to be used.
 
