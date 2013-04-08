@@ -30,6 +30,20 @@ The module `circle.js` has exported the functions `area()` and
 `circumference()`.  To export an object, add to the special `exports`
 object.
 
+Note that `exports` is a reference to `module.exports` making it suitable
+for augmentation only. If you are exporting a single item such as a
+constructor you will want to use `module.exports` directly instead.
+
+    function MyConstructor (opts) {
+      //...
+    }
+
+    // BROKEN: Does not modify exports
+    exports = MyConstructor;
+
+    // exports the constructor properly
+    module.exports = MyConstructor;
+
 Variables
 local to the module will be private. In this example the variable `PI` is
 private to `circle.js`.
@@ -219,7 +233,7 @@ would resolve to different files.
 
 In each module, the `module` free variable is a reference to the object
 representing the current module.  In particular
-`module.exports` is the same as the `exports` object.
+`module.exports` is accessible via the `exports` module-global.
 `module` isn't actually a global but rather local to each module.
 
 ### module.exports
