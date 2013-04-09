@@ -899,7 +899,7 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate> t,
 }
 
 
-Handle<Value> UsingDomains(const Arguments& args) {
+Handle<Value> SetupDomainUse(const Arguments& args) {
   HandleScope scope(node_isolate);
   if (using_domains)
     return Undefined();
@@ -2507,7 +2507,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "binding", Binding);
 
-  NODE_SET_METHOD(process, "_usingDomains", UsingDomains);
+  NODE_SET_METHOD(process, "_setupDomainUse", SetupDomainUse);
 
   // values use to cross communicate with processNextTick
   Local<Object> info_box = Object::New();
