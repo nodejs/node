@@ -2377,7 +2377,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
     }
   }
   versions->Set(String::NewSymbol("openssl"),
-                String::New(OPENSSL_VERSION_TEXT + i, j - i));
+                String::New(&OPENSSL_VERSION_TEXT[i], j - i));
 #endif
 
 
