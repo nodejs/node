@@ -118,6 +118,27 @@ you can specify the value for "bugs" as a simple string instead of an object.
 
 If a url is provided, it will be used by the `npm bugs` command.
 
+## license
+
+You should specify a license for your package so that people know how they are
+permitted to use it, and any restrictions you're placing on it.
+
+The simplest way, assuming you're using a common license such as BSD or MIT, is
+to just specify the name of the license you're using, like this:
+
+    { "license" : "BSD" }
+
+If you have more complex licensing terms, or you want to provide more detail
+in your package.json file, you can use the more verbose plural form, like this:
+
+    "licenses" : [
+      { "type" : "MyLicense"
+      , "url" : "http://github.com/owner/project/path/to/license"
+      }
+    ]
+
+It's also a good idea to include a license file at the top level in your package.
+
 ## people fields: author, contributors
 
 The "author" is one person.  "contributors" is an array of people.  A "person"
@@ -416,9 +437,9 @@ In this case, it's best to list these additional items in a
 `devDependencies` hash.
 
 These things will be installed whenever the `--dev` configuration flag
-is set.  This flag is set automatically when doing `npm link`, and can
-be managed like any other npm configuration param.  See `npm-config(1)`
-for more on the topic.
+is set.  This flag is set automatically when doing `npm link` or when doing
+`npm install` from the root of a package, and can be managed like any other npm
+configuration param.  See `npm-config(1)` for more on the topic.
 
 ## bundledDependencies
 

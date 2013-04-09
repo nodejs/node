@@ -140,6 +140,7 @@ function read (name, ver, forceBypass, cb) {
   }
 
   readJson(jsonFile, function (er, data) {
+    er = needName(er, data)
     er = needVersion(er, data)
     if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
     if (er) return addNamed(name, ver, c)
@@ -573,13 +574,22 @@ function addNamed (name, x, data, cb_) {
   })
 }
 
-function addNameTag (name, tag, data, cb) {
-  if (typeof cb !== "function") cb = data, data = null
+function addNameTag (name, tag, data, cb_) {
+  if (typeof cb_ !== "function") cb_ = data, data = null
   log.info("addNameTag", [name, tag])
   var explicit = true
   if (!tag) {
     explicit = false
     tag = npm.config.get("tag")
+  }
+
+  function cb(er, data) {
+    // might be username/project
+    // in that case, try it as a github url.
+    if (er && tag.split("/").length === 2) {
+      return maybeGithub(tag, name, er, cb_)
+    }
+    return cb_(er, data)
   }
 
   registry.get(name, function (er, data, json, response) {
@@ -595,13 +605,6 @@ function addNameTag (name, tag, data, cb) {
     }
 
     er = installTargetsError(tag, data)
-
-    // might be username/project
-    // in that case, try it as a github url.
-    if (tag.split("/").length === 2) {
-      return maybeGithub(tag, name, er, cb)
-    }
-
     return cb(er)
   })
 }
@@ -720,6 +723,7 @@ function addNameVersion (name, ver, data, cb) {
       if (!er) readJson( path.join( npm.cache, name, ver
                                   , "package", "package.json" )
                        , function (er, data) {
+          er = needName(er, data)
           er = needVersion(er, data)
           if (er && er.code !== "ENOENT" && er.code !== "ENOTDIR") return cb(er)
           if (er) return fetchit()
@@ -1009,6 +1013,7 @@ function addPlacedTarball_ (p, name, uid, gid, resolvedSum, cb) {
           return cb(er)
         }
         readJson(path.join(folder, "package.json"), function (er, data) {
+          er = needName(er, data)
           er = needVersion(er, data)
           if (er) {
             log.error("addPlacedTarball", "Couldn't read json in %j"
@@ -1055,6 +1060,7 @@ function addLocalDirectory (p, name, shasum, cb) {
   if (p.indexOf(npm.cache) === 0) return cb(new Error(
     "Adding a cache directory to the cache will make the world implode."))
   readJson(path.join(p, "package.json"), function (er, data) {
+    er = needName(er, data)
     er = needVersion(er, data)
     if (er) return cb(er)
     deprCheck(data)
@@ -1179,6 +1185,12 @@ function unlock (u, cb) {
   if (!myLocks[lf]) return process.nextTick(cb)
   myLocks[lf] = false
   lockFile.unlock(lockFileName(u), cb)
+}
+
+function needName(er, data) {
+  return er ? er
+       : (data && !data.name) ? new Error("No name provided")
+       : null
 }
 
 function needVersion(er, data) {

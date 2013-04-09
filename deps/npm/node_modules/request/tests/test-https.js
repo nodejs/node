@@ -1,6 +1,6 @@
 var server = require('./server')
   , assert = require('assert')
-  , request = require('../main.js')
+  , request = require('../index')
 
 var s = server.createSSLServer();
 
@@ -69,6 +69,7 @@ s.listen(s.port, function () {
       var test = tests[i]
       s.on('/'+i, test.resp)
       test.uri = s.url + '/' + i
+      test.rejectUnauthorized = false
       request(test, function (err, resp, body) {
         if (err) throw err
         if (test.expectBody) {

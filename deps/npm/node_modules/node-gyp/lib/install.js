@@ -38,7 +38,7 @@ function install (gyp, argv, callback) {
     }
   }
 
-  var distUrl = gyp.opts['dist-url'] || 'http://nodejs.org/dist'
+  var distUrl = gyp.opts['dist-url'] || gyp.opts.disturl || 'http://nodejs.org/dist'
 
 
   // Determine which node dev files version we are installing

@@ -50,8 +50,7 @@ var tap = require("tap")
         "NODETAR.repository.type": pkg.repository.type,
         "NODETAR.repository.url": pkg.repository.url,
         "NODETAR.main": pkg.main,
-        "NODETAR.scripts.test": pkg.scripts.test,
-        "NODETAR.engines.node": pkg.engines.node } ]
+        "NODETAR.scripts.test": pkg.scripts.test } ]
 
     , [ 'entry',
       { path: 'fixtures/',

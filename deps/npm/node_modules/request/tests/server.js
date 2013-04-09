@@ -46,7 +46,7 @@ exports.createPostStream = function (text) {
   setTimeout(function () {postStream.emit('data', new Buffer(text)); postStream.emit('end')}, 0);
   return postStream;
 }
-exports.createPostValidator = function (text) {
+exports.createPostValidator = function (text, reqContentType) {
   var l = function (req, resp) {
     var r = '';
     req.on('data', function (chunk) {r += chunk})
@@ -57,6 +57,10 @@ exports.createPostValidator = function (text) {
       }
       if (r !== text) console.log(r, text);
       assert.equal(r, text)
+      if (reqContentType) {
+        assert.ok(req.headers['content-type'])
+        assert.ok(~req.headers['content-type'].indexOf(reqContentType))
+      }
       resp.writeHead(200, {'content-type':'text/plain'})
       resp.write('OK')
       resp.end()
