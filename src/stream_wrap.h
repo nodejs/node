@@ -29,10 +29,15 @@
 namespace node {
 
 
+// Forward declaration
+class WriteWrap;
+
+
+// Important: this should have the same values as in lib/net.js
 enum WriteEncoding {
-  kAscii,
-  kUtf8,
-  kUcs2
+  kUtf8 = 0x1,
+  kAscii = 0x2,
+  kUcs2 = 0x3
 };
 
 
@@ -50,12 +55,24 @@ class StreamWrap : public HandleWrap {
   static v8::Handle<v8::Value> ReadStop(const v8::Arguments& args);
   static v8::Handle<v8::Value> Shutdown(const v8::Arguments& args);
 
+  static v8::Handle<v8::Value> Writev(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteBuffer(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteAsciiString(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteUtf8String(const v8::Arguments& args);
   static v8::Handle<v8::Value> WriteUcs2String(const v8::Arguments& args);
 
  protected:
+  static size_t WriteBuffer(WriteWrap* req,
+                            v8::Handle<v8::Value> val,
+                            uv_buf_t* buf);
+  template <enum WriteEncoding encoding>
+  static size_t WriteStringImpl(char* storage,
+                                size_t storage_size,
+                                v8::Handle<v8::Value> val,
+                                uv_buf_t* buf);
+  template <enum WriteEncoding encoding>
+  static size_t GetStringSizeImpl(v8::Handle<v8::Value> val);
+
   StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
   virtual void SetHandle(uv_handle_t* h);
   void StateChange() { }

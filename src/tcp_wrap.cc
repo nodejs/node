@@ -103,6 +103,7 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "writeAsciiString", StreamWrap::WriteAsciiString);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUtf8String", StreamWrap::WriteUtf8String);
   NODE_SET_PROTOTYPE_METHOD(t, "writeUcs2String", StreamWrap::WriteUcs2String);
+  NODE_SET_PROTOTYPE_METHOD(t, "writev", StreamWrap::Writev);
 
   NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
   NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
