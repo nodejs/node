@@ -110,6 +110,9 @@ v8::Handle<v8::Value> FromConstructorTemplate(
     v8::Persistent<v8::FunctionTemplate> t,
     const v8::Arguments& args);
 
+// allow for quick domain check
+extern bool using_domains;
+
 } // namespace node
 
 #endif // SRC_NODE_INTERNALS_H_

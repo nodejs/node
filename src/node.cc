@@ -133,7 +133,7 @@ static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
 static int debug_port=5858;
 static int max_stack_size = 0;
-static bool using_domains = false;
+bool using_domains = false;
 
 // used by C++ modules as well
 bool no_deprecation = false;
