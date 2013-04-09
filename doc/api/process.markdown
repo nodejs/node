@@ -43,7 +43,7 @@ Example of listening for `uncaughtException`:
     console.log('This will not run.');
 
 Note that `uncaughtException` is a very crude mechanism for exception
-handling and may be removed in the future.
+handling.
 
 Don't use it, use [domains](domain.html) instead. If you do use it, restart
 your application after every unhandled exception!
