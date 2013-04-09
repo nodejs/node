@@ -3143,7 +3143,7 @@ int Start(int argc, char *argv[]) {
   V8::Initialize();
   {
     Locker locker(node_isolate);
-    HandleScope handle_scope;
+    HandleScope handle_scope(node_isolate);
 
     // Create the one and only Context.
     Persistent<Context> context = Context::New();

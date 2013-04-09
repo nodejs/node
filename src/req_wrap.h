@@ -35,7 +35,7 @@ template <typename T>
 class ReqWrap {
  public:
   ReqWrap() {
-    v8::HandleScope scope;
+    v8::HandleScope scope(node_isolate);
     object_ = v8::Persistent<v8::Object>::New(node_isolate, v8::Object::New());
 
     v8::Local<v8::Value> domain = v8::Context::GetCurrent()

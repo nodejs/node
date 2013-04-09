@@ -258,7 +258,7 @@ Handle<Value> TCPWrap::SetSimultaneousAccepts(const Arguments& args) {
 
 
 Handle<Value> TCPWrap::Open(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   UNWRAP(TCPWrap)
   int fd = args[0]->IntegerValue();
   uv_tcp_open(&wrap->handle_, fd);

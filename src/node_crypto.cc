@@ -638,7 +638,7 @@ Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
 }
 
 Handle<Value> SecureContext::SetSessionTimeout(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
@@ -3567,7 +3567,7 @@ static void array_push_back(const TypeName* md,
 
 
 Handle<Value> GetCiphers(const Arguments& args) {
-  HandleScope scope;
+  HandleScope scope(node_isolate);
   Local<Array> arr = Array::New();
   EVP_CIPHER_do_all_sorted(array_push_back<EVP_CIPHER>, &arr);
   return scope.Close(arr);

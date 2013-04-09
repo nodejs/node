@@ -78,7 +78,7 @@ inline static int snprintf(char* buf, unsigned int len, const char* fmt, ...) {
 // sometimes fails to resolve it...
 #define THROW_ERROR(fun)                                                      \
   do {                                                                        \
-    v8::HandleScope scope;                                                    \
+    v8::HandleScope scope(node_isolate);                                      \
     return v8::ThrowException(fun(v8::String::New(errmsg)));                  \
   }                                                                           \
   while (0)
