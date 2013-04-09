@@ -36,8 +36,8 @@ Example:
     '/foo/bar/baz/asdf'
 
     path.join('foo', {}, 'bar')
-    // returns
-    'foo/bar'
+    // throws exception
+    TypeError: Arguments to path.join must be strings
 
 ## path.resolve([from ...], to)
 
