@@ -48,7 +48,7 @@ class NODE_EXTERN ObjectWrap {
     if (!handle_.IsEmpty()) {
       assert(handle_.IsNearDeath());
       handle_.ClearWeak();
-      handle_->SetInternalField(0, v8::Undefined());
+      handle_->SetPointerInInternalField(0, 0);
       handle_.Dispose();
       handle_.Clear();
     }
