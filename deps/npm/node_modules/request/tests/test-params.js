@@ -1,6 +1,6 @@
 var server = require('./server')
   , assert = require('assert')
-  , request = require('../main.js')
+  , request = require('../index')
   ;
 
 var s = server.createServer();
@@ -82,7 +82,8 @@ s.listen(s.port, function () {
         }
         counter = counter - 1;
         if (counter === 0) {
-          console.log(Object.keys(tests).length+" tests passed.")
+          assert.notEqual(typeof test.callback, 'function')
+          console.log(1 + Object.keys(tests).length+" tests passed.")
           s.close()
         }
       })

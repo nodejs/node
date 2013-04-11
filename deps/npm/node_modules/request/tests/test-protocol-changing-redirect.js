@@ -1,6 +1,6 @@
 var server = require('./server')
   , assert = require('assert')
-  , request = require('../main.js')
+  , request = require('../index')
 
 
 var s = server.createServer()
@@ -51,7 +51,8 @@ for (var i = 0; i < 5; i ++) {
   var val = 'test_' + i
   expect[val] = true
   request({ url: (i % 2 ? sUrl : ssUrl) + '/a'
-          , headers: { 'x-test-key': val } })
+          , headers: { 'x-test-key': val }
+          , rejectUnauthorized: false })
 }
 
 function done () {

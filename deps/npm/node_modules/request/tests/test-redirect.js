@@ -1,8 +1,9 @@
 var server = require('./server')
   , assert = require('assert')
-  , request = require('../main.js')
-  , Cookie = require('../vendor/cookie')
-  , Jar = require('../vendor/cookie/jar')
+  , request = require('../index')
+  , Cookie = require('cookie-jar')
+  , Jar = Cookie.Jar
+  ;
 
 var s = server.createServer()
 

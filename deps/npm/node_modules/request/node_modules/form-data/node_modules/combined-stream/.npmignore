@@ -1,0 +1,3 @@
+*.un~
+/node_modules
+/test/tmp
