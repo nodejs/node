@@ -256,4 +256,11 @@ static void uv__update_time(uv_loop_t* loop) {
   loop->time = uv__hrtime() / 1000000;
 }
 
+#ifdef HAVE_DTRACE
+#include "uv-dtrace.h"
+#else
+#define UV_TICK_START(arg0, arg1)
+#define UV_TICK_STOP(arg0, arg1)
+#endif
+
 #endif /* UV_UNIX_INTERNAL_H_ */

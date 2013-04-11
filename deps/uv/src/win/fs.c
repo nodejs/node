@@ -1048,6 +1048,8 @@ static void fs__sendfile(uv_fs_t* req) {
     }
   }
 
+  free(buf);
+
   SET_REQ_RESULT(req, result);
 }
 

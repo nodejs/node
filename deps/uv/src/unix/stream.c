@@ -33,6 +33,7 @@
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <limits.h> /* IOV_MAX */
 
 #if defined(__APPLE__)
 # include <sys/event.h>
@@ -741,6 +742,10 @@ start:
   assert(sizeof(uv_buf_t) == sizeof(struct iovec));
   iov = (struct iovec*) &(req->bufs[req->write_index]);
   iovcnt = req->bufcnt - req->write_index;
+
+  /* Limit iov count to avoid EINVALs from writev() */
+  if (iovcnt > IOV_MAX)
+    iovcnt = IOV_MAX;
 
   /*
    * Now do the actual writev. Note that we've been updating the pointers

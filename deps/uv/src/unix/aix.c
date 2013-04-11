@@ -62,7 +62,6 @@ uint64_t uv__hrtime(void) {
 int uv_exepath(char* buffer, size_t* size) {
   ssize_t res;
   char pp[64], cwdl[PATH_MAX];
-  size_t cwdl_len;
   struct psinfo ps;
   int fd;
 
@@ -79,7 +78,6 @@ int uv_exepath(char* buffer, size_t* size) {
     return res;
 
   cwdl[res] = '\0';
-  cwdl_len = res;
 
   (void) snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long) getpid());
   fd = open(pp, O_RDONLY);

@@ -578,46 +578,49 @@ uv_err_t uv_uptime(double* uptime) {
 }
 
 
-uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos_ptr, int* cpu_count_ptr) {
+  uv_cpu_info_t* cpu_infos;
   SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION* sppi;
   DWORD sppi_size;
   SYSTEM_INFO system_info;
-  DWORD cpu_count, i, r;
+  DWORD cpu_count, r, i;
+  NTSTATUS status;
   ULONG result_size;
-  size_t size;
   uv_err_t err;
   uv_cpu_info_t* cpu_info;
 
-  *cpu_infos = NULL;
-  *count = 0;
+  cpu_infos = NULL;
+  cpu_count = 0;
+  sppi = NULL;
 
   uv__once_init();
 
   GetSystemInfo(&system_info);
   cpu_count = system_info.dwNumberOfProcessors;
 
-  size = cpu_count * sizeof(uv_cpu_info_t);
-  *cpu_infos = (uv_cpu_info_t*) malloc(size);
-  if (*cpu_infos == NULL) {
+  cpu_infos = calloc(cpu_count, sizeof *cpu_infos);
+  if (cpu_infos == NULL) {
     err = uv__new_artificial_error(UV_ENOMEM);
-    goto out;
-  }
-  memset(*cpu_infos, 0, size);
-
-  sppi_size = sizeof(*sppi) * cpu_count;
-  sppi = (SYSTEM_PROCESSOR_PERFORMANCE_INFORMATION*) malloc(sppi_size);
-  if (!sppi) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    goto error;
   }
 
-  r = pNtQuerySystemInformation(SystemProcessorPerformanceInformation,
-                                sppi,
-                                sppi_size,
-                                &result_size);
-  if (r != ERROR_SUCCESS || result_size != sppi_size) {
-    err = uv__new_sys_error(GetLastError());
-    goto out;
+  sppi_size = cpu_count * sizeof(*sppi);
+  sppi = malloc(sppi_size);
+  if (sppi == NULL) {
+    err = uv__new_artificial_error(UV_ENOMEM);
+    goto error;
   }
+
+  status = pNtQuerySystemInformation(SystemProcessorPerformanceInformation,
+                                     sppi,
+                                     sppi_size,
+                                     &result_size);
+  if (!NT_SUCCESS(status)) {
+    err = uv__new_sys_error(pRtlNtStatusToDosError(status));
+    goto error;
+  }
+
+  assert(result_size == sppi_size);
 
   for (i = 0; i < cpu_count; i++) {
     WCHAR key_name[128];
@@ -626,11 +629,14 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     DWORD cpu_speed_size = sizeof(cpu_speed);
     WCHAR cpu_brand[256];
     DWORD cpu_brand_size = sizeof(cpu_brand);
+    int len;
 
-    _snwprintf(key_name,
-               ARRAY_SIZE(key_name),
-               L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d",
-               i);
+    len = _snwprintf(key_name,
+                     ARRAY_SIZE(key_name),
+                     L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\%d",
+                     i);
+
+    assert(len > 0 && len < ARRAY_SIZE(key_name));
 
     r = RegOpenKeyExW(HKEY_LOCAL_MACHINE,
                       key_name,
@@ -639,32 +645,34 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
                       &processor_key);
     if (r != ERROR_SUCCESS) {
       err = uv__new_sys_error(GetLastError());
-      goto out;
+      goto error;
     }
 
     if (RegQueryValueExW(processor_key,
                          L"~MHz",
-                         NULL, NULL,
+                         NULL,
+                         NULL,
                          (BYTE*) &cpu_speed,
                          &cpu_speed_size) != ERROR_SUCCESS) {
       err = uv__new_sys_error(GetLastError());
       RegCloseKey(processor_key);
-      goto out;
+      goto error;
     }
 
     if (RegQueryValueExW(processor_key,
                          L"ProcessorNameString",
-                         NULL, NULL,
+                         NULL,
+                         NULL,
                          (BYTE*) &cpu_brand,
                          &cpu_brand_size) != ERROR_SUCCESS) {
       err = uv__new_sys_error(GetLastError());
       RegCloseKey(processor_key);
-      goto out;
+      goto error;
     }
 
     RegCloseKey(processor_key);
 
-    cpu_info = &(*cpu_infos)[i];
+    cpu_info = &cpu_infos[i];
     cpu_info->speed = cpu_speed;
     cpu_info->cpu_times.user = sppi[i].UserTime.QuadPart / 10000;
     cpu_info->cpu_times.sys = (sppi[i].KernelTime.QuadPart -
@@ -673,57 +681,59 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.irq = sppi[i].InterruptTime.QuadPart / 10000;
     cpu_info->cpu_times.nice = 0;
 
-    size = uv_utf16_to_utf8(cpu_brand,
-                            cpu_brand_size / sizeof(WCHAR),
-                            NULL,
-                            0);
-    if (size == 0) {
+
+    len = WideCharToMultiByte(CP_UTF8,
+                              0,
+                              cpu_brand,
+                              cpu_brand_size / sizeof(WCHAR),
+                              NULL,
+                              0,
+                              NULL,
+                              NULL);
+    if (len == 0) {
       err = uv__new_sys_error(GetLastError());
-      goto out;
+      goto error;
     }
+
+    assert(len > 0);
 
     /* Allocate 1 extra byte for the null terminator. */
-    cpu_info->model = (char*) malloc(size + 1);
+    cpu_info->model = malloc(len + 1);
     if (cpu_info->model == NULL) {
       err = uv__new_artificial_error(UV_ENOMEM);
-      goto out;
+      goto error;
     }
 
-    if (uv_utf16_to_utf8(cpu_brand,
-                         cpu_brand_size / sizeof(WCHAR),
-                         cpu_info->model,
-                         size) == 0) {
+    if (WideCharToMultiByte(CP_UTF8,
+                            0,
+                            cpu_brand,
+                            cpu_brand_size / sizeof(WCHAR),
+                            cpu_info->model,
+                            len,
+                            NULL,
+                            NULL) == 0) {
       err = uv__new_sys_error(GetLastError());
-      goto out;
+      goto error;
     }
 
     /* Ensure that cpu_info->model is null terminated. */
-    cpu_info->model[size] = '\0';
-
-    (*count)++;
+    cpu_info->model[len] = '\0';
   }
 
-  err = uv_ok_;
+  free(sppi);
 
- out:
-  if (sppi) {
-    free(sppi);
-  }
+  *cpu_count_ptr = cpu_count;
+  *cpu_infos_ptr = cpu_infos;
 
-  if (err.code != UV_OK &&
-      *cpu_infos != NULL) {
-    int i;
+  return uv_ok_;
 
-    for (i = 0; i < *count; i++) {
-      /* This is safe because the cpu_infos memory area is zeroed out */
-      /* immediately after allocating it. */
-      free((*cpu_infos)[i].model);
-    }
-    free(*cpu_infos);
+ error:
+  /* This is safe because the cpu_infos array is zeroed on allocation. */
+  for (i = 0; i < cpu_count; i++)
+    free(cpu_infos[i].model);
 
-    *cpu_infos = NULL;
-    *count = 0;
-  }
+  free(cpu_infos);
+  free(sppi);
 
   return err;
 }

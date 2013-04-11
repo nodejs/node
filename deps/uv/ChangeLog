@@ -1,3 +1,38 @@
+2013.04.12, Version 0.10.4 (Stable)
+
+Changes since version 0.10.3:
+
+* include: update uv_backend_fd() documentation (Ben Noordhuis)
+
+* unix: include uv.h in src/version.c (Ben Noordhuis)
+
+* unix: don't write more than IOV_MAX iovecs (Fedor Indutny)
+
+* mingw-w64: don't call _set_invalid_parameter_handler (Nils Maier)
+
+* build: gyp disable thin archives (Timothy J. Fontaine)
+
+* sunos: re-export entire library when static (Timothy J. Fontaine)
+
+* unix: dtrace probes for tick-start and tick-stop (Timothy J. Fontaine)
+
+* windows: fix memory leak in fs__sendfile (Shannen Saez)
+
+* windows: remove double initialization in uv_tty_init (Shannen Saez)
+
+* build: fix dtrace-enabled out of tree build (Ben Noordhuis)
+
+* build: squelch -Wdollar-in-identifier-extension warnings (Ben Noordhuis)
+
+* inet: snprintf returns int, not size_t (Brian White)
+
+* win: refactor uv_cpu_info (Bert Belder)
+
+* build: add support for Visual Studio 2012 (Nicholas Vavilov)
+
+* build: -Wno-dollar-in-identifier-extension is clang only (Ben Noordhuis)
+
+
 2013.02.04, Version 0.10.3 (Stable)
 
 Changes since version 0.10.2:

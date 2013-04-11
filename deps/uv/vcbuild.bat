@@ -41,6 +41,14 @@ shift
 goto next-arg
 :args-done
 
+@rem Look for Visual Studio 2012
+if not defined VS110COMNTOOLS goto vc-set-2010
+if not exist "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2010
+call "%VS110COMNTOOLS%\..\..\vc\vcvarsall.bat" %vs_toolset%
+set GYP_MSVS_VERSION=2012
+goto select-target
+
+:vc-set-2010
 @rem Look for Visual Studio 2010
 if not defined VS100COMNTOOLS goto vc-set-2008
 if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto vc-set-2008

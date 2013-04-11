@@ -294,8 +294,8 @@ UV_EXTERN uint64_t uv_now(uv_loop_t*);
  * Get backend file descriptor. Only kqueue, epoll and event ports are
  * supported.
  *
- * This can be used in conjunction with uv_run_once() to poll in one thread and
- * run the event loop's event callbacks in another.
+ * This can be used in conjunction with `uv_run(loop, UV_RUN_NOWAIT)` to
+ * poll in one thread and run the event loop's event callbacks in another.
  *
  * Useful for embedding libuv's event loop in another event loop.
  * See test/test-embed.c for an example.

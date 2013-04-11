@@ -19,46 +19,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
-
- /*
- * Versions with an even minor version (e.g. 0.6.1 or 1.0.4) are API and ABI
- * stable. When the minor version is odd, the API can change between patch
- * releases.
- */
-
-#undef UV_VERSION_MAJOR   /* TODO(bnoordhuis) Remove in v0.11. */
-#undef UV_VERSION_MINOR   /* TODO(bnoordhuis) Remove in v0.11. */
-
-#define UV_VERSION_MAJOR 0
-#define UV_VERSION_MINOR 10
-#define UV_VERSION_PATCH 4
-#define UV_VERSION_IS_RELEASE 1
-
-
-#define UV_VERSION  ((UV_VERSION_MAJOR << 16) | \
-                     (UV_VERSION_MINOR <<  8) | \
-                     (UV_VERSION_PATCH))
-
-#define UV_STRINGIFY(v) UV_STRINGIFY_HELPER(v)
-#define UV_STRINGIFY_HELPER(v) #v
-
-#define UV_VERSION_STRING_BASE  UV_STRINGIFY(UV_VERSION_MAJOR) "." \
-                                UV_STRINGIFY(UV_VERSION_MINOR) "." \
-                                UV_STRINGIFY(UV_VERSION_PATCH)
-
-#if UV_VERSION_IS_RELEASE
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE
-#else
-# define UV_VERSION_STRING  UV_VERSION_STRING_BASE "-pre"
-#endif
-
-
-unsigned int uv_version(void) {
-  return UV_VERSION;
-}
-
-
-const char* uv_version_string(void) {
-  return UV_VERSION_STRING;
-}
+provider uv {
+  probe tick__start(void* loop, int mode);
+  probe tick__stop(void* loop, int mode);
+};

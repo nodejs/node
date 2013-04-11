@@ -79,12 +79,6 @@ static int error_means_no_support(DWORD error) {
 
 
 void uv_winsock_init() {
-  const GUID wsaid_connectex            = WSAID_CONNECTEX;
-  const GUID wsaid_acceptex             = WSAID_ACCEPTEX;
-  const GUID wsaid_getacceptexsockaddrs = WSAID_GETACCEPTEXSOCKADDRS;
-  const GUID wsaid_disconnectex         = WSAID_DISCONNECTEX;
-  const GUID wsaid_transmitfile         = WSAID_TRANSMITFILE;
-
   WSADATA wsa_data;
   int errorno;
   SOCKET dummy;

@@ -182,7 +182,7 @@ static int uv__bind(uv_udp_t* handle,
                     int addrsize,
                     unsigned int flags) {
   int r;
-  DWORD no = 0, yes = 1;
+  DWORD no = 0;
 
   if ((flags & UV_UDP_IPV6ONLY) && family != AF_INET6) {
     /* UV_UDP_IPV6ONLY is supported only for IPV6 sockets */
@@ -658,7 +658,6 @@ int uv_udp_set_broadcast(uv_udp_t* handle, int value) {
 int uv_udp_open(uv_udp_t* handle, uv_os_sock_t sock) {
   WSAPROTOCOL_INFOW protocol_info;
   int opt_len;
-  DWORD yes = 1;
 
   /* Detect the address family of the socket. */
   opt_len = (int) sizeof protocol_info;

@@ -54,14 +54,14 @@ uv_err_t uv_inet_ntop(int af, const void* src, char* dst, size_t size) {
 static uv_err_t inet_ntop4(const unsigned char *src, char *dst, size_t size) {
   static const char fmt[] = "%u.%u.%u.%u";
   char tmp[sizeof "255.255.255.255"];
-  size_t l;
+  int l;
 
 #ifndef _WIN32
   l = snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
 #else
   l = _snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
 #endif
-  if (l <= 0 || l >= size) {
+  if (l <= 0 || (size_t) l >= size) {
     return uv_enospc_;
   }
   strncpy(dst, tmp, size);
