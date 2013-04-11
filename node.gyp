@@ -37,6 +37,7 @@
       'lib/_http_agent.js',
       'lib/_http_common.js',
       'lib/_http_incoming.js',
+      'lib/_http_outgoing.js',
       'lib/https.js',
       'lib/module.js',
       'lib/net.js',
