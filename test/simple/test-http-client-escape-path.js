@@ -22,6 +22,7 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
+var util = require('util');
 
 first();
 
@@ -37,22 +38,38 @@ function third() {
 }
 
 function test(path, expected, next) {
-  var server = http.createServer(function(req, res) {
-    assert.equal(req.url, expected);
-    res.end('OK');
-    server.close(function() {
-      if (next) next();
+  function helper(arg, next) {
+    var server = http.createServer(function(req, res) {
+      assert.equal(req.url, expected);
+      res.end('OK');
+      server.close(next);
     });
-  });
-  server.on('clientError', function(err) {
-    throw err;
-  });
-  var options = {
-    host: '127.0.0.1',
-    port: common.PORT,
-    path: path
-  };
-  server.listen(options.port, options.host, function() {
-    http.get(options);
-  });
+    server.on('clientError', function(err) {
+      throw err;
+    });
+    server.listen(common.PORT, '127.0.0.1', function() {
+      http.get(arg);
+    });
+  }
+
+  // Go the extra mile to ensure that the behavior of
+  // http.get("http://example.com/...") matches http.get({ path: ... }).
+  test1();
+
+  function test1() {
+    console.log('as url: ' + util.inspect(path));
+    helper('http://127.0.0.1:' + common.PORT + path, test2);
+  }
+  function test2() {
+    var options = {
+      host: '127.0.0.1',
+      port: common.PORT,
+      path: path
+    };
+    console.log('as options: ' + util.inspect(options));
+    helper(options, done);
+  }
+  function done() {
+    if (next) next();
+  }
 }
