@@ -258,6 +258,7 @@ function requestDone (method, where, cb) {
 
     if (parsed && parsed.error && response.statusCode >= 400) {
       var w = url.parse(where).pathname.substr(1)
+      var name
       if (!w.match(/^-/) && parsed.error === "not_found") {
         w = w.split("/")
         name = w[w.indexOf("_rewrite") + 1]

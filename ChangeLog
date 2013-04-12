@@ -33,6 +33,39 @@
 * console: `console.dir()` bypasses inspect() methods (Nathan Rajlich)
 
 
+2013.04.11, Version 0.10.4 (Stable)
+
+* uv: Upgrade to 0.10.4
+
+* npm: Upgrade to 1.2.18
+
+* v8: Avoid excessive memory growth in JSON.parse (Fedor Indutny)
+
+* child_process, cluster: fix O(n*m) scan of cmd string (Ben Noordhuis)
+
+* net: fix socket.bytesWritten Buffers support (Fedor Indutny)
+
+* buffer: fix offset checks (Łukasz Walukiewicz)
+
+* stream: call write cb before finish event (isaacs)
+
+* http: Support write(data, 'hex') (isaacs)
+
+* crypto: dh secret should be left-padded (Fedor Indutny)
+
+* process: expose NODE_MODULE_VERSION in process.versions (Rod Vagg)
+
+* crypto: fix constructor call in crypto streams (Andreas Madsen)
+
+* net: account for encoding in .byteLength (Fedor Indutny)
+
+* net: fix buffer iteration in bytesWritten (Fedor Indutny)
+
+* crypto: zero is not an error if writing 0 bytes (Fedor Indutny)
+
+* tls: Re-enable check of CN-ID in cert verification (Tobias Müllerleile)
+
+
 2013.04.03, Version 0.10.3 (Stable), d4982f6f5e4a9a703127489a553b8d782997ea43
 
 * npm: Upgrade to 1.2.17

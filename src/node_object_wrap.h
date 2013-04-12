@@ -50,7 +50,7 @@ class NODE_EXTERN ObjectWrap {
     if (!handle_.IsEmpty()) {
       assert(handle_.IsNearDeath(node_isolate));
       handle_.ClearWeak(node_isolate);
-      handle_->SetInternalField(0, v8::Undefined());
+      handle_->SetAlignedPointerInInternalField(0, 0);
       handle_.Dispose(node_isolate);
       handle_.Clear();
     }

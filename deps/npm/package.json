@@ -1,5 +1,5 @@
 {
-  "version": "1.2.17",
+  "version": "1.2.18",
   "name": "npm",
   "publishConfig": {
     "proprietary-attribs": false
@@ -42,7 +42,7 @@
     "minimatch": "~0.2.11",
     "nopt": "~2.1.1",
     "rimraf": "2",
-    "request": "~2.9",
+    "request": "~2.16.6",
     "which": "1",
     "tar": "~0.1.17",
     "fstream": "~0.1.22",
@@ -58,7 +58,7 @@
     "chownr": "0",
     "npmlog": "0",
     "ansi": "~0.1.2",
-    "npm-registry-client": "~0.2.18",
+    "npm-registry-client": "~0.2.20",
     "read-package-json": "~0.3.0",
     "read-installed": "0",
     "glob": "~3.1.21",
