@@ -741,6 +741,17 @@ var parseTests = {
     'path': '/test',
   },
 
+  'http://x:1/\' <>"`/{}|\\^~`/': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'x:1',
+    port: '1',
+    hostname: 'x',
+    pathname: '/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E%7E%60/',
+    path: '/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E%7E%60/',
+    href: 'http://x:1/%27%20%3C%3E%22%60/%7B%7D%7C%5C%5E%7E%60/'
+  },
+
 };
 
 for (var u in parseTests) {
