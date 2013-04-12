@@ -87,8 +87,9 @@ static void uv__getaddrinfo_done(struct uv__work* w, int status) {
 #if defined(EAI_NODATA)  /* Newer FreeBSDs don't have EAI_NODATA. */
   else if (req->retcode == EAI_NODATA)
     uv__set_sys_error(req->loop, ENOENT);
-#elif defined(__sun)
-  if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN) {
+#endif
+#if defined(__sun)
+  else if (req->retcode == EAI_MEMORY && hostlen >= MAXHOSTNAMELEN)
     uv__set_sys_error(req->loop, ENOENT);
 #endif
   else {

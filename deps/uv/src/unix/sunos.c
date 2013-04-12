@@ -322,7 +322,7 @@ static void uv__fs_event_read(uv_loop_t* loop,
     if ((r == -1 && errno == ETIME) || n == 0)
       break;
 
-    handle = (uv_fs_event_t *)pe.portev_user;
+    handle = (uv_fs_event_t*) pe.portev_user;
     assert((r == 0) && "unexpected port_get() error");
 
     events = 0;
@@ -457,12 +457,12 @@ uv_err_t uv_uptime(double* uptime) {
   if ((kc = kstat_open()) == NULL)
     return uv__new_sys_error(errno);
 
-  ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_misc");
+  ksp = kstat_lookup(kc, (char*) "unix", 0, (char*) "system_misc");
 
   if (kstat_read(kc, ksp, NULL) == -1) {
     *uptime = -1;
   } else {
-    knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clk_intr");
+    knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "clk_intr");
     *uptime = knp->value.ul / hz;
   }
 
@@ -485,7 +485,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   /* Get count of cpus */
   lookup_instance = 0;
-  while ((ksp = kstat_lookup(kc, (char *)"cpu_info", lookup_instance, NULL))) {
+  while ((ksp = kstat_lookup(kc, (char*) "cpu_info", lookup_instance, NULL))) {
     lookup_instance++;
   }
 
@@ -499,18 +499,18 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   cpu_info = *cpu_infos;
   lookup_instance = 0;
-  while ((ksp = kstat_lookup(kc, (char *)"cpu_info", lookup_instance, NULL))) {
+  while ((ksp = kstat_lookup(kc, (char*) "cpu_info", lookup_instance, NULL))) {
     if (kstat_read(kc, ksp, NULL) == -1) {
       cpu_info->speed = 0;
       cpu_info->model = NULL;
     } else {
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clock_MHz");
+      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "clock_MHz");
       assert(knp->data_type == KSTAT_DATA_INT32 ||
              knp->data_type == KSTAT_DATA_INT64);
       cpu_info->speed = (knp->data_type == KSTAT_DATA_INT32) ? knp->value.i32
                                                              : knp->value.i64;
 
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"brand");
+      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "brand");
       assert(knp->data_type == KSTAT_DATA_STRING);
       cpu_info->model = strdup(KSTAT_NAMED_STR_PTR(knp));
     }
@@ -521,7 +521,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   cpu_info = *cpu_infos;
   lookup_instance = 0;
-  while ((ksp = kstat_lookup(kc, (char *)"cpu", lookup_instance, (char *)"sys"))){
+  while ((ksp = kstat_lookup(kc, (char*) "cpu", lookup_instance, (char*) "sys"))){
 
     if (kstat_read(kc, ksp, NULL) == -1) {
       cpu_info->cpu_times.user = 0;
@@ -530,19 +530,19 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
       cpu_info->cpu_times.idle = 0;
       cpu_info->cpu_times.irq = 0;
     } else {
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"cpu_ticks_user");
+      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "cpu_ticks_user");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.user = knp->value.ui64;
 
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"cpu_ticks_kernel");
+      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "cpu_ticks_kernel");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.sys = knp->value.ui64;
 
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"cpu_ticks_idle");
+      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "cpu_ticks_idle");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.idle = knp->value.ui64;
 
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"intr");
+      knp = (kstat_named_t*)  kstat_data_lookup(ksp, (char*) "intr");
       assert(knp->data_type == KSTAT_DATA_UINT64);
       cpu_info->cpu_times.irq = knp->value.ui64;
       cpu_info->cpu_times.nice = 0;
@@ -617,9 +617,15 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
     address->name = strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6 *)ent->ifa_addr);
+      address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
     } else {
-      address->address.address4 = *((struct sockaddr_in *)ent->ifa_addr);
+      address->address.address4 = *((struct sockaddr_in*) ent->ifa_addr);
+    }
+
+    if (ent->ifa_netmask->sa_family == AF_INET6) {
+      address->netmask.netmask6 = *((struct sockaddr_in6*) ent->ifa_netmask);
+    } else {
+      address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
     }
 
     address->is_internal = ent->ifa_flags & IFF_PRIVATE || ent->ifa_flags &

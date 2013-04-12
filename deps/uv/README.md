@@ -109,10 +109,14 @@ autotools, add a `AC_GNU_SOURCE` declaration to your `configure.ac`.
 ## Supported Platforms
 
 Microsoft Windows operating systems since Windows XP SP2. It can be built
-with either Visual Studio or MinGW.
+with either Visual Studio or MinGW. Consider using
+[Visual Studio Express 2010][] or later if you do not have a full Visual
+Studio license.
 
 Linux 2.6 using the GCC toolchain.
 
 MacOS using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.
+
+[Visual Studio Express 2010]: http://www.microsoft.com/visualstudio/eng/products/visual-studio-2010-express

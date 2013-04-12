@@ -33,6 +33,10 @@ RUNNER_SRC=test/runner-unix.c
 RUNNER_CFLAGS=$(CFLAGS) -I$(SRCDIR)/test
 RUNNER_LDFLAGS=-L"$(CURDIR)" -luv -Xlinker -rpath -Xlinker "$(CURDIR)"
 
+HAVE_DTRACE=
+DTRACE_OBJS=
+DTRACE_HEADER=
+
 OBJS += src/unix/async.o
 OBJS += src/unix/core.o
 OBJS += src/unix/dl.o
@@ -58,11 +62,14 @@ OBJS += src/inet.o
 OBJS += src/version.o
 
 ifeq (sunos,$(PLATFORM))
+HAVE_DTRACE=1
 CPPFLAGS += -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LDFLAGS+=-lkstat -lnsl -lsendfile -lsocket
 # Library dependencies are not transitive.
 RUNNER_LDFLAGS += $(LDFLAGS)
 OBJS += src/unix/sunos.o
+OBJS += src/unix/dtrace.o
+DTRACE_OBJS += src/unix/core.o
 endif
 
 ifeq (aix,$(PLATFORM))
@@ -72,6 +79,9 @@ OBJS += src/unix/aix.o
 endif
 
 ifeq (darwin,$(PLATFORM))
+HAVE_DTRACE=1
+# dtrace(1) probes contain dollar signs.
+CFLAGS += -Wno-dollar-in-identifier-extension
 CPPFLAGS += -D_DARWIN_USE_64_BIT_INODE=1
 LDFLAGS += -framework Foundation \
            -framework CoreServices \
@@ -96,6 +106,7 @@ OBJS += src/unix/linux-core.o \
 endif
 
 ifeq (freebsd,$(PLATFORM))
+HAVE_DTRACE=1
 LDFLAGS+=-lkvm
 OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
@@ -132,6 +143,12 @@ else
 RUNNER_LDFLAGS += -pthread
 endif
 
+ifeq ($(HAVE_DTRACE), 1)
+DTRACE_HEADER = src/unix/uv-dtrace.h
+CPPFLAGS += -Isrc/unix
+CFLAGS += -DHAVE_DTRACE
+endif
+
 libuv.a: $(OBJS)
 	$(AR) rcs $@ $^
 
@@ -152,7 +169,7 @@ src/.buildstamp src/unix/.buildstamp test/.buildstamp:
 	mkdir -p $(@D)
 	touch $@
 
-src/unix/%.o src/unix/%.pic.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h src/unix/.buildstamp
+src/unix/%.o src/unix/%.pic.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h src/unix/.buildstamp $(DTRACE_HEADER)
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 src/%.o src/%.pic.o: src/%.c include/uv.h include/uv-private/uv-unix.h src/.buildstamp
@@ -162,7 +179,16 @@ test/%.o: test/%.c include/uv.h test/.buildstamp
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 clean-platform:
-	$(RM) test/run-{tests,benchmarks}.dSYM $(OBJS) $(OBJS:%.o=%.pic.o)
+	$(RM) test/run-{tests,benchmarks}.dSYM $(OBJS) $(OBJS:%.o=%.pic.o) src/unix/uv-dtrace.h
 
 %.pic.o %.o:  %.m
 	$(OBJC) $(CPPFLAGS) $(CFLAGS) -c $^ -o $@
+
+src/unix/uv-dtrace.h: src/unix/uv-dtrace.d
+	dtrace -h -xnolibs -s $< -o $@
+
+src/unix/dtrace.o: src/unix/uv-dtrace.d $(DTRACE_OBJS)
+	dtrace -G -s $^ -o $@
+
+src/unix/dtrace.pic.o: src/unix/uv-dtrace.d $(DTRACE_OBJS:%.o=%.pic.o)
+	dtrace -G -s $^ -o $@

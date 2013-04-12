@@ -62,7 +62,6 @@ uint64_t uv__hrtime(void) {
 int uv_exepath(char* buffer, size_t* size) {
   ssize_t res;
   char pp[64], cwdl[PATH_MAX];
-  size_t cwdl_len;
   struct psinfo ps;
   int fd;
 
@@ -79,7 +78,6 @@ int uv_exepath(char* buffer, size_t* size) {
     return res;
 
   cwdl[res] = '\0';
-  cwdl_len = res;
 
   (void) snprintf(pp, sizeof(pp), "/proc/%lu/psinfo", (unsigned long) getpid());
   fd = open(pp, O_RDONLY);
@@ -364,10 +362,12 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
     address->name = strdup(p->ifr_name);
 
     if (p->ifr_addr.sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6 *)&p->ifr_addr);
+      address->address.address6 = *((struct sockaddr_in6*) &p->ifr_addr);
     } else {
-      address->address.address4 = *((struct sockaddr_in *)&p->ifr_addr);
+      address->address.address4 = *((struct sockaddr_in*) &p->ifr_addr);
     }
+
+    /* TODO: Retrieve netmask using SIOCGIFNETMASK ioctl */
 
     address->is_internal = flg.ifr_flags & IFF_LOOPBACK ? 1 : 0;
 

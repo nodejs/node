@@ -33,6 +33,7 @@
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <limits.h> /* IOV_MAX */
 
 #if defined(__APPLE__)
 # include <sys/event.h>
@@ -484,8 +485,7 @@ void uv__server_io(uv_loop_t* loop, uv__io_t* w, unsigned int events) {
   assert(stream->accepted_fd == -1);
   assert(!(stream->flags & UV_CLOSING));
 
-  if (stream->accepted_fd == -1)
-    uv__io_start(stream->loop, &stream->io_watcher, UV__POLLIN);
+  uv__io_start(stream->loop, &stream->io_watcher, UV__POLLIN);
 
   /* connection_cb can close the server socket while we're
    * in the loop so check it on each iteration.
@@ -742,6 +742,10 @@ start:
   iov = (struct iovec*) &(req->bufs[req->write_index]);
   iovcnt = req->bufcnt - req->write_index;
 
+  /* Limit iov count to avoid EINVALs from writev() */
+  if (iovcnt > IOV_MAX)
+    iovcnt = IOV_MAX;
+
   /*
    * Now do the actual writev. Note that we've been updating the pointers
    * inside the iov each time we write. So there is no need to offset it.
@@ -962,7 +966,7 @@ static void uv__read(uv_stream_t* stream) {
       msg.msg_namelen = 0;
       /* Set up to receive a descriptor even if one isn't in the message */
       msg.msg_controllen = 64;
-      msg.msg_control = (void *) cmsg_space;
+      msg.msg_control = (void*)  cmsg_space;
 
       do {
         nread = recvmsg(uv__stream_fd(stream), &msg, 0);

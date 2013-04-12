@@ -1,4 +1,13 @@
 {
+  'variables': {
+    'uv_use_dtrace%': 'false',
+    # uv_parent_path is the relative path to libuv in the parent project
+    # this is only relevant when dtrace is enabled and libuv is a child project
+    # as it's necessary to correctly locate the object files for post
+    # processing.
+    'uv_parent_path': '',
+  },
+
   'target_defaults': {
     'conditions': [
       ['OS != "win"', {
@@ -248,7 +257,17 @@
         }],
         ['library=="shared_library"', {
           'defines': [ 'BUILDING_UV_SHARED=1' ]
-        }]
+        }],
+        ['uv_use_dtrace=="true"', {
+          'defines': [ 'HAVE_DTRACE=1' ],
+          'dependencies': [ 'uv_dtrace_header' ],
+          'include_dirs': [ '<(SHARED_INTERMEDIATE_DIR)' ],
+          'conditions': [
+            ['OS != "mac"', {
+              'sources': ['src/unix/dtrace.c' ],
+            }],
+          ],
+        }],
       ]
     },
 
@@ -426,6 +445,48 @@
           'SubSystem': 1, # /subsystem:console
         },
       },
-    }
+    },
+
+    {
+      'target_name': 'uv_dtrace_header',
+      'type': 'none',
+      'conditions': [
+        [ 'uv_use_dtrace=="true"', {
+          'actions': [
+            {
+              'action_name': 'uv_dtrace_header',
+              'inputs': [ 'src/unix/uv-dtrace.d' ],
+              'outputs': [ '<(SHARED_INTERMEDIATE_DIR)/uv-dtrace.h' ],
+              'action': [ 'dtrace', '-h', '-xnolibs', '-s', '<@(_inputs)',
+                '-o', '<@(_outputs)' ],
+            },
+          ],
+        }],
+      ],
+    },
+
+    {
+      'target_name': 'uv_dtrace_provider',
+      'type': 'none',
+      'conditions': [
+        [ 'uv_use_dtrace=="true" and OS!="mac"', {
+          'actions': [
+            {
+              'action_name': 'uv_dtrace_o',
+              'inputs': [
+                'src/unix/uv-dtrace.d',
+                '<(PRODUCT_DIR)/obj.target/libuv/<(uv_parent_path)/src/unix/core.o',
+              ],
+              'outputs': [
+                '<(PRODUCT_DIR)/obj.target/libuv/<(uv_parent_path)/src/unix/dtrace.o',
+              ],
+              'action': [ 'dtrace', '-G', '-xnolibs', '-s', '<@(_inputs)',
+                '-o', '<@(_outputs)' ]
+            }
+          ]
+        } ]
+      ]
+    },
+
   ]
 }

@@ -688,9 +688,15 @@ uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
     address->name = strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
-      address->address.address6 = *((struct sockaddr_in6 *)ent->ifa_addr);
+      address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
     } else {
-      address->address.address4 = *((struct sockaddr_in *)ent->ifa_addr);
+      address->address.address4 = *((struct sockaddr_in*) ent->ifa_addr);
+    }
+
+    if (ent->ifa_netmask->sa_family == AF_INET6) {
+      address->netmask.netmask6 = *((struct sockaddr_in6*) ent->ifa_netmask);
+    } else {
+      address->netmask.netmask4 = *((struct sockaddr_in*) ent->ifa_netmask);
     }
 
     address->is_internal = ent->ifa_flags & IFF_LOOPBACK ? 1 : 0;

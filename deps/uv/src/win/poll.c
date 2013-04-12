@@ -311,21 +311,13 @@ static SOCKET uv__fast_poll_get_peer_socket(uv_loop_t* loop,
 static DWORD WINAPI uv__slow_poll_thread_proc(void* arg) {
   uv_req_t* req = (uv_req_t*) arg;
   uv_poll_t* handle = (uv_poll_t*) req->data;
-  unsigned char events, reported_events;
+  unsigned char reported_events;
   int r;
   uv_single_fd_set_t rfds, wfds, efds;
   struct timeval timeout;
 
   assert(handle->type == UV_POLL);
   assert(req->type == UV_POLL_REQ);
-
-  if (req == &handle->poll_req_1) {
-    events = handle->submitted_events_1;
-  } else if (req == &handle->poll_req_2) {
-    events = handle->submitted_events_2;
-  } else {
-    assert(0);
-  }
 
   if (handle->events & UV_READABLE) {
     rfds.fd_count = 1;

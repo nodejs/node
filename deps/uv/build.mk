@@ -160,5 +160,5 @@ bench: run-benchmarks$(E)
 clean distclean: clean-platform
 	$(RM) libuv.a libuv.$(SOEXT) \
 		test/run-tests.o test/run-benchmarks.o \
-		test/run-tests$(E) test/run-benchmarks$(E) \
+		test/runner.o run-tests$(E) test/run-benchmarks$(E) \
 		$(BENCHMARKS) $(TESTS) $(RUNNER_LIBS)

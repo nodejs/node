@@ -26,8 +26,8 @@
 
 
 #define WRITES            3
-#define CHUNKS_PER_WRITE  3
-#define CHUNK_SIZE        10485760 /* 10 MB */
+#define CHUNKS_PER_WRITE  4096
+#define CHUNK_SIZE        10024 /* 10 kb */
 
 #define TOTAL_BYTES       (WRITES * CHUNKS_PER_WRITE * CHUNK_SIZE)
 

@@ -1,3 +1,41 @@
+2013.04.11, Version 0.11.1 (Unstable)
+
+This is the first versioned release from the current unstable libuv branch.
+
+Changes since Node.js v0.11.0:
+
+* all platforms: nanosecond resolution support for uv_fs_[fl]stat (Timothy J.
+  Fontaine)
+
+* all platforms: add netmask to uv_interface_address (Ben Kelly)
+
+* unix: make sure the `status` parameter passed to the `uv_getaddrinfo` is 0 or
+  -1 (Ben Noordhuis)
+
+* unix: limit the number of iovecs written in a single `writev` syscall to
+  IOV_MAX (Fedor Indutny)
+
+* unix: add dtrace probes for tick-start and tick-stop (Timothy J. Fontaine)
+
+* mingw-w64: don't call _set_invalid_parameter_handler (Nils Maier)
+
+* windows: fix memory leak in fs__sendfile (Shannen Saez)
+
+* windows: fix edge case bugs in uv_cpu_info (Bert Belder)
+
+* include: no longer ship with / include ngx-queue.h (Ben Noordhuis)
+
+* include: remove UV_VERSION_* macros from uv.h (Ben Noordhuis)
+
+* documentation updates (Kristian Evensen, Ben Kelly, Ben Noordhuis)
+
+* build: fix dtrace-enabled builds (Ben Noordhuis, Timothy J. Fontaine)
+
+* build: gyp disable thin archives (Timothy J. Fontaine)
+
+* build: add support for Visual Studio 2012 (Nicholas Vavilov)
+
+
 2013.02.04, Version 0.10.3 (Stable)
 
 Changes since version 0.10.2:
