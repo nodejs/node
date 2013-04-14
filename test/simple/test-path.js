@@ -351,6 +351,23 @@ resolveTests.forEach(function(test) {
 });
 assert.equal(failures.length, 0, failures.join(''));
 
+// path.isAbsolute tests
+if (isWindows) {
+  assert.equal(path.isAbsolute('//server/file'), true);
+  assert.equal(path.isAbsolute('\\\\server\\file'), true);
+  assert.equal(path.isAbsolute('C:/Users/'), true);
+  assert.equal(path.isAbsolute('C:\\Users\\'), true);
+  assert.equal(path.isAbsolute('C:cwd/another'), false);
+  assert.equal(path.isAbsolute('C:cwd\\another'), false);
+  assert.equal(path.isAbsolute('directory/directory'), false);
+  assert.equal(path.isAbsolute('directory\\directory'), false);
+} else {
+  assert.equal(path.isAbsolute('/home/foo'), true);
+  assert.equal(path.isAbsolute('/home/foo/..'), true);
+  assert.equal(path.isAbsolute('bar/'), false);
+  assert.equal(path.isAbsolute('./baz'), false);
+}
+
 // path.relative tests
 if (isWindows) {
   // windows
