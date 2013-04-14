@@ -495,6 +495,17 @@ programs.  However, you **are** expected to override this method in
 your own extension classes.
 
 
+### writable.\_writev(chunks, callback)
+
+* `chunks` {Array} The chunks to be written, each chunk should have following
+  format: `{ chunk: ..., encoding: ... }`.
+* `callback` {Function} Call this function (optionally with an error
+  argument) when you are done processing the supplied chunks.
+
+NOTE: This function is completely optional to implement. Even more, in the most
+of the cases you won't need it.
+
+
 ### writable.write(chunk, [encoding], [callback])
 
 * `chunk` {Buffer | String} Data to be written
@@ -511,6 +522,16 @@ the buffer is full, and the data will be sent out in the future. The
 
 The specifics of when `write()` will return false, is determined by
 the `highWaterMark` option provided to the constructor.
+
+### writable.cork()
+
+Forces buffering of all writes.
+
+NOTE: buffered data will be flushed either at `.uncork()` or at `.end()` call.
+
+### writable.uncork()
+
+Flush all data, buffered since `.cork()` call.
 
 ### writable.end([chunk], [encoding], [callback])
 
