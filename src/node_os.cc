@@ -39,6 +39,11 @@
 # include <sys/utsname.h>
 #endif
 
+// Add Windows fallback.
+#ifndef MAXHOSTNAMELEN
+# define MAXHOSTNAMELEN 256
+#endif
+
 namespace node {
 
 using namespace v8;
@@ -62,6 +67,7 @@ static Handle<Value> GetHostname(const Arguments& args) {
     return ThrowException(ErrnoException(WSAGetLastError(), "gethostname"));
 #endif // __MINGW32__
   }
+  buf[sizeof(buf) - 1] = '\0';
 
   return scope.Close(String::New(buf));
 }
