@@ -69,14 +69,11 @@ static Handle<Value> GetOSType(const Arguments& args) {
   HandleScope scope;
 
 #ifdef __POSIX__
-  char type[256];
   struct utsname info;
-
-  uname(&info);
-  strncpy(type, info.sysname, strlen(info.sysname));
-  type[strlen(info.sysname)] = 0;
-
-  return scope.Close(String::New(type));
+  if (uname(&info)) {
+    return ThrowException(ErrnoException(errno, "uname"));
+  }
+  return scope.Close(String::New(info.sysname));
 #else // __MINGW32__
   return scope.Close(String::New("Windows_NT"));
 #endif
