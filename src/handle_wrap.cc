@@ -55,8 +55,10 @@ Handle<Value> HandleWrap::Ref(const Arguments& args) {
 
   UNWRAP(HandleWrap)
 
-  uv_ref(wrap->handle__);
-  wrap->unref_ = false;
+  if (wrap != NULL && wrap->handle__ != NULL) {
+    uv_ref(wrap->handle__);
+    wrap->unref_ = false;
+  }
 
   return v8::Undefined();
 }
@@ -67,8 +69,10 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
 
   UNWRAP(HandleWrap)
 
-  uv_unref(wrap->handle__);
-  wrap->unref_ = true;
+  if (wrap != NULL && wrap->handle__ != NULL) {
+    uv_unref(wrap->handle__);
+    wrap->unref_ = true;
+  }
 
   return v8::Undefined();
 }
