@@ -464,6 +464,8 @@ def configure_node(o):
   # SunOS, and we haven't implemented it.)
   if sys.platform.startswith('sunos') or sys.platform.startswith('darwin'):
     o['variables']['node_use_dtrace'] = b(not options.without_dtrace)
+    o['variables']['uv_use_dtrace'] = o['variables']['node_use_dtrace']
+    o['variables']['uv_parent_path'] = '/deps/uv/'
   elif sys.platform.startswith('linux'):
     o['variables']['node_use_dtrace'] = 'false'
     o['variables']['node_use_systemtap'] = b(options.with_dtrace)

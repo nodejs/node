@@ -430,13 +430,14 @@
             {
               'action_name': 'node_dtrace_provider_o',
               'inputs': [
-                'src/node_provider.d',
-                '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace.o'
+                '<(PRODUCT_DIR)/obj.target/libuv/deps/uv/src/unix/core.o',
+                '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace.o',
               ],
               'outputs': [
                 '<(PRODUCT_DIR)/obj.target/node/src/node_dtrace_provider.o'
               ],
-              'action': [ 'dtrace', '-G', '-xnolibs', '-s', '<@(_inputs)',
+              'action': [ 'dtrace', '-G', '-xnolibs', '-s', 'src/node_provider.d',
+                '-s', 'deps/uv/src/unix/uv-dtrace.d', '<@(_inputs)',
                 '-o', '<@(_outputs)' ]
             }
           ]
